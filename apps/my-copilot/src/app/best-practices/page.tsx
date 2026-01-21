@@ -1103,6 +1103,37 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                     .
                   </BodyShort>
                 </Box>
+
+                {/* Spec Kit */}
+                <Box background="surface-success-subtle" padding="space-12" borderRadius="medium" className="mt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileTextIcon className="text-green-700" aria-hidden />
+                    <BodyShort weight="semibold" className="text-green-700 text-sm">
+                      Spec Kit – Strukturert planlegging
+                    </BodyShort>
+                  </div>
+                  <BodyShort className="text-gray-600 text-xs mb-2">
+                    GitHubs offisielle verktøy for &quot;Spec-Driven Development&quot;. Skriv spesifikasjoner først, la
+                    Copilot implementere. Støtter slash-commands:
+                  </BodyShort>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <code className="text-xs bg-white px-2 py-1 rounded">/speckit.specify</code>
+                    <code className="text-xs bg-white px-2 py-1 rounded">/speckit.plan</code>
+                    <code className="text-xs bg-white px-2 py-1 rounded">/speckit.tasks</code>
+                    <code className="text-xs bg-white px-2 py-1 rounded">/speckit.implement</code>
+                  </div>
+                  <BodyShort className="text-gray-500 text-xs">
+                    Installer: <code className="bg-white px-1 rounded">specify init my-project --ai copilot</code> –{" "}
+                    <a
+                      href="https://github.com/github/spec-kit"
+                      className="text-blue-600 hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      github/spec-kit
+                    </a>
+                  </BodyShort>
+                </Box>
               </div>
 
               {/* Strategy 4: Context */}
@@ -1730,7 +1761,158 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
             </Box>
           </Box>
 
-          {/* 8. Vanlige mønstre */}
+          {/* 8. Verifisering */}
+          <Box
+            background="surface-subtle"
+            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
+            borderRadius="large"
+          >
+            <Heading size="large" level="2" className="mb-4">
+              Verifisering – Nøkkelen til Kvalitet
+            </Heading>
+            <BodyShort className="text-gray-600 mb-6">
+              &quot;Gi Copilot en måte å verifisere arbeidet sitt – dette 2-3x kvaliteten.&quot; En god plan er viktig,
+              men verifisering er det som sikrer at resultatet faktisk fungerer.
+            </BodyShort>
+
+            <HGrid columns={{ xs: 1, md: 2 }} gap="4" className="mb-6">
+              <Box
+                background="surface-success-subtle"
+                padding="space-16"
+                borderRadius="medium"
+                className="border-l-4 border-green-600"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <TestFlaskIcon className="text-green-700" aria-hidden />
+                  <Heading size="small" level="3" className="text-green-700">
+                    Be om tester i prompten
+                  </Heading>
+                </div>
+                <BodyShort className="text-gray-600 text-sm mb-2">Inkluder testing som del av oppgaven:</BodyShort>
+                <Box background="surface-default" padding="space-8" borderRadius="small">
+                  <code className="text-xs block whitespace-pre-wrap">
+                    {`Lag en funksjon som validerer
+norske fødselsnumre.
+
+Skriv enhetstester og kjør dem
+før du anser oppgaven som ferdig.`}
+                  </code>
+                </Box>
+              </Box>
+
+              <Box
+                background="surface-info-subtle"
+                padding="space-16"
+                borderRadius="medium"
+                className="border-l-4 border-blue-600"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <MagnifyingGlassIcon className="text-blue-700" aria-hidden />
+                  <Heading size="small" level="3" className="text-blue-700">
+                    La Copilot reviewe seg selv
+                  </Heading>
+                </div>
+                <BodyShort className="text-gray-600 text-sm mb-2">Etter implementering, be om selvreview:</BodyShort>
+                <Box background="surface-default" padding="space-8" borderRadius="small">
+                  <code className="text-xs block whitespace-pre-wrap">
+                    {`Review koden du nettopp skrev.
+Sjekk for:
+- Bugs og edge cases
+- Sikkerhetsrisikoer
+- Brudd på kodestil`}
+                  </code>
+                </Box>
+              </Box>
+            </HGrid>
+
+            {/* Knip tool */}
+            <Box
+              background="surface-warning-subtle"
+              padding={{ xs: "space-12", sm: "space-16" }}
+              borderRadius="medium"
+              className="mb-6"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <CogIcon className="text-orange-700" aria-hidden />
+                <Heading size="small" level="3" className="text-orange-700">
+                  Knip – Rydd opp etter Copilot
+                </Heading>
+              </div>
+              <BodyShort className="text-gray-600 text-sm mb-3">
+                Copilot kan etterlate ubrukt kode, avhengigheter og exports. Knip finner og fjerner dette automatisk.
+                Brukes av Vercel, Anthropic, Cloudflare og TanStack.
+              </BodyShort>
+              <HGrid columns={{ xs: 1, sm: 2 }} gap="4">
+                <div>
+                  <BodyShort weight="semibold" className="text-sm">
+                    Installer og kjør
+                  </BodyShort>
+                  <Box background="surface-default" padding="space-8" borderRadius="small" className="mt-1">
+                    <code className="text-xs block">npx knip</code>
+                  </Box>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-sm">
+                    Hva Knip finner
+                  </BodyShort>
+                  <ul className="text-xs text-gray-600 mt-1 space-y-1">
+                    <li>• Ubrukte filer og exports</li>
+                    <li>• Ubrukte npm-avhengigheter</li>
+                    <li>• Ubrukte typer og interfaces</li>
+                  </ul>
+                </div>
+              </HGrid>
+              <BodyShort className="text-gray-500 text-xs mt-3">
+                &quot;Knip helped us delete ~300k lines of unused code at Vercel.&quot; –{" "}
+                <a
+                  href="https://knip.dev/"
+                  className="text-blue-600 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  knip.dev
+                </a>
+              </BodyShort>
+            </Box>
+
+            {/* Verification checklist */}
+            <Box background="surface-action-subtle" padding="space-16" borderRadius="medium">
+              <div className="flex items-center gap-2 mb-3">
+                <TasklistIcon className="text-blue-600" aria-hidden />
+                <Heading size="small" level="3">
+                  Verifiseringssjekkliste
+                </Heading>
+              </div>
+              <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="3">
+                <div>
+                  <BodyShort weight="semibold" className="text-sm">
+                    1. Tester
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Kjør testsuiten, sjekk coverage</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-sm">
+                    2. Linting
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">ESLint, TypeScript, Prettier</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-sm">
+                    3. Knip
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Fjern ubrukt kode og deps</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-sm">
+                    4. Manuell test
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Test i browser/preview</BodyShort>
+                </div>
+              </HGrid>
+            </Box>
+          </Box>
+
+          {/* 9. Vanlige mønstre */}
           <Box
             background="surface-subtle"
             padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
@@ -1983,6 +2165,17 @@ description: Skriver tester for dette prosjektet
                   <li className="flex gap-2">
                     <span className="text-green-600">▪</span>
                     <a
+                      href="https://github.com/github/spec-kit"
+                      className="text-green-600 hover:underline text-sm"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Spec Kit – GitHubs offisielle verktøy for Spec-Driven Development (60k+ ⭐)
+                    </a>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-green-600">▪</span>
+                    <a
                       href="https://github.com/anthropics/skills"
                       className="text-green-600 hover:underline text-sm"
                       target="_blank"
@@ -2000,6 +2193,39 @@ description: Skriver tester for dette prosjektet
                       rel="noopener noreferrer"
                     >
                       GitHub Blog – Copilot-artikler
+                    </a>
+                  </li>
+                </ul>
+              </Box>
+
+              <Box background="surface-neutral-subtle" padding="space-16" borderRadius="medium">
+                <div className="flex items-center gap-2 mb-2">
+                  <CogIcon className="text-gray-600" aria-hidden />
+                  <Heading size="small" level="3">
+                    Verifiseringsverktøy
+                  </Heading>
+                </div>
+                <ul className="space-y-2">
+                  <li className="flex gap-2">
+                    <span className="text-gray-600">▪</span>
+                    <a
+                      href="https://knip.dev/"
+                      className="text-gray-600 hover:underline text-sm"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Knip – Finn ubrukt kode, deps og exports i JS/TS-prosjekter
+                    </a>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-gray-600">▪</span>
+                    <a
+                      href="https://knip.dev/blog/for-editors-and-agents"
+                      className="text-gray-600 hover:underline text-sm"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Knip for Editors & Agents – Integrasjon med AI-verktøy
                     </a>
                   </li>
                 </ul>
