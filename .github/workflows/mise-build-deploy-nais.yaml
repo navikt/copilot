@@ -318,7 +318,7 @@ jobs:
       telemetry: ${{ steps.docker-push.outputs.telemetry }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v4
-      - uses: nais/docker-build-push@791ebb6f74b82849c742a9bc9c97abe44c6c111f # ratchet:nais/docker-build-push@v0
+      - uses: nais/docker-build-push@87f920b0411b987d9a1fd4113aa384e1e3b54f2c # ratchet:nais/docker-build-push@v0
         id: docker-push
         with:
           team: ${{ inputs.nais-team }}
