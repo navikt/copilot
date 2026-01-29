@@ -371,7 +371,7 @@ jobs:
 
   deploy-pr:
     name: Deploy PR to dev
-    if: ${{ inputs.deploy-pr-to-dev && github.event_name == 'pull_request' }}
+    if: ${{ inputs.deploy-pr-to-dev && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
