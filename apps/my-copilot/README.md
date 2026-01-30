@@ -11,6 +11,9 @@ My Copilot is a self-service tool for managing your GitHub Copilot subscription.
 ## Integrations
 
 - **GitHub API**: Interacts with the GitHub API to manage Copilot subscriptions and retrieve user details.
+  - Uses GitHub Copilot Metrics API (`/orgs/{org}/copilot/metrics`) for usage analytics
+  - Uses GitHub Copilot User Management API for seat assignments and billing
+  - All API requests include `X-GitHub-Api-Version: 2022-11-28` header for stability
 - **Azure AD**: Uses Azure AD for authentication and authorization, ensuring that only authorized users can access the application.
 - **Next.js**: Built with Next.js for server-side rendering and optimized performance.
 - **Tailwind CSS**: Utilizes Tailwind CSS for styling the application.
