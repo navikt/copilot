@@ -1,27 +1,71 @@
 version: 2
 updates:
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
+      time: "06:00"
+      timezone: "Europe/Oslo"
     groups:
-      gha:
+      github-actions:
         patterns:
           - "*"
-    cooldown:
-      default-days: 7
+    open-pull-requests-limit: 5
 
+  # my-copilot (Next.js)
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/apps/my-copilot"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      day: "tuesday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
     groups:
-      npm:
+      nextjs-core:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+      navikt:
+        patterns:
+          - "@navikt/*"
+      dev-dependencies:
+        dependency-type: "development"
+      production-dependencies:
+        dependency-type: "production"
+        exclude-patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@navikt/*"
+    open-pull-requests-limit: 5
+
+  # mcp-onboarding (Go)
+  - package-ecosystem: "gomod"
+    directory: "/apps/mcp-onboarding"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    groups:
+      go-dependencies:
         patterns:
           - "*"
-    cooldown:
-      default-days: 7
+    open-pull-requests-limit: 5
+
+  # mcp-registry (Go)
+  - package-ecosystem: "gomod"
+    directory: "/apps/mcp-registry"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
