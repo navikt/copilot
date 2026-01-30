@@ -112,6 +112,9 @@ export async function getCopilotBilling(org: string): Promise<{ billing: Copilot
   try {
     const { data } = await octokit.request("GET /orgs/{org}/copilot/billing", {
       org,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
     });
 
     return { billing: data, error: null };
@@ -147,6 +150,9 @@ export async function getCopilotSeat(
     const { data } = await octokit.request("GET /orgs/{org}/members/{username}/copilot", {
       org,
       username,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
     });
     return { copilot: data, error: null };
   } catch (error) {
@@ -170,6 +176,9 @@ export async function assignUserToCopilot(
         selected_usernames: [username],
       },
       selected_usernames: [],
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
     });
     return { seats_created: data.seats_created, error: null };
   } catch (error) {
@@ -188,6 +197,9 @@ export async function unassignUserFromCopilot(
         selected_usernames: [username],
       },
       selected_usernames: [],
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
     });
     return { seats_cancelled: data.seats_cancelled, error: null };
   } catch (error) {
@@ -300,6 +312,9 @@ export async function getCopilotUsage(org: string): Promise<{ usage: CopilotMetr
   try {
     const { data } = await octokit.request("GET /orgs/{org}/copilot/metrics", {
       org,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
     });
 
     return { usage: data, error: null };
