@@ -307,7 +307,7 @@ jobs:
 
   docker:
     name: Build Docker Image
-    if: ${{ inputs.builds-docker }}
+    if: ${{ inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
     permissions:
       contents: read
       id-token: write
@@ -324,7 +324,7 @@ jobs:
           team: ${{ inputs.nais-team }}
           tag: ${{ needs.meta.outputs.version }}
           image_suffix: ${{ needs.meta.outputs.name }}
-          push_image: ${{ github.ref == 'refs/heads/main' || (inputs.deploy-pr-to-dev && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
+          push_image: ${{ github.ref == 'refs/heads/main' || (inputs.deploy-pr-to-dev && github.event_name == 'pull_request') }}
           dockerfile: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.dockerfile-path) || inputs.dockerfile-path }}
           docker_context: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.docker-context) || inputs.docker-context }}
           cache_from: type=gha
