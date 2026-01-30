@@ -324,7 +324,7 @@ jobs:
           team: ${{ inputs.nais-team }}
           tag: ${{ needs.meta.outputs.version }}
           image_suffix: ${{ needs.meta.outputs.name }}
-          push_image: ${{ github.ref == 'refs/heads/main' || (inputs.deploy-pr-to-dev && github.event_name == 'pull_request') }}
+          push_image: ${{ github.ref == 'refs/heads/main' || (inputs.deploy-pr-to-dev && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
           dockerfile: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.dockerfile-path) || inputs.dockerfile-path }}
           docker_context: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.docker-context) || inputs.docker-context }}
           cache_from: type=gha
