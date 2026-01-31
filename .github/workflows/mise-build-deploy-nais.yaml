@@ -135,7 +135,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # ratchet:jdx/mise-action@v2
+      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # ratchet:jdx/mise-action@v2
         with:
           experimental: true
       - id: version
@@ -166,7 +166,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v4
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -174,21 +174,21 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         if: hashFiles('**/pnpm-lock.yaml') != ''
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         if: hashFiles('**/package-lock.json') != ''
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # ratchet:jdx/mise-action@v2
+      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # ratchet:jdx/mise-action@v2
         with:
           experimental: true
       - name: Run setup tasks
@@ -216,7 +216,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v4
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -224,21 +224,21 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         if: hashFiles('**/pnpm-lock.yaml') != ''
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         if: hashFiles('**/package-lock.json') != ''
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # ratchet:jdx/mise-action@v2
+      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # ratchet:jdx/mise-action@v2
         with:
           experimental: true
       - name: Run setup tasks
@@ -267,7 +267,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v4
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -275,21 +275,21 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         if: hashFiles('**/pnpm-lock.yaml') != ''
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # ratchet:actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # ratchet:actions/cache@v4
         if: hashFiles('**/package-lock.json') != ''
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # ratchet:jdx/mise-action@v2
+      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # ratchet:jdx/mise-action@v2
         with:
           experimental: true
       - name: Run setup tasks
