@@ -10,10 +10,10 @@ importers:
     dependencies:
       '@grafana/faro-web-sdk':
         specifier: ^2.2.1
-        version: 2.2.1
+        version: 2.2.2
       '@grafana/faro-web-tracing':
         specifier: ^2.2.1
-        version: 2.2.1
+        version: 2.2.2
       '@headlessui/react':
         specifier: ^2.2.9
         version: 2.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -71,7 +71,7 @@ importers:
         version: 19.2.3(@types/react@19.2.10)
       autoprefixer:
         specifier: ^10.4.23
-        version: 10.4.23(postcss@8.5.6)
+        version: 10.4.24(postcss@8.5.6)
       eslint:
         specifier: ^9.39.2
         version: 9.39.2(jiti@2.6.1)
@@ -354,14 +354,14 @@ packages:
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
 
-  '@grafana/faro-core@2.2.1':
-    resolution: {integrity: sha512-NG3K9XHap9i4slFIsuZpC4qfuzwzcRHWGZY/A+Kqqt2fyBey1kYjDmqLqw5kewL8JL2ZvJWUILLSOXXofM4yCg==}
+  '@grafana/faro-core@2.2.2':
+    resolution: {integrity: sha512-H6j9lSWvbYSDD2bHH3F6z5IOnHgK6qA4Scy36i0dGbB0pptU0SbOClq6HAOGqK1yIcZ73XesJH6hEeGjfrckEg==}
 
-  '@grafana/faro-web-sdk@2.2.1':
-    resolution: {integrity: sha512-BwzPyH/2VLkPTmmEcMVyVXtCk4yMN6Baw0oEQycEglxiB3dxLusgvqH2ukgXDrECGj1oBS+wPjJ++Qpf7ykuFg==}
+  '@grafana/faro-web-sdk@2.2.2':
+    resolution: {integrity: sha512-WFkC23pXbBYUbyfAB2QHXob/HJnX/dfBQyAjVsEpnDpY3COrH41Ry1WSbH8WKsc+7YSFOYi4sYdmAOkRs9h7ZA==}
 
-  '@grafana/faro-web-tracing@2.2.1':
-    resolution: {integrity: sha512-2BjGXEJYsVOgfeYKxlWfdG3ql1exWDmOhxzHB/gsV4YVRc7zj+LI72E+Dflic6e0x7zbEvHhGV+FwB5GdPaDkw==}
+  '@grafana/faro-web-tracing@2.2.2':
+    resolution: {integrity: sha512-C72ahiM+mMRRTCEJlvTTMKppe38g1NdLAE1FBezc+KP978wZChBhddl67T+KBq5rCYNtMMaMIFh3XbuW7jvgGQ==}
 
   '@headlessui/react@2.2.9':
     resolution: {integrity: sha512-Mb+Un58gwBn0/yWZfyrCh0TJyurtT+dETj7YHleylHk5od3dv2XqETPGWMyQ5/7sYN7oWdyM1u9MvC0OC8UmzQ==}
@@ -643,20 +643,23 @@ packages:
     resolution: {integrity: sha512-p64ah1M1ld8xjWv3qbvFwHiFVWrq1yFvV4f7w+mzaqiR4IlSgkqhcRdHwsGgomwzBH51sRY4NEowLxnaBjcW/A==}
 
   '@navikt/aksel-icons@8.2.0':
-    resolution: {integrity: sha512-oDNNNyafke41foUxHC7cDODXz3Lrx9GberqCU0ia5MdZsMWPnHwGd+jIyP7DT9UNTAxMUMpZ/kqq173g8ECyEw==, tarball: https://npm.pkg.github.com/download/@navikt/aksel-icons/8.2.0/815b0ce71ba251f4443c3677106887ea2a70ad3d}
+    resolution: {integrity: sha512-oDNNNyafke41foUxHC7cDODXz3Lrx9GberqCU0ia5MdZsMWPnHwGd+jIyP7DT9UNTAxMUMpZ/kqq173g8ECyEw==}
 
   '@navikt/ds-css@8.2.0':
-    resolution: {integrity: sha512-cPlUu16bCNgfRTyQUeBBJr7DSwz2546j9KpHoMfZeDC8e4utLSzzs6vqOPBjuOOXwlhM79zFI+NyccaxtO50Qw==, tarball: https://npm.pkg.github.com/download/@navikt/ds-css/8.2.0/b8e8326ecf70d2dd9fcaeddaabaf8c37a906c6ef}
+    resolution: {integrity: sha512-cPlUu16bCNgfRTyQUeBBJr7DSwz2546j9KpHoMfZeDC8e4utLSzzs6vqOPBjuOOXwlhM79zFI+NyccaxtO50Qw==}
 
   '@navikt/ds-react@8.2.0':
-    resolution: {integrity: sha512-3UzZ7B2OBEWXQvrPaqiTSkFB1amduonwVm5hEgLN4HcHDLsoM2zqy8sewC2iFDXJDKUI0M27NoK41qlQ+H5rTQ==, tarball: https://npm.pkg.github.com/download/@navikt/ds-react/8.2.0/3796f65287a19791d516cac0d6df69e0ce1118a4}
+    resolution: {integrity: sha512-3UzZ7B2OBEWXQvrPaqiTSkFB1amduonwVm5hEgLN4HcHDLsoM2zqy8sewC2iFDXJDKUI0M27NoK41qlQ+H5rTQ==}
     peerDependencies:
       '@types/react': ^17.0.30 || ^18 || ^19
       react: ^17 || ^18 || ^19
       react-dom: ^17 || ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   '@navikt/ds-tokens@8.2.0':
-    resolution: {integrity: sha512-CAwLOrlHpvAOo0VUpyTdH4NPxrDVdQ/D9Vs2UrD3bqwjaEqm5GShM7zrIyPlraSo0y2+KX94Y3BLhs+mypqaHA==, tarball: https://npm.pkg.github.com/download/@navikt/ds-tokens/8.2.0/5e15fcf3bffb277f8730edb0c033ee289d2798e4}
+    resolution: {integrity: sha512-CAwLOrlHpvAOo0VUpyTdH4NPxrDVdQ/D9Vs2UrD3bqwjaEqm5GShM7zrIyPlraSo0y2+KX94Y3BLhs+mypqaHA==}
 
   '@next/env@16.1.6':
     resolution: {integrity: sha512-N1ySLuZjnAtN3kFnwhAwPvZah8RJxKasD7x1f8shFqhncnWZn4JMfg37diLNuoHsLAlrDfM3g4mawVdtAG8XLQ==}
@@ -1493,8 +1496,8 @@ packages:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
     engines: {node: '>=8.0.0'}
 
-  autoprefixer@10.4.23:
-    resolution: {integrity: sha512-YYTXSFulfwytnjAPlw8QHncHJmlvFKtczb8InXaAx9Q0LbfDnfEYDE55omerIJKihhmU61Ft+cAOSzQVaBUmeA==}
+  autoprefixer@10.4.24:
+    resolution: {integrity: sha512-uHZg7N9ULTVbutaIsDRoUkoS8/h3bdsmVJYZ5l3wv8Cp/6UIIoRDm90hZ+BwxUj/hGBEzLxdHNSKuFpn8WOyZw==}
     engines: {node: ^10 || ^12 || >=14}
     hasBin: true
     peerDependencies:
@@ -2063,8 +2066,8 @@ packages:
     resolution: {integrity: sha512-w9UMqWwJxHNOvoNzSJ2oPF5wvYcvP7jUvYzhp67yEhTi17ZDBBC1z9pTdGuzjD+EFIqLSYRweZjqfiPzQ06Ebg==}
     engines: {node: '>= 0.4'}
 
-  get-tsconfig@4.13.0:
-    resolution: {integrity: sha512-1VKTZJCwBrvbd+Wn3AOgQP/2Av+TfTCOlE4AcRJE72W1ksZXbAx8PPBR9RzgTeSPzlPMHrbANMH3LbltH73wxQ==}
+  get-tsconfig@4.13.1:
+    resolution: {integrity: sha512-EoY1N2xCn44xU6750Sx7OjOIT59FkmstNc3X6y5xpz7D5cBtZRe/3pSlTkDJgqsOk3WwZPkWfonhhUJfttQo3w==}
 
   glob-parent@5.1.2:
     resolution: {integrity: sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==}
@@ -3779,20 +3782,20 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@grafana/faro-core@2.2.1':
+  '@grafana/faro-core@2.2.2':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/otlp-transformer': 0.211.0(@opentelemetry/api@1.9.0)
 
-  '@grafana/faro-web-sdk@2.2.1':
+  '@grafana/faro-web-sdk@2.2.2':
     dependencies:
-      '@grafana/faro-core': 2.2.1
+      '@grafana/faro-core': 2.2.2
       ua-parser-js: 1.0.41
       web-vitals: 5.1.0
 
-  '@grafana/faro-web-tracing@2.2.1':
+  '@grafana/faro-web-tracing@2.2.2':
     dependencies:
-      '@grafana/faro-web-sdk': 2.2.1
+      '@grafana/faro-web-sdk': 2.2.2
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.5.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/exporter-trace-otlp-http': 0.211.0(@opentelemetry/api@1.9.0)
@@ -4167,11 +4170,12 @@ snapshots:
       '@floating-ui/react-dom': 2.1.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@navikt/aksel-icons': 8.2.0
       '@navikt/ds-tokens': 8.2.0
-      '@types/react': 19.2.10
       date-fns: 4.1.0
       react: 19.2.4
       react-day-picker: 9.7.0(react@19.2.4)
       react-dom: 19.2.4(react@19.2.4)
+    optionalDependencies:
+      '@types/react': 19.2.10
 
   '@navikt/ds-tokens@8.2.0': {}
 
@@ -5000,7 +5004,7 @@ snapshots:
 
   atomic-sleep@1.0.0: {}
 
-  autoprefixer@10.4.23(postcss@8.5.6):
+  autoprefixer@10.4.24(postcss@8.5.6):
     dependencies:
       browserslist: 4.28.1
       caniuse-lite: 1.0.30001766
@@ -5407,7 +5411,7 @@ snapshots:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.3
       eslint: 9.39.2(jiti@2.6.1)
-      get-tsconfig: 4.13.0
+      get-tsconfig: 4.13.1
       is-bun-module: 2.0.0
       stable-hash: 0.0.5
       tinyglobby: 0.2.15
@@ -5731,7 +5735,7 @@ snapshots:
       es-errors: 1.3.0
       get-intrinsic: 1.3.0
 
-  get-tsconfig@4.13.0:
+  get-tsconfig@4.13.1:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
