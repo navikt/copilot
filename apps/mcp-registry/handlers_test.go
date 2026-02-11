@@ -217,6 +217,41 @@ func TestServerVersionHandler_SpecificVersion(t *testing.T) {
 	}
 }
 
+func TestServerVersionHandler_LatestShortPath(t *testing.T) {
+	serverName := "io.github.navikt/github-mcp"
+	encodedName := url.PathEscape(serverName)
+	req := httptest.NewRequest(http.MethodGet, "/v0.1/servers/"+encodedName+"/latest", nil)
+	w := httptest.NewRecorder()
+
+	serverVersionHandler(w, req, testConfig())
+
+	resp := w.Result()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 200, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	var response ServerResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Server.Name != serverName {
+		t.Errorf("expected server name '%s', got '%s'", serverName, response.Server.Name)
+	}
+
+	if response.Meta.Official == nil {
+		t.Error("expected _meta.io.modelcontextprotocol.registry/official to be present")
+	}
+}
+
 func TestServerVersionHandler_NotFound(t *testing.T) {
 	serverName := "io.github.nonexistent/server"
 	encodedName := url.PathEscape(serverName)
