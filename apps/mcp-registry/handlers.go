@@ -43,6 +43,7 @@ func rootHandler(w http.ResponseWriter, _ *http.Request) {
 		"endpoints": map[string]string{
 			"servers":        "/v0.1/servers",
 			"server_version": "/v0.1/servers/{serverName}/versions/{version}",
+			"server_latest":  "/v0.1/servers/{serverName}/latest",
 			"health":         "/health",
 			"ready":          "/ready",
 			"metrics":        "/metrics",
@@ -164,20 +165,32 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/v0.1/servers/")
-	parts := strings.Split(path, "/versions/")
-	if len(parts) != 2 {
+
+	var serverName, version string
+	if parts := strings.Split(path, "/versions/"); len(parts) == 2 {
+		var err error
+		serverName, err = url.PathUnescape(parts[0])
+		if err != nil {
+			slog.Warn("Invalid server name encoding", "encoded", parts[0], "error", err)
+			http.Error(w, "Invalid server name encoding", http.StatusBadRequest)
+			return
+		}
+		version = parts[1]
+	} else if strings.HasSuffix(path, "/latest") {
+		encoded := strings.TrimSuffix(path, "/latest")
+		var err error
+		serverName, err = url.PathUnescape(encoded)
+		if err != nil {
+			slog.Warn("Invalid server name encoding", "encoded", encoded, "error", err)
+			http.Error(w, "Invalid server name encoding", http.StatusBadRequest)
+			return
+		}
+		version = "latest"
+	} else {
 		slog.Warn("Invalid path format", "path", r.URL.Path)
 		http.Error(w, "Invalid path format", http.StatusBadRequest)
 		return
 	}
-
-	serverName, err := url.PathUnescape(parts[0])
-	if err != nil {
-		slog.Warn("Invalid server name encoding", "encoded", parts[0], "error", err)
-		http.Error(w, "Invalid server name encoding", http.StatusBadRequest)
-		return
-	}
-	version := parts[1]
 
 	data, err := os.ReadFile("allowlist.json")
 	if err != nil {
