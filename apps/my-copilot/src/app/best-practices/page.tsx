@@ -1,6 +1,7 @@
 import { Heading, BodyShort, Box, HGrid, HelpText, Label, VStack } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { CodeBlock } from "@/components/code-block";
+import { LinkableHeading } from "@/components/linkable-heading";
 import {
   CheckmarkCircleIcon,
   XMarkOctagonIcon,
@@ -54,9 +55,9 @@ export default async function BestPractices() {
 
           {/* 1. Styrker, Begrensninger og Farer */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Styrker, Begrensninger og Farer
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Copilot er kraftig, men ikke magisk. Forstå hva det gjør best, hvor det svikter, og hvilke farer du må
               være oppmerksom på.
@@ -280,9 +281,9 @@ export default async function BestPractices() {
 
           {/* 2. Verktøy og Moduser */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Verktøy og Moduser
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               GitHub Copilot er ikke bare kodeforslag i editoren. Det er et økosystem av verktøy som spenner fra
               sanntidsforslag til autonome agenter som jobber i bakgrunnen.
@@ -546,9 +547,9 @@ export default async function BestPractices() {
 
           {/* 3. Forbered for Suksess */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Forbered for Suksess
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Tilpass Copilot til ditt prosjekt med instruksjonsfiler. Jo bedre kontekst du gir, jo bedre resultater får
               du.
@@ -908,9 +909,9 @@ Return extracted data as structured JSON:
 
           {/* Skriv Effektive Tilpasninger */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Skriv Effektive Tilpasninger
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Nå som du vet hvilke tilpasningstyper som finnes, her er konkrete råd for å skrive dem godt. Kilde:{" "}
               <a
@@ -1288,9 +1289,9 @@ Return extracted data as structured JSON:
 
           {/* 4. Prompt Engineering */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Prompt Engineering
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Hvordan du formulerer forespørselen påvirker kvaliteten på Copilots svar. Spesifisitet er nøkkelen.
             </BodyShort>
@@ -1559,9 +1560,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
 
           {/* 5. WRAP-metoden */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               WRAP-metoden for Coding Agent
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               WRAP er en enkel huskeregel for å få mest mulig ut av Copilot coding agent. Tenk på det som å onboarde en
               ny kollega.
@@ -1749,9 +1750,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
 
           {/* 6. Orkestrer og Styr Agenter */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Orkestrer og Styr Agenter
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Med Copilot coding agent jobber du som en &quot;mission control&quot; – du styrer oppgaver, overvåker
               fremdrift og griper inn ved behov.
@@ -1937,9 +1938,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
 
           {/* 7. Gjennomgå Copilots Arbeid */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Gjennomgå Copilots Arbeid
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Copilot coding agent lager PR-er som trenger grundig gjennomgang. Bruk en tre-trinns sjekkliste.
             </BodyShort>
@@ -2079,9 +2080,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
 
           {/* 8. Verifisering */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Verifisering – Nøkkelen til Kvalitet
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               &quot;Gi Copilot en måte å verifisere arbeidet sitt – dette 2-3x kvaliteten.&quot; En god plan er viktig,
               men verifisering er det som sikrer at resultatet faktisk fungerer.
@@ -2221,9 +2222,9 @@ Sjekk for:
 
           {/* 9. Vanlige mønstre */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Vanlige mønstre for Agent Mode
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Bygg spesialiserte agenter for repeterende oppgaver. Her er seks anbefalte agenter å starte med.
             </BodyShort>
@@ -2368,9 +2369,9 @@ description: Skriver tester for dette prosjektet
 
           {/* 9. Ressurser */}
           <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-            <Heading size="large" level="2" className="mb-4">
+            <LinkableHeading size="large" level="2" className="mb-4">
               Ressurser
-            </Heading>
+            </LinkableHeading>
             <BodyShort className="text-gray-600 mb-6">
               Offisielle kilder, fellesskapsressurser og Nav-spesifikk dokumentasjon.
             </BodyShort>
