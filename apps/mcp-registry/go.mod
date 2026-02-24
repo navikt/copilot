@@ -1,3 +1,3 @@
 module github.com/navikt/copilot/mcp-registry
 
-go 1.25
+go 1.26
