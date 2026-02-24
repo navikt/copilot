@@ -29,9 +29,9 @@ export default function MetricCard({
 
   return (
     <Box
-      background="surface-default"
-      padding="5"
-      borderRadius="medium"
+      background="default"
+      padding="space-20"
+      borderRadius="8"
       className={`border border-gray-200 border-l-4 ${colorClass.split(" ")[0]}`}
     >
       <VStack gap="space-2">

@@ -22,7 +22,7 @@ export function CodeBlock({ filename, children, maxHeight }: CodeBlockProps) {
         <Box
           paddingBlock="space-4"
           paddingInline="space-8"
-          background="surface-default"
+          background="default"
           className="bg-[#323233] flex items-center"
           style={{ gap: "8px" }}
         >

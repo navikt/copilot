@@ -25,24 +25,24 @@ export default function Loading() {
         <div className="bg-white rounded-b-lg rounded-tr-lg border border-gray-200 border-t-0 p-6 shadow-sm">
           <Skeleton variant="text" width="40%" className="mb-6" />
 
-          <HGrid columns={4} gap="4" className="mb-6">
-            <Box background="surface-action-selected" padding="6" borderRadius="large">
+          <HGrid columns={4} gap="space-16" className="mb-6">
+            <Box background="accent-moderate" padding="space-24" borderRadius="12">
               <Skeleton variant="rectangle" height={80} />
             </Box>
-            <Box background="surface-success" padding="6" borderRadius="large">
+            <Box background="success-moderate" padding="space-24" borderRadius="12">
               <Skeleton variant="rectangle" height={80} />
             </Box>
-            <Box background="surface-info" padding="6" borderRadius="large">
+            <Box background="info-moderate" padding="space-24" borderRadius="12">
               <Skeleton variant="rectangle" height={80} />
             </Box>
-            <Box background="surface-warning" padding="6" borderRadius="large">
+            <Box background="warning-moderate" padding="space-24" borderRadius="12">
               <Skeleton variant="rectangle" height={80} />
             </Box>
           </HGrid>
 
-          <Box background="surface-subtle" padding="6" borderRadius="large">
+          <Box background="neutral-soft" padding="space-24" borderRadius="12">
             <Skeleton variant="text" width="30%" className="mb-4" />
-            <HGrid columns={4} gap="4">
+            <HGrid columns={4} gap="space-16">
               <Skeleton variant="rectangle" height={60} />
               <Skeleton variant="rectangle" height={60} />
               <Skeleton variant="rectangle" height={60} />
