@@ -207,7 +207,7 @@ pnpm build      # Production build
 Public registry service for Nav-approved MCP servers.
 
 - **Location**: `apps/mcp-registry/`
-- **Tech**: Go 1.25, HTTP server implementing MCP Registry v0.1 spec
+- **Tech**: Go 1.26, HTTP server implementing MCP Registry v0.1 spec
 - **Public URL**: `https://mcp-registry.nav.no`
 - **Purpose**: Enables GitHub Copilot enterprise to discover and use approved MCP servers
 
@@ -225,7 +225,7 @@ mise run validate  # Validate allowlist.json
 Reference MCP server with GitHub OAuth authentication and **Nav Copilot customization discovery**.
 
 - **Location**: `apps/mcp-onboarding/`
-- **Tech**: Go 1.25, OAuth 2.1 with PKCE, MCP JSON-RPC, YAML frontmatter parsing
+- **Tech**: Go 1.26, OAuth 2.1 with PKCE, MCP JSON-RPC, YAML frontmatter parsing
 - **Public URL**: `https://mcp-onboarding.nav.no/mcp`
 - **Purpose**:
   - Template for building authenticated MCP servers with organization access control

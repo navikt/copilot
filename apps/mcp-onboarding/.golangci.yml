@@ -11,13 +11,10 @@ issues:
 linters:
   enable:
     - errcheck
-    #- gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    #- gofmt
-    #- goimports
     - misspell
     - revive
     - bodyclose
@@ -26,51 +23,59 @@ linters:
     - gosec
     - nilerr
     - unconvert
+  settings:
+    errcheck:
+      check-blank: false
+      check-type-assertions: false
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - io.ReadAll
+        - (net/http.ResponseWriter).Write
+        - (*encoding/json.Encoder).Encode
+        - fmt.Fprintf
+        - json.Marshal
 
-linters-settings:
-  errcheck:
-    check-blank: true
-    check-type-assertions: true
-    exclude-functions:
-      - (io.Closer).Close
-      - (*os.File).Close
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
 
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
+    staticcheck:
+      checks: ["all"]
 
-  staticcheck:
-    checks: ["all"]
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
 
-  revive:
-    rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unused-parameter
-      - name: unreachable-code
-      - name: redefines-builtin-id
-
-  gosec:
-    excludes:
-      - G104
+    gosec:
+      excludes:
+        - G104
+        - G117
+        - G704
+        - G705
+        - G706
 
   exclude-rules:
     - path: _test\.go

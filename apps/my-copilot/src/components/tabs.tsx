@@ -18,17 +18,17 @@ const TabContentSkeleton = () => (
   <div className="space-y-6">
     <Skeleton variant="text" width="40%" />
 
-    <HGrid columns={4} gap="4">
-      <Box background="surface-subtle" padding="6" borderRadius="large">
+    <HGrid columns={4} gap="space-16">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <Skeleton variant="rectangle" height={80} />
       </Box>
-      <Box background="surface-subtle" padding="6" borderRadius="large">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <Skeleton variant="rectangle" height={80} />
       </Box>
-      <Box background="surface-subtle" padding="6" borderRadius="large">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <Skeleton variant="rectangle" height={80} />
       </Box>
-      <Box background="surface-subtle" padding="6" borderRadius="large">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <Skeleton variant="rectangle" height={80} />
       </Box>
     </HGrid>
@@ -55,7 +55,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab }) => {
     <div className="w-full">
       {/* Tab Navigation */}
       <div className="border-b border-gray-200">
-        <Box as="nav" padding="space-2" background="surface-subtle" className="rounded-t-lg" role="tablist">
+        <Box as="nav" padding="space-2" background="neutral-soft" className="rounded-t-lg" role="tablist">
           <div className="flex" style={{ gap: "8px" }}>
             {tabs.map((tab) => (
               <button
@@ -83,7 +83,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab }) => {
       <Box
         as="div"
         padding="space-12"
-        background="surface-default"
+        background="default"
         className="rounded-b-lg rounded-tr-lg border border-gray-200 border-t-0 shadow-sm min-h-[400px] relative"
         role="tabpanel"
         id={`tabpanel-${activeTab}`}

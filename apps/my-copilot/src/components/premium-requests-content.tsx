@@ -13,7 +13,7 @@ export default function PremiumRequestsContent({ metrics }: PremiumRequestsConte
     <div className="space-y-6">
       <Heading size="medium">Oversikt over premiumforespørsler</Heading>
 
-      <HGrid columns={4} gap="4">
+      <HGrid columns={4} gap="space-16">
         <MetricCard
           value={formatNumber(metrics.totalGrossRequests)}
           label="Totale forespørsler"
@@ -47,11 +47,11 @@ export default function PremiumRequestsContent({ metrics }: PremiumRequestsConte
         />
       </HGrid>
 
-      <Box background="surface-subtle" padding="6" borderRadius="large">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <Heading size="small" level="3" className="mb-4">
           Kostnadsdetaljer
         </Heading>
-        <HGrid columns={3} gap="4">
+        <HGrid columns={3} gap="space-16">
           <div>
             <BodyShort className="text-gray-600 mb-1">Bruttokostnad</BodyShort>
             <Heading size="medium" level="4">
