@@ -284,6 +284,15 @@
   "skills": [
     {
       "type": "skill",
+      "name": "ai-news-research",
+      "displayName": "ai-news-research",
+      "description": "Research AI coding agent news and write a monthly summary in Norwegian. Output: `docs/news/\u003cmonth\u003e.md`.",
+      "filePath": ".github/skills/ai-news-research",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/ai-news-research"
+    },
+    {
+      "type": "skill",
       "name": "aksel-spacing",
       "displayName": "aksel-spacing",
       "description": "This skill provides responsive layout patterns using Nav Aksel Design System spacing tokens.",
