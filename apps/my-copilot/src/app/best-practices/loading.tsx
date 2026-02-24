@@ -15,7 +15,7 @@ export default function Loading() {
           {Array(9)
             .fill(null)
             .map((_, i) => (
-              <Box key={i} background="surface-subtle" padding="6" borderRadius="large">
+              <Box key={i} background="neutral-soft" padding="space-24" borderRadius="12">
                 <Skeleton variant="text" width="40%" className="mb-4" />
                 <Skeleton variant="text" width="100%" className="mb-2" />
                 <Skeleton variant="text" width="95%" className="mb-6" />

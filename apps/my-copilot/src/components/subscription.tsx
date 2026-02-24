@@ -138,7 +138,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
 
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-8">
         {" "}
-        <Box padding="space-8" borderRadius="medium" className="border">
+        <Box padding="space-8" borderRadius="8" className="border">
           {" "}
           {subscription && eligibility ? (
             <VStack gap="space-4">
@@ -190,7 +190,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
             </VStack>
           )}
         </Box>
-        <Box padding="space-8" borderRadius="medium" className="border">
+        <Box padding="space-8" borderRadius="8" className="border">
           <VStack gap="space-4">
             <Heading size="medium" level="3">
               Brukerinformasjon

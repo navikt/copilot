@@ -31,7 +31,7 @@ async function BillingOverview() {
 
   if (error) {
     return (
-      <Box background="surface-danger-subtle" padding="4" borderRadius="medium">
+      <Box background="danger-soft" padding="space-16" borderRadius="8">
         <BodyShort className="text-red-600">Feil ved henting av faktureringsdata: {error}</BodyShort>
       </Box>
     );
@@ -39,7 +39,7 @@ async function BillingOverview() {
 
   if (!billing) {
     return (
-      <Box background="surface-warning-subtle" padding="4" borderRadius="medium">
+      <Box background="warning-soft" padding="space-16" borderRadius="8">
         <BodyShort className="text-orange-600">Ingen faktureringsdata tilgjengelig</BodyShort>
       </Box>
     );
@@ -47,7 +47,7 @@ async function BillingOverview() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Box background="surface-subtle" padding="6" borderRadius="large">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <Heading size="medium" level="2" className="mb-4">
           Lisensfordeling
         </Heading>
@@ -99,7 +99,7 @@ async function BillingOverview() {
         </table>
       </Box>
 
-      <Box background="surface-subtle" padding="6" borderRadius="large">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <Heading size="medium" level="2" className="mb-4">
           Organisasjonsinnstillinger
         </Heading>

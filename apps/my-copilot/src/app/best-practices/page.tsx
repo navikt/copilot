@@ -53,11 +53,7 @@ export default async function BestPractices() {
           </div>
 
           {/* 1. Styrker, Begrensninger og Farer */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Styrker, Begrensninger og Farer
             </Heading>
@@ -165,9 +161,9 @@ export default async function BestPractices() {
 
             {/* Dangers section */}
             <Box
-              background="surface-danger-subtle"
+              background="danger-soft"
               padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="medium"
+              borderRadius="8"
               className="mb-6"
             >
               <div className="flex items-center gap-2 mb-4">
@@ -176,7 +172,7 @@ export default async function BestPractices() {
                   Utfordringer du må kjenne til
                 </Heading>
               </div>
-              <HGrid columns={{ xs: 1, md: 2 }} gap="4">
+              <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
                 <div className="space-y-3">
                   <div>
                     <BodyShort weight="semibold">Scope creep</BodyShort>
@@ -221,7 +217,7 @@ export default async function BestPractices() {
             </Box>
 
             {/* Security principles */}
-            <Box background="surface-info-subtle" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="medium">
+            <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
               <div className="flex items-center gap-2 mb-3">
                 <ShieldLockIcon className="text-blue-700" aria-hidden />
                 <Heading size="small" level="3" className="text-blue-700">
@@ -231,7 +227,7 @@ export default async function BestPractices() {
               <BodyShort className="text-gray-600 text-sm mb-3">
                 GitHub har bygget inn disse sikkerhetsprinsippene i Copilot coding agent:
               </BodyShort>
-              <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="3">
+              <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
                 <div>
                   <BodyShort weight="semibold" className="text-sm">
                     Synlig kontekst
@@ -283,11 +279,7 @@ export default async function BestPractices() {
           </Box>
 
           {/* 2. Verktøy og Moduser */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Verktøy og Moduser
             </Heading>
@@ -297,12 +289,7 @@ export default async function BestPractices() {
             </BodyShort>
 
             {/* Video showcase */}
-            <Box
-              background="surface-default"
-              padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="medium"
-              className="mb-6"
-            >
+            <Box background="default" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="mb-6">
               <video
                 autoPlay
                 loop
@@ -320,9 +307,9 @@ export default async function BestPractices() {
             <Carousel showIndicators={true} showSwipeHint={true} className="mb-6">
               {/* IDE */}
               <Box
-                background="surface-info-subtle"
+                background="info-soft"
                 padding={{ xs: "space-12", sm: "space-16" }}
-                borderRadius="medium"
+                borderRadius="8"
                 className="max-w-lg"
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -375,9 +362,9 @@ export default async function BestPractices() {
 
               {/* GitHub.com */}
               <Box
-                background="surface-success-subtle"
+                background="success-soft"
                 padding={{ xs: "space-12", sm: "space-16" }}
-                borderRadius="medium"
+                borderRadius="8"
                 className="max-w-lg"
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -440,9 +427,9 @@ export default async function BestPractices() {
 
               {/* CLI */}
               <Box
-                background="surface-warning-subtle"
+                background="warning-soft"
                 padding={{ xs: "space-12", sm: "space-16" }}
-                borderRadius="medium"
+                borderRadius="8"
                 className="max-w-lg"
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -466,7 +453,7 @@ export default async function BestPractices() {
                       Agentic CLI – build, debug, refactor kode med naturlig språk direkte i terminalen.
                     </BodyShort>
                   </div>
-                  <Box background="surface-default" padding="space-8" borderRadius="small">
+                  <Box background="default" padding="space-8" borderRadius="4">
                     <code className="text-xs block">copilot</code>
                     <code className="text-xs block mt-1 text-gray-500"># Åpner interaktiv agent-modus</code>
                   </Box>
@@ -481,9 +468,9 @@ export default async function BestPractices() {
 
             {/* MCP section - separate from CLI */}
             <Box
-              background="surface-warning-subtle"
+              background="warning-soft"
               padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="medium"
+              borderRadius="8"
               className="mb-6"
             >
               <div className="flex items-center gap-2 mb-2">
@@ -502,7 +489,7 @@ export default async function BestPractices() {
             </Box>
 
             {/* Model selection */}
-            <Box background="surface-action-subtle" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="medium">
+            <Box background="accent-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
               <div className="flex items-center gap-2 mb-2">
                 <CpuIcon className="text-blue-600" aria-hidden />
                 <Heading size="small" level="3">
@@ -514,7 +501,7 @@ export default async function BestPractices() {
                 beste modell automatisk. Multiplikatoren (1x, 3x, 0.33x) viser hvor mange requests som trekkes per
                 forespørsel.
               </BodyShort>
-              <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="3">
+              <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
                 <div>
                   <Label size="small" className="text-green-700">
                     Auto (10 % rabatt)
@@ -558,11 +545,7 @@ export default async function BestPractices() {
           </Box>
 
           {/* 3. Forbered for Suksess */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Forbered for Suksess
             </Heading>
@@ -572,12 +555,7 @@ export default async function BestPractices() {
             </BodyShort>
 
             {/* Language guidance */}
-            <Box
-              background="surface-info-subtle"
-              padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="medium"
-              className="mb-6"
-            >
+            <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="mb-6">
               <div className="flex items-start gap-2">
                 <GlobeIcon className="text-blue-700 mt-0.5" aria-hidden />
                 <Heading size="small" level="3" className="text-blue-700">
@@ -597,9 +575,9 @@ export default async function BestPractices() {
 
             {/* Comparison table: Prompts vs Instructions vs Agents vs Skills */}
             <Box
-              background="surface-warning-subtle"
+              background="warning-soft"
               padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="medium"
+              borderRadius="8"
               className="mb-6"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -620,7 +598,7 @@ export default async function BestPractices() {
                 </a>{" "}
                 for fellesskapets kuraterte eksempler.
               </BodyShort>
-              <HGrid columns={{ xs: 1, md: 2, lg: 4 }} gap="4">
+              <HGrid columns={{ xs: 1, md: 2, lg: 4 }} gap="space-16">
                 <div>
                   <Label size="small" className="text-blue-700">
                     Prompts
@@ -874,7 +852,7 @@ Return extracted data as structured JSON:
               </Carousel>
 
               {/* Six core areas */}
-              <Box background="surface-info-subtle" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="medium">
+              <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
                 <div className="flex items-center gap-2 mb-3">
                   <BulletListIcon className="text-blue-700" aria-hidden />
                   <Heading size="small" level="3" className="text-blue-700">
@@ -884,7 +862,7 @@ Return extracted data as structured JSON:
                 <BodyShort className="text-gray-600 text-sm mb-3">
                   Analyse av over 2500 agents.md-filer viser at de beste dekker disse områdene:
                 </BodyShort>
-                <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="3">
+                <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
                   <div>
                     <BodyShort weight="semibold" className="text-sm">
                       1. Kommandoer
@@ -929,11 +907,7 @@ Return extracted data as structured JSON:
           </Box>
 
           {/* Skriv Effektive Tilpasninger */}
-          <Box
-            background="neutral-soft"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="12"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Skriv Effektive Tilpasninger
             </Heading>
@@ -1055,12 +1029,7 @@ Return extracted data as structured JSON:
             </Box>
 
             {/* Custom Agents */}
-            <Box
-              background="info-soft"
-              padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="8"
-              className="mb-6"
-            >
+            <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <CogIcon className="text-blue-700" aria-hidden />
                 <Heading size="medium" level="3" className="text-blue-700">
@@ -1068,8 +1037,8 @@ Return extracted data as structured JSON:
                 </Heading>
               </div>
               <BodyShort className="text-gray-600 text-sm mb-4">
-                Agenter er spesialiserte roller med eget verktøysett og instruksjoner. Nøkkelen er spesifisitet – en
-                god agent har én jobb, ikke ti. Se{" "}
+                Agenter er spesialiserte roller med eget verktøysett og instruksjoner. Nøkkelen er spesifisitet – en god
+                agent har én jobb, ikke ti. Se{" "}
                 <a
                   href="https://code.visualstudio.com/docs/copilot/customization/custom-agents"
                   className="text-blue-600 hover:underline"
@@ -1139,18 +1108,14 @@ Return extracted data as structured JSON:
                 </Box>
               </HGrid>
 
-              <Box
-                background="danger-soft"
-                padding="space-12"
-                borderRadius="4"
-              >
+              <Box background="danger-soft" padding="space-12" borderRadius="4">
                 <BodyShort weight="semibold" className="text-sm text-red-700 mb-1">
                   Vanligste feilen
                 </BodyShort>
                 <BodyShort className="text-gray-600 text-xs">
-                  &quot;You are a helpful coding assistant&quot; fungerer ikke. &quot;You are a test engineer who
-                  writes tests for React components, follows these examples, and never modifies source code&quot;
-                  fungerer. Spesifisitet slår generalitet.
+                  &quot;You are a helpful coding assistant&quot; fungerer ikke. &quot;You are a test engineer who writes
+                  tests for React components, follows these examples, and never modifies source code&quot; fungerer.
+                  Spesifisitet slår generalitet.
                 </BodyShort>
               </Box>
             </Box>
@@ -1196,9 +1161,9 @@ Return extracted data as structured JSON:
                     Progressive disclosure
                   </BodyShort>
                   <BodyShort className="text-gray-600 text-xs">
-                    Copilot laster kun det som trengs i tre nivåer: 1) name + description (alltid synlig), 2)
-                    SKILL.md body (ved match), 3) scripts/resources (ved referanse). Installer mange skills uten å
-                    bruke kontekst.
+                    Copilot laster kun det som trengs i tre nivåer: 1) name + description (alltid synlig), 2) SKILL.md
+                    body (ved match), 3) scripts/resources (ved referanse). Installer mange skills uten å bruke
+                    kontekst.
                   </BodyShort>
                 </Box>
                 <Box background="default" padding="space-12" borderRadius="4">
@@ -1282,11 +1247,7 @@ Return extracted data as structured JSON:
             </Box>
 
             {/* Quick reference: when to use what */}
-            <Box
-              background="warning-soft"
-              padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="8"
-            >
+            <Box background="warning-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
               <div className="flex items-center gap-2 mb-3">
                 <LightBulbIcon className="text-orange-700" aria-hidden />
                 <Heading size="small" level="3" className="text-orange-700">
@@ -1326,11 +1287,7 @@ Return extracted data as structured JSON:
           </Box>
 
           {/* 4. Prompt Engineering */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Prompt Engineering
             </Heading>
@@ -1348,9 +1305,9 @@ Return extracted data as structured JSON:
 
                 <Carousel showIndicators={true} showSwipeHint={true}>
                   <Box
-                    background="surface-danger-subtle"
+                    background="danger-soft"
                     padding="space-16"
-                    borderRadius="medium"
+                    borderRadius="8"
                     className="border-l-4 border-red-600"
                   >
                     <BodyShort weight="semibold" className="text-red-700 mb-2">
@@ -1362,9 +1319,9 @@ Return extracted data as structured JSON:
                   </Box>
 
                   <Box
-                    background="surface-success-subtle"
+                    background="success-soft"
                     padding="space-16"
-                    borderRadius="medium"
+                    borderRadius="8"
                     className="border-l-4 border-green-600"
                   >
                     <BodyShort weight="semibold" className="text-green-700 mb-2">
@@ -1391,9 +1348,9 @@ validation logic in middleware/auth.ts`}
 
                 <Carousel showIndicators={true} showSwipeHint={true}>
                   <Box
-                    background="surface-danger-subtle"
+                    background="danger-soft"
                     padding="space-16"
-                    borderRadius="medium"
+                    borderRadius="8"
                     className="border-l-4 border-red-600"
                   >
                     <BodyShort weight="semibold" className="text-red-700 mb-2">
@@ -1406,9 +1363,9 @@ currency in Norwegian style`}
                   </Box>
 
                   <Box
-                    background="surface-success-subtle"
+                    background="success-soft"
                     padding="space-16"
-                    borderRadius="medium"
+                    borderRadius="8"
                     className="border-l-4 border-green-600"
                   >
                     <BodyShort weight="semibold" className="text-green-700 mb-2">
@@ -1447,12 +1404,8 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                   />
                 </div>
 
-                <HGrid columns={{ xs: 1, md: 2 }} gap="4">
-                  <Box
-                    background="surface-info-subtle"
-                    padding={{ xs: "space-12", sm: "space-16" }}
-                    borderRadius="medium"
-                  >
+                <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+                  <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
                     <div className="flex items-center gap-2 mb-2">
                       <TasklistIcon className="text-blue-600" aria-hidden />
                       <BodyShort weight="semibold">Plan Mode</BodyShort>
@@ -1468,11 +1421,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                     </ol>
                   </Box>
 
-                  <Box
-                    background="surface-success-subtle"
-                    padding={{ xs: "space-12", sm: "space-16" }}
-                    borderRadius="medium"
-                  >
+                  <Box background="success-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
                     <BodyShort weight="semibold" className="mb-2">
                       Eksempel: Legg til autentisering
                     </BodyShort>
@@ -1485,7 +1434,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                   </Box>
                 </HGrid>
 
-                <Box background="surface-warning-subtle" padding="space-12" borderRadius="medium" className="mt-3">
+                <Box background="warning-soft" padding="space-12" borderRadius="8" className="mt-3">
                   <BodyShort className="text-gray-600 text-xs">
                     <strong>Tips:</strong> For coding agent på GitHub.com, skriv issues med klare akseptkriterier og
                     bruk sub-issues for store oppgaver. Se{" "}
@@ -1502,7 +1451,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                 </Box>
 
                 {/* Spec Kit */}
-                <Box background="surface-success-subtle" padding="space-12" borderRadius="medium" className="mt-3">
+                <Box background="success-soft" padding="space-12" borderRadius="8" className="mt-3">
                   <div className="flex items-center gap-2 mb-2">
                     <FileTextIcon className="text-green-700" aria-hidden />
                     <BodyShort weight="semibold" className="text-green-700 text-sm">
@@ -1539,11 +1488,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                   <span className="text-blue-600">4.</span>
                   Gi relevant kontekst
                 </Heading>
-                <Box
-                  background="surface-info-subtle"
-                  padding={{ xs: "space-12", sm: "space-16" }}
-                  borderRadius="medium"
-                >
+                <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
                   <ul className="space-y-2">
                     <li className="flex gap-2">
                       <span className="text-blue-600">▪</span>
@@ -1566,18 +1511,14 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </div>
 
               {/* Anti-patterns */}
-              <Box
-                background="surface-danger-subtle"
-                padding={{ xs: "space-12", sm: "space-16" }}
-                borderRadius="medium"
-              >
+              <Box background="danger-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
                 <div className="flex items-center gap-2 mb-3">
                   <XMarkOctagonIcon className="text-red-700" aria-hidden />
                   <Heading size="small" level="3" className="text-red-700">
                     Anti-mønstre å unngå
                   </Heading>
                 </div>
-                <HGrid columns={{ xs: 1, md: 2 }} gap="4">
+                <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
                   <div>
                     <BodyShort weight="semibold" className="text-sm">
                       Vage direktiver
@@ -1617,11 +1558,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
           </Box>
 
           {/* 5. WRAP-metoden */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               WRAP-metoden for Coding Agent
             </Heading>
@@ -1630,11 +1567,11 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               ny kollega.
             </BodyShort>
 
-            <HGrid columns={{ xs: 1, md: 2 }} gap="6">
+            <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
               <Box
-                background="surface-success-subtle"
+                background="success-soft"
                 padding="space-16"
-                borderRadius="medium"
+                borderRadius="8"
                 className="border-l-4 border-green-600"
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -1646,7 +1583,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                 <BodyShort className="text-gray-600 mb-3">
                   Skriv issues som om du forklarer til en ny utvikler på teamet.
                 </BodyShort>
-                <Box background="surface-default" padding="space-8" borderRadius="small">
+                <Box background="default" padding="space-8" borderRadius="4">
                   <code className="text-xs block">
                     {`Legg til en "Slett bruker"-knapp på
 /admin/users siden.
@@ -1659,12 +1596,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                 </Box>
               </Box>
 
-              <Box
-                background="surface-info-subtle"
-                padding="space-16"
-                borderRadius="medium"
-                className="border-l-4 border-blue-600"
-              >
+              <Box background="info-soft" padding="space-16" borderRadius="8" className="border-l-4 border-blue-600">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-blue-600 font-bold text-xl">R</span>
                   <Heading size="medium" level="3">
@@ -1691,9 +1623,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </Box>
 
               <Box
-                background="surface-warning-subtle"
+                background="warning-soft"
                 padding="space-16"
-                borderRadius="medium"
+                borderRadius="8"
                 className="border-l-4 border-orange-600"
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -1726,9 +1658,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </Box>
 
               <Box
-                background="surface-action-subtle"
+                background="accent-soft"
                 padding="space-16"
-                borderRadius="medium"
+                borderRadius="8"
                 className="border-l-4 border-purple-600"
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -1758,7 +1690,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
             </HGrid>
 
             {/* Real-world examples from GitHub */}
-            <Box background="surface-info-subtle" padding="space-16" borderRadius="medium" className="mt-6">
+            <Box background="info-soft" padding="space-16" borderRadius="8" className="mt-6">
               <div className="flex items-center gap-2 mb-3">
                 <BranchingIcon className="text-blue-700" aria-hidden />
                 <Heading size="small" level="3" className="text-blue-700">
@@ -1768,7 +1700,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               <BodyShort className="text-gray-600 text-sm mb-3">
                 GitHub bruker Copilot coding agent aktivt på github.com-kodebasen:
               </BodyShort>
-              <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="3">
+              <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
                 <div>
                   <BodyShort weight="semibold" className="text-sm">
                     Opprydding
@@ -1816,11 +1748,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
           </Box>
 
           {/* 6. Orkestrer og Styr Agenter */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Orkestrer og Styr Agenter
             </Heading>
@@ -1841,8 +1769,8 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
 
             <div className="space-y-6">
               {/* Parallel vs Sequential */}
-              <HGrid columns={{ xs: 1, md: 2 }} gap="4">
-                <Box background="surface-success-subtle" padding="space-16" borderRadius="medium">
+              <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+                <Box background="success-soft" padding="space-16" borderRadius="8">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckmarkCircleIcon className="text-green-700" aria-hidden />
                     <Heading size="small" level="3" className="text-green-700">
@@ -1872,7 +1800,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                   </ul>
                 </Box>
 
-                <Box background="surface-warning-subtle" padding="space-16" borderRadius="medium">
+                <Box background="warning-soft" padding="space-16" borderRadius="8">
                   <div className="flex items-center gap-2 mb-2">
                     <LinkIcon className="text-orange-700" aria-hidden />
                     <Heading size="small" level="3" className="text-orange-700">
@@ -1902,7 +1830,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </HGrid>
 
               {/* Reading Signals */}
-              <Box background="surface-info-subtle" padding="space-16" borderRadius="medium">
+              <Box background="info-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-3">
                   <InformationIcon className="text-blue-700" aria-hidden />
                   <Heading size="small" level="3" className="text-blue-700">
@@ -1912,7 +1840,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                 <BodyShort className="text-gray-600 text-sm mb-3">
                   Session logs viser agentens tankegang. Se etter disse tegnene:
                 </BodyShort>
-                <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="3">
+                <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
                   <div>
                     <div className="flex items-center gap-1">
                       <CheckmarkCircleIcon className="text-green-700" fontSize="1rem" aria-hidden />
@@ -1950,7 +1878,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </Box>
 
               {/* Steering Techniques */}
-              <Box background="surface-action-subtle" padding="space-16" borderRadius="medium">
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-3">
                   <CogIcon className="text-blue-600" aria-hidden />
                   <Heading size="small" level="3">
@@ -2008,11 +1936,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
           </Box>
 
           {/* 7. Gjennomgå Copilots Arbeid */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Gjennomgå Copilots Arbeid
             </Heading>
@@ -2030,13 +1954,8 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               />
             </div>
 
-            <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="4">
-              <Box
-                background="surface-info-subtle"
-                padding="space-16"
-                borderRadius="medium"
-                className="border-l-4 border-blue-600"
-              >
+            <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
+              <Box background="info-soft" padding="space-16" borderRadius="8" className="border-l-4 border-blue-600">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-blue-600 font-bold text-lg">1</span>
                   <Heading size="small" level="3">
@@ -2060,9 +1979,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </Box>
 
               <Box
-                background="surface-success-subtle"
+                background="success-soft"
                 padding="space-16"
-                borderRadius="medium"
+                borderRadius="8"
                 className="border-l-4 border-green-600"
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -2088,9 +2007,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </Box>
 
               <Box
-                background="surface-warning-subtle"
+                background="warning-soft"
                 padding="space-16"
-                borderRadius="medium"
+                borderRadius="8"
                 className="border-l-4 border-orange-600"
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -2116,7 +2035,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </Box>
             </HGrid>
 
-            <Box background="surface-danger-subtle" padding="space-16" borderRadius="medium" className="mt-4">
+            <Box background="danger-soft" padding="space-16" borderRadius="8" className="mt-4">
               <div className="flex items-center gap-2 mb-2">
                 <ExclamationmarkTriangleIcon className="text-red-700" aria-hidden />
                 <Heading size="small" level="3" className="text-red-700">
@@ -2130,14 +2049,14 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
             </Box>
 
             {/* Pro tips */}
-            <Box background="surface-action-subtle" padding="space-16" borderRadius="medium" className="mt-4">
+            <Box background="accent-soft" padding="space-16" borderRadius="8" className="mt-4">
               <div className="flex items-center gap-2 mb-2">
                 <LightBulbIcon className="text-blue-600" aria-hidden />
                 <Heading size="small" level="3">
                   Pro-tips for effektiv gjennomgang
                 </Heading>
               </div>
-              <HGrid columns={{ xs: 1, md: 2 }} gap="4">
+              <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
                 <div>
                   <BodyShort weight="semibold" className="text-sm">
                     Be Copilot gjennomgå seg selv
@@ -2159,11 +2078,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
           </Box>
 
           {/* 8. Verifisering */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Verifisering – Nøkkelen til Kvalitet
             </Heading>
@@ -2172,11 +2087,11 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               men verifisering er det som sikrer at resultatet faktisk fungerer.
             </BodyShort>
 
-            <HGrid columns={{ xs: 1, md: 2 }} gap="4" className="mb-6">
+            <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="mb-6">
               <Box
-                background="surface-success-subtle"
+                background="success-soft"
                 padding="space-16"
-                borderRadius="medium"
+                borderRadius="8"
                 className="border-l-4 border-green-600"
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -2186,7 +2101,7 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
                   </Heading>
                 </div>
                 <BodyShort className="text-gray-600 text-sm mb-2">Inkluder testing som del av oppgaven:</BodyShort>
-                <Box background="surface-default" padding="space-8" borderRadius="small">
+                <Box background="default" padding="space-8" borderRadius="4">
                   <code className="text-xs block whitespace-pre-wrap">
                     {`Lag en funksjon som validerer
 norske fødselsnumre.
@@ -2197,12 +2112,7 @@ før du anser oppgaven som ferdig.`}
                 </Box>
               </Box>
 
-              <Box
-                background="surface-info-subtle"
-                padding="space-16"
-                borderRadius="medium"
-                className="border-l-4 border-blue-600"
-              >
+              <Box background="info-soft" padding="space-16" borderRadius="8" className="border-l-4 border-blue-600">
                 <div className="flex items-center gap-2 mb-3">
                   <MagnifyingGlassIcon className="text-blue-700" aria-hidden />
                   <Heading size="small" level="3" className="text-blue-700">
@@ -2210,7 +2120,7 @@ før du anser oppgaven som ferdig.`}
                   </Heading>
                 </div>
                 <BodyShort className="text-gray-600 text-sm mb-2">Etter implementering, be om selvreview:</BodyShort>
-                <Box background="surface-default" padding="space-8" borderRadius="small">
+                <Box background="default" padding="space-8" borderRadius="4">
                   <code className="text-xs block whitespace-pre-wrap">
                     {`Review koden du nettopp skrev.
 Sjekk for:
@@ -2224,9 +2134,9 @@ Sjekk for:
 
             {/* Knip tool */}
             <Box
-              background="surface-warning-subtle"
+              background="warning-soft"
               padding={{ xs: "space-12", sm: "space-16" }}
-              borderRadius="medium"
+              borderRadius="8"
               className="mb-6"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -2239,12 +2149,12 @@ Sjekk for:
                 Copilot kan etterlate ubrukt kode, avhengigheter og exports. Knip finner og fjerner dette automatisk.
                 Brukes av Vercel, Anthropic, Cloudflare og TanStack.
               </BodyShort>
-              <HGrid columns={{ xs: 1, sm: 2 }} gap="4">
+              <HGrid columns={{ xs: 1, sm: 2 }} gap="space-16">
                 <div>
                   <BodyShort weight="semibold" className="text-sm">
                     Installer og kjør
                   </BodyShort>
-                  <Box background="surface-default" padding="space-8" borderRadius="small" className="mt-1">
+                  <Box background="default" padding="space-8" borderRadius="4" className="mt-1">
                     <code className="text-xs block">npx knip</code>
                   </Box>
                 </div>
@@ -2273,14 +2183,14 @@ Sjekk for:
             </Box>
 
             {/* Verification checklist */}
-            <Box background="surface-action-subtle" padding="space-16" borderRadius="medium">
+            <Box background="accent-soft" padding="space-16" borderRadius="8">
               <div className="flex items-center gap-2 mb-3">
                 <TasklistIcon className="text-blue-600" aria-hidden />
                 <Heading size="small" level="3">
                   Verifiseringssjekkliste
                 </Heading>
               </div>
-              <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="3">
+              <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-12">
                 <div>
                   <BodyShort weight="semibold" className="text-sm">
                     1. Tester
@@ -2310,11 +2220,7 @@ Sjekk for:
           </Box>
 
           {/* 9. Vanlige mønstre */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Vanlige mønstre for Agent Mode
             </Heading>
@@ -2322,8 +2228,8 @@ Sjekk for:
               Bygg spesialiserte agenter for repeterende oppgaver. Her er seks anbefalte agenter å starte med.
             </BodyShort>
 
-            <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="4">
-              <Box background="surface-info-subtle" padding="space-16" borderRadius="medium">
+            <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
+              <Box background="info-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <BookIcon className="text-blue-700" aria-hidden />
                   <Heading size="small" level="3">
@@ -2338,7 +2244,7 @@ Sjekk for:
                 </ul>
               </Box>
 
-              <Box background="surface-success-subtle" padding="space-16" borderRadius="medium">
+              <Box background="success-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <TestFlaskIcon className="text-green-700" aria-hidden />
                   <Heading size="small" level="3">
@@ -2353,7 +2259,7 @@ Sjekk for:
                 </ul>
               </Box>
 
-              <Box background="surface-warning-subtle" padding="space-16" borderRadius="medium">
+              <Box background="warning-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <MagnifyingGlassIcon className="text-orange-700" aria-hidden />
                   <Heading size="small" level="3">
@@ -2368,7 +2274,7 @@ Sjekk for:
                 </ul>
               </Box>
 
-              <Box background="surface-action-subtle" padding="space-16" borderRadius="medium">
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <LinkIcon className="text-blue-600" aria-hidden />
                   <Heading size="small" level="3">
@@ -2383,7 +2289,7 @@ Sjekk for:
                 </ul>
               </Box>
 
-              <Box background="surface-danger-subtle" padding="space-16" borderRadius="medium">
+              <Box background="danger-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <ShieldLockIcon className="text-red-700" aria-hidden />
                   <Heading size="small" level="3">
@@ -2398,7 +2304,7 @@ Sjekk for:
                 </ul>
               </Box>
 
-              <Box background="surface-neutral-subtle" padding="space-16" borderRadius="medium">
+              <Box background="neutral-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <RocketIcon className="text-gray-700" aria-hidden />
                   <Heading size="small" level="3">
@@ -2415,7 +2321,7 @@ Sjekk for:
             </HGrid>
 
             {/* Example agent file */}
-            <Box background="surface-info-subtle" padding="space-16" borderRadius="medium" className="mt-4">
+            <Box background="info-soft" padding="space-16" borderRadius="8" className="mt-4">
               <div className="flex items-center gap-2 mb-3">
                 <FileTextIcon className="text-blue-700" aria-hidden />
                 <Heading size="small" level="3" className="text-blue-700">
@@ -2461,11 +2367,7 @@ description: Skriver tester for dette prosjektet
           </Box>
 
           {/* 9. Ressurser */}
-          <Box
-            background="surface-subtle"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="large"
-          >
+          <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
             <Heading size="large" level="2" className="mb-4">
               Ressurser
             </Heading>
@@ -2473,8 +2375,8 @@ description: Skriver tester for dette prosjektet
               Offisielle kilder, fellesskapsressurser og Nav-spesifikk dokumentasjon.
             </BodyShort>
 
-            <HGrid columns={{ xs: 1, md: 2 }} gap="4">
-              <Box background="surface-info-subtle" padding="space-16" borderRadius="medium">
+            <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+              <Box background="info-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <BookIcon className="text-blue-600" aria-hidden />
                   <Heading size="small" level="3">
@@ -2540,7 +2442,7 @@ description: Skriver tester for dette prosjektet
                 </ul>
               </Box>
 
-              <Box background="surface-success-subtle" padding="space-16" borderRadius="medium">
+              <Box background="success-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <StarIcon className="text-green-600" aria-hidden />
                   <Heading size="small" level="3">
@@ -2595,7 +2497,7 @@ description: Skriver tester for dette prosjektet
                 </ul>
               </Box>
 
-              <Box background="surface-neutral-subtle" padding="space-16" borderRadius="medium">
+              <Box background="neutral-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <CogIcon className="text-gray-600" aria-hidden />
                   <Heading size="small" level="3">
@@ -2628,7 +2530,7 @@ description: Skriver tester for dette prosjektet
                 </ul>
               </Box>
 
-              <Box background="surface-warning-subtle" padding="space-16" borderRadius="medium">
+              <Box background="warning-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <ShieldLockIcon className="text-orange-600" aria-hidden />
                   <Heading size="small" level="3">
@@ -2661,7 +2563,7 @@ description: Skriver tester for dette prosjektet
                 </ul>
               </Box>
 
-              <Box background="surface-action-subtle" padding="space-16" borderRadius="medium">
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
                 <div className="flex items-center gap-2 mb-2">
                   <BranchingIcon className="text-blue-600" aria-hidden />
                   <Heading size="small" level="3">
@@ -2686,7 +2588,7 @@ description: Skriver tester for dette prosjektet
           </Box>
 
           {/* Footer tip */}
-          <Box background="surface-info-subtle" padding="space-16" borderRadius="medium">
+          <Box background="info-soft" padding="space-16" borderRadius="8">
             <div className="flex items-center gap-2 mb-2">
               <LightBulbIcon className="text-blue-700" aria-hidden />
               <Heading size="small" level="3" className="text-blue-700">
