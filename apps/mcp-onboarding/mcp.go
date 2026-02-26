@@ -8,10 +8,13 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
+	"github.com/navikt/copilot/mcp-onboarding/internal/readiness"
+	"github.com/navikt/copilot/mcp-onboarding/internal/templates"
 )
 
 type MCPHandler struct {
@@ -410,6 +413,100 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 				"required": ["type", "name"]
 			}`),
 		},
+		{
+			Name:        "check_agent_readiness",
+			Description: "Assess how ready a GitHub repository is for Copilot agent mode. Checks agent customization files (copilot-instructions.md, scoped instructions, custom agents, prompts, skills, setup steps, hooks, AGENTS.md) AND verification infrastructure (CI/CD workflows, linter config, type checking, test config, Dependabot, README). Returns a readiness scorecard with prioritized recommendations.",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"owner": {
+						"type": "string",
+						"description": "Repository owner (e.g., 'navikt')"
+					},
+					"repo": {
+						"type": "string",
+						"description": "Repository name (e.g., 'my-app')"
+					}
+				},
+				"required": ["owner", "repo"]
+			}`),
+		},
+		{
+			Name:        "suggest_customizations",
+			Description: "Suggest NAV Copilot customizations (agents, instructions, prompts, skills) tailored to a repository's language and tech stack. Detects languages via GitHub API and maps them to relevant NAV-maintained customizations with one-click install links.",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"owner": {
+						"type": "string",
+						"description": "Repository owner (e.g., 'navikt')"
+					},
+					"repo": {
+						"type": "string",
+						"description": "Repository name (e.g., 'my-app')"
+					}
+				},
+				"required": ["owner", "repo"]
+			}`),
+		},
+		{
+			Name:        "generate_agents_md",
+			Description: "Generate a tailored AGENTS.md file for a repository. AGENTS.md is a cross-agent standard that works with Copilot, Claude, Codex, and other AI agents. Detects the repo's languages, build tools (package.json, go.mod, build.gradle.kts, pom.xml), and platform (Nais) to produce a ready-to-use file with build commands, code standards, and boundaries.",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"owner": {
+						"type": "string",
+						"description": "Repository owner (e.g., 'navikt')"
+					},
+					"repo": {
+						"type": "string",
+						"description": "Repository name (e.g., 'my-app')"
+					}
+				},
+				"required": ["owner", "repo"]
+			}`),
+		},
+		{
+			Name:        "generate_setup_steps",
+			Description: "Generate a .github/workflows/copilot-setup-steps.yml file to enable the GitHub Copilot coding agent. Detects the repo's languages and build tools to produce a workflow that installs the correct runtime, package manager, and dependencies.",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"owner": {
+						"type": "string",
+						"description": "Repository owner (e.g., 'navikt')"
+					},
+					"repo": {
+						"type": "string",
+						"description": "Repository name (e.g., 'my-app')"
+					}
+				},
+				"required": ["owner", "repo"]
+			}`),
+		},
+		{
+			Name:        "team_readiness",
+			Description: "Scan all repositories belonging to a team and produce an agent readiness summary. Identify the team by either its GitHub team slug (uses the teams API) or a repo name prefix (e.g., 'dp-' for dagpenger, 'tms-' for team min side). Returns a table showing which repos have AGENTS.md, copilot-instructions.md, and copilot-setup-steps.yml.",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"org": {
+						"type": "string",
+						"description": "GitHub organization (e.g., 'navikt')"
+					},
+					"team": {
+						"type": "string",
+						"description": "GitHub team slug (e.g., 'dagpenger'). Mutually exclusive with prefix."
+					},
+					"prefix": {
+						"type": "string",
+						"description": "Repo name prefix to match (e.g., 'dp-'). Mutually exclusive with team."
+					}
+				},
+				"required": ["org"]
+			}`),
+		},
 	}
 
 	return &JSONRPCResponse{
@@ -654,6 +751,187 @@ This information is from your GitHub OAuth session.`, user.Login, user.ID)
 			},
 		}
 
+	case "check_agent_readiness":
+		owner, _ := params.Arguments["owner"].(string)
+		repo, _ := params.Arguments["repo"].(string)
+		if owner == "" || repo == "" {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32602, Message: "owner and repo are required"},
+			}
+		}
+
+		contents, err := h.inspectRepo(user.GitHubAccessToken, owner, repo)
+		if err != nil {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32603, Message: fmt.Sprintf("Failed to inspect repo: %v", err)},
+			}
+		}
+
+		report := readiness.Assess(contents)
+		report.Owner = owner
+		report.Repo = repo
+		report.Suggestions = readiness.SuggestCustomizations(contents, h.discoveryService.GetManifest())
+
+		result = CallToolResult{
+			Content: []TextContent{
+				{Type: "text", Text: readiness.FormatReport(report)},
+			},
+		}
+
+	case "suggest_customizations":
+		owner, _ := params.Arguments["owner"].(string)
+		repo, _ := params.Arguments["repo"].(string)
+		if owner == "" || repo == "" {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32602, Message: "owner and repo are required"},
+			}
+		}
+
+		langs, err := h.githubClient.GetRepoLanguages(user.GitHubAccessToken, owner, repo)
+		if err != nil {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32603, Message: fmt.Sprintf("Failed to get repo languages: %v", err)},
+			}
+		}
+
+		contents := &readiness.RepoContents{Languages: langs}
+		h.detectRepoContentsStack(user.GitHubAccessToken, owner, repo, contents)
+		suggestions := readiness.SuggestCustomizations(contents, h.discoveryService.GetManifest())
+
+		var sb fmt.Stringer = &suggestionsFormatter{owner: owner, repo: repo, langs: langs, suggestions: suggestions}
+		result = CallToolResult{
+			Content: []TextContent{
+				{Type: "text", Text: sb.String()},
+			},
+		}
+
+	case "generate_agents_md":
+		owner, _ := params.Arguments["owner"].(string)
+		repo, _ := params.Arguments["repo"].(string)
+		if owner == "" || repo == "" {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32602, Message: "owner and repo are required"},
+			}
+		}
+
+		info, err := h.detectRepoInfo(user.GitHubAccessToken, owner, repo)
+		if err != nil {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32603, Message: fmt.Sprintf("Failed to detect repo info: %v", err)},
+			}
+		}
+
+		output := templates.GenerateAgentsMD(info)
+		result = CallToolResult{
+			Content: []TextContent{
+				{Type: "text", Text: fmt.Sprintf("Generated `AGENTS.md` for %s/%s:\n\n```markdown\n%s\n```\n\nSave this as `AGENTS.md` at the root of your repository. This works across Copilot, Claude, Codex, and other AI agents.", owner, repo, output)},
+			},
+		}
+
+	case "generate_setup_steps":
+		owner, _ := params.Arguments["owner"].(string)
+		repo, _ := params.Arguments["repo"].(string)
+		if owner == "" || repo == "" {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32602, Message: "owner and repo are required"},
+			}
+		}
+
+		info, err := h.detectRepoInfo(user.GitHubAccessToken, owner, repo)
+		if err != nil {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32603, Message: fmt.Sprintf("Failed to detect repo info: %v", err)},
+			}
+		}
+
+		output := templates.GenerateSetupSteps(info)
+		result = CallToolResult{
+			Content: []TextContent{
+				{Type: "text", Text: fmt.Sprintf("Generated `copilot-setup-steps.yml` for %s/%s:\n\n```yaml\n%s\n```\n\nSave this as `.github/workflows/copilot-setup-steps.yml` in your repository.", owner, repo, output)},
+			},
+		}
+
+	case "team_readiness":
+		org, _ := params.Arguments["org"].(string)
+		team, _ := params.Arguments["team"].(string)
+		prefix, _ := params.Arguments["prefix"].(string)
+		if org == "" {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32602, Message: "org is required"},
+			}
+		}
+		if team == "" && prefix == "" {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32602, Message: "either team or prefix is required"},
+			}
+		}
+
+		var repos []GitHubRepo
+		var err error
+		if team != "" {
+			repos, err = h.githubClient.ListTeamRepos(user.GitHubAccessToken, org, team)
+		} else {
+			repos, err = h.githubClient.SearchReposByPrefix(user.GitHubAccessToken, org, prefix)
+		}
+		if err != nil {
+			return &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &JSONRPCError{Code: -32603, Message: fmt.Sprintf("Failed to list repos: %v", err)},
+			}
+		}
+
+		label := team
+		if label == "" {
+			label = prefix + "*"
+		}
+
+		summary := &readiness.TeamSummary{
+			Org:  org,
+			Team: label,
+		}
+
+		for _, r := range repos {
+			agentsMD, _ := h.githubClient.GetRepoFile(user.GitHubAccessToken, org, r.Name, "AGENTS.md")
+			copilotMD, _ := h.githubClient.GetRepoFile(user.GitHubAccessToken, org, r.Name, ".github/copilot-instructions.md")
+			setupSteps, _ := h.githubClient.GetRepoFile(user.GitHubAccessToken, org, r.Name, ".github/workflows/copilot-setup-steps.yml")
+
+			summary.Repos = append(summary.Repos, readiness.RepoReadiness{
+				Repo:       r.Name,
+				AgentsMD:   agentsMD,
+				CopilotMD:  copilotMD,
+				SetupSteps: setupSteps,
+				Level:      readiness.AssessRepoLight(agentsMD, copilotMD, setupSteps),
+			})
+		}
+		summary.Total = len(summary.Repos)
+
+		result = CallToolResult{
+			Content: []TextContent{
+				{Type: "text", Text: readiness.FormatTeamSummary(summary)},
+			},
+		}
+
 	default:
 		return &JSONRPCResponse{
 			JSONRPC: "2.0",
@@ -670,6 +948,253 @@ This information is from your GitHub OAuth session.`, user.Login, user.ID)
 		ID:      req.ID,
 		Result:  result,
 	}
+}
+
+func (h *MCPHandler) inspectRepo(accessToken, owner, repo string) (*readiness.RepoContents, error) {
+	contents := &readiness.RepoContents{}
+
+	var err error
+	contents.CopilotInstructions, err = h.githubClient.GetRepoFile(accessToken, owner, repo, ".github/copilot-instructions.md")
+	if err != nil {
+		return nil, fmt.Errorf("checking copilot-instructions.md: %w", err)
+	}
+
+	contents.InstructionsCount, err = h.githubClient.GetDirectoryCount(accessToken, owner, repo, ".github/instructions")
+	if err != nil {
+		return nil, fmt.Errorf("checking instructions dir: %w", err)
+	}
+
+	contents.AgentsCount, err = h.githubClient.GetDirectoryCount(accessToken, owner, repo, ".github/agents")
+	if err != nil {
+		return nil, fmt.Errorf("checking agents dir: %w", err)
+	}
+
+	contents.PromptsCount, err = h.githubClient.GetDirectoryCount(accessToken, owner, repo, ".github/prompts")
+	if err != nil {
+		return nil, fmt.Errorf("checking prompts dir: %w", err)
+	}
+
+	contents.SkillsCount, err = h.githubClient.GetDirectoryCount(accessToken, owner, repo, ".github/skills")
+	if err != nil {
+		return nil, fmt.Errorf("checking skills dir: %w", err)
+	}
+
+	contents.SetupSteps, err = h.githubClient.GetRepoFile(accessToken, owner, repo, ".github/workflows/copilot-setup-steps.yml")
+	if err != nil {
+		return nil, fmt.Errorf("checking copilot-setup-steps.yml: %w", err)
+	}
+
+	contents.HooksConfig, err = h.githubClient.GetRepoFile(accessToken, owner, repo, ".github/hooks/copilot-hooks.json")
+	if err != nil {
+		return nil, fmt.Errorf("checking hooks config: %w", err)
+	}
+
+	contents.AgentsMD, err = h.githubClient.GetRepoFile(accessToken, owner, repo, "AGENTS.md")
+	if err != nil {
+		return nil, fmt.Errorf("checking AGENTS.md: %w", err)
+	}
+
+	contents.HasReadme, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "README.md")
+	contents.HasDependabot, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, ".github/dependabot.yml")
+	if !contents.HasDependabot {
+		contents.HasDependabot, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, ".github/dependabot.yaml")
+	}
+	workflowCount, _ := h.githubClient.GetDirectoryCount(accessToken, owner, repo, ".github/workflows")
+	contents.HasCIWorkflows = workflowCount > 0
+
+	contents.Languages, err = h.githubClient.GetRepoLanguages(accessToken, owner, repo)
+	if err != nil {
+		return nil, fmt.Errorf("getting languages: %w", err)
+	}
+
+	h.detectRepoContentsStack(accessToken, owner, repo, contents)
+	h.detectVerificationInfra(accessToken, owner, repo, contents)
+
+	return contents, nil
+}
+
+func (h *MCPHandler) detectRepoContentsStack(accessToken, owner, repo string, contents *readiness.RepoContents) {
+	contents.HasPackageJSON, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "package.json")
+	contents.HasGradleKts, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "build.gradle.kts")
+	contents.HasPomXML, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "pom.xml")
+
+	if contents.HasPackageJSON {
+		contents.HasNextConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "next.config.ts")
+		if !contents.HasNextConfig {
+			contents.HasNextConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "next.config.js")
+		}
+		if !contents.HasNextConfig {
+			contents.HasNextConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "next.config.mjs")
+		}
+	}
+
+	if contents.HasGradleKts || contents.HasPomXML {
+		contents.HasAppYml, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "src/main/resources/application.yml")
+		if !contents.HasAppYml {
+			contents.HasAppYml, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "src/main/resources/application.properties")
+		}
+		if !contents.HasAppYml {
+			contents.HasAppYml, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "src/main/resources/application.yaml")
+		}
+	}
+}
+
+func (h *MCPHandler) detectVerificationInfra(accessToken, owner, repo string, contents *readiness.RepoContents) {
+	langs := make(map[string]bool, len(contents.Languages))
+	for _, l := range contents.Languages {
+		langs[l] = true
+	}
+
+	if langs["TypeScript"] || langs["JavaScript"] {
+		contents.HasLinterConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "eslint.config.mjs")
+		if !contents.HasLinterConfig {
+			contents.HasLinterConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "eslint.config.js")
+		}
+		if !contents.HasLinterConfig {
+			contents.HasLinterConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, ".eslintrc.json")
+		}
+	}
+	if !contents.HasLinterConfig && langs["Go"] {
+		contents.HasLinterConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, ".golangci.yml")
+		if !contents.HasLinterConfig {
+			contents.HasLinterConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, ".golangci.yaml")
+		}
+	}
+	if !contents.HasLinterConfig && (langs["Kotlin"] || langs["Java"]) {
+		contents.HasLinterConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "detekt.yml")
+		if !contents.HasLinterConfig {
+			contents.HasLinterConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "config/detekt/detekt.yml")
+		}
+	}
+
+	if langs["TypeScript"] || langs["JavaScript"] {
+		contents.HasTypeChecking, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "tsconfig.json")
+	} else if langs["Go"] || langs["Kotlin"] || langs["Java"] || langs["Rust"] {
+		contents.HasTypeChecking = true
+	}
+
+	if langs["TypeScript"] || langs["JavaScript"] {
+		contents.HasTestConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "jest.config.js")
+		if !contents.HasTestConfig {
+			contents.HasTestConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "jest.config.ts")
+		}
+		if !contents.HasTestConfig {
+			contents.HasTestConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "vitest.config.ts")
+		}
+		if !contents.HasTestConfig {
+			contents.HasTestConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "vitest.config.js")
+		}
+	}
+	if !contents.HasTestConfig && (contents.HasGradleKts || contents.HasPomXML) {
+		contents.HasTestConfig = true
+	}
+	if !contents.HasTestConfig && langs["Go"] {
+		contents.HasTestConfig = true
+	}
+}
+
+func (h *MCPHandler) detectRepoInfo(accessToken, owner, repo string) (*templates.RepoInfo, error) {
+	info := &templates.RepoInfo{Owner: owner, Repo: repo}
+
+	var err error
+	info.Languages, err = h.githubClient.GetRepoLanguages(accessToken, owner, repo)
+	if err != nil {
+		return nil, fmt.Errorf("getting languages: %w", err)
+	}
+
+	info.HasPackageJSON, err = h.githubClient.GetRepoFile(accessToken, owner, repo, "package.json")
+	if err != nil {
+		return nil, fmt.Errorf("checking package.json: %w", err)
+	}
+
+	if info.HasPackageJSON {
+		info.PackageManager = detectPackageManager(h.githubClient, accessToken, owner, repo)
+	}
+
+	info.HasGoMod, err = h.githubClient.GetRepoFile(accessToken, owner, repo, "go.mod")
+	if err != nil {
+		return nil, fmt.Errorf("checking go.mod: %w", err)
+	}
+
+	info.HasGradleKts, err = h.githubClient.GetRepoFile(accessToken, owner, repo, "build.gradle.kts")
+	if err != nil {
+		return nil, fmt.Errorf("checking build.gradle.kts: %w", err)
+	}
+
+	info.HasPomXML, err = h.githubClient.GetRepoFile(accessToken, owner, repo, "pom.xml")
+	if err != nil {
+		return nil, fmt.Errorf("checking pom.xml: %w", err)
+	}
+
+	info.HasDockerfile, err = h.githubClient.GetRepoFile(accessToken, owner, repo, "Dockerfile")
+	if err != nil {
+		return nil, fmt.Errorf("checking Dockerfile: %w", err)
+	}
+
+	info.HasNais, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, ".nais")
+
+	// Stack-specific detection
+	if info.HasPackageJSON {
+		info.HasNextConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "next.config.ts")
+		if !info.HasNextConfig {
+			info.HasNextConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "next.config.js")
+		}
+		if !info.HasNextConfig {
+			info.HasNextConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "next.config.mjs")
+		}
+	}
+
+	if info.HasGradleKts || info.HasPomXML {
+		info.HasAppYml, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "src/main/resources/application.yml")
+		if !info.HasAppYml {
+			info.HasAppYml, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "src/main/resources/application.properties")
+		}
+		if !info.HasAppYml {
+			info.HasAppYml, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "src/main/resources/application.yaml")
+		}
+	}
+
+	return info, nil
+}
+
+func detectPackageManager(client *GitHubClient, accessToken, owner, repo string) string {
+	if exists, _ := client.GetRepoFile(accessToken, owner, repo, "pnpm-lock.yaml"); exists {
+		return "pnpm"
+	}
+	if exists, _ := client.GetRepoFile(accessToken, owner, repo, "yarn.lock"); exists {
+		return "yarn"
+	}
+	return "npm"
+}
+
+type suggestionsFormatter struct {
+	owner       string
+	repo        string
+	langs       []string
+	suggestions []readiness.Suggestion
+}
+
+func (f *suggestionsFormatter) String() string {
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, "# Suggested Customizations for %s/%s\n\n", f.owner, f.repo)
+
+	if len(f.langs) > 0 {
+		fmt.Fprintf(&sb, "**Detected languages**: %s\n\n", strings.Join(f.langs, ", "))
+	}
+
+	if len(f.suggestions) == 0 {
+		sb.WriteString("No specific customization suggestions for this repository's tech stack.\n")
+		return sb.String()
+	}
+
+	for i, s := range f.suggestions {
+		fmt.Fprintf(&sb, "## %d. %s (%s)\n\n", i+1, s.Name, s.Type)
+		fmt.Fprintf(&sb, "%s\n\n", s.Reason)
+		fmt.Fprintf(&sb, "**Install**: %s\n\n", s.InstallURL)
+	}
+
+	return sb.String()
 }
 
 func (h *MCPHandler) handlePing(req *JSONRPCRequest) *JSONRPCResponse {
