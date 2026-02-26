@@ -1091,6 +1091,68 @@ func (h *MCPHandler) detectVerificationInfra(accessToken, owner, repo string, co
 	if !contents.HasTestConfig && langs["Go"] {
 		contents.HasTestConfig = true
 	}
+
+	// Monorepo detection: if configs weren't found at root, check subdirectories
+	needsLinter := !contents.HasLinterConfig
+	needsTypeCheck := !contents.HasTypeChecking
+	needsTestConfig := !contents.HasTestConfig
+	if needsLinter || needsTypeCheck || needsTestConfig {
+		h.probeMonorepoSubdirs(accessToken, owner, repo, contents, needsLinter, needsTypeCheck, needsTestConfig)
+	}
+}
+
+// probeMonorepoSubdirs checks common monorepo directories (apps/, packages/) for
+// verification config files that weren't found at the root level.
+func (h *MCPHandler) probeMonorepoSubdirs(accessToken, owner, repo string, contents *readiness.RepoContents, needsLinter, needsTypeCheck, needsTestConfig bool) {
+	for _, dir := range []string{"apps", "packages"} {
+		entries, err := h.githubClient.ListDirectory(accessToken, owner, repo, dir)
+		if err != nil || len(entries) == 0 {
+			continue
+		}
+
+		// Check the first subdirectory for config files
+		for _, entry := range entries {
+			if entry.Type != "dir" {
+				continue
+			}
+			prefix := dir + "/" + entry.Name
+
+			if needsLinter {
+				if found, _ := h.githubClient.GetRepoFile(accessToken, owner, repo, prefix+"/eslint.config.mjs"); found {
+					contents.HasLinterConfig = true
+					needsLinter = false
+				} else if found, _ := h.githubClient.GetRepoFile(accessToken, owner, repo, prefix+"/.golangci.yml"); found {
+					contents.HasLinterConfig = true
+					needsLinter = false
+				}
+			}
+
+			if needsTypeCheck {
+				if found, _ := h.githubClient.GetRepoFile(accessToken, owner, repo, prefix+"/tsconfig.json"); found {
+					contents.HasTypeChecking = true
+					needsTypeCheck = false
+				}
+			}
+
+			if needsTestConfig {
+				if found, _ := h.githubClient.GetRepoFile(accessToken, owner, repo, prefix+"/jest.config.js"); found {
+					contents.HasTestConfig = true
+					needsTestConfig = false
+				} else if found, _ := h.githubClient.GetRepoFile(accessToken, owner, repo, prefix+"/vitest.config.ts"); found {
+					contents.HasTestConfig = true
+					needsTestConfig = false
+				}
+			}
+
+			// Found at least one subdirectory — no need to check more
+			if !needsLinter && !needsTypeCheck && !needsTestConfig {
+				return
+			}
+
+			// Only probe the first subdirectory to limit API calls
+			return
+		}
+	}
 }
 
 func (h *MCPHandler) detectRepoInfo(accessToken, owner, repo string) (*templates.RepoInfo, error) {

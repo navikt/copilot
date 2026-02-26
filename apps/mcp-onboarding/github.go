@@ -261,13 +261,13 @@ func (c *GitHubClient) GetRepoFile(accessToken, owner, repo, path string) (bool,
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-func (c *GitHubClient) GetDirectoryCount(accessToken, owner, repo, path string) (int, error) {
+func (c *GitHubClient) ListDirectory(accessToken, owner, repo, path string) ([]RepoContent, error) {
 	apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/%s",
 		c.APIBaseURL, url.PathEscape(owner), url.PathEscape(repo), path)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/vnd.github+json")
@@ -275,25 +275,33 @@ func (c *GitHubClient) GetDirectoryCount(accessToken, owner, repo, path string) 
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return 0, nil
+		return nil, nil
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
 	}
 
 	var contents []RepoContent
 	if err := json.NewDecoder(resp.Body).Decode(&contents); err != nil {
-		return 0, nil
+		return nil, nil
 	}
 
-	return len(contents), nil
+	return contents, nil
+}
+
+func (c *GitHubClient) GetDirectoryCount(accessToken, owner, repo, path string) (int, error) {
+	entries, err := c.ListDirectory(accessToken, owner, repo, path)
+	if err != nil {
+		return 0, err
+	}
+	return len(entries), nil
 }
 
 func (c *GitHubClient) GetRepoLanguages(accessToken, owner, repo string) ([]string, error) {
