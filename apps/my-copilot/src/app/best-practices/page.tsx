@@ -469,14 +469,14 @@ export default async function BestPractices() {
 
             {/* MCP section - separate from CLI */}
             <Box
-              background="warning-soft"
+              background="success-soft"
               padding={{ xs: "space-12", sm: "space-16" }}
               borderRadius="8"
               className="mb-6"
             >
               <div className="flex items-center gap-2 mb-2">
-                <CogIcon className="text-orange-700" aria-hidden />
-                <Heading size="small" level="3" className="text-orange-700">
+                <CogIcon className="text-green-700" aria-hidden />
+                <Heading size="small" level="3" className="text-green-700">
                   MCP (Model Context Protocol)
                 </Heading>
               </div>
@@ -484,8 +484,36 @@ export default async function BestPractices() {
                 Utvid Copilot med eksterne verktøy via MCP-servere. Tilgjengelig i Agent Mode (VS Code), Copilot CLI og
                 Coding Agent på GitHub.com.
               </BodyShort>
-              <BodyShort className="text-gray-600 text-xs">
-                Godkjenning for bruk i Nav pågår – ventes tilgjengelig snart.
+              <BodyShort className="text-gray-600 text-sm mb-3">
+                Nav har en{" "}
+                <a
+                  href="https://mcp-registry.intern.dev.nav.no"
+                  className="text-blue-600 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  MCP-registry
+                </a>{" "}
+                med godkjente MCP-servere. Legg til registryet i VS Code for automatisk oppdagelse:
+              </BodyShort>
+              <CodeBlock filename="settings.json" maxHeight="120px">{`{
+  "mcp": {
+    "registries": {
+      "nav": "https://mcp-registry.intern.dev.nav.no/v0.1/servers"
+    }
+  }
+}`}</CodeBlock>
+              <BodyShort className="text-gray-600 text-xs mt-3">
+                Nav har også en{" "}
+                <a
+                  href="https://mcp-onboarding.intern.dev.nav.no"
+                  className="text-blue-600 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  MCP onboarding-server
+                </a>{" "}
+                som hjelper deg å sjekke hvor «agent-klar» repoet ditt er, og generere tilpasningsfiler.
               </BodyShort>
             </Box>
 
@@ -571,6 +599,61 @@ export default async function BestPractices() {
                 <strong>Anbefaling:</strong> Skriv beskrivelser og kommentarer på norsk hvis det passer teamet. Hold
                 kode, kommandoer, variabelnavn og tekniske termer på engelsk. Dette matcher vanlig praksis i norske
                 utviklingsmiljøer og sikrer at Copilot forstår koden din korrekt.
+              </BodyShort>
+            </Box>
+
+            {/* Start here: AGENTS.md + copilot-setup-steps */}
+            <Box
+              background="success-soft"
+              padding={{ xs: "space-12", sm: "space-16" }}
+              borderRadius="8"
+              className="mb-6"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <RocketIcon className="text-green-700" aria-hidden />
+                <Heading size="small" level="3" className="text-green-700">
+                  Start her – to filer som gir mest effekt
+                </Heading>
+              </div>
+              <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+                <Box background="default" padding="space-12" borderRadius="4">
+                  <BodyShort weight="semibold" className="text-sm text-green-700 mb-2">
+                    1. AGENTS.md (repo-rot)
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs mb-2">
+                    En universell kontekstfil som fungerer med Copilot, Claude Code, Codex og andre agenter. Beskriv
+                    tech stack, bygg-kommandoer, kodestil og grenser.
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">
+                    Tenk på det som onboarding-dokumentet for en ny utvikler – det er nøyaktig det AI-agenter trenger
+                    for å forstå prosjektet ditt.
+                  </BodyShort>
+                </Box>
+                <Box background="default" padding="space-12" borderRadius="4">
+                  <BodyShort weight="semibold" className="text-sm text-green-700 mb-2">
+                    2. copilot-setup-steps.yml
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs mb-2">
+                    GitHub Actions workflow som klargjør miljøet for Copilot coding agent. Uten denne filen kan ikke
+                    coding agent bygge eller teste koden din.
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">
+                    Plasseres i{" "}
+                    <code className="bg-gray-100 px-1 rounded">.github/workflows/copilot-setup-steps.yml</code>.
+                  </BodyShort>
+                </Box>
+              </HGrid>
+              <BodyShort className="text-gray-600 text-xs mt-3">
+                Bruk{" "}
+                <a
+                  href="https://mcp-onboarding.intern.dev.nav.no"
+                  className="text-blue-600 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  MCP onboarding-serveren
+                </a>{" "}
+                for å sjekke repoets agent-beredskap og generere begge filene automatisk.
               </BodyShort>
             </Box>
 
@@ -726,6 +809,81 @@ Follow the structure used in popular open-source projects.`}</CodeBlock>
 - Lint: \`pnpm lint\`
 - Build: \`pnpm build\`
 - Typecheck: \`pnpm check\``}</CodeBlock>
+                </VStack>
+
+                <VStack gap="space-16" className="w-100">
+                  <div className="flex items-center gap-2">
+                    <BulletListIcon className="text-green-600" aria-hidden />
+                    <Heading size="small" level="3">
+                      AGENTS.md (universell)
+                    </Heading>
+                  </div>
+                  <BodyShort className="text-gray-600 text-xs">
+                    Fungerer med Copilot, Claude Code, Codex og andre agenter.
+                  </BodyShort>
+                  <CodeBlock filename="AGENTS.md" maxHeight="350px">{`# AGENTS.md — mitt-prosjekt
+
+## Repository Overview
+Backend-tjeneste for brukeradministrasjon.
+
+## Tech Stack
+- Kotlin 2.0 med Ktor
+- PostgreSQL med Flyway-migrasjoner
+- Apache Kafka (Rapids & Rivers)
+
+## Build & Test Commands
+\`\`\`bash
+./gradlew build   # Build
+./gradlew test    # Run tests
+\`\`\`
+
+## Code Standards
+- Sealed classes for konfigrasjon
+- Kotliquery for database-tilgang
+- Skriv tester for alle public APIs
+
+## Deployment
+- Platform: Nais (Kubernetes on GCP)
+- Manifester i \`.nais/\`
+- Påkrevde endepunkter: /isalive, /isready, /metrics
+
+## Boundaries
+### ✅ Always
+- Kjør tester før commit
+- Bruk parameteriserte queries
+### ⚠️ Ask First
+- Endre autentiseringsmekanismer
+### 🚫 Never
+- Commit secrets til git`}</CodeBlock>
+                </VStack>
+
+                <VStack gap="space-16" className="w-100">
+                  <div className="flex items-center gap-2">
+                    <RocketIcon className="text-orange-600" aria-hidden />
+                    <Heading size="small" level="3">
+                      Copilot Setup Steps
+                    </Heading>
+                  </div>
+                  <BodyShort className="text-gray-600 text-xs">Klargjør miljøet for Copilot coding agent.</BodyShort>
+                  <CodeBlock
+                    filename=".github/workflows/copilot-setup-steps.yml"
+                    maxHeight="350px"
+                  >{`name: Copilot Setup Steps
+on: workflow_dispatch
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install`}</CodeBlock>
                 </VStack>
 
                 <VStack gap="space-16" className="w-100">
@@ -905,6 +1063,119 @@ Return extracted data as structured JSON:
                 </HGrid>
               </Box>
             </VStack>
+
+            {/* Readiness checklist */}
+            <Box
+              background="accent-soft"
+              padding={{ xs: "space-12", sm: "space-16" }}
+              borderRadius="8"
+              className="mt-6"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <TasklistIcon className="text-blue-600" aria-hidden />
+                <Heading size="small" level="3">
+                  Er repoet ditt agent-klart?
+                </Heading>
+              </div>
+              <BodyShort className="text-gray-600 text-xs mb-3">
+                Sjekk disse punktene for å gjøre repoet ditt klart for AI-agenter. Tilpasninger + verifikasjon = 14
+                poeng totalt.
+              </BodyShort>
+              <BodyShort weight="semibold" className="text-xs mb-2">
+                Tilpasninger (8 poeng)
+              </BodyShort>
+              <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-12" className="mb-4">
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    AGENTS.md
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Universell kontekst (alle agenter)</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    copilot-setup-steps.yml
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Coding agent miljøoppsett</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    copilot-instructions.md
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Copilot-spesifikke instruksjoner</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    .github/instructions/
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Filtype-spesifikke regler</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    .github/agents/
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Spesialiserte agenter</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    .github/prompts/
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Gjenbrukbare prompts</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    .github/skills/
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Kapabiliteter med skript</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    .github/hooks/
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Automatisk lint/format</BodyShort>
+                </div>
+              </HGrid>
+              <BodyShort weight="semibold" className="text-xs mb-2">
+                Verifikasjonsinfrastruktur (6 poeng)
+              </BodyShort>
+              <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    CI/CD workflows
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Automatisert bygg og test i GitHub Actions</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    Linter-konfigurasjon
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">ESLint, golangci-lint, detekt</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    Typesjekking
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">tsconfig.json, Go/Kotlin/Rust (innebygd)</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    Testkonfigurasjon
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Jest, Vitest, eller innebygd (Go, JVM)</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    Dependabot
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Automatiske avhengighetsoppdateringer</BodyShort>
+                </div>
+                <div>
+                  <BodyShort weight="semibold" className="text-xs">
+                    README.md
+                  </BodyShort>
+                  <BodyShort className="text-gray-600 text-xs">Dokumentasjon agenter leser først</BodyShort>
+                </div>
+              </HGrid>
+            </Box>
           </Box>
 
           {/* Skriv Effektive Tilpasninger */}
@@ -2581,6 +2852,28 @@ description: Skriver tester for dette prosjektet
                       rel="noopener noreferrer"
                     >
                       Om GitHub Copilot i Nav
+                    </a>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">▪</span>
+                    <a
+                      href="https://mcp-registry.intern.dev.nav.no"
+                      className="text-blue-600 hover:underline text-sm"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Nav MCP Registry – godkjente MCP-servere
+                    </a>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">▪</span>
+                    <a
+                      href="https://mcp-onboarding.intern.dev.nav.no"
+                      className="text-blue-600 hover:underline text-sm"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      MCP Onboarding – sjekk agent-beredskap og generer tilpasningsfiler
                     </a>
                   </li>
                 </ul>

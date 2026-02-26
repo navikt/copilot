@@ -42,3 +42,8 @@ spec:
       value: "{{log_level}}"
   envFrom:
     - secret: mcp-onboarding-secrets
+  accessPolicy:
+    outbound:
+      external:
+        - host: api.github.com
+        - host: github.com
