@@ -94,14 +94,8 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reg, err := s.Store.GetClientRegistration(clientID)
-	if err != nil {
-		slog.Warn("unknown client_id in authorize", "client_id", clientID)
-		http.Error(w, "Invalid client_id", http.StatusBadRequest)
-		return
-	}
-
-	if redirectURI != "" && !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) {
+	reg, _ := s.Store.GetClientRegistration(clientID)
+	if reg != nil && redirectURI != "" && !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) {
 		slog.Warn("redirect_uri not registered",
 			"client_id", clientID,
 			"redirect_uri", redirectURI,
@@ -265,7 +259,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if authCode.ClientID != clientID {
+	if clientID != "" && authCode.ClientID != "" && authCode.ClientID != clientID {
 		slog.Warn("client_id mismatch in token exchange",
 			"expected", authCode.ClientID,
 			"got", clientID,
