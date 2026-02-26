@@ -169,6 +169,52 @@ This server is registered in Nav's MCP registry:
 - **Version**: 2.0.0
 - **Capabilities**: OAuth 2.1, Hello World tools, NAV Copilot customization discovery
 
+## Client Compatibility
+
+### VS Code — Fully Supported
+
+MCP registry browse and one-click install works. OAuth with DCR triggers automatically.
+Streamable HTTP transport fully supported.
+
+- **Registry**: Click `@mcp` in Copilot Chat → browse → install
+- **Auth flow**: DCR → authorize → GitHub login → token exchange (all automatic)
+- **Transport**: Streamable HTTP (`POST /mcp`)
+
+### JetBrains (IntelliJ, WebStorm, etc.) — Registry Works, OAuth Unstable
+
+MCP registry browsing and install is available since Copilot for JetBrains plugin v1.5.62.
+OAuth authentication for third-party MCP servers has known issues.
+
+- **Registry**: Click the MCP registry icon in Copilot Chat panel → browse → install
+- **Status**: Public preview, requires **nightly build** of the Copilot for JetBrains plugin
+- **Enhanced OAuth (DCR + fallback)**: [Announced Nov 2025](https://github.blog/changelog/2025-11-18-enhanced-mcp-oauth-support-for-github-copilot-in-jetbrains-eclipse-and-xcode/)
+- **Registry + allowlist controls**: [Announced Oct 2025](https://github.blog/changelog/2025-10-28-mcp-registry-and-allowlist-controls-for-copilot-in-jetbrains-eclipse-and-xcode-now-in-public-preview/)
+- **Known issues**:
+  - [copilot-intellij-feedback#875](https://github.com/microsoft/copilot-intellij-feedback/issues/875) — "No authentication provider found" for custom MCP with DCR
+  - [copilot-intellij-feedback#1097](https://github.com/microsoft/copilot-intellij-feedback/issues/1097) — OAuth works with JetBrains AI Assistant but not with Copilot plugin
+  - [copilot-intellij-feedback#408](https://github.com/microsoft/copilot-intellij-feedback/issues/408) — Remote MCP servers with OAuth throw 401
+  - [copilot-intellij-feedback#978](https://github.com/microsoft/copilot-intellij-feedback/issues/978) — MCP toolset returns empty results, no OAuth login in logs
+
+### Copilot CLI — Not Supported
+
+Copilot CLI (`@github/copilot`) only supports local stdio MCP servers.
+No registry support, no remote HTTP transport, no OAuth.
+
+- **Feature request**: [copilot-cli#33](https://github.com/github/copilot-cli/issues/33) — "Support OAuth http MCP servers" (open since Sep 2025)
+- **Current capability**: `/mcp add` for local stdio servers only, config in `~/.copilot/mcp-config.json`
+
+### Eclipse — Registry Works, OAuth Untested
+
+MCP registry available in pre-release versions of Copilot for Eclipse.
+Same enhanced OAuth support as JetBrains [announced Nov 2025](https://github.blog/changelog/2025-11-18-enhanced-mcp-oauth-support-for-github-copilot-in-jetbrains-eclipse-and-xcode/).
+Not tested with this server.
+
+### Xcode — Registry Works, OAuth Untested
+
+MCP registry available in pre-release versions of Copilot for Xcode.
+Same enhanced OAuth support as JetBrains [announced Nov 2025](https://github.blog/changelog/2025-11-18-enhanced-mcp-oauth-support-for-github-copilot-in-jetbrains-eclipse-and-xcode/).
+Not tested with this server.
+
 ## Security
 
 - Uses OAuth 2.1 with PKCE (Proof Key for Code Exchange)
