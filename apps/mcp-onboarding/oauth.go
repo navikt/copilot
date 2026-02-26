@@ -46,6 +46,7 @@ func NewOAuthServer(baseURL string, githubClient *GitHubClient, store *TokenStor
 func (s *OAuthServer) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", s.handleAuthServerMetadata)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", s.handleProtectedResourceMetadata)
+	mux.HandleFunc("GET /.well-known/oauth-protected-resource/mcp", s.handleProtectedResourceMetadata)
 	mux.HandleFunc("GET /oauth/authorize", s.handleAuthorize)
 	mux.HandleFunc("GET /oauth/callback", s.handleCallback)
 	mux.HandleFunc("POST /oauth/token", s.handleToken)
@@ -73,7 +74,7 @@ func (s *OAuthServer) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Re
 
 func (s *OAuthServer) handleProtectedResourceMetadata(w http.ResponseWriter, _ *http.Request) {
 	metadata := ProtectedResourceMetadata{
-		Resource:             s.BaseURL,
+		Resource:             s.BaseURL + "/mcp",
 		AuthorizationServers: []string{s.BaseURL},
 	}
 
