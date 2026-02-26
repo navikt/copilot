@@ -7,6 +7,7 @@ A reference MCP (Model Context Protocol) server demonstrating GitHub OAuth authe
 This server implements:
 
 - **OAuth 2.1 with PKCE** - Secure authentication flow required by MCP spec
+- **Dynamic Client Registration (RFC 7591)** - MCP clients register automatically, no manual client_id needed
 - **GitHub OAuth proxy** - Acts as OAuth authorization server, proxying to GitHub
 - **Organization access control** - Validates user membership in allowed GitHub organizations
 - **MCP JSON-RPC** - Full protocol implementation with streamable HTTP transport
@@ -24,10 +25,11 @@ This server implements:
 **Flow:**
 
 1. VS Code discovers OAuth metadata via `/.well-known/oauth-authorization-server`
-2. User is redirected to GitHub for authentication
-3. Server exchanges GitHub code for tokens and validates org membership
-4. Server issues its own access token mapped to GitHub session
-5. VS Code uses token to call MCP tools (both hello-world and discovery)
+2. VS Code registers as a client via `POST /register` (Dynamic Client Registration)
+3. User is redirected to GitHub for authentication
+4. Server exchanges GitHub code for tokens and validates org membership
+5. Server issues its own access token mapped to GitHub session
+6. VS Code uses token to call MCP tools (both hello-world and discovery)
 
 ## Available Tools
 
@@ -147,16 +149,17 @@ Deployed to Nais using the reusable `mise-build-deploy-nais` workflow.
 
 ## API Endpoints
 
-| Endpoint                                  | Method | Description                 |
-| ----------------------------------------- | ------ | --------------------------- |
-| `/.well-known/oauth-authorization-server` | GET    | OAuth server metadata       |
-| `/.well-known/oauth-protected-resource`   | GET    | Protected resource metadata |
-| `/oauth/authorize`                        | GET    | Start OAuth flow            |
-| `/oauth/callback`                         | GET    | GitHub OAuth callback       |
-| `/oauth/token`                            | POST   | Token exchange              |
-| `/mcp`                                    | POST   | MCP JSON-RPC endpoint       |
-| `/health`                                 | GET    | Health check                |
-| `/ready`                                  | GET    | Readiness check             |
+| Endpoint                                  | Method | Description                            |
+| ----------------------------------------- | ------ | -------------------------------------- |
+| `/.well-known/oauth-authorization-server` | GET    | OAuth server metadata                  |
+| `/.well-known/oauth-protected-resource`   | GET    | Protected resource metadata            |
+| `/register`                               | POST   | Dynamic Client Registration (RFC 7591) |
+| `/oauth/authorize`                        | GET    | Start OAuth flow                       |
+| `/oauth/callback`                         | GET    | GitHub OAuth callback                  |
+| `/oauth/token`                            | POST   | Token exchange                         |
+| `/mcp`                                    | POST   | MCP JSON-RPC endpoint                  |
+| `/health`                                 | GET    | Health check                           |
+| `/ready`                                  | GET    | Readiness check                        |
 
 ## MCP Registry
 
@@ -169,9 +172,12 @@ This server is registered in Nav's MCP registry:
 ## Security
 
 - Uses OAuth 2.1 with PKCE (Proof Key for Code Exchange)
+- Dynamic Client Registration for seamless MCP client onboarding
+- Redirect URIs restricted to `http://127.0.0.1`, `http://localhost`, or `https://`
+- Client registrations rate limited (max 1000) and expire after 30 days
 - Validates GitHub organization membership before issuing tokens
 - Tokens expire after 1 hour (refresh tokens: 30 days)
-- All tokens stored in memory (lost on restart)
+- All tokens and client registrations stored in memory (lost on restart)
 
 ## License
 

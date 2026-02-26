@@ -1,8 +1,8 @@
 namespace: copilot
 team: copilot
 image: "{{image}}"
-replicas_min: 2
-replicas_max: 4
+replicas_min: 1
+replicas_max: 1
 memory_limit: 256Mi
 cpu_request: 100m
 memory_request: 128Mi

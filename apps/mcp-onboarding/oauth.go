@@ -22,6 +22,7 @@ type AuthorizationServerMetadata struct {
 	Issuer                            string   `json:"issuer"`
 	AuthorizationEndpoint             string   `json:"authorization_endpoint"`
 	TokenEndpoint                     string   `json:"token_endpoint"`
+	RegistrationEndpoint              string   `json:"registration_endpoint,omitempty"`
 	ResponseTypesSupported            []string `json:"response_types_supported"`
 	GrantTypesSupported               []string `json:"grant_types_supported"`
 	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported"`
@@ -49,6 +50,8 @@ func (s *OAuthServer) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /oauth/callback", s.handleCallback)
 	mux.HandleFunc("POST /oauth/token", s.handleToken)
 	mux.HandleFunc("OPTIONS /oauth/token", s.handleTokenOptions)
+	mux.HandleFunc("POST /register", s.handleRegister)
+	mux.HandleFunc("OPTIONS /register", s.handleRegisterOptions)
 }
 
 func (s *OAuthServer) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Request) {
@@ -56,6 +59,7 @@ func (s *OAuthServer) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Re
 		Issuer:                            s.BaseURL,
 		AuthorizationEndpoint:             s.BaseURL + "/oauth/authorize",
 		TokenEndpoint:                     s.BaseURL + "/oauth/token",
+		RegistrationEndpoint:              s.BaseURL + "/register",
 		ResponseTypesSupported:            []string{"code"},
 		GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
@@ -79,10 +83,32 @@ func (s *OAuthServer) handleProtectedResourceMetadata(w http.ResponseWriter, _ *
 }
 
 func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
+	clientID := r.URL.Query().Get("client_id")
 	clientState := r.URL.Query().Get("state")
 	redirectURI := r.URL.Query().Get("redirect_uri")
 	codeChallenge := r.URL.Query().Get("code_challenge")
 	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
+
+	if clientID == "" {
+		http.Error(w, "Missing required parameter: client_id", http.StatusBadRequest)
+		return
+	}
+
+	reg, err := s.Store.GetClientRegistration(clientID)
+	if err != nil {
+		slog.Warn("unknown client_id in authorize", "client_id", clientID)
+		http.Error(w, "Invalid client_id", http.StatusBadRequest)
+		return
+	}
+
+	if redirectURI != "" && !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) {
+		slog.Warn("redirect_uri not registered",
+			"client_id", clientID,
+			"redirect_uri", redirectURI,
+		)
+		http.Error(w, "redirect_uri does not match registered URIs", http.StatusBadRequest)
+		return
+	}
 
 	if codeChallengeMethod != "" && codeChallengeMethod != "S256" {
 		http.Error(w, "Only S256 code challenge method supported", http.StatusBadRequest)
@@ -92,6 +118,7 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	internalState := generateSecureToken(32)
 
 	session := &AuthSession{
+		ClientID:            clientID,
 		ClientState:         clientState,
 		RedirectURI:         redirectURI,
 		CodeChallenge:       codeChallenge,
@@ -101,6 +128,7 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	s.Store.SaveAuthSession(internalState, session)
 
 	slog.Info("starting oauth flow",
+		"client_id", clientID,
 		"redirect_uri", redirectURI,
 		"has_pkce", codeChallenge != "",
 	)
@@ -172,6 +200,7 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 
 	mcpCode := generateSecureToken(32)
 	s.Store.SaveAuthCode(mcpCode, &AuthCode{
+		ClientID:           session.ClientID,
 		GitHubAccessToken:  githubToken.AccessToken,
 		GitHubRefreshToken: githubToken.RefreshToken,
 		GitHubExpiresAt:    githubToken.ExpiresAt,
@@ -221,6 +250,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	code := r.FormValue("code")
 	codeVerifier := r.FormValue("code_verifier")
 	redirectURI := r.FormValue("redirect_uri")
+	clientID := r.FormValue("client_id")
 
 	authCode, err := s.Store.GetAuthCode(code)
 	if err != nil {
@@ -232,6 +262,15 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 
 	if time.Since(authCode.CreatedAt) > 10*time.Minute {
 		s.writeTokenError(w, "invalid_grant", "Authorization code expired")
+		return
+	}
+
+	if authCode.ClientID != clientID {
+		slog.Warn("client_id mismatch in token exchange",
+			"expected", authCode.ClientID,
+			"got", clientID,
+		)
+		s.writeTokenError(w, "invalid_client", "client_id mismatch")
 		return
 	}
 
@@ -339,6 +378,147 @@ func (s *OAuthServer) setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept")
+}
+
+func (s *OAuthServer) handleRegisterOptions(w http.ResponseWriter, _ *http.Request) {
+	s.setCORSHeaders(w)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
+	s.setCORSHeaders(w)
+
+	if s.Store.CountClientRegistrations() > 1000 {
+		slog.Warn("too many client registrations")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "too_many_requests",
+			"error_description": "Too many client registrations",
+		})
+		return
+	}
+
+	var req struct {
+		ClientName              string   `json:"client_name"`
+		RedirectURIs            []string `json:"redirect_uris"`
+		GrantTypes              []string `json:"grant_types"`
+		ResponseTypes           []string `json:"response_types"`
+		TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client_metadata",
+			"error_description": "Failed to parse request body",
+		})
+		return
+	}
+
+	if len(req.RedirectURIs) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client_metadata",
+			"error_description": "redirect_uris is required and must not be empty",
+		})
+		return
+	}
+
+	for _, uri := range req.RedirectURIs {
+		if !isValidRedirectURI(uri) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error":             "invalid_redirect_uri",
+				"error_description": "redirect_uri must use http://127.0.0.1 or https scheme: " + uri,
+			})
+			return
+		}
+	}
+
+	if len(req.GrantTypes) == 0 {
+		req.GrantTypes = []string{"authorization_code"}
+	}
+	for _, gt := range req.GrantTypes {
+		if gt != "authorization_code" && gt != "refresh_token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error":             "invalid_client_metadata",
+				"error_description": "Unsupported grant_type: " + gt,
+			})
+			return
+		}
+	}
+
+	if len(req.ResponseTypes) == 0 {
+		req.ResponseTypes = []string{"code"}
+	}
+
+	if req.TokenEndpointAuthMethod == "" {
+		req.TokenEndpointAuthMethod = "none"
+	}
+	if req.TokenEndpointAuthMethod != "none" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client_metadata",
+			"error_description": "Only token_endpoint_auth_method 'none' is supported (public clients)",
+		})
+		return
+	}
+
+	clientID := generateSecureToken(16)
+
+	reg := &ClientRegistration{
+		ClientID:                clientID,
+		ClientName:              req.ClientName,
+		RedirectURIs:            req.RedirectURIs,
+		GrantTypes:              req.GrantTypes,
+		ResponseTypes:           req.ResponseTypes,
+		TokenEndpointAuthMethod: req.TokenEndpointAuthMethod,
+		CreatedAt:               time.Now(),
+	}
+	s.Store.SaveClientRegistration(reg)
+
+	slog.Info("client registered",
+		"client_id", clientID,
+		"client_name", req.ClientName,
+		"redirect_uris", req.RedirectURIs,
+	)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(reg)
+}
+
+func isValidRedirectURI(uri string) bool {
+	parsed, err := url.Parse(uri)
+	if err != nil {
+		return false
+	}
+	if parsed.Scheme == "http" && parsed.Hostname() == "127.0.0.1" {
+		return true
+	}
+	if parsed.Scheme == "http" && parsed.Hostname() == "localhost" {
+		return true
+	}
+	if parsed.Scheme == "https" {
+		return true
+	}
+	return false
+}
+
+func isRegisteredRedirectURI(registered []string, uri string) bool {
+	for _, r := range registered {
+		if r == uri {
+			return true
+		}
+	}
+	return false
 }
 
 func generateSecureToken(length int) string {
