@@ -8,6 +8,9 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
+// TODO: If we need to scale beyond a single replica, replace in-memory maps with Redis
+// to share sessions, tokens, and client registrations across pods.
+
 type AuthSession struct {
 	ClientID            string
 	ClientState         string
