@@ -23,64 +23,35 @@ Install customizations directly in VS Code using install badges in the documenta
 
 ### Discover & Search with MCP
 
-Use our **MCP Discovery Server** to browse and install customizations directly from GitHub Copilot Chat.
+Use the **Mcp Onboarding** server to browse customizations, assess agent readiness, and generate AGENTS.md — all from Copilot Chat.
 
-#### For Nav Users (Enterprise Allow List)
+#### Install from Nav MCP Registry
 
-This MCP server is pre-approved on Nav's enterprise allow list and available through the MCP registry:
+1. Open Command Palette (`Cmd+Shift+P`)
+2. Run **MCP: Add Server**
+3. Search for **Mcp Onboarding**
+4. Sign in with GitHub when prompted (requires navikt org membership)
 
-**1. Install from Extensions View:**
+#### Use in Copilot Chat
 
-- Open VS Code Extensions view (`Cmd+Shift+X`)
-- Search for `@mcp` in the search bar
-- Find **Nav Copilot Discovery** in the MCP servers list
-- Click **Install**
-
-**2. Or install from IntelliJ:**
-
-- Open Settings → **Tools** → **MCP Servers**
-- Browse available MCP servers
-- Install **Nav Copilot Discovery**
-
-**3. Use Discovery Tools** in Copilot Chat:
+Once installed, ask Copilot naturally:
 
 ```text
-@workspace /mcp list_agents
-@workspace /mcp search_customizations query:"kafka"
-@workspace /mcp get_installation_guide type:"agent" name:"nais-agent"
+List all Nav agents
+Search for kafka customizations
+Check agent readiness for navikt/my-app
+Generate AGENTS.md for navikt/my-app
+Show agent readiness for the dagpenger team
 ```
 
-#### For Non-Nav Users (Manual Configuration)
+**Available Tools:**
 
-**1. Add to VS Code Settings** (`settings.json`):
-
-```json
-{
-  "github.copilot.chat.mcp.enabled": true,
-  "github.copilot.chat.mcp.servers": {
-    "nav-discovery": {
-      "type": "streamable-http",
-      "url": "https://mcp-onboarding.nav.no/mcp"
-    }
-  }
-}
-```
-
-**2. Authenticate** via GitHub OAuth (requires Nav organization membership)
-
-**3. Use Discovery Tools** in Copilot Chat:
-
-```text
-@workspace /mcp list_agents
-@workspace /mcp search_customizations query:"kafka"
-@workspace /mcp get_installation_guide type:"agent" name:"nais-agent"
-```
-
-**Available Discovery Tools:**
-
-- `list_agents`, `list_instructions`, `list_prompts`, `list_skills` - Browse all customizations
-- `search_customizations` - Search by query, type, or tags
-- `get_installation_guide` - Get install instructions for any customization
+- `list_agents`, `list_instructions`, `list_prompts`, `list_skills` — browse customizations
+- `search_customizations` — search by query, type, or tags
+- `check_agent_readiness` — 14-point scorecard for agent readiness
+- `suggest_customizations` — stack-aware recommendations
+- `generate_agents_md`, `generate_setup_steps` — generate files for your repo
+- `team_readiness` — scan all team repos
 
 ### Install with VS Code Tasks
 
@@ -222,20 +193,17 @@ mise run validate  # Validate allowlist.json
 
 ### mcp-onboarding
 
-Reference MCP server with GitHub OAuth authentication and **Nav Copilot customization discovery**.
+MCP server for Nav Copilot onboarding — discover customizations, assess agent readiness, and generate setup files.
 
 - **Location**: `apps/mcp-onboarding/`
-- **Tech**: Go 1.26, OAuth 2.1 with PKCE, MCP JSON-RPC, YAML frontmatter parsing
-- **Public URL**: `https://mcp-onboarding.nav.no/mcp`
-- **Purpose**:
-  - Template for building authenticated MCP servers with organization access control
-  - Discovery server for browsing and installing Nav Copilot customizations
-- **Registry**: Published as `io.github.navikt/mcp-onboarding`
+- **Tech**: Go 1.26, OAuth 2.1 with PKCE, MCP JSON-RPC
+- **Registry**: **Mcp Onboarding** (`io.github.navikt/mcp-onboarding`)
 - **Features**:
   - 🔐 GitHub OAuth with Nav organization validation
-  - 🔍 Search across 6 agents, 4 instructions, 3 prompts
-  - 📦 Dynamic manifest generation from `.github` files
-  - 🚀 One-click installation guides
+  - 🔍 Browse and search customizations (agents, instructions, prompts, skills)
+  - 📊 14-point agent readiness assessment (customizations + verification infrastructure)
+  - 📝 Generate AGENTS.md and copilot-setup-steps.yml tailored to repo tech stack
+  - 👥 Team-wide readiness scanning
 
 **Commands:**
 

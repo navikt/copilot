@@ -15,6 +15,17 @@ This server implements:
 - **Agent Readiness Assessment** - Check and score a repo's readiness for AI agents
 - **Content Generation** - Generate tailored AGENTS.md and copilot-setup-steps.yml from repo analysis
 
+## Getting Started
+
+1. Open Command Palette in VS Code (`Cmd+Shift+P`)
+2. Run **MCP: Add Server**
+3. Search for **Mcp Onboarding** in the Nav MCP registry
+4. Sign in with GitHub when prompted (requires navikt org membership)
+
+![Install Mcp Onboarding from VS Code](../../docs/assets/copilot-mcp-install.png)
+
+Once installed, ask Copilot in chat: _"Sjekk agent readiness for navikt/mitt-repo"_
+
 ## Architecture
 
 ```text
