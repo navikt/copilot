@@ -65,13 +65,9 @@ Automatic via GitHub Actions on merge to main.
 - Production: `https://mcp-registry.nav.no` (public)
 - Development: `https://mcp-registry.ekstern.dev.nav.no` (public)
 
-## GitHub Copilot Setup
+## Setup
 
-**Enterprise Settings** → **Policies** → **Copilot**:
-
-1. Enable **MCP servers in Copilot**
-2. Set **MCP Registry URL**: `https://mcp-registry.nav.no/v0.1/servers`
-3. Choose policy: **Allow all** (discoverable) or **Registry only** (enforced)
+For user-facing setup instructions (enterprise admin configuration, IDE setup, Copilot CLI), see the [main README](../../README.md#mcp-registry--server-discovery).
 
 ## Registry Format (v0.1)
 

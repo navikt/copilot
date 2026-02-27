@@ -25,45 +25,7 @@ Install customizations directly in VS Code using install badges in the documenta
 
 Use the **Mcp Onboarding** server to browse customizations, assess agent readiness, and generate AGENTS.md — all from Copilot Chat.
 
-#### Install from Nav MCP Registry
-
-1. Open Command Palette (`Cmd+Shift+P`)
-2. Run **MCP: Add Server**
-3. Search for **Mcp Onboarding**
-4. Sign in with GitHub when prompted (requires navikt org membership)
-
-#### Use in Copilot Chat
-
-Once installed, ask Copilot naturally:
-
-```text
-List all Nav agents
-Search for kafka customizations
-Check agent readiness for navikt/my-app
-Generate AGENTS.md for navikt/my-app
-Show agent readiness for the dagpenger team
-```
-
-**Available Tools:**
-
-- `list_agents`, `list_instructions`, `list_prompts`, `list_skills` — browse customizations
-- `search_customizations` — search by query, type, or tags
-- `check_agent_readiness` — 14-point scorecard for agent readiness
-- `suggest_customizations` — stack-aware recommendations
-- `generate_agents_md`, `generate_setup_steps` — generate files for your repo
-- `team_readiness` — scan all team repos
-
-### Install with VS Code Tasks
-
-Run the task: **"Install Nav Copilot Customizations"** from VS Code tasks menu (`Cmd+Shift+P` → "Tasks: Run Task")
-
-Or install individually:
-
-- **Install Copilot Instructions** - Main project instructions
-- **Install All Agents** - All 6 specialized agents
-- **Install All Instructions** - All 4 file-pattern rules
-- **Install All Prompts** - All 3 scaffolding templates
-- **Install All Skills** - All 5 production patterns
+See [MCP Onboarding](#mcp-onboarding--agent-readiness--customization-discovery) below for installation and usage.
 
 ---
 
@@ -104,6 +66,94 @@ Production patterns extracted from real Nav repositories with bundled templates 
 **Available skills:** TokenX Auth, Observability Setup, Aksel Spacing, Kotlin App Config, Flyway Migration
 
 👉 **[View full skills documentation →](docs/README.skills.md)**
+
+---
+
+---
+
+## 🛠️ Applications
+
+This monorepo contains three applications:
+
+### My Copilot — Self-Service Portal
+
+Self-service portal for managing your GitHub Copilot subscription (activate/deactivate, view usage analytics, billing details).
+
+**URL:** [`https://my-copilot.intern.nav.no`](https://my-copilot.intern.nav.no)
+
+### MCP Registry — Server Discovery
+
+Public registry of Nav-approved MCP servers, implementing the [MCP Registry v0.1 specification](https://github.com/modelcontextprotocol/registry).
+
+**URL:** [`https://mcp-registry.nav.no`](https://mcp-registry.nav.no)
+
+#### For Enterprise/Organization Admins
+
+**Enterprise Settings** → **AI Controls** → **MCP**:
+
+1. Enable **MCP servers in Copilot**
+2. Set **MCP Registry URL**: `https://mcp-registry.nav.no`
+3. Choose policy: **Allow all** (discoverable) or **Registry only** (enforced)
+
+> **Important:** Use the base URL without any path suffix. The Copilot client appends `/v0.1/servers` automatically. Including route suffixes like `/v0.1/servers` or `/allowlist` will cause the registry to error out.
+
+#### For IDE Users (VS Code, JetBrains, Xcode, Eclipse)
+
+Registry servers appear automatically in the MCP servers sidebar panel when configured at the enterprise/organization level. No per-user setup is needed.
+
+#### For Copilot CLI Users
+
+Copilot CLI does not have a built-in registry browser. Add servers from the registry manually:
+
+1. Browse available servers: `curl -s https://mcp-registry.nav.no/v0.1/servers | jq`
+2. Add a server interactively: `/mcp add` in the CLI
+3. Or edit `~/.copilot/mcp-config.json` directly:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "type": "http",
+      "url": "https://my-server.intern.nav.no/mcp",
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+Enterprise allowlist policies still apply to Copilot CLI — if "Registry only" is set, only servers listed in the registry can be used.
+
+### MCP Onboarding — Agent Readiness & Customization Discovery
+
+MCP server for browsing Nav Copilot customizations, assessing agent readiness, and generating AGENTS.md — all from Copilot Chat.
+
+**URL:** [`https://mcp-onboarding.nav.no`](https://mcp-onboarding.nav.no)
+
+#### Install
+
+1. Open Command Palette in VS Code (`Cmd+Shift+P`)
+2. Run **MCP: Add Server**
+3. Search for **Mcp Onboarding** in the Nav MCP registry
+4. Sign in with GitHub when prompted (requires navikt org membership)
+
+#### Use in Copilot Chat
+
+Once installed, ask Copilot naturally:
+
+```text
+List all Nav agents
+Search for kafka customizations
+Check agent readiness for navikt/my-app
+Generate AGENTS.md for navikt/my-app
+Show agent readiness for the dagpenger team
+```
+
+#### Typical Onboarding Workflow
+
+1. **Assess** — `check_agent_readiness` → see what's missing
+2. **Generate** — `generate_agents_md` + `generate_setup_steps` → get tailored files
+3. **Customize** — `suggest_customizations` → discover Nav-specific agents, instructions, and skills for your stack
+4. **Track** — `team_readiness` → monitor adoption across your team's repos
 
 ---
 
@@ -148,72 +198,6 @@ These customizations enforce Nav's core principles:
 - **Nav-Specific**: Pre-configured for Nais platform, Aksel Design System, and Nav tech stack
 - **Production-Proven**: Patterns extracted from real Nav applications
 - **Consistent Standards**: Enforces Nav development principles and best practices
-- **Developer Productivity**: Reduces context-switching and repetitive setup work
-
----
-
-## 📦 Applications
-
-### my-copilot
-
-Self-service tool for managing GitHub Copilot subscriptions at Nav.
-
-- **Location**: `apps/my-copilot/`
-- **Tech**: Next.js 16, TypeScript, Aksel Design System, Octokit
-- **Auth**: Azure AD JWT validation via Nais sidecar proxy
-- **Deployment**: Nais (dev-gcp, prod-gcp)
-
-**Commands:**
-
-```bash
-cd apps/my-copilot
-pnpm dev        # Start dev server
-pnpm check      # Run all checks (ESLint, TypeScript, Prettier, Knip, Jest)
-pnpm test       # Run Jest tests
-pnpm build      # Production build
-```
-
-### mcp-registry
-
-Public registry service for Nav-approved MCP servers.
-
-- **Location**: `apps/mcp-registry/`
-- **Tech**: Go 1.26, HTTP server implementing MCP Registry v0.1 spec
-- **Public URL**: `https://mcp-registry.nav.no`
-- **Purpose**: Enables GitHub Copilot enterprise to discover and use approved MCP servers
-
-**Commands:**
-
-```bash
-cd apps/mcp-registry
-mise run dev       # Run with DEBUG logging
-mise run check     # Run all checks (fmt, vet, staticcheck, lint, test)
-mise run validate  # Validate allowlist.json
-```
-
-### mcp-onboarding
-
-MCP server for Nav Copilot onboarding — discover customizations, assess agent readiness, and generate setup files.
-
-- **Location**: `apps/mcp-onboarding/`
-- **Tech**: Go 1.26, OAuth 2.1 with PKCE, MCP JSON-RPC
-- **Registry**: **Mcp Onboarding** (`io.github.navikt/mcp-onboarding`)
-- **Features**:
-  - 🔐 GitHub OAuth with Nav organization validation
-  - 🔍 Browse and search customizations (agents, instructions, prompts, skills)
-  - 📊 14-point agent readiness assessment (customizations + verification infrastructure)
-  - 📝 Generate AGENTS.md and copilot-setup-steps.yml tailored to repo tech stack
-  - 👥 Team-wide readiness scanning
-
-**Commands:**
-
-```bash
-cd apps/mcp-onboarding
-mise run generate  # Generate customizations manifest from .github files
-mise run dev       # Run with DEBUG logging
-mise run check     # Run all checks (fmt, vet, lint, test)
-mise run build     # Build binary
-```
 
 ---
 

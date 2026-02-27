@@ -17,14 +17,9 @@ This server implements:
 
 ## Getting Started
 
-1. Open Command Palette in VS Code (`Cmd+Shift+P`)
-2. Run **MCP: Add Server**
-3. Search for **Mcp Onboarding** in the Nav MCP registry
-4. Sign in with GitHub when prompted (requires navikt org membership)
+For installation and usage instructions, see the [main README](../../README.md#mcp-onboarding--agent-readiness--customization-discovery).
 
 ![Install Mcp Onboarding from VS Code](../../docs/assets/copilot-mcp-install.png)
-
-Once installed, ask Copilot in chat: _"Sjekk agent readiness for navikt/mitt-repo"_
 
 ## Architecture
 
@@ -81,96 +76,6 @@ Once installed, ask Copilot in chat: _"Sjekk agent readiness for navikt/mitt-rep
 | ---------------------- | ---------------------------------------------------------------------------- | ------------------------------- |
 | `generate_agents_md`   | Generate a tailored AGENTS.md (cross-agent standard: Copilot, Claude, Codex) | `owner`, `repo` (both required) |
 | `generate_setup_steps` | Generate copilot-setup-steps.yml for the Copilot coding agent                | `owner`, `repo` (both required) |
-
-### Discovery Tool Examples
-
-```javascript
-// Search for all agents related to "nais"
-search_customizations({ query: "nais", type: "agent" })
-
-// List all frontend-related customizations
-search_customizations({ tags: ["frontend"] })
-
-// List all agents in the platform category
-list_agents({ category: "platform" })
-
-// Get installation guide for nais-agent
-get_installation_guide({ type: "agent", name: "nais-agent" })
-```
-
-### Agent Readiness Tool Examples
-
-```javascript
-// Check how "agent-ready" a repo is
-check_agent_readiness({ owner: "navikt", repo: "my-app" })
-// Returns: Customizations (8 checks) + Verification Infrastructure (6 checks) = 14-point scorecard
-// Customizations: AGENTS.md, copilot-instructions.md, instructions/, agents/, prompts/, skills/, setup-steps, hooks
-// Verification:   CI/CD workflows, linter config, type checking, test config, Dependabot, README.md
-
-// Get suggested Nav customizations for a repo
-suggest_customizations({ owner: "navikt", repo: "my-app" })
-
-// Generate an AGENTS.md tailored to the repo's tech stack
-generate_agents_md({ owner: "navikt", repo: "my-app" })
-
-// Generate copilot-setup-steps.yml for the coding agent
-generate_setup_steps({ owner: "navikt", repo: "my-app" })
-
-// Scan all repos with prefix "dp-" for agent readiness
-team_readiness({ org: "navikt", prefix: "dp-" })
-
-// Scan repos belonging to GitHub team "dagpenger"
-team_readiness({ org: "navikt", team: "dagpenger" })
-```
-
-## How to Use
-
-### For individual developers
-
-Open Copilot Chat in VS Code with the MCP server connected and ask:
-
-```
-Check how agent-ready my repo navikt/my-app is
-```
-
-Copilot will call `check_agent_readiness`, show you a scored report, and suggest what to add. Follow up with:
-
-```
-Generate an AGENTS.md for navikt/my-app
-```
-
-Copilot calls `generate_agents_md`, detects your tech stack (Go, Kotlin, TypeScript, Nais, etc.), and produces a ready-to-commit file.
-
-### For team leads
-
-Scan your team's repos to see where you stand:
-
-```
-How agent-ready are the dp- repos in navikt?
-```
-
-Copilot calls `team_readiness` with `prefix: "dp-"` and returns a table:
-
-| Repository | AGENTS.md | Instructions | Setup Steps | Level          |
-| ---------- | --------- | ------------ | ----------- | -------------- |
-| dp-inntekt | ✅         | ✅            | ❌           | 🟠 Intermediate |
-| dp-soknad  | ❌         | ❌            | ❌           | 🔴 None         |
-| dp-arena   | ✅         | ✅            | ✅           | 🟢 Advanced     |
-
-You can also use a GitHub team slug instead of a prefix:
-
-```
-Show agent readiness for the dagpenger team in navikt
-```
-
-This uses the GitHub Teams API to find repos the team has access to.
-
-### Typical onboarding workflow
-
-1. **Assess** — `check_agent_readiness` → see what's missing
-2. **Generate** — `generate_agents_md` + `generate_setup_steps` → get tailored files
-3. **Customize** — `suggest_customizations` → discover Nav-specific agents, instructions, and skills for your stack
-4. **Track** — `team_readiness` → monitor adoption across your team's repos
 
 ## Configuration
 
