@@ -39,7 +39,7 @@ cd my-copilot
 Install the dependencies:
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 ```
 
 Create a `.env.local` file in the root directory and add the required environment variables:
