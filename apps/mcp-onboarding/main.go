@@ -174,6 +174,10 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(wrapped, r)
 
+		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
+			return
+		}
+
 		slog.Info("request",
 			"method", r.Method,
 			"path", r.URL.Path,

@@ -10,4 +10,4 @@ ingresses:
   - https://mcp-onboarding.intern.nav.no
 base_url: https://mcp-onboarding.intern.nav.no
 allowed_organization: navikt
-log_level: INFO
+log_level: DEBUG

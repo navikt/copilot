@@ -91,6 +91,15 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	codeChallenge := r.URL.Query().Get("code_challenge")
 	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
 
+	slog.Debug("authorize request received",
+		"client_id", clientID,
+		"redirect_uri", redirectURI,
+		"has_state", clientState != "",
+		"has_pkce", codeChallenge != "",
+		"code_challenge_method", codeChallengeMethod,
+		"user_agent", r.UserAgent(),
+	)
+
 	if clientID == "" {
 		http.Error(w, "Missing required parameter: client_id", http.StatusBadRequest)
 		return
@@ -256,6 +265,15 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	}
 	s.Store.DeleteAuthCode(code)
 
+	slog.Debug("token exchange attempt",
+		"client_id", clientID,
+		"redirect_uri", redirectURI,
+		"stored_redirect_uri", authCode.RedirectURI,
+		"has_code_verifier", codeVerifier != "",
+		"has_stored_code_challenge", authCode.CodeChallenge != "",
+		"user", authCode.UserLogin,
+	)
+
 	if time.Since(authCode.CreatedAt) > 10*time.Minute {
 		slog.Debug("auth code expired", "age", time.Since(authCode.CreatedAt))
 		s.writeTokenError(w, "invalid_grant", "Authorization code expired")
@@ -272,6 +290,10 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	}
 
 	if authCode.RedirectURI != redirectURI {
+		slog.Warn("redirect_uri mismatch in token exchange",
+			"stored", authCode.RedirectURI,
+			"received", redirectURI,
+		)
 		s.writeTokenError(w, "invalid_grant", "Redirect URI mismatch")
 		return
 	}
@@ -485,6 +507,8 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		"client_id", clientID,
 		"client_name", req.ClientName,
 		"redirect_uris", req.RedirectURIs,
+		"grant_types", req.GrantTypes,
+		"token_endpoint_auth_method", req.TokenEndpointAuthMethod,
 	)
 
 	w.Header().Set("Content-Type", "application/json")
