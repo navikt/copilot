@@ -195,7 +195,8 @@ GitHub's own remote MCP server uses a special integration path and is not affect
 
 - **Registry**: Click the MCP registry icon in Copilot Chat panel → browse → install
 - **OAuth status**: **Broken** — confirmed not working with mcp-onboarding (Mar 2026). Works in VS Code but fails in JetBrains.
-- **Enhanced OAuth (DCR + fallback)**: [Announced Nov 2025](https://github.blog/changelog/2025-11-18-enhanced-mcp-oauth-support-for-github-copilot-in-jetbrains-eclipse-and-xcode/)
+- **Symptom**: The MCP server shows as "running" but you get a 401 error in the logs. No authentication flow is triggered — the browser never opens to ask you to log in with GitHub. This is a known limitation in the JetBrains Copilot plugin, not a server-side issue.
+- **Enhanced OAuth (DCR + fallback)**: [Announced Nov 2025](https://github.blog/changelog/2025-11-18-enhanced-mcp-oauth-support-for-github-copilot-in-jetbrains-eclipse-and-xcode/) but does not work for third-party servers in practice.
 - **Known issues** (all open as of Mar 2026):
   - [community#172929](https://github.com/orgs/community/discussions/172929) — "GitHub Copilot in IDEA cannot use MCP servers that require OAuth authorization" (unanswered, confirmed: "No authentication provider found for authserver")
   - [copilot-intellij-feedback#1390](https://github.com/microsoft/copilot-intellij-feedback/issues/1390) — "MCP Server OAuth integration is broken" (PyCharm, error 500 after OAuth)
@@ -203,16 +204,27 @@ GitHub's own remote MCP server uses a special integration path and is not affect
   - [copilot-intellij-feedback#408](https://github.com/microsoft/copilot-intellij-feedback/issues/408) — Remote MCP servers with OAuth throw 401
   - [copilot-intellij-feedback#875](https://github.com/microsoft/copilot-intellij-feedback/issues/875) — "No authentication provider found" for custom MCP with DCR
 - **Workaround**: None currently. Use VS Code for OAuth-protected MCP servers.
-- **Debugging**: Set `LOG_LEVEL=DEBUG` on the server to trace the OAuth flow. The server logs each step (DCR registration, authorize, callback, token exchange) with details useful for filing upstream bug reports.
 
 ### Copilot CLI — No OAuth Support
 
 Copilot CLI supports remote HTTP MCP servers but **not OAuth authentication**.
+When you start the CLI, it opens a browser for GitHub authentication — this is for the CLI itself, not for MCP servers.
 
 - **HTTP transport**: Supported via `gh copilot mcp add --type http`
 - **OAuth**: Not supported — [known limitation](https://docs.github.com/en/copilot/using-github-copilot/using-extensions-to-integrate-external-tools-with-copilot-chat/using-model-context-protocol-servers#known-limitations): "Remote MCP servers requiring OAuth authentication are not supported"
 - **Impact**: Cannot use mcp-onboarding from Copilot CLI since it requires OAuth
-- **Config**: `~/.config/github-copilot/mcp.json`
+- **Setup**: Use the real URL when adding servers manually:
+  ```json
+  {
+    "mcpServers": {
+      "mcp-onboarding": {
+        "type": "http",
+        "url": "https://mcp-onboarding.nav.no/mcp"
+      }
+    }
+  }
+  ```
+- **Config file**: `~/.config/github-copilot/mcp.json`
 
 ### Eclipse — Registry Works, OAuth Untested
 
