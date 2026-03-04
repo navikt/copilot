@@ -516,7 +516,7 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 	}
 }
 
-func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) *JSONRPCResponse {
+func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (resp *JSONRPCResponse) {
 	var params CallToolParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return &JSONRPCResponse{
@@ -530,6 +530,13 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) *JSO
 	}
 
 	slog.Info("tool called", "tool", params.Name, "user", user.Login)
+	defer func() {
+		status := "success"
+		if resp != nil && resp.Error != nil {
+			status = "error"
+		}
+		recordToolCall(params.Name, status)
+	}()
 
 	var result CallToolResult
 

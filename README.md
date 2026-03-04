@@ -112,14 +112,16 @@ Copilot CLI does not have a built-in registry browser. Add servers from the regi
 ```json
 {
   "mcpServers": {
-    "my-server": {
+    "mcp-onboarding": {
       "type": "http",
-      "url": "https://my-server.intern.nav.no/mcp",
+      "url": "https://mcp-onboarding.nav.no/mcp",
       "tools": ["*"]
     }
   }
 }
 ```
+
+> **Note:** Copilot CLI does not support OAuth authentication. MCP servers requiring OAuth (like mcp-onboarding) will not work from the CLI. Servers using PAT or no authentication work fine.
 
 Enterprise allowlist policies still apply to Copilot CLI — if "Registry only" is set, only servers listed in the registry can be used.
 
@@ -143,10 +145,14 @@ Once installed, ask Copilot naturally:
 ```text
 List all Nav agents
 Search for kafka customizations
-Check agent readiness for navikt/my-app
-Generate AGENTS.md for navikt/my-app
-Show agent readiness for the dagpenger team
+Check agent readiness for navikt/fp-sak
+Generate AGENTS.md for navikt/fp-sak
+Show agent readiness for repos with prefix fp
 ```
+
+> **Tips:**
+> - Replace `fp-sak` with your actual repo name in `navikt/`.
+> - For `team_readiness`, use the **repo name prefix** your team uses (e.g. `fp` for foreldrepenger, `dp` for dagpenger), not the full team name. Most Nav teams use short prefixes for their repos.
 
 #### Typical Onboarding Workflow
 
@@ -190,7 +196,8 @@ These customizations enforce Nav's core principles:
 │   ├── README.prompts.md
 │   ├── README.skills.md
 │   └── README.collections.md
-└── apps/                 # Nav applications (my-copilot, mcp-registry, mcp-onboarding)
+├── apps/                 # Nav applications (my-copilot, mcp-registry, mcp-onboarding)
+└── dashboards/           # Grafana dashboard definitions
 ```
 
 ## 🎯 Why Use Nav Copilot Customizations?

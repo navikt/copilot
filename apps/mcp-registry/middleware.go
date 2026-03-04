@@ -44,16 +44,33 @@ func loggingMiddleware(config *Config, next http.HandlerFunc) http.HandlerFunc {
 			)
 		}
 
-		next(w, r)
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		next(wrapped, r)
+
+		duration := time.Since(start)
+
+		if r.URL.Path != "/health" && r.URL.Path != "/ready" {
+			recordHTTPMetrics(r.Method, r.URL.Path, wrapped.statusCode, duration)
+		}
 
 		if loggingEnabled {
-			duration := time.Since(start)
 			slog.Info("Request completed",
 				"method", r.Method,
 				"path", r.URL.Path,
+				"status", wrapped.statusCode,
 				"duration_ms", duration.Milliseconds(),
 				"remote_addr", r.RemoteAddr,
 			)
 		}
 	}
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
 }

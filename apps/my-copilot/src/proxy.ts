@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isAuthenticated } from "./lib/auth";
+import { recordPageView } from "./lib/metrics";
 
 // Named export for Next.js 16 proxy convention
 export async function proxy(request: NextRequest) {
-  const isAtuh = await isAuthenticated();
-  if (!isAtuh) {
+  const isAuth = await isAuthenticated();
+  if (!isAuth) {
     return NextResponse.redirect(new URL("/oauth2/login", request.url));
   }
+  recordPageView(request.nextUrl.pathname);
 }
 
 // Also export as default for backward compatibility

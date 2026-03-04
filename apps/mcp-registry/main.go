@@ -30,7 +30,7 @@ func main() {
 
 	http.HandleFunc("/health", loggingMiddleware(config, healthHandler))
 	http.HandleFunc("/ready", loggingMiddleware(config, readyHandler))
-	http.HandleFunc("/metrics", loggingMiddleware(config, metricsHandler))
+	http.Handle("/metrics", metricsHandler())
 	http.HandleFunc("/v0.1/servers", loggingMiddleware(config, makeServersListHandler(config)))
 	http.HandleFunc("/v0.1/servers/", loggingMiddleware(config, makeServerVersionHandler(config)))
 	http.HandleFunc("/", loggingMiddleware(config, rootHandler))

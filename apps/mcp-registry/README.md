@@ -137,6 +137,18 @@ Names follow reverse-DNS with exactly one `/`:
 
 **Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`
 
+## Metrics
+
+Exposed via `GET /metrics` in Prometheus format.
+
+| Metric                          | Type      | Labels                          | Description                                              |
+| ------------------------------- | --------- | ------------------------------- | -------------------------------------------------------- |
+| `http_requests_total`           | Counter   | `method`, `path`, `status_code` | HTTP requests by method, path, and status                |
+| `http_request_duration_seconds` | Histogram | `method`, `path`                | HTTP request latency                                     |
+| `registry_server_lookups_total` | Counter   | `server`, `result`              | Server lookups by name and result (`found`, `not_found`) |
+
+A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`](../../dashboards/copilot-ecosystem.json).
+
 ## References
 
 - [MCP Registry v0.1 Specification](https://github.com/modelcontextprotocol/registry)

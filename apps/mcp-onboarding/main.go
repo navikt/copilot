@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Config struct {
@@ -98,6 +99,10 @@ func main() {
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /ready", handleReady)
+	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+		updateTokenStoreGauges(store)
+		promhttp.Handler().ServeHTTP(w, r)
+	})
 
 	mux.HandleFunc("/", handleRoot)
 
@@ -174,11 +179,18 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(wrapped, r)
 
+		if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" {
+			return
+		}
+
+		duration := time.Since(start)
+		recordHTTPMetrics(r.Method, r.URL.Path, wrapped.statusCode, duration)
+
 		slog.Info("request",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", wrapped.statusCode,
-			"duration_ms", time.Since(start).Milliseconds(),
+			"duration_ms", duration.Milliseconds(),
 			"remote_addr", r.RemoteAddr,
 		)
 	})

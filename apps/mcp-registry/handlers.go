@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
@@ -19,20 +20,8 @@ func readyHandler(w http.ResponseWriter, _ *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
-func metricsHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	if _, err := fmt.Fprintf(w, "# HELP mcp_registry_requests_total Total number of requests\n"); err != nil {
-		slog.Error("Failed to write metrics help", "error", err)
-		return
-	}
-	if _, err := fmt.Fprintf(w, "# TYPE mcp_registry_requests_total counter\n"); err != nil {
-		slog.Error("Failed to write metrics type", "error", err)
-		return
-	}
-	if _, err := fmt.Fprintf(w, "mcp_registry_requests_total 0\n"); err != nil {
-		slog.Error("Failed to write metrics value", "error", err)
-	}
+func metricsHandler() http.Handler {
+	return promhttp.Handler()
 }
 
 func rootHandler(w http.ResponseWriter, _ *http.Request) {
@@ -246,12 +235,14 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 				},
 			}
 			slog.Debug("Returning server", "name", serverName, "version", version)
+			recordServerLookup(serverName, "found")
 			setCORSHeaders(w)
 			respondJSON(w, http.StatusOK, response)
 			return
 		}
 	}
 
+	recordServerLookup(serverName, "not_found")
 	slog.Warn("Server not found", "name", serverName, "version", version)
 	http.Error(w, "Server not found", http.StatusNotFound)
 }

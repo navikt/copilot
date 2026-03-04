@@ -56,6 +56,7 @@ func (s *OAuthServer) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (s *OAuthServer) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Request) {
+	slog.Debug("serving authorization server metadata", "base_url", s.BaseURL)
 	metadata := AuthorizationServerMetadata{
 		Issuer:                            s.BaseURL,
 		AuthorizationEndpoint:             s.BaseURL + "/oauth/authorize",
@@ -89,6 +90,15 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	redirectURI := r.URL.Query().Get("redirect_uri")
 	codeChallenge := r.URL.Query().Get("code_challenge")
 	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
+
+	slog.Debug("authorize request received",
+		"client_id", clientID,
+		"redirect_uri", redirectURI,
+		"has_state", clientState != "",
+		"has_pkce", codeChallenge != "",
+		"code_challenge_method", codeChallengeMethod,
+		"user_agent", r.UserAgent(),
+	)
 
 	if clientID == "" {
 		http.Error(w, "Missing required parameter: client_id", http.StatusBadRequest)
@@ -127,6 +137,7 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		"redirect_uri", redirectURI,
 		"has_pkce", codeChallenge != "",
 	)
+	recordOAuthFlow("authorize", "started")
 
 	githubURL := fmt.Sprintf(
 		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&state=%s&scope=%s",
@@ -147,6 +158,7 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 	if errorParam != "" {
 		errorDesc := r.URL.Query().Get("error_description")
 		slog.Error("github oauth error", "error", errorParam, "description", errorDesc)
+		recordOAuthFlow("callback", "github_error")
 		http.Error(w, fmt.Sprintf("GitHub OAuth error: %s - %s", errorParam, errorDesc), http.StatusBadRequest)
 		return
 	}
@@ -181,6 +193,7 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 				"user", user.Login,
 				"allowed_org", s.AllowedOrganization,
 			)
+			recordOAuthFlow("callback", "org_denied")
 			http.Error(w, fmt.Sprintf("Access denied: You must be a member of the %s organization", s.AllowedOrganization), http.StatusForbidden)
 			return
 		}
@@ -208,10 +221,12 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 
 	callbackURL := fmt.Sprintf("%s?code=%s&state=%s",
 		session.RedirectURI,
-		mcpCode,
-		session.ClientState,
+		url.QueryEscape(mcpCode),
+		url.QueryEscape(session.ClientState),
 	)
 
+	recordOAuthFlow("callback", "success")
+	recordAuthentication()
 	http.Redirect(w, r, callbackURL, http.StatusFound)
 }
 
@@ -255,7 +270,17 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	}
 	s.Store.DeleteAuthCode(code)
 
+	slog.Debug("token exchange attempt",
+		"client_id", clientID,
+		"redirect_uri", redirectURI,
+		"stored_redirect_uri", authCode.RedirectURI,
+		"has_code_verifier", codeVerifier != "",
+		"has_stored_code_challenge", authCode.CodeChallenge != "",
+		"user", authCode.UserLogin,
+	)
+
 	if time.Since(authCode.CreatedAt) > 10*time.Minute {
+		slog.Debug("auth code expired", "age", time.Since(authCode.CreatedAt))
 		s.writeTokenError(w, "invalid_grant", "Authorization code expired")
 		return
 	}
@@ -270,6 +295,10 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	}
 
 	if authCode.RedirectURI != redirectURI {
+		slog.Warn("redirect_uri mismatch in token exchange",
+			"stored", authCode.RedirectURI,
+			"received", redirectURI,
+		)
 		s.writeTokenError(w, "invalid_grant", "Redirect URI mismatch")
 		return
 	}
@@ -303,6 +332,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	})
 
 	slog.Info("token issued", "user", authCode.UserLogin, "expires_in", expiresIn)
+	recordOAuthFlow("token_exchange", "success")
 
 	response := map[string]interface{}{
 		"access_token":  accessToken,
@@ -351,6 +381,7 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 	})
 
 	slog.Info("token refreshed", "user", rtData.UserLogin)
+	recordOAuthFlow("token_refresh", "success")
 
 	response := map[string]interface{}{
 		"access_token":  accessToken,
@@ -483,7 +514,10 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		"client_id", clientID,
 		"client_name", req.ClientName,
 		"redirect_uris", req.RedirectURIs,
+		"grant_types", req.GrantTypes,
+		"token_endpoint_auth_method", req.TokenEndpointAuthMethod,
 	)
+	recordOAuthFlow("client_registration", "success")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

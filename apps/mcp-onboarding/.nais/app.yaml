@@ -29,6 +29,9 @@ spec:
     timeout: 1
     periodSeconds: 10
     failureThreshold: 3
+  prometheus:
+    enabled: true
+    path: /metrics
   ingresses:
     {{#each ingresses}}
     - {{this}}

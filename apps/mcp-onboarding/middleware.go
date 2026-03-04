@@ -50,6 +50,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 
 func (m *AuthMiddleware) sendUnauthorized(w http.ResponseWriter, r *http.Request) {
 	resourceMetadataURL := getBaseURL(r) + "/.well-known/oauth-protected-resource"
+	slog.Debug("sending 401 with resource metadata", "resource_metadata_url", resourceMetadataURL)
 	w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+resourceMetadataURL+`"`)
 	w.WriteHeader(http.StatusUnauthorized)
 	_, _ = w.Write([]byte(`{"error":"unauthorized","message":"Valid Bearer token required"}`))

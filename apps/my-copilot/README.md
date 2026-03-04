@@ -99,6 +99,22 @@ azure:
         # Add more group IDs here
 ```
 
+## Metrics
+
+Exposed via `GET /metrics` in Prometheus format.
+
+| Metric                               | Type    | Labels | Description                             |
+| ------------------------------------ | ------- | ------ | --------------------------------------- |
+| `copilot_seats_total`                | Gauge   | —      | Total Copilot seats in the organization |
+| `copilot_seats_active_this_cycle`    | Gauge   | —      | Seats active in current billing cycle   |
+| `copilot_seats_inactive_this_cycle`  | Gauge   | —      | Seats inactive in current billing cycle |
+| `copilot_seats_added_this_cycle`     | Gauge   | —      | Seats added in current billing cycle    |
+| `copilot_seats_pending_invitation`   | Gauge   | —      | Seats with pending invitations          |
+| `copilot_seats_pending_cancellation` | Gauge   | —      | Seats pending cancellation              |
+| `mycopilot_page_views_total`         | Counter | `page` | Page views by section                   |
+
+A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`](../../dashboards/copilot-ecosystem.json).
+
 ## Learn More
 
 To learn more about the technologies used in this project, take a look at the following resources:
