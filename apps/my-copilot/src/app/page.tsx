@@ -5,6 +5,7 @@ import { ExternalLinkIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
 import { NewsCard, FeaturedNewsCard } from "@/components/news-card";
 import { NAV_ITEMS } from "@/lib/nav-items";
+import { Greeting } from "@/components/greeting";
 
 export default function Home() {
   const news = getNewsItems();
@@ -25,6 +26,7 @@ export default function Home() {
                 GitHub Copilot
               </Heading>
               <BodyShort className="max-w-md opacity-70 hero-animate-d1">
+                <Greeting />
                 Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.
               </BodyShort>
             </VStack>
@@ -43,7 +45,7 @@ export default function Home() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap={{ xs: "space-32", md: "space-40" }}>
-            <Box>
+            <Box className="reveal-section">
               <Heading size="medium" level="2" className="mb-4">
                 Siste nytt
               </Heading>
@@ -59,7 +61,7 @@ export default function Home() {
               </VStack>
             </Box>
 
-            <Box>
+            <Box className="reveal-section">
               <Heading size="medium" level="2" className="mb-4">
                 Ressurser
               </Heading>

@@ -5,6 +5,7 @@ import { Box, HStack, BodyShort, Link } from "@navikt/ds-react";
 import { getUser } from "@/lib/auth";
 import Faro from "@/components/faro";
 import NextLink from "next/link";
+import { FooterMessage } from "@/components/footer-message";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -54,9 +55,7 @@ export default async function RootLayout({
             className="max-w-7xl mx-auto"
           >
             <HStack justify="space-between" align="center" wrap gap="space-8">
-              <BodyShort size="small" className="text-gray-400">
-                Bygget med GitHub Copilot
-              </BodyShort>
+              <FooterMessage />
               <HStack gap="space-16">
                 <Link href="https://docs.github.com/en/copilot" className="text-gray-400 hover:text-white text-sm">
                   Dokumentasjon
