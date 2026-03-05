@@ -14,9 +14,9 @@ import ErrorState from "@/components/error-state";
 import PremiumRequestsContent from "@/components/premium-requests-content";
 import TimeframeSelector from "@/components/timeframe-selector";
 import { calculatePremiumMetrics } from "@/lib/billing-utils";
-import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, HStack, VStack } from "@navikt/ds-react";
+import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
-import { PageHeader } from "@/components/page-header";
+import { PageHero } from "@/components/page-hero";
 import {
   calculateAcceptanceRate,
   getTopLanguages,
@@ -36,15 +36,15 @@ import { formatNumber } from "@/lib/format";
 // Static header component (automatically prerendered)
 function UsageHeader() {
   return (
-    <HStack justify="space-between" align="start" gap="space-16" wrap={false}>
-      <PageHeader
-        title="Copilot Statistikk"
-        description="Viser organisasjonens bruk av GitHub Copilot med oppdaterte data"
-      />
-      <Suspense fallback={<Skeleton variant="rectangle" width={192} height={40} />}>
-        <TimeframeSelector />
-      </Suspense>
-    </HStack>
+    <PageHero
+      title="Statistikk"
+      description="Bruksdata og trender for GitHub Copilot i organisasjonen."
+      actions={
+        <Suspense fallback={<Skeleton variant="rectangle" width={192} height={40} />}>
+          <TimeframeSelector />
+        </Suspense>
+      }
+    />
   );
 }
 
@@ -727,28 +727,27 @@ export default async function Usage({ searchParams }: { searchParams: Promise<{ 
   const days = Math.min(Math.max(parseInt(params.days || "28", 10) || 28, 1), 100);
 
   return (
-    <main className="max-w-7xl mx-auto">
-      <Box
-        paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-      >
-        <section>
-          {/* Static content - automatically prerendered */}
-          <UsageHeader />
-
-          {/* Cached dynamic content - included in static shell */}
-          <Suspense
-            fallback={
-              <div className="space-y-4">
-                <Skeleton variant="text" width="60%" />
-                <Skeleton variant="rectangle" height={400} />
-              </div>
-            }
-          >
-            <CachedUsageData days={days} />
-          </Suspense>
-        </section>
-      </Box>
+    <main>
+      <UsageHeader />
+      <div className="max-w-7xl mx-auto">
+        <Box
+          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
+          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+        >
+          <section>
+            <Suspense
+              fallback={
+                <div className="space-y-4">
+                  <Skeleton variant="text" width="60%" />
+                  <Skeleton variant="rectangle" height={400} />
+                </div>
+              }
+            >
+              <CachedUsageData days={days} />
+            </Suspense>
+          </section>
+        </Box>
+      </div>
     </main>
   );
 }

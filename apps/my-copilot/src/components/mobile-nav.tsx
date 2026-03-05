@@ -50,6 +50,20 @@ export function MobileNav() {
           >
             Kostnad
           </Dropdown.Menu.List.Item>
+          <Dropdown.Menu.List.Item
+            onClick={() => {
+              router.push("/abonnement");
+            }}
+          >
+            Abonnement
+          </Dropdown.Menu.List.Item>
+          <Dropdown.Menu.List.Item
+            onClick={() => {
+              router.push("/nyheter");
+            }}
+          >
+            Nyheter
+          </Dropdown.Menu.List.Item>
         </Dropdown.Menu.List>
       </Dropdown.Menu>
     </Dropdown>

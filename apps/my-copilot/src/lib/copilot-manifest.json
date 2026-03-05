@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-03-05T14:15:17.914Z",
+  "generatedAt": "2026-03-05T21:46:34.990Z",
   "items": [
     {
       "id": "aksel-agent",
@@ -295,6 +295,17 @@
       "invocation": "#nais-manifest"
     },
     {
+      "id": "adapt",
+      "name": "adapt",
+      "description": "Adapt designs to work across different screen sizes, devices, contexts, or platforms. Ensures consistent experience across varied environments.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/adapt/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/adapt/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
       "id": "aksel-spacing",
       "name": "aksel-spacing",
       "description": "Responsive layout patterns using Aksel spacing tokens with Box, VStack, HStack, and HGrid",
@@ -302,6 +313,105 @@
       "domain": "frontend",
       "filePath": ".github/skills/aksel-spacing/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "animate",
+      "name": "animate",
+      "description": "Review a feature and enhance it with purposeful animations, micro-interactions, and motion effects that improve usability and delight.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/animate/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/animate/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "audit",
+      "name": "audit",
+      "description": "Perform comprehensive audit of interface quality across accessibility, performance, theming, and responsive design. Generates detailed report of issues with severity ratings and recommendations.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/audit/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/audit/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "bolder",
+      "name": "bolder",
+      "description": "Amplify safe or boring designs to make them more visually interesting and stimulating. Increases impact while maintaining usability.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/bolder/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/bolder/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "clarify",
+      "name": "clarify",
+      "description": "Improve unclear UX copy, error messages, microcopy, labels, and instructions. Makes interfaces easier to understand and use.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/clarify/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/clarify/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "colorize",
+      "name": "colorize",
+      "description": "Add strategic color to features that are too monochromatic or lack visual interest. Makes interfaces more engaging and expressive.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/colorize/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/colorize/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "critique",
+      "name": "critique",
+      "description": "Evaluate design effectiveness from a UX perspective. Assesses visual hierarchy, information architecture, emotional resonance, and overall design quality with actionable feedback.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/critique/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/critique/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "delight",
+      "name": "delight",
+      "description": "Add moments of joy, personality, and unexpected touches that make interfaces memorable and enjoyable to use. Elevates functional to delightful.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/delight/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/delight/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "distill",
+      "name": "distill",
+      "description": "Strip designs to their essence by removing unnecessary complexity. Great design is simple, powerful, and clean.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/distill/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/distill/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "extract",
+      "name": "extract",
+      "description": "Extract and consolidate reusable components, design tokens, and patterns into your design system. Identifies opportunities for systematic reuse and enriches your component library.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/extract/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/extract/SKILL.md",
       "installUrl": null,
       "insidersInstallUrl": null
     },
@@ -317,6 +427,28 @@
       "insidersInstallUrl": null
     },
     {
+      "id": "frontend-design",
+      "name": "frontend-design",
+      "description": "Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications. Generates creative, polished code that avoids generic AI aesthetics.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/frontend-design/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/frontend-design/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "harden",
+      "name": "harden",
+      "description": "Improve interface resilience through better error handling, i18n support, text overflow handling, and edge case management. Makes interfaces robust and production-ready.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/harden/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/harden/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
       "id": "kotlin-app-config",
       "name": "kotlin-app-config",
       "description": "Sealed class configuration pattern for Kotlin applications with environment-specific settings",
@@ -328,6 +460,17 @@
       "insidersInstallUrl": null
     },
     {
+      "id": "normalize",
+      "name": "normalize",
+      "description": "Normalize design to match your design system and ensure consistency",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/normalize/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/normalize/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
       "id": "observability-setup",
       "name": "observability-setup",
       "description": "Setting up Prometheus metrics, OpenTelemetry tracing, and health endpoints for Nais applications",
@@ -335,6 +478,61 @@
       "domain": "observability",
       "filePath": ".github/skills/observability-setup/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "onboard",
+      "name": "onboard",
+      "description": "Design or improve onboarding flows, empty states, and first-time user experiences. Helps users get started successfully and understand value quickly.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/onboard/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/onboard/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "optimize",
+      "name": "optimize",
+      "description": "Improve interface performance across loading speed, rendering, animations, images, and bundle size. Makes experiences faster and smoother.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/optimize/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/optimize/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "polish",
+      "name": "polish",
+      "description": "Final quality pass before shipping. Fixes alignment, spacing, consistency, and detail issues that separate good from great.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/polish/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/polish/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "quieter",
+      "name": "quieter",
+      "description": "Tone down overly bold or visually aggressive designs. Reduces intensity while maintaining design quality and impact.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/quieter/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/quieter/SKILL.md",
+      "installUrl": null,
+      "insidersInstallUrl": null
+    },
+    {
+      "id": "teach-impeccable",
+      "name": "teach-impeccable",
+      "description": "One-time setup that gathers design context for your project and saves it to your AI config file. Run once to establish persistent design guidelines.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/teach-impeccable/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/teach-impeccable/SKILL.md",
       "installUrl": null,
       "insidersInstallUrl": null
     },

@@ -6,6 +6,88 @@
   --color-foreground: var(--foreground);
 }
 
+/* Hero gradient for the front page */
+.hero-gradient {
+  background: linear-gradient(135deg, #1b2a4a 0%, #243b69 40%, #2d4a7a 70%, #1a5276 100%);
+}
+
+/* Subtler hero gradient for sub-pages */
+.hero-gradient-subtle {
+  background: linear-gradient(135deg, #1e2d4d 0%, #243a5e 60%, #263f65 100%);
+}
+
+/* Featured news card gradient */
+.featured-card {
+  background: linear-gradient(135deg, #f0f6ff 0%, #e8f0fe 100%);
+  border-left: 4px solid #2563eb;
+}
+
+/* Category-colored left borders for news cards */
+.news-card-copilot {
+  border-left: 3px solid #2563eb;
+}
+.news-card-nav {
+  border-left: 3px solid #15803d;
+}
+.news-card-praksis {
+  border-left: 3px solid #d97706;
+}
+
+/* Prose styles for article rendering */
+.prose h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+.prose h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.prose p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+.prose ul,
+.prose ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+.prose li {
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+.prose a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+.prose th,
+.prose td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.prose th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+.prose hr {
+  margin: 2rem 0;
+  border-color: #e5e7eb;
+}
+.prose strong {
+  font-weight: 600;
+}
+.prose blockquote {
+  border-left: 3px solid #d1d5db;
+  padding-left: 1rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
 /* Fix: Nav resets margin on typography. Override with higher specificity to allow Tailwind utilities */
 .navds-heading.mb-1 {
   margin-bottom: calc(var(--spacing) * 1) !important;

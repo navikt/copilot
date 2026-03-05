@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import {
-  InternalHeader,
-  InternalHeaderButton,
-  InternalHeaderTitle,
-  InternalHeaderUser,
-} from "@navikt/ds-react/InternalHeader";
+import { InternalHeader, InternalHeaderTitle, InternalHeaderUser } from "@navikt/ds-react/InternalHeader";
 import { Spacer, Box, HStack, BodyShort, Link } from "@navikt/ds-react";
 import { getUser } from "@/lib/auth";
 import Faro from "@/components/faro";
@@ -37,18 +32,6 @@ export default async function RootLayout({
           <InternalHeaderTitle as="a" href="/">
             Min Copilot
           </InternalHeaderTitle>
-          <InternalHeaderButton as="a" href="/practice" className="hidden md:flex">
-            God praksis
-          </InternalHeaderButton>
-          <InternalHeaderButton as="a" href="/customizations" className="hidden md:flex">
-            Verktøy
-          </InternalHeaderButton>
-          <InternalHeaderButton as="a" href="/stats" className="hidden md:flex">
-            Statistikk
-          </InternalHeaderButton>
-          <InternalHeaderButton as="a" href="/cost" className="hidden md:flex">
-            Kostnad
-          </InternalHeaderButton>
           <Spacer />
           <div className="md:hidden flex items-center">
             <MobileNav />

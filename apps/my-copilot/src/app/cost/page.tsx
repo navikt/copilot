@@ -1,7 +1,7 @@
 import { getCachedCopilotBilling } from "@/lib/cached-github";
 import { Suspense } from "react";
 import { Skeleton, Heading, BodyShort, Box } from "@navikt/ds-react";
-import { PageHeader } from "@/components/page-header";
+import { PageHero } from "@/components/page-hero";
 
 function currencyFormat(num: number) {
   return `$${num.toFixed(2).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")} USD`;
@@ -9,12 +9,7 @@ function currencyFormat(num: number) {
 
 // Static header component (automatically prerendered)
 function OverviewHeader() {
-  return (
-    <PageHeader
-      title="Copilot Kostnad"
-      description="Oversikt over lisenser, kostnader og organisasjonsinnstillinger for GitHub Copilot"
-    />
-  );
+  return <PageHero title="Kostnad" description="Lisenser, fakturering og kostnadsfordeling for GitHub Copilot." />;
 }
 
 // Cached billing data component
@@ -142,26 +137,25 @@ async function BillingOverview() {
 // Main page component using Partial Prerendering
 export default function Overview() {
   return (
-    <main className="max-w-7xl mx-auto">
-      <Box
-        paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-      >
-        {/* Static content - automatically prerendered */}
-        <OverviewHeader />
-
-        {/* Cached dynamic content - included in static shell */}
-        <Suspense
-          fallback={
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Skeleton variant="rectangle" height={400} />
-              <Skeleton variant="rectangle" height={400} />
-            </div>
-          }
+    <main>
+      <OverviewHeader />
+      <div className="max-w-7xl mx-auto">
+        <Box
+          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
+          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
-          <BillingOverview />
-        </Suspense>
-      </Box>
+          <Suspense
+            fallback={
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Skeleton variant="rectangle" height={400} />
+                <Skeleton variant="rectangle" height={400} />
+              </div>
+            }
+          >
+            <BillingOverview />
+          </Suspense>
+        </Box>
+      </div>
     </main>
   );
 }
