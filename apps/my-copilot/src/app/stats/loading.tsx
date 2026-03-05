@@ -1,4 +1,4 @@
-import { Heading, BodyShort, Box, HGrid, Skeleton } from "@navikt/ds-react";
+import { Heading, Box, HGrid, Skeleton } from "@navikt/ds-react";
 
 export default function Loading() {
   return (
@@ -7,9 +7,9 @@ export default function Loading() {
         <Heading size="xlarge" level="1" className="mb-2">
           Copilot Statistikk
         </Heading>
-        <BodyShort className="text-gray-600 mb-12">
+        <div className="text-gray-600 mb-12">
           <Skeleton variant="text" width="60%" />
-        </BodyShort>
+        </div>
 
         {/* Tab skeleton */}
         <div className="border-b border-gray-200">
