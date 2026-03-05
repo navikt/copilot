@@ -23,7 +23,7 @@ export default function Home() {
           <VStack gap="space-16">
             <VStack gap="space-8">
               <Heading size="xlarge" level="1" className="hero-title hero-animate">
-                GitHub Copilot
+                Copilot i Nav
               </Heading>
               <BodyShort className="max-w-md opacity-70 hero-animate-d1">
                 <Greeting />
