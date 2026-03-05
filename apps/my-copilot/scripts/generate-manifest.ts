@@ -226,10 +226,15 @@ function getSkills(): ManifestItem[] {
     });
 }
 
+const items = [...getAgents(), ...getInstructions(), ...getPrompts(), ...getSkills()];
+
+const existing = fs.existsSync(OUTPUT) ? JSON.parse(fs.readFileSync(OUTPUT, "utf-8")) : null;
+const itemsChanged = !existing || JSON.stringify(existing.items) !== JSON.stringify(items);
+
 const manifest = {
   version: "1.0.0",
-  generatedAt: new Date().toISOString(),
-  items: [...getAgents(), ...getInstructions(), ...getPrompts(), ...getSkills()],
+  generatedAt: itemsChanged ? new Date().toISOString() : existing.generatedAt,
+  items,
 };
 
 fs.writeFileSync(OUTPUT, JSON.stringify(manifest, null, 2) + "\n");

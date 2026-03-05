@@ -16,7 +16,8 @@ export function CustomizationCard({ item }: CustomizationCardProps) {
     <Box
       background="default"
       borderRadius="12"
-      shadow="dialog"
+      borderColor="neutral"
+      borderWidth="1"
       padding={{ xs: "space-12", md: "space-16" }}
       style={{ borderLeftColor: `var(--ax-${domainConfig.color}-400, currentColor)` }}
       className="border-l-4"

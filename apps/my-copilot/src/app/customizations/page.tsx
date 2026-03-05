@@ -1,7 +1,8 @@
-import { Heading, BodyShort, Box, HGrid, VStack } from "@navikt/ds-react";
+import { Heading, Box, HGrid, VStack } from "@navikt/ds-react";
 import { getAllCustomizations, getCountsByDomain } from "@/lib/customizations";
 import type { Domain } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
+import { PageHeader } from "@/components/page-header";
 import { DomainCards } from "./domain-cards";
 
 export default function CustomizationsPage() {
@@ -18,30 +19,12 @@ export default function CustomizationsPage() {
         paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
         paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
       >
-        <VStack gap={{ xs: "space-16", md: "space-24" }}>
-          {/* Hero */}
-          <div className="relative">
-            <div className="absolute inset-0 overflow-hidden rounded-xl -z-10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/agents-on-github-hero-mission-control.jpeg"
-                alt=""
-                className="w-full h-full object-cover opacity-15"
-              />
-              <div className="absolute inset-0 bg-linear-to-r from-white via-white/90 to-transparent" />
-            </div>
-            <div className="py-2 sm:py-4">
-              <Heading size="xlarge" level="1" className="mb-2">
-                Copilot-verktøy for Nav
-              </Heading>
-              <BodyShort className="text-gray-600 max-w-2xl">
-                Agenter, instruksjoner, prompts og ferdigheter som gjør GitHub Copilot smartere for Navs tekniske stack.
-                Installer direkte i VS Code med ett klikk.
-              </BodyShort>
-            </div>
-          </div>
+        <VStack gap={{ xs: "space-24", md: "space-32" }}>
+          <PageHeader
+            title="Copilot-verktøy for Nav"
+            description="Agenter, instruksjoner, prompts og ferdigheter som gjør GitHub Copilot smartere for Navs tekniske stack. Installer direkte i VS Code med ett klikk."
+          />
 
-          {/* Domain overview */}
           <Box>
             <Heading size="medium" level="2" className="mb-4">
               Utforsk etter domene
@@ -53,7 +36,6 @@ export default function CustomizationsPage() {
             </HGrid>
           </Box>
 
-          {/* Catalog */}
           <Box id="catalog">
             <Heading size="medium" level="2" className="mb-4">
               Alle tilpasninger

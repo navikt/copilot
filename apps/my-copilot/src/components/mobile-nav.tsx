@@ -24,10 +24,10 @@ export function MobileNav() {
           </Dropdown.Menu.List.Item>
           <Dropdown.Menu.List.Item
             onClick={() => {
-              router.push("/best-practices");
+              router.push("/practice");
             }}
           >
-            Beste Praksis
+            God praksis
           </Dropdown.Menu.List.Item>
           <Dropdown.Menu.List.Item
             onClick={() => {
@@ -38,14 +38,14 @@ export function MobileNav() {
           </Dropdown.Menu.List.Item>
           <Dropdown.Menu.List.Item
             onClick={() => {
-              router.push("/usage");
+              router.push("/stats");
             }}
           >
             Statistikk
           </Dropdown.Menu.List.Item>
           <Dropdown.Menu.List.Item
             onClick={() => {
-              router.push("/overview");
+              router.push("/cost");
             }}
           >
             Kostnad

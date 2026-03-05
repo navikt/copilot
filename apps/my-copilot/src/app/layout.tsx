@@ -7,7 +7,7 @@ import {
   InternalHeaderTitle,
   InternalHeaderUser,
 } from "@navikt/ds-react/InternalHeader";
-import { Spacer, Box, HGrid } from "@navikt/ds-react";
+import { Spacer, Box, HStack, BodyShort, Link } from "@navikt/ds-react";
 import { getUser } from "@/lib/auth";
 import Faro from "@/components/faro";
 import { MobileNav } from "@/components/mobile-nav";
@@ -37,16 +37,16 @@ export default async function RootLayout({
           <InternalHeaderTitle as="a" href="/">
             Min Copilot
           </InternalHeaderTitle>
-          <InternalHeaderButton as="a" href="/best-practices" className="hidden md:flex">
-            Beste Praksis
+          <InternalHeaderButton as="a" href="/practice" className="hidden md:flex">
+            God praksis
           </InternalHeaderButton>
           <InternalHeaderButton as="a" href="/customizations" className="hidden md:flex">
             Verktøy
           </InternalHeaderButton>
-          <InternalHeaderButton as="a" href="/usage" className="hidden md:flex">
+          <InternalHeaderButton as="a" href="/stats" className="hidden md:flex">
             Statistikk
           </InternalHeaderButton>
-          <InternalHeaderButton as="a" href="/overview" className="hidden md:flex">
+          <InternalHeaderButton as="a" href="/cost" className="hidden md:flex">
             Kostnad
           </InternalHeaderButton>
           <Spacer />
@@ -56,61 +56,27 @@ export default async function RootLayout({
           <InternalHeaderUser name={`${user.firstName} ${user.lastName}`} className="hidden md:flex" />
         </InternalHeader>
         <div className="bg-gray-100">{children}</div>
-        <Box as="footer" paddingBlock="space-20" paddingInline="space-8" className="text-white text-left text-md">
-          <HGrid columns={{ xs: 1, md: 3 }} gap="space-8">
-            <div>
-              <p>Bygget med GitHub Copilot</p>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold mb-2">Relevante Lenker</h2>
-              <ul className="list-disc list-inside">
-                <li>
-                  <a href="/best-practices" className="text-blue-400 hover:underline">
-                    Beste Praksis og Læring
-                  </a>
-                </li>
-                <li>
-                  <a href="/customizations" className="text-blue-400 hover:underline">
-                    Copilot-verktøy for Nav
-                  </a>
-                </li>
-                <li>
-                  <a href="https://docs.github.com/en/copilot" className="text-blue-400 hover:underline">
-                    GitHub Copilot Dokumentasjon
-                  </a>
-                </li>
-                <li>
-                  <a href="https://github.com/features/copilot" className="text-blue-400 hover:underline">
-                    GitHub Copilot Funksjoner
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://utvikling.intern.nav.no/teknisk/github-copilot.html"
-                    className="text-blue-400 hover:underline"
-                  >
-                    Om GitHub Copilot i Nav
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold mb-2">Tekniske Lenker</h2>
-              <ul className="list-disc list-inside">
-                <li>
-                  <a href="https://github.com/nais/my-copilot" className="text-blue-400 hover:underline">
-                    github.com/nais/my-copilot
-                  </a>
-                </li>
-                <li>
-                  <a href="https://grafana.nav.cloud.nais.io/d/min-copilot" className="text-blue-400 hover:underline">
-                    Grafana Dashboard
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </HGrid>
-        </Box>
+        <footer className="text-white">
+          <Box
+            paddingBlock="space-12"
+            paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+            className="max-w-7xl mx-auto"
+          >
+            <HStack justify="space-between" align="center" wrap gap="space-8">
+              <BodyShort size="small" className="text-gray-400">
+                Bygget med GitHub Copilot
+              </BodyShort>
+              <HStack gap="space-16">
+                <Link href="https://docs.github.com/en/copilot" className="text-gray-400 hover:text-white text-sm">
+                  Dokumentasjon
+                </Link>
+                <Link href="https://github.com/navikt/copilot" className="text-gray-400 hover:text-white text-sm">
+                  GitHub
+                </Link>
+              </HStack>
+            </HStack>
+          </Box>
+        </footer>
       </body>
       <Faro />
     </html>
