@@ -1,7 +1,7 @@
 "use client";
 
 import { BodyShort } from "@navikt/ds-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const messages = [
   "Bygget med GitHub Copilot",
@@ -11,12 +11,12 @@ const messages = [
   "Kontinuerlig forbedret, én PR om gangen",
 ];
 
-function pickMessage() {
-  return messages[Math.floor(Math.random() * messages.length)];
-}
-
 export function FooterMessage() {
-  const [message] = useState(pickMessage);
+  const [message, setMessage] = useState(messages[0]);
+
+  useEffect(() => {
+    setMessage(messages[Math.floor(Math.random() * messages.length)]);
+  }, []);
 
   return (
     <BodyShort size="small" className="text-gray-400" suppressHydrationWarning>
