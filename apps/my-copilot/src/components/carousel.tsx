@@ -55,8 +55,9 @@ export function Carousel({ children, showIndicators = true, showSwipeHint = true
                   <button
                     key={index}
                     onClick={() => scrollToIndex(index)}
-                    className={`h-2 rounded-full transition-all duration-300 ${index === activeIndex ? "bg-blue-600 w-5" : "bg-gray-300 w-2"
-                      }`}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      index === activeIndex ? "bg-blue-600 w-5" : "bg-gray-300 w-2"
+                    }`}
                     aria-label={`Go to slide ${index + 1} of ${children.length}`}
                     style={{ marginLeft: index > 0 ? "8px" : "0" }}
                   />

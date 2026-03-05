@@ -98,14 +98,3 @@ Det er verdt å ta temperaturen på hva utviklere faktisk opplever:
 **Det som bekymrer:** «Forestill deg å feilsøke 3 millioner linjer kode ingen mennesker har rørt.» Konteksttap er et gjennomgangstema — AI-kodere kan gjøre fantastiske ting, men uten utviklerens forståelse flyttes flaskehalsen heller enn å forsvinne. En utvikler opplevde at agenten byttet ut all SQLite med MariaDB, til tross for en AGENTS.md som eksplisitt sa «spør først».
 
 Duncan Ogilvie oppsummerte erfaringen med kodingsagenter under begrepet **«Vibe Engineering»**: Kontekstvinduet er dyrebart — vær bevisst på hva som fyller det. Prosjektoppsett er avgjørende. TDD har blitt essensielt fordi testene er det som faktisk fanger feil. Og planlegging før prompting lønner seg alltid.
-
-## Hva betyr dette for Nav?
-
-| Trend             | Hva det betyr for oss                                         |
-| ----------------- | ------------------------------------------------------------- |
-| Copilot-minne     | Agenten kan lære seg Navs konvensjoner og kodebaser over tid  |
-| Agentic Workflows | Automatisert vedlikehold av docs, testdekning og kodekvalitet |
-| Agent HQ          | Sammenligne ulike agenter for ulike oppgavetyper              |
-| AGENTS.md         | Nav kan investere i gode AGENTS.md-filer i sine repoer        |
-| Sikkerhet først   | Sammenfaller med Navs krav til sikkerhet og personvern        |
-| Metrikk-dashboard | Bedre innsikt i faktisk bruk og effekt av Copilot             |
