@@ -11,176 +11,97 @@ tags:
   - agents-md
 ---
 
-De viktigste nyhetene om AI-kodingsagenter og GitHub Copilot denne måneden, med relevans for Nav.
+Februar 2026 var måneden da AI-kodingsagenter tok et nytt steg — fra verktøy du spør om hjelp, til agenter som jobber selvstendig i repoet ditt. Her er det viktigste som skjedde, og hva det betyr for oss i Nav.
 
----
+## Velg din agent
 
-## 1. GitHub Agent HQ: Claude og Codex i public preview
+GitHub åpnet 4. februar **Agent HQ** — en plattform der du kan sette Claude (Anthropic) og OpenAI Codex på issues og pull requests, ved siden av Copilot. Du nevner `@Claude` eller `@Codex` i en kommentar, og agenten starter en økt. Hver økt koster én premium-forespørsel.
 
-GitHub åpnet 4. februar agentplattformen **Agent HQ** for Claude (Anthropic) og OpenAI Codex. Utviklere med Copilot Pro+ eller Enterprise kan nå sette flere agenter på samme issue eller PR, nevne `@Copilot`, `@Claude` eller `@Codex` i kommentarer, og starte agentøkter rett fra VS Code.
+Det interessante for oss er ikke bare flere modellvalg. Agent HQ kommer med sentraliserte tilgangskontroller på organisasjonsnivå, et nytt **Copilot-metrikk-dashboard** (public preview), og full revisjonslogging. GitHub lanserte også **Code Quality** i public preview — automatisk vurdering av vedlikeholdbarhet og pålitelighet som del av Copilots arbeidsflyt.
 
-Hver agentøkt koster én premium-forespørsel. Google, Cognition og xAI kommer som agentleverandører senere.
+Google, Cognition og xAI er annonsert som kommende agentleverandører.
 
-For organisasjoner betyr dette:
+[Les mer på GitHub Blog →](https://github.blog/news-insights/company-news/pick-your-agent-use-claude-and-codex-on-agent-hq/)
 
-- Sentraliserte tilgangskontroller og policyer på organisasjonsnivå
-- **GitHub Code Quality** (public preview) som vurderer vedlikeholdbarhet og pålitelighet
-- Automatisert førsteutkast-kodegjennomgang i Copilots arbeidsflyt
-- Copilot-metrikk-dashboard (public preview) for bruk og effekt på tvers av organisasjonen
-- Full revisjonslogging
+## Arbeidsflyter skrevet i Markdown
 
-**Kilde:** [Pick your agent: Use Claude and Codex on Agent HQ](https://github.blog/news-insights/company-news/pick-your-agent-use-claude-and-codex-on-agent-hq/) (github.blog, 4. februar 2026)
+GitHub Next lanserte 13. februar **Agentic Workflows** i technical preview — og konseptet er overraskende enkelt. Du skriver en arbeidsflyt i Markdown, definerer hva agenten skal gjøre i naturlig språk, og kjører den som en GitHub Action.
 
----
+Sikkerhetsmodellen er gjennomtenkt: kun lesetilgang som standard, skriving krever eksplisitte «Safe Outputs», sandkassekjøring, og PR-er merges aldri automatisk. Et menneske godkjenner alltid.
 
-## 2. Continuous AI og GitHub Agentic Workflows
+Bak dette ligger et mønster GitHub kaller **Continuous AI** — regler i naturlig språk kombinert med agentbasert resonnering som kjører kontinuerlig. GitHub Next har testet seks bruksområder:
 
-GitHub Next lanserte 13. februar **GitHub Agentic Workflows** i technical preview — en ny form for automatisering der arbeidsflyter skrives i Markdown og kjøres som GitHub Actions med kodingsagenter.
+- **Docs vs. kode** — agenten finner og fikser avvik mellom dokumentasjon og kildekode
+- **Prosjektrapporter** — ukentlige oppsummeringer generert automatisk
+- **Oversettelser** — alle språkversjoner oppdateres når kildetekst endres
+- **Avhengighetsdrift** — oppdager udokumenterte endringer i avhengigheter
+- **Testdekning** — fra ~5 % til nær 100 % på 45 dager, for omtrent $80 i modellkostnader
+- **Ytelse** — finner og fikser subtile ytelsesproblemer
 
-### Lagdelt sikkerhet
+Mønsteret som tegner seg: repoer vil ha **flåter av små agenter**, hver med ansvar for én oppgave, heller enn én stor generell agent.
 
-Sikkerheten er bygget i lag:
+[Automate repository tasks with GitHub Agentic Workflows →](https://github.blog/ai-and-ml/automate-repository-tasks-with-github-agentic-workflows/)
 
-- Kun lesetilgang som standard — skriving krever eksplisitte **Safe Outputs**
-- Sandkassekjøring, godkjenningslister for verktøy og nettverksisolasjon
-- PR-er merges aldri automatisk — et menneske må alltid godkjenne
-- All aktivitet logges
+[Continuous AI in practice →](https://github.blog/ai-and-ml/generative-ai/continuous-ai-in-practice-what-developers-can-automate-today-with-agentic-ci/)
 
-### Continuous AI-mønsteret
+## Agenter som husker
 
-**Continuous AI** er mønsteret bak: regler skrevet i naturlig språk, kombinert med agentbasert resonnering som kjører kontinuerlig i repoet. GitHub Next har testet seks bruksområder:
+Copilot fikk i januar et **minnesystem** som deles på tvers av kodingsagenten, CLI og code review. Ideen er at agenter skal bli bedre over tid — ikke starte blankt hver gang.
 
-1. **Dokumentasjon vs. kode** — agenten finner og fikser avvik mellom docs og kode
-2. **Prosjektrapporter** — ukentlige oppsummeringer med aktivitet, trender og anbefalinger
-3. **Oversettelser** — oppdaterer alle språkversjoner automatisk når kildetekst endres
-4. **Avhengighetsdrift** — fanger opp udokumenterte endringer i avhengigheter
-5. **Testdekning** — fra ~5 % til nær 100 % på 45 dager for ~$80 i modellkostnader
-6. **Ytelse** — finner og fikser subtile ytelsesproblemer
+Slik fungerer det i praksis: Agenten lagrer fakta med kodehenvisninger når den oppdager noe nyttig. Før et minne brukes, verifiserer den kilden mot gjeldende kode. Stemmer det ikke, lagres en korrigert versjon. Oppdager code review en konvensjon? Da kan kodingsagenten bruke den neste gang, og CLI utnytter den ved feilsøking.
 
-Mønsteret som tegner seg er at repoer vil ha **flåter av små agenter** — hver med ansvar for én oppgave — heller enn én stor generell agent.
+Tallene fra A/B-testing er overbevisende: **7 % høyere PR-merge-rate** (90 % vs. 83 %) og 2 % mer positiv tilbakemelding på kodegjennomgang, begge med p < 0,00001. Minner er knyttet til repoet og utløper etter 28 dager.
 
-**Kilder:**
+Et interessant funn: I adversariell testing der feilaktige og ondsinnede minner ble plantet med vilje, oppdaget agentene konsekvent feilene og korrigerte seg selv.
 
-- [Automate repository tasks with GitHub Agentic Workflows](https://github.blog/ai-and-ml/automate-repository-tasks-with-github-agentic-workflows/) (github.blog, 13. februar 2026)
-- [Continuous AI in practice: What developers can automate today with agentic CI](https://github.blog/ai-and-ml/generative-ai/continuous-ai-in-practice-what-developers-can-automate-today-with-agentic-ci/) (github.blog, 5. februar 2026)
+[Building an agentic memory system for GitHub Copilot →](https://github.blog/ai-and-ml/github-copilot/building-an-agentic-memory-system-for-github-copilot/)
 
----
-
-## 3. Copilots minnesystem
-
-GitHub lanserte i januar **kryssagent-minne** i public preview for Copilot coding agent, CLI og code review. Systemet lar agenter lære og bli bedre over tid, på tvers av verktøyene.
-
-### Slik fungerer det
-
-- **Minne som verktøykall**: Agenter lagrer fakta med kodehenvisninger når de oppdager noe som kan være nyttig senere
-- **Verifisering ved bruk**: Før et minne brukes, sjekker agenten kilden mot gjeldende kode. Stemmer det ikke, lagres en korrigert versjon
-- **Deling på tvers**: Code review oppdager en konvensjon → kodingsagenten bruker den → CLI utnytter den ved feilsøking
-
-### Resultater fra A/B-testing
-
-- **7 % økning** i PR-merge-rate (90 % med minner vs. 83 % uten)
-- **2 % økning** i positiv tilbakemelding på kodegjennomgang
-- Begge statistisk signifikante med p < 0,00001
-- Minner er knyttet til repoet, utløper etter 28 dager, og krever skrivetilgang
-
-I adversariell testing — der feilaktige og ondsinnede minner ble plantet med vilje — oppdaget agentene konsekvent feilene og korrigerte seg selv.
-
-**Kilde:** [Building an agentic memory system for GitHub Copilot](https://github.blog/ai-and-ml/github-copilot/building-an-agentic-memory-system-for-github-copilot/) (github.blog, 15. januar 2026)
-
----
-
-## 4. Copilot SDK
+## Copilot SDK: Bygg agenter i egne apper
 
 GitHub lanserte 22. januar **Copilot SDK** i technical preview, med støtte for Node.js, Python, Go og .NET. SDK-et gir programmatisk tilgang til den samme agentsløyfen som driver Copilot CLI — planlegging, verktøybruk, flertrinnsutføring, MCP-servere og modellhåndtering.
 
-Copilot CLI har samtidig fått vedvarende minne, uendelige økter, intelligent kompaktering, utforsk/planlegg/gjennomgå-arbeidsflyter, egendefinerte agenter og asynkron oppgavedelegering.
+For Nav er dette relevant fordi det åpner for å bygge interne verktøy med agentfunksjonalitet — uten å måtte implementere hele infrastrukturen selv.
 
-**Kilde:** [Build an agent into any app with the GitHub Copilot SDK](https://github.blog/news-insights/company-news/build-an-agent-into-any-app-with-the-github-copilot-sdk/) (github.blog, 22. januar 2026)
+[Build an agent into any app with the GitHub Copilot SDK →](https://github.blog/news-insights/company-news/build-an-agent-into-any-app-with-the-github-copilot-sdk/)
 
----
+## AGENTS.md-debatten
 
-## 5. AGENTS.md-debatten: Skills vs. kontekst
+To Hacker News-diskusjoner i februar viste at utviklermiljøet er delt i synet på hvordan man best gir kodingsagenter kontekst.
 
-To Hacker News-diskusjoner viste en pågående debatt om hvordan man best gir kodingsagenter kontekst.
+**Vercel** fant at en komprimert dokumentasjonsindeks rett i AGENTS.md **utkonkurrerer Claude Code Skills**. I 56 % av testene ble skills aldri aktivert. Grunnen er enkel: informasjonen er alltid tilgjengelig, uten avhengighet av asynkron lasting eller rekkefølge.
 
-### AGENTS.md slår Skills i evalueringer
+En akademisk evaluering viste ~4 % forbedring fra håndskrevne AGENTS.md-filer. Mange kalte det «massivt» for en enkel Markdown-fil. LLM-genererte AGENTS.md-filer ga derimot **minus 3 % effekt** — fordi de beskriver det åpenbare heller enn domenekunnskap agenten faktisk trenger.
 
-Vercel fant at en komprimert dokumentasjonsindeks rett i AGENTS.md **utkonkurrerer Claude Code Skills**. I 56 % av testene ble skills aldri aktivert. Tre grunner: ingen beslutningspunkt (infoen er alltid der), konsistent tilgjengelighet (vs. asynkron skill-lasting) og ingen rekkefølgeproblemer.
-
-### Akademisk evaluering
-
-En forskningsartikkel fant ~4 % forbedring fra håndskrevne AGENTS.md-filer — som mange kalte «massivt» for en enkel Markdown-fil. LLM-genererte AGENTS.md-filer ga derimot **-3 % effekt**, fordi de beskriver det åpenbare heller enn domenekunnskap agenten faktisk trenger.
-
-### Praktiske funn
+Noen praktiske funn fra diskusjonene:
 
 - **Førsteperson fungerer best**: «I will follow instructions» slår «You must follow instructions»
-- **Progressiv struktur**: slank toppnivå AGENTS.md + nestede filer per funksjon eller app
-- AGENTS.md blir i praksis det nye CONTRIBUTING.md
-- Flere anbefaler å flytte regler til **deterministiske sjekker** (kompilator/AST) — agenter ignorerer instruksjoner i komplekse situasjoner
-- Anbefalt arbeidsflyt: legg til i AGENTS.md bare når agenten **feiler**, tilbakestill og kjør på nytt for å sjekke at det hjelper
+- **Progressiv struktur**: en slank toppnivå-AGENTS.md med nestede filer per app eller funksjon
+- Legg bare til regler i AGENTS.md når agenten **faktisk feiler** — tilbakestill og kjør på nytt for å sjekke at det hjelper
+- Flere anbefaler å flytte regler til deterministiske sjekker (kompilator, linter, AST) — agenter ignorerer instruksjoner i komplekse situasjoner
 
-**Kilder:**
+[AGENTS.md outperforms skills (Hacker News) →](https://news.ycombinator.com/item?id=46809708)
 
-- [AGENTS.md outperforms skills in our agent evals (Vercel)](https://news.ycombinator.com/item?id=46809708) (Hacker News)
-- [Evaluating AGENTS.md: are they helpful for coding agents?](https://news.ycombinator.com/item?id=47034087) (Hacker News)
+[Evaluating AGENTS.md (Hacker News) →](https://news.ycombinator.com/item?id=47034087)
 
----
+## Anthropics agentrapport
 
-## 6. Anthropics agentrapport for 2026
+Anthropic publiserte sin **2026 Agentic Coding Trends Report** med åtte trender. Den mest interessante for oss: **agentbasert kvalitetskontroll blir standard** — der AI-agenter gjennomgår AI-generert kode for sårbarheter, arkitektur og kvalitet. Andre trender inkluderer koordinerte agentteam, langkjørende agenter som bygger hele systemer, og at produktivitetsgevinster endrer økonomien i utvikling.
 
-Anthropic publiserte sin **2026 Agentic Coding Trends Report** med åtte trender:
+[2026 Agentic Coding Trends Report →](https://www.anthropic.com/research/agentic-coding-trends)
 
-1. Utviklingssyklusen endres dramatisk
-2. Enkle agenter utvikler seg til koordinerte team
-3. Langkjørende agenter bygger hele systemer
-4. Menneskelig tilsyn skalerer gjennom smart samarbeid
-5. Agenter sprer seg til nye overflater og brukergrupper
-6. Produktivitetsgevinster endrer økonomien i utvikling
-7. Ikke-tekniske bruksområder vokser
-8. **Dobbeltbruksrisiko krever sikkerhet først** — agentbasert kvalitetskontroll blir standard, der AI-agenter gjennomgår AI-generert kode for sårbarheter, arkitektur og kvalitet
+## Fra utviklermiljøet
 
-**Kilde:** [2026 Agentic Coding Trends Report](https://www.anthropic.com/research/agentic-coding-trends) (Anthropic)
+Det er verdt å ta temperaturen på hva utviklere faktisk opplever:
 
----
+**Det som fungerer godt:** En utvikler fikk en AI-agent til å oversette 14 000 linjer Python til TypeScript uten feil, på fire timer. Andre rapporterer at agenter som trekker ut «skills» fra vellykkede kjøringer blir merkbart bedre over tid. Poenget er at delegering av hele oppgaver — fra start til slutt — begynner å fungere.
 
-## 7. Stemningen i utviklermiljøet
+**Det som bekymrer:** «Forestill deg å feilsøke 3 millioner linjer kode ingen mennesker har rørt.» Konteksttap er et gjennomgangstema — AI-kodere kan gjøre fantastiske ting, men uten utviklerens forståelse flyttes flaskehalsen heller enn å forsvinne. En utvikler opplevde at agenten byttet ut all SQLite med MariaDB, til tross for en AGENTS.md som eksplisitt sa «spør først».
 
-### Det som fungerer
+Duncan Ogilvie oppsummerte erfaringen med kodingsagenter under begrepet **«Vibe Engineering»**: Kontekstvinduet er dyrebart — vær bevisst på hva som fyller det. Prosjektoppsett er avgjørende. TDD har blitt essensielt fordi testene er det som faktisk fanger feil. Og planlegging før prompting lønner seg alltid.
 
-- AI-agent oversatte 14 000 linjer Python til TypeScript uten feil på fire timer
-- Agenter som trekker ut «skills» fra vellykkede kjøringer og blir bedre over tid
-- Delegering av komplekse oppgaver fra start til slutt
+## Hva betyr dette for Nav?
 
-### Det som bekymrer
-
-- **Kvalitet i skala**: «Forestill deg å feilsøke 3 millioner linjer kode ingen mennesker har rørt»
-- **Konteksttap**: «AI-kodere kan gjøre fantastiske ting, men uten utviklerens forståelse flyttes bare flaskehalsen»
-- **Instruksjonskompleksitet**: Systeminstruksjoner blir mer og mer innviklede etter hvert som agenter lærer
-- **Agenter ignorerer regler**: én utvikler opplevde at agenten byttet ut all SQLite med MariaDB — til tross for 25 linjers AGENTS.md som sa «spør først»
-
-### «Vibe Engineering»
-
-Duncan Ogilvie oppsummerte i januar 2026 erfaringer med kodingsagenter:
-
-- Kontekstvinduet er dyrebart — vær bevisst på hva som fyller det
-- Prosjektoppsett er avgjørende — riktig struktur gjør agenten bedre
-- TDD er blitt essensielt — testene er det som fanger feil
-- DevDocs for å overleve konteksttilbakestillinger
-- Planlegging før prompting
-- Sub-agenter som neste steg
-
-**Kilder:**
-
-- [Reddit-diskusjoner om agentisk koding](https://www.reddit.com/r/ArtificialInteligence/) (r/ArtificialIntelligence)
-- [Vibe Engineering: What I've Learned Working with AI Coding Agents](https://www.linkedin.com/pulse/vibe-engineering-what-ive-learned-working-ai-coding-agents-ogilvie/) (LinkedIn, januar 2026)
-
----
-
-## Relevans for Nav
-
-Flere av trendene er direkte relevante for Nav:
-
-| Trend             | Hva det betyr for Nav                                         |
+| Trend             | Hva det betyr for oss                                         |
 | ----------------- | ------------------------------------------------------------- |
 | Copilot-minne     | Agenten kan lære seg Navs konvensjoner og kodebaser over tid  |
 | Agentic Workflows | Automatisert vedlikehold av docs, testdekning og kodekvalitet |
