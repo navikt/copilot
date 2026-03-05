@@ -24,24 +24,31 @@ export function MobileNav() {
           </Dropdown.Menu.List.Item>
           <Dropdown.Menu.List.Item
             onClick={() => {
+              router.push("/best-practices");
+            }}
+          >
+            Beste Praksis
+          </Dropdown.Menu.List.Item>
+          <Dropdown.Menu.List.Item
+            onClick={() => {
+              router.push("/customizations");
+            }}
+          >
+            Verktøy
+          </Dropdown.Menu.List.Item>
+          <Dropdown.Menu.List.Item
+            onClick={() => {
               router.push("/usage");
             }}
           >
-            Bruksstatistikk
+            Statistikk
           </Dropdown.Menu.List.Item>
           <Dropdown.Menu.List.Item
             onClick={() => {
               router.push("/overview");
             }}
           >
-            Lisensoversikt
-          </Dropdown.Menu.List.Item>
-          <Dropdown.Menu.List.Item
-            onClick={() => {
-              router.push("/best-practices");
-            }}
-          >
-            Beste Praksis
+            Kostnad
           </Dropdown.Menu.List.Item>
         </Dropdown.Menu.List>
       </Dropdown.Menu>

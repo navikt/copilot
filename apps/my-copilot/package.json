@@ -13,7 +13,8 @@
     "format:check": "prettier --list-different .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "knip": "knip"
+    "knip": "knip",
+    "generate": "node --experimental-strip-types scripts/generate-manifest.ts"
   },
   "dependencies": {
     "@grafana/faro-web-sdk": "^2.2.4",

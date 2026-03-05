@@ -37,14 +37,17 @@ export default async function RootLayout({
           <InternalHeaderTitle as="a" href="/">
             Min Copilot
           </InternalHeaderTitle>
-          <InternalHeaderButton as="a" href="/usage" className="hidden md:flex">
-            Bruksstatistikk
-          </InternalHeaderButton>
-          <InternalHeaderButton as="a" href="/overview" className="hidden md:flex">
-            Lisensoversikt
-          </InternalHeaderButton>
           <InternalHeaderButton as="a" href="/best-practices" className="hidden md:flex">
             Beste Praksis
+          </InternalHeaderButton>
+          <InternalHeaderButton as="a" href="/customizations" className="hidden md:flex">
+            Verktøy
+          </InternalHeaderButton>
+          <InternalHeaderButton as="a" href="/usage" className="hidden md:flex">
+            Statistikk
+          </InternalHeaderButton>
+          <InternalHeaderButton as="a" href="/overview" className="hidden md:flex">
+            Kostnad
           </InternalHeaderButton>
           <Spacer />
           <div className="md:hidden flex items-center">
@@ -64,6 +67,11 @@ export default async function RootLayout({
                 <li>
                   <a href="/best-practices" className="text-blue-400 hover:underline">
                     Beste Praksis og Læring
+                  </a>
+                </li>
+                <li>
+                  <a href="/customizations" className="text-blue-400 hover:underline">
+                    Copilot-verktøy for Nav
                   </a>
                 </li>
                 <li>
