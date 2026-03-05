@@ -5,10 +5,18 @@ import type { NewsItem } from "@/lib/news";
 import { CATEGORY_CONFIG } from "@/lib/news";
 import { formatDate } from "@/lib/format";
 
+function safeHref(url: string): string {
+  try {
+    const parsed = new URL(url, "https://nav.no");
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") return url;
+  } catch { }
+  return "#";
+}
+
 export function NewsCard({ item }: { item: NewsItem }) {
   const categoryConfig = CATEGORY_CONFIG[item.category];
   const isLink = item.type === "link";
-  const href = isLink ? item.url! : `/nyheter/${item.slug}`;
+  const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
   const linkProps = isLink ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
 
   return (
@@ -45,7 +53,7 @@ export function NewsCard({ item }: { item: NewsItem }) {
 export function FeaturedNewsCard({ item }: { item: NewsItem }) {
   const categoryConfig = CATEGORY_CONFIG[item.category];
   const isLink = item.type === "link";
-  const href = isLink ? item.url! : `/nyheter/${item.slug}`;
+  const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
   const linkProps = isLink ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
 
   return (
