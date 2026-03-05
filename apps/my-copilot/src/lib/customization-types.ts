@@ -1,4 +1,4 @@
-export type CustomizationType = "agent" | "instruction" | "prompt" | "skill";
+export type CustomizationType = "agent" | "instruction" | "prompt" | "skill" | "mcp";
 
 export type Domain = "platform" | "frontend" | "backend" | "auth" | "observability" | "general";
 
@@ -33,7 +33,13 @@ export interface Skill extends BaseCustomization {
   type: "skill";
 }
 
-export type AnyCustomization = Agent | Instruction | Prompt | Skill;
+export interface McpServerCustomization extends BaseCustomization {
+  type: "mcp";
+  version: string;
+  remotes: { type: string; url: string }[];
+}
+
+export type AnyCustomization = Agent | Instruction | Prompt | Skill | McpServerCustomization;
 
 export interface DomainConfig {
   label: string;
@@ -86,4 +92,5 @@ export const TYPE_LABELS: Record<CustomizationType, string> = {
   instruction: "Instruksjon",
   prompt: "Prompt",
   skill: "Ferdighet",
+  mcp: "MCP Server",
 };

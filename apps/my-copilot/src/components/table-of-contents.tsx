@@ -25,7 +25,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
           setActiveId(visible[0].target.id);
         }
       },
-      { rootMargin: "-80px 0px -60% 0px", threshold: 0 },
+      { rootMargin: "-80px 0px -60% 0px", threshold: 0 }
     );
 
     const elements = items
@@ -50,10 +50,11 @@ export function TableOfContents({ items }: TableOfContentsProps) {
                 document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                 window.history.replaceState(null, "", `#${item.id}`);
               }}
-              className={`block py-1.5 px-3 text-sm no-underline rounded-md transition-colors ${activeId === item.id
+              className={`block py-1.5 px-3 text-sm no-underline rounded-md transition-colors ${
+                activeId === item.id
                   ? "bg-blue-50 text-blue-700 font-medium"
                   : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-                }`}
+              }`}
             >
               {item.label}
             </a>

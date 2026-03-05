@@ -6,7 +6,7 @@ import type { AnyCustomization, CustomizationType, Domain } from "@/lib/customiz
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 import { CustomizationCard } from "./customization-card";
 
-const TYPES: CustomizationType[] = ["agent", "instruction", "prompt", "skill"];
+const TYPES: CustomizationType[] = ["agent", "instruction", "prompt", "skill", "mcp"];
 
 interface CustomizationCatalogProps {
   items: AnyCustomization[];

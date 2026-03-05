@@ -1,2 +1,4 @@
+mcp_registry_host: mcp-registry.ekstern.dev.nav.no
+mcp_registry_url: https://mcp-registry.ekstern.dev.nav.no
 ingresses:
   - "https://min-copilot.intern.dev.nav.no"

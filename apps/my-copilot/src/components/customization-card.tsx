@@ -9,6 +9,19 @@ interface CustomizationCardProps {
   item: AnyCustomization;
 }
 
+function transportLabel(type: string): string {
+  switch (type) {
+    case "streamable-http":
+      return "Streamable HTTP";
+    case "sse":
+      return "SSE";
+    case "stdio":
+      return "stdio";
+    default:
+      return type;
+  }
+}
+
 export function CustomizationCard({ item }: CustomizationCardProps) {
   const domainConfig = DOMAIN_CONFIGS[item.domain];
 
@@ -28,9 +41,14 @@ export function CustomizationCard({ item }: CustomizationCardProps) {
             {item.type === "agent" ? `@${item.name}` : item.name}
           </Heading>
           <HStack gap="space-4" className="shrink-0">
-            <Tag size="small" variant="neutral">
+            <Tag size="small" variant={item.type === "mcp" ? "success" : "neutral"}>
               {TYPE_LABELS[item.type]}
             </Tag>
+            {item.type === "mcp" && (
+              <Tag size="small" variant="neutral">
+                v{item.version}
+              </Tag>
+            )}
             <Tag size="small" variant="info">
               {domainConfig.label}
             </Tag>
@@ -55,6 +73,16 @@ export function CustomizationCard({ item }: CustomizationCardProps) {
               ))}
             </HStack>
           </ReadMore>
+        )}
+
+        {item.type === "mcp" && item.remotes.length > 0 && (
+          <HStack gap="space-4" wrap>
+            {item.remotes.map((remote) => (
+              <Tag key={remote.type} size="xsmall" variant="neutral">
+                {transportLabel(remote.type)}
+              </Tag>
+            ))}
+          </HStack>
         )}
 
         <BodyShort size="small" className="text-gray-600 line-clamp-3">

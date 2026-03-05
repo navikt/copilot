@@ -3,10 +3,13 @@ import { getAllCustomizations, getCountsByDomain } from "@/lib/customizations";
 import type { Domain } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
 import { PageHero } from "@/components/page-hero";
+import { getMcpServers } from "@/lib/mcp-registry";
 import { DomainCards } from "./domain-cards";
 
-export default function CustomizationsPage() {
-  const items = getAllCustomizations();
+export default async function CustomizationsPage() {
+  const customizations = getAllCustomizations();
+  const mcpServers = await getMcpServers();
+  const items = [...customizations, ...mcpServers];
   const counts = getCountsByDomain(items);
 
   const domains = Object.entries(counts)
@@ -17,7 +20,7 @@ export default function CustomizationsPage() {
     <main>
       <PageHero
         title="Verktøy"
-        description="Agenter, instruksjoner og ferdigheter som gjør Copilot smartere for Navs stack."
+        description="Agenter, instruksjoner, ferdigheter og MCP-servere som gjør Copilot smartere for Navs stack."
       />
       <div className="max-w-7xl mx-auto">
         <Box

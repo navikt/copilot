@@ -1,7 +1,7 @@
 "use client";
 
 import { BodyShort } from "@navikt/ds-react";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const messages = [
   "Bygget med GitHub Copilot",
@@ -13,9 +13,14 @@ const messages = [
 
 export function FooterMessage() {
   const [message, setMessage] = useState(messages[0]);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    setMessage(messages[Math.floor(Math.random() * messages.length)]);
+    if (!initialized.current) {
+      initialized.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: randomize on client mount to avoid SSR mismatch
+      setMessage(messages[Math.floor(Math.random() * messages.length)]);
+    }
   }, []);
 
   return (
