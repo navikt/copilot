@@ -46,10 +46,6 @@ export function getNewsItems(): NewsItem[] {
   return files.map(parseNewsFile).sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export function getLatestNews(count: number): NewsItem[] {
-  return getNewsItems().slice(0, count);
-}
-
 export function getArticle(slug: string): (NewsItem & { content: string }) | null {
   const filePath = path.join(articlesDir, `${slug}.md`);
   if (!fs.existsSync(filePath)) return null;

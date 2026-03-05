@@ -40,10 +40,9 @@ export function PageHero({ title, description, actions }: PageHeroProps) {
                   key={href}
                   href={href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm no-underline transition-colors ${isActive
-                      ? "bg-white/25 border border-white/50 text-white"
-                      : "border border-white/20 text-white/80 hover:bg-white/15 hover:text-white"
-                    }`}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm no-underline transition-colors ${
+                    isActive ? "bg-white/25 text-white" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+                  }`}
                 >
                   <Icon aria-hidden fontSize="1rem" />
                   {label}

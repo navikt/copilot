@@ -49,9 +49,9 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
   const linkProps = isLink ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
 
   return (
-    <Box borderRadius="12" padding={{ xs: "space-16", md: "space-24" }} asChild>
+    <Box borderRadius="12" padding={{ xs: "space-20", md: "space-32" }} asChild>
       <NextLink href={href} {...linkProps} className="no-underline hover:shadow-lg transition-shadow featured-card">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           <HStack gap="space-4" align="center">
             <Tag size="small" variant={categoryConfig.variant}>
               {categoryConfig.label}
@@ -60,7 +60,7 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
               {formatDate(item.date)}
             </BodyShort>
           </HStack>
-          <Heading size="small" level="2">
+          <Heading size="medium" level="2">
             <span className="flex items-center gap-2">
               {item.title}
               {isLink && <ExternalLinkIcon aria-hidden fontSize="1.25rem" className="shrink-0" />}

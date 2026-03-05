@@ -1,4 +1,4 @@
-import { getLatestNews } from "@/lib/news";
+import { getNewsItems } from "@/lib/news";
 import React from "react";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon } from "@navikt/aksel-icons";
@@ -7,28 +7,28 @@ import { NewsCard, FeaturedNewsCard } from "@/components/news-card";
 import { NAV_ITEMS } from "@/lib/nav-items";
 
 export default function Home() {
-  const news = getLatestNews(7);
+  const news = getNewsItems();
   const featured = news[0];
-  const rest = news.slice(1, 7);
+  const rest = news.slice(1);
 
   return (
     <main>
       <section className="hero-gradient text-white">
         <Box
-          paddingBlock={{ xs: "space-24", md: "space-32" }}
+          paddingBlock={{ xs: "space-32", md: "space-40" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
           className="max-w-7xl mx-auto"
         >
-          <VStack gap="space-12">
+          <VStack gap="space-16">
             <VStack gap="space-8">
-              <Heading size="xlarge" level="1">
+              <Heading size="xlarge" level="1" className="hero-title hero-animate">
                 GitHub Copilot
               </Heading>
-              <BodyShort className="max-w-2xl opacity-90">
+              <BodyShort className="max-w-md opacity-70 hero-animate-d1">
                 Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.
               </BodyShort>
             </VStack>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 hero-animate-d2">
               {NAV_ITEMS.map(({ href, icon: Icon, label }) => (
                 <NavPill key={href} href={href} icon={<Icon aria-hidden fontSize="1rem" />} label={label} />
               ))}
@@ -39,19 +39,14 @@ export default function Home() {
 
       <section className="max-w-7xl mx-auto">
         <Box
-          paddingBlock={{ xs: "space-24", md: "space-32" }}
+          paddingBlock={{ xs: "space-24", md: "space-40" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
-          <VStack gap={{ xs: "space-24", md: "space-32" }}>
+          <VStack gap={{ xs: "space-32", md: "space-40" }}>
             <Box>
-              <div className="flex items-center justify-between mb-4">
-                <Heading size="medium" level="2">
-                  Siste nytt
-                </Heading>
-                <NextLink href="/nyheter" className="text-sm hover:underline">
-                  Se alle →
-                </NextLink>
-              </div>
+              <Heading size="medium" level="2" className="mb-4">
+                Siste nytt
+              </Heading>
               <VStack gap="space-12">
                 {featured && <FeaturedNewsCard item={featured} />}
                 {rest.length > 0 && (
@@ -127,7 +122,7 @@ function NavPill({ href, icon, label }: { href: string; icon: React.ReactNode; l
   return (
     <NextLink
       href={href}
-      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm no-underline border border-white/30 text-white hover:bg-white/20 transition-colors"
+      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm no-underline bg-white/10 text-white hover:bg-white/20 transition-colors"
     >
       {icon}
       {label}

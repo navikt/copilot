@@ -51,10 +51,7 @@ export default async function ArticlePage({ params }: Props) {
               <Markdown remarkPlugins={[remarkGfm]}>{article.content}</Markdown>
             </article>
 
-            <NextLink
-              href="/nyheter"
-              className="inline-flex items-center gap-1.5 text-sm no-underline hover:underline py-2"
-            >
+            <NextLink href="/" className="inline-flex items-center gap-1.5 text-sm no-underline hover:underline py-2">
               <ArrowLeftIcon aria-hidden fontSize="1rem" />
               Alle nyheter
             </NextLink>

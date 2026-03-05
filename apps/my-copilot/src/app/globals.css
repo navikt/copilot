@@ -6,20 +6,73 @@
   --color-foreground: var(--foreground);
 }
 
-/* Hero gradient for the front page */
+/* Hero gradient — deep, immersive dark */
 .hero-gradient {
-  background: linear-gradient(135deg, #1b2a4a 0%, #243b69 40%, #2d4a7a 70%, #1a5276 100%);
+  background: linear-gradient(170deg, #0c1222 0%, #111b2e 50%, #162036 100%);
+  position: relative;
 }
 
-/* Subtler hero gradient for sub-pages */
+.hero-gradient::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 5%,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.08) 70%,
+    transparent 95%
+  );
+}
+
+/* Oversized hero title */
+.hero-title {
+  font-size: clamp(2.5rem, 4vw + 1rem, 4.5rem) !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* Staggered hero entrance */
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-animate {
+    animation: hero-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+  .hero-animate-d1 {
+    animation: hero-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards;
+    opacity: 0;
+  }
+  .hero-animate-d2 {
+    animation: hero-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) 200ms forwards;
+    opacity: 0;
+  }
+}
+
+/* Sub-page hero — coherent with front page */
 .hero-gradient-subtle {
-  background: linear-gradient(135deg, #1e2d4d 0%, #243a5e 60%, #263f65 100%);
+  background: linear-gradient(170deg, #111b2e 0%, #162036 60%, #1a2640 100%);
 }
 
-/* Featured news card gradient */
+/* Featured news card — clean elevation, no decorative border */
 .featured-card {
-  background: linear-gradient(135deg, #f0f6ff 0%, #e8f0fe 100%);
-  border-left: 4px solid #2563eb;
+  background: #f5f7fa;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 /* Category-colored left borders for news cards */
@@ -214,13 +267,6 @@
   display: grid !important;
 }
 
-/* Target Nav components specifically */
-.navds-internal-header__title.hidden,
-.navds-internal-header__button.hidden,
-.navds-internal-header__user.hidden {
-  display: none !important;
-}
-
 /* Responsive display utilities */
 @media (min-width: 640px) {
   .sm\:hidden {
@@ -242,13 +288,6 @@
     display: block !important;
   }
   .md\:flex {
-    display: flex !important;
-  }
-
-  /* Target Nav components specifically for md breakpoint */
-  .navds-internal-header__title.md\:block,
-  .navds-internal-header__button.md\:flex,
-  .navds-internal-header__user.md\:flex {
     display: flex !important;
   }
 }
