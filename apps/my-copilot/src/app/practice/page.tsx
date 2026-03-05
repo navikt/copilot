@@ -37,7 +37,7 @@ export default async function BestPractices() {
       >
         <VStack gap={{ xs: "space-24", md: "space-32" }}>
           <PageHeader
-            title="Beste Praksis og Læring"
+            title="God praksis"
             description="En praktisk guide til GitHub Copilot – fra kodeforslag i editoren til autonome agenter som jobber i bakgrunnen. Lær å bruke verktøyet effektivt og trygt."
           />
 

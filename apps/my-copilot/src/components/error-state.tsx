@@ -5,7 +5,7 @@ interface ErrorStateProps {
   message: string;
 }
 
-export default function ErrorState({ title = "Copilot Bruksstatistikk", message }: ErrorStateProps) {
+export default function ErrorState({ title = "Copilot Statistikk", message }: ErrorStateProps) {
   return (
     <main className="max-w-7xl">
       <Box paddingBlock="space-12" paddingInline="space-8">

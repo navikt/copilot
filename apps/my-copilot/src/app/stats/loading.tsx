@@ -5,7 +5,7 @@ export default function Loading() {
     <main className="p-6 mx-4 max-w-7xl">
       <section>
         <Heading size="xlarge" level="1" className="mb-2">
-          Copilot Bruksstatistikk
+          Copilot Statistikk
         </Heading>
         <BodyShort className="text-gray-600 mb-12">
           <Skeleton variant="text" width="60%" />
