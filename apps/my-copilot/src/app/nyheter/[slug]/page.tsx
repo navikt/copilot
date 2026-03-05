@@ -4,7 +4,6 @@ import { getArticle, getArticleSlugs, CATEGORY_CONFIG } from "@/lib/news";
 import NextLink from "next/link";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { PageHero } from "@/components/page-hero";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { formatDate } from "@/lib/format";
 
@@ -26,13 +25,17 @@ export default async function ArticlePage({ params }: Props) {
 
   return (
     <main>
-      <PageHero title="Nyheter" description="Siste nytt om GitHub Copilot og AI-drevet utvikling i Nav." />
       <div className="max-w-3xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-24" }}
         >
           <VStack gap="space-16">
+            <NextLink href="/" className="inline-flex items-center gap-1.5 text-sm text-text-subtle no-underline hover:underline">
+              <ArrowLeftIcon aria-hidden fontSize="1rem" />
+              Nyheter
+            </NextLink>
+
             <VStack gap="space-8">
               <HStack gap="space-4" align="center">
                 <Tag size="small" variant={categoryConfig.variant}>
