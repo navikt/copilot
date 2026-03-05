@@ -27,6 +27,20 @@
           "url": "https://mcp-onboarding.{{domain_internal}}/mcp"
         }
       ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "com.figma/figma-mcp",
+      "description": "Bring Figma design context into your coding workflow for design-to-code generation.",
+      "version": "1.0.0",
+      "status": "active",
+      "publishedAt": "2026-03-05T00:00:00Z",
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://mcp.figma.com/mcp"
+        }
+      ]
     }
   ]
 }
