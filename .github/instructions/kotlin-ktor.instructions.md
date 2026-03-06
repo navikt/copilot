@@ -2,6 +2,8 @@
 applyTo: "**/*.kt"
 ---
 
+> Ktor/Rapids & Rivers patterns for Nav backends. Apply when the file uses Ktor (`RapidApplication`, `routing`, `River`) — for Spring Boot apps, see `kotlin-spring.instructions.md` instead.
+
 # Kotlin/Ktor Development Standards
 
 ## Application Structure

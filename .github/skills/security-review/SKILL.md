@@ -5,22 +5,9 @@ description: Use when about to commit, push, or open a pull request and want to 
 
 # Security Review Skill
 
-> 🔒 **security-review skill active** — running Nav pre-commit/pre-PR security checks.
+This skill provides pre-commit and pre-PR security checks for Nav applications. Covers secret scanning, vulnerability scanning, and Nav-specific requirements.
 
-## When to Use This Skill
-
-ACTIVATE when the user:
-- Mentions "commit", "push", "open PR", or "pull request"
-- Asks to "review security", "check security", or "security review"
-- Asks if code is "safe to merge" or "ready to deploy"
-- Asks about secrets, PII, SQL injection, or Nais access policy
-- Uses words like "trivy", "zizmor", or "vulnerability scan"
-
-Do NOT activate for: architecture questions, threat modeling, compliance decisions → use `@security-champion` instead.
-
----
-
-Run security checks before committing or opening a pull request. Covers secret scanning, vulnerability scanning, and Nav-specific requirements.
+For architecture questions, threat modeling, or compliance decisions, use `@security-champion` instead.
 
 ## Automated Scans
 
