@@ -25,9 +25,14 @@ Skills differ from other primitives by supporting bundled assets (scripts, code 
 
 ## Available Skills
 
-| Name        | Description                            | Bundled Assets | Location          |
-| ----------- | -------------------------------------- | -------------- | ----------------- |
-| Coming Soon | NAV-specific skills will be added here |                | `.github/skills/` |
+| Name                    | Description                                                                                      | Location                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| **aksel-spacing**       | Responsive layout patterns using Aksel spacing tokens with Box, VStack, HStack, and HGrid        | [`.github/skills/aksel-spacing/`](../.github/skills/aksel-spacing/SKILL.md)             |
+| **flyway-migration**    | Database migration patterns using Flyway with versioned SQL scripts                              | [`.github/skills/flyway-migration/`](../.github/skills/flyway-migration/SKILL.md)       |
+| **kotlin-app-config**   | Sealed class configuration pattern for Kotlin applications with environment-specific settings    | [`.github/skills/kotlin-app-config/`](../.github/skills/kotlin-app-config/SKILL.md)     |
+| **observability-setup** | Setting up Prometheus metrics, OpenTelemetry tracing, and health endpoints for Nais applications | [`.github/skills/observability-setup/`](../.github/skills/observability-setup/SKILL.md) |
+| **security-review**     | Pre-commit/PR security checks — use when about to commit, push, or open a pull request           | [`.github/skills/security-review/`](../.github/skills/security-review/SKILL.md)         |
+| **tokenx-auth**         | Service-to-service authentication using TokenX token exchange in Nais                            | [`.github/skills/tokenx-auth/`](../.github/skills/tokenx-auth/SKILL.md)                 |
 
 ## Creating NAV Skills
 
@@ -38,28 +43,6 @@ When creating agent skills for NAV projects:
 3. **NAV Context**: Include NAV-specific patterns and configurations
 4. **Self-Contained**: Skills should be independent and reusable
 5. **Progressive Disclosure**: Load only when needed for specific tasks
-
-## Potential NAV Skills
-
-### Platform Skills
-- **nais-deployment**: NAIS manifest templates and deployment helpers
-- **kafka-setup**: Kafka topic configuration and Rapids & Rivers templates
-- **auth-integration**: Azure AD/TokenX/ID-porten configuration helpers
-
-### Frontend Skills
-- **aksel-components**: Aksel Design System component templates
-- **nextjs-patterns**: Next.js 16 App Router patterns and examples
-- **responsive-design**: Norwegian responsive design templates
-
-### Backend Skills
-- **kotlin-ktor-app**: Kotlin/Ktor application structure templates
-- **database-migration**: PostgreSQL migration patterns and helpers
-- **api-patterns**: REST API patterns with OpenAPI documentation
-
-### Observability Skills
-- **prometheus-metrics**: Metric instrumentation templates
-- **logging-patterns**: Structured logging with Grafana Loki
-- **tracing-setup**: OpenTelemetry tracing configuration
 
 ## Skill Structure
 
