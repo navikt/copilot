@@ -204,6 +204,20 @@
     },
     {
       "type": "instruction",
+      "name": "kotlin-spring",
+      "displayName": "Kotlin/Spring Development",
+      "description": "```kotlin",
+      "tags": [
+        "kotlin",
+        "ktor",
+        "backend"
+      ],
+      "filePath": ".github/instructions/kotlin-spring.instructions.md",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/kotlin-spring.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/kotlin-spring.instructions.md"
+    },
+    {
+      "type": "instruction",
       "name": "nextjs-aksel",
       "displayName": "Nextjs/Aksel Development",
       "description": "**CRITICAL**: Always use Nav DS spacing tokens, never Tailwind padding/margin utilities.",
@@ -326,6 +340,15 @@
       "filePath": ".github/skills/observability-setup",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup"
+    },
+    {
+      "type": "skill",
+      "name": "security-review",
+      "displayName": "security-review",
+      "description": "This skill provides pre-commit and pre-PR security checks for Nav applications. Covers secret scanning, vulnerability scanning, and Nav-specific requirements.",
+      "filePath": ".github/skills/security-review",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/security-review"
     },
     {
       "type": "skill",
