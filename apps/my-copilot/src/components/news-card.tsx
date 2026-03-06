@@ -9,7 +9,7 @@ function safeHref(url: string): string {
   try {
     const parsed = new URL(url, "https://nav.no");
     if (parsed.protocol === "https:" || parsed.protocol === "http:") return url;
-  } catch {}
+  } catch { }
   return "#";
 }
 
@@ -18,9 +18,17 @@ export function NewsCard({ item }: { item: NewsItem }) {
   const isLink = item.type === "link";
   const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
   const linkProps = isLink ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
+  const isArticle = item.type === "article";
 
   return (
-    <Box borderColor="neutral" borderWidth="1" borderRadius="8" padding="space-16" asChild>
+    <Box
+      borderColor="neutral"
+      borderWidth="1"
+      borderRadius={isArticle ? "12" : "8"}
+      padding={isArticle ? { xs: "space-20", md: "space-24" } : "space-16"}
+      className={isArticle ? "sm:col-span-2 md:col-span-2" : undefined}
+      asChild
+    >
       <NextLink
         href={href}
         {...linkProps}
@@ -35,7 +43,7 @@ export function NewsCard({ item }: { item: NewsItem }) {
               {formatDate(item.date)}
             </BodyShort>
           </HStack>
-          <Heading size="xsmall" level="3">
+          <Heading size={isArticle ? "small" : "xsmall"} level="3">
             <span className="flex items-center gap-2">
               {item.title}
               {isLink && <ExternalLinkIcon aria-hidden fontSize="1rem" className="shrink-0" />}

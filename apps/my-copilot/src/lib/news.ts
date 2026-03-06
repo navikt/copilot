@@ -8,6 +8,7 @@ export interface NewsItem {
   slug: string;
   title: string;
   date: string;
+  draft: boolean;
   category: NewsCategory;
   excerpt: string;
   tags: string[];
@@ -37,6 +38,7 @@ function parseNewsFile(fileName: string): NewsItem {
     slug,
     title: data.title,
     date: data.date instanceof Date ? data.date.toISOString().split("T")[0] : data.date,
+    draft: data.draft === true,
     category: data.category ?? "copilot",
     excerpt: data.excerpt ?? "",
     tags: data.tags ?? [],
@@ -49,7 +51,10 @@ export function getNewsItems(): NewsItem[] {
   if (!fs.existsSync(articlesDir)) return [];
 
   const files = fs.readdirSync(articlesDir).filter((f) => f.endsWith(".md"));
-  return files.map(parseNewsFile).sort((a, b) => b.date.localeCompare(a.date));
+  return files
+    .map(parseNewsFile)
+    .filter((item) => !item.draft)
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function getArticle(slug: string): (NewsItem & { content: string }) | null {
@@ -65,6 +70,7 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
     slug,
     title: data.title,
     date: data.date instanceof Date ? data.date.toISOString().split("T")[0] : data.date,
+    draft: data.draft === true,
     category: data.category ?? "copilot",
     excerpt: data.excerpt ?? "",
     tags: data.tags ?? [],
@@ -83,7 +89,8 @@ export function getArticleSlugs(): string[] {
       const slug = f.replace(/\.md$/, "");
       const filePath = path.join(articlesDir, f);
       const raw = fs.readFileSync(filePath, "utf-8");
-      const { content } = matter(raw);
+      const { data, content } = matter(raw);
+      if (data.draft === true) return null;
       return content.trim().length > 0 ? slug : null;
     })
     .filter((s): s is string => s !== null);

@@ -52,11 +52,11 @@ export default function Home() {
               <VStack gap="space-12">
                 {featured && <FeaturedNewsCard item={featured} />}
                 {rest.length > 0 && (
-                  <HGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="space-12">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 grid-flow-dense gap-3">
                     {rest.map((item) => (
                       <NewsCard key={item.slug} item={item} />
                     ))}
-                  </HGrid>
+                  </div>
                 )}
               </VStack>
             </Box>
