@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 )
 
@@ -333,5 +334,209 @@ func TestCORSHeaders(t *testing.T) {
 
 	if headers := resp.Header.Get("Access-Control-Allow-Headers"); headers != "Authorization, Content-Type" {
 		t.Errorf("expected Access-Control-Allow-Headers 'Authorization, Content-Type', got %s", headers)
+	}
+}
+
+func withTempAllowlist(t *testing.T, allowlistJSON string) func() {
+	t.Helper()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	tmpDir := t.TempDir()
+	if err := os.WriteFile(tmpDir+"/allowlist.json", []byte(allowlistJSON), 0600); err != nil {
+		t.Fatalf("failed to write temp allowlist.json: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	return func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Fatalf("failed to restore working directory: %v", err)
+		}
+	}
+}
+
+func TestServersListHandler_PackageServers(t *testing.T) {
+	allowlist := `{
+		"servers": [
+			{
+				"name": "io.github.test/remote-server",
+				"description": "A remote HTTP server.",
+				"version": "1.0.0",
+				"remotes": [{"type": "streamable-http", "url": "https://example.com/mcp"}]
+			},
+			{
+				"name": "io.github.test/stdio-server",
+				"description": "A local stdio server.",
+				"version": "0.1.0",
+				"packages": [{"registryType": "npm", "identifier": "@test/mcp-server", "transport": {"type": "stdio"}}]
+			},
+			{
+				"name": "io.github.test/dual-server",
+				"description": "A server with both remotes and packages.",
+				"version": "2.0.0",
+				"remotes": [{"type": "streamable-http", "url": "https://dual.example.com/mcp"}],
+				"packages": [{"registryType": "pypi", "identifier": "mcp-dual-server", "transport": {"type": "stdio"}}]
+			}
+		]
+	}`
+	cleanup := withTempAllowlist(t, allowlist)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil)
+	w := httptest.NewRecorder()
+
+	serversListHandler(w, req, testConfig())
+
+	resp := w.Result()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	var response ServerListResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Metadata.Count != 3 {
+		t.Fatalf("expected 3 servers, got %d", response.Metadata.Count)
+	}
+
+	for _, sr := range response.Servers {
+		switch sr.Server.Name {
+		case "io.github.test/remote-server":
+			if len(sr.Server.Remotes) != 1 {
+				t.Errorf("remote-server: expected 1 remote, got %d", len(sr.Server.Remotes))
+			}
+			if len(sr.Server.Packages) != 0 {
+				t.Errorf("remote-server: expected 0 packages, got %d", len(sr.Server.Packages))
+			}
+		case "io.github.test/stdio-server":
+			if len(sr.Server.Remotes) != 0 {
+				t.Errorf("stdio-server: expected 0 remotes, got %d", len(sr.Server.Remotes))
+			}
+			if len(sr.Server.Packages) != 1 {
+				t.Fatalf("stdio-server: expected 1 package, got %d", len(sr.Server.Packages))
+			}
+			pkg := sr.Server.Packages[0]
+			if pkg.RegistryType != "npm" {
+				t.Errorf("stdio-server: expected registryType 'npm', got '%s'", pkg.RegistryType)
+			}
+			if pkg.Identifier != "@test/mcp-server" {
+				t.Errorf("stdio-server: expected identifier '@test/mcp-server', got '%s'", pkg.Identifier)
+			}
+			if pkg.Transport.Type != "stdio" {
+				t.Errorf("stdio-server: expected transport 'stdio', got '%s'", pkg.Transport.Type)
+			}
+		case "io.github.test/dual-server":
+			if len(sr.Server.Remotes) != 1 {
+				t.Errorf("dual-server: expected 1 remote, got %d", len(sr.Server.Remotes))
+			}
+			if len(sr.Server.Packages) != 1 {
+				t.Fatalf("dual-server: expected 1 package, got %d", len(sr.Server.Packages))
+			}
+			if sr.Server.Packages[0].RegistryType != "pypi" {
+				t.Errorf("dual-server: expected registryType 'pypi', got '%s'", sr.Server.Packages[0].RegistryType)
+			}
+		}
+	}
+}
+
+func TestServerVersionHandler_PackageServer(t *testing.T) {
+	allowlist := `{
+		"servers": [
+			{
+				"name": "io.github.test/stdio-server",
+				"description": "A local stdio server.",
+				"version": "0.1.0",
+				"packages": [{
+					"registryType": "npm",
+					"identifier": "@test/mcp-server",
+					"version": "1.2.3",
+					"runtimeHint": "npx",
+					"transport": {"type": "stdio"},
+					"environmentVariables": [
+						{"name": "API_KEY", "description": "API key", "isRequired": true, "isSecret": true}
+					]
+				}]
+			}
+		]
+	}`
+	cleanup := withTempAllowlist(t, allowlist)
+	defer cleanup()
+
+	serverName := "io.github.test/stdio-server"
+	encodedName := url.PathEscape(serverName)
+	req := httptest.NewRequest(http.MethodGet, "/v0.1/servers/"+encodedName+"/versions/latest", nil)
+	w := httptest.NewRecorder()
+
+	serverVersionHandler(w, req, testConfig())
+
+	resp := w.Result()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 200, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	var response ServerResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Server.Name != serverName {
+		t.Errorf("expected name '%s', got '%s'", serverName, response.Server.Name)
+	}
+
+	if len(response.Server.Remotes) != 0 {
+		t.Errorf("expected no remotes, got %d", len(response.Server.Remotes))
+	}
+
+	if len(response.Server.Packages) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(response.Server.Packages))
+	}
+
+	pkg := response.Server.Packages[0]
+	if pkg.RegistryType != "npm" {
+		t.Errorf("expected registryType 'npm', got '%s'", pkg.RegistryType)
+	}
+	if pkg.Identifier != "@test/mcp-server" {
+		t.Errorf("expected identifier '@test/mcp-server', got '%s'", pkg.Identifier)
+	}
+	if pkg.Version != "1.2.3" {
+		t.Errorf("expected version '1.2.3', got '%s'", pkg.Version)
+	}
+	if pkg.RuntimeHint != "npx" {
+		t.Errorf("expected runtimeHint 'npx', got '%s'", pkg.RuntimeHint)
+	}
+	if pkg.Transport.Type != "stdio" {
+		t.Errorf("expected transport type 'stdio', got '%s'", pkg.Transport.Type)
+	}
+	if len(pkg.EnvironmentVariables) != 1 {
+		t.Fatalf("expected 1 env var, got %d", len(pkg.EnvironmentVariables))
+	}
+	env := pkg.EnvironmentVariables[0]
+	if env.Name != "API_KEY" {
+		t.Errorf("expected env name 'API_KEY', got '%s'", env.Name)
+	}
+	if !env.IsRequired {
+		t.Error("expected env isRequired true")
+	}
+	if !env.IsSecret {
+		t.Error("expected env isSecret true")
 	}
 }

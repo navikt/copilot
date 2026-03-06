@@ -6,6 +6,261 @@
   --color-foreground: var(--foreground);
 }
 
+/* Hero gradient — deep, immersive dark */
+.hero-gradient {
+  background: linear-gradient(170deg, #0c1222 0%, #111b2e 50%, #162036 100%);
+  position: relative;
+}
+
+.hero-gradient::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 5%,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.08) 70%,
+    transparent 95%
+  );
+}
+
+/* Oversized hero title */
+.hero-title {
+  font-size: clamp(2.5rem, 4vw + 1rem, 4.5rem) !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* Staggered hero entrance */
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-animate {
+    animation: hero-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+  .hero-animate-d1 {
+    animation: hero-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards;
+    opacity: 0;
+  }
+  .hero-animate-d2 {
+    animation: hero-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) 200ms forwards;
+    opacity: 0;
+  }
+}
+
+/* Sub-page hero — coherent with front page */
+.hero-gradient-subtle {
+  background: linear-gradient(170deg, #111b2e 0%, #162036 60%, #1a2640 100%);
+}
+
+/* Greeting fade-in */
+@keyframes greeting-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Link copied checkmark */
+@keyframes copied-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .greeting-fade {
+    animation: greeting-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+
+  .link-copied-icon {
+    animation: copied-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+/* Featured news card — clean elevation, no decorative border */
+.featured-card {
+  background: #f5f7fa;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .featured-card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.08),
+      0 2px 6px rgba(0, 0, 0, 0.04);
+  }
+
+  .featured-card:active {
+    transform: translateY(-1px);
+    transition-duration: 0.1s;
+  }
+}
+
+/* Category-colored left borders for news cards */
+.news-card-copilot {
+  border-left: 3px solid #2563eb;
+}
+.news-card-nav {
+  border-left: 3px solid #15803d;
+}
+.news-card-praksis {
+  border-left: 3px solid #d97706;
+}
+
+/* News card hover lift */
+[class*="news-card-"] {
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [class*="news-card-"]:hover {
+    transform: translateY(-2px);
+  }
+
+  [class*="news-card-"]:active {
+    transform: translateY(0);
+    transition-duration: 0.1s;
+  }
+}
+
+/* Scroll-reveal animation for content sections */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-section {
+    opacity: 0;
+    animation: reveal-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .reveal-section:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .reveal-section:nth-child(2) {
+    animation-delay: 80ms;
+  }
+  .reveal-section:nth-child(3) {
+    animation-delay: 160ms;
+  }
+  .reveal-section:nth-child(4) {
+    animation-delay: 240ms;
+  }
+  .reveal-section:nth-child(5) {
+    animation-delay: 320ms;
+  }
+  .reveal-section:nth-child(6) {
+    animation-delay: 400ms;
+  }
+  .reveal-section:nth-child(7) {
+    animation-delay: 480ms;
+  }
+}
+
+/* Prose styles for article rendering */
+.prose h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+.prose h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.prose p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+.prose ul,
+.prose ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+.prose li {
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+.prose a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+.prose th,
+.prose td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.prose th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+.prose hr {
+  margin: 2rem 0;
+  border-color: #e5e7eb;
+}
+.prose strong {
+  font-weight: 600;
+}
+.prose blockquote {
+  border-left: 3px solid #d1d5db;
+  padding-left: 1rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
 /* Fix: Nav resets margin on typography. Override with higher specificity to allow Tailwind utilities */
 .navds-heading.mb-1 {
   margin-bottom: calc(var(--spacing) * 1) !important;
@@ -132,13 +387,6 @@
   display: grid !important;
 }
 
-/* Target Nav components specifically */
-.navds-internal-header__title.hidden,
-.navds-internal-header__button.hidden,
-.navds-internal-header__user.hidden {
-  display: none !important;
-}
-
 /* Responsive display utilities */
 @media (min-width: 640px) {
   .sm\:hidden {
@@ -160,13 +408,6 @@
     display: block !important;
   }
   .md\:flex {
-    display: flex !important;
-  }
-
-  /* Target Nav components specifically for md breakpoint */
-  .navds-internal-header__title.md\:block,
-  .navds-internal-header__button.md\:flex,
-  .navds-internal-header__user.md\:flex {
     display: flex !important;
   }
 }

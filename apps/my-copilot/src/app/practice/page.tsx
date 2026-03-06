@@ -43,20 +43,20 @@ export default async function BestPractices() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <div className="flex gap-12">
-            <aside className="hidden xl:block w-56 shrink-0">
+            <aside className="hidden lg:block w-56 shrink-0">
               <div className="sticky top-6">
                 <TableOfContents
                   items={[
                     { id: "styrker-begrensninger-og-farer", label: "Styrker og farer" },
-                    { id: "verktoy-og-moduser", label: "Verktøy og moduser" },
+                    { id: "verktøy-og-moduser", label: "Verktøy og moduser" },
                     { id: "forbered-for-suksess", label: "Forbered for suksess" },
                     { id: "skriv-effektive-tilpasninger", label: "Effektive tilpasninger" },
                     { id: "prompt-engineering", label: "Prompt engineering" },
                     { id: "wrap-metoden-for-coding-agent", label: "WRAP-metoden" },
                     { id: "orkestrer-og-styr-agenter", label: "Orkestrer agenter" },
-                    { id: "gjennomga-copilots-arbeid", label: "Gjennomgå arbeid" },
-                    { id: "verifisering--nokkelen-til-kvalitet", label: "Verifisering" },
-                    { id: "vanlige-monstre-for-agent-mode", label: "Vanlige mønstre" },
+                    { id: "gjennomgå-copilots-arbeid", label: "Gjennomgå arbeid" },
+                    { id: "verifisering-nøkkelen-til-kvalitet", label: "Verifisering" },
+                    { id: "vanlige-mønstre-for-agent-mode", label: "Vanlige mønstre" },
                     { id: "ressurser", label: "Ressurser" },
                   ]}
                 />

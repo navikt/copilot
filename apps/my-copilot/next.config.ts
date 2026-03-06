@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["pino", "thread-stream"],
+  async redirects() {
+    return [
+      { source: "/best-practices", destination: "/practice", permanent: true },
+      { source: "/usage", destination: "/stats", permanent: true },
+      { source: "/overview", destination: "/cost", permanent: true },
+    ];
+  },
   // Enable Cache Components (Partial Prerendering)
   cacheComponents: true,
   turbopack: {

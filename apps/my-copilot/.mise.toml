@@ -16,6 +16,7 @@ description = "Run ESLint"
 
 [tasks.check]
 run = "pnpm check"
+depends = ["generate:check"]
 description = "Run lint, typecheck, and tests"
 
 [tasks.test]
@@ -29,6 +30,30 @@ description = "Build Next.js production bundle"
 [tasks.dev]
 run = "pnpm dev"
 description = "Start Next.js development server"
+
+[tasks.generate]
+run = "pnpm generate"
+description = "Generate customizations manifest from .github files"
+
+[tasks."generate:check"]
+description = "Check if generated manifest is up to date"
+run = '''
+#!/usr/bin/env bash
+set -e
+
+pnpm generate
+
+if git diff --exit-code src/lib/copilot-manifest.json > /dev/null 2>&1; then
+  echo "✅ Manifest is up to date"
+  exit 0
+else
+  echo "❌ Manifest is out of date. Run 'mise generate' to update it."
+  echo ""
+  echo "Differences:"
+  git diff src/lib/copilot-manifest.json
+  exit 1
+fi
+'''
 
 [tasks.knip]
 run = "pnpm knip"

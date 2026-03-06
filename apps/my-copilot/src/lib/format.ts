@@ -16,3 +16,11 @@ export function formatNumber(value: number): string {
 export function formatPercentage(value: number): string {
   return `${value}%`;
 }
+
+export function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("nb-NO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}

@@ -72,6 +72,12 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 		}
 	}
 
+	for j := range server.Packages {
+		if err := validatePackage(&server.Packages[j], index, j); err != nil {
+			return err
+		}
+	}
+
 	if server.PublishedAt != "" {
 		if _, err := time.Parse(time.RFC3339, server.PublishedAt); err != nil {
 			return fmt.Errorf("server[%d]: invalid publishedAt format, must be RFC3339: %v", index, err)
@@ -171,5 +177,35 @@ func validateURL(rawURL string) error {
 	if _, err := url.Parse(rawURL); err != nil {
 		return fmt.Errorf("invalid url format: %v", err)
 	}
+	return nil
+}
+
+func validatePackage(pkg *Package, serverIndex, pkgIndex int) error {
+	if strings.TrimSpace(pkg.RegistryType) == "" {
+		return fmt.Errorf("server[%d].packages[%d]: 'registryType' is required", serverIndex, pkgIndex)
+	}
+
+	switch pkg.RegistryType {
+	case RegistryTypeNPM, RegistryTypePyPI, RegistryTypeOCI, RegistryTypeNuGet, RegistryTypeMCPB:
+	default:
+		return fmt.Errorf("server[%d].packages[%d]: 'registryType' must be one of: %s, %s, %s, %s, %s",
+			serverIndex, pkgIndex, RegistryTypeNPM, RegistryTypePyPI, RegistryTypeOCI, RegistryTypeNuGet, RegistryTypeMCPB)
+	}
+
+	if strings.TrimSpace(pkg.Identifier) == "" {
+		return fmt.Errorf("server[%d].packages[%d]: 'identifier' is required", serverIndex, pkgIndex)
+	}
+
+	if strings.TrimSpace(pkg.Transport.Type) == "" {
+		return fmt.Errorf("server[%d].packages[%d]: 'transport.type' is required", serverIndex, pkgIndex)
+	}
+
+	switch pkg.Transport.Type {
+	case TransportTypeStdio, TransportTypeStreamableHTTP, TransportTypeSSE:
+	default:
+		return fmt.Errorf("server[%d].packages[%d]: 'transport.type' must be one of: %s, %s, %s",
+			serverIndex, pkgIndex, TransportTypeStdio, TransportTypeStreamableHTTP, TransportTypeSSE)
+	}
+
 	return nil
 }

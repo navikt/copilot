@@ -319,6 +319,190 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "valid package with npm stdio",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypeNPM, Identifier: "@test/mcp", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid package with pypi",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypePyPI, Identifier: "mcp-server-test", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid package with oci",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypeOCI, Identifier: "ghcr.io/test/mcp-server", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid package with nuget",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypeNuGet, Identifier: "TestMcpServer", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid package with mcpb",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypeMCPB, Identifier: "https://example.com/server.mcpb", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid server with both remotes and packages",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Remotes: []Transport{
+							{Type: TransportTypeStreamableHTTP, URL: "https://example.com/mcp"},
+						},
+						Packages: []Package{
+							{RegistryType: RegistryTypeNPM, Identifier: "@test/mcp", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "package missing registryType",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{Identifier: "@test/mcp", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'registryType' is required",
+		},
+		{
+			name: "package invalid registryType",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: "invalid", Identifier: "@test/mcp", Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'registryType' must be one of",
+		},
+		{
+			name: "package missing identifier",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypeNPM, Transport: Transport{Type: TransportTypeStdio}},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'identifier' is required",
+		},
+		{
+			name: "package missing transport type",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypeNPM, Identifier: "@test/mcp"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'transport.type' is required",
+		},
+		{
+			name: "package invalid transport type",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{RegistryType: RegistryTypeNPM, Identifier: "@test/mcp", Transport: Transport{Type: "websocket"}},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'transport.type' must be one of",
+		},
 	}
 
 	for _, tt := range tests {

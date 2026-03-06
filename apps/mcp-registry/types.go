@@ -13,6 +13,12 @@ const (
 	StatusDeprecated = "deprecated"
 	StatusDeleted    = "deleted"
 
+	RegistryTypeNPM   = "npm"
+	RegistryTypePyPI  = "pypi"
+	RegistryTypeOCI   = "oci"
+	RegistryTypeNuGet = "nuget"
+	RegistryTypeMCPB  = "mcpb"
+
 	NameMinLength        = 3
 	NameMaxLength        = 200
 	DescriptionMinLength = 1
@@ -24,12 +30,29 @@ type Transport struct {
 	URL  string `json:"url,omitempty"`
 }
 
+type EnvironmentVariable struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	IsRequired  bool   `json:"isRequired,omitempty"`
+	IsSecret    bool   `json:"isSecret,omitempty"`
+}
+
+type Package struct {
+	RegistryType         string                `json:"registryType"`
+	Identifier           string                `json:"identifier"`
+	Version              string                `json:"version,omitempty"`
+	RuntimeHint          string                `json:"runtimeHint,omitempty"`
+	Transport            Transport             `json:"transport"`
+	EnvironmentVariables []EnvironmentVariable `json:"environmentVariables,omitempty"`
+}
+
 type ServerJSON struct {
 	Schema      string      `json:"$schema"`
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	Version     string      `json:"version"`
 	Remotes     []Transport `json:"remotes,omitempty"`
+	Packages    []Package   `json:"packages,omitempty"`
 }
 
 type RegistryExtensions struct {
@@ -66,6 +89,7 @@ type StaticServerData struct {
 	Status      string      `json:"status,omitempty"`
 	PublishedAt string      `json:"publishedAt,omitempty"`
 	Remotes     []Transport `json:"remotes,omitempty"`
+	Packages    []Package   `json:"packages,omitempty"`
 }
 
 type StaticRegistryData struct {
