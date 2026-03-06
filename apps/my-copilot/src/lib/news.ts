@@ -16,7 +16,13 @@ export interface NewsItem {
   content?: string;
 }
 
-const articlesDir = path.join(process.cwd(), "..", "..", "docs", "news", "articles");
+function resolveArticlesDir(): string {
+  const local = path.join(process.cwd(), "docs", "news", "articles");
+  if (fs.existsSync(local)) return local;
+  return path.join(process.cwd(), "..", "..", "docs", "news", "articles");
+}
+
+const articlesDir = resolveArticlesDir();
 
 function parseNewsFile(fileName: string): NewsItem {
   const slug = fileName.replace(/\.md$/, "");

@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'apps/my-copilot/**'
+      - 'docs/news/**'
       - '.github/workflows/my-copilot.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'apps/my-copilot/**'
+      - 'docs/news/**'
       - '.github/workflows/my-copilot.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   workflow_dispatch:
@@ -28,6 +30,7 @@ jobs:
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/my-copilot
+      docker-context: '../..'
       mise-setup-tasks: '["install"]'
       mise-tasks: '["lint", "check"]'
       deploys-to-nais: true
