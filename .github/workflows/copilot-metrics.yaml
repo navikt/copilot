@@ -31,7 +31,7 @@ jobs:
       mise-setup-tasks: '["install"]'
       mise-tasks: '["lint", "check"]'
       deploys-to-nais: true
-      deploy-pr-to-dev: false
+      deploy-pr-to-dev: true
       nais-resource: '.nais/naisjob.yaml'
       nais-team: copilot
       nais-clusters: '["dev-gcp", "prod-gcp"]'
