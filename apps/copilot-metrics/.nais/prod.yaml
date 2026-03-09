@@ -1,2 +1,0 @@
-image: europe-north1-docker.pkg.dev/nais-management-233d/copilot/copilot-metrics:prod
-log_level: INFO
