@@ -1,0 +1,43 @@
+apiVersion: nais.io/v1alpha1
+kind: Naisjob
+metadata:
+  name: copilot-metrics
+  namespace: copilot
+spec:
+  image: {{image}}
+  schedule: "0 6 * * *"
+  activeDeadlineSeconds: 3600
+  backoffLimit: 3
+  command:
+    - /app/copilot-metrics
+    - --run-once
+  envFrom:
+    - secret: copilot-metrics
+  env:
+    - name: LOG_LEVEL
+      value: "{{log_level}}"
+    - name: GITHUB_ENTERPRISE_SLUG
+      value: "nav"
+    - name: GITHUB_ORG
+      value: "navikt"
+    - name: BIGQUERY_DATASET
+      value: "copilot_metrics"
+    - name: BIGQUERY_TABLE
+      value: "usage_metrics"
+  gcp:
+    bigQueryDatasets:
+      - name: copilot_metrics
+        permission: READWRITE
+        description: "GitHub Copilot usage metrics"
+  accessPolicy:
+    outbound:
+      external:
+        - host: api.github.com
+        - host: bigquery.googleapis.com
+        - host: storage.googleapis.com
+  resources:
+    limits:
+      memory: "256Mi"
+    requests:
+      cpu: "50m"
+      memory: "128Mi"

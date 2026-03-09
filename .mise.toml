@@ -36,6 +36,10 @@ echo "📦 mcp-registry:"
 (cd apps/mcp-registry && mise check)
 echo ""
 
+echo "📦 copilot-metrics:"
+(cd apps/copilot-metrics && mise check)
+echo ""
+
 echo "📦 my-copilot:"
 (cd apps/my-copilot && mise check)
 echo ""
@@ -60,6 +64,10 @@ echo "📦 mcp-registry:"
 (cd apps/mcp-registry && mise test)
 echo ""
 
+echo "📦 copilot-metrics:"
+(cd apps/copilot-metrics && mise test)
+echo ""
+
 echo "📦 my-copilot:"
 (cd apps/my-copilot && mise test)
 echo ""
@@ -82,6 +90,10 @@ echo ""
 
 echo "📦 mcp-registry:"
 (cd apps/mcp-registry && mise build)
+echo ""
+
+echo "📦 copilot-metrics:"
+(cd apps/copilot-metrics && mise build)
 echo ""
 
 echo "📦 my-copilot:"

@@ -1,0 +1,91 @@
+[tools]
+go = "1.26"
+golangci-lint = "2.10.1"
+"go:honnef.co/go/tools/cmd/staticcheck" = "latest"
+
+[tasks.version]
+description = "Generate version string (YYYYMMDD-gitsha)"
+run = "echo $(date +%Y.%m.%d)-$(date +%H.%M)-$(git rev-parse --short HEAD)"
+
+[tasks.install]
+description = "Download dependencies"
+run = "go mod download"
+
+[tasks.build]
+description = "Build the Go application"
+run = "go build -o bin/copilot-metrics ."
+
+[tasks.test]
+description = "Run all tests with verbose output"
+run = "go test -v ./..."
+
+[tasks."test:coverage"]
+description = "Run tests with coverage report"
+run = [
+  "go test -v -cover -coverprofile=coverage.out ./...",
+  "go tool cover -html=coverage.out -o coverage.html",
+  "echo 'Coverage report: coverage.html'",
+]
+
+[tasks."test:short"]
+description = "Run tests without verbose output"
+run = "go test ./..."
+
+[tasks.lint]
+description = "Run linters (golangci-lint)"
+run = "golangci-lint run ./..."
+
+[tasks."lint:fix"]
+description = "Run linters and auto-fix issues"
+run = "golangci-lint run --fix ./..."
+
+[tasks.fmt]
+description = "Format code with gofmt"
+run = ["gofmt -w .", "go mod tidy"]
+
+[tasks.vet]
+description = "Run go vet for static analysis"
+run = "go vet ./..."
+
+[tasks.staticcheck]
+description = "Run staticcheck for advanced static analysis"
+run = "staticcheck ./..."
+
+[tasks.check]
+description = "Run all checks (fmt, vet, staticcheck, lint, test)"
+depends = ["fmt", "vet", "staticcheck", "lint", "test:short"]
+
+[tasks.all]
+description = "Run all checks, build, test and docker build"
+depends = ["check", "build", "test", "docker:build"]
+
+[tasks.run]
+description = "Run the application locally (requires env vars)"
+run = "go run ."
+
+[tasks.dev]
+description = "Run with development settings (DEBUG log level)"
+run = "LOG_LEVEL=DEBUG go run ."
+
+[tasks."run:once"]
+description = "Run single ingestion for yesterday"
+run = "LOG_LEVEL=DEBUG go run . --run-once"
+
+[tasks."run:backfill"]
+description = "Run historical backfill"
+run = "LOG_LEVEL=DEBUG go run . --backfill"
+
+[tasks."docker:build"]
+description = "Build Docker image"
+run = "docker build -t copilot-metrics:local ."
+
+[tasks."docker:run"]
+description = "Run Docker container (requires env vars)"
+run = '''
+docker run --rm \
+  -e GITHUB_APP_ID \
+  -e GITHUB_APP_PRIVATE_KEY \
+  -e GITHUB_APP_INSTALLATION_ID \
+  -e GCP_TEAM_PROJECT_ID \
+  copilot-metrics:local --run-once
+'''
