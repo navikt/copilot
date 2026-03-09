@@ -91,7 +91,7 @@ This monorepo contains three applications:
 
 Self-service portal for managing your GitHub Copilot subscription (activate/deactivate, view usage analytics, billing details).
 
-**URL:** [`https://my-copilot.intern.nav.no`](https://my-copilot.intern.nav.no)
+**URL:** [`https://min-copilot.ansatt.nav.no`](https://min-copilot.ansatt.nav.no)
 
 ### MCP Registry — Server Discovery
 

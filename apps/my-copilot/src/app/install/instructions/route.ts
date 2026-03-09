@@ -20,7 +20,7 @@ const ALLOWED_PATTERNS = [
  * Security: Only allows redirects to vscode: URLs that install from navikt GitHub repos.
  *
  * Usage:
- *   https://my-copilot.ansatt.nav.no/install/instructions?url=vscode:chat-instructions/install?url=...
+ *   https://min-copilot.ansatt.nav.no/install/instructions?url=vscode:chat-instructions/install?url=...
  *
  * The `url` parameter should be the complete vscode: protocol URL (URL-encoded).
  *
