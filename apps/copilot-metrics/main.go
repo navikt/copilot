@@ -116,42 +116,45 @@ func main() {
 	}
 }
 
-func ingestYesterday(ctx context.Context, gh *GitHubClient, bq *BigQueryClient, cfg *Config) error {
+func ingestYesterday(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config) error {
 	yesterday := time.Now().UTC().AddDate(0, 0, -1)
 	return ingestDay(ctx, gh, bq, cfg, yesterday)
 }
 
-func ingestDay(ctx context.Context, gh *GitHubClient, bq *BigQueryClient, cfg *Config, day time.Time) error {
+func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, _ *Config, day time.Time) error {
 	dayStr := day.Format("2006-01-02")
 	slog.Info("Ingesting metrics", "day", dayStr)
 
-	exists, err := bq.DayExists(ctx, day, cfg.EnterpriseSlug)
-	if err != nil {
-		return fmt.Errorf("failed to check if day exists: %w", err)
-	}
-	if exists {
-		slog.Info("Day already exists, deleting for re-ingestion", "day", dayStr)
-		if err := bq.DeleteDay(ctx, day, cfg.EnterpriseSlug); err != nil {
-			return fmt.Errorf("failed to delete existing data: %w", err)
-		}
-	}
-
-	records, err := gh.FetchDailyMetrics(ctx, day)
+	// Fetch first to determine which scope (enterprise vs org) has data
+	result, err := gh.FetchDailyMetrics(ctx, day)
 	if err != nil {
 		return fmt.Errorf("failed to fetch metrics: %w", err)
 	}
 
-	if len(records) == 0 {
+	if len(result.Records) == 0 {
 		slog.Warn("No records returned for day", "day", dayStr)
 		return nil
 	}
 
-	scope := "enterprise"
-	if err := bq.InsertMetrics(ctx, day, scope, cfg.EnterpriseSlug, records); err != nil {
+	slog.Debug("Fetched metrics", "day", dayStr, "scope", result.Scope, "scope_id", result.ScopeID, "records", len(result.Records))
+
+	// Check if we already have data for this day/scope - delete for idempotent re-ingestion
+	exists, err := bq.DayExists(ctx, day, result.ScopeID)
+	if err != nil {
+		return fmt.Errorf("failed to check if day exists: %w", err)
+	}
+	if exists {
+		slog.Info("Day already exists, deleting for re-ingestion", "day", dayStr, "scope_id", result.ScopeID)
+		if err := bq.DeleteDay(ctx, day, result.ScopeID); err != nil {
+			return fmt.Errorf("failed to delete existing data: %w", err)
+		}
+	}
+
+	if err := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); err != nil {
 		return fmt.Errorf("failed to insert metrics: %w", err)
 	}
 
-	slog.Info("Successfully ingested metrics", "day", dayStr, "records", len(records))
+	slog.Info("Successfully ingested metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
 	return nil
 }
 

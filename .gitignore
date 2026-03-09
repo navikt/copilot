@@ -4,3 +4,4 @@ apps/mcp-onboarding/bin/generate-manifest
 apps/mcp-onboarding/coverage.out
 apps/mcp-onboarding/bin/mcp-hello-world
 .github/aw/logs/
+apps/copilot-metrics/bin/copilot-metrics

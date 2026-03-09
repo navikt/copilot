@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
@@ -24,10 +25,11 @@ type MetricsReportResponse struct {
 	ReportDay     string   `json:"report_day"`
 }
 
-type UsageMetricsRecord struct {
-	Date       string          `json:"date"`
-	ReportDate string          `json:"report_date"`
-	Raw        json.RawMessage `json:"-"`
+// FetchResult contains the metrics records along with metadata about the fetch.
+type FetchResult struct {
+	Records []json.RawMessage
+	Scope   string // "enterprise" or "organization"
+	ScopeID string // enterprise slug or org name
 }
 
 func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
@@ -51,29 +53,76 @@ func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
 	}, nil
 }
 
-func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) ([]json.RawMessage, error) {
+// FetchDailyMetrics fetches metrics for a specific day, trying enterprise first then org.
+func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*FetchResult, error) {
 	dayStr := day.Format("2006-01-02")
 
+	// Try enterprise endpoint first
 	url := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-1-day?day=%s",
 		c.enterprise, dayStr)
 
 	slog.Debug("Fetching metrics report", "url", url, "day", dayStr)
 
-	records, err := c.fetchMetricsFromURL(ctx, url)
-	if err != nil {
-		slog.Warn("Enterprise endpoint failed, trying organization endpoint", "error", err)
-
-		url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-1-day?day=%s",
-			c.org, dayStr)
-		slog.Debug("Fetching metrics report (org fallback)", "url", url, "day", dayStr)
-
-		records, err = c.fetchMetricsFromURL(ctx, url)
-		if err != nil {
-			return nil, fmt.Errorf("both enterprise and org endpoints failed: %w", err)
-		}
+	records, err := c.fetchMetricsFromURLWithRetry(ctx, url)
+	if err == nil {
+		return &FetchResult{
+			Records: records,
+			Scope:   "enterprise",
+			ScopeID: c.enterprise,
+		}, nil
 	}
 
-	return records, nil
+	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "error", err)
+
+	// Fall back to organization endpoint
+	url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-1-day?day=%s",
+		c.org, dayStr)
+	slog.Debug("Fetching metrics report (org fallback)", "url", url, "day", dayStr)
+
+	records, err = c.fetchMetricsFromURLWithRetry(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("both enterprise and org endpoints failed: %w", err)
+	}
+
+	return &FetchResult{
+		Records: records,
+		Scope:   "organization",
+		ScopeID: c.org,
+	}, nil
+}
+
+// fetchMetricsFromURLWithRetry retries transient failures with exponential backoff.
+func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url string) ([]json.RawMessage, error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(1<<attempt) * time.Second // 2s, 4s
+			slog.Debug("Retrying after backoff", "attempt", attempt+1, "backoff", backoff)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
+		records, err := c.fetchMetricsFromURL(ctx, url)
+		if err == nil {
+			return records, nil
+		}
+		lastErr = err
+
+		// Don't retry on 4xx errors (client errors)
+		if isClientError(err) {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("failed after 3 attempts: %w", lastErr)
+}
+
+// isClientError checks if the error indicates a 4xx HTTP status.
+func isClientError(err error) bool {
+	errStr := err.Error()
+	return strings.Contains(errStr, "status 4")
 }
 
 func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]json.RawMessage, error) {
@@ -161,23 +210,34 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 	return records, nil
 }
 
-func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) ([]json.RawMessage, error) {
+// FetchLatest28DayReport fetches the latest 28-day rolling report.
+func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) (*FetchResult, error) {
 	url := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-28-day/latest",
 		c.enterprise)
 
 	slog.Debug("Fetching 28-day report", "url", url)
 
-	records, err := c.fetchMetricsFromURL(ctx, url)
-	if err != nil {
-		slog.Warn("Enterprise 28-day endpoint failed, trying organization endpoint", "error", err)
-
-		url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-28-day/latest",
-			c.org)
-		records, err = c.fetchMetricsFromURL(ctx, url)
-		if err != nil {
-			return nil, fmt.Errorf("both enterprise and org 28-day endpoints failed: %w", err)
-		}
+	records, err := c.fetchMetricsFromURLWithRetry(ctx, url)
+	if err == nil {
+		return &FetchResult{
+			Records: records,
+			Scope:   "enterprise",
+			ScopeID: c.enterprise,
+		}, nil
 	}
 
-	return records, nil
+	slog.Warn("Enterprise 28-day endpoint failed, trying organization endpoint", "error", err)
+
+	url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-28-day/latest",
+		c.org)
+	records, err = c.fetchMetricsFromURLWithRetry(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("both enterprise and org 28-day endpoints failed: %w", err)
+	}
+
+	return &FetchResult{
+		Records: records,
+		Scope:   "organization",
+		ScopeID: c.org,
+	}, nil
 }

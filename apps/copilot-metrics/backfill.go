@@ -2,11 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 )
 
-func runBackfill(ctx context.Context, gh *GitHubClient, bq *BigQueryClient, cfg *Config, startDate time.Time) error {
+const (
+	// rateLimitDelay is the delay between API calls to avoid hitting GitHub rate limits.
+	// GitHub API limit is 5000 requests/hour = ~1.4/second. We use 1 second to be safe.
+	rateLimitDelay = 1 * time.Second
+
+	// maxErrorRate is the maximum percentage of failed days before we abort.
+	// If more than 50% of days fail, something is fundamentally wrong.
+	maxErrorRate = 50
+)
+
+func runBackfill(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config, startDate time.Time) error {
 	endDate := time.Now().UTC().AddDate(0, 0, -1)
 
 	slog.Info("Starting historical backfill",
@@ -48,6 +59,13 @@ func runBackfill(ctx context.Context, gh *GitHubClient, bq *BigQueryClient, cfg 
 				"error", err,
 			)
 			errorCount++
+
+			// Check if error rate exceeds threshold
+			totalAttempted := successCount + errorCount
+			if totalAttempted >= 10 && (errorCount*100)/totalAttempted > maxErrorRate {
+				return fmt.Errorf("aborting backfill: error rate %d%% exceeds threshold %d%% (success: %d, errors: %d)",
+					(errorCount*100)/totalAttempted, maxErrorRate, successCount, errorCount)
+			}
 			continue
 		}
 		successCount++
@@ -61,7 +79,8 @@ func runBackfill(ctx context.Context, gh *GitHubClient, bq *BigQueryClient, cfg 
 			)
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		// Rate limiting - GitHub API allows ~1.4 req/sec
+		time.Sleep(rateLimitDelay)
 	}
 
 	slog.Info("Backfill completed",

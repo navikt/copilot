@@ -72,9 +72,17 @@ func getEnv(key, fallback string) string {
 
 func getEnvInt64(key string, fallback int64) int64 {
 	if value := os.Getenv(key); value != "" {
-		if i, err := strconv.ParseInt(value, 10, 64); err == nil {
-			return i
+		i, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			slog.Warn("Invalid int64 value for environment variable, using fallback",
+				"key", key,
+				"value", value,
+				"fallback", fallback,
+				"error", err,
+			)
+			return fallback
 		}
+		return i
 	}
 	return fallback
 }
