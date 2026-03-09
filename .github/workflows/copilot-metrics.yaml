@@ -35,5 +35,3 @@ jobs:
       nais-resource: '.nais/naisjob.yaml'
       nais-team: copilot
       nais-clusters: '["dev-gcp", "prod-gcp"]'
-    secrets:
-      Nais_IO_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.Nais_IO_WORKLOAD_IDENTITY_PROVIDER }}
