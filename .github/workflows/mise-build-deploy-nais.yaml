@@ -105,9 +105,6 @@ on:
         required: false
         type: string
         default: '.'
-    secrets:
-      Nais_IO_WORKLOAD_IDENTITY_PROVIDER:
-        required: false
     outputs:
       version:
         description: 'Generated version string'

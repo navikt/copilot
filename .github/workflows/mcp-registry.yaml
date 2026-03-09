@@ -34,5 +34,3 @@ jobs:
       deploy-pr-to-dev: true
       nais-team: copilot
       nais-clusters: '["dev-gcp", "prod-gcp"]'
-    secrets:
-      Nais_IO_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.Nais_IO_WORKLOAD_IDENTITY_PROVIDER }}
