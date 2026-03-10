@@ -1,4 +1,4 @@
-import { Heading, Box, HGrid, VStack } from "@navikt/ds-react";
+import { Heading, Box, VStack } from "@navikt/ds-react";
 import { getAllCustomizations, getCountsByDomain } from "@/lib/customizations";
 import type { Domain } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
@@ -32,11 +32,13 @@ export default async function CustomizationsPage() {
               <Heading size="medium" level="2" className="mb-4">
                 Utforsk etter domene
               </Heading>
-              <HGrid columns={{ xs: 2, sm: 3, md: 3, lg: 6 }} gap={{ xs: "space-8", md: "space-12" }}>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                 {domains.map((domain) => (
-                  <DomainCards key={domain} domain={domain} count={counts[domain]} />
+                  <div key={domain} className="shrink-0 w-44">
+                    <DomainCards domain={domain} count={counts[domain]} />
+                  </div>
                 ))}
-              </HGrid>
+              </div>
             </Box>
 
             <Box id="catalog">
