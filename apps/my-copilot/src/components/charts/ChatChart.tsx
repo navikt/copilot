@@ -33,8 +33,10 @@ const ChatChart: React.FC<ChatChartProps> = ({ data }) => {
         label: "Aksepteringsrate",
         data: acceptanceRates,
         backgroundColor: acceptanceRates.map((rate) =>
-          rate >= 30 ? getBackgroundColor(chartColors[1], 0.8)
-            : rate >= 15 ? getBackgroundColor(chartColors[3], 0.7)
+          rate >= 30
+            ? getBackgroundColor(chartColors[1], 0.8)
+            : rate >= 15
+              ? getBackgroundColor(chartColors[3], 0.7)
               : getBackgroundColor(chartColors[4], 0.6)
         ),
         borderColor: acceptanceRates.map((rate) =>

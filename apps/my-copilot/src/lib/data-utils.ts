@@ -114,11 +114,18 @@ export const getPRMetrics = (usage: EnterpriseMetrics[]): PRMetrics | null => {
   if (!usage || usage.length === 0) return null;
 
   const result: PRMetrics = {
-    totalCreated: 0, totalMerged: 0, totalReviewed: 0,
-    totalReviewedByCopilot: 0, totalCreatedByCopilot: 0, totalMergedCreatedByCopilot: 0,
-    medianMinutesToMerge: 0, medianMinutesToMergeCopilotAuthored: 0,
-    totalSuggestions: 0, totalCopilotSuggestions: 0,
-    totalAppliedSuggestions: 0, totalCopilotAppliedSuggestions: 0,
+    totalCreated: 0,
+    totalMerged: 0,
+    totalReviewed: 0,
+    totalReviewedByCopilot: 0,
+    totalCreatedByCopilot: 0,
+    totalMergedCreatedByCopilot: 0,
+    medianMinutesToMerge: 0,
+    medianMinutesToMergeCopilotAuthored: 0,
+    totalSuggestions: 0,
+    totalCopilotSuggestions: 0,
+    totalAppliedSuggestions: 0,
+    totalCopilotAppliedSuggestions: 0,
   };
 
   let hasPR = false;
@@ -149,8 +156,11 @@ export const getPRMetrics = (usage: EnterpriseMetrics[]): PRMetrics | null => {
 export const getCLIMetrics = (usage: EnterpriseMetrics[]): CLIMetrics | null => {
   if (!usage || usage.length === 0) return null;
 
-  let promptCount = 0, requestCount = 0, sessionCount = 0;
-  let outputTokensSum = 0, promptTokensSum = 0;
+  let promptCount = 0,
+    requestCount = 0,
+    sessionCount = 0;
+  let outputTokensSum = 0,
+    promptTokensSum = 0;
   let hasCLI = false;
 
   for (const day of usage) {
@@ -200,7 +210,8 @@ export const getEditorStats = (usage: EnterpriseMetrics[]): EditorData[] => {
   if (!usage || usage.length === 0) return [];
 
   const ideMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
-  let cliRequests = 0, cliSessions = 0;
+  let cliRequests = 0,
+    cliSessions = 0;
 
   for (const day of usage) {
     for (const ide of day.totals_by_ide || []) {
@@ -268,12 +279,8 @@ export const buildTrendData = (usage: EnterpriseMetrics[]): DailyTrend[] => {
   return usage.map((day) => {
     const features = day.totals_by_feature || [];
     const codeCompletion = features.find((f) => f.feature === "code_completion");
-    const chatFeatures = features.filter((f) =>
-      f.feature.startsWith("chat_panel") || f.feature === "chat_inline"
-    );
-    const agentFeatures = features.filter((f) =>
-      f.feature === "chat_panel_agent_mode" || f.feature === "agent_edit"
-    );
+    const chatFeatures = features.filter((f) => f.feature.startsWith("chat_panel") || f.feature === "chat_inline");
+    const agentFeatures = features.filter((f) => f.feature === "chat_panel_agent_mode" || f.feature === "agent_edit");
 
     return {
       day: day.day,

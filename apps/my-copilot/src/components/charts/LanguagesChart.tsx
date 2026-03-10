@@ -3,13 +3,7 @@
 import type { LanguageChartData } from "@/lib/types";
 import React from "react";
 import { Line } from "react-chartjs-2";
-import {
-  chartColors,
-  getBackgroundColor,
-  commonLineOptions,
-  chartWrapperClass,
-  NO_DATA_MESSAGE,
-} from "@/lib/chart-utils";
+import { chartColors, getBackgroundColor, commonLineOptions, chartWrapperClass } from "@/lib/chart-utils";
 
 interface LanguagesChartProps {
   data: LanguageChartData;
