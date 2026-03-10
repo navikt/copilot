@@ -503,6 +503,196 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			expectError: true,
 			errorMsg:    "'transport.type' must be one of",
 		},
+		{
+			name: "valid package with named packageArguments",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								Transport:    Transport{Type: TransportTypeStdio},
+								PackageArguments: []Argument{
+									{Type: "named", Name: "--isolated"},
+									{Type: "named", Name: "--caps", Value: "core"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid package with positional packageArguments",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								Transport:    Transport{Type: TransportTypeStdio},
+								PackageArguments: []Argument{
+									{Type: "positional", Value: "some-value"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "packageArgument invalid type",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								Transport:    Transport{Type: TransportTypeStdio},
+								PackageArguments: []Argument{
+									{Type: "invalid"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'type' must be 'named' or 'positional'",
+		},
+		{
+			name: "named packageArgument missing name",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								Transport:    Transport{Type: TransportTypeStdio},
+								PackageArguments: []Argument{
+									{Type: "named"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'name' is required for named arguments",
+		},
+		{
+			name: "positional packageArgument missing value and valueHint",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								Transport:    Transport{Type: TransportTypeStdio},
+								PackageArguments: []Argument{
+									{Type: "positional"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'value' or 'valueHint' is required for positional arguments",
+		},
+		{
+			name: "valid positional packageArgument with valueHint only",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								Transport:    Transport{Type: TransportTypeStdio},
+								PackageArguments: []Argument{
+									{Type: "positional", ValueHint: "config_path"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid runtimeArguments",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								RuntimeHint:  "docker",
+								Transport:    Transport{Type: TransportTypeStdio},
+								RuntimeArguments: []Argument{
+									{Type: "named", Name: "--network", Value: "none"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "runtimeArgument invalid type",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Packages: []Package{
+							{
+								RegistryType: RegistryTypeNPM,
+								Identifier:   "@test/mcp",
+								Transport:    Transport{Type: TransportTypeStdio},
+								RuntimeArguments: []Argument{
+									{Type: "bad"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "'type' must be 'named' or 'positional'",
+		},
 	}
 
 	for _, tt := range tests {

@@ -41,6 +41,103 @@
           "url": "https://mcp.figma.com/mcp"
         }
       ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "com.vercel/next-devtools-mcp",
+      "description": "Access Next.js dev server diagnostics, documentation, and upgrade tools.",
+      "version": "0.3.10",
+      "status": "active",
+      "publishedAt": "2026-03-10T00:00:00Z",
+      "packages": [
+        {
+          "registryType": "npm",
+          "identifier": "next-devtools-mcp",
+          "runtimeHint": "node",
+          "transport": {
+            "type": "stdio"
+          },
+          "environmentVariables": [
+            {
+              "name": "NEXT_TELEMETRY_DISABLED",
+              "description": "Disable anonymous telemetry to Vercel (set to 1)",
+              "isRequired": false,
+              "isSecret": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "dev.svelte/svelte-mcp",
+      "description": "Search Svelte 5 and SvelteKit documentation with static code analysis.",
+      "version": "0.1.20",
+      "status": "active",
+      "publishedAt": "2026-03-10T00:00:00Z",
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://mcp.svelte.dev/mcp"
+        }
+      ],
+      "packages": [
+        {
+          "registryType": "npm",
+          "identifier": "@sveltejs/mcp",
+          "runtimeHint": "node",
+          "transport": {
+            "type": "stdio"
+          }
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "com.microsoft/playwright-mcp",
+      "description": "Browser automation for UI testing and debugging with network controls.",
+      "version": "0.0.68",
+      "status": "active",
+      "publishedAt": "2026-03-10T00:00:00Z",
+      "packages": [
+        {
+          "registryType": "npm",
+          "identifier": "@playwright/mcp",
+          "runtimeHint": "node",
+          "transport": {
+            "type": "stdio"
+          },
+          "packageArguments": [
+            {
+              "type": "named",
+              "name": "--isolated",
+              "description": "Run in isolated browser without persistent state"
+            },
+            {
+              "type": "named",
+              "name": "--caps",
+              "value": "core",
+              "description": "Restrict to core capabilities only (no file upload or install)"
+            },
+            {
+              "type": "named",
+              "name": "--blocked-origins",
+              "value": "*.intern.nav.no,*.intern.dev.nav.no,*.ansatt.nav.no,*.ansatt.dev.nav.no,*.ekstern.dev.nav.no,*.nav.no,*.nais.io,*.adeo.no",
+              "description": "Block access to all Nav NAIS ingress domains"
+            },
+            {
+              "type": "named",
+              "name": "--block-service-workers",
+              "description": "Prevent service worker interception of network requests"
+            },
+            {
+              "type": "named",
+              "name": "--save-trace",
+              "description": "Enable trace recording for auditability"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

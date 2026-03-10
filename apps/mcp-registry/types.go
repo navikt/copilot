@@ -37,6 +37,14 @@ type EnvironmentVariable struct {
 	IsSecret    bool   `json:"isSecret,omitempty"`
 }
 
+type Argument struct {
+	Type        string `json:"type"`
+	Name        string `json:"name,omitempty"`
+	Value       string `json:"value,omitempty"`
+	ValueHint   string `json:"valueHint,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
 type Package struct {
 	RegistryType         string                `json:"registryType"`
 	Identifier           string                `json:"identifier"`
@@ -44,6 +52,8 @@ type Package struct {
 	RuntimeHint          string                `json:"runtimeHint,omitempty"`
 	Transport            Transport             `json:"transport"`
 	EnvironmentVariables []EnvironmentVariable `json:"environmentVariables,omitempty"`
+	PackageArguments     []Argument            `json:"packageArguments,omitempty"`
+	RuntimeArguments     []Argument            `json:"runtimeArguments,omitempty"`
 }
 
 type ServerJSON struct {

@@ -207,5 +207,38 @@ func validatePackage(pkg *Package, serverIndex, pkgIndex int) error {
 			serverIndex, pkgIndex, TransportTypeStdio, TransportTypeStreamableHTTP, TransportTypeSSE)
 	}
 
+	for j, arg := range pkg.PackageArguments {
+		if err := validateArgument(&arg, serverIndex, pkgIndex, j, "packageArguments"); err != nil {
+			return err
+		}
+	}
+
+	for j, arg := range pkg.RuntimeArguments {
+		if err := validateArgument(&arg, serverIndex, pkgIndex, j, "runtimeArguments"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateArgument(arg *Argument, serverIndex, pkgIndex, argIndex int, field string) error {
+	switch arg.Type {
+	case "named", "positional":
+	default:
+		return fmt.Errorf("server[%d].packages[%d].%s[%d]: 'type' must be 'named' or 'positional'",
+			serverIndex, pkgIndex, field, argIndex)
+	}
+
+	if arg.Type == "named" && strings.TrimSpace(arg.Name) == "" {
+		return fmt.Errorf("server[%d].packages[%d].%s[%d]: 'name' is required for named arguments",
+			serverIndex, pkgIndex, field, argIndex)
+	}
+
+	if arg.Type == "positional" && strings.TrimSpace(arg.Value) == "" && strings.TrimSpace(arg.ValueHint) == "" {
+		return fmt.Errorf("server[%d].packages[%d].%s[%d]: 'value' or 'valueHint' is required for positional arguments",
+			serverIndex, pkgIndex, field, argIndex)
+	}
+
 	return nil
 }
