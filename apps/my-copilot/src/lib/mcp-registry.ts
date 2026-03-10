@@ -17,6 +17,7 @@ interface ServerResponse {
       runtimeHint?: string;
       transport: { type: string };
       packageArguments?: { type: string; name?: string; value?: string; description?: string }[];
+      environmentVariables?: { name: string; description?: string; isRequired?: boolean; isSecret?: boolean }[];
     }[];
   };
   _meta: {

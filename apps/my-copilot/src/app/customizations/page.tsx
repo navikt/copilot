@@ -9,7 +9,7 @@ import { DomainCards } from "./domain-cards";
 export default async function CustomizationsPage() {
   const customizations = getAllCustomizations();
   const mcpServers = await getMcpServers();
-  const items = [...customizations, ...mcpServers];
+  const items = [...customizations, ...mcpServers].sort((a, b) => a.name.localeCompare(b.name, "nb"));
   const counts = getCountsByDomain(items);
 
   const domains = Object.entries(counts)

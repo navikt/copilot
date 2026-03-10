@@ -50,9 +50,9 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-03-05T00:00:00Z",
-      "websiteUrl": "https://help.figma.com/hc/en-us/articles/32132100718103-Guide-to-the-Figma-MCP-Server",
+      "websiteUrl": "https://help.figma.com/hc/en-us/articles/32132100833559-Guide-to-the-Dev-Mode-MCP-Server",
       "repository": {
-        "url": "https://github.com/nicolo-ribaudo/figma-mcp-server",
+        "url": "https://github.com/figma/mcp-server-guide",
         "source": "github"
       },
       "tools": ["get_design_context", "get_screenshot", "get_metadata", "get_figjam", "generate_diagram"],
@@ -73,7 +73,7 @@
       "publishedAt": "2026-03-10T00:00:00Z",
       "websiteUrl": "https://nextjs.org/docs/app/api-reference/cli/mcp",
       "repository": {
-        "url": "https://github.com/nicolo-ribaudo/next-devtools-mcp",
+        "url": "https://github.com/vercel/next-devtools-mcp",
         "source": "github"
       },
       "tools": ["getErrors", "getRouteInfo", "getDebugInfo", "getDocs"],
@@ -106,7 +106,7 @@
       "publishedAt": "2026-03-10T00:00:00Z",
       "websiteUrl": "https://svelte.dev/docs/mcp",
       "repository": {
-        "url": "https://github.com/nicolo-ribaudo/svelte",
+        "url": "https://github.com/sveltejs/ai-tools",
         "source": "github",
         "subfolder": "packages/mcp"
       },
@@ -136,9 +136,9 @@
       "version": "0.0.68",
       "status": "active",
       "publishedAt": "2026-03-10T00:00:00Z",
-      "websiteUrl": "https://playwright.dev/docs/mcp",
+      "websiteUrl": "https://www.npmjs.com/package/@playwright/mcp",
       "repository": {
-        "url": "https://github.com/nicolo-ribaudo/playwright-mcp",
+        "url": "https://github.com/microsoft/playwright-mcp",
         "source": "github"
       },
       "tools": ["browser_navigate", "browser_click", "browser_type", "browser_snapshot", "browser_take_screenshot", "browser_wait"],

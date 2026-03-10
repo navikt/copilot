@@ -43,6 +43,45 @@ function getMcpCliCommand(item: AnyCustomization): string {
   return `gh copilot mcp add --type http ${item.name} ${item.remotes[0].url}`;
 }
 
+function getVsCodeAddMcpCommand(item: AnyCustomization): string {
+  if (item.type !== "mcp") return "";
+
+  if (item.packages && item.packages.length > 0) {
+    const pkg = item.packages[0];
+    const runtime = pkg.registryType === "npm" ? "npx" : pkg.registryType === "pypi" ? "uvx" : null;
+    if (!runtime) return "";
+
+    const args: string[] = pkg.registryType === "npm" ? ["-y", pkg.identifier] : [pkg.identifier];
+    if (pkg.packageArguments) {
+      for (const arg of pkg.packageArguments) {
+        if (arg.name) args.push(arg.name);
+        if (arg.value) args.push(arg.value);
+      }
+    }
+
+    const serverName = item.name.split("/").pop() ?? item.name;
+    const config: Record<string, unknown> = { name: serverName, command: runtime, args };
+
+    if (pkg.environmentVariables) {
+      const env: Record<string, string> = {};
+      for (const v of pkg.environmentVariables) {
+        env[v.name] = v.isSecret ? `\${input:${v.name}}` : (v.description ?? "");
+      }
+      if (Object.keys(env).length > 0) config.env = env;
+    }
+
+    return `code --add-mcp '${JSON.stringify(config)}'`;
+  }
+
+  if (item.remotes.length > 0) {
+    const serverName = item.name.split("/").pop() ?? item.name;
+    const config = { name: serverName, type: "http", url: item.remotes[0].url };
+    return `code --add-mcp '${JSON.stringify(config)}'`;
+  }
+
+  return "";
+}
+
 const EDITOR_SUPPORT: Record<CustomizationType, string> = {
   instruction: "VS Code · JetBrains · CLI · GitHub.com",
   agent: "VS Code · JetBrains (coding agent) · GitHub.com",
@@ -186,7 +225,22 @@ function McpDetails({ item }: { item: AnyCustomization }) {
         <BodyShort size="small">
           Tilgjengelig fra MCP-registeret i VS Code og JetBrains — søk etter serveren under MCP-innstillinger.
         </BodyShort>
-        {item.remotes.length > 0 && (
+        {getVsCodeAddMcpCommand(item) && (
+          <VStack gap="space-4">
+            <BodyShort size="small" weight="semibold">
+              VS Code CLI
+            </BodyShort>
+            <div className="relative">
+              <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                {getVsCodeAddMcpCommand(item)}
+              </pre>
+              <div className="absolute top-1 right-1">
+                <CopyButton size="xsmall" copyText={getVsCodeAddMcpCommand(item)} />
+              </div>
+            </div>
+          </VStack>
+        )}
+        {getMcpCliCommand(item) && (
           <VStack gap="space-4">
             <BodyShort size="small" weight="semibold">
               Copilot CLI
@@ -315,11 +369,6 @@ export function DetailDrawer({ item, open, onClose }: DetailDrawerProps) {
                         <Tag size="small" variant={item.type === "mcp" ? "success" : "neutral"}>
                           {TYPE_LABELS[item.type]}
                         </Tag>
-                        {item.type === "mcp" && (
-                          <Tag size="small" variant="neutral">
-                            v{item.version}
-                          </Tag>
-                        )}
                         <Tag size="small" variant="info">
                           {domainConfig.label}
                         </Tag>

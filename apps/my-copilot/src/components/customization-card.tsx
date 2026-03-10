@@ -78,11 +78,6 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
             <Tag size="small" variant={item.type === "mcp" ? "success" : "neutral"}>
               {TYPE_LABELS[item.type]}
             </Tag>
-            {item.type === "mcp" && (
-              <Tag size="small" variant="neutral">
-                v{item.version}
-              </Tag>
-            )}
             <Tag size="small" variant="info">
               {domainConfig.label}
             </Tag>
