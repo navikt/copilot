@@ -693,6 +693,160 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			expectError: true,
 			errorMsg:    "'type' must be 'named' or 'positional'",
 		},
+		{
+			name: "valid websiteUrl",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						WebsiteURL:  "https://example.com/docs",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid websiteUrl - not https",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						WebsiteURL:  "http://example.com",
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "URL must use https scheme",
+		},
+		{
+			name: "valid repository",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Repository: &Repository{
+							URL:    "https://github.com/org/repo",
+							Source: "github",
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "repository missing source",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Repository: &Repository{
+							URL: "https://github.com/org/repo",
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "repository.source is required",
+		},
+		{
+			name: "repository invalid url",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Repository: &Repository{
+							URL:    "http://github.com/org/repo",
+							Source: "github",
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "URL must use https scheme",
+		},
+		{
+			name: "valid tools list",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Tools:       []string{"search_docs", "get_info"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "empty tool name",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Tools:       []string{"search_docs", ""},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "tool name cannot be empty",
+		},
+		{
+			name: "valid tags",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Tags:        []string{"frontend", "browser-automation"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid tag - uppercase",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Tags:        []string{"Frontend"},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "must be lowercase kebab-case",
+		},
+		{
+			name: "invalid tag - spaces",
+			data: &StaticRegistryData{
+				Servers: []StaticServerData{
+					{
+						Name:        "io.github.test/server",
+						Description: "Test Description",
+						Version:     "1.0.0",
+						Tags:        []string{"browser automation"},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "must be lowercase kebab-case",
+		},
 	}
 
 	for _, tt := range tests {

@@ -105,12 +105,18 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 		if status == "" {
 			status = StatusActive
 		}
+		var navMeta *NavRegistryMeta
+		if len(s.Tools) > 0 || len(s.Tags) > 0 {
+			navMeta = &NavRegistryMeta{Tools: s.Tools, Tags: s.Tags}
+		}
 		servers = append(servers, ServerResponse{
 			Server: ServerJSON{
 				Schema:      CurrentSchemaURL,
 				Name:        s.Name,
 				Description: s.Description,
 				Version:     s.Version,
+				WebsiteURL:  s.WebsiteURL,
+				Repository:  s.Repository,
 				Remotes:     s.Remotes,
 				Packages:    s.Packages,
 			},
@@ -121,6 +127,7 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 					UpdatedAt:   updatedAt,
 					IsLatest:    true,
 				},
+				NavRegistry: navMeta,
 			},
 		})
 	}
@@ -218,12 +225,18 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 			if status == "" {
 				status = StatusActive
 			}
+			var navMeta *NavRegistryMeta
+			if len(s.Tools) > 0 || len(s.Tags) > 0 {
+				navMeta = &NavRegistryMeta{Tools: s.Tools, Tags: s.Tags}
+			}
 			response := ServerResponse{
 				Server: ServerJSON{
 					Schema:      CurrentSchemaURL,
 					Name:        s.Name,
 					Description: s.Description,
 					Version:     s.Version,
+					WebsiteURL:  s.WebsiteURL,
+					Repository:  s.Repository,
 					Remotes:     s.Remotes,
 					Packages:    s.Packages,
 				},
@@ -234,6 +247,7 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 						UpdatedAt:   updatedAt,
 						IsLatest:    true,
 					},
+					NavRegistry: navMeta,
 				},
 			}
 			slog.Debug("Returning server", "name", serverName, "version", version)

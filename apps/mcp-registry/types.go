@@ -56,11 +56,20 @@ type Package struct {
 	RuntimeArguments     []Argument            `json:"runtimeArguments,omitempty"`
 }
 
+type Repository struct {
+	URL       string `json:"url"`
+	Source    string `json:"source"`
+	ID        string `json:"id,omitempty"`
+	Subfolder string `json:"subfolder,omitempty"`
+}
+
 type ServerJSON struct {
 	Schema      string      `json:"$schema"`
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	Version     string      `json:"version"`
+	WebsiteURL  string      `json:"websiteUrl,omitempty"`
+	Repository  *Repository `json:"repository,omitempty"`
 	Remotes     []Transport `json:"remotes,omitempty"`
 	Packages    []Package   `json:"packages,omitempty"`
 }
@@ -72,8 +81,14 @@ type RegistryExtensions struct {
 	IsLatest    bool      `json:"isLatest"`
 }
 
+type NavRegistryMeta struct {
+	Tools []string `json:"tools,omitempty"`
+	Tags  []string `json:"tags,omitempty"`
+}
+
 type ResponseMeta struct {
-	Official *RegistryExtensions `json:"io.modelcontextprotocol.registry/official,omitempty"`
+	Official    *RegistryExtensions `json:"io.modelcontextprotocol.registry/official,omitempty"`
+	NavRegistry *NavRegistryMeta    `json:"io.github.navikt/registry,omitempty"`
 }
 
 type ServerResponse struct {
@@ -98,6 +113,10 @@ type StaticServerData struct {
 	Version     string      `json:"version"`
 	Status      string      `json:"status,omitempty"`
 	PublishedAt string      `json:"publishedAt,omitempty"`
+	WebsiteURL  string      `json:"websiteUrl,omitempty"`
+	Repository  *Repository `json:"repository,omitempty"`
+	Tools       []string    `json:"tools,omitempty"`
+	Tags        []string    `json:"tags,omitempty"`
 	Remotes     []Transport `json:"remotes,omitempty"`
 	Packages    []Package   `json:"packages,omitempty"`
 }

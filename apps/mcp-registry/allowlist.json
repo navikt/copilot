@@ -7,6 +7,13 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2025-09-01T00:00:00Z",
+      "websiteUrl": "https://docs.github.com/en/copilot/customizing-copilot/extending-the-capabilities-of-github-copilot-in-your-organization",
+      "repository": {
+        "url": "https://github.com/github/github-mcp-server",
+        "source": "github"
+      },
+      "tools": ["get_file_contents", "search_repositories", "create_issue", "list_issues", "create_pull_request", "list_pull_requests", "search_code", "get_commit", "list_commits", "create_branch", "list_branches"],
+      "tags": ["developer-tools", "version-control", "github"],
       "remotes": [
         {
           "type": "streamable-http",
@@ -21,6 +28,14 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2025-01-01T00:00:00Z",
+      "websiteUrl": "https://github.com/navikt/copilot/tree/main/apps/mcp-onboarding",
+      "repository": {
+        "url": "https://github.com/navikt/copilot",
+        "source": "github",
+        "subfolder": "apps/mcp-onboarding"
+      },
+      "tools": ["hello_world", "greet", "whoami", "echo", "get_time", "list_agents", "list_instructions", "list_prompts", "list_skills", "check_agent_readiness", "generate_agents_md"],
+      "tags": ["developer-tools", "onboarding", "nav-internal"],
       "remotes": [
         {
           "type": "streamable-http",
@@ -35,6 +50,13 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-03-05T00:00:00Z",
+      "websiteUrl": "https://help.figma.com/hc/en-us/articles/32132100718103-Guide-to-the-Figma-MCP-Server",
+      "repository": {
+        "url": "https://github.com/nicolo-ribaudo/figma-mcp-server",
+        "source": "github"
+      },
+      "tools": ["get_design_context", "get_screenshot", "get_metadata", "get_figjam", "generate_diagram"],
+      "tags": ["design", "frontend", "figma"],
       "remotes": [
         {
           "type": "streamable-http",
@@ -49,6 +71,13 @@
       "version": "0.3.10",
       "status": "active",
       "publishedAt": "2026-03-10T00:00:00Z",
+      "websiteUrl": "https://nextjs.org/docs/app/api-reference/cli/mcp",
+      "repository": {
+        "url": "https://github.com/nicolo-ribaudo/next-devtools-mcp",
+        "source": "github"
+      },
+      "tools": ["getErrors", "getRouteInfo", "getDebugInfo", "getDocs"],
+      "tags": ["frontend", "nextjs", "developer-tools"],
       "packages": [
         {
           "registryType": "npm",
@@ -75,6 +104,14 @@
       "version": "0.1.20",
       "status": "active",
       "publishedAt": "2026-03-10T00:00:00Z",
+      "websiteUrl": "https://svelte.dev/docs/mcp",
+      "repository": {
+        "url": "https://github.com/nicolo-ribaudo/svelte",
+        "source": "github",
+        "subfolder": "packages/mcp"
+      },
+      "tools": ["search_docs", "analyze_code"],
+      "tags": ["frontend", "svelte", "documentation"],
       "remotes": [
         {
           "type": "streamable-http",
@@ -99,6 +136,13 @@
       "version": "0.0.68",
       "status": "active",
       "publishedAt": "2026-03-10T00:00:00Z",
+      "websiteUrl": "https://playwright.dev/docs/mcp",
+      "repository": {
+        "url": "https://github.com/nicolo-ribaudo/playwright-mcp",
+        "source": "github"
+      },
+      "tools": ["browser_navigate", "browser_click", "browser_type", "browser_snapshot", "browser_take_screenshot", "browser_wait"],
+      "tags": ["testing", "browser-automation", "frontend"],
       "packages": [
         {
           "registryType": "npm",
