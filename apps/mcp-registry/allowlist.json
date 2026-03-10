@@ -71,7 +71,7 @@
       "version": "0.3.10",
       "status": "active",
       "publishedAt": "2026-03-10T00:00:00Z",
-      "websiteUrl": "https://nextjs.org/docs/app/api-reference/cli/mcp",
+      "websiteUrl": "https://nextjs.org/docs/app/guides/mcp",
       "repository": {
         "url": "https://github.com/vercel/next-devtools-mcp",
         "source": "github"
