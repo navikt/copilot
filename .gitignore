@@ -1,8 +1,46 @@
+# Build outputs
 apps/mcp-registry/bin/mcp-registry
 apps/mcp-onboarding/bin/mcp-onboarding
 apps/mcp-onboarding/bin/generate-manifest
 apps/mcp-onboarding/coverage.out
 apps/mcp-onboarding/bin/mcp-hello-world
-.github/aw/logs/
 apps/copilot-metrics/bin/copilot-metrics
+apps/copilot-metrics/copilot-metrics
+
+# Logs
+.github/aw/logs/
+
+# Secrets - NEVER commit these
 secret.yaml
+secrets.yaml
+*-secret.yaml
+*-secrets.yaml
+*.secret.yaml
+*.secrets.yaml
+secret*.yaml
+secrets*.yaml
+.env
+.env.*
+*.pem
+*.key
+*credentials*
+*_credentials*
+*.p12
+*.pfx
+service-account*.json
+sa-*.json
+gcp-*.json
+kubeconfig
+kubeconfig.yaml
+.kube/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
