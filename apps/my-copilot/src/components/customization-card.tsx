@@ -8,6 +8,7 @@ import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 
 interface CustomizationCardProps {
   item: AnyCustomization;
+  onClick?: () => void;
 }
 
 function transportLabel(type: string): string {
@@ -49,7 +50,7 @@ function getMcpCliCommand(item: AnyCustomization): string {
   return `gh copilot mcp add --type http ${item.name} ${item.remotes[0].url}`;
 }
 
-export function CustomizationCard({ item }: CustomizationCardProps) {
+export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
   const domainConfig = DOMAIN_CONFIGS[item.domain];
   const [showEditors, setShowEditors] = useState(false);
   const [showTools, setShowTools] = useState(false);
@@ -61,8 +62,12 @@ export function CustomizationCard({ item }: CustomizationCardProps) {
       borderColor="neutral"
       borderWidth="1"
       padding={{ xs: "space-12", md: "space-16" }}
-      style={{ borderLeftColor: `var(--ax-${domainConfig.color}-400, currentColor)` }}
+      style={{
+        borderLeftColor: `var(--ax-${domainConfig.color}-400, currentColor)`,
+        cursor: onClick ? "pointer" : undefined,
+      }}
       className="border-l-4"
+      onClick={onClick}
     >
       <VStack gap="space-8">
         <div className="flex items-start justify-between gap-2">

@@ -5,6 +5,7 @@ import { Box, Search, HStack, VStack, BodyShort, Chips } from "@navikt/ds-react"
 import type { AnyCustomization, CustomizationType, Domain } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 import { CustomizationCard } from "./customization-card";
+import { DetailDrawer } from "./detail-drawer";
 
 const TYPES: CustomizationType[] = ["agent", "instruction", "prompt", "skill", "mcp"];
 
@@ -16,6 +17,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<CustomizationType | null>(null);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
+  const [selectedItem, setSelectedItem] = useState<AnyCustomization | null>(null);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -101,7 +103,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map((item) => (
-          <CustomizationCard key={`${item.type}-${item.id}`} item={item} />
+          <CustomizationCard key={`${item.type}-${item.id}`} item={item} onClick={() => setSelectedItem(item)} />
         ))}
       </div>
 
@@ -110,6 +112,8 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           <BodyShort className="text-gray-500">Ingen tilpasninger matcher søket ditt.</BodyShort>
         </Box>
       )}
+
+      <DetailDrawer item={selectedItem} open={selectedItem !== null} onClose={() => setSelectedItem(null)} />
     </VStack>
   );
 }

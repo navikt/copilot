@@ -513,7 +513,7 @@ export default async function BestPractices() {
                     <BodyShort className="text-gray-600 text-sm mb-3">
                       Nav har en{" "}
                       <a
-                        href="https://mcp-registry.intern.dev.nav.no"
+                        href="https://mcp-registry.nav.no"
                         className="text-blue-600 hover:underline"
                         target="_blank"
                         rel="noopener noreferrer"
@@ -525,7 +525,7 @@ export default async function BestPractices() {
                     <CodeBlock filename="settings.json" maxHeight="120px">{`{
   "mcp": {
     "registries": {
-      "nav": "https://mcp-registry.intern.dev.nav.no/v0.1/servers"
+      "nav": "https://mcp-registry.nav.no/v0.1/servers"
     }
   }
 }`}</CodeBlock>
@@ -3010,7 +3010,7 @@ description: Skriver tester for dette prosjektet
                         <li className="flex gap-2">
                           <span className="text-blue-600">▪</span>
                           <a
-                            href="https://mcp-registry.intern.dev.nav.no"
+                            href="https://mcp-registry.nav.no"
                             className="text-blue-600 hover:underline text-sm"
                             target="_blank"
                             rel="noopener noreferrer"

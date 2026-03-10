@@ -1,6 +1,6 @@
 export type CustomizationType = "agent" | "instruction" | "prompt" | "skill" | "mcp";
 
-export type Domain = "platform" | "frontend" | "backend" | "auth" | "observability" | "general";
+export type Domain = "platform" | "frontend" | "backend" | "auth" | "observability" | "general" | "testing" | "design";
 
 interface BaseCustomization {
   id: string;
@@ -37,6 +37,17 @@ export interface McpServerCustomization extends BaseCustomization {
   type: "mcp";
   version: string;
   remotes: { type: string; url: string }[];
+  websiteUrl?: string;
+  repository?: { url: string; source: string; subfolder?: string };
+  tools?: string[];
+  tags?: string[];
+  packages?: {
+    registryType: string;
+    identifier: string;
+    runtimeHint?: string;
+    transport: { type: string };
+    packageArguments?: { type: string; name?: string; value?: string; description?: string }[];
+  }[];
 }
 
 export type AnyCustomization = Agent | Instruction | Prompt | Skill | McpServerCustomization;
@@ -84,6 +95,18 @@ export const DOMAIN_CONFIGS: Record<Domain, DomainConfig> = {
     description: "Forskning, analyse og generelle verktøy",
     color: "blue",
     background: "info-soft",
+  },
+  testing: {
+    label: "Testing",
+    description: "Testverktøy, browser-automatisering og kvalitetssikring",
+    color: "orange",
+    background: "warning-soft",
+  },
+  design: {
+    label: "Design",
+    description: "Figma, design-til-kode og visuelle verktøy",
+    color: "purple",
+    background: "accent-soft",
   },
 };
 

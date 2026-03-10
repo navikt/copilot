@@ -3,7 +3,16 @@
 import { Box, BodyShort, Heading, VStack } from "@navikt/ds-react";
 import type { Domain, DomainConfig } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS } from "@/lib/customization-types";
-import { CloudIcon, PaletteIcon, CogIcon, ShieldLockIcon, LineGraphIcon, BulletListIcon } from "@navikt/aksel-icons";
+import {
+  CloudIcon,
+  PaletteIcon,
+  CogIcon,
+  ShieldLockIcon,
+  LineGraphIcon,
+  BulletListIcon,
+  TasklistIcon,
+  PencilIcon,
+} from "@navikt/aksel-icons";
 import type { ReactElement } from "react";
 
 const DOMAIN_ICONS: Record<Domain, ReactElement> = {
@@ -13,6 +22,8 @@ const DOMAIN_ICONS: Record<Domain, ReactElement> = {
   auth: <ShieldLockIcon fontSize="2rem" aria-hidden />,
   observability: <LineGraphIcon fontSize="2rem" aria-hidden />,
   general: <BulletListIcon fontSize="2rem" aria-hidden />,
+  testing: <TasklistIcon fontSize="2rem" aria-hidden />,
+  design: <PencilIcon fontSize="2rem" aria-hidden />,
 };
 
 interface DomainCardProps {
@@ -29,9 +40,8 @@ export function DomainCard({ domain, count, selected, onClick }: DomainCardProps
     <button
       type="button"
       onClick={() => onClick(domain)}
-      className={`text-left w-full h-full rounded-xl transition-all cursor-pointer border-2 ${
-        selected ? "border-blue-500 ring-2 ring-blue-200" : "border-transparent hover:border-gray-300"
-      }`}
+      className={`text-left w-full h-full rounded-xl transition-all cursor-pointer border-2 ${selected ? "border-blue-500 ring-2 ring-blue-200" : "border-transparent hover:border-gray-300"
+        }`}
     >
       <Box
         background={config.background}

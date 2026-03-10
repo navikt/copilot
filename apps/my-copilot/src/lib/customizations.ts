@@ -13,6 +13,8 @@ export function getCountsByDomain(items: AnyCustomization[]): Record<Domain, num
     auth: 0,
     observability: 0,
     general: 0,
+    testing: 0,
+    design: 0,
   };
   for (const item of items) {
     counts[item.domain]++;
