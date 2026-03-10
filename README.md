@@ -1,107 +1,117 @@
 # 🤖 Nav Copilot Customizations
 
-A curated collection of GitHub Copilot customizations for building Nav applications following Nav's development standards, including Aksel design system, Nais platform patterns, and Security Playbook.
+![Nav Copilot tools page](docs/assets/my-copilot-hero.png)
 
-## 🚀 What is Nav Copilot Customizations?
+Agenter, instruksjoner, ferdigheter og MCP-servere som gjør GitHub Copilot smartere for Navs stack. Alt samlet i én verktøyskatalog.
 
-This repository provides specialized GitHub Copilot customizations for the Nav ecosystem:
+## Hva er dette?
 
-- **🤖 [6 Custom Agents](#-agents)** - Specialized AI assistants for Nav-specific domains (Nais, Aksel, Kafka, Auth, Observability, Security)
-- **📋 [4 Instructions](#-instructions)** - File-pattern-based coding standards that apply automatically
-- **⚡ [3 Prompts](#-prompts)** - Quick scaffolding templates for common Nav patterns
-- **🎯 [5 Skills](#-skills)** - Production-proven patterns extracted from real Nav repositories
+En kuratert samling Copilot-tilpasninger for Nav-økosystemet:
 
-## 🔧 How to Use
+- **🤖 [6 Agenter](#-agenter)** — Spesialiserte AI-assistenter for Nais, Aksel, Kafka, Auth, Observability og Sikkerhet
+- **📋 [4 Instruksjoner](#-instruksjoner)** — Kodestandarder som aktiveres automatisk basert på filmønster
+- **⚡ [3 Prompts](#-prompts)** — Scaffolding-maler for vanlige Nav-mønstre
+- **🎯 [5 Ferdigheter](#-ferdigheter)** — Produksjonsmønstre fra ekte Nav-repoer
+- **🔌 [6 MCP-servere](#-mcp-servere)** — GitHub, Figma, Next.js, Svelte, Playwright og Nav Onboarding
 
-### Quick Install
+Alle tilpasninger er tilgjengelige fra **[Verktøy-siden](https://min-copilot.ansatt.nav.no/customizations)** med søk, domenefiltrering og installasjonsinstruksjoner.
 
-Install customizations directly in VS Code (one-click) or manually for JetBrains/CLI:
+## Kom i gang
 
-- **[Agents →](docs/README.agents.md)** - Specialized AI assistants (VS Code one-click, JetBrains via coding agent)
-- **[Instructions →](docs/README.instructions.md)** - Coding standards (all editors)
-- **[Prompts →](docs/README.prompts.md)** - Scaffolding templates (VS Code, JetBrains)
-- **[Skills →](docs/README.skills.md)** - Bundled domain knowledge (VS Code)
-- **[MCP Servers →](docs/README.mcp.md)** - External tool integrations (all editors)
+### Fra verktøysiden (anbefalt)
 
-### Discover & Search with MCP
+Gå til **[min-copilot.ansatt.nav.no/customizations](https://min-copilot.ansatt.nav.no/customizations)**, finn det du trenger, og følg installasjonsinstruksjonene. MCP-servere har ferdig `code --add-mcp`-kommandoer du kan kopiere rett inn i terminalen.
 
-Use the **Mcp Onboarding** server to browse customizations, assess agent readiness, and generate AGENTS.md — all from Copilot Chat.
+### Fra dokumentasjonen
 
-See [MCP Onboarding](#mcp-onboarding--agent-readiness--customization-discovery) below for installation and usage.
+- **[Agenter →](docs/README.agents.md)** — VS Code one-click, JetBrains via coding agent
+- **[Instruksjoner →](docs/README.instructions.md)** — Alle editorer
+- **[Prompts →](docs/README.prompts.md)** — VS Code, JetBrains
+- **[Ferdigheter →](docs/README.skills.md)** — VS Code
+- **[MCP-servere →](docs/README.mcp.md)** — Alle editorer
 
----
+### Med MCP Onboarding
 
-## 🤖 Agents
-
-Specialized AI assistants for the Nav ecosystem. Use them by calling `@agent-name` in Copilot Chat or when assigning issues to Copilot coding agent.
-
-**Available agents:** @nais-agent, @auth-agent, @kafka-agent, @aksel-agent, @observability-agent, @security-champion-agent
-
-👉 **[View full agent documentation →](docs/README.agents.md)**
+Bruk **MCP Onboarding**-serveren for å utforske tilpasninger, sjekke agent-readiness og generere AGENTS.md — direkte fra Copilot Chat.
 
 ---
 
-## 📋 Instructions
+## 🤖 Agenter
 
-File-pattern-based rules that Copilot applies automatically when creating or modifying files matching specific patterns.
+Spesialiserte AI-assistenter for Nav-domener. Bruk med `@agent-name` i Copilot Chat eller ved tildeling av issues til Copilot coding agent.
 
-**Available instructions:** Testing, Kotlin/Ktor, Next.js/Aksel, Database migrations
+**Tilgjengelige:** @nais-agent, @auth-agent, @kafka-agent, @aksel-agent, @observability-agent, @security-champion-agent
 
-👉 **[View full instructions documentation →](docs/README.instructions.md)**
+👉 **[Full dokumentasjon →](docs/README.agents.md)**
+
+---
+
+## 📋 Instruksjoner
+
+Regler som Copilot aktiverer automatisk basert på filmønster (f.eks. `*.kt`, `*.tsx`, `*.sql`).
+
+**Tilgjengelige:** Testing, Kotlin/Ktor, Next.js/Aksel, Database-migrasjoner
+
+👉 **[Full dokumentasjon →](docs/README.instructions.md)**
 
 ---
 
 ## ⚡ Prompts
 
-Quick scaffolding templates accessible via Copilot Chat using `/prompt-name` or `#prompt-name`.
+Scaffolding-maler tilgjengelig via `/prompt-name` eller `#prompt-name` i Copilot Chat.
 
-**Available prompts:** #aksel-component, #kafka-topic, #nais-manifest
+**Tilgjengelige:** #aksel-component, #kafka-topic, #nais-manifest
 
-👉 **[View full prompts documentation →](docs/README.prompts.md)**
-
----
-
-## 🎯 Skills
-
-Production patterns extracted from real Nav repositories with bundled templates and resources.
-
-**Available skills:** TokenX Auth, Observability Setup, Aksel Spacing, Kotlin App Config, Flyway Migration
-
-👉 **[View full skills documentation →](docs/README.skills.md)**
+👉 **[Full dokumentasjon →](docs/README.prompts.md)**
 
 ---
 
-## 🔌 MCP Servers
+## 🎯 Ferdigheter
 
-NAV-approved MCP servers that extend Copilot with external tools — GitHub, Figma, and internal NAV services.
+Produksjonsmønstre med innebygde maler og referanser.
 
-**Available servers:** GitHub MCP, Nav Copilot Discovery, Figma MCP
+**Tilgjengelige:** TokenX Auth, Observability Setup, Aksel Spacing, Kotlin App Config, Flyway Migration
 
-👉 **[View full MCP documentation →](docs/README.mcp.md)**
-
----
+👉 **[Full dokumentasjon →](docs/README.skills.md)**
 
 ---
 
-## 🛠️ Applications
+## 🔌 MCP-servere
 
-This monorepo contains four applications:
+Nav-godkjente MCP-servere fra [MCP-registeret](https://mcp-registry.nav.no). Serverne dukker automatisk opp i VS Code og JetBrains når registeret er konfigurert på organisasjonsnivå.
 
-### My Copilot — Self-Service Portal
+| Server                 | Beskrivelse                                              | Type         |
+| ---------------------- | -------------------------------------------------------- | ------------ |
+| **GitHub MCP**         | Repos, issues, PRs via GitHub API                        | Remote       |
+| **Nav MCP Onboarding** | Utforsk tilpasninger, agent-readiness, generer AGENTS.md | Remote       |
+| **Figma MCP**          | Designkontekst fra Figma til kode                        | Remote       |
+| **Next.js DevTools**   | Diagnostikk og dokumentasjon fra Next.js dev-server      | npm-pakke    |
+| **Svelte MCP**         | Søk i Svelte 5/SvelteKit-dokumentasjon                   | Remote + npm |
+| **Playwright MCP**     | Browser-automatisering for testing (Nav-sikret)          | npm-pakke    |
 
-Self-service portal for managing your GitHub Copilot subscription (activate/deactivate, view usage analytics, billing details). Usage analytics are powered by BigQuery, populated by copilot-metrics.
+👉 **[Full dokumentasjon →](docs/README.mcp.md)**
 
-**URL:** [`https://min-copilot.ansatt.nav.no`](https://min-copilot.ansatt.nav.no)
+---
 
-### Copilot Metrics — BigQuery Data Pipeline
+## 🛠️ Applikasjoner
 
-Naisjob that fetches Copilot usage metrics from the GitHub API daily and stores them in BigQuery. Replaces the deprecated 28-day rolling window API with persistent historical data.
+Monorepo med fire applikasjoner:
 
-### MCP Registry — Server Discovery
+### My Copilot — Selvbetjeningsportal
 
-Public registry of Nav-approved MCP servers, implementing the [MCP Registry v0.1 specification](https://github.com/modelcontextprotocol/registry).
+Administrer Copilot-abonnement, se bruksanalyse, og utforsk alle tilpasninger fra verktøykatalogen.
 
-**URL:** [`https://mcp-registry.nav.no`](https://mcp-registry.nav.no)
+**URL:** [min-copilot.ansatt.nav.no](https://min-copilot.ansatt.nav.no)
+
+### Copilot Metrics — BigQuery-datapipeline
+
+Naisjob som henter daglige Copilot-bruksmetrikker fra GitHub API og lagrer i BigQuery.
+
+### MCP Registry — Serveroppdagelse
+
+Offentlig register over Nav-godkjente MCP-servere, implementerer [MCP Registry v0.1-spesifikasjonen](https://github.com/modelcontextprotocol/registry).
+
+**URL:** [mcp-registry.nav.no](https://mcp-registry.nav.no)
 
 #### For Enterprise/Organization Admins
 
@@ -111,52 +121,36 @@ Public registry of Nav-approved MCP servers, implementing the [MCP Registry v0.1
 2. Set **MCP Registry URL**: `https://mcp-registry.nav.no`
 3. Choose policy: **Allow all** (discoverable) or **Registry only** (enforced)
 
-> **Important:** Use the base URL without any path suffix. The Copilot client appends `/v0.1/servers` automatically. Including route suffixes like `/v0.1/servers` or `/allowlist` will cause the registry to error out.
+> **Important:** Use the base URL without any path suffix. The Copilot client appends `/v0.1/servers` automatically.
 
-#### For IDE Users (VS Code, JetBrains, Xcode, Eclipse)
+#### For IDE-brukere
 
-Registry servers appear automatically in the MCP servers sidebar panel when configured at the enterprise/organization level. No per-user setup is needed.
+Registry-servere dukker automatisk opp i MCP-panelet i VS Code og JetBrains når registeret er konfigurert på organisasjonsnivå. Ingen oppsett per bruker.
 
-#### For Copilot CLI Users
+#### For Copilot CLI
 
-Copilot CLI does not have a built-in registry browser. Add servers from the registry manually:
+```bash
+# Bla gjennom tilgjengelige servere
+curl -s https://mcp-registry.nav.no/v0.1/servers | jq
 
-1. Browse available servers: `curl -s https://mcp-registry.nav.no/v0.1/servers | jq`
-2. Add a server interactively: `/mcp add` in the CLI
-3. Or edit `~/.copilot/mcp-config.json` directly:
-
-```json
-{
-  "mcpServers": {
-    "mcp-onboarding": {
-      "type": "http",
-      "url": "https://mcp-onboarding.nav.no/mcp",
-      "tools": ["*"]
-    }
-  }
-}
+# Legg til en server
+gh copilot mcp add --url https://mcp-onboarding.nav.no/mcp
 ```
 
-> **Note:** Copilot CLI does not support OAuth authentication. MCP servers requiring OAuth (like mcp-onboarding) will not work from the CLI. Servers using PAT or no authentication work fine.
+### MCP Onboarding — Agent Readiness
 
-Enterprise allowlist policies still apply to Copilot CLI — if "Registry only" is set, only servers listed in the registry can be used.
+MCP-server for å utforske Nav Copilot-tilpasninger, vurdere agent-readiness og generere AGENTS.md.
 
-### MCP Onboarding — Agent Readiness & Customization Discovery
+**URL:** [mcp-onboarding.nav.no](https://mcp-onboarding.nav.no)
 
-MCP server for browsing Nav Copilot customizations, assessing agent readiness, and generating AGENTS.md — all from Copilot Chat.
+#### Installer
 
-**URL:** [`https://mcp-onboarding.nav.no`](https://mcp-onboarding.nav.no)
+1. Åpne Command Palette i VS Code (`Cmd+Shift+P`)
+2. Kjør **MCP: Add Server**
+3. Søk etter **Mcp Onboarding** i Nav MCP-registeret
+4. Logg inn med GitHub (krever navikt-medlemskap)
 
-#### Install
-
-1. Open Command Palette in VS Code (`Cmd+Shift+P`)
-2. Run **MCP: Add Server**
-3. Search for **Mcp Onboarding** in the Nav MCP registry
-4. Sign in with GitHub when prompted (requires navikt org membership)
-
-#### Use in Copilot Chat
-
-Once installed, ask Copilot naturally:
+#### Bruk i Copilot Chat
 
 ```text
 List all Nav agents
@@ -167,34 +161,19 @@ Show agent readiness for repos with prefix fp
 ```
 
 > **Tips:**
-> - Replace `fp-sak` with your actual repo name in `navikt/`.
-> - For `team_readiness`, use the **repo name prefix** your team uses (e.g. `fp` for foreldrepenger, `dp` for dagpenger), not the full team name. Most Nav teams use short prefixes for their repos.
-
-#### Typical Onboarding Workflow
-
-1. **Assess** — `check_agent_readiness` → see what's missing
-2. **Generate** — `generate_agents_md` + `generate_setup_steps` → get tailored files
-3. **Customize** — `suggest_customizations` → discover Nav-specific agents, instructions, and skills for your stack
-4. **Track** — `team_readiness` → monitor adoption across your team's repos
+>
+> - Erstatt `fp-sak` med ditt reponavn i `navikt/`.
+> - For `team_readiness`, bruk **repo-prefiks** teamet bruker (f.eks. `fp` for foreldrepenger), ikke fullt teamnavn.
 
 ---
 
-## 🏗️ Nav Development Standards
+## 🏗️ Nav Tech Stack
 
-These customizations enforce Nav's core principles:
-
-### Principles
-
-- **Team First** - Autonomous teams with circles of autonomy
-- **Product Development** - Continuous development over ad hoc approaches
-- **Essential Complexity** - Focus on essential, avoid accidental complexity
-- **DORA Metrics** - Measure and improve team performance
-
-### Tech Stack
+Tilpasningene dekker Navs kjernestack:
 
 - **Backend**: Kotlin, Ktor, PostgreSQL, Kafka
 - **Frontend**: Next.js 16+, React, TypeScript, Aksel Design System
-- **Platform**: Nais (Kubernetes on GCP)
+- **Plattform**: Nais (Kubernetes on GCP)
 - **Auth**: Azure AD, TokenX, ID-porten, Maskinporten
 - **Observability**: Prometheus, Grafana Loki, Tempo (OpenTelemetry)
 
@@ -229,7 +208,7 @@ These customizations enforce Nav's core principles:
 
 To add new customizations:
 
-1. **Agents**: Add `*.agent.md` to `.github/agents/` following the [agent naming conventions](#-agents)
+1. **Agents**: Add `*.agent.md` to `.github/agents/` following the [agent naming conventions](#-agenter)
 2. **Instructions**: Add `*.instructions.md` to `.github/instructions/`
 3. **Prompts**: Add `*.prompt.md` to `.github/prompts/`
 4. **Skills**: Add folder with `SKILL.md` to `.github/skills/`
