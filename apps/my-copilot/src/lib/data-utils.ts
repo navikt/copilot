@@ -27,7 +27,7 @@ const FEATURE_LABELS: Record<string, string> = {
 
 const EXCLUDED_FEATURES = new Set(["chat_panel_unknown_mode"]);
 
-export const calculateAcceptanceRate = (accepted: number, generated: number): number => {
+const calculateAcceptanceRate = (accepted: number, generated: number): number => {
   return generated > 0 ? Math.round((accepted / generated) * 100) : 0;
 };
 
@@ -84,7 +84,7 @@ export const getFeatureAdoption = (usage: EnterpriseMetrics[]): FeatureAdoptionM
   const featureMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
   for (const day of usage) {
     for (const f of day.totals_by_feature || []) {
-      if (EXCLUDED_FEATURES.has(f.feature)) continue;
+      if (f.feature === "others" || EXCLUDED_FEATURES.has(f.feature)) continue;
       const existing = featureMap.get(f.feature) || { acceptances: 0, generations: 0, interactions: 0 };
       existing.acceptances += f.code_acceptance_activity_count || 0;
       existing.generations += f.code_generation_activity_count || 0;

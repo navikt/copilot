@@ -20,7 +20,6 @@ import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } fro
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import {
-  calculateAcceptanceRate,
   getTopLanguages,
   getEditorStats,
   getModelUsageMetrics,
@@ -334,8 +333,6 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
             </TableHeader>
             <TableBody>
               {topLanguages.map((language: LanguageData, index: number) => {
-                const acceptanceRate = calculateAcceptanceRate(language.acceptances, language.generations);
-
                 return (
                   <TableRow key={language.name}>
                     <TableDataCell>
@@ -358,7 +355,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                       <BodyShort>{formatNumber(language.generations)}</BodyShort>
                     </TableDataCell>
                     <TableDataCell>
-                      <BodyShort weight="semibold">{acceptanceRate}%</BodyShort>
+                      <BodyShort weight="semibold">{language.acceptanceRate}%</BodyShort>
                     </TableDataCell>
                     <TableDataCell>
                       <BodyShort>
