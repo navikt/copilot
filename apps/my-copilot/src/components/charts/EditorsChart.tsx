@@ -1,6 +1,6 @@
 "use client";
 
-import { CopilotMetrics } from "@/lib/github";
+import type { EditorChartData } from "@/lib/types";
 import React from "react";
 import { Line } from "react-chartjs-2";
 import {
@@ -12,51 +12,28 @@ import {
 } from "@/lib/chart-utils";
 
 interface EditorsChartProps {
-  usage: CopilotMetrics[];
+  data: EditorChartData;
 }
 
-const EditorsChart: React.FC<EditorsChartProps> = ({ usage }) => {
-  if (!usage || usage.length === 0) {
+const EditorsChart: React.FC<EditorsChartProps> = ({ data }) => {
+  if (!data || data.editors.length === 0) {
     return (
       <div className={chartWrapperClass}>
-        <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>
+        <div className="text-center text-gray-500 py-8">Ingen editordata tilgjengelig</div>
       </div>
     );
   }
 
-  const labels = usage.map((dayUsage) => dayUsage.date);
-
-  // Get all unique editors across all time periods
-  const allEditors = new Set<string>();
-  usage.forEach((dayUsage) => {
-    dayUsage.copilot_ide_code_completions?.editors?.forEach((editor) => {
-      if (editor.name) allEditors.add(editor.name);
-    });
-  });
-
-  const editorList = Array.from(allEditors);
-
-  if (editorList.length === 0) {
-    return (
-      <div className={chartWrapperClass}>
-        <div className="text-center text-gray-500 py-8">Ingen editor data tilgjengelig for visning</div>
-      </div>
-    );
-  }
-
-  const datasets = editorList.map((editorName, index) => ({
-    label: editorName,
-    data: usage.map((dayUsage) => {
-      const editor = dayUsage.copilot_ide_code_completions?.editors?.find((e) => e.name === editorName);
-      return editor?.total_engaged_users || 0;
-    }),
+  const datasets = data.editors.map((editor, index) => ({
+    label: editor.name,
+    data: editor.values,
     borderColor: chartColors[index % chartColors.length],
     backgroundColor: getBackgroundColor(chartColors[index % chartColors.length]),
     tension: 0.4,
   }));
 
   const editorChartData = {
-    labels,
+    labels: data.days,
     datasets,
   };
 
@@ -66,7 +43,7 @@ const EditorsChart: React.FC<EditorsChartProps> = ({ usage }) => {
       ...commonLineOptions.plugins,
       title: {
         display: true,
-        text: "Editor bruk over tid",
+        text: "Editorbruk over tid",
       },
     },
   };

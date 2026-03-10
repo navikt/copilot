@@ -10,13 +10,13 @@ My Copilot is a self-service tool for managing your GitHub Copilot subscription.
 
 ## Integrations
 
-- **GitHub API**: Interacts with the GitHub API to manage Copilot subscriptions and retrieve user details.
-  - Uses GitHub Copilot Metrics API (`/orgs/{org}/copilot/metrics`) for usage analytics
+- **BigQuery**: Usage analytics are read from BigQuery (`copilot_metrics.usage_metrics`), populated by the [copilot-metrics](../copilot-metrics/) naisjob. This replaced the deprecated GitHub Copilot Metrics API.
+- **GitHub API**: Manages Copilot subscriptions and retrieves user details.
   - Uses GitHub Copilot User Management API for seat assignments and billing
   - All API requests include `X-GitHub-Api-Version: 2022-11-28` header for stability
 - **Azure AD**: Uses Azure AD for authentication and authorization, ensuring that only authorized users can access the application.
-- **Next.js**: Built with Next.js for server-side rendering and optimized performance.
-- **Tailwind CSS**: Utilizes Tailwind CSS for styling the application.
+- **Next.js**: Built with Next.js 16 for server-side rendering and optimized performance.
+- **Aksel Design System**: Uses NAV's design system (`@navikt/ds-react`) with Tailwind CSS for styling.
 
 ## Development
 
@@ -52,6 +52,26 @@ AZURE_APP_CLIENT_ID=your_azure_app_client_id
 AZURE_OPENID_CONFIG_JWKS_URI=your_azure_openid_config_jwks_uri
 AZURE_OPENID_CONFIG_ISSUER=your_azure_openid_config_issuer
 ```
+
+#### BigQuery Access (for usage analytics)
+
+The stats/usage pages read from BigQuery. To access BigQuery locally:
+
+1. Authenticate with GCP:
+
+   ```bash
+   gcloud auth application-default login
+   ```
+
+2. Add BigQuery env vars to `.env.local`:
+
+   ```env
+   GCP_TEAM_PROJECT_ID=<your-nais-team-project-id>
+   BIGQUERY_DATASET=copilot_metrics
+   BIGQUERY_TABLE=usage_metrics
+   ```
+
+   Find the project ID with `nais project list` or `gcloud projects list --filter="name:copilot"`.
 
 Run the development server:
 

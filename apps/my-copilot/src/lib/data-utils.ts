@@ -1,330 +1,390 @@
-import { CopilotMetrics } from "./github";
-import { LanguageData, EditorData, ChatStats, PRSummaryMetrics, FeatureAdoptionMetrics, ModelData } from "./types";
+import type {
+  EnterpriseMetrics,
+  AggregatedMetrics,
+  FeatureAdoptionMetrics,
+  PRMetrics,
+  CLIMetrics,
+  LanguageData,
+  EditorData,
+  ModelData,
+  DailyTrend,
+  AdoptionTrendData,
+  LanguageChartData,
+  EditorChartData,
+  FeatureChartData,
+  LinesOfCodeChartData,
+  ModelChartData,
+} from "./types";
 
-export const calculateAcceptanceRate = (accepted: number, suggested: number): number => {
-  return suggested > 0 ? Math.round((accepted / suggested) * 100) : 0;
+const FEATURE_LABELS: Record<string, string> = {
+  code_completion: "Kodeforslag",
+  chat_panel_agent_mode: "Agent-modus",
+  chat_panel_ask_mode: "Chat (spør)",
+  agent_edit: "Agent-redigering",
+  chat_panel_custom_mode: "Egendefinert modus",
+  chat_inline: "Inline chat",
 };
 
-export const getLatestUsage = (usage: CopilotMetrics[]): CopilotMetrics | null => {
-  if (!usage || usage.length === 0) return null;
-  return usage[usage.length - 1];
+const EXCLUDED_FEATURES = new Set(["chat_panel_unknown_mode"]);
+
+export const calculateAcceptanceRate = (accepted: number, generated: number): number => {
+  return generated > 0 ? Math.round((accepted / generated) * 100) : 0;
 };
 
-export const getDateRange = (usage: CopilotMetrics[]): { start: string; end: string } | null => {
+export const getDateRange = (usage: EnterpriseMetrics[]): { start: string; end: string } | null => {
   if (!usage || usage.length === 0) return null;
-  return {
-    start: usage[0].date,
-    end: usage[usage.length - 1].date,
-  };
+  return { start: usage[0].day, end: usage[usage.length - 1].day };
 };
 
-export const getAggregatedMetrics = (usage: CopilotMetrics[]) => {
+export const getAggregatedMetrics = (usage: EnterpriseMetrics[]): AggregatedMetrics | null => {
   if (!usage || usage.length === 0) return null;
 
-  const maxActiveUsers = Math.max(...usage.map((u) => u.total_active_users || 0));
-  const maxEngagedUsers = Math.max(...usage.map((u) => u.total_engaged_users || 0));
+  const latest = usage[usage.length - 1];
 
-  let totalSuggestions = 0;
   let totalAcceptances = 0;
+  let totalGenerations = 0;
   let totalLinesSuggested = 0;
   let totalLinesAccepted = 0;
-  let maxCodeCompletionUsers = 0;
+  let totalLinesDeletedSuggested = 0;
+  let totalLinesDeleted = 0;
+  let totalInteractions = 0;
 
-  usage.forEach((day) => {
-    const daySuggestions =
-      day.copilot_ide_code_completions?.editors?.reduce(
-        (sum: number, editor) =>
-          sum +
-          (editor.models?.[0]?.languages?.reduce(
-            (langSum: number, lang) => langSum + (lang.total_code_suggestions || 0),
-            0
-          ) || 0),
-        0
-      ) || 0;
-
-    const dayAcceptances =
-      day.copilot_ide_code_completions?.editors?.reduce(
-        (sum: number, editor) =>
-          sum +
-          (editor.models?.[0]?.languages?.reduce(
-            (langSum: number, lang) => langSum + (lang.total_code_acceptances || 0),
-            0
-          ) || 0),
-        0
-      ) || 0;
-
-    const dayLinesSuggested =
-      day.copilot_ide_code_completions?.editors?.reduce(
-        (sum: number, editor) =>
-          sum +
-          (editor.models?.[0]?.languages?.reduce(
-            (langSum: number, lang) => langSum + (lang.total_code_lines_suggested || 0),
-            0
-          ) || 0),
-        0
-      ) || 0;
-
-    const dayLinesAccepted =
-      day.copilot_ide_code_completions?.editors?.reduce(
-        (sum: number, editor) =>
-          sum +
-          (editor.models?.[0]?.languages?.reduce(
-            (langSum: number, lang) => langSum + (lang.total_code_lines_accepted || 0),
-            0
-          ) || 0),
-        0
-      ) || 0;
-
-    const dayCodeCompletionUsers = day.copilot_ide_code_completions?.total_engaged_users || 0;
-
-    totalSuggestions += daySuggestions;
-    totalAcceptances += dayAcceptances;
-    totalLinesSuggested += dayLinesSuggested;
-    totalLinesAccepted += dayLinesAccepted;
-    maxCodeCompletionUsers = Math.max(maxCodeCompletionUsers, dayCodeCompletionUsers);
-  });
+  for (const day of usage) {
+    totalAcceptances += day.code_acceptance_activity_count || 0;
+    totalGenerations += day.code_generation_activity_count || 0;
+    totalLinesSuggested += day.loc_suggested_to_add_sum || 0;
+    totalLinesAccepted += day.loc_added_sum || 0;
+    totalLinesDeletedSuggested += day.loc_suggested_to_delete_sum || 0;
+    totalLinesDeleted += day.loc_deleted_sum || 0;
+    totalInteractions += day.user_initiated_interaction_count || 0;
+  }
 
   return {
-    totalActiveUsers: maxActiveUsers,
-    totalEngagedUsers: maxEngagedUsers,
-    totalSuggestions,
+    dailyActiveUsers: latest.daily_active_users || 0,
+    weeklyActiveUsers: latest.weekly_active_users || 0,
+    monthlyActiveUsers: latest.monthly_active_users || 0,
+    monthlyActiveChatUsers: latest.monthly_active_chat_users || 0,
+    monthlyActiveAgentUsers: latest.monthly_active_agent_users || 0,
+    dailyActiveCLIUsers: latest.daily_active_cli_users || 0,
     totalAcceptances,
+    totalGenerations,
     totalLinesSuggested,
     totalLinesAccepted,
-    codeCompletionUsers: maxCodeCompletionUsers,
-    overallAcceptanceRate: calculateAcceptanceRate(totalAcceptances, totalSuggestions),
+    totalLinesDeletedSuggested,
+    totalLinesDeleted,
+    totalInteractions,
+    overallAcceptanceRate: calculateAcceptanceRate(totalAcceptances, totalGenerations),
     linesAcceptanceRate: calculateAcceptanceRate(totalLinesAccepted, totalLinesSuggested),
   };
 };
 
-export const getAggregatedChatStats = (usage: CopilotMetrics[]): ChatStats | null => {
+export const getFeatureAdoption = (usage: EnterpriseMetrics[]): FeatureAdoptionMetrics | null => {
   if (!usage || usage.length === 0) return null;
 
-  let totalChats = 0;
-  let totalCopyEvents = 0;
-  let totalInsertionEvents = 0;
-  let maxIdeUsers = 0;
-  let maxDotcomUsers = 0;
-
-  usage.forEach((day) => {
-    const ideChat = day.copilot_ide_chat;
-    const dotcomChat = day.copilot_dotcom_chat;
-
-    const dayChats =
-      (ideChat?.editors?.reduce((sum: number, editor) => sum + (editor.models?.[0]?.total_chats || 0), 0) || 0) +
-      (dotcomChat?.models?.[0]?.total_chats || 0);
-
-    const dayCopyEvents =
-      ideChat?.editors?.reduce((sum: number, editor) => sum + (editor.models?.[0]?.total_chat_copy_events || 0), 0) ||
-      0;
-
-    const dayInsertionEvents =
-      ideChat?.editors?.reduce(
-        (sum: number, editor) => sum + (editor.models?.[0]?.total_chat_insertion_events || 0),
-        0
-      ) || 0;
-
-    totalChats += dayChats;
-    totalCopyEvents += dayCopyEvents;
-    totalInsertionEvents += dayInsertionEvents;
-    maxIdeUsers = Math.max(maxIdeUsers, ideChat?.total_engaged_users || 0);
-    maxDotcomUsers = Math.max(maxDotcomUsers, dotcomChat?.total_engaged_users || 0);
-  });
-
-  return {
-    totalChats,
-    totalCopyEvents,
-    totalInsertionEvents,
-    ideUsers: maxIdeUsers,
-    dotcomUsers: maxDotcomUsers,
-  };
-};
-
-export const getAggregatedFeatureAdoption = (usage: CopilotMetrics[]): FeatureAdoptionMetrics | null => {
-  if (!usage || usage.length === 0) return null;
-
-  let maxCodeCompletionUsers = 0;
-  let maxIdeChatUsers = 0;
-  let maxDotcomChatUsers = 0;
-  let maxPrSummaryUsers = 0;
-  let maxTotalActiveUsers = 0;
-
-  usage.forEach((day) => {
-    maxCodeCompletionUsers = Math.max(
-      maxCodeCompletionUsers,
-      day.copilot_ide_code_completions?.total_engaged_users || 0
-    );
-    maxIdeChatUsers = Math.max(maxIdeChatUsers, day.copilot_ide_chat?.total_engaged_users || 0);
-    maxDotcomChatUsers = Math.max(maxDotcomChatUsers, day.copilot_dotcom_chat?.total_engaged_users || 0);
-    maxPrSummaryUsers = Math.max(maxPrSummaryUsers, day.copilot_dotcom_pull_requests?.total_engaged_users || 0);
-    maxTotalActiveUsers = Math.max(maxTotalActiveUsers, day.total_active_users || 0);
-  });
-
-  return {
-    codeCompletionUsers: maxCodeCompletionUsers,
-    ideChatUsers: maxIdeChatUsers,
-    dotcomChatUsers: maxDotcomChatUsers,
-    prSummaryUsers: maxPrSummaryUsers,
-    totalActiveUsers: maxTotalActiveUsers,
-    adoptionRates: {
-      codeCompletion: maxTotalActiveUsers > 0 ? Math.round((maxCodeCompletionUsers / maxTotalActiveUsers) * 100) : 0,
-      ideChat: maxTotalActiveUsers > 0 ? Math.round((maxIdeChatUsers / maxTotalActiveUsers) * 100) : 0,
-      dotcomChat: maxTotalActiveUsers > 0 ? Math.round((maxDotcomChatUsers / maxTotalActiveUsers) * 100) : 0,
-      prSummary: maxTotalActiveUsers > 0 ? Math.round((maxPrSummaryUsers / maxTotalActiveUsers) * 100) : 0,
-    },
-  };
-};
-
-export const getAggregatedPRSummary = (usage: CopilotMetrics[]): PRSummaryMetrics | null => {
-  if (!usage || usage.length === 0) return null;
-
-  let maxEngagedUsers = 0;
-  let totalPRSummaries = 0;
-  const repoMap = new Map<string, { users: number; summaries: number }>();
-
-  usage.forEach((day) => {
-    const prData = day.copilot_dotcom_pull_requests;
-    if (!prData) return;
-
-    maxEngagedUsers = Math.max(maxEngagedUsers, prData.total_engaged_users || 0);
-
-    prData.repositories?.forEach((repo) => {
-      const summaries = repo.models?.[0]?.total_pr_summaries_created || 0;
-      totalPRSummaries += summaries;
-
-      const existing = repoMap.get(repo.name || "Unknown") || { users: 0, summaries: 0 };
-      existing.users = Math.max(existing.users, repo.total_engaged_users || 0);
-      existing.summaries += summaries;
-      repoMap.set(repo.name || "Unknown", existing);
-    });
-  });
-
-  const repositoryStats = Array.from(repoMap.entries())
-    .map(([name, data]) => ({
-      name,
-      users: data.users,
-      summaries: data.summaries,
-    }))
-    .sort((a, b) => b.summaries - a.summaries)
-    .slice(0, 10);
-
-  return {
-    totalEngagedUsers: maxEngagedUsers,
-    totalPRSummaries,
-    repositoryStats,
-  };
-};
-
-export const getTopLanguages = (usage: CopilotMetrics[], limit: number = 5): LanguageData[] => {
-  const latestUsage = getLatestUsage(usage);
-  if (!latestUsage) return [];
-
-  const languages = latestUsage.copilot_ide_code_completions?.languages || [];
-
-  return languages
-    .filter((lang) => (lang.total_engaged_users || 0) > 0)
-    .sort((a, b) => (b.total_engaged_users || 0) - (a.total_engaged_users || 0))
-    .slice(0, limit)
-    .map((lang) => ({
-      name: lang.name || "Unknown",
-      total_engaged_users: lang.total_engaged_users || 0,
-    }));
-};
-
-export const getEditorStats = (usage: CopilotMetrics[]): EditorData[] => {
-  const latestUsage = getLatestUsage(usage);
-  if (!latestUsage) return [];
-
-  const editors = latestUsage.copilot_ide_code_completions?.editors || [];
-
-  return editors
-    .map((editor) => {
-      const totalAcceptances =
-        editor.models?.[0]?.languages?.reduce((sum: number, lang) => sum + (lang.total_code_acceptances || 0), 0) || 0;
-      const totalSuggestions =
-        editor.models?.[0]?.languages?.reduce((sum: number, lang) => sum + (lang.total_code_suggestions || 0), 0) || 0;
-
-      return {
-        name: editor.name || "Unknown",
-        users: editor.total_engaged_users || 0,
-        acceptances: totalAcceptances,
-        suggestions: totalSuggestions,
-        acceptanceRate: calculateAcceptanceRate(totalAcceptances, totalSuggestions),
-      };
-    })
-    .sort((a, b) => (b.users || 0) - (a.users || 0));
-};
-
-export const getLanguageAcceptanceData = (usage: CopilotMetrics[], languageName: string) => {
-  const latestUsage = getLatestUsage(usage);
-  if (!latestUsage) return { acceptances: 0, suggestions: 0 };
-
-  const totalAcceptances =
-    latestUsage.copilot_ide_code_completions?.editors?.reduce(
-      (sum: number, editor) =>
-        sum + (editor.models?.[0]?.languages?.find((l) => l.name === languageName)?.total_code_acceptances || 0),
-      0
-    ) || 0;
-
-  const totalSuggestions =
-    latestUsage.copilot_ide_code_completions?.editors?.reduce(
-      (sum: number, editor) =>
-        sum + (editor.models?.[0]?.languages?.find((l) => l.name === languageName)?.total_code_suggestions || 0),
-      0
-    ) || 0;
-
-  return { acceptances: totalAcceptances, suggestions: totalSuggestions };
-};
-
-export const getModelUsageMetrics = (usage: CopilotMetrics[]): ModelData[] | null => {
-  const latestUsage = getLatestUsage(usage);
-  if (!latestUsage) return null;
-
-  const models = new Map<string, { users: number; isCustom: boolean; features: string[] }>();
-
-  latestUsage.copilot_ide_code_completions?.editors?.forEach((editor) => {
-    editor.models?.forEach((model) => {
-      const modelName = model.name || "Unknown";
-      const existing = models.get(modelName) || { users: 0, isCustom: false, features: [] };
-      existing.users += model.total_engaged_users || 0;
-      existing.isCustom = model.is_custom_model || false;
-      if (!existing.features.includes("Code Completion")) {
-        existing.features.push("Code Completion");
-      }
-      models.set(modelName, existing);
-    });
-  });
-
-  latestUsage.copilot_ide_chat?.editors?.forEach((editor) => {
-    editor.models?.forEach((model) => {
-      const modelName = model.name || "Unknown";
-      const existing = models.get(modelName) || { users: 0, isCustom: false, features: [] };
-      existing.users += model.total_engaged_users || 0;
-      existing.isCustom = model.is_custom_model || false;
-      if (!existing.features.includes("IDE Chat")) {
-        existing.features.push("IDE Chat");
-      }
-      models.set(modelName, existing);
-    });
-  });
-
-  latestUsage.copilot_dotcom_chat?.models?.forEach((model) => {
-    const modelName = model.name || "Unknown";
-    const existing = models.get(modelName) || { users: 0, isCustom: false, features: [] };
-    existing.users += model.total_engaged_users || 0;
-    existing.isCustom = model.is_custom_model || false;
-    if (!existing.features.includes("GitHub Chat")) {
-      existing.features.push("GitHub Chat");
+  const featureMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
+  for (const day of usage) {
+    for (const f of day.totals_by_feature || []) {
+      if (EXCLUDED_FEATURES.has(f.feature)) continue;
+      const existing = featureMap.get(f.feature) || { acceptances: 0, generations: 0, interactions: 0 };
+      existing.acceptances += f.code_acceptance_activity_count || 0;
+      existing.generations += f.code_generation_activity_count || 0;
+      existing.interactions += f.user_initiated_interaction_count || 0;
+      featureMap.set(f.feature, existing);
     }
-    models.set(modelName, existing);
-  });
+  }
 
-  return Array.from(models.entries())
+  const features = Array.from(featureMap.entries()).map(([name, data]) => ({
+    name,
+    label: FEATURE_LABELS[name] || name,
+    acceptances: data.acceptances,
+    generations: data.generations,
+    interactions: data.interactions,
+  }));
+
+  features.sort((a, b) => b.generations - a.generations);
+
+  const latest = usage[usage.length - 1];
+  return {
+    features,
+    totalActiveUsers: latest.daily_active_users || 0,
+  };
+};
+
+export const getPRMetrics = (usage: EnterpriseMetrics[]): PRMetrics | null => {
+  if (!usage || usage.length === 0) return null;
+
+  const result: PRMetrics = {
+    totalCreated: 0, totalMerged: 0, totalReviewed: 0,
+    totalReviewedByCopilot: 0, totalCreatedByCopilot: 0, totalMergedCreatedByCopilot: 0,
+    medianMinutesToMerge: 0, medianMinutesToMergeCopilotAuthored: 0,
+    totalSuggestions: 0, totalCopilotSuggestions: 0,
+    totalAppliedSuggestions: 0, totalCopilotAppliedSuggestions: 0,
+  };
+
+  let hasPR = false;
+  for (const day of usage) {
+    const pr = day.pull_requests;
+    if (!pr) continue;
+    hasPR = true;
+    result.totalCreated += pr.total_created || 0;
+    result.totalMerged += pr.total_merged || 0;
+    result.totalReviewed += pr.total_reviewed || 0;
+    result.totalReviewedByCopilot += pr.total_reviewed_by_copilot || 0;
+    result.totalCreatedByCopilot += pr.total_created_by_copilot || 0;
+    result.totalMergedCreatedByCopilot += pr.total_merged_created_by_copilot || 0;
+    result.totalSuggestions += pr.total_suggestions || 0;
+    result.totalCopilotSuggestions += pr.total_copilot_suggestions || 0;
+    result.totalAppliedSuggestions += pr.total_applied_suggestions || 0;
+    result.totalCopilotAppliedSuggestions += pr.total_copilot_applied_suggestions || 0;
+  }
+  if (!hasPR) return null;
+
+  const latest = usage[usage.length - 1];
+  result.medianMinutesToMerge = latest.pull_requests?.median_minutes_to_merge || 0;
+  result.medianMinutesToMergeCopilotAuthored = latest.pull_requests?.median_minutes_to_merge_copilot_authored || 0;
+
+  return result;
+};
+
+export const getCLIMetrics = (usage: EnterpriseMetrics[]): CLIMetrics | null => {
+  if (!usage || usage.length === 0) return null;
+
+  let promptCount = 0, requestCount = 0, sessionCount = 0;
+  let outputTokensSum = 0, promptTokensSum = 0;
+  let hasCLI = false;
+
+  for (const day of usage) {
+    const cli = day.totals_by_cli;
+    if (!cli) continue;
+    hasCLI = true;
+    promptCount += cli.prompt_count || 0;
+    requestCount += cli.request_count || 0;
+    sessionCount += cli.session_count || 0;
+    outputTokensSum += cli.token_usage?.output_tokens_sum || 0;
+    promptTokensSum += cli.token_usage?.prompt_tokens_sum || 0;
+  }
+  if (!hasCLI) return null;
+
+  const totalTokens = outputTokensSum + promptTokensSum;
+  const avgTokensPerRequest = requestCount > 0 ? Math.round(totalTokens / requestCount) : 0;
+
+  return { promptCount, requestCount, sessionCount, avgTokensPerRequest, outputTokensSum, promptTokensSum };
+};
+
+export const getTopLanguages = (usage: EnterpriseMetrics[], limit: number = 10): LanguageData[] => {
+  if (!usage || usage.length === 0) return [];
+
+  const langMap = new Map<string, { acceptances: number; generations: number }>();
+  for (const day of usage) {
+    for (const lf of day.totals_by_language_feature || []) {
+      if (lf.language === "others") continue;
+      const existing = langMap.get(lf.language) || { acceptances: 0, generations: 0 };
+      existing.acceptances += lf.code_acceptance_activity_count || 0;
+      existing.generations += lf.code_generation_activity_count || 0;
+      langMap.set(lf.language, existing);
+    }
+  }
+
+  return Array.from(langMap.entries())
     .map(([name, data]) => ({
       name,
-      users: data.users,
-      isCustom: data.isCustom,
-      features: data.features,
+      acceptances: data.acceptances,
+      generations: data.generations,
+      acceptanceRate: calculateAcceptanceRate(data.acceptances, data.generations),
     }))
-    .sort((a, b) => b.users - a.users);
+    .sort((a, b) => b.generations - a.generations)
+    .slice(0, limit);
+};
+
+export const getEditorStats = (usage: EnterpriseMetrics[]): EditorData[] => {
+  if (!usage || usage.length === 0) return [];
+
+  const ideMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
+  let cliRequests = 0, cliSessions = 0;
+
+  for (const day of usage) {
+    for (const ide of day.totals_by_ide || []) {
+      const existing = ideMap.get(ide.ide) || { acceptances: 0, generations: 0, interactions: 0 };
+      existing.acceptances += ide.code_acceptance_activity_count || 0;
+      existing.generations += ide.code_generation_activity_count || 0;
+      existing.interactions += ide.user_initiated_interaction_count || 0;
+      ideMap.set(ide.ide, existing);
+    }
+    const cli = day.totals_by_cli;
+    if (cli) {
+      cliRequests += cli.request_count || 0;
+      cliSessions += cli.session_count || 0;
+    }
+  }
+
+  const editors: EditorData[] = Array.from(ideMap.entries()).map(([name, data]) => ({
+    name,
+    acceptances: data.acceptances,
+    generations: data.generations,
+    acceptanceRate: calculateAcceptanceRate(data.acceptances, data.generations),
+    interactions: data.interactions,
+  }));
+
+  if (cliRequests > 0) {
+    editors.push({
+      name: "Copilot CLI",
+      acceptances: 0,
+      generations: cliRequests,
+      acceptanceRate: 0,
+      interactions: cliSessions,
+    });
+  }
+
+  return editors.sort((a, b) => b.generations - a.generations);
+};
+
+export const getModelUsageMetrics = (usage: EnterpriseMetrics[]): ModelData[] => {
+  if (!usage || usage.length === 0) return [];
+
+  const modelMap = new Map<string, { generations: number; features: Set<string> }>();
+
+  for (const day of usage) {
+    for (const mf of day.totals_by_model_feature || []) {
+      if (mf.model === "others") continue;
+      const existing = modelMap.get(mf.model) || { generations: 0, features: new Set<string>() };
+      existing.generations += mf.code_generation_activity_count || 0;
+      existing.features.add(FEATURE_LABELS[mf.feature] || mf.feature);
+      modelMap.set(mf.model, existing);
+    }
+  }
+
+  return Array.from(modelMap.entries())
+    .map(([name, data]) => ({
+      name,
+      generations: data.generations,
+      features: Array.from(data.features),
+    }))
+    .sort((a, b) => b.generations - a.generations);
+};
+
+// Chart data builders — produce lean serializable objects for client components
+
+export const buildTrendData = (usage: EnterpriseMetrics[]): DailyTrend[] => {
+  return usage.map((day) => {
+    const features = day.totals_by_feature || [];
+    const codeCompletion = features.find((f) => f.feature === "code_completion");
+    const chatFeatures = features.filter((f) =>
+      f.feature.startsWith("chat_panel") || f.feature === "chat_inline"
+    );
+    const agentFeatures = features.filter((f) =>
+      f.feature === "chat_panel_agent_mode" || f.feature === "agent_edit"
+    );
+
+    return {
+      day: day.day,
+      dailyActiveUsers: day.daily_active_users || 0,
+      codeCompletionUsers: codeCompletion?.code_generation_activity_count || 0,
+      chatUsers: chatFeatures.reduce((s, f) => s + (f.user_initiated_interaction_count || 0), 0),
+      agentUsers: agentFeatures.reduce((s, f) => s + (f.code_generation_activity_count || 0), 0),
+    };
+  });
+};
+
+export const buildAdoptionTrendData = (usage: EnterpriseMetrics[]): AdoptionTrendData => {
+  return {
+    days: usage.map((d) => d.day),
+    chatUsers: usage.map((d) => d.monthly_active_chat_users || 0),
+    agentUsers: usage.map((d) => d.monthly_active_agent_users || 0),
+    cliUsers: usage.map((d) => d.daily_active_cli_users || 0),
+  };
+};
+
+export const buildLanguageChartData = (usage: EnterpriseMetrics[], limit: number = 8): LanguageChartData => {
+  const topLangs = getTopLanguages(usage, limit);
+  const topNames = topLangs.map((l) => l.name);
+
+  const days = usage.map((d) => d.day);
+  const languages = topNames.map((name) => ({
+    name,
+    values: usage.map((day) => {
+      const entries = (day.totals_by_language_feature || []).filter((lf) => lf.language === name);
+      return entries.reduce((s, e) => s + (e.code_generation_activity_count || 0), 0);
+    }),
+  }));
+
+  return { days, languages };
+};
+
+export const buildEditorChartData = (usage: EnterpriseMetrics[]): EditorChartData => {
+  const allEditors = new Set<string>();
+  for (const day of usage) {
+    for (const ide of day.totals_by_ide || []) {
+      allEditors.add(ide.ide);
+    }
+  }
+
+  const hasCLI = usage.some((d) => d.totals_by_cli && d.totals_by_cli.request_count > 0);
+
+  const days = usage.map((d) => d.day);
+  const editors = Array.from(allEditors).map((name) => ({
+    name,
+    values: usage.map((day) => {
+      const ide = (day.totals_by_ide || []).find((i) => i.ide === name);
+      return ide?.code_generation_activity_count || 0;
+    }),
+  }));
+
+  if (hasCLI) {
+    editors.push({
+      name: "Copilot CLI",
+      values: usage.map((day) => day.totals_by_cli?.request_count || 0),
+    });
+  }
+
+  return { days, editors };
+};
+
+export const buildFeatureChartData = (usage: EnterpriseMetrics[]): FeatureChartData => {
+  const featureMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
+  for (const day of usage) {
+    for (const f of day.totals_by_feature || []) {
+      if (f.feature === "others" || EXCLUDED_FEATURES.has(f.feature)) continue;
+      const existing = featureMap.get(f.feature) || { acceptances: 0, generations: 0, interactions: 0 };
+      existing.acceptances += f.code_acceptance_activity_count || 0;
+      existing.generations += f.code_generation_activity_count || 0;
+      existing.interactions += f.user_initiated_interaction_count || 0;
+      featureMap.set(f.feature, existing);
+    }
+  }
+
+  const sorted = Array.from(featureMap.entries()).sort((a, b) => b[1].generations - a[1].generations);
+
+  return {
+    labels: sorted.map(([name]) => FEATURE_LABELS[name] || name),
+    acceptances: sorted.map(([, d]) => d.acceptances),
+    generations: sorted.map(([, d]) => d.generations),
+    interactions: sorted.map(([, d]) => d.interactions),
+  };
+};
+
+export const buildLinesOfCodeData = (usage: EnterpriseMetrics[]): LinesOfCodeChartData => {
+  return {
+    days: usage.map((d) => d.day),
+    suggested: usage.map((d) => d.loc_suggested_to_add_sum || 0),
+    accepted: usage.map((d) => d.loc_added_sum || 0),
+    deletionsSuggested: usage.map((d) => d.loc_suggested_to_delete_sum || 0),
+    deletionsAccepted: usage.map((d) => d.loc_deleted_sum || 0),
+  };
+};
+
+export const buildModelChartData = (usage: EnterpriseMetrics[], limit: number = 8): ModelChartData[] => {
+  if (!usage || usage.length === 0) return [];
+
+  const modelMap = new Map<string, number>();
+  for (const day of usage) {
+    for (const mf of day.totals_by_model_feature || []) {
+      if (mf.model === "others") continue;
+      modelMap.set(mf.model, (modelMap.get(mf.model) || 0) + (mf.code_generation_activity_count || 0));
+    }
+  }
+
+  return Array.from(modelMap.entries())
+    .map(([name, generations]) => ({ name, generations }))
+    .sort((a, b) => b.generations - a.generations)
+    .slice(0, limit);
 };

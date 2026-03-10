@@ -7,7 +7,8 @@ import { useTransition } from "react";
 const TIMEFRAME_OPTIONS = [
   { value: "7", label: "Siste 7 dager" },
   { value: "28", label: "Siste 28 dager" },
-  { value: "100", label: "Siste 100 dager" },
+  { value: "90", label: "Siste 90 dager" },
+  { value: "0", label: "All tid" },
 ];
 
 export default function TimeframeSelector() {

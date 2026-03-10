@@ -4,7 +4,6 @@ let faro: Faro | null = null;
 
 export async function initInstrumentation(): Promise<void> {
   if (typeof window === "undefined" || faro !== null || process.env.NODE_ENV !== "production") return;
-  console.log("Initializing Faro");
 
   await getFaro();
 }

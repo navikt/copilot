@@ -1,22 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache";
-import { getCopilotUsage, getCopilotBilling, getPremiumRequestUsage } from "./github";
+import { getCopilotBilling, getPremiumRequestUsage } from "./github";
 
-/**
- * Cached version of getCopilotUsage with 'github' cache profile
- * This data updates daily so we can cache it for several hours
- */
-export async function getCachedCopilotUsage(org: string) {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("usage-navikt");
-
-  return await getCopilotUsage(org);
-}
-
-/**
- * Cached version of getCopilotBilling
- * Billing data changes infrequently so we can cache it longer
- */
 export async function getCachedCopilotBilling(org: string) {
   "use cache";
   cacheLife({ stale: 3600 });

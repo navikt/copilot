@@ -5,6 +5,7 @@
 Monorepo containing NAV's GitHub Copilot ecosystem tools:
 
 - **my-copilot** - Self-service portal for managing Copilot subscriptions (Next.js 16)
+- **copilot-metrics** - Naisjob that populates BigQuery with daily Copilot usage metrics (Go)
 - **mcp-onboarding** - Reference MCP server with GitHub OAuth (Go)
 - **mcp-registry** - Public registry for NAV-approved MCP servers (Go)
 
@@ -126,6 +127,7 @@ Working directory: `apps/my-copilot`
 - Nav Design System (@navikt/ds-react)
 - Tailwind CSS v4.1
 - Octokit for GitHub API
+- BigQuery for usage analytics (via @google-cloud/bigquery)
 - Jest for testing
 
 ### File Structure
@@ -140,6 +142,8 @@ apps/my-copilot/src/
 └── lib/             # Utilities and business logic
     ├── auth.ts      # Azure AD JWT validation
     ├── github.ts    # GitHub API client (Octokit)
+    ├── bigquery.ts  # BigQuery client for usage metrics
+    ├── cached-bigquery.ts # Cached BigQuery queries
     └── data-utils.ts # Data aggregation
 ```
 
@@ -157,7 +161,7 @@ const user = await getUser(false); // returns null if not auth
 ```typescript
 // ✅ Explicit error handling
 export async function GET() {
-  const { usage, error } = await getCopilotUsage("navikt");
+  const { usage, error } = await getCachedBigQueryUsage();
   if (error) return NextResponse.json({ error }, { status: 500 });
   return NextResponse.json(usage);
 }

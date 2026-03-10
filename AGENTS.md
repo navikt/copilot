@@ -3,6 +3,7 @@
 Monorepo containing NAV's GitHub Copilot ecosystem tools:
 
 - **my-copilot** — Self-service portal for managing Copilot subscriptions (Next.js 16, TypeScript)
+- **copilot-metrics** — Naisjob that populates BigQuery with daily Copilot usage metrics (Go)
 - **mcp-onboarding** — Reference MCP server with GitHub OAuth (Go)
 - **mcp-registry** — Public registry for NAV-approved MCP servers (Go)
 

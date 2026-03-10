@@ -219,11 +219,11 @@ describe("fetchData", () => {
 
 ```typescript
 // Mock external module
-jest.mock("./github", () => ({
-  getCopilotUsage: jest.fn(),
+jest.mock("./cached-bigquery", () => ({
+  getCachedBigQueryUsage: jest.fn(),
 }));
 
-import { getCopilotUsage } from "./github";
+import { getCachedBigQueryUsage } from "./cached-bigquery";
 
 describe("API route", () => {
   beforeEach(() => {
@@ -231,15 +231,15 @@ describe("API route", () => {
   });
 
   it("should return usage data", async () => {
-    (getCopilotUsage as jest.Mock).mockResolvedValue({
-      usage: { seats: 100 },
+    (getCachedBigQueryUsage as jest.Mock).mockResolvedValue({
+      usage: [{ date: "2025-01-01", total_active_users: 100 }],
       error: null,
     });
 
     const response = await GET();
     const data = await response.json();
 
-    expect(data.usage.seats).toBe(100);
+    expect(data.usage).toHaveLength(1);
   });
 });
 ```

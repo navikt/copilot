@@ -85,13 +85,17 @@ NAV-approved MCP servers that extend Copilot with external tools — GitHub, Fig
 
 ## 🛠️ Applications
 
-This monorepo contains three applications:
+This monorepo contains four applications:
 
 ### My Copilot — Self-Service Portal
 
-Self-service portal for managing your GitHub Copilot subscription (activate/deactivate, view usage analytics, billing details).
+Self-service portal for managing your GitHub Copilot subscription (activate/deactivate, view usage analytics, billing details). Usage analytics are powered by BigQuery, populated by copilot-metrics.
 
 **URL:** [`https://min-copilot.ansatt.nav.no`](https://min-copilot.ansatt.nav.no)
+
+### Copilot Metrics — BigQuery Data Pipeline
+
+Naisjob that fetches Copilot usage metrics from the GitHub API daily and stores them in BigQuery. Replaces the deprecated 28-day rolling window API with persistent historical data.
 
 ### MCP Registry — Server Discovery
 
@@ -209,7 +213,7 @@ These customizations enforce Nav's core principles:
 │   ├── README.prompts.md
 │   ├── README.skills.md
 │   └── README.collections.md
-├── apps/                 # Nav applications (my-copilot, mcp-registry, mcp-onboarding)
+├── apps/                 # Nav applications (my-copilot, copilot-metrics, mcp-registry, mcp-onboarding)
 └── dashboards/           # Grafana dashboard definitions
 ```
 

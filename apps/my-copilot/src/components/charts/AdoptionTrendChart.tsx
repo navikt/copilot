@@ -1,6 +1,6 @@
 "use client";
 
-import type { DailyTrend } from "@/lib/types";
+import type { AdoptionTrendData } from "@/lib/types";
 import React from "react";
 import { Line } from "react-chartjs-2";
 import {
@@ -11,12 +11,12 @@ import {
   NO_DATA_MESSAGE,
 } from "@/lib/chart-utils";
 
-interface TrendChartProps {
-  data: DailyTrend[];
+interface AdoptionTrendChartProps {
+  data: AdoptionTrendData;
 }
 
-const TrendChart: React.FC<TrendChartProps> = ({ data }) => {
-  if (!data || data.length === 0) {
+const AdoptionTrendChart: React.FC<AdoptionTrendChartProps> = ({ data }) => {
+  if (!data || data.days.length === 0) {
     return (
       <div className={chartWrapperClass}>
         <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>
@@ -24,51 +24,50 @@ const TrendChart: React.FC<TrendChartProps> = ({ data }) => {
     );
   }
 
-  const labels = data.map((d) => d.day);
-
-  const trendData = {
-    labels,
+  const chartData = {
+    labels: data.days,
     datasets: [
       {
-        label: "Kodeforslag (genereringer)",
-        data: data.map((d) => d.codeCompletionUsers),
+        label: "Chat-brukere (rullende 30d)",
+        data: data.chatUsers,
         borderColor: chartColors[0],
         backgroundColor: getBackgroundColor(chartColors[0]),
         tension: 0.4,
       },
       {
-        label: "Chat (interaksjoner)",
-        data: data.map((d) => d.chatUsers),
+        label: "Agent-brukere (rullende 30d)",
+        data: data.agentUsers,
         borderColor: chartColors[2],
         backgroundColor: getBackgroundColor(chartColors[2]),
         tension: 0.4,
       },
       {
-        label: "Agent (genereringer)",
-        data: data.map((d) => d.agentUsers),
+        label: "CLI-brukere (daglig)",
+        data: data.cliUsers,
         borderColor: chartColors[3],
         backgroundColor: getBackgroundColor(chartColors[3]),
         tension: 0.4,
+        borderDash: [5, 5],
       },
     ],
   };
 
-  const trendOptions = {
+  const options = {
     ...commonLineOptions,
     plugins: {
       ...commonLineOptions.plugins,
       title: {
         display: true,
-        text: "Daglig aktivitet over tid",
+        text: "Adopsjonstrender – Chat, Agent og CLI",
       },
     },
   };
 
   return (
     <div className={chartWrapperClass}>
-      <Line data={trendData} options={trendOptions} />
+      <Line data={chartData} options={options} />
     </div>
   );
 };
 
-export default TrendChart;
+export default AdoptionTrendChart;

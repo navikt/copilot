@@ -17,6 +17,7 @@
     "generate": "node --experimental-strip-types scripts/generate-manifest.ts"
   },
   "dependencies": {
+    "@google-cloud/bigquery": "^8.1.1",
     "@grafana/faro-web-sdk": "^2.2.4",
     "@grafana/faro-web-tracing": "^2.2.4",
     "@headlessui/react": "^2.2.9",

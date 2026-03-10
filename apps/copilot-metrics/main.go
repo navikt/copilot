@@ -60,6 +60,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := bqClient.EnsureViewsExist(ctx); err != nil {
+		slog.Error("Failed to ensure views exist", "error", err)
+		os.Exit(1)
+	}
+
 	if *backfill {
 		startDate, err := time.Parse("2006-01-02", *backfillFrom)
 		if err != nil {

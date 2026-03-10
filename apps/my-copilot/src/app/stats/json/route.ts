@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
-import { getCopilotUsage } from "@/lib/github";
+import { getDailyMetrics } from "@/lib/bigquery";
 
 export async function GET() {
-  const { usage, error } = await getCopilotUsage("navikt");
+  try {
+    const usage = await getDailyMetrics();
 
-  if (error) {
-    return NextResponse.json({ error: `Failed to fetch usage data: ${error}` }, { status: 500 });
+    if (!usage || usage.length === 0) {
+      return NextResponse.json({ error: "No usage data available" }, { status: 404 });
+    }
+
+    return NextResponse.json(usage);
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Failed to fetch usage data: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    );
   }
-
-  if (!usage) {
-    return NextResponse.json({ error: "No usage data available" }, { status: 404 });
-  }
-
-  return NextResponse.json(usage, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
 }

@@ -91,14 +91,11 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   const handleClick = async () => {
     if (eligibility) {
       if (subscription && subscription.updated_at && !subscription.pending_cancellation_date) {
-        console.log("Deactivating subscription...");
         try {
           const response = await updateCopilotSubscription("deactivate");
           const data = await response.json();
           if (data.error) {
             console.error("Error deactivating subscription:", data.error);
-          } else {
-            console.log("Subscription deactivated successfully:", data);
           }
         } catch (error) {
           console.error("Error:", error);
@@ -106,14 +103,11 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
           fetchSubscription();
         }
       } else {
-        console.log("Activating subscription...");
         try {
           const response = await updateCopilotSubscription("activate");
           const data = await response.json();
           if (data.error) {
             console.error("Error activating subscription:", data.error);
-          } else {
-            console.log("Subscription activated successfully:", data);
           }
         } catch (error) {
           console.error("Error:", error);
