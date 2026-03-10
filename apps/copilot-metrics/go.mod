@@ -1,6 +1,6 @@
 module github.com/navikt/copilot/apps/copilot-metrics
 
-go 1.23
+go 1.26
 
 require (
 	cloud.google.com/go/bigquery v1.65.0

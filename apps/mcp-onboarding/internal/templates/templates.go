@@ -303,7 +303,7 @@ func writeSetupSteps(b *strings.Builder, info *RepoInfo) {
 	}
 
 	if info.HasGoMod {
-		goVersion := "1.23"
+		goVersion := "1.26"
 		b.WriteString("      - uses: actions/setup-go@v5\n")
 		b.WriteString("        with:\n")
 		fmt.Fprintf(b, "          go-version: '%s'\n\n", goVersion)

@@ -96,7 +96,7 @@ Based on [GitHub's analysis of 2,500+ repositories](https://github.blog/ai-and-m
 
 - **Commands early**: Put executable commands near the top, not buried at the bottom
 - **Code over prose**: Show real code examples, not descriptions of what code should do
-- **Specific stack**: Include versions (`Next.js 16`, `Go 1.23`, `Kotlin 2.0`)
+- **Specific stack**: Include versions (`Next.js 16`, `Go 1.26`, `Kotlin 2.0`)
 - **Actionable boundaries**: "Never commit secrets" not "I cannot access secrets"
 
 ---

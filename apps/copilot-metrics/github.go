@@ -15,9 +15,10 @@ import (
 )
 
 type GitHubClient struct {
-	httpClient *http.Client
-	enterprise string
-	org        string
+	httpClient     *http.Client // GitHub API client with auth
+	downloadClient *http.Client // Plain client for pre-signed URLs
+	enterprise     string
+	org            string
 }
 
 type MetricsReportResponse struct {
@@ -47,6 +48,9 @@ func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
 		httpClient: &http.Client{
 			Transport: transport,
 			Timeout:   30 * time.Second,
+		},
+		downloadClient: &http.Client{
+			Timeout: 60 * time.Second, // Longer timeout for file downloads
 		},
 		enterprise: cfg.EnterpriseSlug,
 		org:        cfg.OrganizationSlug,
@@ -170,7 +174,8 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	// Use downloadClient (no auth) for pre-signed URLs
+	resp, err := c.downloadClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download request failed: %w", err)
 	}
