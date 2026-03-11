@@ -135,6 +135,51 @@ Exposed via `GET /metrics` in Prometheus format.
 
 A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`](../../dashboards/copilot-ecosystem.json).
 
+## Install Instructions References
+
+The customization detail drawer (`src/components/detail-drawer.tsx`) provides per-editor install instructions for all customization types. The following official references were used to build these instructions:
+
+### VS Code
+
+- **MCP server management**: <https://code.visualstudio.com/docs/copilot/customization/mcp-servers>
+  - `--add-mcp` CLI option for adding servers to user profile
+  - `.vscode/mcp.json` workspace configuration
+  - MCP registry browsing via VS Code settings
+- **MCP deep link URI scheme**: `vscode:mcp/{registry-host}/v0.1/servers/{url-encoded-name}/versions/latest`
+  - Discovered via <https://github.com/microsoft/vscode/issues/276579>
+  - Server names with `/` must be URL-encoded (`%2F`)
+  - Also supports `vscode-insiders:mcp/...` for Insiders builds
+- **Customization install URI schemes** (agents, instructions, prompts):
+  - `vscode:chat-agent/install?url={raw-github-url}`
+  - `vscode:chat-instructions/install?url={raw-github-url}`
+  - `vscode:chat-prompt/install?url={raw-github-url}`
+  - Source: <https://code.visualstudio.com/docs/copilot/customization>
+
+### IntelliJ (JetBrains IDEs)
+
+- **MCP registry browsing**: Open Copilot Chat → click MCP registry icon → browse/install/uninstall
+  - Source: <https://github.blog/changelog/2025-10-29-mcp-registry-and-allowlist-controls-for-copilot-in-jetbrains-eclipse-and-xcode-now-in-public-preview/>
+  - Status: Public preview (nightly builds as of March 2026)
+- **MCP manual config path** (GitHub Copilot plugin): `~/.config/github-copilot/intellij/mcp.json`
+  - Same `"servers"` format as VS Code's `.vscode/mcp.json`
+  - Source: <https://docs.github.com/en/copilot/customizing-copilot/extending-the-capabilities-of-github-copilot-in-your-organization>
+- **No deep link support** for MCP registry install — browse-only via in-IDE UI
+- **No OAuth support** for MCP servers — only static headers and stdio transports
+  - Upstream issue: JetBrains LLM-25012
+
+### Copilot CLI
+
+- **`/mcp add` interactive form**: Name, Type (http/stdio), URL/Command, Environment Variables
+- **MCP config file**: `~/.copilot/mcp-config.json` under `"mcpServers"`
+- **Loopback redirect URI**: Uses ephemeral ports per RFC 8252 Section 7.3
+  - Our OAuth server (`mcp-onboarding`) ignores port on loopback URIs
+
+### Nav MCP Registry
+
+- **Registry URL**: `https://mcp-registry.nav.no` (configurable via `MCP_REGISTRY_URL` env var)
+- **Deep link construction**: `buildMcpInstallUrl()` in `src/lib/mcp-registry.ts`
+  - Format: `vscode:mcp/mcp-registry.nav.no/v0.1/servers/{encoded-name}/versions/latest`
+
 ## Learn More
 
 To learn more about the technologies used in this project, take a look at the following resources:

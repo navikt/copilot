@@ -67,6 +67,17 @@ function formatServerName(name: string): string {
   return parts.length > 1 ? parts[1] : name;
 }
 
+function getMcpRegistryHost(): string {
+  const url = MCP_REGISTRY_URL.replace(/^https?:\/\//, "");
+  return url.replace(/\/$/, "");
+}
+
+function buildMcpInstallUrl(serverName: string, scheme: "vscode" | "vscode-insiders"): string {
+  const host = getMcpRegistryHost();
+  const encoded = encodeURIComponent(serverName);
+  return `${scheme}:mcp/${host}/v0.1/servers/${encoded}/versions/latest`;
+}
+
 export async function getMcpServers(): Promise<McpServerCustomization[]> {
   "use cache";
   cacheLife({ stale: 3600 });
@@ -93,8 +104,8 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
           domain: deriveDomain(tags),
           filePath: "",
           rawGitHubUrl: "",
-          installUrl: null,
-          insidersInstallUrl: null,
+          installUrl: buildMcpInstallUrl(s.server.name, "vscode"),
+          insidersInstallUrl: buildMcpInstallUrl(s.server.name, "vscode-insiders"),
           version: s.server.version,
           remotes: s.server.remotes ?? [],
           websiteUrl: s.server.websiteUrl,

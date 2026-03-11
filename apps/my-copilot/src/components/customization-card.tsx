@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Box, BodyShort, Heading, Tag, HStack, VStack, CopyButton } from "@navikt/ds-react";
-import { DownloadIcon, ChevronDownIcon, ChevronUpIcon, WrenchIcon } from "@navikt/aksel-icons";
+import { Box, BodyShort, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
+import { DownloadIcon, ChevronRightIcon, WrenchIcon } from "@navikt/aksel-icons";
+import { SiGnometerminal, SiIntellijidea, SiGithub } from "@icons-pack/react-simple-icons";
 import type { AnyCustomization, CustomizationType } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 
@@ -24,36 +24,52 @@ function transportLabel(type: string): string {
   }
 }
 
-const INSTALL_DIRS: Record<Exclude<CustomizationType, "mcp">, string> = {
-  agent: ".github/agents",
-  instruction: ".github/instructions",
-  prompt: ".github/prompts",
-  skill: ".github/skills",
+const CLIENT_SUPPORT: Record<CustomizationType, string[]> = {
+  instruction: ["vscode", "intellij", "cli", "github"],
+  agent: ["vscode", "intellij", "github"],
+  prompt: ["vscode", "intellij"],
+  skill: ["vscode"],
+  mcp: ["vscode", "intellij", "cli"],
 };
 
-const EDITOR_SUPPORT: Record<CustomizationType, string> = {
-  instruction: "VS Code · JetBrains · CLI · GitHub.com",
-  agent: "VS Code · JetBrains (coding agent) · GitHub.com",
-  prompt: "VS Code · JetBrains",
-  skill: "VS Code",
-  mcp: "VS Code · JetBrains · CLI",
+const CLIENT_LABELS: Record<string, string> = {
+  vscode: "VS Code",
+  intellij: "IntelliJ",
+  cli: "Copilot CLI",
+  github: "GitHub.com",
 };
 
-function getManualInstallCommand(item: AnyCustomization): string {
-  if (item.type === "mcp") return "";
-  const dir = INSTALL_DIRS[item.type];
-  return `mkdir -p ${dir} && curl -sO --output-dir ${dir} ${item.rawGitHubUrl}`;
+function VSCodeIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M23.15 2.587 18.21.21a1.516 1.516 0 0 0-1.732.352L7.041 9.36 2.93 6.258a1.01 1.01 0 0 0-1.291.034l-1.36 1.238a1.012 1.012 0 0 0-.001 1.499L4.613 12 .278 14.97a1.01 1.01 0 0 0 .001 1.499l1.36 1.238a1.01 1.01 0 0 0 1.291.035l4.112-3.102 9.437 8.799c.49.488 1.12.657 1.732.352l4.94-2.377c.536-.258.88-.81.88-1.425V4.012a1.525 1.525 0 0 0-.88-1.425zM17.5 17.584 10.061 12 17.5 6.416z" />
+    </svg>
+  );
 }
 
-function getMcpCliCommand(item: AnyCustomization): string {
-  if (item.type !== "mcp" || item.remotes.length === 0) return "";
-  return `gh copilot mcp add --type http ${item.name} ${item.remotes[0].url}`;
+function ClientIcon({ client, size = 16 }: { client: string; size?: number }) {
+  switch (client) {
+    case "vscode":
+      return <VSCodeIcon size={size} />;
+    case "intellij":
+      return <SiIntellijidea size={size} aria-hidden />;
+    case "cli":
+      return <SiGnometerminal size={size} aria-hidden />;
+    case "github":
+      return <SiGithub size={size} aria-hidden />;
+    default:
+      return null;
+  }
+}
+
+function getToolCount(item: AnyCustomization): number {
+  if (item.type === "agent") return item.tools.length;
+  if (item.type === "mcp") return item.tools?.length ?? 0;
+  return 0;
 }
 
 export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
   const domainConfig = DOMAIN_CONFIGS[item.domain];
-  const [showEditors, setShowEditors] = useState(false);
-  const [showTools, setShowTools] = useState(false);
 
   return (
     <Box
@@ -66,10 +82,10 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
         borderLeftColor: `var(--ax-${domainConfig.color}-400, currentColor)`,
         cursor: onClick ? "pointer" : undefined,
       }}
-      className="border-l-4"
+      className="border-l-4 transition-shadow hover:shadow-md h-full"
       onClick={onClick}
     >
-      <VStack gap="space-8">
+      <VStack gap="space-8" className="h-full">
         <div className="flex items-start justify-between gap-2">
           <Heading size="xsmall" level="3">
             {item.type === "agent" ? `@${item.name}` : item.name}
@@ -106,100 +122,40 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
           {item.description}
         </BodyShort>
 
-        <HStack gap="space-8" align="center">
-          {item.installUrl && (
-            <a
-              href={item.installUrl}
-              className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
-            >
-              <DownloadIcon fontSize="1rem" aria-hidden />
-              Installer
-            </a>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setShowEditors(!showEditors)}
-            className="inline-flex items-center gap-1 text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0"
-            style={{ fontSize: "0.875rem", lineHeight: "1.25rem" }}
-          >
-            {showEditors ? (
-              <ChevronUpIcon fontSize="0.875rem" aria-hidden />
-            ) : (
-              <ChevronDownIcon fontSize="0.875rem" aria-hidden />
+        <div className="flex items-center justify-between gap-2 mt-auto">
+          <HStack gap="space-8" align="center">
+            {item.installUrl && (
+              <a
+                href={item.installUrl}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DownloadIcon fontSize="1rem" aria-hidden />
+                Installer
+              </a>
             )}
-            {item.type === "mcp" ? "Installering" : "Andre editorer"}
-          </button>
+            {onClick && (
+              <span className="inline-flex items-center gap-0.5 text-sm text-gray-500">
+                Mer info
+                <ChevronRightIcon fontSize="1rem" aria-hidden />
+              </span>
+            )}
+          </HStack>
 
-          {item.type === "agent" && item.tools.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowTools(!showTools)}
-              className="inline-flex items-center gap-1 text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0"
-              style={{ fontSize: "0.875rem", lineHeight: "1.25rem" }}
-            >
-              {showTools ? (
-                <ChevronUpIcon fontSize="0.875rem" aria-hidden />
-              ) : (
+          <HStack gap="space-8" align="center">
+            {getToolCount(item) > 0 && (
+              <span className="inline-flex items-center gap-1 text-gray-400" title={`${getToolCount(item)} verktøy`}>
                 <WrenchIcon fontSize="0.875rem" aria-hidden />
-              )}
-              {item.tools.length} verktøy
-            </button>
-          )}
-        </HStack>
-
-        {showTools && item.type === "agent" && item.tools.length > 0 && (
-          <HStack gap="space-4" wrap>
-            {item.tools.map((tool) => (
-              <Tag key={tool} size="xsmall" variant="neutral">
-                {tool}
-              </Tag>
+                <span className="text-xs">{getToolCount(item)}</span>
+              </span>
+            )}
+            {CLIENT_SUPPORT[item.type].map((client) => (
+              <span key={client} title={CLIENT_LABELS[client]} className="text-gray-400">
+                <ClientIcon client={client} size={14} />
+              </span>
             ))}
           </HStack>
-        )}
-
-        {showEditors && (
-          <VStack gap="space-8">
-            <BodyShort size="small" className="text-gray-500">
-              {EDITOR_SUPPORT[item.type]}
-            </BodyShort>
-
-            {item.type !== "mcp" && (
-              <div className="relative">
-                <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                  {getManualInstallCommand(item)}
-                </pre>
-                <div className="absolute top-1 right-1">
-                  <CopyButton size="xsmall" copyText={getManualInstallCommand(item)} />
-                </div>
-              </div>
-            )}
-
-            {item.type === "mcp" && (
-              <VStack gap="space-8">
-                <BodyShort size="small">
-                  Tilgjengelig fra MCP-registeret i VS Code og JetBrains — søk etter serveren under MCP-innstillinger.
-                </BodyShort>
-
-                {item.remotes.length > 0 && (
-                  <>
-                    <BodyShort size="small" weight="semibold">
-                      Copilot CLI
-                    </BodyShort>
-                    <div className="relative">
-                      <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                        {getMcpCliCommand(item)}
-                      </pre>
-                      <div className="absolute top-1 right-1">
-                        <CopyButton size="xsmall" copyText={getMcpCliCommand(item)} />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </VStack>
-            )}
-          </VStack>
-        )}
+        </div>
       </VStack>
     </Box>
   );

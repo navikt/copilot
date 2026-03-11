@@ -1,8 +1,8 @@
 "use client";
 
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
-import { XMarkIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
-import { Box, BodyShort, Heading, Tag, HStack, VStack, CopyButton } from "@navikt/ds-react";
+import { XMarkIcon, ExternalLinkIcon, DownloadIcon } from "@navikt/aksel-icons";
+import { Alert, Box, BodyShort, Heading, Tag, HStack, VStack, CopyButton, Accordion } from "@navikt/ds-react";
 import type { AnyCustomization, CustomizationType } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 
@@ -39,8 +39,71 @@ function getManualInstallCommand(item: AnyCustomization): string {
 }
 
 function getMcpCliCommand(item: AnyCustomization): string {
-  if (item.type !== "mcp" || item.remotes.length === 0) return "";
-  return `gh copilot mcp add --type http ${item.name} ${item.remotes[0].url}`;
+  if (item.type !== "mcp") return "";
+  const serverName = item.name.split("/").pop() ?? item.name;
+
+  if (item.packages && item.packages.length > 0) {
+    const pkg = item.packages[0];
+    const runtime = pkg.registryType === "npm" ? "npx" : pkg.registryType === "pypi" ? "uvx" : null;
+    if (!runtime) return "";
+    const args: string[] = pkg.registryType === "npm" ? ["-y", pkg.identifier] : [pkg.identifier];
+    if (pkg.packageArguments) {
+      for (const arg of pkg.packageArguments) {
+        if (arg.name) args.push(arg.name);
+        if (arg.value) args.push(arg.value);
+      }
+    }
+    const entry: Record<string, unknown> = { command: runtime, args };
+    if (pkg.environmentVariables) {
+      const env: Record<string, string> = {};
+      for (const v of pkg.environmentVariables) {
+        env[v.name] = v.isSecret ? "" : (v.description ?? "");
+      }
+      if (Object.keys(env).length > 0) entry.env = env;
+    }
+    return JSON.stringify({ [serverName]: entry }, null, 2);
+  }
+
+  if (item.remotes.length > 0) {
+    const config = { [serverName]: { type: "http", url: item.remotes[0].url } };
+    return JSON.stringify(config, null, 2);
+  }
+
+  return "";
+}
+
+function getMcpSettingsJsonCommand(item: AnyCustomization): string {
+  if (item.type !== "mcp") return "";
+  const serverName = item.name.split("/").pop() ?? item.name;
+
+  if (item.packages && item.packages.length > 0) {
+    const pkg = item.packages[0];
+    const runtime = pkg.registryType === "npm" ? "npx" : pkg.registryType === "pypi" ? "uvx" : null;
+    if (!runtime) return "";
+    const args: string[] = pkg.registryType === "npm" ? ["-y", pkg.identifier] : [pkg.identifier];
+    if (pkg.packageArguments) {
+      for (const arg of pkg.packageArguments) {
+        if (arg.name) args.push(arg.name);
+        if (arg.value) args.push(arg.value);
+      }
+    }
+    const entry: Record<string, unknown> = { command: runtime, args };
+    if (pkg.environmentVariables) {
+      const env: Record<string, string> = {};
+      for (const v of pkg.environmentVariables) {
+        env[v.name] = v.isSecret ? "" : (v.description ?? "");
+      }
+      if (Object.keys(env).length > 0) entry.env = env;
+    }
+    return JSON.stringify({ [serverName]: entry }, null, 2);
+  }
+
+  if (item.remotes.length > 0) {
+    const config = { [serverName]: { type: "http", url: item.remotes[0].url } };
+    return JSON.stringify(config, null, 2);
+  }
+
+  return "";
 }
 
 function getVsCodeAddMcpCommand(item: AnyCustomization): string {
@@ -82,13 +145,35 @@ function getVsCodeAddMcpCommand(item: AnyCustomization): string {
   return "";
 }
 
-const EDITOR_SUPPORT: Record<CustomizationType, string> = {
-  instruction: "VS Code · JetBrains · CLI · GitHub.com",
-  agent: "VS Code · JetBrains (coding agent) · GitHub.com",
-  prompt: "VS Code · JetBrains",
-  skill: "VS Code",
-  mcp: "VS Code · JetBrains · CLI",
-};
+function getMcpAddFields(
+  item: AnyCustomization
+): { name: string; type: string; url?: string; command?: string; env?: string } | null {
+  if (item.type !== "mcp") return null;
+  const name = item.name.split("/").pop() ?? item.name;
+
+  if (item.remotes.length > 0) {
+    return { name, type: "HTTP", url: item.remotes[0].url };
+  }
+
+  if (item.packages && item.packages.length > 0) {
+    const pkg = item.packages[0];
+    const runtime = pkg.registryType === "npm" ? "npx" : pkg.registryType === "pypi" ? "uvx" : null;
+    if (!runtime) return null;
+    const args: string[] = pkg.registryType === "npm" ? ["-y", pkg.identifier] : [pkg.identifier];
+    if (pkg.packageArguments) {
+      for (const arg of pkg.packageArguments) {
+        if (arg.name) args.push(arg.name);
+        if (arg.value) args.push(arg.value);
+      }
+    }
+    const envVars = pkg.environmentVariables
+      ?.map((v) => `${v.name}=${v.isSecret ? "..." : (v.description ?? "")}`)
+      .join(", ");
+    return { name, type: "STDIO", command: `${runtime} ${args.join(" ")}`, env: envVars };
+  }
+
+  return null;
+}
 
 function McpDetails({ item }: { item: AnyCustomization }) {
   if (item.type !== "mcp") return null;
@@ -219,42 +304,139 @@ function McpDetails({ item }: { item: AnyCustomization }) {
         <Heading size="xsmall" level="4">
           Installering
         </Heading>
-        <BodyShort size="small" className="text-gray-500">
-          {EDITOR_SUPPORT.mcp}
-        </BodyShort>
-        <BodyShort size="small">
-          Tilgjengelig fra MCP-registeret i VS Code og JetBrains — søk etter serveren under MCP-innstillinger.
-        </BodyShort>
-        {getVsCodeAddMcpCommand(item) && (
-          <VStack gap="space-4">
-            <BodyShort size="small" weight="semibold">
-              VS Code CLI
-            </BodyShort>
-            <div className="relative">
-              <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                {getVsCodeAddMcpCommand(item)}
-              </pre>
-              <div className="absolute top-1 right-1">
-                <CopyButton size="xsmall" copyText={getVsCodeAddMcpCommand(item)} />
-              </div>
-            </div>
-          </VStack>
-        )}
-        {getMcpCliCommand(item) && (
-          <VStack gap="space-4">
-            <BodyShort size="small" weight="semibold">
-              Copilot CLI
-            </BodyShort>
-            <div className="relative">
-              <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                {getMcpCliCommand(item)}
-              </pre>
-              <div className="absolute top-1 right-1">
-                <CopyButton size="xsmall" copyText={getMcpCliCommand(item)} />
-              </div>
-            </div>
-          </VStack>
-        )}
+        <Accordion size="small" headingSize="xsmall">
+          <Accordion.Item>
+            <Accordion.Header>VS Code</Accordion.Header>
+            <Accordion.Content>
+              <VStack gap="space-8">
+                {item.installUrl && (
+                  <a
+                    href={item.installUrl}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
+                  >
+                    <DownloadIcon fontSize="1rem" aria-hidden />
+                    Installer fra MCP-registeret
+                  </a>
+                )}
+                <BodyShort size="small" className="text-gray-500">
+                  Alternativt kan du bruke kommandoen:
+                </BodyShort>
+                {getVsCodeAddMcpCommand(item) && (
+                  <div className="relative">
+                    <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                      {getVsCodeAddMcpCommand(item)}
+                    </pre>
+                    <div className="absolute top-1 right-1">
+                      <CopyButton size="xsmall" copyText={getVsCodeAddMcpCommand(item)} />
+                    </div>
+                  </div>
+                )}
+                <BodyShort size="small" className="text-gray-500">
+                  Eller legg til i .vscode/mcp.json under &quot;servers&quot;:
+                </BodyShort>
+                <div className="relative">
+                  <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                    {getMcpSettingsJsonCommand(item)}
+                  </pre>
+                  <div className="absolute top-1 right-1">
+                    <CopyButton size="xsmall" copyText={getMcpSettingsJsonCommand(item)} />
+                  </div>
+                </div>
+              </VStack>
+            </Accordion.Content>
+          </Accordion.Item>
+          {getMcpCliCommand(item) && (
+            <Accordion.Item>
+              <Accordion.Header>Copilot CLI</Accordion.Header>
+              <Accordion.Content>
+                <VStack gap="space-8">
+                  {(() => {
+                    const fields = getMcpAddFields(item);
+                    if (!fields) return null;
+                    return (
+                      <VStack gap="space-4">
+                        <BodyShort size="small">
+                          Kjør <code className="text-xs bg-gray-100 rounded px-1">/mcp add</code> og fyll inn:
+                        </BodyShort>
+                        <Box background="neutral-soft" borderRadius="8" padding="space-8">
+                          <VStack gap="space-4">
+                            <BodyShort size="small">
+                              <strong>Server Name:</strong>{" "}
+                              <code className="text-xs bg-gray-100 rounded px-1">{fields.name}</code>
+                            </BodyShort>
+                            <BodyShort size="small">
+                              <strong>Server Type:</strong>{" "}
+                              <code className="text-xs bg-gray-100 rounded px-1">{fields.type}</code>
+                            </BodyShort>
+                            {fields.url && (
+                              <BodyShort size="small">
+                                <strong>URL:</strong>{" "}
+                                <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.url}</code>
+                              </BodyShort>
+                            )}
+                            {fields.command && (
+                              <BodyShort size="small">
+                                <strong>Command:</strong>{" "}
+                                <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.command}</code>
+                              </BodyShort>
+                            )}
+                            {fields.env && (
+                              <BodyShort size="small">
+                                <strong>Environment Variables:</strong>{" "}
+                                <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.env}</code>
+                              </BodyShort>
+                            )}
+                          </VStack>
+                        </Box>
+                      </VStack>
+                    );
+                  })()}
+                  <BodyShort size="small" className="text-gray-500">
+                    Eller legg til i ~/.copilot/mcp-config.json under &quot;mcpServers&quot;:
+                  </BodyShort>
+                  <div className="relative">
+                    <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                      {getMcpCliCommand(item)}
+                    </pre>
+                    <div className="absolute top-1 right-1">
+                      <CopyButton size="xsmall" copyText={getMcpCliCommand(item)} />
+                    </div>
+                  </div>
+                </VStack>
+              </Accordion.Content>
+            </Accordion.Item>
+          )}
+          <Accordion.Item>
+            <Accordion.Header>IntelliJ</Accordion.Header>
+            <Accordion.Content>
+              <VStack gap="space-8">
+                <BodyShort size="small">
+                  Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
+                  installere serveren direkte fra registeret.
+                </BodyShort>
+                <BodyShort size="small" className="text-gray-500">
+                  Alternativt kan du legge til manuelt i{" "}
+                  <code className="text-xs bg-gray-100 rounded px-1">~/.config/github-copilot/intellij/mcp.json</code>{" "}
+                  under <code className="text-xs bg-gray-100 rounded px-1">&quot;servers&quot;</code>:
+                </BodyShort>
+                <div className="relative">
+                  <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                    {getMcpSettingsJsonCommand(item)}
+                  </pre>
+                  <div className="absolute top-1 right-1">
+                    <CopyButton size="xsmall" copyText={getMcpSettingsJsonCommand(item)} />
+                  </div>
+                </div>
+                {item.remotes.length > 0 && (
+                  <Alert variant="warning" size="small">
+                    IntelliJ støtter foreløpig ikke OAuth-autentisering for MCP-servere. Noen servere som krever
+                    innlogging vil derfor ikke fungere. Copilot-teamet i Nav følger med på dette.
+                  </Alert>
+                )}
+              </VStack>
+            </Accordion.Content>
+          </Accordion.Item>
+        </Accordion>
       </VStack>
     </VStack>
   );
@@ -302,32 +484,95 @@ function StaticCustomizationDetails({ item }: { item: AnyCustomization }) {
         <Heading size="xsmall" level="4">
           Installering
         </Heading>
-        <BodyShort size="small" className="text-gray-500">
-          {EDITOR_SUPPORT[item.type]}
-        </BodyShort>
-
-        {item.installUrl && (
-          <a
-            href={item.installUrl}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
-          >
-            Installer med ett klikk
-          </a>
-        )}
-
-        <VStack gap="space-4">
-          <BodyShort size="small" weight="semibold">
-            Manuell installering
-          </BodyShort>
-          <div className="relative">
-            <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-              {getManualInstallCommand(item)}
-            </pre>
-            <div className="absolute top-1 right-1">
-              <CopyButton size="xsmall" copyText={getManualInstallCommand(item)} />
-            </div>
-          </div>
-        </VStack>
+        <Accordion size="small" headingSize="xsmall">
+          <Accordion.Item>
+            <Accordion.Header>VS Code</Accordion.Header>
+            <Accordion.Content>
+              <VStack gap="space-8">
+                {item.installUrl && (
+                  <a
+                    href={item.installUrl}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
+                  >
+                    <DownloadIcon fontSize="1rem" aria-hidden />
+                    Installer med ett klikk
+                  </a>
+                )}
+                <BodyShort size="small">Eller kopier filen manuelt:</BodyShort>
+                <div className="relative">
+                  <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                    {getManualInstallCommand(item)}
+                  </pre>
+                  <div className="absolute top-1 right-1">
+                    <CopyButton size="xsmall" copyText={getManualInstallCommand(item)} />
+                  </div>
+                </div>
+                <BodyShort size="small" className="text-gray-500">
+                  {item.type === "agent" && "Aktiver med @-mention i Copilot Chat."}
+                  {item.type === "instruction" && `Lastes automatisk for filer som matcher ${item.applyTo}.`}
+                  {item.type === "prompt" && `Kjør med ${item.invocation} i Copilot Chat.`}
+                  {item.type === "skill" && "Plukkes opp automatisk av Copilot Chat og agenter."}
+                </BodyShort>
+              </VStack>
+            </Accordion.Content>
+          </Accordion.Item>
+          <Accordion.Item>
+            <Accordion.Header>IntelliJ</Accordion.Header>
+            <Accordion.Content>
+              <VStack gap="space-8">
+                <BodyShort size="small">Kopier filen til prosjektet — samme plassering som for VS Code:</BodyShort>
+                <div className="relative">
+                  <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                    {getManualInstallCommand(item)}
+                  </pre>
+                  <div className="absolute top-1 right-1">
+                    <CopyButton size="xsmall" copyText={getManualInstallCommand(item)} />
+                  </div>
+                </div>
+                <BodyShort size="small" className="text-gray-500">
+                  {item.type === "skill"
+                    ? "Skills støttes foreløpig ikke i IntelliJ."
+                    : item.type === "agent"
+                      ? "Støttes i Coding Agent-modus. Aktiver via Copilot Chat."
+                      : item.type === "instruction"
+                        ? `Lastes automatisk for filer som matcher ${item.applyTo}.`
+                        : `Kjør med ${item.invocation} i Copilot Chat.`}
+                </BodyShort>
+              </VStack>
+            </Accordion.Content>
+          </Accordion.Item>
+          <Accordion.Item>
+            <Accordion.Header>Copilot CLI</Accordion.Header>
+            <Accordion.Content>
+              <VStack gap="space-8">
+                {item.type === "instruction" || item.type === "agent" ? (
+                  <>
+                    <BodyShort size="small">Kopier filen til prosjektet:</BodyShort>
+                    <div className="relative">
+                      <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                        {getManualInstallCommand(item)}
+                      </pre>
+                      <div className="absolute top-1 right-1">
+                        <CopyButton size="xsmall" copyText={getManualInstallCommand(item)} />
+                      </div>
+                    </div>
+                    <BodyShort size="small" className="text-gray-500">
+                      {item.type === "instruction"
+                        ? "Lastes automatisk når du kjører copilot fra prosjektmappen."
+                        : "Agenter kan brukes av Copilot Coding Agent."}
+                    </BodyShort>
+                  </>
+                ) : (
+                  <BodyShort size="small" className="text-gray-500">
+                    {item.type === "prompt"
+                      ? "Prompts støttes foreløpig ikke i Copilot CLI."
+                      : "Skills støttes foreløpig ikke i Copilot CLI."}
+                  </BodyShort>
+                )}
+              </VStack>
+            </Accordion.Content>
+          </Accordion.Item>
+        </Accordion>
       </VStack>
     </VStack>
   );
