@@ -546,8 +546,37 @@ func isRegisteredRedirectURI(registered []string, uri string) bool {
 		if r == uri {
 			return true
 		}
+		if matchesLoopbackIgnoringPort(r, uri) {
+			return true
+		}
 	}
 	return false
+}
+
+// matchesLoopbackIgnoringPort implements RFC 8252 Section 7.3:
+// for loopback IP redirect URIs, the port must be excluded from the comparison.
+func matchesLoopbackIgnoringPort(registered, requested string) bool {
+	reg, err := url.Parse(registered)
+	if err != nil {
+		return false
+	}
+	req, err := url.Parse(requested)
+	if err != nil {
+		return false
+	}
+	if reg.Scheme != "http" || req.Scheme != "http" {
+		return false
+	}
+	regHost := reg.Hostname()
+	reqHost := req.Hostname()
+	if !isLoopback(regHost) || !isLoopback(reqHost) {
+		return false
+	}
+	return regHost == reqHost && reg.Path == req.Path
+}
+
+func isLoopback(host string) bool {
+	return host == "127.0.0.1" || host == "localhost"
 }
 
 func generateSecureToken(length int) string {

@@ -268,6 +268,24 @@ func TestHandleAuthorize_RedirectURIMismatch(t *testing.T) {
 	}
 }
 
+func TestHandleAuthorize_LoopbackDifferentPort(t *testing.T) {
+	server := newTestOAuthServer()
+
+	server.Store.SaveClientRegistration(&ClientRegistration{
+		ClientID:     "cli-client",
+		RedirectURIs: []string{"http://127.0.0.1:33418/"},
+	})
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id=cli-client&redirect_uri=http://127.0.0.1:50049/&state=abc", nil)
+	w := httptest.NewRecorder()
+
+	server.handleAuthorize(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Fatalf("expected 302 redirect (loopback port should be ignored per RFC 8252), got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestIsValidRedirectURI(t *testing.T) {
 	tests := []struct {
 		uri  string
@@ -289,6 +307,67 @@ func TestIsValidRedirectURI(t *testing.T) {
 			got := isValidRedirectURI(tt.uri)
 			if got != tt.want {
 				t.Errorf("isValidRedirectURI(%q) = %v, want %v", tt.uri, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsRegisteredRedirectURI_LoopbackPortIgnored(t *testing.T) {
+	tests := []struct {
+		name       string
+		registered []string
+		uri        string
+		want       bool
+	}{
+		{
+			name:       "exact match",
+			registered: []string{"http://127.0.0.1:33418/"},
+			uri:        "http://127.0.0.1:33418/",
+			want:       true,
+		},
+		{
+			name:       "different loopback port",
+			registered: []string{"http://127.0.0.1:33418/"},
+			uri:        "http://127.0.0.1:50049/",
+			want:       true,
+		},
+		{
+			name:       "different loopback port no trailing slash",
+			registered: []string{"http://127.0.0.1:33418"},
+			uri:        "http://127.0.0.1:50049",
+			want:       true,
+		},
+		{
+			name:       "localhost different port",
+			registered: []string{"http://localhost:33418/"},
+			uri:        "http://localhost:50049/",
+			want:       true,
+		},
+		{
+			name:       "different path rejected",
+			registered: []string{"http://127.0.0.1:33418/"},
+			uri:        "http://127.0.0.1:50049/evil",
+			want:       false,
+		},
+		{
+			name:       "https not affected by port rule",
+			registered: []string{"https://example.com:443/callback"},
+			uri:        "https://example.com:8443/callback",
+			want:       false,
+		},
+		{
+			name:       "non-loopback http rejected",
+			registered: []string{"http://127.0.0.1:33418/"},
+			uri:        "http://evil.com:33418/",
+			want:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isRegisteredRedirectURI(tt.registered, tt.uri)
+			if got != tt.want {
+				t.Errorf("isRegisteredRedirectURI(%v, %q) = %v, want %v", tt.registered, tt.uri, got, tt.want)
 			}
 		})
 	}
