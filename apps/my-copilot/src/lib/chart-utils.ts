@@ -131,3 +131,44 @@ export const chartWrapperClass = "bg-white p-4 rounded-lg border border-gray-200
 
 // Default no data message
 export const NO_DATA_MESSAGE = "Ingen data tilgjengelig for visning";
+
+// Horizontal bar chart options
+export const commonHorizontalBarOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  indexAxis: "y" as const,
+  plugins: {
+    legend: {
+      display: false,
+    },
+    tooltip: {
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      padding: 12,
+      titleFont: { size: 13 },
+      bodyFont: { size: 12 },
+      cornerRadius: 8,
+    },
+  },
+  scales: {
+    y: {
+      border: { display: false },
+      grid: { display: false },
+      ticks: {
+        color: "#6B7280",
+        font: { size: 11 },
+      },
+    },
+    x: {
+      beginAtZero: true,
+      border: { display: false },
+      grid: {
+        color: "rgba(0, 0, 0, 0.06)",
+        drawBorder: false,
+      },
+      ticks: {
+        color: "#6B7280",
+        font: { size: 11 },
+      },
+    },
+  },
+};

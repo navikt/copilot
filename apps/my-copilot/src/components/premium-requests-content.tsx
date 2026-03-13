@@ -19,7 +19,6 @@ export default function PremiumRequestsContent({ metrics }: PremiumRequestsConte
           label="Totale forespørsler"
           helpTitle="Totale forespørsler"
           helpText="Totalt antall premium AI-forespørsler brukt i perioden, inkludert både inkluderte og fakturerte forespørsler."
-          accentColor="blue"
         />
 
         <MetricCard
@@ -27,7 +26,6 @@ export default function PremiumRequestsContent({ metrics }: PremiumRequestsConte
           label="Inkluderte forespørsler"
           helpTitle="Inkluderte forespørsler"
           helpText="Antall forespørsler som er inkludert i abonnementet og ikke medfører ekstra kostnader."
-          accentColor="green"
         />
 
         <MetricCard
@@ -35,7 +33,6 @@ export default function PremiumRequestsContent({ metrics }: PremiumRequestsConte
           label="Fakturerte forespørsler"
           helpTitle="Fakturerte forespørsler"
           helpText="Antall forespørsler som går utover kvoten og blir fakturert separat."
-          accentColor="orange"
         />
 
         <MetricCard
@@ -43,7 +40,6 @@ export default function PremiumRequestsContent({ metrics }: PremiumRequestsConte
           label="Nettokostnad"
           helpTitle="Nettokostnad"
           helpText="Total kostnad etter rabatter for premiumforespørsler i perioden."
-          accentColor="purple"
         />
       </HGrid>
 

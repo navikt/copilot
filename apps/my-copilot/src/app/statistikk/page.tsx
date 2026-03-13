@@ -133,28 +133,24 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
           label="Daglig aktive brukere"
           helpTitle="Daglig aktive brukere"
           helpText="Antall unike brukere som brukte Copilot siste dag i perioden."
-          accentColor="blue"
         />
         <MetricCard
           value={formatNumber(aggregatedMetrics.monthlyActiveUsers)}
           label="Månedlig aktive brukere"
           helpTitle="Månedlig aktive brukere"
           helpText="Antall unike brukere som har brukt Copilot siste 30 dager."
-          accentColor="green"
         />
         <MetricCard
           value={`${aggregatedMetrics.overallAcceptanceRate}%`}
           label="Aksepteringsrate"
           helpTitle="Aksepteringsrate"
           helpText="Andel av Copilots kodeforslag som aksepteres av utviklerne. Gode rater ligger typisk mellom 20–40 %."
-          accentColor="purple"
         />
         <MetricCard
           value={formatNumber(aggregatedMetrics.totalInteractions)}
           label="Totale interaksjoner"
           helpTitle="Totale interaksjoner"
           helpText="Totalt antall brukerinteraksjoner med Copilot i perioden, inkludert chat-meldinger, agent-forespørsler og andre handlinger i tillegg til kodeforslag."
-          accentColor="orange"
         />
       </HGrid>
 

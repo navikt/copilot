@@ -53,7 +53,7 @@ AZURE_OPENID_CONFIG_JWKS_URI=your_azure_openid_config_jwks_uri
 AZURE_OPENID_CONFIG_ISSUER=your_azure_openid_config_issuer
 ```
 
-#### BigQuery Access (for usage analytics)
+#### BigQuery Access (for usage analytics and adoption data)
 
 The stats/usage pages read from BigQuery. To access BigQuery locally:
 
@@ -67,8 +67,13 @@ The stats/usage pages read from BigQuery. To access BigQuery locally:
 
    ```env
    GCP_TEAM_PROJECT_ID=<your-nais-team-project-id>
-   BIGQUERY_DATASET=copilot_metrics
-   BIGQUERY_TABLE=usage_metrics
+
+   # Copilot Metrics (usage data from copilot-metrics naisjob)
+   COPILOT_METRICS_DATASET=copilot_metrics
+   COPILOT_METRICS_TABLE=usage_metrics
+
+   # Copilot Adoption (repo scanning data from copilot-adoption naisjob)
+   COPILOT_ADOPTION_DATASET=copilot_adoption
    ```
 
    Find the project ID with `nais project list` or `gcloud projects list --filter="name:copilot"`.
@@ -98,6 +103,32 @@ pnpm test
 ### Deployment
 
 This project uses GitHub Actions for CI/CD. The workflow is defined in `.github/workflows/build-deploy.yaml`. The application is deployed to the Nais platform.
+
+### Environment Variables
+
+All environment variables are documented below, organized by integration:
+
+| Variable                        | Required | Default                                        | Description                                 |
+| ------------------------------- | -------- | ---------------------------------------------- | ------------------------------------------- |
+| **GitHub App**                  |          |                                                |                                             |
+| `GITHUB_APP_ID`                 | Yes      | —                                              | GitHub App ID for API access                |
+| `GITHUB_APP_PRIVATE_KEY`        | Yes      | —                                              | GitHub App private key (PEM format)         |
+| `GITHUB_APP_INSTALLATION_ID`    | Yes      | —                                              | GitHub App installation ID for the org      |
+| **Azure AD** (provided by NAIS) |          |                                                |                                             |
+| `AZURE_APP_CLIENT_ID`           | Yes      | —                                              | Azure AD application client ID              |
+| `AZURE_OPENID_CONFIG_JWKS_URI`  | Yes      | —                                              | Azure AD JWKS endpoint for JWT validation   |
+| `AZURE_OPENID_CONFIG_ISSUER`    | Yes      | —                                              | Azure AD issuer for JWT validation          |
+| **BigQuery**                    |          |                                                |                                             |
+| `GCP_TEAM_PROJECT_ID`           | Yes      | —                                              | GCP project ID containing BigQuery datasets |
+| `COPILOT_METRICS_DATASET`       | No       | `copilot_metrics`                              | Dataset for usage metrics                   |
+| `COPILOT_METRICS_TABLE`         | No       | `usage_metrics`                                | Table for daily usage data                  |
+| `COPILOT_ADOPTION_DATASET`      | No       | `copilot_adoption`                             | Dataset for repo adoption scan results      |
+| **Telemetry** (Faro)            |          |                                                |                                             |
+| `NEXT_PUBLIC_FARO_URL`          | No       | `https://telemetry.ekstern.dev.nav.no/collect` | Grafana Faro collector endpoint             |
+| `NEXT_PUBLIC_FARO_APP_NAME`     | No       | `min-copilot`                                  | Application name for Faro                   |
+| `NEXT_PUBLIC_FARO_NAMESPACE`    | No       | `nais`                                         | Namespace for Faro                          |
+| **MCP Registry**                |          |                                                |                                             |
+| `MCP_REGISTRY_URL`              | No       | `https://mcp-registry.nav.no`                  | MCP server registry URL                     |
 
 ### Group Access
 

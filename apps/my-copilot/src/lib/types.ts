@@ -232,3 +232,64 @@ export interface PremiumRequestUsage {
   organization: string;
   usageItems: PremiumRequestUsageItem[];
 }
+
+// AI Customization Adoption types (from copilot_adoption BigQuery views)
+export interface AdoptionSummary {
+  scan_date: string;
+  total_repos: number;
+  active_repos: number;
+  archived_repos: number;
+  repos_with_any_customization: number;
+  repos_without_customization: number;
+  adoption_rate: number;
+  repos_with_copilot_instructions: number;
+  repos_with_agents_md: number;
+  repos_with_agents: number;
+  repos_with_instructions: number;
+  repos_with_prompts: number;
+  repos_with_skills: number;
+  repos_with_mcp_config: number;
+  repos_with_copilot_dir: number;
+  repos_with_cursorrules: number;
+  repos_with_cursor_rules_dir: number;
+  repos_with_claude_md: number;
+  repos_with_windsurfrules: number;
+  repos_with_any_non_copilot_ai: number;
+  avg_customization_count: number;
+  max_customization_count: number;
+}
+
+export interface TeamAdoption {
+  scan_date: string;
+  team_slug: string;
+  team_name: string;
+  team_repos: number;
+  active_repos: number;
+  repos_with_customizations: number;
+  adoption_rate: number;
+  with_copilot_instructions: number;
+  with_agents_md: number;
+  with_agents: number;
+  with_instructions: number;
+  with_prompts: number;
+  with_skills: number;
+  with_mcp_config: number;
+}
+
+export interface LanguageAdoption {
+  scan_date: string;
+  language: string;
+  total_repos: number;
+  repos_with_customizations: number;
+  adoption_rate: number;
+  with_copilot_instructions: number;
+  with_agents: number;
+  with_instructions: number;
+  with_mcp_config: number;
+}
+
+export interface AdoptionData {
+  summary: AdoptionSummary | null;
+  teams: TeamAdoption[];
+  languages: LanguageAdoption[];
+}
