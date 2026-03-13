@@ -84,6 +84,8 @@ spec:
     bigQueryDatasets:
       - name: copilot_metrics
         permission: READ
+      - name: copilot_adoption
+        permission: READ
   accessPolicy:
     outbound:
       external:
