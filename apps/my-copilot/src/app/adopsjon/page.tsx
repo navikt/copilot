@@ -1,7 +1,12 @@
 import React, { Suspense } from "react";
 import { getCachedAdoptionData } from "@/lib/cached-bigquery";
 import Tabs from "@/components/tabs";
-import { CustomizationTypeChart, TeamAdoptionChart, LanguageAdoptionChart } from "@/components/charts/adoption";
+import {
+  CustomizationTypeChart,
+  TeamAdoptionChart,
+  LanguageAdoptionChart,
+  TopCustomizationsChart,
+} from "@/components/charts/adoption";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { Box, Heading, HGrid, Skeleton, VStack, BodyShort, Table } from "@navikt/ds-react";
@@ -187,6 +192,46 @@ function LanguageContent({ data }: { data: AdoptionData }) {
   );
 }
 
+// Topp-tilpasninger tab content
+function TopCustomizationsContent({ data }: { data: AdoptionData }) {
+  const { customizationDetails } = data;
+
+  if (!customizationDetails || customizationDetails.length === 0) {
+    return <ErrorState message="Ingen data om tilpasninger tilgjengelig" />;
+  }
+
+  const totalFiles = customizationDetails.length;
+  const topFile = customizationDetails[0];
+
+  return (
+    <VStack gap="space-24">
+      <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
+        <MetricCard
+          value={formatNumber(totalFiles)}
+          label="Unike tilpasninger"
+          helpTitle="Unike tilpasninger"
+          helpText="Antall unike filer (agenter, skills, instruksjoner, prompts) på tvers av alle repoer"
+        />
+        <MetricCard
+          value={topFile.file_name}
+          label="Mest brukte"
+          helpTitle="Mest brukte tilpasning"
+          helpText={`Den mest brukte tilpasningen på tvers av navikt-repoer`}
+          subtitle={`${formatNumber(topFile.repo_count)} repoer`}
+        />
+        <MetricCard
+          value={formatNumber(new Set(customizationDetails.map((d) => d.category)).size)}
+          label="Kategorier"
+          helpTitle="Kategorier"
+          helpText="Antall kategorier med tilpasninger (agenter, skills, instruksjoner, prompts)"
+        />
+      </HGrid>
+
+      <TopCustomizationsChart data={customizationDetails} />
+    </VStack>
+  );
+}
+
 // Cached data component
 async function CachedAdoptionData() {
   const { data, error } = await getCachedAdoptionData();
@@ -207,6 +252,11 @@ async function CachedAdoptionData() {
       id: "oversikt",
       label: "Oversikt",
       content: <OverviewContent data={data} />,
+    },
+    {
+      id: "tilpasninger",
+      label: "Topp-tilpasninger",
+      content: <TopCustomizationsContent data={data} />,
     },
     {
       id: "team",
