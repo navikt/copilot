@@ -185,24 +185,6 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 
 	source := bigquery.NewReaderSource(&buf)
 	source.SourceFormat = bigquery.JSON
-	source.Schema = bigquery.Schema{
-		{Name: "scan_date", Type: bigquery.DateFieldType},
-		{Name: "org", Type: bigquery.StringFieldType},
-		{Name: "repo", Type: bigquery.StringFieldType},
-		{Name: "default_branch", Type: bigquery.StringFieldType},
-		{Name: "primary_language", Type: bigquery.StringFieldType},
-		{Name: "is_archived", Type: bigquery.BooleanFieldType},
-		{Name: "is_fork", Type: bigquery.BooleanFieldType},
-		{Name: "visibility", Type: bigquery.StringFieldType},
-		{Name: "created_at", Type: bigquery.TimestampFieldType},
-		{Name: "pushed_at", Type: bigquery.TimestampFieldType},
-		{Name: "topics", Type: bigquery.StringFieldType, Repeated: true},
-		{Name: "teams", Type: bigquery.JSONFieldType},
-		{Name: "customizations", Type: bigquery.JSONFieldType},
-		{Name: "has_any_customization", Type: bigquery.BooleanFieldType},
-		{Name: "customization_count", Type: bigquery.IntegerFieldType},
-		{Name: "loaded_at", Type: bigquery.TimestampFieldType},
-	}
 
 	loader := table.LoaderFrom(source)
 	loader.WriteDisposition = bigquery.WriteTruncate // Replace entire partition
