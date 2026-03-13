@@ -3,8 +3,8 @@
 import type { TeamAdoption } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, commonHorizontalBarOptions, chartWrapperClass, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Heading } from "@navikt/ds-react";
+import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { Box, Heading } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
 
 interface TeamAdoptionChartProps {
@@ -15,9 +15,9 @@ interface TeamAdoptionChartProps {
 const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 15 }) => {
   if (!data || data.length === 0) {
     return (
-      <div className={chartWrapperClass}>
-        <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>
-      </div>
+      <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
+        <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>
+      </Box>
     );
   }
 
@@ -29,12 +29,12 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
 
   if (topTeams.length === 0) {
     return (
-      <div className={chartWrapperClass}>
-        <Heading size="small" level="4" className="mb-4">
+      <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
+        <Heading size="small" level="4">
           Team med flest tilpasninger
         </Heading>
-        <div className="text-center text-gray-500 py-8">Ingen team har AI-tilpasninger ennå</div>
-      </div>
+        <div className="text-center text-gray-500">Ingen team har AI-tilpasninger ennå</div>
+      </Box>
     );
   }
 
@@ -68,14 +68,14 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
   };
 
   return (
-    <div className={chartWrapperClass}>
-      <Heading size="small" level="4" className="mb-4">
+    <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
+      <Heading size="small" level="4" spacing>
         Team med flest tilpasninger
       </Heading>
       <div style={{ height: Math.max(300, topTeams.length * 28) }}>
         <Bar data={chartData} options={options} />
       </div>
-    </div>
+    </Box>
   );
 };
 

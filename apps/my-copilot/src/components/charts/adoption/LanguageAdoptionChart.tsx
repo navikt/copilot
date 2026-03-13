@@ -3,8 +3,8 @@
 import type { LanguageAdoption } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, commonHorizontalBarOptions, chartWrapperClass, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Heading } from "@navikt/ds-react";
+import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { Box, Heading } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
 
 interface LanguageAdoptionChartProps {
@@ -15,9 +15,9 @@ interface LanguageAdoptionChartProps {
 const LanguageAdoptionChart: React.FC<LanguageAdoptionChartProps> = ({ data, maxLanguages = 12 }) => {
   if (!data || data.length === 0) {
     return (
-      <div className={chartWrapperClass}>
-        <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>
-      </div>
+      <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
+        <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>
+      </Box>
     );
   }
 
@@ -29,12 +29,12 @@ const LanguageAdoptionChart: React.FC<LanguageAdoptionChartProps> = ({ data, max
 
   if (topLanguages.length === 0) {
     return (
-      <div className={chartWrapperClass}>
-        <Heading size="small" level="4" className="mb-4">
+      <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
+        <Heading size="small" level="4">
           Adopsjon etter programmeringsspråk
         </Heading>
-        <div className="text-center text-gray-500 py-8">Ingen språk har AI-tilpasninger ennå</div>
-      </div>
+        <div className="text-center text-gray-500">Ingen språk har AI-tilpasninger ennå</div>
+      </Box>
     );
   }
 
@@ -79,14 +79,14 @@ const LanguageAdoptionChart: React.FC<LanguageAdoptionChartProps> = ({ data, max
   };
 
   return (
-    <div className={chartWrapperClass}>
-      <Heading size="small" level="4" className="mb-4">
+    <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
+      <Heading size="small" level="4" spacing>
         Adopsjon etter programmeringsspråk
       </Heading>
       <div style={{ height: Math.max(300, topLanguages.length * 28) }}>
         <Bar data={chartData} options={options} />
       </div>
-    </div>
+    </Box>
   );
 };
 

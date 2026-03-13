@@ -118,7 +118,7 @@ func RunScan(ctx context.Context, gh interface {
 
 	// Notify Slack of scan results (sends only if there were errors)
 	if slack != nil {
-		slack.NotifyScanResult(ctx, len(repos), len(repos)-failedCount, failedCount)
+		slack.NotifyScanResult(ctx, len(activeRepos), len(activeRepos)-failedCount, failedCount)
 	}
 
 	return nil

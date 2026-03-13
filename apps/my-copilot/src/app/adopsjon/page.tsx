@@ -96,7 +96,7 @@ function TeamContent({ data }: { data: AdoptionData }) {
           label="Team med tilpasninger"
           helpTitle="Team med tilpasninger"
           helpText="Team som har minst ett repo med Copilot-tilpasninger"
-          subtitle={`${((teamsWithAdoption.length / activeTeams.length) * 100).toFixed(0)}% av team`}
+          subtitle={`${activeTeams.length > 0 ? ((teamsWithAdoption.length / activeTeams.length) * 100).toFixed(0) : 0}% av team`}
         />
         <MetricCard
           value={formatNumber(teamsWithAdoption.reduce((sum, t) => sum + t.repos_with_customizations, 0))}
@@ -196,10 +196,10 @@ async function CachedAdoptionData() {
 
   const scanDate = data.summary
     ? new Date(data.summary.scan_date).toLocaleDateString("nb-NO", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
     : null;
 
   const tabs = [

@@ -42,7 +42,7 @@ const AdoptionTrendChart: React.FC<AdoptionTrendChartProps> = ({ data }) => {
         tension: 0.4,
       },
       {
-        label: "CLI-brukere (30d snitt)",
+        label: "CLI-brukere (daglig)",
         data: data.cliUsers,
         borderColor: chartColors[3],
         backgroundColor: getBackgroundColor(chartColors[3]),
