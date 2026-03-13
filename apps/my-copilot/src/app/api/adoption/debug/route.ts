@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const params: Record<string, unknown> = {};
 
   if (scanDate) {
-    where += " WHERE scan_date = @scanDate";
+    where += " WHERE scan_date = DATE(@scanDate)";
     params.scanDate = scanDate;
   }
 

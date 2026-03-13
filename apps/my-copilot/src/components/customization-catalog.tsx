@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Box, Search, HStack, VStack, BodyShort, Chips } from "@navikt/ds-react";
+import { Box, Search, HGrid, HStack, VStack, BodyShort, Chips } from "@navikt/ds-react";
 import type { CustomizationType, Domain } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
@@ -166,11 +166,11 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
         </BodyShort>
       </HStack>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         {filtered.map((item) => (
           <CustomizationCard key={`${item.type}-${item.id}`} item={item} onClick={() => setSelectedItem(item)} />
         ))}
-      </div>
+      </HGrid>
 
       {filtered.length === 0 && (
         <Box padding="space-24" className="text-center">

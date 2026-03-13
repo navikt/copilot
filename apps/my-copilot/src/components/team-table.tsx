@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pagination, Table } from "@navikt/ds-react";
+import { HStack, Pagination, Table } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { sortTeamsByAdoption, formatAdoptionRate } from "@/lib/adoption-utils";
 import type { TeamAdoption } from "@/lib/types";
@@ -41,14 +41,14 @@ export default function TeamTable({ teams }: TeamTableProps) {
         </TableBody>
       </Table>
       {totalPages > 1 && (
-        <div className="flex justify-center mt-4">
+        <HStack justify="center" className="mt-[--a-spacing-16]">
           <Pagination
             page={page}
             onPageChange={setPage}
             count={totalPages}
             size="small"
           />
-        </div>
+        </HStack>
       )}
     </div>
   );

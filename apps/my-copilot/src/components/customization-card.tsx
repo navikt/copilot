@@ -53,7 +53,7 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
       onClick={onClick}
     >
       <VStack gap="space-8" className="h-full">
-        <div className="flex items-start justify-between gap-2">
+        <HStack gap="space-8" align="start" justify="space-between">
           <Heading size="xsmall" level="3">
             {item.type === "agent" ? `@${item.name}` : item.name}
           </Heading>
@@ -65,7 +65,7 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
               {domainConfig.label}
             </Tag>
           </HStack>
-        </div>
+        </HStack>
 
         {item.type === "instruction" && (
           <code className="text-xs bg-gray-100 rounded px-2 py-1 inline-block w-fit">{item.applyTo}</code>
@@ -89,7 +89,7 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
           {item.description}
         </BodyShort>
 
-        <div className="flex items-center justify-between gap-2 mt-auto">
+        <div className="flex items-center justify-between gap-[--a-spacing-8] mt-auto">
           <HStack gap="space-8" align="center">
             {item.installUrl && (
               <a

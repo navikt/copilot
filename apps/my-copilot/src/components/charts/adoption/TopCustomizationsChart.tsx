@@ -90,13 +90,16 @@ const TopCustomizationsChart: React.FC<TopCustomizationsChartProps> = ({ data, m
     );
   }
 
-  const grouped = Object.groupBy(filteredData, (item) => item.category);
+  const grouped = filteredData.reduce<Record<string, CustomizationDetail[]>>((acc, item) => {
+    (acc[item.category] ??= []).push(item);
+    return acc;
+  }, {});
 
   const categories = ["agents", "skills", "instructions", "prompts"];
 
   return (
     <div>
-      <HStack gap="space-8" align="center" className="mb-4">
+      <HStack gap="space-8" align="center" className="mb-[--a-spacing-16]">
         <BodyShort size="small" className="text-gray-500">
           Opprinnelse:
         </BodyShort>

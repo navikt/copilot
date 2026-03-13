@@ -254,6 +254,8 @@ export interface AdoptionSummary {
   repos_with_cursor_rules_dir: number;
   repos_with_claude_md: number;
   repos_with_windsurfrules: number;
+  repos_with_cursorignore: number;
+  repos_with_claude_settings: number;
   repos_with_any_non_copilot_ai: number;
   avg_customization_count: number;
   max_customization_count: number;

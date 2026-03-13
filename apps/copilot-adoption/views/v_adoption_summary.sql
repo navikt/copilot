@@ -23,11 +23,15 @@ SELECT
   COUNTIF(JSON_VALUE(customizations, '$.cursor_rules_dir.exists') = 'true' AND NOT is_archived) AS repos_with_cursor_rules_dir,
   COUNTIF(JSON_VALUE(customizations, '$.claude_md.exists') = 'true' AND NOT is_archived) AS repos_with_claude_md,
   COUNTIF(JSON_VALUE(customizations, '$.windsurfrules.exists') = 'true' AND NOT is_archived) AS repos_with_windsurfrules,
+  COUNTIF(JSON_VALUE(customizations, '$.cursorignore.exists') = 'true' AND NOT is_archived) AS repos_with_cursorignore,
+  COUNTIF(JSON_VALUE(customizations, '$.claude_settings.exists') = 'true' AND NOT is_archived) AS repos_with_claude_settings,
   -- Aggregate: any non-Copilot AI tool
   COUNTIF((
     JSON_VALUE(customizations, '$.cursorrules.exists') = 'true' OR
     JSON_VALUE(customizations, '$.cursor_rules_dir.exists') = 'true' OR
     JSON_VALUE(customizations, '$.claude_md.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.claude_settings.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.cursorignore.exists') = 'true' OR
     JSON_VALUE(customizations, '$.windsurfrules.exists') = 'true'
   ) AND NOT is_archived) AS repos_with_any_non_copilot_ai,
   AVG(CASE WHEN NOT is_archived THEN customization_count END) AS avg_customization_count,

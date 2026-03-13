@@ -4,7 +4,7 @@ import type { TeamAdoption } from "@/lib/types";
 import React, { useMemo, useState } from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Box, Heading, ToggleGroup } from "@navikt/ds-react";
+import { Box, Heading, HStack, ToggleGroup } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
 
 type ViewMode = "absolute" | "percentage";
@@ -99,7 +99,7 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
 
   return (
     <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-      <div className="flex items-center justify-between mb-4">
+      <HStack justify="space-between" align="center" gap="space-8" className="mb-[--a-spacing-16]">
         <Heading size="small" level="4">
           {viewMode === "percentage" ? "Team med høyest adopsjonsrate" : "Team med flest tilpasninger"}
         </Heading>
@@ -111,7 +111,7 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
           <ToggleGroup.Item value="absolute">Antall</ToggleGroup.Item>
           <ToggleGroup.Item value="percentage">Prosent</ToggleGroup.Item>
         </ToggleGroup>
-      </div>
+      </HStack>
       <div style={{ height: Math.max(300, topTeams.length * 28) }}>
         <Bar data={chartData} options={options} />
       </div>

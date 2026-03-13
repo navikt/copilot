@@ -35,6 +35,8 @@ const mockSummary: AdoptionSummary = {
   repos_with_cursor_rules_dir: 3,
   repos_with_claude_md: 7,
   repos_with_windsurfrules: 2,
+  repos_with_cursorignore: 1,
+  repos_with_claude_settings: 1,
   repos_with_any_non_copilot_ai: 18,
   avg_customization_count: 1.2,
   max_customization_count: 5,

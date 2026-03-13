@@ -145,10 +145,10 @@ ORDER BY scan_date
 
 ## How It Works
 
-1. **List repos** — GraphQL query fetches all repos in the org with metadata
+1. **List repos** — REST API fetches all repos in the org with metadata
 2. **Build team map** — REST API maps repos to teams with access levels
 3. **Split archived/active** — Archived repos get metadata only (no file scan)
-4. **Batch GraphQL scan** — Active repos scanned in batches of 50 using `repository.object` queries against the Git tree
+4. **Batch GraphQL scan** — Active repos scanned in batches of 3 (configurable, max 10) using `repository.object` queries against the Git tree
 5. **Assemble results** — Combine repo metadata, team data, and scan results
 6. **Load to BigQuery** — JSONL load job with `WriteTruncate` on partition decorator (`table$YYYYMMDD`) for atomic daily snapshots
 
@@ -164,9 +164,15 @@ mise dev      # Run locally with .env.local
 
 | Variable              | Description                     | Default            |
 | --------------------- | ------------------------------- | ------------------ |
-| `BIGQUERY_PROJECT_ID` | GCP project for BigQuery        | (required)         |
+| `GCP_TEAM_PROJECT_ID` | GCP project for BigQuery        | (required)         |
 | `BIGQUERY_DATASET`    | BigQuery dataset name           | `copilot_adoption` |
 | `BIGQUERY_TABLE`      | BigQuery table name             | `repo_scan`        |
 | `GITHUB_ORG`          | GitHub organization to scan     | `navikt`           |
 | `SLACK_WEBHOOK_URL`   | Slack webhook for notifications | (optional)         |
-| `DRY_RUN`             | Skip BigQuery writes            | `false`            |
+
+### CLI Flags
+
+| Flag         | Description              | Default |
+| ------------ | ------------------------ | ------- |
+| `--run-once` | Run single scan and exit | `false` |
+| `--dry-run`  | Skip BigQuery writes     | `false` |
