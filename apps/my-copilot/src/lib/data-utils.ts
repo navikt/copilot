@@ -293,11 +293,26 @@ export const buildTrendData = (usage: EnterpriseMetrics[]): DailyTrend[] => {
 };
 
 export const buildAdoptionTrendData = (usage: EnterpriseMetrics[]): AdoptionTrendData => {
+  // GitHub's monthly_active_*_users reset at billing period boundaries.
+  // We calculate a rolling 30-day average to smooth the reset transition.
+  const chatRaw = usage.map((d) => d.monthly_active_chat_users || 0);
+  const agentRaw = usage.map((d) => d.monthly_active_agent_users || 0);
+  const cliRaw = usage.map((d) => d.daily_active_cli_users || 0);
+
+  const rollingAverage = (values: number[], windowSize: number): number[] => {
+    return values.map((_, i) => {
+      const start = Math.max(0, i - windowSize + 1);
+      const window = values.slice(start, i + 1);
+      const sum = window.reduce((a, b) => a + b, 0);
+      return Math.round(sum / window.length);
+    });
+  };
+
   return {
     days: usage.map((d) => d.day),
-    chatUsers: usage.map((d) => d.monthly_active_chat_users || 0),
-    agentUsers: usage.map((d) => d.monthly_active_agent_users || 0),
-    cliUsers: usage.map((d) => d.daily_active_cli_users || 0),
+    chatUsers: rollingAverage(chatRaw, 30),
+    agentUsers: rollingAverage(agentRaw, 30),
+    cliUsers: rollingAverage(cliRaw, 30),
   };
 };
 
