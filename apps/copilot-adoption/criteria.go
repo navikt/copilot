@@ -61,6 +61,21 @@ func (c SearchCriteria) MatchFiles(names []string) []string {
 
 // DefaultCriteria returns the standard set of Copilot customization search criteria.
 // To track new AI features, append entries here — no other code changes needed.
+//
+// Documented paths for GitHub Copilot (per https://github.com/navikt/copilot/tree/main/docs):
+//   - .github/copilot-instructions.md      Repository-wide instructions (file)
+//   - AGENTS.md                            Navigation index for agent workflows (file)
+//   - .github/agents/*.agent.md            Custom agent definitions (directory)
+//   - .github/instructions/*.instructions.md   File-scoped instructions (directory)
+//   - .github/prompts/*.prompt.md          Reusable prompt templates (directory)
+//   - .github/skills/*/SKILL.md            Agent skill folders (directory)
+//   - .vscode/mcp.json                     MCP server configuration (file)
+//   - .github/copilot/*                    Newer Copilot config directory (directory)
+//
+// Other AI tools (for comparison metrics):
+//   - Cursor: .cursorrules, .cursor/rules/*.mdc, .cursorignore
+//   - Claude Code: CLAUDE.md, .claude/settings.json
+//   - Windsurf: .windsurfrules
 func DefaultCriteria() []SearchCriteria {
 	return []SearchCriteria{
 		{
