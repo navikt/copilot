@@ -1,14 +1,14 @@
 "use client";
 
 import { Box, BodyShort, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
-import { DownloadIcon, ChevronRightIcon, WrenchIcon } from "@navikt/aksel-icons";
+import { DownloadIcon, ChevronRightIcon, WrenchIcon, ComponentIcon } from "@navikt/aksel-icons";
 import { SiGnometerminal, SiIntellijidea, SiGithub } from "@icons-pack/react-simple-icons";
-import type { AnyCustomization } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
+import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { transportLabel, getToolCount, CLIENT_SUPPORT, CLIENT_LABELS } from "@/lib/install-commands";
 
 interface CustomizationCardProps {
-  item: AnyCustomization;
+  item: EnrichedCustomization;
   onClick?: () => void;
 }
 
@@ -110,6 +110,12 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
           </HStack>
 
           <HStack gap="space-8" align="center">
+            {item.usageCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-gray-400" title={`Brukt i ${item.usageCount} ${item.usageCount === 1 ? "repo" : "repoer"}`}>
+                <ComponentIcon fontSize="0.875rem" aria-hidden />
+                <span className="text-xs">{item.usageCount}</span>
+              </span>
+            )}
             {getToolCount(item) > 0 && (
               <span className="inline-flex items-center gap-1 text-gray-400" title={`${getToolCount(item)} verktøy`}>
                 <WrenchIcon fontSize="0.875rem" aria-hidden />

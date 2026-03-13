@@ -1,6 +1,13 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { loadBigQueryConfig, tableRef, viewRef, type BigQueryConfig } from "./bigquery-config";
-import type { AdoptionSummary, EnterpriseMetrics, LanguageAdoption, TeamAdoption } from "./types";
+import type {
+  AdoptionSummary,
+  CustomizationDetail,
+  CustomizationUsage,
+  EnterpriseMetrics,
+  LanguageAdoption,
+  TeamAdoption,
+} from "./types";
 
 /**
  * Serialize BigQuery row to plain object.
@@ -119,6 +126,52 @@ export class CopilotBigQueryClient {
   }
 
   /**
+   * Get top customization files (agents, skills, instructions, prompts) for the latest scan.
+   */
+  async getCustomizationDetails(): Promise<CustomizationDetail[]> {
+    const viewName = "v_customization_details";
+    const query = `
+      SELECT category, file_name, COUNT(DISTINCT repo) AS repo_count
+      FROM ${this.adoptionViewRef(viewName)}
+      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
+      GROUP BY category, file_name
+      ORDER BY repo_count DESC
+    `;
+
+    try {
+      return await this.query<CustomizationDetail>(query);
+    } catch (err) {
+      console.error("[bigquery] getCustomizationDetails failed:", err);
+      throw err;
+    }
+  }
+
+  /**
+   * Get customization usage with sample repo names for catalog enrichment.
+   */
+  async getCustomizationUsage(): Promise<CustomizationUsage[]> {
+    const viewName = "v_customization_details";
+    const query = `
+      SELECT
+        category,
+        file_name,
+        COUNT(DISTINCT repo) AS repo_count,
+        ARRAY_AGG(DISTINCT repo ORDER BY repo LIMIT 5) AS sample_repos
+      FROM ${this.adoptionViewRef(viewName)}
+      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
+      GROUP BY category, file_name
+      ORDER BY repo_count DESC
+    `;
+
+    try {
+      return await this.query<CustomizationUsage>(query);
+    } catch (err) {
+      console.error("[bigquery] getCustomizationUsage failed:", err);
+      throw err;
+    }
+  }
+
+  /**
    * Get language adoption data for the latest scan.
    */
   async getLanguageAdoption(): Promise<LanguageAdoption[]> {
@@ -163,4 +216,12 @@ export async function getTeamAdoption(): Promise<TeamAdoption[]> {
 
 export async function getLanguageAdoption(): Promise<LanguageAdoption[]> {
   return getDefaultClient().getLanguageAdoption();
+}
+
+export async function getCustomizationDetails(): Promise<CustomizationDetail[]> {
+  return getDefaultClient().getCustomizationDetails();
+}
+
+export async function getCustomizationUsage(): Promise<CustomizationUsage[]> {
+  return getDefaultClient().getCustomizationUsage();
 }

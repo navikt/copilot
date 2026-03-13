@@ -5,12 +5,15 @@ import type { Domain } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
 import { PageHero } from "@/components/page-hero";
 import { getMcpServers } from "@/lib/mcp-registry";
+import { getCachedCustomizationUsage } from "@/lib/cached-bigquery";
+import { enrichWithUsage } from "@/lib/enrich-customizations";
 import { DomainCards } from "./domain-cards";
 
 export default async function CustomizationsPage() {
   const customizations = getAllCustomizations();
-  const mcpServers = await getMcpServers();
+  const [mcpServers, { usage }] = await Promise.all([getMcpServers(), getCachedCustomizationUsage()]);
   const items = [...customizations, ...mcpServers].sort((a, b) => a.name.localeCompare(b.name, "nb"));
+  const enrichedItems = enrichWithUsage(items, usage);
   const counts = getCountsByDomain(items);
 
   const domains = Object.entries(counts)
@@ -47,7 +50,7 @@ export default async function CustomizationsPage() {
                 Alle tilpasninger
               </Heading>
               <Suspense>
-                <CustomizationCatalog items={items} />
+                <CustomizationCatalog items={enrichedItems} />
               </Suspense>
             </Box>
           </VStack>

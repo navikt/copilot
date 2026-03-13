@@ -1,11 +1,13 @@
 "use client";
 
 import type { TeamAdoption } from "@/lib/types";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Box, Heading } from "@navikt/ds-react";
+import { Box, Heading, ToggleGroup } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
+
+type ViewMode = "absolute" | "percentage";
 
 interface TeamAdoptionChartProps {
   data: TeamAdoption[];
@@ -13,6 +15,22 @@ interface TeamAdoptionChartProps {
 }
 
 const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 15 }) => {
+  const [viewMode, setViewMode] = useState<ViewMode>("percentage");
+
+  const topTeams = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const filtered = data.filter((t) => t.repos_with_customizations > 0);
+    if (viewMode === "percentage") {
+      return filtered
+        .filter((t) => t.active_repos > 0)
+        .sort((a, b) => b.adoption_rate - a.adoption_rate)
+        .slice(0, maxTeams);
+    }
+    return filtered
+      .sort((a, b) => b.repos_with_customizations - a.repos_with_customizations)
+      .slice(0, maxTeams);
+  }, [data, viewMode, maxTeams]);
+
   if (!data || data.length === 0) {
     return (
       <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
@@ -20,12 +38,6 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
       </Box>
     );
   }
-
-  // Get top teams by number of repos with customizations
-  const topTeams = data
-    .filter((t) => t.repos_with_customizations > 0)
-    .sort((a, b) => b.repos_with_customizations - a.repos_with_customizations)
-    .slice(0, maxTeams);
 
   if (topTeams.length === 0) {
     return (
@@ -42,7 +54,11 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
     labels: topTeams.map((t) => t.team_name || t.team_slug),
     datasets: [
       {
-        data: topTeams.map((t) => t.repos_with_customizations),
+        data: topTeams.map((t) =>
+          viewMode === "percentage"
+            ? Math.round(t.adoption_rate * 100)
+            : t.repos_with_customizations,
+        ),
         backgroundColor: chartColors[1], // green
         borderRadius: 4,
         barThickness: 16,
@@ -52,6 +68,18 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
 
   const options = {
     ...commonHorizontalBarOptions,
+    scales: {
+      ...commonHorizontalBarOptions.scales,
+      x: {
+        ...commonHorizontalBarOptions.scales?.x,
+        ...(viewMode === "percentage" ? { max: 100 } : {}),
+        ticks: {
+          ...commonHorizontalBarOptions.scales?.x?.ticks,
+          callback: (value: string | number) =>
+            viewMode === "percentage" ? `${value}%` : value,
+        },
+      },
+    },
     plugins: {
       ...commonHorizontalBarOptions.plugins,
       tooltip: {
@@ -59,8 +87,10 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
         callbacks: {
           label: (context: TooltipItem<"bar">) => {
             const team = topTeams[context.dataIndex];
-            const rate = (team.adoption_rate * 100).toFixed(0);
-            return `${context.raw} repo med tilpasninger (${rate}% av ${team.active_repos} aktive)`;
+            const rate = Math.round(team.adoption_rate * 100);
+            return viewMode === "percentage"
+              ? `${rate}% (${team.repos_with_customizations} av ${team.active_repos} aktive repo)`
+              : `${context.raw} repo med tilpasninger (${rate}% av ${team.active_repos} aktive)`;
           },
         },
       },
@@ -69,9 +99,19 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
 
   return (
     <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-      <Heading size="small" level="4" spacing>
-        Team med flest tilpasninger
-      </Heading>
+      <div className="flex items-center justify-between mb-4">
+        <Heading size="small" level="4">
+          {viewMode === "percentage" ? "Team med høyest adopsjonsrate" : "Team med flest tilpasninger"}
+        </Heading>
+        <ToggleGroup
+          size="small"
+          value={viewMode}
+          onChange={(val) => setViewMode(val as ViewMode)}
+        >
+          <ToggleGroup.Item value="absolute">Antall</ToggleGroup.Item>
+          <ToggleGroup.Item value="percentage">Prosent</ToggleGroup.Item>
+        </ToggleGroup>
+      </div>
       <div style={{ height: Math.max(300, topTeams.length * 28) }}>
         <Bar data={chartData} options={options} />
       </div>

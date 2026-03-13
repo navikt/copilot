@@ -3,12 +3,15 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, Search, HStack, VStack, BodyShort, Chips } from "@navikt/ds-react";
-import type { AnyCustomization, CustomizationType, Domain } from "@/lib/customization-types";
+import type { CustomizationType, Domain } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
+import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { CustomizationCard } from "./customization-card";
 import { DetailDrawer } from "./detail-drawer";
 
 const TYPES: CustomizationType[] = ["agent", "instruction", "prompt", "skill", "mcp"];
+
+type SortOption = "alpha" | "most-used";
 
 function isValidType(value: string | null): value is CustomizationType {
   return value !== null && TYPES.includes(value as CustomizationType);
@@ -19,7 +22,7 @@ function isValidDomain(value: string | null, domains: Domain[]): value is Domain
 }
 
 interface CustomizationCatalogProps {
-  items: AnyCustomization[];
+  items: EnrichedCustomization[];
 }
 
 export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
@@ -43,12 +46,13 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(
     isValidDomain(initialDomain, allDomains) ? initialDomain : null
   );
-  const [selectedItem, setSelectedItem] = useState<AnyCustomization | null>(() => {
+  const [selectedItem, setSelectedItem] = useState<EnrichedCustomization | null>(() => {
     if (initialItem) {
       return items.find((i) => i.id === initialItem) ?? null;
     }
     return null;
   });
+  const [sortBy, setSortBy] = useState<SortOption>("alpha");
 
   const isInitialRender = useRef(true);
   useEffect(() => {
@@ -75,7 +79,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   }, []);
 
   const filtered = useMemo(() => {
-    return items.filter((item) => {
+    const result = items.filter((item) => {
       if (selectedType && item.type !== selectedType) return false;
       if (selectedDomain && item.domain !== selectedDomain) return false;
       if (search) {
@@ -88,7 +92,12 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
       }
       return true;
     });
-  }, [items, search, selectedType, selectedDomain]);
+
+    if (sortBy === "most-used") {
+      return result.sort((a, b) => b.usageCount - a.usageCount || a.name.localeCompare(b.name, "nb"));
+    }
+    return result.sort((a, b) => a.name.localeCompare(b.name, "nb"));
+  }, [items, search, selectedType, selectedDomain, sortBy]);
 
   return (
     <VStack gap="space-16">
@@ -138,9 +147,24 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
         </Chips>
       </HStack>
 
-      <BodyShort size="small" className="text-gray-500">
-        {filtered.length} av {items.length} tilpasninger
-      </BodyShort>
+      <HStack gap="space-8" align="center" justify="space-between" wrap>
+        <HStack gap="space-8" align="center">
+          <BodyShort size="small" className="text-gray-500">
+            Sorter:
+          </BodyShort>
+          <Chips size="small">
+            <Chips.Toggle selected={sortBy === "alpha"} onClick={() => setSortBy("alpha")}>
+              A–Å
+            </Chips.Toggle>
+            <Chips.Toggle selected={sortBy === "most-used"} onClick={() => setSortBy("most-used")}>
+              Mest brukt
+            </Chips.Toggle>
+          </Chips>
+        </HStack>
+        <BodyShort size="small" className="text-gray-500">
+          {filtered.length} av {items.length} tilpasninger
+        </BodyShort>
+      </HStack>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map((item) => (

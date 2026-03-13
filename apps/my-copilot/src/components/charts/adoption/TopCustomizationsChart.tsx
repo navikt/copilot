@@ -1,10 +1,13 @@
 "use client";
 
 import type { CustomizationDetail } from "@/lib/types";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Box, Heading, BodyShort, HGrid } from "@navikt/ds-react";
+import { Box, Heading, BodyShort, HGrid, HStack, Chips } from "@navikt/ds-react";
+import { getOfficialFileNames } from "@/lib/customizations";
+
+type OriginFilter = "all" | "official" | "custom";
 
 interface TopCustomizationsChartProps {
   data: CustomizationDetail[];
@@ -68,6 +71,17 @@ function CategoryChart({
 }
 
 const TopCustomizationsChart: React.FC<TopCustomizationsChartProps> = ({ data, maxItems = 10 }) => {
+  const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
+  const officialNames = useMemo(() => getOfficialFileNames(), []);
+
+  const filteredData = useMemo(() => {
+    if (originFilter === "all") return data;
+    return data.filter((item) => {
+      const isOfficial = officialNames.has(item.file_name);
+      return originFilter === "official" ? isOfficial : !isOfficial;
+    });
+  }, [data, originFilter, officialNames]);
+
   if (!data || data.length === 0) {
     return (
       <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
@@ -76,16 +90,34 @@ const TopCustomizationsChart: React.FC<TopCustomizationsChartProps> = ({ data, m
     );
   }
 
-  const grouped = Object.groupBy(data, (item) => item.category);
+  const grouped = Object.groupBy(filteredData, (item) => item.category);
 
   const categories = ["agents", "skills", "instructions", "prompts"];
 
   return (
-    <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
-      {categories.map((category) => (
-        <CategoryChart key={category} category={category} items={grouped[category] ?? []} maxItems={maxItems} />
-      ))}
-    </HGrid>
+    <div>
+      <HStack gap="space-8" align="center" className="mb-4">
+        <BodyShort size="small" className="text-gray-500">
+          Opprinnelse:
+        </BodyShort>
+        <Chips size="small">
+          <Chips.Toggle selected={originFilter === "all"} onClick={() => setOriginFilter("all")}>
+            Alle
+          </Chips.Toggle>
+          <Chips.Toggle selected={originFilter === "official"} onClick={() => setOriginFilter("official")}>
+            Offisielle
+          </Chips.Toggle>
+          <Chips.Toggle selected={originFilter === "custom"} onClick={() => setOriginFilter("custom")}>
+            Egne
+          </Chips.Toggle>
+        </Chips>
+      </HStack>
+      <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+        {categories.map((category) => (
+          <CategoryChart key={category} category={category} items={grouped[category] ?? []} maxItems={maxItems} />
+        ))}
+      </HGrid>
+    </div>
   );
 };
 

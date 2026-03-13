@@ -288,8 +288,22 @@ export interface LanguageAdoption {
   with_mcp_config: number;
 }
 
+export interface CustomizationDetail {
+  category: string;
+  file_name: string;
+  repo_count: number;
+}
+
+export interface CustomizationUsage {
+  category: string;
+  file_name: string;
+  repo_count: number;
+  sample_repos: string[];
+}
+
 export interface AdoptionData {
   summary: AdoptionSummary | null;
   teams: TeamAdoption[];
   languages: LanguageAdoption[];
+  customizationDetails: CustomizationDetail[];
 }

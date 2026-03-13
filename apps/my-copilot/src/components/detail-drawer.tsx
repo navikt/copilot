@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { XMarkIcon, ExternalLinkIcon, DownloadIcon } from "@navikt/aksel-icons";
 import { Alert, Box, BodyShort, Button, Heading, Tag, HStack, VStack, CopyButton, Accordion } from "@navikt/ds-react";
-import type { AnyCustomization } from "@/lib/customization-types";
+import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 
 const TOOLS_PREVIEW_COUNT = 5;
@@ -44,7 +44,7 @@ import {
 } from "@/lib/install-commands";
 
 interface DetailDrawerProps {
-  item: AnyCustomization | null;
+  item: EnrichedCustomization | null;
   open: boolean;
   onClose: () => void;
 }
@@ -71,7 +71,7 @@ function ExclusiveAccordion({ children }: { children: React.ReactNode }) {
   );
 }
 
-function McpDetails({ item }: { item: AnyCustomization }) {
+function McpDetails({ item }: { item: EnrichedCustomization }) {
   if (item.type !== "mcp") return null;
 
   return (
@@ -350,7 +350,7 @@ function McpDetails({ item }: { item: AnyCustomization }) {
   );
 }
 
-function StaticCustomizationDetails({ item }: { item: AnyCustomization }) {
+function StaticCustomizationDetails({ item }: { item: EnrichedCustomization }) {
   if (item.type === "mcp") return null;
 
   return (
@@ -545,6 +545,36 @@ export function DetailDrawer({ item, open, onClose }: DetailDrawerProps) {
                 <Box paddingBlock="space-16" paddingInline="space-20" className="flex-1">
                   <VStack gap="space-16">
                     <BodyShort>{item.description}</BodyShort>
+
+                    {item.usageCount > 0 && (
+                      <VStack gap="space-8">
+                        <Heading size="xsmall" level="4">
+                          Brukt i {item.usageCount} {item.usageCount === 1 ? "repo" : "repoer"}
+                        </Heading>
+                        <HStack gap="space-4" wrap>
+                          {item.usedBy.map((repo, i) => (
+                            <span key={repo} className="inline-flex items-center">
+                              <a
+                                href={`https://github.com/navikt/${repo}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:underline"
+                              >
+                                {repo}
+                              </a>
+                              {i < item.usedBy.length - 1 || item.usageCount > item.usedBy.length ? (
+                                <span className="text-gray-400">,</span>
+                              ) : null}
+                            </span>
+                          ))}
+                          {item.usageCount > item.usedBy.length && (
+                            <span className="text-sm text-gray-500">
+                              +{item.usageCount - item.usedBy.length} andre
+                            </span>
+                          )}
+                        </HStack>
+                      </VStack>
+                    )}
 
                     {item.type === "mcp" ? <McpDetails item={item} /> : <StaticCustomizationDetails item={item} />}
                   </VStack>

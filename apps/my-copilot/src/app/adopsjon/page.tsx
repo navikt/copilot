@@ -9,11 +9,17 @@ import {
 } from "@/components/charts/adoption";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Box, Heading, HGrid, Skeleton, VStack, BodyShort, Table } from "@navikt/ds-react";
-import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
+import { Box, Heading, HGrid, Skeleton, VStack, BodyShort } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
+import TeamTable from "@/components/team-table";
 import { formatNumber } from "@/lib/format";
-import type { AdoptionData, TeamAdoption } from "@/lib/types";
+import {
+  calculateTeamStats,
+  calculateLanguageStats,
+  formatAdoptionRate,
+  formatScanDate,
+} from "@/lib/adoption-utils";
+import type { AdoptionData } from "@/lib/types";
 
 // Static header component
 function AdoptionHeader() {
@@ -44,13 +50,13 @@ function OverviewContent({ data }: { data: AdoptionData }) {
     return <ErrorState message="Ingen adopsjonsdata tilgjengelig" />;
   }
 
-  const adoptionPercent = (summary.adoption_rate * 100).toFixed(1);
+  const adoptionPercent = formatAdoptionRate(summary.adoption_rate, 1);
 
   return (
     <VStack gap="space-24">
       <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
         <MetricCard
-          value={`${adoptionPercent}%`}
+          value={adoptionPercent}
           label="Adopsjonsrate"
           helpTitle="Adopsjonsrate"
           helpText="Andel aktive repoer med minst én Copilot-tilpasning"
@@ -83,28 +89,26 @@ function TeamContent({ data }: { data: AdoptionData }) {
     return <ErrorState message="Ingen teamdata tilgjengelig" />;
   }
 
-  // Filter teams with at least 1 active repo
-  const activeTeams = teams.filter((t) => t.active_repos > 0);
-  const teamsWithAdoption = activeTeams.filter((t) => t.repos_with_customizations > 0);
+  const stats = calculateTeamStats(teams);
 
   return (
     <VStack gap="space-24">
       <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
         <MetricCard
-          value={formatNumber(activeTeams.length)}
+          value={formatNumber(stats.totalTeams)}
           label="Team totalt"
           helpTitle="Team totalt"
           helpText="Antall team med minst ett aktivt repo"
         />
         <MetricCard
-          value={formatNumber(teamsWithAdoption.length)}
+          value={formatNumber(stats.teamsWithAdoption)}
           label="Team med tilpasninger"
           helpTitle="Team med tilpasninger"
           helpText="Team som har minst ett repo med Copilot-tilpasninger"
-          subtitle={`${activeTeams.length > 0 ? ((teamsWithAdoption.length / activeTeams.length) * 100).toFixed(0) : 0}% av team`}
+          subtitle={`${stats.adoptionPercent.toFixed(0)}% av team`}
         />
         <MetricCard
-          value={formatNumber(teamsWithAdoption.reduce((sum, t) => sum + t.repos_with_customizations, 0))}
+          value={formatNumber(stats.totalReposWithCustomizations)}
           label="Repoer totalt"
           helpTitle="Tilpassede repoer"
           helpText="Sum av repoer med Copilot-tilpasninger på tvers av team"
@@ -118,38 +122,10 @@ function TeamContent({ data }: { data: AdoptionData }) {
           <Heading size="small" level="4">
             Alle team
           </Heading>
-          <TeamTable teams={activeTeams} />
+          <TeamTable teams={teams.filter((t) => t.active_repos > 0)} />
         </VStack>
       </Box>
     </VStack>
-  );
-}
-
-// Team table component
-function TeamTable({ teams }: { teams: TeamAdoption[] }) {
-  const sortedTeams = [...teams].sort((a, b) => b.repos_with_customizations - a.repos_with_customizations);
-
-  return (
-    <Table size="small">
-      <TableHeader>
-        <TableRow>
-          <TableHeaderCell>Team</TableHeaderCell>
-          <TableHeaderCell align="right">Aktive repoer</TableHeaderCell>
-          <TableHeaderCell align="right">Med tilpasninger</TableHeaderCell>
-          <TableHeaderCell align="right">Adopsjonsrate</TableHeaderCell>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sortedTeams.slice(0, 50).map((team) => (
-          <TableRow key={team.team_slug}>
-            <TableDataCell>{team.team_name || team.team_slug}</TableDataCell>
-            <TableDataCell align="right">{team.active_repos}</TableDataCell>
-            <TableDataCell align="right">{team.repos_with_customizations}</TableDataCell>
-            <TableDataCell align="right">{(team.adoption_rate * 100).toFixed(0)}%</TableDataCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   );
 }
 
@@ -161,26 +137,26 @@ function LanguageContent({ data }: { data: AdoptionData }) {
     return <ErrorState message="Ingen språkdata tilgjengelig" />;
   }
 
-  const topLanguage = languages.reduce((best, lang) => (lang.adoption_rate > best.adoption_rate ? lang : best));
+  const stats = calculateLanguageStats(languages);
 
   return (
     <VStack gap="space-24">
       <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
         <MetricCard
-          value={formatNumber(languages.length)}
+          value={formatNumber(stats.totalLanguages)}
           label="Språk totalt"
           helpTitle="Språk totalt"
           helpText="Antall programmeringsspråk med minst 5 repoer"
         />
         <MetricCard
-          value={topLanguage.language}
+          value={stats.topLanguage?.language ?? "—"}
           label="Høyest adopsjon"
           helpTitle="Høyest adopsjon"
-          helpText={`Språket med høyest Copilot-adopsjonsrate (${(topLanguage.adoption_rate * 100).toFixed(0)}%)`}
-          subtitle={`${(topLanguage.adoption_rate * 100).toFixed(0)}% av ${topLanguage.total_repos} repoer`}
+          helpText={stats.topLanguage ? `Språket med høyest Copilot-adopsjonsrate (${formatAdoptionRate(stats.topLanguage.adoption_rate)})` : "Ingen data"}
+          subtitle={stats.topLanguage ? `${formatAdoptionRate(stats.topLanguage.adoption_rate)} av ${stats.topLanguage.total_repos} repoer` : undefined}
         />
         <MetricCard
-          value={formatNumber(languages.reduce((sum, l) => sum + l.repos_with_customizations, 0))}
+          value={formatNumber(stats.totalReposWithCustomizations)}
           label="Repoer med tilpasninger"
           helpTitle="Repoer med tilpasninger"
           helpText="Sum av repoer på tvers av alle språk"
@@ -239,13 +215,7 @@ async function CachedAdoptionData() {
   if (error) return <ErrorState message={`Feil ved henting av adopsjonsdata: ${error}`} />;
   if (!data) return <ErrorState message="Ingen adopsjonsdata tilgjengelig" />;
 
-  const scanDate = data.summary
-    ? new Date(data.summary.scan_date).toLocaleDateString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
-    : null;
+  const scanDate = data.summary ? formatScanDate(data.summary.scan_date) : null;
 
   const tabs = [
     {

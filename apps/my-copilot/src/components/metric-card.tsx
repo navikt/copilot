@@ -9,6 +9,8 @@ interface MetricCardProps {
 }
 
 export default function MetricCard({ value, label, helpText, helpTitle, subtitle }: MetricCardProps) {
+  const isLongText = typeof value === "string" && value.length > 6;
+
   return (
     <Box background="default" padding="space-20" borderRadius="8" className="border border-gray-200">
       <VStack gap="space-2">
@@ -18,7 +20,7 @@ export default function MetricCard({ value, label, helpText, helpTitle, subtitle
             {helpText}
           </HelpText>
         </div>
-        <Heading size="xlarge" level="2">
+        <Heading size={isLongText ? "medium" : "xlarge"} level="2" className="break-all">
           {value}
         </Heading>
         {subtitle && <BodyShort className="text-gray-500 text-sm">{subtitle}</BodyShort>}
