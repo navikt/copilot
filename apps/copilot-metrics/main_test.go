@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -230,6 +231,28 @@ func TestConfigValidate_AllPresent(t *testing.T) {
 	}
 }
 
+func TestIngestDay_ReportNotAvailable(t *testing.T) {
+	ctx := context.Background()
+	day := time.Date(2025, 10, 15, 0, 0, 0, 0, time.UTC)
+
+	fetcher := &mockFetcher{
+		err: fmt.Errorf("%w for 2025-10-15: enterprise report not generated yet and org endpoint also failed: forbidden",
+			ErrReportNotAvailable),
+	}
+
+	store := &mockStore{}
+
+	err := ingestDay(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, day)
+	if err != nil {
+		t.Fatalf("expected no error for report not available, got %v", err)
+	}
+
+	// Verify insert was NOT called
+	if !store.insertedDay.IsZero() {
+		t.Error("expected insert NOT to be called when report is not available")
+	}
+}
+
 func TestIsClientError(t *testing.T) {
 	tests := []struct {
 		err      error
@@ -247,4 +270,185 @@ func TestIsClientError(t *testing.T) {
 			t.Errorf("isClientError(%q) = %v, want %v", tt.err, result, tt.expected)
 		}
 	}
+}
+
+func TestIsReportNotAvailable(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "report not available message",
+			err:      errors.New(`API returned status 404: {"message":"No report available for this enterprise on 2026-03-12"}`),
+			expected: true,
+		},
+		{
+			name:     "wrapped ErrReportNotAvailable",
+			err:      fmt.Errorf("No report available: %w", ErrReportNotAvailable),
+			expected: true,
+		},
+		{
+			name:     "generic 404",
+			err:      errors.New("API returned status 404: not found"),
+			expected: false,
+		},
+		{
+			name:     "403 forbidden",
+			err:      errors.New("API returned status 403: Resource not accessible by integration"),
+			expected: false,
+		},
+		{
+			name:     "connection error",
+			err:      errors.New("connection timeout"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isReportNotAvailable(tt.err)
+			if result != tt.expected {
+				t.Errorf("isReportNotAvailable(%q) = %v, want %v", tt.err, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIngestMissing_FillsGaps(t *testing.T) {
+	ctx := context.Background()
+
+	// Latest day in BigQuery is 3 days ago — should fill 2 missing days
+	threeDaysAgo := time.Now().UTC().AddDate(0, 0, -3)
+
+	fetcher := &countingFetcher{
+		result: &FetchResult{
+			Records: []json.RawMessage{json.RawMessage(`{"test":"data"}`)},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+	}
+
+	store := &mockStore{
+		latestDay: threeDaysAgo,
+	}
+
+	cfg := &Config{EnterpriseSlug: "nav"}
+	err := ingestMissing(ctx, fetcher, store, cfg, nil)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should have fetched 2 days: day-2 and day-1 (yesterday)
+	if fetcher.calls != 2 {
+		t.Errorf("expected 2 fetch calls, got %d", fetcher.calls)
+	}
+}
+
+func TestIngestMissing_AlreadyUpToDate(t *testing.T) {
+	ctx := context.Background()
+
+	// Latest day is yesterday — nothing to fill
+	yesterday := time.Now().UTC().AddDate(0, 0, -1)
+
+	fetcher := &countingFetcher{}
+	store := &mockStore{latestDay: yesterday}
+
+	cfg := &Config{EnterpriseSlug: "nav"}
+	err := ingestMissing(ctx, fetcher, store, cfg, nil)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if fetcher.calls != 0 {
+		t.Errorf("expected 0 fetch calls when up to date, got %d", fetcher.calls)
+	}
+}
+
+func TestIngestMissing_NoExistingData(t *testing.T) {
+	ctx := context.Background()
+
+	// No data in BigQuery — should ingest yesterday only
+	fetcher := &countingFetcher{
+		result: &FetchResult{
+			Records: []json.RawMessage{json.RawMessage(`{"test":"data"}`)},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+	}
+
+	store := &mockStore{} // latestDay is zero
+
+	cfg := &Config{EnterpriseSlug: "nav"}
+	err := ingestMissing(ctx, fetcher, store, cfg, nil)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if fetcher.calls != 1 {
+		t.Errorf("expected 1 fetch call for yesterday, got %d", fetcher.calls)
+	}
+}
+
+func TestIngestMissing_ContinuesOnPartialFailure(t *testing.T) {
+	ctx := context.Background()
+
+	// 3 days to fill, middle one will fail
+	fourDaysAgo := time.Now().UTC().AddDate(0, 0, -4)
+
+	callCount := 0
+	fetcher := &callbackFetcher{
+		fn: func() (*FetchResult, error) {
+			callCount++
+			if callCount == 2 {
+				return nil, errors.New("transient error")
+			}
+			return &FetchResult{
+				Records: []json.RawMessage{json.RawMessage(`{"test":"data"}`)},
+				Scope:   "enterprise",
+				ScopeID: "nav",
+			}, nil
+		},
+	}
+
+	store := &mockStore{latestDay: fourDaysAgo}
+
+	cfg := &Config{EnterpriseSlug: "nav"}
+	err := ingestMissing(ctx, fetcher, store, cfg, nil)
+	if err != nil {
+		t.Fatalf("expected no error (partial success), got %v", err)
+	}
+
+	// All 3 days attempted
+	if callCount != 3 {
+		t.Errorf("expected 3 fetch calls, got %d", callCount)
+	}
+}
+
+func TestIngestMissing_AllDaysFail(t *testing.T) {
+	ctx := context.Background()
+
+	twoDaysAgo := time.Now().UTC().AddDate(0, 0, -2)
+
+	fetcher := &countingFetcher{err: errors.New("API error")}
+	store := &mockStore{latestDay: twoDaysAgo}
+
+	cfg := &Config{EnterpriseSlug: "nav"}
+	err := ingestMissing(ctx, fetcher, store, cfg, nil)
+	if err == nil {
+		t.Fatal("expected error when all days fail, got nil")
+	}
+}
+
+// callbackFetcher calls a function for each fetch, allowing per-call behavior.
+type callbackFetcher struct {
+	fn func() (*FetchResult, error)
+}
+
+func (f *callbackFetcher) FetchDailyMetrics(_ context.Context, _ time.Time) (*FetchResult, error) {
+	return f.fn()
+}
+
+func (f *callbackFetcher) FetchLatest28DayReport(_ context.Context) (*FetchResult, error) {
+	return f.fn()
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -79,11 +80,15 @@ func main() {
 	}
 
 	if *runOnce {
-		if err := ingestYesterday(ctx, ghClient, bqClient, config); err != nil {
+		slack := NewSlackNotifier(config.SlackWebhookURL)
+		if err := ingestMissing(ctx, ghClient, bqClient, config, slack); err != nil {
+			if slack != nil {
+				slack.NotifyError(ctx, fmt.Sprintf("Ingestion failed: %v", err))
+			}
 			slog.Error("Ingestion failed", "error", err)
 			os.Exit(1)
 		}
-		slog.Info("Single ingestion completed successfully")
+		slog.Info("Ingestion completed successfully")
 		return
 	}
 
@@ -121,9 +126,63 @@ func main() {
 	}
 }
 
-func ingestYesterday(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config) error {
+func ingestMissing(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config, slack *SlackNotifier) error {
 	yesterday := time.Now().UTC().AddDate(0, 0, -1)
-	return ingestDay(ctx, gh, bq, cfg, yesterday)
+
+	// Check what we already have in BigQuery to fill gaps automatically
+	latestDay, err := bq.GetLatestDay(ctx, cfg.EnterpriseSlug)
+	if err != nil {
+		slog.Warn("Could not get latest day from BigQuery, ingesting yesterday only", "error", err)
+		return ingestDay(ctx, gh, bq, cfg, yesterday)
+	}
+
+	if latestDay.IsZero() {
+		slog.Info("No existing data found, ingesting yesterday only")
+		return ingestDay(ctx, gh, bq, cfg, yesterday)
+	}
+
+	startDate := latestDay.AddDate(0, 0, 1)
+	if startDate.After(yesterday) {
+		slog.Info("Already up to date", "latest_day", latestDay.Format("2006-01-02"))
+		return nil
+	}
+
+	totalDays := int(yesterday.Sub(startDate).Hours()/24) + 1
+	slog.Info("Filling missing days",
+		"latest_in_bigquery", latestDay.Format("2006-01-02"),
+		"from", startDate.Format("2006-01-02"),
+		"to", yesterday.Format("2006-01-02"),
+		"days", totalDays,
+	)
+
+	var successCount, errorCount int
+	var failedDays []string
+	for day := startDate; !day.After(yesterday); day = day.AddDate(0, 0, 1) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if err := ingestDay(ctx, gh, bq, cfg, day); err != nil {
+			errorCount++
+			failedDays = append(failedDays, day.Format("2006-01-02"))
+			slog.Error("Failed to ingest day", "day", day.Format("2006-01-02"), "error", err)
+			continue
+		}
+		successCount++
+	}
+
+	slog.Info("Ingestion completed", "success", successCount, "errors", errorCount, "total", totalDays)
+
+	if errorCount > 0 {
+		slack.NotifyIngestionResult(ctx, successCount, errorCount, failedDays)
+	}
+
+	if errorCount > 0 && successCount == 0 {
+		return fmt.Errorf("all %d days failed to ingest", errorCount)
+	}
+	return nil
 }
 
 func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, _ *Config, day time.Time) error {
@@ -133,6 +192,12 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, _ *Confi
 	// Fetch first to determine which scope (enterprise vs org) has data
 	result, err := gh.FetchDailyMetrics(ctx, day)
 	if err != nil {
+		if errors.Is(err, ErrReportNotAvailable) {
+			slog.Warn("Report not available yet — will be picked up by next run or backfill",
+				"day", dayStr,
+			)
+			return nil
+		}
 		return fmt.Errorf("failed to fetch metrics: %w", err)
 	}
 

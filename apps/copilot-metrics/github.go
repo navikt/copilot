@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 )
+
+// ErrReportNotAvailable indicates the metrics report has not been generated yet.
+// This is a transient condition — the report typically becomes available later in the day.
+var ErrReportNotAvailable = errors.New("report not available")
 
 type GitHubClient struct {
 	httpClient     *http.Client // GitHub API client with auth
@@ -62,12 +67,12 @@ func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*F
 	dayStr := day.Format("2006-01-02")
 
 	// Try enterprise endpoint first
-	url := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-1-day?day=%s",
+	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-1-day?day=%s",
 		c.enterprise, dayStr)
 
-	slog.Debug("Fetching metrics report", "url", url, "day", dayStr)
+	slog.Debug("Fetching metrics report", "url", enterpriseURL, "day", dayStr)
 
-	records, err := c.fetchMetricsFromURLWithRetry(ctx, url)
+	records, err := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
 	if err == nil {
 		return &FetchResult{
 			Records: records,
@@ -76,15 +81,20 @@ func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*F
 		}, nil
 	}
 
-	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "error", err)
+	enterpriseErr := err
+	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "error", enterpriseErr)
 
 	// Fall back to organization endpoint
-	url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-1-day?day=%s",
+	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-1-day?day=%s",
 		c.org, dayStr)
-	slog.Debug("Fetching metrics report (org fallback)", "url", url, "day", dayStr)
+	slog.Debug("Fetching metrics report (org fallback)", "url", orgURL, "day", dayStr)
 
-	records, err = c.fetchMetricsFromURLWithRetry(ctx, url)
+	records, err = c.fetchMetricsFromURLWithRetry(ctx, orgURL)
 	if err != nil {
+		if isReportNotAvailable(enterpriseErr) {
+			return nil, fmt.Errorf("%w for %s: enterprise report not generated yet and org endpoint also failed: %v",
+				ErrReportNotAvailable, dayStr, err)
+		}
 		return nil, fmt.Errorf("both enterprise and org endpoints failed: %w", err)
 	}
 
@@ -127,6 +137,11 @@ func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url str
 func isClientError(err error) bool {
 	errStr := err.Error()
 	return strings.Contains(errStr, "status 4")
+}
+
+// isReportNotAvailable checks if the error indicates the report hasn't been generated yet.
+func isReportNotAvailable(err error) bool {
+	return strings.Contains(err.Error(), "No report available")
 }
 
 func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]json.RawMessage, error) {

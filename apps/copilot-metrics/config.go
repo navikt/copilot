@@ -18,6 +18,7 @@ type Config struct {
 	BigQueryProjectID       string
 	BigQueryDataset         string
 	BigQueryTable           string
+	SlackWebhookURL         string
 }
 
 func loadConfig() *Config {
@@ -32,6 +33,7 @@ func loadConfig() *Config {
 		BigQueryProjectID:       getEnv("GCP_TEAM_PROJECT_ID", ""),
 		BigQueryDataset:         getEnv("BIGQUERY_DATASET", "copilot_metrics"),
 		BigQueryTable:           getEnv("BIGQUERY_TABLE", "usage_metrics"),
+		SlackWebhookURL:         getEnv("SLACK_WEBHOOK_URL", ""),
 	}
 }
 

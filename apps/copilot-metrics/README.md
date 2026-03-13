@@ -16,18 +16,20 @@ GitHub Usage Metrics API → copilot-metrics (Naisjob) → BigQuery
 
 ## Features
 
-- **Nightly ingestion**: Fetches yesterday's metrics daily at 06:00 UTC
+- **Nightly ingestion**: Fetches missing metrics daily at 06:00 UTC
+- **Automatic gap filling**: Detects missing days in BigQuery and backfills them automatically
 - **Enterprise-level data**: Uses enterprise API for richer data (CLI usage, agent modes, LoC metrics)
 - **Fallback to org-level**: Gracefully degrades to organization API if enterprise fails
 - **Historical backfill**: CLI flag to load historical data from Oct 10, 2025
 - **Idempotent**: Re-runs delete and re-insert data for the same day
 - **Raw JSON storage**: Schema changes in GitHub API don't break the pipeline
+- **Slack alerts**: Notifies on ingestion failures when `SLACK_WEBHOOK_URL` is configured
 
 ## Usage
 
 ### Nightly job (default)
 
-Runs as a Kubernetes CronJob via NAIS:
+Runs as a Kubernetes CronJob via NAIS. Automatically detects missing days in BigQuery and fills gaps:
 
 ```bash
 copilot-metrics --run-once
@@ -68,6 +70,7 @@ go run . --run-once
 | `GCP_TEAM_PROJECT_ID`        | GCP project (from NAIS)              | (required)        |
 | `BIGQUERY_DATASET`           | BigQuery dataset name                | `copilot_metrics` |
 | `BIGQUERY_TABLE`             | BigQuery table name                  | `usage_metrics`   |
+| `SLACK_WEBHOOK_URL`          | Slack webhook for failure alerts     | (optional)        |
 
 ## BigQuery Schema
 

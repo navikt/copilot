@@ -36,6 +36,7 @@ spec:
         - host: copilot-reports-acc0engfa5gra7ha.b01.azurefd.net
         - host: bigquery.googleapis.com
         - host: storage.googleapis.com
+        - host: hooks.slack.com
   resources:
     limits:
       memory: "256Mi"
