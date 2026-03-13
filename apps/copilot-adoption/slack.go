@@ -14,6 +14,7 @@ import (
 type SlackNotifier struct {
 	webhookURL string
 	client     *http.Client
+	notified   bool
 }
 
 type slackMessage struct {
@@ -75,6 +76,11 @@ func (s *SlackNotifier) NotifyError(ctx context.Context, message string) {
 }
 
 func (s *SlackNotifier) send(ctx context.Context, text string) {
+	if s.notified {
+		slog.Debug("Slack notification already sent, skipping duplicate")
+		return
+	}
+
 	msg := slackMessage{
 		Text: text,
 		Blocks: []slackBlock{
@@ -112,4 +118,5 @@ func (s *SlackNotifier) send(ctx context.Context, text string) {
 	}
 
 	slog.Info("Slack notification sent")
+	s.notified = true
 }

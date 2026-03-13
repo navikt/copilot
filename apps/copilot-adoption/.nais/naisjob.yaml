@@ -26,8 +26,6 @@ spec:
       value: "3"
     - name: SCAN_CONCURRENCY
       value: "5"
-    - name: SLACK_WEBHOOK_URL
-      value: "{{slack_webhook_url}}"
   gcp:
     bigQueryDatasets:
       - name: copilot_adoption
