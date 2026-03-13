@@ -34,8 +34,8 @@ func loadConfig() *Config {
 		BigQueryProjectID:       getEnv("GCP_TEAM_PROJECT_ID", ""),
 		BigQueryDataset:         getEnv("BIGQUERY_DATASET", "copilot_adoption"),
 		BigQueryTable:           getEnv("BIGQUERY_TABLE", "repo_scan"),
-		GraphQLBatchSize:        int(getEnvInt64("GRAPHQL_BATCH_SIZE", 3)),
-		ScanConcurrency:         int(getEnvInt64("SCAN_CONCURRENCY", 5)),
+		GraphQLBatchSize:        getEnvInt("GRAPHQL_BATCH_SIZE", 3),
+		ScanConcurrency:         getEnvInt("SCAN_CONCURRENCY", 5),
 		SlackWebhookURL:         getEnv("SLACK_WEBHOOK_URL", ""),
 	}
 }
@@ -94,6 +94,23 @@ func getEnvInt64(key string, fallback int64) int64 {
 		i, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			slog.Warn("Invalid int64 value for environment variable, using fallback",
+				"key", key,
+				"value", value,
+				"fallback", fallback,
+				"error", err,
+			)
+			return fallback
+		}
+		return i
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if value := os.Getenv(key); value != "" {
+		i, err := strconv.Atoi(value)
+		if err != nil {
+			slog.Warn("Invalid int value for environment variable, using fallback",
 				"key", key,
 				"value", value,
 				"fallback", fallback,
