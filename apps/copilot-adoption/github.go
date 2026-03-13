@@ -298,13 +298,14 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 
 				mu.Lock()
 				if err != nil {
-					slog.Warn("GraphQL batch failed, recording empty results",
+					slog.Warn("GraphQL batch failed, recording nil results to track failures",
 						"batch_start", job.index,
 						"batch_size", len(job.repos),
 						"error", err,
 					)
+					// Use nil to indicate failure (vs emptyResults for "no customizations")
 					for _, repo := range job.repos {
-						results[repo.Name] = emptyResults(criteria)
+						results[repo.Name] = nil
 					}
 				} else {
 					for name, res := range batchRes {
@@ -547,8 +548,9 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 
-		// Rate limited — honor Retry-After header
+		// Rate limited — honor Retry-After header or X-RateLimit-Reset
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
+			// Check Retry-After header first
 			if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
 				if seconds, err := strconv.Atoi(retryAfter); err == nil {
 					wait := time.Duration(seconds) * time.Second
@@ -562,7 +564,28 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 					continue
 				}
 			}
-			// 403 without Retry-After is a permission error — don't retry
+
+			// Check X-RateLimit headers (GitHub's primary rate limiting)
+			remaining := resp.Header.Get("X-RateLimit-Remaining")
+			resetHeader := resp.Header.Get("X-RateLimit-Reset")
+			if remaining == "0" && resetHeader != "" {
+				if resetUnix, err := strconv.ParseInt(resetHeader, 10, 64); err == nil {
+					resetTime := time.Unix(resetUnix, 0)
+					wait := time.Until(resetTime) + 5*time.Second // Add buffer
+					if wait > 0 && wait < 15*time.Minute {        // Sanity check
+						slog.Warn("Rate limited, waiting until reset", "reset_at", resetTime, "wait", wait)
+						select {
+						case <-ctx.Done():
+							return nil, ctx.Err()
+						case <-time.After(wait):
+						}
+						lastErr = fmt.Errorf("status %d: rate limit exceeded", resp.StatusCode)
+						continue
+					}
+				}
+			}
+
+			// 403 without rate limit indicators is a permission error — don't retry
 			if resp.StatusCode == http.StatusForbidden {
 				return nil, fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
 			}

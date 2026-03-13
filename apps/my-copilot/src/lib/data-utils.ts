@@ -295,6 +295,7 @@ export const buildTrendData = (usage: EnterpriseMetrics[]): DailyTrend[] => {
 export const buildAdoptionTrendData = (usage: EnterpriseMetrics[]): AdoptionTrendData => {
   // GitHub's monthly_active_*_users reset at billing period boundaries.
   // We calculate a rolling 30-day average to smooth the reset transition.
+  // Note: CLI is already a daily metric, so we keep it raw (no rolling average).
   const chatRaw = usage.map((d) => d.monthly_active_chat_users || 0);
   const agentRaw = usage.map((d) => d.monthly_active_agent_users || 0);
   const cliRaw = usage.map((d) => d.daily_active_cli_users || 0);
@@ -312,7 +313,7 @@ export const buildAdoptionTrendData = (usage: EnterpriseMetrics[]): AdoptionTren
     days: usage.map((d) => d.day),
     chatUsers: rollingAverage(chatRaw, 30),
     agentUsers: rollingAverage(agentRaw, 30),
-    cliUsers: rollingAverage(cliRaw, 30),
+    cliUsers: cliRaw, // Daily metric, no rolling average needed
   };
 };
 

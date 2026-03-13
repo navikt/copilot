@@ -96,7 +96,7 @@ func main() {
 	if *runOnce {
 		slack := NewSlackNotifier(config.SlackWebhookURL)
 		today := time.Now().UTC().Truncate(24 * time.Hour)
-		if err := RunScan(ctx, ghClient, bqClient, config, today); err != nil {
+		if err := RunScan(ctx, ghClient, bqClient, config, today, slack); err != nil {
 			slog.Error("Scan failed", "error", err)
 			if slack != nil {
 				slack.NotifyError(ctx, fmt.Sprintf("Scan failed: %v", err))
@@ -120,17 +120,25 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// Channel to receive server errors
+	serverErrCh := make(chan error, 1)
 	go func() {
 		slog.Info("Server listening", "port", config.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Server failed", "error", err)
-			os.Exit(1)
+			serverErrCh <- err
 		}
 	}()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
+
+	select {
+	case <-sigCh:
+		slog.Info("Received shutdown signal")
+	case err := <-serverErrCh:
+		slog.Error("Server failed", "error", err)
+		os.Exit(1)
+	}
 
 	slog.Info("Shutting down...")
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)

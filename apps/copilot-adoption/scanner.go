@@ -19,7 +19,7 @@ func RunScan(ctx context.Context, gh interface {
 	RepoLister
 	TeamMapper
 	CustomizationScanner
-}, bq AdoptionStore, cfg *Config, scanDate time.Time) error {
+}, bq AdoptionStore, cfg *Config, scanDate time.Time, slack *SlackNotifier) error {
 	dateStr := scanDate.Format("2006-01-02")
 	slog.Info("Starting adoption scan", "date", dateStr, "org", cfg.OrganizationSlug)
 
@@ -64,16 +64,17 @@ func RunScan(ctx context.Context, gh interface {
 		return fmt.Errorf("scan failed: %w", err)
 	}
 
-	// Check error rate — count repos where GraphQL returned no response at all
-	emptyCount := 0
+	// Check error rate — count repos where GraphQL batch failed (nil result)
+	// Note: nil indicates batch failure, vs non-nil map with Exists=false for "no customizations"
+	failedCount := 0
 	for _, res := range scanResults {
-		if len(res) == 0 {
-			emptyCount++
+		if res == nil {
+			failedCount++
 		}
 	}
-	if len(activeRepos) > 10 && emptyCount*100/len(activeRepos) > maxErrorRate {
-		return fmt.Errorf("too many scan failures: %d/%d repos returned empty results (>%d%%)",
-			emptyCount, len(activeRepos), maxErrorRate)
+	if len(activeRepos) > 10 && failedCount*100/len(activeRepos) > maxErrorRate {
+		return fmt.Errorf("too many scan failures: %d/%d repos failed to scan (>%d%%)",
+			failedCount, len(activeRepos), maxErrorRate)
 	}
 
 	// Step 5: Assemble results
@@ -123,7 +124,13 @@ func RunScan(ctx context.Context, gh interface {
 		"active_repos", len(activeRepos),
 		"archived_repos", len(archivedRepos),
 		"repos_with_customizations", withAny,
+		"failed_repos", failedCount,
 	)
+
+	// Notify Slack of scan results (sends only if there were errors)
+	if slack != nil {
+		slack.NotifyScanResult(ctx, len(repos), len(repos)-failedCount, failedCount)
+	}
 
 	return nil
 }

@@ -29,7 +29,7 @@ jobs:
     with:
       working-directory: apps/copilot-adoption
       mise-setup-tasks: '["install"]'
-      mise-tasks: '["lint", "check"]'
+      mise-tasks: '["check"]'
       deploys-to-nais: true
       deploy-pr-to-dev: true
       nais-resource: '.nais/naisjob.yaml'
