@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -105,66 +106,132 @@ func (c *BigQueryClient) EnsureTableExists(ctx context.Context) error {
 	return nil
 }
 
+// rowSource implements bigquery.ValueSaver for load jobs
+type rowSource struct {
+	rows []*RepoScanRow
+	idx  int
+}
+
+func (r *rowSource) Read(p []byte) (n int, err error) {
+	// This is used with NewReaderSource, but we use ValuesSaver instead
+	return 0, fmt.Errorf("not implemented")
+}
+
 func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Time, results []RepoScanResult) error {
 	if len(results) == 0 {
 		slog.Warn("No results to insert")
 		return nil
 	}
 
-	table := c.client.Dataset(c.dataset).Table(c.table)
-	inserter := table.Inserter()
-
 	dateStr := scanDate.Format("2006-01-02")
 	loadedAt := time.Now().UTC()
 
-	// Insert in batches of 500 to stay within BigQuery streaming insert limits
-	const batchSize = 500
-	for i := 0; i < len(results); i += batchSize {
-		end := i + batchSize
-		if end > len(results) {
-			end = len(results)
+	// Build rows
+	var rows []*RepoScanRow
+	for _, r := range results {
+		customizationsJSON, err := json.Marshal(r.Customizations)
+		if err != nil {
+			slog.Warn("Failed to marshal customizations", "repo", r.Repo, "error", err)
+			customizationsJSON = []byte("{}")
 		}
 
-		var rows []*RepoScanRow
-		for _, r := range results[i:end] {
-			customizationsJSON, err := json.Marshal(r.Customizations)
-			if err != nil {
-				slog.Warn("Failed to marshal customizations", "repo", r.Repo, "error", err)
-				customizationsJSON = []byte("{}")
-			}
-
-			teamsJSON, err := json.Marshal(r.Teams)
-			if err != nil {
-				slog.Warn("Failed to marshal teams", "repo", r.Repo, "error", err)
-				teamsJSON = []byte("[]")
-			}
-
-			rows = append(rows, &RepoScanRow{
-				ScanDate:           dateStr,
-				Org:                r.Org,
-				Repo:               r.Repo,
-				DefaultBranch:      r.DefaultBranch,
-				PrimaryLanguage:    r.PrimaryLanguage,
-				IsArchived:         r.IsArchived,
-				IsFork:             r.IsFork,
-				Visibility:         r.Visibility,
-				CreatedAt:          r.CreatedAt,
-				PushedAt:           r.PushedAt,
-				Topics:             r.Topics,
-				Teams:              string(teamsJSON),
-				Customizations:     string(customizationsJSON),
-				HasAny:             r.HasAny,
-				CustomizationCount: r.CustomizationCount,
-				LoadedAt:           loadedAt,
-			})
+		teamsJSON, err := json.Marshal(r.Teams)
+		if err != nil {
+			slog.Warn("Failed to marshal teams", "repo", r.Repo, "error", err)
+			teamsJSON = []byte("[]")
 		}
 
-		if err := inserter.Put(ctx, rows); err != nil {
-			return fmt.Errorf("failed to insert batch starting at %d: %w", i, err)
-		}
+		rows = append(rows, &RepoScanRow{
+			ScanDate:           dateStr,
+			Org:                r.Org,
+			Repo:               r.Repo,
+			DefaultBranch:      r.DefaultBranch,
+			PrimaryLanguage:    r.PrimaryLanguage,
+			IsArchived:         r.IsArchived,
+			IsFork:             r.IsFork,
+			Visibility:         r.Visibility,
+			CreatedAt:          r.CreatedAt,
+			PushedAt:           r.PushedAt,
+			Topics:             r.Topics,
+			Teams:              string(teamsJSON),
+			Customizations:     string(customizationsJSON),
+			HasAny:             r.HasAny,
+			CustomizationCount: r.CustomizationCount,
+			LoadedAt:           loadedAt,
+		})
 	}
 
-	slog.Info("Inserted scan results", "date", dateStr, "repos", len(results))
+	// Use load job instead of streaming inserts - no streaming buffer, supports WriteTruncate
+	// Partition decorator: table$YYYYMMDD - replaces entire partition atomically
+	partitionDecorator := scanDate.Format("20060102")
+	table := c.client.Dataset(c.dataset).Table(c.table + "$" + partitionDecorator)
+
+	// Create JSONL data in memory
+	var buf bytes.Buffer
+	for _, row := range rows {
+		jsonRow, err := json.Marshal(map[string]any{
+			"scan_date":             row.ScanDate,
+			"org":                   row.Org,
+			"repo":                  row.Repo,
+			"default_branch":        row.DefaultBranch,
+			"primary_language":      row.PrimaryLanguage,
+			"is_archived":           row.IsArchived,
+			"is_fork":               row.IsFork,
+			"visibility":            row.Visibility,
+			"created_at":            row.CreatedAt.Format(time.RFC3339),
+			"pushed_at":             row.PushedAt.Format(time.RFC3339),
+			"topics":                row.Topics,
+			"teams":                 row.Teams,
+			"customizations":        row.Customizations,
+			"has_any_customization": row.HasAny,
+			"customization_count":   row.CustomizationCount,
+			"loaded_at":             row.LoadedAt.Format(time.RFC3339),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to marshal row for %s: %w", row.Repo, err)
+		}
+		buf.Write(jsonRow)
+		buf.WriteByte('\n')
+	}
+
+	source := bigquery.NewReaderSource(&buf)
+	source.SourceFormat = bigquery.JSON
+	source.Schema = bigquery.Schema{
+		{Name: "scan_date", Type: bigquery.DateFieldType},
+		{Name: "org", Type: bigquery.StringFieldType},
+		{Name: "repo", Type: bigquery.StringFieldType},
+		{Name: "default_branch", Type: bigquery.StringFieldType},
+		{Name: "primary_language", Type: bigquery.StringFieldType},
+		{Name: "is_archived", Type: bigquery.BooleanFieldType},
+		{Name: "is_fork", Type: bigquery.BooleanFieldType},
+		{Name: "visibility", Type: bigquery.StringFieldType},
+		{Name: "created_at", Type: bigquery.TimestampFieldType},
+		{Name: "pushed_at", Type: bigquery.TimestampFieldType},
+		{Name: "topics", Type: bigquery.StringFieldType, Repeated: true},
+		{Name: "teams", Type: bigquery.JSONFieldType},
+		{Name: "customizations", Type: bigquery.JSONFieldType},
+		{Name: "has_any_customization", Type: bigquery.BooleanFieldType},
+		{Name: "customization_count", Type: bigquery.IntegerFieldType},
+		{Name: "loaded_at", Type: bigquery.TimestampFieldType},
+	}
+
+	loader := table.LoaderFrom(source)
+	loader.WriteDisposition = bigquery.WriteTruncate // Replace entire partition
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to start load job: %w", err)
+	}
+
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("load job failed: %w", err)
+	}
+	if status.Err() != nil {
+		return fmt.Errorf("load job error: %w", status.Err())
+	}
+
+	slog.Info("Loaded scan results", "date", dateStr, "repos", len(results), "job_id", job.ID())
 	return nil
 }
 

@@ -95,18 +95,7 @@ func RunScan(ctx context.Context, gh interface {
 		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria)))
 	}
 
-	// Step 6: Idempotent insert
-	exists, err := bq.ScanDateExists(ctx, scanDate)
-	if err != nil {
-		return fmt.Errorf("failed to check scan date: %w", err)
-	}
-	if exists {
-		slog.Info("Scan date already exists, deleting for re-scan", "date", dateStr)
-		if err := bq.DeleteScanDate(ctx, scanDate); err != nil {
-			return fmt.Errorf("failed to delete existing scan: %w", err)
-		}
-	}
-
+	// Step 6: Load results into BigQuery (load job with WriteTruncate replaces partition atomically)
 	if err := bq.InsertScanResults(ctx, scanDate, allResults); err != nil {
 		return fmt.Errorf("failed to insert results: %w", err)
 	}
