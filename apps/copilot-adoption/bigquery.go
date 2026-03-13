@@ -106,17 +106,6 @@ func (c *BigQueryClient) EnsureTableExists(ctx context.Context) error {
 	return nil
 }
 
-// rowSource implements bigquery.ValueSaver for load jobs
-type rowSource struct {
-	rows []*RepoScanRow
-	idx  int
-}
-
-func (r *rowSource) Read(p []byte) (n int, err error) {
-	// This is used with NewReaderSource, but we use ValuesSaver instead
-	return 0, fmt.Errorf("not implemented")
-}
-
 func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Time, results []RepoScanResult) error {
 	if len(results) == 0 {
 		slog.Warn("No results to insert")
