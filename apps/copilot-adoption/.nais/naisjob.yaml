@@ -1,0 +1,48 @@
+apiVersion: nais.io/v1
+kind: Naisjob
+metadata:
+  name: copilot-adoption
+  namespace: copilot
+spec:
+  image: {{image}}
+  schedule: "0 5 * * *"
+  activeDeadlineSeconds: 7200
+  backoffLimit: 2
+  command:
+    - /app/copilot-adoption
+    - --run-once
+  envFrom:
+    - secret: copilot-adoption
+  env:
+    - name: LOG_LEVEL
+      value: "{{log_level}}"
+    - name: GITHUB_ORG
+      value: "navikt"
+    - name: BIGQUERY_DATASET
+      value: "copilot_adoption"
+    - name: BIGQUERY_TABLE
+      value: "repo_scan"
+    - name: GRAPHQL_BATCH_SIZE
+      value: "3"
+    - name: SCAN_CONCURRENCY
+      value: "5"
+    - name: SLACK_WEBHOOK_URL
+      value: "{{slack_webhook_url}}"
+  gcp:
+    bigQueryDatasets:
+      - name: copilot_adoption
+        permission: READWRITE
+        description: "Copilot customization adoption tracking per repository"
+  accessPolicy:
+    outbound:
+      external:
+        - host: api.github.com
+        - host: hooks.slack.com
+        - host: bigquery.googleapis.com
+        - host: storage.googleapis.com
+  resources:
+    limits:
+      memory: "256Mi"
+    requests:
+      cpu: "50m"
+      memory: "128Mi"

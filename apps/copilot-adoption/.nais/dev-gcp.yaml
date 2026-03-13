@@ -1,0 +1,2 @@
+log_level: DEBUG
+slack_webhook_url: ""

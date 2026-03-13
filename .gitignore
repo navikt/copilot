@@ -21,6 +21,7 @@ secret*.yaml
 secrets*.yaml
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *credentials*
@@ -44,3 +45,4 @@ kubeconfig.yaml
 # OS
 .DS_Store
 Thumbs.db
+apps/copilot-adoption/copilot-adoption
