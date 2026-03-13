@@ -36,6 +36,42 @@ func TestBuildGraphQLQuery(t *testing.T) {
 	}
 }
 
+func TestBuildGraphQLQueryDirectoryIncludesTypename(t *testing.T) {
+	// Regression test: directory checks MUST include __typename to enable proper parsing.
+	// Without __typename, parseGraphQLResponse() can't verify the object is a Tree.
+	repos := []RepoInfo{
+		{Name: "test-repo", DefaultBranch: "main"},
+	}
+	criteria := []SearchCriteria{
+		{Category: "agents", TreePath: ".github/agents", CheckType: CheckDirectory, FilePattern: "*.agent.md"},
+		{Category: "instructions", TreePath: ".github/instructions", CheckType: CheckDirectory, FilePattern: "*.instructions.md"},
+		{Category: "prompts", TreePath: ".github/prompts", CheckType: CheckDirectory, FilePattern: "*.prompt.md"},
+		{Category: "skills", TreePath: ".github/skills", CheckType: CheckDirectory, FilePattern: "*"},
+	}
+
+	query := buildGraphQLQuery("navikt", repos, criteria)
+
+	// Each directory check should have __typename before the Tree fragment
+	for _, c := range criteria {
+		// The query should contain the directory object expression followed by __typename
+		objectExpr := c.Category + `: object(expression: "main:` + c.TreePath + `")`
+		if !contains(query, objectExpr) {
+			t.Errorf("query missing directory object expression for %s", c.Category)
+		}
+	}
+
+	// Count occurrences of __typename - should be one per directory check
+	count := 0
+	for i := 0; i <= len(query)-len("__typename"); i++ {
+		if query[i:i+len("__typename")] == "__typename" {
+			count++
+		}
+	}
+	if count != len(criteria) {
+		t.Errorf("expected %d __typename occurrences for directory checks, got %d", len(criteria), count)
+	}
+}
+
 func TestBuildGraphQLQueryEmptyBranch(t *testing.T) {
 	repos := []RepoInfo{
 		{Name: "repo-no-branch", DefaultBranch: ""},
@@ -48,6 +84,28 @@ func TestBuildGraphQLQueryEmptyBranch(t *testing.T) {
 
 	if !contains(query, `expression: "HEAD:.github/copilot-instructions.md"`) {
 		t.Errorf("expected HEAD fallback for empty branch, query:\n%s", query)
+	}
+}
+
+func TestBuildGraphQLQueryFileCheckFormat(t *testing.T) {
+	// File checks use inline __typename, directory checks use multi-line format
+	repos := []RepoInfo{
+		{Name: "test-repo", DefaultBranch: "main"},
+	}
+	fileOnlyCriteria := []SearchCriteria{
+		{Category: "copilot_instructions", TreePath: ".github/copilot-instructions.md", CheckType: CheckFile},
+		{Category: "agents_md", TreePath: "AGENTS.md", CheckType: CheckFile},
+	}
+
+	query := buildGraphQLQuery("navikt", repos, fileOnlyCriteria)
+
+	// File checks should use simple inline format: { __typename }
+	if !contains(query, `{ __typename }`) {
+		t.Errorf("file checks should use { __typename }, query:\n%s", query)
+	}
+	// File checks should NOT have Tree entries
+	if contains(query, "entries") {
+		t.Error("file-only query should not contain entries")
 	}
 }
 
@@ -114,6 +172,83 @@ func TestParseGraphQLResponse(t *testing.T) {
 		if sr.Exists {
 			t.Errorf("expected %s to not exist for missing-repo", cat)
 		}
+	}
+}
+
+func TestParseGraphQLResponseDirectoryWithoutTypename(t *testing.T) {
+	// Edge case: if __typename is missing from response, directory should NOT be detected.
+	// This tests that our parsing correctly requires __typename == "Tree".
+	criteria := []SearchCriteria{
+		{Category: "agents", TreePath: ".github/agents", CheckType: CheckDirectory, FilePattern: "*.agent.md"},
+	}
+	repos := []RepoInfo{{Name: "test-repo"}}
+
+	// Response without __typename (simulates old/broken query result)
+	data := map[string]json.RawMessage{
+		"repo0": json.RawMessage(`{
+			"agents": {"entries": [
+				{"name": "auth.agent.md", "type": "blob"}
+			]}
+		}`),
+	}
+
+	results := parseGraphQLResponse(data, repos, criteria)
+
+	// Without __typename: "Tree", the directory should NOT be detected
+	if results["test-repo"]["agents"].Exists {
+		t.Error("expected agents to NOT exist when __typename is missing")
+	}
+}
+
+func TestParseGraphQLResponseDirectoryWithEmptyEntries(t *testing.T) {
+	// Edge case: directory exists but has no files matching pattern
+	criteria := []SearchCriteria{
+		{Category: "agents", TreePath: ".github/agents", CheckType: CheckDirectory, FilePattern: "*.agent.md"},
+	}
+	repos := []RepoInfo{{Name: "test-repo"}}
+
+	data := map[string]json.RawMessage{
+		"repo0": json.RawMessage(`{
+			"agents": {"__typename": "Tree", "entries": [
+				{"name": "README.md", "type": "blob"},
+				{"name": ".gitkeep", "type": "blob"}
+			]}
+		}`),
+	}
+
+	results := parseGraphQLResponse(data, repos, criteria)
+
+	// Directory exists but no matching files - should NOT count as "exists"
+	if results["test-repo"]["agents"].Exists {
+		t.Error("expected agents to NOT exist when no files match pattern")
+	}
+}
+
+func TestParseGraphQLResponseWildcardPattern(t *testing.T) {
+	// Skills use "*" pattern - any file should match
+	criteria := []SearchCriteria{
+		{Category: "skills", TreePath: ".github/skills", CheckType: CheckDirectory, FilePattern: "*"},
+	}
+	repos := []RepoInfo{{Name: "test-repo"}}
+
+	data := map[string]json.RawMessage{
+		"repo0": json.RawMessage(`{
+			"skills": {"__typename": "Tree", "entries": [
+				{"name": "auth-skill", "type": "tree"},
+				{"name": "SKILL.md", "type": "blob"}
+			]}
+		}`),
+	}
+
+	results := parseGraphQLResponse(data, repos, criteria)
+
+	skills := results["test-repo"]["skills"]
+	if !skills.Exists {
+		t.Error("expected skills to exist with wildcard pattern")
+	}
+	// Wildcard should match both entries
+	if len(skills.Files) != 2 {
+		t.Errorf("expected 2 files with wildcard, got %d: %v", len(skills.Files), skills.Files)
 	}
 }
 
