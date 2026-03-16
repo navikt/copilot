@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.1",
-    "@grafana/faro-web-sdk": "^2.2.4",
-    "@grafana/faro-web-tracing": "^2.2.4",
+    "@grafana/faro-web-sdk": "^2.3.0",
+    "@grafana/faro-web-tracing": "^2.3.0",
     "@headlessui/react": "^2.2.9",
     "@icons-pack/react-simple-icons": "^13.12.0",
     "@navikt/aksel-icons": "^8.7.0",
