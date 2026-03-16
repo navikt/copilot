@@ -59,7 +59,7 @@ func RunScan(ctx context.Context, gh interface {
 
 	// Step 4: Scan active repos for customization files
 	slog.Info("Scanning active repositories for customizations...")
-	scanResults, err := gh.ScanRepos(ctx, cfg.OrganizationSlug, activeRepos, criteria)
+	scanOutput, err := gh.ScanRepos(ctx, cfg.OrganizationSlug, activeRepos, criteria)
 	if err != nil {
 		return fmt.Errorf("scan failed: %w", err)
 	}
@@ -67,7 +67,7 @@ func RunScan(ctx context.Context, gh interface {
 	// Check error rate — count repos where GraphQL batch failed (nil result)
 	// Note: nil indicates batch failure, vs non-nil map with Exists=false for "no customizations"
 	failedCount := 0
-	for _, res := range scanResults {
+	for _, res := range scanOutput.Customizations {
 		if res == nil {
 			failedCount++
 		}
@@ -83,16 +83,20 @@ func RunScan(ctx context.Context, gh interface {
 
 	// Active repos: full scan results
 	for _, repo := range activeRepos {
-		customizations := scanResults[repo.Name]
+		customizations := scanOutput.Customizations[repo.Name]
 		if customizations == nil {
 			customizations = emptyResults(criteria)
 		}
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations))
+		var lastCommit *time.Time
+		if t, ok := scanOutput.LastCommits[repo.Name]; ok {
+			lastCommit = &t
+		}
+		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, lastCommit))
 	}
 
 	// Archived repos: metadata only, no customization scan
 	for _, repo := range archivedRepos {
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria)))
+		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))
 	}
 
 	// Step 6: Load results into BigQuery (load job with WriteTruncate replaces partition atomically)
@@ -166,7 +170,7 @@ func DryRunScan(ctx context.Context, gh interface {
 
 	// Step 4: Scan active repos
 	slog.Info("Scanning active repositories for customizations...")
-	scanResults, err := gh.ScanRepos(ctx, cfg.OrganizationSlug, activeRepos, criteria)
+	scanOutput, err := gh.ScanRepos(ctx, cfg.OrganizationSlug, activeRepos, criteria)
 	if err != nil {
 		return nil, fmt.Errorf("scan failed: %w", err)
 	}
@@ -174,14 +178,18 @@ func DryRunScan(ctx context.Context, gh interface {
 	// Step 5: Assemble results
 	var allResults []RepoScanResult
 	for _, repo := range activeRepos {
-		customizations := scanResults[repo.Name]
+		customizations := scanOutput.Customizations[repo.Name]
 		if customizations == nil {
 			customizations = emptyResults(criteria)
 		}
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations))
+		var lastCommit *time.Time
+		if t, ok := scanOutput.LastCommits[repo.Name]; ok {
+			lastCommit = &t
+		}
+		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, lastCommit))
 	}
 	for _, repo := range archivedRepos {
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria)))
+		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))
 	}
 
 	// Summary
@@ -202,7 +210,7 @@ func DryRunScan(ctx context.Context, gh interface {
 	return allResults, nil
 }
 
-func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customizations map[string]SearchResult) RepoScanResult {
+func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customizations map[string]SearchResult, lastCommit *time.Time) RepoScanResult {
 	hasAny := false
 	count := 0
 	for _, sr := range customizations {
@@ -222,19 +230,20 @@ func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customization
 	}
 
 	return RepoScanResult{
-		Org:                org,
-		Repo:               repo.Name,
-		DefaultBranch:      repo.DefaultBranch,
-		PrimaryLanguage:    repo.PrimaryLanguage,
-		IsArchived:         repo.IsArchived,
-		IsFork:             repo.IsFork,
-		Visibility:         repo.Visibility,
-		CreatedAt:          repo.CreatedAt,
-		PushedAt:           repo.PushedAt,
-		Topics:             topics,
-		Teams:              teams,
-		Customizations:     customizations,
-		HasAny:             hasAny,
-		CustomizationCount: count,
+		Org:                     org,
+		Repo:                    repo.Name,
+		DefaultBranch:           repo.DefaultBranch,
+		PrimaryLanguage:         repo.PrimaryLanguage,
+		IsArchived:              repo.IsArchived,
+		IsFork:                  repo.IsFork,
+		Visibility:              repo.Visibility,
+		CreatedAt:               repo.CreatedAt,
+		PushedAt:                repo.PushedAt,
+		DefaultBranchLastCommit: lastCommit,
+		Topics:                  topics,
+		Teams:                   teams,
+		Customizations:          customizations,
+		HasAny:                  hasAny,
+		CustomizationCount:      count,
 	}
 }

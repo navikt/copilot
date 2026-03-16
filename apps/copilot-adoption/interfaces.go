@@ -33,20 +33,21 @@ type SearchResult struct {
 
 // RepoScanResult is the fully assembled result for one repository.
 type RepoScanResult struct {
-	Org                string
-	Repo               string
-	DefaultBranch      string
-	PrimaryLanguage    string
-	IsArchived         bool
-	IsFork             bool
-	Visibility         string
-	CreatedAt          time.Time
-	PushedAt           time.Time
-	Topics             []string
-	Teams              []TeamAccess
-	Customizations     map[string]SearchResult // keyed by SearchCriteria.Category
-	HasAny             bool
-	CustomizationCount int
+	Org                     string
+	Repo                    string
+	DefaultBranch           string
+	PrimaryLanguage         string
+	IsArchived              bool
+	IsFork                  bool
+	Visibility              string
+	CreatedAt               time.Time
+	PushedAt                time.Time
+	DefaultBranchLastCommit *time.Time // nil when not scanned (archived repos, failed batches)
+	Topics                  []string
+	Teams                   []TeamAccess
+	Customizations          map[string]SearchResult // keyed by SearchCriteria.Category
+	HasAny                  bool
+	CustomizationCount      int
 }
 
 // RepoLister lists repositories in a GitHub organization.
@@ -59,9 +60,15 @@ type TeamMapper interface {
 	BuildTeamMap(ctx context.Context, org string) (map[string][]TeamAccess, error)
 }
 
+// ScanOutput holds the combined results of a repository scan batch.
+type ScanOutput struct {
+	Customizations map[string]map[string]SearchResult // repo name → category → result
+	LastCommits    map[string]time.Time               // repo name → last commit to default branch
+}
+
 // CustomizationScanner checks repositories for customization files using GraphQL.
 type CustomizationScanner interface {
-	ScanRepos(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, error)
+	ScanRepos(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (*ScanOutput, error)
 }
 
 // AdoptionStore persists scan results to BigQuery.

@@ -123,6 +123,7 @@ func TestParseGraphQLResponse(t *testing.T) {
 
 	data := map[string]json.RawMessage{
 		"repo0": json.RawMessage(`{
+			"defaultBranchRef": {"target": {"committedDate": "2026-03-10T12:00:00Z"}},
 			"copilot_instructions": {"__typename": "Blob"},
 			"agents": {"__typename": "Tree", "entries": [
 				{"name": "auth.agent.md", "type": "blob"},
@@ -132,6 +133,7 @@ func TestParseGraphQLResponse(t *testing.T) {
 			"mcp_config": null
 		}`),
 		"repo1": json.RawMessage(`{
+			"defaultBranchRef": null,
 			"copilot_instructions": null,
 			"agents": null,
 			"mcp_config": null
@@ -139,7 +141,7 @@ func TestParseGraphQLResponse(t *testing.T) {
 		"repo2": json.RawMessage(`null`),
 	}
 
-	results := parseGraphQLResponse(data, repos, criteria)
+	results, lastCommits := parseGraphQLResponse(data, repos, criteria)
 
 	// has-stuff: copilot_instructions exists
 	if !results["has-stuff"]["copilot_instructions"].Exists {
@@ -173,6 +175,15 @@ func TestParseGraphQLResponse(t *testing.T) {
 			t.Errorf("expected %s to not exist for missing-repo", cat)
 		}
 	}
+
+	// Verify last commit dates
+	expectedCommit := time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC)
+	if !lastCommits["has-stuff"].Equal(expectedCommit) {
+		t.Errorf("expected last commit %v for has-stuff, got %v", expectedCommit, lastCommits["has-stuff"])
+	}
+	if !lastCommits["empty-repo"].IsZero() {
+		t.Errorf("expected zero time for empty-repo, got %v", lastCommits["empty-repo"])
+	}
 }
 
 func TestParseGraphQLResponseDirectoryWithoutTypename(t *testing.T) {
@@ -192,7 +203,7 @@ func TestParseGraphQLResponseDirectoryWithoutTypename(t *testing.T) {
 		}`),
 	}
 
-	results := parseGraphQLResponse(data, repos, criteria)
+	results, _ := parseGraphQLResponse(data, repos, criteria)
 
 	// Without __typename: "Tree", the directory should NOT be detected
 	if results["test-repo"]["agents"].Exists {
@@ -216,7 +227,7 @@ func TestParseGraphQLResponseDirectoryWithEmptyEntries(t *testing.T) {
 		}`),
 	}
 
-	results := parseGraphQLResponse(data, repos, criteria)
+	results, _ := parseGraphQLResponse(data, repos, criteria)
 
 	// Directory exists but no matching files - should NOT count as "exists"
 	if results["test-repo"]["agents"].Exists {
@@ -240,7 +251,7 @@ func TestParseGraphQLResponseWildcardPattern(t *testing.T) {
 		}`),
 	}
 
-	results := parseGraphQLResponse(data, repos, criteria)
+	results, _ := parseGraphQLResponse(data, repos, criteria)
 
 	skills := results["test-repo"]["skills"]
 	if !skills.Exists {
@@ -310,7 +321,8 @@ func TestAssembleResult(t *testing.T) {
 		"mcp_config":           {Exists: false},
 	}
 
-	result := assembleResult("navikt", repo, teams, customizations)
+	lastCommitTime := time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC)
+	result := assembleResult("navikt", repo, teams, customizations, &lastCommitTime)
 
 	if result.Org != "navikt" {
 		t.Errorf("expected org navikt, got %s", result.Org)
@@ -327,6 +339,9 @@ func TestAssembleResult(t *testing.T) {
 	if len(result.Teams) != 1 {
 		t.Errorf("expected 1 team, got %d", len(result.Teams))
 	}
+	if result.DefaultBranchLastCommit == nil || !result.DefaultBranchLastCommit.Equal(lastCommitTime) {
+		t.Errorf("expected last commit %v, got %v", lastCommitTime, result.DefaultBranchLastCommit)
+	}
 }
 
 func TestAssembleResultNoCustomizations(t *testing.T) {
@@ -335,7 +350,7 @@ func TestAssembleResultNoCustomizations(t *testing.T) {
 		"copilot_instructions": {Exists: false},
 	}
 
-	result := assembleResult("navikt", repo, nil, customizations)
+	result := assembleResult("navikt", repo, nil, customizations, nil)
 
 	if result.HasAny {
 		t.Error("expected HasAny to be false")
@@ -348,5 +363,8 @@ func TestAssembleResultNoCustomizations(t *testing.T) {
 	}
 	if result.Topics == nil {
 		t.Error("expected topics to be empty slice, not nil")
+	}
+	if result.DefaultBranchLastCommit != nil {
+		t.Errorf("expected nil last commit, got %v", result.DefaultBranchLastCommit)
 	}
 }

@@ -19,22 +19,23 @@ type BigQueryClient struct {
 }
 
 type RepoScanRow struct {
-	ScanDate           string    `bigquery:"scan_date"`
-	Org                string    `bigquery:"org"`
-	Repo               string    `bigquery:"repo"`
-	DefaultBranch      string    `bigquery:"default_branch"`
-	PrimaryLanguage    string    `bigquery:"primary_language"`
-	IsArchived         bool      `bigquery:"is_archived"`
-	IsFork             bool      `bigquery:"is_fork"`
-	Visibility         string    `bigquery:"visibility"`
-	CreatedAt          time.Time `bigquery:"created_at"`
-	PushedAt           time.Time `bigquery:"pushed_at"`
-	Topics             []string  `bigquery:"topics"`
-	Teams              string    `bigquery:"teams"`
-	Customizations     string    `bigquery:"customizations"`
-	HasAny             bool      `bigquery:"has_any_customization"`
-	CustomizationCount int       `bigquery:"customization_count"`
-	LoadedAt           time.Time `bigquery:"loaded_at"`
+	ScanDate                string     `bigquery:"scan_date"`
+	Org                     string     `bigquery:"org"`
+	Repo                    string     `bigquery:"repo"`
+	DefaultBranch           string     `bigquery:"default_branch"`
+	PrimaryLanguage         string     `bigquery:"primary_language"`
+	IsArchived              bool       `bigquery:"is_archived"`
+	IsFork                  bool       `bigquery:"is_fork"`
+	Visibility              string     `bigquery:"visibility"`
+	CreatedAt               time.Time  `bigquery:"created_at"`
+	PushedAt                time.Time  `bigquery:"pushed_at"`
+	DefaultBranchLastCommit *time.Time `bigquery:"default_branch_last_commit"`
+	Topics                  []string   `bigquery:"topics"`
+	Teams                   string     `bigquery:"teams"`
+	Customizations          string     `bigquery:"customizations"`
+	HasAny                  bool       `bigquery:"has_any_customization"`
+	CustomizationCount      int        `bigquery:"customization_count"`
+	LoadedAt                time.Time  `bigquery:"loaded_at"`
 }
 
 func NewBigQueryClient(ctx context.Context, cfg *Config) (*BigQueryClient, error) {
@@ -78,6 +79,7 @@ func (c *BigQueryClient) EnsureTableExists(ctx context.Context) error {
 		{Name: "visibility", Type: bigquery.StringFieldType, Required: true, Description: "public, private, or internal"},
 		{Name: "created_at", Type: bigquery.TimestampFieldType, Description: "Repo creation time"},
 		{Name: "pushed_at", Type: bigquery.TimestampFieldType, Description: "Last push time"},
+		{Name: "default_branch_last_commit", Type: bigquery.TimestampFieldType, Description: "Last commit to default branch"},
 		{Name: "topics", Type: bigquery.StringFieldType, Repeated: true, Description: "Repository topics"},
 		{Name: "teams", Type: bigquery.JSONFieldType, Description: "Teams with access [{slug, name, permission}]"},
 		{Name: "customizations", Type: bigquery.JSONFieldType, Required: true, Description: "Search results per category"},
@@ -131,22 +133,23 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 		}
 
 		rows = append(rows, &RepoScanRow{
-			ScanDate:           dateStr,
-			Org:                r.Org,
-			Repo:               r.Repo,
-			DefaultBranch:      r.DefaultBranch,
-			PrimaryLanguage:    r.PrimaryLanguage,
-			IsArchived:         r.IsArchived,
-			IsFork:             r.IsFork,
-			Visibility:         r.Visibility,
-			CreatedAt:          r.CreatedAt,
-			PushedAt:           r.PushedAt,
-			Topics:             r.Topics,
-			Teams:              string(teamsJSON),
-			Customizations:     string(customizationsJSON),
-			HasAny:             r.HasAny,
-			CustomizationCount: r.CustomizationCount,
-			LoadedAt:           loadedAt,
+			ScanDate:                dateStr,
+			Org:                     r.Org,
+			Repo:                    r.Repo,
+			DefaultBranch:           r.DefaultBranch,
+			PrimaryLanguage:         r.PrimaryLanguage,
+			IsArchived:              r.IsArchived,
+			IsFork:                  r.IsFork,
+			Visibility:              r.Visibility,
+			CreatedAt:               r.CreatedAt,
+			PushedAt:                r.PushedAt,
+			DefaultBranchLastCommit: r.DefaultBranchLastCommit,
+			Topics:                  r.Topics,
+			Teams:                   string(teamsJSON),
+			Customizations:          string(customizationsJSON),
+			HasAny:                  r.HasAny,
+			CustomizationCount:      r.CustomizationCount,
+			LoadedAt:                loadedAt,
 		})
 	}
 
@@ -158,7 +161,7 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 	// Create JSONL data in memory
 	var buf bytes.Buffer
 	for _, row := range rows {
-		jsonRow, err := json.Marshal(map[string]any{
+		jsonMap := map[string]any{
 			"scan_date":             row.ScanDate,
 			"org":                   row.Org,
 			"repo":                  row.Repo,
@@ -175,7 +178,11 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 			"has_any_customization": row.HasAny,
 			"customization_count":   row.CustomizationCount,
 			"loaded_at":             row.LoadedAt.Format(time.RFC3339),
-		})
+		}
+		if row.DefaultBranchLastCommit != nil {
+			jsonMap["default_branch_last_commit"] = row.DefaultBranchLastCommit.Format(time.RFC3339)
+		}
+		jsonRow, err := json.Marshal(jsonMap)
 		if err != nil {
 			return fmt.Errorf("failed to marshal row for %s: %w", row.Repo, err)
 		}

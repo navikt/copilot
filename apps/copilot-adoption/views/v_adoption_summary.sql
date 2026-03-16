@@ -4,12 +4,18 @@ SELECT
   COUNT(*) AS total_repos,
   COUNTIF(NOT is_archived) AS active_repos,
   COUNTIF(is_archived) AS archived_repos,
+  COUNTIF(NOT is_archived AND default_branch_last_commit >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)) AS active_repos_with_recent_commits,
+  COUNTIF(NOT is_archived AND (default_branch_last_commit IS NULL OR default_branch_last_commit < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY))) AS dormant_repos,
   COUNTIF(has_any_customization AND NOT is_archived) AS repos_with_any_customization,
   COUNTIF(NOT has_any_customization AND NOT is_archived) AS repos_without_customization,
   SAFE_DIVIDE(
     COUNTIF(has_any_customization AND NOT is_archived),
     COUNTIF(NOT is_archived)
   ) AS adoption_rate,
+  SAFE_DIVIDE(
+    COUNTIF(has_any_customization AND NOT is_archived AND default_branch_last_commit >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)),
+    COUNTIF(NOT is_archived AND default_branch_last_commit >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY))
+  ) AS adoption_rate_active_only,
   COUNTIF(JSON_VALUE(customizations, '$.copilot_instructions.exists') = 'true' AND NOT is_archived) AS repos_with_copilot_instructions,
   COUNTIF(JSON_VALUE(customizations, '$.agents_md.exists') = 'true' AND NOT is_archived) AS repos_with_agents_md,
   COUNTIF(JSON_VALUE(customizations, '$.agents.exists') = 'true' AND NOT is_archived) AS repos_with_agents,

@@ -249,8 +249,8 @@ type graphqlRequest struct {
 
 // ScanRepos checks multiple repositories for customization files using batched GraphQL queries.
 // Uses concurrency workers to parallelize batch execution.
-// Returns map[repoName]map[category]SearchResult.
-func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, error) {
+// Returns ScanOutput with customizations per repo and last commit dates.
+func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (*ScanOutput, error) {
 	type batchJob struct {
 		index int
 		repos []RepoInfo
@@ -266,7 +266,10 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 		jobs = append(jobs, batchJob{index: i, repos: repos[i:end]})
 	}
 
-	results := make(map[string]map[string]SearchResult)
+	output := &ScanOutput{
+		Customizations: make(map[string]map[string]SearchResult),
+		LastCommits:    make(map[string]time.Time),
+	}
 	var mu sync.Mutex
 
 	workers := c.concurrency
@@ -294,7 +297,7 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 				default:
 				}
 
-				batchRes, err := c.scanBatch(ctx, org, job.repos, criteria)
+				batchCustomizations, batchCommits, err := c.scanBatch(ctx, org, job.repos, criteria)
 
 				mu.Lock()
 				if err != nil {
@@ -305,11 +308,14 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 					)
 					// Use nil to indicate failure (vs emptyResults for "no customizations")
 					for _, repo := range job.repos {
-						results[repo.Name] = nil
+						output.Customizations[repo.Name] = nil
 					}
 				} else {
-					for name, res := range batchRes {
-						results[name] = res
+					for name, res := range batchCustomizations {
+						output.Customizations[name] = res
+					}
+					for name, t := range batchCommits {
+						output.LastCommits[name] = t
 					}
 				}
 				scanned += len(job.repos)
@@ -327,7 +333,7 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 		return nil, ctx.Err()
 	}
 
-	return results, nil
+	return output, nil
 }
 
 func emptyResults(criteria []SearchCriteria) map[string]SearchResult {
@@ -339,37 +345,38 @@ func emptyResults(criteria []SearchCriteria) map[string]SearchResult {
 }
 
 // scanBatch executes a single batched GraphQL query for multiple repos.
-func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, error) {
+func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]time.Time, error) {
 	query := buildGraphQLQuery(org, repos, criteria)
 
 	body, err := json.Marshal(graphqlRequest{Query: query})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal GraphQL request: %w", err)
+		return nil, nil, fmt.Errorf("failed to marshal GraphQL request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create GraphQL request: %w", err)
+		return nil, nil, fmt.Errorf("failed to create GraphQL request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.doWithRetry(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("GraphQL request failed: %w", err)
+		return nil, nil, fmt.Errorf("GraphQL request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	var gqlResp graphqlResponse
 	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
-		return nil, fmt.Errorf("failed to decode GraphQL response: %w", err)
+		return nil, nil, fmt.Errorf("failed to decode GraphQL response: %w", err)
 	}
 
 	if len(gqlResp.Errors) > 0 {
 		slog.Debug("GraphQL response had errors", "errors", gqlResp.Errors)
 	}
 
-	return parseGraphQLResponse(gqlResp.Data, repos, criteria), nil
+	customizations, lastCommits := parseGraphQLResponse(gqlResp.Data, repos, criteria)
+	return customizations, lastCommits, nil
 }
 
 // buildGraphQLQuery constructs a batched query checking all criteria across multiple repos.
@@ -384,6 +391,7 @@ func buildGraphQLQuery(org string, repos []RepoInfo, criteria []SearchCriteria) 
 		}
 
 		fmt.Fprintf(&b, "  repo%d: repository(owner: %q, name: %q) {\n", i, org, repo.Name)
+		b.WriteString("    defaultBranchRef { target { ... on Commit { committedDate } } }\n")
 
 		for _, c := range criteria {
 			alias := c.GraphQLAlias()
@@ -429,8 +437,15 @@ type treeEntry struct {
 	Type string `json:"type"` // "blob" or "tree"
 }
 
-func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) map[string]map[string]SearchResult {
+type defaultBranchRefResponse struct {
+	Target struct {
+		CommittedDate string `json:"committedDate"`
+	} `json:"target"`
+}
+
+func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]time.Time) {
 	results := make(map[string]map[string]SearchResult, len(repos))
+	lastCommits := make(map[string]time.Time, len(repos))
 
 	for i, repo := range repos {
 		key := fmt.Sprintf("repo%d", i)
@@ -448,6 +463,17 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 		}
 
 		repoResults := make(map[string]SearchResult, len(criteria))
+
+		// Extract last commit date from defaultBranchRef
+		if branchData, ok := fields["defaultBranchRef"]; ok && string(branchData) != "null" {
+			var branchRef defaultBranchRefResponse
+			if err := json.Unmarshal(branchData, &branchRef); err == nil && branchRef.Target.CommittedDate != "" {
+				if t, err := time.Parse(time.RFC3339, branchRef.Target.CommittedDate); err == nil {
+					lastCommits[repo.Name] = t
+				}
+			}
+		}
+
 		for _, c := range criteria {
 			alias := c.GraphQLAlias()
 			fieldData, ok := fields[alias]
@@ -484,7 +510,7 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 		results[repo.Name] = repoResults
 	}
 
-	return results
+	return results, lastCommits
 }
 
 // --- HTTP retry with rate limit handling ---
