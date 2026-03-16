@@ -60,15 +60,38 @@ func (c *BigQueryClient) EnsureTableExists(ctx context.Context) error {
 	dataset := c.client.Dataset(c.dataset)
 	table := dataset.Table(c.table)
 
-	_, err := table.Metadata(ctx)
+	md, err := table.Metadata(ctx)
 	if err == nil {
 		slog.Debug("Table already exists", "dataset", c.dataset, "table", c.table)
-		return nil
+		return c.ensureColumns(ctx, table, md)
 	}
 
 	slog.Info("Creating table", "dataset", c.dataset, "table", c.table)
 
-	schema := bigquery.Schema{
+	metadata := &bigquery.TableMetadata{
+		Schema: desiredSchema(),
+		TimePartitioning: &bigquery.TimePartitioning{
+			Type:  bigquery.DayPartitioningType,
+			Field: "scan_date",
+		},
+		Clustering: &bigquery.Clustering{
+			Fields: []string{"org", "has_any_customization", "primary_language"},
+		},
+		Description: "Copilot customization adoption scan results per repository",
+	}
+
+	if err := table.Create(ctx, metadata); err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
+	}
+
+	slog.Info("Table created successfully")
+	return nil
+}
+
+// desiredSchema returns the canonical schema for the repo_scan table.
+// Used both for table creation and for detecting missing columns.
+func desiredSchema() bigquery.Schema {
+	return bigquery.Schema{
 		{Name: "scan_date", Type: bigquery.DateFieldType, Required: true, Description: "Date of the scan"},
 		{Name: "org", Type: bigquery.StringFieldType, Required: true, Description: "GitHub organization"},
 		{Name: "repo", Type: bigquery.StringFieldType, Required: true, Description: "Repository name"},
@@ -87,24 +110,37 @@ func (c *BigQueryClient) EnsureTableExists(ctx context.Context) error {
 		{Name: "customization_count", Type: bigquery.IntegerFieldType, Required: true, Description: "Number of distinct categories found"},
 		{Name: "loaded_at", Type: bigquery.TimestampFieldType, Required: true, Description: "When the row was inserted"},
 	}
+}
 
-	metadata := &bigquery.TableMetadata{
-		Schema: schema,
-		TimePartitioning: &bigquery.TimePartitioning{
-			Type:  bigquery.DayPartitioningType,
-			Field: "scan_date",
-		},
-		Clustering: &bigquery.Clustering{
-			Fields: []string{"org", "has_any_customization", "primary_language"},
-		},
-		Description: "Copilot customization adoption scan results per repository",
+// ensureColumns adds any columns present in desiredSchema() but missing from the live table.
+func (c *BigQueryClient) ensureColumns(ctx context.Context, table *bigquery.Table, md *bigquery.TableMetadata) error {
+	existing := make(map[string]bool, len(md.Schema))
+	for _, f := range md.Schema {
+		existing[f.Name] = true
 	}
 
-	if err := table.Create(ctx, metadata); err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
+	var missing bigquery.Schema
+	for _, f := range desiredSchema() {
+		if !existing[f.Name] {
+			missing = append(missing, f)
+		}
 	}
 
-	slog.Info("Table created successfully")
+	if len(missing) == 0 {
+		return nil
+	}
+
+	newSchema := append(md.Schema, missing...)
+	update := bigquery.TableMetadataToUpdate{Schema: newSchema}
+	if _, err := table.Update(ctx, update, md.ETag); err != nil {
+		return fmt.Errorf("failed to add columns %v: %w", missing, err)
+	}
+
+	names := make([]string, len(missing))
+	for i, f := range missing {
+		names[i] = f.Name
+	}
+	slog.Info("Added missing columns to table", "columns", names)
 	return nil
 }
 

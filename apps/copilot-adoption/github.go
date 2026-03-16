@@ -268,7 +268,7 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 
 	output := &ScanOutput{
 		Customizations: make(map[string]map[string]SearchResult),
-		LastCommits:    make(map[string]time.Time),
+		LastCommits:    make(map[string]*time.Time),
 	}
 	var mu sync.Mutex
 
@@ -345,7 +345,7 @@ func emptyResults(criteria []SearchCriteria) map[string]SearchResult {
 }
 
 // scanBatch executes a single batched GraphQL query for multiple repos.
-func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]time.Time, error) {
+func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, error) {
 	query := buildGraphQLQuery(org, repos, criteria)
 
 	body, err := json.Marshal(graphqlRequest{Query: query})
@@ -443,9 +443,9 @@ type defaultBranchRefResponse struct {
 	} `json:"target"`
 }
 
-func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]time.Time) {
+func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time) {
 	results := make(map[string]map[string]SearchResult, len(repos))
-	lastCommits := make(map[string]time.Time, len(repos))
+	lastCommits := make(map[string]*time.Time, len(repos))
 
 	for i, repo := range repos {
 		key := fmt.Sprintf("repo%d", i)
@@ -469,7 +469,7 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 			var branchRef defaultBranchRefResponse
 			if err := json.Unmarshal(branchData, &branchRef); err == nil && branchRef.Target.CommittedDate != "" {
 				if t, err := time.Parse(time.RFC3339, branchRef.Target.CommittedDate); err == nil {
-					lastCommits[repo.Name] = t
+					lastCommits[repo.Name] = &t
 				}
 			}
 		}

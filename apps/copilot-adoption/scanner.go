@@ -87,11 +87,7 @@ func RunScan(ctx context.Context, gh interface {
 		if customizations == nil {
 			customizations = emptyResults(criteria)
 		}
-		var lastCommit *time.Time
-		if t, ok := scanOutput.LastCommits[repo.Name]; ok {
-			lastCommit = &t
-		}
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, lastCommit))
+		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name]))
 	}
 
 	// Archived repos: metadata only, no customization scan
@@ -182,11 +178,7 @@ func DryRunScan(ctx context.Context, gh interface {
 		if customizations == nil {
 			customizations = emptyResults(criteria)
 		}
-		var lastCommit *time.Time
-		if t, ok := scanOutput.LastCommits[repo.Name]; ok {
-			lastCommit = &t
-		}
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, lastCommit))
+		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name]))
 	}
 	for _, repo := range archivedRepos {
 		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))

@@ -178,11 +178,11 @@ func TestParseGraphQLResponse(t *testing.T) {
 
 	// Verify last commit dates
 	expectedCommit := time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC)
-	if !lastCommits["has-stuff"].Equal(expectedCommit) {
+	if lastCommits["has-stuff"] == nil || !lastCommits["has-stuff"].Equal(expectedCommit) {
 		t.Errorf("expected last commit %v for has-stuff, got %v", expectedCommit, lastCommits["has-stuff"])
 	}
-	if !lastCommits["empty-repo"].IsZero() {
-		t.Errorf("expected zero time for empty-repo, got %v", lastCommits["empty-repo"])
+	if lastCommits["empty-repo"] != nil {
+		t.Errorf("expected nil for empty-repo, got %v", lastCommits["empty-repo"])
 	}
 }
 

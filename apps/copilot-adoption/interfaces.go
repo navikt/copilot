@@ -63,7 +63,7 @@ type TeamMapper interface {
 // ScanOutput holds the combined results of a repository scan batch.
 type ScanOutput struct {
 	Customizations map[string]map[string]SearchResult // repo name → category → result
-	LastCommits    map[string]time.Time               // repo name → last commit to default branch
+	LastCommits    map[string]*time.Time              // repo name → last commit to default branch (nil = unknown)
 }
 
 // CustomizationScanner checks repositories for customization files using GraphQL.
