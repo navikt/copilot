@@ -47,7 +47,7 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.27",
     "eslint": "^9.39.4",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.1.7",
     "jest": "^30.3.0",
     "jest-fetch-mock": "^3.0.3",
     "knip": "^5.87.0",
