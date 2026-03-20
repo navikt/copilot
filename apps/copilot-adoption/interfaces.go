@@ -29,6 +29,8 @@ type TeamAccess struct {
 type SearchResult struct {
 	Exists bool     `json:"exists"`
 	Files  []string `json:"files,omitempty"`
+	Oids   []string `json:"oids,omitempty"`  // Git blob OIDs (SHA-1), parallel to Files for directory checks
+	InSync []bool   `json:"in_sync,omitempty"` // Per-file sync status vs source repo, parallel to Files/Oids
 }
 
 // RepoScanResult is the fully assembled result for one repository.
@@ -81,10 +83,19 @@ type AdoptionStore interface {
 	Close() error
 }
 
+// SourceOIDs maps category → (filename → blob OID) for the canonical source repo.
+type SourceOIDs map[string]map[string]string
+
+// SourceOIDResolver fetches the canonical OIDs for customization files from the source repo.
+type SourceOIDResolver interface {
+	ResolveSourceOIDs(ctx context.Context, criteria []SearchCriteria) (SourceOIDs, error)
+}
+
 // Verify implementations satisfy interfaces at compile time.
 var (
 	_ RepoLister           = (*GitHubClient)(nil)
 	_ TeamMapper           = (*GitHubClient)(nil)
 	_ CustomizationScanner = (*GitHubClient)(nil)
+	_ SourceOIDResolver    = (*GitHubClient)(nil)
 	_ AdoptionStore        = (*BigQueryClient)(nil)
 )

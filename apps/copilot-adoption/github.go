@@ -399,11 +399,11 @@ func buildGraphQLQuery(org string, repos []RepoInfo, criteria []SearchCriteria) 
 
 			switch c.CheckType {
 			case CheckFile:
-				fmt.Fprintf(&b, "    %s: object(expression: %q) { __typename }\n", alias, expression)
+				fmt.Fprintf(&b, "    %s: object(expression: %q) { __typename ... on Blob { oid } }\n", alias, expression)
 			case CheckDirectory:
 				fmt.Fprintf(&b, "    %s: object(expression: %q) {\n", alias, expression)
 				b.WriteString("      __typename\n")
-				b.WriteString("      ... on Tree { entries { name type } }\n")
+				b.WriteString("      ... on Tree { entries { name type object { ... on Blob { oid } } } }\n")
 				b.WriteString("    }\n")
 			}
 		}
@@ -429,12 +429,18 @@ type graphqlError struct {
 
 type objectResponse struct {
 	TypeName string      `json:"__typename"`
+	OID      string      `json:"oid"`
 	Entries  []treeEntry `json:"entries"`
 }
 
 type treeEntry struct {
-	Name string `json:"name"`
-	Type string `json:"type"` // "blob" or "tree"
+	Name   string       `json:"name"`
+	Type   string       `json:"type"` // "blob" or "tree"
+	Object *entryObject `json:"object"`
+}
+
+type entryObject struct {
+	OID string `json:"oid"`
 }
 
 type defaultBranchRefResponse struct {
@@ -490,7 +496,7 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 
 			switch c.CheckType {
 			case CheckFile:
-				repoResults[c.Category] = SearchResult{Exists: obj.TypeName == "Blob"}
+				repoResults[c.Category] = SearchResult{Exists: obj.TypeName == "Blob", Oids: blobOids(obj)}
 			case CheckDirectory:
 				if obj.TypeName != "Tree" || len(obj.Entries) == 0 {
 					repoResults[c.Category] = SearchResult{Exists: false}
@@ -504,6 +510,7 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 				repoResults[c.Category] = SearchResult{
 					Exists: len(matched) > 0,
 					Files:  matched,
+					Oids:   matchedOids(obj.Entries, matched),
 				}
 			}
 		}
@@ -511,6 +518,30 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 	}
 
 	return results, lastCommits
+}
+
+// blobOids returns the OID for a file-level check (single blob).
+func blobOids(obj objectResponse) []string {
+	if obj.OID != "" {
+		return []string{obj.OID}
+	}
+	return nil
+}
+
+// matchedOids returns blob OIDs in the same order as matched file names.
+func matchedOids(entries []treeEntry, matched []string) []string {
+	entryMap := make(map[string]string, len(entries))
+	for _, e := range entries {
+		if e.Object != nil && e.Object.OID != "" {
+			entryMap[e.Name] = e.Object.OID
+		}
+	}
+
+	oids := make([]string, len(matched))
+	for i, name := range matched {
+		oids[i] = entryMap[name]
+	}
+	return oids
 }
 
 // --- HTTP retry with rate limit handling ---
@@ -630,4 +661,58 @@ func (c *GitHubClient) doWithRetry(ctx context.Context, req *http.Request) (*htt
 	}
 
 	return nil, fmt.Errorf("request failed after %d attempts: %w", maxRetries, lastErr)
+}
+
+// sourceRepo is the canonical repo where customization files are maintained.
+const sourceRepo = "copilot"
+
+// ResolveSourceOIDs fetches blob OIDs for all customization files in the source repo.
+// Returns a map of category → (filename → OID). For file-type checks, the filename
+// is the basename of the TreePath.
+func (c *GitHubClient) ResolveSourceOIDs(ctx context.Context, criteria []SearchCriteria) (SourceOIDs, error) {
+	repo := RepoInfo{Name: sourceRepo, DefaultBranch: "main"}
+	batchCustomizations, _, err := c.scanBatch(ctx, c.org, []RepoInfo{repo}, criteria)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan source repo %s/%s: %w", c.org, sourceRepo, err)
+	}
+
+	repoResults, ok := batchCustomizations[sourceRepo]
+	if !ok {
+		return nil, fmt.Errorf("source repo %s not found in scan results", sourceRepo)
+	}
+
+	source := make(SourceOIDs, len(criteria))
+	for _, c := range criteria {
+		sr, ok := repoResults[c.Category]
+		if !ok || !sr.Exists {
+			continue
+		}
+
+		oidMap := make(map[string]string)
+		switch c.CheckType {
+		case CheckFile:
+			// File checks: use TreePath basename as key
+			if len(sr.Oids) > 0 {
+				base := c.TreePath
+				if idx := strings.LastIndex(c.TreePath, "/"); idx >= 0 {
+					base = c.TreePath[idx+1:]
+				}
+				oidMap[base] = sr.Oids[0]
+			}
+		case CheckDirectory:
+			// Directory checks: Files and Oids are parallel arrays
+			for i, name := range sr.Files {
+				if i < len(sr.Oids) && sr.Oids[i] != "" {
+					oidMap[name] = sr.Oids[i]
+				}
+			}
+		}
+
+		if len(oidMap) > 0 {
+			source[c.Category] = oidMap
+		}
+	}
+
+	slog.Info("Resolved source OIDs", "categories", len(source))
+	return source, nil
 }

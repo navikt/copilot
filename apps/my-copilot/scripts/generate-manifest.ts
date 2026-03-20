@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Domain, ExampleItem } from "../src/lib/manifest-types.ts";
@@ -78,6 +79,11 @@ function buildInsidersInstallUrl(type: "agent" | "instructions" | "prompt", rawU
   return `/install/${type}?url=${encodeURIComponent(vscodeUrl)}`;
 }
 
+function contentHash(filePath: string): string {
+  const content = fs.readFileSync(filePath);
+  return crypto.createHash("sha256").update(content).digest("hex");
+}
+
 interface ManifestItem {
   id: string;
   name: string;
@@ -86,6 +92,7 @@ interface ManifestItem {
   domain: Domain;
   filePath: string;
   rawGitHubUrl: string;
+  contentHash: string;
   installUrl: string | null;
   insidersInstallUrl: string | null;
   tools?: string[];
@@ -119,6 +126,7 @@ function getAgents(): ManifestItem[] {
         domain: meta.domain || "general",
         filePath: `.github/agents/${file}`,
         rawGitHubUrl: rawUrl,
+        contentHash: contentHash(path.join(dir, file)),
         installUrl: buildInstallUrl("agent", rawUrl),
         insidersInstallUrl: buildInsidersInstallUrl("agent", rawUrl),
         tools,
@@ -152,6 +160,7 @@ function getInstructions(): ManifestItem[] {
         domain: meta.domain || "general",
         filePath: `.github/instructions/${file}`,
         rawGitHubUrl: rawUrl,
+        contentHash: contentHash(path.join(dir, file)),
         installUrl: buildInstallUrl("instructions", rawUrl),
         insidersInstallUrl: buildInsidersInstallUrl("instructions", rawUrl),
         applyTo,
@@ -183,6 +192,7 @@ function getPrompts(): ManifestItem[] {
         domain: meta.domain || "general",
         filePath: `.github/prompts/${file}`,
         rawGitHubUrl: rawUrl,
+        contentHash: contentHash(path.join(dir, file)),
         installUrl: buildInstallUrl("prompt", rawUrl),
         insidersInstallUrl: buildInsidersInstallUrl("prompt", rawUrl),
         invocation: `#${name}`,
@@ -217,6 +227,7 @@ function getSkills(): ManifestItem[] {
         domain: meta.domain || "general",
         filePath: `.github/skills/${folder}/SKILL.md`,
         rawGitHubUrl: `${RAW_BASE}/skills/${folder}/SKILL.md`,
+        contentHash: contentHash(path.join(dir, folder, "SKILL.md")),
         installUrl: null,
         insidersInstallUrl: null,
         ...(meta.tags && { tags: meta.tags }),

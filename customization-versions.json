@@ -1,0 +1,165 @@
+{
+  "generatedAt": "2026-03-19T14:42:10Z",
+  "files": {
+    ".github/agents/accessibility.agent.md": {
+      "hash": "1597f8698148fc4a49555fdcf6bdb42f8a1ccf4a3b29f79c8d9300953ff28b91",
+      "type": "agent"
+    },
+    ".github/agents/aksel.agent.md": {
+      "hash": "3b99a4b3e5da6f26db596e29e4fc81efbe56f3ae2def5900f3d2a6ea2c0984dd",
+      "type": "agent"
+    },
+    ".github/agents/auth.agent.md": {
+      "hash": "3f6829d8982f15f64b99dd5964ba49269a84fa16c2200a8983412bc9c32bdddd",
+      "type": "agent"
+    },
+    ".github/agents/code-review.agent.md": {
+      "hash": "e46beba21ce5df3243397764009496d2b9664f9b4bbc93ae63f976bf7b643518",
+      "type": "agent"
+    },
+    ".github/agents/forfatter.agent.md": {
+      "hash": "acc16aca57ed5f3056dcd8a53260ffc17e1b599c92085cb444cccd9e2afa77c9",
+      "type": "agent"
+    },
+    ".github/agents/kafka.agent.md": {
+      "hash": "e4bbf71c99e4e221e5aabbc339fb7fce1008c0e687ef6ef91bbc9ab17d5a5c7b",
+      "type": "agent"
+    },
+    ".github/agents/nais.agent.md": {
+      "hash": "53e059f4b6553f5484855e96bd6506627cc6ccf1eb14d2b114b86cde86a8de5e",
+      "type": "agent"
+    },
+    ".github/agents/observability.agent.md": {
+      "hash": "c0de80226420bfd900b8efde3289463d5205bfa828fc832904cd268e707b7e14",
+      "type": "agent"
+    },
+    ".github/agents/research.agent.md": {
+      "hash": "a285be34c10030ba2ecfba7e70ff832164f14930f075b336a5abaf9424774c8b",
+      "type": "agent"
+    },
+    ".github/agents/rust.agent.md": {
+      "hash": "3e27002ee33662323d3bdcdab491d995bf65bf59ae9b28ec7912993c701fcc8d",
+      "type": "agent"
+    },
+    ".github/agents/security-champion.agent.md": {
+      "hash": "94d9afe38f38f56147f5fed5b6baabbbb571522c460fbf6095fdca5061cd649d",
+      "type": "agent"
+    },
+    ".github/copilot-instructions.md": {
+      "hash": "dbc5b779caf319c6648b0bec0ec528d85bd0718b7946886f21e357b3d4933cd4",
+      "type": "copilot-instructions"
+    },
+    ".github/instructions/accessibility.instructions.md": {
+      "hash": "cfd8aad928670e3fa1e06c549c6507e450e812ba54ed5e97500c9c3f87754fde",
+      "type": "instruction"
+    },
+    ".github/instructions/database.instructions.md": {
+      "hash": "ed0e2a233cb97ab38f3dae1b91c28cb8d034818c1c5813b2bb205b8d2d7586ca",
+      "type": "instruction"
+    },
+    ".github/instructions/docker.instructions.md": {
+      "hash": "32db7a2f8aaab2acb99abc0169f425cc65ad2ffd571c731726d81b61114a6f08",
+      "type": "instruction"
+    },
+    ".github/instructions/github-actions.instructions.md": {
+      "hash": "bbef6f3e56b8b3b31cad5f4cbee0ee85c85735b3bb677807b3e899463ba6c01b",
+      "type": "instruction"
+    },
+    ".github/instructions/kotlin-ktor.instructions.md": {
+      "hash": "32ca1c5ff40db124ff81e56977aff2491cb80031c6730cfb3b89e97bd78c59bf",
+      "type": "instruction"
+    },
+    ".github/instructions/kotlin-spring.instructions.md": {
+      "hash": "7b7d55ac22e314cc2f0644fa66c112df466438cac8c7122cf40acd9eaebf293c",
+      "type": "instruction"
+    },
+    ".github/instructions/nextjs-aksel.instructions.md": {
+      "hash": "3fe8feeb1459e76011cc94937a62f34dcdbf1b807f4942875a207bc95e69718c",
+      "type": "instruction"
+    },
+    ".github/instructions/testing.instructions.md": {
+      "hash": "09fef3dae5a3c9dcfcccbf73564205c473c2dea5d25d59a5d0683298bdb9bcaf",
+      "type": "instruction"
+    },
+    ".github/prompts/aksel-component.prompt.md": {
+      "hash": "9da00ddfc10aefc4f82db97fcb2b0f1774de648d7be1ee18779f6edc6521f637",
+      "type": "prompt"
+    },
+    ".github/prompts/kafka-topic.prompt.md": {
+      "hash": "42b1991baee572a669233190e5903ba017ac36c29995d9eab350c7fc44116df0",
+      "type": "prompt"
+    },
+    ".github/prompts/nais-manifest.prompt.md": {
+      "hash": "7b1e6ac5b4115c3f575cfcc75650d739d17359644f1b5b7b52c4d679fff8ca46",
+      "type": "prompt"
+    },
+    ".github/prompts/nextjs-api-route.prompt.md": {
+      "hash": "8af3ad0abc54206da5dbcbb279f8004f25981d9d2bf872c18b1399a1a5f287f1",
+      "type": "prompt"
+    },
+    ".github/prompts/spring-boot-endpoint.prompt.md": {
+      "hash": "3b5f6099fe5f457bba0bbf6a8ac7aa228e1761700a5641879abc2147f9459a7a",
+      "type": "prompt"
+    },
+    ".github/skills/ai-news-research/SKILL.md": {
+      "hash": "ceccd0e976156e57ad966b6b17a5dd8bf007ab7b805f34acac7110cdc7784d95",
+      "type": "skill"
+    },
+    ".github/skills/aksel-spacing/SKILL.md": {
+      "hash": "9059ca6ef8aedc4c5130eef88b1f65e018ac2fc8543a2a1146f264dba23de9ed",
+      "type": "skill"
+    },
+    ".github/skills/api-design/SKILL.md": {
+      "hash": "42d4a3492b1be1f1d32556eee8cfbcc9850f337610d5ee2c55881e907317d7d4",
+      "type": "skill"
+    },
+    ".github/skills/conventional-commit/SKILL.md": {
+      "hash": "68a93957fe50a81df1f13cf9e61f040ac681e58b04d69d8e02b61800e34b0c6a",
+      "type": "skill"
+    },
+    ".github/skills/flyway-migration/SKILL.md": {
+      "hash": "eeeb48b922eb44ecdb3a53e07889545fa0ffb2dedd8676032b83e7e8ece22cd9",
+      "type": "skill"
+    },
+    ".github/skills/kotlin-app-config/SKILL.md": {
+      "hash": "681c95c8c1a2c144350fd634184643575ec821e68de9b179c01b6a0dbc335502",
+      "type": "skill"
+    },
+    ".github/skills/observability-setup/SKILL.md": {
+      "hash": "69b5da70cf16ef84500832a7d89dbb8eb3033f0545d0b9ba6225b8f27590590c",
+      "type": "skill"
+    },
+    ".github/skills/playwright-testing/SKILL.md": {
+      "hash": "4797c2abd753271fe9a3f94ef36daca775e0fc42df0adf8fb2cc779d28a48f12",
+      "type": "skill"
+    },
+    ".github/skills/postgresql-review/SKILL.md": {
+      "hash": "6bb7f9e1a94cb55fe93b38f1bbdbd67aa5c2a347044b1be49f7b6c20b1b8b764",
+      "type": "skill"
+    },
+    ".github/skills/rust-development/SKILL.md": {
+      "hash": "d923102ff9931c4c90c645bb246978d96a69be8fb501ec3493e3f09a6d90334c",
+      "type": "skill"
+    },
+    ".github/skills/security-review/SKILL.md": {
+      "hash": "846e2b1c1cb7252d49a9cf87622db59ba7311362d68584a16b141c28040010f3",
+      "type": "skill"
+    },
+    ".github/skills/spring-boot-scaffold/SKILL.md": {
+      "hash": "61df374384f9d176fccc7c46744ca85ecfe785cebb180f254ed0d5f7e1104745",
+      "type": "skill"
+    },
+    ".github/skills/tokenx-auth/SKILL.md": {
+      "hash": "187ed74ef3eeff74a72faa2a60a14a467a0604603cef54bcc8c1ca14509f8490",
+      "type": "skill"
+    },
+    ".github/skills/web-design-reviewer/SKILL.md": {
+      "hash": "7b4c7c02d38fa397d2722d39831efebd987bfe23401561f6fb47ebe42f3ded11",
+      "type": "skill"
+    },
+    "AGENTS.md": {
+      "hash": "f3db9c2f853af364ca55a6e48c56d2e690e5016b4476eb202c5c850e24d2a097",
+      "type": "agents-md"
+    }
+  }
+}

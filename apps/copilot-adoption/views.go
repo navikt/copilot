@@ -21,6 +21,7 @@ var adoptionViews = []viewDefinition{
 	{name: "v_team_adoption", filename: "views/v_team_adoption.sql"},
 	{name: "v_customization_details", filename: "views/v_customization_details.sql"},
 	{name: "v_language_adoption", filename: "views/v_language_adoption.sql"},
+	{name: "v_staleness_summary", filename: "views/v_staleness_summary.sql"},
 }
 
 func (c *BigQueryClient) EnsureViewsExist(ctx context.Context) error {

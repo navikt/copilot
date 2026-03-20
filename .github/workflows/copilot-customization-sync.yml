@@ -1,0 +1,152 @@
+name: Copilot Customization Sync
+
+# Reusable workflow that teams add to their repos to keep Copilot customizations
+# up to date with navikt/copilot, similar to Dependabot for dependencies.
+#
+# Zero config required — just add this workflow and it auto-detects all
+# customization files in your repo and checks them against the source.
+#
+# Usage: Create .github/workflows/copilot-sync.yml in your repo:
+#
+#   name: Copilot Customization Sync
+#   on:
+#     schedule:
+#       - cron: '0 7 * * 1'  # Weekly on Mondays at 07:00 UTC
+#     workflow_dispatch:
+#   jobs:
+#     sync:
+#       uses: navikt/copilot/.github/workflows/copilot-customization-sync.yml@main
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#
+# Optional: limit to specific files via .github/copilot-sync.json:
+#
+#   { "files": [".github/agents/nais-platform.agent.md"] }
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Check for customization updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # ratchet:actions/checkout@v4
+
+      - name: Check for updates
+        id: check
+        env:
+          SOURCE_REPO: navikt/copilot
+          SOURCE_BRANCH: main
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RAW_BASE="https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_BRANCH}"
+          CONFIG_FILE=".github/copilot-sync.json"
+          UPDATES=""
+          UPDATE_COUNT=0
+          BODY_LINES=""
+
+          # Determine which files to check
+          if [[ -f "$CONFIG_FILE" ]]; then
+            echo "📋 Using file list from copilot-sync.json"
+            FILES=$(jq -r '.files[]' "$CONFIG_FILE")
+          else
+            echo "📋 Auto-detecting local customization files"
+            FILES=""
+            for pattern in \
+              ".github/agents/*.agent.md" \
+              ".github/instructions/*.instructions.md" \
+              ".github/prompts/*.prompt.md" \
+              ".github/skills/*/SKILL.md" \
+              ".github/copilot-instructions.md" \
+              "AGENTS.md"; do
+              for f in $pattern; do
+                [[ -f "$f" ]] && FILES="$FILES $f"
+              done
+            done
+          fi
+
+          if [[ -z "${FILES// /}" ]]; then
+            echo "No customization files found to check"
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          for file in $FILES; do
+            [[ -f "$file" ]] || continue
+
+            # Fetch source file content — skip if not in source repo
+            if ! SOURCE_CONTENT=$(curl -sfL "$RAW_BASE/$file" 2>/dev/null); then
+              echo "⏭️  $file: not found in source repo, skipping"
+              continue
+            fi
+
+            # Compare via SHA-256 hash
+            LOCAL_HASH=$(sha256sum "$file" | cut -d' ' -f1)
+            SOURCE_HASH=$(echo -n "$SOURCE_CONTENT" | sha256sum | cut -d' ' -f1)
+
+            if [[ "$LOCAL_HASH" != "$SOURCE_HASH" ]]; then
+              echo "📦 $file: update available"
+              UPDATES="$UPDATES $file"
+              BODY_LINES="$BODY_LINES\n- \`$file\`"
+              UPDATE_COUNT=$((UPDATE_COUNT + 1))
+            else
+              echo "✅ $file: up to date"
+            fi
+          done
+
+          if [[ $UPDATE_COUNT -eq 0 ]]; then
+            echo "All files are up to date"
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+            echo "update_count=$UPDATE_COUNT" >> "$GITHUB_OUTPUT"
+            echo "files=$UPDATES" >> "$GITHUB_OUTPUT"
+            echo "body_lines=$BODY_LINES" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download updates
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          SOURCE_REPO: navikt/copilot
+          SOURCE_BRANCH: main
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RAW_BASE="https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_BRANCH}"
+          FILES="${{ steps.check.outputs.files }}"
+
+          for file in $FILES; do
+            echo "⬇️  Downloading $file"
+            dir=$(dirname "$file")
+            mkdir -p "$dir"
+            curl -sfL "$RAW_BASE/$file" -o "$file"
+          done
+
+      - name: Create Pull Request
+        if: steps.check.outputs.has_updates == 'true'
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # ratchet:peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore: sync Copilot customizations from navikt/copilot"
+          title: "chore: sync ${{ steps.check.outputs.update_count }} Copilot customization(s)"
+          body: |
+            This PR syncs Copilot customization files from [navikt/copilot](https://github.com/navikt/copilot).
+
+            **Changed files:**
+            ${{ steps.check.outputs.body_lines }}
+
+            ---
+            🤖 This PR was created automatically by the [Copilot Customization Sync](https://github.com/navikt/copilot) workflow.
+          branch: copilot-customization-sync
+          delete-branch: true
+          labels: dependencies

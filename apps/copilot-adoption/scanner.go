@@ -19,6 +19,7 @@ func RunScan(ctx context.Context, gh interface {
 	RepoLister
 	TeamMapper
 	CustomizationScanner
+	SourceOIDResolver
 }, bq AdoptionStore, cfg *Config, scanDate time.Time, slack *SlackNotifier) error {
 	dateStr := scanDate.Format("2006-01-02")
 	slog.Info("Starting adoption scan", "date", dateStr, "org", cfg.OrganizationSlug)
@@ -95,6 +96,15 @@ func RunScan(ctx context.Context, gh interface {
 		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))
 	}
 
+	// Step 5b: Resolve source OIDs and compute sync status
+	slog.Info("Resolving source OIDs for sync comparison...")
+	sourceOIDs, err := gh.ResolveSourceOIDs(ctx, criteria)
+	if err != nil {
+		slog.Warn("Failed to resolve source OIDs, skipping sync comparison", "error", err)
+	} else {
+		ComputeInSync(allResults, sourceOIDs, criteria)
+	}
+
 	// Step 6: Load results into BigQuery (load job with WriteTruncate replaces partition atomically)
 	if err := bq.InsertScanResults(ctx, scanDate, allResults); err != nil {
 		return fmt.Errorf("failed to insert results: %w", err)
@@ -129,6 +139,7 @@ func DryRunScan(ctx context.Context, gh interface {
 	RepoLister
 	TeamMapper
 	CustomizationScanner
+	SourceOIDResolver
 }, cfg *Config, scanDate time.Time) ([]RepoScanResult, error) {
 	dateStr := scanDate.Format("2006-01-02")
 	slog.Info("Starting DRY RUN adoption scan", "date", dateStr, "org", cfg.OrganizationSlug)
@@ -184,6 +195,15 @@ func DryRunScan(ctx context.Context, gh interface {
 		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))
 	}
 
+	// Step 5b: Resolve source OIDs and compute sync status
+	slog.Info("Resolving source OIDs for sync comparison...")
+	sourceOIDs, err := gh.ResolveSourceOIDs(ctx, criteria)
+	if err != nil {
+		slog.Warn("Failed to resolve source OIDs, skipping sync comparison", "error", err)
+	} else {
+		ComputeInSync(allResults, sourceOIDs, criteria)
+	}
+
 	// Summary
 	withAny := 0
 	for _, r := range allResults {
@@ -200,6 +220,50 @@ func DryRunScan(ctx context.Context, gh interface {
 	)
 
 	return allResults, nil
+}
+
+// ComputeInSync annotates each SearchResult with per-file sync status by comparing
+// blob OIDs against the canonical source repo. Modifies results in place.
+func ComputeInSync(results []RepoScanResult, source SourceOIDs, criteria []SearchCriteria) {
+	for i := range results {
+		for _, c := range criteria {
+			sr, ok := results[i].Customizations[c.Category]
+			if !ok || !sr.Exists || len(sr.Oids) == 0 {
+				continue
+			}
+
+			sourceOids := source[c.Category]
+			if len(sourceOids) == 0 {
+				continue
+			}
+
+			inSync := make([]bool, len(sr.Oids))
+			switch c.CheckType {
+			case CheckFile:
+				base := c.TreePath
+				if idx := len(c.TreePath) - 1; idx >= 0 {
+					for j := idx; j >= 0; j-- {
+						if c.TreePath[j] == '/' {
+							base = c.TreePath[j+1:]
+							break
+						}
+					}
+				}
+				if len(sr.Oids) > 0 && sr.Oids[0] != "" {
+					inSync[0] = sr.Oids[0] == sourceOids[base]
+				}
+			case CheckDirectory:
+				for j, name := range sr.Files {
+					if j < len(sr.Oids) && sr.Oids[j] != "" {
+						inSync[j] = sr.Oids[j] == sourceOids[name]
+					}
+				}
+			}
+
+			sr.InSync = inSync
+			results[i].Customizations[c.Category] = sr
+		}
+	}
 }
 
 func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customizations map[string]SearchResult, lastCommit *time.Time) RepoScanResult {

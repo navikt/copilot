@@ -214,6 +214,30 @@
     },
     {
       "type": "agent",
+      "name": "rust-agent",
+      "displayName": "@rust-agent",
+      "description": "Ekspert på idiomatisk Rust-utvikling — ownership, error handling, async/tokio, unsafe, clippy, cargo, testing og Microsoft Pragmatic Rust Guidelines",
+      "tags": [
+        "testing",
+        "jest",
+        "junit",
+        "quality"
+      ],
+      "filePath": ".github/agents/rust.agent.md",
+      "useCases": [
+        "Creating .nais/app.yaml manifests",
+        "Health endpoints",
+        "Business metrics",
+        "OpenTelemetry tracing",
+        "Network policies",
+        "Secrets management",
+        "GDPR compliance"
+      ],
+      "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/rust.agent.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/rust.agent.md"
+    },
+    {
+      "type": "agent",
       "name": "security-champion-agent",
       "displayName": "@security-champion-agent",
       "description": "Ekspert på Navs sikkerhetsarkitektur, trusselmodellering, compliance og helhetlig sikkerhetspraksis",
@@ -497,6 +521,15 @@
       "filePath": ".github/skills/postgresql-review",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/postgresql-review"
+    },
+    {
+      "type": "skill",
+      "name": "rust-development",
+      "displayName": "rust-development",
+      "description": "Patterns, templates, and procedures for building high-quality Rust applications and libraries. Based on [Microsoft Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) and [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html).",
+      "filePath": ".github/skills/rust-development",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/rust-development"
     },
     {
       "type": "skill",

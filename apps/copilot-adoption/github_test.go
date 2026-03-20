@@ -25,7 +25,7 @@ func TestBuildGraphQLQuery(t *testing.T) {
 		`copilot_instructions: object(expression: "main:.github/copilot-instructions.md")`,
 		`agents: object(expression: "main:.github/agents")`,
 		`agents: object(expression: "master:.github/agents")`,
-		`... on Tree { entries { name type } }`,
+		`... on Tree { entries { name type object { ... on Blob { oid } } } }`,
 		`__typename`,
 	}
 
@@ -99,9 +99,9 @@ func TestBuildGraphQLQueryFileCheckFormat(t *testing.T) {
 
 	query := buildGraphQLQuery("navikt", repos, fileOnlyCriteria)
 
-	// File checks should use simple inline format: { __typename }
-	if !contains(query, `{ __typename }`) {
-		t.Errorf("file checks should use { __typename }, query:\n%s", query)
+	// File checks should use inline format with Blob OID
+	if !contains(query, `{ __typename ... on Blob { oid } }`) {
+		t.Errorf("file checks should use { __typename ... on Blob { oid } }, query:\n%s", query)
 	}
 	// File checks should NOT have Tree entries
 	if contains(query, "entries") {
@@ -124,11 +124,11 @@ func TestParseGraphQLResponse(t *testing.T) {
 	data := map[string]json.RawMessage{
 		"repo0": json.RawMessage(`{
 			"defaultBranchRef": {"target": {"committedDate": "2026-03-10T12:00:00Z"}},
-			"copilot_instructions": {"__typename": "Blob"},
+			"copilot_instructions": {"__typename": "Blob", "oid": "abc123"},
 			"agents": {"__typename": "Tree", "entries": [
-				{"name": "auth.agent.md", "type": "blob"},
-				{"name": "nais.agent.md", "type": "blob"},
-				{"name": "README.md", "type": "blob"}
+				{"name": "auth.agent.md", "type": "blob", "object": {"oid": "def456"}},
+				{"name": "nais.agent.md", "type": "blob", "object": {"oid": "ghi789"}},
+				{"name": "README.md", "type": "blob", "object": {"oid": "jkl012"}}
 			]},
 			"mcp_config": null
 		}`),
@@ -143,18 +143,25 @@ func TestParseGraphQLResponse(t *testing.T) {
 
 	results, lastCommits := parseGraphQLResponse(data, repos, criteria)
 
-	// has-stuff: copilot_instructions exists
-	if !results["has-stuff"]["copilot_instructions"].Exists {
+	// has-stuff: copilot_instructions exists with OID
+	ci := results["has-stuff"]["copilot_instructions"]
+	if !ci.Exists {
 		t.Error("expected copilot_instructions to exist for has-stuff")
 	}
+	if len(ci.Oids) != 1 || ci.Oids[0] != "abc123" {
+		t.Errorf("expected copilot_instructions oid [abc123], got %v", ci.Oids)
+	}
 
-	// has-stuff: 2 agent files (README.md filtered out by *.agent.md)
+	// has-stuff: 2 agent files (README.md filtered out by *.agent.md) with OIDs
 	agents := results["has-stuff"]["agents"]
 	if !agents.Exists {
 		t.Error("expected agents to exist for has-stuff")
 	}
 	if len(agents.Files) != 2 {
 		t.Errorf("expected 2 agent files, got %d: %v", len(agents.Files), agents.Files)
+	}
+	if len(agents.Oids) != 2 {
+		t.Errorf("expected 2 agent oids, got %d: %v", len(agents.Oids), agents.Oids)
 	}
 
 	// has-stuff: mcp_config does not exist
@@ -366,5 +373,107 @@ func TestAssembleResultNoCustomizations(t *testing.T) {
 	}
 	if result.DefaultBranchLastCommit != nil {
 		t.Errorf("expected nil last commit, got %v", result.DefaultBranchLastCommit)
+	}
+}
+
+func TestComputeInSync(t *testing.T) {
+	criteria := []SearchCriteria{
+		{Category: "copilot_instructions", TreePath: ".github/copilot-instructions.md", CheckType: CheckFile},
+		{Category: "agents", TreePath: ".github/agents", CheckType: CheckDirectory, FilePattern: "*.agent.md"},
+		{Category: "instructions", TreePath: ".github/instructions", CheckType: CheckDirectory, FilePattern: "*.instructions.md"},
+	}
+
+	sourceOIDs := SourceOIDs{
+		"copilot_instructions": {"copilot-instructions.md": "source_oid_ci"},
+		"agents":               {"auth.agent.md": "source_oid_auth", "nais.agent.md": "source_oid_nais"},
+		"instructions":         {"kotlin-ktor.instructions.md": "source_oid_kotlin"},
+	}
+
+	results := []RepoScanResult{
+		{
+			Repo: "in-sync-repo",
+			Customizations: map[string]SearchResult{
+				"copilot_instructions": {Exists: true, Oids: []string{"source_oid_ci"}},
+				"agents":               {Exists: true, Files: []string{"auth.agent.md", "nais.agent.md"}, Oids: []string{"source_oid_auth", "source_oid_nais"}},
+				"instructions":         {Exists: true, Files: []string{"kotlin-ktor.instructions.md"}, Oids: []string{"source_oid_kotlin"}},
+			},
+		},
+		{
+			Repo: "stale-repo",
+			Customizations: map[string]SearchResult{
+				"copilot_instructions": {Exists: true, Oids: []string{"different_oid"}},
+				"agents":               {Exists: true, Files: []string{"auth.agent.md", "nais.agent.md"}, Oids: []string{"source_oid_auth", "old_nais_oid"}},
+				"instructions":         {Exists: false},
+			},
+		},
+		{
+			Repo: "empty-repo",
+			Customizations: map[string]SearchResult{
+				"copilot_instructions": {Exists: false},
+				"agents":               {Exists: false},
+				"instructions":         {Exists: false},
+			},
+		},
+	}
+
+	ComputeInSync(results, sourceOIDs, criteria)
+
+	// in-sync-repo: all files match source
+	ciSync := results[0].Customizations["copilot_instructions"]
+	if len(ciSync.InSync) != 1 || !ciSync.InSync[0] {
+		t.Errorf("in-sync-repo copilot_instructions: expected [true], got %v", ciSync.InSync)
+	}
+	agentsSync := results[0].Customizations["agents"]
+	if len(agentsSync.InSync) != 2 || !agentsSync.InSync[0] || !agentsSync.InSync[1] {
+		t.Errorf("in-sync-repo agents: expected [true, true], got %v", agentsSync.InSync)
+	}
+	instrSync := results[0].Customizations["instructions"]
+	if len(instrSync.InSync) != 1 || !instrSync.InSync[0] {
+		t.Errorf("in-sync-repo instructions: expected [true], got %v", instrSync.InSync)
+	}
+
+	// stale-repo: copilot_instructions differs, one agent differs
+	ciStale := results[1].Customizations["copilot_instructions"]
+	if len(ciStale.InSync) != 1 || ciStale.InSync[0] {
+		t.Errorf("stale-repo copilot_instructions: expected [false], got %v", ciStale.InSync)
+	}
+	agentsStale := results[1].Customizations["agents"]
+	if len(agentsStale.InSync) != 2 || !agentsStale.InSync[0] || agentsStale.InSync[1] {
+		t.Errorf("stale-repo agents: expected [true, false], got %v", agentsStale.InSync)
+	}
+	// instructions: not present, should have no InSync
+	instrStale := results[1].Customizations["instructions"]
+	if len(instrStale.InSync) != 0 {
+		t.Errorf("stale-repo instructions: expected no InSync, got %v", instrStale.InSync)
+	}
+
+	// empty-repo: nothing to compare
+	for cat, sr := range results[2].Customizations {
+		if len(sr.InSync) != 0 {
+			t.Errorf("empty-repo %s: expected no InSync, got %v", cat, sr.InSync)
+		}
+	}
+}
+
+func TestComputeInSyncNoSourceOIDs(t *testing.T) {
+	criteria := []SearchCriteria{
+		{Category: "agents", TreePath: ".github/agents", CheckType: CheckDirectory, FilePattern: "*.agent.md"},
+	}
+
+	results := []RepoScanResult{
+		{
+			Repo: "custom-agent-repo",
+			Customizations: map[string]SearchResult{
+				"agents": {Exists: true, Files: []string{"custom.agent.md"}, Oids: []string{"some_oid"}},
+			},
+		},
+	}
+
+	// Source has no agents — repo has a custom file not in source
+	ComputeInSync(results, SourceOIDs{}, criteria)
+
+	agents := results[0].Customizations["agents"]
+	if len(agents.InSync) != 0 {
+		t.Errorf("expected no InSync when source has no OIDs, got %v", agents.InSync)
 	}
 }
