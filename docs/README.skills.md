@@ -10,14 +10,14 @@ Skills differ from other primitives by supporting bundled assets (scripts, code 
 
 Skills are folders placed in your repo's `.github/skills/` directory.
 
-| Editor          | Install Method                                                                                 |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| **VS Code**     | Copy the skill folder to `.github/skills/` in your repo. Agents discover skills automatically. |
-| **JetBrains**   | Copy the skill folder to `.github/skills/`. Works with Copilot coding agent.                   |
-| **Copilot CLI** | Not supported.                                                                                 |
-| **GitHub.com**  | Works with Copilot coding agent when the folder exists in the repo.                            |
+| Editor          | Install Method                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VS Code**     | Copy the skill folder to `.github/skills/` in your repo. Agents discover skills automatically.                                              |
+| **JetBrains**   | Copy the skill folder to `.github/skills/`. Supported in Agent Mode (public preview — enable via Settings > GitHub Copilot > Chat > Agent). |
+| **Copilot CLI** | Copy the skill folder to `.github/skills/`. Full support via `/skills` commands (`/skills list`, `/skills info`, `/skills add`).            |
+| **GitHub.com**  | Works with Copilot coding agent when the folder exists in the repo.                                                                         |
 
-> Skills are currently a VS Code feature for Copilot Chat. There is no one-click install — copy the full folder to your repo.
+> Skills are supported in VS Code, JetBrains (Agent Mode preview), Copilot CLI (full `/skills` management), and GitHub.com (coding agent). Personal skills can be stored in `~/.copilot/skills/` for cross-project use.
 
 **Manual install:**
 

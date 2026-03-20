@@ -6,14 +6,15 @@ Reusable prompt templates for Nav development scenarios and tasks, optimized for
 
 Prompts are `.prompt.md` files placed in your repo's `.github/prompts/` directory.
 
-| Editor          | Install Method                                                                     |
-| --------------- | ---------------------------------------------------------------------------------- |
-| **VS Code**     | Click the one-click install button below, or copy the file to `.github/prompts/`   |
-| **JetBrains**   | Copy the file to `.github/prompts/` in your repo. Use with `/prompt-name` in chat. |
-| **Copilot CLI** | Not supported.                                                                     |
-| **GitHub.com**  | Not supported.                                                                     |
+| Editor            | Install Method                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| **VS Code**       | Click the one-click install button below, or copy the file to `.github/prompts/`   |
+| **JetBrains**     | Copy the file to `.github/prompts/` in your repo. Use with `/prompt-name` in chat. |
+| **Visual Studio** | Copy the file to `.github/prompts/` in your repo. Use with `/prompt-name` in chat. |
+| **Copilot CLI**   | Not supported.                                                                     |
+| **GitHub.com**    | Not supported.                                                                     |
 
-> Prompt files work in VS Code and JetBrains. See [support matrix](https://docs.github.com/en/copilot/reference/custom-instructions-support) for details.
+> Prompt files are supported in VS Code, JetBrains, and Visual Studio. See [support matrix](https://docs.github.com/en/copilot/reference/custom-instructions-support) for details.
 
 **Manual install (any editor):**
 

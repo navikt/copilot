@@ -110,8 +110,8 @@ describe("CLIENT_SUPPORT", () => {
     }
   });
 
-  it("skill supports vscode, cli, and github", () => {
-    expect(CLIENT_SUPPORT.skill).toEqual(["vscode", "cli", "github"]);
+  it("skill supports vscode, intellij, cli, and github", () => {
+    expect(CLIENT_SUPPORT.skill).toEqual(["vscode", "intellij", "cli", "github"]);
   });
 });
 

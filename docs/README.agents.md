@@ -9,11 +9,11 @@ Agents are `.agent.md` files placed in your repo's `.github/agents/` directory.
 | Editor          | Install Method                                                                                    |
 | --------------- | ------------------------------------------------------------------------------------------------- |
 | **VS Code**     | Click the one-click install button below, or copy the file to `.github/agents/`                   |
-| **JetBrains**   | Not supported for Copilot Chat. Works with Copilot coding agent when the file exists in the repo. |
-| **Copilot CLI** | Not supported. Use instructions files instead.                                                    |
-| **GitHub.com**  | Works with Copilot coding agent when the file exists in the repo.                                 |
+| **JetBrains**   | Copy the file to `.github/agents/`. Supported in Copilot Chat and coding agent.                   |
+| **Copilot CLI** | Copy the file to `.github/agents/`. Select with `/agent` command in CLI sessions.                 |
+| **GitHub.com**  | Create and manage agents at github.com/copilot/agents, or add files to `.github/agents/` in repo. |
 
-> Custom agents (`.agent.md`) are currently a VS Code feature for Copilot Chat. Other editors support them only through the Copilot coding agent. See [support matrix](https://docs.github.com/en/copilot/reference/custom-instructions-support) for details.
+> Custom agents (`.agent.md`) are supported in VS Code, JetBrains, Copilot CLI and GitHub.com. See [support matrix](https://docs.github.com/en/copilot/reference/custom-instructions-support) for details.
 
 **Manual install (any editor):**
 

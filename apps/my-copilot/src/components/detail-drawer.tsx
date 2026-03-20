@@ -463,12 +463,14 @@ function StaticCustomizationDetails({ item }: { item: EnrichedCustomization }) {
                   </div>
                   <BodyShort size="small" className="text-gray-500">
                     {item.type === "agent"
-                      ? "Støttes i Coding Agent-modus. Aktiver via Copilot Chat."
+                      ? "Bruk @-mention i Copilot Chat eller Coding Agent-modus."
                       : item.type === "instruction"
                         ? `Lastes automatisk for filer som matcher ${item.applyTo}.`
                         : item.type === "prompt"
                           ? `Kjør med ${item.invocation} i Copilot Chat.`
-                          : null}
+                          : item.type === "skill"
+                            ? "Krever Agent Mode (forhåndsvisning). Aktiver via Settings > GitHub Copilot > Chat > Agent."
+                            : null}
                   </BodyShort>
                 </VStack>
               </Accordion.Content>
@@ -489,7 +491,9 @@ function StaticCustomizationDetails({ item }: { item: EnrichedCustomization }) {
                     </div>
                   </div>
                   <BodyShort size="small" className="text-gray-500">
-                    Lastes automatisk når du kjører copilot fra prosjektmappen.
+                    {item.type === "agent" && "Velg agent med /agent-kommandoen i en CLI-sesjon."}
+                    {item.type === "instruction" && "Lastes automatisk når du kjører copilot fra prosjektmappen."}
+                    {item.type === "skill" && "Administrer med /skills list, /skills info og /skills add."}
                   </BodyShort>
                 </VStack>
               </Accordion.Content>
