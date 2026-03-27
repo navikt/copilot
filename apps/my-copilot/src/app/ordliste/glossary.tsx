@@ -9,9 +9,9 @@ export function Glossary({ terms }: { terms: Term[] }) {
 
   const filtered = query
     ? terms.filter(
-      ({ term, definition }) =>
-        term.toLowerCase().includes(query.toLowerCase()) || definition.toLowerCase().includes(query.toLowerCase())
-    )
+        ({ term, definition }) =>
+          term.toLowerCase().includes(query.toLowerCase()) || definition.toLowerCase().includes(query.toLowerCase())
+      )
     : terms;
 
   return (
