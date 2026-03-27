@@ -1,4 +1,12 @@
-import { BookIcon, WrenchIcon, LineGraphIcon, BankNoteIcon, PersonIcon, PieChartIcon, InformationSquareIcon } from "@navikt/aksel-icons";
+import {
+  BookIcon,
+  WrenchIcon,
+  LineGraphIcon,
+  BankNoteIcon,
+  PersonIcon,
+  PieChartIcon,
+  InformationSquareIcon,
+} from "@navikt/aksel-icons";
 
 export const NAV_ITEMS = [
   { href: "/praksis", icon: BookIcon, label: "God praksis" },
