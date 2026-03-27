@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'apps/my-copilot/**'
-      - 'docs/news/**'
+      - 'docs/news/**/*.md'
       - '.github/agents/**'
       - '.github/instructions/**'
       - '.github/prompts/**'
@@ -16,7 +16,7 @@ on:
     branches: [main]
     paths:
       - 'apps/my-copilot/**'
-      - 'docs/news/**'
+      - 'docs/news/**/*.md'
       - '.github/agents/**'
       - '.github/instructions/**'
       - '.github/prompts/**'
