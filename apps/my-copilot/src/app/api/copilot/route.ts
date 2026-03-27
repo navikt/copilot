@@ -1,12 +1,13 @@
 import { getUser } from "@/lib/auth";
 import { assignUserToCopilot, getCopilotSeat, getUsernameBySamlIdentity, unassignUserFromCopilot } from "@/lib/github";
-import { getLoggerWithTraceContext } from "@/lib/logger";
+import { getLoggerWithTraceContext, getTraceId } from "@/lib/logger";
 import { context } from "@opentelemetry/api";
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
 export async function GET() {
   const log = getLoggerWithTraceContext(context.active());
+  const traceId = getTraceId(context.active());
 
   const org = "navikt";
   const user = await getUser(false);
@@ -18,7 +19,7 @@ export async function GET() {
       log.warn(message);
     }
 
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message, traceId }, { status });
   };
 
   if (!user) {
@@ -36,7 +37,11 @@ export async function GET() {
   }
 
   if (!githubUsername) {
-    return error("GitHub username was not found for user email", 400);
+    log.info({ email: user.email }, "GitHub account not linked for user");
+    return NextResponse.json({
+      githubAccountLinked: false,
+      icanhazcopilot: user.groups.length > 0,
+    });
   }
 
   const { copilot: subscription, error: copilotError } = await getCopilotSeat(org, githubUsername);
@@ -48,6 +53,7 @@ export async function GET() {
   log.info({ email: user.email }, "User Copilot subscription status");
 
   return NextResponse.json({
+    githubAccountLinked: true,
     icanhazcopilot: user.groups.length > 0,
     subscription,
     githubUsername,
@@ -61,6 +67,7 @@ enum Action {
 
 export async function POST(request: Request) {
   const log = getLoggerWithTraceContext(context.active());
+  const traceId = getTraceId(context.active());
 
   const org = "navikt";
   const user = await getUser(false);
@@ -72,7 +79,7 @@ export async function POST(request: Request) {
       log.warn(message);
     }
 
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message, traceId }, { status });
   };
 
   if (!user) {

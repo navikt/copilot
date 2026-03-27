@@ -69,7 +69,7 @@ export async function getUsernameBySamlIdentity(
                 };
                 user: {
                   login: string;
-                };
+                } | null;
               };
             }>;
           };
@@ -80,13 +80,16 @@ export async function getUsernameBySamlIdentity(
     const externalIdentities = response.organization.samlIdentityProvider.externalIdentities.edges;
 
     if (externalIdentities.length > 0) {
-      return { user: externalIdentities[0].node.user.login, error: null };
+      const user = externalIdentities[0].node.user;
+      if (!user) {
+        // SAML identity exists but is not linked to a GitHub user — not an error,
+        // the user just needs to authenticate via GitHub SSO.
+        return { user: null, error: null };
+      }
+      return { user: user.login, error: null };
     }
 
-    return {
-      user: null,
-      error: `No user found for SAML identity ${identity} in the ${organization} GitHub organization.`,
-    };
+    return { user: null, error: null };
   } catch (error) {
     return { user: null, error: error instanceof Error ? error.message : String(error) };
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort } from "@navikt/ds-react";
+import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort, Link } from "@navikt/ds-react";
 import { User } from "@/lib/auth";
 
 interface SubscriptionDetailsProps {
@@ -64,6 +64,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   const [subscription, setCopilotSubscription] = useState<SubscriptionDetailsProps["subscription"] | null>(null);
   const [githubUsername, setGitHubUsername] = useState<string | null>(null);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [errorTraceId, setErrorTraceId] = useState<string | null>(null);
+  const [needsGitHubLink, setNeedsGitHubLink] = useState<boolean>(false);
 
   const fetchSubscription = async () => {
     try {
@@ -72,18 +74,29 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
 
       if (data.error) {
         setSubscriptionError(data.error);
+        setErrorTraceId(data.traceId ?? null);
         return;
       }
 
+      if (data.githubAccountLinked === false) {
+        setNeedsGitHubLink(true);
+        setEligible(data.icanhazcopilot);
+        return;
+      }
+
+      setSubscriptionError(null);
+      setErrorTraceId(null);
+      setNeedsGitHubLink(false);
       setEligible(data.icanhazcopilot);
       setCopilotSubscription(data.subscription);
       setGitHubUsername(data.githubUsername);
     } catch (error) {
       console.error("Error fetching subscription details:", error);
+      setErrorTraceId(null);
       if (error instanceof Error) {
-        setSubscriptionError(`Error fetching subscription details: ${error.message}`);
+        setSubscriptionError(error.message);
       } else {
-        setSubscriptionError("Error fetching subscription details");
+        setSubscriptionError("Ukjent feil ved henting av abonnement");
       }
     }
   };
@@ -126,7 +139,31 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
     <>
       {subscriptionError && (
         <Box paddingBlock="space-8">
-          <Alert variant="error">Error fetching subscription details: {subscriptionError}</Alert>
+          <Alert variant="error">
+            {subscriptionError}
+            {errorTraceId && (
+              <BodyShort size="small" spacing>
+                Sporings-ID: <code>{errorTraceId}</code>
+              </BodyShort>
+            )}
+          </Alert>
+        </Box>
+      )}
+
+      {needsGitHubLink && (
+        <Box paddingBlock="space-8">
+          <Alert variant="warning">
+            <Heading size="small" level="3" spacing>
+              GitHub-kontoen din er ikke koblet til Nav
+            </Heading>
+            <BodyShort spacing>
+              For å bruke Copilot må GitHub-kontoen din være koblet til <strong>navikt</strong>-organisasjonen. Logg inn
+              via GitHub SSO for å koble kontoen din.
+            </BodyShort>
+            <Link href="https://github.com/orgs/navikt/sso" target="_blank">
+              Koble GitHub-konto via SSO →
+            </Link>
+          </Alert>
         </Box>
       )}
 
