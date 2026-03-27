@@ -9,6 +9,7 @@ export const terms: Term[] = [
     term: "Aksepteringsrate",
     definition:
       "Andelen kodeforslag fra Copilot som utviklere faktisk tar i bruk. Måles som forholdet mellom aksepterte og totalt viste forslag, og brukes til å vurdere hvor nyttig Copilot er i praksis.",
+    link: { href: "/statistikk", label: "Se statistikk" },
   },
   {
     term: "Agent",
@@ -74,6 +75,7 @@ export const terms: Term[] = [
     term: "Custom agents",
     definition:
       "Spesialiserte Copilot-agenter definert i .agent.md-filer. Hver agent har egne instruksjoner, verktøytilgang og kontekst, og kan velges fra agent-menyen i editoren.",
+    link: { href: "/verktoy?type=agent", label: "Se agenter" },
   },
   {
     term: "Edit mode",
@@ -99,6 +101,7 @@ export const terms: Term[] = [
     term: "Instructions",
     definition:
       "Konfigurasjonsfiler (.instructions.md) som gir Copilot vedvarende kontekst og regler for en fil, mappe eller hele prosjektet – uten at du trenger å gjenta dem i hver prompt.",
+    link: { href: "/verktoy?type=instruction", label: "Se instruksjoner" },
   },
   {
     term: "Knowledge cutoff",
@@ -114,6 +117,7 @@ export const terms: Term[] = [
     term: "MCP (Model Context Protocol)",
     definition:
       "En åpen standard for å koble AI-modeller til eksterne verktøy og datakilder. MCP lar agenter og Copilot bruke verktøy og data utenfor selve modellen.",
+    link: { href: "/verktoy?type=mcp", label: "Se MCP-servere" },
   },
   {
     term: "Modell",
@@ -129,16 +133,19 @@ export const terms: Term[] = [
     term: "Premium requests",
     definition:
       "Forespørsler til mer avanserte AI-modeller (for eksempel o3 eller Claude Opus) som trekker fra en separat kvote i Copilot-abonnementet.",
+    link: { href: "/kostnad", label: "Se kostnad" },
   },
   {
     term: "Prompt",
     definition:
       "Instruksjonen, spørsmålet eller konteksten du gir til AI-modellen. Tydelig kontekst og presise instruksjoner gir bedre svar.",
+    link: { href: "/praksis", label: "Tips for gode prompter" },
   },
   {
     term: "Prompt-filer",
     definition:
       "Gjenbrukbare prompt-maler (.prompt.md) som du kan kjøre med en slash-kommando i Copilot Chat. Nyttig for oppgaver du gjør ofte, som kodegjennomgang eller generering av tester.",
+    link: { href: "/verktoy?type=prompt", label: "Se prompt-filer" },
   },
   {
     term: "RAG (Retrieval-Augmented Generation)",
@@ -154,6 +161,7 @@ export const terms: Term[] = [
     term: "Skills",
     definition:
       "Evner eller verktøy en agent kan bruke, for eksempel å søke i kode, lese filer, kalle et API eller kjøre tester. Skillsene bestemmer hva agenten kan gjøre.",
+    link: { href: "/verktoy?type=skill", label: "Se skills" },
   },
   {
     term: "System prompt",
