@@ -4,6 +4,9 @@ export interface Term {
   link?: { href: string; label: string };
 }
 
+// Termnavn: bruk engelsk for etablerte fagtermer (agent mode, hooks, tool calling).
+// Bruk norsk når ordet er naturlig på norsk (hallusinasjon, kontekstvindu, modell).
+// Definisjoner: alltid på norsk.
 export const terms: Term[] = [
   {
     term: "Aksepteringsrate",
@@ -21,6 +24,11 @@ export const terms: Term[] = [
     definition:
       "Copilots modus der AI-en jobber autonomt i editoren. Agenten kan redigere filer, kjøre kommandoer og bruke verktøy for å løse oppgaver i flere steg.",
     link: { href: "/praksis#vanlige-mønstre-for-agent-mode", label: "Mønstre for agent mode" },
+  },
+  {
+    term: "Agentic loop",
+    definition:
+      "Arbeidssløyfen der en agent samler kontekst, planlegger, handler og verifiserer resultatet – i en kontinuerlig løkke til oppgaven er løst. Agenten gjentar syklusen og justerer kursen basert på resultater underveis.",
   },
   {
     term: "AGENTS.md",
@@ -66,6 +74,11 @@ export const terms: Term[] = [
     link: { href: "/praksis#verktøy-og-moduser", label: "Verktøy og moduser" },
   },
   {
+    term: "Copilot Memory",
+    definition:
+      "Copilot lagrer innsikt om et repository – arkitekturbeslutninger, mønstre og konvensjoner – og bruker det til å gi mer presise forslag i fremtidige økter. Minnet er per repository og kan slås av.",
+  },
+  {
     term: "Copilot Extensions",
     definition:
       "Utvidelser som kobler GitHub Copilot til tredjepartstjenester og interne systemer. Lar deg bruke Copilot mot egne datakilder og verktøy direkte fra chat.",
@@ -87,15 +100,20 @@ export const terms: Term[] = [
       "Copilots redigeringsmodus der du beskriver en endring og Copilot redigerer relevante filer direkte, uten å utføre kommandoer eller bruke verktøy.",
   },
   {
-    term: "Fine-tuning",
-    definition:
-      "Tilpasning av en AI-modell ved å trene den videre på spesifikke data. Gjør modellen mer presis for et domene eller en kodestil.",
-  },
-  {
     term: "Hallusinasjon",
     definition:
       "Når en AI-modell genererer informasjon som virker troverdig, men er feil eller oppdiktet. Copilot kan hallusinere API-navn, funksjoner eller biblioteker som ikke finnes.",
     link: { href: "/praksis#verifisering-nøkkelen-til-kvalitet", label: "Verifisering" },
+  },
+  {
+    term: "Hooks",
+    definition:
+      "Egendefinerte shell-kommandoer som kjøres automatisk på bestemte punkter under en agent-kjøring – for eksempel før en commit eller etter en filendring. Lar deg tilpasse agentens oppførsel uten å endre selve agenten.",
+  },
+  {
+    term: "Human-in-the-loop",
+    definition:
+      "Prinsippet om at et menneske godkjenner agentens handlinger underveis, i stedet for å la den kjøre helt autonomt. I Copilot styres dette med godkjenningsdialogene for terminal og filendringer.",
   },
   {
     term: "Inline suggestion",
@@ -136,6 +154,11 @@ export const terms: Term[] = [
       "Copilot forutser hvor du mest sannsynlig vil gjøre neste endring, og foreslår koden på riktig sted. Til forskjell fra inline suggestions, som fullfører der markøren står, hopper NES til neste relevante posisjon.",
   },
   {
+    term: "Plan mode",
+    definition:
+      "Copilots planleggingsmodus der agenten først stiller oppklarende spørsmål og lager en steg-for-steg-plan før den begynner å skrive kode. Gir deg kontroll over retningen før agenten handler.",
+  },
+  {
     term: "Premium requests",
     definition:
       "Forespørsler til mer avanserte AI-modeller (for eksempel o3 eller Claude Opus) som trekker fra en separat kvote i Copilot-abonnementet.",
@@ -146,12 +169,6 @@ export const terms: Term[] = [
     definition:
       "Instruksjonen, spørsmålet eller konteksten du gir til AI-modellen. Tydelig kontekst og presise instruksjoner gir bedre svar.",
     link: { href: "/praksis#prompt-engineering", label: "Prompt engineering" },
-  },
-  {
-    term: "Prompt-filer",
-    definition:
-      "Gjenbrukbare prompt-maler (.prompt.md) som du kan kjøre med en slash-kommando i Copilot Chat. Nyttig for oppgaver du gjør ofte, som kodegjennomgang eller generering av tester.",
-    link: { href: "/verktoy?type=prompt", label: "Se prompt-filer" },
   },
   {
     term: "RAG (Retrieval-Augmented Generation)",
@@ -170,18 +187,18 @@ export const terms: Term[] = [
     link: { href: "/verktoy?type=skill", label: "Se skills" },
   },
   {
-    term: "System prompt",
+    term: "Subagent",
     definition:
-      "En skjult instruksjon som definerer modellens rolle og atferd. Settes av verktøyet eller leverandøren og er ikke synlig for deg. Gir blant annet Copilot kontekst om editoren og kodebasen.",
-  },
-  {
-    term: "Temperature",
-    definition:
-      "En parameter som styrer hvor kreativ eller forutsigbar modellen er. Høy temperatur gir mer varierte svar; lav temperatur gir mer presise og konsistente svar.",
+      "En agent som startes av en annen agent for å utføre en avgrenset oppgave. Holder hovedkonteksten ren ved å isolere komplekse deloppgaver i en egen sesjon.",
   },
   {
     term: "Token",
     definition:
       "Den grunnleggende enheten AI-modeller bruker for å behandle tekst. Et token tilsvarer omtrent 3–4 tegn på norsk. Både input (din tekst) og output (Copilots svar) telles i tokens.",
+  },
+  {
+    term: "Tool calling",
+    definition:
+      "Mekanismen der en agent velger og bruker verktøy underveis – som filoperasjoner, terminalen, MCP-servere eller websøk. Det er tool calling som gjør at agenten kan handle, ikke bare svare.",
   },
 ];
