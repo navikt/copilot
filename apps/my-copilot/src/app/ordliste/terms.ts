@@ -61,11 +61,13 @@ export const terms: Term[] = [
     term: "Copilot CLI",
     definition:
       "Copilot i terminalen. Lar deg stille spørsmål, gjøre endringer i lokale filer og samhandle med GitHub – for eksempel opprette issues eller liste pull requests.",
+    link: { href: "https://docs.github.com/en/copilot/concepts/agents/copilot-cli", label: "GitHub Docs" },
   },
   {
     term: "Copilot code review",
     definition:
       "AI-genererte gjennomgangskommentarer på pull requests. Copilot analyserer endringene og foreslår forbedringer, på samme måte som en menneskelig reviewer.",
+    link: { href: "https://docs.github.com/en/copilot/concepts/agents/code-review", label: "GitHub Docs" },
   },
   {
     term: "Copilot Edits",
@@ -77,6 +79,7 @@ export const terms: Term[] = [
     term: "Copilot Memory",
     definition:
       "Copilot lagrer innsikt om et repository – arkitekturbeslutninger, mønstre og konvensjoner – og bruker det til å gi mer presise forslag i fremtidige økter. Minnet er per repository og kan slås av.",
+    link: { href: "https://docs.github.com/en/copilot/concepts/agents/copilot-memory", label: "GitHub Docs" },
   },
   {
     term: "Copilot Extensions",
@@ -109,6 +112,7 @@ export const terms: Term[] = [
     term: "Hooks",
     definition:
       "Egendefinerte shell-kommandoer som kjøres automatisk på bestemte punkter under en agent-kjøring – for eksempel før en commit eller etter en filendring. Lar deg tilpasse agentens oppførsel uten å endre selve agenten.",
+    link: { href: "https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-hooks", label: "GitHub Docs" },
   },
   {
     term: "Human-in-the-loop",
