@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -135,5 +137,87 @@ func TestDownloadUsesDownloadClient(t *testing.T) {
 	}
 	if len(records) != 1 {
 		t.Errorf("got %d records, want 1", len(records))
+	}
+}
+
+func TestFetchMetricsFromURL_StringResponse(t *testing.T) {
+	// The API sometimes returns a JSON string instead of a JSON object
+	// when the report is not yet available.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`"No report available for this day"`))
+	}))
+	defer server.Close()
+
+	client := &GitHubClient{
+		httpClient:     server.Client(),
+		downloadClient: &http.Client{},
+	}
+
+	_, err := client.fetchMetricsFromURL(context.Background(), server.URL)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, ErrReportNotAvailable) {
+		t.Errorf("expected ErrReportNotAvailable, got: %v", err)
+	}
+}
+
+func TestFetchMetricsFromURL_ValidResponse(t *testing.T) {
+	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{\"users\":42}\n"))
+	}))
+	defer downloadServer.Close()
+
+	reportResp := MetricsReportResponse{
+		DownloadLinks: []string{downloadServer.URL},
+		ReportDay:     "2026-03-20",
+	}
+	reportJSON, _ := json.Marshal(reportResp)
+
+	reportServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(reportJSON)
+	}))
+	defer reportServer.Close()
+
+	client := &GitHubClient{
+		httpClient:     reportServer.Client(),
+		downloadClient: downloadServer.Client(),
+	}
+
+	records, err := client.fetchMetricsFromURL(context.Background(), reportServer.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(records) != 1 {
+		t.Errorf("got %d records, want 1", len(records))
+	}
+}
+
+func TestFetchMetricsFromURLWithRetry_NoRetryOnStringResponse(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`"Report is being generated"`))
+	}))
+	defer server.Close()
+
+	client := &GitHubClient{
+		httpClient:     server.Client(),
+		downloadClient: &http.Client{},
+	}
+
+	_, err := client.fetchMetricsFromURLWithRetry(context.Background(), server.URL)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if attempts != 1 {
+		t.Errorf("expected 1 attempt (no retries), got %d", attempts)
 	}
 }

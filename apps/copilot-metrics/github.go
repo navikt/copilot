@@ -125,8 +125,8 @@ func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url str
 		}
 		lastErr = err
 
-		// Don't retry on 4xx errors (client errors)
-		if isClientError(err) {
+		// Don't retry on errors that won't resolve with a retry
+		if isClientError(err) || isReportNotAvailable(err) || isDecodeError(err) {
 			return nil, err
 		}
 	}
@@ -141,7 +141,19 @@ func isClientError(err error) bool {
 
 // isReportNotAvailable checks if the error indicates the report hasn't been generated yet.
 func isReportNotAvailable(err error) bool {
-	return strings.Contains(err.Error(), "No report available")
+	return errors.Is(err, ErrReportNotAvailable) || strings.Contains(err.Error(), "No report available")
+}
+
+// isDecodeError checks if the error is a non-retryable response decode failure.
+func isDecodeError(err error) bool {
+	return strings.Contains(err.Error(), "failed to decode report response")
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]json.RawMessage, error) {
@@ -164,9 +176,22 @@ func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]j
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
+	// Read body so we can inspect it before decoding. The API sometimes returns
+	// a plain JSON string (e.g. "No report available") instead of an object.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	trimmed := strings.TrimSpace(string(body))
+	if len(trimmed) > 0 && trimmed[0] == '"' {
+		// API returned a JSON string — typically means the report isn't ready yet
+		return nil, fmt.Errorf("%w: %s", ErrReportNotAvailable, trimmed)
+	}
+
 	var reportResp MetricsReportResponse
-	if err := json.NewDecoder(resp.Body).Decode(&reportResp); err != nil {
-		return nil, fmt.Errorf("failed to decode report response: %w", err)
+	if err := json.Unmarshal(body, &reportResp); err != nil {
+		return nil, fmt.Errorf("failed to decode report response (body: %s): %w", truncate(trimmed, 200), err)
 	}
 
 	slog.Info("Got download links", "count", len(reportResp.DownloadLinks), "report_day", reportResp.ReportDay)

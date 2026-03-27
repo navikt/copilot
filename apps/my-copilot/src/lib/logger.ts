@@ -20,3 +20,7 @@ export function getLoggerWithTraceContext(context: Context) {
 
   return logger.child({ trace_id, span_id });
 }
+
+export function getTraceId(ctx: Context): string | undefined {
+  return trace.getSpan(ctx)?.spanContext().traceId;
+}
