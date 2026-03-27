@@ -1,4 +1,12 @@
-import { BookIcon, WrenchIcon, LineGraphIcon, BankNoteIcon, PersonIcon, PieChartIcon } from "@navikt/aksel-icons";
+import {
+  BookIcon,
+  WrenchIcon,
+  LineGraphIcon,
+  BankNoteIcon,
+  PersonIcon,
+  PieChartIcon,
+  InformationSquareIcon,
+} from "@navikt/aksel-icons";
 
 export const NAV_ITEMS = [
   { href: "/praksis", icon: BookIcon, label: "God praksis" },
@@ -7,4 +15,5 @@ export const NAV_ITEMS = [
   { href: "/adopsjon", icon: PieChartIcon, label: "Adopsjon" },
   { href: "/kostnad", icon: BankNoteIcon, label: "Kostnad" },
   { href: "/abonnement", icon: PersonIcon, label: "Abonnement" },
+  { href: "/ordliste", icon: InformationSquareIcon, label: "Ordliste" },
 ];
