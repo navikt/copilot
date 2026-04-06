@@ -53,8 +53,8 @@ By default, the workflow checks **all customization files** that exist in your r
 - `.github/prompts/*.prompt.md`
 - `.github/skills/*/SKILL.md`
 - `.github/skills/*/metadata.json`
-- `.github/copilot-instructions.md`
-- `AGENTS.md`
+
+> `AGENTS.md` and `.github/copilot-instructions.md` are not synced — they are always repo-specific.
 
 To sync only specific files, create `.github/copilot-sync.json`:
 
