@@ -48,19 +48,28 @@ jobs:
         run: |
           set -euo pipefail
 
-          RAW_BASE="https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_BRANCH}"
-          CONFIG_FILE=".github/copilot-sync.json"
-          UPDATES=""
-          UPDATE_COUNT=0
-          BODY_LINES=""
+          # Resolve source commit SHA once to avoid race between check and download
+          SOURCE_SHA=$(curl -sfL --retry 3 --retry-all-errors \
+            "https://api.github.com/repos/${SOURCE_REPO}/commits/${SOURCE_BRANCH}" \
+            -H "Accept: application/vnd.github.sha" )
+          echo "📌 Source pinned to ${SOURCE_REPO}@${SOURCE_SHA:0:12}"
 
-          # Determine which files to check
+          RAW_BASE="https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_SHA}"
+          CONFIG_FILE=".github/copilot-sync.json"
+
+          # Collect files into a JSON array for safe transport
+          FILES_JSON="[]"
+
           if [[ -f "$CONFIG_FILE" ]]; then
             echo "📋 Using file list from copilot-sync.json"
-            FILES=$(jq -r '.files[]' "$CONFIG_FILE")
+            if ! FILES_JSON=$(jq -e '.files' "$CONFIG_FILE" 2>/dev/null); then
+              echo "⚠️  Invalid copilot-sync.json (missing 'files' array), skipping"
+              echo "has_updates=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           else
             echo "📋 Auto-detecting local customization files"
-            FILES=""
+            FILES_JSON="[]"
             for pattern in \
               ".github/agents/*.agent.md" \
               ".github/instructions/*.instructions.md" \
@@ -70,70 +79,85 @@ jobs:
               ".github/copilot-instructions.md" \
               "AGENTS.md"; do
               for f in $pattern; do
-                [[ -f "$f" ]] && FILES="$FILES $f"
+                [[ -f "$f" ]] && FILES_JSON=$(echo "$FILES_JSON" | jq --arg f "$f" '. + [$f]')
               done
             done
           fi
 
-          if [[ -z "${FILES// /}" ]]; then
+          FILE_COUNT=$(echo "$FILES_JSON" | jq 'length')
+          if [[ "$FILE_COUNT" -eq 0 ]]; then
             echo "No customization files found to check"
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          for file in $FILES; do
+          UPDATES_JSON="[]"
+          BODY_LINES=""
+
+          echo "$FILES_JSON" | jq -r '.[]' | while IFS= read -r file; do
             [[ -f "$file" ]] || continue
 
             # Fetch source file hash — skip if not in source repo
-            if ! SOURCE_HASH=$(curl -sfL "$RAW_BASE/$file" 2>/dev/null | sha256sum | cut -d' ' -f1); then
+            if ! SOURCE_HASH=$(curl -sfL --retry 3 --retry-all-errors "$RAW_BASE/$file" | sha256sum | cut -d' ' -f1); then
               echo "⏭️  $file: not found in source repo, skipping"
               continue
             fi
 
-            # Compare via SHA-256 hash
             LOCAL_HASH=$(sha256sum "$file" | cut -d' ' -f1)
 
             if [[ "$LOCAL_HASH" != "$SOURCE_HASH" ]]; then
               echo "📦 $file: update available"
-              UPDATES="$UPDATES $file"
-              BODY_LINES+=$'\n'"- \`$file\`"
-              UPDATE_COUNT=$((UPDATE_COUNT + 1))
+              echo "$file" >> "$RUNNER_TEMP/update_files.txt"
             else
               echo "✅ $file: up to date"
             fi
           done
 
-          if [[ $UPDATE_COUNT -eq 0 ]]; then
+          if [[ ! -f "$RUNNER_TEMP/update_files.txt" ]]; then
             echo "All files are up to date"
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_updates=true" >> "$GITHUB_OUTPUT"
-            echo "update_count=$UPDATE_COUNT" >> "$GITHUB_OUTPUT"
-            echo "files=$UPDATES" >> "$GITHUB_OUTPUT"
-            {
-              echo "body_lines<<BODY_EOF"
-              echo "$BODY_LINES"
-              echo "BODY_EOF"
-            } >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          UPDATE_COUNT=$(wc -l < "$RUNNER_TEMP/update_files.txt" | tr -d ' ')
+          echo "has_updates=true" >> "$GITHUB_OUTPUT"
+          echo "update_count=$UPDATE_COUNT" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+          # Transport file list as multiline output
+          {
+            echo "files<<FILES_EOF"
+            cat "$RUNNER_TEMP/update_files.txt"
+            echo "FILES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          # Build PR body
+          {
+            echo "body_lines<<BODY_EOF"
+            while IFS= read -r f; do
+              echo "- \`$f\`"
+            done < "$RUNNER_TEMP/update_files.txt"
+            echo "BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Download updates
         if: steps.check.outputs.has_updates == 'true'
         env:
           SOURCE_REPO: navikt/copilot
-          SOURCE_BRANCH: main
+          SOURCE_SHA: ${{ steps.check.outputs.source_sha }}
           UPDATE_FILES: ${{ steps.check.outputs.files }}
         shell: bash
         run: |
           set -euo pipefail
 
-          RAW_BASE="https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_BRANCH}"
+          RAW_BASE="https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_SHA}"
 
-          for file in $UPDATE_FILES; do
+          echo "$UPDATE_FILES" | while IFS= read -r file; do
+            [[ -n "$file" ]] || continue
             echo "⬇️  Downloading $file"
             dir=$(dirname "$file")
             mkdir -p "$dir"
-            curl -sfL "$RAW_BASE/$file" -o "$file"
+            curl -sfL --retry 3 --retry-all-errors "$RAW_BASE/$file" -o "$file"
           done
 
       - name: Create Pull Request
