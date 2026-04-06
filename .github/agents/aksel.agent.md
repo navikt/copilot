@@ -1,6 +1,6 @@
 ---
 name: aksel-agent
-description: Ekspert på Navs Aksel Design System, spacing-tokens, responsiv layout og komponentmønstre
+description: Navs Aksel Design System — spacing-tokens, responsiv layout og komponentmønstre
 tools:
   - execute
   - read

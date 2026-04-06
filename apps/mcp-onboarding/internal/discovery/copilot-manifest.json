@@ -6,7 +6,7 @@
       "type": "agent",
       "name": "accessibility-agent",
       "displayName": "@accessibility-agent",
-      "description": "Ekspert på WCAG 2.1/2.2, universell utforming, Aksel accessibility-mønstre og automatisert UU-testing",
+      "description": "WCAG 2.1/2.2, universell utforming, Aksel-tilgjengelighet og automatisert UU-testing",
       "category": "frontend",
       "tags": [
         "aksel",
@@ -27,7 +27,7 @@
       "type": "agent",
       "name": "aksel-agent",
       "displayName": "@aksel-agent",
-      "description": "Ekspert på Navs Aksel Design System, spacing-tokens, responsiv layout og komponentmønstre",
+      "description": "Navs Aksel Design System — spacing-tokens, responsiv layout og komponentmønstre",
       "category": "frontend",
       "tags": [
         "aksel",
@@ -48,7 +48,7 @@
       "type": "agent",
       "name": "auth-agent",
       "displayName": "@auth-agent",
-      "description": "Ekspert på Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-applikasjoner",
+      "description": "Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-apper",
       "category": "security",
       "tags": [
         "auth",
@@ -108,7 +108,7 @@
       "type": "agent",
       "name": "kafka-agent",
       "displayName": "@kafka-agent",
-      "description": "Ekspert på Rapids \u0026 Rivers eventdrevet arkitektur, Kafka-mønstre og event schema-design",
+      "description": "Rapids \u0026 Rivers, eventdrevet arkitektur, Kafka-mønstre og schema-design",
       "category": "backend",
       "tags": [
         "kafka",
@@ -135,7 +135,7 @@
       "type": "agent",
       "name": "nais-agent",
       "displayName": "@nais-agent",
-      "description": "Ekspert på Nais-deployment, GCP-ressurser, Kafka-topics og plattform-feilsøking",
+      "description": "Nais-deployment, GCP-ressurser, Kafka-topics og feilsøking på plattformen",
       "category": "platform",
       "tags": [
         "nais",
@@ -166,7 +166,7 @@
       "type": "agent",
       "name": "observability-agent",
       "displayName": "@observability-agent",
-      "description": "Ekspert på Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling",
+      "description": "Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling",
       "category": "platform",
       "tags": [
         "observability",
@@ -195,7 +195,7 @@
       "type": "agent",
       "name": "research-agent",
       "displayName": "@research-agent",
-      "description": "Ekspert på å utforske kodebaser, undersøke problemer, analysere mønstre og samle kontekst før implementering",
+      "description": "Utforsker kodebaser, undersøker problemer og samler kontekst før implementering",
       "filePath": ".github/agents/research.agent.md",
       "useCases": [
         "Creating .nais/app.yaml manifests",
@@ -216,7 +216,7 @@
       "type": "agent",
       "name": "security-champion-agent",
       "displayName": "@security-champion-agent",
-      "description": "Ekspert på Navs sikkerhetsarkitektur, trusselmodellering, compliance og helhetlig sikkerhetspraksis",
+      "description": "Navs sikkerhetsarkitektur, trusselmodellering, compliance og sikkerhetspraksis",
       "category": "security",
       "tags": [
         "security",

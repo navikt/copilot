@@ -1,16 +1,16 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-06T18:26:09.836Z",
+  "generatedAt": "2026-04-06T18:37:30.875Z",
   "items": [
     {
       "id": "accessibility-agent",
       "name": "accessibility-agent",
-      "description": "Ekspert på WCAG 2.1/2.2, universell utforming, Aksel accessibility-mønstre og automatisert UU-testing",
+      "description": "WCAG 2.1/2.2, universell utforming, Aksel-tilgjengelighet og automatisert UU-testing",
       "type": "agent",
       "domain": "frontend",
       "filePath": ".github/agents/accessibility.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/accessibility.agent.md",
-      "contentHash": "e833840765b9bc99db47040f8922d6c92a6613fbc39a532d45f07e8212e8e548",
+      "contentHash": "98867df3e31b8cd4650e79ceb009a0fe98e9c22519cd2f834096c8f06d1f213b",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faccessibility.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faccessibility.agent.md",
       "tools": [
@@ -37,12 +37,12 @@
     {
       "id": "aksel-agent",
       "name": "aksel-agent",
-      "description": "Ekspert på Navs Aksel Design System, spacing-tokens, responsiv layout og komponentmønstre",
+      "description": "Navs Aksel Design System — spacing-tokens, responsiv layout og komponentmønstre",
       "type": "agent",
       "domain": "frontend",
       "filePath": ".github/agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/aksel.agent.md",
-      "contentHash": "3b99a4b3e5da6f26db596e29e4fc81efbe56f3ae2def5900f3d2a6ea2c0984dd",
+      "contentHash": "9a80d306394a0cf49976159d7886e4d03a78dd5341735f15fe4c63c452a627bc",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "tools": [
@@ -86,12 +86,12 @@
     {
       "id": "auth-agent",
       "name": "auth-agent",
-      "description": "Ekspert på Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-applikasjoner",
+      "description": "Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-apper",
       "type": "agent",
       "domain": "auth",
       "filePath": ".github/agents/auth.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/auth.agent.md",
-      "contentHash": "3f6829d8982f15f64b99dd5964ba49269a84fa16c2200a8983412bc9c32bdddd",
+      "contentHash": "9d013206d684372dfe60538f18641fd9cb2f91061c546dfc6e5a36baee340330",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fauth.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fauth.agent.md",
       "tools": [
@@ -213,12 +213,12 @@
     {
       "id": "kafka-agent",
       "name": "kafka-agent",
-      "description": "Ekspert på Rapids & Rivers eventdrevet arkitektur, Kafka-mønstre og event schema-design",
+      "description": "Rapids & Rivers, eventdrevet arkitektur, Kafka-mønstre og schema-design",
       "type": "agent",
       "domain": "backend",
       "filePath": ".github/agents/kafka.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/kafka.agent.md",
-      "contentHash": "e4bbf71c99e4e221e5aabbc339fb7fce1008c0e687ef6ef91bbc9ab17d5a5c7b",
+      "contentHash": "0b87e50b3d4178de43f8a0659bfa8795c4face7d36f73c60ed85b5fe6e9e6aed",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fkafka.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fkafka.agent.md",
       "tools": [
@@ -254,12 +254,12 @@
     {
       "id": "nais-agent",
       "name": "nais-agent",
-      "description": "Ekspert på Nais-deployment, GCP-ressurser, Kafka-topics og plattform-feilsøking",
+      "description": "Nais-deployment, GCP-ressurser, Kafka-topics og feilsøking på plattformen",
       "type": "agent",
       "domain": "platform",
       "filePath": ".github/agents/nais.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md",
-      "contentHash": "53e059f4b6553f5484855e96bd6506627cc6ccf1eb14d2b114b86cde86a8de5e",
+      "contentHash": "6b2e7fb2322c7fe6ac814c6cc6b9d24c05559b09aad51d44e012fd06fb36d223",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "tools": [
@@ -298,12 +298,12 @@
     {
       "id": "observability-agent",
       "name": "observability-agent",
-      "description": "Ekspert på Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling",
+      "description": "Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling",
       "type": "agent",
       "domain": "observability",
       "filePath": ".github/agents/observability.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/observability.agent.md",
-      "contentHash": "c0de80226420bfd900b8efde3289463d5205bfa828fc832904cd268e707b7e14",
+      "contentHash": "34e6bbe61132719ade6feefc4b3170115689b6b08c6e298f151480cda2d652a3",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "tools": [
@@ -339,12 +339,12 @@
     {
       "id": "research-agent",
       "name": "research-agent",
-      "description": "Ekspert på å utforske kodebaser, undersøke problemer, analysere mønstre og samle kontekst før implementering",
+      "description": "Utforsker kodebaser, undersøker problemer og samler kontekst før implementering",
       "type": "agent",
       "domain": "general",
       "filePath": ".github/agents/research.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/research.agent.md",
-      "contentHash": "a285be34c10030ba2ecfba7e70ff832164f14930f075b336a5abaf9424774c8b",
+      "contentHash": "0e7d3ea4dab5f465f4d27eb544de13ea7a12b9d501f34a8630441fb759f78b4d",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fresearch.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fresearch.agent.md",
       "tools": [
@@ -383,12 +383,12 @@
     {
       "id": "security-champion-agent",
       "name": "security-champion-agent",
-      "description": "Ekspert på Navs sikkerhetsarkitektur, trusselmodellering, compliance og helhetlig sikkerhetspraksis",
+      "description": "Navs sikkerhetsarkitektur, trusselmodellering, compliance og sikkerhetspraksis",
       "type": "agent",
       "domain": "general",
       "filePath": ".github/agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/security-champion.agent.md",
-      "contentHash": "94d9afe38f38f56147f5fed5b6baabbbb571522c460fbf6095fdca5061cd649d",
+      "contentHash": "b1871587f069eb130d559f92311c8144d8bb6ade8870b302dafb31b7a9a5909d",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [

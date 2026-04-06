@@ -1,6 +1,6 @@
 ---
 name: observability-agent
-description: Ekspert på Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling
+description: Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling
 tools:
   - execute
   - read

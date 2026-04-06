@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-04-06T18:26:16Z",
+  "generatedAt": "2026-04-06T18:37:37Z",
   "files": {
     ".github/agents/accessibility.agent.md": {
-      "hash": "e833840765b9bc99db47040f8922d6c92a6613fbc39a532d45f07e8212e8e548",
+      "hash": "98867df3e31b8cd4650e79ceb009a0fe98e9c22519cd2f834096c8f06d1f213b",
       "type": "agent"
     },
     ".github/agents/aksel.agent.md": {
-      "hash": "3b99a4b3e5da6f26db596e29e4fc81efbe56f3ae2def5900f3d2a6ea2c0984dd",
+      "hash": "9a80d306394a0cf49976159d7886e4d03a78dd5341735f15fe4c63c452a627bc",
       "type": "agent"
     },
     ".github/agents/auth.agent.md": {
-      "hash": "3f6829d8982f15f64b99dd5964ba49269a84fa16c2200a8983412bc9c32bdddd",
+      "hash": "9d013206d684372dfe60538f18641fd9cb2f91061c546dfc6e5a36baee340330",
       "type": "agent"
     },
     ".github/agents/code-review.agent.md": {
@@ -22,23 +22,23 @@
       "type": "agent"
     },
     ".github/agents/kafka.agent.md": {
-      "hash": "e4bbf71c99e4e221e5aabbc339fb7fce1008c0e687ef6ef91bbc9ab17d5a5c7b",
+      "hash": "0b87e50b3d4178de43f8a0659bfa8795c4face7d36f73c60ed85b5fe6e9e6aed",
       "type": "agent"
     },
     ".github/agents/nais.agent.md": {
-      "hash": "53e059f4b6553f5484855e96bd6506627cc6ccf1eb14d2b114b86cde86a8de5e",
+      "hash": "6b2e7fb2322c7fe6ac814c6cc6b9d24c05559b09aad51d44e012fd06fb36d223",
       "type": "agent"
     },
     ".github/agents/observability.agent.md": {
-      "hash": "c0de80226420bfd900b8efde3289463d5205bfa828fc832904cd268e707b7e14",
+      "hash": "34e6bbe61132719ade6feefc4b3170115689b6b08c6e298f151480cda2d652a3",
       "type": "agent"
     },
     ".github/agents/research.agent.md": {
-      "hash": "a285be34c10030ba2ecfba7e70ff832164f14930f075b336a5abaf9424774c8b",
+      "hash": "0e7d3ea4dab5f465f4d27eb544de13ea7a12b9d501f34a8630441fb759f78b4d",
       "type": "agent"
     },
     ".github/agents/security-champion.agent.md": {
-      "hash": "94d9afe38f38f56147f5fed5b6baabbbb571522c460fbf6095fdca5061cd649d",
+      "hash": "b1871587f069eb130d559f92311c8144d8bb6ade8870b302dafb31b7a9a5909d",
       "type": "agent"
     },
     ".github/copilot-instructions.md": {

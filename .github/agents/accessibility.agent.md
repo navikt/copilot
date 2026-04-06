@@ -1,6 +1,6 @@
 ---
 name: accessibility-agent
-description: Ekspert på WCAG 2.1/2.2, universell utforming, Aksel accessibility-mønstre og automatisert UU-testing
+description: WCAG 2.1/2.2, universell utforming, Aksel-tilgjengelighet og automatisert UU-testing
 tools:
   - execute
   - read

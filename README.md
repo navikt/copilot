@@ -6,7 +6,7 @@ Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere 
 
 ## Hva er dette?
 
-En kuratert samling Copilot-tilpasninger for Nav-økosystemet:
+En samling Copilot-tilpasninger for Nav-økosystemet:
 
 <!-- BEGIN GENERATED COUNTS -->
 - **🤖 [10 Agenter](docs/README.agents.md)** — Spesialiserte AI-assistenter for Nav-domener
@@ -16,13 +16,13 @@ En kuratert samling Copilot-tilpasninger for Nav-økosystemet:
 - **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret
 <!-- END GENERATED COUNTS -->
 
-Alle tilpasninger er tilgjengelige fra **[Verktøy-siden](https://min-copilot.ansatt.nav.no/verktoy)** med søk, domenefiltrering og installasjonsinstruksjoner.
+Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/verktoy)** med søk, filtrering og installeringshjelp.
 
 ## Kom i gang
 
 ### Fra verktøysiden (anbefalt)
 
-Gå til **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy)**, finn det du trenger, og følg installasjonsinstruksjonene. MCP-servere har ferdig `code --add-mcp`-kommandoer du kan kopiere rett inn i terminalen.
+Gå til **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy)**, finn det du trenger og følg installeringsstega. MCP-servere har ferdige `code --add-mcp`-kommandoer du kan kopiere rett inn i terminalen.
 
 ### Fra dokumentasjonen
 
@@ -58,7 +58,7 @@ Monorepo med fire applikasjoner:
 
 ### My Copilot — Selvbetjeningsportal
 
-Administrer Copilot-abonnement, se bruksanalyse, og utforsk alle tilpasninger fra verktøykatalogen.
+Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen.
 
 **URL:** [min-copilot.ansatt.nav.no](https://min-copilot.ansatt.nav.no)
 
@@ -66,9 +66,9 @@ Administrer Copilot-abonnement, se bruksanalyse, og utforsk alle tilpasninger fr
 
 Naisjob som henter daglige Copilot-bruksmetrikker fra GitHub API og lagrer i BigQuery.
 
-### MCP Registry — Serveroppdagelse
+### MCP Registry — MCP-register
 
-Offentlig register over Nav-godkjente MCP-servere, implementerer [MCP Registry v0.1-spesifikasjonen](https://github.com/modelcontextprotocol/registry).
+Offentlig register over Nav-godkjente MCP-servere. Implementerer [MCP Registry v0.1-spesifikasjonen](https://github.com/modelcontextprotocol/registry).
 
 **URL:** [mcp-registry.nav.no](https://mcp-registry.nav.no)
 
@@ -132,7 +132,7 @@ Tilpasningene dekker Navs kjernestack:
 
 - **Backend**: Kotlin, Ktor, PostgreSQL, Kafka
 - **Frontend**: Next.js 16+, React, TypeScript, Aksel Design System
-- **Plattform**: Nais (Kubernetes on GCP)
+- **Plattform**: Nais (Kubernetes på GCP)
 - **Auth**: Azure AD, TokenX, ID-porten, Maskinporten
 - **Observability**: Prometheus, Grafana Loki, Tempo (OpenTelemetry)
 
