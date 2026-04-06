@@ -218,20 +218,22 @@
       "displayName": "@rust-agent",
       "description": "Ekspert på idiomatisk Rust-utvikling — ownership, error handling, async/tokio, unsafe, clippy, cargo, testing og Microsoft Pragmatic Rust Guidelines",
       "tags": [
-        "testing",
-        "jest",
-        "junit",
-        "quality"
+        "rust",
+        "cargo",
+        "tokio",
+        "clippy",
+        "async",
+        "ownership"
       ],
       "filePath": ".github/agents/rust.agent.md",
       "useCases": [
-        "Creating .nais/app.yaml manifests",
-        "Health endpoints",
-        "Business metrics",
-        "OpenTelemetry tracing",
-        "Network policies",
-        "Secrets management",
-        "GDPR compliance"
+        "Refaktorering til idiomatisk Rust-kode",
+        "Ownership- og borrowing-analyse",
+        "Async/Tokio concurrency-mønstre",
+        "Error handling med Result, anyhow og thiserror",
+        "Testing med cargo test og property-based testing",
+        "Ytelsesforbedring og profiling av Rust-kode",
+        "Statisk analyse og linting med clippy"
       ],
       "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/rust.agent.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/rust.agent.md"

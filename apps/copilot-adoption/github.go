@@ -403,7 +403,7 @@ func buildGraphQLQuery(org string, repos []RepoInfo, criteria []SearchCriteria) 
 			case CheckDirectory:
 				fmt.Fprintf(&b, "    %s: object(expression: %q) {\n", alias, expression)
 				b.WriteString("      __typename\n")
-				b.WriteString("      ... on Tree { entries { name type object { ... on Blob { oid } } } }\n")
+				b.WriteString("      ... on Tree { entries { name type object { oid } } }\n")
 				b.WriteString("    }\n")
 			}
 		}

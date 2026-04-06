@@ -25,7 +25,7 @@ func TestBuildGraphQLQuery(t *testing.T) {
 		`copilot_instructions: object(expression: "main:.github/copilot-instructions.md")`,
 		`agents: object(expression: "main:.github/agents")`,
 		`agents: object(expression: "master:.github/agents")`,
-		`... on Tree { entries { name type object { ... on Blob { oid } } } }`,
+		`... on Tree { entries { name type object { oid } } }`,
 		`__typename`,
 	}
 

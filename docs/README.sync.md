@@ -52,6 +52,7 @@ By default, the workflow checks **all customization files** that exist in your r
 - `.github/instructions/*.instructions.md`
 - `.github/prompts/*.prompt.md`
 - `.github/skills/*/SKILL.md`
+- `.github/skills/*/metadata.json`
 - `.github/copilot-instructions.md`
 - `AGENTS.md`
 

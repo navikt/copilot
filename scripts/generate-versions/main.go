@@ -134,16 +134,28 @@ func scanSkills(githubDir, repoRoot string, manifest *VersionManifest) {
 			continue
 		}
 
-		skillMD := filepath.Join(skillsDir, entry.Name(), "SKILL.md")
-		content, err := os.ReadFile(skillMD)
+		skillDir := filepath.Join(skillsDir, entry.Name())
+		skillFiles, err := os.ReadDir(skillDir)
 		if err != nil {
 			continue
 		}
 
-		relPath := ".github/skills/" + entry.Name() + "/SKILL.md"
-		manifest.Files[relPath] = FileVersion{
-			Hash: hashContent(content),
-			Type: "skill",
+		for _, fileEntry := range skillFiles {
+			if fileEntry.IsDir() {
+				continue
+			}
+
+			fullPath := filepath.Join(skillDir, fileEntry.Name())
+			content, err := os.ReadFile(fullPath)
+			if err != nil {
+				continue
+			}
+
+			relPath := ".github/skills/" + entry.Name() + "/" + fileEntry.Name()
+			manifest.Files[relPath] = FileVersion{
+				Hash: hashContent(content),
+				Type: "skill",
+			}
 		}
 	}
 }
@@ -165,7 +177,6 @@ func filesMatch(a, b map[string]FileVersion) bool {
 	}
 	return true
 }
-
 func findRepoRoot() string {
 	dir, err := os.Getwd()
 	if err != nil {

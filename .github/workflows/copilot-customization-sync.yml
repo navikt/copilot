@@ -66,6 +66,7 @@ jobs:
               ".github/instructions/*.instructions.md" \
               ".github/prompts/*.prompt.md" \
               ".github/skills/*/SKILL.md" \
+              ".github/skills/*/metadata.json" \
               ".github/copilot-instructions.md" \
               "AGENTS.md"; do
               for f in $pattern; do
@@ -83,20 +84,19 @@ jobs:
           for file in $FILES; do
             [[ -f "$file" ]] || continue
 
-            # Fetch source file content — skip if not in source repo
-            if ! SOURCE_CONTENT=$(curl -sfL "$RAW_BASE/$file" 2>/dev/null); then
+            # Fetch source file hash — skip if not in source repo
+            if ! SOURCE_HASH=$(curl -sfL "$RAW_BASE/$file" 2>/dev/null | sha256sum | cut -d' ' -f1); then
               echo "⏭️  $file: not found in source repo, skipping"
               continue
             fi
 
             # Compare via SHA-256 hash
             LOCAL_HASH=$(sha256sum "$file" | cut -d' ' -f1)
-            SOURCE_HASH=$(echo -n "$SOURCE_CONTENT" | sha256sum | cut -d' ' -f1)
 
             if [[ "$LOCAL_HASH" != "$SOURCE_HASH" ]]; then
               echo "📦 $file: update available"
               UPDATES="$UPDATES $file"
-              BODY_LINES="$BODY_LINES\n- \`$file\`"
+              BODY_LINES+=$'\n'"- \`$file\`"
               UPDATE_COUNT=$((UPDATE_COUNT + 1))
             else
               echo "✅ $file: up to date"
@@ -110,7 +110,11 @@ jobs:
             echo "has_updates=true" >> "$GITHUB_OUTPUT"
             echo "update_count=$UPDATE_COUNT" >> "$GITHUB_OUTPUT"
             echo "files=$UPDATES" >> "$GITHUB_OUTPUT"
-            echo "body_lines=$BODY_LINES" >> "$GITHUB_OUTPUT"
+            {
+              echo "body_lines<<BODY_EOF"
+              echo "$BODY_LINES"
+              echo "BODY_EOF"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Download updates
@@ -118,14 +122,14 @@ jobs:
         env:
           SOURCE_REPO: navikt/copilot
           SOURCE_BRANCH: main
+          UPDATE_FILES: ${{ steps.check.outputs.files }}
         shell: bash
         run: |
           set -euo pipefail
 
           RAW_BASE="https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_BRANCH}"
-          FILES="${{ steps.check.outputs.files }}"
 
-          for file in $FILES; do
+          for file in $UPDATE_FILES; do
             echo "⬇️  Downloading $file"
             dir=$(dirname "$file")
             mkdir -p "$dir"
