@@ -214,32 +214,6 @@
     },
     {
       "type": "agent",
-      "name": "rust-agent",
-      "displayName": "@rust-agent",
-      "description": "Ekspert på idiomatisk Rust-utvikling — ownership, error handling, async/tokio, unsafe, clippy, cargo, testing og Microsoft Pragmatic Rust Guidelines",
-      "tags": [
-        "rust",
-        "cargo",
-        "tokio",
-        "clippy",
-        "async",
-        "ownership"
-      ],
-      "filePath": ".github/agents/rust.agent.md",
-      "useCases": [
-        "Refaktorering til idiomatisk Rust-kode",
-        "Ownership- og borrowing-analyse",
-        "Async/Tokio concurrency-mønstre",
-        "Error handling med Result, anyhow og thiserror",
-        "Testing med cargo test og property-based testing",
-        "Ytelsesforbedring og profiling av Rust-kode",
-        "Statisk analyse og linting med clippy"
-      ],
-      "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/rust.agent.md",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/rust.agent.md"
-    },
-    {
-      "type": "agent",
       "name": "security-champion-agent",
       "displayName": "@security-champion-agent",
       "description": "Ekspert på Navs sikkerhetsarkitektur, trusselmodellering, compliance og helhetlig sikkerhetspraksis",
@@ -353,7 +327,7 @@
       "type": "instruction",
       "name": "testing",
       "displayName": "Testing Development",
-      "description": "Teststandarder for Nav: Kotest-matchers i Kotlin, Jest i TypeScript og felles testprinsipper.",
+      "description": "Teststandarder for Nav: Kotest-matchers i Kotlin, Vitest i TypeScript og felles testprinsipper.",
       "tags": [
         "kotlin",
         "ktor",
@@ -523,15 +497,6 @@
       "filePath": ".github/skills/postgresql-review",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/postgresql-review"
-    },
-    {
-      "type": "skill",
-      "name": "rust-development",
-      "displayName": "rust-development",
-      "description": "Patterns, templates, and procedures for building high-quality Rust applications and libraries. Based on [Microsoft Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) and [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html).",
-      "filePath": ".github/skills/rust-development",
-      "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/rust-development"
     },
     {
       "type": "skill",

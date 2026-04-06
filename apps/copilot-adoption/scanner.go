@@ -237,6 +237,10 @@ func ComputeInSync(results []RepoScanResult, source SourceOIDs, criteria []Searc
 				continue
 			}
 
+			// Only set InSync when all OIDs are resolved; skip when any are
+			// missing to avoid marking entries as stale when we simply don't
+			// have data (e.g. Tree entries that didn't resolve an OID).
+			allResolved := true
 			inSync := make([]bool, len(sr.Oids))
 			switch c.CheckType {
 			case CheckFile:
@@ -251,16 +255,24 @@ func ComputeInSync(results []RepoScanResult, source SourceOIDs, criteria []Searc
 				}
 				if len(sr.Oids) > 0 && sr.Oids[0] != "" {
 					inSync[0] = sr.Oids[0] == sourceOids[base]
+				} else {
+					allResolved = false
 				}
 			case CheckDirectory:
 				for j, name := range sr.Files {
 					if j < len(sr.Oids) && sr.Oids[j] != "" {
 						inSync[j] = sr.Oids[j] == sourceOids[name]
+					} else {
+						allResolved = false
 					}
 				}
 			}
 
-			sr.InSync = inSync
+			if allResolved {
+				sr.InSync = inSync
+			}
+			// When not all OIDs resolved, leave InSync nil (unknown) rather
+			// than defaulting to false (stale).
 			results[i].Customizations[c.Category] = sr
 		}
 	}

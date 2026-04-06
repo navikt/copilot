@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-19T14:42:10Z",
+  "generatedAt": "2026-04-06T18:26:16Z",
   "files": {
     ".github/agents/accessibility.agent.md": {
-      "hash": "1597f8698148fc4a49555fdcf6bdb42f8a1ccf4a3b29f79c8d9300953ff28b91",
+      "hash": "e833840765b9bc99db47040f8922d6c92a6613fbc39a532d45f07e8212e8e548",
       "type": "agent"
     },
     ".github/agents/aksel.agent.md": {
@@ -37,20 +37,16 @@
       "hash": "a285be34c10030ba2ecfba7e70ff832164f14930f075b336a5abaf9424774c8b",
       "type": "agent"
     },
-    ".github/agents/rust.agent.md": {
-      "hash": "3e27002ee33662323d3bdcdab491d995bf65bf59ae9b28ec7912993c701fcc8d",
-      "type": "agent"
-    },
     ".github/agents/security-champion.agent.md": {
       "hash": "94d9afe38f38f56147f5fed5b6baabbbb571522c460fbf6095fdca5061cd649d",
       "type": "agent"
     },
     ".github/copilot-instructions.md": {
-      "hash": "dbc5b779caf319c6648b0bec0ec528d85bd0718b7946886f21e357b3d4933cd4",
+      "hash": "cf4b65a73c6b9ede9709387e3e8404c4ee92145807faabae53ac9605dae5c1dd",
       "type": "copilot-instructions"
     },
     ".github/instructions/accessibility.instructions.md": {
-      "hash": "cfd8aad928670e3fa1e06c549c6507e450e812ba54ed5e97500c9c3f87754fde",
+      "hash": "aba24163f0a00c7565bdb5b34cf294edd7a7cef20f02cefd9ad5f8cb0d2149fa",
       "type": "instruction"
     },
     ".github/instructions/database.instructions.md": {
@@ -78,7 +74,7 @@
       "type": "instruction"
     },
     ".github/instructions/testing.instructions.md": {
-      "hash": "09fef3dae5a3c9dcfcccbf73564205c473c2dea5d25d59a5d0683298bdb9bcaf",
+      "hash": "54b09caf505acd1e7e576da5de2bc109eda6c423c7ed25da38f2552b1b58d4ef",
       "type": "instruction"
     },
     ".github/prompts/aksel-component.prompt.md": {
@@ -94,7 +90,7 @@
       "type": "prompt"
     },
     ".github/prompts/nextjs-api-route.prompt.md": {
-      "hash": "8af3ad0abc54206da5dbcbb279f8004f25981d9d2bf872c18b1399a1a5f287f1",
+      "hash": "6dc6506e5264a67b761754a536cb0263c775a86aaf46fb12ee8f7578b594099d",
       "type": "prompt"
     },
     ".github/prompts/spring-boot-endpoint.prompt.md": {
@@ -105,60 +101,108 @@
       "hash": "ceccd0e976156e57ad966b6b17a5dd8bf007ab7b805f34acac7110cdc7784d95",
       "type": "skill"
     },
+    ".github/skills/ai-news-research/metadata.json": {
+      "hash": "aba4818bd25c9958d9cc9da840d848b2c748c511e519d2b61d2a3afab8d08d26",
+      "type": "skill"
+    },
     ".github/skills/aksel-spacing/SKILL.md": {
       "hash": "9059ca6ef8aedc4c5130eef88b1f65e018ac2fc8543a2a1146f264dba23de9ed",
+      "type": "skill"
+    },
+    ".github/skills/aksel-spacing/metadata.json": {
+      "hash": "0e48d825b1569dc3aa8596f3cf2aee27e02140970abd00f9e700ce91209cd65e",
       "type": "skill"
     },
     ".github/skills/api-design/SKILL.md": {
       "hash": "42d4a3492b1be1f1d32556eee8cfbcc9850f337610d5ee2c55881e907317d7d4",
       "type": "skill"
     },
+    ".github/skills/api-design/metadata.json": {
+      "hash": "e29e2966ab5a3b18b5f67e01f4c57fcbfc55222ed7949c9c78c0ac07b019b38c",
+      "type": "skill"
+    },
     ".github/skills/conventional-commit/SKILL.md": {
       "hash": "68a93957fe50a81df1f13cf9e61f040ac681e58b04d69d8e02b61800e34b0c6a",
+      "type": "skill"
+    },
+    ".github/skills/conventional-commit/metadata.json": {
+      "hash": "39077f41c5746cafe7f7eb5401629fee018c03194ed3eab41a8e6e8096289a1c",
       "type": "skill"
     },
     ".github/skills/flyway-migration/SKILL.md": {
       "hash": "eeeb48b922eb44ecdb3a53e07889545fa0ffb2dedd8676032b83e7e8ece22cd9",
       "type": "skill"
     },
+    ".github/skills/flyway-migration/metadata.json": {
+      "hash": "001735e9c59408d9c7e5fe547590bf8006f7e5f526a1122a6d95bbbb4451b9d7",
+      "type": "skill"
+    },
     ".github/skills/kotlin-app-config/SKILL.md": {
       "hash": "681c95c8c1a2c144350fd634184643575ec821e68de9b179c01b6a0dbc335502",
+      "type": "skill"
+    },
+    ".github/skills/kotlin-app-config/metadata.json": {
+      "hash": "31296a4696c32e4daf47bd9d9734235d4c5006ce51084f2a91bc3cc322dc73fa",
       "type": "skill"
     },
     ".github/skills/observability-setup/SKILL.md": {
       "hash": "69b5da70cf16ef84500832a7d89dbb8eb3033f0545d0b9ba6225b8f27590590c",
       "type": "skill"
     },
+    ".github/skills/observability-setup/metadata.json": {
+      "hash": "0f62f4ec2f8e7fa31d158d1c1f99578cce62bc71d5b090b001dd1d72f11c8d8e",
+      "type": "skill"
+    },
     ".github/skills/playwright-testing/SKILL.md": {
       "hash": "4797c2abd753271fe9a3f94ef36daca775e0fc42df0adf8fb2cc779d28a48f12",
+      "type": "skill"
+    },
+    ".github/skills/playwright-testing/metadata.json": {
+      "hash": "4540d81c2766939cd0ca4af401b97ac2ffa027abb45df09fd867ce5f5d5bc647",
       "type": "skill"
     },
     ".github/skills/postgresql-review/SKILL.md": {
       "hash": "6bb7f9e1a94cb55fe93b38f1bbdbd67aa5c2a347044b1be49f7b6c20b1b8b764",
       "type": "skill"
     },
-    ".github/skills/rust-development/SKILL.md": {
-      "hash": "d923102ff9931c4c90c645bb246978d96a69be8fb501ec3493e3f09a6d90334c",
+    ".github/skills/postgresql-review/metadata.json": {
+      "hash": "d225e8f5edc7aab4988cc1068773be5fb49eab57271215ee7a5a768928fa90c8",
       "type": "skill"
     },
     ".github/skills/security-review/SKILL.md": {
       "hash": "846e2b1c1cb7252d49a9cf87622db59ba7311362d68584a16b141c28040010f3",
       "type": "skill"
     },
+    ".github/skills/security-review/metadata.json": {
+      "hash": "c076dded4709d41d9daf81ae81242a407c4006371c8766c39f84548a096b7507",
+      "type": "skill"
+    },
     ".github/skills/spring-boot-scaffold/SKILL.md": {
       "hash": "61df374384f9d176fccc7c46744ca85ecfe785cebb180f254ed0d5f7e1104745",
+      "type": "skill"
+    },
+    ".github/skills/spring-boot-scaffold/metadata.json": {
+      "hash": "9df888a7f5e25ea99aa9c98d73e17b7a02634fd0a81e044654969a1032b6f8f2",
       "type": "skill"
     },
     ".github/skills/tokenx-auth/SKILL.md": {
       "hash": "187ed74ef3eeff74a72faa2a60a14a467a0604603cef54bcc8c1ca14509f8490",
       "type": "skill"
     },
+    ".github/skills/tokenx-auth/metadata.json": {
+      "hash": "2fd5300aeea05273e422a943920ce1612e406808fb585d324350a02a32acb5c3",
+      "type": "skill"
+    },
     ".github/skills/web-design-reviewer/SKILL.md": {
       "hash": "7b4c7c02d38fa397d2722d39831efebd987bfe23401561f6fb47ebe42f3ded11",
       "type": "skill"
     },
+    ".github/skills/web-design-reviewer/metadata.json": {
+      "hash": "6e1d4c3de5ad94fbdc668a1b72cb6219edaeb5e5716e35a7c1a5b319853fb309",
+      "type": "skill"
+    },
     "AGENTS.md": {
-      "hash": "f3db9c2f853af364ca55a6e48c56d2e690e5016b4476eb202c5c850e24d2a097",
+      "hash": "f0f580a0f7bd6d4dedffaf2dcc7868fdcaa3b2756dc7c459fad7104bd4236144",
       "type": "agents-md"
     }
   }

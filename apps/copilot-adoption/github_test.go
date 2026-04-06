@@ -477,3 +477,39 @@ func TestComputeInSyncNoSourceOIDs(t *testing.T) {
 		t.Errorf("expected no InSync when source has no OIDs, got %v", agents.InSync)
 	}
 }
+
+func TestComputeInSyncMissingOIDs(t *testing.T) {
+	criteria := []SearchCriteria{
+		{Category: "agents", TreePath: ".github/agents", CheckType: CheckDirectory, FilePattern: "*.agent.md"},
+		{Category: "copilot_instructions", TreePath: ".github/copilot-instructions.md", CheckType: CheckFile},
+	}
+
+	sourceOIDs := SourceOIDs{
+		"agents":               {"auth.agent.md": "source_oid_auth"},
+		"copilot_instructions": {"copilot-instructions.md": "source_oid_ci"},
+	}
+
+	results := []RepoScanResult{
+		{
+			Repo: "missing-oid-repo",
+			Customizations: map[string]SearchResult{
+				// Directory entry with empty OID (e.g. unresolved Tree entry)
+				"agents": {Exists: true, Files: []string{"auth.agent.md"}, Oids: []string{""}},
+				// File entry with empty OID
+				"copilot_instructions": {Exists: true, Oids: []string{""}},
+			},
+		},
+	}
+
+	ComputeInSync(results, sourceOIDs, criteria)
+
+	// When OIDs are empty, InSync should remain nil (unknown) rather than [false]
+	agents := results[0].Customizations["agents"]
+	if agents.InSync != nil {
+		t.Errorf("expected nil InSync for missing OIDs, got %v", agents.InSync)
+	}
+	ci := results[0].Customizations["copilot_instructions"]
+	if ci.InSync != nil {
+		t.Errorf("expected nil InSync for missing file OID, got %v", ci.InSync)
+	}
+}

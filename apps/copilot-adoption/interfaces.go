@@ -29,7 +29,7 @@ type TeamAccess struct {
 type SearchResult struct {
 	Exists bool     `json:"exists"`
 	Files  []string `json:"files,omitempty"`
-	Oids   []string `json:"oids,omitempty"`  // Git blob OIDs (SHA-1), parallel to Files for directory checks
+	Oids   []string `json:"oids,omitempty"`    // Git blob OIDs (SHA-1), parallel to Files for directory checks
 	InSync []bool   `json:"in_sync,omitempty"` // Per-file sync status vs source repo, parallel to Files/Oids
 }
 
