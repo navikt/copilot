@@ -1,15 +1,18 @@
 ---
 title: "Nyheter og trender — April 2026"
-date: 2026-04-06
+date: 2026-04-08
 draft: true
 category: copilot
-excerpt: "Copilot SDK i public preview, legacy metrics API nedlagt, organisasjonsstyrt runner, personvernpolicy trer i kraft 24. april."
+excerpt: "Copilot SDK i public preview, legacy metrics API nedlagt, organisasjonsstyrt runner, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing."
 tags:
   - copilot-sdk
   - coding-agents
   - enterprise-controls
   - privacy
   - metrics
+  - copilot-cli
+  - security
+  - models
 ---
 
 <!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
@@ -68,6 +71,42 @@ Policyen ble kunngjort 25. mars og har møtt sterk kritikk for å være opt-out 
 
 ---
 
+## 6. BYOK og lokale modeller i Copilot CLI
+
+Copilot CLI støtter nå Bring Your Own Key (BYOK) og lokale modeller. Du kan koble til Azure OpenAI, Anthropic eller et hvilket som helst OpenAI-kompatibelt endepunkt — inkludert lokale løsninger som Ollama, vLLM og Foundry Local. Konfigurasjonen skjer gjennom miljøvariabler, og innebygde sub-agenter (explore, task, code-review) arver automatisk leverandørkonfigurasjonen.
+
+En ny offline-modus (`COPILOT_OFFLINE=true`) slår av all telemetri og forhindrer at CLI-en kontakter GitHubs servere. Kombinert med en lokal modell gir dette en fullstendig air-gapped utviklingsopplevelse. GitHub-autentisering er nå valgfritt — du kan starte CLI-en med kun leverandør-credentials. Logger du også inn på GitHub, får du tilgang til funksjoner som `/delegate`, GitHub Code Search og GitHub MCP-serveren i tillegg.
+
+Modellen må støtte tool calling og streaming. For best resultat anbefales minst 128K kontekstvindu.
+
+**Kilde:** [Copilot CLI now supports BYOK and local models](https://github.blog/changelog/2026-04-07-copilot-cli-now-supports-byok-and-local-models) (GitHub Changelog, 7. april 2026)
+
+---
+
+## 7. Dependabot-varsler kan tildeles AI-agenter
+
+Noen avhengighetssårbarheter krever mer enn en versjonsoppdatering — de trenger kodeendringer på tvers av prosjektet. Nå kan du tildele Dependabot-varsler direkte til AI coding agents, inkludert Copilot, Claude og Codex. Agenten analyserer varselet, åpner en draft-PR med foreslått fiks, og forsøker å løse eventuelle testfeil som oppstår.
+
+Du kan tildele flere agenter til samme varsel. Hver agent jobber uavhengig og åpner sin egen PR, slik at du kan sammenligne tilnærminger. Dette er spesielt nyttig for major version-oppgraderinger som introduserer breaking API-endringer, for nedgradering av kompromitterte pakker, og for komplekse oppdateringsscenarier som faller utenfor Dependabots regelbaserte motor.
+
+Funksjonen krever GitHub Code Security og et Copilot-abonnement med tilgang til coding agent.
+
+**Kilde:** [Dependabot alerts are now assignable to AI agents for remediation](https://github.blog/changelog/2026-04-07-dependabot-alerts-are-now-assignable-to-ai-agents-for-remediation) (GitHub Changelog, 7. april 2026)
+
+---
+
+## 8. Project Glasswing — AI-drevet cybersikkerhet
+
+Anthropic avduket Project Glasswing, et samarbeid mellom 12 industripartnere — blant dem AWS, Apple, Google, Microsoft, NVIDIA og Linux Foundation. Initiativet er bygget rundt Claude Mythos Preview, en urelatert frontiermodell som autonomt finner zero-day-sårbarheter i alle store operativsystemer og nettlesere. Modellen har allerede funnet tusenvis av kritiske sårbarheter, inkludert en 27 år gammel feil i OpenBSD og en 16 år gammel feil i FFmpeg som automatiserte tester hadde kjørt forbi fem millioner ganger.
+
+Mythos Preview scorer 83,1 % på CyberGym-benchmarken for sårbarhetsgjenfinning, mot 66,6 % for Opus 4.6. Anthropic forplikter opptil $100M i brukskreditter og $4M i donasjoner til open source-sikkerhetsorganisasjoner. Modellen er ikke generelt tilgjengelig — den deles med partnere og over 40 organisasjoner som bygger eller vedlikeholder kritisk programvareinfrastruktur.
+
+Selv om Mythos Preview ikke er en kodeverktøy-modell, signaliserer den at AI-modeller nå konkurrerer med de beste menneskene på å finne og utnytte sårbarheter — noe som endrer trusselbildet fundamentalt for alle som skriver og vedlikeholder programvare.
+
+**Kilde:** [Project Glasswing](https://anthropic.com/glasswing) (Anthropic, 7. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -77,3 +116,6 @@ Policyen ble kunngjort 25. mars og har møtt sterk kritikk for å være opt-out 
 | Org-runner for cloud agent | Sentralstyrt runner-konfigurasjon. Nav kan sette standard for alle repoer og låse til self-hosted runners ved behov — viktig for compliance og ytelse. |
 | Personvernpolicy | Nav bruker Enterprise — ikke berørt. Informer utviklere som bruker personlige Copilot-kontoer om opt-out før 24. april. |
 | GPT-5.1 deprecering | Sjekk om noen team har satt GPT-5.1 som foretrukket modell. |
+| BYOK og lokale modeller i CLI | Relevant for team med spesielle krav til datatilgang eller som ønsker å bruke egne Azure OpenAI-endepunkter. Offline-modus kan være interessant for sikkerhetssensitive miljøer. |
+| Dependabot + AI-agenter | Kan akselerere sikkerhetsoppdateringer i Navs ~500 repoer. Vurder å aktivere for team med mange Dependabot-varsler — spesielt nyttig for breaking changes i major-oppgraderinger. |
+| Project Glasswing | Signaliserer at AI-drevet sårbarhetsjakt er her. Nav bør følge med på når slike verktøy blir tilgjengelige for enterprise-kunder, og vurdere implikasjonene for egen sikkerhetspraksis. |
