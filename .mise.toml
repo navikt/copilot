@@ -61,6 +61,12 @@ run = "(cd scripts/generate-docs && go run .)"
 description = "Check if docs are in sync with customization files"
 run = "(cd scripts/generate-docs && go run . --check)"
 
+# ─── Skills ──────────────────────────────────────────────────────────────────
+
+[tasks."skills:lint"]
+description = "Lint .github/skills/ for quality (token budget, structure, metadata)"
+run = "bash scripts/lint-skills.sh"
+
 # ─── Ratchet (GitHub Actions pinning) ────────────────────────────────────────
 
 [tasks."ratchet:pin"]
