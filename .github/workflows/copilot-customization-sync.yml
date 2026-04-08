@@ -23,9 +23,26 @@ name: Copilot Customization Sync
 # Optional: limit to specific files via .github/copilot-sync.json:
 #
 #   { "files": [".github/agents/nais-platform.agent.md"] }
+#
+# Optional: sync from a different source repo (e.g. a team repo):
+#
+#   jobs:
+#     sync:
+#       uses: navikt/copilot/.github/workflows/copilot-customization-sync.yml@main
+#       with:
+#         source_repo: navikt/my-team-copilot
+#       permissions:
+#         contents: write
+#         pull-requests: write
 
 on:
   workflow_call:
+    inputs:
+      source_repo:
+        description: 'Source repository to sync customizations from (owner/repo)'
+        type: string
+        required: false
+        default: 'navikt/copilot'
 
 permissions:
   contents: write
@@ -42,7 +59,7 @@ jobs:
       - name: Check for updates
         id: check
         env:
-          SOURCE_REPO: navikt/copilot
+          SOURCE_REPO: ${{ inputs.source_repo }}
           SOURCE_BRANCH: main
         shell: bash
         run: |
@@ -143,7 +160,7 @@ jobs:
       - name: Download updates
         if: steps.check.outputs.has_updates == 'true'
         env:
-          SOURCE_REPO: navikt/copilot
+          SOURCE_REPO: ${{ inputs.source_repo }}
           SOURCE_SHA: ${{ steps.check.outputs.source_sha }}
           UPDATE_FILES: ${{ steps.check.outputs.files }}
         shell: bash
@@ -165,16 +182,16 @@ jobs:
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # ratchet:peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
-          commit-message: "chore: sync Copilot customizations from navikt/copilot"
+          commit-message: "chore: sync Copilot customizations from ${{ inputs.source_repo }}"
           title: "chore: sync ${{ steps.check.outputs.update_count }} Copilot customization(s)"
           body: |
-            This PR syncs Copilot customization files from [navikt/copilot](https://github.com/navikt/copilot).
+            This PR syncs Copilot customization files from [${{ inputs.source_repo }}](https://github.com/${{ inputs.source_repo }}).
 
             **Changed files:**
             ${{ steps.check.outputs.body_lines }}
 
             ---
-            🤖 This PR was created automatically by the [Copilot Customization Sync](https://github.com/navikt/copilot) workflow.
+            🤖 This PR was created automatically by the [Copilot Customization Sync](https://github.com/${{ inputs.source_repo }}) workflow.
           branch: copilot-customization-sync
           delete-branch: true
           labels: dependencies

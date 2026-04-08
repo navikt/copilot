@@ -70,6 +70,23 @@ To sync only specific files, create `.github/copilot-sync.json`:
 
 Only listed files will be checked and updated.
 
+## Syncing from a Different Source Repo
+
+By default, the workflow syncs from `navikt/copilot`. To sync from a team-specific repo instead (or in addition), pass the `source_repo` input:
+
+```yaml
+jobs:
+  sync:
+    uses: navikt/copilot/.github/workflows/copilot-customization-sync.yml@main
+    with:
+      source_repo: navikt/my-team-copilot
+    permissions:
+      contents: write
+      pull-requests: write
+```
+
+This lets teams maintain their own set of customizations and distribute them to sub-repos using the same sync mechanism.
+
 ## What the PR Looks Like
 
 When updates are available, the workflow creates a PR on the `copilot-customization-sync` branch:
@@ -93,6 +110,9 @@ No. The workflow uses the default `GITHUB_TOKEN` and reads public source files v
 
 **What if I've customized a file locally?**
 The PR will show the diff. You can review it, merge selectively, or close it. The workflow doesn't force-update anything — it only opens PRs.
+
+**Can I sync from a different repo?**
+Yes. Pass `source_repo: owner/repo` as an input to the workflow. Default is `navikt/copilot`.
 
 **Can I use a different source branch?**
 The reusable workflow is pinned to `@main`. If you need a different branch, fork the workflow.
