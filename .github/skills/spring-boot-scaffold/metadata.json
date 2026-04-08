@@ -1,4 +1,5 @@
 {
+  "description": "Scaffold et nytt Spring Boot Kotlin-prosjekt med Nais-konfigurasjon, Flyway og standard Nav-mønstre",
   "domain": "backend",
   "tags": ["spring-boot", "kotlin", "scaffold", "nais", "project-setup"],
   "examples": [

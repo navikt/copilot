@@ -1,4 +1,5 @@
 {
+  "description": "Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format",
   "domain": "general",
   "tags": ["git", "commit", "conventional-commits", "changelog"],
   "examples": [

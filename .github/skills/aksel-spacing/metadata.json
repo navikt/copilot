@@ -1,4 +1,5 @@
 {
+  "description": "Responsiv layout med Aksel spacing-tokens og Box, VStack, HStack og HGrid",
   "domain": "frontend",
   "tags": ["aksel", "design-system", "spacing", "responsive"],
   "examples": [

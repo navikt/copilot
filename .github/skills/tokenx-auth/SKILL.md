@@ -7,7 +7,16 @@ description: Tjeneste-til-tjeneste-autentisering med TokenX token exchange i Nai
 
 This skill provides patterns for secure service-to-service authentication using TokenX.
 
-## Nais Manifest Setup
+## Workflow
+
+1. Enable TokenX in the Nais manifest and define access policies
+2. Implement token exchange (basic or with caching)
+3. Call downstream services with the exchanged token
+4. Validate inbound TokenX tokens on protected endpoints
+5. Integrate with Ktor authentication
+6. Test with MockOAuth2Server
+
+## 1. Nais Manifest Setup
 
 ```yaml
 apiVersion: nais.io/v1alpha1
@@ -31,7 +40,7 @@ This creates environment variables:
 - `TOKEN_X_CLIENT_ID`
 - `TOKEN_X_PRIVATE_JWK`
 
-## Token Exchange with Caching
+## 2. Token Exchange with Caching
 
 Production pattern from [navikt/tms-ktor-token-support](https://github.com/navikt/tms-ktor-token-support) - used across 198+ Nav repositories:
 
@@ -77,7 +86,7 @@ class CachingTokendingsService(
 }
 ```
 
-## Token Exchange (Basic)
+## 3. Token Exchange (Basic)
 
 ```kotlin
 import com.nimbusds.jose.JWSAlgorithm
@@ -153,7 +162,7 @@ data class TokenResponse(
 )
 ```
 
-## Calling Another Service
+## 4. Calling Another Service
 
 ```kotlin
 import io.ktor.client.*
@@ -183,7 +192,7 @@ class UserServiceClient(
 }
 ```
 
-## Validating Inbound Tokens
+## 5. Validating Inbound Tokens
 
 ```kotlin
 import com.auth0.jwk.JwkProviderBuilder
@@ -230,7 +239,7 @@ data class OAuthMetadata(
 )
 ```
 
-## Ktor Integration
+## 6. Ktor Integration
 
 ```kotlin
 import io.ktor.server.application.*

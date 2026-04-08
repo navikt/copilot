@@ -1,4 +1,5 @@
 {
+  "description": "Generer og kjør Playwright E2E-tester for webapplikasjoner med page objects, auth fixtures og tilgjengelighetstester",
   "domain": "testing",
   "tags": ["playwright", "e2e", "testing", "accessibility", "responsive"],
   "examples": [

@@ -1,4 +1,5 @@
 {
+  "description": "REST API-designmønstre, versjonering, feilhåndtering (RFC 7807) og OpenAPI-konvensjoner for Nav-tjenester",
   "domain": "backend",
   "tags": ["api", "rest", "design", "openapi", "error-handling"],
   "examples": [

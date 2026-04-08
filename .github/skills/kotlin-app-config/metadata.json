@@ -1,4 +1,5 @@
 {
+  "description": "Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger",
   "domain": "backend",
   "tags": ["kotlin", "configuration", "sealed-class", "environment"],
   "examples": [

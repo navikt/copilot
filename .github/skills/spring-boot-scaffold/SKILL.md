@@ -7,6 +7,17 @@ description: Scaffold et nytt Spring Boot Kotlin-prosjekt med Nais-konfigurasjon
 
 Scaffold a new Spring Boot project with Nav standards: Nais manifest, Flyway migrations, Azure AD, health endpoints, and Docker.
 
+## Workflow
+
+1. Create project structure (see layout below)
+2. Configure `build.gradle.kts` with Nav dependencies
+3. Create `Application.kt` and `application.yml`
+4. Set up Nais manifest (`.nais/nais.yaml`)
+5. Write `Dockerfile` with multi-stage build
+6. Add controller, service, and repository layers
+7. Write integration tests with MockOAuth2Server + Testcontainers
+8. Add `docker-compose.yml` for local development
+
 ## Project Structure
 
 ```

@@ -1,4 +1,5 @@
 {
+  "description": "PostgreSQL query review, optimalisering og beste praksis for Nav-applikasjoner",
   "domain": "backend",
   "tags": ["postgresql", "sql", "optimization", "review", "indexing"],
   "examples": [

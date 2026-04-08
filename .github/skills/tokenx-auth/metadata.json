@@ -1,4 +1,5 @@
 {
+  "description": "Tjeneste-til-tjeneste-autentisering med TokenX token exchange i Nais",
   "domain": "auth",
   "tags": ["tokenx", "auth", "service-to-service", "nais"],
   "examples": [

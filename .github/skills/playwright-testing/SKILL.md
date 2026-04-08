@@ -7,7 +7,15 @@ description: Generer og kjør Playwright E2E-tester for webapplikasjoner med pag
 
 Generate Playwright tests for Nav web applications. Covers page object pattern, authentication fixtures, accessibility testing, and CI configuration.
 
-## Project Setup
+## Getting Started
+
+1. Install Playwright and configure `playwright.config.ts`
+2. Create page objects for your app's pages
+3. Set up auth fixtures for Azure AD / MockOAuth2Server
+4. Write tests: navigation, forms, responsive, accessibility
+5. Add CI workflow in GitHub Actions
+
+## 1. Project Setup
 
 ```bash
 # Install Playwright
@@ -47,7 +55,7 @@ export default defineConfig({
 });
 ```
 
-## Page Object Pattern
+## 2. Page Object Pattern
 
 ```typescript
 // e2e/pages/oversikt.page.ts
@@ -82,7 +90,7 @@ export class OversiktPage {
 }
 ```
 
-## Auth Fixture (Azure AD / MockOAuth2Server)
+## 3. Auth Fixture (Azure AD / MockOAuth2Server)
 
 ```typescript
 // e2e/fixtures/auth.ts
@@ -110,7 +118,7 @@ export const test = base.extend<AuthFixtures>({
 export { expect } from "@playwright/test";
 ```
 
-## Test Examples
+## 4. Test Examples
 
 ### Page Navigation
 
@@ -188,7 +196,7 @@ test.describe("Responsive", () => {
 });
 ```
 
-## Accessibility Testing med axe
+## 5. Accessibility Testing med axe
 
 ```typescript
 // e2e/tests/accessibility.spec.ts
@@ -211,7 +219,7 @@ test.describe("Accessibility", () => {
 });
 ```
 
-## CI Configuration (GitHub Actions)
+## 6. CI Configuration (GitHub Actions)
 
 ```yaml
 # .github/workflows/e2e.yml
