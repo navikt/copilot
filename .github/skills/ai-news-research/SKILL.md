@@ -62,4 +62,4 @@ End with a "Relevans for Nav" table. Nav context:
 
 ## Example output
 
-See [docs/news/february.md](../../../docs/news/february.md).
+See `docs/news/` in the repository root for published examples.

@@ -121,7 +121,7 @@ lint_skill() {
 
   # ── file reference depth ───────────────────────────────────────────────
   local refs
-  refs=$(echo "$body" | grep -oE '\./[^ )\]]+|references/[^ )\]]+' || true)
+  refs=$(echo "$body" | grep -oE '\./[^] )"]+|references/[^] )"]+' || true)
   if [[ -n "$refs" ]]; then
     while IFS= read -r ref; do
       # Skip empty lines
@@ -164,7 +164,7 @@ for r in d.get('references', []):
   # 3. Links in SKILL.md pointing to references/
   while IFS= read -r link; do
     [[ -n "$link" ]] && md_refs+=("$link")
-  done < <(echo "$body" | grep -oE '(\.\/)?references\/[^ )\]"]+' | sed 's|^\./||' | sort -u || true)
+  done < <(echo "$body" | grep -oE '(\.\/)?references\/[^] )"]+' | sed 's|^\./||' | sort -u || true)
 
   # Compare: any set non-empty means references exist somewhere
   if (( ${#meta_refs[@]} + ${#fs_refs[@]} + ${#md_refs[@]} > 0 )); then
