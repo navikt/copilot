@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +27,12 @@ type InstructionFrontmatter struct {
 type PromptFrontmatter struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
+}
+
+// SkillMetadata represents the metadata.json for a skill
+type SkillMetadata struct {
+	Description string   `json:"description"`
+	References  []string `json:"references"`
 }
 
 // parseFrontmatter extracts YAML frontmatter from a markdown file
@@ -256,6 +263,21 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 		description := g.extractDescription(string(content))
 		relPath := filepath.Join(".github/skills", name)
 
+		// Read references from metadata.json (single source of truth)
+		var refs []discovery.SkillReference
+		metaFile := filepath.Join(dir, name, "metadata.json")
+		if metaData, err := os.ReadFile(metaFile); err == nil { //nolint:gosec // Generator needs to read .github files
+			var meta SkillMetadata
+			if err := json.Unmarshal(metaData, &meta); err == nil {
+				for _, ref := range meta.References {
+					refs = append(refs, discovery.SkillReference{
+						Path:   ref,
+						RawURL: g.generateRawURL(filepath.Join(".github/skills", name, ref)),
+					})
+				}
+			}
+		}
+
 		skills = append(skills, discovery.Customization{
 			Type:        discovery.TypeSkill,
 			Name:        name,
@@ -263,7 +285,8 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 			Description: description,
 			FilePath:    relPath,
 			InstallURL:  "",
-			RawURL:      g.generateRawURL(relPath),
+			RawURL:      g.generateRawURL(filepath.Join(relPath, "SKILL.md")),
+			References:  refs,
 		})
 	}
 

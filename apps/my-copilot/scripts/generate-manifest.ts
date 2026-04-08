@@ -14,6 +14,7 @@ interface Metadata {
   description?: string;
   domain?: Domain;
   tags?: string[];
+  references?: string[];
   excluded?: boolean;
   examples?: ExampleItem[];
 }
@@ -100,6 +101,7 @@ interface ManifestItem {
   invocation?: string;
   tags?: string[];
   examples?: ExampleItem[];
+  references?: { path: string; rawGitHubUrl: string }[];
 }
 
 function getAgents(): ManifestItem[] {
@@ -219,6 +221,11 @@ function getSkills(): ManifestItem[] {
       const { data } = parseFrontmatter(content);
       const name = (data.name as string) || folder;
 
+      const references = meta.references?.map((ref) => ({
+        path: `${folder}/${ref}`,
+        rawGitHubUrl: `${RAW_BASE}/skills/${folder}/${ref}`,
+      }));
+
       return {
         id: name,
         name,
@@ -232,6 +239,7 @@ function getSkills(): ManifestItem[] {
         insidersInstallUrl: null,
         ...(meta.tags && { tags: meta.tags }),
         ...(meta.examples && { examples: meta.examples }),
+        ...(references && references.length > 0 && { references }),
       };
     });
 }

@@ -33,8 +33,14 @@ export interface Prompt extends BaseCustomization {
   invocation: string;
 }
 
+export interface SkillReference {
+  path: string;
+  rawGitHubUrl: string;
+}
+
 export interface Skill extends BaseCustomization {
   type: "skill";
+  references?: SkillReference[];
 }
 
 export interface McpServerCustomization extends BaseCustomization {

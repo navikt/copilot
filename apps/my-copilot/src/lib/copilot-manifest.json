@@ -738,11 +738,21 @@
       "domain": "observability",
       "filePath": ".github/skills/observability-setup/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
-      "contentHash": "69b5da70cf16ef84500832a7d89dbb8eb3033f0545d0b9ba6225b8f27590590c",
+      "contentHash": "9b606c89aaf224e38d145734761cedc8811cf3ed1173507d69ccb90f6b1496d7",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["prometheus", "opentelemetry", "health", "metrics"],
-      "examples": ["Sett opp Prometheus-metrikker og helseendepunkter for dp-soknad"]
+      "examples": ["Sett opp Prometheus-metrikker og helseendepunkter for dp-soknad"],
+      "references": [
+        {
+          "path": "observability-setup/references/grafana-queries.md",
+          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md"
+        },
+        {
+          "path": "observability-setup/references/production-patterns.md",
+          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/production-patterns.md"
+        }
+      ]
     },
     {
       "id": "playwright-testing",
@@ -752,7 +762,7 @@
       "domain": "testing",
       "filePath": ".github/skills/playwright-testing/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/playwright-testing/SKILL.md",
-      "contentHash": "4797c2abd753271fe9a3f94ef36daca775e0fc42df0adf8fb2cc779d28a48f12",
+      "contentHash": "31172cfeab40e8a1b458b593f3b7db8839ae34176614770e2914797c13ca4b98",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["playwright", "e2e", "testing", "accessibility", "responsive"],
@@ -845,7 +855,7 @@
       "domain": "backend",
       "filePath": ".github/skills/spring-boot-scaffold/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/spring-boot-scaffold/SKILL.md",
-      "contentHash": "61df374384f9d176fccc7c46744ca85ecfe785cebb180f254ed0d5f7e1104745",
+      "contentHash": "075d61929edd5d83d799f38e90e8f0c0058e151994bd04112ac18264c66cf827",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["spring-boot", "kotlin", "scaffold", "nais", "project-setup"],
@@ -876,7 +886,7 @@
       "domain": "auth",
       "filePath": ".github/skills/tokenx-auth/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/tokenx-auth/SKILL.md",
-      "contentHash": "187ed74ef3eeff74a72faa2a60a14a467a0604603cef54bcc8c1ca14509f8490",
+      "contentHash": "8e692f89cda59737473847aea320762f6a975aca45bc15b3578374307f65b32d",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],
@@ -902,6 +912,16 @@
         {
           "prompt": "Review the UI on our staging site and fix any responsive issues",
           "scenario": "Responsive design review and fix"
+        }
+      ],
+      "references": [
+        {
+          "path": "web-design-reviewer/references/framework-fixes.md",
+          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/framework-fixes.md"
+        },
+        {
+          "path": "web-design-reviewer/references/visual-checklist.md",
+          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/visual-checklist.md"
         }
       ]
     }

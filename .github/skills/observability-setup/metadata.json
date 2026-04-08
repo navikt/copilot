@@ -1,6 +1,11 @@
 {
+  "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner",
   "domain": "observability",
   "tags": ["prometheus", "opentelemetry", "health", "metrics"],
+  "references": [
+    "references/grafana-queries.md",
+    "references/production-patterns.md"
+  ],
   "examples": [
     "Sett opp Prometheus-metrikker og helseendepunkter for dp-soknad"
   ]

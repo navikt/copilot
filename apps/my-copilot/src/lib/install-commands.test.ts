@@ -30,6 +30,19 @@ const instruction: Instruction = {
 };
 const prompt: Prompt = { ...base, type: "prompt", name: "code-review.prompt.md", invocation: "/code-review" };
 const skill: Skill = { ...base, type: "skill", name: "aksel-spacing" };
+const skillWithRefs: Skill = {
+  ...base,
+  type: "skill",
+  name: "observability-setup",
+  rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
+  references: [
+    {
+      path: "observability-setup/references/grafana-queries.md",
+      rawGitHubUrl:
+        "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md",
+    },
+  ],
+};
 
 const remoteMcp: McpServerCustomization = {
   ...base,
@@ -148,26 +161,35 @@ describe("getToolCount", () => {
 describe("getManualInstallCommand", () => {
   it("generates curl command for agent", () => {
     const cmd = getManualInstallCommand(agent);
-    expect(cmd).toBe(
-      "mkdir -p .github/agents && curl -sO --output-dir .github/agents https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md"
-    );
+    expect(cmd).toContain('mkdir -p ".github/agents"');
+    expect(cmd).toContain("curl -fsSL");
+    expect(cmd).toContain("nais.agent.md");
   });
 
   it("generates curl command for instruction", () => {
     const cmd = getManualInstallCommand(instruction);
-    expect(cmd).toContain("mkdir -p .github/instructions");
+    expect(cmd).toContain('mkdir -p ".github/instructions"');
   });
 
   it("generates curl command for prompt", () => {
     const cmd = getManualInstallCommand(prompt);
-    expect(cmd).toContain("mkdir -p .github/prompts");
+    expect(cmd).toContain('mkdir -p ".github/prompts"');
   });
 
   it("creates skill-specific subdirectory", () => {
     const cmd = getManualInstallCommand(skill);
-    expect(cmd).toBe(
-      "mkdir -p .github/skills/aksel-spacing && curl -sO --output-dir .github/skills/aksel-spacing https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md"
-    );
+    expect(cmd).toContain('mkdir -p ".github/skills/aksel-spacing"');
+    expect(cmd).toContain("curl -fsSL");
+    expect(cmd).toContain("SKILL.md");
+    expect(cmd).not.toContain("references");
+  });
+
+  it("generates multi-curl for skill with references", () => {
+    const cmd = getManualInstallCommand(skillWithRefs);
+    expect(cmd).toContain('mkdir -p ".github/skills/observability-setup"');
+    expect(cmd).toContain('mkdir -p ".github/skills/observability-setup/references"');
+    expect(cmd).toContain("SKILL.md");
+    expect(cmd).toContain("grafana-queries.md");
   });
 
   it("returns empty string for mcp", () => {

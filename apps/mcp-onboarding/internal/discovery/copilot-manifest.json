@@ -424,7 +424,13 @@
       "description": "Research AI coding agent news and write a monthly summary in Norwegian. Output: `docs/news/\u003cmonth\u003e.md`.",
       "filePath": ".github/skills/ai-news-research",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/ai-news-research"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/ai-news-research/SKILL.md",
+      "references": [
+        {
+          "path": "references/OUTPUT-FORMAT.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/ai-news-research/references/OUTPUT-FORMAT.md"
+        }
+      ]
     },
     {
       "type": "skill",
@@ -433,7 +439,7 @@
       "description": "Responsive layout-mønstre med Navs Aksel Design System spacing-tokens.",
       "filePath": ".github/skills/aksel-spacing",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md"
     },
     {
       "type": "skill",
@@ -442,7 +448,7 @@
       "description": "REST API design for Nav services. Covers naming conventions, error handling with ProblemDetail, versioning, pagination, and OpenAPI spec.",
       "filePath": ".github/skills/api-design",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/api-design"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/api-design/SKILL.md"
     },
     {
       "type": "skill",
@@ -451,7 +457,7 @@
       "description": "Generate commit messages following the Conventional Commits specification, adapted for Nav projects.",
       "filePath": ".github/skills/conventional-commit",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/conventional-commit"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/conventional-commit/SKILL.md"
     },
     {
       "type": "skill",
@@ -460,7 +466,7 @@
       "description": "This skill provides patterns for managing database schema changes with Flyway.",
       "filePath": ".github/skills/flyway-migration",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/flyway-migration"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/flyway-migration/SKILL.md"
     },
     {
       "type": "skill",
@@ -469,7 +475,7 @@
       "description": "This skill provides patterns for type-safe environment configuration using Kotlin sealed classes.",
       "filePath": ".github/skills/kotlin-app-config",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/kotlin-app-config"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/kotlin-app-config/SKILL.md"
     },
     {
       "type": "skill",
@@ -478,7 +484,17 @@
       "description": "This skill provides patterns for setting up observability in Nais applications.",
       "filePath": ".github/skills/observability-setup",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
+      "references": [
+        {
+          "path": "references/grafana-queries.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md"
+        },
+        {
+          "path": "references/production-patterns.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/production-patterns.md"
+        }
+      ]
     },
     {
       "type": "skill",
@@ -487,7 +503,7 @@
       "description": "Generate Playwright tests for Nav web applications. Covers page object pattern, authentication fixtures, accessibility testing, and CI configuration.",
       "filePath": ".github/skills/playwright-testing",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/playwright-testing"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/playwright-testing/SKILL.md"
     },
     {
       "type": "skill",
@@ -496,7 +512,7 @@
       "description": "Review and optimize PostgreSQL queries, schemas, and patterns for Nav applications. Covers EXPLAIN analysis, index strategies, JSONB patterns, and common anti-patterns.",
       "filePath": ".github/skills/postgresql-review",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/postgresql-review"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/postgresql-review/SKILL.md"
     },
     {
       "type": "skill",
@@ -505,7 +521,7 @@
       "description": "This skill provides pre-commit and pre-PR security checks for Nav applications. Covers secret scanning, vulnerability scanning, and Nav-specific requirements.",
       "filePath": ".github/skills/security-review",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/security-review"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/security-review/SKILL.md"
     },
     {
       "type": "skill",
@@ -514,7 +530,7 @@
       "description": "Scaffold a new Spring Boot project with Nav standards: Nais manifest, Flyway migrations, Azure AD, health endpoints, and Docker.",
       "filePath": ".github/skills/spring-boot-scaffold",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/spring-boot-scaffold"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/spring-boot-scaffold/SKILL.md"
     },
     {
       "type": "skill",
@@ -523,7 +539,7 @@
       "description": "This skill provides patterns for secure service-to-service authentication using TokenX.",
       "filePath": ".github/skills/tokenx-auth",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/tokenx-auth"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/tokenx-auth/SKILL.md"
     },
     {
       "type": "skill",
@@ -532,7 +548,17 @@
       "description": "Visuell inspeksjon og validering av designkvalitet på nettsider. Identifiserer og fikser problemer på kildekodenivå.",
       "filePath": ".github/skills/web-design-reviewer",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/SKILL.md",
+      "references": [
+        {
+          "path": "references/framework-fixes.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/framework-fixes.md"
+        },
+        {
+          "path": "references/visual-checklist.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/visual-checklist.md"
+        }
+      ]
     }
   ]
 }

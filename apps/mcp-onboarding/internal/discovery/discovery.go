@@ -26,6 +26,12 @@ const (
 	TypeSkill CustomizationType = "skill"
 )
 
+// SkillReference represents a reference file bundled with a skill
+type SkillReference struct {
+	Path   string `json:"path"`
+	RawURL string `json:"rawUrl"`
+}
+
 // Customization represents a NAV Copilot customization
 type Customization struct {
 	Type        CustomizationType `json:"type"`
@@ -38,6 +44,7 @@ type Customization struct {
 	UseCases    []string          `json:"useCases,omitempty"`
 	InstallURL  string            `json:"installUrl"`
 	RawURL      string            `json:"rawUrl"`
+	References  []SkillReference  `json:"references,omitempty"`
 }
 
 // CustomizationsManifest represents the complete customizations catalog
@@ -199,6 +206,23 @@ func (d *Service) GenerateInstallationGuide(customType CustomizationType, name s
 
 	if item == nil {
 		return "", fmt.Errorf("customization not found: %s", name)
+	}
+
+	// Skills with references get a multi-file install guide
+	if customType == TypeSkill {
+		guide := fmt.Sprintf("# Installing %s\n\n## Manual Install\n\n```bash\n", item.DisplayName)
+		skillDir := ".github/skills/" + item.Name
+		guide += fmt.Sprintf("mkdir -p \"%s\"\n", skillDir)
+		guide += fmt.Sprintf("curl -fsSL -o \"%s/SKILL.md\" \"%s\"\n", skillDir, item.RawURL)
+		if len(item.References) > 0 {
+			guide += fmt.Sprintf("mkdir -p \"%s/references\"\n", skillDir)
+			for _, ref := range item.References {
+				guide += fmt.Sprintf("curl -fsSL -o \"%s/%s\" \"%s\"\n", skillDir, ref.Path, ref.RawURL)
+			}
+		}
+		guide += "```\n"
+		guide += fmt.Sprintf("\n## Description\n\n%s\n", item.Description)
+		return guide, nil
 	}
 
 	guide := fmt.Sprintf(`# Installing %s
