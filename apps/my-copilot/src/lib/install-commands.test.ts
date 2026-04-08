@@ -37,8 +37,8 @@ const skillWithRefs: Skill = {
   rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
   references: [
     {
-      path: "observability-setup/references/grafana-queries.md",
-      rawGitHubUrl:
+      path: "references/grafana-queries.md",
+      rawUrl:
         "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md",
     },
   ],

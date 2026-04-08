@@ -745,12 +745,12 @@
       "examples": ["Sett opp Prometheus-metrikker og helseendepunkter for dp-soknad"],
       "references": [
         {
-          "path": "observability-setup/references/grafana-queries.md",
-          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md"
+          "path": "references/grafana-queries.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md"
         },
         {
-          "path": "observability-setup/references/production-patterns.md",
-          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/production-patterns.md"
+          "path": "references/production-patterns.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/production-patterns.md"
         }
       ]
     },
@@ -916,12 +916,12 @@
       ],
       "references": [
         {
-          "path": "web-design-reviewer/references/framework-fixes.md",
-          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/framework-fixes.md"
+          "path": "references/framework-fixes.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/framework-fixes.md"
         },
         {
-          "path": "web-design-reviewer/references/visual-checklist.md",
-          "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/visual-checklist.md"
+          "path": "references/visual-checklist.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/references/visual-checklist.md"
         }
       ]
     }

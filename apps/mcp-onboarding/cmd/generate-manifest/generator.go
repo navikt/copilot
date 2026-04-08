@@ -33,6 +33,7 @@ type PromptFrontmatter struct {
 type SkillMetadata struct {
 	Description string   `json:"description"`
 	References  []string `json:"references"`
+	Excluded    bool     `json:"excluded"`
 }
 
 // parseFrontmatter extracts YAML frontmatter from a markdown file
@@ -263,12 +264,15 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 		description := g.extractDescription(string(content))
 		relPath := filepath.Join(".github/skills", name)
 
-		// Read references from metadata.json (single source of truth)
+		// Read metadata.json (single source of truth for references and exclusion)
 		var refs []discovery.SkillReference
 		metaFile := filepath.Join(dir, name, "metadata.json")
 		if metaData, err := os.ReadFile(metaFile); err == nil { //nolint:gosec // Generator needs to read .github files
 			var meta SkillMetadata
 			if err := json.Unmarshal(metaData, &meta); err == nil {
+				if meta.Excluded {
+					continue
+				}
 				for _, ref := range meta.References {
 					refs = append(refs, discovery.SkillReference{
 						Path:   ref,

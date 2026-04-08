@@ -47,10 +47,16 @@ export function getManualInstallCommand(item: AnyCustomization): string {
     const skillDir = `.github/skills/${item.name}`;
     const cmds = [`mkdir -p "${skillDir}"`, `curl -fsSL -o "${skillDir}/SKILL.md" "${item.rawGitHubUrl}"`];
     if (item.references && item.references.length > 0) {
-      cmds.splice(1, 0, `mkdir -p "${skillDir}/references"`);
+      const refDirs = new Set<string>();
       for (const ref of item.references) {
-        const fileName = ref.path.split("/").slice(1).join("/");
-        cmds.push(`curl -fsSL -o "${skillDir}/${fileName}" "${ref.rawGitHubUrl}"`);
+        const dir = ref.path.substring(0, ref.path.lastIndexOf("/"));
+        if (dir) refDirs.add(dir);
+      }
+      for (const dir of refDirs) {
+        cmds.splice(1, 0, `mkdir -p "${skillDir}/${dir}"`);
+      }
+      for (const ref of item.references) {
+        cmds.push(`curl -fsSL -o "${skillDir}/${ref.path}" "${ref.rawUrl}"`);
       }
     }
     return cmds.join(" && \\\n  ");

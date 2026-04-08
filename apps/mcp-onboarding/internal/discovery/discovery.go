@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 )
 
@@ -215,7 +216,15 @@ func (d *Service) GenerateInstallationGuide(customType CustomizationType, name s
 		guide += fmt.Sprintf("mkdir -p \"%s\"\n", skillDir)
 		guide += fmt.Sprintf("curl -fsSL -o \"%s/SKILL.md\" \"%s\"\n", skillDir, item.RawURL)
 		if len(item.References) > 0 {
-			guide += fmt.Sprintf("mkdir -p \"%s/references\"\n", skillDir)
+			refDirs := map[string]bool{}
+			for _, ref := range item.References {
+				if dir := path.Dir(ref.Path); dir != "." {
+					refDirs[dir] = true
+				}
+			}
+			for dir := range refDirs {
+				guide += fmt.Sprintf("mkdir -p \"%s/%s\"\n", skillDir, dir)
+			}
 			for _, ref := range item.References {
 				guide += fmt.Sprintf("curl -fsSL -o \"%s/%s\" \"%s\"\n", skillDir, ref.Path, ref.RawURL)
 			}

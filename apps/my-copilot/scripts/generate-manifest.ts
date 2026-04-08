@@ -101,7 +101,7 @@ interface ManifestItem {
   invocation?: string;
   tags?: string[];
   examples?: ExampleItem[];
-  references?: { path: string; rawGitHubUrl: string }[];
+  references?: { path: string; rawUrl: string }[];
 }
 
 function getAgents(): ManifestItem[] {
@@ -222,8 +222,8 @@ function getSkills(): ManifestItem[] {
       const name = (data.name as string) || folder;
 
       const references = meta.references?.map((ref) => ({
-        path: `${folder}/${ref}`,
-        rawGitHubUrl: `${RAW_BASE}/skills/${folder}/${ref}`,
+        path: ref,
+        rawUrl: `${RAW_BASE}/skills/${folder}/${ref}`,
       }));
 
       return {

@@ -35,7 +35,7 @@ export interface Prompt extends BaseCustomization {
 
 export interface SkillReference {
   path: string;
-  rawGitHubUrl: string;
+  rawUrl: string;
 }
 
 export interface Skill extends BaseCustomization {
