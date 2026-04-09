@@ -74,12 +74,15 @@ pub fn validate_sbpl_path(path: &Path) -> Result<(), String> {
 /// Generate a complete SBPL sandbox profile.
 ///
 /// All paths are validated for SBPL injection before interpolation.
+/// If `existing_home_tool_dirs` is `Some`, only those dirs are included
+/// (tighter profile via `--doctor` discovery). If `None`, all are included.
 pub fn generate_profile(
     project_dir: &Path,
     home_dir: &Path,
     extra_read: &[PathBuf],
     extra_write: &[PathBuf],
     extra_deny: &[PathBuf],
+    existing_home_tool_dirs: Option<&[String]>,
 ) -> String {
     let mut sb = String::with_capacity(4096);
     let home = home_dir.to_string_lossy();
@@ -205,7 +208,12 @@ pub fn generate_profile(
         writeln!(sb, "(allow file-read* (subpath \"{dir}\"))").unwrap();
         writeln!(sb, "(allow file-map-executable (subpath \"{dir}\"))").unwrap();
     }
-    for dir in HOME_TOOL_DIRS {
+    // Home tool dirs: use discovered existing dirs if available, else include all
+    let home_dirs: Vec<&str> = match existing_home_tool_dirs {
+        Some(dirs) => dirs.iter().map(|s| s.as_str()).collect(),
+        None => HOME_TOOL_DIRS.to_vec(),
+    };
+    for dir in &home_dirs {
         writeln!(sb, "(allow file-read* (subpath \"{home}/{dir}\"))").unwrap();
     }
     writeln!(sb).unwrap();

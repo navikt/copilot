@@ -374,6 +374,95 @@ mod e2e_tests {
     }
 
     // ============================================================
+    // Doctor command tests
+    // ============================================================
+
+    #[test]
+    fn e2e_doctor_exits_successfully() {
+        require_copilot!();
+        let output = Command::new(binary_path())
+            .args(["--doctor"])
+            .current_dir(project_dir())
+            .output()
+            .expect("binary should run");
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(
+            output.status.success(),
+            "--doctor should exit 0 when copilot is installed.\nstderr: {stderr}"
+        );
+    }
+
+    #[test]
+    fn e2e_doctor_reports_auth_section() {
+        require_copilot!();
+        let output = Command::new(binary_path())
+            .args(["--doctor"])
+            .current_dir(project_dir())
+            .output()
+            .expect("binary should run");
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(
+            stderr.contains("[doctor]") && stderr.contains("Auth"),
+            "--doctor should print Auth section.\nstderr: {stderr}"
+        );
+    }
+
+    #[test]
+    fn e2e_doctor_reports_copilot_section() {
+        require_copilot!();
+        let output = Command::new(binary_path())
+            .args(["--doctor"])
+            .current_dir(project_dir())
+            .output()
+            .expect("binary should run");
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(
+            stderr.contains("Copilot CLI") && stderr.contains("Version"),
+            "--doctor should show Copilot CLI section with version.\nstderr: {stderr}"
+        );
+    }
+
+    #[test]
+    fn e2e_doctor_reports_tools_section() {
+        require_copilot!();
+        let output = Command::new(binary_path())
+            .args(["--doctor"])
+            .current_dir(project_dir())
+            .output()
+            .expect("binary should run");
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(
+            stderr.contains("Tools") && stderr.contains("git"),
+            "--doctor should show Tools section with git.\nstderr: {stderr}"
+        );
+    }
+
+    #[test]
+    fn e2e_doctor_reports_sandbox_paths() {
+        require_copilot!();
+        let output = Command::new(binary_path())
+            .args(["--doctor"])
+            .current_dir(project_dir())
+            .output()
+            .expect("binary should run");
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(
+            stderr.contains("Sandbox paths") && stderr.contains("Protected"),
+            "--doctor should show Sandbox paths with protected dirs.\nstderr: {stderr}"
+        );
+    }
+
+    // ============================================================
     // Live tests — require Copilot auth + network
     // ============================================================
 

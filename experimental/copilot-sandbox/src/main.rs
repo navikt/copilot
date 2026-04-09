@@ -1,5 +1,5 @@
 use clap::Parser;
-use copilot_sandbox::{config, proxy, sandbox};
+use copilot_sandbox::{config, discover, proxy, sandbox};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -110,6 +110,12 @@ struct Cli {
     #[arg(long)]
     init_config: bool,
 
+    /// Run environment diagnostics and report what the sandbox will do.
+    /// Checks auth mechanisms, Copilot CLI install, tool availability,
+    /// and sandbox-critical paths. Exits 0 if all critical checks pass.
+    #[arg(long)]
+    doctor: bool,
+
     /// Everything after -- is passed directly to the copilot command.
     /// Example: copilot-sandbox -- -p "fix the tests"
     #[arg(last = true)]
@@ -166,6 +172,11 @@ fn main() -> ExitCode {
     if std::env::consts::OS != "macos" {
         error("copilot-sandbox requires macOS (uses sandbox-exec)");
         return ExitCode::FAILURE;
+    }
+
+    // Handle --doctor: run diagnostics and exit
+    if cli.doctor {
+        return run_doctor();
     }
 
     // Load config file and merge with CLI flags
@@ -311,6 +322,10 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
+    // Run auto-discovery to tighten the sandbox profile
+    let tool_discovery = discover::discover_tools(&home_dir);
+    let existing_dirs = tool_discovery.existing_home_tool_dirs;
+
     // Generate sandbox profile
     let profile = sandbox::generate_profile(
         &project_dir,
@@ -318,6 +333,7 @@ fn main() -> ExitCode {
         &resolved.allow_read,
         &resolved.allow_write,
         &resolved.deny_paths,
+        Some(&existing_dirs),
     );
 
     // --print-profile: dump the SBPL and exit
@@ -473,6 +489,43 @@ fn main() -> ExitCode {
     }
 
     ExitCode::from(exit_code)
+}
+
+fn run_doctor() -> ExitCode {
+    let home_dir = match std::env::var("HOME") {
+        Ok(h) => match std::fs::canonicalize(&h) {
+            Ok(p) => p,
+            Err(e) => {
+                error(&format!("Cannot resolve $HOME ({h}): {e}"));
+                return ExitCode::FAILURE;
+            }
+        },
+        Err(_) => {
+            error("$HOME not set");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let project_dir = if let Some(root) = detect_project_root() {
+        std::fs::canonicalize(&root).unwrap_or(root)
+    } else {
+        std::env::current_dir()
+            .and_then(std::fs::canonicalize)
+            .unwrap_or_else(|_| PathBuf::from("."))
+    };
+
+    info(&format!("Project:  {}", project_dir.display()));
+    info(&format!("Home:     {}", home_dir.display()));
+    eprintln!();
+
+    let discovery = discover::discover_all(&home_dir, &project_dir);
+    let ok = discovery.print_report();
+
+    if ok {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }
 
 fn init_config() -> ExitCode {

@@ -287,6 +287,7 @@ fn profile_contains_deny_default() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(p.contains("(deny default)"));
 }
@@ -299,6 +300,7 @@ fn profile_allows_tty_ioctl() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(
         p.contains("(allow file-ioctl)"),
@@ -314,6 +316,7 @@ fn profile_grants_project_access() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
     assert!(p.contains("(allow file-write* (subpath \"/projects/app\"))"));
@@ -327,6 +330,7 @@ fn profile_grants_copilot_config_access() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/Users/test/.copilot\"))"));
 }
@@ -339,6 +343,7 @@ fn profile_denies_sensitive_dirs() {
         &[],
         &[],
         &[],
+        None,
     );
     for dir in &[
         ".ssh",
@@ -376,6 +381,7 @@ fn profile_denies_sensitive_files() {
         &[],
         &[],
         &[],
+        None,
     );
     for file in &[
         ".netrc",
@@ -401,6 +407,7 @@ fn profile_allows_outbound_tcp() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(
         p.contains("(allow network-outbound (remote tcp))"),
@@ -420,6 +427,7 @@ fn profile_deny_rules_come_after_allow_rules() {
         &[],
         &[],
         &[],
+        None,
     );
     let allow_pos = p
         .find("(allow file-read* (subpath \"/projects/app\"))")
@@ -441,6 +449,7 @@ fn profile_denies_exec_from_tmp() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(
         p.contains("(deny process-exec (subpath \"/private/tmp\"))"),
@@ -460,6 +469,7 @@ fn profile_allows_gh_config_read_only() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(
         p.contains("(allow file-read* (subpath \"/Users/test/.config/gh\"))"),
@@ -479,6 +489,7 @@ fn profile_allows_file_map_executable_for_copilot() {
         &[],
         &[],
         &[],
+        None,
     );
     assert!(
         p.contains("(allow file-map-executable (subpath \"/Users/test/.copilot\"))"),
