@@ -4,6 +4,21 @@ macOS Seatbelt sandbox wrapper for GitHub Copilot CLI. Runs Copilot inside Apple
 
 > **macOS only** — uses Apple's Seatbelt framework (the same mechanism App Store apps run under).
 
+## Philosophy
+
+In a world of vibe-coded AI tools, this project chooses a different path. We don't do magic. We don't do clever. We do honest, auditable security that you can read, understand, and verify in minutes.
+
+The sandbox is ~1500 lines of Rust that generates a Seatbelt profile and optionally runs a CONNECT proxy. No frameworks, no runtime dependencies, no telemetry. Every security boundary is kernel-enforced and tested. Every design decision is documented with the threat it mitigates and the prior art it builds on.
+
+**Our priorities, in order:**
+
+1. **Correct** — every claim is tested, every edge case has a CVE or research reference
+2. **Transparent** — read [SECURITY.md](SECURITY.md), it hides nothing
+3. **Simple** — single static binary, zero config required, sane defaults
+4. **Useful** — get out of the way and let Copilot do its job, safely
+
+We'd rather ship something small that actually works than something impressive that doesn't.
+
 ## What it does
 
 | Capability | Status |
@@ -23,21 +38,47 @@ macOS Seatbelt sandbox wrapper for GitHub Copilot CLI. Runs Copilot inside Apple
 
 For the full security model, threat analysis, and test strategy, see **[SECURITY.md](SECURITY.md)**.
 
-## Quick start
+## Install
+
+### Pre-compiled binary (recommended)
+
+Download the latest release for your Mac:
+
+```bash
+# Apple Silicon (M1/M2/M3/M4)
+curl -fsSL https://github.com/navikt/copilot/releases/latest/download/copilot-sandbox-aarch64-apple-darwin.tar.gz | tar xz
+sudo mv copilot-sandbox /usr/local/bin/
+
+# Intel Mac
+curl -fsSL https://github.com/navikt/copilot/releases/latest/download/copilot-sandbox-x86_64-apple-darwin.tar.gz | tar xz
+sudo mv copilot-sandbox /usr/local/bin/
+```
+
+Every release binary has [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds) — verify it with:
+
+```bash
+gh attestation verify copilot-sandbox -o navikt
+```
+
+### Build from source
 
 ```bash
 cd experimental/copilot-sandbox
 mise install           # Install Rust toolchain
 mise run build:release
+```
 
+## Quick start
+
+```bash
 # Run copilot in sandbox (no network — dry run / offline mode)
-./target/release/copilot-sandbox -- --version
+copilot-sandbox -- --version
 
 # Run with network proxy (required for Copilot API access)
-./target/release/copilot-sandbox --with-proxy -- -p "fix the tests"
+copilot-sandbox --with-proxy -- -p "fix the tests"
 
 # Create config file with defaults
-./target/release/copilot-sandbox --init-config
+copilot-sandbox --init-config
 ```
 
 ## Usage
