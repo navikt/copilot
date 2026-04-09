@@ -66,6 +66,11 @@ pub struct SandboxConfig {
     pub allow_env_files: Option<bool>,
     /// Allow all localhost outbound (default: false).
     pub allow_localhost_any: Option<bool>,
+    /// Extra env vars to pass through to the sandbox (beyond the safe allowlist).
+    pub pass_env: Vec<String>,
+    /// Inherit ALL env vars instead of using the safe allowlist (default: false).
+    /// DANGEROUS: exposes cloud credentials, npm tokens, database URLs, etc.
+    pub inherit_env: Option<bool>,
 }
 
 /// Resolved configuration after merging config file + CLI flags.
@@ -83,6 +88,8 @@ pub struct Resolved {
     pub allow_localhost_any: bool,
     pub allow_env_files: bool,
     pub no_validate: bool,
+    pub pass_env: Vec<String>,
+    pub inherit_env: bool,
 }
 
 impl Config {
@@ -133,6 +140,8 @@ impl Config {
         cli_allow_localhost_any: bool,
         cli_allow_env_files: bool,
         cli_no_validate: bool,
+        cli_pass_env: Vec<String>,
+        cli_inherit_env: bool,
     ) -> Result<Resolved, String> {
         // Proxy: --no-proxy always wins, then --with-proxy, then config, then false (default off).
         // The proxy is a passive logging tool — Copilot CLI doesn't use it (Node.js ignores
@@ -227,6 +236,19 @@ impl Config {
             self.sandbox.allow_localhost_any.unwrap_or(false)
         };
 
+        // Pass-env: merge config + CLI
+        let mut pass_env = self.sandbox.pass_env.clone();
+        pass_env.extend(cli_pass_env);
+        pass_env.sort_unstable();
+        pass_env.dedup();
+
+        // Inherit-env: CLI flag wins, then config, then false (secure by default)
+        let inherit_env = if cli_inherit_env {
+            true
+        } else {
+            self.sandbox.inherit_env.unwrap_or(false)
+        };
+
         // Validate all paths for SBPL injection characters
         for p in allow_read
             .iter()
@@ -248,6 +270,8 @@ impl Config {
             allow_localhost_any,
             allow_env_files,
             no_validate,
+            pass_env,
+            inherit_env,
         })
     }
 }
@@ -360,6 +384,32 @@ impl Resolved {
         }
         eprintln!("{blue}[cplt]{nc}    SSH agent:     blocked     {dim}use HTTPS, not SSH{nc}");
         eprintln!();
+
+        // Environment
+        eprintln!("{blue}[cplt]{nc}  {dim}Environment:{nc}");
+        if self.inherit_env {
+            let red = "\x1b[0;31m";
+            eprintln!(
+                "{blue}[cplt]{nc}    Mode:          {red}INHERITED{nc}   {dim}⚠ all env vars passed (--inherit-env){nc}"
+            );
+        } else if !self.pass_env.is_empty() {
+            eprintln!(
+                "{blue}[cplt]{nc}    Mode:          {green}sanitized{nc}   {dim}allowlist + {} extra{nc}",
+                self.pass_env.len()
+            );
+            for var in &self.pass_env {
+                eprintln!("{blue}[cplt]{nc}    Extra:         {yellow}{var}{nc}");
+            }
+        } else {
+            eprintln!(
+                "{blue}[cplt]{nc}    Mode:          {green}sanitized{nc}   {dim}safe allowlist only{nc}"
+            );
+        }
+        eprintln!(
+            "{blue}[cplt]{nc}    Stripped:      {dim}AWS_*, NPM_TOKEN, DATABASE_URL, SSH_AUTH_SOCK, ...{nc}"
+        );
+        eprintln!();
+
         eprintln!(
             "{blue}[cplt]{nc}  {dim}Home:{nc}           {}",
             home_dir.display()
@@ -450,6 +500,15 @@ pub fn default_config_contents() -> String {
 # Needed for build tools like Turbopack (Next.js), Vite, and esbuild
 # that spawn workers communicating via TCP on random localhost ports.
 # allow_localhost_any = false
+#
+# Extra environment variables to pass through to the sandbox.
+# By default, only a safe allowlist is passed (PATH, HOME, TERM, etc.)
+# and cloud credentials are stripped. Use this for tool-specific vars.
+# pass_env = ["MY_API_KEY", "CUSTOM_TOOL_CONFIG"]
+#
+# DANGEROUS: Inherit ALL environment variables (disables sanitization).
+# Cloud credentials, npm tokens, database URLs, etc. will be visible.
+# inherit_env = false
 "#
     .to_string()
 }
@@ -598,6 +657,8 @@ validate = false
                 false,
                 false,
                 false,
+                vec![],
+                false,
             )
             .unwrap();
         assert!(resolved.with_proxy);
@@ -619,6 +680,8 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
+                vec![],
                 false,
             )
             .unwrap();
@@ -642,6 +705,8 @@ validate = false
                 false,
                 false,
                 false,
+                vec![],
+                false,
             )
             .unwrap();
         assert!(resolved.with_proxy);
@@ -663,6 +728,8 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
+                vec![],
                 false,
             )
             .unwrap();
@@ -686,6 +753,8 @@ validate = false
                 false,
                 false,
                 false,
+                vec![],
+                false,
             )
             .unwrap();
         assert_eq!(resolved.proxy_port, 9090);
@@ -707,6 +776,8 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
+                vec![],
                 false,
             )
             .unwrap();
@@ -730,6 +801,8 @@ validate = false
                 false,
                 false,
                 true,
+                vec![],
+                false,
             )
             .unwrap();
         assert!(resolved.no_validate);
@@ -751,6 +824,8 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
+                vec![],
                 false,
             )
             .unwrap();
@@ -775,6 +850,8 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
+                vec![],
                 false,
             )
             .unwrap();
@@ -804,6 +881,8 @@ validate = false
             false,
             false,
             false,
+            vec![],
+            false,
         );
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("cannot be resolved"));
@@ -832,6 +911,8 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
+                vec![],
                 false,
             )
             .unwrap();
@@ -872,6 +953,8 @@ validate = false
                 false,
                 true,
                 false,
+                vec![],
+                false,
             )
             .unwrap();
         assert!(resolved.allow_env_files);
@@ -894,6 +977,8 @@ validate = false
                 false,
                 false,
                 false,
+                vec![],
+                false,
             )
             .unwrap();
         assert!(resolved.allow_env_files);
@@ -915,6 +1000,8 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
+                vec![],
                 false,
             )
             .unwrap();

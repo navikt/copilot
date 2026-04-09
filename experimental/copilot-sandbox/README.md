@@ -27,7 +27,9 @@ We'd rather ship something small that actually works than something impressive t
 |---|---|---|
 | Read/write project directory | ✅ Allowed | |
 | Read `.env*`, `.pem`, `.key` in project | 🔒 Kernel-blocked | Prevents secret exfiltration; `--allow-env-files` to override |
-| Read/write `~/.copilot` (auth, settings, native modules) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node`, `computer.node` |
+| Read/write `~/.copilot` (auth, settings) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node`, `computer.node` |
+| Write `~/.copilot/pkg` (native modules) | 🔒 Kernel-blocked | Prevents persistence via native module replacement |
+| Environment variables | 🔒 Sanitized | Only safe allowlist passes through; `--pass-env VAR` to add extras |
 | Read `~/.config/gh/hosts.yml` + `config.yml` | ✅ Allowed (read-only) | Only these two files — rest of `.config/gh` is blocked |
 | Read `~/.config/mise` | ✅ Allowed (read-only) | Tool versions and PATH — no secrets |
 | Read `~/.gitconfig`, `~/.config/git/config` | ✅ Allowed (read-only) | |
@@ -121,6 +123,15 @@ The project directory is the primary writable workspace, plus a narrow allowlist
 | `--allow-localhost <PORT>` | Allow outbound to `localhost` on a specific port (localhost is blocked by default). Use for MCP servers or dev servers. Can be repeated. |
 | `--allow-localhost-any` | Allow outbound to `localhost` on **all** ports. Needed for build tools like Turbopack (Next.js) and Vite that use random ephemeral ports for IPC. |
 
+### Environment variables
+
+By default, `cplt` sanitizes the child environment — only safe variables pass through (see `ENV_ALLOWLIST` in `sandbox.rs`). Cloud credentials, database URLs, and package tokens are stripped.
+
+| Flag | What it does |
+|---|---|
+| `--pass-env <VAR>` | Explicitly pass an environment variable through to Copilot. Can be repeated. |
+| `--inherit-env` | ⚠️ **Dangerous.** Inherit the full parent environment (only strips `NO_COLOR`, `FORCE_COLOR`, `SSH_AUTH_SOCK`, `SSH_AGENT_PID`). Use only for debugging. |
+
 ### Proxy (optional)
 
 The proxy is **disabled by default**. Copilot CLI connects directly to its APIs (Node.js does not natively respect `http_proxy`/`https_proxy` env vars). The proxy is useful for:
@@ -177,6 +188,12 @@ cplt --yes -- -p "fix the tests"
 
 # Block a path you don't want Copilot to see
 cplt --deny-path ~/.config/gh -- -p "refactor auth"
+
+# Pass a specific env var through (e.g. custom tool config)
+cplt --pass-env MY_CUSTOM_VAR --pass-env ANOTHER_VAR -- -p "run with custom config"
+
+# Inherit full environment (dangerous — only for debugging)
+cplt --inherit-env -- -p "debug the build"
 
 # Block paste sites (with proxy enabled)
 cplt --with-proxy --blocked-domains ./blocked-domains.txt -- -p "refactor"

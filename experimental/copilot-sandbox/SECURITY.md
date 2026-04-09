@@ -18,14 +18,17 @@ cplt assumes Copilot CLI is an **untrusted agent** executing arbitrary code sugg
 | **Cloud metadata access** | Fetch `169.254.169.254` or CGNAT range | Comprehensive private IP blocklist |
 | **Cross-project access** | Read files outside project directory | Seatbelt subpath restrictions |
 | **Process-group escape** | Kill parent, children continue unsandboxed | `setpgid` + signal forwarding |
+| **Env var credential theft** | Read `AWS_SECRET_ACCESS_KEY` from env | `env_clear()` + safe allowlist |
+| **Persistence via native modules** | Replace `keytar.node` with malware | Deny writes to `~/.copilot/pkg` |
 
 ### Out of scope
 
 - **TLS interception** — the proxy sees CONNECT targets (hostname:port) but not request bodies or responses
 - **macOS kernel exploits** — we rely on Apple's Seatbelt enforcement being correct
-- **Keychain isolation** — Copilot requires Keychain access for auth; this is an accepted trade-off
+- **Keychain isolation** — Copilot requires Keychain access for auth; this is an accepted trade-off. `mach-lookup` is blanket because Node.js needs it for DNS, Security framework, and system services. Scoping to individual service names is impractical (undocumented, version-dependent).
 - **sandbox-exec deprecation** — Apple marks it deprecated but has not removed it; Chromium and VS Code still use it
 - **Code quality** — the sandbox cannot judge whether code written by Copilot contains backdoors; that's a code review problem
+- **`~/.config/gh/hosts.yml` token** — contains the user's GitHub OAuth token. Copilot needs *a* GitHub token to function (via env var or this file). The token is readable inside the sandbox. If this is a concern, set `GH_TOKEN` env var (passes through allowlist) and add `--deny-path ~/.config/gh` to block the file.
 
 ## Real-World Attack Landscape (2025–2026)
 
@@ -94,7 +97,8 @@ A curated blocklist of these domains is included in [`blocked-domains.txt`](bloc
 **Network is port-restricted, not domain-filtered.** SBPL (Seatbelt Profile Language) does not support domain-based filtering. Copilot CLI connects to CDN-backed endpoints (`api.business.githubcopilot.com`) with changing IPs that cannot be enumerated. We allow outbound TCP on port 443 only (use `--allow-port` for extras, e.g. `--allow-port 80` for HTTP). SSH agent access and localhost outbound are blocked at the kernel level. This means:
 
 - A compromised agent CAN make HTTPS requests to attacker-controlled servers on port 443
-- A compromised agent CAN exfiltrate project source code and environment variables
+- A compromised agent CANNOT exfiltrate cloud credentials from env vars (env is sanitized; only safe allowlist passes through)
+- A compromised agent CAN exfiltrate project source code and Copilot auth tokens
 - A compromised agent CANNOT connect to local services (localhost is blocked)
 - A compromised agent CANNOT use loaded SSH keys (unix socket is blocked)
 - A compromised agent CANNOT connect on non-standard ports (e.g., 8080, 3000) unless `--allow-port` is used
@@ -109,9 +113,30 @@ A curated blocklist of these domains is included in [`blocked-domains.txt`](bloc
 - The most valuable targets (credentials, tokens, keys) are kernel-blocked from being read
 - Detectable with DNS monitoring (high-entropy subdomain queries to unusual domains)
 
-Since credentials are inaccessible inside the sandbox, network-based exfiltration can only leak project source code, environment variables, and `~/.config/gh` tokens — a much smaller blast radius than full credential theft.
+Since credentials are inaccessible inside the sandbox (both at filesystem and environment level), network-based exfiltration can only leak project source code and `~/.config/gh` tokens — a much smaller blast radius than full credential theft.
 
 ## Defense Layers
+
+### Layer 0: Environment Variable Sanitization
+
+By default, `cplt` clears the child process environment and re-adds only safe variables from an allowlist. This prevents credential leakage through inherited env vars.
+
+**How it works:**
+1. `cmd.env_clear()` removes all environment variables
+2. Variables matching `ENV_ALLOWLIST` (38 safe vars) are re-added from the parent process
+3. Variables matching `ENV_PREFIX_ALLOWLIST` (6 prefixes like `LC_*`, `COPILOT_*`, `MISE_*`) are re-added
+4. `--pass-env VAR` adds explicit vars (repeatable)
+5. `ENV_ALWAYS_DENY` vars (`NO_COLOR`, `FORCE_COLOR`, `SSH_AUTH_SOCK`, `SSH_AGENT_PID`) are always stripped
+
+**Deliberately allowed:** `GH_TOKEN`, `GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN` — Copilot needs a GitHub token to function. This is an accepted trade-off.
+
+**Deliberately blocked:** `AWS_*`, `AZURE_*`, `NPM_TOKEN`, `DATABASE_URL`, `VAULT_TOKEN`, `SSH_AUTH_SOCK`, Docker vars, CI tokens.
+
+**Escape hatch:** `--inherit-env` disables sanitization and inherits all env vars (still strips `ENV_ALWAYS_DENY`). This is dangerous and should only be used for debugging.
+
+### Layer 0.5: Native Module Write Protection
+
+The sandbox denies writes to `~/.copilot/pkg/` (where Copilot's native modules like `keytar.node` live). This prevents a persistence attack where a rogue agent replaces a native module with malware that executes *unsandboxed* next time Copilot runs outside `cplt`.
 
 ### Layer 1: Seatbelt Kernel Sandbox (sandbox-exec)
 

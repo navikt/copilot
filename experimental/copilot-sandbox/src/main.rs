@@ -115,6 +115,22 @@ struct Cli {
     #[arg(long)]
     allow_env_files: bool,
 
+    /// Pass an additional environment variable through to the sandbox.
+    /// By default, only a safe allowlist of env vars is passed (PATH, HOME,
+    /// TERM, Go/Java/Rust/Node paths, Copilot auth tokens, etc.).
+    /// Cloud credentials (AWS_*, DATABASE_URL, NPM_TOKEN) are stripped.
+    /// Use this to pass specific vars your tools need.
+    /// Can be specified multiple times.
+    #[arg(long = "pass-env", value_name = "VAR")]
+    pass_env: Vec<String>,
+
+    /// Pass ALL environment variables to the sandbox (DANGEROUS).
+    /// Disables env sanitization. Cloud credentials, npm tokens, database URLs,
+    /// and all other env vars will be visible to the sandboxed process.
+    /// Only use when --pass-env is insufficient for debugging.
+    #[arg(long)]
+    inherit_env: bool,
+
     /// Skip the startup check that verifies the sandbox is working.
     /// The check runs a quick test command inside the sandbox to confirm
     /// that file and network restrictions are active.
@@ -318,6 +334,8 @@ fn main() -> ExitCode {
         cli.allow_localhost_any,
         cli.allow_env_files,
         cli.no_validate,
+        cli.pass_env.clone(),
+        cli.inherit_env,
     ) {
         Ok(r) => r,
         Err(e) => {
@@ -605,7 +623,14 @@ fn main() -> ExitCode {
     eprintln!();
 
     // Run copilot inside sandbox
-    let exit_code = sandbox::exec(&profile_path, &project_dir, &home_dir, &cli.copilot_args);
+    let exit_code = sandbox::exec(
+        &profile_path,
+        &project_dir,
+        &home_dir,
+        &cli.copilot_args,
+        &resolved.pass_env,
+        resolved.inherit_env,
+    );
 
     // Cleanup
     let _ = std::fs::remove_file(&profile_path);

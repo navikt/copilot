@@ -765,3 +765,107 @@ fn profile_allows_all_localhost_when_flag_set() {
         "Profile must still allow port 443"
     );
 }
+
+// ============================================================
+// ~/.copilot/pkg write protection (persistence prevention)
+// ============================================================
+
+#[test]
+fn profile_denies_write_to_copilot_pkg() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[],
+        None,
+        false,
+        false,
+    );
+    // Must allow write to ~/.copilot (session state, config)
+    assert!(
+        p.contains("(allow file-write* (subpath \"/Users/test/.copilot\"))"),
+        "Profile must allow write to ~/.copilot"
+    );
+    // Must deny write to ~/.copilot/pkg (native modules — persistence vector)
+    assert!(
+        p.contains("(deny file-write* (subpath \"/Users/test/.copilot/pkg\"))"),
+        "Profile must deny write to ~/.copilot/pkg (prevents persistence via native module replacement)"
+    );
+    // Deny must come AFTER allow (last-match-wins)
+    let allow_pos = p
+        .find("(allow file-write* (subpath \"/Users/test/.copilot\"))")
+        .unwrap();
+    let deny_pos = p
+        .find("(deny file-write* (subpath \"/Users/test/.copilot/pkg\"))")
+        .unwrap();
+    assert!(
+        deny_pos > allow_pos,
+        "Deny of ~/.copilot/pkg must come after allow of ~/.copilot (last-match-wins)"
+    );
+}
+
+// ============================================================
+// Environment variable allowlist
+// ============================================================
+
+#[test]
+fn env_allowlist_includes_essential_vars() {
+    use cplt::sandbox::{ENV_ALLOWLIST, ENV_PREFIX_ALLOWLIST};
+
+    // Core system vars
+    assert!(ENV_ALLOWLIST.contains(&"HOME"));
+    assert!(ENV_ALLOWLIST.contains(&"PATH"));
+    assert!(ENV_ALLOWLIST.contains(&"TERM"));
+    assert!(ENV_ALLOWLIST.contains(&"SHELL"));
+    assert!(ENV_ALLOWLIST.contains(&"USER"));
+
+    // Copilot auth (accepted trade-off)
+    assert!(ENV_ALLOWLIST.contains(&"GH_TOKEN"));
+    assert!(ENV_ALLOWLIST.contains(&"GITHUB_TOKEN"));
+    assert!(ENV_ALLOWLIST.contains(&"COPILOT_GITHUB_TOKEN"));
+
+    // Tool paths
+    assert!(ENV_ALLOWLIST.contains(&"JAVA_HOME"));
+    assert!(ENV_ALLOWLIST.contains(&"GOPATH"));
+    assert!(ENV_ALLOWLIST.contains(&"CARGO_HOME"));
+
+    // Prefixes
+    assert!(ENV_PREFIX_ALLOWLIST.contains(&"LC_"));
+    assert!(ENV_PREFIX_ALLOWLIST.contains(&"COPILOT_"));
+    assert!(ENV_PREFIX_ALLOWLIST.contains(&"MISE_"));
+}
+
+#[test]
+fn env_allowlist_excludes_dangerous_vars() {
+    use cplt::sandbox::{ENV_ALLOWLIST, ENV_PREFIX_ALLOWLIST};
+
+    // Cloud credentials
+    assert!(!ENV_ALLOWLIST.contains(&"AWS_SECRET_ACCESS_KEY"));
+    assert!(!ENV_ALLOWLIST.contains(&"AWS_ACCESS_KEY_ID"));
+    assert!(!ENV_ALLOWLIST.contains(&"AWS_SESSION_TOKEN"));
+    assert!(!ENV_ALLOWLIST.contains(&"AZURE_CLIENT_SECRET"));
+    assert!(!ENV_ALLOWLIST.contains(&"GOOGLE_APPLICATION_CREDENTIALS"));
+
+    // Package registry tokens
+    assert!(!ENV_ALLOWLIST.contains(&"NPM_TOKEN"));
+    assert!(!ENV_ALLOWLIST.contains(&"NODE_AUTH_TOKEN"));
+    assert!(!ENV_ALLOWLIST.contains(&"PYPI_TOKEN"));
+
+    // Database / service credentials
+    assert!(!ENV_ALLOWLIST.contains(&"DATABASE_URL"));
+    assert!(!ENV_ALLOWLIST.contains(&"VAULT_TOKEN"));
+    assert!(!ENV_ALLOWLIST.contains(&"CONSUL_HTTP_TOKEN"));
+
+    // SSH agent
+    assert!(!ENV_ALLOWLIST.contains(&"SSH_AUTH_SOCK"));
+    assert!(!ENV_ALLOWLIST.contains(&"SSH_AGENT_PID"));
+
+    // No dangerous prefixes
+    assert!(!ENV_PREFIX_ALLOWLIST.contains(&"AWS_"));
+    assert!(!ENV_PREFIX_ALLOWLIST.contains(&"AZURE_"));
+    assert!(!ENV_PREFIX_ALLOWLIST.contains(&"VAULT_"));
+}

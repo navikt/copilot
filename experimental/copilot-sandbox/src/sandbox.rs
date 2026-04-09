@@ -66,6 +66,85 @@ const TOOL_READ_DIRS: &[&str] = &[
     "/opt/homebrew",
 ];
 
+/// Environment variables safe to pass through to the sandboxed process.
+/// Deliberately excludes cloud credentials (AWS_*, AZURE_*), CI tokens,
+/// npm/pip tokens, database URLs, and other secrets.
+pub const ENV_ALLOWLIST: &[&str] = &[
+    // Core system
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    // Terminal
+    "TERM",
+    "COLORTERM",
+    "TERM_PROGRAM",
+    "TERM_PROGRAM_VERSION",
+    "COLUMNS",
+    "LINES",
+    // Path
+    "PATH",
+    // Copilot auth — accepted trade-off: Copilot needs a GitHub token to function.
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "COPILOT_GITHUB_TOKEN",
+    // XDG directories
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_RUNTIME_DIR",
+    // Node.js
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "NODE_ENV",
+    "NODE_EXTRA_CA_CERTS",
+    "NPM_CONFIG_CACHE",
+    "NPM_CONFIG_PREFIX",
+    // Go
+    "GOPATH",
+    "GOROOT",
+    "GOBIN",
+    "GOCACHE",
+    "GOMODCACHE",
+    "GOPROXY",
+    "GOPRIVATE",
+    // Java/JVM
+    "JAVA_HOME",
+    "GRADLE_HOME",
+    "GRADLE_USER_HOME",
+    "MAVEN_HOME",
+    "M2_HOME",
+    // Rust
+    "CARGO_HOME",
+    "RUSTUP_HOME",
+    // Python
+    "VIRTUAL_ENV",
+    "PYTHONPATH",
+    // Editor
+    "EDITOR",
+    "VISUAL",
+    "PAGER",
+];
+
+/// Environment variable prefixes safe to pass through.
+pub const ENV_PREFIX_ALLOWLIST: &[&str] = &[
+    "LC_",      // Locale
+    "LANG",     // Locale (LANG, LANGUAGE)
+    "COPILOT_", // Copilot-specific config
+    "MISE_",    // mise tool manager
+    "NVM_",     // nvm
+    "SDKMAN_",  // SDKMAN
+];
+
+/// Environment variables that are always stripped, even with --inherit-env.
+const ENV_ALWAYS_DENY: &[&str] = &[
+    "NO_COLOR",      // Color suppression from parent runtime
+    "FORCE_COLOR",   // Color suppression from parent runtime
+    "SSH_AUTH_SOCK", // SSH agent — intentionally blocked in sandbox
+    "SSH_AGENT_PID", // SSH agent PID
+];
+
 /// Tool directories under $HOME that get read access.
 /// NOTE: Only tool/binary dirs, never source code dirs.
 /// ~/go/src is intentionally excluded — it contains other repos.
@@ -193,6 +272,11 @@ pub fn generate_profile(
         "(allow file-map-executable (subpath \"{home}/.copilot\"))"
     )
     .unwrap();
+    // Deny writes to Copilot's installed packages (native modules).
+    // Prevents persistence: a rogue agent could replace keytar.node with a
+    // malicious version that runs unsandboxed next time Copilot is launched.
+    // Must come after the allow (last-match-wins).
+    writeln!(sb, "(deny file-write* (subpath \"{home}/.copilot/pkg\"))").unwrap();
     writeln!(sb).unwrap();
 
     // GitHub CLI auth — Copilot spawns `gh auth token` which reads these specific files.
@@ -440,11 +524,19 @@ pub fn validate(profile_path: &Path, _project_dir: &Path, _home_dir: &Path) -> R
 }
 
 /// Execute copilot inside the sandbox, forwarding signals to the child process group.
+///
+/// Environment handling:
+/// - Default (inherit_env=false): env_clear() + allowlist only. Cloud credentials,
+///   npm tokens, database URLs, etc. are stripped. Use `extra_pass_env` for extras.
+/// - Legacy (inherit_env=true): all env vars inherited, only SSH_AUTH_SOCK and
+///   color vars are stripped. Use only when the default breaks something.
 pub fn exec(
     profile_path: &Path,
     project_dir: &Path,
     _home_dir: &Path,
     copilot_args: &[String],
+    extra_pass_env: &[String],
+    inherit_env: bool,
 ) -> u8 {
     let mut cmd = std::process::Command::new("sandbox-exec");
     cmd.arg("-f").arg(profile_path).arg("copilot");
@@ -456,12 +548,34 @@ pub fn exec(
     // Set working directory to project
     cmd.current_dir(project_dir);
 
-    // Remove color-suppression env vars that the parent runtime may set.
-    // Copilot CLI (Node.js/chalk) respects NO_COLOR and FORCE_COLOR — if our
-    // parent (e.g. Copilot agent) set them, the sandboxed Copilot would lose
-    // colors even though it has a real TTY.
-    cmd.env_remove("NO_COLOR");
-    cmd.env_remove("FORCE_COLOR");
+    // Environment sanitization
+    if inherit_env {
+        // Legacy mode: pass everything, strip known-bad vars
+        for var in ENV_ALWAYS_DENY {
+            cmd.env_remove(var);
+        }
+    } else {
+        // Secure mode: clear env, pass only allowlisted vars
+        cmd.env_clear();
+        for var in ENV_ALLOWLIST {
+            if let Ok(val) = std::env::var(var) {
+                cmd.env(var, val);
+            }
+        }
+        for (key, val) in std::env::vars() {
+            if ENV_PREFIX_ALLOWLIST
+                .iter()
+                .any(|prefix| key.starts_with(prefix))
+            {
+                cmd.env(&key, val);
+            }
+        }
+        for var in extra_pass_env {
+            if let Ok(val) = std::env::var(var) {
+                cmd.env(var, val);
+            }
+        }
+    }
 
     // Child inherits our process group — terminal signals (Ctrl+C)
     // reach both parent and child naturally. No setpgid/tcsetpgrp needed.
