@@ -300,18 +300,16 @@ impl Resolved {
             }
         }
         if self.allow_env_files {
-            eprintln!("{blue}[cplt]{nc}    .env/.pem/.key {yellow}allowed{nc}     {dim}(--allow-env-files){nc}");
-        } else {
             eprintln!(
-                "{blue}[cplt]{nc}    .env/.pem/.key blocked     {dim}secrets protected{nc}"
+                "{blue}[cplt]{nc}    .env/.pem/.key {yellow}allowed{nc}     {dim}(--allow-env-files){nc}"
             );
+        } else {
+            eprintln!("{blue}[cplt]{nc}    .env/.pem/.key blocked     {dim}secrets protected{nc}");
         }
         eprintln!(
             "{blue}[cplt]{nc}    SSH/GPG/cloud: blocked     {dim}~/.ssh, ~/.gnupg, ~/.aws, ...{nc}"
         );
-        eprintln!(
-            "{blue}[cplt]{nc}    Copilot dir:   {green}allowed{nc}     {dim}~/.copilot{nc}"
-        );
+        eprintln!("{blue}[cplt]{nc}    Copilot dir:   {green}allowed{nc}     {dim}~/.copilot{nc}");
         eprintln!(
             "{blue}[cplt]{nc}    Keychain:      {green}allowed{nc}     {dim}~/Library/Keychains{nc}"
         );
@@ -358,13 +356,9 @@ impl Resolved {
                 self.proxy_port
             );
         } else {
-            eprintln!(
-                "{blue}[cplt]{nc}    Proxy:         off         {dim}direct connections{nc}"
-            );
+            eprintln!("{blue}[cplt]{nc}    Proxy:         off         {dim}direct connections{nc}");
         }
-        eprintln!(
-            "{blue}[cplt]{nc}    SSH agent:     blocked     {dim}use HTTPS, not SSH{nc}"
-        );
+        eprintln!("{blue}[cplt]{nc}    SSH agent:     blocked     {dim}use HTTPS, not SSH{nc}");
         eprintln!();
         eprintln!(
             "{blue}[cplt]{nc}  {dim}Home:{nc}           {}",
@@ -375,12 +369,8 @@ impl Resolved {
                 "{blue}[cplt]{nc}  {dim}Validation:{nc}     skipped     {dim}(--no-validate){nc}"
             );
         }
-        eprintln!(
-            "{blue}[cplt]{nc}  {dim}Full profile:{nc}   cplt --print-profile"
-        );
-        eprintln!(
-            "{blue}[cplt]{nc} ──────────────────────────────────────────────────────"
-        );
+        eprintln!("{blue}[cplt]{nc}  {dim}Full profile:{nc}   cplt --print-profile");
+        eprintln!("{blue}[cplt]{nc} ──────────────────────────────────────────────────────");
     }
 }
 

@@ -129,7 +129,13 @@ mod e2e_tests {
     fn e2e_show_denials_doesnt_crash() {
         require_copilot!();
         let output = Command::new(binary_path())
-            .args(["--yes", "--show-denials", "--no-validate", "--", "--version"])
+            .args([
+                "--yes",
+                "--show-denials",
+                "--no-validate",
+                "--",
+                "--version",
+            ])
             .current_dir(project_dir())
             .output()
             .expect("binary should run");
