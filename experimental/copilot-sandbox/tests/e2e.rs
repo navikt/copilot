@@ -238,7 +238,7 @@ mod e2e_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         assert!(output.status.success());
-        // Port-restricted outbound (443/80 only, no blanket allow)
+        // Port-restricted outbound (443 only, no blanket allow)
         assert!(
             stdout.contains("(allow network-outbound (remote ip \"*:443\"))"),
             "profile should allow port 443.\nstdout: {stdout}"

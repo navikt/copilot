@@ -84,14 +84,14 @@ A curated blocklist of these domains is included in [`blocked-domains.txt`](bloc
 | **1. Infection** | `postinstall` hook runs code | Runs in sandbox — can execute but all restrictions apply | ⚠️ Code runs, but is caged |
 | **2. Recon** | Read hostname, IP, env vars | Can read process env vars (needed for Copilot), hostname | ⚠️ Partial leak possible |
 | **3. Credential harvest** | Read ~/.ssh, ~/.aws, .env | **Kernel-blocked.** macOS Seatbelt denies the read syscall. | ✅ **Stopped** |
-| **4a. HTTP exfil** | POST to discord/webhook/C2 | **Partially mitigated.** Only ports 443/80 allowed; localhost blocked; SSH agent blocked. Credentials are unreadable, limiting blast radius. Proxy blocklist helps if enabled. | ⚠️ **Partially mitigated** |
+| **4a. HTTP exfil** | POST to discord/webhook/C2 | **Partially mitigated.** Only port 443 allowed (HTTPS); localhost blocked; SSH agent blocked. Credentials are unreadable, limiting blast radius. Proxy blocklist helps if enabled. | ⚠️ **Partially mitigated** |
 | **4b. DNS tunneling** | Encode data in DNS queries | Not inspected — DNS bypasses the proxy | ❌ **Not stopped** |
 | **4c. Reverse shell** | Connect back via ngrok | Non-standard ports blocked; `ngrok.io` blocked when proxy enabled; localhost blocked | ⚠️ **Partially mitigated** |
 | **Worm propagation** | Republish infected packages | Can't read npm tokens (in ~/.npmrc, kernel-blocked) | ✅ **Stopped** |
 
 ### Honest gaps
 
-**Network is port-restricted, not domain-filtered.** SBPL (Seatbelt Profile Language) does not support domain-based filtering. Copilot CLI connects to CDN-backed endpoints (`api.business.githubcopilot.com`) with changing IPs that cannot be enumerated. We allow outbound TCP on ports 443 and 80 only (use `--allow-port` for extras). SSH agent access and localhost outbound are blocked at the kernel level. This means:
+**Network is port-restricted, not domain-filtered.** SBPL (Seatbelt Profile Language) does not support domain-based filtering. Copilot CLI connects to CDN-backed endpoints (`api.business.githubcopilot.com`) with changing IPs that cannot be enumerated. We allow outbound TCP on port 443 only (use `--allow-port` for extras, e.g. `--allow-port 80` for HTTP). SSH agent access and localhost outbound are blocked at the kernel level. This means:
 
 - A compromised agent CAN make HTTPS requests to attacker-controlled servers on port 443
 - A compromised agent CAN exfiltrate project source code and environment variables
@@ -135,7 +135,7 @@ The primary defense is Apple's mandatory access control framework, enforced in t
 (allow network-outbound localhost:PORT) ← Carve-out for proxy (if --with-proxy)
 ```
 
-> **Network note:** Outbound TCP is restricted to ports 443/80 by default. SSH agent access (unix sockets) is blocked. Localhost outbound is blocked to prevent SSRF. Use `--allow-port` for additional ports. SBPL does not support domain-based rules — filesystem isolation is the primary security control.
+> **Network note:** Outbound TCP is restricted to port 443 by default. SSH agent access (unix sockets) is blocked. Localhost outbound is blocked to prevent SSRF. Use `--allow-port` for additional ports. SBPL does not support domain-based rules — filesystem isolation is the primary security control.
 
 **Key design decision**: Deny rules are placed AFTER allow rules. In Seatbelt's evaluation model with `(deny default)`, more-specific rules override broader ones, and later rules take precedence for equal specificity. This means our deny rules for `~/.ssh` correctly override the broader temp/system allows.
 

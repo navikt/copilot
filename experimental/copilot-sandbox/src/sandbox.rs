@@ -102,7 +102,7 @@ pub fn validate_sbpl_path(path: &Path) -> Result<(), String> {
 /// All paths are validated for SBPL injection before interpolation.
 /// If `existing_home_tool_dirs` is `Some`, only those dirs are included
 /// (tighter profile via `--doctor` discovery). If `None`, all are included.
-/// `extra_ports` adds outbound TCP ports beyond 443/80 (e.g., 8080 for MCP).
+/// `extra_ports` adds outbound TCP ports beyond 443 (e.g., 80 for HTTP, 8080 for MCP).
 /// `allow_env_files` disables the default deny of `.env*` and key files in the project dir.
 #[allow(clippy::too_many_arguments)]
 pub fn generate_profile(
@@ -370,11 +370,11 @@ pub fn generate_profile(
     )
     .unwrap();
 
-    // Outbound TCP restricted to ports 443 and 80 (HTTPS/HTTP).
-    // Blocks non-standard port exfiltration.
+    // Outbound TCP restricted to port 443 (HTTPS only).
+    // All Copilot/GitHub APIs use HTTPS — port 80 is not needed and would
+    // allow unencrypted exfiltration. Use --allow-port 80 if required.
     writeln!(sb, "(deny network-outbound (remote tcp))").unwrap();
     writeln!(sb, "(allow network-outbound (remote ip \"*:443\"))").unwrap();
-    writeln!(sb, "(allow network-outbound (remote ip \"*:80\"))").unwrap();
 
     // Extra ports (e.g., MCP servers, custom services)
     for port in extra_ports {
@@ -448,6 +448,13 @@ pub fn exec(
 
     // Set working directory to project
     cmd.current_dir(project_dir);
+
+    // Remove color-suppression env vars that the parent runtime may set.
+    // Copilot CLI (Node.js/chalk) respects NO_COLOR and FORCE_COLOR — if our
+    // parent (e.g. Copilot agent) set them, the sandboxed Copilot would lose
+    // colors even though it has a real TTY.
+    cmd.env_remove("NO_COLOR");
+    cmd.env_remove("FORCE_COLOR");
 
     // Child inherits our process group — terminal signals (Ctrl+C)
     // reach both parent and child naturally. No setpgid/tcsetpgrp needed.

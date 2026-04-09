@@ -33,7 +33,7 @@ We'd rather ship something small that actually works than something impressive t
 | Read `~/.gitconfig`, `~/.config/git/config` | ✅ Allowed (read-only) | |
 | Read `~/Library/Application Support/Microsoft` | ✅ Allowed (read-only) | Device ID for telemetry |
 | Access macOS Keychain | ✅ Allowed (read+write) | Security framework locks db during access; Copilot uses `keytar.node` for token storage |
-| Outbound network (ports 443/80) | ✅ Allowed | All other ports blocked — use `--allow-port` to add extras |
+| Outbound network (port 443) | ✅ Allowed | All other ports blocked — use `--allow-port` to add extras |
 | Localhost outbound | 🔒 Kernel-blocked | Prevents local service access; inbound still works for proxy |
 | SSH agent (unix socket) | 🔒 Kernel-blocked | Prevents signing git operations or SSH to hosts |
 | Developer tools (`~/.cargo`, `~/.mise`, etc.) | ✅ Allowed (read-only) | Only dirs that exist on disk; tightened at runtime via `--doctor` |
@@ -117,7 +117,7 @@ The project directory is the primary writable workspace, plus a narrow allowlist
 | `--allow-read <PATH>` | Let Copilot read (read-only) files outside the project (e.g. shared libraries, docs). Can be repeated. |
 | `--allow-write <PATH>` | Let Copilot read AND write outside the project. Use carefully. Can be repeated. |
 | `--deny-path <PATH>` | Block a path that would otherwise be allowed. Deny always wins. Can be repeated. |
-| `--allow-port <PORT>` | Allow outbound TCP on an extra port (default: only 443 and 80). Can be repeated. |
+| `--allow-port <PORT>` | Allow outbound TCP on an extra port (default: only 443). Can be repeated. |
 | `--allow-localhost <PORT>` | Allow outbound to `localhost` on a specific port (localhost is blocked by default). Use for MCP servers or dev servers. Can be repeated. |
 | `--allow-localhost-any` | Allow outbound to `localhost` on **all** ports. Needed for build tools like Turbopack (Next.js) and Vite that use random ephemeral ports for IPC. |
 
@@ -259,7 +259,7 @@ CPLT_CONFIG=/path/to/custom.toml cplt -- --version
 └──────────────────────────────────┘
 ```
 
-**Security model**: deny-by-default filesystem with kernel enforcement. Network is restricted to ports 443/80 by default (use `--allow-port` for extras). SSH agent access and localhost outbound are blocked at the kernel level. The profile generator auto-discovers your environment (`--doctor`) and only includes tool directories that actually exist on disk — fewer rules means a tighter sandbox. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and honest gaps.
+**Security model**: deny-by-default filesystem with kernel enforcement. Network is restricted to port 443 (HTTPS) by default (use `--allow-port` for extras). SSH agent access and localhost outbound are blocked at the kernel level. The profile generator auto-discovers your environment (`--doctor`) and only includes tool directories that actually exist on disk — fewer rules means a tighter sandbox. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and honest gaps.
 
 ## Security trade-offs
 
@@ -277,7 +277,7 @@ Copilot spawns `gh auth token` to authenticate. This reads `~/.config/gh/hosts.y
 
 SBPL (Seatbelt Profile Language) does not support wildcard port filtering by IP range. Copilot connects to multiple CDN-backed endpoints with changing IPs (`api.business.githubcopilot.com`, `api.githubcopilot.com`, `proxy.business.githubcopilot.com`). We cannot enumerate these IPs. Therefore:
 
-- **Only ports 443 and 80 are allowed** — all other outbound TCP ports are blocked at the kernel level
+- **Only port 443 (HTTPS) is allowed** — all other outbound TCP ports are blocked at the kernel level
 - **Localhost outbound is blocked** — prevents access to local services (databases, dev servers, etc.)
 - **SSH agent is blocked** — unix socket access is denied, preventing use of loaded SSH keys
 - **Filesystem isolation is the primary control** — credentials are kernel-blocked regardless of network
@@ -374,10 +374,10 @@ SSH agent access is blocked (unix socket denied), which means:
 
 ### Port restriction
 
-Only ports 443 and 80 are allowed. Services on non-standard ports need `--allow-port`:
+Only port 443 is allowed by default. Services on other ports need `--allow-port`:
 
 - `npm install` from private registries on non-standard ports
-- API calls to services not on 443/80
+- API calls to services not on 443
 - FTP, SMTP, or other protocol connections
 
 ## Limitations

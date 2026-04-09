@@ -453,8 +453,8 @@ fn profile_restricts_outbound_tcp() {
         "Profile must allow port 443"
     );
     assert!(
-        p.contains("(allow network-outbound (remote ip \"*:80\"))"),
-        "Profile must allow port 80"
+        !p.contains("(allow network-outbound (remote ip \"*:80\"))"),
+        "Profile must NOT allow port 80 by default (HTTPS only)"
     );
     assert!(
         p.contains("(allow network-outbound (literal \"/private/var/run/mDNSResponder\"))"),

@@ -87,7 +87,7 @@ struct Cli {
     #[arg(long = "deny-path", value_name = "PATH")]
     deny_paths: Vec<PathBuf>,
 
-    /// Allow outbound TCP to an additional port beyond 443 and 80.
+    /// Allow outbound TCP to an additional port beyond 443.
     /// Use for external services that Copilot needs to reach.
     /// Can be specified multiple times.
     #[arg(long = "allow-port", value_name = "PORT")]
@@ -541,7 +541,7 @@ fn main() -> ExitCode {
     }
     if resolved.with_proxy {
         info(&format!(
-            "Network:   Ports 443/80{}, proxy logging on localhost:{}",
+            "Network:   Port 443{}, proxy logging on localhost:{}",
             if resolved.allow_ports.is_empty() {
                 String::new()
             } else {
@@ -559,7 +559,7 @@ fn main() -> ExitCode {
         ));
     } else {
         info(&format!(
-            "Network:   Ports 443/80{} (use --with-proxy for connection logging)",
+            "Network:   Port 443{} (use --with-proxy for connection logging)",
             if resolved.allow_ports.is_empty() {
                 String::new()
             } else {

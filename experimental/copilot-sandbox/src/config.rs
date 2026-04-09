@@ -44,7 +44,7 @@ pub struct AllowConfig {
     pub read: Vec<String>,
     /// Additional paths to allow writing.
     pub write: Vec<String>,
-    /// Additional outbound TCP ports beyond 443/80.
+    /// Additional outbound TCP ports beyond 443.
     pub ports: Vec<u16>,
     /// Localhost ports to allow (localhost is blocked by default).
     pub localhost: Vec<u16>,
@@ -322,12 +322,12 @@ impl Resolved {
         eprintln!("{blue}[cplt]{nc}  {dim}Network:{nc}");
         if self.allow_ports.is_empty() {
             eprintln!(
-                "{blue}[cplt]{nc}    Outbound:      {green}443, 80{nc}    {dim}HTTPS/HTTP only{nc}"
+                "{blue}[cplt]{nc}    Outbound:      {green}443{nc}          {dim}HTTPS only{nc}"
             );
         } else {
             let ports: Vec<String> = self.allow_ports.iter().map(|p| p.to_string()).collect();
             eprintln!(
-                "{blue}[cplt]{nc}    Outbound:      {green}443, 80, {}{nc}",
+                "{blue}[cplt]{nc}    Outbound:      {green}443, {}{nc}",
                 ports.join(", ")
             );
         }
@@ -416,7 +416,7 @@ pub fn default_config_contents() -> String {
 # ]
 # write = []
 #
-# Additional outbound TCP ports beyond 443 and 80.
+# Additional outbound TCP ports beyond 443.
 # Use for external services.
 # ports = [8080]
 #
