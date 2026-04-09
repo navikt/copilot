@@ -100,6 +100,13 @@ struct Cli {
     #[arg(long = "allow-localhost", value_name = "PORT")]
     allow_localhost: Vec<u16>,
 
+    /// Allow Copilot to read .env files, private keys (.pem, .key), and
+    /// other sensitive files in the project directory. These are blocked
+    /// by default because they often contain secrets that a rogue agent
+    /// could exfiltrate via HTTPS.
+    #[arg(long)]
+    allow_env_files: bool,
+
     /// Skip the startup check that verifies the sandbox is working.
     /// The check runs a quick test command inside the sandbox to confirm
     /// that file and network restrictions are active.
@@ -251,6 +258,7 @@ fn main() -> ExitCode {
         cli_deny_paths,
         cli.allow_ports.clone(),
         cli.allow_localhost.clone(),
+        cli.allow_env_files,
         cli.no_validate,
     ) {
         Ok(r) => r,
@@ -357,6 +365,7 @@ fn main() -> ExitCode {
         &resolved.allow_ports,
         &resolved.allow_localhost,
         proxy_port_for_profile,
+        resolved.allow_env_files,
     );
 
     // --print-profile: dump the SBPL and exit
@@ -461,6 +470,9 @@ fn main() -> ExitCode {
     }
 
     info("Protected: ~/.ssh, ~/.gnupg, ~/.aws, ~/.azure, ~/.kube, ~/.docker, ~/.netrc");
+    if !resolved.allow_env_files {
+        info("Protected: .env*, .pem, .key files in project (--allow-env-files to override)");
+    }
     if resolved.with_proxy {
         info(&format!(
             "Network:   Ports 443/80{}, proxy logging on localhost:{}",

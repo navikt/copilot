@@ -28,6 +28,22 @@ const DENIED_FILES: &[&str] = &[
     ".vault-token",
 ];
 
+/// Sensitive file patterns in the project directory that are denied by default.
+/// These often contain secrets (API keys, database passwords, private keys).
+/// A rogue agent could read and exfiltrate these via HTTPS.
+/// Override with `--allow-env-files` if Copilot genuinely needs them.
+const SENSITIVE_PROJECT_PATTERNS: &[&str] = &[
+    // .env files — the #1 source of leaked secrets in project dirs
+    r"\.env$",
+    r"\.env\..*",
+    // Private key files
+    r"\.pem$",
+    r"\.key$",
+    r"\.p12$",
+    r"\.pfx$",
+    r"\.jks$",
+];
+
 /// System files that tools commonly need (SSL certs, resolv.conf, etc.)
 const SYSTEM_READ_FILES: &[&str] = &[
     "/private/etc/ssl",
@@ -80,6 +96,7 @@ pub fn validate_sbpl_path(path: &Path) -> Result<(), String> {
 /// If `existing_home_tool_dirs` is `Some`, only those dirs are included
 /// (tighter profile via `--doctor` discovery). If `None`, all are included.
 /// `extra_ports` adds outbound TCP ports beyond 443/80 (e.g., 8080 for MCP).
+/// `allow_env_files` disables the default deny of `.env*` and key files in the project dir.
 pub fn generate_profile(
     project_dir: &Path,
     home_dir: &Path,
@@ -90,6 +107,7 @@ pub fn generate_profile(
     extra_ports: &[u16],
     localhost_ports: &[u16],
     proxy_port: Option<u16>,
+    allow_env_files: bool,
 ) -> String {
     let mut sb = String::with_capacity(4096);
     let home = home_dir.to_string_lossy();
@@ -132,6 +150,24 @@ pub fn generate_profile(
     writeln!(sb, "(allow file-read* (subpath \"{project}\"))").unwrap();
     writeln!(sb, "(allow file-write* (subpath \"{project}\"))").unwrap();
     writeln!(sb).unwrap();
+
+    // Sensitive project files — deny read of .env*, .pem, .key etc.
+    // These often contain secrets that could be exfiltrated via HTTPS.
+    // Placed after the project allow so deny wins (more specific filter).
+    // Copilot can still write these files (creating .env from .env.example).
+    if !allow_env_files {
+        writeln!(sb, ";; Sensitive project files — deny read (.env*, keys)").unwrap();
+        for pattern in SENSITIVE_PROJECT_PATTERNS {
+            // SBPL regex matches against the full path, so we anchor to
+            // any directory separator to avoid matching path components.
+            writeln!(
+                sb,
+                "(deny file-read* (regex #\"/{pattern}\"))"
+            )
+            .unwrap();
+        }
+        writeln!(sb).unwrap();
+    }
 
     // Copilot config — the CLI needs its auth tokens and settings.
     // file-map-executable is needed for native Node.js addons (keytar.node, pty.node, computer.node)

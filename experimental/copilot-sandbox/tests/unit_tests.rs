@@ -291,6 +291,7 @@ fn profile_contains_deny_default() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(p.contains("(deny default)"));
 }
@@ -307,6 +308,7 @@ fn profile_allows_tty_ioctl() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(
         p.contains("(allow file-ioctl)"),
@@ -326,6 +328,7 @@ fn profile_grants_project_access() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
     assert!(p.contains("(allow file-write* (subpath \"/projects/app\"))"));
@@ -343,6 +346,7 @@ fn profile_grants_copilot_config_access() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(p.contains("(allow file-read* (subpath \"/Users/test/.copilot\"))"));
 }
@@ -359,6 +363,7 @@ fn profile_denies_sensitive_dirs() {
         &[],
         &[],
         None,
+        false,
     );
     for dir in &[
         ".ssh",
@@ -400,6 +405,7 @@ fn profile_denies_sensitive_files() {
         &[],
         &[],
         None,
+        false,
     );
     for file in &[
         ".netrc",
@@ -429,6 +435,7 @@ fn profile_restricts_outbound_tcp() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(
         p.contains("(deny network-outbound (remote tcp))"),
@@ -468,6 +475,7 @@ fn profile_extra_ports_adds_allows() {
         &[8080, 3000],
         &[],
         None,
+        false,
     );
     assert!(
         p.contains("(allow network-outbound (remote ip \"*:8080\"))"),
@@ -495,6 +503,7 @@ fn profile_proxy_port_allows_localhost() {
         &[],
         &[],
         Some(18080),
+        false,
     );
     assert!(
         p.contains("(allow network-outbound (remote ip \"localhost:18080\"))"),
@@ -518,6 +527,7 @@ fn profile_allow_localhost_opens_specific_ports() {
         &[],
         &[3000, 8080],
         None,
+        false,
     );
     assert!(
         p.contains("(allow network-outbound (remote ip \"localhost:3000\"))"),
@@ -556,6 +566,7 @@ fn profile_deny_rules_come_after_allow_rules() {
         &[],
         &[],
         None,
+        false,
     );
     let allow_pos = p
         .find("(allow file-read* (subpath \"/projects/app\"))")
@@ -581,6 +592,7 @@ fn profile_denies_exec_from_tmp() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(
         p.contains("(deny process-exec (subpath \"/private/tmp\"))"),
@@ -604,6 +616,7 @@ fn profile_allows_gh_config_read_only() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(
         p.contains("(allow file-read* (literal \"/Users/test/.config/gh/hosts.yml\"))"),
@@ -631,9 +644,88 @@ fn profile_allows_file_map_executable_for_copilot() {
         &[],
         &[],
         None,
+        false,
     );
     assert!(
         p.contains("(allow file-map-executable (subpath \"/Users/test/.copilot\"))"),
         "should allow file-map-executable for native Node.js addons (keytar.node, pty.node)"
+    );
+}
+
+// ============================================================
+// Sensitive project file deny (.env, .pem, .key)
+// ============================================================
+
+#[test]
+fn profile_denies_env_files_by_default() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[],
+        None,
+        false,
+    );
+    assert!(
+        p.contains(r#"(deny file-read* (regex #"/\.env$"))"#),
+        "should deny .env files: {p}"
+    );
+    assert!(
+        p.contains(r#"(deny file-read* (regex #"/\.env\..*"))"#),
+        "should deny .env.* files: {p}"
+    );
+    assert!(
+        p.contains(r#"(deny file-read* (regex #"/\.pem$"))"#),
+        "should deny .pem files: {p}"
+    );
+    assert!(
+        p.contains(r#"(deny file-read* (regex #"/\.key$"))"#),
+        "should deny .key files: {p}"
+    );
+}
+
+#[test]
+fn profile_allows_env_files_when_flag_set() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[],
+        None,
+        true,
+    );
+    assert!(
+        !p.contains("deny file-read* (regex"),
+        "should NOT deny any files when allow_env_files is true: {p}"
+    );
+}
+
+#[test]
+fn profile_env_deny_comes_after_project_allow() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[],
+        None,
+        false,
+    );
+    let project_allow = p.find("(allow file-read* (subpath \"/projects/app\"))").unwrap();
+    let env_deny = p.find(r#"(deny file-read* (regex #"/\.env$"))"#).unwrap();
+    assert!(
+        env_deny > project_allow,
+        "env deny must come AFTER project allow for SBPL last-match-wins"
     );
 }
