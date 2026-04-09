@@ -84,21 +84,24 @@ A curated blocklist of these domains is included in [`blocked-domains.txt`](bloc
 | **1. Infection** | `postinstall` hook runs code | Runs in sandbox — can execute but all restrictions apply | ⚠️ Code runs, but is caged |
 | **2. Recon** | Read hostname, IP, env vars | Can read process env vars (needed for Copilot), hostname | ⚠️ Partial leak possible |
 | **3. Credential harvest** | Read ~/.ssh, ~/.aws, .env | **Kernel-blocked.** macOS Seatbelt denies the read syscall. | ✅ **Stopped** |
-| **4a. HTTP exfil** | POST to discord/webhook/C2 | **Not stopped by sandbox.** Outbound TCP is allowed (see [Network limitations](#network-limitations)). Credentials are unreadable, limiting blast radius. Proxy blocklist helps if enabled. | ⚠️ **Partially mitigated** |
+| **4a. HTTP exfil** | POST to discord/webhook/C2 | **Partially mitigated.** Only ports 443/80 allowed; localhost blocked; SSH agent blocked. Credentials are unreadable, limiting blast radius. Proxy blocklist helps if enabled. | ⚠️ **Partially mitigated** |
 | **4b. DNS tunneling** | Encode data in DNS queries | Not inspected — DNS bypasses the proxy | ❌ **Not stopped** |
-| **4c. Reverse shell** | Connect back via ngrok | Outbound TCP is allowed, but blocked-domains list covers `ngrok.io` etc. when proxy is enabled | ⚠️ **Partially mitigated** |
+| **4c. Reverse shell** | Connect back via ngrok | Non-standard ports blocked; `ngrok.io` blocked when proxy enabled; localhost blocked | ⚠️ **Partially mitigated** |
 | **Worm propagation** | Republish infected packages | Can't read npm tokens (in ~/.npmrc, kernel-blocked) | ✅ **Stopped** |
 
 ### Honest gaps
 
-**Outbound network is not filtered.** SBPL (Seatbelt Profile Language) does not support domain-based or wildcard port-based filtering. Copilot CLI connects to CDN-backed endpoints (`api.business.githubcopilot.com`) with changing IPs that cannot be enumerated. We allow all outbound TCP. This means:
+**Network is port-restricted, not domain-filtered.** SBPL (Seatbelt Profile Language) does not support domain-based filtering. Copilot CLI connects to CDN-backed endpoints (`api.business.githubcopilot.com`) with changing IPs that cannot be enumerated. We allow outbound TCP on ports 443 and 80 only (use `--allow-port` for extras). SSH agent access and localhost outbound are blocked at the kernel level. This means:
 
-- A compromised agent CAN make HTTP requests to attacker-controlled servers
+- A compromised agent CAN make HTTPS requests to attacker-controlled servers on port 443
 - A compromised agent CAN exfiltrate project source code and environment variables
+- A compromised agent CANNOT connect to local services (localhost is blocked)
+- A compromised agent CANNOT use loaded SSH keys (unix socket is blocked)
+- A compromised agent CANNOT connect on non-standard ports (e.g., 8080, 3000) unless `--allow-port` is used
 - A compromised agent CANNOT exfiltrate SSH keys, cloud credentials, or npm tokens (kernel-blocked from reading them)
 - The proxy (when enabled with `--with-proxy`) provides logging and domain blocking for tools that respect `http_proxy`, but Copilot's own Node.js traffic bypasses it
 
-**`~/.config/gh` is readable.** Copilot spawns `gh auth token` inside the sandbox. This file contains a GitHub OAuth token. With outbound TCP allowed, a compromised agent could theoretically exfiltrate this token. However, the token grants access to GitHub — which Copilot is already connected to. Users who want to mitigate this can use `--deny-path ~/.config/gh` (Copilot will fall back to Keychain auth).
+**`~/.config/gh/hosts.yml` is readable.** Copilot spawns `gh auth token` inside the sandbox. This file contains a GitHub OAuth token. Only `hosts.yml` and `config.yml` are readable (not the entire `.config/gh` directory). With outbound port 443 allowed, a compromised agent could theoretically exfiltrate this token. However, the token grants access to GitHub — which Copilot is already connected to. Users who want to mitigate this can use `--deny-path ~/.config/gh` (Copilot will fall back to Keychain auth).
 
 **DNS tunneling** is the one channel we cannot inspect. However:
 - Bandwidth is ~15 KB/s at best (encoding overhead in subdomain labels)
@@ -122,14 +125,17 @@ The primary defense is Apple's mandatory access control framework, enforced in t
 (allow process-exec/fork)               ← Allow running programs
 (allow file-read/write project_dir)     ← Project access
 (allow file-read ~/.copilot)            ← Auth token access + native modules
-(allow file-read ~/.config/gh)          ← GitHub CLI auth (read-only)
+(allow file-read ~/.config/gh/hosts.yml)← GitHub CLI auth (2 files only)
 (allow file-read/write /private/tmp)    ← Temp file access
 (deny process-exec /private/tmp)        ← But no executing from tmp!
 (deny file-* ~/.ssh, ~/.aws, ...)       ← Sensitive dirs blocked
-(allow network-outbound (remote tcp))   ← Outbound TCP allowed (see note below)
+(deny network-outbound (remote tcp))    ← Block all outbound TCP by default
+(allow network-outbound *:443, *:80)    ← Then allow HTTPS/HTTP ports only
+(deny network-outbound localhost:*)     ← Block localhost SSRF
+(allow network-outbound localhost:PORT) ← Carve-out for proxy (if --with-proxy)
 ```
 
-> **Network note:** Outbound TCP is allowed because Copilot CLI connects directly to `api.business.githubcopilot.com` and other CDN-backed endpoints. SBPL does not support domain-based or wildcard port-based rules. The filesystem isolation is the primary security control.
+> **Network note:** Outbound TCP is restricted to ports 443/80 by default. SSH agent access (unix sockets) is blocked. Localhost outbound is blocked to prevent SSRF. Use `--allow-port` for additional ports. SBPL does not support domain-based rules — filesystem isolation is the primary security control.
 
 **Key design decision**: Deny rules are placed AFTER allow rules. In Seatbelt's evaluation model with `(deny default)`, more-specific rules override broader ones, and later rules take precedence for equal specificity. This means our deny rules for `~/.ssh` correctly override the broader temp/system allows.
 

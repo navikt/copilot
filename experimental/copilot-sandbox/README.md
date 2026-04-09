@@ -27,13 +27,15 @@ We'd rather ship something small that actually works than something impressive t
 |---|---|---|
 | Read/write project directory | ✅ Allowed | |
 | Read/write `~/.copilot` (auth, settings, native modules) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node`, `computer.node` |
-| Read `~/.config/gh` (GitHub CLI auth) | ✅ Allowed (read-only) | Copilot spawns `gh auth token` — see [Security trade-offs](#security-trade-offs) |
+| Read `~/.config/gh/hosts.yml` + `config.yml` | ✅ Allowed (read-only) | Only these two files — rest of `.config/gh` is blocked |
 | Read `~/.gitconfig`, `~/.config/git/config` | ✅ Allowed (read-only) | |
 | Read `~/Library/Application Support/Microsoft` | ✅ Allowed (read-only) | Device ID for telemetry |
 | Access macOS Keychain | ✅ Allowed (read+write) | Security framework locks db during access; Copilot uses `keytar.node` for token storage |
-| Outbound network (TCP) | ✅ Allowed | Copilot needs `api.business.githubcopilot.com` etc. |
-| Localhost inbound (TCP) | ✅ Allowed | Required when proxy is enabled |
+| Outbound network (ports 443/80) | ✅ Allowed | All other ports blocked — use `--allow-port` to add extras |
+| Localhost outbound | 🔒 Kernel-blocked | Prevents local service access; inbound still works for proxy |
+| SSH agent (unix socket) | 🔒 Kernel-blocked | Prevents signing git operations or SSH to hosts |
 | Developer tools (`~/.cargo`, `~/.mise`, etc.) | ✅ Allowed (read-only) | Only dirs that exist on disk; tightened at runtime via `--doctor` |
+| Go source code (`~/go/src`) | 🔒 Kernel-blocked | Only `~/go/bin` and `~/go/pkg` are readable |
 | Read `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure` | 🔒 Kernel-blocked | |
 | Read `~/.kube`, `~/.docker`, `~/.nais` | 🔒 Kernel-blocked | |
 | Read `~/.password-store`, `~/.terraform.d` | 🔒 Kernel-blocked | |
@@ -114,6 +116,7 @@ The project directory is the primary writable workspace, plus a narrow allowlist
 | `--allow-read <PATH>` | Let Copilot read (read-only) files outside the project (e.g. shared libraries, docs). Can be repeated. |
 | `--allow-write <PATH>` | Let Copilot read AND write outside the project. Use carefully. Can be repeated. |
 | `--deny-path <PATH>` | Block a path that would otherwise be allowed. Deny always wins. Can be repeated. |
+| `--allow-port <PORT>` | Allow outbound TCP on an extra port (default: only 443 and 80). Can be repeated. Example: `--allow-port 8080`. |
 
 ### Proxy (optional)
 
@@ -155,6 +158,9 @@ cplt --with-proxy -- -p "fix the tests"
 
 # Let Copilot read a shared library directory
 cplt --allow-read ~/shared-libs -- -p "use shared-libs"
+
+# Allow outbound on extra ports (e.g., dev server)
+cplt --allow-port 8080 --allow-port 3000 -- -p "test the API"
 
 # Block a path you don't want Copilot to see
 cplt --deny-path ~/.config/gh -- -p "refactor auth"
@@ -234,31 +240,36 @@ CPLT_CONFIG=/path/to/custom.toml cplt -- --version
 │  copilot (sandboxed)             │
 │  ├── All child processes         │
 │  ├── Cannot read ~/.ssh          │
-│  ├── Network allowed (TCP)       │
+│  ├── Network port-restricted     │
+│  ├── SSH agent blocked            │
 │  └── Filesystem = primary ctrl   │
 └──────────────────────────────────┘
 ```
 
-**Security model**: deny-by-default filesystem with kernel enforcement. Network is allowed because Copilot needs to reach its API endpoints. The profile generator auto-discovers your environment (`--doctor`) and only includes tool directories that actually exist on disk — fewer rules means a tighter sandbox. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and honest gaps.
+**Security model**: deny-by-default filesystem with kernel enforcement. Network is restricted to ports 443/80 by default (use `--allow-port` for extras). SSH agent access and localhost outbound are blocked at the kernel level. The profile generator auto-discovers your environment (`--doctor`) and only includes tool directories that actually exist on disk — fewer rules means a tighter sandbox. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and honest gaps.
 
 ## Security trade-offs
 
-### `~/.config/gh` is readable
+### `~/.config/gh/hosts.yml` is readable
 
-Copilot spawns `gh auth token` to authenticate. This reads `~/.config/gh/hosts.yml` which contains a GitHub OAuth token. We allow this because:
+Copilot spawns `gh auth token` to authenticate. This reads `~/.config/gh/hosts.yml` which contains a GitHub OAuth token. We allow reading only `hosts.yml` and `config.yml` (not the entire `.config/gh` directory) because:
 
 - **Required for auth**: Without `gh` auth, Copilot falls back to Keychain only. Many users rely on `gh` CLI for auth.
 - **Read-only**: The sandbox cannot modify the token file.
+- **Minimal access**: Only the two files `gh` actually reads — extensions, state, and other gh data are blocked.
 - **Same-destination token**: The token is a GitHub token that Copilot already sends to GitHub's API. An attacker would need to exfiltrate it to a *different* server.
-- **Risk**: With outbound TCP allowed, a compromised Copilot could exfiltrate this token. Use `--deny-path ~/.config/gh` if this concerns you (Copilot will use Keychain auth instead).
+- **Risk**: A compromised Copilot could exfiltrate this token via port 443. Use `--deny-path ~/.config/gh` if this concerns you (Copilot will use Keychain auth instead).
 
-### Outbound network is allowed
+### Outbound network is port-restricted
 
-SBPL (Seatbelt Profile Language) does not support wildcard port filtering (e.g., "any host on port 443"). Copilot connects to multiple CDN-backed endpoints with changing IPs (`api.business.githubcopilot.com`, `api.githubcopilot.com`, `proxy.business.githubcopilot.com`). We cannot enumerate these IPs. Therefore:
+SBPL (Seatbelt Profile Language) does not support wildcard port filtering by IP range. Copilot connects to multiple CDN-backed endpoints with changing IPs (`api.business.githubcopilot.com`, `api.githubcopilot.com`, `proxy.business.githubcopilot.com`). We cannot enumerate these IPs. Therefore:
 
-- **All outbound TCP is allowed** — this is a pragmatic choice, not a security ideal
+- **Only ports 443 and 80 are allowed** — all other outbound TCP ports are blocked at the kernel level
+- **Localhost outbound is blocked** — prevents access to local services (databases, dev servers, etc.)
+- **SSH agent is blocked** — unix socket access is denied, preventing use of loaded SSH keys
 - **Filesystem isolation is the primary control** — credentials are kernel-blocked regardless of network
 - **The proxy cannot intercept Copilot traffic** — Node.js ignores `http_proxy` env vars, and setting them breaks auth
+- **Use `--allow-port`** to add extra ports when needed (e.g., `--allow-port 8080` for a dev server)
 
 See [SECURITY.md](SECURITY.md) for the full threat model and honest gaps.
 

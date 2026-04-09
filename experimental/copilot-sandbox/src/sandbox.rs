@@ -45,13 +45,16 @@ const SYSTEM_READ_FILES: &[&str] = &[
 const TOOL_READ_DIRS: &[&str] = &["/usr/bin", "/usr/lib", "/usr/local", "/opt/homebrew"];
 
 /// Tool directories under $HOME that get read access.
+/// NOTE: Only tool/binary dirs, never source code dirs.
+/// ~/go/src is intentionally excluded — it contains other repos.
 const HOME_TOOL_DIRS: &[&str] = &[
     ".local",
     ".mise",
     ".nvm",
     ".cargo",
     ".rustup",
-    "go",
+    "go/bin",
+    "go/pkg",
     "Library/Caches",
 ];
 
@@ -76,6 +79,7 @@ pub fn validate_sbpl_path(path: &Path) -> Result<(), String> {
 /// All paths are validated for SBPL injection before interpolation.
 /// If `existing_home_tool_dirs` is `Some`, only those dirs are included
 /// (tighter profile via `--doctor` discovery). If `None`, all are included.
+/// `extra_ports` adds outbound TCP ports beyond 443/80 (e.g., 8080 for MCP).
 pub fn generate_profile(
     project_dir: &Path,
     home_dir: &Path,
@@ -83,6 +87,8 @@ pub fn generate_profile(
     extra_write: &[PathBuf],
     extra_deny: &[PathBuf],
     existing_home_tool_dirs: Option<&[String]>,
+    extra_ports: &[u16],
+    proxy_port: Option<u16>,
 ) -> String {
     let mut sb = String::with_capacity(4096);
     let home = home_dir.to_string_lossy();
@@ -139,9 +145,19 @@ pub fn generate_profile(
     .unwrap();
     writeln!(sb).unwrap();
 
-    // GitHub CLI auth — copilot spawns `gh` to read auth tokens (read-only)
-    writeln!(sb, ";; GitHub CLI auth (read-only)").unwrap();
-    writeln!(sb, "(allow file-read* (subpath \"{home}/.config/gh\"))").unwrap();
+    // GitHub CLI auth — Copilot spawns `gh auth token` which reads these specific files.
+    // Only the auth files, not the entire ~/.config/gh directory.
+    writeln!(sb, ";; GitHub CLI auth (specific files only)").unwrap();
+    writeln!(
+        sb,
+        "(allow file-read* (literal \"{home}/.config/gh/hosts.yml\"))"
+    )
+    .unwrap();
+    writeln!(
+        sb,
+        "(allow file-read* (literal \"{home}/.config/gh/config.yml\"))"
+    )
+    .unwrap();
     writeln!(sb).unwrap();
 
     // Microsoft DeviceID — telemetry device identifier
@@ -280,25 +296,46 @@ pub fn generate_profile(
     }
     writeln!(sb).unwrap();
 
-    // Network — allow outbound to public IPs, block private/internal networks.
-    // Node.js doesn't natively respect http_proxy/https_proxy, so Copilot CLI
-    // connects directly to api.githubcopilot.com, api.business.githubcopilot.com,
-    // proxy.business.githubcopilot.com etc. We can't do domain-based rules in SBPL,
-    // so we allow general outbound but block private IPs to protect local network.
-    // The proxy (when enabled) provides logging/filtering for traffic that uses it.
-    writeln!(sb, ";; Network — allow outbound, block private networks").unwrap();
+    // Network — outbound restricted to HTTPS/HTTP, localhost blocked by default.
+    // Copilot CLI connects directly to api.githubcopilot.com:443 etc.
+    // We can't do domain-based rules in SBPL, but we can restrict ports and
+    // block localhost to prevent SSRF attacks against local services.
+    writeln!(sb, ";; Network — restricted outbound, localhost blocked").unwrap();
 
-    // DNS resolution
+    // DNS resolution — only the specific mDNSResponder socket, NOT all unix-sockets.
+    // Blocking (remote unix-socket) prevents SSH agent access via launchd sockets.
     writeln!(
         sb,
         "(allow network-outbound (literal \"/private/var/run/mDNSResponder\"))"
     )
     .unwrap();
-    writeln!(sb, "(allow network-outbound (remote unix-socket))").unwrap();
 
-    // Allow general TCP outbound (needed for Copilot API endpoints)
-    writeln!(sb, "(allow network-outbound (remote tcp))").unwrap();
-    // Allow inbound for localhost services (proxy, MCP servers, etc.)
+    // Outbound TCP restricted to ports 443 and 80 (HTTPS/HTTP).
+    // Blocks non-standard port exfiltration.
+    writeln!(sb, "(deny network-outbound (remote tcp))").unwrap();
+    writeln!(sb, "(allow network-outbound (remote ip \"*:443\"))").unwrap();
+    writeln!(sb, "(allow network-outbound (remote ip \"*:80\"))").unwrap();
+
+    // Extra ports (e.g., MCP servers, custom services)
+    for port in extra_ports {
+        writeln!(sb, "(allow network-outbound (remote ip \"*:{port}\"))").unwrap();
+    }
+
+    // Block localhost outbound — prevents SSRF to local dev servers, databases, etc.
+    // Must come AFTER port allows so it overrides them for localhost.
+    writeln!(sb, "(deny network-outbound (remote ip \"localhost:*\"))").unwrap();
+
+    // Carve-out: allow localhost proxy port when proxy is active
+    if let Some(port) = proxy_port {
+        writeln!(
+            sb,
+            "(allow network-outbound (remote ip \"localhost:{port}\"))"
+        )
+        .unwrap();
+    }
+
+    // Allow inbound for localhost services (proxy listener, MCP servers).
+    // This only allows accepting connections, not initiating them.
     writeln!(sb, "(allow network-inbound (local tcp))").unwrap();
 
     sb

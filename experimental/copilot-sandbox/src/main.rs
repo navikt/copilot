@@ -87,6 +87,12 @@ struct Cli {
     #[arg(long = "deny-path", value_name = "PATH")]
     deny_paths: Vec<PathBuf>,
 
+    /// Allow outbound TCP to an additional port beyond 443 and 80.
+    /// Use for MCP servers or other services that Copilot needs to reach.
+    /// Can be specified multiple times.
+    #[arg(long = "allow-port", value_name = "PORT")]
+    allow_ports: Vec<u16>,
+
     /// Skip the startup check that verifies the sandbox is working.
     /// The check runs a quick test command inside the sandbox to confirm
     /// that file and network restrictions are active.
@@ -236,6 +242,7 @@ fn main() -> ExitCode {
         cli_allow_read,
         cli_allow_write,
         cli_deny_paths,
+        cli.allow_ports.clone(),
         cli.no_validate,
     ) {
         Ok(r) => r,
@@ -327,6 +334,11 @@ fn main() -> ExitCode {
     let existing_dirs = tool_discovery.existing_home_tool_dirs;
 
     // Generate sandbox profile
+    let proxy_port_for_profile = if resolved.with_proxy {
+        Some(resolved.proxy_port)
+    } else {
+        None
+    };
     let profile = sandbox::generate_profile(
         &project_dir,
         &home_dir,
@@ -334,6 +346,8 @@ fn main() -> ExitCode {
         &resolved.allow_write,
         &resolved.deny_paths,
         Some(&existing_dirs),
+        &resolved.allow_ports,
+        proxy_port_for_profile,
     );
 
     // --print-profile: dump the SBPL and exit
@@ -440,11 +454,23 @@ fn main() -> ExitCode {
     info("Protected: ~/.ssh, ~/.gnupg, ~/.aws, ~/.azure, ~/.kube, ~/.docker, ~/.netrc");
     if resolved.with_proxy {
         info(&format!(
-            "Network:   Outbound allowed, proxy logging on localhost:{}",
+            "Network:   Ports 443/80{}, proxy logging on localhost:{}",
+            if resolved.allow_ports.is_empty() {
+                String::new()
+            } else {
+                format!("+{}", resolved.allow_ports.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(","))
+            },
             resolved.proxy_port
         ));
     } else {
-        info("Network:   Outbound allowed (use --with-proxy for connection logging)");
+        info(&format!(
+            "Network:   Ports 443/80{} (use --with-proxy for connection logging)",
+            if resolved.allow_ports.is_empty() {
+                String::new()
+            } else {
+                format!("+{}", resolved.allow_ports.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(","))
+            }
+        ));
     }
 
     eprintln!();

@@ -104,7 +104,6 @@ mod macos_tests {
                 "(allow network-outbound (literal \"/private/var/run/mDNSResponder\"))"
             )
             .unwrap();
-            writeln!(profile, "(allow network-outbound (remote unix-socket))").unwrap();
         }
 
         let path = unique_profile_path();

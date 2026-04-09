@@ -288,6 +288,8 @@ fn profile_contains_deny_default() {
         &[],
         &[],
         None,
+        &[],
+        None,
     );
     assert!(p.contains("(deny default)"));
 }
@@ -299,6 +301,8 @@ fn profile_allows_tty_ioctl() {
         std::path::Path::new("/Users/test"),
         &[],
         &[],
+        &[],
+        None,
         &[],
         None,
     );
@@ -317,6 +321,8 @@ fn profile_grants_project_access() {
         &[],
         &[],
         None,
+        &[],
+        None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
     assert!(p.contains("(allow file-write* (subpath \"/projects/app\"))"));
@@ -331,6 +337,8 @@ fn profile_grants_copilot_config_access() {
         &[],
         &[],
         None,
+        &[],
+        None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/Users/test/.copilot\"))"));
 }
@@ -342,6 +350,8 @@ fn profile_denies_sensitive_dirs() {
         std::path::Path::new("/Users/test"),
         &[],
         &[],
+        &[],
+        None,
         &[],
         None,
     );
@@ -382,6 +392,8 @@ fn profile_denies_sensitive_files() {
         &[],
         &[],
         None,
+        &[],
+        None,
     );
     for file in &[
         ".netrc",
@@ -400,7 +412,7 @@ fn profile_denies_sensitive_files() {
 }
 
 #[test]
-fn profile_allows_outbound_tcp() {
+fn profile_restricts_outbound_tcp() {
     let p = generate_profile(
         std::path::Path::new("/projects/app"),
         std::path::Path::new("/Users/test"),
@@ -408,14 +420,80 @@ fn profile_allows_outbound_tcp() {
         &[],
         &[],
         None,
+        &[],
+        None,
     );
     assert!(
-        p.contains("(allow network-outbound (remote tcp))"),
-        "Profile must allow outbound TCP for Copilot API endpoints"
+        p.contains("(deny network-outbound (remote tcp))"),
+        "Profile must deny general TCP before port allows"
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"*:443\"))"),
+        "Profile must allow port 443"
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"*:80\"))"),
+        "Profile must allow port 80"
     );
     assert!(
         p.contains("(allow network-outbound (literal \"/private/var/run/mDNSResponder\"))"),
         "Profile must allow DNS resolution"
+    );
+    assert!(
+        !p.contains("(allow network-outbound (remote unix-socket))"),
+        "Profile must NOT allow unix-socket (blocks SSH agent)"
+    );
+    assert!(
+        p.contains("(deny network-outbound (remote ip \"localhost:*\"))"),
+        "Profile must block localhost outbound"
+    );
+}
+
+#[test]
+fn profile_extra_ports_adds_allows() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[8080, 3000],
+        None,
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"*:8080\"))"),
+        "Profile must allow extra port 8080"
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"*:3000\"))"),
+        "Profile must allow extra port 3000"
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"*:443\"))"),
+        "Profile must still allow port 443"
+    );
+}
+
+#[test]
+fn profile_proxy_port_allows_localhost() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        Some(18080),
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"localhost:18080\"))"),
+        "Profile must allow localhost proxy port"
+    );
+    assert!(
+        p.contains("(deny network-outbound (remote ip \"localhost:*\"))"),
+        "Profile must still have general localhost deny"
     );
 }
 
@@ -426,6 +504,8 @@ fn profile_deny_rules_come_after_allow_rules() {
         std::path::Path::new("/Users/test"),
         &[],
         &[],
+        &[],
+        None,
         &[],
         None,
     );
@@ -450,6 +530,8 @@ fn profile_denies_exec_from_tmp() {
         &[],
         &[],
         None,
+        &[],
+        None,
     );
     assert!(
         p.contains("(deny process-exec (subpath \"/private/tmp\"))"),
@@ -470,14 +552,20 @@ fn profile_allows_gh_config_read_only() {
         &[],
         &[],
         None,
+        &[],
+        None,
     );
     assert!(
-        p.contains("(allow file-read* (subpath \"/Users/test/.config/gh\"))"),
-        "should allow read to .config/gh for GitHub CLI auth"
+        p.contains("(allow file-read* (literal \"/Users/test/.config/gh/hosts.yml\"))"),
+        "should allow read to .config/gh/hosts.yml"
     );
     assert!(
-        !p.contains("(allow file-write* (subpath \"/Users/test/.config/gh\"))"),
-        "should NOT allow write to .config/gh"
+        p.contains("(allow file-read* (literal \"/Users/test/.config/gh/config.yml\"))"),
+        "should allow read to .config/gh/config.yml"
+    );
+    assert!(
+        !p.contains("(subpath \"/Users/test/.config/gh\")"),
+        "should NOT allow subpath access to entire .config/gh directory"
     );
 }
 
@@ -488,6 +576,8 @@ fn profile_allows_file_map_executable_for_copilot() {
         std::path::Path::new("/Users/test"),
         &[],
         &[],
+        &[],
+        None,
         &[],
         None,
     );

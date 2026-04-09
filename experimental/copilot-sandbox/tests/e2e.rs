@@ -220,7 +220,7 @@ mod e2e_tests {
     }
 
     #[test]
-    fn e2e_print_profile_allows_outbound_tcp() {
+    fn e2e_print_profile_restricts_network() {
         require_copilot!();
         let output = Command::new(binary_path())
             .args(["--print-profile"])
@@ -231,9 +231,24 @@ mod e2e_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         assert!(output.status.success());
+        // Port-restricted outbound (443/80 only, no blanket allow)
         assert!(
-            stdout.contains("(allow network-outbound (remote tcp))"),
-            "profile should allow outbound TCP.\nstdout: {stdout}"
+            stdout.contains("(allow network-outbound (remote ip \"*:443\"))"),
+            "profile should allow port 443.\nstdout: {stdout}"
+        );
+        assert!(
+            stdout.contains("(deny network-outbound (remote tcp))"),
+            "profile should deny general TCP before port allows.\nstdout: {stdout}"
+        );
+        // Localhost blocked
+        assert!(
+            stdout.contains("(deny network-outbound (remote ip \"localhost:*\"))"),
+            "profile should block localhost outbound.\nstdout: {stdout}"
+        );
+        // SSH agent blocked (no unix-socket allow)
+        assert!(
+            !stdout.contains("(allow network-outbound (remote unix-socket))"),
+            "profile should NOT allow unix-socket (blocks SSH agent).\nstdout: {stdout}"
         );
     }
 

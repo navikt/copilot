@@ -188,7 +188,8 @@ const HOME_TOOL_DIRS: &[&str] = &[
     ".nvm",
     ".cargo",
     ".rustup",
-    "go",
+    "go/bin",
+    "go/pkg",
     "Library/Caches",
 ];
 
