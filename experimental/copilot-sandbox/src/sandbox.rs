@@ -104,6 +104,7 @@ pub fn validate_sbpl_path(path: &Path) -> Result<(), String> {
 /// (tighter profile via `--doctor` discovery). If `None`, all are included.
 /// `extra_ports` adds outbound TCP ports beyond 443/80 (e.g., 8080 for MCP).
 /// `allow_env_files` disables the default deny of `.env*` and key files in the project dir.
+#[allow(clippy::too_many_arguments)]
 pub fn generate_profile(
     project_dir: &Path,
     home_dir: &Path,
@@ -290,7 +291,7 @@ pub fn generate_profile(
         writeln!(sb, "(allow file-map-executable (subpath \"{home}/{dir}\"))").unwrap();
     }
     // Build caches need write access (go-build, Homebrew, etc.)
-    if home_dirs.iter().any(|d| *d == "Library/Caches") {
+    if home_dirs.contains(&"Library/Caches") {
         writeln!(
             sb,
             "(allow file-write* (subpath \"{home}/Library/Caches\"))"
