@@ -191,6 +191,7 @@ const HOME_TOOL_DIRS: &[&str] = &[
     "go/bin",
     "go/pkg",
     "Library/Caches",
+    "Library/pnpm",
 ];
 
 pub fn discover_tools(home_dir: &Path) -> ToolDiscovery {

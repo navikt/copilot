@@ -72,6 +72,7 @@ const HOME_TOOL_DIRS: &[&str] = &[
     "go/bin",
     "go/pkg",
     "Library/Caches",
+    "Library/pnpm",
 ];
 
 /// Validate that a path is safe for interpolation into SBPL profile strings.
@@ -283,6 +284,13 @@ pub fn generate_profile(
     };
     for dir in &home_dirs {
         writeln!(sb, "(allow file-read* (subpath \"{home}/{dir}\"))").unwrap();
+        // Tool dirs contain executables (cargo, node, pnpm, mise shims, etc.)
+        writeln!(sb, "(allow process-exec (subpath \"{home}/{dir}\"))").unwrap();
+        writeln!(sb, "(allow file-map-executable (subpath \"{home}/{dir}\"))").unwrap();
+    }
+    // Build caches need write access (go-build, Homebrew, etc.)
+    if home_dirs.iter().any(|d| *d == "Library/Caches") {
+        writeln!(sb, "(allow file-write* (subpath \"{home}/Library/Caches\"))").unwrap();
     }
     writeln!(sb).unwrap();
 
