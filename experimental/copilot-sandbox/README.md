@@ -145,6 +145,7 @@ The proxy is **disabled by default**. Copilot CLI connects directly to its APIs 
 | `--print-profile` | Print the generated sandbox profile (SBPL) and exit. |
 | `--show-denials` | Stream macOS sandbox denial logs in real time. |
 | `--no-validate` | Skip the startup check that verifies sandbox restrictions are active. |
+| `-y, --yes` | Skip the interactive confirmation prompt. The configuration summary is still printed for auditability. Required when stdin is not a TTY (CI, scripts). |
 | `--init-config` | Create a starter config file at `~/.config/cplt/config.toml` and exit. |
 
 ### Examples
@@ -170,6 +171,9 @@ cplt --allow-localhost 3000 --allow-localhost 8080 -- -p "use the MCP server"
 
 # Allow all localhost (needed for Next.js/Turbopack, Vite builds)
 cplt --allow-localhost-any -- -p "fix the build"
+
+# Non-interactive / CI usage (skip confirmation prompt)
+cplt --yes -- -p "fix the tests"
 
 # Block a path you don't want Copilot to see
 cplt --deny-path ~/.config/gh -- -p "refactor auth"

@@ -52,7 +52,7 @@ mod e2e_tests {
     fn e2e_copilot_version_inside_sandbox() {
         require_copilot!();
         let output = Command::new(binary_path())
-            .args(["--no-validate", "--", "--version"])
+            .args(["--yes", "--no-validate", "--", "--version"])
             .current_dir(project_dir())
             .output()
             .expect("binary should run");
@@ -75,7 +75,7 @@ mod e2e_tests {
     fn e2e_sandbox_validation_passes() {
         require_copilot!();
         let output = Command::new(binary_path())
-            .args(["--", "--version"])
+            .args(["--yes", "--", "--version"])
             .current_dir(project_dir())
             .output()
             .expect("binary should run");
@@ -100,6 +100,7 @@ mod e2e_tests {
 
         let output = Command::new(binary_path())
             .args([
+                "--yes",
                 "--with-proxy",
                 "--proxy-port",
                 &port.to_string(),
@@ -128,7 +129,7 @@ mod e2e_tests {
     fn e2e_show_denials_doesnt_crash() {
         require_copilot!();
         let output = Command::new(binary_path())
-            .args(["--show-denials", "--no-validate", "--", "--version"])
+            .args(["--yes", "--show-denials", "--no-validate", "--", "--version"])
             .current_dir(project_dir())
             .output()
             .expect("binary should run");
@@ -484,6 +485,7 @@ mod e2e_tests {
         require_copilot!();
         let output = Command::new(binary_path())
             .args([
+                "--yes",
                 "--no-validate",
                 "--",
                 "-p",
@@ -514,6 +516,7 @@ mod e2e_tests {
 
         let output = Command::new(binary_path())
             .args([
+                "--yes",
                 "--with-proxy",
                 "--proxy-port",
                 &port.to_string(),

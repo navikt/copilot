@@ -253,55 +253,134 @@ impl Config {
 }
 
 impl Resolved {
-    /// Log the effective merged configuration.
-    pub fn log_effective(&self) {
+    /// Print comprehensive sandbox configuration summary to stderr.
+    ///
+    /// Shows ALL effective settings including defaults so the user can make
+    /// an informed decision before Copilot is launched. This is a security
+    /// tool — the sandbox boundary must never be hidden.
+    pub fn print_summary(&self, project_dir: &std::path::Path, home_dir: &std::path::Path) {
         let blue = "\x1b[0;34m";
+        let dim = "\x1b[2m";
+        let green = "\x1b[0;32m";
+        let yellow = "\x1b[0;33m";
         let nc = "\x1b[0m";
 
-        if self.with_proxy {
-            eprintln!("{blue}[cplt]{nc} Proxy:    localhost:{}", self.proxy_port);
-        }
+        eprintln!();
+        eprintln!("{blue}[cplt]{nc} ── Sandbox Configuration ─────────────────────────");
+        eprintln!();
+
+        // Filesystem
+        eprintln!("{blue}[cplt]{nc}  {dim}Filesystem:{nc}");
+        eprintln!(
+            "{blue}[cplt]{nc}    Project:       {green}read/write{nc}  {}",
+            project_dir.display()
+        );
         if !self.allow_read.is_empty() {
-            let paths: Vec<String> = self
-                .allow_read
-                .iter()
-                .map(|p| p.display().to_string())
-                .collect();
-            eprintln!("{blue}[cplt]{nc} Allow-R:  {}", paths.join(", "));
+            for p in &self.allow_read {
+                eprintln!(
+                    "{blue}[cplt]{nc}    Extra read:    {green}allowed{nc}     {}",
+                    p.display()
+                );
+            }
         }
         if !self.allow_write.is_empty() {
-            let paths: Vec<String> = self
-                .allow_write
-                .iter()
-                .map(|p| p.display().to_string())
-                .collect();
-            eprintln!("{blue}[cplt]{nc} Allow-RW: {}", paths.join(", "));
+            for p in &self.allow_write {
+                eprintln!(
+                    "{blue}[cplt]{nc}    Extra write:   {yellow}allowed{nc}     {}",
+                    p.display()
+                );
+            }
         }
         if !self.deny_paths.is_empty() {
-            let paths: Vec<String> = self
-                .deny_paths
-                .iter()
-                .map(|p| p.display().to_string())
-                .collect();
-            eprintln!("{blue}[cplt]{nc} Deny:     {}", paths.join(", "));
+            for p in &self.deny_paths {
+                eprintln!(
+                    "{blue}[cplt]{nc}    Deny:          blocked     {}",
+                    p.display()
+                );
+            }
         }
-        if !self.allow_ports.is_empty() {
-            let ports: Vec<String> = self.allow_ports.iter().map(|p| p.to_string()).collect();
-            eprintln!("{blue}[cplt]{nc} Ports:    443, 80, {}", ports.join(", "));
-        }
-        if self.allow_localhost_any {
-            eprintln!("{blue}[cplt]{nc} Localhost: all ports allowed");
-        } else if !self.allow_localhost.is_empty() {
-            let ports: Vec<String> = self.allow_localhost.iter().map(|p| p.to_string()).collect();
+        if self.allow_env_files {
+            eprintln!("{blue}[cplt]{nc}    .env/.pem/.key {yellow}allowed{nc}     {dim}(--allow-env-files){nc}");
+        } else {
             eprintln!(
-                "{blue}[cplt]{nc} Localhost: {}",
-                ports
-                    .iter()
-                    .map(|p| format!(":{p}"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                "{blue}[cplt]{nc}    .env/.pem/.key blocked     {dim}secrets protected{nc}"
             );
         }
+        eprintln!(
+            "{blue}[cplt]{nc}    SSH/GPG/cloud: blocked     {dim}~/.ssh, ~/.gnupg, ~/.aws, ...{nc}"
+        );
+        eprintln!(
+            "{blue}[cplt]{nc}    Copilot dir:   {green}allowed{nc}     {dim}~/.copilot{nc}"
+        );
+        eprintln!(
+            "{blue}[cplt]{nc}    Keychain:      {green}allowed{nc}     {dim}~/Library/Keychains{nc}"
+        );
+        eprintln!(
+            "{blue}[cplt]{nc}    GH CLI config: {green}read-only{nc}   {dim}~/.config/gh/{{hosts,config}}.yml{nc}"
+        );
+        eprintln!();
+
+        // Network
+        eprintln!("{blue}[cplt]{nc}  {dim}Network:{nc}");
+        if self.allow_ports.is_empty() {
+            eprintln!(
+                "{blue}[cplt]{nc}    Outbound:      {green}443, 80{nc}    {dim}HTTPS/HTTP only{nc}"
+            );
+        } else {
+            let ports: Vec<String> = self.allow_ports.iter().map(|p| p.to_string()).collect();
+            eprintln!(
+                "{blue}[cplt]{nc}    Outbound:      {green}443, 80, {}{nc}",
+                ports.join(", ")
+            );
+        }
+        if self.allow_localhost_any {
+            eprintln!(
+                "{blue}[cplt]{nc}    Localhost:     {yellow}all ports{nc}   {dim}(--allow-localhost-any){nc}"
+            );
+        } else if !self.allow_localhost.is_empty() {
+            let ports: Vec<String> = self
+                .allow_localhost
+                .iter()
+                .map(|p| format!(":{p}"))
+                .collect();
+            eprintln!(
+                "{blue}[cplt]{nc}    Localhost:     {yellow}{}{nc}",
+                ports.join(", ")
+            );
+        } else {
+            eprintln!(
+                "{blue}[cplt]{nc}    Localhost:     blocked     {dim}use --allow-localhost <PORT>{nc}"
+            );
+        }
+        if self.with_proxy {
+            eprintln!(
+                "{blue}[cplt]{nc}    Proxy:         {green}on{nc}          {dim}localhost:{}{nc}",
+                self.proxy_port
+            );
+        } else {
+            eprintln!(
+                "{blue}[cplt]{nc}    Proxy:         off         {dim}direct connections{nc}"
+            );
+        }
+        eprintln!(
+            "{blue}[cplt]{nc}    SSH agent:     blocked     {dim}use HTTPS, not SSH{nc}"
+        );
+        eprintln!();
+        eprintln!(
+            "{blue}[cplt]{nc}  {dim}Home:{nc}           {}",
+            home_dir.display()
+        );
+        if self.no_validate {
+            eprintln!(
+                "{blue}[cplt]{nc}  {dim}Validation:{nc}     skipped     {dim}(--no-validate){nc}"
+            );
+        }
+        eprintln!(
+            "{blue}[cplt]{nc}  {dim}Full profile:{nc}   cplt --print-profile"
+        );
+        eprintln!(
+            "{blue}[cplt]{nc} ──────────────────────────────────────────────────────"
+        );
     }
 }
 

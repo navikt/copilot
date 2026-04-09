@@ -144,6 +144,12 @@ struct Cli {
     #[arg(long)]
     doctor: bool,
 
+    /// Skip the interactive confirmation prompt and proceed immediately.
+    /// The sandbox configuration summary is still printed for auditability.
+    /// Required when stdin is not a TTY (CI, scripts, piped input).
+    #[arg(long, short = 'y')]
+    yes: bool,
+
     /// Everything after -- is passed directly to the copilot command.
     /// Example: cplt -- -p "fix the tests"
     #[arg(last = true)]
@@ -187,6 +193,49 @@ fn detect_project_root() -> Option<PathBuf> {
 
 // Use library's is_unsafe_root
 use cplt::is_unsafe_root;
+
+/// Prompt the user to confirm the sandbox configuration.
+///
+/// Returns Ok(()) if the user confirms, Err with message if they decline or
+/// if no TTY is available without --yes.
+fn prompt_confirm(auto_yes: bool) -> Result<(), String> {
+    if auto_yes {
+        eprintln!("{BLUE}[cplt]{NC} Auto-confirmed (--yes)");
+        return Ok(());
+    }
+
+    // Try to open /dev/tty for the controlling terminal.
+    // This works even if stdin is piped.
+    let tty = match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")
+    {
+        Ok(f) => f,
+        Err(_) => {
+            return Err(
+                "No TTY available for confirmation. Use --yes for non-interactive runs."
+                    .to_string(),
+            );
+        }
+    };
+
+    eprint!("{BLUE}[cplt]{NC} Proceed? [y/N] ");
+
+    use std::io::BufRead;
+    let mut reader = std::io::BufReader::new(tty);
+    let mut line = String::new();
+    if reader.read_line(&mut line).is_err() {
+        return Err("Failed to read confirmation input".to_string());
+    }
+
+    let answer = line.trim().to_lowercase();
+    if answer == "y" || answer == "yes" {
+        Ok(())
+    } else {
+        Err("Aborted by user".to_string())
+    }
+}
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -342,7 +391,6 @@ fn main() -> ExitCode {
 
     info(&format!("Project:  {}", project_dir.display()));
     info(&format!("Home:     {}", home_dir.display()));
-    resolved.log_effective();
 
     // Validate all paths that will be interpolated into SBPL profile
     if let Err(e) = sandbox::validate_sbpl_path(&project_dir) {
@@ -426,6 +474,14 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
+    }
+
+    // Print comprehensive summary and confirm before launching Copilot
+    resolved.print_summary(&project_dir, &home_dir);
+    if let Err(e) = prompt_confirm(cli.yes) {
+        error(&e);
+        let _ = std::fs::remove_file(&profile_path);
+        return ExitCode::FAILURE;
     }
 
     // Start proxy if requested
