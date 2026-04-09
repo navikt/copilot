@@ -8,7 +8,7 @@ macOS Seatbelt sandbox wrapper for GitHub Copilot CLI. Runs Copilot inside Apple
 
 In a world of vibe-coded AI tools, this project chooses a different path. We don't do magic. We don't do clever. We do honest, auditable security that you can read, understand, and verify in minutes.
 
-The sandbox is ~1500 lines of Rust that generates a Seatbelt profile and optionally runs a CONNECT proxy. No frameworks, no runtime dependencies, no telemetry. Every security boundary is kernel-enforced and tested. Every design decision is documented with the threat it mitigates and the prior art it builds on.
+The sandbox is ~2500 lines of Rust that generates a Seatbelt profile, auto-discovers your environment, and optionally runs a CONNECT proxy. Four dependencies (clap, libc, serde, toml) — no runtime services, no telemetry. Every security boundary is kernel-enforced and tested. Every design decision is documented with the threat it mitigates and the prior art it builds on.
 
 **Our priorities, in order:**
 
@@ -26,17 +26,24 @@ We'd rather ship something small that actually works than something impressive t
 | Resource | Status | Notes |
 |---|---|---|
 | Read/write project directory | ✅ Allowed | |
-| Read `~/.copilot` (auth, native modules) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node` |
+| Read/write `~/.copilot` (auth, settings, native modules) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node`, `computer.node` |
 | Read `~/.config/gh` (GitHub CLI auth) | ✅ Allowed (read-only) | Copilot spawns `gh auth token` — see [Security trade-offs](#security-trade-offs) |
-| Read `~/.gitconfig` | ✅ Allowed (read-only) | |
-| Access macOS Keychain | ✅ Allowed | Copilot uses `keytar.node` for token storage |
+| Read `~/.gitconfig`, `~/.config/git/config` | ✅ Allowed (read-only) | |
+| Read `~/Library/Application Support/Microsoft` | ✅ Allowed (read-only) | Device ID for telemetry |
+| Access macOS Keychain | ✅ Allowed (read+write) | Security framework locks db during access; Copilot uses `keytar.node` for token storage |
 | Outbound network (TCP) | ✅ Allowed | Copilot needs `api.business.githubcopilot.com` etc. |
-| Read `~/.ssh`, `~/.gnupg`, `~/.aws` | 🔒 Kernel-blocked | |
+| Localhost inbound (TCP) | ✅ Allowed | Required when proxy is enabled |
+| Developer tools (`~/.cargo`, `~/.mise`, etc.) | ✅ Allowed (read-only) | Only dirs that exist on disk; tightened at runtime via `--doctor` |
+| Read `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure` | 🔒 Kernel-blocked | |
 | Read `~/.kube`, `~/.docker`, `~/.nais` | 🔒 Kernel-blocked | |
+| Read `~/.password-store`, `~/.terraform.d` | 🔒 Kernel-blocked | |
 | Read `~/.config/gcloud`, `~/.config/op` | 🔒 Kernel-blocked | |
-| Read `~/.netrc`, `~/.npmrc`, `~/.vault-token` | 🔒 Kernel-blocked | |
-| Execute binaries from `/tmp` | 🔒 Kernel-blocked | Prevents write-then-exec attacks |
+| Read `~/.netrc`, `~/.npmrc`, `~/.pypirc`, `~/.vault-token` | 🔒 Kernel-blocked | |
+| Read `~/.gem/credentials` | 🔒 Kernel-blocked | |
+| Execute binaries from `/tmp`, `/var/folders` | 🔒 Kernel-blocked | Prevents write-then-exec attacks |
 | Child process inheritance | ✅ All restrictions apply to subprocesses | |
+
+This table is a summary. The sandbox also allows access to system files (SSL certs, `/etc/hosts`), temp directories (read/write but no exec), and system tool paths (`/usr/bin`, `/opt/homebrew`). Run `copilot-sandbox --print-profile` to see the complete SBPL rules.
 
 For the full security model, threat analysis, and test strategy, see **[SECURITY.md](SECURITY.md)**.
 
@@ -76,6 +83,9 @@ mise run build:release
 # Run Copilot in sandbox (credentials protected, network allowed)
 copilot-sandbox -- -p "fix the tests"
 
+# Check your environment before running
+copilot-sandbox --doctor
+
 # Verify the sandbox works
 copilot-sandbox -- --version
 
@@ -96,12 +106,12 @@ Everything after `--` is passed directly to the `copilot` command.
 
 ### File access
 
-Copilot can only read and write to the project directory. Everything else (SSH keys, cloud credentials, etc.) is blocked by the kernel.
+The project directory is the primary writable workspace, plus a narrow allowlist required for auth, runtime, and tooling (see capability table above). Everything else (SSH keys, cloud credentials, etc.) is blocked by the kernel.
 
 | Flag | What it does |
 |---|---|
 | `-d, --project-dir <DIR>` | Which directory Copilot can work in. Defaults to the current git repo root. |
-| `--allow-read <PATH>` | Let Copilot read files outside the project (e.g. shared libraries, docs). Can be repeated. |
+| `--allow-read <PATH>` | Let Copilot read (read-only) files outside the project (e.g. shared libraries, docs). Can be repeated. |
 | `--allow-write <PATH>` | Let Copilot read AND write outside the project. Use carefully. Can be repeated. |
 | `--deny-path <PATH>` | Block a path that would otherwise be allowed. Deny always wins. Can be repeated. |
 
@@ -125,6 +135,7 @@ The proxy is **disabled by default**. Copilot CLI connects directly to its APIs 
 
 | Flag | What it does |
 |---|---|
+| `--doctor` | Run environment diagnostics: checks auth, Copilot install, tools, and sandbox paths. Exits 0 if all critical checks pass. |
 | `--print-profile` | Print the generated sandbox profile (SBPL) and exit. |
 | `--show-denials` | Stream macOS sandbox denial logs in real time. |
 | `--no-validate` | Skip the startup check that verifies sandbox restrictions are active. |
@@ -135,6 +146,9 @@ The proxy is **disabled by default**. Copilot CLI connects directly to its APIs 
 ```bash
 # Most common: run Copilot in sandbox
 copilot-sandbox -- -p "fix the tests"
+
+# Check environment before first run
+copilot-sandbox --doctor
 
 # With connection logging
 copilot-sandbox --with-proxy -- -p "fix the tests"
@@ -200,7 +214,7 @@ Set `COPILOT_SANDBOX_CONFIG` to use a config file at a custom location:
 COPILOT_SANDBOX_CONFIG=/path/to/custom.toml copilot-sandbox -- --version
 ```
 
-**Path expansion:** Paths in config support `~/` expansion, resolved relative to the config file directory.
+**Path expansion:** Paths in `[allow]` and `[deny]` support `~/` expansion and are resolved relative to the config file directory. `proxy.blocked_domains` supports `~/` expansion only.
 
 ## Architecture
 
@@ -225,7 +239,7 @@ COPILOT_SANDBOX_CONFIG=/path/to/custom.toml copilot-sandbox -- --version
 └──────────────────────────────────┘
 ```
 
-**Security model**: deny-by-default filesystem with kernel enforcement. Network is allowed because Copilot needs to reach its API endpoints. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and honest gaps.
+**Security model**: deny-by-default filesystem with kernel enforcement. Network is allowed because Copilot needs to reach its API endpoints. The profile generator auto-discovers your environment (`--doctor`) and only includes tool directories that actually exist on disk — fewer rules means a tighter sandbox. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and honest gaps.
 
 ## Security trade-offs
 

@@ -274,7 +274,7 @@ pub fn default_config_contents() -> String {
 [proxy]
 # enabled = false
 # port = 18080
-# blocked_domains = "~/.config/copilot-sandbox/blocked.txt"
+# blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
 
 # ─── Allowed paths ──────────────────────────────────────────
 # Additional paths the sandboxed process may access.

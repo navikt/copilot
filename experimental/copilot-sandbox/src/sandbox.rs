@@ -127,7 +127,7 @@ pub fn generate_profile(
     writeln!(sb).unwrap();
 
     // Copilot config — the CLI needs its auth tokens and settings.
-    // file-map-executable is needed for native Node.js addons (keytar.node, pty.node)
+    // file-map-executable is needed for native Node.js addons (keytar.node, pty.node, computer.node)
     // which are loaded via dlopen() from ~/.copilot/pkg/universal/*/prebuilds/
     writeln!(sb, ";; Copilot config + native modules").unwrap();
     writeln!(sb, "(allow file-read* (subpath \"{home}/.copilot\"))").unwrap();
