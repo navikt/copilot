@@ -58,7 +58,7 @@ const SYSTEM_READ_FILES: &[&str] = &[
 ];
 
 /// Tool directories commonly needed by developers.
-const TOOL_READ_DIRS: &[&str] = &["/usr/bin", "/usr/lib", "/usr/local", "/opt/homebrew"];
+const TOOL_READ_DIRS: &[&str] = &["/bin", "/usr/bin", "/usr/lib", "/usr/local", "/opt/homebrew"];
 
 /// Tool directories under $HOME that get read access.
 /// NOTE: Only tool/binary dirs, never source code dirs.
@@ -129,6 +129,8 @@ pub fn generate_profile(
     writeln!(sb, ";; Process execution").unwrap();
     writeln!(sb, "(allow process-exec)").unwrap();
     writeln!(sb, "(allow process-fork)").unwrap();
+    // Allow sending signals to processes in the same sandbox (e.g. Turbopack killing workers)
+    writeln!(sb, "(allow signal (target same-sandbox))").unwrap();
     writeln!(sb).unwrap();
 
     // TTY/terminal control — needed for interactive CLIs (e.g. Node.js setRawMode)
