@@ -14,10 +14,14 @@ macOS Seatbelt sandbox wrapper for GitHub Copilot CLI. Runs Copilot inside Apple
 | Access macOS Keychain | ✅ Allowed |
 | Read `~/.ssh`, `~/.gnupg`, `~/.aws` | 🔒 Kernel-blocked |
 | Read `~/.kube`, `~/.docker`, `~/.nais` | 🔒 Kernel-blocked |
-| Read `~/.netrc`, `~/.npmrc` | 🔒 Kernel-blocked |
+| Read `~/.config/gcloud`, `~/.config/gh` | 🔒 Kernel-blocked |
+| Read `~/.netrc`, `~/.npmrc`, `~/.vault-token` | 🔒 Kernel-blocked |
 | Direct outbound network | 🔒 Kernel-blocked |
 | Network via localhost proxy | ✅ Allowed (with `--with-proxy`) |
+| Execute binaries from `/tmp` | 🔒 Kernel-blocked |
 | Child process inheritance | ✅ All restrictions apply to subprocesses |
+
+For the full security model, threat analysis, and test strategy, see **[SECURITY.md](SECURITY.md)**.
 
 ## Quick start
 
@@ -125,7 +129,7 @@ COPILOT_SANDBOX_CONFIG=/path/to/custom.toml copilot-sandbox -- --version
 └──────────────────────────────────┘
 ```
 
-**Security model**: deny-by-default. The sandbox profile starts with `(deny default)`, imports macOS `bsd.sb` for system library access, then explicitly allows only what Copilot needs. Sensitive paths are denied AFTER broader allows, which correctly overrides them in Seatbelt's rule evaluation.
+**Security model**: deny-by-default with kernel enforcement. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and how they are tested.
 
 ## Domain blocking
 
@@ -147,9 +151,12 @@ requestbin.com
 - **Keychain access required** — Copilot stores auth tokens in macOS Keychain
 - **`sandbox-exec` is deprecated** — Apple has not removed it but may in future macOS versions
 
+For known attack vectors, out-of-scope threats, and prior art, see [SECURITY.md](SECURITY.md).
+
 ## References
 
+- [SECURITY.md](SECURITY.md) — Full security model, threat analysis, test strategy, and prior art
 - [Apple sandbox-exec(1)](https://keith.github.io/xcode-man-pages/sandbox-exec.1.html)
 - [Chromium Seatbelt V2 Design](https://chromium.googlesource.com/chromium/src/sandbox/+show/refs/heads/main/mac/seatbelt_sandbox_design.md)
+- [OWASP SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
 - [michaelneale/agent-seatbelt-sandbox](https://github.com/michaelneale/agent-seatbelt-sandbox)
-- [HackTricks: macOS Sandbox](https://book.hacktricks.wiki/en/macos-hardening/macos-security-and-privilege-escalation/macos-security-protections/macos-sandbox/index.html)
