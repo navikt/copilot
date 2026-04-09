@@ -153,7 +153,7 @@ fn handle_connect(mut client: TcpStream, target: &str, blocked_file: &PathBuf) {
     // Check blocklist (hostname-level)
     if is_blocked(&host, blocked_file) {
         log_connection("CONNECT", target, "BLOCKED");
-        let _ = client.write_all(b"HTTP/1.1 403 Forbidden\r\n\r\nBlocked by copilot-sandbox\r\n");
+        let _ = client.write_all(b"HTTP/1.1 403 Forbidden\r\n\r\nBlocked by cplt\r\n");
         return;
     }
 

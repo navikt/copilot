@@ -1,4 +1,4 @@
-# copilot-sandbox default domain blocklist
+# cplt default domain blocklist
 #
 # These domains are commonly used as exfiltration endpoints, C2 infrastructure,
 # and reverse shell tunnels in real-world supply chain attacks (2025-2026).
@@ -12,11 +12,11 @@
 #   - Oligo: npm supply chain risks with AI agents
 #
 # Usage:
-#   copilot-sandbox --with-proxy --blocked-domains /path/to/blocked-domains.txt
+#   cplt --with-proxy --blocked-domains /path/to/blocked-domains.txt
 #
-# Or set in ~/.config/copilot-sandbox/config.toml:
+# Or set in ~/.config/cplt/config.toml:
 #   [proxy]
-#   blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
+#   blocked_domains = "~/.config/cplt/blocked-domains.txt"
 #
 # This file is re-read on every proxy request — edit it live without restarting.
 

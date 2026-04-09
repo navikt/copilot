@@ -1,10 +1,10 @@
 # Security Model
 
-This document describes the security architecture of copilot-sandbox, the threat model it addresses, the defense layers it implements, and how they are validated through automated testing.
+This document describes the security architecture of cplt, the threat model it addresses, the defense layers it implements, and how they are validated through automated testing.
 
 ## Threat Model
 
-copilot-sandbox assumes Copilot CLI is an **untrusted agent** executing arbitrary code suggestions on your machine. The threat model covers:
+cplt assumes Copilot CLI is an **untrusted agent** executing arbitrary code suggestions on your machine. The threat model covers:
 
 | Threat | Example | Defense layer |
 |---|---|---|
@@ -13,7 +13,7 @@ copilot-sandbox assumes Copilot CLI is an **untrusted agent** executing arbitrar
 | **Secret file access** | Read `~/.netrc`, `~/.npmrc`, `~/.vault-token` | Seatbelt file deny rules |
 | **DNS rebinding SSRF** | Domain resolves to `127.0.0.1` after check | Post-DNS-resolution IP validation |
 | **Sandbox profile injection** | Path with `\n(allow file-read* (subpath "/"))` | SBPL path character validation |
-| **Temp file symlink attack** | Symlink at predictable `/tmp/copilot-sandbox.sb` | Unique filename + `O_CREAT\|O_EXCL` |
+| **Temp file symlink attack** | Symlink at predictable `/tmp/cplt.sb` | Unique filename + `O_CREAT\|O_EXCL` |
 | **Write-then-exec in /tmp** | Drop binary in `/tmp`, execute it | `deny process-exec` on writable dirs |
 | **Cloud metadata access** | Fetch `169.254.169.254` or CGNAT range | Comprehensive private IP blocklist |
 | **Cross-project access** | Read files outside project directory | Seatbelt subpath restrictions |
@@ -29,7 +29,7 @@ copilot-sandbox assumes Copilot CLI is an **untrusted agent** executing arbitrar
 
 ## Real-World Attack Landscape (2025–2026)
 
-This section documents the attack vectors and infrastructure observed in real supply chain attacks. copilot-sandbox is designed to mitigate these specific threats.
+This section documents the attack vectors and infrastructure observed in real supply chain attacks. cplt is designed to mitigate these specific threats.
 
 ### Attack kill chain
 
@@ -77,7 +77,7 @@ A curated blocklist of these domains is included in [`blocked-domains.txt`](bloc
 5. **Environment files** — `.env`, `.env.local` (API keys, database URLs)
 6. **Network topology** — internal IPs, DNS servers, hostnames (recon for lateral movement)
 
-### How copilot-sandbox defends against each step
+### How cplt defends against each step
 
 | Kill chain step | Attack technique | Sandbox defense | Verdict |
 |---|---|---|---|
@@ -225,14 +225,14 @@ Config file paths are additionally canonicalized (resolved to absolute paths) at
 
 The sandbox profile is written to a temp file with:
 
-- **Unique filename**: `copilot-sandbox-{PID}-{nanosecond_timestamp}.sb`
+- **Unique filename**: `cplt-{PID}-{nanosecond_timestamp}.sb`
 - **Atomic creation**: `OpenOptions::create_new(true)` — fails if file exists (prevents symlink following)
 - **Restricted permissions**: mode `0o600` (owner read/write only)
 - **Cleanup on exit**: file is removed after sandbox-exec completes
 
 #### Unsafe Root Rejection
 
-copilot-sandbox refuses to sandbox overly broad directories that would grant the agent access to sensitive areas:
+cplt refuses to sandbox overly broad directories that would grant the agent access to sensitive areas:
 
 - `/` — entire filesystem
 - `/Users` — all user home directories
@@ -381,7 +381,7 @@ The GitHub Actions workflow runs in two stages:
 
 ## Reporting Security Issues
 
-If you discover a vulnerability in copilot-sandbox, please report it responsibly:
+If you discover a vulnerability in cplt, please report it responsibly:
 
 1. **Do not** open a public GitHub issue
 2. Contact the team via Nav's internal security channels

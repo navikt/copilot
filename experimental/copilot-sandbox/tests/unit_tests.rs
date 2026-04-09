@@ -3,9 +3,9 @@
 //! These tests verify core logic without invoking sandbox-exec,
 //! so they run on any platform (Linux CI, macOS, etc.).
 
-use copilot_sandbox::is_unsafe_root;
-use copilot_sandbox::proxy::{is_blocked_in_content, is_private_hostname, is_private_ip};
-use copilot_sandbox::sandbox::{generate_profile, validate_sbpl_path};
+use cplt::is_unsafe_root;
+use cplt::proxy::{is_blocked_in_content, is_private_hostname, is_private_ip};
+use cplt::sandbox::{generate_profile, validate_sbpl_path};
 
 // ============================================================
 // Unsafe root detection

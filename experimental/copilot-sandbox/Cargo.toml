@@ -1,5 +1,5 @@
 [package]
-name = "copilot-sandbox"
+name = "cplt"
 version = "0.1.0"
 edition = "2024"
 description = "macOS Seatbelt sandbox wrapper for GitHub Copilot CLI"

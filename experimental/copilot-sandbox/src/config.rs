@@ -1,16 +1,16 @@
-//! User configuration loaded from `~/.config/copilot-sandbox/config.toml`.
+//! User configuration loaded from `~/.config/cplt/config.toml`.
 //!
-//! The config file is optional — copilot-sandbox works without it.
+//! The config file is optional — cplt works without it.
 //! CLI flags always override config values for scalar fields.
 //! For list fields (allow/deny paths), CLI and config values are merged (union).
 //!
-//! Override config location with `COPILOT_SANDBOX_CONFIG` env var.
+//! Override config location with `CPLT_CONFIG` env var.
 
 use serde::Deserialize;
 use std::path::PathBuf;
 
 /// Default config directory relative to $HOME.
-const CONFIG_DIR: &str = ".config/copilot-sandbox";
+const CONFIG_DIR: &str = ".config/cplt";
 const CONFIG_FILE: &str = "config.toml";
 
 // Characters that would break SBPL profile string interpolation.
@@ -74,7 +74,7 @@ pub struct Resolved {
 }
 
 impl Config {
-    /// Load config from `~/.config/copilot-sandbox/config.toml` (or COPILOT_SANDBOX_CONFIG).
+    /// Load config from `~/.config/cplt/config.toml` (or CPLT_CONFIG).
     /// Returns `Config::default()` if the file doesn't exist.
     /// Returns an error if the file exists but is malformed or unreadable.
     pub fn load() -> Result<Self, String> {
@@ -92,7 +92,7 @@ impl Config {
         let config: Config = toml::from_str(&contents)
             .map_err(|e| format!("Invalid TOML in {}: {e}", path.display()))?;
 
-        eprintln!("\x1b[0;34m[sandbox]\x1b[0m Config:   {}", path.display());
+        eprintln!("\x1b[0;34m[cplt]\x1b[0m Config:   {}", path.display());
 
         Ok(config)
     }
@@ -143,7 +143,7 @@ impl Config {
             match resolve_config_path(s, config_dir.as_ref()) {
                 Ok(p) => allow_read.push(p),
                 Err(e) => {
-                    eprintln!("\x1b[0;33m[sandbox]\x1b[0m Warning: allow.read path {s:?}: {e}");
+                    eprintln!("\x1b[0;33m[cplt]\x1b[0m Warning: allow.read path {s:?}: {e}");
                 }
             }
         }
@@ -155,7 +155,7 @@ impl Config {
             match resolve_config_path(s, config_dir.as_ref()) {
                 Ok(p) => allow_write.push(p),
                 Err(e) => {
-                    eprintln!("\x1b[0;33m[sandbox]\x1b[0m Warning: allow.write path {s:?}: {e}");
+                    eprintln!("\x1b[0;33m[cplt]\x1b[0m Warning: allow.write path {s:?}: {e}");
                 }
             }
         }
@@ -214,7 +214,7 @@ impl Resolved {
 
         if self.with_proxy {
             eprintln!(
-                "{blue}[sandbox]{nc} Proxy:    localhost:{}",
+                "{blue}[cplt]{nc} Proxy:    localhost:{}",
                 self.proxy_port
             );
         }
@@ -224,7 +224,7 @@ impl Resolved {
                 .iter()
                 .map(|p| p.display().to_string())
                 .collect();
-            eprintln!("{blue}[sandbox]{nc} Allow-R:  {}", paths.join(", "));
+            eprintln!("{blue}[cplt]{nc} Allow-R:  {}", paths.join(", "));
         }
         if !self.allow_write.is_empty() {
             let paths: Vec<String> = self
@@ -232,7 +232,7 @@ impl Resolved {
                 .iter()
                 .map(|p| p.display().to_string())
                 .collect();
-            eprintln!("{blue}[sandbox]{nc} Allow-RW: {}", paths.join(", "));
+            eprintln!("{blue}[cplt]{nc} Allow-RW: {}", paths.join(", "));
         }
         if !self.deny_paths.is_empty() {
             let paths: Vec<String> = self
@@ -240,15 +240,15 @@ impl Resolved {
                 .iter()
                 .map(|p| p.display().to_string())
                 .collect();
-            eprintln!("{blue}[sandbox]{nc} Deny:     {}", paths.join(", "));
+            eprintln!("{blue}[cplt]{nc} Deny:     {}", paths.join(", "));
         }
     }
 }
 
 /// Return the config file path.
-/// Checks `COPILOT_SANDBOX_CONFIG` env var first, then `~/.config/copilot-sandbox/config.toml`.
+/// Checks `CPLT_CONFIG` env var first, then `~/.config/cplt/config.toml`.
 pub fn config_path() -> Option<PathBuf> {
-    if let Ok(custom) = std::env::var("COPILOT_SANDBOX_CONFIG") {
+    if let Ok(custom) = std::env::var("CPLT_CONFIG") {
         return Some(expand_tilde(&custom));
     }
     std::env::var("HOME")
@@ -258,12 +258,12 @@ pub fn config_path() -> Option<PathBuf> {
 
 /// Generate a default config file with comments explaining each option.
 pub fn default_config_contents() -> String {
-    r#"# copilot-sandbox configuration
+    r#"# cplt configuration
 #
-# This file configures default behavior for copilot-sandbox.
+# This file configures default behavior for cplt.
 # CLI flags always override these settings.
-# Location: ~/.config/copilot-sandbox/config.toml
-# Override: COPILOT_SANDBOX_CONFIG=/path/to/config.toml
+# Location: ~/.config/cplt/config.toml
+# Override: CPLT_CONFIG=/path/to/config.toml
 
 # ─── Proxy ───────────────────────────────────────────────────
 # Optional CONNECT proxy that logs outbound HTTPS connections.
@@ -274,7 +274,7 @@ pub fn default_config_contents() -> String {
 [proxy]
 # enabled = false
 # port = 18080
-# blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
+# blocked_domains = "~/.config/cplt/blocked-domains.txt"
 
 # ─── Allowed paths ──────────────────────────────────────────
 # Additional paths the sandboxed process may access.

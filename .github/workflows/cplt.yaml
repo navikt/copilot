@@ -1,16 +1,16 @@
-name: copilot-sandbox CI
+name: cplt CI
 
 on:
   push:
     branches: [main]
     paths:
       - 'experimental/copilot-sandbox/**'
-      - '.github/workflows/copilot-sandbox.yaml'
+      - '.github/workflows/cplt.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'experimental/copilot-sandbox/**'
-      - '.github/workflows/copilot-sandbox.yaml'
+      - '.github/workflows/cplt.yaml'
   workflow_dispatch:
 
 concurrency:
@@ -90,6 +90,6 @@ jobs:
 
       - name: Verify release binary
         run: |
-          ls -lh target/release/copilot-sandbox
-          target/release/copilot-sandbox --version
-          target/release/copilot-sandbox --help | head -5
+          ls -lh target/release/cplt
+          target/release/cplt --version
+          target/release/cplt --help | head -5

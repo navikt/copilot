@@ -1,14 +1,14 @@
-name: copilot-sandbox Release
+name: cplt Release
 
 on:
   workflow_run:
-    workflows: ["copilot-sandbox CI"]
+    workflows: ["cplt CI"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: copilot-sandbox-release
+  group: cplt-release
   cancel-in-progress: true
 
 permissions:
@@ -62,17 +62,17 @@ jobs:
       - name: Package
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../copilot-sandbox-${{ matrix.target }}.tar.gz copilot-sandbox
+          tar czf ../../../cplt-${{ matrix.target }}.tar.gz cplt
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184ef3e05a951 # v2.1.0
         with:
-          subject-path: experimental/copilot-sandbox/copilot-sandbox-${{ matrix.target }}.tar.gz
+          subject-path: experimental/copilot-sandbox/cplt-${{ matrix.target }}.tar.gz
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: copilot-sandbox-${{ matrix.target }}
-          path: experimental/copilot-sandbox/copilot-sandbox-${{ matrix.target }}.tar.gz
+          name: cplt-${{ matrix.target }}
+          path: experimental/copilot-sandbox/cplt-${{ matrix.target }}.tar.gz
 
   release:
     name: Publish release
@@ -94,7 +94,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd artifacts
-          sha256sum copilot-sandbox-* > SHA256SUMS
+          sha256sum cplt-* > SHA256SUMS
           cat SHA256SUMS
 
       - name: Determine version
@@ -103,17 +103,17 @@ jobs:
           COMMIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
           SHORT_SHA="${COMMIT_SHA:0:7}"
           DATE=$(date -u +%Y.%m.%d)
-          echo "tag=copilot-sandbox/${DATE}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "title=copilot-sandbox ${DATE} (${SHORT_SHA})" >> "$GITHUB_OUTPUT"
+          echo "tag=cplt/${DATE}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "title=cplt ${DATE} (${SHORT_SHA})" >> "$GITHUB_OUTPUT"
           echo "sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes
         id: notes
         run: |
-          PREV_TAG=$(git tag --list 'copilot-sandbox/*' --sort=-version:refname | head -1 || echo "")
+          PREV_TAG=$(git tag --list 'cplt/*' --sort=-version:refname | head -1 || echo "")
           {
             echo "body<<RELEASE_EOF"
-            echo "## copilot-sandbox"
+            echo "## cplt"
             echo ""
             echo "macOS Seatbelt sandbox wrapper for GitHub Copilot CLI."
             echo ""
@@ -121,10 +121,10 @@ jobs:
             echo ""
             echo '```bash'
             echo "# Apple Silicon (M1/M2/M3/M4)"
-            echo "curl -fsSL https://github.com/navikt/copilot/releases/download/${{ steps.version.outputs.tag }}/copilot-sandbox-aarch64-apple-darwin.tar.gz | tar xz"
+            echo "curl -fsSL https://github.com/navikt/copilot/releases/download/${{ steps.version.outputs.tag }}/cplt-aarch64-apple-darwin.tar.gz | tar xz"
             echo ""
             echo "# Intel Mac"
-            echo "curl -fsSL https://github.com/navikt/copilot/releases/download/${{ steps.version.outputs.tag }}/copilot-sandbox-x86_64-apple-darwin.tar.gz | tar xz"
+            echo "curl -fsSL https://github.com/navikt/copilot/releases/download/${{ steps.version.outputs.tag }}/cplt-x86_64-apple-darwin.tar.gz | tar xz"
             echo '```'
             echo ""
             if [ -n "$PREV_TAG" ]; then
@@ -147,5 +147,5 @@ jobs:
           body: ${{ steps.notes.outputs.body }}
           make_latest: true
           files: |
-            artifacts/copilot-sandbox-*
+            artifacts/cplt-*
             artifacts/SHA256SUMS

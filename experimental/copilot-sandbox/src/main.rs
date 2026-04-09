@@ -1,5 +1,5 @@
 use clap::Parser;
-use copilot_sandbox::{config, discover, proxy, sandbox};
+use cplt::{config, discover, proxy, sandbox};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -12,26 +12,26 @@ use std::process::ExitCode;
 /// Network: Outbound TCP is allowed (Copilot needs to reach its API).
 /// The filesystem isolation is the primary security control.
 ///
-/// Defaults can be saved to ~/.config/copilot-sandbox/config.toml
+/// Defaults can be saved to ~/.config/cplt/config.toml
 /// so you don't need to pass flags every time. Run --init-config to
 /// create a starter config.
 #[derive(Parser)]
 #[command(
-    name = "copilot-sandbox",
+    name = "cplt",
     version,
     about,
     after_help = "\
 EXAMPLES:
-  copilot-sandbox -- -p \"fix the tests\"
+  cplt -- -p \"fix the tests\"
     Run Copilot in sandbox (credentials protected, network allowed)
 
-  copilot-sandbox --with-proxy -- -p \"fix the tests\"
+  cplt --with-proxy -- -p \"fix the tests\"
     Run with proxy for connection logging and domain blocking
 
-  copilot-sandbox --allow-read ~/shared-libs -- -p \"use shared-libs\"
+  cplt --allow-read ~/shared-libs -- -p \"use shared-libs\"
     Let Copilot read files outside the project directory
 
-  copilot-sandbox --deny-path ~/.config/gh -- -p \"refactor auth\"
+  cplt --deny-path ~/.config/gh -- -p \"refactor auth\"
     Block access to a path that is normally allowed
 "
 )]
@@ -104,7 +104,7 @@ struct Cli {
     #[arg(long)]
     show_denials: bool,
 
-    /// Create a starter config file at ~/.config/copilot-sandbox/config.toml.
+    /// Create a starter config file at ~/.config/cplt/config.toml.
     /// The config lets you save your preferred defaults so you don't need
     /// to pass flags every time. Will not overwrite an existing file.
     #[arg(long)]
@@ -117,7 +117,7 @@ struct Cli {
     doctor: bool,
 
     /// Everything after -- is passed directly to the copilot command.
-    /// Example: copilot-sandbox -- -p "fix the tests"
+    /// Example: cplt -- -p "fix the tests"
     #[arg(last = true)]
     copilot_args: Vec<String>,
 }
@@ -129,19 +129,19 @@ const BLUE: &str = "\x1b[0;34m";
 const NC: &str = "\x1b[0m";
 
 fn info(msg: &str) {
-    eprintln!("{BLUE}[sandbox]{NC} {msg}");
+    eprintln!("{BLUE}[cplt]{NC} {msg}");
 }
 
 fn ok(msg: &str) {
-    eprintln!("{GREEN}[sandbox]{NC} {msg}");
+    eprintln!("{GREEN}[cplt]{NC} {msg}");
 }
 
 fn warn(msg: &str) {
-    eprintln!("{YELLOW}[sandbox]{NC} {msg}");
+    eprintln!("{YELLOW}[cplt]{NC} {msg}");
 }
 
 fn error(msg: &str) {
-    eprintln!("{RED}[sandbox]{NC} {msg}");
+    eprintln!("{RED}[cplt]{NC} {msg}");
 }
 
 fn detect_project_root() -> Option<PathBuf> {
@@ -158,7 +158,7 @@ fn detect_project_root() -> Option<PathBuf> {
 }
 
 // Use library's is_unsafe_root
-use copilot_sandbox::is_unsafe_root;
+use cplt::is_unsafe_root;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -170,7 +170,7 @@ fn main() -> ExitCode {
 
     // macOS only
     if std::env::consts::OS != "macos" {
-        error("copilot-sandbox requires macOS (uses sandbox-exec)");
+        error("cplt requires macOS (uses sandbox-exec)");
         return ExitCode::FAILURE;
     }
 
@@ -344,7 +344,7 @@ fn main() -> ExitCode {
 
     // Write profile to temp file with unique name (prevents symlink attacks)
     let profile_path = std::env::temp_dir().join(format!(
-        "copilot-sandbox-{}-{}.sb",
+        "cplt-{}-{}.sb",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

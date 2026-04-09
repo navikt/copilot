@@ -1,4 +1,4 @@
-//! Integration tests for copilot-sandbox.
+//! Integration tests for cplt.
 //!
 //! These tests invoke sandbox-exec and verify kernel-level enforcement.
 //! They ONLY run on macOS — skipped on Linux/CI via #[cfg(target_os = "macos")].
@@ -14,7 +14,7 @@ mod macos_tests {
 
     /// Path to the built binary.
     fn binary_path() -> PathBuf {
-        PathBuf::from(env!("CARGO_BIN_EXE_copilot-sandbox"))
+        PathBuf::from(env!("CARGO_BIN_EXE_cplt"))
     }
 
     fn home_dir() -> PathBuf {
@@ -26,7 +26,7 @@ mod macos_tests {
     fn unique_profile_path() -> PathBuf {
         let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
         std::env::temp_dir().join(format!(
-            "copilot-sandbox-test-{}-{id}.sb",
+            "cplt-test-{}-{id}.sb",
             std::process::id()
         ))
     }
@@ -310,7 +310,7 @@ mod macos_tests {
         let project = fs::canonicalize(".").unwrap();
         let profile = write_test_profile(&project.to_string_lossy(), false);
 
-        let test_file = format!("/tmp/copilot-sandbox-integ-{}.txt", std::process::id());
+        let test_file = format!("/tmp/cplt-integ-{}.txt", std::process::id());
         let cmd = format!("echo test > '{test_file}' && cat '{test_file}' && rm '{test_file}'");
         let (output, success) = run_sandboxed(&profile, &cmd);
         fs::remove_file(&profile).ok();
@@ -331,7 +331,7 @@ mod macos_tests {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(output.status.success());
-        assert!(stdout.contains("copilot-sandbox"));
+        assert!(stdout.contains("cplt"));
         assert!(stdout.contains("--with-proxy"));
     }
 
@@ -344,7 +344,7 @@ mod macos_tests {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(output.status.success());
-        assert!(stdout.contains("copilot-sandbox"));
+        assert!(stdout.contains("cplt"));
     }
 
     #[test]

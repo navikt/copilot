@@ -1,4 +1,4 @@
-//! Runtime environment discovery for copilot-sandbox.
+//! Runtime environment discovery for cplt.
 //!
 //! Probes the local environment to determine:
 //! - Which auth mechanism Copilot will use

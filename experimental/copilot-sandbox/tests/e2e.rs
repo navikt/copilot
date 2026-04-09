@@ -1,4 +1,4 @@
-//! End-to-end tests for copilot-sandbox.
+//! End-to-end tests for cplt.
 //!
 //! These tests exercise the full pipeline: binary → profile generation → sandbox-exec → copilot.
 //! They require macOS, Copilot CLI installed, and (for live tests) valid GitHub auth.
@@ -15,7 +15,7 @@ mod e2e_tests {
     use std::process::Command;
 
     fn binary_path() -> PathBuf {
-        PathBuf::from(env!("CARGO_BIN_EXE_copilot-sandbox"))
+        PathBuf::from(env!("CARGO_BIN_EXE_cplt"))
     }
 
     fn project_dir() -> PathBuf {
@@ -310,7 +310,7 @@ mod e2e_tests {
         require_copilot!();
         // Create a temp dir outside the project to allow-read
         let allow_dir =
-            std::env::temp_dir().join(format!("copilot-sandbox-e2e-allow-{}", std::process::id()));
+            std::env::temp_dir().join(format!("cplt-e2e-allow-{}", std::process::id()));
         std::fs::create_dir_all(&allow_dir).unwrap();
         let allow_dir_canonical = std::fs::canonicalize(&allow_dir).unwrap();
 
@@ -347,7 +347,7 @@ mod e2e_tests {
     fn e2e_custom_project_dir() {
         require_copilot!();
         let custom_dir = std::env::temp_dir().join(format!(
-            "copilot-sandbox-e2e-project-{}",
+            "cplt-e2e-project-{}",
             std::process::id()
         ));
         std::fs::create_dir_all(&custom_dir).unwrap();

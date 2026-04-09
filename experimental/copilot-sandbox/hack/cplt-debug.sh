@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Debug script for copilot-sandbox — handles cleanup, build, and test runs
+# Debug script for cplt — handles cleanup, build, and test runs
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -42,24 +42,24 @@ case "${1:-help}" in
         cleanup
         build
         echo "--- Running: copilot --version inside sandbox ---"
-        ./target/debug/copilot-sandbox -- --version
+        ./target/debug/cplt -- --version
         ;;
     prompt)
         cleanup
         build
         echo "--- Running: copilot -p '${2:-say hello}' inside sandbox ---"
-        ./target/debug/copilot-sandbox --show-denials -- -p "${2:-say hello}"
+        ./target/debug/cplt --show-denials -- -p "${2:-say hello}"
         ;;
     denials)
         cleanup
         build
         shift
         echo "--- Running with --show-denials: copilot $* ---"
-        ./target/debug/copilot-sandbox --show-denials -- "$@"
+        ./target/debug/cplt --show-denials -- "$@"
         ;;
     profile)
         build
-        ./target/debug/copilot-sandbox --print-profile
+        ./target/debug/cplt --print-profile
         ;;
     cleanup)
         echo "Killing orphaned processes on port $PROXY_PORT..."

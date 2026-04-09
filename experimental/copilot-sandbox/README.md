@@ -1,4 +1,4 @@
-# copilot-sandbox
+# cplt
 
 macOS Seatbelt sandbox wrapper for GitHub Copilot CLI. Runs Copilot inside Apple's kernel-level sandbox (`sandbox-exec`) so the agent can work on your project but cannot access your secrets.
 
@@ -43,7 +43,7 @@ We'd rather ship something small that actually works than something impressive t
 | Execute binaries from `/tmp`, `/var/folders` | 🔒 Kernel-blocked | Prevents write-then-exec attacks |
 | Child process inheritance | ✅ All restrictions apply to subprocesses | |
 
-This table is a summary. The sandbox also allows access to system files (SSL certs, `/etc/hosts`), temp directories (read/write but no exec), and system tool paths (`/usr/bin`, `/opt/homebrew`). Run `copilot-sandbox --print-profile` to see the complete SBPL rules.
+This table is a summary. The sandbox also allows access to system files (SSL certs, `/etc/hosts`), temp directories (read/write but no exec), and system tool paths (`/usr/bin`, `/opt/homebrew`). Run `cplt --print-profile` to see the complete SBPL rules.
 
 For the full security model, threat analysis, and test strategy, see **[SECURITY.md](SECURITY.md)**.
 
@@ -55,24 +55,24 @@ Download the latest release for your Mac:
 
 ```bash
 # Apple Silicon (M1/M2/M3/M4)
-curl -fsSL https://github.com/navikt/copilot/releases/latest/download/copilot-sandbox-aarch64-apple-darwin.tar.gz | tar xz
-sudo mv copilot-sandbox /usr/local/bin/
+curl -fsSL https://github.com/navikt/copilot/releases/latest/download/cplt-aarch64-apple-darwin.tar.gz | tar xz
+sudo mv cplt /usr/local/bin/
 
 # Intel Mac
-curl -fsSL https://github.com/navikt/copilot/releases/latest/download/copilot-sandbox-x86_64-apple-darwin.tar.gz | tar xz
-sudo mv copilot-sandbox /usr/local/bin/
+curl -fsSL https://github.com/navikt/copilot/releases/latest/download/cplt-x86_64-apple-darwin.tar.gz | tar xz
+sudo mv cplt /usr/local/bin/
 ```
 
 Every release binary has [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds) — verify it with:
 
 ```bash
-gh attestation verify copilot-sandbox -o navikt
+gh attestation verify cplt -o navikt
 ```
 
 ### Build from source
 
 ```bash
-cd experimental/copilot-sandbox
+cd experimental/cplt
 mise install           # Install Rust toolchain
 mise run build:release
 ```
@@ -81,25 +81,25 @@ mise run build:release
 
 ```bash
 # Run Copilot in sandbox (credentials protected, network allowed)
-copilot-sandbox -- -p "fix the tests"
+cplt -- -p "fix the tests"
 
 # Check your environment before running
-copilot-sandbox --doctor
+cplt --doctor
 
 # Verify the sandbox works
-copilot-sandbox -- --version
+cplt -- --version
 
 # Enable proxy for connection logging
-copilot-sandbox --with-proxy -- -p "fix the tests"
+cplt --with-proxy -- -p "fix the tests"
 
 # Create config file with defaults
-copilot-sandbox --init-config
+cplt --init-config
 ```
 
 ## Usage
 
 ```
-copilot-sandbox [OPTIONS] [-- <COPILOT_ARGS>...]
+cplt [OPTIONS] [-- <COPILOT_ARGS>...]
 ```
 
 Everything after `--` is passed directly to the `copilot` command.
@@ -139,53 +139,53 @@ The proxy is **disabled by default**. Copilot CLI connects directly to its APIs 
 | `--print-profile` | Print the generated sandbox profile (SBPL) and exit. |
 | `--show-denials` | Stream macOS sandbox denial logs in real time. |
 | `--no-validate` | Skip the startup check that verifies sandbox restrictions are active. |
-| `--init-config` | Create a starter config file at `~/.config/copilot-sandbox/config.toml` and exit. |
+| `--init-config` | Create a starter config file at `~/.config/cplt/config.toml` and exit. |
 
 ### Examples
 
 ```bash
 # Most common: run Copilot in sandbox
-copilot-sandbox -- -p "fix the tests"
+cplt -- -p "fix the tests"
 
 # Check environment before first run
-copilot-sandbox --doctor
+cplt --doctor
 
 # With connection logging
-copilot-sandbox --with-proxy -- -p "fix the tests"
+cplt --with-proxy -- -p "fix the tests"
 
 # Let Copilot read a shared library directory
-copilot-sandbox --allow-read ~/shared-libs -- -p "use shared-libs"
+cplt --allow-read ~/shared-libs -- -p "use shared-libs"
 
 # Block a path you don't want Copilot to see
-copilot-sandbox --deny-path ~/.config/gh -- -p "refactor auth"
+cplt --deny-path ~/.config/gh -- -p "refactor auth"
 
 # Block paste sites (with proxy enabled)
-copilot-sandbox --with-proxy --blocked-domains ./blocked-domains.txt -- -p "refactor"
+cplt --with-proxy --blocked-domains ./blocked-domains.txt -- -p "refactor"
 
 # Inspect the generated sandbox profile
-copilot-sandbox --print-profile
+cplt --print-profile
 
 # Debug: see what the sandbox blocks in real time
-copilot-sandbox --show-denials -- -p "fix the tests"
+cplt --show-denials -- -p "fix the tests"
 ```
 
 ## Configuration file
 
-Save your preferred defaults to `~/.config/copilot-sandbox/config.toml` so you don't need to pass flags every time.
+Save your preferred defaults to `~/.config/cplt/config.toml` so you don't need to pass flags every time.
 
 **Create the default config:**
 
 ```bash
-copilot-sandbox --init-config
+cplt --init-config
 ```
 
-This creates a commented template at `~/.config/copilot-sandbox/config.toml`:
+This creates a commented template at `~/.config/cplt/config.toml`:
 
 ```toml
 [proxy]
 # enabled = false           # Set to true for connection logging
 # port = 18080
-# blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
+# blocked_domains = "~/.config/cplt/blocked-domains.txt"
 
 [sandbox]
 # validate = true
@@ -201,17 +201,17 @@ This creates a commented template at `~/.config/copilot-sandbox/config.toml`:
 **Precedence** (highest to lowest):
 
 1. CLI flags (`--with-proxy`, `--proxy-port`, etc.)
-2. Config file (`~/.config/copilot-sandbox/config.toml`)
+2. Config file (`~/.config/cplt/config.toml`)
 3. Built-in defaults
 
 CLI flags always override the config file. Use `--no-proxy` to disable a proxy that's enabled in config.
 
 **Environment variable override:**
 
-Set `COPILOT_SANDBOX_CONFIG` to use a config file at a custom location:
+Set `CPLT_CONFIG` to use a config file at a custom location:
 
 ```bash
-COPILOT_SANDBOX_CONFIG=/path/to/custom.toml copilot-sandbox -- --version
+CPLT_CONFIG=/path/to/custom.toml cplt -- --version
 ```
 
 **Path expansion:** Paths in `[allow]` and `[deny]` support `~/` expansion and are resolved relative to the config file directory. `proxy.blocked_domains` supports `~/` expansion only.
@@ -220,7 +220,7 @@ COPILOT_SANDBOX_CONFIG=/path/to/custom.toml copilot-sandbox -- --version
 
 ```
 ┌──────────────────────────────────┐
-│  copilot-sandbox (Rust binary)   │
+│  cplt (Rust binary)   │
 │  ┌───────────┐  ┌─────────────┐ │
 │  │ Profile    │  │ CONNECT     │ │
 │  │ Generator  │  │ Proxy       │ │
@@ -268,14 +268,14 @@ When the proxy is enabled (`--with-proxy`), it can block domains commonly used f
 
 ```bash
 # Enable proxy with domain blocking
-copilot-sandbox --with-proxy --blocked-domains blocked-domains.txt -- -p "fix tests"
+cplt --with-proxy --blocked-domains blocked-domains.txt -- -p "fix tests"
 
 # Or set it permanently in config
-copilot-sandbox --init-config
-# Then edit ~/.config/copilot-sandbox/config.toml:
+cplt --init-config
+# Then edit ~/.config/cplt/config.toml:
 #   [proxy]
 #   enabled = true
-#   blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
+#   blocked_domains = "~/.config/cplt/blocked-domains.txt"
 ```
 
 The blocklist covers webhook capture services, paste sites, file sharing, tunneling services, and IP recon endpoints. See [`blocked-domains.txt`](blocked-domains.txt) for the full list with sources.
