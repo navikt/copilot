@@ -73,10 +73,14 @@ port = 18080
 # blocked_domains = "/path/to/blocked.txt"
 
 [sandbox]
-# no_validate = false
-# allow_read = ["~/some/path"]
-# allow_write = ["~/another/path"]
-# deny_paths = ["~/extra/secret"]
+# validate = true
+
+[allow]
+# read = ["~/some/path"]
+# write = ["~/another/path"]
+
+[deny]
+# paths = ["~/extra/secret"]
 ```
 
 **Precedence** (highest to lowest):

@@ -1,6 +1,9 @@
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
+/// Characters that would break SBPL profile string interpolation.
+const SBPL_UNSAFE_CHARS: &[char] = &['"', ')', '(', ';', '\\', '\n', '\r', '\0'];
+
 /// Sensitive directories under $HOME that are always denied.
 const DENIED_DOTFILES: &[&str] = &[
     ".ssh",
@@ -11,10 +14,20 @@ const DENIED_DOTFILES: &[&str] = &[
     ".docker",
     ".nais",
     ".password-store",
+    ".config/gcloud",
+    ".config/op",
+    ".config/gh",
+    ".terraform.d",
 ];
 
 /// Sensitive files under $HOME that are always denied.
-const DENIED_FILES: &[&str] = &[".netrc", ".npmrc", ".pypirc", ".gem/credentials"];
+const DENIED_FILES: &[&str] = &[
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+    ".gem/credentials",
+    ".vault-token",
+];
 
 /// System files that tools commonly need (SSL certs, resolv.conf, etc.)
 const SYSTEM_READ_FILES: &[&str] = &[
@@ -43,7 +56,25 @@ const HOME_TOOL_DIRS: &[&str] = &[
     "Library/Caches",
 ];
 
+/// Validate that a path is safe for interpolation into SBPL profile strings.
+/// Returns an error if the path contains characters that could break or inject SBPL rules.
+pub fn validate_sbpl_path(path: &Path) -> Result<(), String> {
+    let s = path.to_string_lossy();
+    for c in SBPL_UNSAFE_CHARS {
+        if s.contains(*c) {
+            return Err(format!(
+                "Path contains unsafe character '{}' for sandbox profile: {s}\n\
+                 This could be used for SBPL injection.",
+                c.escape_default()
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Generate a complete SBPL sandbox profile.
+///
+/// All paths are validated for SBPL injection before interpolation.
 pub fn generate_profile(
     project_dir: &Path,
     home_dir: &Path,
@@ -147,6 +178,12 @@ pub fn generate_profile(
     writeln!(sb, "(allow file-write* (subpath \"/private/tmp\"))").unwrap();
     writeln!(sb, "(allow file-read* (subpath \"/private/var/folders\"))").unwrap();
     writeln!(sb, "(allow file-write* (subpath \"/private/var/folders\"))").unwrap();
+    writeln!(sb).unwrap();
+
+    // Deny code execution from writable temp directories (write-then-exec attack)
+    writeln!(sb, ";; Deny exec from writable directories").unwrap();
+    writeln!(sb, "(deny process-exec (subpath \"/private/tmp\"))").unwrap();
+    writeln!(sb, "(deny process-exec (subpath \"/private/var/folders\"))").unwrap();
     writeln!(sb).unwrap();
 
     // Extra user-specified allows
@@ -256,7 +293,9 @@ pub fn exec(
     // Start child in its own process group for clean signal forwarding
     unsafe {
         cmd.pre_exec(|| {
-            libc::setpgid(0, 0);
+            if libc::setpgid(0, 0) == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
             Ok(())
         });
     }

@@ -58,5 +58,5 @@ description = "Run copilot inside sandbox (current dir as project)"
 run = "cargo run -- -- --version"
 
 [tasks.dev]
-description = "Build and run with verbose sandbox output"
-run = "cargo run -- --verbose -- --version"
+description = "Build and run with sandbox output"
+run = "cargo run -- -- --version"

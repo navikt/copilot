@@ -1,8 +1,5 @@
-mod config;
-mod proxy;
-mod sandbox;
-
 use clap::Parser;
+use copilot_sandbox::{config, proxy, sandbox};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -99,10 +96,8 @@ fn detect_project_root() -> Option<PathBuf> {
     }
 }
 
-pub fn is_unsafe_root(path: &std::path::Path, home: &std::path::Path) -> bool {
-    let p = path.to_string_lossy();
-    p == "/" || p == "/Users" || p == "/tmp" || p == "/private/tmp" || path == home
-}
+// Use library's is_unsafe_root
+use copilot_sandbox::is_unsafe_root;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -119,6 +114,47 @@ fn main() -> ExitCode {
     }
 
     // Load config file and merge with CLI flags
+    // Canonicalize CLI paths for consistency with config path handling
+    let cli_allow_read: Vec<PathBuf> = cli
+        .allow_read
+        .iter()
+        .filter_map(|p| match std::fs::canonicalize(p) {
+            Ok(c) => Some(c),
+            Err(e) => {
+                warn(&format!("--allow-read path {:?}: {e}", p));
+                None
+            }
+        })
+        .collect();
+    let cli_allow_write: Vec<PathBuf> = cli
+        .allow_write
+        .iter()
+        .filter_map(|p| match std::fs::canonicalize(p) {
+            Ok(c) => Some(c),
+            Err(e) => {
+                warn(&format!("--allow-write path {:?}: {e}", p));
+                None
+            }
+        })
+        .collect();
+    let cli_deny_paths: Vec<PathBuf> = cli
+        .deny_paths
+        .iter()
+        .map(|p| {
+            std::fs::canonicalize(p).map_err(|e| {
+                format!(
+                    "--deny-path {:?} cannot be resolved: {e}\n\
+                     Silently dropping deny rules is a security risk.",
+                    p
+                )
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap_or_else(|e| {
+            error(&e);
+            std::process::exit(1);
+        });
+
     let cfg = match config::Config::load() {
         Ok(c) => c,
         Err(e) => {
@@ -131,9 +167,9 @@ fn main() -> ExitCode {
         cli.no_proxy,
         cli.proxy_port,
         cli.blocked_domains.clone(),
-        cli.allow_read.clone(),
-        cli.allow_write.clone(),
-        cli.deny_paths.clone(),
+        cli_allow_read,
+        cli_allow_write,
+        cli_deny_paths,
         cli.no_validate,
     ) {
         Ok(r) => r,
@@ -210,6 +246,16 @@ fn main() -> ExitCode {
     info(&format!("Home:     {}", home_dir.display()));
     resolved.log_effective();
 
+    // Validate all paths that will be interpolated into SBPL profile
+    if let Err(e) = sandbox::validate_sbpl_path(&project_dir) {
+        error(&format!("Project dir: {e}"));
+        return ExitCode::FAILURE;
+    }
+    if let Err(e) = sandbox::validate_sbpl_path(&home_dir) {
+        error(&format!("Home dir: {e}"));
+        return ExitCode::FAILURE;
+    }
+
     // Generate sandbox profile
     let profile = sandbox::generate_profile(
         &project_dir,
@@ -224,11 +270,37 @@ fn main() -> ExitCode {
         },
     );
 
-    // Write profile to temp file
-    let profile_path = std::env::temp_dir().join("copilot-sandbox.sb");
-    if let Err(e) = std::fs::write(&profile_path, &profile) {
-        error(&format!("Cannot write sandbox profile: {e}"));
-        return ExitCode::FAILURE;
+    // Write profile to temp file with unique name (prevents symlink attacks)
+    let profile_path = std::env::temp_dir().join(format!(
+        "copilot-sandbox-{}-{}.sb",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+
+    // O_CREAT|O_EXCL: atomic create, fails if exists (prevents symlink following)
+    {
+        use std::io::Write as _;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&profile_path)
+        {
+            Ok(f) => f,
+            Err(e) => {
+                error(&format!("Cannot create sandbox profile: {e}"));
+                return ExitCode::FAILURE;
+            }
+        };
+        if let Err(e) = file.write_all(profile.as_bytes()) {
+            error(&format!("Cannot write sandbox profile: {e}"));
+            let _ = std::fs::remove_file(&profile_path);
+            return ExitCode::FAILURE;
+        }
     }
 
     // Validate profile with a quick test

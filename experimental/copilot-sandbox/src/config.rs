@@ -14,7 +14,7 @@ const CONFIG_DIR: &str = ".config/copilot-sandbox";
 const CONFIG_FILE: &str = "config.toml";
 
 // Characters that would break SBPL profile string interpolation.
-const SBPL_UNSAFE_CHARS: &[char] = &['"', ')', '(', ';'];
+const SBPL_UNSAFE_CHARS: &[char] = &['"', ')', '(', ';', '\\', '\n', '\r', '\0'];
 
 /// Top-level config file structure.
 #[derive(Debug, Default, Deserialize)]

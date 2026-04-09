@@ -3,43 +3,9 @@
 //! These tests verify core logic without invoking sandbox-exec,
 //! so they run on any platform (Linux CI, macOS, etc.).
 
-/// Mirrors main::is_unsafe_root for unit testing.
-fn is_unsafe_root(path: &std::path::Path, home: &std::path::Path) -> bool {
-    let p = path.to_string_lossy();
-    p == "/" || p == "/Users" || p == "/tmp" || p == "/private/tmp" || path == home
-}
-
-/// Mirrors proxy::is_blocked_in_content for unit testing.
-fn is_blocked_in_content(hostname: &str, contents: &str) -> bool {
-    let host = hostname.to_lowercase();
-    for line in contents.lines() {
-        let pattern = line.trim().to_lowercase();
-        if pattern.is_empty() || pattern.starts_with('#') {
-            continue;
-        }
-        if host == pattern || host.ends_with(&format!(".{pattern}")) {
-            return true;
-        }
-    }
-    false
-}
-
-/// Mirrors proxy::is_private_target for unit testing.
-fn is_private_target(host: &str) -> bool {
-    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
-        return match ip {
-            std::net::IpAddr::V4(v4) => {
-                v4.is_loopback() || v4.is_private() || v4.is_link_local() || v4.is_unspecified()
-            }
-            std::net::IpAddr::V6(v6) => v6.is_loopback() || v6.is_unspecified(),
-        };
-    }
-    host == "localhost"
-        || host.ends_with(".localhost")
-        || host.ends_with(".local")
-        || host == "0.0.0.0"
-        || host == "[::]"
-}
+use copilot_sandbox::is_unsafe_root;
+use copilot_sandbox::proxy::{is_blocked_in_content, is_private_hostname, is_private_ip};
+use copilot_sandbox::sandbox::{generate_profile, validate_sbpl_path};
 
 // ============================================================
 // Unsafe root detection
@@ -70,6 +36,30 @@ fn rejects_private_tmp() {
 }
 
 #[test]
+fn rejects_var() {
+    let home = std::path::Path::new("/Users/testuser");
+    assert!(is_unsafe_root(std::path::Path::new("/var"), home));
+}
+
+#[test]
+fn rejects_private_var() {
+    let home = std::path::Path::new("/Users/testuser");
+    assert!(is_unsafe_root(std::path::Path::new("/private/var"), home));
+}
+
+#[test]
+fn rejects_applications() {
+    let home = std::path::Path::new("/Users/testuser");
+    assert!(is_unsafe_root(std::path::Path::new("/Applications"), home));
+}
+
+#[test]
+fn rejects_system() {
+    let home = std::path::Path::new("/Users/testuser");
+    assert!(is_unsafe_root(std::path::Path::new("/System"), home));
+}
+
+#[test]
 fn rejects_home_dir() {
     let home = std::path::Path::new("/Users/testuser");
     assert!(is_unsafe_root(home, home));
@@ -94,7 +84,7 @@ fn allows_deep_project_path() {
 }
 
 // ============================================================
-// Domain blocking
+// Domain blocking (using real proxy::is_blocked_in_content)
 // ============================================================
 
 #[test]
@@ -147,134 +137,198 @@ fn empty_blocklist_blocks_nothing() {
 }
 
 // ============================================================
-// Private IP / localhost detection
+// Private IP / localhost detection (using real proxy functions)
 // ============================================================
 
 #[test]
 fn detects_ipv4_loopback() {
-    assert!(is_private_target("127.0.0.1"));
-    assert!(is_private_target("127.0.0.2"));
+    let ip: std::net::IpAddr = "127.0.0.1".parse().unwrap();
+    assert!(is_private_ip(&ip));
+    let ip2: std::net::IpAddr = "127.0.0.2".parse().unwrap();
+    assert!(is_private_ip(&ip2));
 }
 
 #[test]
 fn detects_ipv4_private_ranges() {
-    assert!(is_private_target("10.0.0.1"));
-    assert!(is_private_target("172.16.0.1"));
-    assert!(is_private_target("192.168.1.1"));
+    for addr in &["10.0.0.1", "172.16.0.1", "192.168.1.1"] {
+        let ip: std::net::IpAddr = addr.parse().unwrap();
+        assert!(is_private_ip(&ip), "should detect {addr} as private");
+    }
 }
 
 #[test]
 fn detects_ipv4_link_local() {
-    assert!(is_private_target("169.254.1.1"));
+    let ip: std::net::IpAddr = "169.254.1.1".parse().unwrap();
+    assert!(is_private_ip(&ip));
 }
 
 #[test]
 fn detects_ipv4_unspecified() {
-    assert!(is_private_target("0.0.0.0"));
+    let ip: std::net::IpAddr = "0.0.0.0".parse().unwrap();
+    assert!(is_private_ip(&ip));
 }
 
 #[test]
 fn detects_ipv6_loopback() {
-    assert!(is_private_target("::1"));
+    let ip: std::net::IpAddr = "::1".parse().unwrap();
+    assert!(is_private_ip(&ip));
 }
 
 #[test]
 fn allows_public_ipv4() {
-    assert!(!is_private_target("8.8.8.8"));
-    assert!(!is_private_target("140.82.121.3"));
+    for addr in &["8.8.8.8", "140.82.121.3"] {
+        let ip: std::net::IpAddr = addr.parse().unwrap();
+        assert!(!is_private_ip(&ip), "should allow public {addr}");
+    }
 }
 
 #[test]
 fn detects_localhost_hostname() {
-    assert!(is_private_target("localhost"));
-    assert!(is_private_target("sub.localhost"));
+    assert!(is_private_hostname("localhost"));
+    assert!(is_private_hostname("sub.localhost"));
 }
 
 #[test]
 fn detects_dot_local_hostname() {
-    assert!(is_private_target("myhost.local"));
+    assert!(is_private_hostname("myhost.local"));
 }
 
 #[test]
 fn allows_normal_hostnames() {
-    assert!(!is_private_target("api.github.com"));
-    assert!(!is_private_target("registry.npmjs.org"));
+    assert!(!is_private_hostname("api.github.com"));
+    assert!(!is_private_hostname("registry.npmjs.org"));
 }
 
 // ============================================================
-// Profile content verification (string-based)
+// New: CGNAT, ULA, IPv4-mapped v6
 // ============================================================
 
-fn gen_test_profile(project: &str, home: &str, proxy_port: Option<u16>) -> String {
-    use std::fmt::Write;
-    let mut profile = String::new();
-
-    writeln!(profile, "(version 1)").unwrap();
-    writeln!(profile, "(deny default)").unwrap();
-    writeln!(
-        profile,
-        "(import \"/System/Library/Sandbox/Profiles/bsd.sb\")"
-    )
-    .unwrap();
-    writeln!(profile, "(allow process-exec)").unwrap();
-    writeln!(profile, "(allow process-fork)").unwrap();
-    writeln!(profile, "(allow file-read* (subpath \"{project}\"))").unwrap();
-    writeln!(profile, "(allow file-write* (subpath \"{project}\"))").unwrap();
-    writeln!(profile, "(allow file-read* (subpath \"{home}/.copilot\"))").unwrap();
-    writeln!(
-        profile,
-        "(allow file-read* (literal \"{home}/.gitconfig\"))"
-    )
-    .unwrap();
-
-    for dotfile in &[
-        ".ssh",
-        ".gnupg",
-        ".aws",
-        ".azure",
-        ".kube",
-        ".docker",
-        ".nais",
-        ".password-store",
-    ] {
-        writeln!(profile, "(deny file-read* (subpath \"{home}/{dotfile}\"))").unwrap();
-        writeln!(profile, "(deny file-write* (subpath \"{home}/{dotfile}\"))").unwrap();
-    }
-
-    writeln!(profile, "(deny network*)").unwrap();
-    if let Some(port) = proxy_port {
-        writeln!(
-            profile,
-            "(allow network-outbound (remote ip \"localhost:{port}\"))"
-        )
-        .unwrap();
-    }
-
-    profile
+#[test]
+fn detects_cgnat_range() {
+    let ip: std::net::IpAddr = "100.64.0.1".parse().unwrap();
+    assert!(is_private_ip(&ip), "CGNAT (100.64/10) should be private");
+    let ip2: std::net::IpAddr = "100.127.255.254".parse().unwrap();
+    assert!(is_private_ip(&ip2));
 }
 
 #[test]
+fn detects_benchmarking_range() {
+    let ip: std::net::IpAddr = "198.18.0.1".parse().unwrap();
+    assert!(
+        is_private_ip(&ip),
+        "Benchmarking (198.18/15) should be private"
+    );
+}
+
+#[test]
+fn detects_reserved_v4() {
+    let ip: std::net::IpAddr = "240.0.0.1".parse().unwrap();
+    assert!(is_private_ip(&ip), "Reserved (240/4) should be private");
+}
+
+#[test]
+fn detects_ipv6_ula() {
+    let ip: std::net::IpAddr = "fd12:3456:789a::1".parse().unwrap();
+    assert!(is_private_ip(&ip), "ULA (fc00::/7) should be private");
+}
+
+#[test]
+fn detects_ipv6_link_local() {
+    let ip: std::net::IpAddr = "fe80::1".parse().unwrap();
+    assert!(
+        is_private_ip(&ip),
+        "Link-local v6 (fe80::/10) should be private"
+    );
+}
+
+// ============================================================
+// SBPL path validation
+// ============================================================
+
+#[test]
+fn sbpl_path_rejects_newline() {
+    let path = std::path::Path::new("/tmp/evil\n(allow file-read* (subpath \"/\"))");
+    assert!(validate_sbpl_path(path).is_err());
+}
+
+#[test]
+fn sbpl_path_rejects_null_byte() {
+    let path = std::path::Path::new("/tmp/evil\0rest");
+    assert!(validate_sbpl_path(path).is_err());
+}
+
+#[test]
+fn sbpl_path_rejects_quotes() {
+    let path = std::path::Path::new("/tmp/evil\"path");
+    assert!(validate_sbpl_path(path).is_err());
+}
+
+#[test]
+fn sbpl_path_rejects_parens() {
+    let path = std::path::Path::new("/tmp/evil(path)");
+    assert!(validate_sbpl_path(path).is_err());
+}
+
+#[test]
+fn sbpl_path_allows_normal_path() {
+    let path = std::path::Path::new("/Users/test/projects/my-app");
+    assert!(validate_sbpl_path(path).is_ok());
+}
+
+// ============================================================
+// Profile content verification (using real generate_profile)
+// ============================================================
+
+#[test]
 fn profile_contains_deny_default() {
-    let p = gen_test_profile("/projects/app", "/Users/test", None);
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
     assert!(p.contains("(deny default)"));
 }
 
 #[test]
 fn profile_grants_project_access() {
-    let p = gen_test_profile("/projects/app", "/Users/test", None);
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
     assert!(p.contains("(allow file-write* (subpath \"/projects/app\"))"));
 }
 
 #[test]
 fn profile_grants_copilot_config_access() {
-    let p = gen_test_profile("/projects/app", "/Users/test", None);
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
     assert!(p.contains("(allow file-read* (subpath \"/Users/test/.copilot\"))"));
 }
 
 #[test]
 fn profile_denies_sensitive_dirs() {
-    let p = gen_test_profile("/projects/app", "/Users/test", None);
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
     for dir in &[
         ".ssh",
         ".gnupg",
@@ -284,6 +338,10 @@ fn profile_denies_sensitive_dirs() {
         ".docker",
         ".nais",
         ".password-store",
+        ".config/gcloud",
+        ".config/op",
+        ".config/gh",
+        ".terraform.d",
     ] {
         assert!(
             p.contains(&format!(
@@ -301,22 +359,69 @@ fn profile_denies_sensitive_dirs() {
 }
 
 #[test]
+fn profile_denies_sensitive_files() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
+    for file in &[
+        ".netrc",
+        ".npmrc",
+        ".pypirc",
+        ".gem/credentials",
+        ".vault-token",
+    ] {
+        assert!(
+            p.contains(&format!(
+                "(deny file-read* (literal \"/Users/test/{file}\"))"
+            )),
+            "should deny read to {file}"
+        );
+    }
+}
+
+#[test]
 fn profile_blocks_all_network_without_proxy() {
-    let p = gen_test_profile("/projects/app", "/Users/test", None);
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
     assert!(p.contains("(deny network*)"));
     assert!(!p.contains("network-outbound (remote ip"));
 }
 
 #[test]
 fn profile_allows_only_proxy_port() {
-    let p = gen_test_profile("/projects/app", "/Users/test", Some(18080));
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        Some(18080),
+    );
     assert!(p.contains("(deny network*)"));
     assert!(p.contains("(allow network-outbound (remote ip \"localhost:18080\"))"));
 }
 
 #[test]
 fn profile_deny_rules_come_after_allow_rules() {
-    let p = gen_test_profile("/projects/app", "/Users/test", None);
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
     let allow_pos = p
         .find("(allow file-read* (subpath \"/projects/app\"))")
         .unwrap();
@@ -326,5 +431,25 @@ fn profile_deny_rules_come_after_allow_rules() {
     assert!(
         deny_pos > allow_pos,
         "deny rules must come after allow rules for correct Seatbelt evaluation"
+    );
+}
+
+#[test]
+fn profile_denies_exec_from_tmp() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+    );
+    assert!(
+        p.contains("(deny process-exec (subpath \"/private/tmp\"))"),
+        "should deny exec from /private/tmp"
+    );
+    assert!(
+        p.contains("(deny process-exec (subpath \"/private/var/folders\"))"),
+        "should deny exec from /private/var/folders"
     );
 }
