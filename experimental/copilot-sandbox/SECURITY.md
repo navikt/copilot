@@ -25,6 +25,79 @@ copilot-sandbox assumes Copilot CLI is an **untrusted agent** executing arbitrar
 - **macOS kernel exploits** — we rely on Apple's Seatbelt enforcement being correct
 - **Keychain isolation** — Copilot requires Keychain access for auth; this is an accepted trade-off
 - **sandbox-exec deprecation** — Apple marks it deprecated but has not removed it; Chromium and VS Code still use it
+- **Code quality** — the sandbox cannot judge whether code written by Copilot contains backdoors; that's a code review problem
+
+## Real-World Attack Landscape (2025–2026)
+
+This section documents the attack vectors and infrastructure observed in real supply chain attacks. copilot-sandbox is designed to mitigate these specific threats.
+
+### Attack kill chain
+
+Supply chain attacks through AI coding agents follow a consistent pattern:
+
+```
+1. INFECTION          2. RECONNAISSANCE       3. CREDENTIAL HARVEST    4. EXFILTRATION
+postinstall hook   →  hostname, IP, user,  →  ~/.ssh/*, ~/.aws/*,  →  HTTP POST to C2
+or patched file       env vars, OS info        .env, npm tokens        or DNS tunnel
+```
+
+### Observed incidents
+
+| Incident | Year | Vector | Impact |
+|---|---|---|---|
+| **Shai-Hulud** | 2025 | Compromised npm maintainer accounts | Self-replicating worm hit 700+ packages, stole npm tokens + AWS keys |
+| **CamoLeak** | 2025 | Prompt injection in PR comments | Copilot Chat exfiltrated private code via GitHub image proxy (CVE-2025-59145, CVSS 9.6) |
+| **RoguePilot** | 2026 | Prompt injection in GitHub issues | GITHUB_TOKEN leaked from Codespaces, enabling full repo takeover |
+| **YOLO Mode** | 2025 | Agent writes to .vscode/settings.json | Auto-approved all commands → RCE (CVE-2025-53773) |
+| **MCP Poisoning** | 2026 | Hidden instructions in npm metadata | AI agents extracted SSH keys from dev machines, invisible to user |
+| **axios RAT** | 2026 | Trojanized npm package by STARDUST CHOLLIMA | Hidden RAT deployed to any system where AI agent ran `npm install` |
+
+### Exfiltration infrastructure (observed in the wild)
+
+| Category | Domains/services | Why attackers use them |
+|---|---|---|
+| **Discord webhooks** | `discord.com/api/webhooks/*` | Write-only, no authentication needed, blends with legitimate traffic |
+| **Webhook capture** | `webhook.site`, `pipedream.com`, `requestbin.com` | Disposable endpoints, no signup required |
+| **Tunneling** | `ngrok.io`, `localtunnel.me`, `serveo.net` | Reverse shells through NAT/firewall boundaries |
+| **Paste sites** | `pastebin.com`, `paste.ee`, `hastebin.com` | Credential dump staging for later retrieval |
+| **File sharing** | `transfer.sh`, `file.io`, `0x0.st`, `catbox.moe` | Exfiltration of SSH keys and .env files |
+| **Telegram** | `api.telegram.org` | Bot API as write-only C2 channel |
+| **IP recon** | `ipinfo.io`, `ifconfig.me`, `checkip.amazonaws.com` | Victim network fingerprinting |
+| **Cloudflare Workers** | `*.workers.dev` | Free hosting for C2 relays, resistant to takedown |
+| **Ethereum dead-drop** | Smart contract → Cloudflare-fronted domains | C2 URL rotation without code changes, impossible to take down |
+
+A curated blocklist of these domains is included in [`blocked-domains.txt`](blocked-domains.txt).
+
+### What gets stolen (in order of attacker priority)
+
+1. **npm/pip tokens** — enables worm propagation (Shai-Hulud: 700+ packages from stolen tokens)
+2. **CI/CD tokens** — GITHUB_TOKEN, AWS keys from environment variables
+3. **SSH keys** — `~/.ssh/id_*`
+4. **Cloud credentials** — `~/.aws/credentials`, `~/.config/gcloud`
+5. **Environment files** — `.env`, `.env.local` (API keys, database URLs)
+6. **Network topology** — internal IPs, DNS servers, hostnames (recon for lateral movement)
+
+### How copilot-sandbox defends against each step
+
+| Kill chain step | Attack technique | Sandbox defense | Verdict |
+|---|---|---|---|
+| **1. Infection** | `postinstall` hook runs code | Runs in sandbox — can execute but all restrictions apply | ⚠️ Code runs, but is caged |
+| **2. Recon** | Read hostname, IP, env vars | Can read process env vars (needed for Copilot), hostname | ⚠️ Partial leak possible |
+| **3. Credential harvest** | Read ~/.ssh, ~/.aws, .env | **Kernel-blocked.** macOS Seatbelt denies the read syscall. | ✅ **Stopped** |
+| **4a. HTTP exfil** | POST to discord/webhook/C2 | **Proxy blocks** non-allowlisted domains, logs all CONNECT | ✅ **Stopped** (with blocklist) |
+| **4b. DNS tunneling** | Encode data in DNS queries | Not inspected — DNS bypasses the proxy | ❌ **Not stopped** |
+| **4c. Reverse shell** | Connect back via ngrok | **Kernel-blocked** — no direct network, proxy doesn't relay arbitrary TCP | ✅ **Stopped** |
+| **Worm propagation** | Republish infected packages | Can't read npm tokens (in ~/.npmrc, kernel-blocked) | ✅ **Stopped** |
+
+### Honest gaps
+
+**DNS tunneling** is the one channel we cannot inspect. However:
+- Bandwidth is ~15 KB/s at best (encoding overhead in subdomain labels)
+- Requires attacker-controlled authoritative DNS server
+- The most valuable targets (credentials, tokens, keys) are kernel-blocked from being read
+- Detectable with DNS monitoring (high-entropy subdomain queries to unusual domains)
+
+Since credentials are inaccessible inside the sandbox, DNS tunneling can only leak project source code and process environment variables — a much smaller blast radius than full credential theft.
 
 ## Defense Layers
 
@@ -229,8 +302,21 @@ The GitHub Actions workflow runs in two stages:
 
 - [GitHub Copilot Workspace sandbox settings](https://docs.github.com/en/copilot/customizing-copilot/customizing-copilot-in-your-ide) — VS Code's built-in sandbox options for Copilot (terminal command restrictions)
 - [Copilot cloud agent firewall](https://docs.github.com/en/enterprise-cloud@latest/copilot/customizing-copilot/customizing-or-disabling-the-firewall-for-copilot-coding-agent) — GitHub's server-side network firewall for the cloud coding agent
+- [Copilot allowlist reference](https://docs.github.com/en/copilot/reference/copilot-allowlist-reference) — Default allowed domains for Copilot cloud agent
 - [OpenAI Codex sandbox](https://platform.openai.com/docs/guides/codex) — OpenAI's approach to sandboxing code execution with network and filesystem restrictions
 - [Anthropic Claude Code permissions](https://docs.anthropic.com/en/docs/claude-code/security) — Permission-based tool approval model for local agent execution
+
+### Supply Chain Attack Research
+
+- [Mend.io: Shai-Hulud npm worm analysis (2025)](https://www.mend.io/blog/npm-supply-chain-attack-packages-compromised-by-self-spreading-malware) — Self-replicating worm that compromised 700+ npm packages
+- [Wiz: Shai-Hulud 2.0 — 25K+ repos exposed](https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack) — Second wave and blast radius analysis
+- [Socket: 60 malicious npm packages](https://socket.dev/blog/60-malicious-npm-packages-leak-network-and-host-data) — Network recon exfiltration to Discord webhooks
+- [Oligo: npm supply chain risks with AI agents](https://www.oligo.security/blog/the-hidden-risks-of-the-npm-supply-chain-attacks-ai-agents) — How AI coding agents amplify supply chain attacks
+- [ReversingLabs: npm reverse shell malware](https://www.reversinglabs.com/blog/malicious-npm-patch-delivers-reverse-shell) — Patched legitimate packages delivering reverse shells
+- [Rafter: AI Agent Security Incident Timeline (2025–2026)](https://rafter.so/blog/incidents/ai-agent-security-timeline-2025-2026) — Comprehensive timeline of agent security incidents
+- [CamoLeak: Copilot Chat exfiltration (CVE-2025-59145)](https://rafter.so/blog/incidents/camoleak-invisible-exfiltration-channel) — Invisible data exfiltration via GitHub image proxy
+- [LOTS Project — Living Off Trusted Sites](https://lots-project.com/) — Catalog of legitimate domains abused for C2 and exfiltration
+- [Veracode: npm C2 via Ethereum smart contracts](https://www.veracode.com/blog/54-new-npm-packages-found-beaconing-to-c2-server-in-ethereum-smart-contract/) — Dead-drop C2 rotation technique
 
 ## Reporting Security Issues
 

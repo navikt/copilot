@@ -212,16 +212,22 @@ COPILOT_SANDBOX_CONFIG=/path/to/custom.toml copilot-sandbox -- --version
 
 ## Domain blocking
 
-Edit `blocked.txt` while the proxy runs — changes take effect immediately:
+The proxy can block domains commonly used for data exfiltration. A default blocklist is included based on real attack infrastructure observed in 2025–2026 supply chain incidents:
 
-```
-# Block paste sites
-pastebin.com
-transfer.sh
+```bash
+# Use the included blocklist
+copilot-sandbox --with-proxy --blocked-domains blocked-domains.txt -- -p "fix tests"
 
-# Block known exfiltration targets
-requestbin.com
+# Or set it permanently in config
+copilot-sandbox --init-config
+# Then edit ~/.config/copilot-sandbox/config.toml:
+#   [proxy]
+#   blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
 ```
+
+The blocklist covers webhook capture services, paste sites, file sharing, tunneling services, and IP recon endpoints. See [`blocked-domains.txt`](blocked-domains.txt) for the full list with sources.
+
+Edit the file while the proxy runs — changes take effect immediately.
 
 ## Limitations
 
