@@ -46,6 +46,8 @@ pub struct AllowConfig {
     pub write: Vec<String>,
     /// Additional outbound TCP ports beyond 443/80.
     pub ports: Vec<u16>,
+    /// Localhost ports to allow (localhost is blocked by default).
+    pub localhost: Vec<u16>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -73,6 +75,7 @@ pub struct Resolved {
     pub allow_write: Vec<PathBuf>,
     pub deny_paths: Vec<PathBuf>,
     pub allow_ports: Vec<u16>,
+    pub allow_localhost: Vec<u16>,
     pub no_validate: bool,
 }
 
@@ -120,6 +123,7 @@ impl Config {
         cli_allow_write: Vec<PathBuf>,
         cli_deny_paths: Vec<PathBuf>,
         cli_allow_ports: Vec<u16>,
+        cli_allow_localhost: Vec<u16>,
         cli_no_validate: bool,
     ) -> Result<Resolved, String> {
         // Proxy: --no-proxy always wins, then --with-proxy, then config, then false (default off).
@@ -195,6 +199,12 @@ impl Config {
         allow_ports.sort_unstable();
         allow_ports.dedup();
 
+        // Allow-localhost: merge config + CLI
+        let mut allow_localhost = self.allow.localhost.clone();
+        allow_localhost.extend(cli_allow_localhost);
+        allow_localhost.sort_unstable();
+        allow_localhost.dedup();
+
         // Validate all paths for SBPL injection characters
         for p in allow_read
             .iter()
@@ -212,6 +222,7 @@ impl Config {
             allow_write,
             deny_paths,
             allow_ports,
+            allow_localhost,
             no_validate,
         })
     }
@@ -256,6 +267,13 @@ impl Resolved {
         if !self.allow_ports.is_empty() {
             let ports: Vec<String> = self.allow_ports.iter().map(|p| p.to_string()).collect();
             eprintln!("{blue}[cplt]{nc} Ports:    443, 80, {}", ports.join(", "));
+        }
+        if !self.allow_localhost.is_empty() {
+            let ports: Vec<String> = self.allow_localhost.iter().map(|p| p.to_string()).collect();
+            eprintln!(
+                "{blue}[cplt]{nc} Localhost: {}",
+                ports.iter().map(|p| format!(":{p}")).collect::<Vec<_>>().join(", ")
+            );
         }
     }
 }
@@ -303,8 +321,12 @@ pub fn default_config_contents() -> String {
 # write = []
 #
 # Additional outbound TCP ports beyond 443 and 80.
-# Use for MCP servers or other services.
+# Use for external services.
 # ports = [8080]
+#
+# Localhost ports to allow (localhost is blocked by default).
+# Use for MCP servers, dev servers, or local APIs.
+# localhost = [3000, 8080]
 
 # ─── Denied paths ───────────────────────────────────────────
 # Additional paths to explicitly block (overrides allows).
@@ -457,7 +479,7 @@ validate = false
     fn cli_proxy_flag_overrides_config() {
         let config: Config = toml::from_str("[proxy]\nenabled = false\n").unwrap();
         let resolved = config
-            .merge(true, false, None, None, vec![], vec![], vec![], vec![], false)
+            .merge(true, false, None, None, vec![], vec![], vec![], vec![], vec![], false)
             .unwrap();
         assert!(resolved.with_proxy);
     }
@@ -466,7 +488,7 @@ validate = false
     fn no_proxy_flag_overrides_config_enabled() {
         let config: Config = toml::from_str("[proxy]\nenabled = true\n").unwrap();
         let resolved = config
-            .merge(false, true, None, None, vec![], vec![], vec![], vec![], false)
+            .merge(false, true, None, None, vec![], vec![], vec![], vec![], vec![], false)
             .unwrap();
         assert!(!resolved.with_proxy);
     }
@@ -475,7 +497,7 @@ validate = false
     fn config_proxy_used_when_no_cli_flag() {
         let config: Config = toml::from_str("[proxy]\nenabled = true\n").unwrap();
         let resolved = config
-            .merge(false, false, None, None, vec![], vec![], vec![], vec![], false)
+            .merge(false, false, None, None, vec![], vec![], vec![], vec![], vec![], false)
             .unwrap();
         assert!(resolved.with_proxy);
     }
@@ -493,6 +515,7 @@ validate = false
                 vec![],
                 vec![],
                 vec![],
+                vec![],
                 false,
             )
             .unwrap();
@@ -503,7 +526,7 @@ validate = false
     fn config_port_used_when_cli_none() {
         let config: Config = toml::from_str("[proxy]\nport = 9090\n").unwrap();
         let resolved = config
-            .merge(false, false, None, None, vec![], vec![], vec![], vec![], false)
+            .merge(false, false, None, None, vec![], vec![], vec![], vec![], vec![], false)
             .unwrap();
         assert_eq!(resolved.proxy_port, 9090);
     }
@@ -512,7 +535,7 @@ validate = false
     fn default_port_when_neither_set() {
         let config = Config::default();
         let resolved = config
-            .merge(false, false, None, None, vec![], vec![], vec![], vec![], false)
+            .merge(false, false, None, None, vec![], vec![], vec![], vec![], vec![], false)
             .unwrap();
         assert_eq!(resolved.proxy_port, 18080);
     }
@@ -521,7 +544,7 @@ validate = false
     fn cli_no_validate_overrides_config() {
         let config: Config = toml::from_str("[sandbox]\nvalidate = true\n").unwrap();
         let resolved = config
-            .merge(false, false, None, None, vec![], vec![], vec![], vec![], true)
+            .merge(false, false, None, None, vec![], vec![], vec![], vec![], vec![], true)
             .unwrap();
         assert!(resolved.no_validate);
     }
@@ -530,7 +553,7 @@ validate = false
     fn config_validate_false_sets_no_validate() {
         let config: Config = toml::from_str("[sandbox]\nvalidate = false\n").unwrap();
         let resolved = config
-            .merge(false, false, None, None, vec![], vec![], vec![], vec![], false)
+            .merge(false, false, None, None, vec![], vec![], vec![], vec![], vec![], false)
             .unwrap();
         assert!(resolved.no_validate);
     }
@@ -541,7 +564,7 @@ validate = false
         let config: Config = toml::from_str("[deny]\npaths = [\"/tmp\"]\n").unwrap();
         let cli_deny = vec![PathBuf::from("/var")];
         let resolved = config
-            .merge(false, false, None, None, vec![], vec![], cli_deny, vec![], false)
+            .merge(false, false, None, None, vec![], vec![], cli_deny, vec![], vec![], false)
             .unwrap();
         assert!(
             resolved
@@ -556,7 +579,7 @@ validate = false
     fn deny_path_config_error_on_nonexistent() {
         let config: Config =
             toml::from_str("[deny]\npaths = [\"/nonexistent/path/xyz\"]\n").unwrap();
-        let result = config.merge(false, false, None, None, vec![], vec![], vec![], vec![], false);
+        let result = config.merge(false, false, None, None, vec![], vec![], vec![], vec![], vec![], false);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("cannot be resolved"));
     }
@@ -572,7 +595,7 @@ validate = false
     fn proxy_disabled_by_default_when_no_config_or_flags() {
         let config = Config::default();
         let resolved = config
-            .merge(false, false, None, None, vec![], vec![], vec![], vec![], false)
+            .merge(false, false, None, None, vec![], vec![], vec![], vec![], vec![], false)
             .unwrap();
         assert!(
             !resolved.with_proxy,

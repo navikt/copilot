@@ -88,10 +88,17 @@ struct Cli {
     deny_paths: Vec<PathBuf>,
 
     /// Allow outbound TCP to an additional port beyond 443 and 80.
-    /// Use for MCP servers or other services that Copilot needs to reach.
+    /// Use for external services that Copilot needs to reach.
     /// Can be specified multiple times.
     #[arg(long = "allow-port", value_name = "PORT")]
     allow_ports: Vec<u16>,
+
+    /// Allow outbound TCP to localhost on a specific port.
+    /// Localhost is blocked by default to prevent SSRF. Use this for
+    /// MCP servers, dev servers, or other local services Copilot needs.
+    /// Can be specified multiple times.
+    #[arg(long = "allow-localhost", value_name = "PORT")]
+    allow_localhost: Vec<u16>,
 
     /// Skip the startup check that verifies the sandbox is working.
     /// The check runs a quick test command inside the sandbox to confirm
@@ -243,6 +250,7 @@ fn main() -> ExitCode {
         cli_allow_write,
         cli_deny_paths,
         cli.allow_ports.clone(),
+        cli.allow_localhost.clone(),
         cli.no_validate,
     ) {
         Ok(r) => r,
@@ -347,6 +355,7 @@ fn main() -> ExitCode {
         &resolved.deny_paths,
         Some(&existing_dirs),
         &resolved.allow_ports,
+        &resolved.allow_localhost,
         proxy_port_for_profile,
     );
 

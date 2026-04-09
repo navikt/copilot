@@ -289,6 +289,7 @@ fn profile_contains_deny_default() {
         &[],
         None,
         &[],
+        &[],
         None,
     );
     assert!(p.contains("(deny default)"));
@@ -303,6 +304,7 @@ fn profile_allows_tty_ioctl() {
         &[],
         &[],
         None,
+        &[],
         &[],
         None,
     );
@@ -322,6 +324,7 @@ fn profile_grants_project_access() {
         &[],
         None,
         &[],
+        &[],
         None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
@@ -338,6 +341,7 @@ fn profile_grants_copilot_config_access() {
         &[],
         None,
         &[],
+        &[],
         None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/Users/test/.copilot\"))"));
@@ -352,6 +356,7 @@ fn profile_denies_sensitive_dirs() {
         &[],
         &[],
         None,
+        &[],
         &[],
         None,
     );
@@ -393,6 +398,7 @@ fn profile_denies_sensitive_files() {
         &[],
         None,
         &[],
+        &[],
         None,
     );
     for file in &[
@@ -420,6 +426,7 @@ fn profile_restricts_outbound_tcp() {
         &[],
         &[],
         None,
+        &[],
         &[],
         None,
     );
@@ -459,6 +466,7 @@ fn profile_extra_ports_adds_allows() {
         &[],
         None,
         &[8080, 3000],
+        &[],
         None,
     );
     assert!(
@@ -485,6 +493,7 @@ fn profile_proxy_port_allows_localhost() {
         &[],
         None,
         &[],
+        &[],
         Some(18080),
     );
     assert!(
@@ -498,6 +507,44 @@ fn profile_proxy_port_allows_localhost() {
 }
 
 #[test]
+fn profile_allow_localhost_opens_specific_ports() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[3000, 8080],
+        None,
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"localhost:3000\"))"),
+        "Profile must allow localhost:3000"
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"localhost:8080\"))"),
+        "Profile must allow localhost:8080"
+    );
+    assert!(
+        p.contains("(deny network-outbound (remote ip \"localhost:*\"))"),
+        "Profile must still deny general localhost"
+    );
+    // The localhost allows must come AFTER the localhost deny
+    let deny_pos = p
+        .find("(deny network-outbound (remote ip \"localhost:*\"))")
+        .unwrap();
+    let allow_pos = p
+        .find("(allow network-outbound (remote ip \"localhost:3000\"))")
+        .unwrap();
+    assert!(
+        allow_pos > deny_pos,
+        "localhost allows must come after localhost deny for last-match-wins"
+    );
+}
+
+#[test]
 fn profile_deny_rules_come_after_allow_rules() {
     let p = generate_profile(
         std::path::Path::new("/projects/app"),
@@ -506,6 +553,7 @@ fn profile_deny_rules_come_after_allow_rules() {
         &[],
         &[],
         None,
+        &[],
         &[],
         None,
     );
@@ -531,6 +579,7 @@ fn profile_denies_exec_from_tmp() {
         &[],
         None,
         &[],
+        &[],
         None,
     );
     assert!(
@@ -552,6 +601,7 @@ fn profile_allows_gh_config_read_only() {
         &[],
         &[],
         None,
+        &[],
         &[],
         None,
     );
@@ -578,6 +628,7 @@ fn profile_allows_file_map_executable_for_copilot() {
         &[],
         &[],
         None,
+        &[],
         &[],
         None,
     );

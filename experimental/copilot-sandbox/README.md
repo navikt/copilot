@@ -116,7 +116,8 @@ The project directory is the primary writable workspace, plus a narrow allowlist
 | `--allow-read <PATH>` | Let Copilot read (read-only) files outside the project (e.g. shared libraries, docs). Can be repeated. |
 | `--allow-write <PATH>` | Let Copilot read AND write outside the project. Use carefully. Can be repeated. |
 | `--deny-path <PATH>` | Block a path that would otherwise be allowed. Deny always wins. Can be repeated. |
-| `--allow-port <PORT>` | Allow outbound TCP on an extra port (default: only 443 and 80). Can be repeated. Example: `--allow-port 8080`. |
+| `--allow-port <PORT>` | Allow outbound TCP on an extra port (default: only 443 and 80). Can be repeated. |
+| `--allow-localhost <PORT>` | Allow outbound to `localhost` on a specific port (localhost is blocked by default). Use for MCP servers or dev servers. Can be repeated. |
 
 ### Proxy (optional)
 
@@ -159,8 +160,11 @@ cplt --with-proxy -- -p "fix the tests"
 # Let Copilot read a shared library directory
 cplt --allow-read ~/shared-libs -- -p "use shared-libs"
 
-# Allow outbound on extra ports (e.g., dev server)
-cplt --allow-port 8080 --allow-port 3000 -- -p "test the API"
+# Allow outbound on extra ports (e.g., external API)
+cplt --allow-port 8443 -- -p "test the API"
+
+# Allow localhost for MCP servers or dev servers
+cplt --allow-localhost 3000 --allow-localhost 8080 -- -p "use the MCP server"
 
 # Block a path you don't want Copilot to see
 cplt --deny-path ~/.config/gh -- -p "refactor auth"

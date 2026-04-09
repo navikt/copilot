@@ -88,6 +88,7 @@ pub fn generate_profile(
     extra_deny: &[PathBuf],
     existing_home_tool_dirs: Option<&[String]>,
     extra_ports: &[u16],
+    localhost_ports: &[u16],
     proxy_port: Option<u16>,
 ) -> String {
     let mut sb = String::with_capacity(4096);
@@ -325,8 +326,16 @@ pub fn generate_profile(
     // Must come AFTER port allows so it overrides them for localhost.
     writeln!(sb, "(deny network-outbound (remote ip \"localhost:*\"))").unwrap();
 
-    // Carve-out: allow localhost proxy port when proxy is active
+    // Carve-outs for specific localhost ports (proxy, MCP servers, dev servers).
+    // These come AFTER the deny so they override it (last-match-wins in SBPL).
     if let Some(port) = proxy_port {
+        writeln!(
+            sb,
+            "(allow network-outbound (remote ip \"localhost:{port}\"))"
+        )
+        .unwrap();
+    }
+    for port in localhost_ports {
         writeln!(
             sb,
             "(allow network-outbound (remote ip \"localhost:{port}\"))"
