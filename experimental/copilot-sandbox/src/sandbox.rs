@@ -75,6 +75,9 @@ const HOME_TOOL_DIRS: &[&str] = &[
     ".nvm",
     ".cargo",
     ".rustup",
+    ".gradle",
+    ".m2",
+    ".sdkman",
     "go/bin",
     "go/pkg",
     "Library/Caches",
@@ -157,9 +160,12 @@ pub fn generate_profile(
     writeln!(sb).unwrap();
 
     // Project directory — full access
+    // file-map-executable needed for native Node addons in node_modules
+    // (e.g. @next/swc-*, sharp, better-sqlite3 loaded via dlopen)
     writeln!(sb, ";; Project directory — full read/write").unwrap();
     writeln!(sb, "(allow file-read* (subpath \"{project}\"))").unwrap();
     writeln!(sb, "(allow file-write* (subpath \"{project}\"))").unwrap();
+    writeln!(sb, "(allow file-map-executable (subpath \"{project}\"))").unwrap();
     writeln!(sb).unwrap();
 
     // Sensitive project files — deny read of .env*, .pem, .key etc.
@@ -290,13 +296,11 @@ pub fn generate_profile(
         writeln!(sb, "(allow process-exec (subpath \"{home}/{dir}\"))").unwrap();
         writeln!(sb, "(allow file-map-executable (subpath \"{home}/{dir}\"))").unwrap();
     }
-    // Build caches need write access (go-build, Homebrew, etc.)
-    if home_dirs.contains(&"Library/Caches") {
-        writeln!(
-            sb,
-            "(allow file-write* (subpath \"{home}/Library/Caches\"))"
-        )
-        .unwrap();
+    // Build caches and dependency stores need write access
+    for write_dir in &["Library/Caches", ".gradle", ".m2", "Library/pnpm"] {
+        if home_dirs.contains(write_dir) {
+            writeln!(sb, "(allow file-write* (subpath \"{home}/{write_dir}\"))").unwrap();
+        }
     }
     writeln!(sb).unwrap();
 
@@ -383,9 +387,12 @@ pub fn generate_profile(
 
     // Block localhost outbound — prevents SSRF to local dev servers, databases, etc.
     // Must come AFTER port allows so it overrides them for localhost.
-    // Skip when --allow-localhost-any is set (needed for build tools with random IPC ports).
     if !allow_localhost_any {
         writeln!(sb, "(deny network-outbound (remote ip \"localhost:*\"))").unwrap();
+    } else {
+        // Explicitly allow all localhost ports — the general TCP deny above
+        // blocks non-443 ports, so we need a specific allow for localhost.
+        writeln!(sb, "(allow network-outbound (remote ip \"localhost:*\"))").unwrap();
     }
 
     // Carve-outs for specific localhost ports (proxy, MCP servers, dev servers).

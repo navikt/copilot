@@ -36,7 +36,7 @@ We'd rather ship something small that actually works than something impressive t
 | Outbound network (port 443) | ✅ Allowed | All other ports blocked — use `--allow-port` to add extras |
 | Localhost outbound | 🔒 Kernel-blocked | Prevents local service access; inbound still works for proxy |
 | SSH agent (unix socket) | 🔒 Kernel-blocked | Prevents signing git operations or SSH to hosts |
-| Developer tools (`~/.cargo`, `~/.mise`, etc.) | ✅ Allowed (read-only) | Only dirs that exist on disk; tightened at runtime via `--doctor` |
+| Developer tools (`~/.cargo`, `~/.mise`, `~/.gradle`, `~/.m2`, `~/.sdkman`, etc.) | ✅ Allowed (read+write for caches) | Only dirs that exist on disk; tightened at runtime via `--doctor` |
 | Go source code (`~/go/src`) | 🔒 Kernel-blocked | Only `~/go/bin` and `~/go/pkg` are readable |
 | Read `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure` | 🔒 Kernel-blocked | |
 | Read `~/.kube`, `~/.docker`, `~/.nais` | 🔒 Kernel-blocked | |
@@ -356,13 +356,24 @@ Localhost outbound is blocked by default, which prevents sandboxed processes fro
 | Operation | Impact | Why |
 |---|---|---|
 | `npm install` (registry) | ✅ Works | Uses HTTPS to `registry.npmjs.org:443` |
-| Local PostgreSQL (`:5432`) | ❌ Blocked | Outbound to `localhost:5432` denied |
-| Local Redis (`:6379`) | ❌ Blocked | Outbound to `localhost:6379` denied |
+| `gradle build` (Maven Central) | ✅ Works | Uses HTTPS to `repo1.maven.org:443` |
+| Local PostgreSQL (`:5432`) | ❌ Blocked | Use `--allow-localhost 5432` |
+| Local Redis (`:6379`) | ❌ Blocked | Use `--allow-localhost 6379` |
+| Local Kafka (`:9092`) | ❌ Blocked | Use `--allow-localhost 9092` |
 | MCP servers | ❌ Blocked | Use `--allow-localhost 3000` |
 | Local API/dev server | ❌ Blocked | Use `--allow-localhost 8080` |
+| Spring Boot (`:8080`) | ❌ Blocked | Use `--allow-localhost 8080` |
 | Next.js/Turbopack build | ❌ Workers blocked | Use `--allow-localhost-any` (random ephemeral ports) |
 
 **Fix:** Use `--allow-localhost <PORT>` for specific services, or `--allow-localhost-any` for build tools that use random ports (Next.js, Vite, esbuild).
+
+### Docker and Testcontainers
+
+Docker is **intentionally blocked** — `~/.docker` is denied and the Docker socket is not accessible. This is by design: Docker gives near-root access to the host system, which defeats the purpose of sandboxing.
+
+- Docker commands, `docker compose`, and Testcontainers will fail
+- Local databases via Docker Compose need `--allow-localhost <PORT>` for the exposed port (the database container runs outside the sandbox)
+- Consider running database/Kafka containers before starting cplt, then use `--allow-localhost` for the ports
 
 ### SSH agent blocking
 

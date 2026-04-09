@@ -335,6 +335,10 @@ fn profile_grants_project_access() {
     );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
     assert!(p.contains("(allow file-write* (subpath \"/projects/app\"))"));
+    assert!(
+        p.contains("(allow file-map-executable (subpath \"/projects/app\"))"),
+        "Project dir must allow file-map-executable for native Node addons"
+    );
 }
 
 #[test]
@@ -746,6 +750,10 @@ fn profile_allows_all_localhost_when_flag_set() {
     assert!(
         !p.contains("(deny network-outbound (remote ip \"localhost:*\"))"),
         "Profile must NOT deny localhost when allow_localhost_any is set"
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"localhost:*\"))"),
+        "Profile must explicitly ALLOW all localhost when allow_localhost_any is set"
     );
     // Should still have the general TCP deny and port allows
     assert!(
