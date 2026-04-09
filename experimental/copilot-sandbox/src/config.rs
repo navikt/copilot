@@ -64,6 +64,8 @@ pub struct SandboxConfig {
     pub validate: Option<bool>,
     /// Allow reading .env files and private keys in project dir (default: false).
     pub allow_env_files: Option<bool>,
+    /// Allow all localhost outbound (default: false).
+    pub allow_localhost_any: Option<bool>,
 }
 
 /// Resolved configuration after merging config file + CLI flags.
@@ -78,6 +80,7 @@ pub struct Resolved {
     pub deny_paths: Vec<PathBuf>,
     pub allow_ports: Vec<u16>,
     pub allow_localhost: Vec<u16>,
+    pub allow_localhost_any: bool,
     pub allow_env_files: bool,
     pub no_validate: bool,
 }
@@ -127,6 +130,7 @@ impl Config {
         cli_deny_paths: Vec<PathBuf>,
         cli_allow_ports: Vec<u16>,
         cli_allow_localhost: Vec<u16>,
+        cli_allow_localhost_any: bool,
         cli_allow_env_files: bool,
         cli_no_validate: bool,
     ) -> Result<Resolved, String> {
@@ -216,6 +220,13 @@ impl Config {
         allow_localhost.sort_unstable();
         allow_localhost.dedup();
 
+        // Allow-localhost-any: CLI flag wins, then config, then false
+        let allow_localhost_any = if cli_allow_localhost_any {
+            true
+        } else {
+            self.sandbox.allow_localhost_any.unwrap_or(false)
+        };
+
         // Validate all paths for SBPL injection characters
         for p in allow_read
             .iter()
@@ -234,6 +245,7 @@ impl Config {
             deny_paths,
             allow_ports,
             allow_localhost,
+            allow_localhost_any,
             allow_env_files,
             no_validate,
         })
@@ -277,7 +289,9 @@ impl Resolved {
             let ports: Vec<String> = self.allow_ports.iter().map(|p| p.to_string()).collect();
             eprintln!("{blue}[cplt]{nc} Ports:    443, 80, {}", ports.join(", "));
         }
-        if !self.allow_localhost.is_empty() {
+        if self.allow_localhost_any {
+            eprintln!("{blue}[cplt]{nc} Localhost: all ports allowed");
+        } else if !self.allow_localhost.is_empty() {
             let ports: Vec<String> = self.allow_localhost.iter().map(|p| p.to_string()).collect();
             eprintln!(
                 "{blue}[cplt]{nc} Localhost: {}",
@@ -362,6 +376,11 @@ pub fn default_config_contents() -> String {
 # in the project directory. Blocked by default — these often contain
 # secrets that a rogue agent could exfiltrate via HTTPS.
 # allow_env_files = false
+#
+# Allow outbound TCP to localhost on ALL ports.
+# Needed for build tools like Turbopack (Next.js), Vite, and esbuild
+# that spawn workers communicating via TCP on random localhost ports.
+# allow_localhost_any = false
 "#
     .to_string()
 }
@@ -509,6 +528,7 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
             )
             .unwrap();
         assert!(resolved.with_proxy);
@@ -528,6 +548,7 @@ validate = false
                 vec![],
                 vec![],
                 vec![],
+                false,
                 false,
                 false,
             )
@@ -551,6 +572,7 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
             )
             .unwrap();
         assert!(resolved.with_proxy);
@@ -570,6 +592,7 @@ validate = false
                 vec![],
                 vec![],
                 vec![],
+                false,
                 false,
                 false,
             )
@@ -593,6 +616,7 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
             )
             .unwrap();
         assert_eq!(resolved.proxy_port, 9090);
@@ -614,6 +638,7 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
             )
             .unwrap();
         assert_eq!(resolved.proxy_port, 18080);
@@ -633,6 +658,7 @@ validate = false
                 vec![],
                 vec![],
                 vec![],
+                false,
                 false,
                 true,
             )
@@ -656,6 +682,7 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
             )
             .unwrap();
         assert!(resolved.no_validate);
@@ -677,6 +704,7 @@ validate = false
                 cli_deny,
                 vec![],
                 vec![],
+                false,
                 false,
                 false,
             )
@@ -706,6 +734,7 @@ validate = false
             vec![],
             false,
             false,
+            false,
         );
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("cannot be resolved"));
@@ -732,6 +761,7 @@ validate = false
                 vec![],
                 vec![],
                 vec![],
+                false,
                 false,
                 false,
             )
@@ -770,6 +800,7 @@ validate = false
                 vec![],
                 vec![],
                 vec![],
+                false,
                 true,
                 false,
             )
@@ -793,6 +824,7 @@ validate = false
                 vec![],
                 false,
                 false,
+                false,
             )
             .unwrap();
         assert!(resolved.allow_env_files);
@@ -812,6 +844,7 @@ validate = false
                 vec![],
                 vec![],
                 vec![],
+                false,
                 false,
                 false,
             )

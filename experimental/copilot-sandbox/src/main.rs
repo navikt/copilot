@@ -100,6 +100,14 @@ struct Cli {
     #[arg(long = "allow-localhost", value_name = "PORT")]
     allow_localhost: Vec<u16>,
 
+    /// Allow outbound TCP to localhost on ALL ports.
+    /// Some build tools (Turbopack/Next.js, Vite, esbuild) spawn worker
+    /// processes that communicate via TCP on random localhost ports.
+    /// This flag allows all localhost traffic. Use --allow-localhost <PORT>
+    /// instead if you only need specific ports.
+    #[arg(long)]
+    allow_localhost_any: bool,
+
     /// Allow Copilot to read .env files, private keys (.pem, .key), and
     /// other sensitive files in the project directory. These are blocked
     /// by default because they often contain secrets that a rogue agent
@@ -258,6 +266,7 @@ fn main() -> ExitCode {
         cli_deny_paths,
         cli.allow_ports.clone(),
         cli.allow_localhost.clone(),
+        cli.allow_localhost_any,
         cli.allow_env_files,
         cli.no_validate,
     ) {
@@ -366,6 +375,7 @@ fn main() -> ExitCode {
         &resolved.allow_localhost,
         proxy_port_for_profile,
         resolved.allow_env_files,
+        resolved.allow_localhost_any,
     );
 
     // --print-profile: dump the SBPL and exit

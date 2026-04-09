@@ -115,6 +115,7 @@ pub fn generate_profile(
     localhost_ports: &[u16],
     proxy_port: Option<u16>,
     allow_env_files: bool,
+    allow_localhost_any: bool,
 ) -> String {
     let mut sb = String::with_capacity(4096);
     let home = home_dir.to_string_lossy();
@@ -381,7 +382,10 @@ pub fn generate_profile(
 
     // Block localhost outbound — prevents SSRF to local dev servers, databases, etc.
     // Must come AFTER port allows so it overrides them for localhost.
-    writeln!(sb, "(deny network-outbound (remote ip \"localhost:*\"))").unwrap();
+    // Skip when --allow-localhost-any is set (needed for build tools with random IPC ports).
+    if !allow_localhost_any {
+        writeln!(sb, "(deny network-outbound (remote ip \"localhost:*\"))").unwrap();
+    }
 
     // Carve-outs for specific localhost ports (proxy, MCP servers, dev servers).
     // These come AFTER the deny so they override it (last-match-wins in SBPL).

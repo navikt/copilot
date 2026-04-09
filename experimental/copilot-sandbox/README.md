@@ -119,6 +119,7 @@ The project directory is the primary writable workspace, plus a narrow allowlist
 | `--deny-path <PATH>` | Block a path that would otherwise be allowed. Deny always wins. Can be repeated. |
 | `--allow-port <PORT>` | Allow outbound TCP on an extra port (default: only 443 and 80). Can be repeated. |
 | `--allow-localhost <PORT>` | Allow outbound to `localhost` on a specific port (localhost is blocked by default). Use for MCP servers or dev servers. Can be repeated. |
+| `--allow-localhost-any` | Allow outbound to `localhost` on **all** ports. Needed for build tools like Turbopack (Next.js) and Vite that use random ephemeral ports for IPC. |
 
 ### Proxy (optional)
 
@@ -166,6 +167,9 @@ cplt --allow-port 8443 -- -p "test the API"
 
 # Allow localhost for MCP servers or dev servers
 cplt --allow-localhost 3000 --allow-localhost 8080 -- -p "use the MCP server"
+
+# Allow all localhost (needed for Next.js/Turbopack, Vite builds)
+cplt --allow-localhost-any -- -p "fix the build"
 
 # Block a path you don't want Copilot to see
 cplt --deny-path ~/.config/gh -- -p "refactor auth"
@@ -352,8 +356,9 @@ Localhost outbound is blocked by default, which prevents sandboxed processes fro
 | Local Redis (`:6379`) | ❌ Blocked | Outbound to `localhost:6379` denied |
 | MCP servers | ❌ Blocked | Use `--allow-localhost 3000` |
 | Local API/dev server | ❌ Blocked | Use `--allow-localhost 8080` |
+| Next.js/Turbopack build | ❌ Workers blocked | Use `--allow-localhost-any` (random ephemeral ports) |
 
-**Fix:** Use `--allow-localhost <PORT>` for each local service needed.
+**Fix:** Use `--allow-localhost <PORT>` for specific services, or `--allow-localhost-any` for build tools that use random ports (Next.js, Vite, esbuild).
 
 ### SSH agent blocking
 

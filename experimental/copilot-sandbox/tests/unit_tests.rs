@@ -292,6 +292,7 @@ fn profile_contains_deny_default() {
         &[],
         None,
         false,
+        false,
     );
     assert!(p.contains("(deny default)"));
 }
@@ -308,6 +309,7 @@ fn profile_allows_tty_ioctl() {
         &[],
         &[],
         None,
+        false,
         false,
     );
     assert!(
@@ -329,6 +331,7 @@ fn profile_grants_project_access() {
         &[],
         None,
         false,
+        false,
     );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
     assert!(p.contains("(allow file-write* (subpath \"/projects/app\"))"));
@@ -347,6 +350,7 @@ fn profile_grants_copilot_config_access() {
         &[],
         None,
         false,
+        false,
     );
     assert!(p.contains("(allow file-read* (subpath \"/Users/test/.copilot\"))"));
 }
@@ -363,6 +367,7 @@ fn profile_denies_sensitive_dirs() {
         &[],
         &[],
         None,
+        false,
         false,
     );
     for dir in &[
@@ -406,6 +411,7 @@ fn profile_denies_sensitive_files() {
         &[],
         None,
         false,
+        false,
     );
     for file in &[
         ".netrc",
@@ -435,6 +441,7 @@ fn profile_restricts_outbound_tcp() {
         &[],
         &[],
         None,
+        false,
         false,
     );
     assert!(
@@ -476,6 +483,7 @@ fn profile_extra_ports_adds_allows() {
         &[],
         None,
         false,
+        false,
     );
     assert!(
         p.contains("(allow network-outbound (remote ip \"*:8080\"))"),
@@ -504,6 +512,7 @@ fn profile_proxy_port_allows_localhost() {
         &[],
         Some(18080),
         false,
+        false,
     );
     assert!(
         p.contains("(allow network-outbound (remote ip \"localhost:18080\"))"),
@@ -527,6 +536,7 @@ fn profile_allow_localhost_opens_specific_ports() {
         &[],
         &[3000, 8080],
         None,
+        false,
         false,
     );
     assert!(
@@ -567,6 +577,7 @@ fn profile_deny_rules_come_after_allow_rules() {
         &[],
         None,
         false,
+        false,
     );
     let allow_pos = p
         .find("(allow file-read* (subpath \"/projects/app\"))")
@@ -592,6 +603,7 @@ fn profile_allows_gh_config_read_only() {
         &[],
         &[],
         None,
+        false,
         false,
     );
     assert!(
@@ -621,6 +633,7 @@ fn profile_allows_file_map_executable_for_copilot() {
         &[],
         None,
         false,
+        false,
     );
     assert!(
         p.contains("(allow file-map-executable (subpath \"/Users/test/.copilot\"))"),
@@ -644,6 +657,7 @@ fn profile_denies_env_files_by_default() {
         &[],
         &[],
         None,
+        false,
         false,
     );
     assert!(
@@ -677,6 +691,7 @@ fn profile_allows_env_files_when_flag_set() {
         &[],
         None,
         true,
+        false,
     );
     assert!(
         !p.contains("deny file-read* (regex"),
@@ -697,6 +712,7 @@ fn profile_env_deny_comes_after_project_allow() {
         &[],
         None,
         false,
+        false,
     );
     let project_allow = p
         .find("(allow file-read* (subpath \"/projects/app\"))")
@@ -705,5 +721,39 @@ fn profile_env_deny_comes_after_project_allow() {
     assert!(
         env_deny > project_allow,
         "env deny must come AFTER project allow for SBPL last-match-wins"
+    );
+}
+
+// ============================================================
+// Allow-localhost-any
+// ============================================================
+
+#[test]
+fn profile_allows_all_localhost_when_flag_set() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[],
+        None,
+        false,
+        true, // allow_localhost_any = true
+    );
+    assert!(
+        !p.contains("(deny network-outbound (remote ip \"localhost:*\"))"),
+        "Profile must NOT deny localhost when allow_localhost_any is set"
+    );
+    // Should still have the general TCP deny and port allows
+    assert!(
+        p.contains("(deny network-outbound (remote tcp))"),
+        "Profile must still deny general TCP"
+    );
+    assert!(
+        p.contains("(allow network-outbound (remote ip \"*:443\"))"),
+        "Profile must still allow port 443"
     );
 }
