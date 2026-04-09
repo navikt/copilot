@@ -3,60 +3,97 @@ use copilot_sandbox::{config, proxy, sandbox};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-/// macOS Seatbelt sandbox wrapper for GitHub Copilot CLI.
+/// Run GitHub Copilot CLI inside a macOS sandbox.
 ///
-/// Runs `copilot` inside an Apple sandbox-exec sandbox that:
-/// - Grants read/write access only to the project directory
-/// - Blocks access to sensitive dotfiles (~/.ssh, ~/.aws, etc.)
-/// - Blocks all direct outbound network (localhost proxy only)
-/// - Inherits restrictions to all child processes (kernel-enforced)
+/// Copilot can read and write your project files, but cannot access your
+/// SSH keys, cloud credentials, or other secrets. All network traffic is
+/// blocked unless you enable the built-in proxy with --with-proxy.
 ///
-/// Configure defaults in ~/.config/copilot-sandbox/config.toml
-/// (override location with COPILOT_SANDBOX_CONFIG env var)
+/// The sandbox is enforced by the macOS kernel — Copilot (and any process
+/// it spawns) cannot bypass it.
+///
+/// Defaults can be saved to ~/.config/copilot-sandbox/config.toml
+/// so you don't need to pass flags every time. Run --init-config to
+/// create a starter config.
 #[derive(Parser)]
-#[command(name = "copilot-sandbox", version, about)]
+#[command(name = "copilot-sandbox", version, about, after_help = "\
+EXAMPLES:
+  copilot-sandbox --with-proxy -- -p \"fix the tests\"
+    Run Copilot with internet access (through the sandbox proxy)
+
+  copilot-sandbox -- --version
+    Verify the sandbox works (no network needed)
+
+  copilot-sandbox --allow-read ~/shared-libs -- -p \"use shared-libs\"
+    Let Copilot read files outside the project directory
+
+  copilot-sandbox --deny-path ~/.config/gh -- -p \"refactor auth\"
+    Block access to a path that is normally allowed
+")]
 struct Cli {
-    /// Project directory to sandbox (default: git repo root or cwd)
-    #[arg(long, short = 'd')]
+    /// Which directory Copilot can read and write to.
+    /// Defaults to the current git repository root, or the working directory
+    /// if you're not inside a git repo.
+    #[arg(long, short = 'd', value_name = "DIR")]
     project_dir: Option<PathBuf>,
 
-    /// Enable localhost proxy for network traffic logging and domain blocking
+    /// Let Copilot access the internet through a local proxy.
+    /// Without this flag, ALL network access is blocked and Copilot
+    /// runs fully offline. You need this for most real tasks since
+    /// Copilot must reach the GitHub API.
     #[arg(long)]
     with_proxy: bool,
 
-    /// Disable proxy (overrides config file proxy.enabled = true)
+    /// Force the proxy off, even if your config file enables it.
+    /// Useful for testing or fully offline work.
     #[arg(long, conflicts_with = "with_proxy")]
     no_proxy: bool,
 
-    /// Proxy listen port
-    #[arg(long)]
+    /// Port for the local proxy to listen on [default: 18080].
+    /// Only relevant when --with-proxy is enabled.
+    #[arg(long, value_name = "PORT")]
     proxy_port: Option<u16>,
 
-    /// Path to blocked domains file (one domain per line)
-    #[arg(long)]
+    /// File with domains to block (one per line, e.g. pastebin.com).
+    /// The proxy will refuse CONNECT requests to these domains.
+    /// The file is re-read on every request, so you can edit it live.
+    #[arg(long, value_name = "FILE")]
     blocked_domains: Option<PathBuf>,
 
-    /// Additional paths to allow read access
-    #[arg(long = "allow-read")]
+    /// Let Copilot read files outside the project directory.
+    /// Use this when Copilot needs to reference shared libraries,
+    /// monorepo siblings, or documentation stored elsewhere.
+    /// Can be specified multiple times.
+    #[arg(long = "allow-read", value_name = "PATH")]
     allow_read: Vec<PathBuf>,
 
-    /// Additional paths to allow read+write access
-    #[arg(long = "allow-write")]
+    /// Let Copilot read AND write files outside the project directory.
+    /// Use carefully — this gives Copilot full access to modify these paths.
+    /// Can be specified multiple times.
+    #[arg(long = "allow-write", value_name = "PATH")]
     allow_write: Vec<PathBuf>,
 
-    /// Additional paths to deny (overrides allows)
-    #[arg(long = "deny-path")]
+    /// Block access to a specific path, even if it would normally be allowed.
+    /// Deny rules always win over allow rules. Use this to protect sensitive
+    /// files inside otherwise-allowed directories.
+    /// Can be specified multiple times.
+    #[arg(long = "deny-path", value_name = "PATH")]
     deny_paths: Vec<PathBuf>,
 
-    /// Skip the interactive sandbox validation test
+    /// Skip the startup check that verifies the sandbox is working.
+    /// The check runs a quick test command inside the sandbox to confirm
+    /// that file and network restrictions are active.
     #[arg(long)]
     no_validate: bool,
 
-    /// Generate a default config file at ~/.config/copilot-sandbox/config.toml
+    /// Create a starter config file at ~/.config/copilot-sandbox/config.toml.
+    /// The config lets you save your preferred defaults so you don't need
+    /// to pass flags every time. Will not overwrite an existing file.
     #[arg(long)]
     init_config: bool,
 
-    /// Arguments to pass to copilot
+    /// Everything after -- is passed directly to the copilot command.
+    /// Example: copilot-sandbox --with-proxy -- -p "fix the tests"
     #[arg(last = true)]
     copilot_args: Vec<String>,
 }

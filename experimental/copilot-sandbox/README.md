@@ -85,18 +85,56 @@ copilot-sandbox --init-config
 
 ```
 copilot-sandbox [OPTIONS] [-- <COPILOT_ARGS>...]
+```
 
-Options:
-  -d, --project-dir <DIR>        Project directory (default: git repo root)
-      --with-proxy               Enable localhost CONNECT proxy
-      --no-proxy                 Disable proxy (overrides config file)
-      --proxy-port <PORT>        Proxy port (default: 18080)
-      --blocked-domains <FILE>   Domain blocklist file
-      --allow-read <PATH>        Additional read-allowed paths
-      --allow-write <PATH>       Additional read+write-allowed paths
-      --deny-path <PATH>         Additional denied paths
-      --no-validate              Skip profile validation
-      --init-config              Create default config file and exit
+Everything after `--` is passed directly to the `copilot` command.
+
+### Network access
+
+By default, Copilot runs with **no internet access at all**. This is the safest mode, but Copilot needs the GitHub API for most real tasks.
+
+| Flag | What it does |
+|---|---|
+| `--with-proxy` | Let Copilot access the internet through a local proxy. All traffic is logged and you can block specific domains. |
+| `--no-proxy` | Force the proxy off, even if your config file enables it. |
+| `--proxy-port <PORT>` | Which port the proxy listens on (default: 18080). |
+| `--blocked-domains <FILE>` | A text file with domains to block, one per line (e.g. `pastebin.com`). Re-read on every request, so you can edit it live. |
+
+### File access
+
+Copilot can only read and write to the project directory. Everything else (SSH keys, cloud credentials, etc.) is blocked by the kernel.
+
+| Flag | What it does |
+|---|---|
+| `-d, --project-dir <DIR>` | Which directory Copilot can work in. Defaults to the current git repo root. |
+| `--allow-read <PATH>` | Let Copilot read files outside the project (e.g. shared libraries, docs). Can be repeated. |
+| `--allow-write <PATH>` | Let Copilot read AND write outside the project. Use carefully. Can be repeated. |
+| `--deny-path <PATH>` | Block a path that would otherwise be allowed. Deny always wins. Can be repeated. |
+
+### Other options
+
+| Flag | What it does |
+|---|---|
+| `--no-validate` | Skip the startup check that verifies sandbox restrictions are active. |
+| `--init-config` | Create a starter config file at `~/.config/copilot-sandbox/config.toml` and exit. |
+
+### Examples
+
+```bash
+# Most common: run Copilot with internet access
+copilot-sandbox --with-proxy -- -p "fix the tests"
+
+# Fully offline (verify the sandbox works)
+copilot-sandbox -- --version
+
+# Let Copilot read a shared library directory
+copilot-sandbox --with-proxy --allow-read ~/shared-libs -- -p "use shared-libs"
+
+# Block a path you don't want Copilot to see
+copilot-sandbox --with-proxy --deny-path ~/.config/gh -- -p "refactor auth"
+
+# Block paste sites to prevent data exfiltration
+copilot-sandbox --with-proxy --blocked-domains ./blocked.txt -- -p "refactor"
 ```
 
 ## Configuration file
