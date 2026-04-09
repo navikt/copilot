@@ -869,3 +869,94 @@ fn env_allowlist_excludes_dangerous_vars() {
     assert!(!ENV_PREFIX_ALLOWLIST.contains(&"AZURE_"));
     assert!(!ENV_PREFIX_ALLOWLIST.contains(&"VAULT_"));
 }
+
+// ============================================================
+// Deny exec from temp directories (write-then-exec prevention)
+// ============================================================
+
+#[test]
+fn profile_denies_exec_from_tmp() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[],
+        None,
+        false,
+        false,
+    );
+    // Must allow read+write to /tmp (needed for temp files)
+    assert!(
+        p.contains("(allow file-write* (subpath \"/private/tmp\"))"),
+        "Profile must allow write to /tmp"
+    );
+    // Must deny direct execution from /tmp
+    assert!(
+        p.contains("(deny process-exec (subpath \"/private/tmp\"))"),
+        "Profile must deny process-exec from /tmp"
+    );
+    assert!(
+        p.contains("(deny file-map-executable (subpath \"/private/tmp\"))"),
+        "Profile must deny file-map-executable from /tmp"
+    );
+    // Must deny direct execution from /var/folders
+    assert!(
+        p.contains("(deny process-exec (subpath \"/private/var/folders\"))"),
+        "Profile must deny process-exec from /var/folders"
+    );
+    assert!(
+        p.contains("(deny file-map-executable (subpath \"/private/var/folders\"))"),
+        "Profile must deny file-map-executable from /var/folders"
+    );
+}
+
+// ============================================================
+// Deny git persistence vectors (.git/hooks, .git/config, .gitmodules)
+// ============================================================
+
+#[test]
+fn profile_denies_git_persistence_vectors() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+        None,
+        &[],
+        &[],
+        None,
+        false,
+        false,
+    );
+    // Must deny writes to .git/hooks (post-checkout etc. run outside sandbox)
+    assert!(
+        p.contains("(deny file-write* (subpath \"/projects/app/.git/hooks\"))"),
+        "Profile must deny write to .git/hooks"
+    );
+    // Must deny writes to .git/config (hooksPath redirect, URL hijacking)
+    assert!(
+        p.contains("(deny file-write* (literal \"/projects/app/.git/config\"))"),
+        "Profile must deny write to .git/config"
+    );
+    // Must deny writes to .gitmodules (supply chain via submodule URLs)
+    assert!(
+        p.contains("(deny file-write* (literal \"/projects/app/.gitmodules\"))"),
+        "Profile must deny write to .gitmodules"
+    );
+    // Git persistence denies must come after project allow (more specific wins)
+    let allow_pos = p
+        .find("(allow file-write* (subpath \"/projects/app\"))")
+        .unwrap();
+    let hooks_pos = p
+        .find("(deny file-write* (subpath \"/projects/app/.git/hooks\"))")
+        .unwrap();
+    assert!(
+        hooks_pos > allow_pos,
+        "Git hooks deny must come after project allow"
+    );
+}

@@ -247,6 +247,18 @@ pub fn generate_profile(
     writeln!(sb, "(allow file-map-executable (subpath \"{project}\"))").unwrap();
     writeln!(sb).unwrap();
 
+    // Git persistence prevention — deny writes to files that execute outside the sandbox.
+    // .git/hooks/ — post-checkout, pre-push etc. run outside sandbox on next git operation
+    // .git/config — core.hooksPath can redirect hooks to /tmp, bypassing the hooks deny;
+    //               url.*.insteadOf can hijack git remotes; include.path loads arbitrary config
+    // .gitmodules — submodule URLs are a supply chain vector (git submodule update clones them)
+    // These denies are more specific than the project allow, so they win (SBPL specificity).
+    writeln!(sb, ";; Git persistence prevention").unwrap();
+    writeln!(sb, "(deny file-write* (subpath \"{project}/.git/hooks\"))").unwrap();
+    writeln!(sb, "(deny file-write* (literal \"{project}/.git/config\"))").unwrap();
+    writeln!(sb, "(deny file-write* (literal \"{project}/.gitmodules\"))").unwrap();
+    writeln!(sb).unwrap();
+
     // Sensitive project files — deny read of .env*, .pem, .key etc.
     // These often contain secrets that could be exfiltrated via HTTPS.
     // Placed after the project allow so deny wins (more specific filter).
@@ -410,6 +422,18 @@ pub fn generate_profile(
     writeln!(sb, "(allow file-write* (subpath \"/private/tmp\"))").unwrap();
     writeln!(sb, "(allow file-read* (subpath \"/private/var/folders\"))").unwrap();
     writeln!(sb, "(allow file-write* (subpath \"/private/var/folders\"))").unwrap();
+    // Deny direct execution and dlopen from writable temp dirs.
+    // Prevents write-then-exec attacks (drop binary → execute it).
+    // Limitation: does NOT block interpreter-based exec (e.g. `bash /tmp/evil.sh`,
+    // `node /tmp/evil.js`) because the exec target is the interpreter, not the script.
+    writeln!(sb, "(deny process-exec (subpath \"/private/tmp\"))").unwrap();
+    writeln!(sb, "(deny file-map-executable (subpath \"/private/tmp\"))").unwrap();
+    writeln!(sb, "(deny process-exec (subpath \"/private/var/folders\"))").unwrap();
+    writeln!(
+        sb,
+        "(deny file-map-executable (subpath \"/private/var/folders\"))"
+    )
+    .unwrap();
     writeln!(sb).unwrap();
 
     // Extra user-specified allows

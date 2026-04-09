@@ -14,12 +14,15 @@ cplt assumes Copilot CLI is an **untrusted agent** executing arbitrary code sugg
 | **DNS rebinding SSRF** | Domain resolves to `127.0.0.1` after check | Post-DNS-resolution IP validation |
 | **Sandbox profile injection** | Path with `\n(allow file-read* (subpath "/"))` | SBPL path character validation |
 | **Temp file symlink attack** | Symlink at predictable `/tmp/cplt.sb` | Unique filename + `O_CREAT\|O_EXCL` |
-| **Write-then-exec in /tmp** | Drop binary in `/tmp`, execute it | `deny process-exec` on writable dirs |
+| **Write-then-exec in /tmp** | Drop binary in `/tmp`, execute it | `deny process-exec` + `deny file-map-executable` on `/tmp` and `/var/folders` |
 | **Cloud metadata access** | Fetch `169.254.169.254` or CGNAT range | Comprehensive private IP blocklist |
 | **Cross-project access** | Read files outside project directory | Seatbelt subpath restrictions |
 | **Process-group escape** | Kill parent, children continue unsandboxed | `setpgid` + signal forwarding |
 | **Env var credential theft** | Read `AWS_SECRET_ACCESS_KEY` from env | `env_clear()` + safe allowlist |
 | **Persistence via native modules** | Replace `keytar.node` with malware | Deny writes to `~/.copilot/pkg` |
+| **Git hook injection** | Write post-checkout hook that runs outside sandbox | Deny writes to `.git/hooks/` |
+| **Git config hijacking** | Set `core.hooksPath=/tmp/evil` or URL redirect | Deny writes to `.git/config` |
+| **Submodule supply chain** | Modify `.gitmodules` to point to malicious repo | Deny writes to `.gitmodules` |
 
 ### Out of scope
 
@@ -29,6 +32,12 @@ cplt assumes Copilot CLI is an **untrusted agent** executing arbitrary code sugg
 - **sandbox-exec deprecation** — Apple marks it deprecated but has not removed it; Chromium and VS Code still use it
 - **Code quality** — the sandbox cannot judge whether code written by Copilot contains backdoors; that's a code review problem
 - **`~/.config/gh/hosts.yml` token** — contains the user's GitHub OAuth token. Copilot needs *a* GitHub token to function (via env var or this file). The token is readable inside the sandbox. If this is a concern, set `GH_TOKEN` env var (passes through allowlist) and add `--deny-path ~/.config/gh` to block the file.
+- **Interpreter-based temp execution** — the sandbox blocks *direct* exec from `/tmp` (Mach-O binaries, dlopen), but cannot block `bash /tmp/evil.sh` or `node /tmp/evil.js` because the exec target is the interpreter (`/bin/bash`, `/usr/bin/node`), not the script file. Sandboxing interpreters would break Copilot.
+- **`.vscode/` project configs** — the agent can write `.vscode/tasks.json`, `launch.json`, and `settings.json` which VS Code may auto-execute outside the sandbox. This is an IDE trust boundary issue, not a sandbox scope issue. Mitigation: review `.vscode/` changes in `git diff` before committing; set `"task.autoRunTasks": "off"` in VS Code.
+- **Write+exec in home cache dirs** — `~/Library/Caches`, `~/.gradle`, `~/.m2`, `~/Library/pnpm` have both write and exec permissions. Build tools need write for dependency downloads and exec for build plugins. A rogue agent could write a malicious JAR to `~/.m2` or a Gradle plugin to `~/.gradle`, but the executed code would still be sandboxed.
+- **Project build scripts** — the agent can modify `Makefile`, `package.json` scripts, `build.gradle`, `.github/workflows/`, etc. These are legitimate Copilot targets and cannot be blocked. The risk is mitigated by code review (git diff) before running builds or committing.
+- **POSIX shared memory** — `ipc-posix-shm-*` is allowed because Node.js needs it for DNS and system queries. An agent could theoretically use SHM as an IPC channel to processes outside the sandbox, but this requires a cooperating process already running on the machine.
+- **DNS tunneling** — DNS queries go through macOS mDNSResponder Unix socket. Seatbelt offers no per-query filtering; it's all-or-nothing. Blocking DNS breaks everything. Bandwidth is ~15 KB/s max, requires attacker-controlled authoritative DNS, and is detectable with network monitoring.
 
 ## Real-World Attack Landscape (2025–2026)
 

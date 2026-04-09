@@ -27,6 +27,9 @@ We'd rather ship something small that actually works than something impressive t
 |---|---|---|
 | Read/write project directory | ✅ Allowed | |
 | Read `.env*`, `.pem`, `.key` in project | 🔒 Kernel-blocked | Prevents secret exfiltration; `--allow-env-files` to override |
+| Write `.git/hooks`, `.git/config`, `.gitmodules` | 🔒 Kernel-blocked | Prevents persistence via git hooks, hooksPath redirect, submodule hijacking |
+| Execute from `/tmp`, `/var/folders` | 🔒 Kernel-blocked | Prevents write-then-exec; interpreter-based exec not blocked (see SECURITY.md) |
+| Modify `.vscode/tasks.json`, `launch.json` | ⚠️ Allowed — known risk | IDE trust boundary; see SECURITY.md for mitigations |
 | Read/write `~/.copilot` (auth, settings) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node`, `computer.node` |
 | Write `~/.copilot/pkg` (native modules) | 🔒 Kernel-blocked | Prevents persistence via native module replacement |
 | Environment variables | 🔒 Sanitized | Only safe allowlist passes through; `--pass-env VAR` to add extras |
