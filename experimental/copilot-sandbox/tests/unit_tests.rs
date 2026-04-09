@@ -287,9 +287,23 @@ fn profile_contains_deny_default() {
         &[],
         &[],
         &[],
-        None,
     );
     assert!(p.contains("(deny default)"));
+}
+
+#[test]
+fn profile_allows_tty_ioctl() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+    );
+    assert!(
+        p.contains("(allow file-ioctl)"),
+        "Profile must allow file-ioctl for terminal raw mode"
+    );
 }
 
 #[test]
@@ -300,7 +314,6 @@ fn profile_grants_project_access() {
         &[],
         &[],
         &[],
-        None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/projects/app\"))"));
     assert!(p.contains("(allow file-write* (subpath \"/projects/app\"))"));
@@ -314,7 +327,6 @@ fn profile_grants_copilot_config_access() {
         &[],
         &[],
         &[],
-        None,
     );
     assert!(p.contains("(allow file-read* (subpath \"/Users/test/.copilot\"))"));
 }
@@ -327,7 +339,6 @@ fn profile_denies_sensitive_dirs() {
         &[],
         &[],
         &[],
-        None,
     );
     for dir in &[
         ".ssh",
@@ -340,7 +351,6 @@ fn profile_denies_sensitive_dirs() {
         ".password-store",
         ".config/gcloud",
         ".config/op",
-        ".config/gh",
         ".terraform.d",
     ] {
         assert!(
@@ -366,7 +376,6 @@ fn profile_denies_sensitive_files() {
         &[],
         &[],
         &[],
-        None,
     );
     for file in &[
         ".netrc",
@@ -385,31 +394,22 @@ fn profile_denies_sensitive_files() {
 }
 
 #[test]
-fn profile_blocks_all_network_without_proxy() {
+fn profile_allows_outbound_tcp() {
     let p = generate_profile(
         std::path::Path::new("/projects/app"),
         std::path::Path::new("/Users/test"),
         &[],
         &[],
         &[],
-        None,
     );
-    assert!(p.contains("(deny network*)"));
-    assert!(!p.contains("network-outbound (remote ip"));
-}
-
-#[test]
-fn profile_allows_only_proxy_port() {
-    let p = generate_profile(
-        std::path::Path::new("/projects/app"),
-        std::path::Path::new("/Users/test"),
-        &[],
-        &[],
-        &[],
-        Some(18080),
+    assert!(
+        p.contains("(allow network-outbound (remote tcp))"),
+        "Profile must allow outbound TCP for Copilot API endpoints"
     );
-    assert!(p.contains("(deny network*)"));
-    assert!(p.contains("(allow network-outbound (remote ip \"localhost:18080\"))"));
+    assert!(
+        p.contains("(allow network-outbound (literal \"/private/var/run/mDNSResponder\"))"),
+        "Profile must allow DNS resolution"
+    );
 }
 
 #[test]
@@ -420,7 +420,6 @@ fn profile_deny_rules_come_after_allow_rules() {
         &[],
         &[],
         &[],
-        None,
     );
     let allow_pos = p
         .find("(allow file-read* (subpath \"/projects/app\"))")
@@ -442,7 +441,6 @@ fn profile_denies_exec_from_tmp() {
         &[],
         &[],
         &[],
-        None,
     );
     assert!(
         p.contains("(deny process-exec (subpath \"/private/tmp\"))"),
@@ -451,5 +449,39 @@ fn profile_denies_exec_from_tmp() {
     assert!(
         p.contains("(deny process-exec (subpath \"/private/var/folders\"))"),
         "should deny exec from /private/var/folders"
+    );
+}
+
+#[test]
+fn profile_allows_gh_config_read_only() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+    );
+    assert!(
+        p.contains("(allow file-read* (subpath \"/Users/test/.config/gh\"))"),
+        "should allow read to .config/gh for GitHub CLI auth"
+    );
+    assert!(
+        !p.contains("(allow file-write* (subpath \"/Users/test/.config/gh\"))"),
+        "should NOT allow write to .config/gh"
+    );
+}
+
+#[test]
+fn profile_allows_file_map_executable_for_copilot() {
+    let p = generate_profile(
+        std::path::Path::new("/projects/app"),
+        std::path::Path::new("/Users/test"),
+        &[],
+        &[],
+        &[],
+    );
+    assert!(
+        p.contains("(allow file-map-executable (subpath \"/Users/test/.copilot\"))"),
+        "should allow file-map-executable for native Node.js addons (keytar.node, pty.node)"
     );
 }

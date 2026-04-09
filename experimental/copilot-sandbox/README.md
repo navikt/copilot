@@ -1,6 +1,6 @@
 # copilot-sandbox
 
-macOS Seatbelt sandbox wrapper for GitHub Copilot CLI. Runs Copilot inside Apple's kernel-level sandbox (`sandbox-exec`) so the agent can work on your project but cannot access your secrets or exfiltrate data.
+macOS Seatbelt sandbox wrapper for GitHub Copilot CLI. Runs Copilot inside Apple's kernel-level sandbox (`sandbox-exec`) so the agent can work on your project but cannot access your secrets.
 
 > **macOS only** — uses Apple's Seatbelt framework (the same mechanism App Store apps run under).
 
@@ -21,20 +21,22 @@ We'd rather ship something small that actually works than something impressive t
 
 ## What it does
 
-| Capability | Status |
-|---|---|
-| Read/write project directory | ✅ Allowed |
-| Read `~/.copilot` (auth tokens) | ✅ Allowed |
-| Read `~/.gitconfig` | ✅ Allowed |
-| Access macOS Keychain | ✅ Allowed |
-| Read `~/.ssh`, `~/.gnupg`, `~/.aws` | 🔒 Kernel-blocked |
-| Read `~/.kube`, `~/.docker`, `~/.nais` | 🔒 Kernel-blocked |
-| Read `~/.config/gcloud`, `~/.config/gh` | 🔒 Kernel-blocked |
-| Read `~/.netrc`, `~/.npmrc`, `~/.vault-token` | 🔒 Kernel-blocked |
-| Direct outbound network | 🔒 Kernel-blocked |
-| Network via localhost proxy | ✅ Allowed (with `--with-proxy`) |
-| Execute binaries from `/tmp` | 🔒 Kernel-blocked |
-| Child process inheritance | ✅ All restrictions apply to subprocesses |
+**Primary control: filesystem isolation.** The sandbox blocks access to credentials and secrets at the kernel level. All restrictions apply to Copilot and every process it spawns.
+
+| Resource | Status | Notes |
+|---|---|---|
+| Read/write project directory | ✅ Allowed | |
+| Read `~/.copilot` (auth, native modules) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node` |
+| Read `~/.config/gh` (GitHub CLI auth) | ✅ Allowed (read-only) | Copilot spawns `gh auth token` — see [Security trade-offs](#security-trade-offs) |
+| Read `~/.gitconfig` | ✅ Allowed (read-only) | |
+| Access macOS Keychain | ✅ Allowed | Copilot uses `keytar.node` for token storage |
+| Outbound network (TCP) | ✅ Allowed | Copilot needs `api.business.githubcopilot.com` etc. |
+| Read `~/.ssh`, `~/.gnupg`, `~/.aws` | 🔒 Kernel-blocked | |
+| Read `~/.kube`, `~/.docker`, `~/.nais` | 🔒 Kernel-blocked | |
+| Read `~/.config/gcloud`, `~/.config/op` | 🔒 Kernel-blocked | |
+| Read `~/.netrc`, `~/.npmrc`, `~/.vault-token` | 🔒 Kernel-blocked | |
+| Execute binaries from `/tmp` | 🔒 Kernel-blocked | Prevents write-then-exec attacks |
+| Child process inheritance | ✅ All restrictions apply to subprocesses | |
 
 For the full security model, threat analysis, and test strategy, see **[SECURITY.md](SECURITY.md)**.
 
@@ -71,10 +73,13 @@ mise run build:release
 ## Quick start
 
 ```bash
-# Run copilot in sandbox (no network — dry run / offline mode)
+# Run Copilot in sandbox (credentials protected, network allowed)
+copilot-sandbox -- -p "fix the tests"
+
+# Verify the sandbox works
 copilot-sandbox -- --version
 
-# Run with network proxy (required for Copilot API access)
+# Enable proxy for connection logging
 copilot-sandbox --with-proxy -- -p "fix the tests"
 
 # Create config file with defaults
@@ -89,17 +94,6 @@ copilot-sandbox [OPTIONS] [-- <COPILOT_ARGS>...]
 
 Everything after `--` is passed directly to the `copilot` command.
 
-### Network access
-
-By default, Copilot runs with **no internet access at all**. This is the safest mode, but Copilot needs the GitHub API for most real tasks.
-
-| Flag | What it does |
-|---|---|
-| `--with-proxy` | Let Copilot access the internet through a local proxy. All traffic is logged and you can block specific domains. |
-| `--no-proxy` | Force the proxy off, even if your config file enables it. |
-| `--proxy-port <PORT>` | Which port the proxy listens on (default: 18080). |
-| `--blocked-domains <FILE>` | A text file with domains to block, one per line (e.g. `pastebin.com`). Re-read on every request, so you can edit it live. |
-
 ### File access
 
 Copilot can only read and write to the project directory. Everything else (SSH keys, cloud credentials, etc.) is blocked by the kernel.
@@ -111,30 +105,54 @@ Copilot can only read and write to the project directory. Everything else (SSH k
 | `--allow-write <PATH>` | Let Copilot read AND write outside the project. Use carefully. Can be repeated. |
 | `--deny-path <PATH>` | Block a path that would otherwise be allowed. Deny always wins. Can be repeated. |
 
-### Other options
+### Proxy (optional)
+
+The proxy is **disabled by default**. Copilot CLI connects directly to its APIs (Node.js does not natively respect `http_proxy`/`https_proxy` env vars). The proxy is useful for:
+
+- **Connection logging** — see what domains tools like `gh` and `curl` connect to
+- **Domain blocking** — block known exfiltration infrastructure (paste sites, webhook services, etc.)
 
 | Flag | What it does |
 |---|---|
+| `--with-proxy` | Start a localhost CONNECT proxy that logs connections. |
+| `--no-proxy` | Disable the proxy, even if your config file enables it. |
+| `--proxy-port <PORT>` | Which port the proxy listens on (default: 18080). |
+| `--blocked-domains <FILE>` | A text file with domains to block, one per line (e.g. `pastebin.com`). Re-read on every request. |
+
+> **Why doesn't the proxy intercept Copilot traffic?** Copilot CLI is a Node.js application. Node.js does not natively use `http_proxy`/`https_proxy` env vars. Setting these vars actually *breaks* Copilot's auth flow with `api.business.githubcopilot.com`. Go-based tools like `gh` do respect proxy env vars and will be logged.
+
+### Debugging
+
+| Flag | What it does |
+|---|---|
+| `--print-profile` | Print the generated sandbox profile (SBPL) and exit. |
+| `--show-denials` | Stream macOS sandbox denial logs in real time. |
 | `--no-validate` | Skip the startup check that verifies sandbox restrictions are active. |
 | `--init-config` | Create a starter config file at `~/.config/copilot-sandbox/config.toml` and exit. |
 
 ### Examples
 
 ```bash
-# Most common: run Copilot with internet access
+# Most common: run Copilot in sandbox
+copilot-sandbox -- -p "fix the tests"
+
+# With connection logging
 copilot-sandbox --with-proxy -- -p "fix the tests"
 
-# Fully offline (verify the sandbox works)
-copilot-sandbox -- --version
-
 # Let Copilot read a shared library directory
-copilot-sandbox --with-proxy --allow-read ~/shared-libs -- -p "use shared-libs"
+copilot-sandbox --allow-read ~/shared-libs -- -p "use shared-libs"
 
 # Block a path you don't want Copilot to see
-copilot-sandbox --with-proxy --deny-path ~/.config/gh -- -p "refactor auth"
+copilot-sandbox --deny-path ~/.config/gh -- -p "refactor auth"
 
-# Block paste sites to prevent data exfiltration
-copilot-sandbox --with-proxy --blocked-domains ./blocked.txt -- -p "refactor"
+# Block paste sites (with proxy enabled)
+copilot-sandbox --with-proxy --blocked-domains ./blocked-domains.txt -- -p "refactor"
+
+# Inspect the generated sandbox profile
+copilot-sandbox --print-profile
+
+# Debug: see what the sandbox blocks in real time
+copilot-sandbox --show-denials -- -p "fix the tests"
 ```
 
 ## Configuration file
@@ -151,9 +169,9 @@ This creates a commented template at `~/.config/copilot-sandbox/config.toml`:
 
 ```toml
 [proxy]
-enabled = true
-port = 18080
-# blocked_domains = "/path/to/blocked.txt"
+# enabled = false           # Set to true for connection logging
+# port = 18080
+# blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
 
 [sandbox]
 # validate = true
@@ -193,47 +211,81 @@ COPILOT_SANDBOX_CONFIG=/path/to/custom.toml copilot-sandbox -- --version
 │  │ Profile    │  │ CONNECT     │ │
 │  │ Generator  │  │ Proxy       │ │
 │  │ (SBPL)     │  │ (optional)  │ │
-│  └─────┬─────┘  └──────┬──────┘ │
-│        │               │        │
-│        ▼               │        │
-│  sandbox-exec ─────────┘        │
-│  (Apple kernel)                  │
+│  └─────┬─────┘  └─────────────┘ │
+│        │                         │
+│        ▼                         │
+│  sandbox-exec (Apple kernel)     │
 │        │                         │
 │        ▼                         │
 │  copilot (sandboxed)             │
 │  ├── All child processes         │
 │  ├── Cannot read ~/.ssh          │
-│  ├── Cannot reach internet       │
-│  └── Can only reach proxy        │
+│  ├── Network allowed (TCP)       │
+│  └── Filesystem = primary ctrl   │
 └──────────────────────────────────┘
 ```
 
-**Security model**: deny-by-default with kernel enforcement. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and how they are tested.
+**Security model**: deny-by-default filesystem with kernel enforcement. Network is allowed because Copilot needs to reach its API endpoints. See [SECURITY.md](SECURITY.md) for the full threat model, defense layers, and honest gaps.
+
+## Security trade-offs
+
+### `~/.config/gh` is readable
+
+Copilot spawns `gh auth token` to authenticate. This reads `~/.config/gh/hosts.yml` which contains a GitHub OAuth token. We allow this because:
+
+- **Required for auth**: Without `gh` auth, Copilot falls back to Keychain only. Many users rely on `gh` CLI for auth.
+- **Read-only**: The sandbox cannot modify the token file.
+- **Same-destination token**: The token is a GitHub token that Copilot already sends to GitHub's API. An attacker would need to exfiltrate it to a *different* server.
+- **Risk**: With outbound TCP allowed, a compromised Copilot could exfiltrate this token. Use `--deny-path ~/.config/gh` if this concerns you (Copilot will use Keychain auth instead).
+
+### Outbound network is allowed
+
+SBPL (Seatbelt Profile Language) does not support wildcard port filtering (e.g., "any host on port 443"). Copilot connects to multiple CDN-backed endpoints with changing IPs (`api.business.githubcopilot.com`, `api.githubcopilot.com`, `proxy.business.githubcopilot.com`). We cannot enumerate these IPs. Therefore:
+
+- **All outbound TCP is allowed** — this is a pragmatic choice, not a security ideal
+- **Filesystem isolation is the primary control** — credentials are kernel-blocked regardless of network
+- **The proxy cannot intercept Copilot traffic** — Node.js ignores `http_proxy` env vars, and setting them breaks auth
+
+See [SECURITY.md](SECURITY.md) for the full threat model and honest gaps.
 
 ## Domain blocking
 
-The proxy can block domains commonly used for data exfiltration. A default blocklist is included based on real attack infrastructure observed in 2025–2026 supply chain incidents:
+When the proxy is enabled (`--with-proxy`), it can block domains commonly used for data exfiltration. A default blocklist is included based on real attack infrastructure observed in 2025–2026 supply chain incidents:
 
 ```bash
-# Use the included blocklist
+# Enable proxy with domain blocking
 copilot-sandbox --with-proxy --blocked-domains blocked-domains.txt -- -p "fix tests"
 
 # Or set it permanently in config
 copilot-sandbox --init-config
 # Then edit ~/.config/copilot-sandbox/config.toml:
 #   [proxy]
+#   enabled = true
 #   blocked_domains = "~/.config/copilot-sandbox/blocked-domains.txt"
 ```
 
 The blocklist covers webhook capture services, paste sites, file sharing, tunneling services, and IP recon endpoints. See [`blocked-domains.txt`](blocked-domains.txt) for the full list with sources.
 
-Edit the file while the proxy runs — changes take effect immediately.
+> **Note:** The proxy only captures traffic from tools that respect `http_proxy` (like `gh`, `curl`). Copilot CLI's own API traffic bypasses the proxy. Domain blocking is a defense-in-depth measure, not a primary control.
+
+## Copilot CLI network endpoints
+
+Copilot CLI 1.0.21 connects directly to these endpoints (empirically verified):
+
+| Endpoint | Purpose |
+|---|---|
+| `api.github.com` | GitHub API (user info, token validation) |
+| `api.githubcopilot.com` | Copilot API |
+| `api.business.githubcopilot.com` | Copilot Business API (enterprise users) |
+| `proxy.business.githubcopilot.com` | Copilot Business proxy |
 
 ## Limitations
 
 - **macOS only** — uses `sandbox-exec` (deprecated but functional, used by Chromium and VS Code)
 - **No TLS inspection** — the proxy sees domain names (via CONNECT) but not request bodies
+- **No network filtering** — SBPL doesn't support domain-based or port-based filtering for outbound TCP
 - **Keychain access required** — Copilot stores auth tokens in macOS Keychain
+- **Proxy doesn't intercept Copilot** — Node.js ignores `http_proxy`; the proxy is for tools like `gh`
 - **`sandbox-exec` is deprecated** — Apple has not removed it but may in future macOS versions
 
 For known attack vectors, out-of-scope threats, and prior art, see [SECURITY.md](SECURITY.md).

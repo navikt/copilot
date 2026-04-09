@@ -9,7 +9,7 @@ copilot-sandbox assumes Copilot CLI is an **untrusted agent** executing arbitrar
 | Threat | Example | Defense layer |
 |---|---|---|
 | **Credential theft** | Read `~/.ssh/id_ed25519`, `~/.aws/credentials` | Seatbelt file deny rules |
-| **Data exfiltration** | POST secrets to `https://evil.com/collect` | Network deny + CONNECT proxy |
+| **Data exfiltration** | POST secrets to `https://evil.com/collect` | Filesystem isolation (credentials unreadable) |
 | **Secret file access** | Read `~/.netrc`, `~/.npmrc`, `~/.vault-token` | Seatbelt file deny rules |
 | **DNS rebinding SSRF** | Domain resolves to `127.0.0.1` after check | Post-DNS-resolution IP validation |
 | **Sandbox profile injection** | Path with `\n(allow file-read* (subpath "/"))` | SBPL path character validation |
@@ -84,12 +84,21 @@ A curated blocklist of these domains is included in [`blocked-domains.txt`](bloc
 | **1. Infection** | `postinstall` hook runs code | Runs in sandbox — can execute but all restrictions apply | ⚠️ Code runs, but is caged |
 | **2. Recon** | Read hostname, IP, env vars | Can read process env vars (needed for Copilot), hostname | ⚠️ Partial leak possible |
 | **3. Credential harvest** | Read ~/.ssh, ~/.aws, .env | **Kernel-blocked.** macOS Seatbelt denies the read syscall. | ✅ **Stopped** |
-| **4a. HTTP exfil** | POST to discord/webhook/C2 | **Proxy blocks** non-allowlisted domains, logs all CONNECT | ✅ **Stopped** (with blocklist) |
+| **4a. HTTP exfil** | POST to discord/webhook/C2 | **Not stopped by sandbox.** Outbound TCP is allowed (see [Network limitations](#network-limitations)). Credentials are unreadable, limiting blast radius. Proxy blocklist helps if enabled. | ⚠️ **Partially mitigated** |
 | **4b. DNS tunneling** | Encode data in DNS queries | Not inspected — DNS bypasses the proxy | ❌ **Not stopped** |
-| **4c. Reverse shell** | Connect back via ngrok | **Kernel-blocked** — no direct network, proxy doesn't relay arbitrary TCP | ✅ **Stopped** |
+| **4c. Reverse shell** | Connect back via ngrok | Outbound TCP is allowed, but blocked-domains list covers `ngrok.io` etc. when proxy is enabled | ⚠️ **Partially mitigated** |
 | **Worm propagation** | Republish infected packages | Can't read npm tokens (in ~/.npmrc, kernel-blocked) | ✅ **Stopped** |
 
 ### Honest gaps
+
+**Outbound network is not filtered.** SBPL (Seatbelt Profile Language) does not support domain-based or wildcard port-based filtering. Copilot CLI connects to CDN-backed endpoints (`api.business.githubcopilot.com`) with changing IPs that cannot be enumerated. We allow all outbound TCP. This means:
+
+- A compromised agent CAN make HTTP requests to attacker-controlled servers
+- A compromised agent CAN exfiltrate project source code and environment variables
+- A compromised agent CANNOT exfiltrate SSH keys, cloud credentials, or npm tokens (kernel-blocked from reading them)
+- The proxy (when enabled with `--with-proxy`) provides logging and domain blocking for tools that respect `http_proxy`, but Copilot's own Node.js traffic bypasses it
+
+**`~/.config/gh` is readable.** Copilot spawns `gh auth token` inside the sandbox. This file contains a GitHub OAuth token. With outbound TCP allowed, a compromised agent could theoretically exfiltrate this token. However, the token grants access to GitHub — which Copilot is already connected to. Users who want to mitigate this can use `--deny-path ~/.config/gh` (Copilot will fall back to Keychain auth).
 
 **DNS tunneling** is the one channel we cannot inspect. However:
 - Bandwidth is ~15 KB/s at best (encoding overhead in subdomain labels)
@@ -97,7 +106,7 @@ A curated blocklist of these domains is included in [`blocked-domains.txt`](bloc
 - The most valuable targets (credentials, tokens, keys) are kernel-blocked from being read
 - Detectable with DNS monitoring (high-entropy subdomain queries to unusual domains)
 
-Since credentials are inaccessible inside the sandbox, DNS tunneling can only leak project source code and process environment variables — a much smaller blast radius than full credential theft.
+Since credentials are inaccessible inside the sandbox, network-based exfiltration can only leak project source code, environment variables, and `~/.config/gh` tokens — a much smaller blast radius than full credential theft.
 
 ## Defense Layers
 
@@ -112,13 +121,15 @@ The primary defense is Apple's mandatory access control framework, enforced in t
 (import "bsd.sb")                       ← Allow basic system library access
 (allow process-exec/fork)               ← Allow running programs
 (allow file-read/write project_dir)     ← Project access
-(allow file-read ~/.copilot)            ← Auth token access
+(allow file-read ~/.copilot)            ← Auth token access + native modules
+(allow file-read ~/.config/gh)          ← GitHub CLI auth (read-only)
 (allow file-read/write /private/tmp)    ← Temp file access
 (deny process-exec /private/tmp)        ← But no executing from tmp!
 (deny file-* ~/.ssh, ~/.aws, ...)       ← Sensitive dirs blocked
-(deny network*)                         ← All network blocked
-(allow network-outbound localhost:PORT) ← Proxy-only exception
+(allow network-outbound (remote tcp))   ← Outbound TCP allowed (see note below)
 ```
+
+> **Network note:** Outbound TCP is allowed because Copilot CLI connects directly to `api.business.githubcopilot.com` and other CDN-backed endpoints. SBPL does not support domain-based or wildcard port-based rules. The filesystem isolation is the primary security control.
 
 **Key design decision**: Deny rules are placed AFTER allow rules. In Seatbelt's evaluation model with `(deny default)`, more-specific rules override broader ones, and later rules take precedence for equal specificity. This means our deny rules for `~/.ssh` correctly override the broader temp/system allows.
 
@@ -132,9 +143,12 @@ Directories always denied (read + write):
 - `~/.nais` — Nav platform credentials
 - `~/.password-store` — pass password manager
 - `~/.config/gcloud` — Google Cloud credentials
-- `~/.config/gh` — GitHub CLI credentials
 - `~/.config/op` — 1Password CLI
 - `~/.terraform.d` — Terraform credentials
+
+Directories explicitly allowed (read-only):
+
+- `~/.config/gh` — GitHub CLI credentials (Copilot spawns `gh auth token`; see [Honest gaps](#honest-gaps))
 
 Files always denied:
 
@@ -144,9 +158,11 @@ Files always denied:
 - `~/.gem/credentials` — RubyGems credentials
 - `~/.vault-token` — HashiCorp Vault
 
-### Layer 2: CONNECT Proxy with SSRF Protection
+### Layer 2: CONNECT Proxy (Optional Logging and Domain Blocking)
 
-When `--with-proxy` is enabled, all outbound HTTPS passes through a localhost CONNECT proxy that provides:
+When `--with-proxy` is enabled, a localhost CONNECT proxy provides **passive logging and domain blocking** for tools that respect `http_proxy` env vars (like `gh`, `curl`). It does NOT intercept Copilot CLI traffic — Node.js does not natively use `http_proxy`/`https_proxy`, and setting these vars breaks Copilot's auth flow.
+
+The proxy provides:
 
 1. **Connection logging** — every CONNECT target is logged with timestamp and status
 2. **Domain blocklist** — configurable file-based blocklist with subdomain matching
@@ -230,6 +246,51 @@ copilot-sandbox refuses to sandbox overly broad directories that would grant the
 
 - **Allow paths** (`--allow-read`, `--allow-write`): canonicalized; unresolvable paths are warned and skipped
 - **Deny paths** (`--deny-path`): canonicalized; unresolvable paths cause a **hard error** (silently dropping a deny rule is a security risk)
+
+### Network Limitations
+
+#### Why we cannot filter Copilot's network traffic
+
+The original design routed all sandbox traffic through a localhost CONNECT proxy, giving us full visibility and control over outbound connections. This was the ideal architecture: block outbound at the kernel level (`(deny network*)`), allow only localhost on the proxy port (`(allow network-outbound (local ip "localhost:18080"))`), and let the proxy log, filter, and enforce a domain allowlist.
+
+**It did not work.** Here is what we discovered through systematic debugging:
+
+**Phase 1: Proxy env vars break Copilot's auth flow.** The sandbox injected `http_proxy=http://localhost:18080` and `https_proxy=http://localhost:18080` into the child process environment. Copilot CLI is a Node.js application, and **Node.js does not natively respect `http_proxy`/`https_proxy` env vars**. The standard `https` module (and most HTTP client libraries in Node) connect directly — they do not read proxy settings from the environment the way Go's `net/http` or curl do.
+
+Setting these env vars did not route Copilot traffic through the proxy. Instead, it interfered with Copilot's HTTP client internals. The auth flow — which contacts `api.github.com` to validate tokens, then `api.business.githubcopilot.com` for the Copilot API — failed with "No authentication information found" even though the token was valid.
+
+**Phase 2: Removing proxy env vars fixes auth.** When we stopped injecting proxy env vars and allowed outbound TCP directly (`(allow network-outbound (remote tcp))`), Copilot authenticated successfully and worked correctly. This confirmed the env vars were the cause — not the sandbox itself.
+
+**Phase 3: Go tools DO respect proxy env vars.** We observed that `gh` (the GitHub CLI, a Go binary that Copilot spawns for `gh auth token`) did route through the proxy. Go's `net/http.ProxyFromEnvironment()` reads `https_proxy` by default. This means the proxy saw CONNECT requests to `api.github.com` from `gh`, but never saw Copilot's own traffic to `api.business.githubcopilot.com`, `api.githubcopilot.com`, or `proxy.business.githubcopilot.com`.
+
+**Root cause summary:**
+
+| Component | Language | Respects `http_proxy`? | Through proxy? |
+|---|---|---|---|
+| Copilot CLI | Node.js | ❌ No (breaks auth when set) | ❌ Never |
+| `gh` CLI | Go | ✅ Yes (`net/http`) | ✅ Yes |
+| `curl` | C | ✅ Yes | ✅ Yes |
+
+**Why not force Node.js to use the proxy?** Node.js requires explicit proxy support in the HTTP client code (e.g., the `global-agent` npm package or `--proxy-server` flag for Electron). Copilot CLI is a pre-built binary — we cannot modify its source code to add proxy support. Even if we could, CONNECT proxies for HTTPS only see the target hostname:port (SNI), not the request body, so the security value is limited to domain filtering.
+
+**Design decision:** The proxy is kept as an opt-in tool (`--with-proxy`) for logging connections from tools that DO respect proxy env vars (`gh`, `curl`, other Go/Python tools). It is disabled by default because it provides no value for Copilot's primary traffic and was misleading when presented as a security control.
+
+#### SBPL network filtering limitations
+
+Even without the proxy, we explored filtering at the Seatbelt level. SBPL has fundamental limitations:
+
+- **No domain-based rules** — SBPL operates at the syscall level, not the application level. It cannot match on hostnames.
+- **No wildcard port filtering** — there is no syntax for "allow any host on port 443 only"
+- **IP-based rules require known IPs** — Copilot's API endpoints (`api.business.githubcopilot.com`) use CDN-backed IPs that change regularly and cannot be enumerated
+
+The only viable options are `(allow network-outbound (remote tcp))` (allow all) or `(deny network*)` (deny all). We chose to allow all outbound TCP because Copilot cannot function without network access.
+
+#### Current state
+
+- **All outbound TCP is allowed** in the sandbox profile
+- **Filesystem isolation is the primary security control** — credentials are kernel-blocked regardless of network policy
+- **The proxy remains useful** for logging traffic from Go-based tools (`gh`) and for domain blocking as a defense-in-depth measure
+- **Future improvement:** If Copilot CLI ever adds native proxy support (e.g., via `global-agent` or `NODE_EXTRA_CA_CERTS` + MITM proxy), the full proxy architecture could be re-enabled
 
 ## Test Strategy
 

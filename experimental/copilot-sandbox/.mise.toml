@@ -37,6 +37,14 @@ run = "cargo test --test unit_tests --verbose"
 description = "Run integration tests (macOS only)"
 run = "cargo test --test integration --verbose"
 
+[tasks."test:e2e"]
+description = "Run E2E tests (requires macOS + Copilot CLI)"
+run = "cargo test --test e2e --verbose"
+
+[tasks."test:e2e-live"]
+description = "Run live E2E tests that hit Copilot API (requires auth)"
+run = "cargo test --test e2e --verbose -- --ignored"
+
 [tasks."test:short"]
 description = "Run tests without verbose output"
 run = "cargo test"
@@ -54,9 +62,5 @@ description = "Clean build artifacts"
 run = "cargo clean"
 
 [tasks.run]
-description = "Run copilot inside sandbox (current dir as project)"
-run = "cargo run -- -- --version"
-
-[tasks.dev]
-description = "Build and run with sandbox output"
+description = "Build and run copilot --version inside sandbox"
 run = "cargo run -- -- --version"

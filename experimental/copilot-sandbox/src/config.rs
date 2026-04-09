@@ -118,7 +118,9 @@ impl Config {
         cli_deny_paths: Vec<PathBuf>,
         cli_no_validate: bool,
     ) -> Result<Resolved, String> {
-        // Proxy: --no-proxy always wins, then --with-proxy, then config, then false
+        // Proxy: --no-proxy always wins, then --with-proxy, then config, then false (default off).
+        // The proxy is a passive logging tool — Copilot CLI doesn't use it (Node.js ignores
+        // http_proxy env vars). It's useful for logging traffic from tools like `gh` or `curl`.
         let with_proxy = if cli_no_proxy {
             false
         } else if cli_with_proxy {
@@ -264,11 +266,13 @@ pub fn default_config_contents() -> String {
 # Override: COPILOT_SANDBOX_CONFIG=/path/to/config.toml
 
 # ─── Proxy ───────────────────────────────────────────────────
-# The CONNECT proxy logs and filters outbound HTTPS traffic.
-# Without the proxy, ALL outbound network is blocked.
-# Use --no-proxy to override this per invocation.
+# Optional CONNECT proxy that logs outbound HTTPS connections.
+# Disabled by default — Copilot CLI connects directly to its APIs
+# and does not use http_proxy/https_proxy env vars.
+# Enable with --with-proxy for connection visibility and domain blocking.
+# The proxy is a passive logging tool, not a security boundary.
 [proxy]
-# enabled = true
+# enabled = false
 # port = 18080
 # blocked_domains = "~/.config/copilot-sandbox/blocked.txt"
 
@@ -542,6 +546,18 @@ validate = false
         let contents = default_config_contents();
         let config: Config = toml::from_str(&contents).unwrap();
         assert!(config.proxy.enabled.is_none());
+    }
+
+    #[test]
+    fn proxy_disabled_by_default_when_no_config_or_flags() {
+        let config = Config::default();
+        let resolved = config
+            .merge(false, false, None, None, vec![], vec![], vec![], false)
+            .unwrap();
+        assert!(
+            !resolved.with_proxy,
+            "Proxy should be disabled by default — it's a passive logging tool, not required for Copilot"
+        );
     }
 
     #[test]

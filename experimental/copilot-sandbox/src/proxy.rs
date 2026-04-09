@@ -264,6 +264,9 @@ fn relay(client: TcpStream, remote: TcpStream) {
 }
 
 pub fn is_blocked(hostname: &str, blocked_file: &PathBuf) -> bool {
+    if !blocked_file.exists() {
+        return false;
+    }
     let contents = match std::fs::read_to_string(blocked_file) {
         Ok(c) => c,
         Err(e) => {

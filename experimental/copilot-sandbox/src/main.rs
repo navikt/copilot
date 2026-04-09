@@ -6,11 +6,11 @@ use std::process::ExitCode;
 /// Run GitHub Copilot CLI inside a macOS sandbox.
 ///
 /// Copilot can read and write your project files, but cannot access your
-/// SSH keys, cloud credentials, or other secrets. All network traffic is
-/// blocked unless you enable the built-in proxy with --with-proxy.
+/// SSH keys, cloud credentials, or other secrets. The sandbox is enforced
+/// by the macOS kernel — Copilot (and any process it spawns) cannot bypass it.
 ///
-/// The sandbox is enforced by the macOS kernel — Copilot (and any process
-/// it spawns) cannot bypass it.
+/// Network: Outbound TCP is allowed (Copilot needs to reach its API).
+/// The filesystem isolation is the primary security control.
 ///
 /// Defaults can be saved to ~/.config/copilot-sandbox/config.toml
 /// so you don't need to pass flags every time. Run --init-config to
@@ -22,11 +22,11 @@ use std::process::ExitCode;
     about,
     after_help = "\
 EXAMPLES:
-  copilot-sandbox --with-proxy -- -p \"fix the tests\"
-    Run Copilot with internet access (through the sandbox proxy)
+  copilot-sandbox -- -p \"fix the tests\"
+    Run Copilot in sandbox (credentials protected, network allowed)
 
-  copilot-sandbox -- --version
-    Verify the sandbox works (no network needed)
+  copilot-sandbox --with-proxy -- -p \"fix the tests\"
+    Run with proxy for connection logging and domain blocking
 
   copilot-sandbox --allow-read ~/shared-libs -- -p \"use shared-libs\"
     Let Copilot read files outside the project directory
@@ -42,16 +42,17 @@ struct Cli {
     #[arg(long, short = 'd', value_name = "DIR")]
     project_dir: Option<PathBuf>,
 
-    /// Let Copilot access the internet through a local proxy.
-    /// Without this flag, ALL network access is blocked and Copilot
-    /// runs fully offline. You need this for most real tasks since
-    /// Copilot must reach the GitHub API.
+    /// Enable a local CONNECT proxy that logs outbound connections.
+    /// Useful for visibility into what domains Copilot (and tools like gh)
+    /// connect to. Can also block known-bad domains with --blocked-domains.
+    /// Note: Copilot CLI itself does NOT route through the proxy — it
+    /// connects directly to its APIs. The proxy captures traffic from
+    /// tools that respect http_proxy (like gh, curl).
     #[arg(long)]
     with_proxy: bool,
 
-    /// Force the proxy off, even if your config file enables it.
-    /// Useful for testing or fully offline work.
-    #[arg(long, conflicts_with = "with_proxy")]
+    /// Disable the proxy, even if enabled in config file.
+    #[arg(long)]
     no_proxy: bool,
 
     /// Port for the local proxy to listen on [default: 18080].
@@ -60,6 +61,7 @@ struct Cli {
     proxy_port: Option<u16>,
 
     /// File with domains to block (one per line, e.g. pastebin.com).
+    /// Only relevant when --with-proxy is enabled.
     /// The proxy will refuse CONNECT requests to these domains.
     /// The file is re-read on every request, so you can edit it live.
     #[arg(long, value_name = "FILE")]
@@ -91,6 +93,17 @@ struct Cli {
     #[arg(long)]
     no_validate: bool,
 
+    /// Print the generated sandbox profile (SBPL) and exit.
+    /// Useful for debugging or auditing the sandbox rules.
+    #[arg(long)]
+    print_profile: bool,
+
+    /// Show sandbox denial logs from macOS in real time.
+    /// Starts `log stream` in the background to capture kernel-level
+    /// sandbox violations. Helps diagnose why something isn't working.
+    #[arg(long)]
+    show_denials: bool,
+
     /// Create a starter config file at ~/.config/copilot-sandbox/config.toml.
     /// The config lets you save your preferred defaults so you don't need
     /// to pass flags every time. Will not overwrite an existing file.
@@ -98,7 +111,7 @@ struct Cli {
     init_config: bool,
 
     /// Everything after -- is passed directly to the copilot command.
-    /// Example: copilot-sandbox --with-proxy -- -p "fix the tests"
+    /// Example: copilot-sandbox -- -p "fix the tests"
     #[arg(last = true)]
     copilot_args: Vec<String>,
 }
@@ -305,12 +318,13 @@ fn main() -> ExitCode {
         &resolved.allow_read,
         &resolved.allow_write,
         &resolved.deny_paths,
-        if resolved.with_proxy {
-            Some(resolved.proxy_port)
-        } else {
-            None
-        },
     );
+
+    // --print-profile: dump the SBPL and exit
+    if cli.print_profile {
+        println!("{profile}");
+        return ExitCode::SUCCESS;
+    }
 
     // Write profile to temp file with unique name (prevents symlink attacks)
     let profile_path = std::env::temp_dir().join(format!(
@@ -358,16 +372,26 @@ fn main() -> ExitCode {
 
     // Start proxy if requested
     let mut proxy_handle = None;
-    let mut proxy_env = Vec::new();
 
     if resolved.with_proxy {
         let blocked_file = resolved.blocked_domains.unwrap_or_else(|| {
+            // Look for blocked-domains.txt next to the binary, then blocked.txt
             let exe_dir = std::env::current_exe()
                 .ok()
                 .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-            exe_dir
-                .map(|d| d.join("blocked.txt"))
-                .unwrap_or_else(|| PathBuf::from("blocked.txt"))
+            if let Some(ref dir) = exe_dir {
+                let preferred = dir.join("blocked-domains.txt");
+                if preferred.exists() {
+                    return preferred;
+                }
+                let fallback = dir.join("blocked.txt");
+                if fallback.exists() {
+                    return fallback;
+                }
+            }
+            // No blocklist found — return a path that won't exist,
+            // proxy will run without blocking any domains
+            PathBuf::from("/dev/null/no-blocklist")
         });
 
         info(&format!(
@@ -382,21 +406,13 @@ fn main() -> ExitCode {
                     resolved.proxy_port
                 ));
                 proxy_handle = Some(handle);
-                let proxy_url = format!("http://127.0.0.1:{}", resolved.proxy_port);
-                proxy_env = vec![
-                    ("http_proxy".to_string(), proxy_url.clone()),
-                    ("https_proxy".to_string(), proxy_url.clone()),
-                    ("HTTP_PROXY".to_string(), proxy_url.clone()),
-                    ("HTTPS_PROXY".to_string(), proxy_url.clone()),
-                    (
-                        "no_proxy".to_string(),
-                        "localhost,127.0.0.1,::1".to_string(),
-                    ),
-                    (
-                        "NO_PROXY".to_string(),
-                        "localhost,127.0.0.1,::1".to_string(),
-                    ),
-                ];
+                // NOTE: We intentionally do NOT set http_proxy/https_proxy env vars.
+                // Node.js (used by Copilot CLI) doesn't natively respect these,
+                // and libraries that do (global-agent) can interfere with Copilot's
+                // own HTTP client, causing auth failures with api.githubcopilot.com.
+                // The proxy runs as a passive listener — tools like `gh` (Go) that
+                // natively respect http_proxy can be configured separately if needed.
+                // The sandbox's filesystem protection is the primary security control.
             }
             Err(e) => {
                 error(&format!("Failed to start proxy: {e}"));
@@ -407,30 +423,53 @@ fn main() -> ExitCode {
 
     info("Protected: ~/.ssh, ~/.gnupg, ~/.aws, ~/.azure, ~/.kube, ~/.docker, ~/.netrc");
     if resolved.with_proxy {
-        info("Network:   All traffic through localhost proxy (logged + filterable)");
+        info(&format!(
+            "Network:   Outbound allowed, proxy logging on localhost:{}",
+            resolved.proxy_port
+        ));
     } else {
-        info("Network:   All direct outbound blocked (no proxy — Copilot API will fail!)");
-        warn("Use --with-proxy if Copilot needs internet access");
+        info("Network:   Outbound allowed (use --with-proxy for connection logging)");
     }
 
     eprintln!();
     ok("Starting Copilot in sandbox...");
+
+    // --show-denials: stream macOS sandbox denial logs in the background
+    let mut denial_proc = None;
+    if cli.show_denials {
+        info("Streaming sandbox denial logs (--show-denials)...");
+        match std::process::Command::new("log")
+            .args([
+                "stream",
+                "--predicate",
+                "eventMessage CONTAINS \"Sandbox\" AND eventMessage CONTAINS \"deny\"",
+                "--info",
+                "--style",
+                "compact",
+            ])
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .spawn()
+        {
+            Ok(child) => denial_proc = Some(child),
+            Err(e) => warn(&format!("Could not start denial log stream: {e}")),
+        }
+    }
+
     eprintln!("{YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{NC}");
     eprintln!();
 
     // Run copilot inside sandbox
-    let exit_code = sandbox::exec(
-        &profile_path,
-        &project_dir,
-        &home_dir,
-        &cli.copilot_args,
-        &proxy_env,
-    );
+    let exit_code = sandbox::exec(&profile_path, &project_dir, &home_dir, &cli.copilot_args);
 
     // Cleanup
     let _ = std::fs::remove_file(&profile_path);
     if let Some(handle) = proxy_handle {
         handle.shutdown();
+    }
+    if let Some(mut child) = denial_proc {
+        let _ = child.kill();
+        let _ = child.wait();
     }
 
     ExitCode::from(exit_code)

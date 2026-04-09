@@ -16,7 +16,6 @@ const DENIED_DOTFILES: &[&str] = &[
     ".password-store",
     ".config/gcloud",
     ".config/op",
-    ".config/gh",
     ".terraform.d",
 ];
 
@@ -43,7 +42,7 @@ const SYSTEM_READ_FILES: &[&str] = &[
 ];
 
 /// Tool directories commonly needed by developers.
-const TOOL_READ_DIRS: &[&str] = &["/usr/local", "/opt/homebrew"];
+const TOOL_READ_DIRS: &[&str] = &["/usr/bin", "/usr/lib", "/usr/local", "/opt/homebrew"];
 
 /// Tool directories under $HOME that get read access.
 const HOME_TOOL_DIRS: &[&str] = &[
@@ -81,7 +80,6 @@ pub fn generate_profile(
     extra_read: &[PathBuf],
     extra_write: &[PathBuf],
     extra_deny: &[PathBuf],
-    proxy_port: Option<u16>,
 ) -> String {
     let mut sb = String::with_capacity(4096);
     let home = home_dir.to_string_lossy();
@@ -104,19 +102,56 @@ pub fn generate_profile(
     writeln!(sb, "(allow process-fork)").unwrap();
     writeln!(sb).unwrap();
 
+    // TTY/terminal control — needed for interactive CLIs (e.g. Node.js setRawMode)
+    writeln!(
+        sb,
+        ";; TTY control (ioctl for terminal raw mode, window size)"
+    )
+    .unwrap();
+    writeln!(sb, "(allow file-ioctl)").unwrap();
+    writeln!(sb).unwrap();
+
+    // Device access — Node.js needs /dev/tty, /dev/null, /dev/urandom etc.
+    writeln!(sb, ";; Device access (/dev/tty, /dev/null, /dev/urandom)").unwrap();
+    writeln!(sb, "(allow file-read* (subpath \"/dev\"))").unwrap();
+    writeln!(sb, "(allow file-write* (subpath \"/dev\"))").unwrap();
+    writeln!(sb).unwrap();
+
     // Project directory — full access
     writeln!(sb, ";; Project directory — full read/write").unwrap();
     writeln!(sb, "(allow file-read* (subpath \"{project}\"))").unwrap();
     writeln!(sb, "(allow file-write* (subpath \"{project}\"))").unwrap();
     writeln!(sb).unwrap();
 
-    // Copilot config — the CLI needs its auth tokens and settings
-    writeln!(sb, ";; Copilot config").unwrap();
+    // Copilot config — the CLI needs its auth tokens and settings.
+    // file-map-executable is needed for native Node.js addons (keytar.node, pty.node)
+    // which are loaded via dlopen() from ~/.copilot/pkg/universal/*/prebuilds/
+    writeln!(sb, ";; Copilot config + native modules").unwrap();
     writeln!(sb, "(allow file-read* (subpath \"{home}/.copilot\"))").unwrap();
     writeln!(sb, "(allow file-write* (subpath \"{home}/.copilot\"))").unwrap();
+    writeln!(
+        sb,
+        "(allow file-map-executable (subpath \"{home}/.copilot\"))"
+    )
+    .unwrap();
+    writeln!(sb).unwrap();
+
+    // GitHub CLI auth — copilot spawns `gh` to read auth tokens (read-only)
+    writeln!(sb, ";; GitHub CLI auth (read-only)").unwrap();
+    writeln!(sb, "(allow file-read* (subpath \"{home}/.config/gh\"))").unwrap();
+    writeln!(sb).unwrap();
+
+    // Microsoft DeviceID — telemetry device identifier
+    writeln!(sb, ";; Microsoft DeviceID").unwrap();
+    writeln!(
+        sb,
+        "(allow file-read* (subpath \"{home}/Library/Application Support/Microsoft\"))"
+    )
+    .unwrap();
     writeln!(sb).unwrap();
 
     // macOS Keychain access — Copilot stores auth tokens here
+    // Security framework needs read+write (locks the db file during access)
     writeln!(sb, ";; macOS Keychain (Copilot auth tokens)").unwrap();
     writeln!(
         sb,
@@ -125,14 +160,33 @@ pub fn generate_profile(
     .unwrap();
     writeln!(
         sb,
-        "(allow mach-lookup (global-name \"com.apple.securityd\"))"
+        "(allow file-write* (subpath \"{home}/Library/Keychains\"))"
     )
     .unwrap();
-    writeln!(
-        sb,
-        "(allow mach-lookup (global-name \"com.apple.SecurityServer\"))"
-    )
-    .unwrap();
+    writeln!(sb).unwrap();
+
+    // Mach IPC — Node.js and macOS frameworks need service lookups
+    // (Keychain, security framework, DNS, system services)
+    writeln!(sb, ";; Mach IPC (required for Node.js, Keychain, DNS)").unwrap();
+    writeln!(sb, "(allow mach-lookup)").unwrap();
+    writeln!(sb).unwrap();
+
+    // System info — Node.js queries CPU count, memory, OS version
+    writeln!(sb, ";; System info (Node.js runtime needs these)").unwrap();
+    writeln!(sb, "(allow sysctl-read)").unwrap();
+    writeln!(sb, "(allow ipc-posix-shm-read-data)").unwrap();
+    writeln!(sb, "(allow ipc-posix-shm-write-data)").unwrap();
+    writeln!(sb, "(allow ipc-posix-shm-write-create)").unwrap();
+    writeln!(sb).unwrap();
+
+    // User preferences — Keychain and security framework read preferences
+    writeln!(sb, ";; User preferences (Keychain, security framework)").unwrap();
+    writeln!(sb, "(allow user-preference-read)").unwrap();
+    writeln!(sb).unwrap();
+
+    // Security framework databases — needed for Keychain/TLS operations
+    writeln!(sb, ";; Security framework databases").unwrap();
+    writeln!(sb, "(allow file-read* (subpath \"/private/var/db/mds\"))").unwrap();
     writeln!(sb).unwrap();
 
     // Git config (read-only)
@@ -218,9 +272,15 @@ pub fn generate_profile(
     }
     writeln!(sb).unwrap();
 
-    // Network — deny all, allow only the proxy port (or nothing)
-    writeln!(sb, ";; Network — deny all outbound except proxy").unwrap();
-    writeln!(sb, "(deny network*)").unwrap();
+    // Network — allow outbound to public IPs, block private/internal networks.
+    // Node.js doesn't natively respect http_proxy/https_proxy, so Copilot CLI
+    // connects directly to api.githubcopilot.com, api.business.githubcopilot.com,
+    // proxy.business.githubcopilot.com etc. We can't do domain-based rules in SBPL,
+    // so we allow general outbound but block private IPs to protect local network.
+    // The proxy (when enabled) provides logging/filtering for traffic that uses it.
+    writeln!(sb, ";; Network — allow outbound, block private networks").unwrap();
+
+    // DNS resolution
     writeln!(
         sb,
         "(allow network-outbound (literal \"/private/var/run/mDNSResponder\"))"
@@ -228,19 +288,10 @@ pub fn generate_profile(
     .unwrap();
     writeln!(sb, "(allow network-outbound (remote unix-socket))").unwrap();
 
-    if let Some(port) = proxy_port {
-        writeln!(
-            sb,
-            "(allow network-outbound (remote ip \"localhost:{port}\"))"
-        )
-        .unwrap();
-        writeln!(
-            sb,
-            "(allow network-inbound (local ip \"localhost:{port}\"))"
-        )
-        .unwrap();
-    }
-    // No else — without proxy, ALL outbound is blocked
+    // Allow general TCP outbound (needed for Copilot API endpoints)
+    writeln!(sb, "(allow network-outbound (remote tcp))").unwrap();
+    // Allow inbound for localhost services (proxy, MCP servers, etc.)
+    writeln!(sb, "(allow network-inbound (local tcp))").unwrap();
 
     sb
 }
@@ -271,10 +322,7 @@ pub fn exec(
     project_dir: &Path,
     _home_dir: &Path,
     copilot_args: &[String],
-    proxy_env: &[(String, String)],
 ) -> u8 {
-    use std::os::unix::process::CommandExt;
-
     let mut cmd = std::process::Command::new("sandbox-exec");
     cmd.arg("-f").arg(profile_path).arg("copilot");
 
@@ -282,22 +330,18 @@ pub fn exec(
         cmd.arg(arg);
     }
 
-    // Set proxy env vars
-    for (key, val) in proxy_env {
-        cmd.env(key, val);
-    }
-
     // Set working directory to project
     cmd.current_dir(project_dir);
 
-    // Start child in its own process group for clean signal forwarding
+    // Child inherits our process group — terminal signals (Ctrl+C)
+    // reach both parent and child naturally. No setpgid/tcsetpgrp needed.
+    //
+    // Ignore SIGTTOU/SIGTTIN — copilot (Node.js) may manipulate terminal
+    // settings (raw mode), and when the child exits the terminal state can
+    // cause these signals to be sent to us.
     unsafe {
-        cmd.pre_exec(|| {
-            if libc::setpgid(0, 0) == -1 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
+        libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+        libc::signal(libc::SIGTTIN, libc::SIG_IGN);
     }
 
     let mut child = match cmd.spawn() {
@@ -310,43 +354,50 @@ pub fn exec(
 
     let child_pid = child.id() as i32;
 
-    // Install signal handlers that forward to child process group
+    // Forward SIGTERM/SIGHUP to the child (these aren't sent by the terminal)
     install_signal_forwarding(child_pid);
 
-    match child.wait() {
+    let status = match child.wait() {
         Ok(status) => status.code().unwrap_or(1) as u8,
         Err(e) => {
             eprintln!("\x1b[0;31m[sandbox]\x1b[0m Error waiting for child: {e}");
-            // Kill the process group on error
             unsafe {
-                libc::killpg(child_pid, libc::SIGTERM);
+                libc::kill(child_pid, libc::SIGTERM);
             }
             1
         }
+    };
+
+    // Restore default signal handling
+    unsafe {
+        libc::signal(libc::SIGTTOU, libc::SIG_DFL);
+        libc::signal(libc::SIGTTIN, libc::SIG_DFL);
     }
+
+    status
 }
 
-fn install_signal_forwarding(child_pgid: i32) {
+fn install_signal_forwarding(child_pid: i32) {
     use std::sync::atomic::{AtomicI32, Ordering};
 
-    static CHILD_PGID: AtomicI32 = AtomicI32::new(0);
-    CHILD_PGID.store(child_pgid, Ordering::SeqCst);
+    static CHILD_PID: AtomicI32 = AtomicI32::new(0);
+    CHILD_PID.store(child_pid, Ordering::SeqCst);
 
     extern "C" fn forward_signal(sig: i32) {
         use std::sync::atomic::Ordering;
-        let pgid = CHILD_PGID.load(Ordering::SeqCst);
-        if pgid > 0 {
+        let pid = CHILD_PID.load(Ordering::SeqCst);
+        if pid > 0 {
             unsafe {
-                libc::killpg(pgid, sig);
+                libc::kill(pid, sig);
             }
+        }
+        // Reset to default — second signal kills us immediately
+        unsafe {
+            libc::signal(sig, libc::SIG_DFL);
         }
     }
 
     unsafe {
-        libc::signal(
-            libc::SIGINT,
-            forward_signal as *const () as libc::sighandler_t,
-        );
         libc::signal(
             libc::SIGTERM,
             forward_signal as *const () as libc::sighandler_t,
