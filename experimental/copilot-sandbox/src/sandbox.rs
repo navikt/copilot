@@ -58,7 +58,13 @@ const SYSTEM_READ_FILES: &[&str] = &[
 ];
 
 /// Tool directories commonly needed by developers.
-const TOOL_READ_DIRS: &[&str] = &["/bin", "/usr/bin", "/usr/lib", "/usr/local", "/opt/homebrew"];
+const TOOL_READ_DIRS: &[&str] = &[
+    "/bin",
+    "/usr/bin",
+    "/usr/lib",
+    "/usr/local",
+    "/opt/homebrew",
+];
 
 /// Tool directories under $HOME that get read access.
 /// NOTE: Only tool/binary dirs, never source code dirs.
@@ -163,11 +169,7 @@ pub fn generate_profile(
         for pattern in SENSITIVE_PROJECT_PATTERNS {
             // SBPL regex matches against the full path, so we anchor to
             // any directory separator to avoid matching path components.
-            writeln!(
-                sb,
-                "(deny file-read* (regex #\"/{pattern}\"))"
-            )
-            .unwrap();
+            writeln!(sb, "(deny file-read* (regex #\"/{pattern}\"))").unwrap();
         }
         writeln!(sb).unwrap();
     }
@@ -203,11 +205,7 @@ pub fn generate_profile(
     // mise config — tool version manager reads global config for tool paths and settings.
     // Contains tool versions and PATH entries, no secrets.
     writeln!(sb, ";; mise config (tool versions, no secrets)").unwrap();
-    writeln!(
-        sb,
-        "(allow file-read* (subpath \"{home}/.config/mise\"))"
-    )
-    .unwrap();
+    writeln!(sb, "(allow file-read* (subpath \"{home}/.config/mise\"))").unwrap();
     writeln!(sb).unwrap();
 
     // Microsoft DeviceID — telemetry device identifier
@@ -292,7 +290,11 @@ pub fn generate_profile(
     }
     // Build caches need write access (go-build, Homebrew, etc.)
     if home_dirs.iter().any(|d| *d == "Library/Caches") {
-        writeln!(sb, "(allow file-write* (subpath \"{home}/Library/Caches\"))").unwrap();
+        writeln!(
+            sb,
+            "(allow file-write* (subpath \"{home}/Library/Caches\"))"
+        )
+        .unwrap();
     }
     writeln!(sb).unwrap();
 

@@ -25,10 +25,7 @@ mod macos_tests {
     /// Generate a unique temp profile path per test invocation.
     fn unique_profile_path() -> PathBuf {
         let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
-        std::env::temp_dir().join(format!(
-            "cplt-test-{}-{id}.sb",
-            std::process::id()
-        ))
+        std::env::temp_dir().join(format!("cplt-test-{}-{id}.sb", std::process::id()))
     }
 
     /// Generate a minimal sandbox profile for testing, write to temp, return path.

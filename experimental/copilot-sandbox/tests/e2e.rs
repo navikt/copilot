@@ -324,8 +324,7 @@ mod e2e_tests {
     fn e2e_allow_read_appears_in_profile() {
         require_copilot!();
         // Create a temp dir outside the project to allow-read
-        let allow_dir =
-            std::env::temp_dir().join(format!("cplt-e2e-allow-{}", std::process::id()));
+        let allow_dir = std::env::temp_dir().join(format!("cplt-e2e-allow-{}", std::process::id()));
         std::fs::create_dir_all(&allow_dir).unwrap();
         let allow_dir_canonical = std::fs::canonicalize(&allow_dir).unwrap();
 
@@ -361,10 +360,8 @@ mod e2e_tests {
     #[test]
     fn e2e_custom_project_dir() {
         require_copilot!();
-        let custom_dir = std::env::temp_dir().join(format!(
-            "cplt-e2e-project-{}",
-            std::process::id()
-        ));
+        let custom_dir =
+            std::env::temp_dir().join(format!("cplt-e2e-project-{}", std::process::id()));
         std::fs::create_dir_all(&custom_dir).unwrap();
 
         let output = Command::new(binary_path())

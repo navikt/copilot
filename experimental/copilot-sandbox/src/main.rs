@@ -479,7 +479,15 @@ fn main() -> ExitCode {
             if resolved.allow_ports.is_empty() {
                 String::new()
             } else {
-                format!("+{}", resolved.allow_ports.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(","))
+                format!(
+                    "+{}",
+                    resolved
+                        .allow_ports
+                        .iter()
+                        .map(|p| p.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
             },
             resolved.proxy_port
         ));
@@ -489,7 +497,15 @@ fn main() -> ExitCode {
             if resolved.allow_ports.is_empty() {
                 String::new()
             } else {
-                format!("+{}", resolved.allow_ports.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(","))
+                format!(
+                    "+{}",
+                    resolved
+                        .allow_ports
+                        .iter()
+                        .map(|p| p.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
             }
         ));
     }

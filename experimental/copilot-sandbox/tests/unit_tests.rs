@@ -698,7 +698,9 @@ fn profile_env_deny_comes_after_project_allow() {
         None,
         false,
     );
-    let project_allow = p.find("(allow file-read* (subpath \"/projects/app\"))").unwrap();
+    let project_allow = p
+        .find("(allow file-read* (subpath \"/projects/app\"))")
+        .unwrap();
     let env_deny = p.find(r#"(deny file-read* (regex #"/\.env$"))"#).unwrap();
     assert!(
         env_deny > project_allow,
