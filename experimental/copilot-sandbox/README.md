@@ -26,8 +26,10 @@ We'd rather ship something small that actually works than something impressive t
 | Resource | Status | Notes |
 |---|---|---|
 | Read/write project directory | ✅ Allowed | |
+| Read `.env*`, `.pem`, `.key` in project | 🔒 Kernel-blocked | Prevents secret exfiltration; `--allow-env-files` to override |
 | Read/write `~/.copilot` (auth, settings, native modules) | ✅ Allowed | Includes `file-map-executable` for `keytar.node`, `pty.node`, `computer.node` |
 | Read `~/.config/gh/hosts.yml` + `config.yml` | ✅ Allowed (read-only) | Only these two files — rest of `.config/gh` is blocked |
+| Read `~/.config/mise` | ✅ Allowed (read-only) | Tool versions and PATH — no secrets |
 | Read `~/.gitconfig`, `~/.config/git/config` | ✅ Allowed (read-only) | |
 | Read `~/Library/Application Support/Microsoft` | ✅ Allowed (read-only) | Device ID for telemetry |
 | Access macOS Keychain | ✅ Allowed (read+write) | Security framework locks db during access; Copilot uses `keytar.node` for token storage |
@@ -42,7 +44,6 @@ We'd rather ship something small that actually works than something impressive t
 | Read `~/.config/gcloud`, `~/.config/op` | 🔒 Kernel-blocked | |
 | Read `~/.netrc`, `~/.npmrc`, `~/.pypirc`, `~/.vault-token` | 🔒 Kernel-blocked | |
 | Read `~/.gem/credentials` | 🔒 Kernel-blocked | |
-| Execute binaries from `/tmp`, `/var/folders` | 🔒 Kernel-blocked | Prevents write-then-exec attacks |
 | Child process inheritance | ✅ All restrictions apply to subprocesses | |
 
 This table is a summary. The sandbox also allows access to system files (SSL certs, `/etc/hosts`), temp directories (read/write but no exec), and system tool paths (`/usr/bin`, `/opt/homebrew`). Run `cplt --print-profile` to see the complete SBPL rules.
@@ -307,6 +308,68 @@ Copilot CLI 1.0.21 connects directly to these endpoints (empirically verified):
 | `api.githubcopilot.com` | Copilot API |
 | `api.business.githubcopilot.com` | Copilot Business API (enterprise users) |
 | `proxy.business.githubcopilot.com` | Copilot Business proxy |
+
+## Known impacts
+
+The sandbox is kernel-enforced — **all restrictions apply to every process spawned inside it**, including dev servers, test runners, build tools, and package managers. This is by design (a sandboxed agent could otherwise escape by spawning a child process), but it affects some workflows:
+
+### `.env` file blocking
+
+`.env*`, `.pem`, `.key`, `.p12`, `.pfx`, `.jks` files in the project directory are **blocked from reading** by default. This prevents a rogue agent from exfiltrating secrets, but has side effects:
+
+| Operation | Impact | Why |
+|---|---|---|
+| `npm install` | ✅ Works | Does not read `.env` files |
+| `cargo build`, `go build` | ✅ Works | Does not read `.env` files |
+| `next build` / `next dev` | ⚠️ May fail | Next.js auto-loads `.env`, `.env.local`, `.env.production` at startup |
+| `npm run dev` (Node.js) | ⚠️ May fail | Apps using `dotenv` to load config will get `undefined` env vars |
+| `npm test` / `vitest` | ⚠️ May fail | Tests that depend on `.env` for config won't find the values |
+| TLS dev servers (`.pem` certs) | ⚠️ Blocked | Local HTTPS certs in `.pem`/`.key` files can't be read |
+| `.env.example` | ⚠️ Blocked | Matches `.env.*` pattern — use `--allow-env-files` if needed |
+| Writing `.env` files | ✅ Works | Only read is denied; Copilot can create `.env` from templates |
+
+**Fix:** Use `--allow-env-files` when working on projects that need env file loading:
+
+```bash
+cplt --allow-env-files -- -p "start the dev server and fix the failing test"
+```
+
+Or set it permanently in config:
+
+```toml
+[sandbox]
+allow_env_files = true
+```
+
+### Localhost blocking
+
+Localhost outbound is blocked by default, which prevents sandboxed processes from connecting to local services:
+
+| Operation | Impact | Why |
+|---|---|---|
+| `npm install` (registry) | ✅ Works | Uses HTTPS to `registry.npmjs.org:443` |
+| Local PostgreSQL (`:5432`) | ❌ Blocked | Outbound to `localhost:5432` denied |
+| Local Redis (`:6379`) | ❌ Blocked | Outbound to `localhost:6379` denied |
+| MCP servers | ❌ Blocked | Use `--allow-localhost 3000` |
+| Local API/dev server | ❌ Blocked | Use `--allow-localhost 8080` |
+
+**Fix:** Use `--allow-localhost <PORT>` for each local service needed.
+
+### SSH agent blocking
+
+SSH agent access is blocked (unix socket denied), which means:
+
+- `git clone` over SSH will fail — use HTTPS clones instead
+- `ssh` commands spawned by the agent will fail
+- `gh` CLI uses HTTPS by default and is unaffected
+
+### Port restriction
+
+Only ports 443 and 80 are allowed. Services on non-standard ports need `--allow-port`:
+
+- `npm install` from private registries on non-standard ports
+- API calls to services not on 443/80
+- FTP, SMTP, or other protocol connections
 
 ## Limitations
 

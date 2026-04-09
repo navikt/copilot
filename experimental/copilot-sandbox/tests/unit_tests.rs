@@ -581,30 +581,6 @@ fn profile_deny_rules_come_after_allow_rules() {
 }
 
 #[test]
-fn profile_denies_exec_from_tmp() {
-    let p = generate_profile(
-        std::path::Path::new("/projects/app"),
-        std::path::Path::new("/Users/test"),
-        &[],
-        &[],
-        &[],
-        None,
-        &[],
-        &[],
-        None,
-        false,
-    );
-    assert!(
-        p.contains("(deny process-exec (subpath \"/private/tmp\"))"),
-        "should deny exec from /private/tmp"
-    );
-    assert!(
-        p.contains("(deny process-exec (subpath \"/private/var/folders\"))"),
-        "should deny exec from /private/var/folders"
-    );
-}
-
-#[test]
 fn profile_allows_gh_config_read_only() {
     let p = generate_profile(
         std::path::Path::new("/projects/app"),

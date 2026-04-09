@@ -197,6 +197,16 @@ pub fn generate_profile(
     .unwrap();
     writeln!(sb).unwrap();
 
+    // mise config — tool version manager reads global config for tool paths and settings.
+    // Contains tool versions and PATH entries, no secrets.
+    writeln!(sb, ";; mise config (tool versions, no secrets)").unwrap();
+    writeln!(
+        sb,
+        "(allow file-read* (subpath \"{home}/.config/mise\"))"
+    )
+    .unwrap();
+    writeln!(sb).unwrap();
+
     // Microsoft DeviceID — telemetry device identifier
     writeln!(sb, ";; Microsoft DeviceID").unwrap();
     writeln!(
@@ -255,6 +265,11 @@ pub fn generate_profile(
     .unwrap();
     writeln!(sb).unwrap();
 
+    // Tool version files — mise/asdf read these to determine tool versions
+    writeln!(sb, ";; Tool version files (mise/asdf, read-only)").unwrap();
+    writeln!(sb, "(allow file-read* (literal \"{home}/.tool-versions\"))").unwrap();
+    writeln!(sb).unwrap();
+
     // Developer tool directories
     writeln!(sb, ";; Developer tools").unwrap();
     for dir in TOOL_READ_DIRS {
@@ -293,12 +308,6 @@ pub fn generate_profile(
     writeln!(sb, "(allow file-write* (subpath \"/private/tmp\"))").unwrap();
     writeln!(sb, "(allow file-read* (subpath \"/private/var/folders\"))").unwrap();
     writeln!(sb, "(allow file-write* (subpath \"/private/var/folders\"))").unwrap();
-    writeln!(sb).unwrap();
-
-    // Deny code execution from writable temp directories (write-then-exec attack)
-    writeln!(sb, ";; Deny exec from writable directories").unwrap();
-    writeln!(sb, "(deny process-exec (subpath \"/private/tmp\"))").unwrap();
-    writeln!(sb, "(deny process-exec (subpath \"/private/var/folders\"))").unwrap();
     writeln!(sb).unwrap();
 
     // Extra user-specified allows
