@@ -1,0 +1,90 @@
+name: copilot-sandbox CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'experimental/copilot-sandbox/**'
+      - '.github/workflows/copilot-sandbox.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'experimental/copilot-sandbox/**'
+      - '.github/workflows/copilot-sandbox.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: experimental/copilot-sandbox
+
+jobs:
+  # Unit tests run on Linux (fast, no macOS dependency)
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            experimental/copilot-sandbox/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('experimental/copilot-sandbox/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Run unit tests
+        run: cargo test --test unit_tests --verbose
+
+  # Integration tests need macOS for sandbox-exec
+  integration-tests:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            experimental/copilot-sandbox/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('experimental/copilot-sandbox/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Verify sandbox-exec available
+        run: which sandbox-exec && sandbox-exec -f /dev/null /usr/bin/true 2>&1 || true
+
+      - name: Run all tests
+        run: cargo test --verbose
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Verify release binary
+        run: |
+          ls -lh target/release/copilot-sandbox
+          target/release/copilot-sandbox --version
+          target/release/copilot-sandbox --help | head -5
