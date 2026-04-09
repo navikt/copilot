@@ -1,5 +1,5 @@
 [tools]
-rust = "1.87"
+rust = "1.94"
 
 [tasks.version]
 description = "Generate version string (YYYYMMDD-gitsha)"

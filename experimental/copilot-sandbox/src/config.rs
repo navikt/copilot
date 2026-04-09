@@ -309,11 +309,10 @@ pub fn expand_tilde(path: &str) -> PathBuf {
         if let Ok(home) = std::env::var("HOME") {
             return PathBuf::from(home).join(rest);
         }
-    } else if path == "~" {
-        #[allow(clippy::collapsible_if)]
-        if let Ok(home) = std::env::var("HOME") {
-            return PathBuf::from(home);
-        }
+    } else if path == "~"
+        && let Ok(home) = std::env::var("HOME")
+    {
+        return PathBuf::from(home);
     }
     PathBuf::from(path)
 }

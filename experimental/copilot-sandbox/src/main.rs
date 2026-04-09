@@ -16,7 +16,11 @@ use std::process::ExitCode;
 /// so you don't need to pass flags every time. Run --init-config to
 /// create a starter config.
 #[derive(Parser)]
-#[command(name = "copilot-sandbox", version, about, after_help = "\
+#[command(
+    name = "copilot-sandbox",
+    version,
+    about,
+    after_help = "\
 EXAMPLES:
   copilot-sandbox --with-proxy -- -p \"fix the tests\"
     Run Copilot with internet access (through the sandbox proxy)
@@ -29,7 +33,8 @@ EXAMPLES:
 
   copilot-sandbox --deny-path ~/.config/gh -- -p \"refactor auth\"
     Block access to a path that is normally allowed
-")]
+"
+)]
 struct Cli {
     /// Which directory Copilot can read and write to.
     /// Defaults to the current git repository root, or the working directory
@@ -446,11 +451,11 @@ fn init_config() -> ExitCode {
     }
 
     // Create parent directory
-    if let Some(parent) = path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            error(&format!("Cannot create config directory: {e}"));
-            return ExitCode::FAILURE;
-        }
+    if let Some(parent) = path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        error(&format!("Cannot create config directory: {e}"));
+        return ExitCode::FAILURE;
     }
 
     match std::fs::write(&path, config::default_config_contents()) {
