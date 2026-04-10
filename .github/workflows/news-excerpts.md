@@ -116,7 +116,7 @@ tags:
 - **Ignore list**: If the URL is listed in `docs/news/articles/.newsignore`, skip it.
 - **Tags**: Use lowercase kebab-case. Reuse existing tags from other excerpt files when applicable.
 - **Date**: Use the announcement date from the source, not today's date.
-- **No changes if nothing new**: If there are no newsworthy announcements after the cutoff, do not create any files.
+- **No changes if nothing new**: If there are no newsworthy announcements after the cutoff, do not create any files. Call `noop` with a message like "No new newsworthy announcements found since [cutoff date]. Scanned all sources." to confirm the scan completed successfully.
 
 ## Scope
 
