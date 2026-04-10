@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -140,7 +141,7 @@ func (g *Generator) loadAgents(dir string) ([]discovery.Customization, error) {
 		}
 
 		filename := filepath.Base(file)
-		relPath := filepath.Join(".github/agents", filename)
+		relPath := path.Join(".github/agents", filename)
 		category := g.inferCategory(fm.Name, fm.Description)
 		tags := g.extractTags(fm.Name, fm.Description)
 
@@ -180,7 +181,7 @@ func (g *Generator) loadInstructions(dir string) ([]discovery.Customization, err
 		}
 
 		filename := filepath.Base(file)
-		relPath := filepath.Join(".github/instructions", filename)
+		relPath := path.Join(".github/instructions", filename)
 		name := strings.TrimSuffix(filename, ".instructions.md")
 		displayName := g.humanizeName(name)
 		description := g.extractDescription(string(content))
@@ -220,7 +221,7 @@ func (g *Generator) loadPrompts(dir string) ([]discovery.Customization, error) {
 		}
 
 		filename := filepath.Base(file)
-		relPath := filepath.Join(".github/prompts", filename)
+		relPath := path.Join(".github/prompts", filename)
 		tags := g.extractTags(fm.Name, fm.Description)
 
 		prompts = append(prompts, discovery.Customization{
@@ -262,7 +263,7 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 
 		name := entry.Name()
 		description := g.extractDescription(string(content))
-		relPath := filepath.Join(".github/skills", name)
+		relPath := path.Join(".github/skills", name)
 
 		// Read metadata.json (single source of truth for references and exclusion)
 		var refs []discovery.SkillReference
@@ -276,7 +277,7 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 				for _, ref := range meta.References {
 					refs = append(refs, discovery.SkillReference{
 						Path:   ref,
-						RawURL: g.generateRawURL(filepath.Join(".github/skills", name, ref)),
+						RawURL: g.generateRawURL(path.Join(".github/skills", name, ref)),
 					})
 				}
 			}
@@ -289,7 +290,7 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 			Description: description,
 			FilePath:    relPath,
 			InstallURL:  "",
-			RawURL:      g.generateRawURL(filepath.Join(relPath, "SKILL.md")),
+			RawURL:      g.generateRawURL(path.Join(relPath, "SKILL.md")),
 			References:  refs,
 		})
 	}

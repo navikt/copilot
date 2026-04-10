@@ -29,7 +29,12 @@ const instruction: Instruction = {
   applyTo: "src/**/*.tsx",
 };
 const prompt: Prompt = { ...base, type: "prompt", name: "code-review.prompt.md", invocation: "/code-review" };
-const skill: Skill = { ...base, type: "skill", name: "aksel-spacing" };
+const skill: Skill = {
+  ...base,
+  type: "skill",
+  name: "aksel-spacing",
+  rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md",
+};
 const skillWithRefs: Skill = {
   ...base,
   type: "skill",
@@ -180,7 +185,9 @@ describe("getManualInstallCommand", () => {
     const cmd = getManualInstallCommand(skill);
     expect(cmd).toContain('mkdir -p ".github/skills/aksel-spacing"');
     expect(cmd).toContain("curl -fsSL");
-    expect(cmd).toContain("SKILL.md");
+    expect(cmd).toContain(
+      'curl -fsSL -o ".github/skills/aksel-spacing/SKILL.md" "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md"',
+    );
     expect(cmd).not.toContain("references");
   });
 

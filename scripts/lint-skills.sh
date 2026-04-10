@@ -53,7 +53,7 @@ lint_skill() {
     fail "[$name] Missing metadata.json"
   else
     local desc
-    desc=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('description',''))" "$metadata" 2>/dev/null || echo "")
+    desc=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); v=d.get('description',''); print('' if v is None else str(v).strip())" "$metadata" 2>/dev/null || echo "")
     if [[ -z "$desc" ]]; then
       fail "[$name] metadata.json missing \"description\" field"
     else
