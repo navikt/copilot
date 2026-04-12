@@ -676,21 +676,19 @@ function CollectionsSection() {
         {/* Collection details */}
         <HGrid columns={{ xs: 1, md: 2 }} gap="space-4">
           {COLLECTIONS.map((c, i) => {
-            const colors = ["#6366f1", "#06b6d4", "#8b5cf6", "#10b981"];
             const icons = [LightningIcon, PaletteIcon, LinkIcon, ShieldCheckmarkIcon];
             const CollectionIcon = icons[i % icons.length];
-            const color = colors[i % colors.length];
             return (
               <Box
                 key={c.name}
                 padding={{ xs: "space-12", sm: "space-16" }}
                 borderRadius="12"
                 className="border overflow-hidden"
-                style={{ borderColor: "#e2e8f0", borderTop: `3px solid ${color}` }}
+                style={{ borderColor: "#e2e8f0" }}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <CollectionIcon aria-hidden fontSize="1.25rem" style={{ color }} />
-                  <Heading size="xsmall" level="4" style={{ color }}>
+                  <CollectionIcon aria-hidden fontSize="1.125rem" style={{ color: "#64748b" }} />
+                  <Heading size="xsmall" level="4" style={{ color: "#334155" }}>
                     {c.name}
                   </Heading>
                 </div>
@@ -699,15 +697,15 @@ function CollectionsSection() {
                 </BodyShort>
                 <div className="space-y-2 text-xs">
                   {[
-                    { label: "Agenter", value: c.details.agents, bg: "#ede9fe", fg: "#7c3aed" },
-                    { label: "Skills", value: c.details.skills, bg: "#dbeafe", fg: "#2563eb" },
-                    { label: "Instruksjoner", value: c.details.instructions, bg: "#d1fae5", fg: "#059669" },
-                    { label: "Prompts", value: c.details.prompts, bg: "#fef3c7", fg: "#d97706" },
+                    { label: "Agenter", value: c.details.agents },
+                    { label: "Skills", value: c.details.skills },
+                    { label: "Instruksjoner", value: c.details.instructions },
+                    { label: "Prompts", value: c.details.prompts },
                   ].map((cat) => (
                     <div key={cat.label}>
                       <span
-                        className="inline-block text-xs font-semibold rounded-full px-2 py-0.5 mr-2 mb-1"
-                        style={{ background: cat.bg, color: cat.fg }}
+                        className="inline-block text-xs font-medium rounded-full px-2 py-0.5 mr-2 mb-1"
+                        style={{ background: "#f1f5f9", color: "#475569" }}
                       >
                         {cat.label}
                       </span>
