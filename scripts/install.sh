@@ -142,9 +142,9 @@ if ! command -v "$BINARY" &>/dev/null; then
   echo ""
   SHELL_NAME=$(basename "$SHELL")
   case "$SHELL_NAME" in
-    zsh)  RC_FILE="~/.zshrc" ;;
-    bash) RC_FILE="~/.bashrc" ;;
-    fish) RC_FILE="~/.config/fish/config.fish" ;;
+    zsh)  RC_FILE="$HOME/.zshrc" ;;
+    bash) RC_FILE="$HOME/.bashrc" ;;
+    fish) RC_FILE="$HOME/.config/fish/config.fish" ;;
     *)    RC_FILE="your shell config" ;;
   esac
   echo "Add it with:"
