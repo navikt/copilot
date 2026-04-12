@@ -67,6 +67,16 @@ run = "(cd scripts/generate-docs && go run . --check)"
 description = "Lint .github/skills/ for quality (token budget, structure, metadata)"
 run = "bash scripts/lint-skills.sh"
 
+# ─── nav-pilot installer ─────────────────────────────────────────────────────
+
+[tasks."nav-pilot:build"]
+description = "Build nav-pilot installer CLI"
+run = "(cd scripts/install-collection && go build -o nav-pilot .)"
+
+[tasks."nav-pilot:test"]
+description = "Run nav-pilot installer tests"
+run = "(cd scripts/install-collection && go test -v ./...)"
+
 # ─── Ratchet (GitHub Actions pinning) ────────────────────────────────────────
 
 [tasks."ratchet:pin"]
