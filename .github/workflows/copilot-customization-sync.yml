@@ -52,6 +52,13 @@ jobs:
           if nav-pilot sync --json > sync-result.json 2>&1; then
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
           else
+            # Verify we got valid JSON before treating as "updates available"
+            if ! jq -e '.up_to_date' sync-result.json &>/dev/null; then
+              echo "::error::nav-pilot sync failed (no valid JSON output)"
+              cat sync-result.json
+              exit 1
+            fi
+
             echo "has_updates=true" >> "$GITHUB_OUTPUT"
 
             # Build PR body from JSON result

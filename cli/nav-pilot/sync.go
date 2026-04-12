@@ -13,6 +13,7 @@ type syncResult struct {
 	UpToDate bool         `json:"up_to_date"`
 	Source   string       `json:"source"`
 	Updates  []syncUpdate `json:"updates,omitempty"`
+	Errors   []string     `json:"errors,omitempty"`
 }
 
 type syncUpdate struct {
@@ -55,12 +56,14 @@ func cmdSync(targetDir, ref string, apply, jsonOutput bool) error {
 
 	// Compare each file against source
 	var updates []syncUpdate
+	var syncErrors []string
 	for _, sf := range files {
 		u, err := checkSyncFile(targetDir, src.Dir, sf)
 		if err != nil {
 			if !jsonOutput {
 				fmt.Fprintf(os.Stderr, "%s %s: %v\n", yellow("⚠"), sf.localPath, err)
 			}
+			syncErrors = append(syncErrors, fmt.Sprintf("%s: %v", sf.localPath, err))
 			continue
 		}
 		if u != nil {
@@ -69,9 +72,10 @@ func cmdSync(targetDir, ref string, apply, jsonOutput bool) error {
 	}
 
 	result := syncResult{
-		UpToDate: len(updates) == 0,
+		UpToDate: len(updates) == 0 && len(syncErrors) == 0,
 		Source:   src.SHA,
 		Updates:  updates,
+		Errors:   syncErrors,
 	}
 
 	if jsonOutput {
