@@ -1,0 +1,33 @@
+{
+  "name": "nextjs-frontend",
+  "description": "Komplett agent- og skill-pakke for Next.js-team med Aksel Design System på Nais",
+  "version": "2025.07",
+  "agents": [
+    "accessibility",
+    "aksel",
+    "forfatter",
+    "nav-pilot"
+  ],
+  "skills": [
+    "aksel-spacing",
+    "playwright-testing",
+    "web-design-reviewer",
+    "nav-plan",
+    "nav-deep-interview",
+    "nav-architecture-review",
+    "nav-troubleshoot"
+  ],
+  "instructions": [
+    "nextjs-aksel",
+    "testing",
+    "testing-typescript",
+    "accessibility",
+    "github-actions",
+    "docker"
+  ],
+  "prompts": [
+    "aksel-component",
+    "nextjs-api-route",
+    "nais-manifest"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "domain": "general",
+  "tags": ["planning", "architecture", "scaffold", "onboarding", "nav-pilot"],
+  "examples": [
+    {
+      "prompt": "@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader",
+      "scenario": "Planlegg ny backend-tjeneste"
+    },
+    {
+      "prompt": "@nav-pilot Vi skal lage et saksbehandlerverktøy for tiltakspenger med Next.js",
+      "scenario": "Planlegg ny frontend-applikasjon"
+    },
+    {
+      "prompt": "@nav-pilot Hjelp meg feilsøke hvorfor dp-behandling-poden krasjer i dev",
+      "scenario": "Feilsøk plattformproblemer"
+    },
+    {
+      "prompt": "@nav-pilot Hvordan bør vi migrere fra on-prem til GCP?",
+      "scenario": "Planlegg migrasjon"
+    },
+    {
+      "prompt": "@nav-pilot Vi trenger en Kafka-konsument som lytter på vedtakshendelser",
+      "scenario": "Planlegg hendelsedrevet tjeneste"
+    }
+  ]
+}

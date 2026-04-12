@@ -1,0 +1,51 @@
+{
+  "name": "fullstack",
+  "description": "Alt du trenger — agents, skills og instruksjoner for fullstack-team med Kotlin backend og Next.js frontend",
+  "version": "2025.07",
+  "agents": [
+    "accessibility",
+    "aksel",
+    "auth",
+    "code-review",
+    "forfatter",
+    "kafka",
+    "nais",
+    "observability",
+    "security-champion",
+    "nav-pilot"
+  ],
+  "skills": [
+    "aksel-spacing",
+    "api-design",
+    "flyway-migration",
+    "kotlin-app-config",
+    "observability-setup",
+    "playwright-testing",
+    "security-review",
+    "tokenx-auth",
+    "web-design-reviewer",
+    "nav-plan",
+    "nav-deep-interview",
+    "nav-architecture-review",
+    "nav-troubleshoot"
+  ],
+  "instructions": [
+    "kotlin-ktor",
+    "kotlin-spring",
+    "nextjs-aksel",
+    "testing",
+    "testing-kotlin",
+    "testing-typescript",
+    "accessibility",
+    "github-actions",
+    "docker",
+    "database"
+  ],
+  "prompts": [
+    "spring-boot-endpoint",
+    "kafka-topic",
+    "nais-manifest",
+    "aksel-component",
+    "nextjs-api-route"
+  ]
+}

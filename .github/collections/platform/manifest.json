@@ -1,0 +1,27 @@
+{
+  "name": "platform",
+  "description": "Agents og skills for plattformteam og DevOps — Nais, observerbarhet, sikkerhet og infrastruktur",
+  "version": "2025.07",
+  "agents": [
+    "nais",
+    "observability",
+    "security-champion",
+    "nav-pilot"
+  ],
+  "skills": [
+    "observability-setup",
+    "security-review",
+    "workstation-security",
+    "nav-plan",
+    "nav-deep-interview",
+    "nav-architecture-review",
+    "nav-troubleshoot"
+  ],
+  "instructions": [
+    "github-actions",
+    "docker"
+  ],
+  "prompts": [
+    "nais-manifest"
+  ]
+}

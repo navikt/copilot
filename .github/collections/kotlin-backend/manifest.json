@@ -1,0 +1,39 @@
+{
+  "name": "kotlin-backend",
+  "description": "Komplett agent- og skill-pakke for Kotlin/Ktor- og Spring Boot-team på Nais",
+  "version": "2025.07",
+  "agents": [
+    "auth",
+    "kafka",
+    "nais",
+    "observability",
+    "security-champion",
+    "nav-pilot"
+  ],
+  "skills": [
+    "api-design",
+    "flyway-migration",
+    "kotlin-app-config",
+    "observability-setup",
+    "security-review",
+    "tokenx-auth",
+    "nav-plan",
+    "nav-deep-interview",
+    "nav-architecture-review",
+    "nav-troubleshoot"
+  ],
+  "instructions": [
+    "kotlin-ktor",
+    "kotlin-spring",
+    "testing",
+    "testing-kotlin",
+    "github-actions",
+    "docker",
+    "database"
+  ],
+  "prompts": [
+    "spring-boot-endpoint",
+    "kafka-topic",
+    "nais-manifest"
+  ]
+}

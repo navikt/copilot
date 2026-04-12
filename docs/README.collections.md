@@ -1,100 +1,152 @@
 # 📦 Copilot Collections
 
-Collections are curated sets of agents, prompts, instructions, and skills organized around specific Nav development domains or workflows.
+Collections are curated bundles of agents, skills, instructions, and prompts organized by team archetype. Instead of browsing 15+ skills to find the right ones, pick your stack and get a complete, tested package.
 
-Collections provide a convenient way to install related Copilot customizations as a complete package, ensuring consistent tooling and practices across Nav teams.
+All collections include **nav-pilot** — the planning and architecture agent that ties everything together.
 
-### How to Use Collections
+## Quick Start
 
-**To Install:**
-- Download the complete collection folder
-- Copy to your workspace's `.github/` directory
-- Collections automatically integrate with GitHub Copilot
+```bash
+# Install the nav-pilot CLI
+curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash
 
-**What's Included:**
-- **Agents**: Specialized AI assistants for domain-specific tasks
-- **Prompts**: Reusable templates for common workflows
-- **Instructions**: Technology and pattern-specific guidelines
-- **Skills**: Bundled resources and templates
+# List available collections
+nav-pilot list
+
+# Preview what will be installed
+nav-pilot install --dry-run kotlin-backend
+
+# Install into your repo
+cd /path/to/your/repo
+nav-pilot install kotlin-backend
+```
+
+After installing, use `@nav-pilot` in Copilot to start planning your application.
 
 ## Available Collections
 
-| Name        | Description                        | Components | Location               |
-| ----------- | ---------------------------------- | ---------- | ---------------------- |
-| Coming Soon | Nav collections will be added here |            | `.github/collections/` |
+| Collection | Description | Agents | Skills | Best for |
+| --- | --- | --- | --- | --- |
+| **kotlin-backend** | Kotlin/Ktor and Spring Boot on Nais | 6 | 10 | Backend API and event consumers |
+| **nextjs-frontend** | Next.js with Aksel Design System | 4 | 7 | Innbygger- and saksbehandler-frontends |
+| **fullstack** | Complete stack (backend + frontend) | 10 | 13 | Teams that own the full stack |
+| **platform** | Nais, observability, security | 4 | 7 | Platform and DevOps teams |
 
-## Potential Nav Collections
+## What's in Each Collection
 
-### NAIS Platform Collection
-Complete set of tools for NAIS platform development:
-- **Agents**: Platform deployment, configuration management
-- **Prompts**: Manifest generation, troubleshooting
-- **Instructions**: NAIS best practices, security patterns
-- **Skills**: Deployment templates, monitoring setup
+### kotlin-backend
 
-### Full-Stack Nav Application Collection
-Everything needed for a complete Nav application:
-- **Agents**: Frontend (Aksel/Next.js), Backend (Kotlin/Ktor), Database
-- **Prompts**: Component creation, API design, database migrations
-- **Instructions**: Coding standards for all layers
-- **Skills**: Application templates, testing patterns
+| Type | Included |
+| --- | --- |
+| **Agents** | auth, kafka, nais, observability, security-champion, nav-pilot |
+| **Skills** | api-design, flyway-migration, kotlin-app-config, observability-setup, security-review, tokenx-auth, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot |
+| **Instructions** | kotlin-ktor, kotlin-spring, testing, testing-kotlin, github-actions, docker, database |
+| **Prompts** | spring-boot-endpoint, kafka-topic, nais-manifest |
 
-### Auth & Security Collection
-Authentication and security patterns for Nav:
-- **Agents**: Azure AD setup, TokenX configuration
-- **Prompts**: Security validation, access control
-- **Instructions**: Security best practices
-- **Skills**: Auth configuration templates
+### nextjs-frontend
 
-### Observability Collection
-Complete observability stack setup:
-- **Agents**: Metrics, logging, tracing
-- **Prompts**: Dashboard creation, alert rules
-- **Instructions**: Observability patterns
-- **Skills**: Instrumentation templates
+| Type | Included |
+| --- | --- |
+| **Agents** | accessibility, aksel, forfatter, nav-pilot |
+| **Skills** | aksel-spacing, playwright-testing, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot |
+| **Instructions** | nextjs-aksel, testing, testing-typescript, accessibility, github-actions, docker |
+| **Prompts** | aksel-component, nextjs-api-route, nais-manifest |
+
+### fullstack
+
+| Type | Included |
+| --- | --- |
+| **Agents** | accessibility, aksel, auth, code-review, forfatter, kafka, nais, observability, security-champion, nav-pilot |
+| **Skills** | aksel-spacing, api-design, flyway-migration, kotlin-app-config, observability-setup, playwright-testing, security-review, tokenx-auth, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot |
+| **Instructions** | kotlin-ktor, kotlin-spring, nextjs-aksel, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database |
+| **Prompts** | spring-boot-endpoint, kafka-topic, nais-manifest, aksel-component, nextjs-api-route |
+
+### platform
+
+| Type | Included |
+| --- | --- |
+| **Agents** | nais, observability, security-champion, nav-pilot |
+| **Skills** | observability-setup, security-review, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot |
+| **Instructions** | github-actions, docker |
+| **Prompts** | nais-manifest |
+
+## nav-pilot Planning Skills
+
+Every collection includes four planning skills that form the **nav-pilot pipeline**:
+
+| Skill | Purpose |
+| --- | --- |
+| `$nav-deep-interview` | Structured interview that exposes blind spots (privacy, auth, dependencies) |
+| `$nav-plan` | Architecture decision trees → concrete Nais manifest, CI/CD, project structure |
+| `$nav-architecture-review` | Multi-perspective review → Architecture Decision Record (ADR) |
+| `$nav-troubleshoot` | Diagnostic trees for pod crashes, auth failures, Kafka lag, DB issues |
+
+Use them via `@nav-pilot` (recommended) or invoke individually.
 
 ## Collection Structure
 
 ```
 .github/collections/
-└── collection-name/
-    ├── README.md             # Collection documentation
-    ├── agents/              # Collection-specific agents
-    ├── prompts/             # Collection-specific prompts
-    ├── instructions/        # Collection-specific instructions
-    └── skills/              # Collection-specific skills
+├── kotlin-backend/
+│   └── manifest.json       # Lists all agents, skills, instructions, prompts
+├── nextjs-frontend/
+│   └── manifest.json
+├── fullstack/
+│   └── manifest.json
+└── platform/
+    └── manifest.json
 ```
 
-## Creating Collections
+Each `manifest.json` references items by name. The install script resolves these to actual files from the repository.
 
-When creating collections for Nav:
+## Install Tool
 
-1. **Cohesive Theme**: Focus on specific domain or workflow
-2. **Complete Package**: Include all necessary components
-3. **Nav Alignment**: Follow Nav development principles
-4. **Documentation**: Provide clear setup and usage guides
-5. **Dependencies**: Document required MCP servers or tools
-6. **Team Input**: Gather feedback from Nav teams
-
-## Installation
-
-To install a collection:
+The `nav-pilot` CLI installs collections into your repo. Install it with:
 
 ```bash
-# Navigate to your project
-cd /path/to/your/project
-
-# Copy the collection
-cp -r /path/to/copilot/docs/collections/collection-name .github/
+curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash
 ```
 
-Or use the provided installation tasks in VS Code.
+Then use it:
 
-## Best Practices
+```bash
+nav-pilot install <collection>              # Install a collection
+nav-pilot install --dry-run <collection>    # Preview what would be installed
+nav-pilot install --force <collection>      # Overwrite locally modified files
+nav-pilot install --target /path/to/repo <collection>  # Install into a specific repo
+nav-pilot list                              # List available collections
+nav-pilot status                            # Show what's installed and file integrity
+nav-pilot uninstall                         # Remove all installed files
+nav-pilot uninstall --dry-run               # Preview what would be removed
+nav-pilot version                           # Show version information
+```
 
-- Use collections for comprehensive domain coverage
-- Keep collections focused and maintainable
-- Update collections based on Nav team feedback
-- Version collections for stability
-- Document collection dependencies
-- Provide examples and getting started guides
+The tool:
+1. Reads `manifest.json` for the chosen collection
+2. Copies agents (`.agent.md` + `.metadata.json`) to `.github/agents/`
+3. Copies skills (directory with `SKILL.md` + `metadata.json` + `references/`) to `.github/skills/`
+4. Copies instructions to `.github/instructions/`
+5. Copies prompts to `.github/prompts/`
+6. Copies `copilot-instructions.md` if not already present
+7. Writes `.github/.nav-pilot-state.json` to track installed files, version, and source SHA
+
+Features:
+- **Conflict detection** — warns when target files differ from source; use `--force` to overwrite
+- **Install state** — tracks what was installed for safe updates and uninstall
+- **Stale file cleanup** — skill directories are replaced entirely, removing old reference files
+- **Integrity checks** — `status` command verifies all installed files are intact
+- **No external dependencies** — pure Go, no bash/jq required; works on stock macOS
+
+## Keeping Collections Updated
+
+Collections are versioned by date (e.g., `2025.07`). To update:
+
+1. Re-run the install tool with `--force` — it overwrites existing files and updates the state file
+2. Or set up the [copilot-customization-sync workflow](https://github.com/navikt/copilot-customization-sync) for automatic weekly PRs
+
+## Creating New Collections
+
+1. Create a directory in `.github/collections/`
+2. Add a `manifest.json` listing the items to include
+3. Test with `nav-pilot install --dry-run <name>`
+4. Update this documentation
