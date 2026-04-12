@@ -4,6 +4,7 @@
   "tags": ["planning", "architecture", "scaffold", "nais", "nav-pilot", "modernization", "migration"],
   "references": [
     "references/decision-trees.md",
+    "references/documentation-templates.md",
     "references/nais-templates.md",
     "references/modernization-patterns.md"
   ],
