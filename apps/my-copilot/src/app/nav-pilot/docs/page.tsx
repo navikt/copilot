@@ -271,12 +271,7 @@ function IntroductionSection() {
     <section id="introduksjon">
       <VStack gap="space-24">
         {/* What is nav-pilot */}
-        <Box
-          id="hva-er-nav-pilot"
-          background="neutral-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="hva-er-nav-pilot">
           <LinkableHeading size="medium" level="2">
             Hva er nav-pilot?
           </LinkableHeading>
@@ -438,12 +433,7 @@ function IntroductionSection() {
         </Box>
 
         {/* What nav-pilot knows */}
-        <Box
-          id="hva-nav-pilot-vet"
-          background="accent-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="hva-nav-pilot-vet">
           <LinkableHeading size="small" level="3">
             Hva nav-pilot vet som Copilot ikke vet
           </LinkableHeading>
@@ -507,12 +497,7 @@ function QuickStartSection() {
           </BodyLong>
         </div>
 
-        <Box
-          id="installasjon"
-          background="neutral-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="installasjon">
           <LinkableHeading size="small" level="3">
             Installasjon (5 min)
           </LinkableHeading>
@@ -529,7 +514,7 @@ function QuickStartSection() {
                 Installer nav-pilot CLI
               </Label>
             </div>
-            <CodeBlock filename="Terminal" compact>
+            <CodeBlock compact>
               {`curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash`}
             </CodeBlock>
           </div>
@@ -546,7 +531,7 @@ function QuickStartSection() {
                 Installer en collection i ditt repo
               </Label>
             </div>
-            <CodeBlock filename="Terminal" compact>
+            <CodeBlock compact>
               {`cd /path/to/your/repo
 nav-pilot install kotlin-backend`}
             </CodeBlock>
@@ -564,7 +549,7 @@ nav-pilot install kotlin-backend`}
                 Bruk nav-pilot
               </Label>
             </div>
-            <CodeBlock filename="Terminal" compact>
+            <CodeBlock compact>
               {`cplt -p "@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
             </CodeBlock>
           </div>
@@ -622,12 +607,7 @@ function CollectionsSection() {
         </div>
 
         {/* Overview table */}
-        <Box
-          id="tilgjengelige-collections"
-          background="neutral-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="tilgjengelige-collections">
           <LinkableHeading size="small" level="3">
             Tilgjengelige collections
           </LinkableHeading>
@@ -718,12 +698,7 @@ function CollectionsSection() {
         </HGrid>
 
         {/* Planning skills table */}
-        <Box
-          id="planning-skills"
-          background="accent-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="planning-skills">
           <LinkableHeading size="small" level="3">
             Planning skills
           </LinkableHeading>
@@ -786,12 +761,7 @@ function PipelineSection() {
         </div>
 
         {/* Pipeline diagram */}
-        <Box
-          id="fire-faser"
-          background="neutral-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="fire-faser">
           <LinkableHeading size="small" level="3">
             De fire fasene
           </LinkableHeading>
@@ -883,13 +853,7 @@ function SyncSection() {
 
         {/* Sync workflows */}
         <VStack gap="space-16">
-          <Box
-            id="automatisk-sync"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="12"
-            className="border"
-            style={{ borderColor: "#e2e8f0" }}
-          >
+          <Box id="automatisk-sync">
             <div className="flex items-center gap-2 mb-2">
               <ArrowsCirclepathIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
               <Heading size="xsmall" level="3">
@@ -915,13 +879,7 @@ jobs:
             </CodeBlock>
           </Box>
 
-          <Box
-            id="lokal-sync"
-            padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-            borderRadius="12"
-            className="border"
-            style={{ borderColor: "#e2e8f0" }}
-          >
+          <Box id="lokal-sync">
             <div className="flex items-center gap-2 mb-2">
               <TerminalIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
               <Heading size="xsmall" level="3">
@@ -952,7 +910,7 @@ jobs:
         </VStack>
 
         {/* Detection logic */}
-        <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
+        <Box>
           <Heading size="xsmall" level="3" className="mb-3" style={{ color: "#334155" }}>
             Hvordan nav-pilot finner filer
           </Heading>
@@ -1056,29 +1014,19 @@ function CliReferenceSection() {
         </div>
 
         {/* Installation */}
-        <Box
-          id="installer-cli"
-          background="neutral-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="installer-cli">
           <LinkableHeading size="small" level="3">
             Installer CLI
           </LinkableHeading>
           <div className="mt-4">
-            <CodeBlock filename="Terminal" compact>
+            <CodeBlock compact>
               {`curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash`}
             </CodeBlock>
           </div>
         </Box>
 
         {/* Command reference */}
-        <Box
-          id="kommandooversikt"
-          background="neutral-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="kommandooversikt">
           <LinkableHeading size="small" level="3">
             Kommandooversikt
           </LinkableHeading>
@@ -1195,12 +1143,7 @@ function ResourcesSection() {
         </LinkableHeading>
 
         {/* Architecture */}
-        <Box
-          id="arkitektur"
-          background="neutral-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="arkitektur">
           <LinkableHeading size="small" level="3">
             Arkitektur
           </LinkableHeading>
@@ -1300,12 +1243,7 @@ function ResourcesSection() {
         </Box>
 
         {/* Links */}
-        <Box
-          id="lenker"
-          background="accent-soft"
-          padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-          borderRadius="12"
-        >
+        <Box id="lenker">
           <LinkableHeading size="small" level="3">
             Lenker
           </LinkableHeading>
