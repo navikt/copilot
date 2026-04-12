@@ -425,10 +425,10 @@ function IntroductionSection() {
                       className="py-2.5 rounded-sm"
                       style={{ color: "#475569", background: "#f0fdf4", paddingLeft: "0.5rem" }}
                     >
-                      <span className="mr-1.5" style={{ color: "#10b981" }}>
-                        <CheckmarkIcon aria-hidden fontSize="0.875rem" />
+                      <span className="inline-flex items-center gap-1.5">
+                        <CheckmarkIcon aria-hidden fontSize="0.875rem" style={{ color: "#10b981", flexShrink: 0 }} />
+                        {navPilot}
                       </span>
-                      {navPilot}
                     </td>
                   </tr>
                 ))}
