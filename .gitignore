@@ -6,6 +6,10 @@ apps/mcp-onboarding/coverage.out
 apps/mcp-onboarding/bin/mcp-hello-world
 apps/copilot-metrics/bin/copilot-metrics
 apps/copilot-metrics/copilot-metrics
+scripts/install-collection/install-collection
+scripts/install-collection/nav-pilot
+nav-pilot-darwin-*
+nav-pilot-linux-*
 
 # Logs
 .github/aw/logs/
@@ -53,3 +57,4 @@ Thumbs.db
 apps/copilot-adoption/copilot-adoption
 apps/copilot-adoption/bin/copilot-adoption
 apps/mcp-registry/mcp-registry
+nvim.log

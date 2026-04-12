@@ -18,6 +18,24 @@ En samling Copilot-tilpasninger for Nav-økosystemet:
 
 Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/verktoy)** med søk, filtrering og installeringshjelp.
 
+### 🧭 nav-pilot — Nytt!
+
+**[nav-pilot](docs/README.nav-pilot.md)** er Navs AI-utviklerverktøy — én agent som koder inn Navs institusjonelle kunnskap som kjørbare arbeidsflyter. Installer en samling, bruk `@nav-pilot`, og gå fra idé til Nav-kompatibel arkitekturplan.
+
+```bash
+# Installer nav-pilot CLI
+curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash
+
+# Installer Kotlin-backend-samlingen i repoet ditt
+cd /path/to/your/repo
+nav-pilot install kotlin-backend
+
+# Bruk i Copilot
+@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader
+```
+
+**[Les mer →](docs/README.nav-pilot.md)** · **[Samlinger →](docs/README.collections.md)**
+
 ## Kom i gang
 
 ### Fra verktøysiden (anbefalt)
@@ -31,6 +49,8 @@ Gå til **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/
 - **[Prompts →](docs/README.prompts.md)** — VS Code, JetBrains
 - **[Skills →](docs/README.skills.md)** — VS Code
 - **[MCP-servere →](docs/README.mcp.md)** — Alle editorer
+- **[Samlinger →](docs/README.collections.md)** — Installer alt på én gang
+- **[nav-pilot →](docs/README.nav-pilot.md)** — Navs AI-utviklerverktøy
 - **[Hold tilpasninger oppdatert →](docs/README.sync.md)** — Automatisk sync-workflow (som Dependabot)
 
 ### Med MCP Onboarding
@@ -49,6 +69,8 @@ Bruk **MCP Onboarding**-serveren for å utforske tilpasninger, sjekke agent-read
 | 🎯 **Skills**        | Produksjonsmønstre med innebygde maler og referanser                                    | **[Skills →](docs/README.skills.md)**              |
 | 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no)                 | **[MCP-servere →](docs/README.mcp.md)**            |
 | 🔄 **Sync**          | Hold tilpasninger oppdatert automatisk (som Dependabot)                                 | **[Sync →](docs/README.sync.md)**                  |
+| 📦 **Samlinger**     | Installer en hel pakke med agenter, skills og instruksjoner på én gang                  | **[Samlinger →](docs/README.collections.md)**      |
+| 🧭 **nav-pilot**     | Planleggingsagent som koder inn Navs institusjonelle kunnskap                           | **[nav-pilot →](docs/README.nav-pilot.md)**        |
 
 ---
 
