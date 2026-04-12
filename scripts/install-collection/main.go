@@ -238,6 +238,25 @@ func writeState(targetDir string, state *StateFile) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
+// ─── Validation ─────────────────────────────────────────────────────────────
+
+// validateName checks that a manifest entry name is safe for use in file paths.
+func validateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("empty name")
+	}
+	if strings.Contains(name, "..") {
+		return fmt.Errorf("name %q contains '..'", name)
+	}
+	if strings.ContainsAny(name, "/\\") {
+		return fmt.Errorf("name %q contains path separator", name)
+	}
+	if name != filepath.Clean(name) {
+		return fmt.Errorf("name %q is not clean", name)
+	}
+	return nil
+}
+
 // ─── File operations ────────────────────────────────────────────────────────
 
 func fileHash(path string) (string, error) {
@@ -297,7 +316,7 @@ func copyFile(src, dst string) error {
 	if _, err := io.Copy(out, in); err != nil {
 		return err
 	}
-	return nil
+	return out.Sync()
 }
 
 // copyDir copies a directory recursively, creating it fresh (removes stale files).
@@ -428,6 +447,9 @@ func installItems(sourceDir, targetDir string, manifest *Manifest, dryRun, force
 }
 
 func installAgent(sourceDir, targetDir, name string, dryRun, force bool, result *installResult) error {
+	if err := validateName(name); err != nil {
+		return fmt.Errorf("invalid agent name: %w", err)
+	}
 	srcFile := filepath.Join(sourceDir, ".github", "agents", name+".agent.md")
 	srcMeta := filepath.Join(sourceDir, ".github", "agents", name+".metadata.json")
 	dstFile := filepath.Join(targetDir, ".github", "agents", name+".agent.md")
@@ -475,6 +497,9 @@ func installAgent(sourceDir, targetDir, name string, dryRun, force bool, result 
 }
 
 func installSkill(sourceDir, targetDir, name string, dryRun, force bool, result *installResult) error {
+	if err := validateName(name); err != nil {
+		return fmt.Errorf("invalid skill name: %w", err)
+	}
 	srcDir := filepath.Join(sourceDir, ".github", "skills", name)
 	dstDir := filepath.Join(targetDir, ".github", "skills", name)
 
@@ -517,6 +542,9 @@ func installSkill(sourceDir, targetDir, name string, dryRun, force bool, result 
 }
 
 func installInstruction(sourceDir, targetDir, name string, dryRun, force bool, result *installResult) error {
+	if err := validateName(name); err != nil {
+		return fmt.Errorf("invalid instruction name: %w", err)
+	}
 	srcFile := filepath.Join(sourceDir, ".github", "instructions", name+".instructions.md")
 	dstFile := filepath.Join(targetDir, ".github", "instructions", name+".instructions.md")
 
@@ -553,6 +581,9 @@ func installInstruction(sourceDir, targetDir, name string, dryRun, force bool, r
 }
 
 func installPrompt(sourceDir, targetDir, name string, dryRun, force bool, result *installResult) error {
+	if err := validateName(name); err != nil {
+		return fmt.Errorf("invalid prompt name: %w", err)
+	}
 	srcDir := filepath.Join(sourceDir, ".github", "prompts", name)
 	srcFile := filepath.Join(sourceDir, ".github", "prompts", name+".prompt.md")
 

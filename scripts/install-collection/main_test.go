@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -385,5 +386,309 @@ func TestInstallConflictForced(t *testing.T) {
 	got, _ := os.ReadFile(filepath.Join(dstAgents, "test.agent.md"))
 	if string(got) != "source content" {
 		t.Errorf("file not overwritten, got %q", string(got))
+	}
+}
+
+// ─── Validation tests ───────────────────────────────────────────────────────
+
+func TestValidateName(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{"valid-name", false},
+		{"my_skill", false},
+		{"kotlin-backend", false},
+		{"", true},
+		{"..", true},
+		{"../etc/passwd", true},
+		{"foo/bar", true},
+		{"foo\\bar", true},
+		{"..sneaky", true},
+		{"a/../b", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateName(tt.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateName(%q) error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestInstallAgent_PathTraversal(t *testing.T) {
+	srcDir := t.TempDir()
+	os.MkdirAll(filepath.Join(srcDir, ".github", "agents"), 0o755)
+	dstDir := t.TempDir()
+	result := &installResult{}
+
+	err := installAgent(srcDir, dstDir, "../../../etc/passwd", false, false, result)
+	if err == nil {
+		t.Fatal("expected error for path traversal attempt")
+	}
+	if !strings.Contains(err.Error(), "invalid agent name") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// ─── Instruction and prompt tests ───────────────────────────────────────────
+
+func TestInstallInstruction(t *testing.T) {
+	srcDir := t.TempDir()
+	instrDir := filepath.Join(srcDir, ".github", "instructions")
+	os.MkdirAll(instrDir, 0o755)
+	os.WriteFile(filepath.Join(instrDir, "my-instr.instructions.md"), []byte("# Instruction"), 0o644)
+
+	dstDir := t.TempDir()
+	result := &installResult{}
+
+	err := installInstruction(srcDir, dstDir, "my-instr", false, false, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("installed = %d, want 1", result.Installed)
+	}
+
+	dstPath := filepath.Join(dstDir, ".github", "instructions", "my-instr.instructions.md")
+	if _, err := os.Stat(dstPath); err != nil {
+		t.Error("instruction file not created")
+	}
+}
+
+func TestInstallInstruction_NotFound(t *testing.T) {
+	srcDir := t.TempDir()
+	os.MkdirAll(filepath.Join(srcDir, ".github", "instructions"), 0o755)
+	dstDir := t.TempDir()
+	result := &installResult{}
+
+	err := installInstruction(srcDir, dstDir, "nonexistent", false, false, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1", result.Skipped)
+	}
+}
+
+func TestInstallPrompt_FlatFile(t *testing.T) {
+	srcDir := t.TempDir()
+	promptsDir := filepath.Join(srcDir, ".github", "prompts")
+	os.MkdirAll(promptsDir, 0o755)
+	os.WriteFile(filepath.Join(promptsDir, "my-prompt.prompt.md"), []byte("# Prompt"), 0o644)
+
+	dstDir := t.TempDir()
+	result := &installResult{}
+
+	err := installPrompt(srcDir, dstDir, "my-prompt", false, false, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("installed = %d, want 1", result.Installed)
+	}
+}
+
+func TestInstallPrompt_Directory(t *testing.T) {
+	srcDir := t.TempDir()
+	promptDir := filepath.Join(srcDir, ".github", "prompts", "my-prompt")
+	os.MkdirAll(promptDir, 0o755)
+	os.WriteFile(filepath.Join(promptDir, "prompt.md"), []byte("# Prompt"), 0o644)
+
+	dstDir := t.TempDir()
+	result := &installResult{}
+
+	err := installPrompt(srcDir, dstDir, "my-prompt", false, false, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("installed = %d, want 1", result.Installed)
+	}
+
+	dstPath := filepath.Join(dstDir, ".github", "prompts", "my-prompt", "prompt.md")
+	if _, err := os.Stat(dstPath); err != nil {
+		t.Error("prompt directory file not copied")
+	}
+}
+
+func TestInstallPrompt_NotFound(t *testing.T) {
+	srcDir := t.TempDir()
+	os.MkdirAll(filepath.Join(srcDir, ".github", "prompts"), 0o755)
+	dstDir := t.TempDir()
+	result := &installResult{}
+
+	err := installPrompt(srcDir, dstDir, "nonexistent", false, false, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1", result.Skipped)
+	}
+}
+
+// ─── Uninstall tests ────────────────────────────────────────────────────────
+
+func TestCmdUninstall(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".github", "agents", "test.agent.md"), []byte("# Agent"), 0o644)
+
+	state := &StateFile{
+		Collection: "test",
+		Version:    "1.0",
+		Files: []InstalledFile{
+			{Path: ".github/agents/test.agent.md", Hash: "abc123"},
+		},
+	}
+	writeState(dir, state)
+
+	err := cmdUninstall(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// File should be removed
+	if _, err := os.Stat(filepath.Join(dir, ".github", "agents", "test.agent.md")); !os.IsNotExist(err) {
+		t.Error("file should have been removed")
+	}
+
+	// State file should be removed
+	if _, err := os.Stat(filepath.Join(dir, stateFilePath)); !os.IsNotExist(err) {
+		t.Error("state file should have been removed")
+	}
+}
+
+func TestCmdUninstall_NoState(t *testing.T) {
+	dir := t.TempDir()
+	err := cmdUninstall(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCmdUninstall_DryRun(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".github", "agents", "test.agent.md")
+	os.MkdirAll(filepath.Dir(agentPath), 0o755)
+	os.WriteFile(agentPath, []byte("# Agent"), 0o644)
+
+	state := &StateFile{
+		Collection: "test",
+		Version:    "1.0",
+		Files: []InstalledFile{
+			{Path: ".github/agents/test.agent.md", Hash: "abc123"},
+		},
+	}
+	writeState(dir, state)
+
+	err := cmdUninstall(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// File should still exist in dry-run
+	if _, err := os.Stat(agentPath); err != nil {
+		t.Error("file should still exist in dry-run mode")
+	}
+}
+
+// ─── Status tests ───────────────────────────────────────────────────────────
+
+func TestCmdStatus_NoState(t *testing.T) {
+	dir := t.TempDir()
+	err := cmdStatus(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCmdStatus_WithState(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".github", "agents", "test.agent.md")
+	os.MkdirAll(filepath.Dir(agentPath), 0o755)
+	os.WriteFile(agentPath, []byte("# Agent"), 0o644)
+
+	hash, _ := fileHash(agentPath)
+	state := &StateFile{
+		Collection:  "test",
+		Version:     "1.0",
+		SourceSHA:   "abc1234",
+		InstalledAt: "2025-07-01T12:00:00Z",
+		Files: []InstalledFile{
+			{Path: ".github/agents/test.agent.md", Hash: hash},
+		},
+	}
+	writeState(dir, state)
+
+	err := cmdStatus(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ─── DirHash tests ──────────────────────────────────────────────────────────
+
+func TestDirHash(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
+	os.WriteFile(filepath.Join(dir, "sub", "b.txt"), []byte("world"), 0o644)
+
+	h1, err := dirHash(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h1) != 16 {
+		t.Errorf("hash length = %d, want 16", len(h1))
+	}
+
+	// Same content = same hash
+	dir2 := t.TempDir()
+	os.MkdirAll(filepath.Join(dir2, "sub"), 0o755)
+	os.WriteFile(filepath.Join(dir2, "a.txt"), []byte("hello"), 0o644)
+	os.WriteFile(filepath.Join(dir2, "sub", "b.txt"), []byte("world"), 0o644)
+	h2, _ := dirHash(dir2)
+	if h1 != h2 {
+		t.Error("identical directories should have identical hashes")
+	}
+
+	// Different content = different hash
+	os.WriteFile(filepath.Join(dir2, "a.txt"), []byte("changed"), 0o644)
+	h3, _ := dirHash(dir2)
+	if h1 == h3 {
+		t.Error("different directories should have different hashes")
+	}
+}
+
+// ─── InstallItems integration test ──────────────────────────────────────────
+
+func TestInstallItems(t *testing.T) {
+	srcDir := t.TempDir()
+	// Create agent
+	os.MkdirAll(filepath.Join(srcDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(srcDir, ".github", "agents", "a.agent.md"), []byte("# A"), 0o644)
+	// Create skill
+	skillDir := filepath.Join(srcDir, ".github", "skills", "s")
+	os.MkdirAll(skillDir, 0o755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# S"), 0o644)
+
+	manifest := &Manifest{
+		Name:   "test",
+		Agents: []string{"a"},
+		Skills: []string{"s"},
+	}
+
+	dstDir := t.TempDir()
+	result, err := installItems(srcDir, dstDir, manifest, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Installed != 2 {
+		t.Errorf("installed = %d, want 2", result.Installed)
+	}
+	if len(result.Files) != 2 {
+		t.Errorf("files = %d, want 2", len(result.Files))
 	}
 }

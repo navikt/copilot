@@ -78,7 +78,7 @@ LDFLAGS="-X main.version=dev -X main.commit=$(git rev-parse --short HEAD) -X mai
 
 [tasks."nav-pilot:test"]
 description = "Run nav-pilot installer tests"
-run = "(cd scripts/install-collection && go test -v ./...)"
+run = "(cd scripts/install-collection && go test -race -v ./...)"
 
 [tasks."nav-pilot:install"]
 description = "Build and install nav-pilot CLI to GOBIN"
