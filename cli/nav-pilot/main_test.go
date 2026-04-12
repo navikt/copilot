@@ -8,6 +8,75 @@ import (
 	"testing"
 )
 
+// ─── CLI parsing tests ──────────────────────────────────────────────────────
+
+func TestRun_NoArgs(t *testing.T) {
+	err := run([]string{})
+	if err == nil {
+		t.Fatal("expected error for no args")
+	}
+}
+
+func TestRun_UnknownCommand(t *testing.T) {
+	err := run([]string{"bogus"})
+	if err == nil {
+		t.Fatal("expected error for unknown command")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestRun_UnknownFlag(t *testing.T) {
+	err := run([]string{"install", "--bogus"})
+	if err == nil {
+		t.Fatal("expected error for unknown flag")
+	}
+	if !strings.Contains(err.Error(), "unknown flag") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestRun_InstallNoCollection(t *testing.T) {
+	err := run([]string{"install"})
+	if err == nil {
+		t.Fatal("expected error when no collection given")
+	}
+	if !strings.Contains(err.Error(), "collection name") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestRun_Version(t *testing.T) {
+	err := run([]string{"version"})
+	if err != nil {
+		t.Fatalf("version command failed: %v", err)
+	}
+}
+
+func TestRun_Help(t *testing.T) {
+	err := run([]string{"help"})
+	if err != nil {
+		t.Fatalf("help command failed: %v", err)
+	}
+}
+
+func TestRun_TargetMissingValue(t *testing.T) {
+	err := run([]string{"install", "--target"})
+	if err == nil {
+		t.Fatal("expected error for --target without value")
+	}
+}
+
+func TestRun_RefMissingValue(t *testing.T) {
+	err := run([]string{"install", "--ref"})
+	if err == nil {
+		t.Fatal("expected error for --ref without value")
+	}
+}
+
+// ─── Manifest tests ────────────────────────────────────────────────────────
+
 func TestLoadManifest(t *testing.T) {
 	dir := t.TempDir()
 	collectionsDir := filepath.Join(dir, ".github", "collections", "test-collection")
@@ -49,6 +118,62 @@ func TestLoadManifest_NotFound(t *testing.T) {
 	_, err := loadManifest(dir, "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for nonexistent collection")
+	}
+}
+
+func TestLoadManifest_InvalidAgent(t *testing.T) {
+	dir := t.TempDir()
+	collectionsDir := filepath.Join(dir, ".github", "collections", "bad")
+	os.MkdirAll(collectionsDir, 0o755)
+	os.WriteFile(filepath.Join(collectionsDir, "manifest.json"),
+		[]byte(`{"name":"bad","agents":["../etc/passwd"]}`), 0o644)
+
+	_, err := loadManifest(dir, "bad")
+	if err == nil {
+		t.Fatal("expected error for path traversal agent name")
+	}
+	if !strings.Contains(err.Error(), "invalid agent") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadManifest_DuplicateSkill(t *testing.T) {
+	dir := t.TempDir()
+	collectionsDir := filepath.Join(dir, ".github", "collections", "dup")
+	os.MkdirAll(collectionsDir, 0o755)
+	os.WriteFile(filepath.Join(collectionsDir, "manifest.json"),
+		[]byte(`{"name":"dup","skills":["a","a"]}`), 0o644)
+
+	_, err := loadManifest(dir, "dup")
+	if err == nil {
+		t.Fatal("expected error for duplicate skill")
+	}
+	if !strings.Contains(err.Error(), "duplicate") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadManifest_EmptyName(t *testing.T) {
+	dir := t.TempDir()
+	collectionsDir := filepath.Join(dir, ".github", "collections", "empty")
+	os.MkdirAll(collectionsDir, 0o755)
+	os.WriteFile(filepath.Join(collectionsDir, "manifest.json"),
+		[]byte(`{"name":""}`), 0o644)
+
+	_, err := loadManifest(dir, "empty")
+	if err == nil {
+		t.Fatal("expected error for empty manifest name")
+	}
+}
+
+func TestValidateManifest_Valid(t *testing.T) {
+	m := &Manifest{
+		Name:   "test",
+		Agents: []string{"auth", "nais"},
+		Skills: []string{"api-design"},
+	}
+	if err := validateManifest(m); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
