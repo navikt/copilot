@@ -808,41 +808,56 @@ function PipelineSection() {
             Skills i detalj
           </LinkableHeading>
 
-          <VStack gap="space-12" className="mt-4">
-            {PLANNING_SKILLS.map((skill, i) => {
-              const colors = ["#a78bfa", "#60a5fa", "#2dd4bf", "#fb923c"];
-              const color = colors[i % colors.length];
-              return (
-                <Box
-                  key={skill.name}
-                  padding={{ xs: "space-12", sm: "space-16" }}
-                  borderRadius="12"
-                  className="border"
-                  style={{ borderColor: "#e2e8f0", borderLeft: `3px solid ${color}` }}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <code
-                      className="text-sm font-mono rounded px-2 py-1 font-semibold"
-                      style={{ background: `${color}15`, color }}
-                    >
-                      {skill.name}
-                    </code>
-                  </div>
-                  <BodyShort size="small" className="mb-3" style={{ color: "#475569" }}>
-                    {skill.purpose}
-                  </BodyShort>
-                  <ul className="text-xs space-y-1" style={{ color: "#64748b", paddingLeft: "1.25rem" }}>
-                    {skill.details.map((d) => (
-                      <li key={d}>{d}</li>
-                    ))}
-                  </ul>
-                  <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontSize: "0.6875rem" }}>
-                    Referansedata: {skill.refs}
-                  </BodyShort>
-                </Box>
-              );
-            })}
-          </VStack>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155", whiteSpace: "nowrap" }}>
+                    Skill
+                  </th>
+                  <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                    Formål
+                  </th>
+                  <th className="text-left py-2 font-semibold" style={{ color: "#334155" }}>
+                    Dekker
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {PLANNING_SKILLS.map((skill) => (
+                  <tr key={skill.name} style={{ borderBottom: "1px solid #e2e8f0", verticalAlign: "top" }}>
+                    <td className="py-3 pr-4" style={{ whiteSpace: "nowrap" }}>
+                      <code className="text-xs font-mono font-medium" style={{ color: "#475569" }}>
+                        {skill.name}
+                      </code>
+                    </td>
+                    <td className="py-3 pr-4" style={{ color: "#475569" }}>
+                      {skill.purpose}
+                    </td>
+                    <td className="py-3" style={{ color: "#64748b" }}>
+                      <div className="flex flex-wrap gap-1.5">
+                        {skill.details.map((d) => {
+                          const label = d.split("—")[0].trim();
+                          return (
+                            <span
+                              key={d}
+                              className="inline-block text-xs rounded-full px-2 py-0.5"
+                              style={{ background: "#f1f5f9", color: "#475569" }}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <BodyShort size="small" className="mt-1.5" style={{ color: "#94a3b8", fontSize: "0.6875rem" }}>
+                        {skill.refs}
+                      </BodyShort>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Box>
       </VStack>
     </section>
