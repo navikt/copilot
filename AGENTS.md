@@ -83,6 +83,17 @@ docs/                 # Documentation
 - Feature branches off `main`
 - PRs require passing CI checks
 - Squash merge to `main`
+- **Semantic commit messages** using [Conventional Commits](https://www.conventionalcommits.org/):
+  - `feat:` new features
+  - `fix:` bug fixes
+  - `style:` visual/UI changes (no logic change)
+  - `refactor:` code restructuring
+  - `docs:` documentation changes
+  - `chore:` maintenance, config, dependencies
+  - `test:` adding or updating tests
+  - Scopes in parentheses when helpful: `feat(docs):`, `style(my-copilot):`
+- **No `Co-authored-by` trailers** in commit messages
+- **Do not push** unless explicitly asked
 
 ## NAIS Deployment
 
