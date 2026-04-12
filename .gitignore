@@ -63,3 +63,6 @@ cli/nav-pilot/cover.out
 # Screenshots
 Screenshot*.png
 Gemini_Generated_Image*
+
+# Dependencies
+node_modules/
