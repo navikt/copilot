@@ -1,14 +1,15 @@
-// nav-pilot installs a nav-pilot collection into the current repository.
-// It copies agents, skills, instructions, and prompts from navikt/copilot
-// and tracks installed state for safe updates and uninstall.
+// nav-pilot manages Nav's Copilot toolkit — agents, skills, instructions, and prompts.
+// It installs curated collections or individual items from navikt/copilot
+// and tracks installed state for safe updates, sync, and uninstall.
 //
 // Usage:
 //
-//	nav-pilot install <collection>     # install a collection
-//	nav-pilot install -n <collection>  # dry-run
-//	nav-pilot list                     # list available collections
-//	nav-pilot status                   # show installed state
-//	nav-pilot uninstall                # remove installed files
+//	nav-pilot install <collection>         # install a collection
+//	nav-pilot add agent <name>             # install a single agent
+//	nav-pilot sync                         # check for updates
+//	nav-pilot list                         # list available collections and items
+//	nav-pilot status                       # show installed state
+//	nav-pilot uninstall                    # remove installed files
 package main
 
 import (
@@ -33,38 +34,34 @@ var timeNow = time.Now
 // ─── CLI ────────────────────────────────────────────────────────────────────
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `nav-pilot — collection installer for Nav's Copilot toolkit
+	fmt.Fprintf(os.Stderr, `nav-pilot — manage Nav's Copilot toolkit
 
 Usage:
   nav-pilot <command> [flags]
 
 Commands:
-  install <collection>    Install a collection into the current repo
+  install <collection>    Install a curated collection into the current repo
+  add <type> <name>       Install a single agent, skill, instruction, or prompt
   sync                    Check for updates and optionally apply them
-  list                    List available collections
+  list                    List available collections and items
   status                  Show what's currently installed
   uninstall               Remove installed collection files
   version                 Show version information
 
-Flags (install/uninstall/sync):
+Flags:
   -n, --dry-run           Show what would happen without making changes
   -f, --force             Overwrite files that differ from source
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from (default: main)
-
-Flags (sync):
-  --apply                 Apply available updates (default: check only)
-  --json                  Output results as JSON
+  --apply                 Apply available updates (sync only)
+  --json                  Output results as JSON (sync only)
 
 Examples:
   nav-pilot install kotlin-backend
-  nav-pilot sync                        # check for updates (exit 1 if available)
-  nav-pilot sync --apply                # apply updates
-  nav-pilot sync --json                 # machine-readable output for CI
-  nav-pilot install --dry-run fullstack
-  nav-pilot list
-  nav-pilot status
-  nav-pilot uninstall
+  nav-pilot add agent security-champion
+  nav-pilot add skill postgresql-review
+  nav-pilot sync --apply
+  nav-pilot list --items
 `)
 }
 
@@ -79,7 +76,7 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 
-	var dryRun, force, apply, jsonOutput bool
+	var dryRun, force, apply, jsonOutput, listItems bool
 	var targetDir, ref string
 	var positional []string
 
@@ -95,6 +92,8 @@ func run(args []string) error {
 			apply = true
 		case "--json":
 			jsonOutput = true
+		case "--items":
+			listItems = true
 		case "-t", "--target":
 			if i+1 >= len(rest) {
 				return fmt.Errorf("--target requires a value")
@@ -125,13 +124,18 @@ func run(args []string) error {
 	switch command {
 	case "install":
 		if len(positional) == 0 {
-			return fmt.Errorf("install requires a collection name. Run 'list' to see available collections")
+			return fmt.Errorf("install requires a collection name. Run 'nav-pilot list' to see available collections")
 		}
 		return cmdInstall(positional[0], targetDir, ref, dryRun, force)
+	case "add":
+		if len(positional) < 2 {
+			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
+		}
+		return cmdAdd(positional[0], positional[1], targetDir, ref, dryRun, force)
 	case "sync":
 		return cmdSync(targetDir, ref, apply, jsonOutput)
 	case "list":
-		return cmdList(ref)
+		return cmdList(ref, listItems)
 	case "status":
 		return cmdStatus(targetDir)
 	case "uninstall":

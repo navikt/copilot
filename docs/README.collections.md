@@ -115,11 +115,26 @@ nav-pilot install --dry-run <collection>    # Preview what would be installed
 nav-pilot install --force <collection>      # Overwrite locally modified files
 nav-pilot install --target /path/to/repo <collection>  # Install into a specific repo
 nav-pilot list                              # List available collections
+nav-pilot list --items                      # List all available agents, skills, etc.
 nav-pilot status                            # Show what's installed and file integrity
 nav-pilot uninstall                         # Remove all installed files
 nav-pilot uninstall --dry-run               # Preview what would be removed
 nav-pilot version                           # Show version information
 ```
+
+### Installing Individual Items
+
+Don't need a full collection? Install items à la carte:
+
+```bash
+nav-pilot add agent security-champion       # Install a single agent
+nav-pilot add skill postgresql-review       # Install a single skill
+nav-pilot add instruction database          # Install a single instruction
+nav-pilot add prompt kafka-topic            # Install a single prompt
+nav-pilot add --dry-run agent rust          # Preview first
+```
+
+Items installed with `add` are appended to the state file, so `sync`, `status`, and `uninstall` track them alongside collection items.
 
 The tool:
 1. Reads `manifest.json` for the chosen collection
@@ -141,8 +156,9 @@ Features:
 
 Collections are versioned by date (e.g., `2025.07`). To update:
 
-1. Re-run the install tool with `--force` — it overwrites existing files and updates the state file
-2. Or set up the [copilot-customization-sync workflow](https://github.com/navikt/copilot-customization-sync) for automatic weekly PRs
+1. Run `nav-pilot sync` to check for updates, or `nav-pilot sync --apply` to apply them
+2. Re-run `nav-pilot install --force <collection>` to reinstall everything
+3. Or set up the [copilot-customization-sync workflow](README.sync.md) for automatic weekly PRs
 
 ## Creating New Collections
 

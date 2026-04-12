@@ -38,7 +38,7 @@ nav-pilot installeres med én kommando og legger til markdown-filer som fungerer
 | **Auth** | Vet ikke hva TokenX er | Velger riktig auth-mekanisme basert på caller-type |
 | **Plattform** | Vet ikke hva Nais er | Genererer Nais-manifest med riktig accessPolicy |
 | **Oppdateringer** | `npm update` | Auto-sync workflow (ukentlig PR) |
-| **Vedlikehold** | Hold tritt med CLI-endringer | Bare markdown — GitHub vedlikeholder runtime |
+| **Vedlikehold** | Hold tritt med CLI-endringer | Lett CLI + markdown — GitHub vedlikeholder AI-runtime |
 
 **Kort sagt:** oh-my-\* bygger bedre orkestrering. nav-pilot bygger bedre *kunnskap*. Orkestrering blir commoditized. Kunnskap er vanskelig å kopiere.
 
@@ -297,18 +297,15 @@ nav-pilot er bygget på tre lag:
 
 4. **Arketype først** — Første spørsmål er alltid «hva slags ting bygger du?» Dette bestemmer stack, auth, og Nais-konfigurasjon.
 
-5. **Bare markdown** — Ingen CLI-binary, ingen npm-pakke, ingen runtime-avhengigheter. Fungerer overalt GitHub Copilot fungerer.
+5. **Minimalt CLI** — `nav-pilot`-CLI-et er et rent installasjonsverktøy (Go, null avhengigheter). All AI-funksjonalitet er markdown som kjøres av GitHub Copilot — ingen egen runtime.
 
-### Hvorfor ikke et eget CLI?
+### Hvorfor et eget CLI?
 
-oh-my-codex og oh-my-claudecode er CLI-wrappere. Det gir dem kontroll, men også:
+oh-my-codex og oh-my-claudecode er CLI-wrappere som legger seg mellom brukeren og AI-agenten. nav-pilot tar en annen tilnærming:
 
-- Avhengighet av underliggende CLI-versjon
-- Vedlikeholdsbyrde når API-er endres
-- Begrenset til terminalen
-- Egen installasjon og oppdateringssyklus
-
-nav-pilot unngår alt dette ved å bruke GitHub Copilots egne primitiver (agents, skills, instructions). GitHub vedlikeholder runtime — vi vedlikeholder kunnskap.
+- CLI-et (`nav-pilot install/add/sync`) er kun for *distribusjon* — installering og oppdatering av markdown-filer
+- Selve AI-logikken lever i agents og skills — kjørt av GitHub Copilots runtime
+- Ingen avhengighet av underliggende CLI-versjon — vi vedlikeholder kunnskap, GitHub vedlikeholder runtime
 
 ---
 
@@ -316,13 +313,18 @@ nav-pilot unngår alt dette ved å bruke GitHub Copilots egne primitiver (agents
 
 ### Automatisk sync (anbefalt)
 
-Sett opp [copilot-customization-sync](https://github.com/navikt/copilot-customization-sync) workflow for ukentlige PRs med oppdateringer.
+Sett opp [copilot-customization-sync](README.sync.md) workflow for ukentlige PRs med oppdateringer.
 
 ### Manuelt
 
-Kjør install-scriptet på nytt — det overskriver eksisterende filer:
-
 ```bash
+# Sjekk om det finnes oppdateringer
+nav-pilot sync
+
+# Oppdater filer direkte
+nav-pilot sync --apply
+
+# Eller reinstaller med force
 nav-pilot install --force kotlin-backend
 ```
 

@@ -302,7 +302,7 @@ func removeEmptyGitHubDirs(targetDir string) {
 
 // ─── Commands ───────────────────────────────────────────────────────────────
 
-func cmdList(ref string) error {
+func cmdList(ref string, showItems bool) error {
 	fmt.Println(dim("Resolving source..."))
 	src, err := resolveSource(ref)
 	if err != nil {
@@ -328,6 +328,67 @@ func cmdList(ref string) error {
 	}
 	fmt.Println()
 	fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
+
+	if showItems {
+		fmt.Println()
+		if err := listAvailableItems(src.Dir); err != nil {
+			return err
+		}
+	} else {
+		fmt.Printf("Show individual items: %s\n", bold("nav-pilot list --items"))
+	}
+	return nil
+}
+
+// listAvailableItems prints all agents, skills, instructions, and prompts in the source.
+func listAvailableItems(sourceDir string) error {
+	ghDir := filepath.Join(sourceDir, ".github")
+
+	// Agents
+	if entries, err := filepath.Glob(filepath.Join(ghDir, "agents", "*.agent.md")); err == nil && len(entries) > 0 {
+		fmt.Println(bold("Available agents:"))
+		for _, e := range entries {
+			name := strings.TrimSuffix(filepath.Base(e), ".agent.md")
+			fmt.Printf("  %-30s %s\n", name, dim("nav-pilot add agent "+name))
+		}
+		fmt.Println()
+	}
+
+	// Skills
+	if entries, err := os.ReadDir(filepath.Join(ghDir, "skills")); err == nil && len(entries) > 0 {
+		fmt.Println(bold("Available skills:"))
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			skill := filepath.Join(ghDir, "skills", e.Name(), "SKILL.md")
+			if _, err := os.Stat(skill); err == nil {
+				fmt.Printf("  %-30s %s\n", e.Name(), dim("nav-pilot add skill "+e.Name()))
+			}
+		}
+		fmt.Println()
+	}
+
+	// Instructions
+	if entries, err := filepath.Glob(filepath.Join(ghDir, "instructions", "*.instructions.md")); err == nil && len(entries) > 0 {
+		fmt.Println(bold("Available instructions:"))
+		for _, e := range entries {
+			name := strings.TrimSuffix(filepath.Base(e), ".instructions.md")
+			fmt.Printf("  %-30s %s\n", name, dim("nav-pilot add instruction "+name))
+		}
+		fmt.Println()
+	}
+
+	// Prompts
+	if entries, err := filepath.Glob(filepath.Join(ghDir, "prompts", "*.prompt.md")); err == nil && len(entries) > 0 {
+		fmt.Println(bold("Available prompts:"))
+		for _, e := range entries {
+			name := strings.TrimSuffix(filepath.Base(e), ".prompt.md")
+			fmt.Printf("  %-30s %s\n", name, dim("nav-pilot add prompt "+name))
+		}
+		fmt.Println()
+	}
+
 	return nil
 }
 

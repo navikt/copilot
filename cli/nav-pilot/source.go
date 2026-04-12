@@ -23,7 +23,7 @@ func (s *Source) Cleanup() {
 
 // resolveSource finds the navikt/copilot source. Priority:
 //  1. Explicit --ref flag
-//  2. Local repo (walk up from CWD — dev mode)
+//  2. Local repo (walk up from CWD to git root — dev mode)
 //  3. Clone from the release tag matching this binary's version
 //  4. Clone from HEAD (only if version is "dev")
 func resolveSource(ref string) (*Source, error) {
@@ -31,17 +31,16 @@ func resolveSource(ref string) (*Source, error) {
 		return cloneRemote(ref)
 	}
 
-	// Try local: walk up from CWD to find the navikt/copilot repo
+	// Try local: walk up from CWD to find the navikt/copilot repo.
+	// Stop at the git root to avoid matching unrelated repos.
 	if wd, err := os.Getwd(); err == nil {
-		for d := wd; ; d = filepath.Dir(d) {
-			candidate := filepath.Join(d, ".github", "collections")
+		gitRoot := findGitRoot(wd)
+		if gitRoot != "" {
+			candidate := filepath.Join(gitRoot, ".github", "collections")
 			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				sha := getGitSHA(d)
-				fmt.Printf("%s Using local source (%s)\n", dim("→"), dim(d))
-				return &Source{Dir: d, SHA: sha}, nil
-			}
-			if d == filepath.Dir(d) {
-				break
+				sha := getGitSHA(gitRoot)
+				fmt.Printf("%s Using local source (%s)\n", dim("→"), dim(gitRoot))
+				return &Source{Dir: gitRoot, SHA: sha}, nil
 			}
 		}
 	}
@@ -52,6 +51,18 @@ func resolveSource(ref string) (*Source, error) {
 	}
 
 	return cloneRemote("")
+}
+
+// findGitRoot walks up from dir to find the nearest .git directory.
+func findGitRoot(dir string) string {
+	for d := dir; ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
+			return d
+		}
+		if d == filepath.Dir(d) {
+			return ""
+		}
+	}
 }
 
 func cloneRemote(ref string) (*Source, error) {
@@ -71,9 +82,9 @@ func cloneRemote(ref string) (*Source, error) {
 	if err := cmd.Run(); err != nil {
 		os.RemoveAll(tmpDir)
 		if ref != "" {
-			return nil, fmt.Errorf("cloning navikt/copilot@%s: %w", ref, err)
+			return nil, fmt.Errorf("could not clone navikt/copilot@%s — check that the ref exists and you have network access.\n  See releases: https://github.com/navikt/copilot/releases", ref)
 		}
-		return nil, fmt.Errorf("cloning navikt/copilot: %w", err)
+		return nil, fmt.Errorf("could not clone navikt/copilot — check your network connection")
 	}
 
 	sha := getGitSHA(tmpDir)
