@@ -77,6 +77,16 @@ run = "(cd scripts/install-collection && go build -o nav-pilot .)"
 description = "Run nav-pilot installer tests"
 run = "(cd scripts/install-collection && go test -v ./...)"
 
+[tasks."nav-pilot:install"]
+description = "Build and install nav-pilot CLI to GOBIN"
+run = """
+cd scripts/install-collection && go build -o nav-pilot .
+DEST="${GOBIN:-${GOPATH:-$HOME/go}/bin}"
+mkdir -p "$DEST"
+mv nav-pilot "$DEST/nav-pilot"
+echo "✓ Installed nav-pilot to $DEST/nav-pilot"
+"""
+
 # ─── Ratchet (GitHub Actions pinning) ────────────────────────────────────────
 
 [tasks."ratchet:pin"]
