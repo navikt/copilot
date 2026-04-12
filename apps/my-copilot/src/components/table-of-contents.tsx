@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, type MouseEvent } from "react";
 
 export interface TocItem {
   id: string;
@@ -27,7 +27,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string>("");
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const allItems = flattenItems(items);
+  const allItems = useMemo(() => flattenItems(items), [items]);
   const hasGroups = items.some((item) => item.children);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
       activeId === id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
     }`;
 
-  const handleClick = (e: React.MouseEvent, id: string) => {
+  const handleClick = (e: MouseEvent, id: string) => {
     e.preventDefault();
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     window.history.replaceState(null, "", `#${id}`);

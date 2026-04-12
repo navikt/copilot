@@ -84,6 +84,7 @@ export function PipelineFlow() {
             <div key={step.title} className="flex items-stretch">
               <button
                 onClick={() => setActiveIndex(i)}
+                aria-pressed={isActive}
                 className="rounded-lg overflow-hidden flex flex-col flex-1 text-left transition-all"
                 style={{
                   background: isActive ? `${step.color}08` : "white",

@@ -16,13 +16,17 @@ function CopyButton({ text, dark = true }: { text: string; dark?: boolean }) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {
+      // Clipboard API not available or permission denied — ignore silently
+    });
   };
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
       className={`transition-colors ${dark ? "text-gray-400 hover:text-white" : "text-gray-400 hover:text-gray-700"}`}
       aria-label={copied ? "Kopiert" : "Kopier kode"}

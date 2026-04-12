@@ -19,7 +19,6 @@ import {
   CheckmarkIcon,
   DocPencilIcon,
   PersonGroupIcon,
-  BulletListIcon,
   LightBulbIcon,
   LayersIcon,
   HandShakeHeartIcon,
