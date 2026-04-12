@@ -7,6 +7,7 @@ apps/mcp-onboarding/bin/mcp-hello-world
 apps/copilot-metrics/bin/copilot-metrics
 apps/copilot-metrics/copilot-metrics
 cli/nav-pilot/nav-pilot
+cli/nav-pilot/install-collection
 nav-pilot-darwin-*
 nav-pilot-linux-*
 
