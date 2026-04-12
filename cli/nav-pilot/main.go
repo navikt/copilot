@@ -40,22 +40,28 @@ Usage:
 
 Commands:
   install <collection>    Install a collection into the current repo
+  sync                    Check for updates and optionally apply them
   list                    List available collections
   status                  Show what's currently installed
   uninstall               Remove installed collection files
   version                 Show version information
 
-Flags (install/uninstall):
+Flags (install/uninstall/sync):
   -n, --dry-run           Show what would happen without making changes
   -f, --force             Overwrite files that differ from source
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from (default: main)
 
+Flags (sync):
+  --apply                 Apply available updates (default: check only)
+  --json                  Output results as JSON
+
 Examples:
   nav-pilot install kotlin-backend
-  nav-pilot install --ref nav-pilot kotlin-backend
+  nav-pilot sync                        # check for updates (exit 1 if available)
+  nav-pilot sync --apply                # apply updates
+  nav-pilot sync --json                 # machine-readable output for CI
   nav-pilot install --dry-run fullstack
-  nav-pilot install --force fullstack
   nav-pilot list
   nav-pilot status
   nav-pilot uninstall
@@ -73,7 +79,7 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 
-	var dryRun, force bool
+	var dryRun, force, apply, jsonOutput bool
 	var targetDir, ref string
 	var positional []string
 
@@ -85,6 +91,10 @@ func run(args []string) error {
 			dryRun = true
 		case "-f", "--force":
 			force = true
+		case "--apply":
+			apply = true
+		case "--json":
+			jsonOutput = true
 		case "-t", "--target":
 			if i+1 >= len(rest) {
 				return fmt.Errorf("--target requires a value")
@@ -118,6 +128,8 @@ func run(args []string) error {
 			return fmt.Errorf("install requires a collection name. Run 'list' to see available collections")
 		}
 		return cmdInstall(positional[0], targetDir, ref, dryRun, force)
+	case "sync":
+		return cmdSync(targetDir, ref, apply, jsonOutput)
 	case "list":
 		return cmdList(ref)
 	case "status":
@@ -137,6 +149,9 @@ func run(args []string) error {
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
+		if err == errUpdatesAvailable {
+			os.Exit(1)
+		}
 		fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
 		os.Exit(1)
 	}

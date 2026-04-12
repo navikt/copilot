@@ -1,6 +1,6 @@
 # 🔄 Keeping Customizations Up to Date
 
-Copilot customizations in `navikt/copilot` evolve over time. Teams that have installed customization files into their repos can use the **Copilot Customization Sync** workflow to automatically detect updates and receive PRs — similar to Dependabot for dependencies.
+Copilot customizations in `navikt/copilot` evolve over time. Teams that have installed customization files into their repos can use **nav-pilot sync** to check for updates — either locally or via a GitHub Actions workflow that opens PRs automatically, similar to Dependabot.
 
 ## How It Works
 
@@ -8,10 +8,10 @@ Copilot customizations in `navikt/copilot` evolve over time. Teams that have ins
 navikt/copilot (source)          your-repo
 ┌─────────────────────┐          ┌─────────────────────┐
 │ .github/             │          │ .github/             │
-│   agents/            │  compare │   agents/            │
-│   instructions/      │ ───────► │   instructions/      │
-│   prompts/           │  SHA-256 │   prompts/           │
-│   skills/            │          │   skills/            │
+│   agents/            │ nav-pilot│   agents/            │
+│   instructions/      │  sync   │   instructions/      │
+│   prompts/           │ ───────►│   prompts/           │
+│   skills/            │ SHA-256 │   skills/            │
 └─────────────────────┘          └─────────────────────┘
                                          │
                                          ▼
@@ -19,12 +19,24 @@ navikt/copilot (source)          your-repo
                                    files differ
 ```
 
-1. The workflow runs on a schedule (e.g., weekly)
-2. For each customization file in your repo, it downloads the latest version from `navikt/copilot`
-3. It compares SHA-256 hashes to detect changes
-4. If any files are out of date, it creates a PR with the updates
+**nav-pilot sync** works with both:
+- **State-based repos** — repos that used `nav-pilot install` (tracks installed files via `.github/.nav-pilot-state.json`)
+- **Classic repos** — repos that manually copied files (auto-detects customization files)
 
-## Quick Start
+## Local Usage
+
+```bash
+# Check for updates (exit 1 if updates available)
+nav-pilot sync
+
+# Apply updates directly
+nav-pilot sync --apply
+
+# Machine-readable output for scripts
+nav-pilot sync --json
+```
+
+## Automated Sync (GitHub Actions)
 
 Create `.github/workflows/copilot-sync.yml` in your repo:
 
@@ -44,48 +56,21 @@ jobs:
 
 That's it. The workflow will auto-detect all customization files in your repo and check them against the source.
 
-## Controlling Which Files to Sync
+## How nav-pilot sync Detects Files
 
-By default, the workflow checks **all customization files** that exist in your repo:
+**If you used `nav-pilot install`** — the state file (`.github/.nav-pilot-state.json`) tracks exactly which files were installed. Sync checks all of them.
+
+**If you copied files manually** — nav-pilot auto-detects customization files that also exist in the source repo:
 
 - `.github/agents/*.agent.md`
+- `.github/agents/*.metadata.json`
 - `.github/instructions/*.instructions.md`
 - `.github/prompts/*.prompt.md`
-- `.github/skills/*/SKILL.md`
-- `.github/skills/*/metadata.json`
+- `.github/skills/*/` (entire skill directories)
 
-> `AGENTS.md` and `.github/copilot-instructions.md` are not synced — they are always repo-specific.
+> `AGENTS.md` and `.github/copilot-instructions.md` are never synced — they are always repo-specific.
 
-To sync only specific files, create `.github/copilot-sync.json`:
-
-```json
-{
-  "files": [
-    ".github/agents/nais-platform.agent.md",
-    ".github/instructions/kotlin-ktor.instructions.md",
-    ".github/instructions/testing.instructions.md"
-  ]
-}
-```
-
-Only listed files will be checked and updated.
-
-## Syncing from a Different Source Repo
-
-By default, the workflow syncs from `navikt/copilot`. To sync from a team-specific repo instead (or in addition), pass the `source_repo` input:
-
-```yaml
-jobs:
-  sync:
-    uses: navikt/copilot/.github/workflows/copilot-customization-sync.yml@main
-    with:
-      source_repo: navikt/my-team-copilot
-    permissions:
-      contents: write
-      pull-requests: write
-```
-
-This lets teams maintain their own set of customizations and distribute them to sub-repos using the same sync mechanism.
+Files that exist locally but not in the source are skipped (they're your custom additions).
 
 ## What the PR Looks Like
 
@@ -111,11 +96,8 @@ No. The workflow uses the default `GITHUB_TOKEN` and reads public source files v
 **What if I've customized a file locally?**
 The PR will show the diff. You can review it, merge selectively, or close it. The workflow doesn't force-update anything — it only opens PRs.
 
-**Can I sync from a different repo?**
-Yes. Pass `source_repo: owner/repo` as an input to the workflow. Default is `navikt/copilot`.
-
-**Can I use a different source branch?**
-The reusable workflow is pinned to `@main`. If you need a different branch, fork the workflow.
+**Can I check for updates locally without CI?**
+Yes. Run `nav-pilot sync` to check, or `nav-pilot sync --apply` to update in place.
 
 **What if a file exists in my repo but not in navikt/copilot?**
 It's skipped. Only files that exist in both repos are compared.
