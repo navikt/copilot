@@ -996,9 +996,7 @@ function GetStartedSection() {
 
           <div className="flex flex-wrap gap-3 justify-center">
             <NextLink
-              href="https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/nav-pilot/docs"
               className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-medium no-underline transition-all"
               style={{ background: "#3b82f6", color: "white", fontSize: "0.875rem" }}
             >
