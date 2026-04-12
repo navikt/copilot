@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 
 /* ---------- Data ---------- */
 
-const INSTALL_COMMAND = "curl -fsSL https://nav-pilot.nav.no/install.sh | sh";
+const INSTALL_COMMAND = "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash";
 
 const COLLECTIONS = [
   {
