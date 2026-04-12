@@ -6,7 +6,7 @@ import { XMarkIcon } from "@navikt/aksel-icons";
 import { Box } from "@navikt/ds-react";
 
 interface CodeBlockProps {
-  filename: string;
+  filename?: string;
   children: string;
   maxHeight?: string;
   compact?: boolean;

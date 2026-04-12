@@ -577,20 +577,26 @@ nav-pilot install kotlin-backend`}
           <BodyLong className="mt-2 mb-4" style={{ color: "#475569" }}>
             Etter installasjon kan du bruke disse kommandoene for å komme i gang:
           </BodyLong>
-          <CodeBlock filename="Terminal">
-            {`# Se hva som ble installert
-nav-pilot status
-
-# Vis alle tilgjengelige collections
-nav-pilot list
-
-# Installer en ekstra agent eller skill
-nav-pilot add agent security-champion
-nav-pilot add skill postgresql-review
-
-# Sjekk om det finnes oppdateringer
-nav-pilot sync`}
-          </CodeBlock>
+          <div className="space-y-3">
+            {[
+              { label: "Se hva som ble installert", cmd: "nav-pilot status" },
+              { label: "Vis alle tilgjengelige collections", cmd: "nav-pilot list" },
+              {
+                label: "Installer en ekstra agent eller skill",
+                cmd: "nav-pilot add agent security-champion\nnav-pilot add skill postgresql-review",
+              },
+              { label: "Sjekk om det finnes oppdateringer", cmd: "nav-pilot sync" },
+            ].map((item) => (
+              <div key={item.label}>
+                <Label size="small" style={{ color: "#64748b" }}>
+                  {item.label}
+                </Label>
+                <div className="mt-1">
+                  <CodeBlock compact>{item.cmd}</CodeBlock>
+                </div>
+              </div>
+            ))}
+          </div>
         </Box>
       </VStack>
     </section>
