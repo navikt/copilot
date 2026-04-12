@@ -1152,7 +1152,7 @@ function ResourcesSection() {
           Ressurser
         </LinkableHeading>
 
-        {/* Architecture */}
+        {/* Architecture — stacked layers */}
         <div id="arkitektur">
           <LinkableHeading size="small" level="3">
             Arkitektur
@@ -1160,103 +1160,116 @@ function ResourcesSection() {
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
             nav-pilot er bygget på tre lag:
           </BodyShort>
-          <HGrid columns={{ xs: 1, md: 3 }} gap="space-4">
+          <div className="flex flex-col" style={{ gap: "2px" }}>
             {[
               {
                 label: "Instruksjoner",
                 desc: "Alltid aktive — Nav-mønstre, kodestandarder, anti-patterns. Hver Copilot-sesjon er Nav-bevisst automatisk.",
                 Icon: DocPencilIcon,
+                bg: "#eff6ff",
+                accent: "#3b82f6",
               },
               {
                 label: "@nav-pilot agent",
                 desc: "Én inngangsport — ruter til riktig fase og skill. Delegerer til @auth, @nais, @kafka, @security-champion.",
                 Icon: PersonGroupIcon,
+                bg: "#f5f3ff",
+                accent: "#7c3aed",
               },
               {
                 label: "Skills",
                 desc: "Byggeklosser — intervju, plan, review, feilsøking. Brukes via @nav-pilot eller alene.",
                 Icon: WrenchIcon,
+                bg: "#ecfdf5",
+                accent: "#059669",
               },
             ].map((layer, i) => (
               <div
                 key={layer.label}
-                className="flex items-start gap-3 rounded-lg border"
-                style={{ padding: "1rem", borderColor: "#e2e8f0" }}
+                className="flex items-center gap-4"
+                style={{
+                  padding: "1rem 1.25rem",
+                  background: layer.bg,
+                  borderRadius: i === 0 ? "10px 10px 0 0" : i === 2 ? "0 0 10px 10px" : "0",
+                }}
               >
                 <div
-                  className="flex-shrink-0 flex items-center justify-center rounded-lg"
-                  style={{ width: "2.25rem", height: "2.25rem", background: "#f1f5f9" }}
+                  className="flex-shrink-0 flex items-center justify-center rounded-full"
+                  style={{
+                    width: "2.5rem",
+                    height: "2.5rem",
+                    background: "white",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                  }}
                 >
-                  <layer.Icon aria-hidden fontSize="1.125rem" style={{ color: "#475569" }} />
+                  <layer.Icon aria-hidden fontSize="1.25rem" style={{ color: layer.accent }} />
                 </div>
-                <div>
-                  <Label size="small" className="mb-0.5">
+                <div className="flex-1">
+                  <Label size="small" style={{ color: layer.accent }}>
                     Lag {i + 1}: {layer.label}
                   </Label>
-                  <BodyShort size="small" style={{ color: "#64748b" }}>
+                  <BodyShort size="small" style={{ color: "#475569" }}>
                     {layer.desc}
                   </BodyShort>
                 </div>
               </div>
             ))}
-          </HGrid>
+          </div>
         </div>
 
-        {/* Design principles */}
+        {/* Design principles — grid cards */}
         <div id="designprinsipper">
           <LinkableHeading size="small" level="3">
             Designprinsipper
           </LinkableHeading>
-          <VStack gap="space-4" className="mt-4">
+          <HGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="space-4" className="mt-4">
             {[
               {
                 title: "Kunnskap, ikke orkestrering",
-                desc: "Verdien vår er institusjonell kunnskap (auth-trær, Nais-maler, anti-patterns), ikke orkestrering som snart blir standardvare.",
+                desc: "Institusjonell kunnskap er varig — orkestrering blir standardvare.",
                 Icon: LightBulbIcon,
               },
               {
                 title: "Tynn ruter, tykke skills",
-                desc: "@nav-pilot er en lett ruter som delegerer til skills. Skills har referansefiler med beslutningstrær, maler og sjekklister.",
+                desc: "Lett agent som delegerer. Skills har beslutningstrær og sjekklister.",
                 Icon: LayersIcon,
               },
               {
                 title: "Eksplisitte stopp",
-                desc: "Ikke en magisk pipeline som gjør alt automatisk. nav-pilot foreslår, du godkjenner, nav-pilot fortsetter.",
+                desc: "nav-pilot foreslår, du godkjenner, nav-pilot fortsetter.",
                 Icon: HandShakeHeartIcon,
               },
               {
                 title: "Arketype først",
-                desc: "Første spørsmål er alltid «hva slags ting bygger du?» Dette bestemmer stack, auth og Nais-konfigurasjon.",
+                desc: "«Hva bygger du?» bestemmer stack, auth og Nais-konfig.",
                 Icon: Buildings3Icon,
               },
               {
                 title: "Minimalt CLI",
-                desc: "CLI-et er et rent installasjonsverktøy (Go, null avhengigheter). All AI-funksjonalitet er markdown kjørt av GitHub Copilot.",
+                desc: "Go-binær uten avhengigheter. All AI kjøres av Copilot.",
                 Icon: ComponentIcon,
               },
             ].map((p) => (
               <div
                 key={p.title}
-                className="flex items-start gap-3 rounded-lg border"
-                style={{ padding: "0.75rem 1rem", borderColor: "#e2e8f0" }}
+                className="flex flex-col items-start rounded-lg border"
+                style={{ padding: "1rem 1.25rem", borderColor: "#e2e8f0" }}
               >
                 <div
-                  className="flex-shrink-0 flex items-center justify-center rounded-lg"
-                  style={{ width: "2rem", height: "2rem", background: "#f1f5f9" }}
+                  className="flex items-center justify-center rounded-lg mb-2"
+                  style={{ width: "2.25rem", height: "2.25rem", background: "#f1f5f9" }}
                 >
-                  <p.Icon aria-hidden fontSize="1rem" style={{ color: "#475569" }} />
+                  <p.Icon aria-hidden fontSize="1.125rem" style={{ color: "#475569" }} />
                 </div>
-                <div>
-                  <Label size="small" className="mb-0.5">
-                    {p.title}
-                  </Label>
-                  <BodyShort size="small" style={{ color: "#64748b" }}>
-                    {p.desc}
-                  </BodyShort>
-                </div>
+                <Label size="small" className="mb-1">
+                  {p.title}
+                </Label>
+                <BodyShort size="small" style={{ color: "#64748b" }}>
+                  {p.desc}
+                </BodyShort>
               </div>
             ))}
-          </VStack>
+          </HGrid>
         </div>
 
         {/* Links */}
