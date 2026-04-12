@@ -71,7 +71,10 @@ run = "bash scripts/lint-skills.sh"
 
 [tasks."nav-pilot:build"]
 description = "Build nav-pilot installer CLI"
-run = "(cd scripts/install-collection && go build -o nav-pilot .)"
+run = """
+LDFLAGS="-X main.version=dev -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+(cd scripts/install-collection && go build -ldflags "$LDFLAGS" -o nav-pilot .)
+"""
 
 [tasks."nav-pilot:test"]
 description = "Run nav-pilot installer tests"
@@ -80,7 +83,8 @@ run = "(cd scripts/install-collection && go test -v ./...)"
 [tasks."nav-pilot:install"]
 description = "Build and install nav-pilot CLI to GOBIN"
 run = """
-cd scripts/install-collection && go build -o nav-pilot .
+LDFLAGS="-X main.version=dev -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+cd scripts/install-collection && go build -ldflags "$LDFLAGS" -o nav-pilot .
 DEST="${GOBIN:-${GOPATH:-$HOME/go}/bin}"
 mkdir -p "$DEST"
 mv nav-pilot "$DEST/nav-pilot"

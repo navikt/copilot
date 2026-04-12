@@ -82,8 +82,9 @@ func bold(msg string) string   { return color("1", msg) }
 // ─── Version (injected at build time) ───────────────────────────────────────
 
 var (
-	version = "dev"
-	commit  = "unknown"
+	version   = "dev"
+	commit    = "unknown"
+	buildDate = "unknown"
 )
 
 // ─── Source resolution ──────────────────────────────────────────────────────
@@ -971,7 +972,7 @@ func main() {
 	case "uninstall":
 		err = cmdUninstall(targetDir, dryRun)
 	case "version", "--version", "-v":
-		fmt.Printf("nav-pilot %s (%s)\n", version, commit)
+		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", version, commit, buildDate)
 	case "-h", "--help", "help":
 		usage()
 	default:

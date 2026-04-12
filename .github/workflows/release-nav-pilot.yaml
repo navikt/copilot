@@ -38,7 +38,7 @@ jobs:
         run: |
           cd scripts/install-collection
           go build \
-            -ldflags="-s -w -X main.version=${{ github.ref_name }} -X main.commit=${{ github.sha }}" \
+            -ldflags="-s -w -X main.version=${{ github.ref_name }} -X main.commit=${{ github.sha }} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o ../../nav-pilot-${{ matrix.goos }}-${{ matrix.goarch }} \
             .
 
@@ -70,4 +70,5 @@ jobs:
             nav-pilot-darwin-arm64 \
             nav-pilot-darwin-amd64 \
             nav-pilot-linux-amd64 \
+            nav-pilot-linux-arm64 \
             checksums.txt
