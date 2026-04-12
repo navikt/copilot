@@ -271,7 +271,7 @@ function IntroductionSection() {
     <section id="introduksjon">
       <VStack gap="space-24">
         {/* What is nav-pilot */}
-        <Box id="hva-er-nav-pilot">
+        <div id="hva-er-nav-pilot">
           <LinkableHeading size="medium" level="2">
             Hva er nav-pilot?
           </LinkableHeading>
@@ -341,10 +341,10 @@ function IntroductionSection() {
               </div>
             ))}
           </div>
-        </Box>
+        </div>
 
         {/* At a Glance — collection links */}
-        <Box>
+        <div>
           <Heading size="small" level="3" className="mb-4" style={{ color: "#334155" }}>
             Velg din stack
           </Heading>
@@ -372,10 +372,10 @@ function IntroductionSection() {
               );
             })}
           </HGrid>
-        </Box>
+        </div>
 
         {/* Why nav-pilot */}
-        <Box id="hvorfor-nav-pilot">
+        <div id="hvorfor-nav-pilot">
           <LinkableHeading size="small" level="3">
             Hvorfor nav-pilot?
           </LinkableHeading>
@@ -430,10 +430,10 @@ function IntroductionSection() {
               </tbody>
             </table>
           </div>
-        </Box>
+        </div>
 
         {/* What nav-pilot knows */}
-        <Box id="hva-nav-pilot-vet">
+        <div id="hva-nav-pilot-vet">
           <LinkableHeading size="small" level="3">
             Hva nav-pilot vet som Copilot ikke vet
           </LinkableHeading>
@@ -474,7 +474,7 @@ function IntroductionSection() {
           <BodyShort size="small" className="mt-4" style={{ color: "#64748b", fontStyle: "italic" }}>
             Denne kunnskapen er kodet inn i nav-pilots beslutningstrær, blinde-flekker-sjekklister og diagnostiske trær.
           </BodyShort>
-        </Box>
+        </div>
       </VStack>
     </section>
   );
@@ -497,7 +497,7 @@ function QuickStartSection() {
           </BodyLong>
         </div>
 
-        <Box id="installasjon">
+        <div id="installasjon">
           <LinkableHeading size="small" level="3">
             Installasjon (5 min)
           </LinkableHeading>
@@ -553,9 +553,9 @@ nav-pilot install kotlin-backend`}
               {`cplt -p "@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
             </CodeBlock>
           </div>
-        </Box>
+        </div>
 
-        <Box id="første-kommandoer">
+        <div id="første-kommandoer">
           <LinkableHeading size="small" level="3">
             Første kommandoer
           </LinkableHeading>
@@ -582,7 +582,7 @@ nav-pilot install kotlin-backend`}
               </div>
             ))}
           </div>
-        </Box>
+        </div>
       </VStack>
     </section>
   );
@@ -607,7 +607,7 @@ function CollectionsSection() {
         </div>
 
         {/* Overview table */}
-        <Box id="tilgjengelige-collections">
+        <div id="tilgjengelige-collections">
           <LinkableHeading size="small" level="3">
             Tilgjengelige collections
           </LinkableHeading>
@@ -651,7 +651,7 @@ function CollectionsSection() {
               </tbody>
             </table>
           </div>
-        </Box>
+        </div>
 
         {/* Collection details */}
         <HGrid columns={{ xs: 1, md: 2 }} gap="space-4">
@@ -698,7 +698,7 @@ function CollectionsSection() {
         </HGrid>
 
         {/* Planning skills table */}
-        <Box id="planning-skills">
+        <div id="planning-skills">
           <LinkableHeading size="small" level="3">
             Planning skills
           </LinkableHeading>
@@ -736,7 +736,7 @@ function CollectionsSection() {
               </tbody>
             </table>
           </div>
-        </Box>
+        </div>
       </VStack>
     </section>
   );
@@ -761,7 +761,7 @@ function PipelineSection() {
         </div>
 
         {/* Pipeline diagram */}
-        <Box id="fire-faser">
+        <div id="fire-faser">
           <LinkableHeading size="small" level="3">
             De fire fasene
           </LinkableHeading>
@@ -769,10 +769,10 @@ function PipelineSection() {
           <div className="mt-6">
             <PipelineFlow />
           </div>
-        </Box>
+        </div>
 
         {/* Skills in detail */}
-        <Box id="skills-i-detalj">
+        <div id="skills-i-detalj">
           <LinkableHeading size="small" level="3">
             Skills i detalj
           </LinkableHeading>
@@ -827,7 +827,7 @@ function PipelineSection() {
               </tbody>
             </table>
           </div>
-        </Box>
+        </div>
       </VStack>
     </section>
   );
@@ -853,7 +853,7 @@ function SyncSection() {
 
         {/* Sync workflows */}
         <VStack gap="space-16">
-          <Box id="automatisk-sync">
+          <div id="automatisk-sync">
             <div className="flex items-center gap-2 mb-2">
               <ArrowsCirclepathIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
               <Heading size="xsmall" level="3">
@@ -880,9 +880,9 @@ jobs:
       contents: write
       pull-requests: write`}
             </CodeBlock>
-          </Box>
+          </div>
 
-          <Box id="lokal-sync">
+          <div id="lokal-sync">
             <div className="flex items-center gap-2 mb-2">
               <TerminalIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
               <Heading size="xsmall" level="3">
@@ -909,11 +909,11 @@ jobs:
                 </div>
               ))}
             </div>
-          </Box>
+          </div>
         </VStack>
 
         {/* Detection logic */}
-        <Box>
+        <div>
           <Heading size="xsmall" level="3" className="mb-3" style={{ color: "#334155" }}>
             Hvordan nav-pilot finner filer
           </Heading>
@@ -942,10 +942,10 @@ jobs:
           <BodyShort size="small" className="mt-3" style={{ color: "#94a3b8", fontStyle: "italic" }}>
             AGENTS.md og .github/copilot-instructions.md oppdateres aldri automatisk — de er alltid repo-spesifikke.
           </BodyShort>
-        </Box>
+        </div>
 
         {/* FAQ */}
-        <Box id="sync-faq">
+        <div id="sync-faq">
           <LinkableHeading size="small" level="3">
             FAQ
           </LinkableHeading>
@@ -992,7 +992,7 @@ jobs:
               </div>
             ))}
           </VStack>
-        </Box>
+        </div>
       </VStack>
     </section>
   );
@@ -1017,7 +1017,7 @@ function CliReferenceSection() {
         </div>
 
         {/* Installation */}
-        <Box id="installer-cli">
+        <div id="installer-cli">
           <LinkableHeading size="small" level="3">
             Installer CLI
           </LinkableHeading>
@@ -1026,10 +1026,10 @@ function CliReferenceSection() {
               {`curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash`}
             </CodeBlock>
           </div>
-        </Box>
+        </div>
 
         {/* Command reference */}
-        <Box id="kommandooversikt">
+        <div id="kommandooversikt">
           <LinkableHeading size="small" level="3">
             Kommandooversikt
           </LinkableHeading>
@@ -1065,10 +1065,10 @@ function CliReferenceSection() {
               </tbody>
             </table>
           </div>
-        </Box>
+        </div>
 
         {/* Usage examples */}
-        <Box>
+        <div>
           <Heading size="xsmall" level="3" className="mb-4" style={{ color: "#334155" }}>
             Eksempler
           </Heading>
@@ -1127,7 +1127,7 @@ nav-pilot add prompt kafka-topic`}
               </div>
             </div>
           </VStack>
-        </Box>
+        </div>
       </VStack>
     </section>
   );
@@ -1146,7 +1146,7 @@ function ResourcesSection() {
         </LinkableHeading>
 
         {/* Architecture */}
-        <Box id="arkitektur">
+        <div id="arkitektur">
           <LinkableHeading size="small" level="3">
             Arkitektur
           </LinkableHeading>
@@ -1186,10 +1186,10 @@ function ResourcesSection() {
               </Box>
             ))}
           </VStack>
-        </Box>
+        </div>
 
         {/* Design principles */}
-        <Box id="designprinsipper">
+        <div id="designprinsipper">
           <LinkableHeading size="small" level="3">
             Designprinsipper
           </LinkableHeading>
@@ -1243,10 +1243,10 @@ function ResourcesSection() {
               </div>
             ))}
           </VStack>
-        </Box>
+        </div>
 
         {/* Links */}
-        <Box id="lenker">
+        <div id="lenker">
           <LinkableHeading size="small" level="3">
             Lenker
           </LinkableHeading>
@@ -1289,7 +1289,7 @@ function ResourcesSection() {
               </NextLink>
             ))}
           </div>
-        </Box>
+        </div>
       </VStack>
     </section>
   );
