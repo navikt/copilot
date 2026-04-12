@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-12T15:32:42.971Z",
+  "generatedAt": "2026-04-12T15:44:54.496Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -307,14 +307,14 @@
       ]
     },
     {
-      "id": "nav-pilot-agent",
-      "name": "nav-pilot-agent",
+      "id": "nav-pilot",
+      "name": "nav-pilot",
       "description": "Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre",
       "type": "agent",
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "dc75011c821bd6fbaac67556752ac20d5abda59c3bc263c16144fe5a11c6e87e",
+      "contentHash": "9b496dead6a4689e311559231295f9ca0b1021582aba77aafa5e833f905ccbf7",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -968,6 +968,10 @@
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/decision-trees.md"
         },
         {
+          "path": "references/documentation-templates.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/documentation-templates.md"
+        },
+        {
           "path": "references/nais-templates.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/nais-templates.md"
         },
@@ -985,7 +989,7 @@
       "domain": "platform",
       "filePath": ".github/skills/nav-troubleshoot/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-troubleshoot/SKILL.md",
-      "contentHash": "9000e282320e4b292b2bc9cd9b93203430e462b77beaade521e6690b12755092",
+      "contentHash": "4bdfa5b3e12d36c37467911becf11bf82e04b868695908e514c785cd95ad4e38",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["troubleshooting", "diagnostics", "nais", "kubernetes", "nav-pilot"],

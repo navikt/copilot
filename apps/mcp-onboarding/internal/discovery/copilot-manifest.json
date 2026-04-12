@@ -164,8 +164,8 @@
     },
     {
       "type": "agent",
-      "name": "nav-pilot-agent",
-      "displayName": "@nav-pilot-agent",
+      "name": "nav-pilot",
+      "displayName": "@nav-pilot",
       "description": "Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre",
       "category": "platform",
       "tags": [
@@ -597,6 +597,10 @@
         {
           "path": "references/decision-trees.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/decision-trees.md"
+        },
+        {
+          "path": "references/documentation-templates.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/documentation-templates.md"
         },
         {
           "path": "references/nais-templates.md",
