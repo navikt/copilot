@@ -41,7 +41,7 @@ export default async function RootLayout({
               >
                 Min Copilot
               </NextLink>
-              <BodyShort size="small" className="text-white/50">
+              <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
                 {user.firstName} {user.lastName}
               </BodyShort>
             </HStack>

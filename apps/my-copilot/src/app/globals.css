@@ -200,6 +200,27 @@
   }
 }
 
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
 /* Prose styles for article rendering */
 .prose h2 {
   font-size: 1.5rem;
@@ -382,6 +403,13 @@ code.text-sm,
 pre.text-sm {
   font-size: 0.875rem !important;
   line-height: 1.25rem !important;
+}
+
+/* Fix: Aksel sets `color: inherit !important` on components with text-* classes,
+   which breaks Tailwind text color utilities. For dark sections on the nav-pilot page,
+   force Aksel components to inherit color from parent elements. */
+.dark-section :is(.aksel-heading, .aksel-body-short, .aksel-body-long, .aksel-label) {
+  color: inherit !important;
 }
 
 /* Display overrides - Aksel DS sets display on components, override to respect Tailwind utilities */
