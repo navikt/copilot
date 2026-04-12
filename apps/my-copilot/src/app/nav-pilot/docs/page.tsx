@@ -882,8 +882,8 @@ function SyncSection() {
           </BodyLong>
         </div>
 
-        {/* Sync workflow cards */}
-        <HGrid columns={{ xs: 1, md: 2 }} gap="space-4">
+        {/* Sync workflows */}
+        <VStack gap="space-16">
           <Box
             id="automatisk-sync"
             padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
@@ -891,14 +891,15 @@ function SyncSection() {
             className="border"
             style={{ borderColor: "#e2e8f0" }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowsCirclepathIcon fontSize="1.25rem" style={{ color: "#3b82f6" }} aria-hidden />
+            <div className="flex items-center gap-2 mb-2">
+              <ArrowsCirclepathIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
               <Heading size="xsmall" level="3">
                 Automatisk sync
               </Heading>
             </div>
             <BodyShort size="small" className="mb-4" style={{ color: "#475569" }}>
-              GitHub Actions-workflow som åpner PRs automatisk — som Dependabot, men for Copilot-tilpasninger.
+              GitHub Actions-workflow som åpner PRs automatisk — som Dependabot, men for Copilot-tilpasninger. PR-en
+              viser hvilke filer som er oppdatert med lenker til kilderepoet.
             </BodyShort>
             <CodeBlock filename="copilot-sync.yml">
               {`name: Copilot Customization Sync
@@ -913,23 +914,6 @@ jobs:
       contents: write
       pull-requests: write`}
             </CodeBlock>
-            <BodyShort size="small" className="mt-4" style={{ color: "#64748b" }}>
-              PR-en viser hvilke filer som er oppdatert med lenker til kilderepoet.
-            </BodyShort>
-            <div className="flex gap-2 mt-3">
-              <span
-                className="text-xs rounded-full px-2.5 py-0.5 font-medium"
-                style={{ background: "#dbeafe", color: "#2563eb" }}
-              >
-                Nais
-              </span>
-              <span
-                className="text-xs rounded-full px-2.5 py-0.5 font-medium"
-                style={{ background: "#d1fae5", color: "#059669" }}
-              >
-                GitHub Actions
-              </span>
-            </div>
           </Box>
 
           <Box
@@ -939,45 +923,34 @@ jobs:
             className="border"
             style={{ borderColor: "#e2e8f0" }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <TerminalIcon fontSize="1.25rem" style={{ color: "#3b82f6" }} aria-hidden />
+            <div className="flex items-center gap-2 mb-2">
+              <TerminalIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
               <Heading size="xsmall" level="3">
                 Lokal sync
               </Heading>
             </div>
             <BodyShort size="small" className="mb-4" style={{ color: "#475569" }}>
-              Bruk CLI-verktøyet for å sjekke og oppdatere filer lokalt. Fungerer med både state-baserte repoer og
-              manuelt kopierte filer.
+              Bruk CLI-verktøyet for å sjekke og oppdatere filer lokalt. Sammenligner SHA-256-hasher mellom lokale filer
+              og kilderepoet.
             </BodyShort>
-            <CodeBlock filename="Terminal">
-              {`# Sjekk om oppdateringer finnes
-nav-pilot sync
-
-# Oppdater filer direkte
-nav-pilot sync --apply
-
-# Maskinlesbar output for scripts
-nav-pilot sync --json`}
-            </CodeBlock>
-            <BodyShort size="small" className="mt-4" style={{ color: "#64748b" }}>
-              Sammenligner SHA-256-hasher mellom lokale filer og kilderepoet.
-            </BodyShort>
-            <div className="flex gap-2 mt-3">
-              <span
-                className="text-xs rounded-full px-2.5 py-0.5 font-medium"
-                style={{ background: "#fae8ff", color: "#9333ea" }}
-              >
-                CLI
-              </span>
-              <span
-                className="text-xs rounded-full px-2.5 py-0.5 font-medium"
-                style={{ background: "#fef3c7", color: "#d97706" }}
-              >
-                Lokal
-              </span>
+            <div className="space-y-3">
+              {[
+                { label: "Sjekk om oppdateringer finnes", cmd: "nav-pilot sync" },
+                { label: "Oppdater filer direkte", cmd: "nav-pilot sync --apply" },
+                { label: "Maskinlesbar output for scripts", cmd: "nav-pilot sync --json" },
+              ].map((item) => (
+                <div key={item.label}>
+                  <Label size="small" style={{ color: "#64748b" }}>
+                    {item.label}
+                  </Label>
+                  <div className="mt-1">
+                    <CodeBlock compact>{item.cmd}</CodeBlock>
+                  </div>
+                </div>
+              ))}
             </div>
           </Box>
-        </HGrid>
+        </VStack>
 
         {/* Detection logic */}
         <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
