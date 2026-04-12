@@ -385,8 +385,9 @@ function IntroductionSection() {
             Hvorfor nav-pilot?
           </LinkableHeading>
           <BodyLong className="mt-3" style={{ color: "#475569" }}>
-            oh-my-codex, oh-my-claudecode og lignende verktøy bygger bedre <em>orkestrering</em>. nav-pilot bygger bedre{" "}
-            <em>kunnskap</em>. Orkestrering blir standardvare — kunnskap er vanskelig å kopiere.
+            oh-my-openagent og lignende verktøy bygger bedre <em>orkestrering</em> — multi-agent-delegering,
+            parallellkjøring og selvkorrigering. nav-pilot bygger bedre <em>kunnskap</em>. Orkestrering blir
+            standardvare — institusjonell kunnskap er vanskelig å kopiere.
           </BodyLong>
           <div className="overflow-x-auto mt-4">
             <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
@@ -394,7 +395,7 @@ function IntroductionSection() {
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}></th>
                   <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#94a3b8" }}>
-                    oh-my-codex
+                    oh-my-openagent
                   </th>
                   <th className="text-left py-2 font-semibold" style={{ color: "#10b981" }}>
                     nav-pilot ✦
@@ -403,11 +404,12 @@ function IntroductionSection() {
               </thead>
               <tbody>
                 {[
-                  ["Inngangspunkt", "omx plan (terminal)", 'cplt -p "@nav-pilot ..." (terminal, IDE, GitHub.com)'],
+                  ["Fokus", "Orkestrering og multi-agent", "Institusjonell kunnskap"],
+                  ["Inngangspunkt", "ultrawork (terminal)", 'cplt -p "@nav-pilot ..." (terminal, IDE, GitHub.com)'],
                   ["Kunnskap", "Generisk koding", "Navs kunnskapsbase"],
                   ["Auth", "Vet ikke hva TokenX er", "Velger riktig auth basert på caller-type"],
                   ["Plattform", "Vet ikke hva Nais er", "Genererer Nais-manifest med riktig accessPolicy"],
-                  ["Oppdateringer", "npm update", "Auto-sync workflow (ukentlig PR)"],
+                  ["Oppdateringer", "git pull / manuelt", "Auto-sync workflow (ukentlig PR)"],
                 ].map(([feature, generic, navPilot]) => (
                   <tr key={feature} style={{ borderBottom: "1px solid #e2e8f0" }}>
                     <td className="py-2.5 pr-4 font-medium" style={{ color: "#334155" }}>
