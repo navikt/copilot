@@ -39,6 +39,9 @@ Evaluer fra tre perspektiver. For hvert perspektiv: identifiser bekymringer, ris
 
 ### Perspektiv 2: Sikkerhet
 
+> **Dypere sikkerhetsgjennomgang:** For trusselmodellering, OWASP-sjekklister og compliance-vurderinger,
+> delegér til `@security-champion-agent` som har komplett sikkerhetsmateriale.
+
 - Hvilke data behandles? Klassifiseringsnivå?
 - Er autentisering og autorisasjon riktig?
 - Er tilgangsstyring minimalt nødvendig (least privilege)?

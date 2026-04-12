@@ -13,55 +13,15 @@
 | Ekstern partner/system | Maskinporten | `maskinporten.enabled: true` |
 | Intern batch/cron | Azure AD client_credentials | `azure.application.enabled: true` |
 
-### Steg 2: Token-validering
+### Steg 2: Token-validering og exchange
 
-**JVM (Kotlin/Java):**
-```kotlin
-// build.gradle.kts
-implementation("no.nav.security:token-validation-spring:5.0.13")
-// eller for Ktor:
-implementation("no.nav.security:token-validation-ktor-v3:5.0.13")
+> **Implementasjon:** Bruk `@auth-agent` for komplett oppsett av token-validering.
+> For TokenX token exchange, bruk `$tokenx-auth` som har detaljerte Kotlin- og Node.js-eksempler
+> med caching, feilhåndtering og Ktor-integrasjon.
 
-// application.yml
-no.nav.security.jwt:
-  issuer:
-    azuread:
-      discoveryurl: ${AZURE_APP_WELL_KNOWN_URL}
-      accepted-audience: ${AZURE_APP_CLIENT_ID}
-    idporten:
-      discoveryurl: ${IDPORTEN_WELL_KNOWN_URL}
-      accepted-audience: ${IDPORTEN_AUDIENCE}
-    tokenx:
-      discoveryurl: ${TOKEN_X_WELL_KNOWN_URL}
-      accepted-audience: ${TOKEN_X_CLIENT_ID}
-```
-
-**Node.js:**
-```typescript
-// package.json: "@navikt/oasis": "^3.0.0"
-import { validateToken, getToken } from "@navikt/oasis";
-
-const token = getToken(req);
-const validation = await validateToken(token);
-if (!validation.ok) {
-  return res.status(401).json({ error: "Unauthorized" });
-}
-```
-
-### Steg 3: Token exchange (tjeneste-til-tjeneste)
-
-```kotlin
-// TokenX exchange (med brukerkontext)
-val exchangedToken = tokenExchangeClient.exchange(
-    subjectToken = innkommendeToken,
-    targetAudience = "${cluster}:${namespace}:${app}"
-)
-
-// Azure AD client_credentials (uten brukerkontext)
-val clientToken = azureClient.getAccessToken(
-    scope = "api://${cluster}.${namespace}.${app}/.default"
-)
-```
+**Biblioteker:**
+- JVM: `no.nav.security:token-validation-spring` / `token-validation-ktor-v3`
+- Node.js: `@navikt/oasis`
 
 ### ⚠️ Vanlig feil: Azure client_credentials med brukerkontext
 
