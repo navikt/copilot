@@ -17,6 +17,13 @@ import {
   LinkIcon,
   ShieldCheckmarkIcon,
   CheckmarkIcon,
+  DocPencilIcon,
+  PersonGroupIcon,
+  BulletListIcon,
+  LightBulbIcon,
+  LayersIcon,
+  HandShakeHeartIcon,
+  ComponentIcon,
 } from "@navikt/aksel-icons";
 import { PipelineFlow } from "@/components/pipeline-flow";
 import type { Metadata } from "next";
@@ -1153,39 +1160,46 @@ function ResourcesSection() {
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
             nav-pilot er bygget på tre lag:
           </BodyShort>
-          <VStack gap="space-4">
+          <HGrid columns={{ xs: 1, md: 3 }} gap="space-4">
             {[
               {
-                label: "Lag 1: Instruksjoner",
+                label: "Instruksjoner",
                 desc: "Alltid aktive — Nav-mønstre, kodestandarder, anti-patterns. Hver Copilot-sesjon er Nav-bevisst automatisk.",
-                color: "#3b82f6",
+                Icon: DocPencilIcon,
               },
               {
-                label: "Lag 2: @nav-pilot agent",
+                label: "@nav-pilot agent",
                 desc: "Én inngangsport — ruter til riktig fase og skill. Delegerer til @auth, @nais, @kafka, @security-champion.",
-                color: "#8b5cf6",
+                Icon: PersonGroupIcon,
               },
               {
-                label: "Lag 3: Skills",
+                label: "Skills",
                 desc: "Byggeklosser — intervju, plan, review, feilsøking. Brukes via @nav-pilot eller alene.",
-                color: "#06b6d4",
+                Icon: WrenchIcon,
               },
-            ].map((layer) => (
-              <Box
+            ].map((layer, i) => (
+              <div
                 key={layer.label}
-                padding={{ xs: "space-8", sm: "space-12" }}
-                borderRadius="8"
-                style={{ background: "white", borderLeft: `3px solid ${layer.color}` }}
+                className="flex items-start gap-3 rounded-lg border"
+                style={{ padding: "1rem", borderColor: "#e2e8f0" }}
               >
-                <Heading size="xsmall" level="4" style={{ color: layer.color }}>
-                  {layer.label}
-                </Heading>
-                <BodyShort size="small" className="mt-1" style={{ color: "#475569" }}>
-                  {layer.desc}
-                </BodyShort>
-              </Box>
+                <div
+                  className="flex-shrink-0 flex items-center justify-center rounded-lg"
+                  style={{ width: "2.25rem", height: "2.25rem", background: "#f1f5f9" }}
+                >
+                  <layer.Icon aria-hidden fontSize="1.125rem" style={{ color: "#475569" }} />
+                </div>
+                <div>
+                  <Label size="small" className="mb-0.5">
+                    Lag {i + 1}: {layer.label}
+                  </Label>
+                  <BodyShort size="small" style={{ color: "#64748b" }}>
+                    {layer.desc}
+                  </BodyShort>
+                </div>
+              </div>
             ))}
-          </VStack>
+          </HGrid>
         </div>
 
         {/* Design principles */}
@@ -1193,50 +1207,50 @@ function ResourcesSection() {
           <LinkableHeading size="small" level="3">
             Designprinsipper
           </LinkableHeading>
-          <VStack gap="space-8" className="mt-4">
+          <VStack gap="space-4" className="mt-4">
             {[
               {
                 title: "Kunnskap, ikke orkestrering",
                 desc: "Verdien vår er institusjonell kunnskap (auth-trær, Nais-maler, anti-patterns), ikke orkestrering som snart blir standardvare.",
-                color: "#3b82f6",
+                Icon: LightBulbIcon,
               },
               {
                 title: "Tynn ruter, tykke skills",
                 desc: "@nav-pilot er en lett ruter som delegerer til skills. Skills har referansefiler med beslutningstrær, maler og sjekklister.",
-                color: "#8b5cf6",
+                Icon: LayersIcon,
               },
               {
                 title: "Eksplisitte stopp",
                 desc: "Ikke en magisk pipeline som gjør alt automatisk. nav-pilot foreslår, du godkjenner, nav-pilot fortsetter.",
-                color: "#2dd4bf",
+                Icon: HandShakeHeartIcon,
               },
               {
                 title: "Arketype først",
                 desc: "Første spørsmål er alltid «hva slags ting bygger du?» Dette bestemmer stack, auth og Nais-konfigurasjon.",
-                color: "#fb923c",
+                Icon: Buildings3Icon,
               },
               {
                 title: "Minimalt CLI",
                 desc: "CLI-et er et rent installasjonsverktøy (Go, null avhengigheter). All AI-funksjonalitet er markdown kjørt av GitHub Copilot.",
-                color: "#10b981",
+                Icon: ComponentIcon,
               },
-            ].map((p, i) => (
+            ].map((p) => (
               <div
                 key={p.title}
-                className="flex items-start gap-3 rounded-lg"
-                style={{ padding: "0.75rem 1rem", background: "#f8fafc", borderLeft: `3px solid ${p.color}` }}
+                className="flex items-start gap-3 rounded-lg border"
+                style={{ padding: "0.75rem 1rem", borderColor: "#e2e8f0" }}
               >
-                <span
-                  className="flex-shrink-0 flex items-center justify-center rounded-full font-bold text-xs"
-                  style={{ width: "1.5rem", height: "1.5rem", background: `${p.color}18`, color: p.color }}
+                <div
+                  className="flex-shrink-0 flex items-center justify-center rounded-lg"
+                  style={{ width: "2rem", height: "2rem", background: "#f1f5f9" }}
                 >
-                  {i + 1}
-                </span>
+                  <p.Icon aria-hidden fontSize="1rem" style={{ color: "#475569" }} />
+                </div>
                 <div>
-                  <Heading size="xsmall" level="4" className="mb-0.5" style={{ color: "#334155" }}>
+                  <Label size="small" className="mb-0.5">
                     {p.title}
-                  </Heading>
-                  <BodyShort size="small" style={{ color: "#475569" }}>
+                  </Label>
+                  <BodyShort size="small" style={{ color: "#64748b" }}>
                     {p.desc}
                   </BodyShort>
                 </div>
