@@ -128,9 +128,9 @@ func resolveSource(ref string) (*Source, error) {
 		}
 	}
 
-	// For released binaries, clone from the matching release tag
+	// For released binaries, clone from the matching release tag (nav-pilot/<version>)
 	if version != "dev" {
-		return cloneRemote(version)
+		return cloneRemote("nav-pilot/" + version)
 	}
 
 	// Dev builds: clone HEAD

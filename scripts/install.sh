@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash
-#   curl -fsSL ... | bash -s -- --version v2025.07
+#   curl -fsSL ... | bash -s -- --version nav-pilot/2026.04.12-abc1234
 #   curl -fsSL ... | bash -s -- --dir /usr/local/bin
 
 REPO="navikt/copilot"
@@ -89,7 +89,7 @@ mkdir -p "$INSTALL_DIR"
 # ─── Download binary ─────────────────────────────────────────────────────────
 
 DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET}"
-CHECKSUM_URL="https://github.com/${REPO}/releases/download/${VERSION}/checksums.txt"
+CHECKSUM_URL="https://github.com/${REPO}/releases/download/${VERSION}/SHA256SUMS"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -103,8 +103,8 @@ fi
 # ─── Verify checksum ─────────────────────────────────────────────────────────
 
 echo "→ Verifying checksum..."
-if curl -fsSL -o "${TMP_DIR}/checksums.txt" "$CHECKSUM_URL" 2>/dev/null; then
-  EXPECTED=$(grep -F "  ${ASSET}" "${TMP_DIR}/checksums.txt" | awk '{print $1}')
+if curl -fsSL -o "${TMP_DIR}/SHA256SUMS" "$CHECKSUM_URL" 2>/dev/null; then
+  EXPECTED=$(grep -F "  ${ASSET}" "${TMP_DIR}/SHA256SUMS" | awk '{print $1}')
   if [[ -z "$EXPECTED" ]]; then
     echo "Error: No checksum entry found for ${ASSET}"
     exit 1
