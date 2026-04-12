@@ -45,7 +45,7 @@ jobs:
 
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version-file: scripts/install-collection/go.mod
+          go-version-file: cli/nav-pilot/go.mod
           cache: true
 
       - name: Build
@@ -57,7 +57,7 @@ jobs:
           COMMIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
           SHORT_SHA="${COMMIT_SHA:0:7}"
           VERSION="$(date -u +%Y.%m.%d)-${SHORT_SHA}"
-          cd scripts/install-collection
+          cd cli/nav-pilot
           go build \
             -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT_SHA} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o ../../nav-pilot-${{ matrix.goos }}-${{ matrix.goarch }} \
@@ -126,7 +126,7 @@ jobs:
             if [ -n "$PREV_TAG" ]; then
               echo "### Changes since ${PREV_TAG##*/}"
               echo ""
-              git log --oneline "${PREV_TAG}..HEAD" -- scripts/install-collection/ scripts/install.sh .github/skills/ .github/agents/ .github/collections/ | head -20
+              git log --oneline "${PREV_TAG}..HEAD" -- cli/nav-pilot/ scripts/install.sh .github/skills/ .github/agents/ .github/collections/ | head -20
             else
               echo "### Initial release"
             fi

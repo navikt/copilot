@@ -89,7 +89,7 @@ updates:
 
   # nav-pilot installer (Go)
   - package-ecosystem: "gomod"
-    directory: "/scripts/install-collection"
+    directory: "/cli/nav-pilot"
     schedule:
       interval: "weekly"
       day: "monday"

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'scripts/install-collection/**'
+      - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
       - '.github/skills/**'
       - '.github/agents/**'
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'scripts/install-collection/**'
+      - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
       - '.github/skills/**'
       - '.github/agents/**'
@@ -42,22 +42,22 @@ jobs:
 
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version-file: scripts/install-collection/go.mod
+          go-version-file: cli/nav-pilot/go.mod
           cache: true
 
       - name: Build
-        run: cd scripts/install-collection && go build -o nav-pilot .
+        run: cd cli/nav-pilot && go build -o nav-pilot .
 
       - name: Test
-        run: cd scripts/install-collection && go test -race -v ./...
+        run: cd cli/nav-pilot && go test -race -v ./...
 
       - name: Vet
-        run: cd scripts/install-collection && go vet ./...
+        run: cd cli/nav-pilot && go vet ./...
 
       - name: Staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
-          cd scripts/install-collection && staticcheck ./...
+          cd cli/nav-pilot && staticcheck ./...
 
   shellcheck:
     name: Lint install.sh

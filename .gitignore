@@ -6,8 +6,7 @@ apps/mcp-onboarding/coverage.out
 apps/mcp-onboarding/bin/mcp-hello-world
 apps/copilot-metrics/bin/copilot-metrics
 apps/copilot-metrics/copilot-metrics
-scripts/install-collection/install-collection
-scripts/install-collection/nav-pilot
+cli/nav-pilot/nav-pilot
 nav-pilot-darwin-*
 nav-pilot-linux-*
 
