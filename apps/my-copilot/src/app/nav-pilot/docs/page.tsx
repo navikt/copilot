@@ -1304,7 +1304,7 @@ function ResourcesSection() {
           <LinkableHeading size="small" level="3">
             Lenker
           </LinkableHeading>
-          <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             {[
               {
                 label: "GitHub-repo",
@@ -1320,11 +1320,6 @@ function ResourcesSection() {
                 label: "God praksis",
                 href: "/praksis",
                 desc: "Lær å bruke Copilot effektivt",
-              },
-              {
-                label: "Aksel Design System",
-                href: "https://aksel.nav.no",
-                desc: "Navs designsystem",
               },
               {
                 label: "Nais-dokumentasjon",
