@@ -1122,28 +1122,32 @@ function CliReferenceSection() {
             Eksempler
           </Heading>
 
-          <VStack gap="space-8">
+          <VStack gap="space-12">
             <div>
               <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
                 Installer collection med forhåndsvisning
               </Label>
-              <CodeBlock filename="Terminal">
-                {`# Se hva som installeres
-nav-pilot install --dry-run kotlin-backend
-
-# Installer
-nav-pilot install kotlin-backend
-
-# Installer i annet repo
-nav-pilot install --target /path/to/repo kotlin-backend`}
-              </CodeBlock>
+              <div className="space-y-3">
+                {[
+                  { label: "Se hva som installeres", cmd: "nav-pilot install --dry-run kotlin-backend" },
+                  { label: "Installer", cmd: "nav-pilot install kotlin-backend" },
+                  { label: "Installer i annet repo", cmd: "nav-pilot install --target /path/to/repo kotlin-backend" },
+                ].map((item) => (
+                  <div key={item.cmd}>
+                    <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                      {item.label}
+                    </BodyShort>
+                    <CodeBlock compact>{item.cmd}</CodeBlock>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div>
               <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
                 Installer enkeltkomponenter
               </Label>
-              <CodeBlock filename="Terminal">
+              <CodeBlock compact>
                 {`nav-pilot add agent security-champion
 nav-pilot add skill postgresql-review
 nav-pilot add instruction database
@@ -1155,19 +1159,21 @@ nav-pilot add prompt kafka-topic`}
               <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
                 Sjekk status og oppdater
               </Label>
-              <CodeBlock filename="Terminal">
-                {`# Vis installerte filer og integritet
-nav-pilot status
-
-# Sjekk om det finnes oppdateringer
-nav-pilot sync
-
-# Oppdater filer direkte
-nav-pilot sync --apply
-
-# Tving reinstallasjon
-nav-pilot install --force kotlin-backend`}
-              </CodeBlock>
+              <div className="space-y-3">
+                {[
+                  { label: "Vis installerte filer og integritet", cmd: "nav-pilot status" },
+                  { label: "Sjekk om det finnes oppdateringer", cmd: "nav-pilot sync" },
+                  { label: "Oppdater filer direkte", cmd: "nav-pilot sync --apply" },
+                  { label: "Tving reinstallasjon", cmd: "nav-pilot install --force kotlin-backend" },
+                ].map((item) => (
+                  <div key={item.cmd}>
+                    <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                      {item.label}
+                    </BodyShort>
+                    <CodeBlock compact>{item.cmd}</CodeBlock>
+                  </div>
+                ))}
+              </div>
             </div>
           </VStack>
         </Box>
