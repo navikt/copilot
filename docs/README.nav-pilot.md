@@ -22,7 +22,7 @@ nav-pilot er en samling av **én agent, fire skills og fire samlinger** som kode
 | `$nav-architecture-review` | Flerperspektiv-review → ADR |
 | `$nav-troubleshoot` | Diagnostikk for pod-krasj, 401-er, Kafka-lag, DB-feil |
 
-nav-pilot er **ikke** et separat CLI-verktøy. Det er markdown-filer som fungerer direkte i VS Code, JetBrains, Copilot CLI og GitHub.com.
+nav-pilot installeres med én kommando og legger til markdown-filer som fungerer direkte i VS Code, JetBrains, Copilot CLI og GitHub.com. CLI-verktøyet (`nav-pilot install`) konfigurerer din editor — selve AI-funksjonaliteten kommer fra GitHub Copilot.
 
 ---
 
@@ -163,7 +163,7 @@ rm -rf /tmp/nav-copilot
 
 ### Alternativ 3: Fra verktøysiden
 
-Gå til [min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy), finn nav-pilot-agent og klikk «Installer».
+Gå til [min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy), finn nav-pilot og klikk «Installer».
 
 ---
 

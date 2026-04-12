@@ -104,7 +104,11 @@ fi
 
 echo "→ Verifying checksum..."
 if curl -fsSL -o "${TMP_DIR}/checksums.txt" "$CHECKSUM_URL" 2>/dev/null; then
-  EXPECTED=$(grep "${ASSET}" "${TMP_DIR}/checksums.txt" | awk '{print $1}')
+  EXPECTED=$(grep -F "  ${ASSET}" "${TMP_DIR}/checksums.txt" | awk '{print $1}')
+  if [[ -z "$EXPECTED" ]]; then
+    echo "Error: No checksum entry found for ${ASSET}"
+    exit 1
+  fi
   if [[ -n "$EXPECTED" ]]; then
     if command -v sha256sum &>/dev/null; then
       ACTUAL=$(sha256sum "${TMP_DIR}/${ASSET}" | awk '{print $1}')

@@ -296,7 +296,7 @@ func copyFile(src, dst string) error {
 	if _, err := io.Copy(out, in); err != nil {
 		return err
 	}
-	return out.Close()
+	return nil
 }
 
 // copyDir copies a directory recursively, creating it fresh (removes stale files).
@@ -704,7 +704,9 @@ func cmdInstall(collection, targetDir, ref string, dryRun, force bool) error {
 		globalDst := filepath.Join(targetDir, ".github", "copilot-instructions.md")
 		if _, err := os.Stat(globalSrc); err == nil {
 			if _, err := os.Stat(globalDst); os.IsNotExist(err) {
-				if err := copyFile(globalSrc, globalDst); err == nil {
+				if err := copyFile(globalSrc, globalDst); err != nil {
+					fmt.Fprintf(os.Stderr, "%s Could not copy copilot-instructions.md: %v\n", yellow("⚠"), err)
+				} else {
 					hash, _ := fileHash(globalDst)
 					result.Files = append(result.Files, InstalledFile{
 						Path: ".github/copilot-instructions.md",

@@ -170,7 +170,7 @@ Kafka consumer lag
 │   └── Ja → Gå videre
 │
 ├── Logger konsumenten feil?
-│   ├── Deserialiserng-feil → Schema-mismatch, sjekk producer
+│   ├── Deserialisering-feil → Schema-mismatch, sjekk producer
 │   ├── DB-feil → Database-problem, se database-seksjon
 │   └── Ingen feil → Sjekk om den faktisk leser fra riktig topic
 │

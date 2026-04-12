@@ -28,7 +28,7 @@ After installing, use `@nav-pilot` in Copilot to start planning your application
 | Collection | Description | Agents | Skills | Best for |
 | --- | --- | --- | --- | --- |
 | **kotlin-backend** | Kotlin/Ktor and Spring Boot on Nais | 6 | 10 | Backend API and event consumers |
-| **nextjs-frontend** | Next.js with Aksel Design System | 4 | 7 | Innbygger- and saksbehandler-frontends |
+| **nextjs-frontend** | Next.js with Aksel Design System | 4 | 7 | Innbygger- og saksbehandler-frontends |
 | **fullstack** | Complete stack (backend + frontend) | 10 | 13 | Teams that own the full stack |
 | **platform** | Nais, observability, security | 4 | 7 | Platform and DevOps teams |
 
