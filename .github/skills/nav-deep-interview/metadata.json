@@ -1,0 +1,19 @@
+{
+  "description": "Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
+  "domain": "general",
+  "tags": ["planning", "requirements", "interview", "onboarding", "nav-pilot"],
+  "references": [
+    "references/data-classification.md",
+    "references/blind-spots.md"
+  ],
+  "examples": [
+    {
+      "prompt": "Kjør et dypintervju for den nye dp-behandling-tjenesten",
+      "scenario": "Avdekk blinde flekker i nytt prosjekt"
+    },
+    {
+      "prompt": "Still de viktige spørsmålene vi glemmer før vi begynner å kode",
+      "scenario": "Proaktiv risikovurdering"
+    }
+  ]
+}
