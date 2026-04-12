@@ -407,7 +407,7 @@ function IntroductionSection() {
               <tbody>
                 {[
                   ["Fokus", "Orkestrering og multi-agent", "Institusjonell kunnskap"],
-                  ["Inngangspunkt", "ultrawork (terminal)", 'cplt -p "@nav-pilot ..." (terminal, IDE, GitHub.com)'],
+                  ["Inngangspunkt", "ultrawork (terminal)", '"@nav-pilot ..." (terminal, IDE, GitHub.com)'],
                   ["Kunnskap", "Generisk koding", "Navs kunnskapsbase"],
                   ["Auth", "Vet ikke hva TokenX er", "Velger riktig auth basert på caller-type"],
                   ["Plattform", "Vet ikke hva Nais er", "Genererer Nais-manifest med riktig accessPolicy"],
