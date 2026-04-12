@@ -44,6 +44,10 @@ rm -rf /tmp/nav-copilot
 | **conventional-commit** | Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format | [`.github/skills/conventional-commit/`](../.github/skills/conventional-commit/SKILL.md) |
 | **flyway-migration** | Databasemigrasjonsmønstre med Flyway og versjonerte SQL-skript | [`.github/skills/flyway-migration/`](../.github/skills/flyway-migration/SKILL.md) |
 | **kotlin-app-config** | Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger | [`.github/skills/kotlin-app-config/`](../.github/skills/kotlin-app-config/SKILL.md) |
+| **nav-architecture-review** | Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav | [`.github/skills/nav-architecture-review/`](../.github/skills/nav-architecture-review/SKILL.md) |
+| **nav-deep-interview** | Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet | [`.github/skills/nav-deep-interview/`](../.github/skills/nav-deep-interview/SKILL.md) |
+| **nav-plan** | Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database og Nais-konfigurasjon | [`.github/skills/nav-plan/`](../.github/skills/nav-plan/SKILL.md) |
+| **nav-troubleshoot** | Strukturerte diagnostiske trær for vanlige Nav-plattformproblemer — pod-krasj, auth-feil, Kafka-lag og databaseproblemer | [`.github/skills/nav-troubleshoot/`](../.github/skills/nav-troubleshoot/SKILL.md) |
 | **observability-setup** | Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner | [`.github/skills/observability-setup/`](../.github/skills/observability-setup/SKILL.md) |
 | **playwright-testing** | Generer og kjør Playwright E2E-tester for webapplikasjoner med page objects, auth fixtures og tilgjengelighetstester | [`.github/skills/playwright-testing/`](../.github/skills/playwright-testing/SKILL.md) |
 | **postgresql-review** | PostgreSQL query review, optimalisering og beste praksis for Nav-applikasjoner | [`.github/skills/postgresql-review/`](../.github/skills/postgresql-review/SKILL.md) |

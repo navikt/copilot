@@ -164,6 +164,37 @@
     },
     {
       "type": "agent",
+      "name": "nav-pilot-agent",
+      "displayName": "@nav-pilot-agent",
+      "description": "Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre",
+      "category": "platform",
+      "tags": [
+        "nais",
+        "kubernetes",
+        "deployment",
+        "infrastructure"
+      ],
+      "filePath": ".github/agents/nav-pilot.agent.md",
+      "useCases": [
+        "Troubleshooting deployments",
+        "Azure AD integration",
+        "TokenX token exchange",
+        "Creating Kafka event consumers",
+        "Designing event schemas",
+        "Converting Tailwind to Aksel tokens",
+        "Responsive layouts",
+        "Health endpoints",
+        "Business metrics",
+        "OpenTelemetry tracing",
+        "Network policies",
+        "Secrets management",
+        "GDPR compliance"
+      ],
+      "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md"
+    },
+    {
+      "type": "agent",
       "name": "observability-agent",
       "displayName": "@observability-agent",
       "description": "Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling",
@@ -515,6 +546,82 @@
       "filePath": ".github/skills/kotlin-app-config",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/kotlin-app-config/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "nav-architecture-review",
+      "displayName": "nav-architecture-review",
+      "description": "Generer et Architecture Decision Record (ADR) med review fra tre perspektiver: arkitektur, sikkerhet og plattform. Følger Navs Architecture Advice Process.",
+      "filePath": ".github/skills/nav-architecture-review",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/SKILL.md",
+      "references": [
+        {
+          "path": "references/adr-template.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/references/adr-template.md"
+        },
+        {
+          "path": "references/nav-principles.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/references/nav-principles.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
+      "name": "nav-deep-interview",
+      "displayName": "nav-deep-interview",
+      "description": "Kjør et strukturert intervju for å avdekke blinde flekker *før* implementering starter. Basert på vanlige feil og oversikter i Nav-prosjekter.",
+      "filePath": ".github/skills/nav-deep-interview",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/SKILL.md",
+      "references": [
+        {
+          "path": "references/data-classification.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/references/data-classification.md"
+        },
+        {
+          "path": "references/blind-spots.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/references/blind-spots.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
+      "name": "nav-plan",
+      "displayName": "nav-plan",
+      "description": "Gå fra en vag idé til en konkret, Nav-kompatibel arkitekturplan. Bruker beslutningstrær for å velge riktig auth, kommunikasjon, database og Nais-oppsett.",
+      "filePath": ".github/skills/nav-plan",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/SKILL.md",
+      "references": [
+        {
+          "path": "references/decision-trees.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/decision-trees.md"
+        },
+        {
+          "path": "references/nais-templates.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/nais-templates.md"
+        },
+        {
+          "path": "references/modernization-patterns.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/modernization-patterns.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
+      "name": "nav-troubleshoot",
+      "displayName": "nav-troubleshoot",
+      "description": "Strukturerte diagnostiske trær for vanlige problemer på Nais-plattformen. Erstatter «spør i Slack-kanalen» med guidet feilsøking.",
+      "filePath": ".github/skills/nav-troubleshoot",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-troubleshoot/SKILL.md",
+      "references": [
+        {
+          "path": "references/diagnostic-trees.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-troubleshoot/references/diagnostic-trees.md"
+        }
+      ]
     },
     {
       "type": "skill",

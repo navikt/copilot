@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-11T20:18:19.641Z",
+  "generatedAt": "2026-04-12T13:15:45.132Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -303,6 +303,70 @@
         {
           "prompt": "@nais-agent Deployen av fp-sak feiler med OOMKilled, hva er galt?",
           "scenario": "Feilsøk deployment"
+        }
+      ]
+    },
+    {
+      "id": "nav-pilot-agent",
+      "name": "nav-pilot-agent",
+      "description": "Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre",
+      "type": "agent",
+      "domain": "general",
+      "filePath": ".github/agents/nav-pilot.agent.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
+      "contentHash": "dc75011c821bd6fbaac67556752ac20d5abda59c3bc263c16144fe5a11c6e87e",
+      "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
+      "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
+      "tools": [
+        "execute",
+        "read",
+        "edit",
+        "search",
+        "web",
+        "todo",
+        "ms-vscode.vscode-websearchforcopilot/websearch",
+        "io.github.navikt/github-mcp/get_file_contents",
+        "io.github.navikt/github-mcp/search_code",
+        "io.github.navikt/github-mcp/search_repositories",
+        "io.github.navikt/github-mcp/list_commits",
+        "io.github.navikt/github-mcp/issue_read",
+        "io.github.navikt/github-mcp/list_issues",
+        "io.github.navikt/github-mcp/search_issues",
+        "io.github.navikt/github-mcp/pull_request_read",
+        "io.github.navikt/github-mcp/search_pull_requests",
+        "io.github.navikt/github-mcp/get_latest_release",
+        "io.github.navikt/github-mcp/list_releases"
+      ],
+      "agentReferences": [
+        "accessibility-agent",
+        "aksel-agent",
+        "auth-agent",
+        "kafka-agent",
+        "nais-agent",
+        "observability-agent",
+        "security-champion-agent"
+      ],
+      "tags": ["planning", "architecture", "scaffold", "onboarding", "nav-pilot"],
+      "examples": [
+        {
+          "prompt": "@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader",
+          "scenario": "Planlegg ny backend-tjeneste"
+        },
+        {
+          "prompt": "@nav-pilot Vi skal lage et saksbehandlerverktøy for tiltakspenger med Next.js",
+          "scenario": "Planlegg ny frontend-applikasjon"
+        },
+        {
+          "prompt": "@nav-pilot Hjelp meg feilsøke hvorfor dp-behandling-poden krasjer i dev",
+          "scenario": "Feilsøk plattformproblemer"
+        },
+        {
+          "prompt": "@nav-pilot Hvordan bør vi migrere fra on-prem til GCP?",
+          "scenario": "Planlegg migrasjon"
+        },
+        {
+          "prompt": "@nav-pilot Vi trenger en Kafka-konsument som lytter på vedtakshendelser",
+          "scenario": "Planlegg hendelsedrevet tjeneste"
         }
       ]
     },
@@ -801,6 +865,150 @@
       "insidersInstallUrl": null,
       "tags": ["kotlin", "configuration", "sealed-class", "environment"],
       "examples": ["Sett opp miljøkonfigurasjon med sealed classes i fp-sak for dev, prod og local"]
+    },
+    {
+      "id": "nav-architecture-review",
+      "name": "nav-architecture-review",
+      "description": "Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/nav-architecture-review/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/SKILL.md",
+      "contentHash": "feafacda273415d2b3cc570a60018b121a3fde56b598d1619087adb962165ae6",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["architecture", "adr", "review", "planning", "nav-pilot"],
+      "examples": [
+        {
+          "prompt": "Generer en ADR for å bytte fra REST til Kafka for vedtakshendelser",
+          "scenario": "Arkitekturbeslutning om kommunikasjonsmønster"
+        },
+        {
+          "prompt": "Review arkitekturen for den nye saksbehandlerløsningen i tiltakspenger",
+          "scenario": "Arkitektur-review av ny løsning"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/adr-template.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/references/adr-template.md"
+        },
+        {
+          "path": "references/nav-principles.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/references/nav-principles.md"
+        }
+      ]
+    },
+    {
+      "id": "nav-deep-interview",
+      "name": "nav-deep-interview",
+      "description": "Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/nav-deep-interview/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/SKILL.md",
+      "contentHash": "d6278872895271daf9e26bc022fe8926fa9c2862773e63e7482238af3e70a634",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["planning", "requirements", "interview", "onboarding", "nav-pilot"],
+      "examples": [
+        {
+          "prompt": "Kjør et dypintervju for den nye dp-behandling-tjenesten",
+          "scenario": "Avdekk blinde flekker i nytt prosjekt"
+        },
+        {
+          "prompt": "Still de viktige spørsmålene vi glemmer før vi begynner å kode",
+          "scenario": "Proaktiv risikovurdering"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/data-classification.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/references/data-classification.md"
+        },
+        {
+          "path": "references/blind-spots.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/references/blind-spots.md"
+        }
+      ]
+    },
+    {
+      "id": "nav-plan",
+      "name": "nav-plan",
+      "description": "Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database og Nais-konfigurasjon",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/nav-plan/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/SKILL.md",
+      "contentHash": "c2878a63c8c0875862f5a9db205ad9635c6789443dcd7fdb1f3085ff861d2c94",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["planning", "architecture", "scaffold", "nais", "nav-pilot", "modernization", "migration"],
+      "examples": [
+        {
+          "prompt": "Lag en arkitekturplan for en ny dagpenge-API med PostgreSQL og Kafka",
+          "scenario": "Planlegg backend-tjeneste med database og hendelser"
+        },
+        {
+          "prompt": "Hva er riktig auth-oppsett for en tjeneste som kalles av både innbygger og saksbehandler?",
+          "scenario": "Avklar autentiseringsvalg"
+        },
+        {
+          "prompt": "Vi skal migrere vedtakstabellen fra gammel status-enum til ny — hvordan gjør vi det trygt?",
+          "scenario": "Planlegg databasemigrasjon med trestegs feltmigrasjon"
+        },
+        {
+          "prompt": "Vi skal bytte ut gammel tjeneste med ny — hvordan ruller vi ut gradvis?",
+          "scenario": "Strangler fig med feature toggle og gradvis utrulling"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/decision-trees.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/decision-trees.md"
+        },
+        {
+          "path": "references/nais-templates.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/nais-templates.md"
+        },
+        {
+          "path": "references/modernization-patterns.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/references/modernization-patterns.md"
+        }
+      ]
+    },
+    {
+      "id": "nav-troubleshoot",
+      "name": "nav-troubleshoot",
+      "description": "Strukturerte diagnostiske trær for vanlige Nav-plattformproblemer — pod-krasj, auth-feil, Kafka-lag og databaseproblemer",
+      "type": "skill",
+      "domain": "platform",
+      "filePath": ".github/skills/nav-troubleshoot/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-troubleshoot/SKILL.md",
+      "contentHash": "9000e282320e4b292b2bc9cd9b93203430e462b77beaade521e6690b12755092",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["troubleshooting", "diagnostics", "nais", "kubernetes", "nav-pilot"],
+      "examples": [
+        {
+          "prompt": "Poden min krasjer med CrashLoopBackOff i dev-gcp, hjelp meg feilsøke",
+          "scenario": "Diagnostiser pod-krasj"
+        },
+        {
+          "prompt": "Jeg får 401 Unauthorized når dp-soknad kaller dp-behandling",
+          "scenario": "Diagnostiser auth-feil mellom tjenester"
+        },
+        {
+          "prompt": "Kafka-konsumenten henger og consumer lag øker",
+          "scenario": "Diagnostiser Kafka-problemer"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/diagnostic-trees.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-troubleshoot/references/diagnostic-trees.md"
+        }
+      ]
     },
     {
       "id": "observability-setup",

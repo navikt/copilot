@@ -40,8 +40,7 @@ export const metadata: Metadata = {
 
 /* ---------- Data ---------- */
 
-const INSTALL_COMMAND =
-  "curl -fsSL https://nav-pilot.nav.no/install.sh | sh";
+const INSTALL_COMMAND = "curl -fsSL https://nav-pilot.nav.no/install.sh | sh";
 
 const COLLECTIONS = [
   {
@@ -127,8 +126,7 @@ const PIPELINE_STEPS = [
   {
     title: "Lever",
     subtitle: "Kode + dokumentasjon",
-    description:
-      "Produksjonsklar kode, tester, endringsdokument, utrullingsplan og verifiseringssjekkliste.",
+    description: "Produksjonsklar kode, tester, endringsdokument, utrullingsplan og verifiseringssjekkliste.",
     Icon: RocketIcon,
     color: "#fb923c",
   },
@@ -188,8 +186,7 @@ function HeroSection() {
               className="max-w-2xl mx-auto hero-animate-d1"
               style={{ color: "#94a3b8", fontSize: "1.125rem", lineHeight: 1.7, marginBlock: 0, textAlign: "center" }}
             >
-              Navs institusjonelle kunnskap — arkitektur, modernisering og beste praksis — direkte i
-              editoren din.
+              Navs institusjonelle kunnskap — arkitektur, modernisering og beste praksis — direkte i editoren din.
             </p>
           </VStack>
 
@@ -325,8 +322,7 @@ const USE_CASES = [
     Icon: FileSearchIcon,
     color: "#2dd4bf",
     title: "Test trygt",
-    description:
-      "Teststrategi per komponent, karakteriseringstester for brownfield, konsekvensanalyse før endring.",
+    description: "Teststrategi per komponent, karakteriseringstester for brownfield, konsekvensanalyse før endring.",
   },
   {
     Icon: SparklesIcon,
@@ -338,8 +334,7 @@ const USE_CASES = [
     Icon: FileTextIcon,
     color: "#f472b6",
     title: "Dokumenter",
-    description:
-      "Endringsdokument, utrullingsplan, runbook og post-deploy-verifisering — alt i ett.",
+    description: "Endringsdokument, utrullingsplan, runbook og post-deploy-verifisering — alt i ett.",
   },
   {
     Icon: ShieldLockIcon,
@@ -363,8 +358,8 @@ function UseCasesSection() {
               Ikke bare for nye prosjekter
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
-              De fleste utviklere bygger ikke fra bunnen av — de vedlikeholder, moderniserer og
-              forbedrer. nav-pilot hjelper med hele spekteret.
+              De fleste utviklere bygger ikke fra bunnen av — de vedlikeholder, moderniserer og forbedrer. nav-pilot
+              hjelper med hele spekteret.
             </p>
           </div>
 
@@ -492,27 +487,30 @@ function CollectionCard({
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-3 mb-3">
             <Icon fontSize="1.5rem" style={{ color: "#60a5fa" }} aria-hidden />
-            <TechLogoRow logos={logos.map((Logo, i) => <Logo key={i} size={18} />)} />
+            <TechLogoRow
+              logos={logos.map((Logo, i) => (
+                <Logo key={i} size={18} />
+              ))}
+            />
           </div>
           <Heading size="xsmall" level="3" style={{ color: "white" }}>
             {title}
           </Heading>
-          <p className="flex-1" style={{ color: "#cbd5e1", fontSize: "0.875rem", margin: "0.5rem 0 0", lineHeight: 1.6 }}>
+          <p
+            className="flex-1"
+            style={{ color: "#cbd5e1", fontSize: "0.875rem", margin: "0.5rem 0 0", lineHeight: 1.6 }}
+          >
             {description}
           </p>
 
           <div className="flex gap-4 mt-3 mb-3">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#60a5fa" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
-                {agents} agenter
-              </span>
+              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>{agents} agenter</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#a78bfa" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
-                {skills} ferdigheter
-              </span>
+              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>{skills} ferdigheter</span>
             </div>
           </div>
 
@@ -568,8 +566,7 @@ function PipelineSection() {
               Fra idé til produksjon — eller fra teknisk gjeld til moderne løsning
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
-              nav-pilot guider deg gjennom fire faser — enten du bygger nytt eller forbedrer
-              eksisterende kode.
+              nav-pilot guider deg gjennom fire faser — enten du bygger nytt eller forbedrer eksisterende kode.
             </p>
           </div>
 
@@ -685,10 +682,7 @@ function ComparisonSection() {
             style={{ border: "1px solid #1e293b", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
           >
             {/* Dark header */}
-            <div
-              className="grid gap-0"
-              style={{ gridTemplateColumns: "1fr 1fr 2fr", background: "#0f172a" }}
-            >
+            <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr 2fr", background: "#0f172a" }}>
               <div
                 className="px-6 py-4 flex items-center justify-center"
                 style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
@@ -712,10 +706,7 @@ function ComparisonSection() {
                 </p>
               </div>
               <div className="px-6 py-4 flex items-center justify-center gap-2">
-                <p
-                  className="font-bold"
-                  style={{ color: "#60a5fa", fontSize: "0.875rem", margin: 0 }}
-                >
+                <p className="font-bold" style={{ color: "#60a5fa", fontSize: "0.875rem", margin: 0 }}>
                   nav-pilot
                 </p>
               </div>
@@ -738,10 +729,7 @@ function ComparisonSection() {
                     background: i % 2 === 0 ? "#f8fafc" : "white",
                   }}
                 >
-                  <p
-                    className="font-semibold"
-                    style={{ color: "#1e293b", fontSize: "0.875rem", margin: 0 }}
-                  >
+                  <p className="font-semibold" style={{ color: "#1e293b", fontSize: "0.875rem", margin: 0 }}>
                     {row.feature}
                   </p>
                 </div>
@@ -764,11 +752,7 @@ function ComparisonSection() {
                   }}
                 >
                   <CheckmarkCircleIcon fontSize="0.875rem" style={{ color: "#22c55e", flexShrink: 0 }} aria-hidden />
-                  <p
-                    style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}
-                  >
-                    {row.navPilot}
-                  </p>
+                  <p style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>{row.navPilot}</p>
                 </div>
               </div>
             ))}
@@ -834,11 +818,7 @@ function TestimonialsSection() {
               >
                 <div style={{ height: "3px", background: t.color }} />
                 <Box padding={{ xs: "space-16", md: "space-20" }} className="flex-1 flex flex-col">
-                  <ChatIcon
-                    fontSize="1.5rem"
-                    style={{ color: t.color, marginBottom: "0.75rem" }}
-                    aria-hidden
-                  />
+                  <ChatIcon fontSize="1.5rem" style={{ color: t.color, marginBottom: "0.75rem" }} aria-hidden />
                   <p
                     className="flex-1"
                     style={{
@@ -852,15 +832,10 @@ function TestimonialsSection() {
                     &ldquo;{t.quote}&rdquo;
                   </p>
                   <div style={{ marginTop: "1rem", borderTop: "1px solid #f1f5f9", paddingTop: "0.75rem" }}>
-                    <p
-                      className="font-semibold"
-                      style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0 }}
-                    >
+                    <p className="font-semibold" style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0 }}>
                       {t.team}
                     </p>
-                    <p style={{ color: "#94a3b8", fontSize: "0.75rem", margin: "0.125rem 0 0" }}>
-                      {t.context}
-                    </p>
+                    <p style={{ color: "#94a3b8", fontSize: "0.75rem", margin: "0.125rem 0 0" }}>{t.context}</p>
                   </div>
                 </Box>
               </div>
@@ -896,10 +871,7 @@ function TechStackStrip() {
 
   return (
     <section style={{ background: "white" }}>
-      <Box
-        paddingBlock={{ xs: "space-20", md: "space-32" }}
-        className="max-w-5xl mx-auto"
-      >
+      <Box paddingBlock={{ xs: "space-20", md: "space-32" }} className="max-w-5xl mx-auto">
         <VStack gap="space-12">
           <p
             className="font-medium"
@@ -913,7 +885,10 @@ function TechStackStrip() {
           >
             BYGGET FOR NAVS TEKNOLOGI-STACK
           </p>
-          <div className="overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}>
+          <div
+            className="overflow-hidden"
+            style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}
+          >
             <div className="flex items-center animate-marquee">
               {renderLogos("a")}
               {renderLogos("b")}
@@ -962,10 +937,7 @@ function GetStartedSection() {
                   className="rounded-lg p-4 overflow-x-auto flex items-center gap-3"
                   style={{ background: "#1e1e1e" }}
                 >
-                  <code
-                    className="font-mono whitespace-nowrap flex-1"
-                    style={{ fontSize: "0.8rem", color: "#d4d4d4" }}
-                  >
+                  <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
                     {INSTALL_COMMAND}
                   </code>
                   <CopyButton copyText={INSTALL_COMMAND} size="xsmall" style={{ color: "white" }} />
@@ -980,10 +952,7 @@ function GetStartedSection() {
                   className="rounded-lg p-4 overflow-x-auto flex items-center gap-3"
                   style={{ background: "#1e1e1e" }}
                 >
-                  <code
-                    className="font-mono whitespace-nowrap flex-1"
-                    style={{ fontSize: "0.8rem", color: "#d4d4d4" }}
-                  >
+                  <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
                     nav-pilot install kotlin-backend
                   </code>
                   <CopyButton copyText="nav-pilot install kotlin-backend" size="xsmall" style={{ color: "white" }} />
@@ -997,20 +966,19 @@ function GetStartedSection() {
                 <Heading size="xsmall" level="3" className="mb-2">
                   3. Start @nav-pilot i editoren
                 </Heading>
-                <p style={{ color: "#475569", margin: 0 }}>
-                  Åpne Copilot Chat og skriv:
-                </p>
+                <p style={{ color: "#475569", margin: 0 }}>Åpne Copilot Chat og skriv:</p>
                 <div
                   className="rounded-lg p-4 overflow-x-auto flex items-center gap-3 mt-2"
                   style={{ background: "#1e1e1e" }}
                 >
-                  <code
-                    className="font-mono whitespace-nowrap flex-1"
-                    style={{ fontSize: "0.8rem", color: "#d4d4d4" }}
-                  >
+                  <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
                     @nav-pilot Jeg trenger en ny tjeneste for dagpenger
                   </code>
-                  <CopyButton copyText="@nav-pilot Jeg trenger en ny tjeneste for dagpenger" size="xsmall" style={{ color: "white" }} />
+                  <CopyButton
+                    copyText="@nav-pilot Jeg trenger en ny tjeneste for dagpenger"
+                    size="xsmall"
+                    style={{ color: "white" }}
+                  />
                 </div>
               </div>
 
@@ -1019,8 +987,8 @@ function GetStartedSection() {
                   4. Følg de fire fasene
                 </Heading>
                 <p style={{ color: "#475569", margin: 0 }}>
-                  nav-pilot guider deg gjennom intervju, planlegging, review og levering — hvert steg venter
-                  på din bekreftelse.
+                  nav-pilot guider deg gjennom intervju, planlegging, review og levering — hvert steg venter på din
+                  bekreftelse.
                 </p>
               </div>
             </VStack>
