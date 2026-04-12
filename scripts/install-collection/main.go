@@ -888,7 +888,7 @@ Flags (install/uninstall):
   -n, --dry-run           Show what would happen without making changes
   -f, --force             Overwrite files that differ from source
   -t, --target <dir>      Target repository (default: current directory)
-  -r, --ref <ref>         Git ref to install from (branch or tag)
+  -r, --ref <ref>         Git branch or tag to install from (default: main)
 
 Collections:
   kotlin-backend          Kotlin/Ktor and Spring Boot teams
@@ -898,6 +898,7 @@ Collections:
 
 Examples:
   nav-pilot install kotlin-backend
+  nav-pilot install --ref nav-pilot kotlin-backend
   nav-pilot install --dry-run fullstack
   nav-pilot install --force fullstack
   nav-pilot list
