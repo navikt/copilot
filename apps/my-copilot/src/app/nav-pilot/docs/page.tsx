@@ -4,7 +4,20 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { PageHero } from "@/components/page-hero";
 import { TableOfContents, type TocItem } from "@/components/table-of-contents";
 import { BackToTop } from "@/components/back-to-top";
-import { TerminalIcon, ArrowsCirclepathIcon } from "@navikt/aksel-icons";
+import {
+  TerminalIcon,
+  ArrowsCirclepathIcon,
+  CompassIcon,
+  MagnifyingGlassIcon,
+  TasklistIcon,
+  Buildings3Icon,
+  WrenchIcon,
+  LightningIcon,
+  PaletteIcon,
+  LinkIcon,
+  ShieldCheckmarkIcon,
+  CheckmarkIcon,
+} from "@navikt/aksel-icons";
 import { PipelineFlow } from "@/components/pipeline-flow";
 import type { Metadata } from "next";
 import NextLink from "next/link";
@@ -287,25 +300,30 @@ function IntroductionSection() {
           {/* Component overview cards */}
           <div className="mt-6 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
             {[
-              { name: "@nav-pilot", desc: "Planleggingsagent — din inngangsport", color: "#3b82f6", emoji: "🧭" },
+              { name: "@nav-pilot", desc: "Planleggingsagent — din inngangsport", color: "#3b82f6", Icon: CompassIcon },
               {
                 name: "$nav-deep-interview",
                 desc: "Avdekker blinde flekker (personvern, auth, avhengigheter)",
                 color: "#a78bfa",
-                emoji: "🔍",
+                Icon: MagnifyingGlassIcon,
               },
               {
                 name: "$nav-plan",
                 desc: "Beslutningstrær → Nais-manifest, CI/CD, prosjektstruktur",
                 color: "#60a5fa",
-                emoji: "🗺️",
+                Icon: TasklistIcon,
               },
-              { name: "$nav-architecture-review", desc: "Flerperspektiv-review → ADR", color: "#2dd4bf", emoji: "🏗️" },
+              {
+                name: "$nav-architecture-review",
+                desc: "Flerperspektiv-review → ADR",
+                color: "#2dd4bf",
+                Icon: Buildings3Icon,
+              },
               {
                 name: "$nav-troubleshoot",
                 desc: "Diagnostikk for pod-krasj, 401-er, Kafka-lag, DB-feil",
                 color: "#fb923c",
-                emoji: "🔧",
+                Icon: WrenchIcon,
               },
             ].map((c) => (
               <div
@@ -316,7 +334,7 @@ function IntroductionSection() {
                 <div style={{ height: "3px", background: c.color }} />
                 <div style={{ padding: "0.75rem 1rem" }}>
                   <div className="flex items-center gap-2">
-                    <span>{c.emoji}</span>
+                    <c.Icon aria-hidden fontSize="1.25rem" style={{ color: c.color }} />
                     <code className="text-sm font-mono font-semibold" style={{ color: c.color }}>
                       {c.name}
                     </code>
@@ -406,7 +424,7 @@ function IntroductionSection() {
                       style={{ color: "#475569", background: "#f0fdf4", paddingLeft: "0.5rem" }}
                     >
                       <span className="mr-1.5" style={{ color: "#10b981" }}>
-                        ✓
+                        <CheckmarkIcon aria-hidden fontSize="0.875rem" />
                       </span>
                       {navPilot}
                     </td>
@@ -451,7 +469,10 @@ function IntroductionSection() {
                 className="flex items-start gap-3 rounded-lg"
                 style={{ padding: "0.5rem 0.75rem", background: "#f0fdf4" }}
               >
-                <span style={{ color: "#10b981", fontSize: "0.875rem", marginTop: "0.125rem", flexShrink: 0 }}>✓</span>
+                <CheckmarkIcon
+                  aria-hidden
+                  style={{ color: "#10b981", fontSize: "0.875rem", marginTop: "0.125rem", flexShrink: 0 }}
+                />
                 <BodyShort size="small" style={{ color: "#475569" }}>
                   {item}
                 </BodyShort>
@@ -648,7 +669,8 @@ function CollectionsSection() {
         <HGrid columns={{ xs: 1, md: 2 }} gap="space-4">
           {COLLECTIONS.map((c, i) => {
             const colors = ["#6366f1", "#06b6d4", "#8b5cf6", "#10b981"];
-            const emojis = ["⚡", "🎨", "🔗", "🛡️"];
+            const icons = [LightningIcon, PaletteIcon, LinkIcon, ShieldCheckmarkIcon];
+            const CollectionIcon = icons[i % icons.length];
             const color = colors[i % colors.length];
             return (
               <Box
@@ -659,7 +681,7 @@ function CollectionsSection() {
                 style={{ borderColor: "#e2e8f0", borderTop: `3px solid ${color}` }}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span>{emojis[i]}</span>
+                  <CollectionIcon aria-hidden fontSize="1.25rem" style={{ color }} />
                   <Heading size="xsmall" level="4" style={{ color }}>
                     {c.name}
                   </Heading>
