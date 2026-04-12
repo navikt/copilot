@@ -864,7 +864,10 @@ function SyncSection() {
               GitHub Actions-workflow som åpner PRs automatisk — som Dependabot, men for Copilot-tilpasninger. PR-en
               viser hvilke filer som er oppdatert med lenker til kilderepoet.
             </BodyShort>
-            <CodeBlock filename="copilot-sync.yml">
+            <Label size="small" className="mb-1" style={{ color: "#64748b" }}>
+              copilot-sync.yml
+            </Label>
+            <CodeBlock compact>
               {`name: Copilot Customization Sync
 on:
   schedule:
