@@ -989,7 +989,7 @@ jobs:
           <LinkableHeading size="small" level="3">
             FAQ
           </LinkableHeading>
-          <VStack gap="space-8" className="mt-4">
+          <VStack gap="space-12" className="mt-4">
             {[
               {
                 q: "Trenger jeg en GitHub-token eller secret?",
@@ -1011,17 +1011,17 @@ jobs:
               <div
                 key={faq.q}
                 className="rounded-lg"
-                style={{ padding: "0.75rem 1rem", background: "#f8fafc", borderLeft: "3px solid #3b82f6" }}
+                style={{ padding: "1rem 1.25rem", background: "#f8fafc", borderLeft: "3px solid #3b82f6" }}
               >
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-3">
                   <span
-                    className="flex-shrink-0 flex items-center justify-center rounded-full font-bold text-xs"
+                    className="flex-shrink-0 flex items-center justify-center rounded-full font-bold text-xs mt-0.5"
                     style={{ width: "1.25rem", height: "1.25rem", background: "#dbeafe", color: "#2563eb" }}
                   >
                     ?
                   </span>
                   <div>
-                    <Heading size="xsmall" level="4" className="mb-1" style={{ color: "#334155" }}>
+                    <Heading size="xsmall" level="4" className="mb-1.5" style={{ color: "#334155" }}>
                       {faq.q}
                     </Heading>
                     <BodyShort size="small" style={{ color: "#475569" }}>
