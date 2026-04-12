@@ -678,6 +678,12 @@ function CollectionsSection() {
           {COLLECTIONS.map((c, i) => {
             const icons = [LightningIcon, PaletteIcon, LinkIcon, ShieldCheckmarkIcon];
             const CollectionIcon = icons[i % icons.length];
+            const counts = [
+              { label: "Agenter", count: c.agents },
+              { label: "Skills", count: c.skills },
+              { label: "Instruksjoner", count: c.details.instructions.split(",").length },
+              { label: "Prompts", count: c.details.prompts.split(",").length },
+            ];
             return (
               <Box
                 key={c.name}
@@ -695,22 +701,15 @@ function CollectionsSection() {
                 <BodyShort size="small" className="mb-3" style={{ color: "#64748b" }}>
                   {c.description}
                 </BodyShort>
-                <div className="space-y-2 text-xs">
-                  {[
-                    { label: "Agenter", value: c.details.agents },
-                    { label: "Skills", value: c.details.skills },
-                    { label: "Instruksjoner", value: c.details.instructions },
-                    { label: "Prompts", value: c.details.prompts },
-                  ].map((cat) => (
-                    <div key={cat.label}>
-                      <span
-                        className="inline-block text-xs font-medium rounded-full px-2 py-0.5 mr-2 mb-1"
-                        style={{ background: "#f1f5f9", color: "#475569" }}
-                      >
-                        {cat.label}
-                      </span>
-                      <span style={{ color: "#64748b" }}>{cat.value}</span>
-                    </div>
+                <div className="flex flex-wrap gap-2">
+                  {counts.map((cat) => (
+                    <span
+                      key={cat.label}
+                      className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1"
+                      style={{ background: "#f1f5f9", color: "#475569" }}
+                    >
+                      <strong>{cat.count}</strong> {cat.label.toLowerCase()}
+                    </span>
                   ))}
                 </div>
               </Box>
