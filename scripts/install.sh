@@ -17,8 +17,12 @@ INSTALL_DIR=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --version|-v) VERSION="$2"; shift 2 ;;
-    --dir|-d)     INSTALL_DIR="$2"; shift 2 ;;
+    --version|-v)
+      if [[ $# -lt 2 ]]; then echo "Error: --version requires a value"; exit 1; fi
+      VERSION="$2"; shift 2 ;;
+    --dir|-d)
+      if [[ $# -lt 2 ]]; then echo "Error: --dir requires a value"; exit 1; fi
+      INSTALL_DIR="$2"; shift 2 ;;
     --help|-h)
       echo "Usage: install.sh [--version <tag>] [--dir <path>]"
       echo ""
@@ -112,10 +116,13 @@ if curl -fsSL -o "${TMP_DIR}/SHA256SUMS" "$CHECKSUM_URL" 2>/dev/null; then
   if [[ -n "$EXPECTED" ]]; then
     if command -v sha256sum &>/dev/null; then
       ACTUAL=$(sha256sum "${TMP_DIR}/${ASSET}" | awk '{print $1}')
-    else
+    elif command -v shasum &>/dev/null; then
       ACTUAL=$(shasum -a 256 "${TMP_DIR}/${ASSET}" | awk '{print $1}')
+    else
+      echo "  ⚠ Neither sha256sum nor shasum found (skipping verification)"
+      ACTUAL=""
     fi
-    if [[ "$EXPECTED" != "$ACTUAL" ]]; then
+    if [[ -n "$ACTUAL" && "$EXPECTED" != "$ACTUAL" ]]; then
       echo "Error: Checksum mismatch!"
       echo "  Expected: ${EXPECTED}"
       echo "  Got:      ${ACTUAL}"
