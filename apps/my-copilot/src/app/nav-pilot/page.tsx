@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import React from "react";
-import { Box, VStack, HGrid, Heading, CopyButton, Tag } from "@navikt/ds-react";
+import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
 import NextLink from "next/link";
 import {
   TerminalIcon,
@@ -183,7 +183,7 @@ function HeroSection() {
               <Heading size="xlarge" level="1">
                 Slutt å lære opp Copilot.
               </Heading>
-              <Tag variant="info" size="small" className="uppercase tracking-wide" style={{ background: "#dbeafe", color: "#1e3a5f" }}>Beta</Tag>
+              <span className="uppercase tracking-wide font-semibold rounded-full" style={{ background: "#dbeafe", color: "#1e3a5f", fontSize: "0.75rem", padding: "2px 10px" }}>Beta</span>
             </div>
             <p
               className="max-w-2xl mx-auto hero-animate-d1"
