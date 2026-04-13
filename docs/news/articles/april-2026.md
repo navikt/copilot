@@ -1,9 +1,9 @@
 ---
 title: "Nyheter og trender — April 2026"
-date: 2026-04-10
+date: 2026-04-13
 draft: true
 category: copilot
-excerpt: "Autopilot-modus i VS Code, Copilot SDK i public preview, PR-merge-metrikker for code review, organisasjonsstyrt runner, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing."
+excerpt: "Autopilot-modus i VS Code, Copilot SDK i public preview, PR-merge-metrikker for code review, organisasjonsstyrt runner, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil."
 tags:
   - copilot-sdk
   - coding-agents
@@ -12,6 +12,8 @@ tags:
   - metrics
   - copilot-cli
   - security
+  - remote
+  - mobile
   - models
   - vscode
   - autopilot
@@ -142,6 +144,18 @@ Selv om Mythos Preview ikke er en kodeverktøy-modell, signaliserer den at AI-mo
 
 ---
 
+## 11. Fjernstyr CLI-sesjoner fra nett og mobil
+
+Copilot CLI er ikke lenger en ren lokal opplevelse. Med `copilot --remote` kan du nå overvåke og styre en kjørende CLI-sesjon direkte fra GitHub på nett eller i GitHub Mobile-appene. CLI-en streamer sesjonsaktiviteten til GitHub i sanntid og viser en lenke og QR-kode du kan åpne fra en annen enhet.
+
+Fjernsesjoner støtter alle funksjoner du forventer fra CLI-en: du kan sende meldinger midt i en sesjon, gjennomgå og endre planer, bytte mellom plan-, interaktiv- og autopilot-modus, godkjenne eller avvise tilgangsforespørsler, og svare på spørsmål fra Copilot. Aktiviteten holdes synkront mellom CLI-en og GitHub — handlinger du gjør ett sted reflekteres i det andre. Hver fjernsesjon er privat og kun synlig for brukeren som startet den.
+
+For Copilot Business- og Enterprise-brukere må en administrator aktivere remote control- og CLI-policyer før funksjonen kan brukes.
+
+**Kilde:** [Remote control CLI sessions on web and mobile in public preview](https://github.blog/changelog/2026-04-13-remote-control-cli-sessions-on-web-and-mobile-in-public-preview) (GitHub Changelog, 13. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -156,3 +170,4 @@ Selv om Mythos Preview ikke er en kodeverktøy-modell, signaliserer den at AI-mo
 | BYOK og lokale modeller i CLI | Relevant for team med spesielle krav til datatilgang eller som ønsker å bruke egne Azure OpenAI-endepunkter. Offline-modus kan være interessant for sikkerhetssensitive miljøer. |
 | Dependabot + AI-agenter | Kan akselerere sikkerhetsoppdateringer i Navs ~500 repoer. Vurder å aktivere for team med mange Dependabot-varsler — spesielt nyttig for breaking changes i major-oppgraderinger. |
 | Project Glasswing | Signaliserer at AI-drevet sårbarhetsjakt er her. Nav bør følge med på når slike verktøy blir tilgjengelige for enterprise-kunder, og vurdere implikasjonene for egen sikkerhetspraksis. |
+| Fjernstyr CLI fra nett/mobil | Utviklere kan starte lange CLI-sesjoner og følge med fra mobilen eller en annen maskin. Nyttig for oppgaver som tar tid — for eksempel store refaktoreringer eller migreringer. Krever at admin aktiverer CLI- og remote-policyer for Business/Enterprise. |
