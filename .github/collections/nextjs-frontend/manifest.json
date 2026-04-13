@@ -19,6 +19,7 @@
   ],
   "instructions": [
     "nextjs-aksel",
+    "performance",
     "testing",
     "testing-typescript",
     "accessibility",

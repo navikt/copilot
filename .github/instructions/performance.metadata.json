@@ -1,0 +1,8 @@
+{
+  "slug": "performance",
+  "title": "Performance Optimization",
+  "description": "Core Web Vitals, Next.js-ytelse, bildeoptimalisering og bundle-analyse for Nav-applikasjoner",
+  "glob": "src/**/*.{tsx,ts}",
+  "category": "frontend",
+  "language": "typescript"
+}

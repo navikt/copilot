@@ -11,6 +11,7 @@
   "skills": [
     "observability-setup",
     "security-review",
+    "threat-model",
     "workstation-security",
     "nav-plan",
     "nav-deep-interview",
@@ -19,6 +20,7 @@
   ],
   "instructions": [
     "go-nais",
+    "security-owasp",
     "github-actions",
     "docker"
   ],

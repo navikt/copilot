@@ -13,10 +13,12 @@
   "skills": [
     "api-design",
     "flyway-migration",
+    "java-to-kotlin",
     "kotlin-app-config",
     "ktor-scaffold",
     "observability-setup",
     "security-review",
+    "threat-model",
     "tokenx-auth",
     "nav-plan",
     "nav-deep-interview",
@@ -26,6 +28,7 @@
   "instructions": [
     "kotlin-ktor",
     "kotlin-spring",
+    "security-owasp",
     "testing",
     "testing-kotlin",
     "github-actions",

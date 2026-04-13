@@ -1,0 +1,8 @@
+{
+  "slug": "security-owasp",
+  "title": "OWASP Top 10:2025",
+  "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging",
+  "glob": "**/*.{kt,go}",
+  "category": "security",
+  "language": "kotlin"
+}
