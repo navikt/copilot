@@ -1,5 +1,5 @@
 ---
-name: go-service
+name: golang-service
 description: Scaffold ein Go HTTP-teneste med NAIS-mønster, pgx, sqlc og slog
 ---
 

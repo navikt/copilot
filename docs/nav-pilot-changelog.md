@@ -23,7 +23,7 @@ Gjennomført kryssreferanseaudit av alle 4 samlinger. Lagt til `Related`-tabelle
 - `kotlin-ktor` → kotlin-app-config, ktor-scaffold, @auth-agent, @nais-agent, @observability-agent
 - `accessibility` → @accessibility-agent, @aksel-agent, playwright-testing
 - `nextjs-aksel` → @aksel-agent, @accessibility-agent, performance, aksel-spacing
-- `go-nais` → @nais-agent, @observability-agent, security-owasp, @security-champion
+- `golang` → @nais-agent, @observability-agent, security-owasp, @security-champion
 - `security-champion` (agent) → threat-model, security-review, security-owasp
 
 ### Feilrettinger

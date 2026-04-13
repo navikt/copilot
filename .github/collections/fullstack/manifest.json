@@ -35,7 +35,7 @@
   "instructions": [
     "kotlin-ktor",
     "kotlin-spring",
-    "go-nais",
+    "golang",
     "nextjs-aksel",
     "performance",
     "security-owasp",
@@ -54,6 +54,6 @@
     "nais-manifest",
     "aksel-component",
     "nextjs-api-route",
-    "go-service"
+    "golang-service"
   ]
 }

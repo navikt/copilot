@@ -19,13 +19,13 @@
     "nav-troubleshoot"
   ],
   "instructions": [
-    "go-nais",
+    "golang",
     "security-owasp",
     "github-actions",
     "docker"
   ],
   "prompts": [
     "nais-manifest",
-    "go-service"
+    "golang-service"
   ]
 }
