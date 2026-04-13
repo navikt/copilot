@@ -6,6 +6,7 @@
 # Usage:
 #   ./scripts/lint-skills.sh            # lint all skills
 #   ./scripts/lint-skills.sh api-design # lint one skill
+#   ./scripts/lint-skills.sh -q         # quiet mode (only warnings/errors + summary)
 #
 set -euo pipefail
 
@@ -15,6 +16,7 @@ TOKEN_WARN=3000   # "standard" — approaching diminishing returns
 TOKEN_ERROR=5000  # "comprehensive" — hurts performance ~2.9pp
 MAX_REF_DEPTH=1   # max directory depth for file references from SKILL.md
 
+QUIET=false
 errors=0
 warnings=0
 skills_checked=0
@@ -26,7 +28,7 @@ dim()    { printf '\033[2m%s\033[0m\n' "$1"; }
 
 warn() { warnings=$(( warnings + 1 )); yellow "  ⚠  $1"; }
 fail() { errors=$(( errors + 1 ));     red    "  ❌ $1"; }
-ok()   { dim             "  ✓  $1"; }
+ok()   { $QUIET || dim "  ✓  $1"; }
 
 # Extract SKILL.md body (everything after the closing --- of frontmatter)
 body_of() {
@@ -46,7 +48,7 @@ lint_skill() {
   fi
 
   skills_checked=$(( skills_checked + 1 ))
-  echo "📊 $name"
+  $QUIET || echo "📊 $name"
 
   # ── metadata.json checks ──────────────────────────────────────────────
   if [[ ! -f "$metadata" ]]; then
@@ -203,16 +205,25 @@ for r in d.get('references', []):
     fi
   fi
 
-  echo ""
+  $QUIET || echo ""
 }
 
 # ── main ───────────────────────────────────────────────────────────────────
 
 cd "$(git rev-parse --show-toplevel)"
 
-if [[ $# -gt 0 ]]; then
+# Parse flags
+args=()
+for arg in "$@"; do
+  case "$arg" in
+    -q|--quiet) QUIET=true ;;
+    *) args+=("$arg") ;;
+  esac
+done
+
+if [[ ${#args[@]} -gt 0 ]]; then
   # Lint specific skill(s)
-  for name in "$@"; do
+  for name in "${args[@]}"; do
     lint_skill "$SKILLS_DIR/$name"
   done
 else

@@ -12,7 +12,7 @@
 # Root-only tasks:
 #   docs:*    — documentation generation and checking
 #   ratchet:* — GitHub Actions SHA pinning
-#   all       — full pipeline: generate → check → test → build
+#   all       — full pipeline: generate → check → build
 
 [tools]
 "go:github.com/sethvargo/ratchet" = "latest"
@@ -25,7 +25,7 @@ APPS_WITH_GENERATE = "mcp-onboarding my-copilot"
 # ─── Pipeline ────────────────────────────────────────────────────────────────
 
 [tasks.all]
-description = "Full pipeline: generate, check, test, build"
+description = "Full pipeline: generate, check, build"
 run = "bash hack/all.sh"
 
 # ─── Standard tasks (delegated to all apps) ──────────────────────────────────
