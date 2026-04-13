@@ -10,9 +10,10 @@ interface PageHeroProps {
   title: string;
   description: string;
   actions?: ReactNode;
+  badge?: ReactNode;
 }
 
-export function PageHero({ title, description, actions }: PageHeroProps) {
+export function PageHero({ title, description, actions, badge }: PageHeroProps) {
   const pathname = usePathname();
 
   return (
@@ -25,9 +26,12 @@ export function PageHero({ title, description, actions }: PageHeroProps) {
         <VStack gap="space-12">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <VStack gap="space-4">
-              <Heading size="large" level="1">
-                {title}
-              </Heading>
+              <div className="flex items-center gap-3">
+                <Heading size="large" level="1">
+                  {title}
+                </Heading>
+                {badge}
+              </div>
               <BodyShort className="max-w-2xl opacity-80">{description}</BodyShort>
             </VStack>
             {actions && <div className="shrink-0">{actions}</div>}

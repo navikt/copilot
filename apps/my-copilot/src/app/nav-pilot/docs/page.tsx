@@ -1,4 +1,4 @@
-import { Heading, BodyShort, BodyLong, Box, HGrid, Label, VStack } from "@navikt/ds-react";
+import { Heading, BodyShort, BodyLong, Box, HGrid, Label, VStack, Tag } from "@navikt/ds-react";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { PageHero } from "@/components/page-hero";
@@ -234,7 +234,11 @@ const CLI_COMMANDS = [
 export default function NavPilotDocs() {
   return (
     <main>
-      <PageHero title="nav-pilot dokumentasjon" description="Alt du trenger for å komme i gang med nav-pilot." />
+      <PageHero
+        title="nav-pilot dokumentasjon"
+        description="Alt du trenger for å komme i gang med nav-pilot."
+        badge={<Tag variant="info" size="small" className="uppercase tracking-wide">Beta</Tag>}
+      />
       <div className="max-w-7xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import React from "react";
-import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
+import { Box, VStack, HGrid, Heading, CopyButton, Tag } from "@navikt/ds-react";
 import NextLink from "next/link";
 import {
   TerminalIcon,
@@ -179,9 +179,12 @@ function HeroSection() {
         <VStack gap={{ xs: "space-20", md: "space-32" }}>
           {/* Headline */}
           <VStack gap="space-12" className="text-center">
-            <Heading size="xlarge" level="1" className="hero-title hero-animate">
-              Slutt å lære opp Copilot.
-            </Heading>
+            <div className="flex items-center justify-center gap-3 hero-animate">
+              <Heading size="xlarge" level="1">
+                Slutt å lære opp Copilot.
+              </Heading>
+              <Tag variant="info" size="small" className="uppercase tracking-wide">Beta</Tag>
+            </div>
             <p
               className="max-w-2xl mx-auto hero-animate-d1"
               style={{ color: "#94a3b8", fontSize: "1.125rem", lineHeight: 1.7, marginBlock: 0, textAlign: "center" }}
