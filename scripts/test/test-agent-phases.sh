@@ -177,11 +177,11 @@ else
   check_file "nav-pilot shows phase header" "$FILE" \
     "(Fase [1-4]:|🔍 Fase|📐 Fase|🔎 Fase|🚀 Fase)"
 
-  # Test 2: nav-pilot completion should show phase 4
+  # Test 2: planning prompt should show early phases (1 or 2)
   log ""
-  log "Test 2: nav-pilot task completion shows Fase 4"
-  check_file "nav-pilot shows Fase 4 at completion" "$FILE" \
-    "(Fase 4|🚀|Lever)"
+  log "Test 2: nav-pilot shows planning phase (Fase 1 or 2)"
+  check_file "nav-pilot shows planning phase" "$FILE" \
+    "(Fase [12]|Intervju|Plan|kartlegg|planlegg)"
 
   # Test 3: auth-agent should produce auth-related output
   log ""
