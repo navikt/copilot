@@ -20,7 +20,7 @@ Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/
 
 ### 🧭 nav-pilot — Nytt!
 
-**[nav-pilot](docs/README.nav-pilot.md)** er Navs AI-utviklerverktøy — én agent som koder inn Navs institusjonelle kunnskap som kjørbare arbeidsflyter. Installer en samling, bruk `@nav-pilot`, og gå fra idé til Nav-kompatibel arkitekturplan.
+**[nav-pilot](docs/README.nav-pilot.md)** er Navs AI-utviklerverktøy — én agent med en 4-fase modell (Intervju → Plan → Review → Lever) som koder inn Navs institusjonelle kunnskap. Installer en samling, bruk `@nav-pilot`, og gå fra idé til Nav-kompatibel arkitekturplan.
 
 ```bash
 # Installer nav-pilot CLI
@@ -51,6 +51,7 @@ Gå til **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/
 - **[MCP-servere →](docs/README.mcp.md)** — Alle editorer
 - **[Samlinger →](docs/README.collections.md)** — Installer alt på én gang
 - **[nav-pilot →](docs/README.nav-pilot.md)** — Navs AI-utviklerverktøy
+- **[Testing →](docs/README.testing.md)** — Strukturelle og E2E-tester for nav-pilot
 - **[Hold tilpasninger oppdatert →](docs/README.sync.md)** — Automatisk sync-workflow (som Dependabot)
 
 ### Med MCP Onboarding
@@ -172,6 +173,7 @@ Tilpasningene dekker Navs kjernestack:
 │   ├── README.mcp.md
 │   ├── README.prompts.md
 │   ├── README.skills.md
+│   ├── README.testing.md
 │   └── README.collections.md
 ├── apps/                 # Nav applications (my-copilot, copilot-metrics, mcp-registry, mcp-onboarding)
 └── dashboards/           # Grafana dashboard definitions

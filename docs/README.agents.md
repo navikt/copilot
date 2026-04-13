@@ -45,6 +45,20 @@ curl -sO --output-dir .github/agents \
 | **Security Champion Agent**<br/>[`@security-champion-agent`](../.github/agents/security-champion.agent.md) | Navs sikkerhetsarkitektur, trusselmodellering, compliance og sikkerhetspraksis | [![Install](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://min-copilot.ansatt.nav.no/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fsecurity-champion.agent.md) |
 <!-- END GENERATED TABLE -->
 
+## nav-pilot delegering
+
+Når `@nav-pilot` delegerer til spesialistagenter i Fase 3 (Review), bruker agentene emoji-prefiks for å vise fremdrift:
+
+| Agent | Prefiks | Eksempel |
+|-------|---------|----------|
+| `@auth-agent` | 🔐 | `🔐 Auth: Kartlegger auth-oppsett...` |
+| `@nais-agent` | ⚙️ | `⚙️ Nais: Sjekker ressurskonfig...` |
+| `@observability-agent` | 📊 | `📊 Observability: Analyserer metrikker...` |
+| `@code-review-agent` | 📝 | `📝 Review: Gjennomgår endringer...` |
+| `@security-champion-agent` | 🛡️ | `🛡️ Sikkerhet: Kjører trusselmodell...` |
+
+Agentene fungerer selvstendig — du trenger ikke bruke `@nav-pilot` for å bruke dem. Prefiks-indikatorene vises uansett.
+
 ## Creating Custom Agents
 
 When creating new agents for Nav projects:

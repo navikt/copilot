@@ -36,6 +36,46 @@ nav-pilot er bygget på tre lag:
 
 ---
 
+## 4-fase modell
+
+nav-pilot jobber i fire faser med eksplisitte stopp mellom hver. Fasene er synlige i output med emoji-prefiks:
+
+```
+🔍 Fase 1: Intervju — kartlegger behov og blinde flekker
+   Stiller spørsmål om domene, personvern, avhengigheter, auth, drift
+   ─────────────────────────────────────────
+   ⏳ Venter på svar før Fase 2: Plan
+
+📐 Fase 2: Plan — arkitektur og beslutninger
+   Velger arketype, foreslår mønstre, lager Nais-konfig
+   ─────────────────────────────────────────
+   ⏳ Bekreft planen før Fase 3: Review
+
+🔎 Fase 3: Review — kvalitetssikring
+   Delegerer til @auth, @security-champion, @nais, @observability
+   ─────────────────────────────────────────
+   ⏳ Bekreft funn før Fase 4: Lever
+
+🚀 Fase 4: Lever — genererer kode og dokumentasjon
+   Implementerer basert på godkjent plan og review
+```
+
+Modellen hopper over faser når konteksten tilsier det — en direkte implementeringsoppgave kan gå rett til Fase 4.
+
+### Spesialist-delegering
+
+I Fase 3 delegerer nav-pilot til spesialistagenter som viser fremdrift med egne emoji-prefiks:
+
+| Agent | Prefiks | Domene |
+|-------|---------|--------|
+| `@auth-agent` | 🔐 | Azure AD, TokenX, M2M `azp`-validering |
+| `@security-champion-agent` | 🛡️ | Trusselmodellering, OWASP, compliance |
+| `@nais-agent` | ⚙️ | Nais-konfig, GCP-ressurser, deploy |
+| `@observability-agent` | 📊 | Prometheus, OpenTelemetry, dashboards |
+| `@code-review-agent` | 📝 | Kodefeil, Nav-konvensjoner |
+
+---
+
 ## For bidragsytere
 
 ### Endre agenten
@@ -60,6 +100,7 @@ Hver skill ligger i `.github/skills/<name>/`:
 
 ## Relatert
 
+- [Testing →](README.testing.md) — Strukturelle og E2E-tester for nav-pilot
 - [Collections →](README.collections.md) — Samlinger og install-script
 - [Agents →](README.agents.md) — Alle tilgjengelige agenter
 - [Skills →](README.skills.md) — Alle tilgjengelige skills
