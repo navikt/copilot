@@ -278,7 +278,7 @@ val pool = HikariConfig().apply {
           <div className="flex flex-col items-center gap-4 hero-animate-d2">
             <div className="flex flex-wrap gap-3 justify-center">
               <NextLink
-                href="vscode:extension/GitHub.copilot"
+                href="/nav-pilot/docs"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium no-underline transition-all"
                 style={{
                   background: "linear-gradient(135deg, #3b82f6, #6366f1)",
@@ -286,7 +286,7 @@ val pool = HikariConfig().apply {
                   fontSize: "0.9rem",
                 }}
               >
-                Åpne i VS Code →
+                Dokumentasjon →
               </NextLink>
             </div>
             <div
