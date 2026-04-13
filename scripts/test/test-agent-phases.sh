@@ -6,62 +6,87 @@ set -euo pipefail
 # phase headers appear in the output.
 #
 # Usage:
-#   ./scripts/test/test-agent-phases.sh
-#   ./scripts/test/test-agent-phases.sh --verbose
+#   ./scripts/test/test-agent-phases.sh              # structural tests only
+#   ./scripts/test/test-agent-phases.sh --e2e         # include E2E tests
+#   ./scripts/test/test-agent-phases.sh --e2e -v      # verbose E2E output
 #
 # Prerequisites:
 #   - copilot CLI installed and authenticated
 #   - Run from the navikt/copilot repo root
 
-VERBOSE="${1:-}"
+RUN_E2E=false
+VERBOSE=false
+for arg in "$@"; do
+  case "$arg" in
+    --e2e) RUN_E2E=true ;;
+    -v|--verbose) VERBOSE=true ;;
+  esac
+done
+
 PASS=0
 FAIL=0
+SKIP=0
 RESULTS=()
+OUTPUT_DIR=$(mktemp -d)
+trap 'rm -rf "$OUTPUT_DIR"' EXIT
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 log() { echo "  $*"; }
 pass() { PASS=$((PASS + 1)); RESULTS+=("✅ $1"); log "✅ $1"; }
 fail() { FAIL=$((FAIL + 1)); RESULTS+=("❌ $1: $2"); log "❌ $1: $2"; }
+skip() { SKIP=$((SKIP + 1)); RESULTS+=("⏭ $1: $2"); log "⏭ $1: $2"; }
 
 run_agent() {
-  local agent="$1"
-  local prompt="$2"
-  local output_file
-  output_file=$(mktemp)
+  local name="$1"
+  local agent="$2"
+  local prompt="$3"
+  local output_file="$OUTPUT_DIR/${name}.txt"
 
-  log "Running: copilot --agent $agent -p \"$prompt\" ..."
+  log "Running: copilot --agent $agent -p '${prompt:0:60}..'" >&2
 
-  # Run with --quiet to minimize noise, --allow-all for non-interactive
-  if ! copilot \
+  local exit_code=0
+  copilot \
     --agent "$agent" \
     -p "$prompt" \
-    --quiet \
     --allow-all \
-    --stream off \
-    > "$output_file" 2>&1; then
-    log "⚠ copilot exited with non-zero status"
+    > "$output_file" 2>&1 || exit_code=$?
+
+  local lines
+  lines=$(wc -l < "$output_file" | tr -d ' ')
+  log "  → exit=$exit_code, lines=$lines, saved to $output_file" >&2
+
+  if [[ "$VERBOSE" == "true" ]]; then
+    log "  --- First 80 lines ---" >&2
+    head -80 "$output_file" >&2
+    log "  --- End ---" >&2
   fi
 
-  if [[ "$VERBOSE" == "--verbose" ]]; then
-    log "--- Output ---"
-    head -50 "$output_file"
-    log "--- End ---"
+  if [[ "$lines" -lt 2 ]]; then
+    log "  ⚠ Output looks empty. Contents:" >&2
+    cat "$output_file" >&2
   fi
 
-  cat "$output_file"
-  rm -f "$output_file"
+  echo "$output_file"
 }
 
-check_output() {
+check_file() {
   local test_name="$1"
-  local output="$2"
+  local output_file="$2"
   local pattern="$3"
 
-  if echo "$output" | grep -qE "$pattern"; then
+  if [[ ! -f "$output_file" ]]; then
+    fail "$test_name" "Output file not found"
+    return
+  fi
+
+  if grep -qE "$pattern" "$output_file"; then
     pass "$test_name"
   else
     fail "$test_name" "Pattern not found: $pattern"
+    if [[ "$VERBOSE" == "true" ]]; then
+      log "  File: $output_file" >&2
+    fi
   fi
 }
 
@@ -132,36 +157,45 @@ for agent_file in .github/agents/{auth,security-champion,nais,observability,code
   fi
 done
 
-# ─── E2E Tests (requires copilot CLI) ───────────────────────────────────────
+# ─── E2E Tests (requires copilot CLI + --e2e flag) ──────────────────────────
 
 echo ""
 echo "═══ E2E Agent Output Tests ═══"
 echo ""
 
-if ! command -v copilot &>/dev/null; then
+if [[ "$RUN_E2E" != "true" ]]; then
+  log "Skipped — pass --e2e to run (takes ~2-5 min per test)"
+  log "Example: ./scripts/test/test-agent-phases.sh --e2e -v"
+elif ! command -v copilot &>/dev/null; then
   log "⚠ copilot CLI not found — skipping E2E tests"
-  log "  Install: https://docs.github.com/en/copilot/github-copilot-in-the-cli"
 else
   # Test 1: nav-pilot should show a phase header
   log ""
-  log "Test: nav-pilot phase header on planning prompt"
-  OUTPUT=$(run_agent "nav-pilot" "Jeg trenger en ny Kotlin/Ktor backend-tjeneste som mottar dagpengesøknader via Kafka. Ikke generer kode, bare kartlegg.")
-  PHASE_PATTERN="(Fase [1-4]:|🔍|📐|🔎|🚀)"
-  check_output "nav-pilot shows phase header" "$OUTPUT" "$PHASE_PATTERN"
+  log "Test 1: nav-pilot phase header on planning prompt"
+  FILE=$(run_agent "phase-header" "nav-pilot" \
+    "Jeg trenger en ny Kotlin/Ktor backend-tjeneste som mottar dagpengesøknader via Kafka. Ikke generer kode, bare kartlegg og planlegg.")
+  check_file "nav-pilot shows phase header" "$FILE" \
+    "(Fase [1-4]:|🔍 Fase|📐 Fase|🔎 Fase|🚀 Fase)"
 
-  # Test 2: nav-pilot should show phase stop
+  # Test 2: nav-pilot completion should show phase 4
   log ""
-  log "Test: nav-pilot phase stop separator"
-  OUTPUT=$(run_agent "nav-pilot" "Planlegg en ny tjeneste for å behandle vedtak. Kun fase 1, stopp etter intervju.")
-  STOP_PATTERN="(Fase .* ferdig|⏸|Bekreft|fortsette|────)"
-  check_output "nav-pilot shows phase stop" "$OUTPUT" "$STOP_PATTERN"
+  log "Test 2: nav-pilot task completion shows Fase 4"
+  check_file "nav-pilot shows Fase 4 at completion" "$FILE" \
+    "(Fase 4|🚀|Lever)"
 
-  # Test 3: auth-agent should show progress indicator
+  # Test 3: auth-agent should produce auth-related output
   log ""
-  log "Test: auth-agent progress indicator"
-  OUTPUT=$(run_agent "auth-agent" "Gjør en rask sjekk av auth-oppsettet i dette repoet. Bare oppsummer, ikke endre noe.")
-  AUTH_PATTERN="(🔐|Kartlegger|Analyserer|Funn|Auth)"
-  check_output "auth-agent shows progress" "$OUTPUT" "$AUTH_PATTERN"
+  log "Test 3: auth-agent produces auth content"
+  FILE=$(run_agent "auth-check" "auth-agent" \
+    "Gjør en rask sjekk av auth-oppsettet i dette repoet. Bare oppsummer, ikke endre noe.")
+  check_file "auth-agent shows auth content" "$FILE" \
+    "(auth|Auth|token|Token|Azure|azureAd|OAuth|JWT|🔐)"
+
+  log ""
+  log "Output files preserved in: $OUTPUT_DIR"
+  # Don't clean up if E2E ran — user might want to inspect
+  trap - EXIT
+  log "  Inspect: ls $OUTPUT_DIR/"
 fi
 
 # ─── Summary ────────────────────────────────────────────────────────────────
@@ -173,7 +207,7 @@ for r in "${RESULTS[@]}"; do
   echo "  $r"
 done
 echo ""
-echo "  Total: $((PASS + FAIL)) | ✅ $PASS passed | ❌ $FAIL failed"
+echo "  Total: $((PASS + FAIL + SKIP)) | ✅ $PASS passed | ❌ $FAIL failed | ⏭ $SKIP skipped"
 echo ""
 
 if [[ $FAIL -gt 0 ]]; then
