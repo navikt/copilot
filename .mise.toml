@@ -16,6 +16,7 @@
 
 [tools]
 "go:github.com/sethvargo/ratchet" = "latest"
+shellcheck = "latest"
 
 [env]
 APPS = "copilot-adoption copilot-metrics mcp-onboarding mcp-registry my-copilot"
@@ -88,11 +89,7 @@ echo "  test..."    && go test -race ./... && \
 echo "  vet..."     && go vet ./... && \
 echo "  staticcheck..." && staticcheck ./... && \
 cd ../.. && \
-if command -v shellcheck >/dev/null 2>&1; then \
-  echo "  shellcheck..." && shellcheck scripts/install.sh; \
-else \
-  echo "  shellcheck... skipped (not installed)"; \
-fi && \
+echo "  shellcheck..." && shellcheck scripts/install.sh && \
 echo "  ✅ nav-pilot checks passed"
 """
 
