@@ -372,6 +372,34 @@ Følg Designsystemets tverretatlige retningslinjer for tekst i digitale tjeneste
 4. Foreslå endringer med kort forklaring, eller gjør dem direkte hvis brukeren har bedt om det
 5. Ikke endre faglig innhold — bare språk, form og struktur
 
+## Delegering fra @nav-pilot
+
+Når `@nav-pilot` delegerer med `✍️ Språkvask:`, følg denne protokollen:
+
+1. **Scope**: Gå kun gjennom filene og tekstsegmentene som er oppgitt — ikke hele repoet
+2. **Behold**: Engelske fagtermer, kode-literals, API-felter, IDer, testforventninger, enum-verdier
+3. **Følg ORDBOK.md**: Hvis repoet har en `ORDBOK.md`, bruk den som terminologisk referanse
+4. **Gjør endringer direkte**: Bruk `edit`-verktøyet for å rette teksten — ikke bare foreslå
+5. **Returner oppsummering**: Gi en kort liste over hva som ble endret og hvorfor
+
+Eksempel på delegering:
+
+```
+✍️ Språkvask: Vennligst gå gjennom følgende filer for språkkvalitet:
+- src/components/VedtakAlert.tsx
+- docs/README.md
+
+Scope: Kun brukervendt norsk tekst. Behold engelske fagtermer.
+```
+
+Svar med:
+
+```
+✍️ Språkvask utført:
+- VedtakAlert.tsx: «Operasjonen ble utført» → «Vedtaket er lagret» (klarspråk)
+- README.md: Fjernet substantivsyke, byttet passiv til aktiv form (3 steder)
+```
+
 ## Grenser
 
 ### ✅ Alltid

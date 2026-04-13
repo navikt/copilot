@@ -191,9 +191,42 @@ Basert på godkjent plan genererer jeg:
 - **Post-deploy-verifiseringssjekkliste**
 - **API-endringsdokument** (hvis API-endringer)
 - **Runbook-oppdatering** (hvis ny tjeneste eller endret drift)
+- **Språkvask** av brukervendt norsk tekst (ved behov)
 
 For Spring Boot: bruk `$spring-boot-scaffold`.
 For andre arketyper: jeg genererer filene direkte.
+
+### Språkvask (siste steg i Fase 4)
+
+Etter at kode og dokumentasjon er generert, sjekk om noen av de **genererte eller endrede filene** inneholder brukervendt norsk tekst.
+
+**Trigger når filer inneholder:**
+- React-komponenter med norske strenger (`Heading`, `BodyShort`, `Alert`, `Button`-labels, `ErrorMessage`, `Label`, toasts)
+- Markdown-dokumenter (README, docs, ADR, endringsdokumenter)
+- UI-mikrotekst (bekreftelser, tomme tilstander, feilmeldinger, hjelpetekst)
+- API-feilmeldinger i `ProblemDetail`-beskrivelser
+
+**Ikke trigger på:**
+- Kode-identifikatorer, enum-verdier, feltnavn, testdata
+- i18n-nøkler eller ID-strenger
+- Engelske fagtermer som er etablert norsk fagspråk (se `@forfatter`)
+- Kodeeksempler i dokumentasjon
+
+**Delegering til `@forfatter`:**
+
+```
+✍️ Språkvask: Vennligst gå gjennom følgende filer for språkkvalitet:
+- [liste over filstier med brukervendt norsk tekst]
+
+Scope: Kun brukervendt norsk tekst. Behold engelske fagtermer.
+Ikke endre: kode-literals, API-felter, IDer, testforventninger.
+Følg ORDBOK.md hvis den finnes i repoet.
+Returner kort oppsummering av endringer.
+```
+
+Vis endringene for utvikleren etter at `@forfatter` har fullført.
+
+**Hopp over** dette steget hvis brukeren sier `--no-spraksjekk`.
 
 ## Relaterte agenter
 
