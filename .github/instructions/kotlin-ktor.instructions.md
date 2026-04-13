@@ -342,6 +342,99 @@ logger.warn { "Retrying failed operation" }
 logger.error(exception) { "Failed to process event" }
 ```
 
+## Dependency Injection (Koin)
+
+Use Koin for lightweight, Kotlin-native DI:
+
+```kotlin
+// Module definition
+val appModule = module {
+    single<DataSource> { PostgresDataSourceBuilder.dataSource }
+    single<UserRepository> { UserRepositoryPostgres(get()) }
+    single<UserService> { UserService(get()) }
+    factory<SomeClient> { SomeClient(get<AppConfig>().clientUrl) }
+}
+
+// Bootstrap with Koin
+fun main() {
+    startKoin { modules(appModule) }
+
+    embeddedServer(Netty, port = 8080) {
+        val service: UserService by inject()
+        routing { userRoutes(service) }
+    }.start(wait = true)
+}
+```
+
+### Test modules
+
+```kotlin
+@Test
+fun `should process user`() {
+    startKoin {
+        modules(module {
+            single<UserRepository> { FakeUserRepository() }
+            single<UserService> { UserService(get()) }
+        })
+    }
+
+    val service: UserService by inject()
+    service.create(testUser) shouldNotBe null
+
+    stopKoin()
+}
+```
+
+## Functional Error Handling (Arrow-kt)
+
+Use Arrow's `Either` and `Raise` for typed error handling without exceptions:
+
+```kotlin
+// Define domain errors as sealed hierarchy
+sealed class UserError {
+    data class NotFound(val id: UserId) : UserError()
+    data class ValidationFailed(val reason: String) : UserError()
+    data object Unauthorized : UserError()
+}
+
+// Either-based service methods
+suspend fun findUser(id: UserId): Either<UserError, User> =
+    either {
+        val entity = repository.findById(id)
+            ?: raise(UserError.NotFound(id))
+        entity.toDomain()
+    }
+
+// Compose multiple Either operations
+suspend fun processApplication(request: Request): Either<AppError, Receipt> =
+    either {
+        val user = findUser(request.userId).bind()
+        val validated = validate(request).bind()
+        submit(user, validated).bind()
+    }
+```
+
+### Integrating Arrow with Ktor routing
+
+```kotlin
+fun Route.userRoutes(service: UserService) {
+    get("/api/users/{id}") {
+        val id = UserId(call.parameters["id"]!!)
+        service.findUser(id).fold(
+            ifLeft = { error ->
+                when (error) {
+                    is UserError.NotFound -> call.respond(HttpStatusCode.NotFound)
+                    is UserError.Unauthorized -> call.respond(HttpStatusCode.Forbidden)
+                    is UserError.ValidationFailed ->
+                        call.respond(HttpStatusCode.BadRequest, error.reason)
+                }
+            },
+            ifRight = { user -> call.respond(HttpStatusCode.OK, user) }
+        )
+    }
+}
+```
+
 ## Boundaries
 
 ### ✅ Always

@@ -4,6 +4,8 @@ applyTo: "**/*.kt"
 
 Spring Boot-mønstre for Nav-backends: controller, service, repository, validering og feilhåndtering.
 
+> **⚠️ Spring Boot brukes ikke i nye Nav-prosjekter.** Nye tjenester bygges med [Ktor](kotlin-ktor.instructions.md). Denne instruksjonen vedlikeholdes for eksisterende kode. For migrering, se [$java-to-kotlin](../skills/java-to-kotlin/) og [$ktor-scaffold](../skills/ktor-scaffold/).
+
 > Spring Boot patterns for Nav backends. Apply when the file uses Spring (`@RestController`, `@Service`, Spring Data etc.) — for Ktor/Rapids & Rivers apps, see `kotlin-ktor.instructions.md` instead.
 
 # Spring Boot Framework Patterns
@@ -240,3 +242,14 @@ class ResourceServiceTest {
 - Use field injection (`@Autowired` on fields)
 - Mix Spring Data JPA and JDBC in the same repository layer
 - Put business logic in controllers
+
+## Related
+
+| Type | Name | When to use |
+|------|------|-------------|
+| Instruction | [kotlin-ktor](kotlin-ktor.instructions.md) | **New projects** — Ktor is the standard for new Nav services |
+| Skill | [$java-to-kotlin](../skills/java-to-kotlin/) | Migrating Spring Boot code to Kotlin/Ktor |
+| Skill | [$ktor-scaffold](../skills/ktor-scaffold/) | Scaffolding a new Ktor project to replace a Spring service |
+| Skill | [$spring-boot-scaffold](../skills/spring-boot-scaffold/) | Scaffolding a new Spring Boot project (legacy, use Ktor for new) |
+| Skill | [$flyway-migration](../skills/flyway-migration/) | Database migration patterns |
+| Agent | @auth-agent | Authentication setup (TokenX, Azure AD) |

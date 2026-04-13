@@ -6,6 +6,8 @@ applyTo: "src/**/*.{tsx,jsx}"
 
 Universell utforming er lovpålagt i Norge. All frontend-kode i Nav skal oppfylle WCAG 2.1 AA.
 
+> For comprehensive WCAG tables, Aksel component patterns, and manual testing checklists, use `@accessibility-agent`. This instruction covers the essential code rules applied automatically when editing React/TSX files.
+
 ## Aksel-komponenter har innebygd UU
 
 Aksel-komponenter (`@navikt/ds-react`) håndterer mange a11y-krav automatisk:
@@ -40,41 +42,14 @@ Aksel-komponenter (`@navikt/ds-react`) håndterer mange a11y-krav automatisk:
 
 ## Heading-hierarki
 
-Overskriftsnivåer skal være logiske og uten hopp:
-
 ```tsx
-// ✅ Korrekt — sammenhengende nivåer
+// ✅ h1 → h2 → h3, ingen hopp
 <Heading size="large" level="1">Sidetittel</Heading>
   <Heading size="medium" level="2">Seksjon</Heading>
-    <Heading size="small" level="3">Underseksjon</Heading>
 
-// ❌ Feil — hopper fra h1 til h3
+// ❌ Hopper fra h1 til h3
 <Heading size="large" level="1">Sidetittel</Heading>
   <Heading size="small" level="3">Underseksjon</Heading>
-```
-
-## Skjemaer
-
-```tsx
-import { TextField, Select, Checkbox, ErrorSummary } from "@navikt/ds-react";
-
-// ✅ Korrekt — Aksel-skjemaelementer har innebygd label-kobling
-<TextField
-  label="Fødselsnummer"
-  description="11 siffer"
-  error={errors.fnr}
-  autoComplete="off"
-/>
-
-<Select label="Tema">
-  <option value="">Velg tema</option>
-  <option value="dagpenger">Dagpenger</option>
-</Select>
-
-// ✅ Feiloppsummering øverst i skjemaet
-<ErrorSummary heading="Du må rette disse feilene før du kan sende inn">
-  <ErrorSummary.Item href="#fnr">Fødselsnummer er påkrevd</ErrorSummary.Item>
-</ErrorSummary>
 ```
 
 ## Bilder og ikoner
@@ -114,81 +89,33 @@ import { TextField, Select, Checkbox, ErrorSummary } from "@navikt/ds-react";
 <div onClick={handleClick}>Klikk meg</div>
 ```
 
-## ARIA-attributter
-
-Bruk kun ARIA når HTML-semantikk ikke er tilstrekkelig:
+## ARIA — kun når nødvendig
 
 ```tsx
-// ✅ Navigasjonslandemerker
-<nav aria-label="Brødsmulesti">...</nav>
-<aside aria-label="Relatert innhold">...</aside>
-
 // ✅ Live-regioner for dynamisk innhold
 <Alert variant="success" role="status">
   Skjemaet ble sendt inn
 </Alert>
 
-// ✅ Expanding/collapsing
-<Button
-  aria-expanded={isOpen}
-  aria-controls="panel-id"
-  onClick={() => setIsOpen(!isOpen)}
->
-  Vis detaljer
-</Button>
-<div id="panel-id" hidden={!isOpen}>
-  Detaljert innhold
-</div>
-
-// ✅ Loading-tilstander
-<Loader size="xlarge" title="Laster inn data" />
+// ✅ Loading-tilstand
 <div aria-busy={isLoading} aria-live="polite">
   {isLoading ? <Loader title="Laster" /> : <DataTable data={data} />}
 </div>
+
+// ✅ Expanding/collapsing
+<Button aria-expanded={isOpen} aria-controls="panel-id">
+  Vis detaljer
+</Button>
 ```
 
 ## Fargekontrast
 
-- **Tekst**: Minimum 4.5:1 kontrast mot bakgrunn (AA)
-- **Stor tekst** (≥18px bold / ≥24px): Minimum 3:1
-- **Ikke-tekst UI** (ikoner, knappekanter): Minimum 3:1
-- **Bruk Aksel semantiske farger** — de oppfyller kontrastkrav automatisk
-- **Aldri bruk farge alene** for å formidle informasjon — kombiner med ikon, tekst, eller mønster
-
-## Keyboard-navigasjon
-
-Alle interaktive elementer skal være tilgjengelige med tastatur:
-
-- `Tab` / `Shift+Tab`: Naviger mellom elementer
-- `Enter` / `Space`: Aktiver knapper og lenker
-- `Escape`: Lukk modaler og menyer
-- `Arrow keys`: Naviger i lister, tabs, og menyer
-
-```tsx
-// ✅ Fokusfelle i modal — Aksel Modal håndterer dette
-<Modal open={isOpen} onClose={() => setIsOpen(false)} header={{ heading: "Bekreft sletting" }}>
-  <Modal.Body>Er du sikker?</Modal.Body>
-  <Modal.Footer>
-    <Button onClick={handleDelete}>Slett</Button>
-    <Button variant="secondary" onClick={() => setIsOpen(false)}>Avbryt</Button>
-  </Modal.Footer>
-</Modal>
-
-// ✅ Skip-lenke (legg til øverst i layout)
-<a href="#main-content" className="navds-sr-only navds-sr-only--focusable">
-  Hopp til hovedinnhold
-</a>
-```
+- **Tekst**: 4.5:1 (AA), **stor tekst**: 3:1
+- **UI-komponenter**: 3:1
+- Bruk Aksel semantiske farger — de oppfyller kontrastkrav
+- **Aldri farge alene** for å formidle informasjon
 
 ## Testing
-
-```bash
-# Automatisk a11y-sjekk med vitest-axe i eksisterende tester
-npm install --save-dev vitest-axe
-
-# Lighthouse accessibility audit
-npx lighthouse http://localhost:3000 --only-categories=accessibility --output=json
-```
 
 ```tsx
 import { axe, toHaveNoViolations } from "vitest-axe";
@@ -201,19 +128,6 @@ it("should have no accessibility violations", async () => {
   expect(results).toHaveNoViolations();
 });
 ```
-
-## Sjekkliste
-
-Før du merger frontend-kode, verifiser:
-
-- [ ] Heading-nivåer er logiske (h1 → h2 → h3, ingen hopp)
-- [ ] Alle skjema-elementer har synlige labels
-- [ ] Alle bilder har meningsfull `alt`-tekst eller `alt=""`
-- [ ] Alle interaktive elementer har tilgjengelig navn
-- [ ] Ingen informasjon formidles kun med farge
-- [ ] Siden er fullt brukbar med kun tastatur
-- [ ] Dynamisk innhold annonseres med `aria-live` eller `role="status"`
-- [ ] Feilmeldinger er koblet til rett felt og oppsummert
 
 ## Boundaries
 
@@ -233,6 +147,7 @@ Før du merger frontend-kode, verifiser:
 - `<div onClick>` uten `role="button"` og `tabIndex`
 - Ikonknapper uten tilgjengelig navn (title eller sr-only tekst)
 - Fjern fokus-indikator (`outline: none`) uten erstatning
+- `tabIndex` > 0
 
 ## Related
 

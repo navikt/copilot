@@ -187,6 +187,77 @@ export async function POST(request: Request) {
 }
 ```
 
+## Async Request APIs (Next.js 15+)
+
+In Next.js 15+, `cookies()`, `headers()`, and route `params` are **async** and require `await`:
+
+```typescript
+import { cookies, headers } from "next/headers";
+
+export default async function Page() {
+  // ✅ Next.js 15+: must await
+  const cookieStore = await cookies();
+  const headersList = await headers();
+
+  const token = cookieStore.get("auth-token")?.value;
+  const userAgent = headersList.get("user-agent");
+}
+
+// ✅ Route params are also Promises
+export async function GET(
+  request: Request,
+  props: { params: Promise<{ id: string }> }
+) {
+  const { id } = await props.params;
+  // ...
+}
+
+// ❌ Next.js 14 pattern — no longer works
+const cookieStore = cookies(); // Error: must await
+```
+
+## Metadata API
+
+```typescript
+import { Metadata } from "next";
+
+// ✅ Dynamic metadata for SEO
+export async function generateMetadata(
+  props: { params: Promise<{ id: string }> }
+): Promise<Metadata> {
+  const { id } = await props.params;
+  const vedtak = await fetchVedtak(id);
+
+  return {
+    title: `${vedtak.title} | Nav`,
+    description: vedtak.summary,
+    openGraph: { title: vedtak.title, description: vedtak.summary },
+  };
+}
+```
+
+## Middleware
+
+```typescript
+// src/middleware.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+
+  // Security headers
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+
+  return response;
+}
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};
+```
+```
+
 ## Authentication
 
 ```typescript

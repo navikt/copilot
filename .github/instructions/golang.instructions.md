@@ -227,10 +227,161 @@ if err != nil {
 var ErrNotFound = errors.New("resource not found")
 var ErrForbidden = errors.New("access denied")
 
-// ✅ Check specific errors
+// ✅ Check specific errors with errors.Is
 if errors.Is(err, pgx.ErrNoRows) {
     return ErrNotFound
 }
+
+// ✅ Custom error types for rich error info
+type ValidationError struct {
+    Field   string
+    Message string
+}
+
+func (e ValidationError) Error() string {
+    return fmt.Sprintf("validation: %s — %s", e.Field, e.Message)
+}
+
+// ✅ Use errors.As for type assertion
+var valErr ValidationError
+if errors.As(err, &valErr) {
+    http.Error(w, valErr.Message, http.StatusBadRequest)
+    return
+}
+
+// ❌ Don't use %v for wrapping — loses error chain
+return fmt.Errorf("error: %v", err)
+```
+
+## Naming Conventions
+
+```go
+// ✅ MixedCaps for identifiers; acronyms ALL CAPS
+type HTTPClient struct { ... }    // not HttpClient
+type URLValidator struct { ... }  // not UrlValidator
+
+// ✅ Package names: lowercase, single word, no underscores
+package database   // not package db_utils
+package handlers   // not package httpHandlers
+
+// ✅ Short receiver names (1-2 chars)
+func (s *Service) Process(ctx context.Context) error { ... }
+func (db *Database) Query(ctx context.Context) error { ... }
+
+// ❌ Avoid generic package names
+package util    // what utilities?
+package common  // be specific
+```
+
+## Interface Patterns
+
+```go
+// ✅ Accept interfaces, return structs
+type Store interface {
+    GetResource(ctx context.Context, id string) (*Resource, error)
+    SaveResource(ctx context.Context, r *Resource) error
+}
+
+// Constructor returns concrete struct
+func NewService(store Store, log *slog.Logger) *Service {
+    return &Service{store: store, log: log}
+}
+
+// ✅ Small interfaces — one or two methods
+type Validator interface {
+    Validate(ctx context.Context) error
+}
+
+// ✅ Interface-based test doubles
+type mockStore struct {
+    getResourceFn func(ctx context.Context, id string) (*Resource, error)
+}
+
+func (m *mockStore) GetResource(ctx context.Context, id string) (*Resource, error) {
+    return m.getResourceFn(ctx, id)
+}
+```
+
+## Concurrency
+
+### errgroup for Parallel Work
+
+```go
+import "golang.org/x/sync/errgroup"
+
+func LoadDashboard(ctx context.Context, id string) (*Dashboard, error) {
+    g, ctx := errgroup.WithContext(ctx)
+
+    var user *User
+    var stats *Stats
+
+    g.Go(func() error {
+        var err error
+        user, err = db.GetUser(ctx, id)
+        return err
+    })
+
+    g.Go(func() error {
+        var err error
+        stats, err = db.GetStats(ctx, id)
+        return err
+    })
+
+    if err := g.Wait(); err != nil {
+        return nil, fmt.Errorf("loading dashboard: %w", err)
+    }
+
+    return &Dashboard{User: user, Stats: stats}, nil
+}
+```
+
+### Graceful Shutdown
+
+```go
+func main() {
+    ctx, cancel := signal.NotifyContext(context.Background(),
+        syscall.SIGINT, syscall.SIGTERM)
+    defer cancel()
+
+    server := &http.Server{Addr: ":8080", Handler: mux}
+
+    go func() {
+        if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+            log.Error("server failed", "error", err)
+        }
+    }()
+
+    <-ctx.Done()
+    log.Info("shutting down")
+
+    shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer shutdownCancel()
+
+    if err := server.Shutdown(shutdownCtx); err != nil {
+        log.Error("shutdown failed", "error", err)
+    }
+}
+```
+
+### Context Propagation
+
+```go
+// ✅ Always pass context through call chains
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    ctx := r.Context() // inherit from request
+    resource, err := service.Get(ctx, id)
+    // ...
+}
+
+// ✅ Use context for cancellation in goroutines
+go func() {
+    select {
+    case <-ctx.Done():
+        return
+    case result := <-ch:
+        process(result)
+    }
+}()
 ```
 
 ## Configuration
@@ -384,4 +535,4 @@ func TestDatabase(t *testing.T) {
 | `@nais-agent` | Nais manifest, GCP resources, accessPolicy |
 | `@observability-agent` | Prometheus metrics, Grafana dashboards |
 | `security-owasp` instruction | OWASP Top 10:2025 patterns for Go |
-| `@security-champion` | Threat modeling and security architecture |
+| `@security-champion-agent` | Threat modeling and security architecture |

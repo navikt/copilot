@@ -4,7 +4,7 @@ applyTo: "**/*.{kt,go}"
 
 # OWASP Top 10:2025 — Code-Level Security
 
-Tactical security patterns for Kotlin and Go code on NAIS. This instruction focuses on **code-level anti-patterns** and fixes — it complements `@security-champion` (architecture-level threat modeling) and the `security-review` skill (scanning tools like trivy, zizmor, govulncheck).
+Tactical security patterns for Kotlin and Go code on NAIS. This instruction focuses on **code-level anti-patterns** and fixes — it complements `@security-champion-agent` (architecture-level threat modeling) and the `security-review` skill (scanning tools like trivy, zizmor, govulncheck).
 
 > For automated scanning workflows, run the `security-review` skill before commit.
 
@@ -659,7 +659,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 | Resource | Use For |
 |----------|---------|
 | `security-review` skill | Pre-commit scanning (trivy, zizmor, govulncheck) |
-| `@security-champion` | Threat modeling, compliance, Nav security architecture |
+| `@security-champion-agent` | Threat modeling, compliance, Nav security architecture |
 | `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
 | `threat-model` skill | STRIDE-A analysis for new services |
 | [sikkerhet.nav.no](https://sikkerhet.nav.no) | Nav Golden Path, authoritative security guidance |
@@ -689,13 +689,3 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 - Wildcard CORS (`*` / `anyHost()`)
 - Hardcoded secrets or encryption keys
 - `encoding/gob` or polymorphic deserialization from untrusted input
-
-## Related
-
-| Resource | Use For |
-|----------|---------|
-| `security-review` skill | Pre-commit scanning (trivy, zizmor, govulncheck) |
-| `@security-champion` | Threat modeling, compliance, Nav security architecture |
-| `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
-| `threat-model` skill | STRIDE-A analysis for new services |
-| [sikkerhet.nav.no](https://sikkerhet.nav.no) | Nav Golden Path, authoritative security guidance |

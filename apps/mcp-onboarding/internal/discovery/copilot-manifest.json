@@ -339,6 +339,21 @@
     },
     {
       "type": "instruction",
+      "name": "golang",
+      "displayName": "Golang Development",
+      "description": "Go-mønstre for Nav-tjenester på Nais-plattformen. Gjelder Go HTTP-tjenester, CLI-verktøy og plattformkomponenter.",
+      "tags": [
+        "nais",
+        "kubernetes",
+        "deployment",
+        "infrastructure"
+      ],
+      "filePath": ".github/instructions/golang.instructions.md",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/golang.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/golang.instructions.md"
+    },
+    {
+      "type": "instruction",
       "name": "kotlin-ktor",
       "displayName": "Kotlin/Ktor Development",
       "description": "Use the ApplicationBuilder pattern for bootstrapping applications:",
@@ -380,6 +395,37 @@
       "filePath": ".github/instructions/nextjs-aksel.instructions.md",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md"
+    },
+    {
+      "type": "instruction",
+      "name": "performance",
+      "displayName": "Performance Development",
+      "description": "Core Web Vitals targets and performance patterns for Next.js applications with Aksel Design System on NAIS.",
+      "tags": [
+        "aksel",
+        "design-system",
+        "nextjs",
+        "react",
+        "ui"
+      ],
+      "filePath": ".github/instructions/performance.instructions.md",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/performance.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/performance.instructions.md"
+    },
+    {
+      "type": "instruction",
+      "name": "security-owasp",
+      "displayName": "Security/Owasp Development",
+      "description": "Tactical security patterns for Kotlin and Go code on NAIS. This instruction focuses on **code-level anti-patterns** and fixes — it complements `@security-champion-agent` (architecture-level threat modeling) and the `security-review` skill (scanning tools like trivy, zizmor, govulncheck).",
+      "tags": [
+        "nais",
+        "kubernetes",
+        "deployment",
+        "infrastructure"
+      ],
+      "filePath": ".github/instructions/security-owasp.instructions.md",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/security-owasp.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/security-owasp.instructions.md"
     },
     {
       "type": "instruction",
@@ -445,6 +491,21 @@
     },
     {
       "type": "prompt",
+      "name": "golang-service",
+      "displayName": "#golang-service",
+      "description": "Scaffold ein Go HTTP-teneste med NAIS-mønster, pgx, sqlc og slog",
+      "tags": [
+        "nais",
+        "kubernetes",
+        "deployment",
+        "infrastructure"
+      ],
+      "filePath": ".github/prompts/golang-service.prompt.md",
+      "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/golang-service.prompt.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/golang-service.prompt.md"
+    },
+    {
+      "type": "prompt",
       "name": "kafka-topic",
       "displayName": "#kafka-topic",
       "description": "Legg til Kafka-topic-konfigurasjon i Nais-manifest og lag Rapids \u0026 Rivers event handler",
@@ -457,6 +518,15 @@
       "filePath": ".github/prompts/kafka-topic.prompt.md",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/kafka-topic.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/kafka-topic.prompt.md"
+    },
+    {
+      "type": "prompt",
+      "name": "ktor-endpoint",
+      "displayName": "#ktor-endpoint",
+      "description": "Generer ein Ktor-rute med autentisering, validering og feilhåndtering",
+      "filePath": ".github/prompts/ktor-endpoint.prompt.md",
+      "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/ktor-endpoint.prompt.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/ktor-endpoint.prompt.md"
     },
     {
       "type": "prompt",
@@ -543,12 +613,30 @@
     },
     {
       "type": "skill",
+      "name": "java-to-kotlin",
+      "displayName": "java-to-kotlin",
+      "description": "Systematic conversion of Java codebases to idiomatic Kotlin, with framework-aware transformations for Nav services. Covers the full journey from faithful translation through nullability audit, collection migration, and idiomatic transforms — plus framework-specific patterns for Spring→Ktor, JPA→Kotliquery, JUnit→Kotest, and Lombok elimination.",
+      "filePath": ".github/skills/java-to-kotlin",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/java-to-kotlin/SKILL.md"
+    },
+    {
+      "type": "skill",
       "name": "kotlin-app-config",
       "displayName": "kotlin-app-config",
       "description": "This skill provides patterns for type-safe environment configuration using Kotlin sealed classes.",
       "filePath": ".github/skills/kotlin-app-config",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/kotlin-app-config/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "ktor-scaffold",
+      "displayName": "ktor-scaffold",
+      "description": "Scaffold a new Kotlin/Ktor service following Nav's standard patterns. This skill composes patterns from existing Nav skills and instructions.",
+      "filePath": ".github/skills/ktor-scaffold",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/ktor-scaffold/SKILL.md"
     },
     {
       "type": "skill",
@@ -693,6 +781,21 @@
       "filePath": ".github/skills/spring-boot-scaffold",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/spring-boot-scaffold/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "threat-model",
+      "displayName": "threat-model",
+      "description": "Systematic threat identification for NAIS microservices using the STRIDE-A methodology. Produces a data flow diagram, structured threats table, prioritized mitigations, and residual risk summary.",
+      "filePath": ".github/skills/threat-model",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/threat-model/SKILL.md",
+      "references": [
+        {
+          "path": "references/nav-mitigations.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/threat-model/references/nav-mitigations.md"
+        }
+      ]
     },
     {
       "type": "skill",

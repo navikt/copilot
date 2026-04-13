@@ -455,7 +455,7 @@ Document risks that are accepted, transferred, or cannot be fully mitigated:
 
 | Resource | Use For |
 |----------|---------|
-| `@security-champion` | Security architecture, compliance, Nav security culture |
+| `@security-champion-agent` | Security architecture, compliance, Nav security culture |
 | `security-review` skill | Pre-commit scanning (trivy, zizmor, secrets) |
 | `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
 | `@nais-agent` | accessPolicy, network policy, secrets management |
