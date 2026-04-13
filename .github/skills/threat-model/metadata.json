@@ -2,6 +2,9 @@
   "description": "STRIDE-A trusselmodellering for Nais-mikrotjenester — dataflyt, tillitsgrenser og risikovurdering",
   "domain": "security",
   "tags": ["threat-modeling", "stride", "security", "nais", "architecture"],
+  "references": [
+    "references/nav-mitigations.md"
+  ],
   "examples": [
     {
       "prompt": "Lag en trusselmodell for dp-soknad som behandler søknader om dagpenger",

@@ -376,3 +376,12 @@ func TestDatabase(t *testing.T) {
 - GORM for new projects (use pgx+sqlc)
 - Full OS base images (Ubuntu, Alpine) in Docker
 - Storing secrets in code or config files
+
+## Related
+
+| Resource | Use For |
+|----------|---------|
+| `@nais-agent` | Nais manifest, GCP resources, accessPolicy |
+| `@observability-agent` | Prometheus metrics, Grafana dashboards |
+| `security-owasp` instruction | OWASP Top 10:2025 patterns for Go |
+| `@security-champion` | Threat modeling and security architecture |

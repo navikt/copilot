@@ -233,3 +233,11 @@ Før du merger frontend-kode, verifiser:
 - `<div onClick>` uten `role="button"` og `tabIndex`
 - Ikonknapper uten tilgjengelig navn (title eller sr-only tekst)
 - Fjern fokus-indikator (`outline: none`) uten erstatning
+
+## Related
+
+| Resource | Use For |
+|----------|---------|
+| `@accessibility-agent` | Expert guidance on complex WCAG requirements |
+| `@aksel-agent` | Aksel component patterns with built-in a11y |
+| `playwright-testing` skill | E2E accessibility testing with axe-core |

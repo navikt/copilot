@@ -365,3 +365,15 @@ logger.error(exception) { "Failed to process event" }
 - Bypass authentication checks
 - Use `!!` operator without null checks
 - Commit configuration secrets
+
+## Related
+
+| Resource | Use For |
+|----------|---------|
+| `kotlin-app-config` skill | Sealed class configuration pattern (Dev/Prod/Local) |
+| `ktor-scaffold` skill | Scaffolding new Ktor services with full stack |
+| `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
+| `@nais-agent` | Nais manifest, accessPolicy, secrets |
+| `@observability-agent` | Prometheus metrics, Grafana, tracing |
+| `flyway-migration` skill | Database migration patterns |
+| `api-design` skill | REST API conventions (RFC 7807, versioning) |

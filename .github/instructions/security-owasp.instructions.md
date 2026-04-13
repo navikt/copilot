@@ -689,3 +689,13 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 - Wildcard CORS (`*` / `anyHost()`)
 - Hardcoded secrets or encryption keys
 - `encoding/gob` or polymorphic deserialization from untrusted input
+
+## Related
+
+| Resource | Use For |
+|----------|---------|
+| `security-review` skill | Pre-commit scanning (trivy, zizmor, govulncheck) |
+| `@security-champion` | Threat modeling, compliance, Nav security architecture |
+| `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
+| `threat-model` skill | STRIDE-A analysis for new services |
+| [sikkerhet.nav.no](https://sikkerhet.nav.no) | Nav Golden Path, authoritative security guidance |

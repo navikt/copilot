@@ -65,13 +65,16 @@ git log -p --all -S 'password' -- '*.kt' '*.ts' | head -100
 
 **Search tools**: Use `grep_search` for security patterns, `semantic_search` for auth/validation code.
 
-## Related Agents
+## Related
 
-| Agent | Use For |
-|-------|---------|
+| Resource | Use For |
+|----------|---------|
 | `@auth-agent` | JWT validation, TokenX flow, ID-porten, Maskinporten |
 | `@nais-agent` | accessPolicy, secrets, network policies |
 | `@observability-agent` | Security alerts, anomaly detection |
+| `threat-model` skill | STRIDE-A systematic analysis with data flow diagrams |
+| `security-review` skill | Pre-commit scanning (trivy, zizmor, govulncheck) |
+| `security-owasp` instruction | Code-level OWASP Top 10:2025 anti-patterns for Kotlin/Go |
 
 ## Nav Security Principles
 

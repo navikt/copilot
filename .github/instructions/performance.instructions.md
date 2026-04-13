@@ -437,3 +437,12 @@ Key rules:
 - Sequential `await` for independent data fetches
 - Images without explicit `width` and `height`
 - `import *` from `@navikt/ds-react` or `@navikt/aksel-icons`
+
+## Related
+
+| Resource | Use For |
+|----------|---------|
+| `@aksel-agent` | Aksel Design System component patterns and spacing tokens |
+| `@observability-agent` | Prometheus metrics and Grafana dashboards for Core Web Vitals |
+| `nextjs-aksel` instruction | Next.js App Router patterns with Aksel |
+| `playwright-testing` skill | E2E testing to validate performance optimizations |

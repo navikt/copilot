@@ -474,3 +474,13 @@ pnpm test
 - Ignore accessibility requirements
 - Skip responsive props
 - Add code comments unless explicitly requested
+
+## Related
+
+| Resource | Use For |
+|----------|---------|
+| `@aksel-agent` | Aksel Design System component patterns and spacing tokens |
+| `@accessibility-agent` | WCAG 2.1/2.2 compliance and accessibility testing |
+| `performance` instruction | Core Web Vitals and bundle optimization |
+| `aksel-spacing` skill | Responsive spacing token reference |
+| `playwright-testing` skill | E2E testing with Playwright and axe-core |
