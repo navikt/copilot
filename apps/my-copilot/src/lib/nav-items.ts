@@ -6,11 +6,11 @@ import {
   PersonIcon,
   PieChartIcon,
   InformationSquareIcon,
-  RocketIcon,
 } from "@navikt/aksel-icons";
 
 export const NAV_ITEMS = [
-  { href: "/nav-pilot", icon: RocketIcon, label: "nav-pilot" },
+  // nav-pilot hidden from nav during soft launch — pages still accessible via direct URL
+  // { href: "/nav-pilot", icon: RocketIcon, label: "nav-pilot" },
   { href: "/praksis", icon: BookIcon, label: "God praksis" },
   { href: "/verktoy", icon: WrenchIcon, label: "Verktøy" },
   { href: "/statistikk", icon: LineGraphIcon, label: "Statistikk" },
