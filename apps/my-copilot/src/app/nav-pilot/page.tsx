@@ -183,7 +183,7 @@ function HeroSection() {
               <Heading size="xlarge" level="1">
                 Slutt å lære opp Copilot.
               </Heading>
-              <Tag variant="info" size="small" className="uppercase tracking-wide">Beta</Tag>
+              <Tag variant="info" size="small" className="uppercase tracking-wide" style={{ background: "#dbeafe", color: "#1e3a5f" }}>Beta</Tag>
             </div>
             <p
               className="max-w-2xl mx-auto hero-animate-d1"
