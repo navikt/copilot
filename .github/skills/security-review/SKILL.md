@@ -232,6 +232,8 @@ npm audit fix
 - [ ] All SQL queries use parameterized statements
 - [ ] Nais `accessPolicy` limits inbound/outbound to only what is needed
 - [ ] Token validation on all protected endpoints (see `@security-champion`)
+- [ ] M2M tokens validate `azp` against `AZURE_APP_PRE_AUTHORIZED_APPS`
+- [ ] Auth code matches `.nais/` accessPolicy inbound rules (no dead code or missing rules)
 - [ ] `trivy repo .` passes without HIGH/CRITICAL findings
 - [ ] `zizmor` passes on all GitHub Actions workflows
 - [ ] Git history clean of committed secrets (`git log` scan above)

@@ -244,13 +244,15 @@ spec:
 
 ### Security Considerations for Auth
 
-When implementing authentication, ensure:
+When reviewing authentication, ensure:
 
 1. **Defense in depth**: Don't rely solely on authentication - combine with authorization, network policies, and input validation
 2. **Token validation**: Always validate issuer, audience, expiration, and signature
-3. **Access policies**: Define explicit network policies in `accessPolicy` for all authenticated services
-4. **Audit logging**: Log authentication events using CEF format (see Audit Logging section)
-5. **Least privilege**: Request only the scopes/permissions needed
+3. **M2M `azp` validation**: For Azure AD machine-to-machine tokens, validate the `azp` claim against `AZURE_APP_PRE_AUTHORIZED_APPS` — otherwise any app in the tenant can call the service
+4. **Auth-vs-accessPolicy cross-check**: Diff auth code (which apps are validated in code) against `.nais/` `accessPolicy.inbound.rules` (which apps can reach the service). Mismatches indicate dead code or missing network rules
+5. **Access policies**: Define explicit network policies in `accessPolicy` for all authenticated services
+6. **Audit logging**: Log authentication events using CEF format (see Audit Logging section)
+7. **Least privilege**: Request only the scopes/permissions needed
 
 ### Role-Based Access Control (RBAC)
 
