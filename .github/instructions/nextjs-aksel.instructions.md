@@ -354,6 +354,100 @@ export default function VedtakForm() {
 }
 ```
 
+## When Using React Query (Server State)
+
+React Query (@tanstack/react-query) is the standard for server state management at Nav, replacing Redux/Context for API data.
+
+```tsx
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+export function ResourceList() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["resources"],
+    queryFn: () => fetch("/api/resources").then((res) => res.json()),
+  });
+
+  if (isLoading) return <Loader title="Laster..." />;
+  if (error) return <Alert variant="error">Kunne ikke laste data</Alert>;
+
+  return (
+    <VStack gap="space-4">
+      {data.map((resource) => (
+        <ResourceCard key={resource.id} resource={resource} />
+      ))}
+    </VStack>
+  );
+}
+```
+
+```tsx
+// ✅ Mutation with cache invalidation
+const queryClient = useQueryClient();
+const mutation = useMutation({
+  mutationFn: (data: CreateRequest) =>
+    fetch("/api/resources", { method: "POST", body: JSON.stringify(data) }),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ["resources"] }),
+});
+```
+
+Do not introduce React Query into projects that don't already use it — Server Components with `fetch` may be sufficient.
+
+## When Using React Hook Form (Form State)
+
+React Hook Form is preferred for complex forms with validation.
+
+```tsx
+"use client";
+
+import { useForm } from "react-hook-form";
+import { TextField, Button, VStack } from "@navikt/ds-react";
+
+interface FormData {
+  name: string;
+  email: string;
+}
+
+export function RegistrationForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <VStack gap="space-4">
+        <TextField
+          label="Navn"
+          {...register("name", { required: "Navn er påkrevd" })}
+          error={errors.name?.message}
+        />
+        <TextField
+          label="E-post"
+          type="email"
+          {...register("email", { required: "E-post er påkrevd" })}
+          error={errors.email?.message}
+        />
+        <Button type="submit">Registrer</Button>
+      </VStack>
+    </form>
+  );
+}
+```
+
+For simple forms, Server Actions with `useActionState` (shown above) may be simpler.
+
+## Package Manager
+
+**pnpm** is the standard package manager for new Nav frontend projects.
+
+```bash
+# ✅ Use pnpm
+pnpm install
+pnpm add @navikt/ds-react
+pnpm test
+
+# Lock file: pnpm-lock.yaml (commit this)
+```
+
 ## Boundaries
 
 ### ✅ Always
@@ -363,6 +457,7 @@ export default function VedtakForm() {
 - Mobile-first responsive design
 - Norwegian number formatting
 - Explicit error handling in API routes
+- pnpm for new projects
 
 ### ⚠️ Ask First
 
@@ -370,6 +465,7 @@ export default function VedtakForm() {
 - Deviating from Aksel patterns
 - Changing authentication flow
 - Modifying data aggregation logic
+- Introducing React Query or React Hook Form into existing projects
 
 ### 🚫 Never
 

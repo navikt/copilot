@@ -19,6 +19,7 @@
     "api-design",
     "flyway-migration",
     "kotlin-app-config",
+    "ktor-scaffold",
     "observability-setup",
     "playwright-testing",
     "security-review",
@@ -32,6 +33,7 @@
   "instructions": [
     "kotlin-ktor",
     "kotlin-spring",
+    "go-nais",
     "nextjs-aksel",
     "testing",
     "testing-kotlin",
@@ -42,10 +44,12 @@
     "database"
   ],
   "prompts": [
+    "ktor-endpoint",
     "spring-boot-endpoint",
     "kafka-topic",
     "nais-manifest",
     "aksel-component",
-    "nextjs-api-route"
+    "nextjs-api-route",
+    "go-service"
   ]
 }

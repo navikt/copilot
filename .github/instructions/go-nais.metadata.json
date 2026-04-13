@@ -1,0 +1,8 @@
+{
+  "slug": "go-nais",
+  "title": "Go on NAIS",
+  "description": "Go-mønstre for Nav-tjenester på Nais: pgx, sqlc, slog, stdlib HTTP og Chainguard Docker",
+  "glob": "**/*.go",
+  "category": "backend",
+  "language": "go"
+}

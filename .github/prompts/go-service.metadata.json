@@ -1,0 +1,5 @@
+{
+  "slug": "go-service",
+  "title": "Go NAIS-teneste",
+  "description": "Scaffold ein Go HTTP-teneste med NAIS-mønster, pgx, sqlc og slog"
+}

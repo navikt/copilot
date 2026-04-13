@@ -2,7 +2,7 @@
 applyTo: "**/*.kt"
 ---
 
-Ktor- og Rapids & Rivers-mønstre for Nav-backends: ApplicationBuilder, sealed config, Kotliquery og feilhåndtering.
+Ktor- og Rapids & Rivers-mønstre for Nav-backends: ApplicationBuilder, sealed config, Kotliquery, Koin og feilhåndtering.
 
 > Ktor/Rapids & Rivers patterns for Nav backends. Apply when the file uses Ktor (`RapidApplication`, `routing`, `River`) — for Spring Boot apps, see `kotlin-spring.instructions.md` instead.
 
@@ -57,25 +57,9 @@ val config = when (environment) {
 }
 ```
 
-Use `konfig` library for typed configuration:
+## Database Access (Kotliquery)
 
-```kotlin
-object Configuration {
-    private val defaultProperties = ConfigurationMap(...)
-    val properties =
-        ConfigurationProperties.systemProperties()
-        overriding EnvironmentVariables()
-        overriding defaultProperties
-
-    val databaseUrl by lazy {
-        properties[Key("DB_JDBC_URL", stringType)]
-    }
-}
-```
-
-## Database Access
-
-Use Kotliquery with HikariCP connection pooling:
+Use Kotliquery with HikariCP connection pooling. This is Nav's standard — not JPA/Hibernate.
 
 ```kotlin
 object PostgresDataSourceBuilder {
@@ -116,6 +100,96 @@ class RepositoryPostgres(private val dataSource: DataSource) : Repository {
     }
 }
 ```
+
+### Kotliquery Patterns
+
+```kotlin
+// ✅ Batch insert
+fun saveAll(entities: List<Entity>) = using(sessionOf(dataSource)) { session ->
+    session.batchPreparedNamedStatement(
+        "INSERT INTO table (col1, col2) VALUES (:col1, :col2)",
+        entities.map { mapOf("col1" to it.col1, "col2" to it.col2) }
+    )
+}
+
+// ✅ Transaction
+fun transferWithinTransaction() = using(sessionOf(dataSource)) { session ->
+    session.transaction { tx ->
+        tx.run(queryOf("UPDATE accounts SET balance = balance - ? WHERE id = ?", amount, fromId).asUpdate)
+        tx.run(queryOf("UPDATE accounts SET balance = balance + ? WHERE id = ?", amount, toId).asUpdate)
+    }
+}
+
+// ✅ Row mapper as extension function
+private fun Row.toEntity() = Entity(
+    id = long("id"),
+    name = string("name"),
+    description = stringOrNull("description"),
+    createdAt = localDateTime("created_at"),
+)
+```
+
+## When Using Koin (Dependency Injection)
+
+Koin is Nav's standard DI framework for Ktor. Use when the project has multiple services/repositories.
+
+```kotlin
+// Module definition
+fun appModule(config: ApplicationConfig) = module {
+    single { Database.dataSource(config.database) }
+    single { ResourceRepository(get()) }
+    single { ResourceService(get()) }
+}
+
+// Install in Application
+fun Application.main() {
+    install(Koin) {
+        slf4jLogger()
+        modules(appModule(config))
+    }
+}
+
+// Inject in routes
+fun Route.resourceRoutes() {
+    val service by inject<ResourceService>()
+    get("/api/resources") { call.respond(service.findAll()) }
+}
+```
+
+## When Using Arrow-kt (Functional Patterns)
+
+Arrow-kt is increasingly adopted for error handling. Use when the project already depends on it.
+
+```kotlin
+import arrow.core.Either
+import arrow.core.raise.either
+
+// ✅ Either for domain errors
+sealed class DomainError {
+    data class NotFound(val id: String) : DomainError()
+    data class Validation(val errors: List<String>) : DomainError()
+}
+
+fun findResource(id: String): Either<DomainError, Resource> = either {
+    val resource = repository.findById(id)
+        ?: raise(DomainError.NotFound(id))
+    resource
+}
+
+// ✅ Map Either to HTTP response
+get("/{id}") {
+    val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+    when (val result = service.findResource(id)) {
+        is Either.Right -> call.respond(HttpStatusCode.OK, result.value)
+        is Either.Left -> when (result.value) {
+            is DomainError.NotFound -> call.respond(HttpStatusCode.NotFound)
+            is DomainError.Validation -> call.respond(HttpStatusCode.BadRequest, result.value)
+        }
+    }
+}
+```
+
+Do not introduce Arrow-kt into projects that don't already use it without discussion.
 
 ## Ktor Routing
 
