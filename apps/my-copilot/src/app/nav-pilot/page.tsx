@@ -183,7 +183,12 @@ function HeroSection() {
               <Heading size="xlarge" level="1">
                 Slutt å lære opp Copilot.
               </Heading>
-              <span className="uppercase tracking-wide font-semibold rounded-full" style={{ background: "#dbeafe", color: "#1e3a5f", fontSize: "0.75rem", padding: "2px 10px" }}>Beta</span>
+              <span
+                className="uppercase tracking-wide font-semibold rounded-full"
+                style={{ background: "#dbeafe", color: "#1e3a5f", fontSize: "0.75rem", padding: "2px 10px" }}
+              >
+                Beta
+              </span>
             </div>
             <p
               className="max-w-2xl mx-auto hero-animate-d1"

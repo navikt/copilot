@@ -58,6 +58,7 @@
       ],
       "filePath": ".github/agents/auth.agent.md",
       "useCases": [
+        "Creating .nais/app.yaml manifests",
         "Azure AD integration",
         "TokenX token exchange",
         "Network policies",
@@ -176,6 +177,7 @@
       ],
       "filePath": ".github/agents/nav-pilot.agent.md",
       "useCases": [
+        "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
         "Azure AD integration",
         "TokenX token exchange",
@@ -281,6 +283,7 @@
       ],
       "filePath": ".github/agents/security-champion.agent.md",
       "useCases": [
+        "Creating .nais/app.yaml manifests",
         "Azure AD integration",
         "TokenX token exchange",
         "Network policies",

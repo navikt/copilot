@@ -237,7 +237,11 @@ export default function NavPilotDocs() {
       <PageHero
         title="nav-pilot dokumentasjon"
         description="Alt du trenger for å komme i gang med nav-pilot."
-        badge={<Tag variant="info" size="small" className="uppercase tracking-wide">Beta</Tag>}
+        badge={
+          <Tag variant="info" size="small" className="uppercase tracking-wide">
+            Beta
+          </Tag>
+        }
       />
       <div className="max-w-7xl mx-auto">
         <Box
