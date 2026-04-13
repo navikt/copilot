@@ -24,6 +24,18 @@ tools:
 
 Authentication and authorization expert for Nav applications. Specializes in Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation patterns.
 
+## Output — vis fremdrift
+
+Show progress when reviewing or implementing auth:
+
+```
+🔍 Kartlegger — identifiserer auth-mønstre og caller-typer...
+📊 Analyserer — sjekker JWT-validering, azp, accessPolicy...
+📋 Funn — 1 kritisk, 2 anbefalinger, 4 god praksis
+```
+
+When delegated to from `@nav-pilot`, prefix output with `🔐 Auth:` so the user sees which specialist is working.
+
 ## Commands
 
 Run with `run_in_terminal`:

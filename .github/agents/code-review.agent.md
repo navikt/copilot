@@ -48,6 +48,14 @@ cd apps/<app-name> && mise test
 3. **Analyze** against the checklist below
 4. **Report** findings using the output format
 
+Show progress as you work:
+
+```
+🔍 Scanning — leser filer og kjører mise check...
+📊 Analyserer — sjekker mot Nav-konvensjoner og sikkerhet...
+📋 Funn — 2 blockers, 3 suggestions, 1 nit
+```
+
 ## Priority System
 
 - 🔴 **Blocker** — Must fix before merge. Bugs, security issues, data loss risks.
