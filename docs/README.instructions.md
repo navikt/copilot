@@ -14,6 +14,7 @@ curl -sO --output-dir .github/instructions \
 
 ## Tilgjengelige instruksjoner
 
+<!-- BEGIN GENERATED TABLE -->
 | Instruction | Description | VS Code |
 | ----------- | ----------- | ------- |
 | **Accessibility (UU)**<br/>[View File](../.github/instructions/accessibility.instructions.md) | WCAG 2.1 AA, semantisk HTML, ARIA, Aksel a11y-patterns, keyboard-navigasjon. | [![Install](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://min-copilot.ansatt.nav.no/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Faccessibility.instructions.md) |
@@ -26,6 +27,7 @@ curl -sO --output-dir .github/instructions \
 | **Testing Kotlin**<br/>[View File](../.github/instructions/testing-kotlin.instructions.md) |  | [![Install](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://min-copilot.ansatt.nav.no/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Ftesting-kotlin.instructions.md) |
 | **Testing Typescript**<br/>[View File](../.github/instructions/testing-typescript.instructions.md) |  | [![Install](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://min-copilot.ansatt.nav.no/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Ftesting.instructions.md) |
 | **Testing Standards**<br/>[View File](../.github/instructions/testing.instructions.md) | Kotlin (Kotest/JUnit) and TypeScript (Vitest) test patterns and coverage. | [![Install](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://min-copilot.ansatt.nav.no/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Ftesting.instructions.md) |
+<!-- END GENERATED TABLE -->
 
 ## For bidragsytere
 
