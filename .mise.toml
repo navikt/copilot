@@ -80,6 +80,22 @@ LDFLAGS="-X main.version=dev -X main.commit=$(git rev-parse --short HEAD) -X mai
 description = "Run nav-pilot installer tests"
 run = "(cd cli/nav-pilot && go test -race -v ./...)"
 
+[tasks."nav-pilot:check"]
+description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, shellcheck)"
+run = """
+echo "  build..."   && cd cli/nav-pilot && go build -o /dev/null . && \
+echo "  test..."    && go test -race ./... && \
+echo "  vet..."     && go vet ./... && \
+echo "  staticcheck..." && staticcheck ./... && \
+cd ../.. && \
+if command -v shellcheck >/dev/null 2>&1; then \
+  echo "  shellcheck..." && shellcheck scripts/install.sh; \
+else \
+  echo "  shellcheck... skipped (not installed)"; \
+fi && \
+echo "  ✅ nav-pilot checks passed"
+"""
+
 [tasks."nav-pilot:install"]
 description = "Build and install nav-pilot CLI to GOBIN"
 run = """
