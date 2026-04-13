@@ -26,6 +26,10 @@ type syncUpdate struct {
 // main() maps this to exit code 1 for CI use.
 var errUpdatesAvailable = fmt.Errorf("updates available")
 
+// errSyncFailed is returned when sync encounters errors checking files.
+// main() maps this to exit code 2 to distinguish from "updates available".
+var errSyncFailed = fmt.Errorf("sync failed")
+
 // cmdSync checks installed files against source and optionally applies updates.
 //
 // Modes:
@@ -33,8 +37,8 @@ var errUpdatesAvailable = fmt.Errorf("updates available")
 //   - apply: update differing files in place
 //
 // Works with both state-based repos (nav-pilot install) and auto-detected repos.
-func cmdSync(targetDir, ref string, apply, jsonOutput bool) error {
-	src, err := resolveSource(ref)
+func cmdSync(targetDir, ref, sourceRepo string, apply, jsonOutput bool) error {
+	src, err := resolveSource(ref, sourceRepo)
 	if err != nil {
 		return err
 	}
@@ -81,6 +85,10 @@ func cmdSync(targetDir, ref string, apply, jsonOutput bool) error {
 	if jsonOutput {
 		if err := outputJSON(result); err != nil {
 			return err
+		}
+		// Exit 2 if any errors occurred (even with updates)
+		if len(syncErrors) > 0 {
+			return errSyncFailed
 		}
 		if !result.UpToDate {
 			return errUpdatesAvailable

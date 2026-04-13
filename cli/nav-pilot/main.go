@@ -52,7 +52,8 @@ Flags:
   -n, --dry-run           Show what would happen without making changes
   -f, --force             Overwrite files that differ from source
   -t, --target <dir>      Target repository (default: current directory)
-  -r, --ref <ref>         Git branch or tag to install from (default: main)
+  -r, --ref <ref>         Git branch or tag to install from
+  -s, --source <repo>     Source repository (default: navikt/copilot)
   --apply                 Apply available updates (sync only)
   --json                  Output results as JSON (sync only)
 
@@ -77,7 +78,7 @@ func run(args []string) error {
 	rest := args[1:]
 
 	var dryRun, force, apply, jsonOutput, listItems bool
-	var targetDir, ref string
+	var targetDir, ref, sourceRepo string
 	var positional []string
 
 	targetDir = "."
@@ -106,6 +107,12 @@ func run(args []string) error {
 			}
 			i++
 			ref = rest[i]
+		case "-s", "--source":
+			if i+1 >= len(rest) {
+				return fmt.Errorf("--source requires a value")
+			}
+			i++
+			sourceRepo = rest[i]
 		case "-h", "--help":
 			usage()
 			return nil
@@ -133,7 +140,7 @@ func run(args []string) error {
 		}
 		return cmdAdd(positional[0], positional[1], targetDir, ref, dryRun, force)
 	case "sync":
-		return cmdSync(targetDir, ref, apply, jsonOutput)
+		return cmdSync(targetDir, ref, sourceRepo, apply, jsonOutput)
 	case "list":
 		return cmdList(ref, listItems)
 	case "status":
@@ -155,6 +162,9 @@ func main() {
 	if err := run(os.Args[1:]); err != nil {
 		if err == errUpdatesAvailable {
 			os.Exit(1)
+		}
+		if err == errSyncFailed {
+			os.Exit(2)
 		}
 		fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
 		os.Exit(1)

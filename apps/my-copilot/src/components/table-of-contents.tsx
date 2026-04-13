@@ -53,7 +53,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
   }, [allItems]);
 
   const linkClass = (id: string) =>
-    `block py-1.5 px-3 text-sm no-underline rounded-md transition-colors ${
+    `block text-sm no-underline rounded-md transition-colors ${
       activeId === id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
     }`;
 
@@ -65,24 +65,35 @@ export function TableOfContents({ items }: TableOfContentsProps) {
 
   return (
     <nav aria-label="Innholdsfortegnelse" className="toc">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Innhold</p>
-      <ul className="space-y-1">
+      <p
+        className="text-xs font-semibold text-gray-400 uppercase tracking-wider"
+        style={{ marginBottom: "var(--a-spacing-3)" }}
+      >
+        Innhold
+      </p>
+      <ul style={{ display: "flex", flexDirection: "column", gap: "var(--a-spacing-1)" }}>
         {items.map((item) =>
           hasGroups && item.children ? (
-            <li key={item.id} className="mt-3 first:mt-0">
+            <li key={item.id} style={{ marginTop: "var(--a-spacing-3)" }} className="first:mt-0">
               <a
                 href={`#${item.id}`}
                 onClick={(e) => handleClick(e, item.id)}
-                className={`block py-1 px-3 text-[11px] font-semibold uppercase tracking-wider no-underline transition-colors ${
+                className={`block text-[11px] font-semibold uppercase tracking-wider no-underline transition-colors ${
                   activeId === item.id ? "text-blue-700" : "text-gray-400 hover:text-gray-600"
                 }`}
+                style={{ padding: "var(--a-spacing-1) var(--a-spacing-3)" }}
               >
                 {item.label}
               </a>
-              <ul className="space-y-0.5 mt-0.5">
+              <ul style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "2px" }}>
                 {item.children.map((child) => (
                   <li key={child.id}>
-                    <a href={`#${child.id}`} onClick={(e) => handleClick(e, child.id)} className={linkClass(child.id)}>
+                    <a
+                      href={`#${child.id}`}
+                      onClick={(e) => handleClick(e, child.id)}
+                      className={linkClass(child.id)}
+                      style={{ padding: "var(--a-spacing-2) var(--a-spacing-3)" }}
+                    >
                       {child.label}
                     </a>
                   </li>
@@ -91,7 +102,12 @@ export function TableOfContents({ items }: TableOfContentsProps) {
             </li>
           ) : (
             <li key={item.id}>
-              <a href={`#${item.id}`} onClick={(e) => handleClick(e, item.id)} className={linkClass(item.id)}>
+              <a
+                href={`#${item.id}`}
+                onClick={(e) => handleClick(e, item.id)}
+                className={linkClass(item.id)}
+                style={{ padding: "var(--a-spacing-2) var(--a-spacing-3)" }}
+              >
                 {item.label}
               </a>
             </li>

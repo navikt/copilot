@@ -28,7 +28,7 @@ func cmdAdd(itemType, name, targetDir, ref string, dryRun, force bool) error {
 	}
 
 	fmt.Println(dim("Resolving source..."))
-	src, err := resolveSource(ref)
+	src, err := resolveSource(ref, "")
 	if err != nil {
 		return err
 	}

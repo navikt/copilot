@@ -304,7 +304,7 @@ func removeEmptyGitHubDirs(targetDir string) {
 
 func cmdList(ref string, showItems bool) error {
 	fmt.Println(dim("Resolving source..."))
-	src, err := resolveSource(ref)
+	src, err := resolveSource(ref, "")
 	if err != nil {
 		return err
 	}
@@ -400,7 +400,7 @@ func cmdInstall(collection, targetDir, ref string, dryRun, force bool) error {
 	}
 
 	fmt.Println(dim("Resolving source..."))
-	src, err := resolveSource(ref)
+	src, err := resolveSource(ref, "")
 	if err != nil {
 		return err
 	}

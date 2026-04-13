@@ -79,9 +79,9 @@ export function CodeBlock({ filename, children, maxHeight, compact }: CodeBlockP
           <Box padding="space-8" className="flex-1 min-w-0">
             <pre className="text-[#334155] text-xs font-mono whitespace-pre-wrap">{children}</pre>
           </Box>
-          <div className="p-2 shrink-0">
+          <Box padding="space-8" className="shrink-0">
             <CopyButton text={children} dark={false} />
-          </div>
+          </Box>
         </div>
       </div>
     );

@@ -26,9 +26,14 @@ func (s *Source) Cleanup() {
 //  2. Local repo (walk up from CWD to git root — dev mode)
 //  3. Clone from the release tag matching this binary's version
 //  4. Clone from HEAD (only if version is "dev")
-func resolveSource(ref string) (*Source, error) {
+func resolveSource(ref, sourceRepo string) (*Source, error) {
+	// If a custom source repo is specified, always clone remote
+	if sourceRepo != "" {
+		return cloneRemote(ref, sourceRepo)
+	}
+
 	if ref != "" {
-		return cloneRemote(ref)
+		return cloneRemote(ref, "")
 	}
 
 	// Try local: walk up from CWD to find the navikt/copilot repo.
@@ -47,10 +52,10 @@ func resolveSource(ref string) (*Source, error) {
 
 	// For released binaries, clone from the matching release tag
 	if version != "dev" {
-		return cloneRemote("nav-pilot/" + version)
+		return cloneRemote("nav-pilot/"+version, "")
 	}
 
-	return cloneRemote("")
+	return cloneRemote("", "")
 }
 
 // findGitRoot walks up from dir to find the nearest .git directory.
@@ -65,17 +70,22 @@ func findGitRoot(dir string) string {
 	}
 }
 
-func cloneRemote(ref string) (*Source, error) {
+func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	tmpDir, err := os.MkdirTemp("", "nav-pilot-*")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp dir: %w", err)
+	}
+
+	repoURL := "https://github.com/navikt/copilot.git"
+	if sourceRepo != "" {
+		repoURL = "https://github.com/" + sourceRepo + ".git"
 	}
 
 	args := []string{"clone", "--depth", "1", "--quiet"}
 	if ref != "" {
 		args = append(args, "--branch", ref)
 	}
-	args = append(args, "https://github.com/navikt/copilot.git", tmpDir)
+	args = append(args, repoURL, tmpDir)
 
 	cmd := exec.Command("git", args...)
 	cmd.Stderr = os.Stderr
