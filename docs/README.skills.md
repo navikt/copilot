@@ -1,39 +1,18 @@
 # 🎯 Agent Skills
 
-Agent Skills are self-contained folders with instructions and bundled resources that enhance AI capabilities for specialized Nav development tasks.
+Skills er selvstendige mapper med instruksjoner og referansedata som gir Copilot spesialisert Nav-kunnskap.
 
-Based on the [Agent Skills specification](https://agentskills.io/specification), each skill contains a `SKILL.md` file with detailed instructions that agents load on-demand.
+📖 **Utforsk og installer:** [min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy)
 
-Skills differ from other primitives by supporting bundled assets (scripts, code samples, reference data) that agents can utilize when performing specialized tasks.
-
-### How to Install
-
-Skills are folders placed in your repo's `.github/skills/` directory.
-
-| Editor          | Install Method                                                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **VS Code**     | Copy the skill folder to `.github/skills/` in your repo. Agents discover skills automatically.                                              |
-| **JetBrains**   | Copy the skill folder to `.github/skills/`. Supported in Agent Mode (public preview — enable via Settings > GitHub Copilot > Chat > Agent). |
-| **Copilot CLI** | Copy the skill folder to `.github/skills/`. Full support via `/skills` commands (`/skills list`, `/skills info`, `/skills add`).            |
-| **GitHub.com**  | Works with Copilot coding agent when the folder exists in the repo.                                                                         |
-
-> Skills are supported in VS Code, JetBrains (Agent Mode preview), Copilot CLI (full `/skills` management), and GitHub.com (coding agent). Personal skills can be stored in `~/.copilot/skills/` for cross-project use.
-
-**Manual install:**
+### Installer
 
 ```bash
-# From your project root — install a single skill
 mkdir -p .github/skills
-# Clone the repo and copy the skill folder
-git clone --depth 1 --filter=blob:none --sparse https://github.com/navikt/copilot.git /tmp/nav-copilot
-cd /tmp/nav-copilot && git sparse-checkout set .github/skills/<skill-name>
-cp -r .github/skills/<skill-name> /path/to/your/repo/.github/skills/
-rm -rf /tmp/nav-copilot
+# Bruk nav-pilot CLI
+nav-pilot add skill <skill-name>
 ```
 
-**When to use skills vs instructions:** Skills are ideal for complex workflows that need bundled resources (templates, scripts, reference data). For simple coding guidelines, use instructions instead.
-
-## Available Skills
+## Tilgjengelige skills
 
 <!-- BEGIN GENERATED TABLE -->
 | Name | Description | Location |
@@ -59,33 +38,15 @@ rm -rf /tmp/nav-copilot
 | **workstation-security** | Sikkerhetssjekk for macOS-utviklermaskiner — brannmur, SSH, Git, hemmeligheter, nettverk og Nav-plattformverktøy | [`.github/skills/workstation-security/`](../.github/skills/workstation-security/SKILL.md) |
 <!-- END GENERATED TABLE -->
 
-## Creating Nav Skills
+## For bidragsytere
 
-When creating agent skills for Nav projects:
-
-1. **Follow Specification**: Adhere to the [Agent Skills specification](https://agentskills.io/specification)
-2. **Bundle Resources**: Include templates, scripts, and reference data
-3. **Nav Context**: Include Nav-specific patterns and configurations
-4. **Self-Contained**: Skills should be independent and reusable
-5. **Progressive Disclosure**: Load only when needed for specific tasks
-
-## Skill Structure
+Hver skill ligger i `.github/skills/<name>/`:
 
 ```
 .github/skills/
 └── skill-name/
-    ├── SKILL.md              # Main instruction file
-    ├── templates/            # Code templates
-    ├── scripts/              # Helper scripts
-    ├── examples/             # Example implementations
-    └── reference/            # Reference documentation
+    ├── SKILL.md              # Instruksjonsfil
+    └── references/           # Referansedata (beslutningstrær, maler, sjekklister)
 ```
 
-## Best Practices
-
-- Keep skills focused on specific domains
-- Include practical examples from Nav projects
-- Provide clear usage instructions
-- Bundle only necessary resources
-- Test skills in various Nav contexts
-- Document dependencies and requirements
+Se [Agent Skills-spesifikasjonen](https://agentskills.io/specification) og [AGENTS.md](../AGENTS.md) for retningslinjer.
