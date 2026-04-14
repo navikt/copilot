@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -52,6 +51,13 @@ func TestCmdInteractive_InstalledUpToDate(t *testing.T) {
 	os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
 	os.Chdir(dir)
 	defer os.Chdir(origDir)
+
+	// Isolate HOME so user-scope installs don't leak into the test
+	t.Setenv("HOME", dir)
+
+	// Prevent huh TUI prompts from blocking in tests
+	forceNonInteractive = true
+	defer func() { forceNonInteractive = false }()
 
 	state := &StateFile{
 		Collection: "test-collection",
@@ -126,57 +132,5 @@ func TestUniqueStrings(t *testing.T) {
 				t.Errorf("uniqueStrings(%v)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
 			}
 		}
-	}
-}
-
-func TestPromptInstallScope_DefaultIsRepo(t *testing.T) {
-	// Simulate pressing Enter (empty input = default = repo)
-	r, w, _ := os.Pipe()
-	w.WriteString("\n")
-	w.Close()
-
-	reader := bufio.NewReader(r)
-	scope, err := promptInstallScope(reader, "/tmp/myrepo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if scope == nil {
-		t.Fatal("expected scope, got nil")
-	}
-	if scope.Name != "repo" {
-		t.Errorf("expected repo scope, got %q", scope.Name)
-	}
-	if scope.RootDir != "/tmp/myrepo" {
-		t.Errorf("expected rootDir /tmp/myrepo, got %q", scope.RootDir)
-	}
-}
-
-func TestPromptInstallScope_SelectUserHome(t *testing.T) {
-	r, w, _ := os.Pipe()
-	w.WriteString("2\n")
-	w.Close()
-
-	reader := bufio.NewReader(r)
-	scope, err := promptInstallScope(reader, "/tmp/myrepo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if scope == nil {
-		t.Fatal("expected scope, got nil")
-	}
-	if scope.Name != "user" {
-		t.Errorf("expected user scope, got %q", scope.Name)
-	}
-}
-
-func TestPromptInstallScope_InvalidSelection(t *testing.T) {
-	r, w, _ := os.Pipe()
-	w.WriteString("3\n")
-	w.Close()
-
-	reader := bufio.NewReader(r)
-	_, err := promptInstallScope(reader, "/tmp/myrepo")
-	if err == nil {
-		t.Fatal("expected error for invalid selection")
 	}
 }
