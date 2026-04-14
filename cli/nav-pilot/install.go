@@ -48,42 +48,56 @@ func installItems(sourceDir string, scope *InstallScope, manifest *Manifest, dry
 	return result, nil
 }
 
-func installAgent(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
+// installSingleFile handles the common install pattern for single-file artifacts
+// (agents, instructions). Returns true if the file was actually written to disk.
+func installSingleFile(sourceDir string, scope *InstallScope, dir, extension, label, name string, dryRun, force bool, result *installResult) (bool, error) {
 	if err := validateName(name); err != nil {
-		return fmt.Errorf("invalid agent name: %w", err)
+		return false, fmt.Errorf("invalid %s name: %w", strings.ToLower(label), err)
 	}
-	srcFile := filepath.Join(sourceDir, ".github", "agents", name+".agent.md")
-	dstFile := scope.DstPath("agents", name+".agent.md")
+	fileName := name + extension
+	srcFile := filepath.Join(sourceDir, ".github", dir, fileName)
+	dstFile := scope.DstPath(dir, fileName)
 
 	if _, err := os.Stat(srcFile); os.IsNotExist(err) {
-		fmt.Printf("  %s Agent not found: %s\n", yellow("⚠"), name)
+		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), label, name)
 		result.Skipped++
-		return nil
+		return false, nil
 	}
 
 	if c, err := checkConflict(dstFile, srcFile, false); err != nil {
-		return err
+		return false, err
 	} else if c != nil && !force {
 		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
 		result.Conflicts++
-		return nil
+		return false, nil
 	}
 
-	relPath := scope.RelPath("agents", name+".agent.md")
+	relPath := scope.RelPath(dir, fileName)
 	if dryRun {
 		fmt.Printf("  %s %s\n", dim("→"), relPath)
 		result.Installed++
-		return nil
+		return false, nil
 	}
 
 	if err := copyFile(srcFile, dstFile); err != nil {
-		return fmt.Errorf("copying agent %s: %w", name, err)
+		return false, fmt.Errorf("copying %s %s: %w", strings.ToLower(label), name, err)
 	}
 	hash, err := fileHash(dstFile)
 	if err != nil {
-		return fmt.Errorf("hashing installed agent %s: %w", name, err)
+		return false, fmt.Errorf("hashing installed %s %s: %w", strings.ToLower(label), name, err)
 	}
 	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
+
+	fmt.Printf("  %s %s\n", green("✓"), name)
+	result.Installed++
+	return true, nil
+}
+
+func installAgent(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
+	written, err := installSingleFile(sourceDir, scope, "agents", ".agent.md", "Agent", name, dryRun, force, result)
+	if err != nil || !written {
+		return err
+	}
 
 	// Copy metadata if the scope supports it
 	if scope.ShouldInstallMetadata() {
@@ -101,9 +115,6 @@ func installAgent(sourceDir string, scope *InstallScope, name string, dryRun, fo
 			result.Files = append(result.Files, InstalledFile{Path: metaRel, Hash: metaHash})
 		}
 	}
-
-	fmt.Printf("  %s %s\n", green("✓"), name)
-	result.Installed++
 	return nil
 }
 
@@ -156,45 +167,8 @@ func installSkill(sourceDir string, scope *InstallScope, name string, dryRun, fo
 }
 
 func installInstruction(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
-	if err := validateName(name); err != nil {
-		return fmt.Errorf("invalid instruction name: %w", err)
-	}
-	srcFile := filepath.Join(sourceDir, ".github", "instructions", name+".instructions.md")
-	dstFile := scope.DstPath("instructions", name+".instructions.md")
-
-	if _, err := os.Stat(srcFile); os.IsNotExist(err) {
-		fmt.Printf("  %s Instruction not found: %s\n", yellow("⚠"), name)
-		result.Skipped++
-		return nil
-	}
-
-	if c, err := checkConflict(dstFile, srcFile, false); err != nil {
-		return err
-	} else if c != nil && !force {
-		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
-		result.Conflicts++
-		return nil
-	}
-
-	relPath := scope.RelPath("instructions", name+".instructions.md")
-	if dryRun {
-		fmt.Printf("  %s %s\n", dim("→"), relPath)
-		result.Installed++
-		return nil
-	}
-
-	if err := copyFile(srcFile, dstFile); err != nil {
-		return fmt.Errorf("copying instruction %s: %w", name, err)
-	}
-	hash, err := fileHash(dstFile)
-	if err != nil {
-		return fmt.Errorf("hashing installed instruction %s: %w", name, err)
-	}
-	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
-
-	fmt.Printf("  %s %s\n", green("✓"), name)
-	result.Installed++
-	return nil
+	_, err := installSingleFile(sourceDir, scope, "instructions", ".instructions.md", "Instruction", name, dryRun, force, result)
+	return err
 }
 
 func installPrompt(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
@@ -489,28 +463,9 @@ func cmdStatus(scope *InstallScope) error {
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()
 
-	missing := 0
-	modified := 0
-	ok := 0
-	for _, f := range state.Files {
-		path := filepath.Join(scope.RootDir, f.Path)
-		var currentHash string
-		var hashErr error
-		if strings.HasSuffix(f.Path, "/") {
-			currentHash, hashErr = dirHash(path)
-		} else {
-			currentHash, hashErr = fileHash(path)
-		}
-		if hashErr != nil {
-			missing++
-			continue
-		}
-		if currentHash != f.Hash {
-			modified++
-			fmt.Printf("  %s %s (modified locally)\n", yellow("~"), f.Path)
-		} else {
-			ok++
-		}
+	ok, modified, missing, modifiedPaths := countFileIntegrity(scope.RootDir, state)
+	for _, p := range modifiedPaths {
+		fmt.Printf("  %s %s (modified locally)\n", yellow("~"), p)
 	}
 
 	fmt.Printf("\n  %s %d ok, %s %d modified, %s %d missing\n",

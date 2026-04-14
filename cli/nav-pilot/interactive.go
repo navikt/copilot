@@ -240,12 +240,12 @@ func launchCopilotWithAgent(agent string) {
 	}
 }
 
-// offerLaunchCopilot prompts the user to launch the Copilot CLI after install.
-// If agents are available in the collection, offers to spawn with --agent.
-func offerLaunchCopilot(reader *bufio.Reader) {
-	cliPath, cliName := findCopilotCLI()
+// promptLaunchCopilot asks the user if they want to launch the Copilot CLI.
+// Returns the CLI path and name, and whether the user confirmed.
+func promptLaunchCopilot(reader *bufio.Reader) (cliPath, cliName string, ok bool) {
+	cliPath, cliName = findCopilotCLI()
 	if cliPath == "" {
-		return
+		return "", "", false
 	}
 
 	fmt.Println()
@@ -253,13 +253,21 @@ func offerLaunchCopilot(reader *bufio.Reader) {
 	answer, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Println()
-		return
+		return "", "", false
 	}
 	answer = strings.TrimSpace(strings.ToLower(answer))
 	if answer != "" && answer != "y" && answer != "yes" {
+		return "", "", false
+	}
+	return cliPath, cliName, true
+}
+
+// offerLaunchCopilot prompts the user to launch the Copilot CLI after install.
+// If agents are available in the collection, offers to spawn with --agent.
+func offerLaunchCopilot(reader *bufio.Reader) {
+	if _, _, ok := promptLaunchCopilot(reader); !ok {
 		return
 	}
-
 	fmt.Println()
 	launchCopilotWithAgent("nav-pilot")
 }
@@ -267,20 +275,7 @@ func offerLaunchCopilot(reader *bufio.Reader) {
 // offerLaunchCopilotWithAgents prompts the user to launch the Copilot CLI
 // and lets them pick an agent from the installed collection.
 func offerLaunchCopilotWithAgents(reader *bufio.Reader, agents []string) {
-	cliPath, cliName := findCopilotCLI()
-	if cliPath == "" {
-		return
-	}
-
-	fmt.Println()
-	fmt.Printf("Launch %s now? [Y/n]: ", bold(cliName))
-	answer, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println()
-		return
-	}
-	answer = strings.TrimSpace(strings.ToLower(answer))
-	if answer != "" && answer != "y" && answer != "yes" {
+	if _, _, ok := promptLaunchCopilot(reader); !ok {
 		return
 	}
 

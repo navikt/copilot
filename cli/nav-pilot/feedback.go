@@ -58,7 +58,7 @@ func collectDiagnostics(targetDir string) string {
 	state, err := readState(targetDir)
 	if err == nil && state != nil {
 		// Count file integrity
-		ok, modified, missing := countFileIntegrity(targetDir, state)
+		ok, modified, missing, _ := countFileIntegrity(targetDir, state)
 		fmt.Fprintf(&b, "Collection %s (%s, %s)\n", state.Collection, state.Version, shortSHA(state.SourceSHA))
 		fmt.Fprintf(&b, "Files      %d ok, %d modified, %d missing\n", ok, modified, missing)
 	} else {
@@ -68,10 +68,11 @@ func collectDiagnostics(targetDir string) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// countFileIntegrity checks installed files and returns ok/modified/missing counts.
-func countFileIntegrity(targetDir string, state *StateFile) (ok, modified, missing int) {
+// countFileIntegrity checks installed files and returns ok/modified/missing counts
+// plus the relative paths of any modified files.
+func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing int, modifiedPaths []string) {
 	for _, f := range state.Files {
-		path := filepath.Join(targetDir, f.Path)
+		path := filepath.Join(rootDir, f.Path)
 		var currentHash string
 		var hashErr error
 		if strings.HasSuffix(f.Path, "/") {
@@ -85,6 +86,7 @@ func countFileIntegrity(targetDir string, state *StateFile) (ok, modified, missi
 		}
 		if currentHash != f.Hash {
 			modified++
+			modifiedPaths = append(modifiedPaths, f.Path)
 		} else {
 			ok++
 		}

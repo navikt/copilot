@@ -163,7 +163,7 @@ func TestCountFileIntegrity(t *testing.T) {
 		},
 	}
 
-	ok, modified, missing := countFileIntegrity(tmp, state)
+	ok, modified, missing, _ := countFileIntegrity(tmp, state)
 	if ok != 1 {
 		t.Errorf("ok = %d, want 1", ok)
 	}
