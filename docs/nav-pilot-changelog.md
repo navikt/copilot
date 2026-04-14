@@ -26,10 +26,45 @@ Gjennomført kryssreferanseaudit av alle 4 samlinger. Lagt til `Related`-tabelle
 - `golang` → @nais-agent, @observability-agent, security-owasp, @security-champion
 - `security-champion` (agent) → threat-model, security-review, security-owasp
 
+### Forbedrede instruksjoner
+
+- **performance** — utvidet med Core Web Vitals-mål, server components, bundle-optimalisering
+- **nextjs-aksel** — utvidet med middleware, streaming, server actions
+- **accessibility** — redusert overlapp med Aksel-instruksjoner, fokus på WCAG-regler
+- **golang** — utvidet med pgx, sqlc, slog, Chainguard Docker
+- **kotlin-ktor** — Spring Boot-deprekering og Ktor-migreringsråd, Koin/Arrow-kt
+
+### @forfatter-integrasjon
+
+- Lagt til språkvask som siste del-steg i nav-pilot Fase 4
+- Delegerer til `@forfatter` for klartspråk, anglismer og mikrotekst
+
+### Omdøping
+
+- `go-nais` → `golang` (instruksjon)
+- `go-service` → `golang-service` (prompt)
+
+### Copilot CLI-integrasjon
+
+- `nav-pilot` CLI finner nå både `cplt` og `copilot` i PATH
+- Interaktiv agentvelger — velg blant installerte agenter
+- Starter Copilot CLI med `--agent`-flagg
+
+### Tre innganger til nav-pilot
+
+Dokumentert tre måter å bruke nav-pilot på:
+- **Terminal**: `copilot --agent nav-pilot`
+- **VS Code / JetBrains**: `@nav-pilot` i chat
+- **nav-pilot CLI**: interaktiv modus med agentvelger
+
 ### Feilrettinger
 
 - Opprettet manglende `ktor-scaffold/metadata.json`
 - Refaktorert `threat-model` SKILL.md fra 613→487 linjer (ekstrahert kodeeksempler til `references/`)
+- Rettet metadata-skjema i 3 instruksjoner (`displayName`/`domain`/`tags`/`examples`)
+- Rettet Nynorsk→Bokmål i docs-tabeller og metadata
+- Rettet ugyldig import-syntaks i performance-instruksjon
+- Fjernet ubrukt `launchCopilot()`-funksjon
 - Skills lint: 0 feil
 
 ### Samlingsoversikt
@@ -38,6 +73,6 @@ Gjennomført kryssreferanseaudit av alle 4 samlinger. Lagt til `Related`-tabelle
 |----------|--------|
 | Agenter | 12 |
 | Skills | 22 |
-| Instruksjoner | 12 |
+| Instruksjoner | 13 |
 | Prompts | 7 |
 | Samlinger | 4 |
