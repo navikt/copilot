@@ -44,7 +44,7 @@ func isGitRepo(dir string) bool {
 // cmdInteractive runs an interactive flow based on current state:
 //  1. Not installed → prompt to pick and install a collection (repo or user home)
 //  2. Installed but outdated → sync all detected scopes
-//  3. Installed and up-to-date → launch cplt/copilot
+//  3. Installed and up-to-date → launch Copilot Sandbox / copilot
 //
 // Safety: huh prompts are guarded by isInteractive() at each call site.
 // In tests, forceNonInteractive=true causes isInteractive() to return false,
@@ -94,9 +94,7 @@ func cmdInteractive() error {
 // interactiveSyncAndLaunch handles the case where at least one scope has an install.
 // Checks for staleness in all scopes and offers to sync, then launches Copilot.
 func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, userScope *InstallScope, userState *StateFile) error {
-	fmt.Println(bold("🧭 nav-pilot"))
-
-	// Show discovered scopes
+	// Single-line greeting with discovered scopes
 	var scopeParts []string
 	if repoState != nil {
 		scopeParts = append(scopeParts, fmt.Sprintf("repo: %s", repoState.Collection))
@@ -104,8 +102,7 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 	if userState != nil {
 		scopeParts = append(scopeParts, fmt.Sprintf("user: %s", userState.Collection))
 	}
-	fmt.Println(dim(strings.Join(scopeParts, "  ·  ")))
-	fmt.Println()
+	fmt.Printf("%s  %s\n\n", bold("🧭 nav-pilot"), dim(strings.Join(scopeParts, "  ·  ")))
 
 	type staleScope struct {
 		scope  *InstallScope
@@ -348,6 +345,14 @@ func findCopilotCLI() (path, name string) {
 	return "", ""
 }
 
+// cliDisplayName returns a user-friendly name for the CLI binary.
+func cliDisplayName(name string) string {
+	if name == "cplt" {
+		return "Copilot Sandbox (cplt)"
+	}
+	return name
+}
+
 // launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
 func launchCopilotWithAgent(agent string) {
 	cliPath, cliName := findCopilotCLI()
@@ -366,17 +371,18 @@ func launchCopilotWithAgent(agent string) {
 		}
 	}
 
+	displayName := cliDisplayName(cliName)
 	if agent != "" {
-		fmt.Printf("Launching %s with agent %s...\n\n", bold(cliName), bold(agent))
+		fmt.Printf("Launching %s with agent %s...\n\n", bold(displayName), bold(agent))
 	} else {
-		fmt.Printf("Launching %s...\n\n", bold(cliName))
+		fmt.Printf("Launching %s...\n\n", bold(displayName))
 	}
 	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), cliName, err)
+		fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), displayName, err)
 	}
 }
 
@@ -390,7 +396,7 @@ func offerLaunchCopilot() {
 	fmt.Println()
 	var choice string
 	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", cliName)).
+		Title(fmt.Sprintf("Launch %s now?", cliDisplayName(cliName))).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),
@@ -416,7 +422,7 @@ func offerLaunchCopilotWithAgents(agents []string) {
 	fmt.Println()
 	var choice string
 	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", cliName)).
+		Title(fmt.Sprintf("Launch %s now?", cliDisplayName(cliName))).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),
