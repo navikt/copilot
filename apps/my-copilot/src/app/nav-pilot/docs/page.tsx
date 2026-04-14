@@ -429,7 +429,7 @@ function IntroductionSection() {
               <tbody>
                 {[
                   ["Fokus", "Orkestrering og multi-agent", "Institusjonell kunnskap"],
-                  ["Inngangspunkt", "ultrawork (terminal)", '"@nav-pilot ..." (terminal, IDE, GitHub.com)'],
+                  ["Inngangspunkt", "ultrawork (terminal)", "Terminal, VS Code, JetBrains, GitHub.com"],
                   ["Kunnskap", "Generisk koding", "Navs kunnskapsbase"],
                   ["Auth", "Vet ikke hva TokenX er", "Velger riktig auth basert på caller-type"],
                   ["Plattform", "Vet ikke hva Nais er", "Genererer Nais-manifest med riktig accessPolicy"],
@@ -577,9 +577,42 @@ nav-pilot`}
                 Bruk nav-pilot
               </Label>
             </div>
-            <CodeBlock compact>
-              {`cplt -p "@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
-            </CodeBlock>
+            <BodyLong className="mt-1 mb-3" size="small" style={{ color: "#64748b" }}>
+              Du kan bruke nav-pilot på tre måter — velg den som passer deg best:
+            </BodyLong>
+            <div className="space-y-4">
+              <div>
+                <Label size="small" style={{ color: "#64748b" }}>
+                  Terminal (GitHub Copilot CLI)
+                </Label>
+                <div className="mt-1">
+                  <CodeBlock compact>
+                    {`copilot --agent nav-pilot --prompt "Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
+                  </CodeBlock>
+                </div>
+              </div>
+              <div>
+                <Label size="small" style={{ color: "#64748b" }}>
+                  VS Code / JetBrains (Copilot Chat)
+                </Label>
+                <div className="mt-1">
+                  <CodeBlock compact>
+                    {`@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader`}
+                  </CodeBlock>
+                </div>
+              </div>
+              <div>
+                <Label size="small" style={{ color: "#64748b" }}>
+                  nav-pilot CLI (interaktiv)
+                </Label>
+                <div className="mt-1">
+                  <CodeBlock compact>{`nav-pilot`}</CodeBlock>
+                </div>
+                <BodyLong className="mt-1" size="small" style={{ color: "#94a3b8" }}>
+                  Starter interaktiv modus — sjekker oppdateringer og tilbyr å starte Copilot med valgt agent.
+                </BodyLong>
+              </div>
+            </div>
           </div>
         </div>
 

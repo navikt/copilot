@@ -208,11 +208,6 @@ func findCopilotCLI() (path, name string) {
 	return "", ""
 }
 
-// launchCopilot launches the Copilot CLI, optionally with --agent.
-func launchCopilot() {
-	launchCopilotWithAgent("")
-}
-
 // launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
 func launchCopilotWithAgent(agent string) {
 	cliPath, cliName := findCopilotCLI()

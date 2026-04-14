@@ -26,10 +26,31 @@ nav-pilot update
 # Rapporter en feil eller foreslå en forbedring
 nav-pilot feedback             # åpner bug-rapport i nettleser
 nav-pilot feedback --feature   # åpner feature request
+```
 
-# Bruk i Copilot
+## Bruk
+
+Det finnes tre måter å bruke nav-pilot på:
+
+### Terminal (GitHub Copilot CLI)
+
+```bash
+copilot --agent nav-pilot --prompt "Jeg trenger en ny tjeneste som behandler dagpengesøknader"
+```
+
+### VS Code / JetBrains (Copilot Chat)
+
+```
 @nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader
 ```
+
+### nav-pilot CLI (interaktiv)
+
+```bash
+nav-pilot
+```
+
+Starter interaktiv modus — sjekker oppdateringer og tilbyr å starte Copilot med valgt agent.
 
 ## For bidragsytere
 
