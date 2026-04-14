@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // isInteractive returns true when stdin is a terminal (not piped).
@@ -25,6 +26,14 @@ func isInteractive() bool {
 
 // forceNonInteractive can be set in tests to prevent huh from blocking.
 var forceNonInteractive bool
+
+// navTheme returns a huh theme with radio-button-style indicators (● / blank)
+// instead of the default "> " cursor.
+func navTheme() *huh.Theme {
+	t := huh.ThemeBase()
+	t.Focused.SelectSelector = lipgloss.NewStyle().SetString("● ").Foreground(lipgloss.Color("6"))
+	return t
+}
 
 // isGitRepo returns true if dir contains a .git directory.
 func isGitRepo(dir string) bool {
@@ -122,6 +131,7 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 				huh.NewOption("No", "no"),
 			).
 			Value(&choice).
+			WithTheme(navTheme()).
 			Run()
 		if err != nil || choice != "yes" {
 			return nil
@@ -183,6 +193,7 @@ func interactiveFreshInstall(targetDir string) error {
 		Title("Choose collection").
 		Options(options...).
 		Value(&selected).
+		WithTheme(navTheme()).
 		Run()
 	if err != nil {
 		return nil // user cancelled (Ctrl+C / Esc)
@@ -230,6 +241,7 @@ func interactiveFreshInstall(targetDir string) error {
 			huh.NewOption("No", "no"),
 		).
 		Value(&installChoice).
+		WithTheme(navTheme()).
 		Run()
 	if err != nil || installChoice != "yes" {
 		fmt.Println(dim("Cancelled."))
@@ -257,6 +269,7 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 			huh.NewOption("User home (~/.copilot/) — agents & skills only, works across all repos", "user"),
 		).
 		Value(&choice).
+		WithTheme(navTheme()).
 		Run()
 	if err != nil {
 		return nil, nil // user cancelled
@@ -365,6 +378,7 @@ func offerLaunchCopilot() {
 			huh.NewOption("No", "no"),
 		).
 		Value(&choice).
+		WithTheme(navTheme()).
 		Run()
 	if err != nil || choice != "yes" {
 		return
@@ -390,6 +404,7 @@ func offerLaunchCopilotWithAgents(agents []string) {
 			huh.NewOption("No", "no"),
 		).
 		Value(&choice).
+		WithTheme(navTheme()).
 		Run()
 	if err != nil || choice != "yes" {
 		return
