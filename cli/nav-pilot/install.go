@@ -85,8 +85,8 @@ func installAgent(sourceDir string, scope *InstallScope, name string, dryRun, fo
 	}
 	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
 
-	// Only copy metadata in repo scope (not supported in user home)
-	if !scope.IsUser() {
+	// Copy metadata if the scope supports it
+	if scope.ShouldInstallMetadata() {
 		srcMeta := filepath.Join(sourceDir, ".github", "agents", name+".metadata.json")
 		dstMeta := scope.DstPath("agents", name+".metadata.json")
 		if _, err := os.Stat(srcMeta); err == nil {

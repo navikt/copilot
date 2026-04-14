@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -266,5 +267,96 @@ func TestInstalledAgents_UserScope(t *testing.T) {
 	}
 	if agents[0] != "nais" || agents[1] != "security-champion" {
 		t.Errorf("unexpected agents: %v", agents)
+	}
+}
+
+func TestReadScopedState_RejectsRepoStateInUserScope(t *testing.T) {
+	tmp := t.TempDir()
+	state := &StateFile{
+		Collection: "test",
+		Scope:      "repo",
+		Files: []InstalledFile{
+			{Path: ".github/agents/test.agent.md", Hash: "abc"},
+		},
+	}
+	data, _ := json.MarshalIndent(state, "", "  ")
+	statePath := filepath.Join(tmp, ".nav-pilot-state.json")
+	os.WriteFile(statePath, data, 0o644)
+
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        tmp,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill"},
+	}
+
+	_, err := readScopedState(scope)
+	if err == nil {
+		t.Fatal("expected scope mismatch error")
+	}
+	if !strings.Contains(err.Error(), "scope mismatch") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestReadScopedState_RejectsUserStateInRepoScope(t *testing.T) {
+	tmp := t.TempDir()
+	os.MkdirAll(filepath.Join(tmp, ".github"), 0o755)
+	state := &StateFile{
+		Collection: "test",
+		Scope:      "user",
+		Files: []InstalledFile{
+			{Path: "agents/test.agent.md", Hash: "abc"},
+		},
+	}
+	data, _ := json.MarshalIndent(state, "", "  ")
+	statePath := filepath.Join(tmp, ".github", ".nav-pilot-state.json")
+	os.WriteFile(statePath, data, 0o644)
+
+	scope := ScopeRepo(tmp)
+
+	_, err := readScopedState(scope)
+	if err == nil {
+		t.Fatal("expected scope mismatch error")
+	}
+	if !strings.Contains(err.Error(), "scope mismatch") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestReadScopedState_AcceptsEmptyScopeAsRepo(t *testing.T) {
+	tmp := t.TempDir()
+	os.MkdirAll(filepath.Join(tmp, ".github"), 0o755)
+	// Old state file without scope field (backwards compat)
+	state := &StateFile{
+		Collection: "test",
+		Files: []InstalledFile{
+			{Path: ".github/agents/test.agent.md", Hash: "abc"},
+		},
+	}
+	data, _ := json.MarshalIndent(state, "", "  ")
+	statePath := filepath.Join(tmp, ".github", ".nav-pilot-state.json")
+	os.WriteFile(statePath, data, 0o644)
+
+	scope := ScopeRepo(tmp)
+
+	got, err := readScopedState(scope)
+	if err != nil {
+		t.Fatalf("expected success for empty scope (backwards compat), got: %v", err)
+	}
+	if got.Collection != "test" {
+		t.Errorf("expected collection 'test', got %q", got.Collection)
+	}
+}
+
+func TestScope_ShouldInstallMetadata(t *testing.T) {
+	repo := ScopeRepo("/tmp")
+	if !repo.ShouldInstallMetadata() {
+		t.Error("repo scope should install metadata")
+	}
+
+	user := &InstallScope{Name: "user", SupportedTypes: []string{"agent", "skill"}}
+	if user.ShouldInstallMetadata() {
+		t.Error("user scope should NOT install metadata")
 	}
 }

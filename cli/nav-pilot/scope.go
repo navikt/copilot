@@ -141,3 +141,9 @@ func (s *InstallScope) Label() string {
 func (s *InstallScope) IsUser() bool {
 	return s.Name == "user"
 }
+
+// ShouldInstallMetadata returns whether agent metadata files should be installed.
+// User scope skips metadata since ~/.copilot doesn't support .metadata.json.
+func (s *InstallScope) ShouldInstallMetadata() bool {
+	return s.Name != "user"
+}

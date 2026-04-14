@@ -839,6 +839,7 @@ func TestInstallItems(t *testing.T) {
 // ─── Security tests (B1, B2) ───────────────────────────────────────────────
 
 func TestValidateStatePath(t *testing.T) {
+	repo := ScopeRepo("/tmp")
 	tests := []struct {
 		path    string
 		wantErr bool
@@ -858,9 +859,9 @@ func TestValidateStatePath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			err := validateStatePath(tt.path)
+			err := repo.ValidateStatePath(tt.path)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validateStatePath(%q) error = %v, wantErr %v", tt.path, err, tt.wantErr)
+				t.Errorf("ValidateStatePath(%q) error = %v, wantErr %v", tt.path, err, tt.wantErr)
 			}
 		})
 	}
