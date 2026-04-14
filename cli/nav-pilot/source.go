@@ -13,6 +13,7 @@ type Source struct {
 	Dir     string
 	TempDir string
 	SHA     string
+	Version string // release version (e.g. "2026.04.14-..."), empty for local dev
 }
 
 func (s *Source) Cleanup() {
@@ -45,14 +46,19 @@ func resolveSource(ref, sourceRepo string) (*Source, error) {
 			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 				sha := getGitSHA(gitRoot)
 				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", dim("→"), dim(gitRoot))
-				return &Source{Dir: gitRoot, SHA: sha}, nil
+				return &Source{Dir: gitRoot, SHA: sha, Version: version}, nil
 			}
 		}
 	}
 
 	// For released binaries, clone from the matching release tag
 	if version != "dev" {
-		return cloneRemote("nav-pilot/"+version, "")
+		src, err := cloneRemote("nav-pilot/"+version, "")
+		if err != nil {
+			return nil, err
+		}
+		src.Version = version
+		return src, nil
 	}
 
 	return cloneRemote("", "")

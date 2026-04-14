@@ -410,9 +410,15 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 		return nil
 	}
 
+	// Use release version if available, fall back to manifest version
+	stateVersion := src.Version
+	if stateVersion == "" || stateVersion == "dev" {
+		stateVersion = manifest.Version
+	}
+
 	state := &StateFile{
 		Collection:  collection,
-		Version:     manifest.Version,
+		Version:     stateVersion,
 		Scope:       scope.Name,
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
@@ -423,7 +429,7 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 	}
 
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
-		green("✓"), result.Installed, collection, manifest.Version, src.SHA)
+		green("✓"), result.Installed, collection, stateVersion, src.SHA)
 	fmt.Println()
 	if scope.IsUser() {
 		fmt.Println(dim("Agents and skills are now available across all your repos."))

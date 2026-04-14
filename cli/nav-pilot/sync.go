@@ -141,7 +141,10 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		if applyErrors == 0 {
 			state.SourceSHA = src.SHA
 		}
-		if collection != "" {
+		// Use release version if available, fall back to manifest version
+		if src.Version != "" && src.Version != "dev" {
+			state.Version = src.Version
+		} else if collection != "" {
 			if m, err := loadManifest(src.Dir, collection); err == nil {
 				state.Version = m.Version
 			}
