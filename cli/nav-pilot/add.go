@@ -83,7 +83,7 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	// Append to state file if one exists, otherwise create a minimal one
 	state, err := readScopedState(scope)
 	if err != nil {
-		state = nil
+		return fmt.Errorf("reading existing state: %w", err)
 	}
 	if state == nil {
 		state = &StateFile{
