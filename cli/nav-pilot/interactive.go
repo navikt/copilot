@@ -94,6 +94,19 @@ func cmdInteractive() error {
 // interactiveSyncAndLaunch handles the case where at least one scope has an install.
 // Checks for staleness in all scopes and offers to sync, then launches Copilot.
 func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, userScope *InstallScope, userState *StateFile) error {
+	fmt.Println(bold("🧭 nav-pilot"))
+
+	// Show discovered scopes
+	var scopeParts []string
+	if repoState != nil {
+		scopeParts = append(scopeParts, fmt.Sprintf("repo: %s", repoState.Collection))
+	}
+	if userState != nil {
+		scopeParts = append(scopeParts, fmt.Sprintf("user: %s", userState.Collection))
+	}
+	fmt.Println(dim(strings.Join(scopeParts, "  ·  ")))
+	fmt.Println()
+
 	type staleScope struct {
 		scope  *InstallScope
 		state  *StateFile
