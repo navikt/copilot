@@ -10,6 +10,7 @@ Teams that have installed customization files can use **nav-pilot sync** to chec
 nav-pilot sync              # Check for updates (exit 1 if available)
 nav-pilot sync --apply      # Apply updates directly
 nav-pilot sync --json       # Machine-readable output
+nav-pilot sync --user       # Sync user-scope install (~/.copilot/)
 ```
 
 ## Automated Sync (GitHub Actions)
@@ -33,6 +34,8 @@ jobs:
 ## How Detection Works
 
 **State-based repos** (used `nav-pilot install`): The state file (`.github/.nav-pilot-state.json`) tracks exactly which files were installed.
+
+**User-scope installs** (used `nav-pilot install --user`): The state file (`~/.copilot/.nav-pilot-state.json`) tracks installed agents and skills. Paths are remapped during sync (`agents/x` ↔ `.github/agents/x` in source).
 
 **Classic repos** (manually copied files): nav-pilot auto-detects files that also exist in the source repo:
 - `.github/agents/*.agent.md`

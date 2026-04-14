@@ -324,10 +324,15 @@ func launchCopilotWithAgent(agent string) {
 		return
 	}
 
-	// Pass --agent after "--" so cplt forwards it to the Copilot CLI
 	args := []string{}
 	if agent != "" {
-		args = append(args, "--", "--agent", agent)
+		if cliName == "cplt" {
+			// cplt requires "--" to forward flags to the underlying Copilot CLI
+			args = append(args, "--", "--agent", agent)
+		} else {
+			// copilot CLI accepts --agent directly
+			args = append(args, "--agent", agent)
+		}
 	}
 
 	if agent != "" {

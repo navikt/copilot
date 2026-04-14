@@ -4,6 +4,39 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ---
 
+## 2026-04-14
+
+### Bruker-hjemmappe-installasjon (`--user`)
+
+- Nytt `InstallScope`-konsept (repo vs bruker) — `--user`-flagg installerer agenter og skills til `~/.copilot/`
+- Bruker-scope fungerer på tvers av alle repoer uten å modifisere hvert enkelt
+- Instruksjoner og prompts støttes kun i repo-scope
+- Scope-felt i state-fil for å forhindre kryssforurensning
+
+### TUI-oppgradering
+
+- Erstattet nummererte tekstvalg med TUI-velgere (opp/ned + enter)
+- Bruker `charmbracelet/huh` for Select-komponenter
+- Interaktiv modus spør om repo- eller bruker-installasjon
+
+### Feilrettinger
+
+- Fikset uendelig «update available»-loop forårsaket av foreldet manifest-versjon
+- `cplt`-lansering bruker `-- --agent` passthrough, `copilot` bruker `--agent` direkte
+- `--user`-flagg avvises for kommandoer som ikke støtter det
+- `--user --target .` oppdages korrekt som ugyldig (mutually exclusive)
+- Symlink-beskyttelse i state-skriving dekker nå hele mappekjeden
+- Versjon lagres i à-la-carte-installasjoner (`nav-pilot add`)
+- Korrupt bruker-state viser advarsel i stedet for å ignoreres stille
+
+### Refaktorering
+
+- `installSingleFile`, `countFileIntegrity`, `shortSHA` ekstrahert som gjenbrukbare hjelpere
+- All state-validering går gjennom `InstallScope`
+- Deduplisert installasjonslogikk
+
+---
+
 ## 2026-04-13
 
 ### Nye artefakter

@@ -170,6 +170,16 @@ func run(args []string) error {
 		scope = ScopeRepo(targetDir)
 	}
 
+	// Reject --user for commands that don't support scoped installs
+	if userScope {
+		switch command {
+		case "install", "add", "sync", "status", "uninstall":
+			// These commands support --user
+		default:
+			return fmt.Errorf("--user is not supported for %q", command)
+		}
+	}
+
 	switch command {
 	case "install":
 		if len(positional) == 0 {

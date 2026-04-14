@@ -20,6 +20,9 @@ cd /path/to/your/repo
 nav-pilot                        # interaktiv velger
 nav-pilot install kotlin-backend # eller direkte
 
+# Installer til brukerens hjemmappe (fungerer på tvers av alle repoer)
+nav-pilot install --user fullstack  # installerer agenter og skills til ~/.copilot/
+
 # Oppdater nav-pilot
 nav-pilot update
 
@@ -27,6 +30,19 @@ nav-pilot update
 nav-pilot feedback             # åpner bug-rapport i nettleser
 nav-pilot feedback --feature   # åpner feature request
 ```
+
+## Installasjonsscopes
+
+nav-pilot støtter to installasjonsscopes:
+
+| Scope | Plassering | Innhold | Bruk |
+|-------|-----------|---------|------|
+| **Repo** (standard) | `.github/` | Agenter, skills, instruksjoner, prompts | Delt med teamet via git |
+| **Bruker** (`--user`) | `~/.copilot/` | Kun agenter og skills | Personlig, fungerer i alle repoer |
+
+- **Repo-scope** er standard — filene sjekkes inn i git og deles med hele teamet.
+- **Bruker-scope** installerer til `~/.copilot/`, som GitHub Copilot leser automatisk. Agenter og skills er tilgjengelige i alle repoer uten å modifisere hvert enkelt repo.
+- Instruksjoner og prompts støttes kun i repo-scope (GitHub Copilot leser ikke disse fra `~/.copilot/`).
 
 ## Bruk
 
