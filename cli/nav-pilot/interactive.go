@@ -114,14 +114,16 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 			label = "Sync all?"
 		}
 
-		var confirm bool
-		err := huh.NewConfirm().
+		var choice string
+		err := huh.NewSelect[string]().
 			Title(label).
-			Affirmative("Yes").
-			Negative("No").
-			Value(&confirm).
+			Options(
+				huh.NewOption("Yes", "yes"),
+				huh.NewOption("No", "no"),
+			).
+			Value(&choice).
 			Run()
-		if err != nil || !confirm {
+		if err != nil || choice != "yes" {
 			return nil
 		}
 
@@ -220,14 +222,16 @@ func interactiveFreshInstall(targetDir string) error {
 	}
 
 	// Confirm install
-	var confirm bool
-	err = huh.NewConfirm().
+	var installChoice string
+	err = huh.NewSelect[string]().
 		Title(fmt.Sprintf("Install %s to %s?", selected, scope.Label())).
-		Affirmative("Yes").
-		Negative("No").
-		Value(&confirm).
+		Options(
+			huh.NewOption("Yes", "yes"),
+			huh.NewOption("No", "no"),
+		).
+		Value(&installChoice).
 		Run()
-	if err != nil || !confirm {
+	if err != nil || installChoice != "yes" {
 		fmt.Println(dim("Cancelled."))
 		return nil
 	}
@@ -348,14 +352,16 @@ func offerLaunchCopilot() {
 	}
 
 	fmt.Println()
-	var launch bool
-	err := huh.NewConfirm().
+	var choice string
+	err := huh.NewSelect[string]().
 		Title(fmt.Sprintf("Launch %s now?", cliName)).
-		Affirmative("Yes").
-		Negative("No").
-		Value(&launch).
+		Options(
+			huh.NewOption("Yes", "yes"),
+			huh.NewOption("No", "no"),
+		).
+		Value(&choice).
 		Run()
-	if err != nil || !launch {
+	if err != nil || choice != "yes" {
 		return
 	}
 	fmt.Println()
@@ -371,14 +377,16 @@ func offerLaunchCopilotWithAgents(agents []string) {
 	}
 
 	fmt.Println()
-	var launch bool
-	err := huh.NewConfirm().
+	var choice string
+	err := huh.NewSelect[string]().
 		Title(fmt.Sprintf("Launch %s now?", cliName)).
-		Affirmative("Yes").
-		Negative("No").
-		Value(&launch).
+		Options(
+			huh.NewOption("Yes", "yes"),
+			huh.NewOption("No", "no"),
+		).
+		Value(&choice).
 		Run()
-	if err != nil || !launch {
+	if err != nil || choice != "yes" {
 		return
 	}
 
