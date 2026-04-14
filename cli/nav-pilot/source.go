@@ -61,7 +61,13 @@ func resolveSource(ref, sourceRepo string) (*Source, error) {
 		return src, nil
 	}
 
-	return cloneRemote("", "")
+	src, err := cloneRemote("", "")
+	if err != nil {
+		return nil, err
+	}
+	// Propagate the build-time version so state files always have a version.
+	src.Version = version
+	return src, nil
 }
 
 // findGitRoot walks up from dir to find the nearest .git directory.

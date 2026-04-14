@@ -86,6 +86,9 @@ func (s *InstallScope) StatePath() string {
 
 // ValidateStatePath checks that a path from the state file is safe for this scope.
 func (s *InstallScope) ValidateStatePath(p string) error {
+	// Normalize to forward slashes so checks work on all platforms.
+	p = filepath.ToSlash(p)
+
 	if filepath.IsAbs(p) {
 		return fmt.Errorf("absolute path not allowed: %s", p)
 	}

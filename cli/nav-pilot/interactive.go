@@ -45,6 +45,11 @@ func isGitRepo(dir string) bool {
 //  1. Not installed → prompt to pick and install a collection (repo or user home)
 //  2. Installed but outdated → sync all detected scopes
 //  3. Installed and up-to-date → launch cplt/copilot
+//
+// Safety: huh prompts are guarded by isInteractive() at each call site.
+// In tests, forceNonInteractive=true causes isInteractive() to return false,
+// which makes prompt-guarded functions (offerLaunchCopilot, etc.) return early.
+// The run() entry point also gates cmdInteractive behind isInteractive().
 func cmdInteractive() error {
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope

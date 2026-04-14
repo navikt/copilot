@@ -83,7 +83,9 @@ func run(args []string) error {
 			hasGitRepo := findGitRoot(".") != ""
 			hasUserInstall := false
 			if s, err := ScopeUser(); err == nil {
-				if st, _ := readScopedState(s); st != nil {
+				// Check file existence (not parse success) so corrupted state
+				// still reaches cmdInteractive() which can show a warning.
+				if _, statErr := os.Stat(s.StatePath()); statErr == nil {
 					hasUserInstall = true
 				}
 			}
