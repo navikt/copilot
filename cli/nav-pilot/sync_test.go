@@ -22,7 +22,7 @@ func TestResolveSyncFiles_WithState(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	files, collection, err := resolveSyncFiles(dir, "")
+	files, collection, err := resolveSyncFiles(ScopeRepo(dir), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestResolveSyncFiles_AutoDetect(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
-	files, collection, err := resolveSyncFiles(targetDir, sourceDir)
+	files, collection, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestApplySyncUpdate_File(t *testing.T) {
 	os.WriteFile(filepath.Join(sourceDir, rel), []byte("new"), 0o644)
 
 	u := syncUpdate{Path: rel, CurrentHash: "a", SourceHash: "b"}
-	if err := applySyncUpdate(targetDir, sourceDir, u); err != nil {
+	if err := applySyncUpdate(ScopeRepo(targetDir), sourceDir, u); err != nil {
 		t.Fatal(err)
 	}
 
@@ -187,7 +187,7 @@ func TestApplySyncUpdate_Dir(t *testing.T) {
 	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "s", "SKILL.md"), []byte("new"), 0o644)
 
 	u := syncUpdate{Path: rel, CurrentHash: "a", SourceHash: "b"}
-	if err := applySyncUpdate(targetDir, sourceDir, u); err != nil {
+	if err := applySyncUpdate(ScopeRepo(targetDir), sourceDir, u); err != nil {
 		t.Fatal(err)
 	}
 

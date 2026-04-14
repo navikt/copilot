@@ -30,7 +30,7 @@ func TestRun_AddOnlyType(t *testing.T) {
 }
 
 func TestCmdAdd_InvalidType(t *testing.T) {
-	err := cmdAdd("widget", "foo", t.TempDir(), "", "", true, false)
+	err := cmdAdd("widget", "foo", ScopeRepo(t.TempDir()), "", "", true, false)
 	if err == nil {
 		t.Fatal("expected error for invalid type")
 	}
@@ -40,7 +40,7 @@ func TestCmdAdd_InvalidType(t *testing.T) {
 }
 
 func TestCmdAdd_InvalidName(t *testing.T) {
-	err := cmdAdd("agent", "../etc/passwd", t.TempDir(), "", "", true, false)
+	err := cmdAdd("agent", "../etc/passwd", ScopeRepo(t.TempDir()), "", "", true, false)
 	if err == nil {
 		t.Fatal("expected error for path traversal name")
 	}
@@ -66,7 +66,7 @@ func TestCmdAdd_Agent(t *testing.T) {
 	os.MkdirAll(filepath.Join(source, ".github", "collections"), 0o755)
 
 	result := &installResult{}
-	err := installAgent(source, target, "test-agent", false, false, result)
+	err := installAgent(source, ScopeRepo(target), "test-agent", false, false, result)
 	if err != nil {
 		t.Fatalf("installAgent: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestCmdAdd_Skill(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	result := &installResult{}
-	err := installSkill(source, target, "test-skill", false, false, result)
+	err := installSkill(source, ScopeRepo(target), "test-skill", false, false, result)
 	if err != nil {
 		t.Fatalf("installSkill: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestCmdAdd_AppendsToState(t *testing.T) {
 	os.WriteFile(filepath.Join(agentDir, "new-agent.agent.md"), []byte("# New Agent"), 0o644)
 
 	result := &installResult{}
-	installAgent(source, target, "new-agent", false, false, result)
+	installAgent(source, ScopeRepo(target), "new-agent", false, false, result)
 
 	// Simulate what cmdAdd does: merge state
 	state, _ := readState(target)
@@ -234,7 +234,7 @@ func TestCmdInstall_FullFlow(t *testing.T) {
 		t.Fatalf("loadManifest: %v", err)
 	}
 
-	result, err := installItems(source, target, manifest, false, false)
+	result, err := installItems(source, ScopeRepo(target), manifest, false, false)
 	if err != nil {
 		t.Fatalf("installItems: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestCmdInstall_DryRunNoSideEffects(t *testing.T) {
 		t.Fatalf("loadManifest: %v", err)
 	}
 
-	result, err := installItems(source, target, manifest, true, false)
+	result, err := installItems(source, ScopeRepo(target), manifest, true, false)
 	if err != nil {
 		t.Fatalf("installItems dry-run: %v", err)
 	}
@@ -289,7 +289,7 @@ func TestCmdStatus_Integrity(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	manifest, _ := loadManifest(source, "test-collection")
-	result, _ := installItems(source, target, manifest, false, false)
+	result, _ := installItems(source, ScopeRepo(target), manifest, false, false)
 
 	state := &StateFile{
 		Collection: "test-collection",
@@ -300,7 +300,7 @@ func TestCmdStatus_Integrity(t *testing.T) {
 	writeState(target, state)
 
 	// Should not error
-	err := cmdStatus(target)
+	err := cmdStatus(ScopeRepo(target))
 	if err != nil {
 		t.Fatalf("cmdStatus: %v", err)
 	}
@@ -313,7 +313,7 @@ func TestCmdUninstall_RemovesFiles(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	manifest, _ := loadManifest(source, "test-collection")
-	result, _ := installItems(source, target, manifest, false, false)
+	result, _ := installItems(source, ScopeRepo(target), manifest, false, false)
 
 	state := &StateFile{
 		Collection: "test-collection",
@@ -322,7 +322,7 @@ func TestCmdUninstall_RemovesFiles(t *testing.T) {
 	writeState(target, state)
 
 	// Uninstall
-	err := cmdUninstall(target, false)
+	err := cmdUninstall(ScopeRepo(target), false)
 	if err != nil {
 		t.Fatalf("cmdUninstall: %v", err)
 	}

@@ -37,7 +37,7 @@ var errSyncFailed = fmt.Errorf("sync failed")
 //   - apply: update differing files in place
 //
 // Works with both state-based repos (nav-pilot install) and auto-detected repos.
-func cmdSync(targetDir, ref, sourceRepo string, apply, jsonOutput bool) error {
+func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
 	src, err := resolveSource(ref, sourceRepo)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func cmdSync(targetDir, ref, sourceRepo string, apply, jsonOutput bool) error {
 	defer src.Cleanup()
 
 	// Determine which files to check
-	files, collection, err := resolveSyncFiles(targetDir, src.Dir)
+	files, collection, err := resolveSyncFiles(scope, src.Dir)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func cmdSync(targetDir, ref, sourceRepo string, apply, jsonOutput bool) error {
 	var updates []syncUpdate
 	var syncErrors []string
 	for _, sf := range files {
-		u, err := checkSyncFile(targetDir, src.Dir, sf)
+		u, err := checkSyncFile(scope.RootDir, src.Dir, sf)
 		if err != nil {
 			if !jsonOutput {
 				fmt.Fprintf(os.Stderr, "%s %s: %v\n", yellow("⚠"), sf.localPath, err)
@@ -120,7 +120,7 @@ func cmdSync(targetDir, ref, sourceRepo string, apply, jsonOutput bool) error {
 	var appliedUpdates []syncUpdate
 	var applyErrors int
 	for _, u := range updates {
-		if err := applySyncUpdate(targetDir, src.Dir, u); err != nil {
+		if err := applySyncUpdate(scope, src.Dir, u); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not update %s: %v\n", yellow("⚠"), u.Path, err)
 			applyErrors++
 			continue
@@ -131,23 +131,22 @@ func cmdSync(targetDir, ref, sourceRepo string, apply, jsonOutput bool) error {
 	}
 	fmt.Printf("\n%s Updated %d file(s).\n", green("✓"), applied)
 
-	// I1: Only update state for successfully applied files
-	if err := updateStateHashes(targetDir, appliedUpdates); err != nil {
+	// Update state with new hashes
+	if err := updateScopedStateHashes(scope, appliedUpdates); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update state file: %v\n", yellow("⚠"), err)
 	}
 
 	// Only bump source SHA if ALL updates were applied successfully
-	if state, err := readState(targetDir); err == nil && state != nil {
+	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {
 			state.SourceSHA = src.SHA
 		}
 		if collection != "" {
-			// Reload manifest to get latest version
 			if m, err := loadManifest(src.Dir, collection); err == nil {
 				state.Version = m.Version
 			}
 		}
-		if err := writeState(targetDir, state); err != nil {
+		if err := writeScopedState(scope, state); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not update state: %v\n", yellow("⚠"), err)
 		}
 	}
@@ -169,8 +168,8 @@ type syncFile struct {
 // resolveSyncFiles determines which files to sync.
 // If a state file exists, uses the installed file list.
 // Otherwise, auto-detects customization files in the target repo.
-func resolveSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error) {
-	state, err := readState(targetDir)
+func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string, error) {
+	state, err := readScopedState(scope)
 	if err != nil {
 		return nil, "", fmt.Errorf("reading state: %w", err)
 	}
@@ -179,17 +178,27 @@ func resolveSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error) {
 		// State-based: check all installed files
 		var files []syncFile
 		for _, f := range state.Files {
+			sp := f.Path
+			// User scope: local path is "agents/x" but source is ".github/agents/x"
+			if scope.IsUser() {
+				sp = filepath.Join(".github", f.Path)
+			}
 			files = append(files, syncFile{
 				localPath:  f.Path,
-				sourcePath: f.Path,
+				sourcePath: sp,
 				isDir:      strings.HasSuffix(f.Path, "/"),
 			})
 		}
 		return files, state.Collection, nil
 	}
 
+	if scope.IsUser() {
+		// No auto-detect for user scope without state
+		return nil, "", nil
+	}
+
 	// Auto-detect: scan for customization files that also exist in source
-	return autoDetectSyncFiles(targetDir, sourceDir)
+	return autoDetectSyncFiles(scope.RootDir, sourceDir)
 }
 
 // autoDetectSyncFiles finds customization files in the target that also exist in source.
@@ -305,9 +314,14 @@ func checkSyncFile(targetDir, sourceDir string, sf syncFile) (*syncUpdate, error
 }
 
 // applySyncUpdate copies a single file/dir from source to target.
-func applySyncUpdate(targetDir, sourceDir string, u syncUpdate) error {
-	sourceFull := filepath.Join(sourceDir, u.Path)
-	targetFull := filepath.Join(targetDir, u.Path)
+func applySyncUpdate(scope *InstallScope, sourceDir string, u syncUpdate) error {
+	// Source path: for user scope, prepend .github/ to get source location
+	sp := u.Path
+	if scope.IsUser() {
+		sp = filepath.Join(".github", u.Path)
+	}
+	sourceFull := filepath.Join(sourceDir, sp)
+	targetFull := filepath.Join(scope.RootDir, u.Path)
 
 	if strings.HasSuffix(u.Path, "/") {
 		return copyDir(sourceFull, targetFull)
@@ -315,9 +329,9 @@ func applySyncUpdate(targetDir, sourceDir string, u syncUpdate) error {
 	return copyFile(sourceFull, targetFull)
 }
 
-// updateStateHashes updates the state file with new hashes after applying updates.
-func updateStateHashes(targetDir string, updates []syncUpdate) error {
-	state, err := readState(targetDir)
+// updateScopedStateHashes updates the state file with new hashes after applying updates.
+func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
+	state, err := readScopedState(scope)
 	if err != nil || state == nil {
 		return nil // no state file, nothing to update
 	}
@@ -331,7 +345,7 @@ func updateStateHashes(targetDir string, updates []syncUpdate) error {
 		if !updateMap[f.Path] {
 			continue
 		}
-		path := filepath.Join(targetDir, f.Path)
+		path := filepath.Join(scope.RootDir, f.Path)
 		var hash string
 		if strings.HasSuffix(f.Path, "/") {
 			hash, err = dirHash(path)
@@ -344,7 +358,12 @@ func updateStateHashes(targetDir string, updates []syncUpdate) error {
 		state.Files[i].Hash = hash
 	}
 
-	return writeState(targetDir, state)
+	return writeScopedState(scope, state)
+}
+
+// updateStateHashes is a backward-compatible wrapper for repo scope.
+func updateStateHashes(targetDir string, updates []syncUpdate) error {
+	return updateScopedStateHashes(ScopeRepo(targetDir), updates)
 }
 
 func outputJSON(v interface{}) error {

@@ -59,6 +59,7 @@ Flags:
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from
   -s, --source <repo>     Source repository (default: navikt/copilot)
+  -u, --user              Install to ~/.copilot (user-wide, agents and skills only)
   --apply                 Apply available updates (sync only)
   --json                  Output results as JSON (sync only)
   -F, --feature           Submit a feature request (feedback only)
@@ -87,7 +88,7 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope bool
 	var targetDir, ref, sourceRepo string
 	var positional []string
 
@@ -107,6 +108,8 @@ func run(args []string) error {
 			listItems = true
 		case "-F", "--feature":
 			featureRequest = true
+		case "-u", "--user":
+			userScope = true
 		case "-t", "--target":
 			if i+1 >= len(rest) {
 				return fmt.Errorf("--target requires a value")
@@ -136,8 +139,24 @@ func run(args []string) error {
 		}
 	}
 
+	if userScope && targetDir != "." {
+		return fmt.Errorf("--user and --target are mutually exclusive")
+	}
+
 	if abs, err := filepath.Abs(targetDir); err == nil {
 		targetDir = abs
+	}
+
+	// Build scope
+	var scope *InstallScope
+	if userScope {
+		var err error
+		scope, err = ScopeUser()
+		if err != nil {
+			return fmt.Errorf("resolving user home: %w", err)
+		}
+	} else {
+		scope = ScopeRepo(targetDir)
 	}
 
 	switch command {
@@ -145,20 +164,20 @@ func run(args []string) error {
 		if len(positional) == 0 {
 			return fmt.Errorf("install requires a collection name. Run 'nav-pilot list' to see available collections")
 		}
-		return cmdInstall(positional[0], targetDir, ref, sourceRepo, dryRun, force)
+		return cmdInstall(positional[0], scope, ref, sourceRepo, dryRun, force)
 	case "add":
 		if len(positional) < 2 {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
 		}
-		return cmdAdd(positional[0], positional[1], targetDir, ref, sourceRepo, dryRun, force)
+		return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force)
 	case "sync":
-		return cmdSync(targetDir, ref, sourceRepo, apply, jsonOutput)
+		return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
 	case "list":
 		return cmdList(ref, sourceRepo, listItems)
 	case "status":
-		return cmdStatus(targetDir)
+		return cmdStatus(scope)
 	case "uninstall":
-		return cmdUninstall(targetDir, dryRun)
+		return cmdUninstall(scope, dryRun)
 	case "update":
 		return cmdUpdate()
 	case "feedback":

@@ -8,7 +8,7 @@ import (
 
 // cmdAdd installs a single agent, skill, instruction, or prompt from the source repo.
 // It appends to the existing state file if one exists.
-func cmdAdd(itemType, name, targetDir, ref, sourceRepo string, dryRun, force bool) error {
+func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool) error {
 	// Validate type
 	switch itemType {
 	case "agent", "skill", "instruction", "prompt":
@@ -17,13 +17,17 @@ func cmdAdd(itemType, name, targetDir, ref, sourceRepo string, dryRun, force boo
 		return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt", itemType)
 	}
 
+	if !scope.SupportsType(itemType) {
+		return fmt.Errorf("type %q is not supported in user scope. Only agents and skills can be installed to ~/.copilot", itemType)
+	}
+
 	if err := validateName(name); err != nil {
 		return fmt.Errorf("invalid name: %w", err)
 	}
 
-	if !dryRun {
-		if _, err := os.Stat(filepath.Join(targetDir, ".git")); os.IsNotExist(err) {
-			return fmt.Errorf("target %q does not appear to be a git repository (no .git directory)", targetDir)
+	if !dryRun && !scope.IsUser() {
+		if _, err := os.Stat(filepath.Join(scope.RootDir, ".git")); os.IsNotExist(err) {
+			return fmt.Errorf("target %q does not appear to be a git repository (no .git directory)", scope.RootDir)
 		}
 	}
 
@@ -48,19 +52,20 @@ func cmdAdd(itemType, name, targetDir, ref, sourceRepo string, dryRun, force boo
 		fmt.Println(bold(fmt.Sprintf("Adding %s: %s", itemType, name)))
 	}
 	fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+	fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 	fmt.Println()
 
 	// Dispatch to the appropriate installer
 	var installErr error
 	switch itemType {
 	case "agent":
-		installErr = installAgent(src.Dir, targetDir, name, dryRun, force, result)
+		installErr = installAgent(src.Dir, scope, name, dryRun, force, result)
 	case "skill":
-		installErr = installSkill(src.Dir, targetDir, name, dryRun, force, result)
+		installErr = installSkill(src.Dir, scope, name, dryRun, force, result)
 	case "instruction":
-		installErr = installInstruction(src.Dir, targetDir, name, dryRun, force, result)
+		installErr = installInstruction(src.Dir, scope, name, dryRun, force, result)
 	case "prompt":
-		installErr = installPrompt(src.Dir, targetDir, name, dryRun, force, result)
+		installErr = installPrompt(src.Dir, scope, name, dryRun, force, result)
 	}
 	if installErr != nil {
 		return installErr
@@ -76,13 +81,14 @@ func cmdAdd(itemType, name, targetDir, ref, sourceRepo string, dryRun, force boo
 	}
 
 	// Append to state file if one exists, otherwise create a minimal one
-	state, err := readState(targetDir)
+	state, err := readScopedState(scope)
 	if err != nil {
 		state = nil
 	}
 	if state == nil {
 		state = &StateFile{
 			Collection:  "(à la carte)",
+			Scope:       scope.Name,
 			SourceSHA:   src.SHA,
 			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		}
@@ -107,7 +113,7 @@ func cmdAdd(itemType, name, targetDir, ref, sourceRepo string, dryRun, force boo
 			}
 		}
 	}
-	if err := writeState(targetDir, state); err != nil {
+	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
 

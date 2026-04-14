@@ -59,7 +59,7 @@ func cmdInteractive() error {
 			answer = strings.TrimSpace(strings.ToLower(answer))
 			if answer == "" || answer == "y" || answer == "yes" {
 				fmt.Println()
-				return cmdSync(targetDir, "", "", true, false)
+				return cmdSync(ScopeRepo(targetDir), "", "", true, false)
 			}
 		}
 
@@ -172,7 +172,7 @@ func cmdInteractive() error {
 
 	// Install
 	fmt.Println()
-	if err := cmdInstall(selected.name, targetDir, "", "", false, false); err != nil {
+	if err := cmdInstall(selected.name, ScopeRepo(targetDir), "", "", false, false); err != nil {
 		return err
 	}
 
@@ -186,9 +186,15 @@ func cmdInteractive() error {
 func installedAgents(state *StateFile) []string {
 	var agents []string
 	for _, f := range state.Files {
-		if strings.HasPrefix(f.Path, ".github/agents/") && strings.HasSuffix(f.Path, ".agent.md") {
-			name := filepath.Base(f.Path)
-			name = strings.TrimSuffix(name, ".agent.md")
+		// Repo scope: ".github/agents/x.agent.md"
+		// User scope: "agents/x.agent.md"
+		base := filepath.Base(f.Path)
+		if !strings.HasSuffix(base, ".agent.md") {
+			continue
+		}
+		dir := filepath.Dir(f.Path)
+		if dir == filepath.Join(".github", "agents") || dir == "agents" {
+			name := strings.TrimSuffix(base, ".agent.md")
 			agents = append(agents, name)
 		}
 	}

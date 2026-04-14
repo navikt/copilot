@@ -14,6 +14,7 @@ const stateFilePath = ".github/.nav-pilot-state.json"
 type StateFile struct {
 	Collection  string          `json:"collection"`
 	Version     string          `json:"version"`
+	Scope       string          `json:"scope,omitempty"` // "repo" or "user"; empty means "repo" (backwards compat)
 	SourceSHA   string          `json:"source_sha"`
 	InstalledAt string          `json:"installed_at"`
 	Files       []InstalledFile `json:"files"`
@@ -26,7 +27,15 @@ type InstalledFile struct {
 }
 
 func readState(targetDir string) (*StateFile, error) {
-	path := filepath.Join(targetDir, stateFilePath)
+	return readStateAt(filepath.Join(targetDir, stateFilePath))
+}
+
+// readScopedState reads state from the scope's state file location.
+func readScopedState(scope *InstallScope) (*StateFile, error) {
+	return readStateAt(scope.StatePath())
+}
+
+func readStateAt(path string) (*StateFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -38,10 +47,23 @@ func readState(targetDir string) (*StateFile, error) {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, fmt.Errorf("parsing state file: %w", err)
 	}
+
+	// Determine scope for validation (default to "repo" for backwards compat)
+	scopeName := s.Scope
+	if scopeName == "" {
+		scopeName = "repo"
+	}
+
 	// B1: Validate all file paths to prevent path traversal attacks
 	for _, f := range s.Files {
-		if err := validateStatePath(f.Path); err != nil {
-			return nil, fmt.Errorf("unsafe state file: %w", err)
+		var validationErr error
+		if scopeName == "user" {
+			validationErr = validateUserStatePath(f.Path)
+		} else {
+			validationErr = validateStatePath(f.Path)
+		}
+		if validationErr != nil {
+			return nil, fmt.Errorf("unsafe state file: %w", validationErr)
 		}
 	}
 	return &s, nil
@@ -62,8 +84,31 @@ func validateStatePath(p string) error {
 	return nil
 }
 
+// validateUserStatePath ensures a path from a user-scope state file is safe.
+// Only allows agents/ and skills/ prefixes.
+func validateUserStatePath(p string) error {
+	if filepath.IsAbs(p) {
+		return fmt.Errorf("absolute path not allowed: %s", p)
+	}
+	if strings.Contains(p, "..") {
+		return fmt.Errorf("path traversal not allowed: %s", p)
+	}
+	if !strings.HasPrefix(p, "agents/") && !strings.HasPrefix(p, "skills/") {
+		return fmt.Errorf("path outside agents/ or skills/ not allowed in user scope: %s", p)
+	}
+	return nil
+}
+
 func writeState(targetDir string, state *StateFile) error {
-	path := filepath.Join(targetDir, stateFilePath)
+	return writeStateAt(filepath.Join(targetDir, stateFilePath), state)
+}
+
+// writeScopedState writes state to the scope's state file location.
+func writeScopedState(scope *InstallScope, state *StateFile) error {
+	return writeStateAt(scope.StatePath(), state)
+}
+
+func writeStateAt(path string, state *StateFile) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
