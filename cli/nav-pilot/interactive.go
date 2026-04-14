@@ -102,7 +102,7 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 	if userState != nil {
 		scopeParts = append(scopeParts, fmt.Sprintf("user: %s", userState.Collection))
 	}
-	fmt.Printf("%s  %s\n\n", bold("🧭 nav-pilot"), dim(strings.Join(scopeParts, "  ·  ")))
+	fmt.Printf("%s  %s\n", bold("🧭 nav-pilot"), dim(strings.Join(scopeParts, "  ·  ")))
 
 	type staleScope struct {
 		scope  *InstallScope
