@@ -12,6 +12,10 @@ import (
 // ─── CLI parsing tests ──────────────────────────────────────────────────────
 
 func TestRun_NoArgs(t *testing.T) {
+	// Prevent TUI from blocking when running in an interactive terminal
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
 	err := run([]string{})
 	if err != nil {
 		t.Fatalf("expected no error for no args (shows usage), got: %v", err)

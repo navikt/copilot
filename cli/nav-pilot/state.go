@@ -86,9 +86,9 @@ func writeStateAt(path string, state *StateFile) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	// B2: Refuse to overwrite symlinks
-	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("refusing to overwrite symlink: %s", path)
+	// B2: Refuse to write through symlinks (file or parent directory)
+	if err := checkSymlink(path); err != nil {
+		return err
 	}
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {

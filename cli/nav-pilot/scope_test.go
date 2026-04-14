@@ -144,6 +144,16 @@ func TestUserAndTargetMutuallyExclusive(t *testing.T) {
 	}
 }
 
+func TestUserAndTargetDotMutuallyExclusive(t *testing.T) {
+	err := run([]string{"install", "--user", "--target", ".", "fullstack"})
+	if err == nil {
+		t.Fatal("expected error for --user + --target . (explicit dot)")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestCmdAdd_UserScopeRejectsInstruction(t *testing.T) {
 	scope := &InstallScope{
 		Name:           "user",

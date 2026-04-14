@@ -89,11 +89,15 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 		state = &StateFile{
 			Collection:  "(à la carte)",
 			Scope:       scope.Name,
+			Version:     src.Version,
 			SourceSHA:   src.SHA,
 			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		}
 	}
 	state.SourceSHA = src.SHA
+	if state.Version == "" {
+		state.Version = src.Version
+	}
 
 	// Merge new files into state, avoiding duplicates
 	existing := make(map[string]bool)

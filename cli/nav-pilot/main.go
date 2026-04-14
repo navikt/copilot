@@ -78,8 +78,18 @@ After installing, use @nav-pilot in GitHub Copilot Chat.
 // It returns an error instead of calling os.Exit, making it testable.
 func run(args []string) error {
 	if len(args) < 1 {
-		if isInteractive() && findGitRoot(".") != "" {
-			return cmdInteractive()
+		if isInteractive() {
+			// Allow interactive mode if in a git repo or if user-scope install exists
+			hasGitRepo := findGitRoot(".") != ""
+			hasUserInstall := false
+			if s, err := ScopeUser(); err == nil {
+				if st, _ := readScopedState(s); st != nil {
+					hasUserInstall = true
+				}
+			}
+			if hasGitRepo || hasUserInstall {
+				return cmdInteractive()
+			}
 		}
 		usage()
 		return nil
@@ -88,7 +98,7 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided bool
 	var targetDir, ref, sourceRepo string
 	var positional []string
 
@@ -116,6 +126,7 @@ func run(args []string) error {
 			}
 			i++
 			targetDir = rest[i]
+			targetProvided = true
 		case "-r", "--ref":
 			if i+1 >= len(rest) {
 				return fmt.Errorf("--ref requires a value")
@@ -139,7 +150,7 @@ func run(args []string) error {
 		}
 	}
 
-	if userScope && targetDir != "." {
+	if userScope && targetProvided {
 		return fmt.Errorf("--user and --target are mutually exclusive")
 	}
 

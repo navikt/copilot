@@ -42,7 +42,11 @@ func cmdInteractive() error {
 	var userState *StateFile
 	if s, err := ScopeUser(); err == nil {
 		userScope = s
-		userState, _ = readScopedState(userScope)
+		var readErr error
+		userState, readErr = readScopedState(userScope)
+		if readErr != nil {
+			fmt.Fprintf(os.Stderr, "⚠  Warning: user-scope state may be corrupted: %v\n", readErr)
+		}
 	}
 
 	// Check repo-scope state (only if in a git repo)
