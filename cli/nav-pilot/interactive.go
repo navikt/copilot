@@ -339,9 +339,10 @@ func launchCopilotWithAgent(agent string) {
 		return
 	}
 
+	// Pass --agent after "--" so cplt forwards it to the Copilot CLI
 	args := []string{}
 	if agent != "" {
-		args = append(args, "--agent", agent)
+		args = append(args, "--", "--agent", agent)
 	}
 
 	if agent != "" {
@@ -391,29 +392,18 @@ func offerLaunchCopilot(reader *bufio.Reader) {
 }
 
 // offerLaunchCopilotWithAgents prompts the user to launch the Copilot CLI
-// and lets them pick an agent from the installed collection.
+// with the nav-pilot agent if it's among the installed agents.
 func offerLaunchCopilotWithAgents(reader *bufio.Reader, agents []string) {
 	if _, _, ok := promptLaunchCopilot(reader); !ok {
 		return
 	}
 
+	// Launch with nav-pilot agent if installed, otherwise plain launch
 	agent := ""
-	if len(agents) > 0 {
-		fmt.Println()
-		fmt.Println(bold("Available agents:"))
-		fmt.Println()
-		for i, a := range agents {
-			fmt.Printf("  %s  %s\n", bold(fmt.Sprintf("%d.", i+1)), a)
-		}
-		fmt.Printf("  %s  %s\n", bold(fmt.Sprintf("%d.", len(agents)+1)), dim("(no agent — default mode)"))
-		fmt.Println()
-		fmt.Printf("Select agent [1-%d]: ", len(agents)+1)
-		input, err := reader.ReadString('\n')
-		if err == nil {
-			input = strings.TrimSpace(input)
-			if choice, err := strconv.Atoi(input); err == nil && choice >= 1 && choice <= len(agents) {
-				agent = agents[choice-1]
-			}
+	for _, a := range agents {
+		if a == "nav-pilot" {
+			agent = "nav-pilot"
+			break
 		}
 	}
 
