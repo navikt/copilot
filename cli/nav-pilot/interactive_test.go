@@ -12,8 +12,8 @@ import (
 func TestFindCopilotCLI(t *testing.T) {
 	path, name := findCopilotCLI()
 	if path != "" {
-		if name != "cplt" {
-			t.Errorf("expected name 'cplt', got %q", name)
+		if name != "cplt" && name != "copilot" {
+			t.Errorf("expected name 'cplt' or 'copilot', got %q", name)
 		}
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("returned path %q does not exist: %v", path, err)
@@ -75,5 +75,27 @@ func TestCmdInteractive_InstalledUpToDate(t *testing.T) {
 	err := cmdInteractive()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestInstalledAgents(t *testing.T) {
+	state := &StateFile{
+		Files: []InstalledFile{
+			{Path: ".github/agents/nav-pilot.agent.md"},
+			{Path: ".github/agents/auth-agent.agent.md"},
+			{Path: ".github/agents/nais-agent.agent.md"},
+			{Path: ".github/skills/threat-model/SKILL.md"},
+			{Path: ".github/instructions/golang.instructions.md"},
+		},
+	}
+	agents := installedAgents(state)
+	expected := []string{"auth-agent", "nais-agent", "nav-pilot"}
+	if len(agents) != len(expected) {
+		t.Fatalf("expected %d agents, got %d: %v", len(expected), len(agents), agents)
+	}
+	for i, a := range agents {
+		if a != expected[i] {
+			t.Errorf("agent[%d]: expected %q, got %q", i, expected[i], a)
+		}
 	}
 }

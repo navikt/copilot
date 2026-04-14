@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -62,8 +63,9 @@ func cmdInteractive() error {
 			}
 		}
 
-		// Up-to-date (or user skipped sync) — launch Copilot CLI
-		launchCopilot()
+		// Up-to-date (or user skipped sync) — offer to launch with agent selection
+		agents := installedAgents(state)
+		offerLaunchCopilotWithAgents(reader, agents)
 		return nil
 	}
 
@@ -179,28 +181,56 @@ func cmdInteractive() error {
 	return nil
 }
 
-// findCopilotCLI returns the path to cplt if available.
-// We only auto-launch cplt (unambiguous). "copilot" could be AWS Copilot,
-// so we just hint at it instead of launching blindly.
+// installedAgents extracts agent names from the state file's installed files.
+// Agent files follow the pattern .github/agents/<name>.agent.md.
+func installedAgents(state *StateFile) []string {
+	var agents []string
+	for _, f := range state.Files {
+		if strings.HasPrefix(f.Path, ".github/agents/") && strings.HasSuffix(f.Path, ".agent.md") {
+			name := filepath.Base(f.Path)
+			name = strings.TrimSuffix(name, ".agent.md")
+			agents = append(agents, name)
+		}
+	}
+	sort.Strings(agents)
+	return agents
+}
+
+// findCopilotCLI returns the path to cplt or copilot CLI.
+// Prefers cplt (unambiguous GitHub Copilot CLI).
 func findCopilotCLI() (path, name string) {
 	if p, err := exec.LookPath("cplt"); err == nil {
 		return p, "cplt"
 	}
+	if p, err := exec.LookPath("copilot"); err == nil {
+		return p, "copilot"
+	}
 	return "", ""
 }
 
-// launchCopilot launches cplt directly, or hints at copilot.
+// launchCopilot launches the Copilot CLI, optionally with --agent.
 func launchCopilot() {
+	launchCopilotWithAgent("")
+}
+
+// launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
+func launchCopilotWithAgent(agent string) {
 	cliPath, cliName := findCopilotCLI()
 	if cliPath == "" {
-		if _, err := exec.LookPath("copilot"); err == nil {
-			fmt.Printf(dim("Tip: run %s to start coding.\n"), bold("copilot"))
-		}
 		return
 	}
 
-	fmt.Printf("Launching %s...\n\n", bold(cliName))
-	cmd := exec.Command(cliPath)
+	args := []string{}
+	if agent != "" {
+		args = append(args, "--agent", agent)
+	}
+
+	if agent != "" {
+		fmt.Printf("Launching %s with agent %s...\n\n", bold(cliName), bold(agent))
+	} else {
+		fmt.Printf("Launching %s...\n\n", bold(cliName))
+	}
+	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -210,14 +240,10 @@ func launchCopilot() {
 }
 
 // offerLaunchCopilot prompts the user to launch the Copilot CLI after install.
+// If agents are available in the collection, offers to spawn with --agent.
 func offerLaunchCopilot(reader *bufio.Reader) {
 	cliPath, cliName := findCopilotCLI()
 	if cliPath == "" {
-		// Hint if copilot exists but don't auto-launch (could be AWS Copilot)
-		if _, err := exec.LookPath("copilot"); err == nil {
-			fmt.Println()
-			fmt.Printf(dim("Tip: run %s to start coding with your new setup.\n"), bold("copilot"))
-		}
 		return
 	}
 
@@ -234,11 +260,49 @@ func offerLaunchCopilot(reader *bufio.Reader) {
 	}
 
 	fmt.Println()
-	cmd := exec.Command(cliPath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), cliName, err)
+	launchCopilotWithAgent("nav-pilot")
+}
+
+// offerLaunchCopilotWithAgents prompts the user to launch the Copilot CLI
+// and lets them pick an agent from the installed collection.
+func offerLaunchCopilotWithAgents(reader *bufio.Reader, agents []string) {
+	cliPath, cliName := findCopilotCLI()
+	if cliPath == "" {
+		return
 	}
+
+	fmt.Println()
+	fmt.Printf("Launch %s now? [Y/n]: ", bold(cliName))
+	answer, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println()
+		return
+	}
+	answer = strings.TrimSpace(strings.ToLower(answer))
+	if answer != "" && answer != "y" && answer != "yes" {
+		return
+	}
+
+	agent := ""
+	if len(agents) > 0 {
+		fmt.Println()
+		fmt.Println(bold("Available agents:"))
+		fmt.Println()
+		for i, a := range agents {
+			fmt.Printf("  %s  %s\n", bold(fmt.Sprintf("%d.", i+1)), a)
+		}
+		fmt.Printf("  %s  %s\n", bold(fmt.Sprintf("%d.", len(agents)+1)), dim("(no agent — default mode)"))
+		fmt.Println()
+		fmt.Printf("Select agent [1-%d]: ", len(agents)+1)
+		input, err := reader.ReadString('\n')
+		if err == nil {
+			input = strings.TrimSpace(input)
+			if choice, err := strconv.Atoi(input); err == nil && choice >= 1 && choice <= len(agents) {
+				agent = agents[choice-1]
+			}
+		}
+	}
+
+	fmt.Println()
+	launchCopilotWithAgent(agent)
 }
