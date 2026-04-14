@@ -45,7 +45,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	defer src.Cleanup()
 
 	// Determine which files to check
-	files, collection, err := resolveSyncFiles(scope, src.Dir)
+	files, _, err := resolveSyncFiles(scope, src.Dir)
 	if err != nil {
 		return err
 	}
@@ -141,13 +141,10 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		if applyErrors == 0 {
 			state.SourceSHA = src.SHA
 		}
-		// Use release version if available, fall back to manifest version
-		if src.Version != "" && src.Version != "dev" {
+		// Use the binary's release version directly.
+		// "dev" means local/unreleased build — checkStaleness() skips it.
+		if src.Version != "" {
 			state.Version = src.Version
-		} else if collection != "" {
-			if m, err := loadManifest(src.Dir, collection); err == nil {
-				state.Version = m.Version
-			}
 		}
 		if err := writeScopedState(scope, state); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not update state: %v\n", yellow("⚠"), err)

@@ -410,11 +410,9 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 		return nil
 	}
 
-	// Use release version if available, fall back to manifest version
+	// Use the binary's release version directly.
+	// "dev" means local/unreleased build — checkStaleness() skips it.
 	stateVersion := src.Version
-	if stateVersion == "" || stateVersion == "dev" {
-		stateVersion = manifest.Version
-	}
 
 	state := &StateFile{
 		Collection:  collection,
