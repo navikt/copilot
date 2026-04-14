@@ -44,7 +44,7 @@ Gjennomførte en integrasjonsaudit av alle 4 samlinger. Hovedfunn: instruksjoner
 
 18 åpne enhancement-issues for videre arbeid, inkludert:
 
-- [#169](https://github.com/navikt/copilot/issues/169) — Spring Boot-deprecering og Ktor-migrering
+- [#169](https://github.com/navikt/copilot/issues/169) — Spring Boot-deprekering og Ktor-migrering
 - [#174](https://github.com/navikt/copilot/issues/174) — Wonderwall auth proxy-instruksjon
 - [#173](https://github.com/navikt/copilot/issues/173) — Arrow-kt og Koin-mønstre
 - [#162](https://github.com/navikt/copilot/issues/162) — Unleash feature flag-mønstre

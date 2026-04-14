@@ -1,15 +1,15 @@
 {
-  "description": "Scaffold eit nytt Ktor-prosjekt med Kotliquery, Flyway, Koin og Nais-konfigurasjon",
+  "description": "Scaffold et nytt Ktor-prosjekt med Kotliquery, Flyway, Koin og Nais-konfigurasjon",
   "domain": "backend",
   "tags": ["kotlin", "ktor", "scaffold", "nais", "kotliquery"],
   "examples": [
     {
-      "prompt": "Scaffold ein ny Ktor-teneste for dp-behandling med database og Kafka",
-      "scenario": "Ny teneste med full stack"
+      "prompt": "Scaffold en ny Ktor-tjeneste for dp-behandling med database og Kafka",
+      "scenario": "Ny tjeneste med full stack"
     },
     {
-      "prompt": "Lag boilerplate for ein Ktor API med Kotliquery og Flyway",
-      "scenario": "API-teneste med database"
+      "prompt": "Lag boilerplate for en Ktor API med Kotliquery og Flyway",
+      "scenario": "API-tjeneste med database"
     }
   ]
 }

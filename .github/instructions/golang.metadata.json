@@ -1,8 +1,10 @@
 {
-  "slug": "golang",
-  "title": "Go on NAIS",
+  "displayName": "Go on NAIS",
   "description": "Go-mønstre for Nav-tjenester på Nais: pgx, sqlc, slog, stdlib HTTP og Chainguard Docker",
-  "glob": "**/*.go",
-  "category": "backend",
-  "language": "go"
+  "domain": "backend",
+  "tags": ["go", "nais", "pgx", "sqlc", "slog"],
+  "examples": [
+    "Lag en Go HTTP-tjeneste med pgx og sqlc for dp-inntekt",
+    "Sett opp slog med strukturert logging og OpenTelemetry-integrasjon"
+  ]
 }

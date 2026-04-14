@@ -105,7 +105,7 @@ mock-oauth2-server = { module = "no.nav.security:mock-oauth2-server", version.re
 
 ```kotlin
 plugins {
-    kotlin("jvm") version libs.versions.kotlin
+    kotlin("jvm") version "2.1.10"
     id("com.gradleup.shadow") version "9.0.0-beta6"
 }
 
@@ -278,6 +278,6 @@ Generate using the `nais-manifest` prompt, ensuring:
 After scaffolding, run:
 
 ```bash
-gradle build
-gradle test
+./gradlew build
+./gradlew test
 ```

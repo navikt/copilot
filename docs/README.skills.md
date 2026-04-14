@@ -24,7 +24,7 @@ nav-pilot add skill <skill-name>
 | **flyway-migration** | Databasemigrasjonsmønstre med Flyway og versjonerte SQL-skript | [`.github/skills/flyway-migration/`](../.github/skills/flyway-migration/SKILL.md) |
 | **java-to-kotlin** | Trinnvis Java-til-Kotlin-migrering med rammeverk-bevisste transformasjoner for Spring, Ktor og Nav-mønstre | [`.github/skills/java-to-kotlin/`](../.github/skills/java-to-kotlin/SKILL.md) |
 | **kotlin-app-config** | Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger | [`.github/skills/kotlin-app-config/`](../.github/skills/kotlin-app-config/SKILL.md) |
-| **ktor-scaffold** | Scaffold eit nytt Ktor-prosjekt med Kotliquery, Flyway, Koin og Nais-konfigurasjon | [`.github/skills/ktor-scaffold/`](../.github/skills/ktor-scaffold/SKILL.md) |
+| **ktor-scaffold** | Scaffold et nytt Ktor-prosjekt med Kotliquery, Flyway, Koin og Nais-konfigurasjon | [`.github/skills/ktor-scaffold/`](../.github/skills/ktor-scaffold/SKILL.md) |
 | **nav-architecture-review** | Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav | [`.github/skills/nav-architecture-review/`](../.github/skills/nav-architecture-review/SKILL.md) |
 | **nav-deep-interview** | Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet | [`.github/skills/nav-deep-interview/`](../.github/skills/nav-deep-interview/SKILL.md) |
 | **nav-plan** | Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database og Nais-konfigurasjon | [`.github/skills/nav-plan/`](../.github/skills/nav-plan/SKILL.md) |

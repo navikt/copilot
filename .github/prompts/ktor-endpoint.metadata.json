@@ -1,5 +1,5 @@
 {
   "slug": "ktor-endpoint",
   "title": "Ktor-endepunkt",
-  "description": "Generer ein Ktor-rute med autentisering, validering og feilhåndtering"
+  "description": "Generer en Ktor-rute med autentisering, validering og feilhåndtering"
 }

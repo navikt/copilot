@@ -276,7 +276,7 @@ import * as Aksel from "@navikt/ds-react";
 import { ChevronRightIcon } from "@navikt/aksel-icons";
 
 // ❌ Bad — barrel import of all icons
-import * from "@navikt/aksel-icons";
+import * as Icons from "@navikt/aksel-icons";
 ```
 
 CSS tokens from `@navikt/ds-css` are loaded once globally — no additional performance concern.
