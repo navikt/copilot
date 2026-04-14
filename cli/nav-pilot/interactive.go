@@ -27,48 +27,112 @@ func isGitRepo(dir string) bool {
 }
 
 // cmdInteractive runs an interactive flow based on current state:
-//  1. Not installed → prompt to pick and install a collection
-//  2. Installed but outdated → prompt to sync/upgrade
+//  1. Not installed → prompt to pick and install a collection (repo or user home)
+//  2. Installed but outdated → sync all detected scopes
 //  3. Installed and up-to-date → launch cplt/copilot
 func cmdInteractive() error {
-	// I3: Use git root, not CWD (which could be a subdirectory)
+	reader := bufio.NewReader(os.Stdin)
+
+	// Check user-scope state (always available regardless of git repo)
+	var userScope *InstallScope
+	var userState *StateFile
+	if s, err := ScopeUser(); err == nil {
+		userScope = s
+		userState, _ = readScopedState(userScope)
+	}
+
+	// Check repo-scope state (only if in a git repo)
 	targetDir := findGitRoot(".")
+	var repoScope *InstallScope
+	var repoState *StateFile
+	if targetDir != "" {
+		repoScope = ScopeRepo(targetDir)
+		var err error
+		repoState, err = readScopedState(repoScope)
+		if err != nil {
+			return fmt.Errorf("reading repo state: %w", err)
+		}
+	}
+
+	hasRepo := repoState != nil
+	hasUser := userState != nil
+
+	if hasRepo || hasUser {
+		return interactiveSyncAndLaunch(reader, repoScope, repoState, userScope, userState)
+	}
+
+	// Fresh install requires a git repo
 	if targetDir == "" {
-		return fmt.Errorf("not in a git repository")
+		return fmt.Errorf("not in a git repository (run from a repo to install, or use --user)")
 	}
 
-	// If already installed, check for updates or launch Copilot
-	state, err := readState(targetDir)
-	if err != nil {
-		return fmt.Errorf("reading install state: %w", err)
-	}
-	if state != nil {
-		reader := bufio.NewReader(os.Stdin)
+	return interactiveFreshInstall(reader, targetDir)
+}
 
-		// Fast staleness check (cached, 2s timeout)
-		if latest := checkStaleness(state.Version); latest != "" {
-			fmt.Printf("%s Update available for %s: %s → %s\n",
-				yellow("⚠"), bold(state.Collection), state.Version, latest)
+// interactiveSyncAndLaunch handles the case where at least one scope has an install.
+// Checks for staleness in all scopes and offers to sync, then launches Copilot.
+func interactiveSyncAndLaunch(reader *bufio.Reader, repoScope *InstallScope, repoState *StateFile, userScope *InstallScope, userState *StateFile) error {
+	// Collect all stale scopes
+	type staleScope struct {
+		scope  *InstallScope
+		state  *StateFile
+		latest string
+	}
+	var stale []staleScope
+	var allAgents []string
+
+	if repoState != nil {
+		if latest := checkStaleness(repoState.Version); latest != "" {
+			stale = append(stale, staleScope{repoScope, repoState, latest})
+		}
+		allAgents = append(allAgents, installedAgents(repoState)...)
+	}
+	if userState != nil {
+		if latest := checkStaleness(userState.Version); latest != "" {
+			stale = append(stale, staleScope{userScope, userState, latest})
+		}
+		allAgents = append(allAgents, installedAgents(userState)...)
+	}
+	// Deduplicate agents
+	allAgents = uniqueStrings(allAgents)
+
+	if len(stale) > 0 {
+		for _, s := range stale {
+			fmt.Printf("%s Update available for %s (%s): %s → %s\n",
+				yellow("⚠"), bold(s.state.Collection), s.scope.Name, s.state.Version, s.latest)
+		}
+		fmt.Println()
+
+		label := "Sync now?"
+		if len(stale) > 1 {
+			label = "Sync both?"
+		}
+		fmt.Printf("%s [Y/n]: ", label)
+		answer, err := reader.ReadString('\n')
+		if err != nil {
 			fmt.Println()
-			fmt.Printf("Sync now? [Y/n]: ")
-			answer, err := reader.ReadString('\n')
-			if err != nil {
+			return nil
+		}
+		answer = strings.TrimSpace(strings.ToLower(answer))
+		if answer == "" || answer == "y" || answer == "yes" {
+			for _, s := range stale {
 				fmt.Println()
-				return nil
-			}
-			answer = strings.TrimSpace(strings.ToLower(answer))
-			if answer == "" || answer == "y" || answer == "yes" {
-				fmt.Println()
-				return cmdSync(ScopeRepo(targetDir), "", "", true, false)
+				fmt.Printf("%s Syncing %s scope...\n", dim("→"), s.scope.Name)
+				if err := cmdSync(s.scope, "", "", true, false); err != nil {
+					fmt.Fprintf(os.Stderr, "%s Sync failed for %s scope: %v\n", yellow("⚠"), s.scope.Name, err)
+				}
 			}
 		}
-
-		// Up-to-date (or user skipped sync) — offer to launch with agent selection
-		agents := installedAgents(state)
-		offerLaunchCopilotWithAgents(reader, agents)
-		return nil
 	}
 
+	// Up-to-date (or user skipped sync) — offer to launch with agent selection
+	offerLaunchCopilotWithAgents(reader, allAgents)
+	return nil
+}
+
+// interactiveFreshInstall handles the case where no install exists.
+// Prompts for collection and install scope.
+func interactiveFreshInstall(reader *bufio.Reader, targetDir string) error {
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
 	fmt.Println()
 	fmt.Println(dim("Resolving source..."))
@@ -120,7 +184,6 @@ func cmdInteractive() error {
 	fmt.Println()
 
 	// Prompt for selection
-	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf("Select collection [1-%d]: ", len(collections))
 	input, err := reader.ReadString('\n')
 	if err != nil {
@@ -157,8 +220,18 @@ func cmdInteractive() error {
 	fmt.Printf("  %s\n", dim(strings.Join(parts, ", ")))
 	fmt.Println()
 
+	// Prompt for install scope
+	scope, err := promptInstallScope(reader, targetDir)
+	if err != nil {
+		return err
+	}
+	if scope == nil {
+		fmt.Println(dim("Cancelled."))
+		return nil
+	}
+
 	// Confirm
-	fmt.Printf("Install %s? [Y/n]: ", bold(selected.name))
+	fmt.Printf("Install %s to %s? [Y/n]: ", bold(selected.name), bold(scope.Label()))
 	confirm, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Println()
@@ -172,13 +245,58 @@ func cmdInteractive() error {
 
 	// Install
 	fmt.Println()
-	if err := cmdInstall(selected.name, ScopeRepo(targetDir), "", "", false, false); err != nil {
+	if err := cmdInstall(selected.name, scope, "", "", false, false); err != nil {
 		return err
 	}
 
 	// Offer to launch Copilot CLI
 	offerLaunchCopilot(reader)
 	return nil
+}
+
+// promptInstallScope asks the user where to install: repo or user home.
+// Returns nil if the user cancels.
+func promptInstallScope(reader *bufio.Reader, targetDir string) (*InstallScope, error) {
+	fmt.Println(bold("Where to install?"))
+	fmt.Println()
+	fmt.Printf("  %s  This repo %s\n", bold("1."), dim("(.github/) — full collection"))
+	fmt.Printf("  %s  User home %s\n", bold("2."), dim("(~/.copilot/) — agents & skills only, works across all repos"))
+	fmt.Println()
+	fmt.Printf("Select [1-2] (default: 1): ")
+
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println()
+		return nil, nil
+	}
+	input = strings.TrimSpace(input)
+
+	switch input {
+	case "", "1":
+		return ScopeRepo(targetDir), nil
+	case "2":
+		scope, err := ScopeUser()
+		if err != nil {
+			return nil, err
+		}
+		return scope, nil
+	default:
+		return nil, fmt.Errorf("invalid selection: %q", input)
+	}
+}
+
+// uniqueStrings returns a sorted slice with duplicates removed.
+func uniqueStrings(s []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+	for _, v := range s {
+		if !seen[v] {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+	sort.Strings(result)
+	return result
 }
 
 // installedAgents extracts agent names from the state file's installed files.

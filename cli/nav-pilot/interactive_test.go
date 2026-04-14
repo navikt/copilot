@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -31,11 +33,14 @@ func TestCmdInteractive_NotGitRepo(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(origDir)
 
+	// Override HOME so ScopeUser() finds no existing user-home installs
+	t.Setenv("HOME", dir)
+
 	err := cmdInteractive()
 	if err == nil {
 		t.Fatal("expected error for non-git directory")
 	}
-	if err.Error() != "not in a git repository" {
+	if !strings.Contains(err.Error(), "not in a git repository") {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -97,5 +102,81 @@ func TestInstalledAgents(t *testing.T) {
 		if a != expected[i] {
 			t.Errorf("agent[%d]: expected %q, got %q", i, expected[i], a)
 		}
+	}
+}
+
+func TestUniqueStrings(t *testing.T) {
+	tests := []struct {
+		input []string
+		want  []string
+	}{
+		{[]string{"b", "a", "a", "c"}, []string{"a", "b", "c"}},
+		{[]string{"x"}, []string{"x"}},
+		{nil, nil},
+		{[]string{"a", "a", "a"}, []string{"a"}},
+	}
+	for _, tt := range tests {
+		got := uniqueStrings(tt.input)
+		if len(got) != len(tt.want) {
+			t.Errorf("uniqueStrings(%v) = %v, want %v", tt.input, got, tt.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tt.want[i] {
+				t.Errorf("uniqueStrings(%v)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+			}
+		}
+	}
+}
+
+func TestPromptInstallScope_DefaultIsRepo(t *testing.T) {
+	// Simulate pressing Enter (empty input = default = repo)
+	r, w, _ := os.Pipe()
+	w.WriteString("\n")
+	w.Close()
+
+	reader := bufio.NewReader(r)
+	scope, err := promptInstallScope(reader, "/tmp/myrepo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if scope == nil {
+		t.Fatal("expected scope, got nil")
+	}
+	if scope.Name != "repo" {
+		t.Errorf("expected repo scope, got %q", scope.Name)
+	}
+	if scope.RootDir != "/tmp/myrepo" {
+		t.Errorf("expected rootDir /tmp/myrepo, got %q", scope.RootDir)
+	}
+}
+
+func TestPromptInstallScope_SelectUserHome(t *testing.T) {
+	r, w, _ := os.Pipe()
+	w.WriteString("2\n")
+	w.Close()
+
+	reader := bufio.NewReader(r)
+	scope, err := promptInstallScope(reader, "/tmp/myrepo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if scope == nil {
+		t.Fatal("expected scope, got nil")
+	}
+	if scope.Name != "user" {
+		t.Errorf("expected user scope, got %q", scope.Name)
+	}
+}
+
+func TestPromptInstallScope_InvalidSelection(t *testing.T) {
+	r, w, _ := os.Pipe()
+	w.WriteString("3\n")
+	w.Close()
+
+	reader := bufio.NewReader(r)
+	_, err := promptInstallScope(reader, "/tmp/myrepo")
+	if err == nil {
+		t.Fatal("expected error for invalid selection")
 	}
 }
