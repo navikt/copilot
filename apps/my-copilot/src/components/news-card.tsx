@@ -19,7 +19,8 @@ export function NewsCard({ item }: { item: NewsItem }) {
   const categoryConfig = CATEGORY_CONFIG[item.category] ?? DEFAULT_CATEGORY_CONFIG;
   const isLink = item.type === "link";
   const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
-  const linkProps = isLink ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
+  const isExternal = isLink && !href.startsWith("/");
+  const linkProps = isExternal ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
   const isArticle = item.type === "article";
 
   return (
@@ -48,7 +49,7 @@ export function NewsCard({ item }: { item: NewsItem }) {
           <Heading size={isArticle ? "small" : "xsmall"} level="3">
             <span className="flex items-center gap-2">
               {item.title}
-              {isLink && <ExternalLinkIcon aria-hidden fontSize="1rem" className="shrink-0" />}
+              {isExternal && <ExternalLinkIcon aria-hidden fontSize="1rem" className="shrink-0" />}
             </span>
           </Heading>
           <BodyShort size="small" className="text-text-subtle line-clamp-2">
@@ -64,7 +65,8 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
   const categoryConfig = CATEGORY_CONFIG[item.category] ?? DEFAULT_CATEGORY_CONFIG;
   const isLink = item.type === "link";
   const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
-  const linkProps = isLink ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
+  const isExternal = isLink && !href.startsWith("/");
+  const linkProps = isExternal ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
 
   return (
     <Box borderRadius="12" padding={{ xs: "space-20", md: "space-32" }} asChild>
@@ -81,7 +83,7 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
           <Heading size="medium" level="2">
             <span className="flex items-center gap-2">
               {item.title}
-              {isLink && <ExternalLinkIcon aria-hidden fontSize="1.25rem" className="shrink-0" />}
+              {isExternal && <ExternalLinkIcon aria-hidden fontSize="1.25rem" className="shrink-0" />}
             </span>
           </Heading>
           <BodyShort className="text-text-subtle">{item.excerpt}</BodyShort>
