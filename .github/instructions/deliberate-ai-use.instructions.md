@@ -4,7 +4,7 @@ applyTo: "**"
 
 # Bevisst AI-bruk — Kompetansebevaring
 
-Forskning viser at **hvordan** du bruker AI betyr mer enn **om** du bruker det. Utviklere som delegerer blindt scorer 24% på forståelse, mens de som aktivt stiller spørsmål etter kodegenerering scorer 86% — høyere enn de som koder helt uten AI (67%).
+Forskning viser at **hvordan** du bruker AI betyr mer enn **om** du bruker det. Utviklere som delegerer blindt scorer 35–39% på forståelse, mens de som aktivt stiller spørsmål etter kodegenerering scorer 86% — høyere enn de som koder helt uten AI (67%).
 
 Denne instruksjonen sikrer at AI-verktøy styrker utviklernes kompetanse i stedet for å svekke den.
 
