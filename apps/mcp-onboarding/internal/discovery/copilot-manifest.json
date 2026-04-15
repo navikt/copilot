@@ -315,6 +315,15 @@
     },
     {
       "type": "instruction",
+      "name": "deliberate-ai-use",
+      "displayName": "Deliberate/Ai/Use Development",
+      "description": "Forskning viser at **hvordan** du bruker AI betyr mer enn **om** du bruker det. Utviklere som delegerer blindt scorer 24% på forståelse, mens de som aktivt stiller spørsmål etter kodegenerering scorer 86% — høyere enn de som koder helt uten AI (67%).",
+      "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/deliberate-ai-use.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/deliberate-ai-use.instructions.md"
+    },
+    {
+      "type": "instruction",
       "name": "docker",
       "displayName": "Docker Development",
       "description": "Standarder for Dockerfile i Nav: Chainguard base images, multi-stage builds og sikkerhetspraksis.",
