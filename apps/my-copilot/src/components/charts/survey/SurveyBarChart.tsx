@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, getBackgroundColor, commonHorizontalBarOptions } from "@/lib/chart-utils";
+import { chartColors, commonHorizontalBarOptions } from "@/lib/chart-utils";
 import { Box, Heading } from "@navikt/ds-react";
 
 interface SurveyBarChartProps {
