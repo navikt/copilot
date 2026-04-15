@@ -221,6 +221,46 @@
   }
 }
 
+/* Print styles — clean PDF output for articles */
+@media print {
+  /* Hide site chrome */
+  header,
+  footer {
+    display: none !important;
+  }
+
+  /* Hide navigation links */
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Remove dark background */
+  body {
+    background: white !important;
+  }
+
+  /* Prevent charts, blockquotes and figures from splitting across pages */
+  canvas,
+  blockquote,
+  figure,
+  .my-6 {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Keep headings with their following content */
+  h1, h2, h3, h4,
+  .aksel-heading {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Reasonable margins */
+  article {
+    max-width: 100% !important;
+  }
+}
+
 /* Prose styles for article rendering */
 .prose h2 {
   font-size: 1.5rem;

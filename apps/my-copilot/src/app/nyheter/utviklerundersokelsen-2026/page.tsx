@@ -21,7 +21,7 @@ export default function SurveyArticlePage() {
           <VStack gap="space-16">
             <NextLink
               href="/"
-              className="inline-flex items-center gap-1.5 text-sm text-text-subtle no-underline hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm text-text-subtle no-underline hover:underline print-hidden"
             >
               <ArrowLeftIcon aria-hidden fontSize="1rem" />
               Nyheter
@@ -323,7 +323,7 @@ export default function SurveyArticlePage() {
 
             <NextLink
               href="/"
-              className="inline-flex items-center gap-1.5 text-sm no-underline hover:underline py-2"
+              className="inline-flex items-center gap-1.5 text-sm no-underline hover:underline py-2 print-hidden"
             >
               <ArrowLeftIcon aria-hidden fontSize="1rem" />
               Alle nyheter
