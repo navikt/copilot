@@ -180,3 +180,16 @@ After generating the manifest, remind the user to:
 3. Review the manifest and adjust resource limits based on actual usage
 
 4. For production deployments, create a separate `.nais/app-prod.yaml` with production-specific values
+
+## Forstå koden
+
+After generating the manifest, explain:
+
+1. **Resource-modellen** — Why `requests` vs `limits`, and why there's no CPU limit (only requests). What happens when a pod exceeds memory limits vs CPU requests?
+2. **accessPolicy** — Why Nais defaults to deny-all networking. What breaks if you forget `outbound.rules` for a downstream service?
+3. **Replicas og autoscaling** — Why `min: 2` (availability during deploys), and how `cpuThresholdPercentage` triggers scaling.
+4. **Auth-valg** — The difference between Azure AD (machine-to-machine), TokenX (user context delegation), and ID-porten (citizen login). Which one fits your use case and why?
+
+🔴 **Rød sone**: `accessPolicy` and auth configuration directly affect your application's security posture — understand the trust boundaries before deploying.
+
+Still gjerne spørsmål om valgene over.

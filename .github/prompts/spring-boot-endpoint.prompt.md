@@ -168,3 +168,16 @@ class {{Ressurs}}ControllerTest {
 
 - Kjør `./gradlew test` for å verifisere
 - Legg til endepunktet i `accessPolicy.inbound.rules` i Nais-manifestet hvis det skal kalles av andre apper
+
+## Forstå koden
+
+After generating the endpoint, explain:
+
+1. **Lagdeling** — Why Controller → Service → Repository and not just Controller → Repository? What does the Service layer give you for testing and transaction management?
+2. **@Transactional** — Why it's on the Service layer, not the Controller. What happens if two database operations in a single request need to be atomic?
+3. **@Valid og validering** — How Spring Boot validation annotations work under the hood. Why server-side validation even when the frontend also validates?
+4. **Teststrategien** — Why `@SpringBootTest` with Testcontainers instead of mocking the database. When would a `@WebMvcTest` slice test be more appropriate?
+
+🔴 **Rød sone**: Transaction boundaries and error handling are where most production bugs hide — understand `@Transactional` propagation before adding complex business logic.
+
+Still gjerne spørsmål om valgene over.

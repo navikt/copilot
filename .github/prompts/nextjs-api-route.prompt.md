@@ -194,3 +194,16 @@ describe("POST /api/{{ressurs}}", () => {
 - **Always** log errors server-side, return generic error messages to client
 - **Never** return stack traces or internal error messages to client
 - **Never** use `any` as type for request body
+
+## Forstå koden
+
+After generating the route, explain:
+
+1. **Auth-mønsteret** — Why `getUser(false)` returns null instead of redirecting. When would you use `getUser()` (with redirect) instead?
+2. **Feilhåndtering** — Why the try/catch around `request.json()`, and why generic error messages to the client but detailed logs server-side (information leakage).
+3. **Next.js 15+ async APIs** — Why `params` is a Promise that must be awaited. What breaks if you don't?
+4. **Teststrukturen** — Why mocking auth separately from data fetching. What would go wrong with integration tests instead of unit tests here?
+
+🔴 **Rød sone**: Auth checks and input validation are security-critical — understand *why* each check exists before adapting this pattern.
+
+Still gjerne spørsmål om valgene over.

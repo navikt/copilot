@@ -232,3 +232,16 @@ Remind the user to:
 2. Add the new event to the team's event catalog
 3. Update the README with event flow diagrams
 4. Configure appropriate Kafka topic permissions in Nais
+
+## Forstå koden
+
+After generating the handler, explain:
+
+1. **demandValue vs requireKey vs interestedIn** — Three different validation levels in Rapids & Rivers. What happens when each fails? Why this design?
+2. **Idempotens** — What happens if the same event is delivered twice (Kafka guarantees at-least-once)? How should the handler deal with this?
+3. **Publiser-mønsteret** — Why `context.publish(ident, ...)` uses an identifier for partitioning. What would happen with random partitioning to ordering guarantees?
+4. **Dead-letter-håndtering** — What happens when `onPacket` throws? Where does the failed message go, and how do you recover?
+
+🔴 **Rød sone**: Event-driven architecture has subtle failure modes (ordering, duplication, poison pills) that are hard to debug in production. Understand the semantics before wiring up new rivers.
+
+Still gjerne spørsmål om valgene over.

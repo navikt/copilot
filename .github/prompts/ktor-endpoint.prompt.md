@@ -150,3 +150,16 @@ fun Application.configureRouting(repository: ResourceRepository) {
     }
 }
 ```
+
+## Forstå koden
+
+After generating the endpoint, explain:
+
+1. **Arkitektoniske valg** — Why this layering (route → repository)? What are the alternatives, and why is this preferred in Ktor?
+2. **Feilhåndtering** — Why explicit status codes instead of exceptions? What happens if the database is down?
+3. **Sikkerhet** — Why `authenticate("azureAd")` wraps the entire route block. What would happen without it?
+4. **Tradeoffs** — What does this pattern give up (e.g., no service layer) and when would you need more structure?
+
+🔴 **Rød sone**: Request validation logic and error handling are areas worth understanding deeply — don't just copy the pattern, think about what your specific endpoint needs to validate.
+
+Still gjerne spørsmål om valgene over.

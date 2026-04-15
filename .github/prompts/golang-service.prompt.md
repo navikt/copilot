@@ -132,3 +132,16 @@ FROM cgr.dev/chainguard/static:latest
 COPY --from=builder /bin/app /app/app
 ENTRYPOINT ["/app/app"]
 ```
+
+## Forstå koden
+
+After generating the service, explain:
+
+1. **Handler-som-closure** — Why handlers are functions returning `http.HandlerFunc` instead of methods on a struct. What does this pattern give you for testing and dependency injection?
+2. **Graceful shutdown** — Why `signal.NotifyContext` + `server.Shutdown()` instead of just `os.Exit`. What happens to in-flight requests during a Kubernetes rolling update without graceful shutdown?
+3. **ReadHeaderTimeout** — Why it's set and what attack it prevents (slowloris). Why not set `ReadTimeout` or `WriteTimeout` as well?
+4. **CGO_ENABLED=0** — Why this is needed for the Chainguard static base image. What would happen without it?
+
+🔴 **Rød sone**: Graceful shutdown and error handling are critical for production reliability — understand the shutdown sequence before deploying to Nais.
+
+Still gjerne spørsmål om valgene over.
