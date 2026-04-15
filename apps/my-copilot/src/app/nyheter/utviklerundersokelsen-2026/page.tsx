@@ -209,10 +209,8 @@ export default function SurveyArticlePage() {
                 Det sammensatte bildet
               </Heading>
               <BodyLong spacing>
-                53 respondenter delte en minneverdig opplevelse. Vi kategoriserte svarene i temaer:
+                53 respondenter delte en minneverdig opplevelse.
               </BodyLong>
-
-              <SurveyCharts section="themes" />
 
               <BodyLong spacing>
                 Holdningene i de 53 svarene fordeler seg jevnt: 26 % er overveiende positive, 25 %

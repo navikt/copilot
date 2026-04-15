@@ -6,7 +6,7 @@ import { SurveyBarChart } from "@/components/charts/survey/SurveyBarChart";
 import { LikertChart } from "@/components/charts/survey/LikertChart";
 import { VStack } from "@navikt/ds-react";
 
-type Section = "tools" | "value" | "likert" | "change" | "themes";
+type Section = "tools" | "value" | "likert" | "change";
 
 const TOTAL = 163;
 
@@ -48,23 +48,6 @@ const changeLabels = [
   "Annet",
 ];
 const changeValues = [50, 24, 21, 21, 16, 15, 5, 11];
-
-const themeLabels = [
-  "Dramatisk tidsbesparelse",
-  "Kodeforståelse / lære",
-  "Kvalitetsproblemer",
-  "Ubehag / skepsis",
-  "Gjennombruddsøyeblikk",
-  "Dokumentasjon / tekst",
-  "Eierskap / kompetansetap",
-  "Code review-effekter",
-  "Debugging / feilsøking",
-  "Påtvunget teknologi",
-  "Teamsamarbeid",
-  "Informasjonssikkerhet",
-  "Onboarding",
-];
-const themeValues = [12, 9, 9, 8, 7, 6, 6, 5, 4, 4, 3, 2, 2];
 
 const likertItems = [
   {
@@ -171,20 +154,6 @@ export const SurveyCharts: React.FC<{ section: Section }> = ({ section }) => {
             total={TOTAL}
             height={280}
             color="rgba(139, 92, 246, 1)"
-          />
-        </VStack>
-      );
-
-    case "themes":
-      return (
-        <VStack gap="space-8" className="my-6">
-          <SurveyBarChart
-            title="Temaer i fritekstkommentarene (53 svar)"
-            labels={themeLabels}
-            values={themeValues}
-            total={53}
-            height={400}
-            color="rgba(245, 158, 11, 1)"
           />
         </VStack>
       );
