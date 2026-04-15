@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function SurveyArticlePage() {
   return (
     <main>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl" style={{ marginInline: "auto" }}>
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32" }}
