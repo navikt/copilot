@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import "@/lib/chart-utils"; // registers Chart.js components
 import { SurveyBarChart } from "@/components/charts/survey/SurveyBarChart";
 import { LikertChart } from "@/components/charts/survey/LikertChart";
-import { VStack } from "@navikt/ds-react";
+import { Box, VStack } from "@navikt/ds-react";
 
 type Section = "tools" | "value" | "likert" | "change";
 
@@ -112,21 +111,24 @@ export const SurveyCharts: React.FC<{ section: Section }> = ({ section }) => {
   switch (section) {
     case "tools":
       return (
-        <VStack gap="space-8" className="my-6">
-          <SurveyBarChart
+        <Box marginBlock="space-24 space-24">
+          <VStack gap="space-8">
+            <SurveyBarChart
             title="Hvilke AI-kodeverktøy bruker du?"
             labels={toolLabels}
             values={toolValues}
             total={TOTAL}
             height={310}
           />
-        </VStack>
+          </VStack>
+        </Box>
       );
 
     case "value":
       return (
-        <VStack gap="space-8" className="my-6">
-          <SurveyBarChart
+        <Box marginBlock="space-24 space-24">
+          <VStack gap="space-8">
+            <SurveyBarChart
             title="Hvor gir AI mest verdi? (velg opptil 3)"
             labels={valueLabels}
             values={valueValues}
@@ -134,20 +136,24 @@ export const SurveyCharts: React.FC<{ section: Section }> = ({ section }) => {
             height={340}
             color="rgba(16, 185, 129, 1)"
           />
-        </VStack>
+          </VStack>
+        </Box>
       );
 
     case "likert":
       return (
-        <VStack gap="space-8" className="my-6">
-          <LikertChart title="Hvor enig er du i følgende påstander?" items={likertItems} />
-        </VStack>
+        <Box marginBlock="space-24 space-24">
+          <VStack gap="space-8">
+            <LikertChart title="Hvor enig er du i følgende påstander?" items={likertItems} />
+          </VStack>
+        </Box>
       );
 
     case "change":
       return (
-        <VStack gap="space-8" className="my-6">
-          <SurveyBarChart
+        <Box marginBlock="space-24 space-24">
+          <VStack gap="space-8">
+            <SurveyBarChart
             title="Hva er det viktigste å endre?"
             labels={changeLabels}
             values={changeValues}
@@ -155,7 +161,8 @@ export const SurveyCharts: React.FC<{ section: Section }> = ({ section }) => {
             height={280}
             color="rgba(139, 92, 246, 1)"
           />
-        </VStack>
+          </VStack>
+        </Box>
       );
   }
 };

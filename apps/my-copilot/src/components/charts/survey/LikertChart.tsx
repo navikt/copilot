@@ -28,34 +28,57 @@ const COLORS = {
   helt_uenig: "rgba(239, 68, 68, 1)", // red
 };
 
+// Round percentages so segments always sum to exactly 100
+function roundToHundred(values: number[]): number[] {
+  const floored = values.map(Math.floor);
+  let remainder = 100 - floored.reduce((a, b) => a + b, 0);
+  const decimals = values.map((v, i) => ({ i, d: v - floored[i] }));
+  decimals.sort((a, b) => b.d - a.d);
+  for (let j = 0; j < remainder; j++) {
+    floored[decimals[j].i]++;
+  }
+  return floored;
+}
+
 export const LikertChart: React.FC<LikertChartProps> = ({ title, items, total = 163 }) => {
+  const percentages = items.map((item) => {
+    const raw = [
+      (item.helt_enig * 100) / total,
+      (item.enig * 100) / total,
+      (item.noytral * 100) / total,
+      (item.uenig * 100) / total,
+      (item.helt_uenig * 100) / total,
+    ];
+    return roundToHundred(raw);
+  });
+
   const chartData = {
     labels: items.map((i) => i.label),
     datasets: [
       {
         label: "Helt enig",
-        data: items.map((i) => Math.round((i.helt_enig * 100) / total)),
+        data: percentages.map((p) => p[0]),
         backgroundColor: COLORS.helt_enig,
         borderRadius: { topLeft: 4, bottomLeft: 4 },
       },
       {
         label: "Enig",
-        data: items.map((i) => Math.round((i.enig * 100) / total)),
+        data: percentages.map((p) => p[1]),
         backgroundColor: COLORS.enig,
       },
       {
         label: "Nøytral",
-        data: items.map((i) => Math.round((i.noytral * 100) / total)),
+        data: percentages.map((p) => p[2]),
         backgroundColor: COLORS.noytral,
       },
       {
         label: "Uenig",
-        data: items.map((i) => Math.round((i.uenig * 100) / total)),
+        data: percentages.map((p) => p[3]),
         backgroundColor: COLORS.uenig,
       },
       {
         label: "Helt uenig",
-        data: items.map((i) => Math.round((i.helt_uenig * 100) / total)),
+        data: percentages.map((p) => p[4]),
         backgroundColor: COLORS.helt_uenig,
         borderRadius: { topRight: 4, bottomRight: 4 },
       },

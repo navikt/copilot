@@ -289,7 +289,7 @@ export default function SurveyArticlePage() {
                 Undersøkelsen bygger på SPACE-rammeverket for
                 utviklerproduktivitet og seksfaktormodellen fra «Beyond the Commit» (Chen et al.,
                 ICSE-SEIP 2026). Vi lot kollegaer fagfellevurdere designet før utsending, og
-                kortet ned fra 16 til 12 spørsmål for å senke terskelen. Seks Likert-påstander dekker fem av
+                kortet ned fra 16 til 12 spørsmål for å senke terskelen. Syv Likert-påstander dekker fem av
                 seks faktorer fra seksfaktormodellen, i tillegg til SPACE-dimensjonen tilfredshet.
               </BodyLong>
               <BodyLong spacing>
