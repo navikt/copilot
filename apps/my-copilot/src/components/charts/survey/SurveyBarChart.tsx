@@ -25,6 +25,13 @@ export const SurveyBarChart: React.FC<SurveyBarChartProps> = ({
   height = 300,
   color = chartColors[0],
 }) => {
+  if (values.length === 0) {
+    return null;
+  }
+
+  const safeTotal = total > 0 ? total : 1;
+  const maxValue = Math.max(...values) * 1.15;
+
   const chartData = {
     labels,
     datasets: [
@@ -46,7 +53,7 @@ export const SurveyBarChart: React.FC<SurveyBarChartProps> = ({
         callbacks: {
           label: (ctx: { raw: unknown }) => {
             const v = ctx.raw as number;
-            return showPercent ? `${v} (${Math.round((v * 100) / total)} %)` : `${v}`;
+            return showPercent ? `${v} (${Math.round((v * 100) / safeTotal)} %)` : `${v}`;
           },
         },
       },
@@ -55,11 +62,11 @@ export const SurveyBarChart: React.FC<SurveyBarChartProps> = ({
       ...commonHorizontalBarOptions.scales,
       x: {
         ...commonHorizontalBarOptions.scales.x,
-        max: Math.max(...values) * 1.15,
+        max: maxValue,
         ticks: {
           ...commonHorizontalBarOptions.scales.x.ticks,
           callback: (v: string | number) =>
-            showPercent ? `${Math.round(((v as number) * 100) / total)} %` : v,
+            showPercent ? `${Math.round(((v as number) * 100) / safeTotal)} %` : v,
         },
       },
     },

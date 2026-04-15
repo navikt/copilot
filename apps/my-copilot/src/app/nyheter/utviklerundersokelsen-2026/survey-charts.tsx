@@ -111,38 +111,38 @@ export const SurveyCharts: React.FC<{ section: Section }> = ({ section }) => {
   switch (section) {
     case "tools":
       return (
-        <Box marginBlock="space-24 space-24">
+        <Box marginBlock="space-24">
           <VStack gap="space-8">
             <SurveyBarChart
-            title="Hvilke AI-kodeverktøy bruker du?"
-            labels={toolLabels}
-            values={toolValues}
-            total={TOTAL}
-            height={310}
-          />
+              title="Hvilke AI-kodeverktøy bruker du?"
+              labels={toolLabels}
+              values={toolValues}
+              total={TOTAL}
+              height={310}
+            />
           </VStack>
         </Box>
       );
 
     case "value":
       return (
-        <Box marginBlock="space-24 space-24">
+        <Box marginBlock="space-24">
           <VStack gap="space-8">
             <SurveyBarChart
-            title="Hvor gir AI mest verdi? (velg opptil 3)"
-            labels={valueLabels}
-            values={valueValues}
-            total={TOTAL}
-            height={340}
-            color="rgba(16, 185, 129, 1)"
-          />
+              title="Hvor gir AI mest verdi? (velg opptil 3)"
+              labels={valueLabels}
+              values={valueValues}
+              total={TOTAL}
+              height={340}
+              color="rgba(16, 185, 129, 1)"
+            />
           </VStack>
         </Box>
       );
 
     case "likert":
       return (
-        <Box marginBlock="space-24 space-24">
+        <Box marginBlock="space-24">
           <VStack gap="space-8">
             <LikertChart title="Hvor enig er du i følgende påstander?" items={likertItems} />
           </VStack>
@@ -151,16 +151,16 @@ export const SurveyCharts: React.FC<{ section: Section }> = ({ section }) => {
 
     case "change":
       return (
-        <Box marginBlock="space-24 space-24">
+        <Box marginBlock="space-24">
           <VStack gap="space-8">
             <SurveyBarChart
-            title="Hva er det viktigste å endre?"
-            labels={changeLabels}
-            values={changeValues}
-            total={TOTAL}
-            height={280}
-            color="rgba(139, 92, 246, 1)"
-          />
+              title="Hva er det viktigste å endre?"
+              labels={changeLabels}
+              values={changeValues}
+              total={TOTAL}
+              height={280}
+              color="rgba(139, 92, 246, 1)"
+            />
           </VStack>
         </Box>
       );

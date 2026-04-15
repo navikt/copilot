@@ -31,7 +31,10 @@ const COLORS = {
 // Round percentages so segments always sum to exactly 100
 function roundToHundred(values: number[]): number[] {
   const floored = values.map(Math.floor);
-  let remainder = 100 - floored.reduce((a, b) => a + b, 0);
+  const remainder = Math.min(
+    100 - floored.reduce((a, b) => a + b, 0),
+    values.length,
+  );
   const decimals = values.map((v, i) => ({ i, d: v - floored[i] }));
   decimals.sort((a, b) => b.d - a.d);
   for (let j = 0; j < remainder; j++) {
@@ -41,6 +44,10 @@ function roundToHundred(values: number[]): number[] {
 }
 
 export const LikertChart: React.FC<LikertChartProps> = ({ title, items, total = 163 }) => {
+  if (items.length === 0) {
+    return null;
+  }
+
   const percentages = items.map((item) => {
     const raw = [
       (item.helt_enig * 100) / total,
@@ -101,8 +108,7 @@ export const LikertChart: React.FC<LikertChartProps> = ({ title, items, total = 
       tooltip: {
         ...commonHorizontalBarOptions.plugins.tooltip,
         callbacks: {
-          label: (ctx: { dataset: { label?: string }; raw: unknown }) =>
-            `${ctx.dataset.label}: ${ctx.raw} %`,
+          label: (ctx: { dataset: { label?: string }; raw: unknown }) => `${ctx.dataset.label}: ${ctx.raw} %`,
         },
       },
     },
