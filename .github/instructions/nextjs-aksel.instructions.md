@@ -6,6 +6,24 @@ applyTo: "src/**/*.{tsx,ts}"
 
 Standarder for Next.js-apper med Aksel: spacing-tokens, responsive props og komponentmønstre.
 
+<!-- BEGIN:nextjs-agent-rules -->
+
+# Next.js: ALWAYS read docs before coding
+
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+
+<!-- END:nextjs-agent-rules -->
+
+## Aksel-dokumentasjon
+
+For komponent-APIer, tokens, theming, layout og mønstre — hent dokumentasjon fra:
+
+```
+https://aksel.nav.no/llm.md
+```
+
+Filen er et indeks over alle tilgjengelige Aksel-dokumentasjonssider som individuelle `.md`-filer. Hent individuelle sider ved behov fremfor å anta API fra treningsdata.
+
 ## Spacing-regler
 
 **VIKTIG**: Bruk alltid Nav DS spacing-tokens, aldri Tailwind padding/margin.
@@ -27,9 +45,9 @@ import { Box, VStack, HGrid } from "@navikt/ds-react";
 
 // Komponent med responsiv padding
 <Box
-  background="surface-subtle"
+  background="neutral-soft"
   padding={{ xs: "space-12", sm: "space-16", md: "space-24" }}
-  borderRadius="large"
+  borderRadius="8"
 >
   <Heading size="large" level="2">Tittel</Heading>
   <BodyShort>Innhold</BodyShort>
@@ -53,29 +71,16 @@ import { Box, VStack, HGrid } from "@navikt/ds-react";
 
 ## Spacing-tokens
 
-Tilgjengelige tokens (alltid med `space-`-prefiks):
+Token name = eksakt pikselverdi (`space-16` = 16px, `space-4` = 4px). Alltid `space-`-prefiks.
 
-- `space-4` (4px)
-- `space-8` (8px)
-- `space-12` (12px)
-- `space-16` (16px)
-- `space-20` (20px)
-- `space-24` (24px)
-- `space-32` (32px)
-- `space-40` (40px)
+Fullstendig liste: [design-tokens](https://aksel.nav.no/grunnleggende/styling/design-tokens.md)
 
 ## Responsiv design
 
-Mobil først med breakpoints:
-
-- `xs`: 0px (mobil)
-- `sm`: 480px
-- `md`: 768px
-- `lg`: 1024px
-- `xl`: 1280px
+Mobil-først. Fullstendige breakpoints: [brekkpunkter](https://aksel.nav.no/grunnleggende/styling/brekkpunkter.md)
 
 ```tsx
-<HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="4">
+<HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="space-16">
   {items.map(item => <Card key={item.id} {...item} />)}
 </HGrid>
 
@@ -92,30 +97,32 @@ Mobil først med breakpoints:
 import { Box, VStack, HStack, HGrid } from "@navikt/ds-react";
 
 // Vertikal stack med mellomrom
-<VStack gap="4">
+<VStack gap="space-16">
   <Komponent1 />
   <Komponent2 />
   <Komponent3 />
 </VStack>
 
 // Horisontal stack
-<HStack gap="4" align="center">
+<HStack gap="space-8" align="center">
   <Icon />
   <Text />
 </HStack>
 
 // Responsiv grid
-<HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="4">
+<HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="space-16">
   {/* Grid-elementer */}
 </HGrid>
 ```
 
 ### Typografi
 
+Full API: [typography](https://aksel.nav.no/komponenter/core/typography.md)
+
 ```tsx
 import { Heading, BodyShort, Label } from "@navikt/ds-react";
 
-<Heading size="large|medium|small" level="1-6">
+<Heading size="xlarge|large|medium|small|xsmall" level="1-6">
   Tittel
 </Heading>
 
@@ -127,7 +134,7 @@ import { Heading, BodyShort, Label } from "@navikt/ds-react";
   Halvfet tekst
 </BodyShort>
 
-<Label size="large|medium|small">
+<Label size="medium|small">
   Skjemaetikett
 </Label>
 ```
@@ -135,12 +142,12 @@ import { Heading, BodyShort, Label } from "@navikt/ds-react";
 ### Bakgrunnsfarger
 
 ```tsx
-<Box background="surface-default">     {/* Hvit */}
-<Box background="surface-subtle">      {/* Lys grå */}
-<Box background="surface-action-subtle">  {/* Lys blå */}
-<Box background="surface-success-subtle"> {/* Lys grønn */}
-<Box background="surface-warning-subtle"> {/* Lys oransje */}
-<Box background="surface-danger-subtle">  {/* Lys rød */}
+<Box background="default">          {/* Hvit */}
+<Box background="neutral-soft">     {/* Lys grå */}
+<Box background="accent-soft">      {/* Lys blå */}
+<Box background="success-soft">     {/* Lys grønn */}
+<Box background="warning-soft">     {/* Lys oransje */}
+<Box background="danger-soft">      {/* Lys rød */}
 ```
 
 ## Tallformatering
@@ -179,7 +186,10 @@ export async function POST(request: Request) {
 
   // Validation
   if (!body.requiredField) {
-    return NextResponse.json({ error: "requiredField is missing" }, { status: 400 });
+    return NextResponse.json(
+      { error: "requiredField is missing" },
+      { status: 400 },
+    );
   }
 
   const result = await processData(body);
@@ -206,7 +216,7 @@ export default async function Page() {
 // ✅ Route params are also Promises
 export async function GET(
   request: Request,
-  props: { params: Promise<{ id: string }> }
+  props: { params: Promise<{ id: string }> },
 ) {
   const { id } = await props.params;
   // ...
@@ -222,9 +232,9 @@ const cookieStore = cookies(); // Error: must await
 import { Metadata } from "next";
 
 // ✅ Dynamic metadata for SEO
-export async function generateMetadata(
-  props: { params: Promise<{ id: string }> }
-): Promise<Metadata> {
+export async function generateMetadata(props: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await props.params;
   const vedtak = await fetchVedtak(id);
 
@@ -338,7 +348,7 @@ export default function Loading() {
 // src/app/oversikt/error.tsx — shown on uncaught errors
 "use client";
 
-import { Alert, Button, VStack } from "@navikt/ds-react";
+import { LocalAlert, Button, VStack } from "@navikt/ds-react";
 
 export default function Error({
   error,
@@ -348,11 +358,20 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <VStack gap="4">
-      <Alert variant="error">
-        Noe gikk galt. Prøv igjen senere.
-      </Alert>
-      <Button variant="secondary" onClick={reset}>Prøv igjen</Button>
+    <VStack gap="space-16">
+      <LocalAlert status="error">
+        <LocalAlert.Header>
+          <LocalAlert.Title>Noe gikk galt</LocalAlert.Title>
+        </LocalAlert.Header>
+        <LocalAlert.Content>
+          Det oppsto en feil under innlastingen av data. Prøv igjen senere. Hvis
+          problemet vedvarer, kontakt support.
+        </LocalAlert.Content>
+      </LocalAlert>
+
+      <Button variant="secondary" onClick={reset}>
+        Prøv igjen
+      </Button>
     </VStack>
   );
 }
@@ -366,8 +385,10 @@ import { Skeleton } from "@navikt/ds-react";
 
 export default function Page() {
   return (
-    <VStack gap="8">
-      <Heading size="large" level="1">Oversikt</Heading>
+    <VStack gap="space-24">
+      <Heading size="large" level="1">
+        Oversikt
+      </Heading>
       <Suspense fallback={<Skeleton variant="rounded" height={200} />}>
         <SlowDataComponent />
       </Suspense>
@@ -418,7 +439,9 @@ export default function VedtakForm() {
   return (
     <form action={action}>
       <TextField name="tittel" label="Tittel" error={state?.error} />
-      <Button type="submit" loading={isPending}>Opprett</Button>
+      <Button type="submit" loading={isPending}>
+        Opprett
+      </Button>
     </form>
   );
 }
@@ -432,6 +455,7 @@ React Query (@tanstack/react-query) is the standard for server state management 
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader, LocalAlert, VStack } from "@navikt/ds-react";
 
 export function ResourceList() {
   const { data, isLoading, error } = useQuery({
@@ -440,10 +464,21 @@ export function ResourceList() {
   });
 
   if (isLoading) return <Loader title="Laster..." />;
-  if (error) return <Alert variant="error">Kunne ikke laste data</Alert>;
+  if (error)
+    return (
+      <LocalAlert status="error">
+        <LocalAlert.Header>
+          <LocalAlert.Title>Kunne ikke laste data</LocalAlert.Title>
+        </LocalAlert.Header>
+        <LocalAlert.Content>
+          Det oppsto en feil under innlastingen av data. Prøv igjen senere. Hvis
+          problemet vedvarer, kontakt support.
+        </LocalAlert.Content>
+      </LocalAlert>
+    );
 
   return (
-    <VStack gap="space-4">
+    <VStack gap="space-16">
       {data.map((resource) => (
         <ResourceCard key={resource.id} resource={resource} />
       ))}
@@ -480,11 +515,15 @@ interface FormData {
 }
 
 export function RegistrationForm() {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>();
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <VStack gap="space-4">
+      <VStack gap="space-16">
         <TextField
           label="Navn"
           {...register("name", { required: "Navn er påkrevd" })}
@@ -547,10 +586,11 @@ pnpm test
 
 ## Related
 
-| Resource | Use For |
-|----------|---------|
-| `@aksel-agent` | Aksel Design System component patterns and spacing tokens |
-| `@accessibility-agent` | WCAG 2.1/2.2 compliance and accessibility testing |
-| `performance` instruction | Core Web Vitals and bundle optimization |
-| `aksel-spacing` skill | Responsive spacing token reference |
-| `playwright-testing` skill | E2E testing with Playwright and axe-core |
+| Resource                   | Use For                                                          |
+| -------------------------- | ---------------------------------------------------------------- |
+| `@aksel-agent`             | Aksel Design System component patterns and spacing tokens        |
+| `@accessibility-agent`     | WCAG 2.1/2.2 compliance and accessibility testing                |
+| `performance` instruction  | Core Web Vitals and bundle optimization                          |
+| `aksel-spacing` skill      | Responsive spacing token reference                               |
+| `playwright-testing` skill | E2E testing with Playwright and axe-core                         |
+| aksel.nav.no/llm.md        | Full Aksel documentation index (components, tokens, foundations) |

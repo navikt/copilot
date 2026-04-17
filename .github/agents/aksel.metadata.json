@@ -1,14 +1,33 @@
 {
   "domain": "frontend",
-  "tags": ["aksel", "design-system", "nextjs", "react", "ui"],
+  "tags": [
+    "aksel",
+    "design-system",
+    "react",
+    "typescript",
+    "ui",
+    "tokens",
+    "layout",
+    "responsive",
+    "tilgjengelighet",
+    "tailwind"
+  ],
   "examples": [
     {
-      "prompt": "@aksel-agent Konverter Tailwind-layouten i dp-soknad til Aksel spacing tokens",
-      "scenario": "Konverter Tailwind til Aksel"
+      "prompt": "@aksel-agent Lag et responsivt søknadsskjema med TextField, RadioGroup og ErrorSummary",
+      "scenario": "Søknadsskjema med validering"
     },
     {
-      "prompt": "@aksel-agent Lag et responsivt søknadsskjema for sosialhjelp-innsyn med HGrid og Box",
-      "scenario": "Responsivt søknadsskjema"
+      "prompt": "@aksel-agent Bygg en sidestruktur med Page.Block, HGrid og kortkomponenter",
+      "scenario": "Sidelayout med grid"
+    },
+    {
+      "prompt": "@aksel-agent Vis et varsel når en handling feiler – hvilken alert-komponent skal jeg bruke?",
+      "scenario": "Varselhåndtering v8"
+    },
+    {
+      "prompt": "@aksel-agent Lag en ActionMenu for en tabellrad med rediger og slett",
+      "scenario": "ActionMenu i tabell"
     }
   ]
 }

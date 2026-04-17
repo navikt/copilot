@@ -1,9 +1,19 @@
 {
   "displayName": "Next.js/Aksel Development",
-  "description": "Aksel spacing tokens (never Tailwind p-/m-), mobile-first responsive design.",
+  "description": "Aksel spacing tokens (never Tailwind p-/m-), correct background/borderRadius token names, mobile-first responsive design with layout primitives.",
   "domain": "frontend",
-  "tags": ["aksel", "design-system", "nextjs", "react", "ui"],
+  "tags": [
+    "aksel",
+    "design-system",
+    "nextjs",
+    "react",
+    "ui",
+    "spacing",
+    "tokens",
+    "responsive"
+  ],
   "examples": [
-    "Lag en responsiv søknadsoversikt med Aksel Box og VStack"
+    "Lag en responsiv søknadsoversikt med Aksel Box og VStack",
+    "Hva er riktig bakgrunnsfarge-token for en lys grå boks i Aksel v8?"
   ]
 }

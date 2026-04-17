@@ -18,7 +18,7 @@ nav-pilot add skill <skill-name>
 | Name | Description | Location |
 | ---- | ----------- | -------- |
 <!-- | **ai-news-research** | Skriv månedlige oppsummeringer av AI-nyheter for utviklere på norsk med fungerende kildelenker. Bruk for å skrive nyheter, oppsummere AI-trender, lage månedlig oppdatering, eller undersøke hva som er nytt i GitHub Copilot, coding agents, AGENTS.md, skills, memory, agentic workflows eller developer experience. | [`.github/skills/ai-news-research/`](../.github/skills/ai-news-research/SKILL.md) | -->
-| **aksel-spacing** | Responsiv layout med Aksel spacing-tokens og Box, VStack, HStack og HGrid | [`.github/skills/aksel-spacing/`](../.github/skills/aksel-spacing/SKILL.md) |
+| **aksel-spacing** | Lag responsive layouts med Aksel Design System (v8+) - spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed) og ResponsiveProp | [`.github/skills/aksel-spacing/`](../.github/skills/aksel-spacing/SKILL.md) |
 | **api-design** | REST API-designmønstre, versjonering, feilhåndtering (RFC 7807) og OpenAPI-konvensjoner for Nav-tjenester | [`.github/skills/api-design/`](../.github/skills/api-design/SKILL.md) |
 | **conventional-commit** | Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format | [`.github/skills/conventional-commit/`](../.github/skills/conventional-commit/SKILL.md) |
 | **flyway-migration** | Databasemigrasjonsmønstre med Flyway og versjonerte SQL-skript | [`.github/skills/flyway-migration/`](../.github/skills/flyway-migration/SKILL.md) |

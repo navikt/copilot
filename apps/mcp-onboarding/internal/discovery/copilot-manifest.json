@@ -27,7 +27,7 @@
       "type": "agent",
       "name": "aksel-agent",
       "displayName": "@aksel-agent",
-      "description": "Navs Aksel Design System — spacing-tokens, responsiv layout og komponentmønstre",
+      "description": "Navs Aksel Design System (v8+) — komponenter, tokens, layout, theming og tilgjengelighet",
       "category": "frontend",
       "tags": [
         "aksel",
@@ -579,7 +579,7 @@
       "type": "skill",
       "name": "aksel-spacing",
       "displayName": "aksel-spacing",
-      "description": "Responsive layout-mønstre med Navs Aksel Design System spacing-tokens.",
+      "description": "Referanse for å bygge responsive layouts med Aksel v8+. Hent oppdatert dokumentasjon fra [https://aksel.nav.no/llm.md](https://aksel.nav.no/llm.md) ved behov.",
       "filePath": ".github/skills/aksel-spacing",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md"
