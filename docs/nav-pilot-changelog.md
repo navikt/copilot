@@ -4,6 +4,22 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ---
 
+## 2026-04-17
+
+### Eksport til OpenCode (`nav-pilot export opencode`)
+
+- Ny `export`-kommando som transformerer `.github/`-artefakter til `.opencode/`-format for [OpenCode](https://github.com/anomalyco/opencode) og [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)
+- Skills kopieres 1:1 (OpenCode støtter `name`, `description`, `license`, `metadata` nativt)
+- Prompts → commands (fjerner `name` fra frontmatter, OpenCode utleder fra filnavn)
+- Agenter → agents (erstatter frontmatter med `description` + `mode: subagent`, dropper VS Code-spesifikke `tools`)
+- Instruksjoner + `copilot-instructions.md` → samlet `AGENTS.md` med seksjonsoverskrifter
+- Støtter `--user` for global installasjon til `~/.config/opencode/`
+- Gjenbruker eksisterende flagg: `--dry-run`, `--force`, `--target`, `--ref`, `--source`
+- Blokkerer skriving til eksisterende `.opencode/` med mindre `--force` brukes
+- YAML-safe sitering av beskrivelser med spesialtegn (`:`, `#`, etc.)
+
+---
+
 ## 2026-04-14
 
 ### Bruker-hjemmappe-installasjon (`--user`)

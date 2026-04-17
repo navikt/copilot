@@ -58,3 +58,15 @@ After modifying, test with:
 nav-pilot install --dry-run <collection>
 nav-pilot install --force <collection>
 ```
+
+## Exporting for Other Tools
+
+If you use [OpenCode](https://github.com/anomalyco/opencode) or [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) instead of GitHub Copilot, you can export all Nav customizations to `.opencode/` format:
+
+```bash
+nav-pilot export opencode              # generates .opencode/ in current directory
+nav-pilot export opencode --user       # exports to ~/.config/opencode/ (global)
+nav-pilot export opencode --dry-run    # preview what would be exported
+```
+
+See [nav-pilot docs](README.nav-pilot.md#eksport-til-andre-verktøy) for transformation details.

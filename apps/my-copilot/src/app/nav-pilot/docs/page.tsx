@@ -247,6 +247,9 @@ const CLI_COMMANDS = [
   { command: "nav-pilot update", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   { command: "nav-pilot feedback", description: "Rapporter feil — åpner GitHub issue med diagnostikk" },
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjonalitet" },
+  { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
+  { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
+  { command: "nav-pilot export opencode --dry-run", description: "Forhåndsvis hva som eksporteres" },
   { command: "nav-pilot version", description: "Vis versjonsinformasjon" },
 ];
 

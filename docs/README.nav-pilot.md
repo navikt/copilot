@@ -77,6 +77,27 @@ Instruksjoner installeres til `~/.copilot/.github/instructions/`. nav-pilot sett
 eval "$(nav-pilot env)"
 ```
 
+## Eksport til andre verktøy
+
+nav-pilot kan eksportere Navs tilpasninger til andre AI-kodeverktøy:
+
+```bash
+# Eksporter til OpenCode / oh-my-openagent
+nav-pilot export opencode              # → .opencode/ i nåværende mappe
+nav-pilot export opencode --user       # → ~/.config/opencode/ (globalt)
+nav-pilot export opencode --dry-run    # forhåndsvis
+nav-pilot export opencode --force      # overskriv eksisterende
+```
+
+Eksport transformerer `.github/`-artefakter til `.opencode/`-format:
+
+| Nav-artefakt | OpenCode-mål | Transformasjon |
+|---|---|---|
+| Skills (`SKILL.md`) | `.opencode/skills/` | 1:1-kopi (kompatibelt format) |
+| Prompts (`.prompt.md`) | `.opencode/commands/` | Fjerner `name` fra frontmatter |
+| Agenter (`.agent.md`) | `.opencode/agents/` | Erstatter frontmatter med `mode: subagent` |
+| Instruksjoner (`.instructions.md`) | `AGENTS.md` | Slår sammen alle til én fil |
+
 ## Bruk
 
 Det finnes tre måter å bruke nav-pilot på:

@@ -46,6 +46,7 @@ Commands:
   install <collection>    Install a curated collection into the current repo
   install --user          Install all agents, skills & instructions to ~/.copilot (user-wide)
   add <type> <name>       Install a single agent, skill, instruction, or prompt
+  export <format>         Export Nav customizations to another tool's format
   sync                    Check for updates and optionally apply them
   list                    List available collections and items
   status                  Show what's currently installed
@@ -71,6 +72,7 @@ Get started:
   nav-pilot list                         # See available collections
   nav-pilot install kotlin-backend       # Install a collection
   nav-pilot install --dry-run fullstack  # Preview before installing
+  nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
 
 After installing, use @nav-pilot in GitHub Copilot Chat.
 `)
@@ -173,7 +175,7 @@ func run(args []string) error {
 	// Reject --user for commands that don't support scoped installs
 	if userScope {
 		switch command {
-		case "install", "add", "sync", "status", "uninstall":
+		case "install", "add", "sync", "status", "uninstall", "export":
 			// These commands support --user
 		default:
 			return fmt.Errorf("--user is not supported for %q", command)
@@ -189,6 +191,11 @@ func run(args []string) error {
 			return fmt.Errorf("install requires a collection name. Run 'nav-pilot list' to see available collections")
 		}
 		return cmdInstall(positional[0], scope, ref, sourceRepo, dryRun, force)
+	case "export":
+		if len(positional) == 0 {
+			return fmt.Errorf("export requires a format.\n\nUsage: nav-pilot export <format>\n\nFormats: opencode")
+		}
+		return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force)
 	case "add":
 		if len(positional) < 2 {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
