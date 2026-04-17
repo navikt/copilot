@@ -114,11 +114,15 @@ These checks are specific to Nav developer machines connected to the NAIS platfo
    done
    ```
    RSA < 3072 bits → **HIGH**. DSA → **CRITICAL** (deprecated). Ed25519 or ECDSA → **PASS**.
-4. SSH private keys should be encrypted - unencrypted keys are **HIGH**
-   Run `ssh-keygen -y -P "" -f /path/to/key &>/dev/null`. 
-   If this command returns 0 the key is _not_ encrypted.
-   SSH keys are stored by default in the $HOME/.ssh. folder.
-   To fix: Set a passphrase on the key(s), manage them in your password manager or use a tool like [Secretive](https://github.com/maxgoedjen/secretive).
+4. SSH private keys should be encrypted — unencrypted keys are **HIGH**:
+   ```bash
+   for key in ~/.ssh/id_*; do
+     if [ -f "$key" ] && [[ "$key" != *.pub ]]; then
+       ssh-keygen -y -P "" -f "$key" &>/dev/null && echo "Unencrypted key: $key"
+     fi
+   done
+   ```
+   Any reported key is not encrypted. Fix: set a passphrase on the key(s), manage them in your password manager, or use a tool like [Secretive](https://github.com/maxgoedjen/secretive).
 5. Check for `ForwardAgent yes` — **HIGH** if enabled for untrusted hosts:
    ```bash
    grep -n "ForwardAgent" ~/.ssh/config 2>/dev/null
