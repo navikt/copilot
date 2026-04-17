@@ -3,7 +3,7 @@ title: "Nyheter og trender — April 2026"
 date: 2026-04-13
 draft: true
 category: copilot
-excerpt: "Autopilot-modus i VS Code, Copilot SDK i public preview, PR-merge-metrikker for code review, organisasjonsstyrt runner, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil."
+excerpt: "Autopilot-modus i VS Code, Copilot SDK i public preview, PR-merge-metrikker for code review, organisasjonsstyrt runner, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, Claude Opus 4.7 GA, gh skill CLI."
 tags:
   - copilot-sdk
   - coding-agents
@@ -17,6 +17,7 @@ tags:
   - models
   - vscode
   - autopilot
+  - skills
 ---
 
 <!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
@@ -156,6 +157,30 @@ For Copilot Business- og Enterprise-brukere må en administrator aktivere remote
 
 ---
 
+## 12. Claude Opus 4.7 GA
+
+Anthropics nyeste Opus-modell er nå tilgjengelig i GitHub Copilot. Opus 4.7 leverer sterkere flertrinns-ytelse og mer pålitelig agentutførelse enn forgjengeren. Modellen viser spesielt fremgang på de vanskeligste oppgavene — den typen arbeid som tidligere krevde tett oppfølging kan nå delegeres med større tillit.
+
+Opus 4.7 erstatter gradvis Opus 4.5 og Opus 4.6 i modellvelgeren for Copilot Pro+. For Business- og Enterprise-kunder må administrator aktivere modellen i Copilot-innstillingene. Modellen lanseres med 7,5× premium request-multiplikator som kampanjepris frem til 30. april.
+
+Anthropic fremhever også at Opus 4.7 har vesentlig bedre bildeforståelse med høyere oppløsning, og at modellen er den første som lanseres med nye cybersikkerhetsbeskyttelser — bygget på erfaringene fra Project Glasswing. Sikkerhetsprofesjonelle som ønsker å bruke modellen til legitime formål kan søke om tilgang via Anthropics nye Cyber Verification Program.
+
+**Kilde:** [Claude Opus 4.7 is generally available](https://github.blog/changelog/2026-04-16-claude-opus-4-7-is-generally-available) (GitHub Changelog, 16. april 2026)
+
+---
+
+## 13. Administrer agent skills med GitHub CLI
+
+GitHub lanserer `gh skill`, en ny kommando i GitHub CLI som gjør det enkelt å oppdage, installere, oppdatere og publisere agent skills. Skills er portable sett med instruksjoner, skript og ressurser som lærer AI-agenter å utføre spesifikke oppgaver. De følger den åpne Agent Skills-spesifikasjonen og fungerer på tvers av Copilot, Claude Code, Cursor, Codex og Gemini CLI.
+
+Et sentralt fokus er supply chain-integritet. Hver installert skill registrerer git tree SHA fra kildekatalogen, og `gh skill update` sammenligner lokale SHA-er mot remote for å oppdage reelle innholdsendringer. Du kan pinne skills til en spesifikk tag eller commit SHA, og `gh skill publish` validerer skills mot agentskills.io-spesifikasjonen og sjekker innstillinger som tag-beskyttelse og secret scanning.
+
+Kommandoene inkluderer `gh skill install` for installasjon, `gh skill search` for oppdagelse, `gh skill update` for oppdateringer og `gh skill publish` for publisering med validering. Skills installeres automatisk til riktig katalog for agent-verten din.
+
+**Kilde:** [Manage agent skills with GitHub CLI](https://github.blog/changelog/2026-04-16-manage-agent-skills-with-github-cli) (GitHub Changelog, 16. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -171,3 +196,5 @@ For Copilot Business- og Enterprise-brukere må en administrator aktivere remote
 | Dependabot + AI-agenter | Kan akselerere sikkerhetsoppdateringer i Navs ~500 repoer. Vurder å aktivere for team med mange Dependabot-varsler — spesielt nyttig for breaking changes i major-oppgraderinger. |
 | Project Glasswing | Signaliserer at AI-drevet sårbarhetsjakt er her. Nav bør følge med på når slike verktøy blir tilgjengelige for enterprise-kunder, og vurdere implikasjonene for egen sikkerhetspraksis. |
 | Fjernstyr CLI fra nett/mobil | Utviklere kan starte lange CLI-sesjoner og følge med fra mobilen eller en annen maskin. Nyttig for oppgaver som tar tid — for eksempel store refaktoreringer eller migreringer. Krever at admin aktiverer CLI- og remote-policyer for Business/Enterprise. |
+| Claude Opus 4.7 | Ny toppmodell for agentoppgaver. Nav Business/Enterprise-admins bør aktivere modellen i Copilot-innstillingene. Opus 4.5 og 4.6 fases ut for Pro+ — sjekk om noen team har preferanser som bør oppdateres. |
+| `gh skill` CLI | Navikt/copilot bruker allerede skills. `gh skill install` gjør det enklere å distribuere og oppdatere skills til utviklere. Versjonspinning og supply chain-integritet gir trygghet for enterprise-bruk. |
