@@ -220,6 +220,25 @@ func TestFindGitRoot_NotFound(t *testing.T) {
 	}
 }
 
+func TestFindGitRoot_RelativeInput(t *testing.T) {
+	tmp := t.TempDir()
+	gitDir := filepath.Join(tmp, "repo")
+	os.MkdirAll(filepath.Join(gitDir, ".git"), 0o755)
+
+	// chdir into the repo root and pass "."
+	prev, _ := os.Getwd()
+	defer os.Chdir(prev)
+	os.Chdir(gitDir)
+
+	root := findGitRoot(".")
+	if !filepath.IsAbs(root) {
+		t.Fatalf("expected absolute path, got %q", root)
+	}
+	if root != gitDir {
+		t.Errorf("expected %q, got %q", gitDir, root)
+	}
+}
+
 // ─── Integration-style tests ────────────────────────────────────────────────
 
 // TestCmdInstall_FullFlow tests install with a local fixture source.

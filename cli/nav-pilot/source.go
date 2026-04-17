@@ -72,6 +72,10 @@ func resolveSource(ref, sourceRepo string) (*Source, error) {
 
 // findGitRoot walks up from dir to find the nearest .git directory.
 func findGitRoot(dir string) string {
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return ""
+	}
 	for d := dir; ; d = filepath.Dir(d) {
 		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
 			return d
