@@ -71,6 +71,10 @@ func (c SearchCriteria) MatchFiles(names []string) []string {
 //   - .github/skills/*/SKILL.md            Agent skill folders (directory)
 //   - .vscode/mcp.json                     MCP server configuration (file)
 //   - .github/copilot/*                    Newer Copilot config directory (directory)
+//   - .github/copilot-setup-steps.yml      Cloud coding agent environment setup (file)
+//   - .github/aw/*.md                      GitHub Agentic Workflows (directory, github/gh-aw)
+//   - .agents/skills/*                     Installed agent skills (directory, gh skill install)
+//   - .github/.nav-pilot-state.json        nav-pilot installation state marker (file)
 //
 // Other AI tools (for comparison metrics):
 //   - Cursor: .cursorrules, .cursor/rules/*.mdc, .cursorignore
@@ -175,6 +179,40 @@ func DefaultCriteria() []SearchCriteria {
 			TreePath:    ".github/copilot",
 			CheckType:   CheckDirectory,
 			FilePattern: "*",
+		},
+
+		// --- GitHub Copilot (cloud agent setup) ---
+		{
+			Category:    "copilot_setup_steps",
+			Description: "Copilot coding agent environment setup",
+			TreePath:    ".github/copilot-setup-steps.yml",
+			CheckType:   CheckFile,
+		},
+
+		// --- GitHub Agentic Workflows (github/gh-aw) ---
+		{
+			Category:    "agentic_workflows",
+			Description: "GitHub Agentic Workflows definitions",
+			TreePath:    ".github/aw",
+			CheckType:   CheckDirectory,
+			FilePattern: "*.md",
+		},
+
+		// --- Installed agent skills (gh skill install) ---
+		{
+			Category:    "agents_skills",
+			Description: "Installed agent skills (gh skill install, agentskills.io spec)",
+			TreePath:    ".agents/skills",
+			CheckType:   CheckDirectory,
+			FilePattern: "*",
+		},
+
+		// --- nav-pilot ---
+		{
+			Category:    "nav_pilot_state",
+			Description: "nav-pilot installation state marker",
+			TreePath:    ".github/.nav-pilot-state.json",
+			CheckType:   CheckFile,
 		},
 	}
 }

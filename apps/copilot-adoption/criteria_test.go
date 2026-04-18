@@ -32,6 +32,8 @@ func TestDefaultCriteria(t *testing.T) {
 		// GitHub Copilot
 		"copilot_instructions", "agents_md", "agents",
 		"instructions", "prompts", "skills", "mcp_config", "copilot_dir",
+		"copilot_setup_steps", "agentic_workflows", "agents_skills",
+		"nav_pilot_state",
 		// Cursor
 		"cursorrules", "cursor_rules_dir", "cursorignore",
 		// Claude Code
