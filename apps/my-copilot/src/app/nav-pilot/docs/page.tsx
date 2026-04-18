@@ -14,10 +14,6 @@ import {
   TasklistIcon,
   Buildings3Icon,
   WrenchIcon,
-  LightningIcon,
-  PaletteIcon,
-  LinkIcon,
-  ShieldCheckmarkIcon,
   CheckmarkIcon,
   DocPencilIcon,
   PersonGroupIcon,
@@ -771,78 +767,6 @@ function CollectionsSection() {
           </div>
         </div>
 
-        {/* Collection details */}
-        <HGrid columns={{ xs: 1, md: 2 }} gap="space-4">
-          {COLLECTIONS.map((c, i) => {
-            const icons = [LightningIcon, PaletteIcon, LinkIcon, ShieldCheckmarkIcon];
-            const CollectionIcon = icons[i % icons.length];
-            const counts = [
-              { label: "Agenter", count: c.agents },
-              { label: "Skills", count: c.skills },
-              { label: "Instruksjoner", count: c.details.instructions.split(",").length },
-              { label: "Prompts", count: c.details.prompts.split(",").length },
-            ];
-            return (
-              <Box
-                key={c.name}
-                padding={{ xs: "space-12", sm: "space-16" }}
-                borderRadius="12"
-                className="border overflow-hidden"
-                style={{ borderColor: "#e2e8f0" }}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <CollectionIcon aria-hidden fontSize="1.125rem" style={{ color: "#64748b" }} />
-                  <Heading size="xsmall" level="4" style={{ color: "#334155" }}>
-                    {c.name}
-                  </Heading>
-                </div>
-                <BodyShort size="small" className="mb-3" style={{ color: "#64748b" }}>
-                  {c.description}
-                </BodyShort>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {counts.map((cat) => (
-                    <span
-                      key={cat.label}
-                      className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1"
-                      style={{ background: "#f1f5f9", color: "#475569" }}
-                    >
-                      <strong>{cat.count}</strong> {cat.label.toLowerCase()}
-                    </span>
-                  ))}
-                </div>
-                <details className="text-xs">
-                  <summary className="cursor-pointer font-semibold" style={{ color: "#64748b" }}>
-                    Vis innhold
-                  </summary>
-                  <div className="mt-2 space-y-1.5" style={{ color: "#64748b" }}>
-                    {[
-                      { label: "Agenter", items: c.details.agents },
-                      { label: "Skills", items: c.details.skills },
-                      { label: "Instruksjoner", items: c.details.instructions },
-                      { label: "Prompts", items: c.details.prompts },
-                    ].map((group) => (
-                      <div key={group.label}>
-                        <span className="font-semibold">{group.label}:</span>{" "}
-                        {group.items.split(", ").map((item, j) => (
-                          <span key={item}>
-                            {j > 0 && ", "}
-                            <code
-                              className="font-mono rounded px-1 py-0.5"
-                              style={{ background: "#f1f5f9", fontSize: "0.7rem" }}
-                            >
-                              {item.trim()}
-                            </code>
-                          </span>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              </Box>
-            );
-          })}
-        </HGrid>
-
         {/* Planning skills table */}
         <div id="planning-skills">
           <LinkableHeading size="small" level="3">
@@ -1099,8 +1023,8 @@ jobs:
             </Heading>
           </div>
           <BodyShort size="small" className="mb-3" style={{ color: "#475569" }}>
-            Trenger du å fjerne rammeverk-spesifikke filer (f.eks. Next.js-instruksjoner i et Astro-prosjekt)?
-            Opprett <code className="font-mono text-xs">.github/copilot-sync.json</code> med overrides:
+            Trenger du å fjerne rammeverk-spesifikke filer (f.eks. Next.js-instruksjoner i et Astro-prosjekt)? Opprett{" "}
+            <code className="font-mono text-xs">.github/copilot-sync.json</code> med overrides:
           </BodyShort>
           <CodeBlock compact>
             {`{
@@ -1112,14 +1036,13 @@ jobs:
 }`}
           </CodeBlock>
           <BodyShort size="small" className="mt-3" style={{ color: "#475569" }}>
-            Filer med <code className="font-mono text-xs">{`"action": "delete"`}</code> blir fjernet ved neste sync
-            og ikke lagt til igjen. Alternativt kan du installere{" "}
-            <code className="font-mono text-xs">frontend</code>-collectionet som allerede utelater
-            Next.js-spesifikke filer.
+            Filer med <code className="font-mono text-xs">{`"action": "delete"`}</code> blir fjernet ved neste sync og
+            ikke lagt til igjen. Alternativt kan du installere <code className="font-mono text-xs">frontend</code>
+            -collectionet som allerede utelater Next.js-spesifikke filer.
           </BodyShort>
           <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
-            Sletter du en fil manuelt uten override, markeres den som «ignorert» og gjenopprettes ikke av sync.
-            Legg den til igjen med <code className="font-mono text-xs">nav-pilot add</code> hvis du ombestemmer deg.
+            Sletter du en fil manuelt uten override, markeres den som «ignorert» og gjenopprettes ikke av sync. Legg den
+            til igjen med <code className="font-mono text-xs">nav-pilot add</code> hvis du ombestemmer deg.
           </BodyShort>
         </div>
 
