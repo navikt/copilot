@@ -261,7 +261,7 @@ const CLI_COMMANDS = [
   { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
   { command: "nav-pilot update", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   { command: "nav-pilot feedback", description: "Rapporter feil — åpner GitHub issue med diagnostikk" },
-  { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjonalitet" },
+  { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
   { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
   { command: "nav-pilot export opencode --dry-run", description: "Forhåndsvis hva som eksporteres" },
@@ -343,7 +343,7 @@ function IntroductionSection() {
             .
           </BodyLong>
           <BodyLong style={{ color: "#475569" }}>
-            nav-pilot er en samling av <strong>én agent, fire skills og fire collections</strong> som koder inn Navs
+            nav-pilot er en samling av <strong>én agent, fire skills og fem collections</strong> som koder inn Navs
             institusjonelle kunnskap som kjørbare arbeidsflyter. CLI-verktøyet installerer markdown-filer — selve
             AI-funksjonaliteten kjøres av GitHub Copilot.
           </BodyLong>
@@ -503,7 +503,7 @@ function IntroductionSection() {
                 At du trenger <code className="font-mono text-xs">accessPolicy.inbound</code> i Nais-manifestet, ellers
                 kan ingen kalle tjenesten din
               </>,
-              "At HikariCP default pool (10) er for stort for containere — start med 3",
+              "At HikariCP default pool (10) er for stor for containere — start med 3",
               "At du aldri skal sette CPU-limits i Nais (bare requests)",
               "At PII aldri skal logges — logg sakId, ikke fnr",
               "At Chainguard-images er standard i Nav, ikke distroless",
@@ -648,7 +648,7 @@ nav-pilot`}
             Personlig installasjon (valgfritt)
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            I tillegg til repo-installasjon kan du installere agenter, skills og instruksjoner til hjemmemappen. De blir
+            Du kan også installere agenter, skills og instruksjoner til hjemmemappen. De blir
             da tilgjengelige i <em>alle</em> repoer uten å endre hvert enkelt.
           </BodyLong>
           <div className="mt-4">
@@ -673,7 +673,7 @@ nav-pilot`}
             Første kommandoer
           </LinkableHeading>
           <BodyLong className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Etter installasjon kan du bruke disse kommandoene for å komme i gang:
+            Her er noen nyttige kommandoer:
           </BodyLong>
           <div className="space-y-3">
             {[
@@ -932,7 +932,7 @@ function SyncSection() {
             </div>
             <BodyShort size="small" className="mb-4" style={{ color: "#475569" }}>
               GitHub Actions-workflow som åpner PR-er automatisk — som Dependabot, men for Copilot-tilpasninger. PR-en
-              viser hvilke filer som er oppdatert med lenker til kilderepoet.
+              viser hvilke filer som er oppdaterte, med lenker til kilderepoet.
             </BodyShort>
             <Label size="small" className="mb-1" style={{ color: "#64748b" }}>
               copilot-sync.yml
@@ -1368,7 +1368,7 @@ function HowItWorksSection() {
               {
                 step: "4",
                 title: "Hold oppdatert",
-                desc: "nav-pilot sjekker automatisk for nye versjoner. Bruk sync for å oppdatere filene når nye skills eller forbedringer er tilgjengelige.",
+                desc: "nav-pilot sjekker automatisk om det finnes oppdateringer. Bruk sync for å hente nye skills og forbedringer.",
                 cmd: "nav-pilot sync --apply",
                 accent: "#d97706",
                 bg: "#fffbeb",
