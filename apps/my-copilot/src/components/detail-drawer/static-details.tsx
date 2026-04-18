@@ -151,7 +151,7 @@ export function StaticCustomizationDetails({
                   <VStack gap="space-12">
                     <VStack gap="space-4">
                       <BodyShort size="small" weight="semibold">
-                        Installer i prosjektet:
+                        I repoet (delt med teamet):
                       </BodyShort>
                       <div className="relative">
                         <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
@@ -164,7 +164,7 @@ export function StaticCustomizationDetails({
                     </VStack>
                     <VStack gap="space-4">
                       <BodyShort size="small" weight="semibold">
-                        Eller installer for brukeren:
+                        Personlig (alle repoer):
                       </BodyShort>
                       <div className="relative">
                         <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
