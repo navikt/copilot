@@ -234,8 +234,10 @@ func TestFindGitRoot_RelativeInput(t *testing.T) {
 	if !filepath.IsAbs(root) {
 		t.Fatalf("expected absolute path, got %q", root)
 	}
-	if root != gitDir {
-		t.Errorf("expected %q, got %q", gitDir, root)
+	// Resolve symlinks (macOS: /var → /private/var) before comparing.
+	want, _ := filepath.EvalSymlinks(gitDir)
+	if root != want {
+		t.Errorf("expected %q, got %q", want, root)
 	}
 }
 
