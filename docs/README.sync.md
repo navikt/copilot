@@ -88,7 +88,7 @@ Teams using Astro, Remix, or other non-Next.js frameworks can use overrides to s
   "overrides": [
     ".github/instructions/nextjs-aksel.instructions.md",
     ".github/instructions/performance.instructions.md",
-    ".github/prompts/nextjs-api-route/"
+    ".github/prompts/nextjs-api-route.prompt.md"
   ]
 }
 ```

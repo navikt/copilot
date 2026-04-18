@@ -30,7 +30,7 @@ func TestRun_AddOnlyType(t *testing.T) {
 }
 
 func TestCmdAdd_InvalidType(t *testing.T) {
-	err := cmdAdd("widget", "foo", ScopeRepo(t.TempDir()), "", "", true, false)
+	err := cmdAdd("widget", "foo", ScopeRepo(t.TempDir()), "", "", true, false, false)
 	if err == nil {
 		t.Fatal("expected error for invalid type")
 	}
@@ -40,7 +40,7 @@ func TestCmdAdd_InvalidType(t *testing.T) {
 }
 
 func TestCmdAdd_InvalidName(t *testing.T) {
-	err := cmdAdd("agent", "../etc/passwd", ScopeRepo(t.TempDir()), "", "", true, false)
+	err := cmdAdd("agent", "../etc/passwd", ScopeRepo(t.TempDir()), "", "", true, false, false)
 	if err == nil {
 		t.Fatal("expected error for path traversal name")
 	}
@@ -319,7 +319,7 @@ func TestCmdStatus_Integrity(t *testing.T) {
 	writeState(target, state)
 
 	// Should not error
-	err := cmdStatus(ScopeRepo(target))
+	err := cmdStatus(ScopeRepo(target), false)
 	if err != nil {
 		t.Fatalf("cmdStatus: %v", err)
 	}
@@ -401,4 +401,73 @@ func createFixtureSource(t *testing.T) string {
 	os.WriteFile(filepath.Join(gh, "prompts", "test.prompt.md"), []byte("# Test Prompt\nGenerate a thing."), 0o644)
 
 	return source
+}
+
+func TestCmdAdd_ClearsIgnoredStatus(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
+	scope := ScopeRepo(dir)
+
+	// Pre-populate state with an ignored file
+	state := &StateFile{
+		Collection: "nextjs-frontend",
+		Version:    "2025.07",
+		Scope:      "repo",
+		SourceSHA:  "abc123",
+		Files: []InstalledFile{
+			{Path: ".github/agents/test.agent.md", Hash: "oldhash", Status: fileStatusIgnored},
+			{Path: ".github/skills/api-design/", Hash: "skillhash"},
+		},
+	}
+	writeScopedState(scope, state)
+
+	// Simulate what cmdAdd does when re-adding a file that exists in state:
+	// merge result files, clearing ignored status
+	newFile := InstalledFile{Path: ".github/agents/test.agent.md", Hash: "newhash"}
+
+	updated, _ := readScopedState(scope)
+	existing := make(map[string]bool)
+	for _, f := range updated.Files {
+		existing[f.Path] = true
+	}
+	if existing[newFile.Path] {
+		for i, sf := range updated.Files {
+			if sf.Path == newFile.Path {
+				updated.Files[i].Hash = newFile.Hash
+				updated.Files[i].Status = ""
+				break
+			}
+		}
+	} else {
+		updated.Files = append(updated.Files, newFile)
+	}
+	writeScopedState(scope, updated)
+
+	// Verify status was cleared and hash updated
+	final, _ := readScopedState(scope)
+	for _, f := range final.Files {
+		if f.Path == ".github/agents/test.agent.md" {
+			if f.Status != "" {
+				t.Errorf("expected cleared status after re-add, got %q", f.Status)
+			}
+			if f.Hash != "newhash" {
+				t.Errorf("expected updated hash, got %q", f.Hash)
+			}
+		}
+	}
+
+	// Verify resolveSyncFiles includes the file again
+	files, _, err := resolveSyncFiles(scope, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, f := range files {
+		if f.localPath == ".github/agents/test.agent.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("re-added file should appear in sync file list")
+	}
 }

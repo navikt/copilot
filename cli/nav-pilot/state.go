@@ -23,8 +23,12 @@ type StateFile struct {
 type InstalledFile struct {
 	Path   string `json:"path"`
 	Hash   string `json:"hash"`
-	Status string `json:"status,omitempty"` // "" = active, "ignored" = intentionally deleted
+	Status string `json:"status,omitempty"` // "" = active, fileStatusIgnored = intentionally deleted
 }
+
+// fileStatusIgnored marks a file as intentionally deleted by the user.
+// Sync and status skip files with this status.
+const fileStatusIgnored = "ignored"
 
 // readState reads state for the given repo directory (legacy convenience wrapper).
 func readState(targetDir string) (*StateFile, error) {

@@ -72,7 +72,7 @@ func collectDiagnostics(targetDir string) string {
 // plus the relative paths of any modified files.
 func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing, ignored int, modifiedPaths []string) {
 	for _, f := range state.Files {
-		if f.Status == "ignored" {
+		if f.Status == fileStatusIgnored {
 			ignored++
 			continue
 		}

@@ -94,16 +94,9 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	for _, sf := range files {
 		// Check if local file exists; if missing, treat as intentional deletion
 		localFull := filepath.Join(scope.RootDir, sf.localPath)
-		if sf.isDir {
-			if _, statErr := os.Stat(localFull); os.IsNotExist(statErr) {
-				ignoredPaths = append(ignoredPaths, sf.localPath)
-				continue
-			}
-		} else {
-			if _, statErr := os.Stat(localFull); os.IsNotExist(statErr) {
-				ignoredPaths = append(ignoredPaths, sf.localPath)
-				continue
-			}
+		if _, statErr := os.Stat(localFull); os.IsNotExist(statErr) {
+			ignoredPaths = append(ignoredPaths, sf.localPath)
+			continue
 		}
 
 		u, err := checkSyncFile(scope.RootDir, src.Dir, sf)
@@ -241,7 +234,7 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string
 		// State-based: check all installed files, skip ignored ones
 		var files []syncFile
 		for _, f := range state.Files {
-			if f.Status == "ignored" {
+			if f.Status == fileStatusIgnored {
 				continue
 			}
 			sp := f.Path
@@ -490,7 +483,7 @@ func markFilesIgnored(scope *InstallScope, paths []string) error {
 
 	for i, f := range state.Files {
 		if pathSet[f.Path] {
-			state.Files[i].Status = "ignored"
+			state.Files[i].Status = fileStatusIgnored
 		}
 	}
 

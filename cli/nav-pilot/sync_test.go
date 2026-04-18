@@ -683,7 +683,7 @@ func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
 		Scope:      "repo",
 		Files: []InstalledFile{
 			{Path: ".github/agents/nais.agent.md", Hash: "abc123"},
-			{Path: ".github/instructions/nextjs-aksel.instructions.md", Hash: "def456", Status: "ignored"},
+			{Path: ".github/instructions/nextjs-aksel.instructions.md", Hash: "def456", Status: fileStatusIgnored},
 			{Path: ".github/skills/api-design/", Hash: "ghi789"},
 		},
 	}
@@ -732,7 +732,7 @@ func TestMarkFilesIgnored(t *testing.T) {
 	for _, f := range updated.Files {
 		switch f.Path {
 		case ".github/instructions/nextjs-aksel.instructions.md":
-			if f.Status != "ignored" {
+			if f.Status != fileStatusIgnored {
 				t.Errorf("expected status 'ignored', got %q", f.Status)
 			}
 		default:
@@ -794,7 +794,7 @@ func TestCountFileIntegrity_IgnoredFiles(t *testing.T) {
 	state := &StateFile{
 		Files: []InstalledFile{
 			{Path: ".github/a.md", Hash: hash1},                                          // ok
-			{Path: ".github/ignored.md", Hash: "x", Status: "ignored"},                   // ignored
+			{Path: ".github/ignored.md", Hash: "x", Status: fileStatusIgnored},            // ignored
 			{Path: ".github/missing.md", Hash: "x"},                                      // missing
 		},
 	}

@@ -8,7 +8,7 @@ import (
 
 // cmdAdd installs a single agent, skill, instruction, or prompt from the source repo.
 // It appends to the existing state file if one exists.
-func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool) error {
+func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	// Validate type
 	switch itemType {
 	case "agent", "skill", "instruction", "prompt":
@@ -31,7 +31,9 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 		}
 	}
 
-	fmt.Println(dim("Resolving source..."))
+	if !jsonOutput {
+		fmt.Println(dim("Resolving source..."))
+	}
 	src, err := resolveSource(ref, sourceRepo)
 	if err != nil {
 		return err
@@ -45,15 +47,17 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 
 	result := &installResult{}
 
-	fmt.Println()
-	if dryRun {
-		fmt.Println(bold(fmt.Sprintf("Dry run: add %s %s", itemType, name)))
-	} else {
-		fmt.Println(bold(fmt.Sprintf("Adding %s: %s", itemType, name)))
+	if !jsonOutput {
+		fmt.Println()
+		if dryRun {
+			fmt.Println(bold(fmt.Sprintf("Dry run: add %s %s", itemType, name)))
+		} else {
+			fmt.Println(bold(fmt.Sprintf("Adding %s: %s", itemType, name)))
+		}
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
+		fmt.Println()
 	}
-	fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
-	fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
-	fmt.Println()
 
 	// Dispatch to the appropriate installer
 	var installErr error
@@ -69,6 +73,19 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	}
 	if installErr != nil {
 		return installErr
+	}
+
+	if jsonOutput {
+		return outputJSON(map[string]interface{}{
+			"command":    "add",
+			"type":       itemType,
+			"name":       name,
+			"scope":      scope.Name,
+			"source_sha": src.SHA,
+			"installed":  result.Installed,
+			"conflicts":  result.Conflicts,
+			"dry_run":    dryRun,
+		})
 	}
 
 	if result.Conflicts > 0 {
@@ -108,10 +125,11 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 		if !existing[f.Path] {
 			state.Files = append(state.Files, f)
 		} else {
-			// Update hash for existing entry
+			// Update hash and clear ignored status for existing entry
 			for i, sf := range state.Files {
 				if sf.Path == f.Path {
 					state.Files[i].Hash = f.Hash
+					state.Files[i].Status = ""
 					break
 				}
 			}

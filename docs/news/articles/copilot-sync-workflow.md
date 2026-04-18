@@ -96,7 +96,7 @@ Hvis du har installert `nextjs-frontend`- eller `fullstack`-samlingen men ikke b
   "overrides": [
     ".github/instructions/nextjs-aksel.instructions.md",
     ".github/instructions/performance.instructions.md",
-    ".github/prompts/nextjs-api-route/"
+    ".github/prompts/nextjs-api-route.prompt.md"
   ]
 }
 ```
