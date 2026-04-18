@@ -173,6 +173,70 @@ func TestCmdAdd_Skill_BothExist_RootWins(t *testing.T) {
 	}
 }
 
+func TestCmdAdd_Skill_InvalidRootFallsBackToLegacy(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Root dir exists but has NO SKILL.md (invalid)
+	os.MkdirAll(filepath.Join(source, "skills", "my-skill"), 0o755)
+
+	// Legacy dir has valid SKILL.md
+	os.MkdirAll(filepath.Join(source, ".github", "skills", "my-skill"), 0o755)
+	os.WriteFile(filepath.Join(source, ".github", "skills", "my-skill", "SKILL.md"), []byte("legacy content"), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installSkill(source, ScopeRepo(target), "my-skill", false, false, result)
+	if err != nil {
+		t.Fatalf("installSkill: %v", err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("expected 1 installed, got %d", result.Installed)
+	}
+
+	got, _ := os.ReadFile(filepath.Join(target, ".github", "skills", "my-skill", "SKILL.md"))
+	if string(got) != "legacy content" {
+		t.Errorf("expected legacy content (invalid root should not win), got %q", string(got))
+	}
+}
+
+func TestCmdAdd_Skill_RootLevel_RecordsCorrectStatePath(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Create root-level skill
+	os.MkdirAll(filepath.Join(source, "skills", "test-skill"), 0o755)
+	os.WriteFile(filepath.Join(source, "skills", "test-skill", "SKILL.md"), []byte("# Root"), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installSkill(source, ScopeRepo(target), "test-skill", false, false, result)
+	if err != nil {
+		t.Fatalf("installSkill: %v", err)
+	}
+
+	// State should record destination path (.github/skills/...) not source path
+	for _, f := range result.Files {
+		if strings.HasPrefix(f.Path, "skills/") && !strings.HasPrefix(f.Path, ".github/skills/") {
+			t.Errorf("state path should use .github/ prefix for repo scope, got %q", f.Path)
+		}
+	}
+	foundSkill := false
+	for _, f := range result.Files {
+		if strings.Contains(f.Path, "test-skill") {
+			foundSkill = true
+			if !strings.HasPrefix(f.Path, ".github/skills/") {
+				t.Errorf("skill state path = %q, want .github/skills/test-skill/ prefix", f.Path)
+			}
+		}
+	}
+	if !foundSkill {
+		t.Error("expected to find test-skill in result files")
+	}
+}
+
 func TestCollectAllItems_MergesBothDirs(t *testing.T) {
 	source := t.TempDir()
 

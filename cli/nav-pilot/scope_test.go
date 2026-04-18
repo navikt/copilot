@@ -430,11 +430,11 @@ func TestResolveSourcePath(t *testing.T) {
 		},
 		// User scope: skills/x/ → .github/skills/x/ when no root
 		{
-			name: "user_skill_legacy_only",
-			localPath: "skills/api-design/",
+			name:        "user_skill_legacy_only",
+			localPath:   "skills/api-design/",
 			isUserScope: true,
-			setupRoot: false,
-			want: filepath.Join(".github", "skills/api-design/"),
+			setupRoot:   false,
+			want:        filepath.Join(".github", "skills", "api-design") + "/",
 		},
 		// User scope: agents/x → .github/agents/x (always, agents stay in .github/)
 		{
@@ -484,5 +484,141 @@ func TestResolveSourcePath(t *testing.T) {
 				t.Errorf("resolveSourcePath(%q, user=%v) = %q, want %q", tt.localPath, tt.isUserScope, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestResolveSourcePath_InvalidRootFallsBackToLegacy(t *testing.T) {
+	sourceDir := t.TempDir()
+
+	// Root dir exists but has NO SKILL.md — invalid
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "broken"), 0o755)
+
+	// Legacy dir has valid SKILL.md
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "broken"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "broken", "SKILL.md"), []byte("# Valid"), 0o644)
+
+	// Repo scope: should NOT pick invalid root, should stay at .github/
+	got := resolveSourcePath(sourceDir, ".github/skills/broken/", false)
+	if got != ".github/skills/broken/" {
+		t.Errorf("repo scope: got %q, want .github/skills/broken/ (invalid root should not win)", got)
+	}
+
+	// User scope: should also fall back to .github/
+	got = resolveSourcePath(sourceDir, "skills/broken/", true)
+	want := filepath.Join(".github", "skills", "broken") + "/"
+	if got != want {
+		t.Errorf("user scope: got %q, want %q (invalid root should not win)", got, want)
+	}
+}
+
+func TestResolveSkillDir(t *testing.T) {
+	sourceDir := t.TempDir()
+
+	// Root-level valid skill
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "root-skill"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "root-skill", "SKILL.md"), []byte("# Root"), 0o644)
+
+	// Legacy valid skill
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "legacy-skill"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "legacy-skill", "SKILL.md"), []byte("# Legacy"), 0o644)
+
+	// Invalid root (dir exists, no SKILL.md) with valid legacy
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "invalid-root"), 0o755)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "invalid-root"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "invalid-root", "SKILL.md"), []byte("# Fallback"), 0o644)
+
+	tests := []struct {
+		name      string
+		skillName string
+		wantDir   string
+		wantOK    bool
+	}{
+		{"root skill", "root-skill", filepath.Join(sourceDir, "skills", "root-skill"), true},
+		{"legacy skill", "legacy-skill", filepath.Join(sourceDir, ".github", "skills", "legacy-skill"), true},
+		{"invalid root falls back", "invalid-root", filepath.Join(sourceDir, ".github", "skills", "invalid-root"), true},
+		{"nonexistent", "nope", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, ok := resolveSkillDir(sourceDir, tt.skillName)
+			if ok != tt.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
+			}
+			if dir != tt.wantDir {
+				t.Errorf("dir = %q, want %q", dir, tt.wantDir)
+			}
+		})
+	}
+}
+
+func TestScanSkillDirs(t *testing.T) {
+	sourceDir := t.TempDir()
+
+	// Root-only skill
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "alpha"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "alpha", "SKILL.md"), []byte("# Alpha"), 0o644)
+
+	// Legacy-only skill
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "beta"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "beta", "SKILL.md"), []byte("# Beta"), 0o644)
+
+	// Both locations — root should win (dedup)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "gamma"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "gamma", "SKILL.md"), []byte("# Gamma Root"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "gamma"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "gamma", "SKILL.md"), []byte("# Gamma Legacy"), 0o644)
+
+	// Invalid root — dir exists but no SKILL.md, legacy is valid
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "delta"), 0o755)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "delta"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "delta", "SKILL.md"), []byte("# Delta"), 0o644)
+
+	skills := scanSkillDirs(sourceDir)
+
+	// Should find all 4 unique skills, sorted
+	if len(skills) != 4 {
+		t.Fatalf("expected 4 skills, got %d: %v", len(skills), skills)
+	}
+	names := make([]string, len(skills))
+	for i, s := range skills {
+		names[i] = s.Name
+	}
+	expected := []string{"alpha", "beta", "delta", "gamma"}
+	for i, want := range expected {
+		if names[i] != want {
+			t.Errorf("skill[%d] = %q, want %q", i, names[i], want)
+		}
+	}
+
+	// Verify root wins for gamma
+	for _, s := range skills {
+		if s.Name == "gamma" && strings.Contains(s.Dir, ".github") {
+			t.Errorf("gamma should come from root, not .github: %q", s.Dir)
+		}
+	}
+
+	// Verify delta comes from legacy (invalid root)
+	for _, s := range skills {
+		if s.Name == "delta" && !strings.Contains(s.Dir, ".github") {
+			t.Errorf("delta should come from legacy (invalid root), got %q", s.Dir)
+		}
+	}
+}
+
+func TestScanSkillDirs_RootOnly(t *testing.T) {
+	sourceDir := t.TempDir()
+
+	// Only root-level skills, no .github/skills at all
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "a"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "a", "SKILL.md"), []byte("# A"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "b"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "b", "SKILL.md"), []byte("# B"), 0o644)
+
+	skills := scanSkillDirs(sourceDir)
+	if len(skills) != 2 {
+		t.Fatalf("expected 2 skills, got %d", len(skills))
+	}
+	if skills[0].Name != "a" || skills[1].Name != "b" {
+		t.Errorf("expected [a, b], got [%s, %s]", skills[0].Name, skills[1].Name)
 	}
 }

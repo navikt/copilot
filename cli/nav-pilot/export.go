@@ -143,41 +143,27 @@ func exportSummary(skills, commands, agents, instructions int) string {
 // ─── Skills (1:1 copy) ──────────────────────────────────────────────────────
 
 func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
-	skillsDir := filepath.Join(sourceDir, ".github", "skills")
-	if _, err := os.Stat(skillsDir); os.IsNotExist(err) {
+	skills := scanSkillDirs(sourceDir)
+	if len(skills) == 0 {
 		return 0, nil
 	}
 
-	entries, err := os.ReadDir(skillsDir)
-	if err != nil {
-		return 0, err
-	}
-
 	count := 0
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		skillFile := filepath.Join(skillsDir, entry.Name(), "SKILL.md")
-		if _, err := os.Stat(skillFile); os.IsNotExist(err) {
-			continue
-		}
-
-		dstDir := filepath.Join(outputDir, "skills", entry.Name())
-		srcDir := filepath.Join(skillsDir, entry.Name())
+	for _, skill := range skills {
+		dstDir := filepath.Join(outputDir, "skills", skill.Name)
 
 		if dryRun {
-			files := countDirFiles(srcDir)
+			files := countDirFiles(skill.Dir)
 			fmt.Printf("  %s %s → skills/%s/ (%d file(s))\n",
-				dim("→"), entry.Name(), entry.Name(), files)
+				dim("→"), skill.Name, skill.Name, files)
 		} else {
 			if err := os.MkdirAll(filepath.Dir(dstDir), 0o755); err != nil {
 				return count, err
 			}
-			if err := copyDirSimple(srcDir, dstDir); err != nil {
-				return count, fmt.Errorf("copying skill %s: %w", entry.Name(), err)
+			if err := copyDirSimple(skill.Dir, dstDir); err != nil {
+				return count, fmt.Errorf("copying skill %s: %w", skill.Name, err)
 			}
-			fmt.Printf("  %s %s\n", green("✓"), entry.Name())
+			fmt.Printf("  %s %s\n", green("✓"), skill.Name)
 		}
 		count++
 	}

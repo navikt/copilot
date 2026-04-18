@@ -106,27 +106,8 @@ func collectAllItems(sourceDir string) (*Manifest, error) {
 	sort.Strings(m.Agents)
 
 	// Scan skills — check both root-level (gh skill convention) and .github/skills/ (legacy)
-	seen := make(map[string]bool)
-	for _, skillsDir := range []string{
-		filepath.Join(sourceDir, "skills"),
-		filepath.Join(sourceDir, ".github", "skills"),
-	} {
-		entries, err := os.ReadDir(skillsDir)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if !e.IsDir() || seen[e.Name()] {
-				continue
-			}
-			skillFile := filepath.Join(skillsDir, e.Name(), "SKILL.md")
-			if _, statErr := os.Stat(skillFile); statErr == nil {
-				if validateName(e.Name()) == nil {
-					m.Skills = append(m.Skills, e.Name())
-					seen[e.Name()] = true
-				}
-			}
-		}
+	for _, s := range scanSkillDirs(sourceDir) {
+		m.Skills = append(m.Skills, s.Name)
 	}
 	sort.Strings(m.Skills)
 

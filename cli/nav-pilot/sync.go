@@ -343,17 +343,13 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 			if seen[rel] {
 				continue
 			}
-			// Resolve source: try root-level first, then legacy
-			srcRel := filepath.Join(".github", "skills", e.Name()) + "/"
-			rootSkill := filepath.Join(sourceDir, "skills", e.Name())
-			legacySkill := filepath.Join(sourceDir, ".github", "skills", e.Name())
-			if _, err := os.Stat(rootSkill); err == nil {
-				srcRel = filepath.Join("skills", e.Name()) + "/"
-			} else if _, err := os.Stat(legacySkill); os.IsNotExist(err) {
+			// Resolve source: validates SKILL.md exists at root or legacy location
+			srcRel, ok := resolveSkillRel(sourceDir, e.Name())
+			if !ok {
 				continue
 			}
 			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: srcRel, isDir: true})
+			files = append(files, syncFile{localPath: rel, sourcePath: srcRel + "/", isDir: true})
 		}
 	}
 

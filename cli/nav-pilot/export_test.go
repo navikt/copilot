@@ -526,3 +526,77 @@ func TestTitleCase(t *testing.T) {
 		}
 	}
 }
+
+func TestExportSkills_RootLevel(t *testing.T) {
+	sourceDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Root-level skill
+	skillDir := filepath.Join(sourceDir, "skills", "my-skill")
+	mustMkdir(t, skillDir)
+	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), "# My Skill\n")
+	mustWrite(t, filepath.Join(skillDir, "reference.md"), "## Reference\n")
+
+	n, err := exportSkills(sourceDir, outputDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("exported %d skills, want 1", n)
+	}
+
+	// Verify output
+	got, err := os.ReadFile(filepath.Join(outputDir, "skills", "my-skill", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("SKILL.md not found: %v", err)
+	}
+	if string(got) != "# My Skill\n" {
+		t.Errorf("SKILL.md = %q", string(got))
+	}
+}
+
+func TestExportSkills_MergesBothDirs(t *testing.T) {
+	sourceDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Root-level skill
+	mustMkdir(t, filepath.Join(sourceDir, "skills", "alpha"))
+	mustWrite(t, filepath.Join(sourceDir, "skills", "alpha", "SKILL.md"), "# Alpha root\n")
+
+	// Legacy skill
+	mustMkdir(t, filepath.Join(sourceDir, ".github", "skills", "beta"))
+	mustWrite(t, filepath.Join(sourceDir, ".github", "skills", "beta", "SKILL.md"), "# Beta legacy\n")
+
+	n, err := exportSkills(sourceDir, outputDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("exported %d skills, want 2", n)
+	}
+}
+
+func TestExportSkills_InvalidRootFallsBack(t *testing.T) {
+	sourceDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Root dir exists but no SKILL.md — invalid
+	mustMkdir(t, filepath.Join(sourceDir, "skills", "broken"))
+
+	// Legacy has valid SKILL.md
+	mustMkdir(t, filepath.Join(sourceDir, ".github", "skills", "broken"))
+	mustWrite(t, filepath.Join(sourceDir, ".github", "skills", "broken", "SKILL.md"), "# Legacy\n")
+
+	n, err := exportSkills(sourceDir, outputDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("exported %d skills, want 1", n)
+	}
+
+	got, _ := os.ReadFile(filepath.Join(outputDir, "skills", "broken", "SKILL.md"))
+	if string(got) != "# Legacy\n" {
+		t.Errorf("expected legacy content, got %q", string(got))
+	}
+}

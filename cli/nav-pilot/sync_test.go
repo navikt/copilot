@@ -11,6 +11,13 @@ import (
 
 func TestResolveSyncFiles_WithState(t *testing.T) {
 	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Create source with legacy layout
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
 	state := &StateFile{
 		Collection: "kotlin-backend",
@@ -22,7 +29,7 @@ func TestResolveSyncFiles_WithState(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	files, collection, err := resolveSyncFiles(ScopeRepo(dir), "")
+	files, collection, err := resolveSyncFiles(ScopeRepo(dir), sourceDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -405,12 +412,19 @@ func TestSyncJSON_StdoutIsCleanJSON(t *testing.T) {
 func TestResolveSyncFiles_UserScope_PathRemapping(t *testing.T) {
 	// User-scope state stores paths as "agents/x" but source has ".github/agents/x"
 	homeDir := t.TempDir()
+	sourceDir := t.TempDir()
 	scope := &InstallScope{
 		Name:           "user",
 		RootDir:        homeDir,
 		StateFile:      ".nav-pilot-state.json",
 		SupportedTypes: []string{"agent", "skill", "instruction"},
 	}
+
+	// Create source with legacy layout
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
 	state := &StateFile{
 		Collection: "fullstack",
@@ -423,7 +437,7 @@ func TestResolveSyncFiles_UserScope_PathRemapping(t *testing.T) {
 	}
 	writeScopedState(scope, state)
 
-	files, collection, err := resolveSyncFiles(scope, "")
+	files, collection, err := resolveSyncFiles(scope, sourceDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,8 +462,7 @@ func TestResolveSyncFiles_UserScope_PathRemapping(t *testing.T) {
 	if skill.localPath != "skills/api-design/" {
 		t.Errorf("localPath = %q, want %q", skill.localPath, "skills/api-design/")
 	}
-	expectedSkillSource := filepath.Join(".github", "skills", "api-design")
-	// filepath.Join strips trailing slash; isDir flag controls directory behavior
+	expectedSkillSource := filepath.Join(".github", "skills", "api-design") + "/"
 	if skill.sourcePath != expectedSkillSource {
 		t.Errorf("sourcePath = %q, want %q", skill.sourcePath, expectedSkillSource)
 	}
@@ -459,12 +472,19 @@ func TestResolveSyncFiles_UserScope_InstructionPathNotDoubled(t *testing.T) {
 	// Regression: instructions store paths as ".github/instructions/x.instructions.md"
 	// which already has .github/ prefix. resolveSyncFiles must NOT double it.
 	homeDir := t.TempDir()
+	sourceDir := t.TempDir()
 	scope := &InstallScope{
 		Name:           "user",
 		RootDir:        homeDir,
 		StateFile:      ".nav-pilot-state.json",
 		SupportedTypes: []string{"agent", "skill", "instruction"},
 	}
+
+	// Create source layout
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "go-nais.instructions.md"), []byte("# Go"), 0o644)
 
 	state := &StateFile{
 		Collection: CollectionAll,
@@ -477,7 +497,7 @@ func TestResolveSyncFiles_UserScope_InstructionPathNotDoubled(t *testing.T) {
 	}
 	writeScopedState(scope, state)
 
-	files, _, err := resolveSyncFiles(scope, "")
+	files, _, err := resolveSyncFiles(scope, sourceDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -763,6 +783,15 @@ func TestCheckSyncFile_JSON_ByteExact(t *testing.T) {
 
 func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
 	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Create source with legacy layout
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "nextjs-aksel.instructions.md"), []byte("# NJS"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
 	state := &StateFile{
 		Collection: "nextjs-frontend",
@@ -776,7 +805,7 @@ func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), "")
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -898,5 +927,40 @@ func TestCountFileIntegrity_IgnoredFiles(t *testing.T) {
 	}
 	if ignored != 1 {
 		t.Errorf("ignored = %d, want 1", ignored)
+	}
+}
+
+func TestResolveSyncFiles_AutoDetect_InvalidRootFallsBack(t *testing.T) {
+	targetDir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Target has skill installed
+	os.MkdirAll(filepath.Join(targetDir, ".github", "skills", "my-skill"), 0o755)
+	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "my-skill", "SKILL.md"), []byte("old"), 0o644)
+
+	// Source has root dir but NO SKILL.md (invalid)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "my-skill"), 0o755)
+
+	// Source has valid legacy location
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "my-skill"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "my-skill", "SKILL.md"), []byte("new-legacy"), 0o644)
+
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, f := range files {
+		if strings.Contains(f.localPath, "my-skill") {
+			found = true
+			// Source path should point to legacy (invalid root must not win)
+			if !strings.Contains(f.sourcePath, ".github") {
+				t.Errorf("sourcePath = %q, should point to .github/ (invalid root)", f.sourcePath)
+			}
+		}
+	}
+	if !found {
+		t.Error("should find my-skill in sync files")
 	}
 }

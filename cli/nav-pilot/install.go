@@ -123,8 +123,8 @@ func installSkill(sourceDir string, scope *InstallScope, name string, dryRun, fo
 		return fmt.Errorf("invalid skill name: %w", err)
 	}
 	// Skills may live at root level (gh skill convention) or under .github/skills/ (legacy).
-	srcDir := filepath.Join(sourceDir, "skills", name)
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+	srcDir, found := resolveSkillDir(sourceDir, name)
+	if !found {
 		srcDir = filepath.Join(sourceDir, ".github", "skills", name)
 	}
 	dstDir := scope.DstPath("skills", name)
@@ -330,17 +330,11 @@ func listAvailableItems(sourceDir string) error {
 		fmt.Println()
 	}
 
-	// Skills
-	if entries, err := os.ReadDir(filepath.Join(ghDir, "skills")); err == nil && len(entries) > 0 {
+	// Skills — scan both root-level and .github/skills/
+	if skills := scanSkillDirs(sourceDir); len(skills) > 0 {
 		fmt.Println(bold("Available skills:"))
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			skill := filepath.Join(ghDir, "skills", e.Name(), "SKILL.md")
-			if _, err := os.Stat(skill); err == nil {
-				fmt.Printf("  %-30s %s\n", e.Name(), dim("nav-pilot add skill "+e.Name()))
-			}
+		for _, s := range skills {
+			fmt.Printf("  %-30s %s\n", s.Name, dim("nav-pilot add skill "+s.Name))
 		}
 		fmt.Println()
 	}
@@ -394,16 +388,9 @@ func collectAvailableItems(sourceDir string) map[string][]string {
 			result["agents"] = append(result["agents"], strings.TrimSuffix(filepath.Base(e), ".agent.md"))
 		}
 	}
-	if entries, err := os.ReadDir(filepath.Join(ghDir, "skills")); err == nil {
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			skill := filepath.Join(ghDir, "skills", e.Name(), "SKILL.md")
-			if _, err := os.Stat(skill); err == nil {
-				result["skills"] = append(result["skills"], e.Name())
-			}
-		}
+	// Skills — scan both root-level and .github/skills/
+	for _, s := range scanSkillDirs(sourceDir) {
+		result["skills"] = append(result["skills"], s.Name)
 	}
 	if entries, err := filepath.Glob(filepath.Join(ghDir, "instructions", "*.instructions.md")); err == nil {
 		for _, e := range entries {
