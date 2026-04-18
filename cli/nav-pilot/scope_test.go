@@ -387,3 +387,102 @@ func TestScope_ShouldInstallMetadata(t *testing.T) {
 		t.Error("user scope should NOT install metadata")
 	}
 }
+
+func TestResolveSourcePath(t *testing.T) {
+	tests := []struct {
+		name        string
+		localPath   string
+		isUserScope bool
+		setupRoot   bool // create root-level skills/ in source
+		want        string
+	}{
+		// Repo scope: .github/skills/x/ → skills/x/ when root exists
+		{
+			name: "repo_skill_root_exists",
+			localPath: ".github/skills/api-design/",
+			isUserScope: false,
+			setupRoot: true,
+			want: "skills/api-design/",
+		},
+		// Repo scope: .github/skills/x/ → stays when no root (legacy)
+		{
+			name: "repo_skill_legacy_only",
+			localPath: ".github/skills/api-design/",
+			isUserScope: false,
+			setupRoot: false,
+			want: ".github/skills/api-design/",
+		},
+		// Repo scope: .github/agents/x stays (agents not affected)
+		{
+			name: "repo_agent_unchanged",
+			localPath: ".github/agents/nais.agent.md",
+			isUserScope: false,
+			setupRoot: true,
+			want: ".github/agents/nais.agent.md",
+		},
+		// User scope: skills/x/ stays when root exists
+		{
+			name: "user_skill_root_exists",
+			localPath: "skills/api-design/",
+			isUserScope: true,
+			setupRoot: true,
+			want: "skills/api-design/",
+		},
+		// User scope: skills/x/ → .github/skills/x/ when no root
+		{
+			name: "user_skill_legacy_only",
+			localPath: "skills/api-design/",
+			isUserScope: true,
+			setupRoot: false,
+			want: filepath.Join(".github", "skills/api-design/"),
+		},
+		// User scope: agents/x → .github/agents/x (always, agents stay in .github/)
+		{
+			name: "user_agent_always_prefixed",
+			localPath: "agents/nais.agent.md",
+			isUserScope: true,
+			setupRoot: false,
+			want: filepath.Join(".github", "agents/nais.agent.md"),
+		},
+		// User scope: .github/instructions/x → stays (already has prefix)
+		{
+			name: "user_instruction_already_prefixed",
+			localPath: ".github/instructions/golang.instructions.md",
+			isUserScope: true,
+			setupRoot: false,
+			want: ".github/instructions/golang.instructions.md",
+		},
+		// Both dirs exist: root wins for repo scope
+		{
+			name: "repo_skill_both_exist_root_wins",
+			localPath: ".github/skills/api-design/",
+			isUserScope: false,
+			setupRoot: true, // root also exists, will set up .github/skills too
+			want: "skills/api-design/",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sourceDir := t.TempDir()
+
+			// Always create .github/skills/api-design/ as legacy
+			os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
+			os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
+			os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
+			os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API Design"), 0o644)
+			os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+			os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "golang.instructions.md"), []byte("# Go"), 0o644)
+
+			if tt.setupRoot {
+				os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
+				os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("# API Design"), 0o644)
+			}
+
+			got := resolveSourcePath(sourceDir, tt.localPath, tt.isUserScope)
+			if got != tt.want {
+				t.Errorf("resolveSourcePath(%q, user=%v) = %q, want %q", tt.localPath, tt.isUserScope, got, tt.want)
+			}
+		})
+	}
+}

@@ -122,7 +122,11 @@ func installSkill(sourceDir string, scope *InstallScope, name string, dryRun, fo
 	if err := validateName(name); err != nil {
 		return fmt.Errorf("invalid skill name: %w", err)
 	}
-	srcDir := filepath.Join(sourceDir, ".github", "skills", name)
+	// Skills may live at root level (gh skill convention) or under .github/skills/ (legacy).
+	srcDir := filepath.Join(sourceDir, "skills", name)
+	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+		srcDir = filepath.Join(sourceDir, ".github", "skills", name)
+	}
 	dstDir := scope.DstPath("skills", name)
 
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {

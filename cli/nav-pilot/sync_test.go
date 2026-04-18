@@ -89,6 +89,93 @@ func TestResolveSyncFiles_AutoDetect(t *testing.T) {
 	}
 }
 
+func TestResolveSyncFiles_AutoDetect_RootLevelSource(t *testing.T) {
+	targetDir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Target has skill at .github/skills/api-design/
+	os.MkdirAll(filepath.Join(targetDir, ".github", "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "api-design", "SKILL.md"), []byte("old"), 0o644)
+
+	// Source has skill at ROOT skills/api-design/ (post-migration)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("new"), 0o644)
+
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, f := range files {
+		if f.localPath == filepath.Join(".github", "skills", "api-design")+"/" {
+			found = true
+			wantSource := filepath.Join("skills", "api-design") + "/"
+			if f.sourcePath != wantSource {
+				t.Errorf("sourcePath = %q, want %q (should point to root-level source)", f.sourcePath, wantSource)
+			}
+		}
+	}
+	if !found {
+		t.Error("should find api-design skill with root-level source")
+	}
+}
+
+func TestCheckSyncFile_CarriesSourcePath(t *testing.T) {
+	targetDir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Target has skill at .github/skills/s/ — source at root skills/s/
+	os.MkdirAll(filepath.Join(targetDir, ".github", "skills", "s"), 0o755)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "s"), 0o755)
+	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"), []byte("old"), 0o644)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "s", "SKILL.md"), []byte("new"), 0o644)
+
+	sf := syncFile{
+		localPath:  filepath.Join(".github", "skills", "s") + "/",
+		sourcePath: filepath.Join("skills", "s") + "/",
+		isDir:      true,
+	}
+	u, err := checkSyncFile(targetDir, sourceDir, sf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u == nil {
+		t.Fatal("expected update")
+	}
+	if u.SourcePath != sf.sourcePath {
+		t.Errorf("SourcePath = %q, want %q (should carry through from syncFile)", u.SourcePath, sf.sourcePath)
+	}
+}
+
+func TestApplySyncUpdate_RootLevelSource(t *testing.T) {
+	targetDir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Source skill at root level
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "s"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "s", "SKILL.md"), []byte("root content"), 0o644)
+
+	// Target skill at .github/skills/s/
+	os.MkdirAll(filepath.Join(targetDir, ".github", "skills", "s"), 0o755)
+	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"), []byte("old"), 0o644)
+
+	u := syncUpdate{
+		Path:        filepath.Join(".github", "skills", "s") + "/",
+		SourcePath:  filepath.Join("skills", "s") + "/",
+		CurrentHash: "a",
+		SourceHash:  "b",
+	}
+	if err := applySyncUpdate(ScopeRepo(targetDir), sourceDir, u); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := os.ReadFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"))
+	if string(got) != "root content" {
+		t.Errorf("skill not updated from root source, got %q", string(got))
+	}
+}
+
 func TestCheckSyncFile_UpToDate(t *testing.T) {
 	targetDir := t.TempDir()
 	sourceDir := t.TempDir()
@@ -165,7 +252,7 @@ func TestApplySyncUpdate_File(t *testing.T) {
 	os.WriteFile(filepath.Join(targetDir, rel), []byte("old"), 0o644)
 	os.WriteFile(filepath.Join(sourceDir, rel), []byte("new"), 0o644)
 
-	u := syncUpdate{Path: rel, CurrentHash: "a", SourceHash: "b"}
+	u := syncUpdate{Path: rel, SourcePath: rel, CurrentHash: "a", SourceHash: "b"}
 	if err := applySyncUpdate(ScopeRepo(targetDir), sourceDir, u); err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +273,7 @@ func TestApplySyncUpdate_Dir(t *testing.T) {
 	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"), []byte("old"), 0o644)
 	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "s", "SKILL.md"), []byte("new"), 0o644)
 
-	u := syncUpdate{Path: rel, CurrentHash: "a", SourceHash: "b"}
+	u := syncUpdate{Path: rel, SourcePath: rel, CurrentHash: "a", SourceHash: "b"}
 	if err := applySyncUpdate(ScopeRepo(targetDir), sourceDir, u); err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +515,7 @@ func TestApplySyncUpdate_UserScope_PathRemapping(t *testing.T) {
 	os.MkdirAll(filepath.Join(homeDir, "agents"), 0o755)
 	os.WriteFile(filepath.Join(homeDir, "agents", "x.agent.md"), []byte("old content"), 0o644)
 
-	u := syncUpdate{Path: "agents/x.agent.md", CurrentHash: "a", SourceHash: "b"}
+	u := syncUpdate{Path: "agents/x.agent.md", SourcePath: filepath.Join(".github", "agents", "x.agent.md"), CurrentHash: "a", SourceHash: "b"}
 	if err := applySyncUpdate(scope, sourceDir, u); err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +545,7 @@ func TestApplySyncUpdate_UserScope_InstructionNotDoubled(t *testing.T) {
 	os.MkdirAll(filepath.Join(homeDir, ".github", "instructions"), 0o755)
 	os.WriteFile(filepath.Join(homeDir, instrRel), []byte("old instruction"), 0o644)
 
-	u := syncUpdate{Path: instrRel, CurrentHash: "a", SourceHash: "b"}
+	u := syncUpdate{Path: instrRel, SourcePath: instrRel, CurrentHash: "a", SourceHash: "b"}
 	if err := applySyncUpdate(scope, sourceDir, u); err != nil {
 		t.Fatalf("applySyncUpdate failed (double .github/ prefix?): %v", err)
 	}

@@ -115,6 +115,102 @@ func TestCmdAdd_Skill(t *testing.T) {
 	}
 }
 
+func TestCmdAdd_Skill_RootLevel(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Create source skill at root level (gh skill convention)
+	skillDir := filepath.Join(source, "skills", "test-skill")
+	os.MkdirAll(skillDir, 0o755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Root Skill"), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installSkill(source, ScopeRepo(target), "test-skill", false, false, result)
+	if err != nil {
+		t.Fatalf("installSkill: %v", err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("expected 1 installed, got %d", result.Installed)
+	}
+
+	dst := filepath.Join(target, ".github", "skills", "test-skill", "SKILL.md")
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal("skill SKILL.md not created from root-level source")
+	}
+	if string(got) != "# Root Skill" {
+		t.Errorf("content mismatch: got %q", string(got))
+	}
+}
+
+func TestCmdAdd_Skill_BothExist_RootWins(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Create at both root and legacy — root should win
+	for _, dir := range []string{
+		filepath.Join(source, "skills", "my-skill"),
+		filepath.Join(source, ".github", "skills", "my-skill"),
+	} {
+		os.MkdirAll(dir, 0o755)
+	}
+	os.WriteFile(filepath.Join(source, "skills", "my-skill", "SKILL.md"), []byte("root version"), 0o644)
+	os.WriteFile(filepath.Join(source, ".github", "skills", "my-skill", "SKILL.md"), []byte("legacy version"), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installSkill(source, ScopeRepo(target), "my-skill", false, false, result)
+	if err != nil {
+		t.Fatalf("installSkill: %v", err)
+	}
+
+	got, _ := os.ReadFile(filepath.Join(target, ".github", "skills", "my-skill", "SKILL.md"))
+	if string(got) != "root version" {
+		t.Errorf("expected root version to win, got %q", string(got))
+	}
+}
+
+func TestCollectAllItems_MergesBothDirs(t *testing.T) {
+	source := t.TempDir()
+
+	// Root-level skills
+	os.MkdirAll(filepath.Join(source, "skills", "root-only"), 0o755)
+	os.WriteFile(filepath.Join(source, "skills", "root-only", "SKILL.md"), []byte("# Root"), 0o644)
+
+	// Legacy skills
+	os.MkdirAll(filepath.Join(source, ".github", "skills", "legacy-only"), 0o755)
+	os.WriteFile(filepath.Join(source, ".github", "skills", "legacy-only", "SKILL.md"), []byte("# Legacy"), 0o644)
+
+	// Skill in both (root should win, no duplicates)
+	os.MkdirAll(filepath.Join(source, "skills", "both"), 0o755)
+	os.WriteFile(filepath.Join(source, "skills", "both", "SKILL.md"), []byte("# Both Root"), 0o644)
+	os.MkdirAll(filepath.Join(source, ".github", "skills", "both"), 0o755)
+	os.WriteFile(filepath.Join(source, ".github", "skills", "both", "SKILL.md"), []byte("# Both Legacy"), 0o644)
+
+	// Need agents dir for collectAllItems
+	os.MkdirAll(filepath.Join(source, ".github", "agents"), 0o755)
+	os.MkdirAll(filepath.Join(source, ".github", "instructions"), 0o755)
+
+	m, err := collectAllItems(source)
+	if err != nil {
+		t.Fatalf("collectAllItems: %v", err)
+	}
+
+	// Should find all 3 unique skills (both, legacy-only, root-only) sorted
+	if len(m.Skills) != 3 {
+		t.Fatalf("expected 3 skills, got %d: %v", len(m.Skills), m.Skills)
+	}
+	expected := []string{"both", "legacy-only", "root-only"}
+	for i, want := range expected {
+		if m.Skills[i] != want {
+			t.Errorf("skill[%d] = %q, want %q", i, m.Skills[i], want)
+		}
+	}
+}
+
 func TestCmdAdd_AppendsToState(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()

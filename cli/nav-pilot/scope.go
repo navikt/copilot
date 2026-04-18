@@ -96,6 +96,47 @@ func (s *InstallScope) SourcePath(sourceDir string, parts ...string) string {
 	return filepath.Join(append([]string{sourceDir, ".github"}, parts...)...)
 }
 
+// resolveSourcePath maps a local/state path to the corresponding source repo path.
+// Skills may live at root level (new convention for gh skill auto-discovery) or
+// under .github/ (legacy). This function probes the filesystem per-path.
+//
+// Mapping rules:
+//
+//	Repo scope: ".github/skills/x/" → "skills/x/" if root-level exists, else unchanged
+//	User scope: "skills/x/" → "skills/x/" if root-level exists, else ".github/skills/x/"
+//	User scope: "agents/x" → ".github/agents/x" (always, agents stay in .github/)
+//	User scope: ".github/instructions/x" → unchanged (already has prefix)
+func resolveSourcePath(sourceDir, localPath string, isUserScope bool) string {
+	sp := localPath
+
+	if isUserScope && !strings.HasPrefix(sp, ".github/") {
+		// User scope: local path has no .github/ prefix.
+		// Check root-level first (skills may be at repo root).
+		checkPath := filepath.Join(sourceDir, sp)
+		if strings.HasSuffix(sp, "/") {
+			checkPath = strings.TrimSuffix(checkPath, string(filepath.Separator))
+		}
+		if _, err := os.Stat(checkPath); err == nil {
+			return sp
+		}
+		return filepath.Join(".github", sp)
+	}
+
+	// Repo scope: .github/skills/x/ may now live at root skills/x/
+	if !isUserScope && strings.HasPrefix(sp, ".github/skills/") {
+		rootRel := strings.TrimPrefix(sp, ".github/")
+		checkPath := filepath.Join(sourceDir, rootRel)
+		if strings.HasSuffix(rootRel, "/") {
+			checkPath = strings.TrimSuffix(checkPath, string(filepath.Separator))
+		}
+		if _, err := os.Stat(checkPath); err == nil {
+			return rootRel
+		}
+	}
+
+	return sp
+}
+
 // StatePath returns the full path to the state file.
 func (s *InstallScope) StatePath() string {
 	return filepath.Join(s.RootDir, s.StateFile)

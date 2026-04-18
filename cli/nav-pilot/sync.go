@@ -20,6 +20,7 @@ type syncResult struct {
 
 type syncUpdate struct {
 	Path        string `json:"path"`
+	SourcePath  string `json:"-"` // resolved source path, not serialized
 	CurrentHash string `json:"current_hash"`
 	SourceHash  string `json:"source_hash"`
 }
@@ -237,13 +238,7 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string
 			if f.Status == fileStatusIgnored {
 				continue
 			}
-			sp := f.Path
-			// User scope: local path is "agents/x" but source is ".github/agents/x".
-			// Instructions already have .github/ prefix (e.g. ".github/instructions/x"),
-			// so only prepend when it's not already present.
-			if scope.IsUser() && !strings.HasPrefix(f.Path, ".github/") {
-				sp = filepath.Join(".github", f.Path)
-			}
+			sp := resolveSourcePath(sourceDir, f.Path, scope.IsUser())
 			files = append(files, syncFile{
 				localPath:  f.Path,
 				sourcePath: sp,
@@ -337,7 +332,7 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 		}
 	}
 
-	// Check skill directories
+	// Check skill directories — source may be at root skills/ or .github/skills/
 	skillsDir := filepath.Join(targetDir, ".github", "skills")
 	if entries, err := os.ReadDir(skillsDir); err == nil {
 		for _, e := range entries {
@@ -348,12 +343,17 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 			if seen[rel] {
 				continue
 			}
-			sourceSkill := filepath.Join(sourceDir, ".github", "skills", e.Name())
-			if _, err := os.Stat(sourceSkill); os.IsNotExist(err) {
+			// Resolve source: try root-level first, then legacy
+			srcRel := filepath.Join(".github", "skills", e.Name()) + "/"
+			rootSkill := filepath.Join(sourceDir, "skills", e.Name())
+			legacySkill := filepath.Join(sourceDir, ".github", "skills", e.Name())
+			if _, err := os.Stat(rootSkill); err == nil {
+				srcRel = filepath.Join("skills", e.Name()) + "/"
+			} else if _, err := os.Stat(legacySkill); os.IsNotExist(err) {
 				continue
 			}
 			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: rel, isDir: true})
+			files = append(files, syncFile{localPath: rel, sourcePath: srcRel, isDir: true})
 		}
 	}
 
@@ -397,7 +397,7 @@ func checkSyncFile(targetDir, sourceDir string, sf syncFile) (*syncUpdate, error
 		if localHash == sourceHash {
 			return nil, nil
 		}
-		return &syncUpdate{Path: sf.localPath, CurrentHash: localHash, SourceHash: sourceHash}, nil
+		return &syncUpdate{Path: sf.localPath, SourcePath: sf.sourcePath, CurrentHash: localHash, SourceHash: sourceHash}, nil
 	}
 
 	localHash, err := normalizedFileHash(localFull)
@@ -411,18 +411,12 @@ func checkSyncFile(targetDir, sourceDir string, sf syncFile) (*syncUpdate, error
 	if localHash == sourceHash {
 		return nil, nil
 	}
-	return &syncUpdate{Path: sf.localPath, CurrentHash: localHash, SourceHash: sourceHash}, nil
+	return &syncUpdate{Path: sf.localPath, SourcePath: sf.sourcePath, CurrentHash: localHash, SourceHash: sourceHash}, nil
 }
 
 // applySyncUpdate copies a single file/dir from source to target.
 func applySyncUpdate(scope *InstallScope, sourceDir string, u syncUpdate) error {
-	// Source path: for user scope, prepend .github/ to get source location
-	// unless it already has .github/ prefix (e.g. instructions).
-	sp := u.Path
-	if scope.IsUser() && !strings.HasPrefix(u.Path, ".github/") {
-		sp = filepath.Join(".github", u.Path)
-	}
-	sourceFull := filepath.Join(sourceDir, sp)
+	sourceFull := filepath.Join(sourceDir, u.SourcePath)
 	targetFull := filepath.Join(scope.RootDir, u.Path)
 
 	if strings.HasSuffix(u.Path, "/") {
