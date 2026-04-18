@@ -229,6 +229,36 @@ func countDirFiles(dir string) int {
 	return count
 }
 
+// ─── Artifact-level helpers ──────────────────────────────────────────────────
+// These abstract over the file/directory distinction so callers don't branch.
+
+// copyArtifact copies a file or directory from src to dst.
+func copyArtifact(src, dst, rootDir string, isDir bool) error {
+	if isDir {
+		return copyDir(src, dst, rootDir)
+	}
+	return copyFile(src, dst, rootDir)
+}
+
+// rawArtifactHash returns the hash used for state/integrity tracking.
+// For directories, markdown files are normalized (dirHash). For single files, raw bytes.
+func rawArtifactHash(path string, isDir bool) (string, error) {
+	if isDir {
+		return dirHash(path)
+	}
+	return fileHash(path)
+}
+
+// comparableArtifactHash returns the hash used for sync comparison.
+// Normalizes markdown content (whitespace, line endings) so trivial
+// formatting changes don't trigger false update notifications.
+func comparableArtifactHash(path string, isDir bool) (string, error) {
+	if isDir {
+		return dirHash(path)
+	}
+	return normalizedFileHash(path)
+}
+
 // ─── Conflict detection ─────────────────────────────────────────────────────
 
 type conflict struct {
@@ -238,32 +268,14 @@ type conflict struct {
 }
 
 func checkConflict(targetPath, sourcePath string, isDir bool) (*conflict, error) {
-	if isDir {
-		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-			return nil, nil
-		}
-		currentHash, err := dirHash(targetPath)
-		if err != nil {
-			return nil, err
-		}
-		newHash, err := dirHash(sourcePath)
-		if err != nil {
-			return nil, err
-		}
-		if currentHash == newHash {
-			return nil, nil
-		}
-		return &conflict{Path: targetPath, Current: currentHash, New: newHash}, nil
-	}
-
 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 		return nil, nil
 	}
-	currentHash, err := fileHash(targetPath)
+	currentHash, err := rawArtifactHash(targetPath, isDir)
 	if err != nil {
 		return nil, fmt.Errorf("hashing %s: %w", targetPath, err)
 	}
-	newHash, err := fileHash(sourcePath)
+	newHash, err := rawArtifactHash(sourcePath, isDir)
 	if err != nil {
 		return nil, fmt.Errorf("hashing %s: %w", sourcePath, err)
 	}

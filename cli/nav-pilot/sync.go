@@ -266,10 +266,7 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 		return nil
 	}
 
-	allItems, err := collectAllItems(sourceDir)
-	if err != nil {
-		return nil
-	}
+	resolver := NewSourceResolver(sourceDir)
 
 	installed := make(map[string]bool)
 	for _, f := range state.Files {
@@ -277,23 +274,16 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 	}
 
 	var newItems []string
-	for _, agent := range allItems.Agents {
-		path := "agents/" + agent + ".agent.md"
-		if !installed[path] {
-			newItems = append(newItems, "agent: "+agent)
-		}
-	}
-	for _, skill := range allItems.Skills {
-		path := "skills/" + skill + "/"
-		if !installed[path] {
-			newItems = append(newItems, "skill: "+skill)
-		}
-	}
-	for _, instr := range allItems.Instructions {
-		path := "instructions/" + instr + ".instructions.md"
-		legacyPath := ".github/instructions/" + instr + ".instructions.md"
-		if !installed[path] && !installed[legacyPath] {
-			newItems = append(newItems, "instruction: "+instr)
+	for _, kind := range []*ArtifactKind{KindAgent, KindSkill, KindInstruction} {
+		for _, art := range resolver.List(kind) {
+			fileName := art.FileName()
+			relPath := scope.RelPath(kind.Dir, fileName)
+			if art.IsDir {
+				relPath += "/"
+			}
+			if !installed[relPath] {
+				newItems = append(newItems, kind.Name+": "+art.Name)
+			}
 		}
 	}
 	return newItems
@@ -303,17 +293,29 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 // Target files are always under .github/. Source may be at root or .github/.
 func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error) {
 	resolver := NewSourceResolver(sourceDir)
+
+	// Build file scan patterns from artifact kind definitions + sidecars.
 	type scanPattern struct {
 		glob    string
 		typeDir string
 		suffix  string
-		isDir   bool
 	}
-	patterns := []scanPattern{
-		{".github/agents/*.agent.md", "agents", ".agent.md", false},
-		{".github/agents/*.metadata.json", "agents", ".metadata.json", false},
-		{".github/instructions/*.instructions.md", "instructions", ".instructions.md", false},
-		{".github/prompts/*.prompt.md", "prompts", ".prompt.md", false},
+	var patterns []scanPattern
+	for _, kind := range AllKinds {
+		if kind.Suffix != "" {
+			patterns = append(patterns, scanPattern{
+				glob:    ".github/" + kind.Dir + "/*" + kind.Suffix,
+				typeDir: kind.Dir,
+				suffix:  kind.Suffix,
+			})
+		}
+		for _, sc := range kind.Sidecars {
+			patterns = append(patterns, scanPattern{
+				glob:    ".github/" + kind.Dir + "/*" + sc,
+				typeDir: kind.Dir,
+				suffix:  sc,
+			})
+		}
 	}
 
 	var files []syncFile
@@ -336,42 +338,29 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 				continue
 			}
 			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: srcRel, isDir: p.isDir})
+			files = append(files, syncFile{localPath: rel, sourcePath: srcRel, isDir: false})
 		}
 	}
 
-	// Check skill directories — source may be at root skills/ or .github/skills/
-	skillsDir := filepath.Join(targetDir, ".github", "skills")
-	if entries, err := os.ReadDir(skillsDir); err == nil {
+	// Check directory-based artifacts (skills and prompt dirs).
+	for _, kind := range AllKinds {
+		if !kind.IsDir && !kind.CanBeDir {
+			continue
+		}
+		dir := filepath.Join(targetDir, ".github", kind.Dir)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
 		for _, e := range entries {
 			if !e.IsDir() {
 				continue
 			}
-			rel := filepath.Join(".github", "skills", e.Name()) + "/"
+			rel := filepath.Join(".github", kind.Dir, e.Name()) + "/"
 			if seen[rel] {
 				continue
 			}
-			art, ok := resolver.Get(KindSkill, e.Name())
-			if !ok {
-				continue
-			}
-			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: art.RelPath + "/", isDir: true})
-		}
-	}
-
-	// Check prompt directories
-	promptsDir := filepath.Join(targetDir, ".github", "prompts")
-	if entries, err := os.ReadDir(promptsDir); err == nil {
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			rel := filepath.Join(".github", "prompts", e.Name()) + "/"
-			if seen[rel] {
-				continue
-			}
-			art, ok := resolver.Get(KindPrompt, e.Name())
+			art, ok := resolver.Get(kind, e.Name())
 			if !ok || !art.IsDir {
 				continue
 			}
@@ -388,26 +377,11 @@ func checkSyncFile(targetDir, sourceDir string, sf syncFile) (*syncUpdate, error
 	localFull := filepath.Join(targetDir, sf.localPath)
 	sourceFull := filepath.Join(sourceDir, sf.sourcePath)
 
-	if sf.isDir {
-		localHash, err := dirHash(localFull)
-		if err != nil {
-			return nil, fmt.Errorf("hashing local: %w", err)
-		}
-		sourceHash, err := dirHash(sourceFull)
-		if err != nil {
-			return nil, fmt.Errorf("hashing source: %w", err)
-		}
-		if localHash == sourceHash {
-			return nil, nil
-		}
-		return &syncUpdate{Path: sf.localPath, SourcePath: sf.sourcePath, CurrentHash: localHash, SourceHash: sourceHash}, nil
-	}
-
-	localHash, err := normalizedFileHash(localFull)
+	localHash, err := comparableArtifactHash(localFull, sf.isDir)
 	if err != nil {
 		return nil, fmt.Errorf("hashing local: %w", err)
 	}
-	sourceHash, err := normalizedFileHash(sourceFull)
+	sourceHash, err := comparableArtifactHash(sourceFull, sf.isDir)
 	if err != nil {
 		return nil, fmt.Errorf("hashing source: %w", err)
 	}
@@ -421,11 +395,7 @@ func checkSyncFile(targetDir, sourceDir string, sf syncFile) (*syncUpdate, error
 func applySyncUpdate(scope *InstallScope, sourceDir string, u syncUpdate) error {
 	sourceFull := filepath.Join(sourceDir, u.SourcePath)
 	targetFull := filepath.Join(scope.RootDir, u.Path)
-
-	if strings.HasSuffix(u.Path, "/") {
-		return copyDir(sourceFull, targetFull, scope.RootDir)
-	}
-	return copyFile(sourceFull, targetFull, scope.RootDir)
+	return copyArtifact(sourceFull, targetFull, scope.RootDir, strings.HasSuffix(u.Path, "/"))
 }
 
 // updateScopedStateHashes updates the state file with new hashes after applying updates.
@@ -445,12 +415,7 @@ func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
 			continue
 		}
 		path := filepath.Join(scope.RootDir, f.Path)
-		var hash string
-		if strings.HasSuffix(f.Path, "/") {
-			hash, err = dirHash(path)
-		} else {
-			hash, err = fileHash(path)
-		}
+		hash, err := rawArtifactHash(path, strings.HasSuffix(f.Path, "/"))
 		if err != nil {
 			continue
 		}

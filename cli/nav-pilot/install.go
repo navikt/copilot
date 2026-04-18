@@ -89,25 +89,14 @@ result.Installed++
 return nil
 }
 
-if art.IsDir {
-if err := copyDir(art.AbsPath, dst, scope.RootDir); err != nil {
-return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
+if err := copyArtifact(art.AbsPath, dst, scope.RootDir, art.IsDir); err != nil {
+	return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
 }
-hash, err := dirHash(dst)
+hash, err := rawArtifactHash(dst, art.IsDir)
 if err != nil {
-return fmt.Errorf("hashing installed %s %s: %w", kind.Name, name, err)
+	return fmt.Errorf("hashing installed %s %s: %w", kind.Name, name, err)
 }
 result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
-} else {
-if err := copyFile(art.AbsPath, dst, scope.RootDir); err != nil {
-return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
-}
-hash, err := fileHash(dst)
-if err != nil {
-return fmt.Errorf("hashing installed %s %s: %w", kind.Name, name, err)
-}
-result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
-}
 
 fmt.Printf("  %s %s\n", green("✓"), name)
 result.Installed++
