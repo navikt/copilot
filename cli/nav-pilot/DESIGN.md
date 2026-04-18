@@ -387,41 +387,6 @@ gh (GitHub CLI), age (FiloSottile), gum (Charmbracelet), gitleaks og Hugo.
 | Flat pakkestruktur | ✅ Riktig for størrelse | age, gum og andre småverktøy gjør det samme — nested pakker er for store verktøy |
 | Interaktiv modus | ✅ Moderne | Faller tilbake til TUI ved ingen argumenter (som `npm init`) — clig.dev-kompatibelt |
 
-### Kjente gap
-
-Prioritert etter kost/nytte. Ingen av disse er kritiske feil — de er naturlige gap for et verktøy på denne størrelsen.
-
-#### Tier 1 — lav kostnad, høy verdi ✅ (implementert)
-
-**1. ~~`--json` mangler på de fleste kommandoer~~** → Støttet på alle kommandoer.
-
-**2. ~~Ingen fremdriftsindikator for nettverksoperasjoner~~** → `cloneRemote()` skriver statusmelding til stderr.
-
-**3. ~~Exit-koder bør dokumenteres~~** → Konstanter definert i `main.go`, dokumentert i `usage()` og DESIGN.md.
-
-**4. ~~Feilmeldinger kan inkludere hint~~** → Levenshtein-basert did-you-mean i `suggest.go`.
-
-#### Tier 2 — moderat kostnad, god verdi
-
-**5. Shell-komplettering (bash/zsh/fish)**
-
-De fleste populære CLI-verktøy tilbyr dette (gh, gum, cobra-baserte verktøy). Nav-pilot har et lite, statisk kommandosett — en enkel kompletteringsfil kan genereres manuelt.
-
-**6. `--quiet` / `-q` flagg**
-
-clig.dev: *"Provide a `-q` option to suppress all non-essential output."*
-Nyttig for shell-skript som bare vil sjekke exit-kode.
-
-#### Tier 3 — lav prioritet
-
-**7. Konfigurasjonsfil** (`~/.config/nav-pilot/config`)
-
-clig.dev anbefaler dette for stabil konfigurasjon (f.eks. standard `--source` og `--target`). Men for et lite verktøy er det bevisst minimalisme å ikke ha dette — legg kun til hvis brukere ber om det.
-
-**8. Strukturert logging** (slog)
-
-Industristandard for Go 1.21+, men overkill for et lite CLI-verktøy med minimal feilsøkingsbehov. Bare relevant hvis nav-pilot skalerer til enterprise-bruk.
-
 ### Sammenligningstabell
 
 | Prinsipp (clig.dev) | nav-pilot | Karakter |
