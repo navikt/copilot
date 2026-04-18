@@ -4,6 +4,7 @@ import {
   getToolCount,
   getManualInstallCommand,
   getGhSkillInstallCommand,
+  getNavPilotAddCommand,
   getMcpServerConfig,
   getVsCodeAddMcpCommand,
   getMcpAddFields,
@@ -149,14 +150,39 @@ describe("INSTALL_DIRS", () => {
 });
 
 describe("CLIENT_SUPPORT", () => {
-  it("includes vscode for all types", () => {
-    for (const clients of Object.values(CLIENT_SUPPORT)) {
-      expect(clients).toContain("vscode");
+  it("includes nav-pilot for all static types", () => {
+    expect(CLIENT_SUPPORT.agent).toContain("nav-pilot");
+    expect(CLIENT_SUPPORT.instruction).toContain("nav-pilot");
+    expect(CLIENT_SUPPORT.prompt).toContain("nav-pilot");
+    expect(CLIENT_SUPPORT.skill).toContain("nav-pilot");
+  });
+
+  it("includes vscode for agents, instructions, prompts (have installUrl)", () => {
+    expect(CLIENT_SUPPORT.agent).toContain("vscode");
+    expect(CLIENT_SUPPORT.instruction).toContain("vscode");
+    expect(CLIENT_SUPPORT.prompt).toContain("vscode");
+  });
+
+  it("does not include vscode for skills (no one-click install)", () => {
+    expect(CLIENT_SUPPORT.skill).not.toContain("vscode");
+  });
+
+  it("includes gh for skills only", () => {
+    expect(CLIENT_SUPPORT.skill).toContain("gh");
+    expect(CLIENT_SUPPORT.agent).not.toContain("gh");
+  });
+
+  it("does not include intellij or cli for static types", () => {
+    for (const type of ["agent", "instruction", "prompt", "skill"] as const) {
+      expect(CLIENT_SUPPORT[type]).not.toContain("intellij");
+      expect(CLIENT_SUPPORT[type]).not.toContain("cli");
     }
   });
 
-  it("skill supports vscode, intellij, cli, gh, and github", () => {
-    expect(CLIENT_SUPPORT.skill).toEqual(["vscode", "intellij", "cli", "gh", "github"]);
+  it("keeps intellij and cli for mcp", () => {
+    expect(CLIENT_SUPPORT.mcp).toContain("vscode");
+    expect(CLIENT_SUPPORT.mcp).toContain("intellij");
+    expect(CLIENT_SUPPORT.mcp).toContain("cli");
   });
 });
 
@@ -165,6 +191,7 @@ describe("CLIENT_LABELS", () => {
     expect(CLIENT_LABELS.vscode).toBe("VS Code");
     expect(CLIENT_LABELS.intellij).toBe("IntelliJ");
     expect(CLIENT_LABELS.cli).toBe("Copilot CLI");
+    expect(CLIENT_LABELS["nav-pilot"]).toBe("nav-pilot");
     expect(CLIENT_LABELS.gh).toBe("GitHub CLI");
     expect(CLIENT_LABELS.github).toBe("GitHub.com");
   });
@@ -269,6 +296,36 @@ describe("getGhSkillInstallCommand", () => {
     expect(getGhSkillInstallCommand(agent)).toBe("");
     expect(getGhSkillInstallCommand(instruction)).toBe("");
     expect(getGhSkillInstallCommand(prompt)).toBe("");
+  });
+});
+
+describe("getNavPilotAddCommand", () => {
+  it("generates nav-pilot add command for agent", () => {
+    const result = getNavPilotAddCommand(agent)!;
+    expect(result.repo).toBe("nav-pilot add agent nais-platform");
+    expect(result.user).toBe("nav-pilot add agent nais-platform --user");
+  });
+
+  it("generates nav-pilot add command for instruction", () => {
+    const result = getNavPilotAddCommand(instruction)!;
+    expect(result.repo).toBe("nav-pilot add instruction nextjs-aksel.instructions.md");
+    expect(result.user).toBe("nav-pilot add instruction nextjs-aksel.instructions.md --user");
+  });
+
+  it("generates nav-pilot add command for prompt", () => {
+    const result = getNavPilotAddCommand(prompt)!;
+    expect(result.repo).toBe("nav-pilot add prompt code-review.prompt.md");
+    expect(result.user).toBe("nav-pilot add prompt code-review.prompt.md --user");
+  });
+
+  it("generates nav-pilot add command for skill", () => {
+    const result = getNavPilotAddCommand(skill)!;
+    expect(result.repo).toBe("nav-pilot add skill aksel-spacing");
+    expect(result.user).toBe("nav-pilot add skill aksel-spacing --user");
+  });
+
+  it("returns null for mcp", () => {
+    expect(getNavPilotAddCommand(remoteMcp)).toBeNull();
   });
 });
 

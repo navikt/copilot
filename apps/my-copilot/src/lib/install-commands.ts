@@ -8,10 +8,10 @@ export const INSTALL_DIRS: Record<Exclude<CustomizationType, "mcp">, string> = {
 };
 
 export const CLIENT_SUPPORT: Record<CustomizationType, string[]> = {
-  instruction: ["vscode", "intellij", "cli", "github"],
-  agent: ["vscode", "intellij", "cli", "github"],
-  prompt: ["vscode", "intellij"],
-  skill: ["vscode", "intellij", "cli", "gh", "github"],
+  agent: ["vscode", "nav-pilot", "github"],
+  instruction: ["vscode", "nav-pilot", "github"],
+  prompt: ["vscode", "nav-pilot"],
+  skill: ["nav-pilot", "gh", "github"],
   mcp: ["vscode", "intellij", "cli", "github"],
 };
 
@@ -19,6 +19,7 @@ export const CLIENT_LABELS: Record<string, string> = {
   vscode: "VS Code",
   intellij: "IntelliJ",
   cli: "Copilot CLI",
+  "nav-pilot": "nav-pilot",
   gh: "GitHub CLI",
   github: "GitHub.com",
 };
@@ -86,6 +87,16 @@ export function getManualInstallCommand(item: AnyCustomization, allItems?: AnyCu
 export function getGhSkillInstallCommand(item: AnyCustomization): string {
   if (item.type !== "skill") return "";
   return `gh skill install navikt/copilot .github/skills/${item.name}/SKILL.md`;
+}
+
+/**
+ * Generate `nav-pilot add` command for a static customization.
+ * Returns both repo-scope and user-scope variants.
+ */
+export function getNavPilotAddCommand(item: AnyCustomization): { repo: string; user: string } | null {
+  if (item.type === "mcp") return null;
+  const cmd = `nav-pilot add ${item.type} ${item.name}`;
+  return { repo: cmd, user: `${cmd} --user` };
 }
 
 /**

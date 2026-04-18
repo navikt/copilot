@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, BodyShort, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
-import { DownloadIcon, ChevronRightIcon, WrenchIcon, ComponentIcon } from "@navikt/aksel-icons";
+import { DownloadIcon, ChevronRightIcon, WrenchIcon, ComponentIcon, RocketIcon } from "@navikt/aksel-icons";
 import { SiGnometerminal, SiIntellijidea, SiGithub } from "@icons-pack/react-simple-icons";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
@@ -28,6 +28,8 @@ function ClientIcon({ client, size = 16 }: { client: string; size?: number }) {
       return <SiIntellijidea size={size} aria-hidden />;
     case "cli":
       return <SiGnometerminal size={size} aria-hidden />;
+    case "nav-pilot":
+      return <RocketIcon fontSize={size} aria-hidden />;
     case "github":
       return <SiGithub size={size} aria-hidden />;
     default:
