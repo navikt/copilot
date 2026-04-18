@@ -555,13 +555,17 @@ func cmdStatus(scope *InstallScope) error {
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()
 
-	ok, modified, missing, modifiedPaths := countFileIntegrity(scope.RootDir, state)
+	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
 	for _, p := range modifiedPaths {
 		fmt.Printf("  %s %s (modified locally)\n", yellow("~"), p)
 	}
 
-	fmt.Printf("\n  %s %d ok, %s %d modified, %s %d missing\n",
+	statusLine := fmt.Sprintf("\n  %s %d ok, %s %d modified, %s %d missing",
 		green("✓"), ok, yellow("~"), modified, red("✗"), missing)
+	if ignored > 0 {
+		statusLine += fmt.Sprintf(", %s %d ignored", dim("⊘"), ignored)
+	}
+	fmt.Println(statusLine)
 	return nil
 }
 

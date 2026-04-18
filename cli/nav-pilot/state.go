@@ -21,8 +21,9 @@ type StateFile struct {
 
 // InstalledFile records a single installed file with its content hash.
 type InstalledFile struct {
-	Path string `json:"path"`
-	Hash string `json:"hash"`
+	Path   string `json:"path"`
+	Hash   string `json:"hash"`
+	Status string `json:"status,omitempty"` // "" = active, "ignored" = intentionally deleted
 }
 
 // readState reads state for the given repo directory (legacy convenience wrapper).

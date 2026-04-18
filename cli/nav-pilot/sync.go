@@ -15,6 +15,7 @@ type syncResult struct {
 	Updates   []syncUpdate `json:"updates,omitempty"`
 	Errors    []string     `json:"errors,omitempty"`
 	Overrides []string     `json:"overrides,omitempty"`
+	Ignored   []string     `json:"ignored,omitempty"`
 }
 
 type syncUpdate struct {
@@ -84,10 +85,27 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		fmt.Println()
 	}
 
-	// Compare each file against source
+	// Compare each file against source.
+	// Files that are in state but missing on disk are treated as intentionally
+	// deleted — they get marked "ignored" in the state file so future syncs skip them.
 	var updates []syncUpdate
 	var syncErrors []string
+	var ignoredPaths []string
 	for _, sf := range files {
+		// Check if local file exists; if missing, treat as intentional deletion
+		localFull := filepath.Join(scope.RootDir, sf.localPath)
+		if sf.isDir {
+			if _, statErr := os.Stat(localFull); os.IsNotExist(statErr) {
+				ignoredPaths = append(ignoredPaths, sf.localPath)
+				continue
+			}
+		} else {
+			if _, statErr := os.Stat(localFull); os.IsNotExist(statErr) {
+				ignoredPaths = append(ignoredPaths, sf.localPath)
+				continue
+			}
+		}
+
 		u, err := checkSyncFile(scope.RootDir, src.Dir, sf)
 		if err != nil {
 			if !jsonOutput {
@@ -101,12 +119,28 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		}
 	}
 
+	// Mark missing files as ignored in state
+	if len(ignoredPaths) > 0 {
+		if err := markFilesIgnored(scope, ignoredPaths); err != nil {
+			if !jsonOutput {
+				fmt.Fprintf(os.Stderr, "%s Could not update state for deleted files: %v\n", yellow("⚠"), err)
+			}
+		}
+		if !jsonOutput {
+			for _, p := range ignoredPaths {
+				fmt.Printf("  %s %s (deleted — marked ignored)\n", dim("⊘"), p)
+			}
+			fmt.Println()
+		}
+	}
+
 	result := syncResult{
 		UpToDate:  len(updates) == 0 && len(syncErrors) == 0,
 		Source:    src.SHA,
 		Updates:   updates,
 		Errors:    syncErrors,
 		Overrides: overriddenPaths,
+		Ignored:   ignoredPaths,
 	}
 
 	if jsonOutput {
@@ -204,9 +238,12 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string
 	}
 
 	if state != nil {
-		// State-based: check all installed files
+		// State-based: check all installed files, skip ignored ones
 		var files []syncFile
 		for _, f := range state.Files {
+			if f.Status == "ignored" {
+				continue
+			}
 			sp := f.Path
 			// User scope: local path is "agents/x" but source is ".github/agents/x".
 			// Instructions already have .github/ prefix (e.g. ".github/instructions/x"),
@@ -436,6 +473,28 @@ func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
 // updateStateHashes is a backward-compatible wrapper for repo scope.
 func updateStateHashes(targetDir string, updates []syncUpdate) error {
 	return updateScopedStateHashes(ScopeRepo(targetDir), updates)
+}
+
+// markFilesIgnored updates the state file to mark the given paths as "ignored".
+// This prevents future syncs from re-adding files that were intentionally deleted.
+func markFilesIgnored(scope *InstallScope, paths []string) error {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+
+	pathSet := make(map[string]bool, len(paths))
+	for _, p := range paths {
+		pathSet[p] = true
+	}
+
+	for i, f := range state.Files {
+		if pathSet[f.Path] {
+			state.Files[i].Status = "ignored"
+		}
+	}
+
+	return writeScopedState(scope, state)
 }
 
 func outputJSON(v interface{}) error {

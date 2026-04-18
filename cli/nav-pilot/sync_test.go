@@ -673,3 +673,143 @@ func TestCheckSyncFile_JSON_ByteExact(t *testing.T) {
 		t.Error("expected update for JSON whitespace difference (byte-exact)")
 	}
 }
+
+func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	state := &StateFile{
+		Collection: "nextjs-frontend",
+		Version:    "2025.07",
+		Scope:      "repo",
+		Files: []InstalledFile{
+			{Path: ".github/agents/nais.agent.md", Hash: "abc123"},
+			{Path: ".github/instructions/nextjs-aksel.instructions.md", Hash: "def456", Status: "ignored"},
+			{Path: ".github/skills/api-design/", Hash: "ghi789"},
+		},
+	}
+	writeState(dir, state)
+
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("files count = %d, want 2 (ignored file should be excluded)", len(files))
+	}
+	for _, f := range files {
+		if f.localPath == ".github/instructions/nextjs-aksel.instructions.md" {
+			t.Error("ignored file should not appear in sync file list")
+		}
+	}
+}
+
+func TestMarkFilesIgnored(t *testing.T) {
+	dir := t.TempDir()
+	scope := ScopeRepo(dir)
+
+	state := &StateFile{
+		Collection: "nextjs-frontend",
+		Version:    "2025.07",
+		Scope:      "repo",
+		Files: []InstalledFile{
+			{Path: ".github/agents/nais.agent.md", Hash: "abc123"},
+			{Path: ".github/instructions/nextjs-aksel.instructions.md", Hash: "def456"},
+			{Path: ".github/skills/api-design/", Hash: "ghi789"},
+		},
+	}
+	writeScopedState(scope, state)
+
+	err := markFilesIgnored(scope, []string{".github/instructions/nextjs-aksel.instructions.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-read state and verify
+	updated, err := readScopedState(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range updated.Files {
+		switch f.Path {
+		case ".github/instructions/nextjs-aksel.instructions.md":
+			if f.Status != "ignored" {
+				t.Errorf("expected status 'ignored', got %q", f.Status)
+			}
+		default:
+			if f.Status != "" {
+				t.Errorf("unexpected status %q for %s", f.Status, f.Path)
+			}
+		}
+	}
+}
+
+func TestStateFile_BackwardsCompat_NoStatusField(t *testing.T) {
+	// Simulate a state file written by an older version of nav-pilot (no status field)
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
+	stateJSON := `{
+		"collection": "kotlin-backend",
+		"version": "2025.07",
+		"scope": "repo",
+		"source_sha": "abc123",
+		"installed_at": "2025-07-01T00:00:00Z",
+		"files": [
+			{"path": ".github/agents/nais.agent.md", "hash": "abc123"},
+			{"path": ".github/skills/api-design/", "hash": "def456"}
+		]
+	}`
+	os.WriteFile(filepath.Join(dir, stateFilePath), []byte(stateJSON), 0o644)
+
+	state, err := readScopedState(ScopeRepo(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state == nil {
+		t.Fatal("expected non-nil state")
+	}
+	// All files should have empty Status (active)
+	for _, f := range state.Files {
+		if f.Status != "" {
+			t.Errorf("expected empty status for %s, got %q", f.Path, f.Status)
+		}
+	}
+
+	// resolveSyncFiles should include all files (none ignored)
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("files count = %d, want 2", len(files))
+	}
+}
+
+func TestCountFileIntegrity_IgnoredFiles(t *testing.T) {
+	tmp := t.TempDir()
+	os.MkdirAll(filepath.Join(tmp, ".github"), 0o755)
+	f1 := filepath.Join(tmp, ".github", "a.md")
+	os.WriteFile(f1, []byte("hello"), 0o644)
+	hash1, _ := fileHash(f1)
+
+	state := &StateFile{
+		Files: []InstalledFile{
+			{Path: ".github/a.md", Hash: hash1},                                          // ok
+			{Path: ".github/ignored.md", Hash: "x", Status: "ignored"},                   // ignored
+			{Path: ".github/missing.md", Hash: "x"},                                      // missing
+		},
+	}
+
+	ok, modified, missing, ignored, _ := countFileIntegrity(tmp, state)
+	if ok != 1 {
+		t.Errorf("ok = %d, want 1", ok)
+	}
+	if modified != 0 {
+		t.Errorf("modified = %d, want 0", modified)
+	}
+	if missing != 1 {
+		t.Errorf("missing = %d, want 1", missing)
+	}
+	if ignored != 1 {
+		t.Errorf("ignored = %d, want 1", ignored)
+	}
+}

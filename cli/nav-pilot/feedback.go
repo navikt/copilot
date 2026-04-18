@@ -58,7 +58,7 @@ func collectDiagnostics(targetDir string) string {
 	state, err := readState(targetDir)
 	if err == nil && state != nil {
 		// Count file integrity
-		ok, modified, missing, _ := countFileIntegrity(targetDir, state)
+		ok, modified, missing, _, _ := countFileIntegrity(targetDir, state)
 		fmt.Fprintf(&b, "Collection %s (%s, %s)\n", state.Collection, state.Version, shortSHA(state.SourceSHA))
 		fmt.Fprintf(&b, "Files      %d ok, %d modified, %d missing\n", ok, modified, missing)
 	} else {
@@ -70,8 +70,12 @@ func collectDiagnostics(targetDir string) string {
 
 // countFileIntegrity checks installed files and returns ok/modified/missing counts
 // plus the relative paths of any modified files.
-func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing int, modifiedPaths []string) {
+func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing, ignored int, modifiedPaths []string) {
 	for _, f := range state.Files {
+		if f.Status == "ignored" {
+			ignored++
+			continue
+		}
 		path := filepath.Join(rootDir, f.Path)
 		var currentHash string
 		var hashErr error
