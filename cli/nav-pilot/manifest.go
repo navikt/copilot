@@ -92,35 +92,21 @@ func collectAllItems(sourceDir string) (*Manifest, error) {
 		Description: "All agents, skills, and instructions",
 	}
 
-	// Scan agents
-	agentFiles, err := filepath.Glob(filepath.Join(sourceDir, ".github", "agents", "*.agent.md"))
-	if err != nil {
-		return nil, fmt.Errorf("scanning agents: %w", err)
-	}
-	for _, f := range agentFiles {
-		name := strings.TrimSuffix(filepath.Base(f), ".agent.md")
-		if validateName(name) == nil {
-			m.Agents = append(m.Agents, name)
-		}
+	// Scan agents — both root-level and .github/
+	for _, a := range scanArtifactFiles(sourceDir, "agents", ".agent.md") {
+		m.Agents = append(m.Agents, a.Name)
 	}
 	sort.Strings(m.Agents)
 
-	// Scan skills — check both root-level (gh skill convention) and .github/skills/ (legacy)
+	// Scan skills — both root-level and .github/skills/
 	for _, s := range scanSkillDirs(sourceDir) {
 		m.Skills = append(m.Skills, s.Name)
 	}
 	sort.Strings(m.Skills)
 
-	// Scan instructions
-	instrFiles, err := filepath.Glob(filepath.Join(sourceDir, ".github", "instructions", "*.instructions.md"))
-	if err != nil {
-		return nil, fmt.Errorf("scanning instructions: %w", err)
-	}
-	for _, f := range instrFiles {
-		name := strings.TrimSuffix(filepath.Base(f), ".instructions.md")
-		if validateName(name) == nil {
-			m.Instructions = append(m.Instructions, name)
-		}
+	// Scan instructions — both root-level and .github/
+	for _, i := range scanArtifactFiles(sourceDir, "instructions", ".instructions.md") {
+		m.Instructions = append(m.Instructions, i.Name)
 	}
 	sort.Strings(m.Instructions)
 

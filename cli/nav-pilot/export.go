@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -179,40 +178,34 @@ func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
 // ─── Prompts → Commands ─────────────────────────────────────────────────────
 
 func exportPrompts(sourceDir, outputDir string, dryRun bool) (int, error) {
-	promptsDir := filepath.Join(sourceDir, ".github", "prompts")
-	if _, err := os.Stat(promptsDir); os.IsNotExist(err) {
+	entries := scanPromptEntries(sourceDir)
+	if len(entries) == 0 {
 		return 0, nil
-	}
-
-	entries, err := os.ReadDir(promptsDir)
-	if err != nil {
-		return 0, err
 	}
 
 	count := 0
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".prompt.md") {
+		if entry.IsDir {
+			// Prompt directories are not yet supported for export
 			continue
 		}
 
-		name := strings.TrimSuffix(entry.Name(), ".prompt.md")
-		srcPath := filepath.Join(promptsDir, entry.Name())
-		dstPath := filepath.Join(outputDir, "commands", name+".md")
+		dstPath := filepath.Join(outputDir, "commands", entry.Name+".md")
 
-		data, err := os.ReadFile(srcPath)
+		data, err := os.ReadFile(entry.Path)
 		if err != nil {
-			return count, fmt.Errorf("reading prompt %s: %w", name, err)
+			return count, fmt.Errorf("reading prompt %s: %w", entry.Name, err)
 		}
 
 		transformed := transformPrompt(data)
 
 		if dryRun {
-			fmt.Printf("  %s %s.prompt.md → commands/%s.md\n", dim("→"), name, name)
+			fmt.Printf("  %s %s.prompt.md → commands/%s.md\n", dim("→"), entry.Name, entry.Name)
 		} else {
 			if err := writeFile(dstPath, transformed); err != nil {
-				return count, fmt.Errorf("writing command %s: %w", name, err)
+				return count, fmt.Errorf("writing command %s: %w", entry.Name, err)
 			}
-			fmt.Printf("  %s %s\n", green("✓"), name)
+			fmt.Printf("  %s %s\n", green("✓"), entry.Name)
 		}
 		count++
 	}
@@ -232,40 +225,29 @@ func transformPrompt(data []byte) []byte {
 // ─── Agents ─────────────────────────────────────────────────────────────────
 
 func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
-	agentsDir := filepath.Join(sourceDir, ".github", "agents")
-	if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
+	agents := scanArtifactFiles(sourceDir, "agents", ".agent.md")
+	if len(agents) == 0 {
 		return 0, nil
 	}
 
-	entries, err := os.ReadDir(agentsDir)
-	if err != nil {
-		return 0, err
-	}
-
 	count := 0
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".agent.md") {
-			continue
-		}
+	for _, entry := range agents {
+		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 
-		name := strings.TrimSuffix(entry.Name(), ".agent.md")
-		srcPath := filepath.Join(agentsDir, entry.Name())
-		dstPath := filepath.Join(outputDir, "agents", name+".md")
-
-		data, err := os.ReadFile(srcPath)
+		data, err := os.ReadFile(entry.Path)
 		if err != nil {
-			return count, fmt.Errorf("reading agent %s: %w", name, err)
+			return count, fmt.Errorf("reading agent %s: %w", entry.Name, err)
 		}
 
 		transformed := transformAgent(data)
 
 		if dryRun {
-			fmt.Printf("  %s %s.agent.md → agents/%s.md\n", dim("→"), name, name)
+			fmt.Printf("  %s %s.agent.md → agents/%s.md\n", dim("→"), entry.Name, entry.Name)
 		} else {
 			if err := writeFile(dstPath, transformed); err != nil {
-				return count, fmt.Errorf("writing agent %s: %w", name, err)
+				return count, fmt.Errorf("writing agent %s: %w", entry.Name, err)
 			}
-			fmt.Printf("  %s %s\n", green("✓"), name)
+			fmt.Printf("  %s %s\n", green("✓"), entry.Name)
 		}
 		count++
 	}
@@ -292,20 +274,10 @@ func transformAgent(data []byte) []byte {
 // ─── Instructions → AGENTS.md ───────────────────────────────────────────────
 
 func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
-	instrDir := filepath.Join(sourceDir, ".github", "instructions")
+	// Collect instruction files from both locations
+	instrEntries := scanArtifactFiles(sourceDir, "instructions", ".instructions.md")
 
-	// Collect instruction files, sorted for deterministic output
-	var instrFiles []string
-	if entries, err := os.ReadDir(instrDir); err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".instructions.md") {
-				instrFiles = append(instrFiles, entry.Name())
-			}
-		}
-		sort.Strings(instrFiles)
-	}
-
-	// Also include copilot-instructions.md if it exists
+	// Also include copilot-instructions.md if it exists (always in .github/)
 	var sections []instructionSection
 	globalInstr := filepath.Join(sourceDir, ".github", "copilot-instructions.md")
 	if data, err := os.ReadFile(globalInstr); err == nil {
@@ -319,14 +291,13 @@ func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
 		})
 	}
 
-	for _, name := range instrFiles {
-		data, err := os.ReadFile(filepath.Join(instrDir, name))
+	for _, entry := range instrEntries {
+		data, err := os.ReadFile(entry.Path)
 		if err != nil {
-			return 0, fmt.Errorf("reading instruction %s: %w", name, err)
+			return 0, fmt.Errorf("reading instruction %s: %w", entry.Name, err)
 		}
 
-		sectionName := strings.TrimSuffix(name, ".instructions.md")
-		sectionName = strings.ReplaceAll(sectionName, "-", " ")
+		sectionName := strings.ReplaceAll(entry.Name, "-", " ")
 		sectionName = titleCase(sectionName)
 
 		_, body, hasFM := splitFrontmatter(data)

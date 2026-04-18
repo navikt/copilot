@@ -964,3 +964,99 @@ func TestResolveSyncFiles_AutoDetect_InvalidRootFallsBack(t *testing.T) {
 		t.Error("should find my-skill in sync files")
 	}
 }
+
+func TestResolveSyncFiles_AutoDetect_RootLevelAgents(t *testing.T) {
+	targetDir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Target has agent at .github/agents/
+	os.MkdirAll(filepath.Join(targetDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(targetDir, ".github", "agents", "nais.agent.md"), []byte("old"), 0o644)
+
+	// Source has agent at ROOT agents/ (post-migration)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("new"), 0o644)
+
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, f := range files {
+		if f.localPath == filepath.Join(".github", "agents", "nais.agent.md") {
+			found = true
+			wantSource := filepath.Join("agents", "nais.agent.md")
+			if f.sourcePath != wantSource {
+				t.Errorf("sourcePath = %q, want %q (should point to root-level source)", f.sourcePath, wantSource)
+			}
+		}
+	}
+	if !found {
+		t.Error("should find nais.agent.md with root-level source")
+	}
+}
+
+func TestResolveSyncFiles_AutoDetect_RootLevelInstructions(t *testing.T) {
+	targetDir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Target has instruction at .github/instructions/
+	os.MkdirAll(filepath.Join(targetDir, ".github", "instructions"), 0o755)
+	os.WriteFile(filepath.Join(targetDir, ".github", "instructions", "go.instructions.md"), []byte("old"), 0o644)
+
+	// Source has instruction at ROOT instructions/ (post-migration)
+	os.MkdirAll(filepath.Join(sourceDir, "instructions"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "instructions", "go.instructions.md"), []byte("new"), 0o644)
+
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, f := range files {
+		if f.localPath == filepath.Join(".github", "instructions", "go.instructions.md") {
+			found = true
+			wantSource := filepath.Join("instructions", "go.instructions.md")
+			if f.sourcePath != wantSource {
+				t.Errorf("sourcePath = %q, want %q (should point to root-level source)", f.sourcePath, wantSource)
+			}
+		}
+	}
+	if !found {
+		t.Error("should find go.instructions.md with root-level source")
+	}
+}
+
+func TestResolveSyncFiles_AutoDetect_RootLevelPromptDir(t *testing.T) {
+	targetDir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Target has prompt dir at .github/prompts/review/
+	os.MkdirAll(filepath.Join(targetDir, ".github", "prompts", "review"), 0o755)
+	os.WriteFile(filepath.Join(targetDir, ".github", "prompts", "review", "prompt.md"), []byte("old"), 0o644)
+
+	// Source has prompt dir at ROOT prompts/review/
+	os.MkdirAll(filepath.Join(sourceDir, "prompts", "review"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "review", "prompt.md"), []byte("new"), 0o644)
+
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, f := range files {
+		if f.localPath == filepath.Join(".github", "prompts", "review")+"/" {
+			found = true
+			wantSource := filepath.Join("prompts", "review") + "/"
+			if f.sourcePath != wantSource {
+				t.Errorf("sourcePath = %q, want %q (should point to root-level source)", f.sourcePath, wantSource)
+			}
+		}
+	}
+	if !found {
+		t.Error("should find review prompt dir with root-level source")
+	}
+}

@@ -68,33 +68,69 @@ scope.Label()                                    // "~/.copilot (user-wide)"
 
 Nye kommandoer som skriver filer skal bruke scope-metodene — ikke bygg stier manuelt med `filepath.Join(rootDir, ".github", ...)`.
 
-## Skill Resolution
+## Artifact Resolution
 
-Skills kan ligge på to steder i kilderepoet (navikt/copilot):
+Alle artefakttyper (skills, agents, instructions, prompts) kan ligge på to steder i kilderepoet (navikt/copilot):
 
 | Plassering | Formål | Auto-discovery |
 |---|---|---|
-| `skills/<name>/` | Ny root-plassering for `gh skill` | ✅ Ja |
-| `.github/skills/<name>/` | Legacy-plassering | ❌ Nei |
+| `<type>/<name>` | Ny root-plassering (awesome-copilot-konvensjon) | ✅ Ja |
+| `.github/<type>/<name>` | Legacy-plassering | ❌ Nei |
 
-**Root vinner hvis den har en gyldig `SKILL.md`.** En mappe uten `SKILL.md` er ikke en gyldig skill og faller tilbake til legacy.
+**Root vinner når den finnes.** For skills valideres at `SKILL.md` finnes. For andre typer sjekkes fileksistens direkte.
 
 ### Hjelpefunksjoner (scope.go)
 
-Alle steder som slår opp skills i kilderepoet bruker disse — ikke bygg stier manuelt:
+Alle steder som slår opp artefakter i kilderepoet bruker disse — ikke bygg stier manuelt:
 
+**Skills** (dir med SKILL.md):
 ```go
 resolveSkillDir(sourceDir, name)   // → (absPath, ok) — sjekker root → legacy, validerer SKILL.md
 resolveSkillRel(sourceDir, name)   // → (relPath, ok) — returnerer "skills/x" eller ".github/skills/x"
 scanSkillDirs(sourceDir)           // → []skillEntry  — alle gyldige skills, dedup, sortert
 ```
 
+**Agents og Instructions** (enkeltfiler):
+```go
+resolveArtifactFile(sourceDir, typeDir, fileName)  // → (absPath, ok) — sjekker root → legacy
+resolveArtifactRel(sourceDir, typeDir, fileName)   // → (relPath, ok) — returnerer "agents/x" eller ".github/agents/x"
+scanArtifactFiles(sourceDir, typeDir, suffix)       // → []artifactEntry — alle filer, dedup, sortert
+```
+
+**Prompts** (dir eller fil, spesiell presedenslogikk):
+```go
+resolvePrompt(sourceDir, name)     // → (absPath, isDir, ok) — root dir > root fil > legacy dir > legacy fil
+scanPromptEntries(sourceDir)       // → []artifactEntry — dirs og filer, dedup, sortert
+```
+
+**Generisk sti-mapping** (sync/state):
+```go
+resolveSourcePath(sourceDir, localPath, isUserScope)  // → string — mapper lokal/state-sti til kildesti
+```
+
 ### Oppløsningsrekkefølge
 
+**Skills:**
 ```
 1. Sjekk skills/<name>/SKILL.md finnes?     → bruk skills/<name>/
 2. Sjekk .github/skills/<name>/SKILL.md?    → bruk .github/skills/<name>/
 3. Ingen funnet                              → skill finnes ikke
+```
+
+**Agents/Instructions:**
+```
+1. Sjekk <type>/<fileName> finnes?           → bruk <type>/<fileName>
+2. Sjekk .github/<type>/<fileName> finnes?   → bruk .github/<type>/<fileName>
+3. Ingen funnet                              → artefakt finnes ikke
+```
+
+**Prompts (strengere presedenslogikk):**
+```
+1. Sjekk prompts/<name>/ er en mappe?        → bruk prompts/<name>/
+2. Sjekk prompts/<name>.prompt.md finnes?     → bruk prompts/<name>.prompt.md
+3. Sjekk .github/prompts/<name>/ er mappe?    → bruk .github/prompts/<name>/
+4. Sjekk .github/prompts/<name>.prompt.md?    → bruk .github/prompts/<name>.prompt.md
+5. Ingen funnet                               → prompt finnes ikke
 ```
 
 ### Hvem bruker hva
@@ -102,18 +138,28 @@ scanSkillDirs(sourceDir)           // → []skillEntry  — alle gyldige skills,
 | Funksjon | Hjelpefunksjon | Fil |
 |---|---|---|
 | `installSkill()` | `resolveSkillDir` | install.go |
-| `listAvailableItems()` | `scanSkillDirs` | install.go |
-| `collectAvailableItems()` | `scanSkillDirs` | install.go |
-| `collectAllItems()` | `scanSkillDirs` | manifest.go |
+| `installSingleFile()` | `resolveArtifactFile` | install.go |
+| `installAgent()` metadata | `resolveArtifactFile` | install.go |
+| `installPrompt()` | `resolvePrompt` | install.go |
+| `listAvailableItems()` | `scanSkillDirs`, `scanArtifactFiles`, `scanPromptEntries` | install.go |
+| `collectAvailableItems()` | `scanSkillDirs`, `scanArtifactFiles`, `scanPromptEntries` | install.go |
+| `collectAllItems()` | `scanSkillDirs`, `scanArtifactFiles` | manifest.go |
 | `exportSkills()` | `scanSkillDirs` | export.go |
-| `autoDetectSyncFiles()` | `resolveSkillRel` | sync.go |
-| `resolveSourcePath()` | `resolveSkillRel` | scope.go |
+| `exportAgents()` | `scanArtifactFiles` | export.go |
+| `exportInstructions()` | `scanArtifactFiles` | export.go |
+| `exportPrompts()` | `scanPromptEntries` | export.go |
+| `autoDetectSyncFiles()` | `resolveArtifactRel`, `resolveSkillRel`, `resolvePrompt` | sync.go |
+| `resolveSourcePath()` | `resolveSkillRel`, `resolveArtifactRel` | scope.go |
 
 ### Mål- vs. kildestier
 
-**Kilde** (navikt/copilot): `skills/` eller `.github/skills/` — oppløses av hjelpefunksjonene over.
+**Kilde** (navikt/copilot): `<type>/` eller `.github/<type>/` — oppløses av hjelpefunksjonene over.
 
-**Mål** (brukerens repo): Alltid `.github/skills/` (repo scope) eller `~/.copilot/skills/` (user scope). Målstier endres ikke.
+**Mål** (brukerens repo): Alltid `.github/<type>/` (repo scope) eller `~/.copilot/<type>/` (user scope). Målstier endres **aldri**.
+
+### Unntak
+
+- `copilot-instructions.md` ligger alltid i `.github/` — det er en operasjonell fil, ikke et distribuerbart artefakt.
 
 ## Source
 

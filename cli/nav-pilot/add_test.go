@@ -237,6 +237,121 @@ func TestCmdAdd_Skill_RootLevel_RecordsCorrectStatePath(t *testing.T) {
 	}
 }
 
+func TestCmdAdd_Agent_RootLevel(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Create agent at root level
+	os.MkdirAll(filepath.Join(source, "agents"), 0o755)
+	os.WriteFile(filepath.Join(source, "agents", "nais.agent.md"), []byte("# Root Agent"), 0o644)
+	os.WriteFile(filepath.Join(source, "agents", "nais.metadata.json"), []byte(`{"tools":[]}`), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installAgent(source, ScopeRepo(target), "nais", false, false, result)
+	if err != nil {
+		t.Fatalf("installAgent: %v", err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("expected 1 installed, got %d", result.Installed)
+	}
+
+	// Verify agent installed at .github/agents/ in target
+	got, err := os.ReadFile(filepath.Join(target, ".github", "agents", "nais.agent.md"))
+	if err != nil {
+		t.Fatalf("agent not created: %v", err)
+	}
+	if string(got) != "# Root Agent" {
+		t.Errorf("content mismatch: got %q", string(got))
+	}
+
+	// Verify metadata also installed
+	if _, err := os.Stat(filepath.Join(target, ".github", "agents", "nais.metadata.json")); os.IsNotExist(err) {
+		t.Error("agent metadata not created")
+	}
+}
+
+func TestCmdAdd_Agent_BothExist_RootWins(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Both root and legacy
+	os.MkdirAll(filepath.Join(source, "agents"), 0o755)
+	os.WriteFile(filepath.Join(source, "agents", "nais.agent.md"), []byte("root version"), 0o644)
+	os.MkdirAll(filepath.Join(source, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(source, ".github", "agents", "nais.agent.md"), []byte("legacy version"), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installAgent(source, ScopeRepo(target), "nais", false, false, result)
+	if err != nil {
+		t.Fatalf("installAgent: %v", err)
+	}
+
+	got, _ := os.ReadFile(filepath.Join(target, ".github", "agents", "nais.agent.md"))
+	if string(got) != "root version" {
+		t.Errorf("expected root version to win, got %q", string(got))
+	}
+}
+
+func TestCmdAdd_Prompt_RootLevel(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Root-level flat prompt
+	os.MkdirAll(filepath.Join(source, "prompts"), 0o755)
+	os.WriteFile(filepath.Join(source, "prompts", "review.prompt.md"), []byte("# Root Prompt"), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installPrompt(source, ScopeRepo(target), "review", false, false, result)
+	if err != nil {
+		t.Fatalf("installPrompt: %v", err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("expected 1 installed, got %d", result.Installed)
+	}
+
+	got, err := os.ReadFile(filepath.Join(target, ".github", "prompts", "review.prompt.md"))
+	if err != nil {
+		t.Fatalf("prompt not created: %v", err)
+	}
+	if string(got) != "# Root Prompt" {
+		t.Errorf("content mismatch: got %q", string(got))
+	}
+}
+
+func TestCmdAdd_Prompt_RootDirLevel(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+
+	// Root-level dir prompt
+	os.MkdirAll(filepath.Join(source, "prompts", "complex"), 0o755)
+	os.WriteFile(filepath.Join(source, "prompts", "complex", "prompt.md"), []byte("# Complex"), 0o644)
+
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	result := &installResult{}
+	err := installPrompt(source, ScopeRepo(target), "complex", false, false, result)
+	if err != nil {
+		t.Fatalf("installPrompt: %v", err)
+	}
+	if result.Installed != 1 {
+		t.Errorf("expected 1 installed, got %d", result.Installed)
+	}
+
+	got, err := os.ReadFile(filepath.Join(target, ".github", "prompts", "complex", "prompt.md"))
+	if err != nil {
+		t.Fatalf("prompt dir not created: %v", err)
+	}
+	if string(got) != "# Complex" {
+		t.Errorf("content mismatch: got %q", string(got))
+	}
+}
+
 func TestCollectAllItems_MergesBothDirs(t *testing.T) {
 	source := t.TempDir()
 
@@ -254,9 +369,22 @@ func TestCollectAllItems_MergesBothDirs(t *testing.T) {
 	os.MkdirAll(filepath.Join(source, ".github", "skills", "both"), 0o755)
 	os.WriteFile(filepath.Join(source, ".github", "skills", "both", "SKILL.md"), []byte("# Both Legacy"), 0o644)
 
-	// Need agents dir for collectAllItems
+	// Root-level agents
+	os.MkdirAll(filepath.Join(source, "agents"), 0o755)
+	os.WriteFile(filepath.Join(source, "agents", "root-agent.agent.md"), []byte("# Root Agent"), 0o644)
+
+	// Legacy agents (different name + duplicate name)
 	os.MkdirAll(filepath.Join(source, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(source, ".github", "agents", "legacy-agent.agent.md"), []byte("# Legacy Agent"), 0o644)
+	os.WriteFile(filepath.Join(source, ".github", "agents", "root-agent.agent.md"), []byte("# Root Agent Legacy"), 0o644)
+
+	// Root-level instructions
+	os.MkdirAll(filepath.Join(source, "instructions"), 0o755)
+	os.WriteFile(filepath.Join(source, "instructions", "go.instructions.md"), []byte("# Go"), 0o644)
+
+	// Legacy instructions (different name)
 	os.MkdirAll(filepath.Join(source, ".github", "instructions"), 0o755)
+	os.WriteFile(filepath.Join(source, ".github", "instructions", "kotlin.instructions.md"), []byte("# Kotlin"), 0o644)
 
 	m, err := collectAllItems(source)
 	if err != nil {
@@ -272,6 +400,22 @@ func TestCollectAllItems_MergesBothDirs(t *testing.T) {
 		if m.Skills[i] != want {
 			t.Errorf("skill[%d] = %q, want %q", i, m.Skills[i], want)
 		}
+	}
+
+	// Should find 2 unique agents (legacy-agent, root-agent) sorted, no duplicates
+	if len(m.Agents) != 2 {
+		t.Fatalf("expected 2 agents, got %d: %v", len(m.Agents), m.Agents)
+	}
+	if m.Agents[0] != "legacy-agent" || m.Agents[1] != "root-agent" {
+		t.Errorf("agents = %v, want [legacy-agent, root-agent]", m.Agents)
+	}
+
+	// Should find 2 unique instructions (go, kotlin) sorted
+	if len(m.Instructions) != 2 {
+		t.Fatalf("expected 2 instructions, got %d: %v", len(m.Instructions), m.Instructions)
+	}
+	if m.Instructions[0] != "go" || m.Instructions[1] != "kotlin" {
+		t.Errorf("instructions = %v, want [go, kotlin]", m.Instructions)
 	}
 }
 

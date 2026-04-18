@@ -55,10 +55,10 @@ func installSingleFile(sourceDir string, scope *InstallScope, dir, extension, la
 		return false, fmt.Errorf("invalid %s name: %w", strings.ToLower(label), err)
 	}
 	fileName := name + extension
-	srcFile := filepath.Join(sourceDir, ".github", dir, fileName)
+	srcFile, found := resolveArtifactFile(sourceDir, dir, fileName)
 	dstFile := scope.DstPath(dir, fileName)
 
-	if _, err := os.Stat(srcFile); os.IsNotExist(err) {
+	if !found {
 		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), label, name)
 		result.Skipped++
 		return false, nil
@@ -101,9 +101,9 @@ func installAgent(sourceDir string, scope *InstallScope, name string, dryRun, fo
 
 	// Copy metadata if the scope supports it
 	if scope.ShouldInstallMetadata() {
-		srcMeta := filepath.Join(sourceDir, ".github", "agents", name+".metadata.json")
+		srcMeta, hasMeta := resolveArtifactFile(sourceDir, "agents", name+".metadata.json")
 		dstMeta := scope.DstPath("agents", name+".metadata.json")
-		if _, err := os.Stat(srcMeta); err == nil {
+		if hasMeta {
 			if err := copyFile(srcMeta, dstMeta, scope.RootDir); err != nil {
 				return fmt.Errorf("copying agent metadata %s: %w", name, err)
 			}
@@ -179,14 +179,18 @@ func installPrompt(sourceDir string, scope *InstallScope, name string, dryRun, f
 	if err := validateName(name); err != nil {
 		return fmt.Errorf("invalid prompt name: %w", err)
 	}
-	srcDir := filepath.Join(sourceDir, ".github", "prompts", name)
-	srcFile := filepath.Join(sourceDir, ".github", "prompts", name+".prompt.md")
 
-	// Try directory first, then flat file
-	if info, err := os.Stat(srcDir); err == nil && info.IsDir() {
+	src, isDir, found := resolvePrompt(sourceDir, name)
+	if !found {
+		fmt.Printf("  %s Prompt not found: %s\n", yellow("⚠"), name)
+		result.Skipped++
+		return nil
+	}
+
+	if isDir {
 		dstDir := scope.DstPath("prompts", name)
 
-		if c, err := checkConflict(dstDir, srcDir, true); err != nil {
+		if c, err := checkConflict(dstDir, src, true); err != nil {
 			return err
 		} else if c != nil && !force {
 			fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
@@ -201,7 +205,7 @@ func installPrompt(sourceDir string, scope *InstallScope, name string, dryRun, f
 			return nil
 		}
 
-		if err := copyDir(srcDir, dstDir, scope.RootDir); err != nil {
+		if err := copyDir(src, dstDir, scope.RootDir); err != nil {
 			return fmt.Errorf("copying prompt dir %s: %w", name, err)
 		}
 		hash, err := dirHash(dstDir)
@@ -217,13 +221,7 @@ func installPrompt(sourceDir string, scope *InstallScope, name string, dryRun, f
 	// Flat file
 	dstFile := scope.DstPath("prompts", name+".prompt.md")
 
-	if _, err := os.Stat(srcFile); os.IsNotExist(err) {
-		fmt.Printf("  %s Prompt not found: %s\n", yellow("⚠"), name)
-		result.Skipped++
-		return nil
-	}
-
-	if c, err := checkConflict(dstFile, srcFile, false); err != nil {
+	if c, err := checkConflict(dstFile, src, false); err != nil {
 		return err
 	} else if c != nil && !force {
 		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
@@ -238,7 +236,7 @@ func installPrompt(sourceDir string, scope *InstallScope, name string, dryRun, f
 		return nil
 	}
 
-	if err := copyFile(srcFile, dstFile, scope.RootDir); err != nil {
+	if err := copyFile(src, dstFile, scope.RootDir); err != nil {
 		return fmt.Errorf("copying prompt %s: %w", name, err)
 	}
 	hash, err := fileHash(dstFile)
@@ -318,14 +316,11 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 
 // listAvailableItems prints all agents, skills, instructions, and prompts in the source.
 func listAvailableItems(sourceDir string) error {
-	ghDir := filepath.Join(sourceDir, ".github")
-
-	// Agents
-	if entries, err := filepath.Glob(filepath.Join(ghDir, "agents", "*.agent.md")); err == nil && len(entries) > 0 {
+	// Agents — scan both root-level and .github/
+	if agents := scanArtifactFiles(sourceDir, "agents", ".agent.md"); len(agents) > 0 {
 		fmt.Println(bold("Available agents:"))
-		for _, e := range entries {
-			name := strings.TrimSuffix(filepath.Base(e), ".agent.md")
-			fmt.Printf("  %-30s %s\n", name, dim("nav-pilot add agent "+name))
+		for _, a := range agents {
+			fmt.Printf("  %-30s %s\n", a.Name, dim("nav-pilot add agent "+a.Name))
 		}
 		fmt.Println()
 	}
@@ -339,38 +334,20 @@ func listAvailableItems(sourceDir string) error {
 		fmt.Println()
 	}
 
-	// Instructions
-	if entries, err := filepath.Glob(filepath.Join(ghDir, "instructions", "*.instructions.md")); err == nil && len(entries) > 0 {
+	// Instructions — scan both root-level and .github/
+	if instrs := scanArtifactFiles(sourceDir, "instructions", ".instructions.md"); len(instrs) > 0 {
 		fmt.Println(bold("Available instructions:"))
-		for _, e := range entries {
-			name := strings.TrimSuffix(filepath.Base(e), ".instructions.md")
-			fmt.Printf("  %-30s %s\n", name, dim("nav-pilot add instruction "+name))
+		for _, i := range instrs {
+			fmt.Printf("  %-30s %s\n", i.Name, dim("nav-pilot add instruction "+i.Name))
 		}
 		fmt.Println()
 	}
 
-	// Prompts — both flat files and directories
-	promptsDir := filepath.Join(ghDir, "prompts")
-	promptSeen := make(map[string]bool)
-	// Scan directories first
-	if entries, err := os.ReadDir(promptsDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				promptSeen[e.Name()] = true
-			}
-		}
-	}
-	// Scan flat files, skip if directory version exists
-	if entries, err := filepath.Glob(filepath.Join(promptsDir, "*.prompt.md")); err == nil {
-		for _, e := range entries {
-			name := strings.TrimSuffix(filepath.Base(e), ".prompt.md")
-			promptSeen[name] = true
-		}
-	}
-	if len(promptSeen) > 0 {
+	// Prompts — scan both root-level and .github/
+	if prompts := scanPromptEntries(sourceDir); len(prompts) > 0 {
 		fmt.Println(bold("Available prompts:"))
-		for name := range promptSeen {
-			fmt.Printf("  %-30s %s\n", name, dim("nav-pilot add prompt "+name))
+		for _, p := range prompts {
+			fmt.Printf("  %-30s %s\n", p.Name, dim("nav-pilot add prompt "+p.Name))
 		}
 		fmt.Println()
 	}
@@ -380,39 +357,19 @@ func listAvailableItems(sourceDir string) error {
 
 // collectAvailableItems returns all available items as a structured map for JSON output.
 func collectAvailableItems(sourceDir string) map[string][]string {
-	ghDir := filepath.Join(sourceDir, ".github")
 	result := make(map[string][]string)
 
-	if entries, err := filepath.Glob(filepath.Join(ghDir, "agents", "*.agent.md")); err == nil {
-		for _, e := range entries {
-			result["agents"] = append(result["agents"], strings.TrimSuffix(filepath.Base(e), ".agent.md"))
-		}
+	for _, a := range scanArtifactFiles(sourceDir, "agents", ".agent.md") {
+		result["agents"] = append(result["agents"], a.Name)
 	}
-	// Skills — scan both root-level and .github/skills/
 	for _, s := range scanSkillDirs(sourceDir) {
 		result["skills"] = append(result["skills"], s.Name)
 	}
-	if entries, err := filepath.Glob(filepath.Join(ghDir, "instructions", "*.instructions.md")); err == nil {
-		for _, e := range entries {
-			result["instructions"] = append(result["instructions"], strings.TrimSuffix(filepath.Base(e), ".instructions.md"))
-		}
+	for _, i := range scanArtifactFiles(sourceDir, "instructions", ".instructions.md") {
+		result["instructions"] = append(result["instructions"], i.Name)
 	}
-	promptsDir := filepath.Join(ghDir, "prompts")
-	promptSeen := make(map[string]bool)
-	if entries, err := os.ReadDir(promptsDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				promptSeen[e.Name()] = true
-			}
-		}
-	}
-	if entries, err := filepath.Glob(filepath.Join(promptsDir, "*.prompt.md")); err == nil {
-		for _, e := range entries {
-			promptSeen[strings.TrimSuffix(filepath.Base(e), ".prompt.md")] = true
-		}
-	}
-	for name := range promptSeen {
-		result["prompts"] = append(result["prompts"], name)
+	for _, p := range scanPromptEntries(sourceDir) {
+		result["prompts"] = append(result["prompts"], p.Name)
 	}
 	return result
 }

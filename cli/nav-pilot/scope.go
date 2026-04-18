@@ -93,10 +93,134 @@ func (s *InstallScope) needsGitHubPrefix(parts []string) bool {
 
 // SourcePath returns the path to read from in the source repo.
 //
-// Deprecated: only valid for agents, instructions, and prompts (always under .github/).
-// For skills, use resolveSkillDir which handles root-level vs legacy locations.
+// Deprecated: use resolveArtifactFile or resolveSkillDir instead.
+// Those handle root-level vs .github/ resolution for all artifact types.
 func (s *InstallScope) SourcePath(sourceDir string, parts ...string) string {
 	return filepath.Join(append([]string{sourceDir, ".github"}, parts...)...)
+}
+
+// ─── Artifact resolution (root-level vs .github/) ──────────────────────────
+//
+// Distribution artifacts may live at root level (matching github/awesome-copilot
+// convention) or under .github/ (legacy). Root wins when present.
+//
+// Skills are special: a directory must contain SKILL.md to be valid.
+// Other types check file/directory existence directly.
+
+// resolveArtifactFile finds a file at root/<typeDir>/ or .github/<typeDir>/.
+// Root location wins. Returns the absolute path and true if found.
+// Used for agents (*.agent.md, *.metadata.json) and instructions (*.instructions.md).
+func resolveArtifactFile(sourceDir, typeDir, fileName string) (string, bool) {
+	root := filepath.Join(sourceDir, typeDir, fileName)
+	if _, err := os.Stat(root); err == nil {
+		return root, true
+	}
+	legacy := filepath.Join(sourceDir, ".github", typeDir, fileName)
+	if _, err := os.Stat(legacy); err == nil {
+		return legacy, true
+	}
+	return "", false
+}
+
+// resolveArtifactRel returns the source-relative path for a file.
+// Checks root/<typeDir>/<fileName> first, falls back to .github/<typeDir>/<fileName>.
+func resolveArtifactRel(sourceDir, typeDir, fileName string) (string, bool) {
+	if _, err := os.Stat(filepath.Join(sourceDir, typeDir, fileName)); err == nil {
+		return filepath.Join(typeDir, fileName), true
+	}
+	if _, err := os.Stat(filepath.Join(sourceDir, ".github", typeDir, fileName)); err == nil {
+		return filepath.Join(".github", typeDir, fileName), true
+	}
+	return "", false
+}
+
+// scanArtifactFiles discovers files matching a suffix across root and .github locations.
+// Root wins on name collision. Results sorted by name.
+func scanArtifactFiles(sourceDir, typeDir, suffix string) []artifactEntry {
+	seen := make(map[string]bool)
+	var entries []artifactEntry
+
+	for _, base := range []string{
+		filepath.Join(sourceDir, typeDir),
+		filepath.Join(sourceDir, ".github", typeDir),
+	} {
+		files, err := filepath.Glob(filepath.Join(base, "*"+suffix))
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			name := strings.TrimSuffix(filepath.Base(f), suffix)
+			if seen[name] {
+				continue
+			}
+			if validateName(name) == nil {
+				entries = append(entries, artifactEntry{Name: name, Path: f})
+				seen[name] = true
+			}
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
+	return entries
+}
+
+// resolvePrompt finds a prompt at root or .github/ location.
+// Precedence: root dir > root file > legacy dir > legacy file.
+// Returns absolute path, whether it's a directory, and whether it was found.
+func resolvePrompt(sourceDir, name string) (string, bool, bool) {
+	for _, base := range []string{sourceDir, filepath.Join(sourceDir, ".github")} {
+		dir := filepath.Join(base, "prompts", name)
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			return dir, true, true
+		}
+		file := filepath.Join(base, "prompts", name+".prompt.md")
+		if _, err := os.Stat(file); err == nil {
+			return file, false, true
+		}
+	}
+	return "", false, false
+}
+
+// scanPromptEntries discovers all prompts across root and .github locations.
+// Root wins on name collision. Directories take precedence over files.
+func scanPromptEntries(sourceDir string) []artifactEntry {
+	seen := make(map[string]bool)
+	var entries []artifactEntry
+
+	for _, base := range []string{
+		filepath.Join(sourceDir, "prompts"),
+		filepath.Join(sourceDir, ".github", "prompts"),
+	} {
+		items, err := os.ReadDir(base)
+		if err != nil {
+			continue
+		}
+		for _, item := range items {
+			var name string
+			isDir := item.IsDir()
+			if isDir {
+				name = item.Name()
+			} else if strings.HasSuffix(item.Name(), ".prompt.md") {
+				name = strings.TrimSuffix(item.Name(), ".prompt.md")
+			} else {
+				continue
+			}
+			if seen[name] {
+				continue
+			}
+			entries = append(entries, artifactEntry{Name: name, Path: filepath.Join(base, item.Name()), IsDir: isDir})
+			seen[name] = true
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
+	return entries
+}
+
+type artifactEntry struct {
+	Name  string
+	Path  string
+	IsDir bool
 }
 
 // resolveSkillDir returns the absolute path to a skill directory in the source repo.
@@ -167,17 +291,19 @@ type skillEntry struct {
 }
 
 // resolveSourcePath maps a local/state path to the corresponding source repo path.
-// Skills may live at root level (new convention for gh skill auto-discovery) or
-// under .github/ (legacy). This function probes the filesystem per-path.
+// Artifacts may live at root level (new convention matching github/awesome-copilot)
+// or under .github/ (legacy). This function probes the filesystem per-path.
 //
 // For skills, validates that the resolved location contains SKILL.md.
+// For other types, checks file/directory existence directly.
 //
 // Mapping rules:
 //
+//	Repo scope: ".github/agents/x" → "agents/x" if root-level exists, else unchanged
 //	Repo scope: ".github/skills/x/" → "skills/x/" if root-level has SKILL.md, else unchanged
 //	User scope: "skills/x/" → "skills/x/" if root-level has SKILL.md, else ".github/skills/x/"
-//	User scope: "agents/x" → ".github/agents/x" (always, agents stay in .github/)
-//	User scope: ".github/instructions/x" → unchanged (already has prefix)
+//	User scope: "agents/x" → "agents/x" if root-level exists, else ".github/agents/x"
+//	User scope: ".github/instructions/x" → "instructions/x" if root exists, else unchanged
 func resolveSourcePath(sourceDir, localPath string, isUserScope bool) string {
 	sp := localPath
 
@@ -185,12 +311,18 @@ func resolveSourcePath(sourceDir, localPath string, isUserScope bool) string {
 		// User scope: local path has no .github/ prefix.
 		// For skills, resolve via resolveSkillRel for SKILL.md validation.
 		if strings.HasPrefix(sp, "skills/") {
-			// Extract skill name from "skills/<name>/" or "skills/<name>"
 			trimmed := strings.TrimSuffix(strings.TrimPrefix(sp, "skills/"), "/")
 			if rel, ok := resolveSkillRel(sourceDir, trimmed); ok {
 				if strings.HasSuffix(sp, "/") {
 					return rel + "/"
 				}
+				return rel
+			}
+		}
+		// For agents: check root-level first
+		if strings.HasPrefix(sp, "agents/") {
+			fileName := strings.TrimPrefix(sp, "agents/")
+			if rel, ok := resolveArtifactRel(sourceDir, "agents", fileName); ok {
 				return rel
 			}
 		}
@@ -203,16 +335,34 @@ func resolveSourcePath(sourceDir, localPath string, isUserScope bool) string {
 		return result
 	}
 
-	// Repo scope: .github/skills/x/ may now live at root skills/x/
-	if !isUserScope && strings.HasPrefix(sp, ".github/skills/") {
-		// Extract skill name from ".github/skills/<name>/" or ".github/skills/<name>"
-		rest := strings.TrimPrefix(sp, ".github/skills/")
-		trimmed := strings.TrimSuffix(rest, "/")
-		if rel, ok := resolveSkillRel(sourceDir, trimmed); ok {
-			if strings.HasSuffix(sp, "/") {
-				return rel + "/"
+	// Paths with .github/ prefix: check if root-level exists (both scopes)
+	if strings.HasPrefix(sp, ".github/") {
+		rest := strings.TrimPrefix(sp, ".github/")
+		hasSuffix := strings.HasSuffix(sp, "/")
+
+		// Skills: validate SKILL.md exists
+		if strings.HasPrefix(rest, "skills/") {
+			trimmed := strings.TrimSuffix(strings.TrimPrefix(rest, "skills/"), "/")
+			if rel, ok := resolveSkillRel(sourceDir, trimmed); ok {
+				if hasSuffix {
+					return rel + "/"
+				}
+				return rel
 			}
-			return rel
+		}
+
+		// Agents, instructions, prompts: check root-level existence
+		for _, typeDir := range []string{"agents", "instructions", "prompts"} {
+			if strings.HasPrefix(rest, typeDir+"/") {
+				fileName := strings.TrimPrefix(rest, typeDir+"/")
+				if rel, ok := resolveArtifactRel(sourceDir, typeDir, fileName); ok {
+					if hasSuffix && !strings.HasSuffix(rel, "/") {
+						return rel + "/"
+					}
+					return rel
+				}
+				break
+			}
 		}
 	}
 

@@ -289,8 +289,9 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 		}
 	}
 	for _, instr := range allItems.Instructions {
-		path := ".github/instructions/" + instr + ".instructions.md"
-		if !installed[path] {
+		path := "instructions/" + instr + ".instructions.md"
+		legacyPath := ".github/instructions/" + instr + ".instructions.md"
+		if !installed[path] && !installed[legacyPath] {
 			newItems = append(newItems, "instruction: "+instr)
 		}
 	}
@@ -298,15 +299,19 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 }
 
 // autoDetectSyncFiles finds customization files in the target that also exist in source.
+// Target files are always under .github/. Source may be at root or .github/.
 func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error) {
-	patterns := []struct {
-		glob  string
-		isDir bool
-	}{
-		{".github/agents/*.agent.md", false},
-		{".github/agents/*.metadata.json", false},
-		{".github/instructions/*.instructions.md", false},
-		{".github/prompts/*.prompt.md", false},
+	type scanPattern struct {
+		glob    string
+		typeDir string
+		suffix  string
+		isDir   bool
+	}
+	patterns := []scanPattern{
+		{".github/agents/*.agent.md", "agents", ".agent.md", false},
+		{".github/agents/*.metadata.json", "agents", ".metadata.json", false},
+		{".github/instructions/*.instructions.md", "instructions", ".instructions.md", false},
+		{".github/prompts/*.prompt.md", "prompts", ".prompt.md", false},
 	}
 
 	var files []syncFile
@@ -322,13 +327,14 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 			if seen[rel] {
 				continue
 			}
-			// Only include if source also has this file
-			sourcePath := filepath.Join(sourceDir, rel)
-			if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+			// Resolve source: check root-level first, then .github/
+			fileName := filepath.Base(m)
+			srcRel, ok := resolveArtifactRel(sourceDir, p.typeDir, fileName)
+			if !ok {
 				continue
 			}
 			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: rel, isDir: p.isDir})
+			files = append(files, syncFile{localPath: rel, sourcePath: srcRel, isDir: p.isDir})
 		}
 	}
 
@@ -364,12 +370,17 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 			if seen[rel] {
 				continue
 			}
-			sourcePrompt := filepath.Join(sourceDir, ".github", "prompts", e.Name())
-			if _, err := os.Stat(sourcePrompt); os.IsNotExist(err) {
+			// Resolve source: check root-level first, then .github/
+			_, isDir, ok := resolvePrompt(sourceDir, e.Name())
+			if !ok || !isDir {
 				continue
 			}
+			srcRel := filepath.Join("prompts", e.Name()) + "/"
+			if _, err := os.Stat(filepath.Join(sourceDir, "prompts", e.Name())); os.IsNotExist(err) {
+				srcRel = filepath.Join(".github", "prompts", e.Name()) + "/"
+			}
 			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: rel, isDir: true})
+			files = append(files, syncFile{localPath: rel, sourcePath: srcRel, isDir: true})
 		}
 	}
 
