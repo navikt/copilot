@@ -80,6 +80,7 @@ const DOC_SECTIONS: TocItem[] = [
     children: [
       { id: "automatisk-sync", label: "Automatisk sync" },
       { id: "lokal-sync", label: "Lokal sync" },
+      { id: "tilpasse-sync", label: "Tilpasse synkronisering" },
       { id: "sync-faq", label: "FAQ" },
     ],
   },
@@ -129,6 +130,20 @@ const COLLECTIONS = [
       instructions:
         "kotlin-ktor, kotlin-spring, security-owasp, testing, testing-kotlin, github-actions, docker, database",
       prompts: "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest",
+    },
+  },
+  {
+    name: "frontend",
+    description: "Rammeverk-uavhengig frontend (Astro, Remix, Vite …)",
+    agents: 4,
+    skills: 7,
+    bestFor: "Frontends som ikke bruker Next.js",
+    details: {
+      agents: "accessibility, aksel, forfatter, nav-pilot",
+      skills:
+        "aksel-spacing, playwright-testing, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+      instructions: "testing, testing-typescript, accessibility, github-actions, docker",
+      prompts: "aksel-component, nais-manifest",
     },
   },
   {
@@ -243,7 +258,10 @@ const CLI_COMMANDS = [
   { command: "nav-pilot sync", description: "Sjekk om oppdateringer finnes (exit 1 hvis ja)" },
   { command: "nav-pilot sync --apply", description: "Oppdater filer direkte" },
   { command: "nav-pilot sync --json", description: "Maskinlesbar JSON-output" },
-  { command: "<command> --json", description: "Globalt flagg: JSON-output på alle kommandoer (install, add, status, sync, list, export)" },
+  {
+    command: "<command> --json",
+    description: "Globalt flagg: JSON-output på alle kommandoer (install, add, status, sync, list, export)",
+  },
   { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
   { command: "nav-pilot update", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   { command: "nav-pilot feedback", description: "Rapporter feil — åpner GitHub issue med diagnostikk" },
@@ -1072,6 +1090,39 @@ jobs:
           </BodyShort>
         </div>
 
+        {/* Tilpasse synkronisering */}
+        <div id="tilpasse-sync">
+          <div className="flex items-center gap-2 mb-2">
+            <WrenchIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
+            <Heading size="xsmall" level="3">
+              Tilpasse synkronisering
+            </Heading>
+          </div>
+          <BodyShort size="small" className="mb-3" style={{ color: "#475569" }}>
+            Trenger du å fjerne rammeverk-spesifikke filer (f.eks. Next.js-instruksjoner i et Astro-prosjekt)?
+            Opprett <code className="font-mono text-xs">.github/copilot-sync.json</code> med overrides:
+          </BodyShort>
+          <CodeBlock compact>
+            {`{
+  "overrides": {
+    ".github/instructions/nextjs-aksel.instructions.md": { "action": "delete" },
+    ".github/instructions/performance.instructions.md": { "action": "delete" },
+    ".github/prompts/nextjs-api-route.prompt.md": { "action": "delete" }
+  }
+}`}
+          </CodeBlock>
+          <BodyShort size="small" className="mt-3" style={{ color: "#475569" }}>
+            Filer med <code className="font-mono text-xs">{`"action": "delete"`}</code> blir fjernet ved neste sync
+            og ikke lagt til igjen. Alternativt kan du installere{" "}
+            <code className="font-mono text-xs">frontend</code>-collectionet som allerede utelater
+            Next.js-spesifikke filer.
+          </BodyShort>
+          <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
+            Sletter du en fil manuelt uten override, markeres den som «ignorert» og gjenopprettes ikke av sync.
+            Legg den til igjen med <code className="font-mono text-xs">nav-pilot add</code> hvis du ombestemmer deg.
+          </BodyShort>
+        </div>
+
         {/* FAQ */}
         <div id="sync-faq">
           <LinkableHeading size="small" level="3">
@@ -1094,6 +1145,14 @@ jobs:
               {
                 q: "Hvordan er dette forskjellig fra Dependabot?",
                 a: "Samme konsept — automatiske oppdaterings-PR-er — men for Copilot-tilpasningsfiler. Sammenligner SHA-256-hasher i stedet for semantisk versjonering.",
+              },
+              {
+                q: "Hva om jeg sletter en fil manuelt?",
+                a: "Filen markeres som «ignorert» og legges ikke tilbake ved neste sync. Vil du ha den tilbake, kjør nav-pilot add <type> <name>.",
+              },
+              {
+                q: "Kan jeg fjerne filer som ikke passer mitt rammeverk?",
+                a: "Ja. Opprett .github/copilot-sync.json med overrides, eller installer frontend-collectionet som allerede utelater Next.js-spesifikke filer.",
               },
             ].map((faq) => (
               <div
