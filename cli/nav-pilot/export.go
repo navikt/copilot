@@ -183,11 +183,9 @@ func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
 	}
 
 	if count > 0 {
-		label := "Skills"
 		if dryRun {
-			label = dim(label)
+			fmt.Fprintf(os.Stderr, "")
 		}
-		fmt.Fprintf(os.Stderr, "")
 	}
 	return count, nil
 }

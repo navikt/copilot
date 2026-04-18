@@ -121,8 +121,7 @@ func stripFrontmatterKeys(fm []byte, keys []string) []byte {
 		if len(trimmed) > 0 && trimmed[0] != ' ' && trimmed[0] != '\t' {
 			colonIdx := bytes.IndexByte(trimmed, ':')
 			if colonIdx > 0 {
-				key := string(trimmed[:colonIdx])
-				if keySet[key] {
+				if keySet[string(trimmed[:colonIdx])] {
 					skipping = true
 					continue
 				}
