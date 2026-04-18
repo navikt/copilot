@@ -9,6 +9,7 @@ Collections are curated bundles of agents, skills, instructions, and prompts org
 | Collection | Description | Agents | Skills | Best for |
 | --- | --- | --- | --- | --- |
 | **kotlin-backend** | Kotlin/Ktor and Spring Boot on Nais | 6 | 10 | Backend API and event consumers |
+| **frontend** | Framework-agnostic frontend (Aksel, UU) | 4 | 7 | Astro, Remix, Vite and other non-Next.js frontends |
 | **nextjs-frontend** | Next.js with Aksel Design System | 4 | 7 | Innbygger- og saksbehandler-frontends |
 | **fullstack** | Complete stack (backend + frontend) | 10 | 13 | Teams that own the full stack |
 | **platform** | Nais, observability, security | 4 | 7 | Platform and DevOps teams |
@@ -19,6 +20,8 @@ Collections are curated bundles of agents, skills, instructions, and prompts org
 .github/collections/
 ├── kotlin-backend/
 │   └── manifest.json       # Lists all agents, skills, instructions, prompts
+├── frontend/
+│   └── manifest.json       # Framework-agnostic (Aksel, UU, testing)
 ├── nextjs-frontend/
 │   └── manifest.json
 ├── fullstack/

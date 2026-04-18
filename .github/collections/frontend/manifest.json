@@ -1,0 +1,31 @@
+{
+  "name": "frontend",
+  "description": "Rammeverk-uavhengig frontend-pakke med Aksel, UU og Nav-mønstre — passer Astro, Remix, Vite og andre",
+  "version": "2025.07",
+  "agents": [
+    "accessibility",
+    "aksel",
+    "forfatter",
+    "nav-pilot"
+  ],
+  "skills": [
+    "aksel-spacing",
+    "playwright-testing",
+    "web-design-reviewer",
+    "nav-plan",
+    "nav-deep-interview",
+    "nav-architecture-review",
+    "nav-troubleshoot"
+  ],
+  "instructions": [
+    "testing",
+    "testing-typescript",
+    "accessibility",
+    "github-actions",
+    "docker"
+  ],
+  "prompts": [
+    "aksel-component",
+    "nais-manifest"
+  ]
+}
