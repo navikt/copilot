@@ -60,17 +60,9 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	}
 
 	// Dispatch to the appropriate installer
-	var installErr error
-	switch itemType {
-	case "agent":
-		installErr = installAgent(src.Dir, scope, name, dryRun, force, result)
-	case "skill":
-		installErr = installSkill(src.Dir, scope, name, dryRun, force, result)
-	case "instruction":
-		installErr = installInstruction(src.Dir, scope, name, dryRun, force, result)
-	case "prompt":
-		installErr = installPrompt(src.Dir, scope, name, dryRun, force, result)
-	}
+	kind := kindByName[itemType]
+	resolver := NewSourceResolver(src.Dir)
+	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr
 	}

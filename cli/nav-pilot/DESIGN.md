@@ -79,33 +79,43 @@ Alle artefakttyper (skills, agents, instructions, prompts) kan ligge på to sted
 
 **Root vinner når den finnes.** For skills valideres at `SKILL.md` finnes. For andre typer sjekkes fileksistens direkte.
 
-### Hjelpefunksjoner (scope.go)
+### SourceResolver (resolver.go)
 
-Alle steder som slår opp artefakter i kilderepoet bruker disse — ikke bygg stier manuelt:
+All artifact resolution is centralized in `SourceResolver`. Never build source paths manually.
 
-**Skills** (dir med SKILL.md):
 ```go
-resolveSkillDir(sourceDir, name)   // → (absPath, ok) — sjekker root → legacy, validerer SKILL.md
-resolveSkillRel(sourceDir, name)   // → (relPath, ok) — returnerer "skills/x" eller ".github/skills/x"
-scanSkillDirs(sourceDir)           // → []skillEntry  — alle gyldige skills, dedup, sortert
+resolver := NewSourceResolver(sourceDir)
 ```
 
-**Agents og Instructions** (enkeltfiler):
+**Types:**
 ```go
-resolveArtifactFile(sourceDir, typeDir, fileName)  // → (absPath, ok) — sjekker root → legacy
-resolveArtifactRel(sourceDir, typeDir, fileName)   // → (relPath, ok) — returnerer "agents/x" eller ".github/agents/x"
-scanArtifactFiles(sourceDir, typeDir, suffix)       // → []artifactEntry — alle filer, dedup, sortert
+// ArtifactKind describes the shape and naming of one artifact type.
+var KindAgent       = &ArtifactKind{Name: "agent",       Dir: "agents",       Suffix: ".agent.md",        Sidecars: []string{".metadata.json"}}
+var KindSkill       = &ArtifactKind{Name: "skill",       Dir: "skills",       IsDir: true, Marker: "SKILL.md"}
+var KindInstruction = &ArtifactKind{Name: "instruction",  Dir: "instructions", Suffix: ".instructions.md"}
+var KindPrompt      = &ArtifactKind{Name: "prompt",       Dir: "prompts",      Suffix: ".prompt.md", CanBeDir: true}
+
+// Resolved holds the result of resolving a single artifact.
+type Resolved struct {
+    Kind    *ArtifactKind
+    Name    string   // e.g. "nais" or "api-design"
+    AbsPath string   // full filesystem path
+    RelPath string   // relative to source root
+    IsDir   bool     // actual shape on disk
+}
 ```
 
-**Prompts** (dir eller fil, spesiell presedenslogikk):
+**Methods:**
 ```go
-resolvePrompt(sourceDir, name)     // → (absPath, isDir, ok) — root dir > root fil > legacy dir > legacy fil
-scanPromptEntries(sourceDir)       // → []artifactEntry — dirs og filer, dedup, sortert
+resolver.Get(kind, name)                          // → (Resolved, bool) — resolve one artifact by name
+resolver.GetFile(typeDir, fileName)               // → (absPath, relPath, bool) — resolve a specific file (sidecars, sync)
+resolver.List(kind)                               // → []Resolved — discover all artifacts, sorted, deduped
+resolver.MapLocalPath(localPath, isUserScope)     // → string — map installed path back to source path
 ```
 
-**Generisk sti-mapping** (sync/state):
+**Generic install:**
 ```go
-resolveSourcePath(sourceDir, localPath, isUserScope)  // → string — mapper lokal/state-sti til kildesti
+installArtifact(resolver, scope, kind, name, dryRun, force, result)  // replaces 5 old install functions
 ```
 
 ### Oppløsningsrekkefølge
@@ -135,25 +145,22 @@ resolveSourcePath(sourceDir, localPath, isUserScope)  // → string — mapper l
 
 ### Hvem bruker hva
 
-| Funksjon | Hjelpefunksjon | Fil |
+| Funksjon | Resolver-metode | Fil |
 |---|---|---|
-| `installSkill()` | `resolveSkillDir` | install.go |
-| `installSingleFile()` | `resolveArtifactFile` | install.go |
-| `installAgent()` metadata | `resolveArtifactFile` | install.go |
-| `installPrompt()` | `resolvePrompt` | install.go |
-| `listAvailableItems()` | `scanSkillDirs`, `scanArtifactFiles`, `scanPromptEntries` | install.go |
-| `collectAvailableItems()` | `scanSkillDirs`, `scanArtifactFiles`, `scanPromptEntries` | install.go |
-| `collectAllItems()` | `scanSkillDirs`, `scanArtifactFiles` | manifest.go |
-| `exportSkills()` | `scanSkillDirs` | export.go |
-| `exportAgents()` | `scanArtifactFiles` | export.go |
-| `exportInstructions()` | `scanArtifactFiles` | export.go |
-| `exportPrompts()` | `scanPromptEntries` | export.go |
-| `autoDetectSyncFiles()` | `resolveArtifactRel`, `resolveSkillRel`, `resolvePrompt` | sync.go |
-| `resolveSourcePath()` | `resolveSkillRel`, `resolveArtifactRel` | scope.go |
+| `installArtifact()` | `Get`, `GetFile` (sidecars) | install.go |
+| `listAvailableItems()` | `List` (all kinds) | install.go |
+| `collectAvailableItems()` | `List` (all kinds) | install.go |
+| `collectAllItems()` | `List` (agents, skills, instructions) | manifest.go |
+| `exportSkills()` | `List(KindSkill)` | export.go |
+| `exportAgents()` | `List(KindAgent)` | export.go |
+| `exportInstructions()` | `List(KindInstruction)` | export.go |
+| `exportPrompts()` | `List(KindPrompt)` | export.go |
+| `autoDetectSyncFiles()` | `GetFile`, `Get` | sync.go |
+| `resolveSyncFiles()` | `MapLocalPath` | sync.go |
 
 ### Mål- vs. kildestier
 
-**Kilde** (navikt/copilot): `<type>/` eller `.github/<type>/` — oppløses av hjelpefunksjonene over.
+**Kilde** (navikt/copilot): `<type>/` eller `.github/<type>/` — oppløses av `SourceResolver`.
 
 **Mål** (brukerens repo): Alltid `.github/<type>/` (repo scope) eller `~/.copilot/<type>/` (user scope). Målstier endres **aldri**.
 

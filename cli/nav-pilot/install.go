@@ -16,29 +16,29 @@ type installResult struct {
 }
 
 func installItems(sourceDir string, scope *InstallScope, manifest *Manifest, dryRun, force bool) (*installResult, error) {
+	resolver := NewSourceResolver(sourceDir)
 	result := &installResult{}
 
 	for _, group := range []struct {
-		label   string
-		names   []string
-		itemType string
-		install func(string, *InstallScope, string, bool, bool, *installResult) error
+		label string
+		names []string
+		kind  *ArtifactKind
 	}{
-		{"Agents", manifest.Agents, "agent", installAgent},
-		{"Skills", manifest.Skills, "skill", installSkill},
-		{"Instructions", manifest.Instructions, "instruction", installInstruction},
-		{"Prompts", manifest.Prompts, "prompt", installPrompt},
+		{"Agents", manifest.Agents, KindAgent},
+		{"Skills", manifest.Skills, KindSkill},
+		{"Instructions", manifest.Instructions, KindInstruction},
+		{"Prompts", manifest.Prompts, KindPrompt},
 	} {
 		if len(group.names) == 0 {
 			continue
 		}
-		if !scope.SupportsType(group.itemType) {
+		if !scope.SupportsType(group.kind.Name) {
 			result.Unsupported = append(result.Unsupported, fmt.Sprintf("%d %s", len(group.names), group.label))
 			continue
 		}
 		fmt.Println(bold(fmt.Sprintf("%s (%d):", group.label, len(group.names))))
 		for _, name := range group.names {
-			if err := group.install(sourceDir, scope, name, dryRun, force, result); err != nil {
+			if err := installArtifact(resolver, scope, group.kind, name, dryRun, force, result); err != nil {
 				return result, err
 			}
 		}
@@ -48,205 +48,92 @@ func installItems(sourceDir string, scope *InstallScope, manifest *Manifest, dry
 	return result, nil
 }
 
-// installSingleFile handles the common install pattern for single-file artifacts
-// (agents, instructions). Returns true if the file was actually written to disk.
-func installSingleFile(sourceDir string, scope *InstallScope, dir, extension, label, name string, dryRun, force bool, result *installResult) (bool, error) {
-	if err := validateName(name); err != nil {
-		return false, fmt.Errorf("invalid %s name: %w", strings.ToLower(label), err)
-	}
-	fileName := name + extension
-	srcFile, found := resolveArtifactFile(sourceDir, dir, fileName)
-	dstFile := scope.DstPath(dir, fileName)
-
-	if !found {
-		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), label, name)
-		result.Skipped++
-		return false, nil
-	}
-
-	if c, err := checkConflict(dstFile, srcFile, false); err != nil {
-		return false, err
-	} else if c != nil && !force {
-		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
-		result.Conflicts++
-		return false, nil
-	}
-
-	relPath := scope.RelPath(dir, fileName)
-	if dryRun {
-		fmt.Printf("  %s %s\n", dim("→"), relPath)
-		result.Installed++
-		return false, nil
-	}
-
-	if err := copyFile(srcFile, dstFile, scope.RootDir); err != nil {
-		return false, fmt.Errorf("copying %s %s: %w", strings.ToLower(label), name, err)
-	}
-	hash, err := fileHash(dstFile)
-	if err != nil {
-		return false, fmt.Errorf("hashing installed %s %s: %w", strings.ToLower(label), name, err)
-	}
-	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
-
-	fmt.Printf("  %s %s\n", green("✓"), name)
-	result.Installed++
-	return true, nil
+// installArtifact handles the install for any artifact type.
+// Resolution, copy, hash, and sidecar logic are driven by the ArtifactKind.
+func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *ArtifactKind, name string, dryRun, force bool, result *installResult) error {
+if err := validateName(name); err != nil {
+return fmt.Errorf("invalid %s name: %w", kind.Name, err)
 }
 
-func installAgent(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
-	written, err := installSingleFile(sourceDir, scope, "agents", ".agent.md", "Agent", name, dryRun, force, result)
-	if err != nil || !written {
-		return err
-	}
-
-	// Copy metadata if the scope supports it
-	if scope.ShouldInstallMetadata() {
-		srcMeta, hasMeta := resolveArtifactFile(sourceDir, "agents", name+".metadata.json")
-		dstMeta := scope.DstPath("agents", name+".metadata.json")
-		if hasMeta {
-			if err := copyFile(srcMeta, dstMeta, scope.RootDir); err != nil {
-				return fmt.Errorf("copying agent metadata %s: %w", name, err)
-			}
-			metaRel := scope.RelPath("agents", name+".metadata.json")
-			metaHash, err := fileHash(dstMeta)
-			if err != nil {
-				return fmt.Errorf("hashing agent metadata %s: %w", name, err)
-			}
-			result.Files = append(result.Files, InstalledFile{Path: metaRel, Hash: metaHash})
-		}
-	}
-	return nil
+art, found := resolver.Get(kind, name)
+if !found {
+fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
+result.Skipped++
+return nil
 }
 
-func installSkill(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
-	if err := validateName(name); err != nil {
-		return fmt.Errorf("invalid skill name: %w", err)
-	}
-	// Skills may live at root level (gh skill convention) or under .github/skills/ (legacy).
-	srcDir, found := resolveSkillDir(sourceDir, name)
-	if !found {
-		srcDir = filepath.Join(sourceDir, ".github", "skills", name)
-	}
-	dstDir := scope.DstPath("skills", name)
-
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		fmt.Printf("  %s Skill not found: %s\n", yellow("⚠"), name)
-		result.Skipped++
-		return nil
-	}
-
-	if c, err := checkConflict(dstDir, srcDir, true); err != nil {
-		return err
-	} else if c != nil && !force {
-		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
-		result.Conflicts++
-		return nil
-	}
-
-	relPath := scope.RelPath("skills", name) + "/"
-	if dryRun {
-		refCount := countDirFiles(filepath.Join(srcDir, "references"))
-		extra := ""
-		if refCount > 0 {
-			extra = dim(fmt.Sprintf(" (%d reference file(s))", refCount))
-		}
-		fmt.Printf("  %s %s%s\n", dim("→"), relPath, extra)
-		result.Installed++
-		return nil
-	}
-
-	if err := copyDir(srcDir, dstDir, scope.RootDir); err != nil {
-		return fmt.Errorf("copying skill %s: %w", name, err)
-	}
-
-	hash, err := dirHash(dstDir)
-	if err != nil {
-		return fmt.Errorf("hashing installed skill %s: %w", name, err)
-	}
-	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
-
-	fmt.Printf("  %s %s\n", green("✓"), name)
-	result.Installed++
-	return nil
+dst := scope.DstPath(kind.Dir, art.FileName())
+relPath := scope.RelPath(kind.Dir, art.FileName())
+if art.IsDir {
+relPath += "/"
 }
 
-func installInstruction(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
-	_, err := installSingleFile(sourceDir, scope, "instructions", ".instructions.md", "Instruction", name, dryRun, force, result)
-	return err
+if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
+return err
+} else if c != nil && !force {
+fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
+result.Conflicts++
+return nil
 }
 
-func installPrompt(sourceDir string, scope *InstallScope, name string, dryRun, force bool, result *installResult) error {
-	if err := validateName(name); err != nil {
-		return fmt.Errorf("invalid prompt name: %w", err)
-	}
+if dryRun {
+extra := ""
+if kind.IsDir {
+refCount := countDirFiles(filepath.Join(art.AbsPath, "references"))
+if refCount > 0 {
+extra = dim(fmt.Sprintf(" (%d reference file(s))", refCount))
+}
+}
+fmt.Printf("  %s %s%s\n", dim("→"), relPath, extra)
+result.Installed++
+return nil
+}
 
-	src, isDir, found := resolvePrompt(sourceDir, name)
-	if !found {
-		fmt.Printf("  %s Prompt not found: %s\n", yellow("⚠"), name)
-		result.Skipped++
-		return nil
-	}
+if art.IsDir {
+if err := copyDir(art.AbsPath, dst, scope.RootDir); err != nil {
+return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
+}
+hash, err := dirHash(dst)
+if err != nil {
+return fmt.Errorf("hashing installed %s %s: %w", kind.Name, name, err)
+}
+result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
+} else {
+if err := copyFile(art.AbsPath, dst, scope.RootDir); err != nil {
+return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
+}
+hash, err := fileHash(dst)
+if err != nil {
+return fmt.Errorf("hashing installed %s %s: %w", kind.Name, name, err)
+}
+result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
+}
 
-	if isDir {
-		dstDir := scope.DstPath("prompts", name)
+fmt.Printf("  %s %s\n", green("✓"), name)
+result.Installed++
 
-		if c, err := checkConflict(dstDir, src, true); err != nil {
-			return err
-		} else if c != nil && !force {
-			fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
-			result.Conflicts++
-			return nil
-		}
+// Sidecars (e.g., agent metadata)
+if scope.ShouldInstallMetadata() {
+for _, sc := range kind.Sidecars {
+scFileName := name + sc
+scAbs, _, hasSidecar := resolver.GetFile(kind.Dir, scFileName)
+if !hasSidecar {
+continue
+}
+scDst := scope.DstPath(kind.Dir, scFileName)
+if err := copyFile(scAbs, scDst, scope.RootDir); err != nil {
+return fmt.Errorf("copying %s sidecar %s: %w", kind.Name, scFileName, err)
+}
+scRel := scope.RelPath(kind.Dir, scFileName)
+scHash, err := fileHash(scDst)
+if err != nil {
+return fmt.Errorf("hashing %s sidecar %s: %w", kind.Name, scFileName, err)
+}
+result.Files = append(result.Files, InstalledFile{Path: scRel, Hash: scHash})
+}
+}
 
-		relPath := scope.RelPath("prompts", name) + "/"
-		if dryRun {
-			fmt.Printf("  %s %s\n", dim("→"), relPath)
-			result.Installed++
-			return nil
-		}
-
-		if err := copyDir(src, dstDir, scope.RootDir); err != nil {
-			return fmt.Errorf("copying prompt dir %s: %w", name, err)
-		}
-		hash, err := dirHash(dstDir)
-		if err != nil {
-			return fmt.Errorf("hashing installed prompt %s: %w", name, err)
-		}
-		result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
-		fmt.Printf("  %s %s\n", green("✓"), name)
-		result.Installed++
-		return nil
-	}
-
-	// Flat file
-	dstFile := scope.DstPath("prompts", name+".prompt.md")
-
-	if c, err := checkConflict(dstFile, src, false); err != nil {
-		return err
-	} else if c != nil && !force {
-		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
-		result.Conflicts++
-		return nil
-	}
-
-	relPath := scope.RelPath("prompts", name+".prompt.md")
-	if dryRun {
-		fmt.Printf("  %s %s\n", dim("→"), relPath)
-		result.Installed++
-		return nil
-	}
-
-	if err := copyFile(src, dstFile, scope.RootDir); err != nil {
-		return fmt.Errorf("copying prompt %s: %w", name, err)
-	}
-	hash, err := fileHash(dstFile)
-	if err != nil {
-		return fmt.Errorf("hashing installed prompt %s: %w", name, err)
-	}
-	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
-	fmt.Printf("  %s %s\n", green("✓"), name)
-	result.Installed++
-	return nil
+return nil
 }
 
 // ─── Commands ───────────────────────────────────────────────────────────────
@@ -316,60 +203,29 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 
 // listAvailableItems prints all agents, skills, instructions, and prompts in the source.
 func listAvailableItems(sourceDir string) error {
-	// Agents — scan both root-level and .github/
-	if agents := scanArtifactFiles(sourceDir, "agents", ".agent.md"); len(agents) > 0 {
-		fmt.Println(bold("Available agents:"))
-		for _, a := range agents {
-			fmt.Printf("  %-30s %s\n", a.Name, dim("nav-pilot add agent "+a.Name))
+	resolver := NewSourceResolver(sourceDir)
+	for _, kind := range AllKinds {
+		items := resolver.List(kind)
+		if len(items) == 0 {
+			continue
+		}
+		fmt.Println(bold(fmt.Sprintf("Available %s:", kind.Dir)))
+		for _, item := range items {
+			fmt.Printf("  %-30s %s\n", item.Name, dim("nav-pilot add "+kind.Name+" "+item.Name))
 		}
 		fmt.Println()
 	}
-
-	// Skills — scan both root-level and .github/skills/
-	if skills := scanSkillDirs(sourceDir); len(skills) > 0 {
-		fmt.Println(bold("Available skills:"))
-		for _, s := range skills {
-			fmt.Printf("  %-30s %s\n", s.Name, dim("nav-pilot add skill "+s.Name))
-		}
-		fmt.Println()
-	}
-
-	// Instructions — scan both root-level and .github/
-	if instrs := scanArtifactFiles(sourceDir, "instructions", ".instructions.md"); len(instrs) > 0 {
-		fmt.Println(bold("Available instructions:"))
-		for _, i := range instrs {
-			fmt.Printf("  %-30s %s\n", i.Name, dim("nav-pilot add instruction "+i.Name))
-		}
-		fmt.Println()
-	}
-
-	// Prompts — scan both root-level and .github/
-	if prompts := scanPromptEntries(sourceDir); len(prompts) > 0 {
-		fmt.Println(bold("Available prompts:"))
-		for _, p := range prompts {
-			fmt.Printf("  %-30s %s\n", p.Name, dim("nav-pilot add prompt "+p.Name))
-		}
-		fmt.Println()
-	}
-
 	return nil
 }
 
 // collectAvailableItems returns all available items as a structured map for JSON output.
 func collectAvailableItems(sourceDir string) map[string][]string {
+	resolver := NewSourceResolver(sourceDir)
 	result := make(map[string][]string)
-
-	for _, a := range scanArtifactFiles(sourceDir, "agents", ".agent.md") {
-		result["agents"] = append(result["agents"], a.Name)
-	}
-	for _, s := range scanSkillDirs(sourceDir) {
-		result["skills"] = append(result["skills"], s.Name)
-	}
-	for _, i := range scanArtifactFiles(sourceDir, "instructions", ".instructions.md") {
-		result["instructions"] = append(result["instructions"], i.Name)
-	}
-	for _, p := range scanPromptEntries(sourceDir) {
-		result["prompts"] = append(result["prompts"], p.Name)
+	for _, kind := range AllKinds {
+		for _, art := range resolver.List(kind) {
+			result[kind.Dir] = append(result[kind.Dir], art.Name)
+		}
 	}
 	return result
 }

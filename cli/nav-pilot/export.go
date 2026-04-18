@@ -142,7 +142,7 @@ func exportSummary(skills, commands, agents, instructions int) string {
 // ─── Skills (1:1 copy) ──────────────────────────────────────────────────────
 
 func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
-	skills := scanSkillDirs(sourceDir)
+	skills := NewSourceResolver(sourceDir).List(KindSkill)
 	if len(skills) == 0 {
 		return 0, nil
 	}
@@ -152,14 +152,14 @@ func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
 
 		if dryRun {
-			files := countDirFiles(skill.Dir)
+			files := countDirFiles(skill.AbsPath)
 			fmt.Printf("  %s %s → skills/%s/ (%d file(s))\n",
 				dim("→"), skill.Name, skill.Name, files)
 		} else {
 			if err := os.MkdirAll(filepath.Dir(dstDir), 0o755); err != nil {
 				return count, err
 			}
-			if err := copyDirSimple(skill.Dir, dstDir); err != nil {
+			if err := copyDirSimple(skill.AbsPath, dstDir); err != nil {
 				return count, fmt.Errorf("copying skill %s: %w", skill.Name, err)
 			}
 			fmt.Printf("  %s %s\n", green("✓"), skill.Name)
@@ -178,7 +178,7 @@ func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
 // ─── Prompts → Commands ─────────────────────────────────────────────────────
 
 func exportPrompts(sourceDir, outputDir string, dryRun bool) (int, error) {
-	entries := scanPromptEntries(sourceDir)
+	entries := NewSourceResolver(sourceDir).List(KindPrompt)
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -192,7 +192,7 @@ func exportPrompts(sourceDir, outputDir string, dryRun bool) (int, error) {
 
 		dstPath := filepath.Join(outputDir, "commands", entry.Name+".md")
 
-		data, err := os.ReadFile(entry.Path)
+		data, err := os.ReadFile(entry.AbsPath)
 		if err != nil {
 			return count, fmt.Errorf("reading prompt %s: %w", entry.Name, err)
 		}
@@ -225,7 +225,7 @@ func transformPrompt(data []byte) []byte {
 // ─── Agents ─────────────────────────────────────────────────────────────────
 
 func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
-	agents := scanArtifactFiles(sourceDir, "agents", ".agent.md")
+	agents := NewSourceResolver(sourceDir).List(KindAgent)
 	if len(agents) == 0 {
 		return 0, nil
 	}
@@ -234,7 +234,7 @@ func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
 	for _, entry := range agents {
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 
-		data, err := os.ReadFile(entry.Path)
+		data, err := os.ReadFile(entry.AbsPath)
 		if err != nil {
 			return count, fmt.Errorf("reading agent %s: %w", entry.Name, err)
 		}
@@ -274,8 +274,7 @@ func transformAgent(data []byte) []byte {
 // ─── Instructions → AGENTS.md ───────────────────────────────────────────────
 
 func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
-	// Collect instruction files from both locations
-	instrEntries := scanArtifactFiles(sourceDir, "instructions", ".instructions.md")
+	instrEntries := NewSourceResolver(sourceDir).List(KindInstruction)
 
 	// Also include copilot-instructions.md if it exists (always in .github/)
 	var sections []instructionSection
@@ -292,7 +291,7 @@ func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
 	}
 
 	for _, entry := range instrEntries {
-		data, err := os.ReadFile(entry.Path)
+		data, err := os.ReadFile(entry.AbsPath)
 		if err != nil {
 			return 0, fmt.Errorf("reading instruction %s: %w", entry.Name, err)
 		}

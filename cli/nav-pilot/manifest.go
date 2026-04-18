@@ -87,29 +87,20 @@ func listCollectionDirs(sourceDir string) ([]string, error) {
 // collectAllItems scans the source directory for all agents, skills, and instructions,
 // returning a synthetic manifest. Used for user-scope "install everything".
 func collectAllItems(sourceDir string) (*Manifest, error) {
+	resolver := NewSourceResolver(sourceDir)
 	m := &Manifest{
 		Name:        "(all)",
 		Description: "All agents, skills, and instructions",
 	}
-
-	// Scan agents — both root-level and .github/
-	for _, a := range scanArtifactFiles(sourceDir, "agents", ".agent.md") {
+	for _, a := range resolver.List(KindAgent) {
 		m.Agents = append(m.Agents, a.Name)
 	}
-	sort.Strings(m.Agents)
-
-	// Scan skills — both root-level and .github/skills/
-	for _, s := range scanSkillDirs(sourceDir) {
+	for _, s := range resolver.List(KindSkill) {
 		m.Skills = append(m.Skills, s.Name)
 	}
-	sort.Strings(m.Skills)
-
-	// Scan instructions — both root-level and .github/
-	for _, i := range scanArtifactFiles(sourceDir, "instructions", ".instructions.md") {
+	for _, i := range resolver.List(KindInstruction) {
 		m.Instructions = append(m.Instructions, i.Name)
 	}
-	sort.Strings(m.Instructions)
-
 	return m, nil
 }
 

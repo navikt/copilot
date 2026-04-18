@@ -423,7 +423,7 @@ func TestInstallAgent(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installAgent(srcDir, ScopeRepo(dstDir), "test", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "test", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -449,7 +449,7 @@ func TestInstallAgent_NotFound(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installAgent(srcDir, ScopeRepo(dstDir), "nonexistent", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "nonexistent", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -470,7 +470,7 @@ func TestInstallSkill(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installSkill(srcDir, ScopeRepo(dstDir), "my-skill", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindSkill, "my-skill", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -497,7 +497,7 @@ func TestInstallConflictBlocked(t *testing.T) {
 	os.WriteFile(filepath.Join(dstAgents, "test.agent.md"), []byte("local modified content"), 0o644)
 
 	result := &installResult{}
-	err := installAgent(srcDir, ScopeRepo(dstDir), "test", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "test", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,7 +521,7 @@ func TestInstallConflictForced(t *testing.T) {
 	os.WriteFile(filepath.Join(dstAgents, "test.agent.md"), []byte("local modified content"), 0o644)
 
 	result := &installResult{}
-	err := installAgent(srcDir, ScopeRepo(dstDir), "test", false, true, result) // force=true
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "test", false, true, result) // force=true
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -570,7 +570,7 @@ func TestInstallAgent_PathTraversal(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installAgent(srcDir, ScopeRepo(dstDir), "../../../etc/passwd", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "../../../etc/passwd", false, false, result)
 	if err == nil {
 		t.Fatal("expected error for path traversal attempt")
 	}
@@ -590,7 +590,7 @@ func TestInstallInstruction(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installInstruction(srcDir, ScopeRepo(dstDir), "my-instr", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindInstruction, "my-instr", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -610,7 +610,7 @@ func TestInstallInstruction_NotFound(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installInstruction(srcDir, ScopeRepo(dstDir), "nonexistent", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindInstruction, "nonexistent", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -628,7 +628,7 @@ func TestInstallPrompt_FlatFile(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installPrompt(srcDir, ScopeRepo(dstDir), "my-prompt", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindPrompt, "my-prompt", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -646,7 +646,7 @@ func TestInstallPrompt_Directory(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installPrompt(srcDir, ScopeRepo(dstDir), "my-prompt", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindPrompt, "my-prompt", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -666,7 +666,7 @@ func TestInstallPrompt_NotFound(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installPrompt(srcDir, ScopeRepo(dstDir), "nonexistent", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindPrompt, "nonexistent", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}

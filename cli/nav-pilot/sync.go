@@ -233,12 +233,13 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string
 
 	if state != nil {
 		// State-based: check all installed files, skip ignored ones
+		resolver := NewSourceResolver(sourceDir)
 		var files []syncFile
 		for _, f := range state.Files {
 			if f.Status == fileStatusIgnored {
 				continue
 			}
-			sp := resolveSourcePath(sourceDir, f.Path, scope.IsUser())
+			sp := resolver.MapLocalPath(f.Path, scope.IsUser())
 			files = append(files, syncFile{
 				localPath:  f.Path,
 				sourcePath: sp,
@@ -301,6 +302,7 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 // autoDetectSyncFiles finds customization files in the target that also exist in source.
 // Target files are always under .github/. Source may be at root or .github/.
 func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error) {
+	resolver := NewSourceResolver(sourceDir)
 	type scanPattern struct {
 		glob    string
 		typeDir string
@@ -329,7 +331,7 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 			}
 			// Resolve source: check root-level first, then .github/
 			fileName := filepath.Base(m)
-			srcRel, ok := resolveArtifactRel(sourceDir, p.typeDir, fileName)
+			_, srcRel, ok := resolver.GetFile(p.typeDir, fileName)
 			if !ok {
 				continue
 			}
@@ -349,13 +351,12 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 			if seen[rel] {
 				continue
 			}
-			// Resolve source: validates SKILL.md exists at root or legacy location
-			srcRel, ok := resolveSkillRel(sourceDir, e.Name())
+			art, ok := resolver.Get(KindSkill, e.Name())
 			if !ok {
 				continue
 			}
 			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: srcRel + "/", isDir: true})
+			files = append(files, syncFile{localPath: rel, sourcePath: art.RelPath + "/", isDir: true})
 		}
 	}
 
@@ -370,17 +371,12 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 			if seen[rel] {
 				continue
 			}
-			// Resolve source: check root-level first, then .github/
-			_, isDir, ok := resolvePrompt(sourceDir, e.Name())
-			if !ok || !isDir {
+			art, ok := resolver.Get(KindPrompt, e.Name())
+			if !ok || !art.IsDir {
 				continue
 			}
-			srcRel := filepath.Join("prompts", e.Name()) + "/"
-			if _, err := os.Stat(filepath.Join(sourceDir, "prompts", e.Name())); os.IsNotExist(err) {
-				srcRel = filepath.Join(".github", "prompts", e.Name()) + "/"
-			}
 			seen[rel] = true
-			files = append(files, syncFile{localPath: rel, sourcePath: srcRel, isDir: true})
+			files = append(files, syncFile{localPath: rel, sourcePath: art.RelPath + "/", isDir: true})
 		}
 	}
 
