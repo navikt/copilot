@@ -745,7 +745,7 @@ func TestCmdUninstall_DryRun(t *testing.T) {
 
 func TestCmdStatus_NoState(t *testing.T) {
 	dir := t.TempDir()
-	err := cmdStatus(ScopeRepo(dir))
+	err := cmdStatus(ScopeRepo(dir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -769,7 +769,7 @@ func TestCmdStatus_WithState(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	err := cmdStatus(ScopeRepo(dir))
+	err := cmdStatus(ScopeRepo(dir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1200,7 +1200,7 @@ func TestInstallAllFromSource(t *testing.T) {
 	}
 	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
 
-	err := installAllFromSource(scope, src, nil, false, false)
+	err := installAllFromSource(scope, src, nil, false, false, false)
 	if err != nil {
 		t.Fatalf("installAllFromSource: %v", err)
 	}
@@ -1240,7 +1240,7 @@ func TestInstallAllFromSource_EmptySource(t *testing.T) {
 	scope := &InstallScope{Name: "user", RootDir: target, StateFile: ".nav-pilot-state.json", SupportedTypes: []string{"agent", "skill", "instruction"}}
 	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
 
-	err := installAllFromSource(scope, src, nil, false, false)
+	err := installAllFromSource(scope, src, nil, false, false, false)
 	if err == nil {
 		t.Fatal("expected error for empty source")
 	}
@@ -1266,7 +1266,7 @@ func TestInstallAllFromSource_DryRun(t *testing.T) {
 	}
 	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
 
-	err := installAllFromSource(scope, src, nil, true, false)
+	err := installAllFromSource(scope, src, nil, true, false, false)
 	if err != nil {
 		t.Fatalf("installAllFromSource dry run: %v", err)
 	}
@@ -1527,7 +1527,7 @@ SupportedTypes: []string{"agent", "skill", "instruction"},
 }
 src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
 
-err := installAllFromSource(scope, src, nil, false, false)
+err := installAllFromSource(scope, src, nil, false, false, false)
 if err != nil {
 t.Fatalf("installAllFromSource: %v", err)
 }

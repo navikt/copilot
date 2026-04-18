@@ -10,17 +10,17 @@ import (
 )
 
 // cmdExport dispatches to the appropriate export format.
-func cmdExport(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool) error {
+func cmdExport(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	switch format {
 	case "opencode":
-		return exportOpenCode(scope, ref, sourceRepo, dryRun, force)
+		return exportOpenCode(scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	default:
 		return fmt.Errorf("unknown export format: %q\n\nSupported formats: opencode", format)
 	}
 }
 
 // exportOpenCode transforms Nav's .github/ artifacts into OpenCode-compatible .opencode/ format.
-func exportOpenCode(scope *InstallScope, ref, sourceRepo string, dryRun, force bool) error {
+func exportOpenCode(scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	src, err := resolveSource(ref, sourceRepo)
 	if err != nil {
 		return err
@@ -39,10 +39,12 @@ func exportOpenCode(scope *InstallScope, ref, sourceRepo string, dryRun, force b
 		}
 	}
 
-	if dryRun {
-		fmt.Printf("%s Export to %s\n\n", dim("→"), dim(outputDir))
-	} else {
-		fmt.Printf("Exporting to %s\n\n", bold(outputDir))
+	if !jsonOutput {
+		if dryRun {
+			fmt.Printf("%s Export to %s\n\n", dim("→"), dim(outputDir))
+		} else {
+			fmt.Printf("Exporting to %s\n\n", bold(outputDir))
+		}
 	}
 
 	sourceDir := src.Dir
@@ -80,6 +82,20 @@ func exportOpenCode(scope *InstallScope, ref, sourceRepo string, dryRun, force b
 	total := totalSkills + totalCommands + totalAgents
 	if totalInstructions > 0 {
 		total++ // AGENTS.md counts as 1
+	}
+
+	if jsonOutput {
+		return outputJSON(map[string]interface{}{
+			"command":      "export",
+			"format":       "opencode",
+			"output_dir":   outputDir,
+			"total":        total,
+			"skills":       totalSkills,
+			"commands":     totalCommands,
+			"agents":       totalAgents,
+			"instructions": totalInstructions,
+			"dry_run":      dryRun,
+		})
 	}
 
 	action := "Exported"

@@ -192,7 +192,7 @@ func TestCmdAdd_UserScopeRejectsPrompt(t *testing.T) {
 		RootDir:        t.TempDir(),
 		SupportedTypes: []string{"agent", "skill", "instruction"},
 	}
-	err := cmdAdd("prompt", "test", scope, "", "", true, false)
+	err := cmdAdd("prompt", "test", scope, "", "", true, false, false)
 	if err == nil {
 		t.Fatal("expected error for prompt in user scope")
 	}

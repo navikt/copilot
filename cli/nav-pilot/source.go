@@ -97,6 +97,16 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		repoURL = "https://github.com/" + sourceRepo + ".git"
 	}
 
+	label := "navikt/copilot"
+	if sourceRepo != "" {
+		label = sourceRepo
+	}
+	if ref != "" {
+		fmt.Fprintf(os.Stderr, "%s Fetching %s@%s...\n", dim("→"), label, ref)
+	} else {
+		fmt.Fprintf(os.Stderr, "%s Fetching %s...\n", dim("→"), label)
+	}
+
 	args := []string{"-c", "advice.detachedHead=false", "clone", "--depth", "1", "--quiet"}
 	if ref != "" {
 		args = append(args, "--branch", ref)

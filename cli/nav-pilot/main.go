@@ -185,28 +185,28 @@ func run(args []string) error {
 	switch command {
 	case "install":
 		if userScope && len(positional) == 0 {
-			return cmdInstallAll(scope, ref, sourceRepo, dryRun, force)
+			return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
 		}
 		if len(positional) == 0 {
 			return fmt.Errorf("install requires a collection name. Run 'nav-pilot list' to see available collections")
 		}
-		return cmdInstall(positional[0], scope, ref, sourceRepo, dryRun, force)
+		return cmdInstall(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	case "export":
 		if len(positional) == 0 {
 			return fmt.Errorf("export requires a format.\n\nUsage: nav-pilot export <format>\n\nFormats: opencode")
 		}
-		return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force)
+		return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	case "add":
 		if len(positional) < 2 {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
 		}
-		return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force)
+		return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	case "sync":
 		return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
 	case "list":
-		return cmdList(ref, sourceRepo, listItems)
+		return cmdList(ref, sourceRepo, listItems, jsonOutput)
 	case "status":
-		return cmdStatus(scope)
+		return cmdStatus(scope, jsonOutput)
 	case "uninstall":
 		return cmdUninstall(scope, dryRun)
 	case "update":

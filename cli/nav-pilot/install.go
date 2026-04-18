@@ -249,8 +249,10 @@ func installPrompt(sourceDir string, scope *InstallScope, name string, dryRun, f
 
 // ─── Commands ───────────────────────────────────────────────────────────────
 
-func cmdList(ref, sourceRepo string, showItems bool) error {
-	fmt.Println(dim("Resolving source..."))
+func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
+	if !jsonOutput {
+		fmt.Println(dim("Resolving source..."))
+	}
 	src, err := resolveSource(ref, sourceRepo)
 	if err != nil {
 		return err
@@ -260,6 +262,28 @@ func cmdList(ref, sourceRepo string, showItems bool) error {
 	names, err := listCollectionDirs(src.Dir)
 	if err != nil {
 		return err
+	}
+
+	if jsonOutput {
+		type collectionInfo struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Items       int    `json:"items"`
+		}
+		var collections []collectionInfo
+		for _, name := range names {
+			m, err := loadManifest(src.Dir, name)
+			if err != nil {
+				continue
+			}
+			total := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts)
+			collections = append(collections, collectionInfo{Name: name, Description: m.Description, Items: total})
+		}
+		result := map[string]interface{}{"collections": collections}
+		if showItems {
+			result["items"] = collectAvailableItems(src.Dir)
+		}
+		return outputJSON(result)
 	}
 
 	fmt.Println()
@@ -356,23 +380,71 @@ func listAvailableItems(sourceDir string) error {
 	return nil
 }
 
+// collectAvailableItems returns all available items as a structured map for JSON output.
+func collectAvailableItems(sourceDir string) map[string][]string {
+	ghDir := filepath.Join(sourceDir, ".github")
+	result := make(map[string][]string)
+
+	if entries, err := filepath.Glob(filepath.Join(ghDir, "agents", "*.agent.md")); err == nil {
+		for _, e := range entries {
+			result["agents"] = append(result["agents"], strings.TrimSuffix(filepath.Base(e), ".agent.md"))
+		}
+	}
+	if entries, err := os.ReadDir(filepath.Join(ghDir, "skills")); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			skill := filepath.Join(ghDir, "skills", e.Name(), "SKILL.md")
+			if _, err := os.Stat(skill); err == nil {
+				result["skills"] = append(result["skills"], e.Name())
+			}
+		}
+	}
+	if entries, err := filepath.Glob(filepath.Join(ghDir, "instructions", "*.instructions.md")); err == nil {
+		for _, e := range entries {
+			result["instructions"] = append(result["instructions"], strings.TrimSuffix(filepath.Base(e), ".instructions.md"))
+		}
+	}
+	promptsDir := filepath.Join(ghDir, "prompts")
+	promptSeen := make(map[string]bool)
+	if entries, err := os.ReadDir(promptsDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				promptSeen[e.Name()] = true
+			}
+		}
+	}
+	if entries, err := filepath.Glob(filepath.Join(promptsDir, "*.prompt.md")); err == nil {
+		for _, e := range entries {
+			promptSeen[strings.TrimSuffix(filepath.Base(e), ".prompt.md")] = true
+		}
+	}
+	for name := range promptSeen {
+		result["prompts"] = append(result["prompts"], name)
+	}
+	return result
+}
+
 // cmdInstallAll installs all agents and skills to user scope by scanning the source.
 // Used when `nav-pilot install --user` is run without a collection name.
-func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bool) error {
-	fmt.Println(dim("Resolving source..."))
+func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
+	if !jsonOutput {
+		fmt.Println(dim("Resolving source..."))
+	}
 	src, err := resolveSource(ref, sourceRepo)
 	if err != nil {
 		return err
 	}
 	defer src.Cleanup()
 
-	return installAllFromSource(scope, src, nil, dryRun, force)
+	return installAllFromSource(scope, src, nil, dryRun, force, jsonOutput)
 }
 
 // installAllFromSource installs all agents+skills from source.
 // If manifest is nil, it scans the source directory to discover items.
 // Extracted so both cmdInstallAll and the interactive flow can share this.
-func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool) error {
+func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool) error {
 	if manifest == nil {
 		var err error
 		manifest, err = collectAllItems(src.Dir)
@@ -388,24 +460,39 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 
 	sourceLabel := "navikt/copilot"
 
-	fmt.Println()
-	if dryRun {
-		fmt.Println(bold(fmt.Sprintf("Dry run: all agents, skills & instructions (%d items)", total)))
-	} else {
-		fmt.Println(bold(fmt.Sprintf("Installing: all agents, skills & instructions (%d items)", total)))
+	if !jsonOutput {
+		fmt.Println()
+		if dryRun {
+			fmt.Println(bold(fmt.Sprintf("Dry run: all agents, skills & instructions (%d items)", total)))
+		} else {
+			fmt.Println(bold(fmt.Sprintf("Installing: all agents, skills & instructions (%d items)", total)))
+		}
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
+		fmt.Println()
 	}
-	fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
-	fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
-	fmt.Println()
 
 	result, err := installItems(src.Dir, scope, manifest, dryRun, force)
 	if err != nil {
 		return err
 	}
 
-	if result.Conflicts > 0 {
+	if !jsonOutput && result.Conflicts > 0 {
 		fmt.Printf("%s %d file(s) skipped due to conflicts. Use %s to overwrite.\n",
 			yellow("⚠"), result.Conflicts, bold("--force"))
+	}
+
+	if jsonOutput {
+		return outputJSON(map[string]interface{}{
+			"command":    "install",
+			"collection": CollectionAll,
+			"scope":      scope.Name,
+			"source_sha": src.SHA,
+			"version":    src.Version,
+			"installed":  result.Installed,
+			"conflicts":  result.Conflicts,
+			"dry_run":    dryRun,
+		})
 	}
 
 	if dryRun {
@@ -443,14 +530,16 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	return nil
 }
 
-func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool) error {
+func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	if !dryRun && !scope.IsUser() {
 		if _, err := os.Stat(filepath.Join(scope.RootDir, ".git")); os.IsNotExist(err) {
 			return fmt.Errorf("target %q does not appear to be a git repository (no .git directory)", scope.RootDir)
 		}
 	}
 
-	fmt.Println(dim("Resolving source..."))
+	if !jsonOutput {
+		fmt.Println(dim("Resolving source..."))
+	}
 	src, err := resolveSource(ref, sourceRepo)
 	if err != nil {
 		return err
@@ -467,19 +556,35 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 		sourceLabel = sourceRepo
 	}
 
-	fmt.Println()
-	if dryRun {
-		fmt.Println(bold(fmt.Sprintf("Dry run: %s", collection)))
-	} else {
-		fmt.Println(bold(fmt.Sprintf("Installing: %s", collection)))
+	if !jsonOutput {
+		fmt.Println()
+		if dryRun {
+			fmt.Println(bold(fmt.Sprintf("Dry run: %s", collection)))
+		} else {
+			fmt.Println(bold(fmt.Sprintf("Installing: %s", collection)))
+		}
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
+		fmt.Println()
 	}
-	fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
-	fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
-	fmt.Println()
 
 	result, err := installItems(src.Dir, scope, manifest, dryRun, force)
 	if err != nil {
 		return err
+	}
+
+	if jsonOutput {
+		return outputJSON(map[string]interface{}{
+			"command":     "install",
+			"collection":  collection,
+			"scope":       scope.Name,
+			"source_sha":  src.SHA,
+			"version":     src.Version,
+			"installed":   result.Installed,
+			"conflicts":   result.Conflicts,
+			"unsupported": result.Unsupported,
+			"dry_run":     dryRun,
+		})
 	}
 
 	if result.Conflicts > 0 {
@@ -498,8 +603,6 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 		return nil
 	}
 
-	// Use the binary's release version directly.
-	// "dev" means local/unreleased build — checkStaleness() skips it.
 	stateVersion := src.Version
 
 	state := &StateFile{
@@ -530,12 +633,15 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 	return nil
 }
 
-func cmdStatus(scope *InstallScope) error {
+func cmdStatus(scope *InstallScope, jsonOutput bool) error {
 	state, err := readScopedState(scope)
 	if err != nil {
 		return fmt.Errorf("reading state: %w", err)
 	}
 	if state == nil {
+		if jsonOutput {
+			return outputJSON(map[string]interface{}{"installed": false})
+		}
 		if scope.IsUser() {
 			fmt.Println("No nav-pilot collection installed in user home (~/.copilot).")
 		} else {
@@ -543,6 +649,24 @@ func cmdStatus(scope *InstallScope) error {
 		}
 		fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
 		return nil
+	}
+
+	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
+
+	if jsonOutput {
+		return outputJSON(map[string]interface{}{
+			"installed":    true,
+			"collection":   state.Collection,
+			"version":      state.Version,
+			"scope":        scope.Name,
+			"source_sha":   state.SourceSHA,
+			"installed_at": state.InstalledAt,
+			"files":        len(state.Files),
+			"ok":           ok,
+			"modified":     modified,
+			"missing":      missing,
+			"ignored":      ignored,
+		})
 	}
 
 	fmt.Println(bold("nav-pilot install status"))
@@ -555,7 +679,6 @@ func cmdStatus(scope *InstallScope) error {
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()
 
-	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
 	for _, p := range modifiedPaths {
 		fmt.Printf("  %s %s (modified locally)\n", yellow("~"), p)
 	}

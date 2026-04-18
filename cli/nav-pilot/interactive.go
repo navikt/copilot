@@ -255,7 +255,7 @@ func interactiveUserInstall(src *Source) error {
 	}
 
 	fmt.Println()
-	if err := installAllFromSource(scope, src, manifest, false, false); err != nil {
+	if err := installAllFromSource(scope, src, manifest, false, false, false); err != nil {
 		return err
 	}
 
@@ -342,7 +342,7 @@ func interactiveRepoInstall(src *Source, scope *InstallScope) error {
 
 	// Install
 	fmt.Println()
-	if err := cmdInstall(selected, scope, "", "", false, false); err != nil {
+	if err := cmdInstall(selected, scope, "", "", false, false, false); err != nil {
 		return err
 	}
 

@@ -395,7 +395,7 @@ func TestExportBlocksWithoutForce(t *testing.T) {
 	scope := ScopeRepo(outputDir)
 
 	// Without --force, should error
-	err := exportOpenCode(scope, "", "", false, false)
+	err := exportOpenCode(scope, "", "", false, false, false)
 	if err == nil {
 		t.Fatal("expected error without --force, got nil")
 	}
@@ -472,7 +472,7 @@ func TestCopyDirSimpleRejectsSymlinks(t *testing.T) {
 
 func TestCmdExportUnknownFormat(t *testing.T) {
 	scope := ScopeRepo(t.TempDir())
-	err := cmdExport("zed", scope, "", "", false, false)
+	err := cmdExport("zed", scope, "", "", false, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown format")
 	}
