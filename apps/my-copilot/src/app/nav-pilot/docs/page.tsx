@@ -648,8 +648,8 @@ nav-pilot`}
             Personlig installasjon (valgfritt)
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Du kan også installere agenter, skills og instruksjoner til hjemmemappen. De blir
-            da tilgjengelige i <em>alle</em> repoer uten å endre hvert enkelt.
+            Du kan også installere agenter, skills og instruksjoner til hjemmemappen. De blir da tilgjengelige i{" "}
+            <em>alle</em> repoer uten å endre hvert enkelt.
           </BodyLong>
           <div className="mt-4">
             <CodeBlock compact>{`nav-pilot install --user`}</CodeBlock>
