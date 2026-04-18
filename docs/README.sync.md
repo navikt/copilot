@@ -79,6 +79,24 @@ Create `.github/copilot-sync.json` in your repo:
 
 This works with both state-based and auto-detected repos.
 
+### Opting out of framework-specific files
+
+Teams using Astro, Remix, or other non-Next.js frameworks can use overrides to skip Next.js-specific files installed by the `nextjs-frontend` or `fullstack` collection:
+
+```json
+{
+  "overrides": [
+    ".github/instructions/nextjs-aksel.instructions.md",
+    ".github/instructions/performance.instructions.md",
+    ".github/prompts/nextjs-api-route/"
+  ]
+}
+```
+
+These files will be completely ignored during sync. You can also safely delete them from your repo — they will not be re-added.
+
+> **Tip:** If you don't need any Next.js files, consider installing the `frontend` collection instead, which only includes framework-agnostic tools (accessibility, testing, Aksel Design System, etc.).
+
 ## Formatting Tolerance
 
 Markdown files (`.md`) are compared with formatting tolerance. The following differences are ignored:

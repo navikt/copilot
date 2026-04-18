@@ -87,6 +87,22 @@ Hvis teamet ditt bevisst vedlikeholder egne versjoner av bestemte filer, kan du 
 
 Legg dette i `.github/copilot-sync.json`. Filer i `overrides` vil aldri dukke opp i sync-PR-er.
 
+### Astro, Remix eller annen frontend uten Next.js?
+
+Hvis du har installert `nextjs-frontend`- eller `fullstack`-samlingen men ikke bruker Next.js, kan du hoppe over Next.js-filene:
+
+```json
+{
+  "overrides": [
+    ".github/instructions/nextjs-aksel.instructions.md",
+    ".github/instructions/performance.instructions.md",
+    ".github/prompts/nextjs-api-route/"
+  ]
+}
+```
+
+Alternativt kan du installere `frontend`-samlingen som kun inneholder rammeverk-agnostiske verktøy.
+
 ## Synkroniser mot et annet repo
 
 Du kan synkronisere mot et team-repo i stedet for `navikt/copilot`:

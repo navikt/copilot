@@ -144,6 +144,12 @@ Hver skill ligger i `.github/skills/<name>/`:
 
 ---
 
+## Tilpasse synkronisering
+
+Hvis teamet ditt ikke trenger alle filene fra en samling (f.eks. Next.js-filer i et Astro-prosjekt), kan du markere dem som *overrides* i `.github/copilot-sync.json`. Da hoppes de over ved sync — ingen hashsjekk, ingen PR-diff.
+
+Se [Sync → Overrides](README.sync.md#overrides) for eksempler.
+
 ## Relatert
 
 - [Testing →](README.testing.md) — Strukturelle og E2E-tester for nav-pilot
