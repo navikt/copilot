@@ -53,7 +53,8 @@ const allItems = [agent, agentWithRefs, authAgent, naisAgent];
 const instruction: Instruction = {
   ...base,
   type: "instruction",
-  name: "nextjs-aksel.instructions.md",
+  id: "nextjs-aksel",
+  name: "Next.js/Aksel Development",
   applyTo: "src/**/*.tsx",
 };
 const prompt: Prompt = { ...base, type: "prompt", name: "code-review.prompt.md", invocation: "/code-review" };
@@ -302,26 +303,32 @@ describe("getGhSkillInstallCommand", () => {
 describe("getNavPilotAddCommand", () => {
   it("generates nav-pilot add command for agent", () => {
     const result = getNavPilotAddCommand(agent)!;
-    expect(result.repo).toBe("nav-pilot add agent nais-platform");
-    expect(result.user).toBe("nav-pilot add agent nais-platform --user");
+    expect(result.repo).toBe("nav-pilot add agent 1");
+    expect(result.user).toBe("nav-pilot add agent 1 --user");
   });
 
-  it("generates nav-pilot add command for instruction", () => {
+  it("generates nav-pilot add command for agent with explicit id", () => {
+    const result = getNavPilotAddCommand(authAgent)!;
+    expect(result.repo).toBe("nav-pilot add agent auth-agent");
+    expect(result.user).toBe("nav-pilot add agent auth-agent --user");
+  });
+
+  it("generates nav-pilot add command for instruction using id, not display name", () => {
     const result = getNavPilotAddCommand(instruction)!;
-    expect(result.repo).toBe("nav-pilot add instruction nextjs-aksel.instructions.md");
-    expect(result.user).toBe("nav-pilot add instruction nextjs-aksel.instructions.md --user");
+    expect(result.repo).toBe("nav-pilot add instruction nextjs-aksel");
+    expect(result.user).toBe("nav-pilot add instruction nextjs-aksel --user");
   });
 
   it("generates nav-pilot add command for prompt", () => {
     const result = getNavPilotAddCommand(prompt)!;
-    expect(result.repo).toBe("nav-pilot add prompt code-review.prompt.md");
-    expect(result.user).toBe("nav-pilot add prompt code-review.prompt.md --user");
+    expect(result.repo).toBe("nav-pilot add prompt 1");
+    expect(result.user).toBe("nav-pilot add prompt 1 --user");
   });
 
   it("generates nav-pilot add command for skill", () => {
     const result = getNavPilotAddCommand(skill)!;
-    expect(result.repo).toBe("nav-pilot add skill aksel-spacing");
-    expect(result.user).toBe("nav-pilot add skill aksel-spacing --user");
+    expect(result.repo).toBe("nav-pilot add skill 1");
+    expect(result.user).toBe("nav-pilot add skill 1 --user");
   });
 
   it("returns null for mcp", () => {

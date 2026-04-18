@@ -91,11 +91,12 @@ export function getGhSkillInstallCommand(item: AnyCustomization): string {
 
 /**
  * Generate `nav-pilot add` command for a static customization.
- * Returns both repo-scope and user-scope variants.
+ * Uses `item.id` which matches the stem name nav-pilot expects
+ * (e.g., "github-actions" resolves to "github-actions.instructions.md").
  */
 export function getNavPilotAddCommand(item: AnyCustomization): { repo: string; user: string } | null {
   if (item.type === "mcp") return null;
-  const cmd = `nav-pilot add ${item.type} ${item.name}`;
+  const cmd = `nav-pilot add ${item.type} ${item.id}`;
   return { repo: cmd, user: `${cmd} --user` };
 }
 

@@ -175,6 +175,10 @@ export function StaticCustomizationDetails({
                         </div>
                       </div>
                     </VStack>
+                    <BodyShort size="small" className="text-gray-500">
+                      Oppdater med{" "}
+                      <code className="text-xs bg-gray-100 rounded px-1">nav-pilot sync</code>.
+                    </BodyShort>
                   </VStack>
                 </Accordion.Content>
               </Accordion.Item>
@@ -184,22 +188,31 @@ export function StaticCustomizationDetails({
             <Accordion.Item>
               <Accordion.Header>GitHub CLI</Accordion.Header>
               <Accordion.Content>
-                <VStack gap="space-8">
-                  <BodyShort size="small">
-                    Installer med <code className="text-xs bg-gray-100 rounded px-1">gh skill</code> (krever gh
-                    ≥2.90.0):
-                  </BodyShort>
-                  <div className="relative">
-                    <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                      {getGhSkillInstallCommand(item)}
-                    </pre>
-                    <div className="absolute top-1 right-1">
-                      <CopyButton size="xsmall" copyText={getGhSkillInstallCommand(item)} />
+                <VStack gap="space-12">
+                  <VStack gap="space-4">
+                    <BodyShort size="small" weight="semibold">
+                      Installer med <code className="text-xs bg-gray-100 rounded px-1">gh skill</code> (krever gh
+                      ≥2.90.0):
+                    </BodyShort>
+                    <div className="relative">
+                      <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                        {getGhSkillInstallCommand(item)}
+                      </pre>
+                      <div className="absolute top-1 right-1">
+                        <CopyButton size="xsmall" copyText={getGhSkillInstallCommand(item)} />
+                      </div>
                     </div>
-                  </div>
+                  </VStack>
+                  <VStack gap="space-4">
+                    <BodyShort size="small" className="text-gray-500">
+                      Nyttige flagg:
+                    </BodyShort>
+                    <pre className="text-xs bg-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all text-gray-600">
+                      {`--scope user    # personlig (alle repoer)\n--pin v1.0.0    # lås til versjon eller SHA\n--agent <name>  # målrett agent (copilot, claude, cursor …)`}
+                    </pre>
+                  </VStack>
                   <BodyShort size="small" className="text-gray-500">
-                    Installerer skill med referansefiler til ditt prosjekt. Oppdater med{" "}
-                    <code className="text-xs bg-gray-100 rounded px-1">gh skill update</code>.
+                    Oppdater med <code className="text-xs bg-gray-100 rounded px-1">gh skill update</code>.
                   </BodyShort>
                 </VStack>
               </Accordion.Content>
