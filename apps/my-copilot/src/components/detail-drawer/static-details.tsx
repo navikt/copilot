@@ -176,8 +176,7 @@ export function StaticCustomizationDetails({
                       </div>
                     </VStack>
                     <BodyShort size="small" className="text-gray-500">
-                      Oppdater med{" "}
-                      <code className="text-xs bg-gray-100 rounded px-1">nav-pilot sync</code>.
+                      Oppdater med <code className="text-xs bg-gray-100 rounded px-1">nav-pilot sync</code>.
                     </BodyShort>
                   </VStack>
                 </Accordion.Content>
