@@ -206,7 +206,10 @@ func run(args []string) error {
 	case "list":
 		return cmdList(ref, sourceRepo, listItems, jsonOutput)
 	case "status":
-		return cmdStatus(scope, jsonOutput)
+		if userScope || targetProvided {
+			return cmdStatusScoped(scope, false, jsonOutput)
+		}
+		return cmdStatusAuto(targetDir, jsonOutput)
 	case "uninstall":
 		return cmdUninstall(scope, dryRun)
 	case "update":

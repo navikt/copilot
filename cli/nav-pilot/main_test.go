@@ -775,6 +775,105 @@ func TestCmdStatus_WithState(t *testing.T) {
 	}
 }
 
+func TestCmdStatusAuto_ShowsBothScopes(t *testing.T) {
+	// Set up a repo-scope state
+	repoDir := t.TempDir()
+	os.MkdirAll(filepath.Join(repoDir, ".github", "agents"), 0o755)
+	agentPath := filepath.Join(repoDir, ".github", "agents", "test.agent.md")
+	os.WriteFile(agentPath, []byte("# Agent"), 0o644)
+	hash, _ := fileHash(agentPath)
+	writeState(repoDir, &StateFile{
+		Collection: "kotlin-backend",
+		Version:    "2025.07",
+		Scope:      "repo",
+		SourceSHA:  "abc123",
+		Files:      []InstalledFile{{Path: ".github/agents/test.agent.md", Hash: hash}},
+	})
+
+	// Set up a user-scope state via isolated HOME
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	userScope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(userScope.RootDir, "agents"), 0o755)
+	userAgent := filepath.Join(userScope.RootDir, "agents", "nav-pilot.agent.md")
+	os.WriteFile(userAgent, []byte("# Nav Pilot"), 0o644)
+	userHash, _ := fileHash(userAgent)
+	writeScopedState(userScope, &StateFile{
+		Collection: "fullstack",
+		Version:    "2025.07",
+		Scope:      "user",
+		SourceSHA:  "def456",
+		Files:      []InstalledFile{{Path: "agents/nav-pilot.agent.md", Hash: userHash}},
+	})
+
+	// cmdStatusAuto should show both without error
+	err = cmdStatusAuto(repoDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCmdStatusAuto_UserOnly(t *testing.T) {
+	// No repo state
+	repoDir := t.TempDir()
+
+	// Set up user-scope state
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	userScope, _ := ScopeUser()
+	os.MkdirAll(filepath.Join(userScope.RootDir, "agents"), 0o755)
+	userAgent := filepath.Join(userScope.RootDir, "agents", "test.agent.md")
+	os.WriteFile(userAgent, []byte("# Test"), 0o644)
+	userHash, _ := fileHash(userAgent)
+	writeScopedState(userScope, &StateFile{
+		Collection: "fullstack",
+		Version:    "2025.07",
+		Scope:      "user",
+		SourceSHA:  "abc123",
+		Files:      []InstalledFile{{Path: "agents/test.agent.md", Hash: userHash}},
+	})
+
+	err := cmdStatusAuto(repoDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCmdStatusAuto_NeitherScope(t *testing.T) {
+	repoDir := t.TempDir()
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	err := cmdStatusAuto(repoDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCmdStatusAuto_JSON(t *testing.T) {
+	repoDir := t.TempDir()
+	os.MkdirAll(filepath.Join(repoDir, ".github"), 0o755)
+	writeState(repoDir, &StateFile{
+		Collection: "test",
+		Version:    "1.0",
+		Scope:      "repo",
+		SourceSHA:  "abc123",
+		Files:      []InstalledFile{},
+	})
+
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	// JSON output should work without error
+	err := cmdStatusAuto(repoDir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // ─── DirHash tests ──────────────────────────────────────────────────────────
 
 func TestDirHash(t *testing.T) {

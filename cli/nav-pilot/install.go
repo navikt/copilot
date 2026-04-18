@@ -634,6 +634,66 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 }
 
 func cmdStatus(scope *InstallScope, jsonOutput bool) error {
+	return cmdStatusScoped(scope, false, jsonOutput)
+}
+
+// cmdStatusAuto shows status for all detected scopes (repo + user) when the
+// user didn't explicitly pick one with --user or --target.
+func cmdStatusAuto(repoDir string, jsonOutput bool) error {
+	repoScope := ScopeRepo(repoDir)
+	repoState, _ := readScopedState(repoScope)
+
+	userScope, userErr := ScopeUser()
+	var userState *StateFile
+	if userErr == nil {
+		userState, _ = readScopedState(userScope)
+	}
+
+	if repoState == nil && userState == nil {
+		if jsonOutput {
+			return outputJSON(map[string]interface{}{"installed": false})
+		}
+		fmt.Println("No nav-pilot collection installed (repo or user scope).")
+		fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
+		return nil
+	}
+
+	if jsonOutput {
+		scopes := []map[string]interface{}{}
+		if repoState != nil {
+			ok, modified, missing, ignored, _ := countFileIntegrity(repoScope.RootDir, repoState)
+			scopes = append(scopes, map[string]interface{}{
+				"scope": "repo", "collection": repoState.Collection,
+				"version": repoState.Version, "source_sha": repoState.SourceSHA,
+				"installed_at": repoState.InstalledAt, "files": len(repoState.Files),
+				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
+			})
+		}
+		if userState != nil {
+			ok, modified, missing, ignored, _ := countFileIntegrity(userScope.RootDir, userState)
+			scopes = append(scopes, map[string]interface{}{
+				"scope": "user", "collection": userState.Collection,
+				"version": userState.Version, "source_sha": userState.SourceSHA,
+				"installed_at": userState.InstalledAt, "files": len(userState.Files),
+				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
+			})
+		}
+		return outputJSON(map[string]interface{}{"installed": true, "scopes": scopes})
+	}
+
+	if repoState != nil {
+		printStatusBlock(repoScope, repoState)
+	}
+	if userState != nil {
+		if repoState != nil {
+			fmt.Println()
+		}
+		printStatusBlock(userScope, userState)
+	}
+	return nil
+}
+
+func cmdStatusScoped(scope *InstallScope, _ bool, jsonOutput bool) error {
 	state, err := readScopedState(scope)
 	if err != nil {
 		return fmt.Errorf("reading state: %w", err)
@@ -651,9 +711,8 @@ func cmdStatus(scope *InstallScope, jsonOutput bool) error {
 		return nil
 	}
 
-	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
-
 	if jsonOutput {
+		ok, modified, missing, ignored, _ := countFileIntegrity(scope.RootDir, state)
 		return outputJSON(map[string]interface{}{
 			"installed":    true,
 			"collection":   state.Collection,
@@ -669,7 +728,14 @@ func cmdStatus(scope *InstallScope, jsonOutput bool) error {
 		})
 	}
 
-	fmt.Println(bold("nav-pilot install status"))
+	printStatusBlock(scope, state)
+	return nil
+}
+
+func printStatusBlock(scope *InstallScope, state *StateFile) {
+	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
+
+	fmt.Println(bold(fmt.Sprintf("nav-pilot install status (%s)", scope.Name)))
 	fmt.Println()
 	fmt.Printf("  Collection:  %s\n", bold(state.Collection))
 	fmt.Printf("  Version:     %s\n", state.Version)
@@ -689,7 +755,6 @@ func cmdStatus(scope *InstallScope, jsonOutput bool) error {
 		statusLine += fmt.Sprintf(", %s %d ignored", dim("⊘"), ignored)
 	}
 	fmt.Println(statusLine)
-	return nil
 }
 
 func cmdUninstall(scope *InstallScope, dryRun bool) error {
