@@ -1,5 +1,4 @@
 import { Heading, BodyShort, Box, HGrid, Label, VStack } from "@navikt/ds-react";
-import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import {
   CheckmarkCircleIcon,
