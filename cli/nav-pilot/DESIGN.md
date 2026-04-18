@@ -61,13 +61,59 @@ Nye kommandoer følger dette mønsteret:
 ```go
 scope.DstPath("agents", "nav-pilot.agent.md")  // full målsti
 scope.RelPath("agents", "nav-pilot.agent.md")   // relativ sti for state
-scope.SourcePath(sourceDir, "agents")            // kildesti (alltid .github/)
 scope.SupportsType("prompt")                     // false for user scope
 scope.IsUser()                                   // true for --user
 scope.Label()                                    // "~/.copilot (user-wide)"
 ```
 
 Nye kommandoer som skriver filer skal bruke scope-metodene — ikke bygg stier manuelt med `filepath.Join(rootDir, ".github", ...)`.
+
+## Skill Resolution
+
+Skills kan ligge på to steder i kilderepoet (navikt/copilot):
+
+| Plassering | Formål | Auto-discovery |
+|---|---|---|
+| `skills/<name>/` | Ny root-plassering for `gh skill` | ✅ Ja |
+| `.github/skills/<name>/` | Legacy-plassering | ❌ Nei |
+
+**Root vinner hvis den har en gyldig `SKILL.md`.** En mappe uten `SKILL.md` er ikke en gyldig skill og faller tilbake til legacy.
+
+### Hjelpefunksjoner (scope.go)
+
+Alle steder som slår opp skills i kilderepoet bruker disse — ikke bygg stier manuelt:
+
+```go
+resolveSkillDir(sourceDir, name)   // → (absPath, ok) — sjekker root → legacy, validerer SKILL.md
+resolveSkillRel(sourceDir, name)   // → (relPath, ok) — returnerer "skills/x" eller ".github/skills/x"
+scanSkillDirs(sourceDir)           // → []skillEntry  — alle gyldige skills, dedup, sortert
+```
+
+### Oppløsningsrekkefølge
+
+```
+1. Sjekk skills/<name>/SKILL.md finnes?     → bruk skills/<name>/
+2. Sjekk .github/skills/<name>/SKILL.md?    → bruk .github/skills/<name>/
+3. Ingen funnet                              → skill finnes ikke
+```
+
+### Hvem bruker hva
+
+| Funksjon | Hjelpefunksjon | Fil |
+|---|---|---|
+| `installSkill()` | `resolveSkillDir` | install.go |
+| `listAvailableItems()` | `scanSkillDirs` | install.go |
+| `collectAvailableItems()` | `scanSkillDirs` | install.go |
+| `collectAllItems()` | `scanSkillDirs` | manifest.go |
+| `exportSkills()` | `scanSkillDirs` | export.go |
+| `autoDetectSyncFiles()` | `resolveSkillRel` | sync.go |
+| `resolveSourcePath()` | `resolveSkillRel` | scope.go |
+
+### Mål- vs. kildestier
+
+**Kilde** (navikt/copilot): `skills/` eller `.github/skills/` — oppløses av hjelpefunksjonene over.
+
+**Mål** (brukerens repo): Alltid `.github/skills/` (repo scope) eller `~/.copilot/skills/` (user scope). Målstier endres ikke.
 
 ## Source
 
