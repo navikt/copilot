@@ -64,7 +64,7 @@ Flags:
   -s, --source <repo>     Source repository (default: navikt/copilot)
   -u, --user              Install to ~/.copilot (user-wide, all agents, skills & instructions)
   --apply                 Apply available updates (sync only)
-  --json                  Output results as JSON (sync only)
+  --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
 
 Get started:

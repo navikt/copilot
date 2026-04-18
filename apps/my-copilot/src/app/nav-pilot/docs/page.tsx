@@ -242,7 +242,8 @@ const CLI_COMMANDS = [
   { command: "nav-pilot uninstall", description: "Fjern alle installerte filer" },
   { command: "nav-pilot sync", description: "Sjekk om oppdateringer finnes (exit 1 hvis ja)" },
   { command: "nav-pilot sync --apply", description: "Oppdater filer direkte" },
-  { command: "nav-pilot sync --json", description: "Maskinlesbar output for scripts" },
+  { command: "nav-pilot sync --json", description: "Maskinlesbar JSON-output" },
+  { command: "<command> --json", description: "Globalt flagg: JSON-output på alle kommandoer (install, add, status, sync, list, export)" },
   { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
   { command: "nav-pilot update", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   { command: "nav-pilot feedback", description: "Rapporter feil — åpner GitHub issue med diagnostikk" },
@@ -1024,7 +1025,7 @@ jobs:
               {[
                 { label: "Sjekk om oppdateringer finnes", cmd: "nav-pilot sync" },
                 { label: "Oppdater filer direkte", cmd: "nav-pilot sync --apply" },
-                { label: "Maskinlesbar output for scripts", cmd: "nav-pilot sync --json" },
+                { label: "Maskinlesbar JSON-output", cmd: "nav-pilot sync --json" },
               ].map((item) => (
                 <div key={item.label}>
                   <Label size="small" style={{ color: "#64748b" }}>
@@ -1231,10 +1232,10 @@ function CliReferenceSection() {
           </div>
         </div>
 
-        {/* Usage examples */}
+        {/* Advanced examples — basics are shown in "Kom i gang" and "Sync og oppdatering" */}
         <div>
           <Heading size="xsmall" level="3" className="mb-4" style={{ color: "#334155" }}>
-            Eksempler
+            Oppskrifter
           </Heading>
 
           <VStack gap="space-12">
@@ -1247,6 +1248,10 @@ function CliReferenceSection() {
                   { label: "Se hva som installeres", cmd: "nav-pilot install --dry-run kotlin-backend" },
                   { label: "Installer", cmd: "nav-pilot install kotlin-backend" },
                   { label: "Installer i annet repo", cmd: "nav-pilot install --target /path/to/repo kotlin-backend" },
+                  {
+                    label: "Overskriv lokalt endrede filer",
+                    cmd: "nav-pilot install --force kotlin-backend",
+                  },
                 ].map((item) => (
                   <div key={item.cmd}>
                     <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
@@ -1260,26 +1265,13 @@ function CliReferenceSection() {
 
             <div>
               <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
-                Installer enkeltkomponenter
-              </Label>
-              <CodeBlock compact>
-                {`nav-pilot add agent security-champion
-nav-pilot add skill postgresql-review
-nav-pilot add instruction database
-nav-pilot add prompt kafka-topic`}
-              </CodeBlock>
-            </div>
-
-            <div>
-              <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
-                Sjekk status og oppdater
+                Eksporter til andre verktøy
               </Label>
               <div className="space-y-3">
                 {[
-                  { label: "Vis installerte filer og integritet", cmd: "nav-pilot status" },
-                  { label: "Sjekk om det finnes oppdateringer", cmd: "nav-pilot sync" },
-                  { label: "Oppdater filer direkte", cmd: "nav-pilot sync --apply" },
-                  { label: "Tving reinstallasjon", cmd: "nav-pilot install --force kotlin-backend" },
+                  { label: "Eksporter til OpenCode-format", cmd: "nav-pilot export opencode" },
+                  { label: "Eksporter globalt (alle repoer)", cmd: "nav-pilot export opencode --user" },
+                  { label: "Forhåndsvis hva som eksporteres", cmd: "nav-pilot export opencode --dry-run" },
                 ].map((item) => (
                   <div key={item.cmd}>
                     <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
@@ -1289,6 +1281,33 @@ nav-pilot add prompt kafka-topic`}
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
+                Scripting og CI/CD
+              </Label>
+              <div className="space-y-3">
+                {[
+                  { label: "JSON-output for alle kommandoer", cmd: "nav-pilot status --json | jq ." },
+                  { label: "Sjekk oppdateringer i CI (exit 1 = oppdateringer finnes)", cmd: "nav-pilot sync --json" },
+                  { label: "Installer i CI med JSON-resultat", cmd: "nav-pilot install --json kotlin-backend" },
+                ].map((item) => (
+                  <div key={item.cmd}>
+                    <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                      {item.label}
+                    </BodyShort>
+                    <CodeBlock compact>{item.cmd}</CodeBlock>
+                  </div>
+                ))}
+              </div>
+              <Box background="neutral-soft" padding="space-12" borderRadius="8" className="mt-3">
+                <BodyShort size="small" style={{ color: "#475569" }}>
+                  <strong>Exit-koder:</strong> 0 = suksess, 1 = feil eller oppdateringer tilgjengelig (sync), 2 =
+                  sync-sjekk feilet. <code className="font-mono text-xs">--json</code> fungerer på install, add, status,
+                  sync, list og export.
+                </BodyShort>
+              </Box>
             </div>
           </VStack>
         </div>
