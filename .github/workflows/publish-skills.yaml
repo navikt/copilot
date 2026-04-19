@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/skills/**'
       - 'skills/**'
+      - 'scripts/next-skills-version.sh'
+      - 'scripts/skills-cliff.toml'
+      - '.github/workflows/publish-skills.yaml'
   workflow_dispatch:
     inputs:
       confirm:
