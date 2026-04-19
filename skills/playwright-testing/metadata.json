@@ -1,0 +1,27 @@
+{
+  "description": "Generer og kjør Playwright E2E-tester for webapplikasjoner med page objects, auth fixtures og tilgjengelighetstester",
+  "domain": "testing",
+  "tags": ["playwright", "e2e", "testing", "accessibility", "responsive"],
+  "examples": [
+    {
+      "scenario": "Innlogging",
+      "prompt": "Lag en Playwright-test for innloggingssida"
+    },
+    {
+      "scenario": "Søknadsskjema",
+      "prompt": "Lag E2E-tester for søknadsskjemaet"
+    },
+    {
+      "scenario": "Auth-oppsett",
+      "prompt": "Sett opp Playwright med auth fixtures"
+    },
+    {
+      "scenario": "Tilgjengelighet",
+      "prompt": "Legg til tilgjengelighetstester for alle sider"
+    },
+    {
+      "scenario": "Responsiv layout",
+      "prompt": "Test responsiv layout med Playwright"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "description": "Strukturerte diagnostiske trær for vanlige Nav-plattformproblemer — pod-krasj, auth-feil, Kafka-lag og databaseproblemer",
+  "domain": "platform",
+  "tags": ["troubleshooting", "diagnostics", "nais", "kubernetes", "nav-pilot"],
+  "references": [
+    "references/diagnostic-trees.md"
+  ],
+  "examples": [
+    {
+      "prompt": "Poden min krasjer med CrashLoopBackOff i dev-gcp, hjelp meg feilsøke",
+      "scenario": "Diagnostiser pod-krasj"
+    },
+    {
+      "prompt": "Jeg får 401 Unauthorized når dp-soknad kaller dp-behandling",
+      "scenario": "Diagnostiser auth-feil mellom tjenester"
+    },
+    {
+      "prompt": "Kafka-konsumenten henger og consumer lag øker",
+      "scenario": "Diagnostiser Kafka-problemer"
+    }
+  ]
+}

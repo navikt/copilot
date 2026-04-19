@@ -1,0 +1,8 @@
+{
+  "description": "Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger",
+  "domain": "backend",
+  "tags": ["kotlin", "configuration", "sealed-class", "environment"],
+  "examples": [
+    "Sett opp miljøkonfigurasjon med sealed classes i fp-sak for dev, prod og local"
+  ]
+}

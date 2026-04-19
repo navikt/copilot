@@ -1,0 +1,27 @@
+{
+  "description": "REST API-designmønstre, versjonering, feilhåndtering (RFC 7807) og OpenAPI-konvensjoner for Nav-tjenester",
+  "domain": "backend",
+  "tags": ["api", "rest", "design", "openapi", "error-handling"],
+  "examples": [
+    {
+      "scenario": "REST API-design",
+      "prompt": "Design REST API-endepunkter for vedtak"
+    },
+    {
+      "scenario": "Feilhåndtering",
+      "prompt": "Legg til feilhåndtering med ProblemDetail"
+    },
+    {
+      "scenario": "Paginering",
+      "prompt": "Sett opp paginering for listeendepunkter"
+    },
+    {
+      "scenario": "API-gjennomgang",
+      "prompt": "Gå gjennom API-designet for beste praksis"
+    },
+    {
+      "scenario": "OpenAPI-dokumentasjon",
+      "prompt": "Lag OpenAPI-annotasjoner for endepunktene"
+    }
+  ]
+}

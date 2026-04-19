@@ -29,6 +29,14 @@ else
   echo ""
 fi
 
+echo "🔗 skills sync:"
+if mise run skills:sync-check -- -q; then
+  echo ""
+else
+  failed+=("skills-sync")
+  echo ""
+fi
+
 echo "📦 collections:"
 if mise run collections:lint -- -q; then
   echo ""

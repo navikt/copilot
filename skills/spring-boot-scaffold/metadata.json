@@ -1,0 +1,23 @@
+{
+  "description": "Scaffold et nytt Spring Boot Kotlin-prosjekt med Nais-konfigurasjon, Flyway og standard Nav-mønstre",
+  "domain": "backend",
+  "tags": ["spring-boot", "kotlin", "scaffold", "nais", "project-setup"],
+  "examples": [
+    {
+      "scenario": "Nytt prosjekt",
+      "prompt": "Opprett et nytt Spring Boot Kotlin-prosjekt"
+    },
+    {
+      "scenario": "Nais-klar app",
+      "prompt": "Scaffold en Nais-klar Spring Boot-app"
+    },
+    {
+      "scenario": "API med database",
+      "prompt": "Sett opp et Spring Boot API med database"
+    },
+    {
+      "scenario": "Prosjektstruktur",
+      "prompt": "Generer prosjektstruktur for ny backend-tjeneste"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database, Nais-konfigurasjon og moderniseringsmønstre",
+  "domain": "general",
+  "tags": ["planning", "architecture", "scaffold", "nais", "nav-pilot", "modernization", "migration"],
+  "references": [
+    "references/decision-trees.md",
+    "references/documentation-templates.md",
+    "references/nais-templates.md",
+    "references/modernization-patterns.md"
+  ],
+  "examples": [
+    {
+      "prompt": "Lag en arkitekturplan for en ny dagpenge-API med PostgreSQL og Kafka",
+      "scenario": "Planlegg backend-tjeneste med database og hendelser"
+    },
+    {
+      "prompt": "Hva er riktig auth-oppsett for en tjeneste som kalles av både innbygger og saksbehandler?",
+      "scenario": "Avklar autentiseringsvalg"
+    },
+    {
+      "prompt": "Vi skal migrere vedtakstabellen fra gammel status-enum til ny — hvordan gjør vi det trygt?",
+      "scenario": "Planlegg databasemigrasjon med trestegs feltmigrasjon"
+    },
+    {
+      "prompt": "Vi skal bytte ut gammel tjeneste med ny — hvordan ruller vi ut gradvis?",
+      "scenario": "Strangler fig med feature toggle og gradvis utrulling"
+    }
+  ]
+}

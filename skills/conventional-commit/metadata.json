@@ -1,0 +1,23 @@
+{
+  "description": "Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format",
+  "domain": "general",
+  "tags": ["git", "commit", "conventional-commits", "changelog"],
+  "examples": [
+    {
+      "scenario": "Commit-melding",
+      "prompt": "Lag en commit-melding for endringene mine"
+    },
+    {
+      "scenario": "Bugfix-commit",
+      "prompt": "Skriv en conventional commit for denne fiksen"
+    },
+    {
+      "scenario": "Breaking change",
+      "prompt": "Lag en breaking change commit-melding"
+    },
+    {
+      "scenario": "Klassifisering",
+      "prompt": "Hva slags type commit er denne endringen?"
+    }
+  ]
+}

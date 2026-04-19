@@ -1,0 +1,27 @@
+{
+  "description": "PostgreSQL query review, optimalisering og beste praksis for Nav-applikasjoner",
+  "domain": "backend",
+  "tags": ["postgresql", "sql", "optimization", "review", "indexing"],
+  "examples": [
+    {
+      "scenario": "Ytelsesgjennomgang",
+      "prompt": "Gå gjennom denne SQL-spørringa for ytelse"
+    },
+    {
+      "scenario": "Optimalisering",
+      "prompt": "Optimaliser en treg PostgreSQL-spørring"
+    },
+    {
+      "scenario": "Indeksering",
+      "prompt": "Foreslå indekser for denne tabellen"
+    },
+    {
+      "scenario": "N+1-problem",
+      "prompt": "Sjekk for N+1-spørringsproblemer"
+    },
+    {
+      "scenario": "JSONB-mønstre",
+      "prompt": "Gå gjennom bruk av JSONB"
+    }
+  ]
+}

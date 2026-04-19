@@ -1,0 +1,23 @@
+{
+  "description": "Sikkerhetssjekk for macOS-utviklermaskiner — brannmur, SSH, Git, hemmeligheter, nettverk og Nav-plattformverktøy",
+  "domain": "auth",
+  "tags": ["security", "macos", "developer-tools", "audit", "hardening"],
+  "examples": [
+    {
+      "prompt": "Kjør en sikkerhetssjekk av Mac-en min",
+      "scenario": "Full sikkerhetsgjennomgang av utviklermaskin"
+    },
+    {
+      "prompt": "Sjekk om SSH- og Git-konfig er trygg",
+      "scenario": "Sjekk av SSH og Git"
+    },
+    {
+      "prompt": "Finnes det lekkede hemmeligheter på maskinen min?",
+      "scenario": "Skanning av hemmeligheter og tokens"
+    },
+    {
+      "prompt": "Er maskinen klar for Nais-utvikling?",
+      "scenario": "Klarsjekk for Nav-plattformen"
+    }
+  ]
+}

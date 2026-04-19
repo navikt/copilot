@@ -1,0 +1,9 @@
+{
+  "description": "Skriv månedlige oppsummeringer av AI-nyheter for utviklere på norsk med fungerende kildelenker",
+  "domain": "general",
+  "tags": ["ai", "news", "research", "monthly-summary"],
+  "references": [
+    "references/OUTPUT-FORMAT.md"
+  ],
+  "excluded": true
+}

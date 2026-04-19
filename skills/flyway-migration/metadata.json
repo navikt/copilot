@@ -1,0 +1,8 @@
+{
+  "description": "Databasemigrasjonsmønstre med Flyway og versjonerte SQL-skript",
+  "domain": "backend",
+  "tags": ["database", "flyway", "sql", "migration"],
+  "examples": [
+    "Lag en Flyway-migrasjon som legger til en indeks på fødselsnummer"
+  ]
+}

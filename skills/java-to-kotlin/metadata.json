@@ -1,0 +1,15 @@
+{
+  "description": "Trinnvis Java-til-Kotlin-migrering med rammeverk-bevisste transformasjoner for Spring, Ktor og Nav-mønstre",
+  "domain": "backend",
+  "tags": ["kotlin", "java", "migration", "refactoring", "ktor", "spring"],
+  "examples": [
+    {
+      "prompt": "Konverter UserService.java til idiomatic Kotlin med Ktor-mønstre",
+      "scenario": "Migrering av enkeltfil"
+    },
+    {
+      "prompt": "Lag en plan for å migrere dp-arena fra Java til Kotlin",
+      "scenario": "Fullstendig migrasjonsplanlegging"
+    }
+  ]
+}
