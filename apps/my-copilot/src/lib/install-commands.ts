@@ -80,13 +80,13 @@ export function getManualInstallCommand(item: AnyCustomization, allItems?: AnyCu
 
 /**
  * Generate `gh skill install` command for a skill.
- * Uses path-based form since skills live under .github/skills/ which
- * is not auto-discovered by gh skill's conventional patterns.
+ * Uses short-name form — skills live at root `skills/` which is
+ * auto-discovered by `gh skill` (agentskills.io convention).
  * Requires gh CLI ≥2.90.0.
  */
 export function getGhSkillInstallCommand(item: AnyCustomization): string {
   if (item.type !== "skill") return "";
-  return `gh skill install navikt/copilot .github/skills/${item.name}/SKILL.md`;
+  return `gh skill install navikt/copilot ${item.name}`;
 }
 
 /**

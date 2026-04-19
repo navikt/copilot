@@ -285,12 +285,12 @@ describe("getManualInstallCommand", () => {
 describe("getGhSkillInstallCommand", () => {
   it("generates gh skill install command for skill", () => {
     const cmd = getGhSkillInstallCommand(skill);
-    expect(cmd).toBe("gh skill install navikt/copilot .github/skills/aksel-spacing/SKILL.md");
+    expect(cmd).toBe("gh skill install navikt/copilot aksel-spacing");
   });
 
   it("generates gh skill install command for skill with references", () => {
     const cmd = getGhSkillInstallCommand(skillWithRefs);
-    expect(cmd).toBe("gh skill install navikt/copilot .github/skills/observability-setup/SKILL.md");
+    expect(cmd).toBe("gh skill install navikt/copilot observability-setup");
   });
 
   it("returns empty string for non-skill types", () => {
