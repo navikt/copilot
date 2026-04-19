@@ -1,0 +1,133 @@
+name: Publish skills
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/skills/**'
+      - 'skills/**'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "publish" to confirm'
+        required: true
+
+concurrency:
+  group: skills-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+
+      - name: Verify gh skill support
+        run: gh skill publish --help >/dev/null
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Check skills directories in sync
+        run: bash scripts/sync-skills-dirs.sh
+
+      - name: Lint skills
+        run: bash scripts/lint-skills.sh
+
+      - name: Validate against agentskills.io spec
+        run: gh skill publish --dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    name: Publish release
+    needs: validate
+    if: >
+      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'publish')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Verify gh skill support
+        run: gh skill publish --help >/dev/null
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Compute next version
+        id: version
+        run: |
+          set +e
+          VERSION=$(bash scripts/next-skills-version.sh --check)
+          rc=$?
+          set -e
+          if [[ "$rc" -eq 1 ]]; then
+            echo "ℹ️  No skills changes since last release, skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [[ "$rc" -ne 0 ]]; then
+            echo "❌ Version script failed with exit $rc"
+            exit "$rc"
+          fi
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "📦 Next skills release: ${TAG}"
+
+      - name: Check for existing tag
+        if: steps.version.outputs.skip != 'true'
+        id: check
+        run: |
+          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "⚠️  Tag ${{ steps.version.outputs.tag }} already exists, skipping publish"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+        id: changelog
+        uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72 # v4
+        with:
+          config: scripts/skills-cliff.toml
+          args: >-
+            --unreleased
+            --tag ${{ steps.version.outputs.tag }}
+            --include-path ".github/skills/**"
+            --include-path "skills/**"
+
+      - name: Publish skills
+        if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+        run: |
+          gh skill publish --tag "${{ steps.version.outputs.tag }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Update release notes
+        if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+        run: |
+          gh release edit "${{ steps.version.outputs.tag }}" \
+            --notes "$CHANGELOG"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGELOG: |
+            ## Skills ${{ steps.version.outputs.tag }}
+
+            Agent skills for GitHub Copilot, Claude Code, Cursor, Codex, and Gemini CLI.
+
+            ### Installation
+
+            ```bash
+            gh skill install navikt/copilot <skill-name>
+            ```
+
+            ${{ steps.changelog.outputs.content }}

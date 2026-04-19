@@ -51,6 +51,14 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
       - run: bash scripts/lint-skills.sh
+      - name: Verify gh skill support
+        run: gh skill publish --help >/dev/null
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Validate agentskills.io spec
+        run: gh skill publish --dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   skills-sync:
     name: Skills directories in sync
