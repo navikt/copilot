@@ -27,10 +27,13 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
 
-      - name: Verify gh skill support
-        run: gh skill publish --help >/dev/null
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Upgrade gh CLI (gh skill requires 2.90.0+)
+        run: |
+          GH_VERSION=2.90.0
+          curl -sSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+          sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
+          gh --version
 
       - name: Check skills directories in sync
         run: bash scripts/sync-skills-dirs.sh
@@ -56,10 +59,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify gh skill support
-        run: gh skill publish --help >/dev/null
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Upgrade gh CLI (gh skill requires 2.90.0+)
+        run: |
+          GH_VERSION=2.90.0
+          curl -sSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+          sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
+          gh --version
 
       - name: Compute next version
         id: version
