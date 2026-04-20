@@ -56,8 +56,11 @@ docs/                 # Documentation
 
 ### Customization Language
 
-- **YAML descriptions**: Norwegian (shown on the my-copilot website)
-- **Body content**: English for backend, infra, security, and database topics; Norwegian for UI/UX, Aksel, and accessibility topics
+- **YAML descriptions**: Norwegian (shown in VS Code agent/skill picker and on the my-copilot website)
+- **Machine instructions** (operating loops, rules, boundaries, checklists): English — maximizes LLM instruction adherence, especially in multi-turn conversations
+- **User-visible output templates** (phase headers, progress indicators, checkpoint summaries): Norwegian — UX matters for Nav developers
+- **Domain content** (decision trees, reference tables, code examples): English
+- **Exceptions**: `@forfatter` and `@accessibility-agent` use Norwegian body content per their domain (UI/UX, accessibility, Norwegian language)
 
 ## Code Style
 
