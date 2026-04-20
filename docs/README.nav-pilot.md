@@ -126,7 +126,7 @@ Starter interaktiv modus — sjekker oppdateringer og tilbyr å starte Copilot m
 
 ### Endre agenten
 
-Agenten ligger i `.github/agents/nav-pilot.agent.md`. Den inneholder ruterlogikken — hvilke skills som brukes i hvilken rekkefølge. Fase-headers styres av `<response_format>` XML-tag øverst i filen.
+Agenten ligger i `.github/agents/nav-pilot.agent.md`. Den inneholder ruterlogikken — hvilke skills som brukes i hvilken rekkefølge. Faseadferd styres av `<operating_loop>` øverst i filen, som sikrer at agenten holder seg i riktig fase gjennom hele samtalen.
 
 ### Endre skills
 
