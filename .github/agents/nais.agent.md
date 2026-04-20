@@ -112,6 +112,26 @@ spec:
       memory: 512Mi
 ```
 
+### Pod Lifecycle and Graceful Shutdown
+
+When Kubernetes terminates a pod on NAIS, the sequence is:
+
+1. **K8s notifies load balancer and pod simultaneously** — load balancer starts draining connections
+2. **NAIS preStop hook runs `sleep 5`** — gives the load balancer time to stop routing new traffic
+3. **App receives SIGTERM** — by now, no new requests arrive from the load balancer
+4. **App drains in-flight requests and exits**
+5. **After `terminationGracePeriodSeconds` (default 30s): SIGKILL** — force kills if still running
+
+**Key insight:** Readiness probes are NOT involved in shutdown. The load balancer uses endpoint updates from Kubernetes, not readiness probes, to stop routing. Your app just needs to:
+- Handle SIGTERM
+- Finish in-flight requests
+- Exit cleanly
+
+Common anti-patterns:
+- ❌ Setting readiness to `false` on SIGTERM — unnecessary, adds complexity
+- ❌ `terminationGracePeriodSeconds` too low — must be > 5s (preStop hook) + drain time
+- ❌ Adding a `preStop` hook with extra sleep — NAIS already injects `sleep 5`
+
 ## Common Tasks
 
 ### 1. Adding PostgreSQL Database

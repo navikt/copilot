@@ -337,6 +337,8 @@ func LoadDashboard(ctx context.Context, id string) (*Dashboard, error) {
 
 ### Graceful Shutdown
 
+> **NAIS pod lifecycle:** When Kubernetes terminates a pod, the load balancer and pod are notified simultaneously. NAIS injects a `sleep 5` preStop hook before your app receives SIGTERM, so by the time SIGTERM arrives, the load balancer has already had 5+ seconds to drain traffic. Your app does **not** need to manipulate readiness probes during shutdown — just finish in-flight requests and exit. The default `terminationGracePeriodSeconds` (30s) gives you 25 seconds after SIGTERM.
+
 ```go
 func main() {
     ctx, cancel := signal.NotifyContext(context.Background(),
@@ -362,6 +364,11 @@ func main() {
     }
 }
 ```
+
+Common anti-patterns:
+- ❌ Setting readiness to `false` on SIGTERM — unnecessary on NAIS, the load balancer already stopped routing
+- ❌ `terminationGracePeriodSeconds: 5` — too short, gives 0 seconds after SIGTERM
+- ✅ `server.Shutdown()` drains in-flight requests — this is all you need
 
 ### Context Propagation
 

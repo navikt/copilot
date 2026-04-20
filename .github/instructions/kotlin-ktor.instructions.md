@@ -300,6 +300,39 @@ fun Application.api() {
 }
 ```
 
+## Graceful Shutdown
+
+> **NAIS pod lifecycle:** NAIS injects a `sleep 5` preStop hook before your app receives SIGTERM. By then, the load balancer has already stopped routing new traffic. Your app does **not** need to manipulate readiness probes — just finish in-flight requests and exit.
+
+For standalone Ktor servers (non-Rapids & Rivers):
+
+```kotlin
+fun main() {
+    val server = embeddedServer(Netty, port = 8080) {
+        api()
+    }
+
+    server.start(wait = false)
+
+    Runtime.getRuntime().addShutdownHook(Thread {
+        logger.info { "SIGTERM received, draining connections" }
+        server.stop(
+            gracePeriodMillis = 5_000,  // wait for in-flight requests
+            timeoutMillis = 10_000      // hard deadline
+        )
+    })
+
+    Thread.currentThread().join()
+}
+```
+
+For Rapids & Rivers apps, `RapidApplication` handles shutdown automatically.
+
+Common anti-patterns:
+- ❌ Setting `/isready` to return 503 on SIGTERM — unnecessary on NAIS
+- ❌ Adding a preStop hook — NAIS already injects `sleep 5`
+- ✅ `server.stop(gracePeriod, timeout)` drains in-flight requests — this is all you need
+
 ## Kafka Rapids & Rivers
 
 Use the Rapids & Rivers pattern for event-driven architecture:
