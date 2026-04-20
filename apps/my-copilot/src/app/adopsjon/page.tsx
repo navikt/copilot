@@ -6,6 +6,7 @@ import {
   TeamAdoptionChart,
   LanguageAdoptionChart,
   TopCustomizationsChart,
+  ToolComparisonChart,
 } from "@/components/charts/adoption";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
@@ -74,6 +75,7 @@ function OverviewContent({ data }: { data: AdoptionData }) {
       </HGrid>
 
       <CustomizationTypeChart data={summary} />
+      <ToolComparisonChart data={summary} />
     </VStack>
   );
 }

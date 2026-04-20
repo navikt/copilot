@@ -32,6 +32,11 @@ SELECT
   COUNTIF(JSON_VALUE(customizations, '$.windsurfrules.exists') = 'true' AND NOT is_archived) AS repos_with_windsurfrules,
   COUNTIF(JSON_VALUE(customizations, '$.cursorignore.exists') = 'true' AND NOT is_archived) AS repos_with_cursorignore,
   COUNTIF(JSON_VALUE(customizations, '$.claude_settings.exists') = 'true' AND NOT is_archived) AS repos_with_claude_settings,
+  -- Newer GitHub Copilot / Agentic features
+  COUNTIF(JSON_VALUE(customizations, '$.copilot_setup_steps.exists') = 'true' AND NOT is_archived) AS repos_with_copilot_setup_steps,
+  COUNTIF(JSON_VALUE(customizations, '$.agentic_workflows.exists') = 'true' AND NOT is_archived) AS repos_with_agentic_workflows,
+  COUNTIF(JSON_VALUE(customizations, '$.agents_skills.exists') = 'true' AND NOT is_archived) AS repos_with_agents_skills,
+  COUNTIF(JSON_VALUE(customizations, '$.nav_pilot_state.exists') = 'true' AND NOT is_archived) AS repos_with_nav_pilot_state,
   -- Aggregate: any non-Copilot AI tool
   COUNTIF((
     JSON_VALUE(customizations, '$.cursorrules.exists') = 'true' OR

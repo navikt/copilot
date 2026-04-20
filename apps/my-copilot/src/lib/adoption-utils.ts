@@ -8,12 +8,13 @@
 import type { AdoptionSummary, LanguageAdoption, TeamAdoption, CustomizationDetail, AdoptionScope } from "./types";
 
 /**
- * Customization type with label and count.
+ * Customization type with label, count and group.
  */
 export interface CustomizationType {
   label: string;
   value: number;
   key: string;
+  group?: "copilot" | "agentic" | "nav-pilot";
 }
 
 /**
@@ -30,14 +31,33 @@ export interface ToolUsage {
  */
 export function extractCustomizationTypes(summary: AdoptionSummary): CustomizationType[] {
   const types: CustomizationType[] = [
-    { key: "copilot_instructions", label: "copilot-instructions.md", value: summary.repos_with_copilot_instructions },
-    { key: "agents_md", label: "AGENTS.md", value: summary.repos_with_agents_md },
-    { key: "agents", label: ".github/agents/", value: summary.repos_with_agents },
-    { key: "instructions", label: ".github/instructions/", value: summary.repos_with_instructions },
-    { key: "prompts", label: ".github/prompts/", value: summary.repos_with_prompts },
-    { key: "skills", label: ".github/skills/", value: summary.repos_with_skills },
-    { key: "mcp_config", label: "mcp.json", value: summary.repos_with_mcp_config },
-    { key: "copilot_dir", label: ".copilot/", value: summary.repos_with_copilot_dir },
+    {
+      key: "copilot_instructions",
+      label: "copilot-instructions.md",
+      value: summary.repos_with_copilot_instructions,
+      group: "copilot",
+    },
+    { key: "agents_md", label: "AGENTS.md", value: summary.repos_with_agents_md, group: "copilot" },
+    { key: "agents", label: ".github/agents/", value: summary.repos_with_agents, group: "copilot" },
+    { key: "instructions", label: ".github/instructions/", value: summary.repos_with_instructions, group: "copilot" },
+    { key: "prompts", label: ".github/prompts/", value: summary.repos_with_prompts, group: "copilot" },
+    { key: "skills", label: ".github/skills/", value: summary.repos_with_skills, group: "copilot" },
+    { key: "mcp_config", label: "mcp.json", value: summary.repos_with_mcp_config, group: "copilot" },
+    { key: "copilot_dir", label: ".copilot/", value: summary.repos_with_copilot_dir, group: "copilot" },
+    {
+      key: "copilot_setup_steps",
+      label: "copilot-setup-steps.yml",
+      value: summary.repos_with_copilot_setup_steps,
+      group: "agentic",
+    },
+    { key: "agentic_workflows", label: ".github/aw/", value: summary.repos_with_agentic_workflows, group: "agentic" },
+    { key: "agents_skills", label: ".agents/skills/", value: summary.repos_with_agents_skills, group: "agentic" },
+    {
+      key: "nav_pilot_state",
+      label: "nav-pilot-state.json",
+      value: summary.repos_with_nav_pilot_state,
+      group: "nav-pilot",
+    },
   ];
 
   return types.sort((a, b) => b.value - a.value);

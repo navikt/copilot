@@ -21,7 +21,11 @@ SELECT
   COUNTIF(JSON_VALUE(customizations, '$.instructions.exists') = 'true' AND NOT is_archived) AS with_instructions,
   COUNTIF(JSON_VALUE(customizations, '$.prompts.exists') = 'true' AND NOT is_archived) AS with_prompts,
   COUNTIF(JSON_VALUE(customizations, '$.skills.exists') = 'true' AND NOT is_archived) AS with_skills,
-  COUNTIF(JSON_VALUE(customizations, '$.mcp_config.exists') = 'true' AND NOT is_archived) AS with_mcp_config
+  COUNTIF(JSON_VALUE(customizations, '$.mcp_config.exists') = 'true' AND NOT is_archived) AS with_mcp_config,
+  COUNTIF(JSON_VALUE(customizations, '$.copilot_setup_steps.exists') = 'true' AND NOT is_archived) AS with_copilot_setup_steps,
+  COUNTIF(JSON_VALUE(customizations, '$.agentic_workflows.exists') = 'true' AND NOT is_archived) AS with_agentic_workflows,
+  COUNTIF(JSON_VALUE(customizations, '$.agents_skills.exists') = 'true' AND NOT is_archived) AS with_agents_skills,
+  COUNTIF(JSON_VALUE(customizations, '$.nav_pilot_state.exists') = 'true' AND NOT is_archived) AS with_nav_pilot_state
 FROM `%s.%s.%s`,
   UNNEST(JSON_QUERY_ARRAY(teams)) AS team
 WHERE teams IS NOT NULL

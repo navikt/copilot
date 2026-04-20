@@ -49,6 +49,10 @@ const mockSummary: AdoptionSummary = {
   repos_with_windsurfrules: 2,
   repos_with_cursorignore: 1,
   repos_with_claude_settings: 1,
+  repos_with_copilot_setup_steps: 4,
+  repos_with_agentic_workflows: 2,
+  repos_with_agents_skills: 3,
+  repos_with_nav_pilot_state: 6,
   repos_with_any_non_copilot_ai: 18,
   avg_customization_count: 1.2,
   max_customization_count: 5,
@@ -72,6 +76,10 @@ const mockTeams: TeamAdoption[] = [
     with_prompts: 0,
     with_skills: 0,
     with_mcp_config: 0,
+    with_copilot_setup_steps: 1,
+    with_agentic_workflows: 0,
+    with_agents_skills: 0,
+    with_nav_pilot_state: 1,
   },
   {
     scan_date: "2026-03-13",
@@ -90,6 +98,10 @@ const mockTeams: TeamAdoption[] = [
     with_prompts: 0,
     with_skills: 0,
     with_mcp_config: 0,
+    with_copilot_setup_steps: 0,
+    with_agentic_workflows: 0,
+    with_agents_skills: 0,
+    with_nav_pilot_state: 0,
   },
   {
     scan_date: "2026-03-13",
@@ -108,6 +120,10 @@ const mockTeams: TeamAdoption[] = [
     with_prompts: 1,
     with_skills: 1,
     with_mcp_config: 0,
+    with_copilot_setup_steps: 2,
+    with_agentic_workflows: 1,
+    with_agents_skills: 1,
+    with_nav_pilot_state: 2,
   },
   {
     scan_date: "2026-03-13",
@@ -126,6 +142,10 @@ const mockTeams: TeamAdoption[] = [
     with_prompts: 0,
     with_skills: 0,
     with_mcp_config: 0,
+    with_copilot_setup_steps: 0,
+    with_agentic_workflows: 0,
+    with_agents_skills: 0,
+    with_nav_pilot_state: 0,
   },
 ];
 
@@ -188,7 +208,7 @@ describe("extractCustomizationTypes", () => {
   it("should extract and sort customization types by value descending", () => {
     const result = extractCustomizationTypes(mockSummary);
 
-    expect(result.length).toBe(8);
+    expect(result.length).toBe(12);
     expect(result[0].label).toBe("copilot-instructions.md");
     expect(result[0].value).toBe(80);
     // Verify sorting
@@ -209,6 +229,22 @@ describe("extractCustomizationTypes", () => {
     expect(keys).toContain("skills");
     expect(keys).toContain("mcp_config");
     expect(keys).toContain("copilot_dir");
+    expect(keys).toContain("copilot_setup_steps");
+    expect(keys).toContain("agentic_workflows");
+    expect(keys).toContain("agents_skills");
+    expect(keys).toContain("nav_pilot_state");
+  });
+
+  it("should assign correct groups", () => {
+    const result = extractCustomizationTypes(mockSummary);
+
+    const copilot = result.filter((t) => t.group === "copilot");
+    const agentic = result.filter((t) => t.group === "agentic");
+    const navPilot = result.filter((t) => t.group === "nav-pilot");
+
+    expect(copilot.length).toBe(8);
+    expect(agentic.length).toBe(3);
+    expect(navPilot.length).toBe(1);
   });
 });
 

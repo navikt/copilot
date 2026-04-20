@@ -278,6 +278,10 @@ export interface AdoptionSummary {
   repos_with_windsurfrules: number;
   repos_with_cursorignore: number;
   repos_with_claude_settings: number;
+  repos_with_copilot_setup_steps: number;
+  repos_with_agentic_workflows: number;
+  repos_with_agents_skills: number;
+  repos_with_nav_pilot_state: number;
   repos_with_any_non_copilot_ai: number;
   avg_customization_count: number;
   max_customization_count: number;
@@ -300,6 +304,10 @@ export interface TeamAdoption {
   with_prompts: number;
   with_skills: number;
   with_mcp_config: number;
+  with_copilot_setup_steps: number;
+  with_agentic_workflows: number;
+  with_agents_skills: number;
+  with_nav_pilot_state: number;
 }
 
 export interface LanguageAdoption {

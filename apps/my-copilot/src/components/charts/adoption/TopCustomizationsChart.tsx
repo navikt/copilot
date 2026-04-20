@@ -20,6 +20,8 @@ const categoryLabels: Record<string, string> = {
   skills: "Skills",
   instructions: "Instruksjoner",
   prompts: "Prompts",
+  agentic_workflows: "Agentic Workflows",
+  agents_skills: "Installerte skills",
 };
 
 const categoryColors: Record<string, string> = {
@@ -27,6 +29,8 @@ const categoryColors: Record<string, string> = {
   skills: chartColors[1],
   instructions: chartColors[2],
   prompts: chartColors[3],
+  agentic_workflows: chartColors[4],
+  agents_skills: chartColors[5],
 };
 
 function CategoryChart({
@@ -100,7 +104,7 @@ const TopCustomizationsChart: React.FC<TopCustomizationsChartProps> = ({ data, m
     return acc;
   }, {});
 
-  const categories = ["agents", "skills", "instructions", "prompts"];
+  const categories = ["agents", "skills", "instructions", "prompts", "agentic_workflows", "agents_skills"];
 
   return (
     <VStack gap="space-16">

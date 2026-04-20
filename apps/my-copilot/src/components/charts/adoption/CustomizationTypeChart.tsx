@@ -1,13 +1,50 @@
 "use client";
 
 import type { AdoptionSummary } from "@/lib/types";
+import type { CustomizationType } from "@/lib/adoption-utils";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Box, Heading } from "@navikt/ds-react";
+import { Box, Heading, VStack } from "@navikt/ds-react";
+import { extractCustomizationTypes } from "@/lib/adoption-utils";
 
 interface CustomizationTypeChartProps {
   data: AdoptionSummary | null;
+}
+
+const groupConfig: Record<string, { title: string; color: string }> = {
+  copilot: { title: "GitHub Copilot", color: chartColors[0] },
+  agentic: { title: "Agentic & plattform", color: chartColors[1] },
+  "nav-pilot": { title: "nav-pilot", color: chartColors[4] },
+};
+
+function GroupChart({ title, color, items }: { title: string; color: string; items: CustomizationType[] }) {
+  const sorted = [...items].sort((a, b) => b.value - a.value);
+
+  const chartData = {
+    labels: sorted.map((t) => t.label),
+    datasets: [
+      {
+        data: sorted.map((t) => t.value),
+        backgroundColor: color,
+        borderRadius: 4,
+        barThickness: 20,
+      },
+    ],
+  };
+
+  const height = Math.max(120, sorted.length * 36);
+
+  return (
+    <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
+      <Heading size="small" level="4" spacing>
+        {title}
+      </Heading>
+      <div style={{ height }}>
+        <Bar data={chartData} options={commonHorizontalBarOptions} />
+      </div>
+    </Box>
+  );
 }
 
 const CustomizationTypeChart: React.FC<CustomizationTypeChartProps> = ({ data }) => {
@@ -19,38 +56,21 @@ const CustomizationTypeChart: React.FC<CustomizationTypeChartProps> = ({ data })
     );
   }
 
-  const customizationTypes = [
-    { label: "copilot-instructions.md", value: data.repos_with_copilot_instructions },
-    { label: "AGENTS.md", value: data.repos_with_agents_md },
-    { label: ".github/agents/", value: data.repos_with_agents },
-    { label: ".github/instructions/", value: data.repos_with_instructions },
-    { label: ".github/prompts/", value: data.repos_with_prompts },
-    { label: ".github/skills/", value: data.repos_with_skills },
-    { label: "mcp.json", value: data.repos_with_mcp_config },
-    { label: ".copilot/", value: data.repos_with_copilot_dir },
-  ].sort((a, b) => b.value - a.value);
+  const allTypes = extractCustomizationTypes(data);
 
-  const chartData = {
-    labels: customizationTypes.map((t) => t.label),
-    datasets: [
-      {
-        data: customizationTypes.map((t) => t.value),
-        backgroundColor: chartColors[0],
-        borderRadius: 4,
-        barThickness: 20,
-      },
-    ],
-  };
+  const groups = Object.entries(groupConfig)
+    .map(([key, config]) => ({
+      ...config,
+      items: allTypes.filter((t) => t.group === key),
+    }))
+    .filter((g) => g.items.some((i) => i.value > 0));
 
   return (
-    <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-      <Heading size="small" level="4" spacing>
-        Copilot-tilpasninger etter type
-      </Heading>
-      <div style={{ height: 300 }}>
-        <Bar data={chartData} options={commonHorizontalBarOptions} />
-      </div>
-    </Box>
+    <VStack gap="space-16">
+      {groups.map((group) => (
+        <GroupChart key={group.title} title={group.title} color={group.color} items={group.items} />
+      ))}
+    </VStack>
   );
 };
 
