@@ -6,6 +6,19 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-04-20
 
+### Språkstrategi — engelsk for maskininstruksjoner, norsk for brukersynlig output
+
+Forskning (Multi-IF-benchmark) viser at norske instruksjoner gir 5–15 % lavere etterlevelse i LLM-er, og forverres per samtalesvng. nav-pilot hadde inkonsekvent språkblanding — det verste alternativet.
+
+Refaktorert `nav-pilot.agent.md` med hybridstrategi:
+
+- **Engelsk** (maskininstruksjoner): Fasemaskin-tabell, blinde flekker, arketyper, beslutningstrær, review-perspektiver, leveransesjekkliste, vanlige mønstre, feilsøking, boundaries
+- **Norsk** (brukersynlig output): Fasehoder, tilstandsfot, sjekkpunkt-mal, delegeringsmal, «Slik bruker du meg»-eksempler, @forfatter-delegering
+- Eksplisitt språkdirektiv lagt til: «Respond to users in Norwegian. All internal instructions in this file are in English for optimal adherence.»
+- Formalisert språkpolicy i AGENTS.md under «Customization Language»
+
+Refs: #179
+
 ### Fasepersistens — nav-pilot husker hvem den er
 
 Nav-pilot mistet fasebevissthet og persona under lange samtaler fordi instruksjonene ble erklært én gang og deretter begravd av konteksthistorikk. Omskrevet kjernemekanismen:
