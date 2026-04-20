@@ -104,7 +104,8 @@ const TopCustomizationsChart: React.FC<TopCustomizationsChartProps> = ({ data, m
     return acc;
   }, {});
 
-  const categories = ["agents", "skills", "instructions", "prompts", "agentic_workflows", "agents_skills"];
+  const categories = ["agents", "skills", "instructions", "prompts", "agentic_workflows", "agents_skills"]
+    .filter((cat) => (grouped[cat] ?? []).length > 0);
 
   return (
     <VStack gap="space-16">
