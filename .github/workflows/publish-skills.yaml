@@ -125,6 +125,7 @@ jobs:
         if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
         run: |
           gh release edit "${{ steps.version.outputs.tag }}" \
+            --latest=false \
             --notes "$CHANGELOG"
         env:
           GH_TOKEN: ${{ github.token }}
