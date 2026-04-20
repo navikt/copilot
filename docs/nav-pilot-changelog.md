@@ -4,6 +4,41 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ---
 
+## 2026-04-20
+
+### Fasepersistens — nav-pilot husker hvem den er
+
+Nav-pilot mistet fasebevissthet og persona under lange samtaler fordi instruksjonene ble erklært én gang og deretter begravd av konteksthistorikk. Omskrevet kjernemekanismen:
+
+- **Operasjonsløkke** — erstatter engangs `<response_format>` med en 5-stegs løkke som kjøres på hvert svar: bestem fase → faseoverskrift → kun fase-tillatt arbeid → sjekkpunkt ved overgang → tilstandsfot
+- **Tilstandsfot** — kompakt one-liner på slutten av hvert svar som sporer gjeldende fase, ferdige faser, nøkkelbeslutninger og åpne spørsmål. Fungerer som minneoppfrisking uten token-oppblåsing
+- **Fasemaskin-tabell** — eksplisitte inn-/ut-kriterier per fase slik at modellen har et oppslagsverk for hva som er tillatt
+- **Tilbakerullingsregel** — ny informasjon som konflikter med tidligere beslutninger tvinger eksplisitt retur til tidligste berørte fase
+- **Utvidet Fase 3 (Review)** — fra 9 linjer til fullstendig 4-perspektiv-review med 16 konkrete spørsmål og strukturert output-mal med dom (Godkjent / Godkjent med endringer / Tilbake til Fase 2)
+- **Delegeringskontrakt** — «deleger kun delproblemet, aldri hele samtalen. Gjenoppta alltid kontroll med oppsummering.» Forhindrer at spesialistagenter overtar
+- **Nummererte blinde flekker** — 10 punkt med krav om dekningsrapport i Fase 1-sjekkpunkt
+- **Fasedisiplin i Boundaries** — nye ✅ Always og 🚫 Never-regler for faseoverskrift, tilstandsfot og fase-hopping
+
+### Installasjonsskript — immunisert mot releasekaperng
+
+Skills-release `v0.1.0` kapret GitHubs «Latest»-flagg og brakk `install.sh` (404 på nav-pilot-binærer):
+
+- **Installasjonsskript** — byttet fra `/releases/latest` API til å filtrere `/releases` etter `nav-pilot/`-tag-prefiks. Nå immun mot andre release-strømmer i monorepoet
+- **Skills-workflow** — lagt til `--latest=false` på `gh release edit` slik at skills-releaser aldri stjeler Latest-flagget
+- **GitHub** — manuelt gjenopprettet nav-pilot-release som Latest
+
+### Adopsjonssiden — 4 nye kategorier og verktøysammenligning
+
+Surfacet 4 manglende skannerkategorier og lagt til verktøysammenligningsgraf:
+
+- **BQ-views** — 4 nye kolonner i `v_adoption_summary`, `v_team_adoption`; 2 nye UNION ALL-seksjoner i `v_customization_details`
+- **Nye kategorier**: copilot_setup_steps, agentic_workflows, agents_skills, nav_pilot_state
+- **Gruppert CustomizationTypeChart** — delt i Copilot/Agentic/nav-pilot-seksjoner med filtrering av tomme grupper
+- **Ny ToolComparisonChart** — Copilot vs Cursor vs Claude vs Windsurf sammenligning
+- **TopCustomizationsChart** — 2 nye kategorier med automatisk filtrering av tomme kort
+
+---
+
 ## 2026-04-17
 
 ### Eksport til OpenCode (`nav-pilot export opencode`)
