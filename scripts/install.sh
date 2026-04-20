@@ -84,7 +84,7 @@ ASSET="${BINARY}-${OS}-${ARCH}"
 if [[ -z "$VERSION" ]]; then
   echo "→ Fetching latest nav-pilot release..."
   # Filter by nav-pilot/ tag prefix to avoid picking up unrelated releases (e.g. skills)
-  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=20" \
+  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100" \
     | grep '"tag_name"' \
     | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' \
     | grep '^nav-pilot/' \
