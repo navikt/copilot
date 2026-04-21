@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-17T11:29:24.697Z",
+  "generatedAt": "2026-04-21T14:06:36.300Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -286,7 +286,7 @@
       "domain": "platform",
       "filePath": ".github/agents/nais.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md",
-      "contentHash": "396a51def78b3f382e6e274297e75a10e7fbfa4c00eca69918d926a38c9c0fe6",
+      "contentHash": "fa07ad8cfdf54a4a6dc68f0debd308c90abfbce0ed4fe634f75dddd6c601aa57",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "tools": [
@@ -331,7 +331,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "becdb418816be1e06c2d380b65c0926892a666fa01fd157471a0c60a4988fa7f",
+      "contentHash": "3179adb5db9ae3af4fc977ee72bc1744cce12d55790a9e8bfd9a268ea906be1c",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -622,7 +622,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/golang.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/golang.instructions.md",
-      "contentHash": "68b80af9d00ccf92fb29494cebe1b8aa824c27148b274b900704099591b41f60",
+      "contentHash": "2223c90bb95dd7ef0142bcf2d56302af52b0ff734d26f2414dfcf31a55dfe3ae",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fgolang.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fgolang.instructions.md",
       "applyTo": "**/*.go",
@@ -640,7 +640,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-ktor.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/kotlin-ktor.instructions.md",
-      "contentHash": "26259cad8e7bf874d9a49031db54d9da0e5d1b41af8906d68ca0eb60a29d9070",
+      "contentHash": "aacb5351ab3f27995f8524778cc51f176dc32b6322093e4bafd10d8bd644e40c",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-ktor.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-ktor.instructions.md",
       "applyTo": "**/*.kt",
