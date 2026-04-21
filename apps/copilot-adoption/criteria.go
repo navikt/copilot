@@ -70,6 +70,7 @@ func (c SearchCriteria) MatchFiles(names []string) []string {
 //   - .github/prompts/*.prompt.md          Reusable prompt templates (directory)
 //   - .github/skills/*/SKILL.md            Agent skill folders (directory)
 //   - .vscode/mcp.json                     MCP server configuration (file)
+//   - .github/copilot-review-instructions.md Copilot code review instructions (file)
 //   - .github/copilot/*                    Newer Copilot config directory (directory)
 //   - .github/copilot-setup-steps.yml      Cloud coding agent environment setup (file)
 //   - .github/aw/*.md                      GitHub Agentic Workflows (directory, github/gh-aw)
@@ -172,6 +173,14 @@ func DefaultCriteria() []SearchCriteria {
 			CheckType:   CheckFile,
 		},
 
+		// --- GitHub Copilot (review instructions) ---
+		{
+			Category:    "copilot_review_instructions",
+			Description: "Copilot code review instructions for pull requests",
+			TreePath:    ".github/copilot-review-instructions.md",
+			CheckType:   CheckFile,
+		},
+
 		// --- GitHub Copilot (newer directory structure) ---
 		{
 			Category:    "copilot_dir",
@@ -195,7 +204,7 @@ func DefaultCriteria() []SearchCriteria {
 			Description: "GitHub Agentic Workflows definitions",
 			TreePath:    ".github/aw",
 			CheckType:   CheckDirectory,
-			FilePattern: "*.md",
+			FilePattern: "*",
 		},
 
 		// --- Installed agent skills (gh skill install) ---
