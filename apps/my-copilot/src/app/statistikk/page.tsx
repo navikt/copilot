@@ -167,12 +167,12 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
               Adopsjon
             </Heading>
             <HelpText title="Adopsjon" placement="top">
-              Chat- og agent-brukere er basert på GitHubs rullende 30-dagersvindu. Dropp ved månedsskifter skyldes at
-              brukere fra 30+ dager siden faller ut av vinduet.
+              Alle serier viser 7-dagers rullerende snitt for enkel sammenligning. Chat og agent er basert på GitHubs
+              rullende 30-dagersvindu, CLI på daglige tall.
             </HelpText>
           </div>
           <BodyShort className="text-gray-600">
-            Bruk av Copilots funksjoner. Chat og agent viser aktive brukere siste 30 dager, CLI viser daglig aktive.
+            Bruk av Copilots funksjoner. Alle grafer viser 7-dagers rullerende snitt.
           </BodyShort>
           <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
             <Box background="info-soft" padding="space-16" borderRadius="8">
@@ -209,9 +209,10 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                   {formatNumber(aggregatedMetrics.dailyActiveCLIUsers)}
                 </Heading>
                 <div className="flex items-center justify-center gap-1">
-                  <BodyShort className="text-gray-600">CLI-brukere (daglig)</BodyShort>
+                  <BodyShort className="text-gray-600">CLI-brukere</BodyShort>
                   <HelpText title="CLI-brukere" placement="top">
-                    Brukere som brukte Copilot CLI i terminalen siste dag.
+                    Brukere som brukte Copilot CLI i terminalen. Kortet viser siste dags tall, grafen viser 7-dagers
+                    snitt.
                   </HelpText>
                 </div>
               </div>
