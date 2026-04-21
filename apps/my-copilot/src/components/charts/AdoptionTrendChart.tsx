@@ -28,26 +28,25 @@ const AdoptionTrendChart: React.FC<AdoptionTrendChartProps> = ({ data }) => {
     labels: data.days,
     datasets: [
       {
-        label: "Chat-brukere (30d snitt)",
+        label: "Chat-brukere (7d snitt)",
         data: data.chatUsers,
         borderColor: chartColors[0],
         backgroundColor: getBackgroundColor(chartColors[0]),
         tension: 0.4,
       },
       {
-        label: "Agent-brukere (30d snitt)",
+        label: "Agent-brukere (7d snitt)",
         data: data.agentUsers,
         borderColor: chartColors[2],
         backgroundColor: getBackgroundColor(chartColors[2]),
         tension: 0.4,
       },
       {
-        label: "CLI-brukere (daglig)",
+        label: "CLI-brukere (7d snitt)",
         data: data.cliUsers,
         borderColor: chartColors[3],
         backgroundColor: getBackgroundColor(chartColors[3]),
         tension: 0.4,
-        borderDash: [5, 5],
       },
     ],
   };

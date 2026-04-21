@@ -525,8 +525,40 @@ describe("buildTrendData", () => {
 // --- buildAdoptionTrendData ---
 
 describe("buildAdoptionTrendData", () => {
-  it("computes rolling averages for chat and agent users", () => {
-    const days = Array.from({ length: 5 }, (_, i) =>
+  it("applies 7-day rolling average to all three series", () => {
+    const days = Array.from({ length: 10 }, (_, i) =>
+      makeDay({
+        day: `2026-04-${String(i + 1).padStart(2, "0")}`,
+        monthly_active_chat_users: (i + 1) * 10, // 10, 20, 30, ..., 100
+        monthly_active_agent_users: (i + 1) * 5, // 5, 10, 15, ..., 50
+        daily_active_cli_users: (i + 1) * 2, // 2, 4, 6, ..., 20
+      })
+    );
+    const result = buildAdoptionTrendData(days);
+    expect(result.days).toHaveLength(10);
+
+    // Day 0 (index 0): window=[10], avg=10
+    expect(result.chatUsers[0]).toBe(10);
+    // Day 6 (index 6): first full 7-day window [10,20,30,40,50,60,70], avg=40
+    expect(result.chatUsers[6]).toBe(40);
+    // Day 9 (index 9): window=[40,50,60,70,80,90,100], avg=70
+    expect(result.chatUsers[9]).toBe(70);
+
+    // CLI also gets rolling average (not raw)
+    // Day 0: window=[2], avg=2
+    expect(result.cliUsers[0]).toBe(2);
+    // Day 6: window=[2,4,6,8,10,12,14], avg=8
+    expect(result.cliUsers[6]).toBe(8);
+    // Day 9: window=[8,10,12,14,16,18,20], avg=14
+    expect(result.cliUsers[9]).toBe(14);
+
+    // Agent follows same pattern
+    expect(result.agentUsers[0]).toBe(5);
+    expect(result.agentUsers[6]).toBe(20);
+  });
+
+  it("handles fewer days than window size", () => {
+    const days = Array.from({ length: 3 }, (_, i) =>
       makeDay({
         day: `2026-04-0${i + 1}`,
         monthly_active_chat_users: 100,
@@ -535,11 +567,25 @@ describe("buildAdoptionTrendData", () => {
       })
     );
     const result = buildAdoptionTrendData(days);
-    expect(result.days).toHaveLength(5);
-    // CLI is raw (no rolling average)
-    expect(result.cliUsers).toEqual([10, 10, 10, 10, 10]);
-    // Chat rolling average of constant 100 is 100
-    expect(result.chatUsers[4]).toBe(100);
+    // With constant values, rolling average equals the constant
+    expect(result.chatUsers).toEqual([100, 100, 100]);
+    expect(result.agentUsers).toEqual([50, 50, 50]);
+    expect(result.cliUsers).toEqual([10, 10, 10]);
+  });
+
+  it("handles single day", () => {
+    const days = [
+      makeDay({
+        day: "2026-04-01",
+        monthly_active_chat_users: 200,
+        monthly_active_agent_users: 100,
+        daily_active_cli_users: 30,
+      }),
+    ];
+    const result = buildAdoptionTrendData(days);
+    expect(result.chatUsers).toEqual([200]);
+    expect(result.agentUsers).toEqual([100]);
+    expect(result.cliUsers).toEqual([30]);
   });
 });
 
