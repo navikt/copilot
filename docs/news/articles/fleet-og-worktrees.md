@@ -117,7 +117,7 @@ git worktree remove ../oppgave-a
 git worktree remove ../oppgave-b
 ```
 
-Med sandboxing via [`cplt`](/docs/news/articles/cplt-sandbox-copilot-cli):
+Med sandboxing via [`cplt`](https://min-copilot.ansatt.nav.no/nyheter/cplt-sandbox-copilot-cli):
 
 ```bash
 cd ../oppgave-a && cplt -- -p "implementer autentisering"
