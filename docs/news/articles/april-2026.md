@@ -1,9 +1,9 @@
 ---
 title: "Nyheter og trender — April 2026"
-date: 2026-04-17
+date: 2026-04-20
 draft: true
 category: copilot
-excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil."
+excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, automatisk modellvalg i CLI, Copilot-planendringer og strammere bruksgrenser."
 tags:
   - skills
   - github-cli
@@ -19,6 +19,10 @@ tags:
   - models
   - vscode
   - autopilot
+  - auto-model
+  - pricing
+  - rate-limits
+  - breaking-change
 ---
 
 <!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
@@ -227,6 +231,30 @@ Tilgjengelig i VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, Git
 
 ---
 
+## 17. Automatisk modellvalg i Copilot CLI
+
+Copilot auto model selection er nå generelt tilgjengelig i Copilot CLI for alle planer. I stedet for å velge modell manuelt, kan du nå la Copilot velge den mest effektive modellen for hver forespørsel — dynamisk og transparent.
+
+Auto ruter til modeller som GPT-5.4, GPT-5.3-Codex, Sonnet 4.6 og Haiku 4.5 basert på plan og administratorpolicyer. Modellutvalget vil endre seg over tid etter hvert som nye modeller blir tilgjengelige. Du ser alltid hvilken modell som ble brukt direkte i CLI-en, og kan bytte tilbake til manuelt valg når som helst.
+
+Alle betalende abonnenter får 10 % rabatt på premium request-multiplikatoren når de bruker auto. For eksempel koster en modell med 1× multiplikator bare 0,9 premium requests via auto. Auto er begrenset til modeller med 0×–1× multiplikatorer, noe som også beskytter mot utilsiktet høyt forbruk.
+
+**Kilde:** [GitHub Copilot CLI now supports Copilot auto model selection](https://github.blog/changelog/2026-04-17-github-copilot-cli-now-supports-copilot-auto-model-selection) (GitHub Changelog, 17. april 2026)
+
+---
+
+## 18. Endringer i Copilot-abonnementer for enkeltpersoner
+
+GitHub annonserte 20. april omfattende endringer i Copilot-planene for individuelle brukere. Endringene er begrunnet med kapasitetsbehov og tjenestekvalitet, men har møtt sterk kritikk fra utviklermiljøet.
+
+**Nye registreringer pauset.** Pro-, Pro+- og Student-planene aksepterer ikke nye brukere inntil videre. Copilot Free er fortsatt åpen, og eksisterende brukere kan oppgradere mellom planer. **Strammere bruksgrenser.** Pro+-planen tilbyr mer enn 5× grensene til Pro. Brukere som trenger høyere grenser må oppgradere. VS Code og Copilot CLI viser varsler når du nærmer deg grensen. **Opus fjernet fra Pro.** Opus-modeller er ikke lenger tilgjengelige på Copilot Pro. Opus 4.7 forblir på Pro+, men Opus 4.5 og 4.6 fjernes også fra Pro+ som tidligere varslet.
+
+Brukere som ikke er fornøyde med endringene kan kansellere abonnementet og få refusjon for gjenværende tid frem til 20. mai.
+
+**Kilde:** [Changes to GitHub Copilot plans for individuals](https://github.blog/changelog/2026-04-20-changes-to-github-copilot-plans-for-individuals) (GitHub Changelog, 20. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -244,3 +272,5 @@ Tilgjengelig i VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, Git
 | Project Glasswing | AI-drevet sårbarhetsjakt er her. Følg med på tilgjengeliggjøring for enterprise. |
 | Fjernstyr CLI fra nett/mobil | Start lange CLI-sesjoner og følg med fra mobilen. Krever at admin aktiverer CLI- og remote-policyer. |
 | OIDC for Dependabot | Erstatter langlevde secrets med korte OIDC-tokens for avhengighetsoppdateringer. |
+| Auto model selection i CLI | Forenkler modellvalg for utviklere — la Copilot optimalisere. 10 % rabatt beskytter premium request-budsjett. Anbefal som standard for team som ikke har spesifikke modellpreferanser. |
+| Copilot-planendringer | Nav bruker Enterprise — ikke direkte berørt. Men utviklere med personlige kontoer mister tilgang til Opus på Pro og får strammere grenser. Informer om endringene og at refusjon er mulig til 20. mai. |
