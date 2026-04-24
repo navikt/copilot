@@ -83,7 +83,7 @@ Bruk verb, ikke substantiv laget av verb. De gjør teksten tung. Eksempel: ing +
 ### Struktur
 
 - Korte avsnitt (2–4 setninger)
-- Gode mellomtitler som sier hva en del i tekstenhandler om
+- Gode mellomtitler som sier hva tekstdelen handler om
 - Kulepunkter for lister, ikke lange oppramsinger som er atskilt med komma
 - Bare første ord og egennavn med stor bokstav i overskrifter (ikke engelsk stil)
 
@@ -196,11 +196,11 @@ Bruk bindestrek:
 ❌ Postgres operatoren, Kafka topicet, GitHub repoet (særskrivingsfeil)
 ```
 
-## Anglismer
+## Anglisismer
 
-Skille mellom etablerte fagtermer (behold engelsk) og unødvendige anglisismer (bruk norsk).
+Skill mellom etablerte fagtermer (behold engelsk) og unødvendige anglisismer (bruk norsk).
 
-### Unødvendige anglismer — bruk norsk
+### Unødvendige anglisismer — bruk norsk
 
 | Anglisisme | Norsk alternativ |
 |----------|-----------------|
