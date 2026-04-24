@@ -94,7 +94,7 @@
       "type": "agent",
       "name": "forfatter",
       "displayName": "@forfatter",
-      "description": "Norsk teknisk redaktør: klarspråk, AI-markører, anglismer, fagtermer, mikrotekst.",
+      "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": ".github/agents/forfatter.agent.md",
       "useCases": [
         "Creating .nais/app.yaml manifests",

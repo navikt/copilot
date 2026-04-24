@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-21T14:06:36.300Z",
+  "generatedAt": "2026-04-24T12:23:00.559Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -195,12 +195,12 @@
     {
       "id": "forfatter",
       "name": "forfatter",
-      "description": "Norsk teknisk redaktør: klarspråk, AI-markører, anglismer, fagtermer, mikrotekst.",
+      "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "type": "agent",
       "domain": "general",
       "filePath": ".github/agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/forfatter.agent.md",
-      "contentHash": "f638bd5c234f329bc2671077bd48b95bfe4f8cef591340496cb636383d9aa2b3",
+      "contentHash": "13a58d6edf24411445d67cf53851b94f45331b1d9978e5301b0f67168fea1992",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "tools": [
