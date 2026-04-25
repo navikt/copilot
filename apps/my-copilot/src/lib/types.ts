@@ -272,6 +272,7 @@ export interface AdoptionSummary {
   repos_with_skills: number;
   repos_with_mcp_config: number;
   repos_with_copilot_dir: number;
+  repos_with_copilot_review_instructions: number;
   repos_with_cursorrules: number;
   repos_with_cursor_rules_dir: number;
   repos_with_claude_md: number;

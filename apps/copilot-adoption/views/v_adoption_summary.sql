@@ -25,6 +25,7 @@ SELECT
   COUNTIF(JSON_VALUE(customizations, '$.skills.exists') = 'true' AND NOT is_archived) AS repos_with_skills,
   COUNTIF(JSON_VALUE(customizations, '$.mcp_config.exists') = 'true' AND NOT is_archived) AS repos_with_mcp_config,
   COUNTIF(JSON_VALUE(customizations, '$.copilot_dir.exists') = 'true' AND NOT is_archived) AS repos_with_copilot_dir,
+  COUNTIF(JSON_VALUE(customizations, '$.copilot_review_instructions.exists') = 'true' AND NOT is_archived) AS repos_with_copilot_review_instructions,
   -- Non-Copilot AI tools
   COUNTIF(JSON_VALUE(customizations, '$.cursorrules.exists') = 'true' AND NOT is_archived) AS repos_with_cursorrules,
   COUNTIF(JSON_VALUE(customizations, '$.cursor_rules_dir.exists') = 'true' AND NOT is_archived) AS repos_with_cursor_rules_dir,

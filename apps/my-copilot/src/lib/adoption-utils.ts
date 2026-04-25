@@ -45,6 +45,12 @@ export function extractCustomizationTypes(summary: AdoptionSummary): Customizati
     { key: "mcp_config", label: "mcp.json", value: summary.repos_with_mcp_config, group: "copilot" },
     { key: "copilot_dir", label: ".copilot/", value: summary.repos_with_copilot_dir, group: "copilot" },
     {
+      key: "copilot_review_instructions",
+      label: "copilot-review-instructions.md",
+      value: summary.repos_with_copilot_review_instructions,
+      group: "copilot",
+    },
+    {
       key: "copilot_setup_steps",
       label: "copilot-setup-steps.yml",
       value: summary.repos_with_copilot_setup_steps,

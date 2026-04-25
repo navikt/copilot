@@ -43,6 +43,7 @@ const mockSummary: AdoptionSummary = {
   repos_with_skills: 3,
   repos_with_mcp_config: 2,
   repos_with_copilot_dir: 1,
+  repos_with_copilot_review_instructions: 0,
   repos_with_cursorrules: 10,
   repos_with_cursor_rules_dir: 3,
   repos_with_claude_md: 7,
@@ -208,7 +209,7 @@ describe("extractCustomizationTypes", () => {
   it("should extract and sort customization types by value descending", () => {
     const result = extractCustomizationTypes(mockSummary);
 
-    expect(result.length).toBe(12);
+    expect(result.length).toBe(13);
     expect(result[0].label).toBe("copilot-instructions.md");
     expect(result[0].value).toBe(80);
     // Verify sorting
@@ -229,6 +230,7 @@ describe("extractCustomizationTypes", () => {
     expect(keys).toContain("skills");
     expect(keys).toContain("mcp_config");
     expect(keys).toContain("copilot_dir");
+    expect(keys).toContain("copilot_review_instructions");
     expect(keys).toContain("copilot_setup_steps");
     expect(keys).toContain("agentic_workflows");
     expect(keys).toContain("agents_skills");
@@ -242,7 +244,7 @@ describe("extractCustomizationTypes", () => {
     const agentic = result.filter((t) => t.group === "agentic");
     const navPilot = result.filter((t) => t.group === "nav-pilot");
 
-    expect(copilot.length).toBe(8);
+    expect(copilot.length).toBe(9);
     expect(agentic.length).toBe(3);
     expect(navPilot.length).toBe(1);
   });
