@@ -3,7 +3,7 @@ title: "Nyheter og trender — April 2026"
 date: 2026-04-17
 draft: true
 category: copilot
-excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil."
+excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, Business-registreringer pauset."
 tags:
   - skills
   - github-cli
@@ -19,6 +19,9 @@ tags:
   - models
   - vscode
   - autopilot
+  - code-review
+  - agentic-workflows
+  - jira
 ---
 
 <!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
@@ -227,6 +230,68 @@ Tilgjengelig i VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, Git
 
 ---
 
+## 17. BYOK for Copilot Business og Enterprise i VS Code
+
+VS Code 1.117 (22. april) introduserer Bring Your Own Key (BYOK) for Copilot Business- og Enterprise-brukere. Team som trenger spesifikke modeller for compliance, ytelse eller kostnadsårsaker kan nå koble til egne API-nøkler fra leverandører som OpenRouter, Ollama, Google og OpenAI — og bruke disse modellene direkte i VS Code-chatten.
+
+Funksjonen er aktivert som standard. Administratorer kan deaktivere den med policyen «Bring Your Own Language Model Key» i Copilots policy-innstillinger på GitHub.com. Organisasjonsmedlemmer kan legge til modeller fra innebygde leverandører eller installere language model provider-utvidelser.
+
+Andre nyheter i 1.117 inkluderer inkrementell chat-rendering (eksperimentell) som streamer innhold blokk-for-blokk med valgfri animasjon, VS Code Agents-appen (Insiders) med sub-sesjoner og inline diff-rendering, og forbedret terminalstøtte for agent-CLI-er som Copilot CLI, Claude Code og Gemini CLI.
+
+**Kilde:** [Visual Studio Code 1.117 Release Notes](https://code.visualstudio.com/updates/v1_117) (VS Code, 22. april 2026)
+
+---
+
+## 18. Agentsesjoner synlige i Issues og Projects
+
+Cloud agent-sesjoner er nå synlige direkte i GitHub Issues og Projects. En ny «session pill» på issues viser aktive og fullførte agentsesjoner, og du kan åpne en sesjon i sidepanelet for å se fremdrift, gjennomgå logger eller gi agenten retning — uten å forlate issue-visningen.
+
+I Projects er «Show agent sessions» nå aktivert som standard for både nye og eksisterende visninger. Du kan klikke på en agentsesjon i prosjekttavlen for å åpne den i sidepanelet, se detaljer og styre agenten direkte.
+
+Dette gjør det lettere å holde oversikt over agentaktivitet i planleggingskonteksten der arbeidet allerede spores.
+
+**Kilde:** [View and manage agent sessions from issues and projects](https://github.blog/changelog/2026-04-23-view-and-manage-agent-sessions-from-issues-and-projects) (GitHub Changelog, 23. april 2026)
+
+---
+
+## 19. Copilot Chat med rikere PR-kontekst
+
+Copilot Chat på github.com har fått tre nye evner for pull requests. Når en PR gis som kontekst, inkluderer chatten nå kommentarer, filendringer, commits og reviews — ikke bare koden. Du kan be Copilot om å reviewe en PR og få en strukturert gjennomgang, eller be om en oppsummering for å raskt forstå hva endringene gjør.
+
+Funksjonene virker både i on-page-chat (Copilot-knappen på en diff) og i den immersive chatten på github.com/copilot. Foreslåtte prompts er oppdatert for å guide deg til relevant funksjonalitet, for eksempel «Help review this pull request».
+
+**Kilde:** [Copilot Chat improvements for pull requests](https://github.blog/changelog/2026-04-23-copilot-chat-improvements-for-pull-requests) (GitHub Changelog, 23. april 2026)
+
+---
+
+## 20. Strukturert feilsøking med stack traces
+
+Copilot Chat på github.com gjenkjenner nå stack traces mer pålitelig og gir en strukturert rotårsaksanalyse. Når du limer inn en stack trace, svarer Copilot med hva som feilet og hvor, hvilken antakelse som ble brutt, den mest sannsynlige rotårsaken med kodebevis, et konfidensnivå og foreslått fiks, og neste steg for verifisering.
+
+Legg ved relevant repo- eller filkontekst for best resultat. Har du et reproduksjonssteg som trigger feilen, gir det enda raskere analyse. Tilgjengelig for alle som bruker Copilot på github.com.
+
+**Kilde:** [Better debugging with GitHub Copilot on the web](https://github.blog/changelog/2026-04-23-better-debugging-with-github-copilot-on-the-web) (GitHub Changelog, 23. april 2026)
+
+---
+
+## 21. Copilot for Jira: custom agents og mer
+
+Copilot cloud agent for Jira har fått flere tilpasninger. Du kan nå spesifisere en custom agent fra GitHub-repoet rett i Jira-ticketen, slik at agenten bruker teamets egne instruksjoner og verktøy. Agenten leser også Atlassian custom fields (som akseptansekriterier) og følger forgreningsregler definert i ticketen.
+
+Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for target-repo, forgreningsregler, foretrukken modell og agent — slik at konfigurasjonen ikke gjentas for hver ticket. Når agenten åpner en draft-PR og ber om review, postes en kommentar i Jira-issuet så du vet at den er klar.
+
+**Kilde:** [GitHub Copilot for Jira: Our latest enhancements](https://github.blog/changelog/2026-04-22-github-copilot-for-jira-our-latest-enhancements) (GitHub Changelog, 22. april 2026)
+
+---
+
+## 22. Flere oppdateringer (sen april)
+
+- **Pause på Copilot Business-registreringer**: GitHub stanser midlertidig nye selvbetjente Copilot Business-registreringer for organisasjoner på Free og Team. Eksisterende kunder er ikke berørt. [Kilde](https://github.blog/changelog/2026-04-22-pausing-new-self-serve-signups-for-github-copilot-business)
+- **Cloud agent-felt i usage metrics**: Nytt `used_copilot_cloud_agent`-felt i Copilot Usage Metrics API speiler `used_copilot_coding_agent` under nytt navn. Det gamle feltet fases ut 1. august 2026. [Kilde](https://github.blog/changelog/2026-04-23-copilot-cloud-agent-fields-added-to-usage-metrics)
+- **Endring i nedlastings-URL-er for metrikk-rapporter**: Fra 20. mai migreres nedlastings-URL-er til `copilot-reports.github.com`. Oppdater brannmur-/proxy-allowlister. [Kilde](https://github.blog/changelog/2026-04-22-upcoming-change-to-copilot-usage-metrics-report-download-urls)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -244,3 +309,8 @@ Tilgjengelig i VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, Git
 | Project Glasswing | AI-drevet sårbarhetsjakt er her. Følg med på tilgjengeliggjøring for enterprise. |
 | Fjernstyr CLI fra nett/mobil | Start lange CLI-sesjoner og følg med fra mobilen. Krever at admin aktiverer CLI- og remote-policyer. |
 | OIDC for Dependabot | Erstatter langlevde secrets med korte OIDC-tokens for avhengighetsoppdateringer. |
+| BYOK i VS Code for Business/Enterprise | Nav kan la team bruke egne Azure OpenAI-endepunkter direkte i VS Code — relevant for team med spesielle modellkrav. Admin styrer med policy. |
+| Agentsesjoner i Issues/Projects | Gjør det lettere å spore agentaktivitet i planleggingsverktøy Nav allerede bruker. Aktivert som standard — ingen konfigurasjon nødvendig. |
+| Copilot Chat med PR-kontekst | Strukturert review og oppsummering rett i github.com. Kan supplere code review-prosessen uten å forlate nettleseren. |
+| Copilot for Jira | Relevant for Nav-team som bruker Jira med GitHub. Custom agents og space-instruksjoner gir konsistent agentoppførsel på tvers av tickets. |
+| Metrikk-URL-endring | copilot-metrics-appen bør oppdateres til `copilot-reports.github.com` før 20. mai. `used_copilot_cloud_agent`-feltet bør tas i bruk før august. |
