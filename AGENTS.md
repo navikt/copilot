@@ -64,6 +64,10 @@ docs/                 # Documentation
 
 ## Code Style
 
+### Minimal Editing
+
+When fixing a bug or implementing a feature, change only what is necessary. Do not rename variables, restructure working code, or refactor beyond the task at hand. Keep diffs small and focused so they are easy to review.
+
 ### Go (mcp-onboarding, mcp-registry)
 
 - Standard library preferred — minimal dependencies

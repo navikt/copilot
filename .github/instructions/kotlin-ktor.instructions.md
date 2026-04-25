@@ -589,6 +589,7 @@ fun Route.userRoutes(service: UserService) {
 - Add Prometheus metrics for business operations
 - Use Flyway for database migrations
 - Implement all three health endpoints
+- Preserve existing code structure when making targeted fixes — don't rename, restructure, or refactor working code beyond the task at hand
 
 ### ⚠️ Ask First
 

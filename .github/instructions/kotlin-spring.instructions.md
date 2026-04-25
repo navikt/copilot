@@ -233,6 +233,7 @@ class ResourceServiceTest {
 - Use constructor injection (not field injection)
 - Annotate transactional boundaries explicitly
 - Follow existing repository pattern in the codebase — don't mix styles
+- Preserve existing code structure when making targeted fixes — don't rename, restructure, or refactor working code beyond the task at hand
 
 ### ⚠️ Ask First
 - Introducing new Spring modules or starters

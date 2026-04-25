@@ -61,3 +61,12 @@ Do not edit manually — run `mise run generate` to regenerate:
 - `apps/my-copilot/src/lib/copilot-manifest.json`
 - `apps/mcp-onboarding/internal/discovery/copilot-manifest.json`
 - `docs/README*.md`
+
+## Over-editing
+
+Flag changes where the diff is disproportionate to the stated goal:
+
+- Renamed variables, functions, or parameters not related to the fix
+- Restructured working code (reordered, extracted, inlined) without justification
+- Added validation, error handling, or refactoring outside the PR scope
+- Changed formatting or style in untouched lines

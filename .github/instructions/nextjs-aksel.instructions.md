@@ -567,6 +567,7 @@ pnpm test
 - Norwegian number formatting
 - Explicit error handling in API routes
 - pnpm for new projects
+- Preserve existing code structure when making targeted fixes — don't rename, restructure, or refactor working code beyond the task at hand
 
 ### ⚠️ Ask First
 

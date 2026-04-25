@@ -86,6 +86,17 @@ Overall impression. What's good. Key concerns.
 
 ## Cross-Cutting Checks (All Languages)
 
+### Over-Editing (🟡)
+
+Flag changes where the diff is disproportionate to the stated goal. Fixing a bug should not rewrite the surrounding function. Signs of over-editing:
+
+- Renamed variables or functions that weren't part of the fix
+- Added validation, error handling, or refactoring not related to the PR's goal
+- Restructured working code (reordered functions, extracted helpers) without justification
+- Changed formatting or style in lines not otherwise modified
+
+Research shows over-editing is invisible to test suites — tests pass but diffs become unreviable, and codebase quality quietly degrades.
+
 ### Security (🔴)
 
 ```kotlin

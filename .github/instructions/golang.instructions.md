@@ -523,6 +523,7 @@ func TestDatabase(t *testing.T) {
 - Table-driven tests
 - Health endpoints (`/isalive`, `/isready`, `/metrics`)
 - Chainguard base images for Docker
+- Preserve existing code structure when making targeted fixes — don't rename, restructure, or refactor working code beyond the task at hand
 
 ### ⚠️ Ask First
 - Adding web frameworks (Chi, Gin) — stdlib preferred

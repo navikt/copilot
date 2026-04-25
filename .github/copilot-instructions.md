@@ -34,6 +34,10 @@ These standards apply across Nav projects. Project-specific guidelines follow be
 
 ## Nav Code Standards
 
+### Minimal Editing
+
+When fixing a bug or implementing a feature, change only what is necessary. Do not rename variables, restructure working code, or refactor beyond the task at hand. Keep diffs small and focused so they are easy to review.
+
 ### Kotlin/Ktor Patterns
 
 - ApplicationBuilder pattern for bootstrapping

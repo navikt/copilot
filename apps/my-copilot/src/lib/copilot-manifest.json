@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-26T18:29:46.581Z",
+  "generatedAt": "2026-04-26T18:30:04.410Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -171,7 +171,7 @@
       "domain": "general",
       "filePath": ".github/agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/code-review.agent.md",
-      "contentHash": "b289c0ddf131ea199fd4bbaa143b6bf5c4e5921f1401b37648eacd58a8a56191",
+      "contentHash": "83d872eba6edd7e66a9a864d8a8d1beb5161bdf152a4a4dbabaa9bc05bb1d218",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -733,7 +733,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/golang.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/golang.instructions.md",
-      "contentHash": "2223c90bb95dd7ef0142bcf2d56302af52b0ff734d26f2414dfcf31a55dfe3ae",
+      "contentHash": "8be854c7a6750941c2901396623d5e647da63f972fc750769f31474452c0ea4b",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fgolang.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fgolang.instructions.md",
       "applyTo": "**/*.go",
@@ -757,7 +757,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-ktor.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/kotlin-ktor.instructions.md",
-      "contentHash": "aacb5351ab3f27995f8524778cc51f176dc32b6322093e4bafd10d8bd644e40c",
+      "contentHash": "5d85d53d8f375ec28d3d2026946faf7e0ebbde05e63c112934e602eca5cf9eb8",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-ktor.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-ktor.instructions.md",
       "applyTo": "**/*.kt",
@@ -778,7 +778,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-spring.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/kotlin-spring.instructions.md",
-      "contentHash": "0a6fca898f27e2d6c8757aedcc0c1d6884c4c182c352930eb3a23a7ebf8de562",
+      "contentHash": "bdf9d1bfd412180301f5f5e4f7f6b23c4b9de272ea2cd7ddfa2c4437cec089f9",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-spring.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-spring.instructions.md",
       "applyTo": "**/*.kt",
@@ -799,7 +799,7 @@
       "domain": "frontend",
       "filePath": ".github/instructions/nextjs-aksel.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
-      "contentHash": "a08df43d2fec2ab9629d78c89caaaa3ef40a5047a26d7b96911d777c7de15e67",
+      "contentHash": "9283252e55829ca2a81fbd6965489cf8061c7fbcf2014c12f0691e0025b5983f",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "applyTo": "src/**/*.{tsx,ts}",
