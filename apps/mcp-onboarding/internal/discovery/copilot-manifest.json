@@ -398,6 +398,15 @@
     },
     {
       "type": "instruction",
+      "name": "norwegian-text",
+      "displayName": "Norwegian/Text Development",
+      "description": "Regler for norsk tekst i markdown-filer: agenter, instruksjoner, skills, dokumentasjon og README-er.",
+      "filePath": ".github/instructions/norwegian-text.instructions.md",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/norwegian-text.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/norwegian-text.instructions.md"
+    },
+    {
+      "type": "instruction",
       "name": "performance",
       "displayName": "Performance Development",
       "description": "Core Web Vitals targets and performance patterns for Next.js applications with Aksel Design System on NAIS.",

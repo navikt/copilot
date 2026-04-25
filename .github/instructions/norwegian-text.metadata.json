@@ -1,0 +1,10 @@
+{
+  "displayName": "Norsk tekstkvalitet",
+  "description": "Klarspråk, AI-markører, anglismer, fagtermer og sammensatte ord i norsk markdown.",
+  "domain": "general",
+  "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "markdown"],
+  "examples": [
+    "Fjern AI-markører fra denne teksten",
+    "Sjekk klarspråk i denne README-en"
+  ]
+}
