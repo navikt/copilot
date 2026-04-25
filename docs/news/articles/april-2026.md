@@ -256,7 +256,7 @@ Dette gjør det lettere å holde oversikt over agentaktivitet i planleggingskont
 
 ## 19. Copilot Chat med rikere PR-kontekst
 
-Copilot Chat på github.com har fått tre nye evner for pull requests. Når en PR gis som kontekst, inkluderer chatten nå kommentarer, filändringer, commits og reviews — ikke bare koden. Du kan be Copilot om å reviewe en PR og få en strukturert gjennomgang, eller be om en oppsummering for å raskt forstå hva endringene gjør.
+Copilot Chat på github.com har fått tre nye evner for pull requests. Når en PR gis som kontekst, inkluderer chatten nå kommentarer, filendringer, commits og reviews — ikke bare koden. Du kan be Copilot om å reviewe en PR og få en strukturert gjennomgang, eller be om en oppsummering for å raskt forstå hva endringene gjør.
 
 Funksjonene virker både i on-page-chat (Copilot-knappen på en diff) og i den immersive chatten på github.com/copilot. Foreslåtte prompts er oppdatert for å guide deg til relevant funksjonalitet, for eksempel «Help review this pull request».
 
