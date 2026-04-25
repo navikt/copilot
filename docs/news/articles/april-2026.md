@@ -311,6 +311,6 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 | OIDC for Dependabot | Erstatter langlevde secrets med korte OIDC-tokens for avhengighetsoppdateringer. |
 | BYOK i VS Code for Business/Enterprise | Nav kan la team bruke egne Azure OpenAI-endepunkter direkte i VS Code — relevant for team med spesielle modellkrav. Admin styrer med policy. |
 | Agentsesjoner i Issues/Projects | Gjør det lettere å spore agentaktivitet i planleggingsverktøy Nav allerede bruker. Aktivert som standard — ingen konfigurasjon nødvendig. |
-| Copilot Chat med PR-kontekst | Strukturert review og oppsummering rett i github.com. Kan supplement code review-prosessen uten å forlate nettleseren. |
+| Copilot Chat med PR-kontekst | Strukturert review og oppsummering rett i github.com. Kan supplere code review-prosessen uten å forlate nettleseren. |
 | Copilot for Jira | Relevant for Nav-team som bruker Jira med GitHub. Custom agents og space-instruksjoner gir konsistent agentoppførsel på tvers av tickets. |
 | Metrikk-URL-endring | copilot-metrics-appen bør oppdateres til `copilot-reports.github.com` før 20. mai. `used_copilot_cloud_agent`-feltet bør tas i bruk før august. |
