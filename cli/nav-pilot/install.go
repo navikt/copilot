@@ -320,6 +320,13 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		fmt.Printf("  %s\n", dim("eval \"$(nav-pilot env)\""))
 	}
 
+	// Hint about repo-local config if cwd is a git repo missing files
+	if scope.IsUser() {
+		if cwd, err := os.Getwd(); err == nil {
+			hintInitIfMissing(cwd)
+		}
+	}
+
 	return nil
 }
 

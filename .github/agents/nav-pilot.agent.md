@@ -168,6 +168,12 @@ Ask targeted questions to uncover blind spots. Nav developers commonly forget:
 
 Not all blind spots apply to every project. Skip irrelevant ones (e.g., decommissioning for greenfield), but always report which were covered vs skipped in the checkpoint.
 
+**Repo-local Copilot config** — At the start of Phase 1, check if the current repo has these files. If any are missing, mention it in the checkpoint and suggest `nav-pilot init` to scaffold them:
+
+- `AGENTS.md`
+- `.github/copilot-instructions.md`
+- `.github/copilot-review-instructions.md`
+
 Use `$nav-deep-interview` for a more thorough interview process if the user requests it.
 
 ### Fase 2: Plan — «Slik bygger vi det»

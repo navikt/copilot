@@ -45,6 +45,7 @@ Usage:
 Commands:
   install <collection>    Install a curated collection into the current repo
   install --user          Install all agents, skills & instructions to ~/.copilot (user-wide)
+  init                    Scaffold repo-local Copilot config files (AGENTS.md, instructions)
   add <type> <name>       Install a single agent, skill, instruction, or prompt
   export <format>         Export Nav customizations to another tool's format
   sync                    Check for updates and optionally apply them
@@ -69,6 +70,7 @@ Flags:
 
 Get started:
   nav-pilot                              # Install, upgrade, or launch Copilot sandbox (cplt)
+  nav-pilot init                         # Scaffold AGENTS.md and Copilot instructions
   nav-pilot list                         # See available collections
   nav-pilot install kotlin-backend       # Install a collection
   nav-pilot install --dry-run fullstack  # Preview before installing
@@ -191,6 +193,8 @@ func run(args []string) error {
 			return fmt.Errorf("install requires a collection name. Run 'nav-pilot list' to see available collections")
 		}
 		return cmdInstall(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+	case "init":
+		return cmdInit(targetDir, dryRun, force)
 	case "export":
 		if len(positional) == 0 {
 			return fmt.Errorf("export requires a format.\n\nUsage: nav-pilot export <format>\n\nFormats: opencode")

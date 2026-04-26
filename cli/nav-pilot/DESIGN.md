@@ -9,6 +9,7 @@ nav-pilot er én Go-pakke (`package main`) uten interne moduler. Koden er delt i
 ```
 main.go          CLI-parsing, dispatch til cmd*-funksjoner
 install.go       install, list, status, uninstall
+init.go          scaffold repo-lokale Copilot-konfigurasjonsfiler
 add.go           add (enkeltartifakt)
 export.go        export (formatkonvertering)
 sync.go          sync (oppdateringssjekk)
@@ -44,6 +45,7 @@ func cmdExport(format string, scope *InstallScope, ref, sourceRepo string, dryRu
 func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error
 func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
+func cmdInit(targetDir string, dryRun, force bool) error
 ```
 
 Nye kommandoer følger dette mønsteret:
@@ -446,6 +448,49 @@ var cacheHome = ""                  // overstyr cache-sti i tester
 // testandre: TestXxx / TestXxx_EdgeCase / subtests med t.Run()
 // assertions: if/t.Errorf, strings.Contains — ingen ekstra testbibliotek
 ```
+
+## Init (scaffolding av repo-lokale filer)
+
+`nav-pilot init` oppretter tre repo-lokale filer som Copilot bruker for prosjektspesifikk kontekst:
+
+| Fil | Formål |
+|---|---|
+| `AGENTS.md` | Prosjektbeskrivelse for kodingsagenter (build-kommandoer, struktur, boundaries) |
+| `.github/copilot-instructions.md` | Copilot Chat-instruksjoner (tech stack, nøkkelmønstre) |
+| `.github/copilot-review-instructions.md` | Copilot Code Review-instruksjoner (maks 4000 tegn) |
+
+### Stackdeteksjon
+
+`detectStack()` sjekker target-mappen for:
+
+| Signal | Stack |
+|---|---|
+| `go.mod` | Go |
+| `package.json` | Node.js/TypeScript |
+| `build.gradle.kts` / `build.gradle` / `pom.xml` | Kotlin |
+| `.nais/` | Nais-deployment |
+
+Detektert stack styrer hvilke maler og kommandoer som brukes i filene.
+
+### Templater
+
+Templatene er string-building (ingen template-bibliotek, i tråd med DESIGN-filosofien). Innholdet er:
+
+- **Lean**: Bare prosjektspesifikk kontekst, ikke Nav-brede konvensjoner (de kommer fra installerte instruksjoner)
+- **TODO-markører**: `<!-- TODO: ... -->` der teamet må fylle inn
+- **Automatisk**: Build-kommandoer og nøkkelkataloger detekteres fra stacken
+
+### Post-install hint
+
+`hintInitIfMissing()` kalles etter `install --user`. Sjekker om cwd er et git-repo som mangler noen av de tre filene, og foreslår `nav-pilot init` i så fall.
+
+### Flagg
+
+- `--dry-run`: Vis hva som ville blitt opprettet, skriv ingenting
+- `--force`: Overskriv eksisterende filer
+- `--target <dir>`: Målkatalog (standard: `.`)
+
+---
 
 ## Legg til ny kommando (sjekkliste)
 
