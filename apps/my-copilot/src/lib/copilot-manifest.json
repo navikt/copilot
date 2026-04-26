@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-26T18:30:04.410Z",
+  "generatedAt": "2026-04-26T18:30:12.920Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -380,7 +380,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "3179adb5db9ae3af4fc977ee72bc1744cce12d55790a9e8bfd9a268ea906be1c",
+      "contentHash": "75c6d1771bdce25cd22803746c34dd70d9ce232b8a71eeba6b46aabc5908c067",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -1565,6 +1565,57 @@
         {
           "scenario": "JSONB-mønstre",
           "prompt": "Gå gjennom bruk av JSONB"
+        }
+      ]
+    },
+    {
+      "id": "readme-review",
+      "name": "readme-review",
+      "description": "Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/readme-review/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/SKILL.md",
+      "contentHash": "36fe844fd272d4035d7629b95a267ae8e8a24d4bb49f88c557d4cc45e2512167",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": [
+        "readme",
+        "documentation",
+        "review",
+        "scaffold"
+      ],
+      "examples": [
+        "Gå gjennom README-en vår og foreslå forbedringer",
+        "Lag en README for denne tjenesten",
+        "Sjekk om README-en mangler viktige seksjoner",
+        "Generer en README for denne naisjob-en",
+        "Review README structure"
+      ],
+      "references": [
+        {
+          "path": "references/section-spec.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/section-spec.md"
+        },
+        {
+          "path": "references/anti-patterns.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/anti-patterns.md"
+        },
+        {
+          "path": "references/template-service.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-service.md"
+        },
+        {
+          "path": "references/template-library.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-library.md"
+        },
+        {
+          "path": "references/template-monorepo.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-monorepo.md"
+        },
+        {
+          "path": "references/template-naisjob.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-naisjob.md"
         }
       ]
     },

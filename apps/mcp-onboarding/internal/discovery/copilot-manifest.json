@@ -766,6 +766,41 @@
     },
     {
       "type": "skill",
+      "name": "readme-review",
+      "displayName": "readme-review",
+      "description": "Structural review and generation of READMEs adapted to project type. Complements `@forfatter` (language quality) with structural guidance (what sections, what order, what depth).",
+      "filePath": ".github/skills/readme-review",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/SKILL.md",
+      "references": [
+        {
+          "path": "references/section-spec.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/section-spec.md"
+        },
+        {
+          "path": "references/anti-patterns.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/anti-patterns.md"
+        },
+        {
+          "path": "references/template-service.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-service.md"
+        },
+        {
+          "path": "references/template-library.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-library.md"
+        },
+        {
+          "path": "references/template-monorepo.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-monorepo.md"
+        },
+        {
+          "path": "references/template-naisjob.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-naisjob.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "rust-development",
       "displayName": "rust-development",
       "description": "Patterns, templates, and procedures for building high-quality Rust applications and libraries. Based on [Microsoft Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) and [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html).",

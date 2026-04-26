@@ -1,0 +1,20 @@
+{
+  "description": "Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob",
+  "domain": "general",
+  "tags": ["readme", "documentation", "review", "scaffold"],
+  "references": [
+    "references/section-spec.md",
+    "references/anti-patterns.md",
+    "references/template-service.md",
+    "references/template-library.md",
+    "references/template-monorepo.md",
+    "references/template-naisjob.md"
+  ],
+  "examples": [
+    "Gå gjennom README-en vår og foreslå forbedringer",
+    "Lag en README for denne tjenesten",
+    "Sjekk om README-en mangler viktige seksjoner",
+    "Generer en README for denne naisjob-en",
+    "Review README structure"
+  ]
+}
