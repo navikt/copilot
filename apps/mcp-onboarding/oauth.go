@@ -239,6 +239,7 @@ func (s *OAuthServer) handleToken(w http.ResponseWriter, r *http.Request) {
 	s.setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
 	if err := r.ParseForm(); err != nil {
 		s.writeTokenError(w, "invalid_request", "Failed to parse form")
 		return
@@ -256,11 +257,13 @@ func (s *OAuthServer) handleToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleAuthorizationCodeGrant processes the authorization_code grant type.
+// Body size is already limited by handleToken via http.MaxBytesReader.
 func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Request) {
-	code := r.FormValue("code")
-	codeVerifier := r.FormValue("code_verifier")
-	redirectURI := r.FormValue("redirect_uri")
-	clientID := r.FormValue("client_id")
+	code := r.FormValue("code")                  //nolint:gosec // body limited in handleToken
+	codeVerifier := r.FormValue("code_verifier") //nolint:gosec // body limited in handleToken
+	redirectURI := r.FormValue("redirect_uri")   //nolint:gosec // body limited in handleToken
+	clientID := r.FormValue("client_id")         //nolint:gosec // body limited in handleToken
 
 	authCode, err := s.Store.GetAuthCode(code)
 	if err != nil {
@@ -343,8 +346,10 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	_ = json.NewEncoder(w).Encode(response)
 }
 
+// handleRefreshTokenGrant processes the refresh_token grant type.
+// Body size is already limited by handleToken via http.MaxBytesReader.
 func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request) {
-	refreshToken := r.FormValue("refresh_token")
+	refreshToken := r.FormValue("refresh_token") //nolint:gosec // body limited in handleToken
 
 	rtData, err := s.Store.GetRefreshToken(refreshToken)
 	if err != nil {
