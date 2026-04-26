@@ -12,11 +12,24 @@ En samling Copilot-tilpasninger for Nav-økosystemet:
 - **🤖 [12 Agenter](docs/README.agents.md)** — Spesialiserte AI-assistenter for Nav-domener
 - **📋 [14 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
 - **⚡ [7 Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
-- **🎯 [21 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
+- **🎯 [22 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
 - **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret
 <!-- END GENERATED COUNTS -->
 
 Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/verktoy)** med søk, filtrering og installeringshjelp.
+
+### Innhold
+
+- [Hva er dette?](#hva-er-dette) — oversikt og nav-pilot
+- [Kom i gang](#kom-i-gang) — installer tilpasninger
+- [Tilpasninger](#tilpasninger) — agenter, instruksjoner, skills, prompts, MCP
+- [Applikasjoner](#️-applikasjoner) — portalen, metrikker, MCP-register, onboarding
+- [Nav Tech Stack](#️-nav-tech-stack) — stack som dekkes
+- [Repository Structure](#-repository-structure) — mappestruktur
+- [Bidra](#-bidra) — legg til tilpasninger
+- [Team](#-team)
+- [Lisens](#-lisens)
+- [Ressurser](#-ressurser)
 
 ### 🧭 nav-pilot — Nytt!
 
@@ -179,86 +192,69 @@ Tilpasningene dekker Navs kjernestack:
 └── dashboards/           # Grafana dashboard definitions
 ```
 
-## 🎯 Why Use Nav Copilot Customizations?
-
-- **Nav-Specific**: Pre-configured for Nais platform, Aksel Design System, and Nav tech stack
-- **Production-Proven**: Patterns extracted from real Nav applications
-- **Consistent Standards**: Enforces Nav development principles and best practices
-
 ---
 
-## 🤝 Contributing
+## 🤝 Bidra
 
-### Development Setup
+### Legg til tilpasninger
 
-**Prerequisites:** [mise](https://mise.jdx.dev) and [fnox](https://fnox.jdx.dev)
+1. **Agenter**: Legg til `*.agent.md` i `.github/agents/` — se [agent-dokumentasjonen](docs/README.agents.md)
+2. **Instruksjoner**: Legg til `*.instructions.md` i `.github/instructions/`
+3. **Prompts**: Legg til `*.prompt.md` i `.github/prompts/`
+4. **Skills**: Legg til mappe med `SKILL.md` i `.github/skills/`
+
+Kjør `mise check` etter endringer for å validere alt.
+
+<details>
+<summary>Utvikleroppsett for applikasjonene</summary>
+
+**Forutsetninger:** [mise](https://mise.jdx.dev) og [fnox](https://fnox.jdx.dev)
 
 ```bash
-mise install          # Install all tools
+mise install          # Installer verktøy
 ```
 
-**Secrets** are managed with fnox + macOS Keychain — no `.env` files needed. Each app has a `fnox.toml` listing required secrets. Two Keychain services are used:
+Hemmeligheter håndteres med fnox + macOS Keychain — ingen `.env`-filer. Hver app har en `fnox.toml` med nødvendige hemmeligheter:
 
-| Service | Apps | Secrets |
+| Service | Apper | Hemmeligheter |
 |---|---|---|
 | `copilot-portal` | my-copilot | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID |
 | `copilot-jobs` | copilot-adoption, copilot-metrics, mcp-onboarding | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, SLACK_WEBHOOK_URL |
 
 ```bash
 cd apps/my-copilot
-fnox set GITHUB_APP_ID              # Prompts for value, stores in Keychain
+fnox set GITHUB_APP_ID              # Ber om verdi, lagrer i Keychain
 fnox set GITHUB_APP_PRIVATE_KEY
 fnox set GITHUB_APP_INSTALLATION_ID
-
-cd ../copilot-adoption
-fnox set GITHUB_APP_ID              # Different GitHub App — different credentials
-fnox set GITHUB_APP_PRIVATE_KEY
-fnox set GITHUB_APP_INSTALLATION_ID
-fnox set SLACK_WEBHOOK_URL
 ```
 
-Non-secret config (org names, BigQuery datasets, etc.) is in each app's `.mise.toml` under `[env]`.
+Ikke-hemmelig konfig (org-navn, BigQuery-datasett osv.) ligger i `.mise.toml` under `[env]` per app.
 
-**Using a different secret backend?** The committed `fnox.toml` defaults to macOS Keychain, but you can override with any provider (1Password, GCP Secret Manager, etc.) in a gitignored `fnox.local.toml`:
-
-```toml
-# fnox.local.toml — your personal override
-[providers]
-op = { type = "1password", vault = "Nav Dev" }
-
-[secrets]
-GITHUB_APP_ID = { provider = "op", value = "copilot-portal/GITHUB_APP_ID" }
-```
-
-See [fnox providers](https://fnox.jdx.dev/providers/) for all supported backends.
-
-**Run an app:**
+**Annen secrets-backend?** `fnox.toml` bruker macOS Keychain som standard, men du kan overstyre med 1Password, GCP Secret Manager osv. i en gitignored `fnox.local.toml`. Se [fnox providers](https://fnox.jdx.dev/providers/).
 
 ```bash
-cd apps/my-copilot && mise dev      # Injects secrets via fnox automatically
-cd apps/copilot-adoption && mise dev
+cd apps/my-copilot && mise dev      # Starter med hemmeligheter via fnox
 ```
 
-### Adding Customizations
+Se [AGENTS.md](AGENTS.md) for fullstendig utviklerguide.
 
-To add new customizations:
-
-1. **Agents**: Add `*.agent.md` to `.github/agents/` following the [agent docs](docs/README.agents.md)
-2. **Instructions**: Add `*.instructions.md` to `.github/instructions/`
-3. **Prompts**: Add `*.prompt.md` to `.github/prompts/`
-4. **Skills**: Add folder with `SKILL.md` to `.github/skills/`
-
-For detailed contribution guidelines and development setup, see [AGENTS.md](AGENTS.md).
+</details>
 
 ---
 
-## 📄 License
+## 👥 Team
 
-See [LICENSE](LICENSE) file.
+Vedlikeholdes av **Team Copilot** i Nav IT.
 
 ---
 
-## 🔗 Resources
+## 📄 Lisens
+
+[MIT](LICENSE)
+
+---
+
+## 🔗 Ressurser
 
 - [Nais Documentation](https://doc.nais.io)
 - [Aksel Design System](https://aksel.Nav.no)
