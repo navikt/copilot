@@ -3,7 +3,7 @@ title: "Nyheter og trender — April 2026"
 date: 2026-04-17
 draft: true
 category: copilot
-excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, Business-registreringer pauset."
+excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, GPT-5.5 GA, inline agent-modus i JetBrains."
 tags:
   - skills
   - github-cli
@@ -292,6 +292,28 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 
 ---
 
+## 23. GPT-5.5 tilgjengelig i Copilot
+
+OpenAIs nyeste GPT-modell, GPT-5.5, ruller nå ut i GitHub Copilot. I GitHubs tidlige testing leverer GPT-5.5 den sterkeste ytelsen på komplekse, flertrinns agentoppgaver og løser utfordringer som tidligere GPT-modeller ikke klarte.
+
+Modellen lanseres med en 7,5× premium request-multiplikator som kampanjepris. Den er tilgjengelig for Pro+-, Business- og Enterprise-brukere i alle plattformer: VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, GitHub Mobile, JetBrains, Xcode og Eclipse. Enterprise- og Business-administratorer må aktivere GPT-5.5-policyen i Copilot-innstillingene.
+
+**Kilde:** [GPT-5.5 is generally available for GitHub Copilot](https://github.blog/changelog/2026-04-24-gpt-5-5-is-generally-available-for-github-copilot) (GitHub Changelog, 24. april 2026)
+
+---
+
+## 24. Inline agent-modus og NES-forbedringer i JetBrains
+
+JetBrains-pluginen får en stor oppdatering med tre nye funksjoner. **Inline agent-modus** (public preview) bringer agentmodusen inn i eksisterende inline chat, slik at du kan få kraftigere kontekstuell hjelp direkte i editoren uten å bytte til chat-panelet. Åpne Inline Chat med Shift+Ctrl+I (Windows) eller Shift+Cmd+I (Mac) og bytt til agent-modus.
+
+**Next Edit Suggestions** (NES) har fått to forbedringer: inline edit-forhåndsvisning lar deg se foreslåtte endringer direkte i editoren før du godtar dem, og en ny retningsindikator i gutteren hjelper deg å hoppe til forslag som er langt unna i filen.
+
+I tillegg er **global auto-approve** nå tilgjengelig — den godkjenner automatisk alle verktøykall på tvers av arbeidsmapper. To nye granulære kontroller lar deg sette standard auto-approve for terminalkommandoer og filendringer som ikke dekkes av eksisterende regler. Bruk med forsiktighet — dette inkluderer potensielt destruktive handlinger.
+
+**Kilde:** [Inline agent mode in preview and more in GitHub Copilot for JetBrains IDEs](https://github.blog/changelog/2026-04-24-inline-agent-mode-in-preview-and-more-in-github-copilot-for-jetbrains-ides) (GitHub Changelog, 24. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -314,3 +336,5 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 | Copilot Chat med PR-kontekst | Strukturert review og oppsummering rett i github.com. Kan supplere code review-prosessen uten å forlate nettleseren. |
 | Copilot for Jira | Relevant for Nav-team som bruker Jira med GitHub. Custom agents og space-instruksjoner gir konsistent agentoppførsel på tvers av tickets. |
 | Metrikk-URL-endring | copilot-metrics-appen bør oppdateres til `copilot-reports.github.com` før 20. mai. `used_copilot_cloud_agent`-feltet bør tas i bruk før august. |
+| GPT-5.5 | Ny toppmodell fra OpenAI for agentoppgaver. Administratorer må aktivere policyen. Kampanjepris (7,5×) — test på komplekse oppgaver. Sammenlign med Claude Opus 4.7 for å finne beste modell per bruksområde. |
+| JetBrains inline agent | Inline agent-modus gir Nav-utviklere som bruker IntelliJ/WebStorm agentfunksjonalitet uten å bytte til chat-panelet. NES-forbedringer med forhåndsvisning og far-away edits gjør redigering raskere. Global auto-approve bør brukes med forsiktighet — vurder team-retningslinjer. |
