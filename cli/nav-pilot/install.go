@@ -49,7 +49,7 @@ func installItems(sourceDir string, scope *InstallScope, manifest *Manifest, dry
 }
 
 // installArtifact handles the install for any artifact type.
-// Resolution, copy, hash, and sidecar logic are driven by the ArtifactKind.
+// Resolution, copy, hash logic are driven by the ArtifactKind.
 func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *ArtifactKind, name string, dryRun, force bool, result *installResult) error {
 if err := validateName(name); err != nil {
 return fmt.Errorf("invalid %s name: %w", kind.Name, err)
@@ -100,27 +100,6 @@ result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
 
 fmt.Printf("  %s %s\n", green("✓"), name)
 result.Installed++
-
-// Sidecars (e.g., agent metadata)
-if scope.ShouldInstallMetadata() {
-for _, sc := range kind.Sidecars {
-scFileName := name + sc
-scAbs, _, hasSidecar := resolver.GetFile(kind.Dir, scFileName)
-if !hasSidecar {
-continue
-}
-scDst := scope.DstPath(kind.Dir, scFileName)
-if err := copyFile(scAbs, scDst, scope.RootDir); err != nil {
-return fmt.Errorf("copying %s sidecar %s: %w", kind.Name, scFileName, err)
-}
-scRel := scope.RelPath(kind.Dir, scFileName)
-scHash, err := fileHash(scDst)
-if err != nil {
-return fmt.Errorf("hashing %s sidecar %s: %w", kind.Name, scFileName, err)
-}
-result.Files = append(result.Files, InstalledFile{Path: scRel, Hash: scHash})
-}
-}
 
 return nil
 }

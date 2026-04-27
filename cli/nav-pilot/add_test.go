@@ -57,7 +57,6 @@ func TestCmdAdd_Agent(t *testing.T) {
 	agentDir := filepath.Join(source, ".github", "agents")
 	os.MkdirAll(agentDir, 0o755)
 	os.WriteFile(filepath.Join(agentDir, "test-agent.agent.md"), []byte("# Test Agent"), 0o644)
-	os.WriteFile(filepath.Join(agentDir, "test-agent.metadata.json"), []byte(`{"name":"test"}`), 0o644)
 
 	// Create .git in target
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
@@ -74,15 +73,10 @@ func TestCmdAdd_Agent(t *testing.T) {
 		t.Errorf("expected 1 installed, got %d", result.Installed)
 	}
 
-	// Verify files exist
+	// Verify agent file exists
 	dst := filepath.Join(target, ".github", "agents", "test-agent.agent.md")
 	if _, err := os.Stat(dst); os.IsNotExist(err) {
 		t.Error("agent file not created")
-	}
-
-	dstMeta := filepath.Join(target, ".github", "agents", "test-agent.metadata.json")
-	if _, err := os.Stat(dstMeta); os.IsNotExist(err) {
-		t.Error("agent metadata not created")
 	}
 }
 
@@ -264,11 +258,6 @@ func TestCmdAdd_Agent_RootLevel(t *testing.T) {
 	}
 	if string(got) != "# Root Agent" {
 		t.Errorf("content mismatch: got %q", string(got))
-	}
-
-	// Verify metadata also installed
-	if _, err := os.Stat(filepath.Join(target, ".github", "agents", "nais.metadata.json")); os.IsNotExist(err) {
-		t.Error("agent metadata not created")
 	}
 }
 

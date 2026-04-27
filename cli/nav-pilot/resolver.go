@@ -14,13 +14,12 @@ type ArtifactKind struct {
 	Dir      string   // plural directory: "agents", "skills", "instructions", "prompts"
 	Suffix   string   // file extension: ".agent.md", ".instructions.md", ".prompt.md"
 	IsDir    bool     // always a directory (skills)
-	CanBeDir bool     // may be file or directory (prompts)
-	Marker   string   // required file inside directory: "SKILL.md"
-	Sidecars []string // extra files to install alongside: [".metadata.json"]
+	CanBeDir bool   // may be file or directory (prompts)
+	Marker   string // required file inside directory: "SKILL.md"
 }
 
 var (
-	KindAgent       = &ArtifactKind{Name: "agent", Dir: "agents", Suffix: ".agent.md", Sidecars: []string{".metadata.json"}}
+	KindAgent       = &ArtifactKind{Name: "agent", Dir: "agents", Suffix: ".agent.md"}
 	KindSkill       = &ArtifactKind{Name: "skill", Dir: "skills", IsDir: true, Marker: "SKILL.md"}
 	KindInstruction = &ArtifactKind{Name: "instruction", Dir: "instructions", Suffix: ".instructions.md"}
 	KindPrompt      = &ArtifactKind{Name: "prompt", Dir: "prompts", Suffix: ".prompt.md", CanBeDir: true}
@@ -130,10 +129,7 @@ func (r *SourceResolver) getCanBeDir(kind *ArtifactKind, name string) (Resolved,
 }
 
 // GetFile resolves a specific file by typeDir + fileName.
-// Used for sidecars (agent metadata) and auto-detect sync.
 // Checks root/<typeDir>/<fileName> then .github/<typeDir>/<fileName>.
-// Note: sidecars resolve independently of the primary artifact —
-// the primary may come from root while a sidecar comes from legacy.
 func (r *SourceResolver) GetFile(typeDir, fileName string) (absPath, relPath string, ok bool) {
 	for _, prefix := range [2]string{"", ".github"} {
 		rel := filepath.Join(prefix, typeDir, fileName)

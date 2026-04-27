@@ -417,7 +417,6 @@ func TestInstallAgent(t *testing.T) {
 	agentsDir := filepath.Join(srcDir, ".github", "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("---\nname: test\n---\n# Test"), 0o644)
-	os.WriteFile(filepath.Join(agentsDir, "test.metadata.json"), []byte(`{"domain":"general"}`), 0o644)
 
 	// Set up target
 	dstDir := t.TempDir()
@@ -430,16 +429,13 @@ func TestInstallAgent(t *testing.T) {
 	if result.Installed != 1 {
 		t.Errorf("installed = %d, want 1", result.Installed)
 	}
-	if len(result.Files) != 2 { // agent.md + metadata.json
-		t.Errorf("files count = %d, want 2", len(result.Files))
+	if len(result.Files) != 1 {
+		t.Errorf("files count = %d, want 1", len(result.Files))
 	}
 
 	// Verify files exist
 	if _, err := os.Stat(filepath.Join(dstDir, ".github", "agents", "test.agent.md")); err != nil {
 		t.Error("agent.md not created")
-	}
-	if _, err := os.Stat(filepath.Join(dstDir, ".github", "agents", "test.metadata.json")); err != nil {
-		t.Error("metadata.json not created")
 	}
 }
 

@@ -371,18 +371,6 @@ func TestReadScopedState_AcceptsEmptyScopeAsRepo(t *testing.T) {
 	}
 }
 
-func TestScope_ShouldInstallMetadata(t *testing.T) {
-	repo := ScopeRepo("/tmp")
-	if !repo.ShouldInstallMetadata() {
-		t.Error("repo scope should install metadata")
-	}
-
-	user := &InstallScope{Name: "user", SupportedTypes: []string{"agent", "skill", "instruction"}}
-	if user.ShouldInstallMetadata() {
-		t.Error("user scope should NOT install metadata")
-	}
-}
-
 // ─── Resolver-based tests (ported from old helpers) ────────────────────────
 
 func TestResolverMapLocalPath_TableDriven(t *testing.T) {

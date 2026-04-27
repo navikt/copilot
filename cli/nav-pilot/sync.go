@@ -294,7 +294,7 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error) {
 	resolver := NewSourceResolver(sourceDir)
 
-	// Build file scan patterns from artifact kind definitions + sidecars.
+	// Build file scan patterns from artifact kind definitions.
 	type scanPattern struct {
 		glob    string
 		typeDir string
@@ -307,13 +307,6 @@ func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error
 				glob:    ".github/" + kind.Dir + "/*" + kind.Suffix,
 				typeDir: kind.Dir,
 				suffix:  kind.Suffix,
-			})
-		}
-		for _, sc := range kind.Sidecars {
-			patterns = append(patterns, scanPattern{
-				glob:    ".github/" + kind.Dir + "/*" + sc,
-				typeDir: kind.Dir,
-				suffix:  sc,
 			})
 		}
 	}
