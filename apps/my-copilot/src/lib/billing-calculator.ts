@@ -146,17 +146,8 @@ export interface CalculatorInputs {
   cliModel: string;
 }
 
-// Copilot CLI uses GPT-class models, not Opus.
-export const DEFAULT_CLI_MODEL = "GPT-4.1";
-
-export const CLI_MODEL_OPTIONS: { value: string; label: string }[] = [
-  { value: "GPT-4.1", label: "GPT-4.1 (sannsynlig standard)" },
-  { value: "GPT-5.4 mini", label: "GPT-5.4 mini (billigst)" },
-  { value: "GPT-5.4", label: "GPT-5.4" },
-  { value: "GPT-5.3-Codex", label: "GPT-5.3-Codex" },
-  { value: "Claude Sonnet 4.6", label: "Claude Sonnet 4.6" },
-  { value: "Claude Opus 4.6", label: "Claude Opus 4.6 (dyrest)" },
-];
+// Copilot CLI model is unknown — use weighted average of actual model usage as best estimate.
+export const DEFAULT_CLI_MODEL = "weighted";
 
 export interface ModelEstimate {
   model: string;
@@ -283,8 +274,29 @@ export function estimateModelCosts(
   });
 }
 
-export function calculateCLICost(cli: CLIData, cacheRate: number, model = "Claude Opus 4.6"): CLIEstimate {
-  const rate = getTokenRate(model);
+export function getWeightedTokenRate(models: ModelPremiumData[]): TokenRate {
+  const totalRequests = models.reduce((sum, m) => sum + m.requests, 0);
+  if (totalRequests === 0) return getTokenRate("GPT-4.1");
+
+  let input = 0,
+    cached = 0,
+    output = 0;
+  for (const m of models) {
+    const rate = getTokenRate(m.model);
+    const weight = m.requests / totalRequests;
+    input += rate.input * weight;
+    cached += rate.cached * weight;
+    output += rate.output * weight;
+  }
+  return { input, cached, output };
+}
+
+export function calculateCLICost(
+  cli: CLIData,
+  cacheRate: number,
+  modelOrRate: string | TokenRate = "GPT-4.1"
+): CLIEstimate {
+  const rate = typeof modelOrRate === "string" ? getTokenRate(modelOrRate) : modelOrRate;
   const cost = calculateTokenCost(rate, cli.inputTokens, cli.outputTokens, cacheRate);
   return {
     inputTokens: cli.inputTokens,
@@ -313,10 +325,12 @@ export function calculateAll(inputs: CalculatorInputs): CalculatorResult {
 
   // Current profile estimates
   const modelEstimates = estimateModelCosts(models, profile, cacheRate);
-  const cliEstimate = calculateCLICost(cli, cacheRate, cliModel);
+  const cliRate = cliModel === "weighted" ? getWeightedTokenRate(models) : cliModel;
+  const cliEstimate = calculateCLICost(cli, cacheRate, cliRate);
 
   const totalModelCost = modelEstimates.reduce((s, m) => s + m.newCost, 0);
-  const totalNewCost = totalModelCost + cliEstimate.cost;
+  // CLI tokens are already included in model request counts — not additive
+  const totalNewCost = totalModelCost;
   const monthlyCost = totalNewCost * monthScale;
   const totalCurrentGrossCost = models.reduce((s, m) => s + m.grossAmount, 0);
 
@@ -325,17 +339,15 @@ export function calculateAll(inputs: CalculatorInputs): CalculatorResult {
   // All three scenarios for comparison
   const scenarios: ScenarioResult[] = (["conservative", "moderate", "heavy"] as ProfileName[]).map((p) => {
     const est = estimateModelCosts(models, p, cacheRate);
-    const cliCost = cliEstimate.cost;
     const modelCost = est.reduce((s, m) => s + m.newCost, 0);
-    const total = modelCost + cliCost;
-    const monthly = total * monthScale;
+    const monthly = modelCost * monthScale;
     const credits = seats * creditsPerSeat;
     return {
       profile: p,
       label: PROFILE_LABELS[p],
       totalModelCost: modelCost,
-      cliCost,
-      totalCost: total,
+      cliCost: cliEstimate.cost,
+      totalCost: modelCost,
       monthlyCost: monthly,
       monthlyCredits: credits,
       surplus: credits - monthly,

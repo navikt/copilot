@@ -26,7 +26,6 @@ import {
   DEFAULT_CACHE_RATE,
   DEFAULT_DATA_PERIOD_DAYS,
   DEFAULT_CLI_MODEL,
-  CLI_MODEL_OPTIONS,
   PROFILE_LABELS,
   type CalculatorInputs,
   type ModelPremiumData,
@@ -67,9 +66,8 @@ export default function CalculatorContent({
   const [cacheRate, setCacheRate] = useState(DEFAULT_CACHE_RATE * 100);
   const [profile, setProfile] = useState<ProfileName>("moderate");
   const [dataPeriodDays, setDataPeriodDays] = useState(initialDataPeriodDays || DEFAULT_DATA_PERIOD_DAYS);
-  const [cliInputTokens, setCliInputTokens] = useState(initialCLI.inputTokens);
-  const [cliOutputTokens, setCliOutputTokens] = useState(initialCLI.outputTokens);
-  const [cliModel, setCliModel] = useState(DEFAULT_CLI_MODEL);
+  const [cliInputTokens] = useState(initialCLI.inputTokens);
+  const [cliOutputTokens] = useState(initialCLI.outputTokens);
 
   const inputs: CalculatorInputs = useMemo(
     () => ({
@@ -79,7 +77,7 @@ export default function CalculatorContent({
       profile,
       dataPeriodDays,
       models: initialModels,
-      cliModel,
+      cliModel: DEFAULT_CLI_MODEL,
       cli: {
         inputTokens: cliInputTokens,
         outputTokens: cliOutputTokens,
@@ -94,7 +92,6 @@ export default function CalculatorContent({
       profile,
       dataPeriodDays,
       initialModels,
-      cliModel,
       cliInputTokens,
       cliOutputTokens,
       initialCLI.sessions,
@@ -183,37 +180,6 @@ export default function CalculatorContent({
               ))}
             </div>
           </RadioGroup>
-          <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
-            <TextField
-              label="CLI input-tokens (siste periode)"
-              type="number"
-              value={cliInputTokens.toString()}
-              onChange={(e) => setCliInputTokens(Math.max(0, parseInt(e.target.value) || 0))}
-              size="small"
-              description={`${formatTokens(cliInputTokens)} tokens — fra Copilot CLI i hele organisasjonen`}
-            />
-            <TextField
-              label="CLI output-tokens (siste periode)"
-              type="number"
-              value={cliOutputTokens.toString()}
-              onChange={(e) => setCliOutputTokens(Math.max(0, parseInt(e.target.value) || 0))}
-              size="small"
-              description={`${formatTokens(cliOutputTokens)} tokens — genererte svar fra CLI`}
-            />
-            <Select
-              label="CLI-modell"
-              value={cliModel}
-              onChange={(e) => setCliModel(e.target.value)}
-              size="small"
-              description="Modell CLI bruker — påvirker kostnaden vesentlig"
-            >
-              {CLI_MODEL_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
-          </HGrid>
         </VStack>
       </Box>
 
@@ -230,24 +196,25 @@ export default function CalculatorContent({
           />
           <SummaryCard label="Dagens nettokostnad" value={formatUSD(currentNetCost)} subtitle="Etter rabatt" />
           <SummaryCard
-            label="Estimert ny kostnad"
+            label="Estimert modellkostnad"
             value={formatUSD(result.totalNewCost)}
             subtitle={`${dataPeriodDays} dager (AI Credits)`}
             highlight
           />
           <SummaryCard
-            label="Estimert månedskostnad"
-            value={formatUSD(result.monthlyCost)}
-            subtitle="30-dagers projeksjon"
+            label="Lisenskostnad / mnd"
+            value={formatUSD(seats * creditsPerSeat)}
+            subtitle={`${formatNumber(seats)} lisenser × $${creditsPerSeat}`}
           />
           <SummaryCard
-            label="Inkluderte kreditter/mnd"
-            value={formatUSD(result.creditPool.monthlyCredits)}
-            subtitle={`${formatNumber(seats)} lisenser × $${creditsPerSeat}`}
+            label="Estimert totalkostnad / mnd"
+            value={formatUSD(result.monthlyCost + seats * creditsPerSeat)}
+            subtitle={`Modellkostnad + lisens`}
           />
           <SummaryCard
             label={result.creditPool.surplusStandard >= 0 ? "Overskudd / mnd" : "Overskridelse / mnd"}
             value={`${result.creditPool.surplusStandard >= 0 ? "+" : ""}${formatUSD(result.creditPool.surplusStandard)}`}
+            subtitle="Kreditter − modellkostnad"
             highlight={result.creditPool.surplusStandard < 0}
           />
         </HGrid>
@@ -261,7 +228,7 @@ export default function CalculatorContent({
           </Heading>
           <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
             <div>
-              <BodyShort className="text-gray-600 mb-1">Estimert månedskostnad</BodyShort>
+              <BodyShort className="text-gray-600 mb-1">Estimert modellkostnad / mnd</BodyShort>
               <Heading size="medium" level="3">
                 {formatUSD(result.monthlyCost)}
               </Heading>
@@ -327,23 +294,17 @@ export default function CalculatorContent({
                 </div>
                 <div>
                   <BodyShort size="small" className="text-gray-600">
-                    Estimert månedskostnad
+                    Modellkostnad ({dataPeriodDays}d)
                   </BodyShort>
                   <Heading size="medium" level="4">
-                    {formatUSD(s.monthlyCost)}
+                    {formatUSD(s.totalModelCost)}
                   </Heading>
                 </div>
                 <div>
                   <BodyShort size="small" className="text-gray-600">
-                    Modellkostnad ({dataPeriodDays}d)
+                    Estimert modellkostnad / mnd
                   </BodyShort>
-                  <BodyShort>{formatUSD(s.totalModelCost)}</BodyShort>
-                </div>
-                <div>
-                  <BodyShort size="small" className="text-gray-600">
-                    CLI-kostnad ({dataPeriodDays}d)
-                  </BodyShort>
-                  <BodyShort>{formatUSD(s.cliCost)}</BodyShort>
+                  <BodyShort>{formatUSD(s.monthlyCost)}</BodyShort>
                 </div>
                 <div>
                   <BodyShort size="small" className="text-gray-600">
@@ -489,12 +450,16 @@ export default function CalculatorContent({
         </div>
       </div>
 
-      {/* CLI analysis */}
+      {/* CLI analysis — informational only */}
       <Box background="neutral-soft" padding={{ xs: "space-16", md: "space-24" }} borderRadius="12">
         <VStack gap="space-16">
           <Heading size="small" level="2">
-            CLI-analyse ({cliModel})
+            CLI-referansedata
           </Heading>
+          <Alert variant="info" size="small">
+            CLI-tokens er allerede inkludert i modellkostnadene over. Denne seksjonen viser faktisk tokenforbruk fra CLI
+            som referanse.
+          </Alert>
           <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
             <div>
               <BodyShort className="text-gray-600 mb-1">Input-tokens</BodyShort>
@@ -509,24 +474,18 @@ export default function CalculatorContent({
               </Heading>
             </div>
             <div>
-              <BodyShort className="text-gray-600 mb-1">Cache-rate</BodyShort>
+              <BodyShort className="text-gray-600 mb-1">Sesjoner</BodyShort>
               <Heading size="small" level="3">
-                {cacheRate} %
+                {formatNumber(initialCLI.sessions)}
               </Heading>
             </div>
             <div>
-              <BodyShort className="text-gray-600 mb-1">Estimert kostnad ({dataPeriodDays}d)</BodyShort>
+              <BodyShort className="text-gray-600 mb-1">Forespørsler</BodyShort>
               <Heading size="small" level="3">
-                {formatUSD(result.cliEstimate.cost)}
+                {formatNumber(initialCLI.requests)}
               </Heading>
             </div>
           </HGrid>
-          {initialCLI.sessions > 0 && (
-            <BodyShort size="small" className="text-gray-500">
-              {formatNumber(initialCLI.sessions)} sesjoner, {formatNumber(initialCLI.requests)} forespørsler siste{" "}
-              {dataPeriodDays} dager
-            </BodyShort>
-          )}
         </VStack>
       </Box>
 
@@ -537,10 +496,10 @@ export default function CalculatorContent({
             Om estimatene
           </Heading>
           <BodyShort size="small" className="text-gray-600">
-            Estimatene er basert på faktiske premiumforespørseldata fra GitHub og faktisk tokenforbruk fra CLI. Siden
-            premium-forespørseldata ikke inneholder tokentall per forespørsel, estimeres tokens per forespørsel basert
-            på modellkategori og valgt profil. Cache-raten påvirker kostnaden betydelig — 80 % er et rimelig
-            standardanslag for Copilot.
+            Estimatene er basert på faktiske premiumforespørseldata fra GitHub. Siden premium-forespørsler ikke
+            inneholder tokentall per forespørsel, estimeres tokens basert på modellkategori og valgt profil. CLI-bruk er
+            allerede inkludert i modellfordelingen — det er ikke en separat kostnad. Cache-raten påvirker kostnaden
+            betydelig — 80 % er et rimelig standardanslag for Copilot.
           </BodyShort>
           <BodyShort size="small" className="text-gray-600">
             Kilde:{" "}

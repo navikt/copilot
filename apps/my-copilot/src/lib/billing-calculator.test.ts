@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getModelCategory,
   getTokenRate,
+  getWeightedTokenRate,
   calculateTokenCost,
   estimateModelCosts,
   calculateCLICost,
@@ -172,12 +173,21 @@ describe("estimateModelCosts", () => {
 });
 
 describe("calculateCLICost", () => {
-  it("should use default Opus 4.6 model", () => {
+  it("should default to GPT-4.1 model", () => {
     const cli = { inputTokens: 1_000_000, outputTokens: 500_000, sessions: 100, requests: 1000 };
     const result = calculateCLICost(cli, 0.8);
 
-    const opusRate = getTokenRate("Claude Opus 4.6");
-    const expectedCost = calculateTokenCost(opusRate, 1_000_000, 500_000, 0.8);
+    const gptRate = getTokenRate("GPT-4.1");
+    const expectedCost = calculateTokenCost(gptRate, 1_000_000, 500_000, 0.8);
+    expect(result.cost).toBeCloseTo(expectedCost);
+  });
+
+  it("should accept a TokenRate directly", () => {
+    const cli = { inputTokens: 1_000_000, outputTokens: 500_000, sessions: 100, requests: 1000 };
+    const customRate: TokenRate = { input: 2.0, cached: 0.2, output: 10.0 };
+    const result = calculateCLICost(cli, 0.8, customRate);
+
+    const expectedCost = calculateTokenCost(customRate, 1_000_000, 500_000, 0.8);
     expect(result.cost).toBeCloseTo(expectedCost);
   });
 
@@ -196,6 +206,50 @@ describe("calculateCLICost", () => {
     expect(result.cost).toBe(0);
     expect(result.cachedInputTokens).toBe(0);
     expect(result.freshInputTokens).toBe(0);
+  });
+});
+
+describe("getWeightedTokenRate", () => {
+  it("should return GPT-4.1 fallback for empty models", () => {
+    const rate = getWeightedTokenRate([]);
+    const gptRate = getTokenRate("GPT-4.1");
+    expect(rate).toEqual(gptRate);
+  });
+
+  it("should return exact rate for single model", () => {
+    const models = [{ model: "Claude Opus 4.6", requests: 100, grossAmount: 500 }];
+    const rate = getWeightedTokenRate(models);
+    const opusRate = getTokenRate("Claude Opus 4.6");
+    expect(rate.input).toBeCloseTo(opusRate.input);
+    expect(rate.output).toBeCloseTo(opusRate.output);
+  });
+
+  it("should blend rates proportionally by request count", () => {
+    const models = [
+      { model: "Claude Opus 4.6", requests: 50, grossAmount: 250 },
+      { model: "Claude Haiku 4.5", requests: 50, grossAmount: 50 },
+    ];
+    const rate = getWeightedTokenRate(models);
+    const opus = getTokenRate("Claude Opus 4.6");
+    const haiku = getTokenRate("Claude Haiku 4.5");
+
+    // 50/50 split → average of rates
+    expect(rate.input).toBeCloseTo((opus.input + haiku.input) / 2);
+    expect(rate.output).toBeCloseTo((opus.output + haiku.output) / 2);
+  });
+
+  it("should weight heavily used models more", () => {
+    const models = [
+      { model: "Claude Opus 4.6", requests: 90, grossAmount: 450 },
+      { model: "Claude Haiku 4.5", requests: 10, grossAmount: 10 },
+    ];
+    const rate = getWeightedTokenRate(models);
+    const opus = getTokenRate("Claude Opus 4.6");
+    const haiku = getTokenRate("Claude Haiku 4.5");
+
+    // 90% Opus → rate should be much closer to Opus
+    expect(rate.input).toBeCloseTo(opus.input * 0.9 + haiku.input * 0.1);
+    expect(rate.input).toBeGreaterThan((opus.input + haiku.input) / 2);
   });
 });
 
@@ -245,7 +299,7 @@ describe("calculateAll", () => {
       { model: "Claude Sonnet 4.6", requests: 100, grossAmount: 300 },
     ],
     cli: { inputTokens: 10_000_000, outputTokens: 1_000_000, sessions: 100, requests: 1000 },
-    cliModel: "Claude Opus 4.6",
+    cliModel: "weighted",
   };
 
   it("should aggregate totalCurrentGrossCost from model grossAmounts", () => {
@@ -253,10 +307,10 @@ describe("calculateAll", () => {
     expect(result.totalCurrentGrossCost).toBe(800);
   });
 
-  it("should calculate totalNewCost as model costs + CLI cost", () => {
+  it("should calculate totalNewCost as model costs only (CLI included in model breakdown)", () => {
     const result = calculateAll(baseInputs);
     const modelTotal = result.modelEstimates.reduce((s, m) => s + m.newCost, 0);
-    expect(result.totalNewCost).toBeCloseTo(modelTotal + result.cliEstimate.cost);
+    expect(result.totalNewCost).toBeCloseTo(modelTotal);
   });
 
   it("should scale to monthly cost based on dataPeriodDays", () => {
@@ -296,7 +350,7 @@ describe("calculateAll", () => {
     const result = calculateAll({ ...baseInputs, models: [] });
 
     expect(result.modelEstimates).toEqual([]);
-    expect(result.totalNewCost).toBe(result.cliEstimate.cost);
+    expect(result.totalNewCost).toBe(0);
     expect(result.totalCurrentGrossCost).toBe(0);
   });
 
@@ -311,7 +365,7 @@ describe("profiles", () => {
   it("should have consistent token profiles across all categories", () => {
     for (const profileName of ["conservative", "moderate", "heavy"] as const) {
       const profile = PROFILES[profileName];
-      for (const [category, tokens] of Object.entries(profile)) {
+      for (const [, tokens] of Object.entries(profile)) {
         expect(tokens.inputTokens).toBeGreaterThanOrEqual(0);
         expect(tokens.outputTokens).toBeGreaterThanOrEqual(0);
         // Output tokens should never exceed input tokens in a profile
