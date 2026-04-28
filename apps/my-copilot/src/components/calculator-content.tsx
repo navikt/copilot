@@ -25,6 +25,8 @@ import {
   PROMO_CREDITS_PER_SEAT,
   DEFAULT_CACHE_RATE,
   DEFAULT_DATA_PERIOD_DAYS,
+  DEFAULT_CLI_MODEL,
+  CLI_MODEL_OPTIONS,
   PROFILE_LABELS,
   type CalculatorInputs,
   type ModelPremiumData,
@@ -67,6 +69,7 @@ export default function CalculatorContent({
   const [dataPeriodDays, setDataPeriodDays] = useState(initialDataPeriodDays || DEFAULT_DATA_PERIOD_DAYS);
   const [cliInputTokens, setCliInputTokens] = useState(initialCLI.inputTokens);
   const [cliOutputTokens, setCliOutputTokens] = useState(initialCLI.outputTokens);
+  const [cliModel, setCliModel] = useState(DEFAULT_CLI_MODEL);
 
   const inputs: CalculatorInputs = useMemo(
     () => ({
@@ -76,6 +79,7 @@ export default function CalculatorContent({
       profile,
       dataPeriodDays,
       models: initialModels,
+      cliModel,
       cli: {
         inputTokens: cliInputTokens,
         outputTokens: cliOutputTokens,
@@ -90,6 +94,7 @@ export default function CalculatorContent({
       profile,
       dataPeriodDays,
       initialModels,
+      cliModel,
       cliInputTokens,
       cliOutputTokens,
       initialCLI.sessions,
@@ -178,7 +183,7 @@ export default function CalculatorContent({
               ))}
             </div>
           </RadioGroup>
-          <HGrid columns={{ xs: 1, sm: 2 }} gap="space-16">
+          <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
             <TextField
               label="CLI input-tokens (siste periode)"
               type="number"
@@ -195,6 +200,19 @@ export default function CalculatorContent({
               size="small"
               description={`${formatTokens(cliOutputTokens)} tokens — genererte svar fra CLI`}
             />
+            <Select
+              label="CLI-modell"
+              value={cliModel}
+              onChange={(e) => setCliModel(e.target.value)}
+              size="small"
+              description="Modell CLI bruker — påvirker kostnaden vesentlig"
+            >
+              {CLI_MODEL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
           </HGrid>
         </VStack>
       </Box>
@@ -475,7 +493,7 @@ export default function CalculatorContent({
       <Box background="neutral-soft" padding={{ xs: "space-16", md: "space-24" }} borderRadius="12">
         <VStack gap="space-16">
           <Heading size="small" level="2">
-            CLI-analyse (Claude Opus 4.6)
+            CLI-analyse ({cliModel})
           </Heading>
           <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
             <div>

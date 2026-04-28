@@ -143,7 +143,20 @@ export interface CalculatorInputs {
   dataPeriodDays: number;
   models: ModelPremiumData[];
   cli: CLIData;
+  cliModel: string;
 }
+
+// Copilot CLI uses GPT-class models, not Opus.
+export const DEFAULT_CLI_MODEL = "GPT-4.1";
+
+export const CLI_MODEL_OPTIONS: { value: string; label: string }[] = [
+  { value: "GPT-4.1", label: "GPT-4.1 (sannsynlig standard)" },
+  { value: "GPT-5.4 mini", label: "GPT-5.4 mini (billigst)" },
+  { value: "GPT-5.4", label: "GPT-5.4" },
+  { value: "GPT-5.3-Codex", label: "GPT-5.3-Codex" },
+  { value: "Claude Sonnet 4.6", label: "Claude Sonnet 4.6" },
+  { value: "Claude Opus 4.6", label: "Claude Opus 4.6 (dyrest)" },
+];
 
 export interface ModelEstimate {
   model: string;
@@ -295,12 +308,12 @@ export function calculateCreditPool(seats: number, creditsPerSeat: number, estim
 }
 
 export function calculateAll(inputs: CalculatorInputs): CalculatorResult {
-  const { seats, creditsPerSeat, cacheRate, profile, dataPeriodDays, models, cli } = inputs;
+  const { seats, creditsPerSeat, cacheRate, profile, dataPeriodDays, models, cli, cliModel } = inputs;
   const monthScale = MONTH_DAYS / dataPeriodDays;
 
   // Current profile estimates
   const modelEstimates = estimateModelCosts(models, profile, cacheRate);
-  const cliEstimate = calculateCLICost(cli, cacheRate);
+  const cliEstimate = calculateCLICost(cli, cacheRate, cliModel);
 
   const totalModelCost = modelEstimates.reduce((s, m) => s + m.newCost, 0);
   const totalNewCost = totalModelCost + cliEstimate.cost;

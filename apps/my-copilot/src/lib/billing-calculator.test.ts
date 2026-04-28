@@ -245,6 +245,7 @@ describe("calculateAll", () => {
       { model: "Claude Sonnet 4.6", requests: 100, grossAmount: 300 },
     ],
     cli: { inputTokens: 10_000_000, outputTokens: 1_000_000, sessions: 100, requests: 1000 },
+    cliModel: "Claude Opus 4.6",
   };
 
   it("should aggregate totalCurrentGrossCost from model grossAmounts", () => {
