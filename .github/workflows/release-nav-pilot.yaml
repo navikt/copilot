@@ -125,7 +125,7 @@ jobs:
 
       - name: Generate release notes
         id: changelog
-        uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72 # v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         with:
           config: cli/nav-pilot/cliff.toml
           args: --unreleased --tag ${{ needs.prepare.outputs.tag }} --include-path "cli/nav-pilot/*" --include-path ".github/skills/*" --include-path ".github/agents/*" --include-path ".github/collections/*" --include-path "scripts/install.sh"
