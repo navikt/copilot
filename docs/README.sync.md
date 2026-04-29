@@ -79,6 +79,8 @@ Create `.github/copilot-sync.json` in your repo:
 
 This works with both state-based and auto-detected repos.
 
+> **Important:** Sync only touches files whose names also exist in the source repo. If your team creates a file with the same name as a source file (e.g., your own `kotlin-app-config` skill), sync will detect a hash mismatch and propose overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
+
 ### Opting out of framework-specific files
 
 Teams using Astro, Remix, or other non-Next.js frameworks can use overrides to skip Next.js-specific files installed by the `nextjs-frontend` or `fullstack` collection:

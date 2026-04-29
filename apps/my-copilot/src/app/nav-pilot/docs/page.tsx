@@ -1028,21 +1028,27 @@ jobs:
           </BodyShort>
           <CodeBlock compact>
             {`{
-  "overrides": {
-    ".github/instructions/nextjs-aksel.instructions.md": { "action": "delete" },
-    ".github/instructions/performance.instructions.md": { "action": "delete" },
-    ".github/prompts/nextjs-api-route.prompt.md": { "action": "delete" }
-  }
+  "overrides": [
+    ".github/instructions/nextjs-aksel.instructions.md",
+    ".github/instructions/performance.instructions.md",
+    ".github/prompts/nextjs-api-route.prompt.md"
+  ]
 }`}
           </CodeBlock>
           <BodyShort size="small" className="mt-3" style={{ color: "#475569" }}>
-            Filer med <code className="font-mono text-xs">{`"action": "delete"`}</code> blir fjernet ved neste sync og
-            ikke lagt til igjen. Alternativt kan du installere <code className="font-mono text-xs">frontend</code>
+            Filer i <code className="font-mono text-xs">overrides</code> hoppes helt over under sync — ingen
+            hash-sammenligning, ingen PR-diff. Du kan trygt slette filene etterpå, og de blir ikke lagt til igjen.
+            Alternativt kan du installere <code className="font-mono text-xs">frontend</code>
             -collectionet som allerede utelater Next.js-spesifikke filer.
           </BodyShort>
           <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
             Sletter du en fil manuelt uten override, markeres den som «ignorert» og gjenopprettes ikke av sync. Legg den
             til igjen med <code className="font-mono text-xs">nav-pilot add</code> hvis du ombestemmer deg.
+          </BodyShort>
+          <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
+            Har teamet en egen versjon av en fil med samme navn som kilden (f.eks. en egen{" "}
+            <code className="font-mono text-xs">kotlin-app-config</code> skill), vil sync prøve å overskrive den. Bruk
+            overrides for å beskytte filen. Filer med navn som ikke finnes i kilden blir aldri berørt av sync.
           </BodyShort>
         </div>
 
@@ -1076,6 +1082,10 @@ jobs:
               {
                 q: "Kan jeg fjerne filer som ikke passer mitt rammeverk?",
                 a: "Ja. Opprett .github/copilot-sync.json med overrides, eller installer frontend-collectionet som allerede utelater Next.js-spesifikke filer.",
+              },
+              {
+                q: "Hva skjer hvis vi har en egen fil med samme navn som kilden?",
+                a: "Sync sammenligner hasher og foreslår å overskrive den med kildens versjon. Legg filen i overrides for å beskytte den. Filer med navn som ikke finnes i kilden ignoreres helt.",
               },
             ].map((faq) => (
               <div
