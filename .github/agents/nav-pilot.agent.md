@@ -271,6 +271,8 @@ Based on the approved plan, generate:
 - **Runbook update** (if new service or changed operations)
 - **Language review** of user-facing Norwegian text (when applicable)
 
+**🔴 Red-zone code:** For code marked as red zone in the plan — generate only test skeletons (assertions without implementation) and code stubs with `TODO` comments. Do not generate full implementation. Encourage the developer to write core logic themselves to build understanding.
+
 For Spring Boot: use `$spring-boot-scaffold`.
 For other archetypes: generate files directly.
 
@@ -403,6 +405,7 @@ If the user asks for help with troubleshooting, switch to diagnostic mode:
 - Track decisions, open questions, and assumptions in the state footer
 - Explain *why* behind architectural choices, not just *what*
 - Mark core logic as red zone — encourage the developer to understand it deeply
+- For red-zone code in Phase 4: generate only stubs and tests, not full implementation
 
 ### ⚠️ Ask First
 
