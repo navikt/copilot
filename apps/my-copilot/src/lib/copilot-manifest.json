@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-15T12:42:09.385Z",
+  "generatedAt": "2026-04-29T21:02:50.585Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -37,12 +37,12 @@
     {
       "id": "aksel-agent",
       "name": "aksel-agent",
-      "description": "Navs Aksel Design System — spacing-tokens, responsiv layout og komponentmønstre",
+      "description": "Navs Aksel Design System (v8+) — komponenter, tokens, layout, theming og tilgjengelighet",
       "type": "agent",
       "domain": "frontend",
       "filePath": ".github/agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/aksel.agent.md",
-      "contentHash": "9a80d306394a0cf49976159d7886e4d03a78dd5341735f15fe4c63c452a627bc",
+      "contentHash": "f3f31e695bc1df0f243d139cbaf81c41227d61d7b0f83453c7f44e1b41bb1113",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "tools": [
@@ -72,15 +72,34 @@
         "io.github.navikt/github-mcp/list_releases"
       ],
       "agentReferences": ["nais-agent"],
-      "tags": ["aksel", "design-system", "nextjs", "react", "ui"],
+      "tags": [
+        "aksel",
+        "design-system",
+        "react",
+        "typescript",
+        "ui",
+        "tokens",
+        "layout",
+        "responsive",
+        "tilgjengelighet",
+        "tailwind"
+      ],
       "examples": [
         {
-          "prompt": "@aksel-agent Konverter Tailwind-layouten i dp-soknad til Aksel spacing tokens",
-          "scenario": "Konverter Tailwind til Aksel"
+          "prompt": "@aksel-agent Lag et responsivt søknadsskjema med TextField, RadioGroup og ErrorSummary",
+          "scenario": "Søknadsskjema med validering"
         },
         {
-          "prompt": "@aksel-agent Lag et responsivt søknadsskjema for sosialhjelp-innsyn med HGrid og Box",
-          "scenario": "Responsivt søknadsskjema"
+          "prompt": "@aksel-agent Bygg en sidestruktur med Page.Block, HGrid og kortkomponenter",
+          "scenario": "Sidelayout med grid"
+        },
+        {
+          "prompt": "@aksel-agent Vis et varsel når en handling feiler – hvilken alert-komponent skal jeg bruke?",
+          "scenario": "Varselhåndtering v8"
+        },
+        {
+          "prompt": "@aksel-agent Lag en ActionMenu for en tabellrad med rediger og slett",
+          "scenario": "ActionMenu i tabell"
         }
       ]
     },
@@ -134,7 +153,7 @@
       "domain": "general",
       "filePath": ".github/agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/code-review.agent.md",
-      "contentHash": "901af6107f419ef1f308988559e08a629df7d87af7f83d516607df82842d342d",
+      "contentHash": "452bf7eb43ff1205e7f9c7da87f6a390009bbd04dea37ca4f71c23fd14431cf6",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -176,21 +195,19 @@
     {
       "id": "forfatter",
       "name": "forfatter",
-      "description": "Norsk teknisk redaktør: klarspråk, AI-markører, anglismer, fagtermer, mikrotekst.",
+      "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "type": "agent",
       "domain": "general",
       "filePath": ".github/agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/forfatter.agent.md",
-      "contentHash": "42eb060eeeaef4cfaabc6846f120ea079e8660ee9e7ec1d0de5adf133945755a",
+      "contentHash": "13a58d6edf24411445d67cf53851b94f45331b1d9978e5301b0f67168fea1992",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "tools": [
-        "execute",
         "read",
         "edit",
         "search",
         "vscode",
-        "web",
         "todo",
         "io.github.navikt/github-mcp/get_file_contents",
         "io.github.navikt/github-mcp/search_code"
@@ -269,7 +286,7 @@
       "domain": "platform",
       "filePath": ".github/agents/nais.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md",
-      "contentHash": "396a51def78b3f382e6e274297e75a10e7fbfa4c00eca69918d926a38c9c0fe6",
+      "contentHash": "fa07ad8cfdf54a4a6dc68f0debd308c90abfbce0ed4fe634f75dddd6c601aa57",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "tools": [
@@ -314,7 +331,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "0c9796c772108740d9d9a26df08c64be407557ef46a3589371e93562dd6c4b00",
+      "contentHash": "8384742b958b4b84fd453fd783c08911b9e0cbaf66d4cf043fefd17a9a0b8a21",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -378,7 +395,7 @@
       "domain": "observability",
       "filePath": ".github/agents/observability.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/observability.agent.md",
-      "contentHash": "ba87267d1d23aee2108f89fbbb25ad0b4b7b58a509818d1e6c53fe7bab39b860",
+      "contentHash": "5ba4036f431e3cfbf4596c22ef87d308164b69a9e5bec717798e42a034065f00",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "tools": [
@@ -575,7 +592,7 @@
       "domain": "general",
       "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "9e323b97b2190d7a02f012ca98e66fa17bb420e0db2bcc251e2c118d42a0aab4",
+      "contentHash": "22bd58c84cb5354f6484e46a6caf4a79e903e4e4db11f980a9d54586bc9e6884",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "applyTo": "**",
@@ -623,7 +640,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/golang.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/golang.instructions.md",
-      "contentHash": "68b80af9d00ccf92fb29494cebe1b8aa824c27148b274b900704099591b41f60",
+      "contentHash": "8be854c7a6750941c2901396623d5e647da63f972fc750769f31474452c0ea4b",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fgolang.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fgolang.instructions.md",
       "applyTo": "**/*.go",
@@ -641,7 +658,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-ktor.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/kotlin-ktor.instructions.md",
-      "contentHash": "556cd450ae2bedf3af79287dd1516e415dd58a349eed8fbe84d15db0e1c42677",
+      "contentHash": "5d85d53d8f375ec28d3d2026946faf7e0ebbde05e63c112934e602eca5cf9eb8",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-ktor.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-ktor.instructions.md",
       "applyTo": "**/*.kt",
@@ -656,7 +673,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-spring.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/kotlin-spring.instructions.md",
-      "contentHash": "75458689164c6c1b386b348ccd4b76cbca0c47339318ba8ac4055770d85a98c7",
+      "contentHash": "bdf9d1bfd412180301f5f5e4f7f6b23c4b9de272ea2cd7ddfa2c4437cec089f9",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-spring.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fkotlin-spring.instructions.md",
       "applyTo": "**/*.kt",
@@ -666,17 +683,35 @@
     {
       "id": "nextjs-aksel",
       "name": "Next.js/Aksel Development",
-      "description": "Aksel spacing tokens (never Tailwind p-/m-), mobile-first responsive design.",
+      "description": "Aksel spacing tokens (never Tailwind p-/m-), correct background/borderRadius token names, mobile-first responsive design with layout primitives.",
       "type": "instruction",
       "domain": "frontend",
       "filePath": ".github/instructions/nextjs-aksel.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
-      "contentHash": "6aa56ec320c72809636122ce2f4d3d7f72491881592739554ac5ba258fe968ca",
+      "contentHash": "9283252e55829ca2a81fbd6965489cf8061c7fbcf2014c12f0691e0025b5983f",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "applyTo": "src/**/*.{tsx,ts}",
-      "tags": ["aksel", "design-system", "nextjs", "react", "ui"],
-      "examples": ["Lag en responsiv søknadsoversikt med Aksel Box og VStack"]
+      "tags": ["aksel", "design-system", "nextjs", "react", "ui", "spacing", "tokens", "responsive"],
+      "examples": [
+        "Lag en responsiv søknadsoversikt med Aksel Box og VStack",
+        "Hva er riktig bakgrunnsfarge-token for en lys grå boks i Aksel v8?"
+      ]
+    },
+    {
+      "id": "norwegian-text",
+      "name": "Norsk tekstkvalitet",
+      "description": "Klarspråk, AI-markører, anglismer, fagtermer og sammensatte ord i norsk markdown.",
+      "type": "instruction",
+      "domain": "general",
+      "filePath": ".github/instructions/norwegian-text.instructions.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/norwegian-text.instructions.md",
+      "contentHash": "d8e9f86a477a16ff6f8e5a426b8808ea0d91b075e4203de7acb6c9da95e18283",
+      "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnorwegian-text.instructions.md",
+      "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnorwegian-text.instructions.md",
+      "applyTo": "**/*.md",
+      "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "markdown"],
+      "examples": ["Fjern AI-markører fra denne teksten", "Sjekk klarspråk i denne README-en"]
     },
     {
       "id": "performance",
@@ -859,16 +894,22 @@
     {
       "id": "aksel-spacing",
       "name": "aksel-spacing",
-      "description": "Responsiv layout med Aksel spacing-tokens og Box, VStack, HStack og HGrid",
+      "description": "Lag responsive layouts med Aksel Design System (v8+) - spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed) og ResponsiveProp",
       "type": "skill",
       "domain": "frontend",
       "filePath": ".github/skills/aksel-spacing/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md",
-      "contentHash": "9059ca6ef8aedc4c5130eef88b1f65e018ac2fc8543a2a1146f264dba23de9ed",
+      "contentHash": "6d9a5ccb34884f110d1cfb2949bfdd3982318820780b41d68e824f3f85539263",
       "installUrl": null,
       "insidersInstallUrl": null,
-      "tags": ["aksel", "design-system", "spacing", "responsive"],
-      "examples": ["Lag en responsiv to-kolonne layout med Aksel-spacing"]
+      "tags": ["aksel", "design-system", "nav", "react", "spacing", "tokens", "layout", "responsive", "primitives"],
+      "examples": [
+        "Lag en responsiv to-kolonne layout med HGrid og Aksel spacing tokens",
+        "Bygg en mobil-first sidelayout med Page.Block og VStack",
+        "Lag et kortgrid som går fra 1 til 3 kolonner på tvers av breakpoints",
+        "Bruk Bleed til å la et banner strekke seg forbi container-padding",
+        "Sett riktig padding med space-tokens - hva er space-16 i v8?"
+      ]
     },
     {
       "id": "api-design",
@@ -878,7 +919,7 @@
       "domain": "backend",
       "filePath": ".github/skills/api-design/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/api-design/SKILL.md",
-      "contentHash": "42d4a3492b1be1f1d32556eee8cfbcc9850f337610d5ee2c55881e907317d7d4",
+      "contentHash": "696738e209f8127d8b16d31a1d424fd3be0fbfd2486db782eb013192c4f054c2",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["api", "rest", "design", "openapi", "error-handling"],
@@ -913,7 +954,7 @@
       "domain": "general",
       "filePath": ".github/skills/conventional-commit/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/conventional-commit/SKILL.md",
-      "contentHash": "68a93957fe50a81df1f13cf9e61f040ac681e58b04d69d8e02b61800e34b0c6a",
+      "contentHash": "7ff77862da5510a426758adab92663e987695d3fa2ff8e029f38584f9ea39f93",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["git", "commit", "conventional-commits", "changelog"],
@@ -944,7 +985,7 @@
       "domain": "backend",
       "filePath": ".github/skills/flyway-migration/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/flyway-migration/SKILL.md",
-      "contentHash": "eeeb48b922eb44ecdb3a53e07889545fa0ffb2dedd8676032b83e7e8ece22cd9",
+      "contentHash": "6c5eebc88484b687dafab5d848f16b3cffa6345e19eb3e12428b167da4e23293",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["database", "flyway", "sql", "migration"],
@@ -958,7 +999,7 @@
       "domain": "backend",
       "filePath": ".github/skills/java-to-kotlin/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/java-to-kotlin/SKILL.md",
-      "contentHash": "90e83d6f2020164f14ee0744f17d140f54ee0c37e35d07841b316027b571d8e0",
+      "contentHash": "b8305c1d1251223b25bf5b30d418cd6c1898017a0abfe5742e7f80a1d87ad36d",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["kotlin", "java", "migration", "refactoring", "ktor", "spring"],
@@ -981,7 +1022,7 @@
       "domain": "backend",
       "filePath": ".github/skills/kotlin-app-config/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/kotlin-app-config/SKILL.md",
-      "contentHash": "eb122934680f56ead18d5c42f526c6bf19a4974d908f53c20f68b99112e3ce67",
+      "contentHash": "ea6651cebef6be6a58069df6de2be1a2a248af41a0fd556382c90f4a02e63394",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["kotlin", "configuration", "sealed-class", "environment"],
@@ -995,7 +1036,7 @@
       "domain": "backend",
       "filePath": ".github/skills/ktor-scaffold/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/ktor-scaffold/SKILL.md",
-      "contentHash": "5b0d551ada08e15686332b05a42a2a5bfecdd0f1790811f1d2c24e7ca5256e36",
+      "contentHash": "2cd6b7744d5b595542746e77b6a2232655430a7cd4f0b5037894ecc25cba493f",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["kotlin", "ktor", "scaffold", "nais", "kotliquery"],
@@ -1018,7 +1059,7 @@
       "domain": "general",
       "filePath": ".github/skills/nav-architecture-review/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/SKILL.md",
-      "contentHash": "00c75550f73ecea57afc0d8ed87bc5160dc090576ba271bbf26abe956fb12f60",
+      "contentHash": "49053632149735a80f4cbf0f94a8bd652648ef622a375d14e45e592216899ce6",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["architecture", "adr", "review", "planning", "nav-pilot"],
@@ -1051,7 +1092,7 @@
       "domain": "general",
       "filePath": ".github/skills/nav-deep-interview/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/SKILL.md",
-      "contentHash": "d6278872895271daf9e26bc022fe8926fa9c2862773e63e7482238af3e70a634",
+      "contentHash": "88d9281e224ef435f08ceb58b805382563818ace228ffa492d81776fdc211bdc",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["planning", "requirements", "interview", "onboarding", "nav-pilot"],
@@ -1084,7 +1125,7 @@
       "domain": "general",
       "filePath": ".github/skills/nav-plan/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-plan/SKILL.md",
-      "contentHash": "c2878a63c8c0875862f5a9db205ad9635c6789443dcd7fdb1f3085ff861d2c94",
+      "contentHash": "a10798e1cdc522558c6fa4de9fb4b8da2267965e483873ee12362c7186949295",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["planning", "architecture", "scaffold", "nais", "nav-pilot", "modernization", "migration"],
@@ -1133,7 +1174,7 @@
       "domain": "platform",
       "filePath": ".github/skills/nav-troubleshoot/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-troubleshoot/SKILL.md",
-      "contentHash": "4bdfa5b3e12d36c37467911becf11bf82e04b868695908e514c785cd95ad4e38",
+      "contentHash": "eb50649eeb5b58401c306e0c00c698dd6ef97c788a0b67443dbb1d3e8b2cc66d",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["troubleshooting", "diagnostics", "nais", "kubernetes", "nav-pilot"],
@@ -1166,7 +1207,7 @@
       "domain": "observability",
       "filePath": ".github/skills/observability-setup/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
-      "contentHash": "9b606c89aaf224e38d145734761cedc8811cf3ed1173507d69ccb90f6b1496d7",
+      "contentHash": "de63b0e140e841442ca0569c5cddbb62f435c6ef848d788c54343bd1bb22145a",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["prometheus", "opentelemetry", "health", "metrics"],
@@ -1190,7 +1231,7 @@
       "domain": "testing",
       "filePath": ".github/skills/playwright-testing/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/playwright-testing/SKILL.md",
-      "contentHash": "31172cfeab40e8a1b458b593f3b7db8839ae34176614770e2914797c13ca4b98",
+      "contentHash": "28bd1aa68b19cf6a07693efdc81daea421f60ec2c2d4ae7e89c5f829e710dec4",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["playwright", "e2e", "testing", "accessibility", "responsive"],
@@ -1225,7 +1266,7 @@
       "domain": "backend",
       "filePath": ".github/skills/postgresql-review/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/postgresql-review/SKILL.md",
-      "contentHash": "6bb7f9e1a94cb55fe93b38f1bbdbd67aa5c2a347044b1be49f7b6c20b1b8b764",
+      "contentHash": "fcd00261cd892df20fa5facbbdcef5e17181c4269f7c0473728e29e584721730",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["postgresql", "sql", "optimization", "review", "indexing"],
@@ -1253,6 +1294,52 @@
       ]
     },
     {
+      "id": "readme-review",
+      "name": "readme-review",
+      "description": "Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/readme-review/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/SKILL.md",
+      "contentHash": "36fe844fd272d4035d7629b95a267ae8e8a24d4bb49f88c557d4cc45e2512167",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["readme", "documentation", "review", "scaffold"],
+      "examples": [
+        "Gå gjennom README-en vår og foreslå forbedringer",
+        "Lag en README for denne tjenesten",
+        "Sjekk om README-en mangler viktige seksjoner",
+        "Generer en README for denne naisjob-en",
+        "Review README structure"
+      ],
+      "references": [
+        {
+          "path": "references/section-spec.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/section-spec.md"
+        },
+        {
+          "path": "references/anti-patterns.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/anti-patterns.md"
+        },
+        {
+          "path": "references/template-service.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-service.md"
+        },
+        {
+          "path": "references/template-library.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-library.md"
+        },
+        {
+          "path": "references/template-monorepo.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-monorepo.md"
+        },
+        {
+          "path": "references/template-naisjob.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/readme-review/references/template-naisjob.md"
+        }
+      ]
+    },
+    {
       "id": "rust-development",
       "name": "rust-development",
       "description": "Idiomatisk Rust-utvikling med cargo, clippy, error handling, async/tokio, unsafe og testing",
@@ -1260,7 +1347,7 @@
       "domain": "backend",
       "filePath": ".github/skills/rust-development/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/rust-development/SKILL.md",
-      "contentHash": "89a1594c5d6d317835e41506cc4d18aff82f8d1e16dedb686563f8c8236fea95",
+      "contentHash": "1b98a4c1653e164a2ca4acad3c2f5d8ce0c72f07b2bee6ca3418ca99cc2df2f3",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["rust", "cargo", "clippy", "async", "tokio"],
@@ -1291,7 +1378,7 @@
       "domain": "auth",
       "filePath": ".github/skills/security-review/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/security-review/SKILL.md",
-      "contentHash": "4797102a2d5418da3015144af90b95eb27da6d76b2120f4ff6f4c88ad53c540d",
+      "contentHash": "d6a6bbddfc7f18c09f1e062ad9207dc05ff1fc58c111ce1bb9b88b3277806c75",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "pre-commit", "vulnerability-scanning", "code-review"],
@@ -1314,7 +1401,7 @@
       "domain": "backend",
       "filePath": ".github/skills/spring-boot-scaffold/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/spring-boot-scaffold/SKILL.md",
-      "contentHash": "075d61929edd5d83d799f38e90e8f0c0058e151994bd04112ac18264c66cf827",
+      "contentHash": "8fd5a5713062c0c5fb2c1c1679847d3e791f9cea3bc45a12121daa57cd5fec60",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["spring-boot", "kotlin", "scaffold", "nais", "project-setup"],
@@ -1345,7 +1432,7 @@
       "domain": "auth",
       "filePath": ".github/skills/threat-model/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/threat-model/SKILL.md",
-      "contentHash": "7e5b1c300433363fa0ff7163ca92af6b59624399b3a64d6197d3571b84ee615d",
+      "contentHash": "347f2167d828793a968ffcf208b698bcd2b37c6c0321096b7bc9eb2dd4ed15ea",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["threat-modeling", "stride", "security", "nais", "architecture"],
@@ -1374,7 +1461,7 @@
       "domain": "auth",
       "filePath": ".github/skills/tokenx-auth/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/tokenx-auth/SKILL.md",
-      "contentHash": "8e692f89cda59737473847aea320762f6a975aca45bc15b3578374307f65b32d",
+      "contentHash": "efa91db0fb79778288ad17a1ef0b8a6e8437cc73912be0a40dc513554921e201",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],
@@ -1388,7 +1475,7 @@
       "domain": "frontend",
       "filePath": ".github/skills/web-design-reviewer/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/web-design-reviewer/SKILL.md",
-      "contentHash": "7b4c7c02d38fa397d2722d39831efebd987bfe23401561f6fb47ebe42f3ded11",
+      "contentHash": "1cb4e5b4bad72ca84b0e47b02f96fa33a3e3d86523328fbe493cf7d44ac46857",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["design-review", "responsive", "accessibility", "layout", "visual-inspection"],
@@ -1421,7 +1508,7 @@
       "domain": "auth",
       "filePath": ".github/skills/workstation-security/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/workstation-security/SKILL.md",
-      "contentHash": "6b90d06f27799ffb8b4728126ffc261f1b58ce6caf86442209188c4247cd5f6f",
+      "contentHash": "f3cd4b414201ace0853c695d8369bd6ee353ae469d1d7eccf02332e9dc97ef04",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "macos", "developer-tools", "audit", "hardening"],
