@@ -379,12 +379,8 @@ fun Application.configureRouting(
                     "status", "500"
                 ).increment()
 
-                logger.error(
-                    "Failed to get users",
-                    kv("trace_id", span.spanContext.traceId),
-                    kv("span_id", span.spanContext.spanId),
-                    e
-                )
+                // trace_id and span_id are auto-injected into MDC by OTel agent
+                logger.error("Failed to get users", e)
 
                 throw e
             } finally {
@@ -406,7 +402,7 @@ See [references/grafana-queries.md](references/grafana-queries.md) for PromQL da
 - [ ] `/metrics` endpoint exposing Prometheus metrics
 - [ ] Health checks configured in Nais manifest
 - [ ] Business metrics instrumented (counters, timers, gauges)
-- [ ] Structured logging with correlation IDs (trace_id, span_id)
+- [ ] Verify trace_id appears in logs (auto-injected by OTel agent via MDC)
 - [ ] OpenTelemetry auto-instrumentation enabled in Nais manifest
 - [ ] Alert rules created in `.nais/alert.yml`
 - [ ] Slack channel configured for alerts

@@ -397,24 +397,13 @@ sum(rate({app="my-app"} |= "ERROR" [1m])) by (container)
 
 ### Log Correlation with Traces
 
-Include trace context in logs for correlation:
+Nais auto-instrumentation automatically injects `trace_id` and `span_id` into MDC. If you use `LogstashEncoder` (standard for Nav apps), these fields are included in every log line — no manual code needed.
 
-```kotlin
-import io.opentelemetry.api.trace.Span
+**Verify it works:** Find a trace in APM → click "View logs" → logs should appear correlated.
 
-val currentSpan = Span.current()
-val traceId = currentSpan.spanContext.traceId
-val spanId = currentSpan.spanContext.spanId
+If correlation is missing, check that your logback config uses `LogstashEncoder` or includes `%X{trace_id}` in the pattern.
 
-logger.info(
-    "Processing payment",
-    kv("trace_id", traceId),
-    kv("span_id", spanId),
-    kv("payment_id", paymentId)
-)
-```
-
-Then query in Loki:
+Query correlated logs in Loki:
 
 ```logql
 {app="my-app"} | json | trace_id="abc123"
@@ -864,7 +853,7 @@ override fun onPacket(packet: JsonMessage, context: MessageContext) {
 - Include `/metrics`, `/isalive`, `/isready` endpoints
 - Log to stdout/stderr (not files)
 - Use structured logging (JSON with `kv()` fields)
-- Include `trace_id` in logs for correlation
+- Verify `trace_id` appears in logs (auto-injected by OTel agent)
 
 ### ⚠️ Ask First
 

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-26T18:30:12.920Z",
+  "generatedAt": "2026-04-29T19:23:38.088Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -395,7 +395,7 @@
       "domain": "observability",
       "filePath": ".github/agents/observability.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/observability.agent.md",
-      "contentHash": "ba87267d1d23aee2108f89fbbb25ad0b4b7b58a509818d1e6c53fe7bab39b860",
+      "contentHash": "5ba4036f431e3cfbf4596c22ef87d308164b69a9e5bec717798e42a034065f00",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "tools": [
@@ -1189,7 +1189,7 @@
       "domain": "observability",
       "filePath": ".github/skills/observability-setup/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
-      "contentHash": "7a16e801ac561174ac2799a0ab84ff3f2f3fc78456c925f209c2959d4c9daf24",
+      "contentHash": "de63b0e140e841442ca0569c5cddbb62f435c6ef848d788c54343bd1bb22145a",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["prometheus", "opentelemetry", "health", "metrics"],
