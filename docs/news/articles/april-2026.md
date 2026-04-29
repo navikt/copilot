@@ -3,7 +3,7 @@ title: "Nyheter og trender — April 2026"
 date: 2026-04-17
 draft: true
 category: copilot
-excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, Business-registreringer pauset."
+excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, Business-registreringer pauset, GPT-5.5 GA, JetBrains inline agent mode, forbruksbasert fakturering fra 1. juni, code review bruker Actions-minutter, cloud agent 20 % raskere."
 tags:
   - skills
   - github-cli
@@ -22,6 +22,7 @@ tags:
   - code-review
   - agentic-workflows
   - jira
+  - billing
 ---
 
 <!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
@@ -292,6 +293,58 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 
 ---
 
+## 23. GPT-5.5 tilgjengelig i Copilot
+
+OpenAIs nyeste GPT-modell, GPT-5.5, er nå GA i GitHub Copilot. Modellen leverer ifølge GitHub sitt beste resultat på komplekse, flerstegede agentoppgaver og løser problemer som tidligere GPT-modeller ikke klarte.
+
+GPT-5.5 er tilgjengelig i VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, GitHub Mobile, JetBrains, Xcode og Eclipse. Modellen er begrenset til Pro+, Business og Enterprise — administratorer må aktivere GPT-5.5-policyen i Copilot-innstillinger. Merk at modellen lanseres med en **7,5× premium request-multiplikator** som kampanjepris.
+
+**Kilde:** [GPT-5.5 is generally available for GitHub Copilot](https://github.blog/changelog/2026-04-24-gpt-5-5-is-generally-available-for-github-copilot) (GitHub Changelog, 24. april 2026)
+
+---
+
+## 24. Inline agent mode i JetBrains
+
+JetBrains-pluginen for Copilot får inline agent mode i public preview. Funksjonen bringer agentkapabiliteter inn i inline chat — du kan bruke kraftige flerstegs-verktøy direkte i editoren uten å bytte til chat-panelet. Åpne inline chat (Shift+Ctrl+I / Shift+Cmd+I) og bytt til agent mode.
+
+I samme oppdatering er Next Edit Suggestions (NES) forbedret med inlay-forhåndsvisning av foreslåtte endringer og støtte for «far-away edits» — en retningsindikator i gutteren som lar deg hoppe direkte til neste foreslåtte endring selv om den er flere skjermlengder unna. Ny global auto-approve lar deg automatisk godkjenne alle verktøykall, inkludert filendringer og terminalkjøring. Business- og Enterprise-brukere trenger at admin aktiverer «Editor preview features»-policyen.
+
+**Kilde:** [Inline agent mode in preview and more in GitHub Copilot for JetBrains IDEs](https://github.blog/changelog/2026-04-24-inline-agent-mode-in-preview-and-more-in-github-copilot-for-jetbrains-ides) (GitHub Changelog, 24. april 2026)
+
+---
+
+## 25. Forbruksbasert fakturering fra 1. juni
+
+GitHub kunngjør at alle Copilot-planer går over til forbruksbasert fakturering 1. juni 2026. Premium request units (PRU) erstattes av **GitHub AI Credits**. Forbruket beregnes ut fra token-bruk — input, output og cached tokens — etter publiserte API-rater per modell.
+
+Planprisene endres ikke: Pro er fortsatt $10/mnd, Pro+ $39/mnd, Business $19/bruker/mnd, Enterprise $39/bruker/mnd. Kodeforslag og Next Edit Suggestions forblir inkludert uten kreditttrekk. Fallback til billigere modeller ved oppbrukt kvote forsvinner — bruk styres av tilgjengelige kreditter og admin-budsjetter.
+
+For Business og Enterprise innføres en **pooled credits**-modell: ubrukte kreditter deles på tvers av organisasjonen. Eksisterende kunder får kampanjekreditter i juni, juli og august (Business: $30/mnd, Enterprise: $70/mnd). Administratorer får nye budsjettverktøy på enterprise-, kostnadssenter- og brukernivå. En preview-faktura kommer i tidlig mai.
+
+**Kilde:** [GitHub Copilot is moving to usage-based billing](https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/) (GitHub Blog, 27. april 2026)
+
+---
+
+## 26. Code review bruker Actions-minutter fra 1. juni
+
+Fra 1. juni 2026 vil Copilot code review på private repoer forbruke GitHub Actions-minutter i tillegg til AI Credits. Den agentbaserte code review-arkitekturen (lansert i mars) kjører på GitHub Actions-runnere, og forbruket faktureres etter standard Actions-rater.
+
+Endringen gjelder Pro, Pro+, Business og Enterprise — inkludert code reviews fra brukere uten Copilot-lisens der organisasjonen dekker kostnaden. Public repositories er ikke berørt (Actions-minutter er gratis der). Administratorer bør gjennomgå gjeldende Actions-forbruk og budsjetter før juni. Self-hosted runners og større GitHub-hosted runners er støttet.
+
+**Kilde:** [GitHub Copilot code review will start consuming GitHub Actions minutes on June 1, 2026](https://github.blog/changelog/2026-04-27-github-copilot-code-review-will-start-consuming-github-actions-minutes-on-june-1-2026) (GitHub Changelog, 27. april 2026)
+
+---
+
+## 27. Cloud agent 20 % raskere med custom images
+
+Copilot cloud agent starter nå over 20 % raskere takket være forhåndsbygde runner-miljøer laget med GitHub Actions custom images. Når du tildeler et issue til Copilot, starter en oppgave fra Agents-fanen, eller nevner `@copilot` i en PR, spinnes et skymiljø opp — og startup-overhead er nå merkbart redusert.
+
+Forbedringen bygger på den 50 % raskere oppstarten fra mars, som betyr at cloud agent nå starter omtrent 60 % raskere enn i februar.
+
+**Kilde:** [Copilot cloud agent starts 20% faster with Actions custom images](https://github.blog/changelog/2026-04-27-copilot-cloud-agent-starts-20-faster-with-actions-custom-images) (GitHub Changelog, 27. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -314,3 +367,8 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 | Copilot Chat med PR-kontekst | Strukturert review og oppsummering rett i github.com. Kan supplere code review-prosessen uten å forlate nettleseren. |
 | Copilot for Jira | Relevant for Nav-team som bruker Jira med GitHub. Custom agents og space-instruksjoner gir konsistent agentoppførsel på tvers av tickets. |
 | Metrikk-URL-endring | copilot-metrics-appen bør oppdateres til `copilot-reports.github.com` før 20. mai. `used_copilot_cloud_agent`-feltet bør tas i bruk før august. |
+| GPT-5.5 | Ny toppmodell for agentiske oppgaver. Enterprise-admin må aktivere policyen. 7,5× kampanjemultiplikator — test tidlig for å vurdere kost/nytte mot Opus 4.7 og Codex. |
+| JetBrains inline agent mode | Relevant for Nav-team som bruker IntelliJ for Kotlin/Ktor. Inline agent mode gir agentkapasitet uten å bytte til chat. Krever at admin aktiverer «Editor preview features». |
+| Forbruksbasert fakturering | Viktigste endringen i april. Nav Enterprise får kampanjekreditter juni–august. Planlegg budsjetter og overvåk token-forbruk. Pooled credits reduserer ubrukt kapasitet. Preview-faktura i mai gir innsikt i forventet kostnad. |
+| Code review + Actions-minutter | Nav bør gjennomgå Actions-forbruk og budsjetter. Agentic code review på private repoer vil øke Actions-minuttforbruket fra juni. Vurder self-hosted runners for kostnadskontroll. |
+| Cloud agent 20 % raskere | Raskere feedback-loop for alle som bruker cloud agent. Kombinert med mars-forbedringen: ~60 % raskere oppstart totalt. |
