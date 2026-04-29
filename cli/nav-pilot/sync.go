@@ -154,6 +154,18 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	if result.UpToDate {
 		fmt.Printf("%s All %d files up to date (source: %s)\n",
 			green("✓"), len(files), src.SHA)
+		// Bump state version so staleness check won't re-trigger for this release
+		if src.Version != "" {
+			if state, err := readScopedState(scope); err == nil && state != nil {
+				if state.Version != src.Version || state.SourceSHA != src.SHA {
+					state.Version = src.Version
+					state.SourceSHA = src.SHA
+					if err := writeScopedState(scope, state); err != nil {
+						fmt.Fprintf(os.Stderr, "%s Could not update state: %v\n", yellow("⚠"), err)
+					}
+				}
+			}
+		}
 		reportNewItems(scope, src.Dir)
 		return nil
 	}

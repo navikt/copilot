@@ -34,7 +34,15 @@ func resolveSource(ref, sourceRepo string) (*Source, error) {
 	}
 
 	if ref != "" {
-		return cloneRemote(ref, "")
+		src, err := cloneRemote(ref, "")
+		if err != nil {
+			return nil, err
+		}
+		// Extract version from nav-pilot/<version> style refs
+		if v := strings.TrimPrefix(ref, "nav-pilot/"); v != ref {
+			src.Version = v
+		}
+		return src, nil
 	}
 
 	// Try local: walk up from CWD to find the navikt/copilot repo.

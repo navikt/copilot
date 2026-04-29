@@ -160,7 +160,8 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 		for _, s := range stale {
 			fmt.Println()
 			fmt.Printf("%s Syncing %s scope...\n", dim("→"), s.scope.Name)
-			if err := cmdSync(s.scope, "", "", true, false); err != nil {
+			ref := "nav-pilot/" + s.latest
+			if err := cmdSync(s.scope, ref, "", true, false); err != nil {
 				fmt.Fprintf(os.Stderr, "%s Sync failed for %s scope: %v\n", yellow("⚠"), s.scope.Name, err)
 			}
 		}
