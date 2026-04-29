@@ -13,6 +13,8 @@ Denne instruksjonen sikrer at AI-verktøy styrker utviklernes kompetanse i stede
 - [Anthropic: How AI assistance impacts coding skills](https://www.anthropic.com/research/AI-assistance-coding-skills) (2026)
 - [INNOQ: AI Coding Patterns Through Cognitive Load Theory](https://www.innoq.com/en/blog/2026/03/ai-cognitive-lens-cognitive-load-theory/) (2026)
 - [METR: AI experienced OS dev study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) (2025)
+- [Stray et al.: Developer Productivity With and Without GitHub Copilot](https://arxiv.org/abs/2509.20353) (HICSS-59, 2026) — Nav IT-studie
+- [MIT/Microsoft: The Effects of Generative AI on High-Skilled Work](https://economics.mit.edu/sites/default/files/inline-files/draft_copilot_experiments.pdf) (2025)
 - Nav utviklerundersøkelsen 2026: 59% bekymret for kompetansetap
 
 ## Grønn og rød sone
@@ -40,6 +42,8 @@ Oppgaver der manuell koding bygger kritisk kompetanse:
 - **Arkitekturbeslutninger** — systemdesign, datamodeller, API-kontrakter
 
 **Tre-forsøks-regelen:** Prøv å løse problemet selv i minst tre forsøk før du ber AI om hjelp. Hvert forsøk bygger forståelse som gjør deg bedre i stand til å vurdere AI-ens forslag.
+
+**Erfaringsnivå:** Juniorutviklere bør holde mer i rød sone — forskning viser at de får størst produktivitetsgevinst av AI, men også er mest sårbare for kompetansetap. Erfarne utviklere kan ha en bredere grønn sone for teknologi de allerede behersker.
 
 ## Forklar-så-kode-mønsteret
 

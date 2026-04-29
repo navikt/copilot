@@ -10,6 +10,8 @@ Navs utviklerundersøkelse 2026 avdekket tydelige bekymringer:
 - **Kun 34%** mener AI-generert kode holder god nok kvalitet til å passere code review uten ekstraarbeid
 - **#1 ønske** er mer opplæring og veiledning i effektiv bruk av AI-verktøy
 
+Nav IT har også forsket på dette direkte: en longitudinell studie (Stray et al., HICSS-59 2026) med 26 317 commits fra 703 repoer fant **ingen statistisk signifikant produktivitetsøkning** for Copilot-brukere, til tross for sterk *opplevd* gevinst. Dette bekrefter at vi må fokusere på kvalitet og kompetanse, ikke bare hastighet.
+
 ## Forskning: Hvordan du bruker AI betyr mer enn om du bruker det
 
 ### Anthropic RCT (2026)
@@ -46,6 +48,35 @@ Forklarer resultatene gjennom kognitiv lastteori:
 - **AI-debugging** er verst fordi det outsourcer den kognitive prosessen som bygger feilsøkingskompetanse
 
 **Kilde:** [Understanding AI Coding Patterns Through Cognitive Load Theory](https://www.innoq.com/en/blog/2026/03/ai-cognitive-lens-cognitive-load-theory/)
+
+### Nav IT longitudinell studie (HICSS-59, 2026)
+
+Studie utført i Nav av Viktoria Stray et al. med 26 317 commits fra 703 repoer over 6 måneder. 25 Copilot-brukere ble sammenlignet med 14 ikke-brukere.
+
+**Nøkkelfunn:**
+
+- Ingen statistisk signifikant forskjell i commit-basert produktivitet mellom Copilot-brukere og kontrollgruppen
+- Sterk *opplevd* produktivitetsgevinst — brukerne føler seg raskere, men målingene viser det ikke
+- Validerer METR-studiens funn om gap mellom opplevd og faktisk produktivitet, nå med Nav-spesifikke data
+- Viser at kvantitative metrikker (commits, linjer) ikke fanger hele bildet — kvalitative gevinster er reelle
+
+**Implikasjon for rammeverket:** Støtter at vi bør fokusere på *kvalitativ kompetansebygging* (grønn/rød sone) heller enn ren hastighetsoptimalisering.
+
+**Kilde:** [Developer Productivity With and Without GitHub Copilot](https://arxiv.org/abs/2509.20353)
+
+### MIT/Microsoft/Accenture RCT (2025)
+
+Storskala randomisert kontrollert studie med ~5000 utviklere hos Microsoft og Accenture.
+
+**Nøkkelfunn:**
+
+- 26% flere PRs/uke for utviklere med AI-tilgang
+- Juniorutviklere fikk størst gevinst — erfarne utviklere nådde et platå
+- Kvaliteten på koden (målt via bugs og reverts) var uendret
+
+**Implikasjon for rammeverket:** Juniorutviklere er mest sårbare for kognitiv offloading — de har mest å vinne produktivitetsmessig, men også mest å tape kompetansemessig. Grønn/rød sone bør tilpasses erfaringsnivå.
+
+**Kilde:** [The Effects of Generative AI on High-Skilled Work](https://economics.mit.edu/sites/default/files/inline-files/draft_copilot_experiments.pdf)
 
 ### Faros AI-rapport (2025)
 
@@ -111,6 +142,8 @@ Hver prompt avsluttes nå med instruksjoner til AI om å forklare:
 - [Anthropic: How AI assistance impacts coding skills](https://www.anthropic.com/research/AI-assistance-coding-skills) (2026)
 - [INNOQ: AI Coding Patterns Through Cognitive Load Theory](https://www.innoq.com/en/blog/2026/03/ai-cognitive-lens-cognitive-load-theory/) (2026)
 - [METR: Early 2025 AI experienced OS dev study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) (2025)
+- [Stray et al.: Developer Productivity With and Without GitHub Copilot — A Longitudinal Mixed-Methods Case Study](https://arxiv.org/abs/2509.20353) (HICSS-59, 2026) — **Studie gjort i Nav IT**
+- [MIT/Microsoft/Accenture: The Effects of Generative AI on High-Skilled Work](https://economics.mit.edu/sites/default/files/inline-files/draft_copilot_experiments.pdf) (2025) — RCT med ~5000 utviklere
 - [AgentPatterns.ai: Skill Atrophy](https://agentpatterns.ai/human/skill-atrophy/)
 - [ACM CACM: The AI Deskilling Paradox](https://cacm.acm.org/news/the-ai-deskilling-paradox/) (2025)
 - [Faros AI: The State of AI in Software Engineering](https://www.faros.ai/blog/ai-software-engineering) (2025)
