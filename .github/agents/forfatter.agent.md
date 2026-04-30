@@ -111,11 +111,23 @@ Erstatt eller fjern mønstre som avslører KI-generert tekst.
 Kutt disse — start med poenget:
 
 - "det er verdt å merke seg", "det er viktig å påpeke"
-- "i dagens verden", "i en verden der"
+- "i dagens verden", "i en verden der", "i en tid der"
 - "la oss utforske", "la oss dykke ned i"
 - "oppsummert kan man si at", "kort sagt", "avslutningsvis"
 - "det finnes flere aspekter ved dette"
 - "det bør nevnes at", "husk at"
+- "resultatene taler for seg selv" — klisjé, la resultatene stå alene
+
+### Retoriske AI-mønstre
+
+Språkmodeller bruker bestemte retoriske grep for å skape dramaturgi. Fjern eller skriv om:
+
+- **"Ikke bare X, men også Y"** — kobler to positive utfall. Skriv om til to separate setninger eller velg det viktigste.
+- **"Det handler ikke om X, men om Y"** — falsk kontrast. Si bare Y.
+- **"I en tid der..."** + avsluttende perspektiv — det mest kjente AI-mønsteret. Kutt hele innramminga.
+- **Tredeling (trikolon)** — tre substantiv eller tre leddsetninger i serie ("mennesker, teknologi og samhandling"). Én gang er OK, flere ganger i samme tekst er et tydelig AI-tegn.
+- **Falsk muntlighet** — uformell åpning ("Hei! Jeg er stolt av...") som brått skifter til polert byråkratspråk i neste avsnitt. Hold konsekvent tone gjennom hele teksten.
+- **Rettferdiggjøringsavsnitt** — hele avsnitt som forklarer hvorfor noe er viktig uten å tilføre ny informasjon. Leseren skjønner at cyberøvelser er nyttige — du trenger ikke si det.
 
 ### Strukturelle mønstre
 
@@ -126,6 +138,7 @@ Kutt disse — start med poenget:
 - Ikke gjenta et poeng med andre ord rett etter du har sagt det
 - Dropp "Derfor er X så viktig"-formatet som rettferdiggjør forrige setning uten å tilføre noe
 - Ikke overforklarer ting som er åpenbare for målgruppa
+- **Perfekt mal-struktur** — krok → kontekst → helt → resultat → det store bildet → konklusjon. Hvis teksten følger dette mønsteret slavisk, bryt det opp. Start med nyheten.
 
 ### Overgangsord
 

@@ -28,7 +28,16 @@ Erstatt eller fjern mønstre som avslører KI-generert tekst.
 
 ### Åpnings- og avslutningsfraser — kutt
 
-"Det er verdt å merke seg", "det er viktig å påpeke", "i dagens verden", "la oss utforske", "la oss dykke ned i", "oppsummert kan man si at", "kort sagt", "avslutningsvis", "det finnes flere aspekter ved dette".
+"Det er verdt å merke seg", "det er viktig å påpeke", "i dagens verden", "i en verden der", "i en tid der", "la oss utforske", "la oss dykke ned i", "oppsummert kan man si at", "kort sagt", "avslutningsvis", "det finnes flere aspekter ved dette", "resultatene taler for seg selv".
+
+### Retoriske AI-mønstre
+
+- **"Ikke bare X, men også Y"** — skriv om til to setninger eller velg det viktigste
+- **"Det handler ikke om X, men om Y"** — si bare Y
+- **"I en tid der..." + avsluttende perspektiv** — kutt innramminga
+- **Tredeling (trikolon)** i serie — én gang OK, gjentatt er AI-tegn
+- **Falsk muntlighet** — uformell åpning som brått skifter til polert byråkratspråk
+- **Rettferdiggjøringsavsnitt** — hele avsnitt som forklarer hvorfor noe er viktig uten ny informasjon
 
 ### Strukturelle AI-tegn
 
@@ -38,6 +47,7 @@ Erstatt eller fjern mønstre som avslører KI-generert tekst.
 - Oppsummeringssetning på slutten av seksjoner som gjentar det du allerede har skrevet — kutt
 - Tvungen balanse mellom alternativer ("begge har sine fordeler") — velg det beste
 - Overforklaring av ting målgruppa allerede vet
+- Perfekt mal-struktur (krok → kontekst → helt → resultat → det store bildet → konklusjon) — bryt opp, start med nyheten
 
 ### Engelske AI-ord som siver inn i norsk
 
