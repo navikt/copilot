@@ -6,8 +6,8 @@
 
 Navs utviklerundersøkelse 2026 avdekket tydelige bekymringer:
 
-- **59%** av utviklerne er bekymret for at AI svekker dyp teknisk forståelse
-- **Kun 34%** mener AI-generert kode holder god nok kvalitet til å passere code review uten ekstraarbeid
+- **59 %** av utviklerne er bekymret for at AI svekker dyp teknisk forståelse
+- **Kun 34 %** mener AI-generert kode holder god nok kvalitet til å passere code review uten ekstraarbeid
 - **#1 ønske** er mer opplæring og veiledning i effektiv bruk av AI-verktøy
 
 Nav IT har også forsket på dette direkte: en longitudinell studie (Stray et al., HICSS-59 2026) med 26 317 commits fra 703 repoer fant **ingen statistisk signifikant produktivitetsøkning** for Copilot-brukere, til tross for sterk *opplevd* gevinst. Dette bekrefter at vi må fokusere på kvalitet og kompetanse, ikke bare hastighet.
@@ -22,12 +22,12 @@ Studie med 52 ingeniører som lærte ny teknologi (Trio-biblioteket i Python).
 
 | Interaksjonsmønster | Forståelsesscore | Hastighet |
 | --- | --- | --- |
-| Full delegering til AI | 35–39% | Raskest |
-| Iterativ AI-debugging | 24% | Tregest |
-| Hybrid kode + forklaring | 68% | Middels |
-| Konseptuell utforskning | 65% | Middels |
-| **Generer-så-forstå** | **86%** | Litt tregere |
-| Uten AI (kontrollgruppe) | 67% | Middels |
+| Full delegering til AI | 35–39 % | Raskest |
+| Iterativ AI-debugging | 24 % | Tregest |
+| Hybrid kode + forklaring | 68 % | Middels |
+| Konseptuell utforskning | 65 % | Middels |
+| **Generer-så-forstå** | **86 %** | Litt tregere |
+| Uten AI (kontrollgruppe) | 67 % | Middels |
 
 Generer-så-forstå-mønsteret — der utvikleren lar AI generere kode og deretter aktivt stiller spørsmål om *hvorfor* — scorer høyere enn å kode helt uten AI.
 
@@ -70,7 +70,7 @@ Storskala randomisert kontrollert studie med ~5000 utviklere hos Microsoft og Ac
 
 **Nøkkelfunn:**
 
-- 26% flere PRs/uke for utviklere med AI-tilgang
+- 26 % flere PRs/uke for utviklere med AI-tilgang
 - Juniorutviklere fikk størst gevinst — erfarne utviklere nådde et platå
 - Kvaliteten på koden (målt via bugs og reverts) var uendret
 
@@ -114,7 +114,7 @@ Global instruksjon som definerer:
 - **🟢 Grønn sone** — AI-egnet: boilerplate, kjent teknologi, konfigurasjon, refaktorering
 - **🔴 Rød sone** — kode manuelt: debugging, nye konsepter, kjernelogikk, sikkerhet
 - **Tre-forsøks-regelen**: prøv selv før du ber AI om hjelp
-- **Forklar-så-kode-mønsteret**: generer → forstå → verifiser → tilpass
+- **Generer-så-forstå-mønsteret**: generer → forstå → verifiser → tilpass
 
 ### 2. «Forstå koden»-seksjoner i alle 7 prompt-maler
 

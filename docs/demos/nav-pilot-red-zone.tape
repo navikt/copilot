@@ -4,6 +4,7 @@
 #
 # Run: vhs docs/demos/nav-pilot-red-zone.tape
 # Requires: vhs (brew install charmbracelet/tap/vhs)
+# Note: Copy output to apps/my-copilot/public/demos/ for website serving
 
 Output docs/demos/nav-pilot-red-zone.gif
 Output docs/demos/nav-pilot-red-zone.webm

@@ -982,9 +982,9 @@ function CompetenceSection() {
           </div>
 
           <BodyShort size="small" className="mt-4" style={{ color: "#64748b" }}>
-            Når nav-pilot identifiserer rød-sone-logikk i Fase 2 (Plan), leverer Fase 4 bare testskjeletter og kode-stubs
-            med <code>TODO</code>-kommentarer — ikke full implementasjon. Du skriver kjernelogikken selv for å bygge dyp
-            forståelse.
+            Når nav-pilot identifiserer rød-sone-logikk i Fase 2 (Plan), leverer Fase 4 bare testskjeletter og
+            kode-stubs med <code>TODO</code>-kommentarer — ikke full implementasjon. Du skriver kjernelogikken selv for
+            å bygge dyp forståelse.
           </BodyShort>
         </div>
 
@@ -1011,6 +1011,7 @@ function CompetenceSection() {
             <NextLink
               href="https://www.anthropic.com/research/AI-assistance-coding-skills"
               target="_blank"
+              rel="noopener noreferrer"
               style={{ color: "#2563eb" }}
             >
               Anthropic
@@ -1019,12 +1020,18 @@ function CompetenceSection() {
             <NextLink
               href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/"
               target="_blank"
+              rel="noopener noreferrer"
               style={{ color: "#2563eb" }}
             >
               METR
             </NextLink>{" "}
             og{" "}
-            <NextLink href="https://arxiv.org/abs/2509.20353" target="_blank" style={{ color: "#2563eb" }}>
+            <NextLink
+              href="https://arxiv.org/abs/2509.20353"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#2563eb" }}
+            >
               Nav ITs egen studie
             </NextLink>
             .

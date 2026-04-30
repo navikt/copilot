@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-29T21:02:50.585Z",
+  "generatedAt": "2026-04-30T05:54:41.014Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -587,12 +587,12 @@
     {
       "id": "deliberate-ai-use",
       "name": "Bevisst AI-bruk",
-      "description": "Rammeverk for bevisst AI-bruk: grønn/rød sone, forklar-før-kode og kompetansebevaring",
+      "description": "Rammeverk for bevisst AI-bruk: grønn/rød sone, generer-så-forstå og kompetansebevaring",
       "type": "instruction",
       "domain": "general",
       "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "22bd58c84cb5354f6484e46a6caf4a79e903e4e4db11f980a9d54586bc9e6884",
+      "contentHash": "a0999e3cc902f4f56bccac3d9c286cc248de6961d14b794537d48bc34393100e",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "applyTo": "**",

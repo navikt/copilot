@@ -298,8 +298,8 @@
     {
       "type": "instruction",
       "name": "accessibility",
-      "displayName": "Accessibility Development",
-      "description": "Universell utforming er lovpålagt i Norge. All frontend-kode i Nav skal oppfylle WCAG 2.1 AA.",
+      "displayName": "Accessibility (UU)",
+      "description": "WCAG 2.1 AA, semantisk HTML, ARIA, Aksel a11y-patterns, keyboard-navigasjon.",
       "filePath": ".github/instructions/accessibility.instructions.md",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/accessibility.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/accessibility.instructions.md"
@@ -308,7 +308,7 @@
       "type": "instruction",
       "name": "database",
       "displayName": "Database Development",
-      "description": "Standarder for databasemigrasjoner med Flyway: navnekonvensjoner, sikre endringer og idempotente skript.",
+      "description": "Flyway migration standards, PostgreSQL schema patterns, safe alterations.",
       "filePath": ".github/instructions/database.instructions.md",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/database.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/database.instructions.md"
@@ -316,8 +316,8 @@
     {
       "type": "instruction",
       "name": "deliberate-ai-use",
-      "displayName": "Deliberate/Ai/Use Development",
-      "description": "Forskning viser at **hvordan** du bruker AI betyr mer enn **om** du bruker det. Utviklere som delegerer blindt scorer 35–39% på forståelse, mens de som aktivt stiller spørsmål etter kodegenerering scorer 86% — høyere enn de som koder helt uten AI (67%).",
+      "displayName": "Bevisst AI-bruk",
+      "description": "Rammeverk for bevisst AI-bruk: grønn/rød sone, generer-så-forstå og kompetansebevaring",
       "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/deliberate-ai-use.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/deliberate-ai-use.instructions.md"
@@ -325,8 +325,8 @@
     {
       "type": "instruction",
       "name": "docker",
-      "displayName": "Docker Development",
-      "description": "Standarder for Dockerfile i Nav: Chainguard base images, multi-stage builds og sikkerhetspraksis.",
+      "displayName": "Dockerfile Standards",
+      "description": "Multi-stage builds, distroless base images, layer caching, non-root.",
       "filePath": ".github/instructions/docker.instructions.md",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/docker.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/docker.instructions.md"
@@ -334,8 +334,8 @@
     {
       "type": "instruction",
       "name": "github-actions",
-      "displayName": "Github/Actions Development",
-      "description": "Standarder for CI/CD-workflows med GitHub Actions på Nais: SHA-pinning, Nais deploy og caching.",
+      "displayName": "GitHub Actions CI/CD",
+      "description": "Action pinning, permissions, Nais deploy, caching, reusable workflows.",
       "tags": [
         "nais",
         "kubernetes",
@@ -349,8 +349,8 @@
     {
       "type": "instruction",
       "name": "golang",
-      "displayName": "Golang Development",
-      "description": "Go-mønstre for Nav-tjenester på Nais-plattformen. Gjelder Go HTTP-tjenester, CLI-verktøy og plattformkomponenter.",
+      "displayName": "Go on NAIS",
+      "description": "Go-mønstre for Nav-tjenester på Nais: pgx, sqlc, slog, stdlib HTTP og Chainguard Docker",
       "tags": [
         "nais",
         "kubernetes",
@@ -365,7 +365,7 @@
       "type": "instruction",
       "name": "kotlin-ktor",
       "displayName": "Kotlin/Ktor Development",
-      "description": "Use the ApplicationBuilder pattern for bootstrapping applications:",
+      "description": "ApplicationBuilder pattern, sealed classes, kotliquery/HikariCP, Rapids \u0026 Rivers.",
       "tags": [
         "kotlin",
         "ktor",
@@ -379,7 +379,7 @@
       "type": "instruction",
       "name": "kotlin-spring",
       "displayName": "Kotlin/Spring Development",
-      "description": "```kotlin",
+      "description": "Spring Boot patterns: @RestController, @Service, Spring Data.",
       "tags": [
         "kotlin",
         "ktor",
@@ -392,8 +392,8 @@
     {
       "type": "instruction",
       "name": "nextjs-aksel",
-      "displayName": "Nextjs/Aksel Development",
-      "description": "Standarder for Next.js-apper med Aksel: spacing-tokens, responsive props og komponentmønstre.",
+      "displayName": "Next.js/Aksel Development",
+      "description": "Aksel spacing tokens (never Tailwind p-/m-), correct background/borderRadius token names, mobile-first responsive design with layout primitives.",
       "tags": [
         "aksel",
         "design-system",
@@ -408,8 +408,8 @@
     {
       "type": "instruction",
       "name": "norwegian-text",
-      "displayName": "Norwegian/Text Development",
-      "description": "Regler for norsk tekst i markdown-filer: agenter, instruksjoner, skills, dokumentasjon og README-er.",
+      "displayName": "Norsk tekstkvalitet",
+      "description": "Klarspråk, AI-markører, anglismer, fagtermer og sammensatte ord i norsk markdown.",
       "filePath": ".github/instructions/norwegian-text.instructions.md",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/norwegian-text.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/norwegian-text.instructions.md"
@@ -417,8 +417,8 @@
     {
       "type": "instruction",
       "name": "performance",
-      "displayName": "Performance Development",
-      "description": "Core Web Vitals targets and performance patterns for Next.js applications with Aksel Design System on NAIS.",
+      "displayName": "Performance Optimization",
+      "description": "Core Web Vitals, Next.js-ytelse, bildeoptimalisering og bundle-analyse for Nav-applikasjoner",
       "tags": [
         "aksel",
         "design-system",
@@ -433,8 +433,8 @@
     {
       "type": "instruction",
       "name": "security-owasp",
-      "displayName": "Security/Owasp Development",
-      "description": "Tactical security patterns for Kotlin and Go code on NAIS. This instruction focuses on **code-level anti-patterns** and fixes — it complements `@security-champion-agent` (architecture-level threat modeling) and the `security-review` skill (scanning tools like trivy, zizmor, govulncheck).",
+      "displayName": "OWASP Top 10:2025",
+      "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging",
       "tags": [
         "nais",
         "kubernetes",
@@ -478,8 +478,8 @@
     {
       "type": "instruction",
       "name": "testing",
-      "displayName": "Testing Development",
-      "description": "Felles testprinsipper for Nav. Språkspesifikke eksempler finnes i egne instruksjoner for [Kotlin](testing-kotlin.instructions.md) og [TypeScript](testing-typescript.instructions.md).",
+      "displayName": "Testing Standards",
+      "description": "Kotlin (Kotest/JUnit) and TypeScript (Vitest) test patterns and coverage.",
       "tags": [
         "kotlin",
         "ktor",

@@ -15,9 +15,15 @@ RESET='\033[0m'
 slow_print() {
     local text="$1"
     local delay="${2:-0.02}"
-    echo -e "$text" | while IFS= read -r -n1 char; do
-        printf "%s" "$char"
+    # Print character by character. Use printf %s to handle multibyte UTF-8.
+    local i=0
+    local rendered
+    rendered=$(echo -e "$text")
+    local len=${#rendered}
+    while [ $i -lt $len ]; do
+        printf "%s" "${rendered:$i:1}"
         sleep "$delay"
+        i=$((i + 1))
     done
     echo
 }

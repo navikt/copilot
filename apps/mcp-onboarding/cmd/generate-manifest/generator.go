@@ -37,6 +37,12 @@ type SkillMetadata struct {
 	Excluded    bool     `json:"excluded"`
 }
 
+// InstructionMetadata represents the optional metadata.json for an instruction
+type InstructionMetadata struct {
+	DisplayName string `json:"displayName"`
+	Description string `json:"description"`
+}
+
 // parseFrontmatter extracts YAML frontmatter from a markdown file
 func parseFrontmatter(content string, v interface{}) error {
 	lines := strings.Split(content, "\n")
@@ -186,6 +192,20 @@ func (g *Generator) loadInstructions(dir string) ([]discovery.Customization, err
 		displayName := g.humanizeName(name)
 		description := g.extractDescription(string(content))
 		tags := g.extractTags(name, description)
+
+		// Override displayName and description from metadata.json if present
+		metaFile := filepath.Join(dir, name+".metadata.json")
+		if metaData, err := os.ReadFile(metaFile); err == nil { //nolint:gosec // Generator reads .github files
+			var meta InstructionMetadata
+			if err := json.Unmarshal(metaData, &meta); err == nil {
+				if meta.DisplayName != "" {
+					displayName = meta.DisplayName
+				}
+				if meta.Description != "" {
+					description = meta.Description
+				}
+			}
+		}
 
 		instructions = append(instructions, discovery.Customization{
 			Type:        discovery.TypeInstruction,
