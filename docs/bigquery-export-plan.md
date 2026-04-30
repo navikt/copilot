@@ -1,6 +1,6 @@
-# BigQuery Tidsserier: Eksportplan
+# BigQuery-tidsserier — eksportplan
 
-> Denne filen beskriver hvilke spørringer som skal kjøres mot BigQuery for å dokumentere 12–16 ukers brukstrender. Krever GCP-tilgang til `copilot_metrics`-datasettet.
+> Spørringer vi kjører mot BigQuery for å dokumentere 12–16 ukers brukstrender. Krever GCP-tilgang til `copilot_metrics`-datasettet.
 
 ## Spørring 1: DAU/WAU/MAU-kurver (siste 16 uker)
 
@@ -37,7 +37,7 @@ WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 WEEK)
 ORDER BY day;
 ```
 
-**Formål:** Akseptrate indikerer om AI-forslagene er relevante. Trend viser om kvaliteten øker over tid (potensielt pga. bedre instructions/skills).
+**Formål:** Akseptraten viser om AI-forslagene er relevante. Trenden viser om kvaliteten øker over tid (kanskje pga. bedre instructions/skills).
 
 ## Spørring 3: PR-metrikk (Copilot-påvirkning)
 
@@ -57,7 +57,7 @@ WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 WEEK)
 ORDER BY day;
 ```
 
-**Formål:** Sammenligne merge-tid for Copilot-skrevne PR-er vs. manuelle. Fowler-perspektiv: måler sensor-effektivitet (code review-hastighet).
+**Formål:** Sammenligne merge-tid for Copilot-skrevne PR-er vs. manuelle. I harness-termer: måler sensor-effektivitet (code review-hastighet).
 
 ## Spørring 4: Språkfordeling
 
@@ -92,7 +92,7 @@ WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 WEEK)
 ORDER BY day;
 ```
 
-**Formål:** CLI = agentisk bruk. Trendlinje viser om utviklere beveger seg fra completions mot agent-basert arbeid.
+**Formål:** CLI = agentisk bruk. Trendlinja viser om utviklere beveger seg fra completions til agentbasert arbeid.
 
 ## Spørring 6: Adopsjon per team (fra adoption-datasett)
 
@@ -127,7 +127,7 @@ bq query --use_legacy_sql=false < query.sql
 
 ## Forventet output
 
-Eksporter resultater som CSV eller JSON, og inkluder i en oppsummeringsrapport med:
+Eksporter resultatene som CSV eller JSON. Inkluder i en oppsummeringsrapport med:
 1. Trendgrafer (DAU/WAU/MAU over 16 uker)
 2. Akseptrate-utvikling
 3. Copilot-PR vs. manuell PR: merge-tid

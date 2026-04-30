@@ -1,4 +1,4 @@
-# Oppsummering: Utviklerundersøkelsen 2026
+# Utviklerundersøkelsen 2026 — oppsummering
 
 > Nøkkelfunn fra spørreundersøkelsen «AI-kodeverktøy i Nav» (mars 2026). 163 respondenter av ~500 inviterte teknologer.
 
@@ -42,10 +42,10 @@
 
 ### Spenningsfeltet
 
-Dataen viser et tydelig paradoks:
+Dataene viser et paradoks:
 - **75 % opplever at AI hjelper dem jobbe raskere** — men Navs egen longitudinelle studie (Stray et al., HICSS-59 2026, 26 317 commits) fant *ingen statistisk signifikant produktivitetsøkning*
 - **59 % er bekymret for kompetanseeffekter** — og Anthropics RCT (2026) bekrefter at bruksmønsteret avgjør om kompetansen styrkes eller svekkes
-- **Kun 34 % mener AI-kode holder til review** — signaliserer at kvalitetssjekker (sensors i harness-termer) oppfattes som utilstrekkelige
+- **Kun 34 % mener AI-kode holder til review** — kvalitetssjekkene (sensors i harness-termer) oppfattes som utilstrekkelige
 
 ---
 
@@ -81,19 +81,19 @@ Respondentene valgte opptil 3 områder:
 | Fornøyd som det er | 16 | 10 % |
 | Foretrekker uten AI | 15 | 9 % |
 
-**#1 ønske er opplæring** — dette understøtter tiltak som grønn/rød sone-rammeverket og generer-så-forstå-mønsteret.
+**#1-ønske er opplæring** — det støtter tiltak som grønn/rød sone-rammeverket og generer-så-forstå-mønsteret.
 
 ---
 
 ## Kobling til harness-arbeidet
 
-Undersøkelsen gir direkte input til harness-utviklingen:
+Undersøkelsen gir direkte innspill til harness-utviklinga:
 
 | Funn | Harness-implikasjon |
 |------|---------------------|
 | 59 % bekymret for kompetansetap | Governance-laget (bevisst AI-bruk) er riktig prioritert |
 | 34 % mener AI-kode holder til review | Inferential sensors (code-review-agenter) bør tettere integreres |
-| 31 % ønsker bedre opplæring | Inferential guides (agenter som forklarer *hvorfor*) har riktig retning |
+| 31 % ønsker bedre opplæring | Inferential guides (agenter som forklarer *hvorfor*) peker i riktig retning |
 | 48 % bruker AI til å forstå kode | Generer-så-forstå-mønsteret treffer reelt behov |
 
 ---

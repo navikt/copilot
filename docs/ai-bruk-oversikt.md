@@ -1,4 +1,4 @@
-# AI-bruk i Nav: Oversikt og bevisste grenser
+# AI-bruk i Nav — oversikt og bevisste grenser
 
 > Kartlegging av hvordan vi bruker AI-verktøy i utviklingsarbeidet, og hvor vi bevisst *ikke* bruker dem.
 
@@ -84,7 +84,7 @@ Områder der vi har valgt å ikke delegere til AI, med begrunnelse:
 
 | Område | Begrunnelse | Alternativ |
 |--------|-------------|-----------|
-| **Debugging av produksjonsfeil** | Feilsøking er den sterkeste læringsmekanismen (Anthropic 2026). Å delegere debugging fjerner den kognitive prosessen som bygger dyp forståelse av systemet. | Manuell debugging, eventuelt AI for å *forklare* feilmeldinger etter at utvikleren har prøvd selv (tre-forsøks-regelen). |
+| **Debugging av produksjonsfeil** | Feilsøking er den sterkeste læringsmekanismen (Anthropic 2026). Å delegere debugging fjerner prosessen som bygger dyp systemforståelse. | Manuell debugging, eventuelt AI for å *forklare* feilmeldinger etter at utvikleren har prøvd selv (tre-forsøks-regelen). |
 | **Sikkerhetskritiske beslutninger** | Auth-flyt, tilgangskontroll og inputvalidering krever at utvikleren forstår konsekvensene fullstendig. AI kan foreslå, men mennesker må verifisere og forstå. | `@security-champion-agent` brukes som *sensor* (review), ikke som *generator* av sikkerhetskode. |
 | **Arkitekturbeslutninger** | Systemdesign, datamodeller og API-kontrakter har langvarige konsekvenser. AI mangler kontekst om organisasjonens begrensninger, teamstruktur og langsiktig retning. | `nav-plan` og `nav-architecture-review` brukes for å *utforske* alternativer og *challenge* beslutninger, men mennesker tar den endelige avgjørelsen. |
 | **Ny teknologi (første gangs bruk)** | Å lære et nytt rammeverk eller språk via AI-generert kode bygger ikke forståelse. Utvikleren bør kode manuelt først, deretter bruke AI for repetitive mønstre. | Tre-forsøks-regelen: prøv selv tre ganger, deretter bruk AI. |
@@ -95,6 +95,6 @@ Områder der vi har valgt å ikke delegere til AI, med begrunnelse:
 
 ## Kobling til harness-rammeverket
 
-Tabellen over «bevisste grenser» er i Fowlers termer en **feedforward guide** — den styrer utvikleren *før* AI-bruk, ikke etter. Harnessen mangler tilsvarende **sensors** som automatisk oppdager når utviklere delegerer i rød sone. Dette er identifisert som et gap i [agent-harness.md](agent-harness.md).
+Tabellen over «bevisste grenser» er i Fowlers termer en **feedforward guide** — den styrer utvikleren *før* AI-bruk, ikke etter. Harnessen mangler **sensors** som automatisk oppdager når utviklere delegerer i rød sone. Dette er identifisert som et gap i [agent-harness.md](agent-harness.md).
 
-Utviklerundersøkelsen (59 % bekymret for kompetansetap) validerer at disse grensene er riktig kalibrert — utviklerne selv ønsker mer bevisst bruk, ikke mindre AI.
+Utviklerundersøkelsen (59 % bekymret for kompetansetap) bekrefter at grensene er riktig kalibrert — utviklerne ønsker mer bevisst bruk, ikke mindre AI.

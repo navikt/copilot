@@ -1,6 +1,6 @@
-# Navs Agent Harness — Kartlegging og analyse
+# Navs agent-harness — kartlegging og analyse
 
-> Oversikt over hvordan navikt/copilot regulerer AI-kodingsagenter gjennom guides (feedforward) og sensors (feedback), basert på [Martin Fowlers Harness Engineering](https://martinfowler.com/articles/harness-engineering.html).
+> Oversikt over hvordan navikt/copilot styrer AI-kodingsagenter med guides (feedforward) og sensors (feedback). Basert på [Martin Fowlers Harness Engineering](https://martinfowler.com/articles/harness-engineering.html).
 
 ## Hva er en harness?
 
@@ -14,21 +14,21 @@ En *harness* er summen av mekanismer som styrer en kodingsagent mot ønsket atfe
 **Computational** = deterministisk, regelbasert, gir samme resultat uavhengig av kontekst.
 **Inferential** = AI-basert, tolker intensjon, gir kontekstavhengig veiledning.
 
-En moden harness har dekning i alle fire kvadranter og er koblet sammen i automatiserte feedback-løkker.
+En moden harness dekker alle fire kvadranter og kobler dem sammen i automatiserte feedback-løkker.
 
 ### Scope og telleprinsipp
 
-Denne inventaren teller **konkrete artefakter** (filer, verktøy, endepunkter). Når vi skriver "15 instruksjoner" mener vi 15 `.instructions.md`-filer. Orkestrering (nav-pilot, CI-workflows som distribusjon) er listet separat fordi det er infrastruktur som *binder* kvadrantene sammen.
+Denne inventaren teller **konkrete artefakter** (filer, verktøy, endepunkter). Når vi skriver "15 instruksjoner" mener vi 15 `.instructions.md`-filer. Orkestrering (nav-pilot, CI-workflows) er lista separat — det er infrastruktur som *binder* kvadrantene sammen.
 
 ## Relasjon til bevisst AI-bruk (#187)
 
-Grønn/rød sone-rammeverket (`deliberate-ai-use.instructions.md`) er et **governance-lag** som regulerer *utviklerens kompetanse*, ikke koden direkte. Det opererer over Fowlers harness-modell:
+Grønn/rød sone-rammeverket (`deliberate-ai-use.instructions.md`) er et **governance-lag** som styrer *utviklerens kompetanse*, ikke koden direkte. Det ligger over Fowlers harness-modell:
 
 - **Grønn sone** = feedforward guide for når AI-delegering er trygt
 - **Rød sone** = feedforward guide for når manuell koding bygger kritisk kompetanse
 - **Generer-så-forstå** = menneskelig refleksjonspraksis (ikke en teknisk sensor, men en organisatorisk feedback-mekanisme)
 
-Dette er utenfor Fowlers snevre scope (som handler om å regulere agenter), men det er en forutsetning for at harnessen gir kompetanseverdi og ikke bare kodekvalitet.
+Dette er utenfor Fowlers scope (som handler om å styre agenter), men er en forutsetning for at harnessen gir kompetanseverdi — ikke bare kodekvalitet.
 
 ---
 
@@ -48,7 +48,7 @@ Deterministiske verktøy og konfigurasjoner som begrenser agentens handlingsrom 
 
 ### Inferential Guides (52 artefakter)
 
-AI-basert veiledning som former LLM-ens atferd gjennom naturlig språk. Disse er inferential fordi de *tolkes* av modellen, ikke håndheves mekanisk.
+AI-basert veiledning som former LLM-ens atferd gjennom naturlig språk. De er inferential fordi modellen *tolker* dem, ikke håndhever dem mekanisk.
 
 | Komponent | Antall | Livssyklus | Automatisert? |
 |-----------|--------|------------|---------------|
@@ -168,7 +168,7 @@ Hvor i utviklerflyten harnessen griper inn:
 
 **Konsekvens:** Agenter kan generere kode med lint-feil som først fanges i CI (sent i løkken).
 
-**Mulig tiltak:** Agenter som Copilot CLI kjører allerede `mise check` via sin tool-loop. Problemet er primært at instructions *oppfordrer* men ikke *krever*. Fowlers anbefaling: gjør computational sensors til obligatoriske gates i agentens tool-execution.
+**Mulig tiltak:** Copilot CLI kjører allerede `mise check` via tool-loopen sin. Problemet er at instructions *oppfordrer*, men ikke *krever*. Fowlers anbefaling: gjør computational sensors til obligatoriske gates i agentens tool-execution.
 
 ### Gap 3: Ingen drift-sensorer
 
@@ -178,7 +178,7 @@ Hvor i utviklerflyten harnessen griper inn:
 - Arkitektur-fitness (overholder koden definerte arkitekturregler over tid?)
 - Runtime SLO-brudd → agentforslag
 
-**Konsekvens:** Harness-en fanger problemer ved *endring* (CI-sensors), men ikke problemer som *akkumuleres* over tid.
+**Konsekvens:** Harnessen fanger problemer ved *endring* (CI-sensors), men ikke problemer som *akkumuleres* over tid.
 
 **Mulig tiltak:** Periodiske Naisjobs som kjører statisk analyse og rapporterer drift. Lav prioritet — dette er avansert harness-modenhet.
 
@@ -201,7 +201,7 @@ Hvor i utviklerflyten harnessen griper inn:
 | Computational Sensors | ⭐⭐⭐⭐ | God CI, men mange manuelle steg som kunne automatiseres |
 | Inferential Sensors | ⭐⭐ | Finnes, men alle er manuelt aktiverte — ingen i CI/post-deploy |
 
-**Overordnet:** Harnessen er sterk på feedforward (guides) men svak på automatisert feedback (sensors i loop). Fowlers modell tilsier at neste modenhetssteg er å koble inferential sensors tettere til CI og post-deploy.
+**Overordnet:** Harnessen er sterk på feedforward (guides), men svak på automatisert feedback (sensors i loop). Neste steg ifølge Fowler: koble inferential sensors tettere til CI og post-deploy.
 
 ---
 
