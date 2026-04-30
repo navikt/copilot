@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-29T19:23:38.088Z",
+  "generatedAt": "2026-04-30T05:54:41.014Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -153,7 +153,7 @@
       "domain": "general",
       "filePath": ".github/agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/code-review.agent.md",
-      "contentHash": "83d872eba6edd7e66a9a864d8a8d1beb5161bdf152a4a4dbabaa9bc05bb1d218",
+      "contentHash": "452bf7eb43ff1205e7f9c7da87f6a390009bbd04dea37ca4f71c23fd14431cf6",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -331,7 +331,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "75c6d1771bdce25cd22803746c34dd70d9ce232b8a71eeba6b46aabc5908c067",
+      "contentHash": "8384742b958b4b84fd453fd783c08911b9e0cbaf66d4cf043fefd17a9a0b8a21",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -585,6 +585,24 @@
       "examples": ["Lag en Flyway-migrasjon som legger til en status-kolonne i vedtak-tabellen i dp-inntekt"]
     },
     {
+      "id": "deliberate-ai-use",
+      "name": "Bevisst AI-bruk",
+      "description": "Rammeverk for bevisst AI-bruk: grønn/rød sone, generer-så-forstå og kompetansebevaring",
+      "type": "instruction",
+      "domain": "general",
+      "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/deliberate-ai-use.instructions.md",
+      "contentHash": "a0999e3cc902f4f56bccac3d9c286cc248de6961d14b794537d48bc34393100e",
+      "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fdeliberate-ai-use.instructions.md",
+      "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fdeliberate-ai-use.instructions.md",
+      "applyTo": "**",
+      "tags": ["ai", "skill-preservation", "learning", "practices"],
+      "examples": [
+        "Vurder om denne oppgaven bør gjøres manuelt for læringsverdi",
+        "Forklar valgene og tradeoffene i den genererte koden"
+      ]
+    },
+    {
       "id": "docker",
       "name": "Dockerfile Standards",
       "description": "Multi-stage builds, distroless base images, layer caching, non-root.",
@@ -780,7 +798,7 @@
       "domain": "frontend",
       "filePath": ".github/prompts/aksel-component.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/aksel-component.prompt.md",
-      "contentHash": "9da00ddfc10aefc4f82db97fcb2b0f1774de648d7be1ee18779f6edc6521f637",
+      "contentHash": "9119d15db318622dbebaa92cebb283ab199b65b084413922d2cb8f77b71b218d",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "invocation": "#aksel-component",
@@ -795,7 +813,7 @@
       "domain": "general",
       "filePath": ".github/prompts/golang-service.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/golang-service.prompt.md",
-      "contentHash": "b3c85da75dc6b19cb733ca238b626af4234c430dc695165db8ed82bce2eea560",
+      "contentHash": "cfdbc1cff070400b2fa95e4568cb70108f9f345c05aba23822b6b078120748d9",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fgolang-service.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fgolang-service.prompt.md",
       "invocation": "#golang-service"
@@ -808,7 +826,7 @@
       "domain": "backend",
       "filePath": ".github/prompts/kafka-topic.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/kafka-topic.prompt.md",
-      "contentHash": "42b1991baee572a669233190e5903ba017ac36c29995d9eab350c7fc44116df0",
+      "contentHash": "3204fac1321522bcb87aa12f677e4deb3f2ccd5511e671811202c6a433822647",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fkafka-topic.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fkafka-topic.prompt.md",
       "invocation": "#kafka-topic",
@@ -823,7 +841,7 @@
       "domain": "general",
       "filePath": ".github/prompts/ktor-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/ktor-endpoint.prompt.md",
-      "contentHash": "81e78e842e5b973b53b9e487f2f95acf269221c5ab67dc4c30f85a7212471a22",
+      "contentHash": "12983729be4638134cefda967c22e46b495822e62bc17fa36689516122ac53ca",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fktor-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fktor-endpoint.prompt.md",
       "invocation": "#ktor-endpoint"
@@ -836,7 +854,7 @@
       "domain": "platform",
       "filePath": ".github/prompts/nais-manifest.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/nais-manifest.prompt.md",
-      "contentHash": "7b1e6ac5b4115c3f575cfcc75650d739d17359644f1b5b7b52c4d679fff8ca46",
+      "contentHash": "a7564098ae008cce355adc87b70e4d857a926986373328671ddcad9e358ced72",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnais-manifest.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnais-manifest.prompt.md",
       "invocation": "#nais-manifest",
@@ -851,7 +869,7 @@
       "domain": "frontend",
       "filePath": ".github/prompts/nextjs-api-route.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/nextjs-api-route.prompt.md",
-      "contentHash": "6dc6506e5264a67b761754a536cb0263c775a86aaf46fb12ee8f7578b594099d",
+      "contentHash": "16655aaa2b055bf329c66ad340c043a9c3b3063ef3cfbed65fab5ff200fd9b20",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnextjs-api-route.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnextjs-api-route.prompt.md",
       "invocation": "#nextjs-api-route",
@@ -866,7 +884,7 @@
       "domain": "backend",
       "filePath": ".github/prompts/spring-boot-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "3b5f6099fe5f457bba0bbf6a8ac7aa228e1761700a5641879abc2147f9459a7a",
+      "contentHash": "5b79c3b867419f3c05501b75339e9184af69401e0c2b68afeb79fe18b6e764a9",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "invocation": "#spring-boot-endpoint",

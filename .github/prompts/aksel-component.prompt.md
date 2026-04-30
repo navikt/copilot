@@ -234,3 +234,16 @@ After generating the component, verify:
 - ✅ TypeScript props interface
 - ✅ Accessible markup (proper heading levels, labels)
 - ✅ Component exported from file
+
+## Forstå koden
+
+After generating the component, explain:
+
+1. **Spacing-tokens vs Tailwind** — Why Aksel uses semantic tokens (`space-16`) instead of utility classes (`p-4`). What happens to consistency when teams mix approaches?
+2. **Responsive design** — Why mobile-first (`xs` as base, overrides at `md`/`lg`)? What's the cognitive difference between mobile-first and desktop-first?
+3. **Komponentvalg** — Why `Box`/`VStack`/`HGrid` instead of raw `<div>` with CSS. What accessibility and maintainability benefits do these provide?
+4. **Heading-nivåer** — Why `level` matters for accessibility (screen readers use heading hierarchy for navigation). What breaks with wrong heading levels?
+
+🔴 **Rød sone**: Accessibility markup (heading levels, ARIA attributes, labels) is worth understanding deeply — automated tools only catch ~30% of accessibility issues.
+
+Still gjerne spørsmål om valgene over.

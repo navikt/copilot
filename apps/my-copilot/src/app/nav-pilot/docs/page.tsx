@@ -71,6 +71,14 @@ const DOC_SECTIONS: TocItem[] = [
     ],
   },
   {
+    id: "kompetansebevaring",
+    label: "Kompetansebevaring",
+    children: [
+      { id: "gronn-rod-sone", label: "Grønn og rød sone" },
+      { id: "demo-i-praksis", label: "Demo: I praksis" },
+    ],
+  },
+  {
     id: "sync-og-oppdatering",
     label: "Sync og oppdatering",
     children: [
@@ -304,6 +312,7 @@ export default function NavPilotDocs() {
                 <QuickStartSection />
                 <CollectionsSection />
                 <PipelineSection />
+                <CompetenceSection />
                 <SyncSection />
                 <CliReferenceSection />
                 <HowItWorksSection />
@@ -897,6 +906,136 @@ function PipelineSection() {
               </tbody>
             </table>
           </div>
+        </div>
+      </VStack>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Section 4b: Kompetansebevaring (grønn/rød sone)
+   ═══════════════════════════════════════════════════════════════ */
+
+function CompetenceSection() {
+  return (
+    <section id="kompetansebevaring">
+      <VStack gap="space-16">
+        <div>
+          <LinkableHeading size="medium" level="2">
+            Kompetansebevaring
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Flere studier dokumenterer at passiv bruk av kodegenerering svekker utvikleres forståelse av egen kode. I
+            Anthropics RCT (2026) scora utviklere som delegerte blindt 35–39 % på kodeforståelse, mot 86 % for de som
+            aktivt stilte spørsmål etter generering. Navs egen longitudinalstudie (Stray et al., HICSS-59 2026)
+            bekrefter mønsteret internt.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Samtidig viser MIT/Microsoft-studien (2025, ~5000 utviklere) at AI-assistanse gir størst
+            produktivitetsgevinst på repetitive oppgaver. Gevinsten forsvinner — og kan bli negativ — på oppgaver som
+            krever dyp forståelse av domenet.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            nav-pilot implementerer dette skillet: oppgaver klassifiseres i <strong>grønn sone</strong> (AI genererer
+            full kode) og <strong>rød sone</strong> (utvikleren skriver kjernelogikken selv). Klassifiseringen skjer i
+            Fase 2 og håndheves i Fase 4.
+          </BodyLong>
+        </div>
+
+        <div id="gronn-rod-sone">
+          <LinkableHeading size="small" level="3">
+            Grønn og rød sone
+          </LinkableHeading>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg p-4" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span style={{ fontSize: "1.25rem" }}>🟢</span>
+                <Label size="small" style={{ color: "#166534" }}>
+                  Grønn sone — AI genererer full kode
+                </Label>
+              </div>
+              <ul className="text-sm space-y-1" style={{ color: "#15803d" }}>
+                <li>Boilerplate og repetitiv kode (Nais-manifest, CRUD)</li>
+                <li>Kjent teknologi du allerede behersker</li>
+                <li>Konfigurasjon og infrastruktur</li>
+                <li>Refaktorering med kjent mål</li>
+                <li>Testdata og fixtures</li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg p-4" style={{ background: "#fef2f2", border: "1px solid #fecaca" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span style={{ fontSize: "1.25rem" }}>🔴</span>
+                <Label size="small" style={{ color: "#991b1b" }}>
+                  Rød sone — du koder, AI leverer stubs
+                </Label>
+              </div>
+              <ul className="text-sm space-y-1" style={{ color: "#dc2626" }}>
+                <li>Debugging og feilsøking</li>
+                <li>Nye konsepter og ukjent teknologi</li>
+                <li>Kjernelogikk og forretningsregler</li>
+                <li>Sikkerhetskritisk kode</li>
+                <li>Arkitekturbeslutninger</li>
+              </ul>
+            </div>
+          </div>
+
+          <BodyShort size="small" className="mt-4" style={{ color: "#64748b" }}>
+            Når nav-pilot identifiserer rød-sone-logikk i Fase 2 (Plan), leverer Fase 4 bare testskjeletter og
+            kode-stubs med <code>TODO</code>-kommentarer — ikke full implementasjon. Du skriver kjernelogikken selv for
+            å bygge dyp forståelse.
+          </BodyShort>
+        </div>
+
+        <div id="demo-i-praksis">
+          <LinkableHeading size="small" level="3">
+            Demo: I praksis
+          </LinkableHeading>
+
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Her ser du nav-pilot planlegge en ny beregningsregel for sykepenger (§8-20). Legg merke til hvordan den
+            skiller mellom grønn sone (plumbing-kode) og rød sone (regelverkslogikk):
+          </BodyShort>
+
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/demos/nav-pilot-red-zone.gif"
+            alt="Demo av nav-pilot som identifiserer kjernelogikk som rød sone og leverer stubs med TODO"
+            className="rounded-lg border w-full"
+            style={{ border: "1px solid #e2e8f0" }}
+          />
+
+          <BodyShort size="small" className="mt-3" style={{ color: "#64748b" }}>
+            Basert på forskning fra{" "}
+            <NextLink
+              href="https://www.anthropic.com/research/AI-assistance-coding-skills"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#2563eb" }}
+            >
+              Anthropic
+            </NextLink>
+            ,{" "}
+            <NextLink
+              href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#2563eb" }}
+            >
+              METR
+            </NextLink>{" "}
+            og{" "}
+            <NextLink
+              href="https://arxiv.org/abs/2509.20353"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#2563eb" }}
+            >
+              Nav ITs egen studie
+            </NextLink>
+            .
+          </BodyShort>
         </div>
       </VStack>
     </section>

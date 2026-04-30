@@ -1,0 +1,10 @@
+{
+  "displayName": "Bevisst AI-bruk",
+  "description": "Rammeverk for bevisst AI-bruk: grønn/rød sone, generer-så-forstå og kompetansebevaring",
+  "domain": "general",
+  "tags": ["ai", "skill-preservation", "learning", "practices"],
+  "examples": [
+    "Vurder om denne oppgaven bør gjøres manuelt for læringsverdi",
+    "Forklar valgene og tradeoffene i den genererte koden"
+  ]
+}
