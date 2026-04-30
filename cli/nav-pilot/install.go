@@ -514,6 +514,15 @@ func cmdStatusScoped(scope *InstallScope, _ bool, jsonOutput bool) error {
 func printStatusBlock(scope *InstallScope, state *StateFile) {
 	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
 
+	// Count explicitly excluded items (added via "nav-pilot ignore", have empty hash).
+	excluded := 0
+	for _, f := range state.Files {
+		if f.Status == fileStatusIgnored && f.Hash == "" {
+			excluded++
+		}
+	}
+	autoIgnored := ignored - excluded
+
 	fmt.Println(bold(fmt.Sprintf("nav-pilot install status (%s)", scope.Name)))
 	fmt.Println()
 	fmt.Printf("  Collection:  %s\n", bold(state.Collection))
@@ -530,10 +539,16 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 
 	statusLine := fmt.Sprintf("\n  %s %d ok, %s %d modified, %s %d missing",
 		green("✓"), ok, yellow("~"), modified, red("✗"), missing)
-	if ignored > 0 {
-		statusLine += fmt.Sprintf(", %s %d ignored", dim("⊘"), ignored)
+	if autoIgnored > 0 {
+		statusLine += fmt.Sprintf(", %s %d ignored", dim("⊘"), autoIgnored)
+	}
+	if excluded > 0 {
+		statusLine += fmt.Sprintf(", %s %d excluded", dim("⊘"), excluded)
 	}
 	fmt.Println(statusLine)
+	if excluded > 0 {
+		fmt.Printf("  %s Use %s to manage excluded items\n", dim("→"), bold("nav-pilot ignore <type> <name> --user"))
+	}
 }
 
 func cmdUninstall(scope *InstallScope, dryRun bool) error {

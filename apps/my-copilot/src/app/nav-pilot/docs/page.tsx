@@ -257,6 +257,10 @@ const CLI_COMMANDS = [
   { command: "nav-pilot list", description: "Vis tilgjengelige collections" },
   { command: "nav-pilot list --items", description: "Vis alle tilgjengelige agenter, skills, etc." },
   { command: "nav-pilot add <type> <name>", description: "Installer enkeltkomponent (agent, skill, etc.)" },
+  {
+    command: "nav-pilot ignore <type> <name> --user",
+    description: "Stopp varsel om en komponent uten å installere den",
+  },
   { command: "nav-pilot status", description: "Vis installerte filer og integritet" },
   { command: "nav-pilot uninstall", description: "Fjern alle installerte filer" },
   { command: "nav-pilot sync", description: "Sjekk om oppdateringer finnes (exit 1 hvis ja)" },
@@ -669,6 +673,13 @@ nav-pilot`}
             <code className="font-mono text-xs">COPILOT_CUSTOM_INSTRUCTIONS_DIRS</code> og fungerer kun med Copilot CLI
             — nav-pilot setter denne automatisk i interaktiv modus.
           </BodyLong>
+          <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>
+            Når nye komponenter dukker opp i kilden, varsler nav-pilot om det ved oppstart. Vil du ikke installere en
+            bestemt komponent, stopper du varselet med:
+          </BodyLong>
+          <div className="mt-2">
+            <CodeBlock compact>{`nav-pilot ignore instruction nextjs-aksel --user`}</CodeBlock>
+          </div>
           <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>
             For direkte bruk av cplt, legg til i shell-profilen:
           </BodyLong>
@@ -1217,6 +1228,10 @@ jobs:
               {
                 q: "Hva om jeg sletter en fil manuelt?",
                 a: "Filen markeres som «ignorert» og legges ikke tilbake ved neste sync. Vil du ha den tilbake, kjør nav-pilot add <type> <name>.",
+              },
+              {
+                q: "Jeg får varsel om en komponent jeg ikke vil installere. Hvordan stopper jeg det?",
+                a: "Kjør nav-pilot ignore <type> <name> --user. nav-pilot merker komponenten som ignorert og varsler ikke om den igjen.",
               },
               {
                 q: "Kan jeg fjerne filer som ikke passer mitt rammeverk?",

@@ -62,7 +62,7 @@ func min(a, b, c int) int {
 
 // Known commands and flags for did-you-mean suggestions.
 var knownCommands = []string{
-	"install", "add", "export", "sync", "list", "status",
+	"install", "add", "ignore", "export", "sync", "list", "status",
 	"uninstall", "update", "env", "feedback", "version", "help",
 }
 

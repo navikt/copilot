@@ -81,6 +81,20 @@ This works with both state-based and auto-detected repos.
 
 > **Important:** Sync only touches files whose names also exist in the source repo. If your team creates a file with the same name as a source file (e.g., your own `kotlin-app-config` skill), sync will detect a hash mismatch and propose overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
 
+## Suppressing New-Item Reminders (User Scope)
+
+When using `nav-pilot install --user`, nav-pilot tracks all installed items and reminds you when new items are added to the source. If you don't want a specific item, use `nav-pilot ignore` to suppress the reminder without installing it:
+
+```bash
+nav-pilot ignore instruction nextjs-aksel --user
+nav-pilot ignore agent security-champion --user
+nav-pilot ignore skill kotlin-app-config --user
+```
+
+The item is recorded in your state file with `status: "ignored"` and will no longer appear in new-item reminders. Run `nav-pilot status --user` to see a summary — excluded items are shown separately from auto-ignored (deleted) ones.
+
+> **Note:** `nav-pilot ignore` only applies to user-scope `(all)` installs. For repo-scope installs, use `copilot-sync.json` overrides instead (see section below).
+
 ### Opting out of framework-specific files
 
 Teams using Astro, Remix, or other non-Next.js frameworks can use overrides to skip Next.js-specific files installed by the `nextjs-frontend` or `fullstack` collection:

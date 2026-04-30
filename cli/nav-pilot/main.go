@@ -47,6 +47,7 @@ Commands:
   install --user          Install all agents, skills & instructions to ~/.copilot (user-wide)
   init                    Scaffold repo-local Copilot config files (AGENTS.md, instructions)
   add <type> <name>       Install a single agent, skill, instruction, or prompt
+  ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   export <format>         Export Nav customizations to another tool's format
   sync                    Check for updates and optionally apply them
   list                    List available collections and items
@@ -177,7 +178,7 @@ func run(args []string) error {
 	// Reject --user for commands that don't support scoped installs
 	if userScope {
 		switch command {
-		case "install", "add", "sync", "status", "uninstall", "export":
+		case "install", "add", "ignore", "sync", "status", "uninstall", "export":
 			// These commands support --user
 		default:
 			return fmt.Errorf("--user is not supported for %q", command)
@@ -205,6 +206,11 @@ func run(args []string) error {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
 		}
 		return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+	case "ignore":
+		if len(positional) < 2 {
+			return fmt.Errorf("ignore requires a type and name.\n\nUsage: nav-pilot ignore <type> <name> --user\n\nTypes: agent, skill, instruction\n\nExamples:\n  nav-pilot ignore instruction nextjs-aksel --user\n  nav-pilot ignore agent security-champion --user")
+		}
+		return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
 	case "sync":
 		return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
 	case "list":

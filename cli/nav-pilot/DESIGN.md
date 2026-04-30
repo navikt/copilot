@@ -509,7 +509,31 @@ Templatene er string-building (ingen template-bibliotek, i tråd med DESIGN-filo
 
 ---
 
-## Industrisammenligning
+## Kjente begrensninger
+
+Dokumenterte designbegrensninger som kan endres i fremtidige versjoner.
+
+### Ingen passthrough av argumenter til Copilot CLI
+
+Når nav-pilot starter Copilot CLI interaktivt (etter install/sync-flyt), er det ingen måte å sende ekstra argumenter til `copilot`/`cplt`. Launchen er hardkodet til kun å videresende `--agent nav-pilot`:
+
+```go
+// interactive.go — launchCopilotWithAgent()
+args := []string{}
+if agent != "" {
+    args = append(args, "--", "--agent", agent)  // cplt
+    // eller: args = append(args, "--agent", agent)  // copilot
+}
+cmd := exec.Command(cliPath, args...)
+```
+
+Brukere som vil sende andre flagg (f.eks. `--model`, egne prompts, eller en annen agent) må kjøre `copilot`/`cplt` direkte etter at nav-pilot har satt opp miljøet.
+
+**Mulig fremtidig løsning:** Se GitHub-issue for tracking.
+
+---
+
+
 
 Analyse av nav-pilot mot populære CLI-verktøy og etablerte retningslinjer:
 [clig.dev](https://clig.dev/), 12 Factor CLI Apps, og Go-verktøy som
