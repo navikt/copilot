@@ -3,7 +3,7 @@ title: "Nyheter og trender — April 2026"
 date: 2026-04-17
 draft: true
 category: copilot
-excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, Business-registreringer pauset."
+excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, Business-registreringer pauset, forbruksbasert fakturering fra 1. juni, VS Code 1.118 med token-effektivisering og Chronicle."
 tags:
   - skills
   - github-cli
@@ -22,6 +22,10 @@ tags:
   - code-review
   - agentic-workflows
   - jira
+  - pricing
+  - billing
+  - token-efficiency
+  - semantic-search
 ---
 
 <!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
@@ -292,6 +296,34 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 
 ---
 
+## 23. Forbruksbasert fakturering fra 1. juni
+
+GitHub kunngjør at alle Copilot-planer går over til forbruksbasert fakturering 1. juni 2026. Premium requests erstattes av **GitHub AI Credits** — basert på faktisk token-forbruk (input, output og cachede tokens) ganget med modellens publiserte rate.
+
+Planprisene endres ikke: Business er fortsatt $19/bruker/måned (med $19 i inkluderte credits), Enterprise er $39/bruker/måned (med $39 i credits). I en overgangsperiode (juni–august) får eksisterende Business-kunder $30 og Enterprise-kunder $70 i månedlige credits. Credits pooles på tvers av organisasjonen, slik at ubrukt kapasitet fra enkeltbrukere ikke går tapt.
+
+Administratorer får nye budsjettverktøy på enterprise-, kostnadssenter- og brukernivå. Når den inkluderte potten er brukt opp, kan organisasjoner velge å tillate ekstra forbruk til publiserte rater eller sette en hard tak. Kodeforslag og Next Edit-forslag er fortsatt inkludert i planen uten ekstra kostnad. Copilot code review vil forbruke både AI Credits og GitHub Actions-minutter.
+
+**Kilde:** [GitHub Copilot is moving to usage-based billing](https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/) (GitHub Blog, 27. april 2026)
+
+---
+
+## 24. VS Code 1.118: token-effektivisering og Chronicle
+
+April-releasen av VS Code handler om å få mer ut av hver request — viktig fordi forbruksbasert fakturering nærmer seg. Flere optimaliseringer gir opptil 20 % lavere token-forbruk uten kvalitetstap.
+
+**Tool search tool** deler verktøysettet i to: ~30 kjernetools som dekker 88 % av bruksmønsteret er alltid tilgjengelig, mens resten lastes inn on-demand via semantisk søk. Resultatet er en cachevennlig prefiks og mindre per-turn-footprint. Allerede standard for Anthropic-modeller, nå også for GPT-5.4 og GPT-5.5.
+
+**Sub-agenter for søk og kjøring**: To nye spesialiserte verktøy drevet av små, finjusterte modeller. Search-agenten gjør parallelle grep/fil/semantisk-søk og returnerer kun relevante resultater. Execution-agenten kjører terminaler (maks 10 kommandoer per invokasjon) og filtrerer outputen ned til det agenten faktisk trenger.
+
+**Semantisk indeksering for alle arbeidsområder** — ikke lenger begrenset til GitHub/ADO-repoer. Indeksen bygges automatisk og lar agenten søke etter mening, ikke bare nøkkelord.
+
+**Chronicle** (eksperimentell) lagrer chat-historikken i en lokal SQLite-database og lar deg søke på tvers av sesjoner. Kommandoene `/chronicle:standup` og `/chronicle:tips` gir standup-rapporter og personlige tips basert på bruksmønsteret ditt.
+
+**Kilde:** [Visual Studio Code April 2026 (v1.118)](https://code.visualstudio.com/updates/v1_118) (VS Code, 29. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -314,3 +346,5 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 | Copilot Chat med PR-kontekst | Strukturert review og oppsummering rett i github.com. Kan supplere code review-prosessen uten å forlate nettleseren. |
 | Copilot for Jira | Relevant for Nav-team som bruker Jira med GitHub. Custom agents og space-instruksjoner gir konsistent agentoppførsel på tvers av tickets. |
 | Metrikk-URL-endring | copilot-metrics-appen bør oppdateres til `copilot-reports.github.com` før 20. mai. `used_copilot_cloud_agent`-feltet bør tas i bruk før august. |
+| Forbruksbasert fakturering | Nav (Enterprise, $39/bruker) får $70 i månedlige credits juni–august. Admin bør sette opp budsjettverktøy og overvåke forbruk. Token-tungt agentbruk kan overforbruke potten — optimaliser med plan mode og mindre modeller for enkle oppgaver. |
+| Token-effektivisering i VS Code | Direkte besparelse for Nav-utviklere etter 1. juni. Tool search tool og sub-agenter er allerede aktive. Semantisk indeksering for ikke-GitHub-repoer er nyttig for team med lokale repos. |
