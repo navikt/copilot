@@ -1,9 +1,9 @@
 ---
 title: "Nyheter og trender — April 2026"
 date: 2026-04-17
-draft: true
+draft: false
 category: copilot
-excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, GPT-5.5 GA, bruksbasert fakturering fra 1. juni, code review bruker Actions-minutter, cloud agent 20 % raskere, VS Code 1.118 med Agents-app og token-effektivitet, Visual Studio april-oppdatering."
+excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, EU-dataopphold med EFTA-dekning, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, GPT-5.5 GA, bruksbasert fakturering fra 1. juni, code review bruker Actions-minutter, cloud agent 20 % raskere, VS Code 1.118 med Agents-app og token-effektivitet, Visual Studio april-oppdatering."
 tags:
   - skills
   - github-cli
@@ -11,6 +11,8 @@ tags:
   - coding-agents
   - enterprise-controls
   - privacy
+  - data-residency
+  - compliance
   - metrics
   - copilot-cli
   - security
@@ -37,7 +39,7 @@ April 2026 starter med infrastruktur og ender med økosystem. GitHub åpner Copi
 
 ## 1. Copilot SDK i public preview
 
-GitHub Copilot SDK er nå tilgjengelig i public preview — det samme agentmotoren som driver Copilot cloud agent og Copilot CLI, pakket som bibliotek. SDK-et gir verktøyinvokning, streaming, filoperasjoner og multi-turn-sesjoner rett ut av boksen, uten at du trenger å bygge egen AI-orkestrering.
+GitHub Copilot SDK er nå tilgjengelig i public preview — den same agentmotoren som driver Copilot cloud agent og Copilot CLI, pakket som bibliotek. SDK-et gir verktøyinvokning, streaming, filoperasjoner og multi-turn-sesjoner rett ut av boksen, uten at du trenger å bygge egen AI-orkestrering.
 
 Tilgjengelig i fem språk: Node.js/TypeScript, Python, Go, .NET og Java (nytt). Nøkkelfunksjoner inkluderer custom tools med handlers, finkornet system-prompt-tilpasning (`replace`, `append`, `prepend`, `transform`), OpenTelemetry-integrasjon for distribuert tracing, et tillatelsesrammeverk for sensitive operasjoner, og Bring Your Own Key (BYOK) for OpenAI, Azure AI Foundry eller Anthropic.
 
@@ -71,7 +73,7 @@ Policyen ble kunngjort 25. mars og har møtt sterk kritikk for å være opt-out 
 
 VS Code gikk over til ukentlige stabile releaser i mars. Changelog-posten dekker versjon 1.111 til 1.115 og er den største VS Code-oppdateringen for Copilot på lenge.
 
-**Autopilot-modus** (public preview) lar agenter kjøre helt autonomt. Agenten godkjenner egne handlinger, prøver på nytt ved feil, og jobber til oppgaven er ferdig — uten at du trenger å trykke «godkjenn» underveis. Tillatelses-nivået settes per sesjon: Default, Bypass Approvals eller Autopilot.
+**Autopilot-modus** (public preview) lar agenter kjøre helt autonomt. Agenten godkjenner egne handlinger, prøver på nytt ved feil, og jobber til oppgaven er ferdig — uten at du trenger å trykke «godkjenn» underveis. Tillatelsesnivået settes per sesjon: Default, Bypass Approvals eller Autopilot.
 
 Andre viktige nyheter:
 
@@ -144,7 +146,7 @@ Funksjonen krever GitHub Code Security og et Copilot-abonnement med tilgang til 
 
 ## 10. Project Glasswing — AI-drevet cybersikkerhet
 
-Anthropic avduket Project Glasswing, et samarbeid mellom 12 industripartnere — blant dem AWS, Apple, Google, Microsoft, NVIDIA og Linux Foundation. Initiativet er bygget rundt Claude Mythos Preview, en urelatert frontiermodell som autonomt finner zero-day-sårbarheter i alle store operativsystemer og nettlesere. Modellen har allerede funnet tusenvis av kritiske sårbarheter, inkludert en 27 år gammel feil i OpenBSD og en 16 år gammel feil i FFmpeg som automatiserte tester hadde kjørt forbi fem millioner ganger.
+Anthropic avduket Project Glasswing, et samarbeid mellom 12 industripartnere — blant dem AWS, Apple, Google, Microsoft, NVIDIA og Linux Foundation. Initiativet er bygget rundt Claude Mythos Preview, en uutgitt frontiermodell som autonomt finner zero-day-sårbarheter i alle store operativsystemer og nettlesere. Modellen har allerede funnet tusenvis av kritiske sårbarheter, inkludert en 27 år gammel feil i OpenBSD og en 16 år gammel feil i FFmpeg som automatiserte tester hadde kjørt forbi fem millioner ganger.
 
 Mythos Preview scorer 83,1 % på CyberGym-benchmarken for sårbarhetsgjenfinning, mot 66,6 % for Opus 4.6. Anthropic forplikter opptil $100M i brukskreditter og $4M i donasjoner til open source-sikkerhetsorganisasjoner. Modellen er ikke generelt tilgjengelig — den deles med partnere og over 40 organisasjoner som bygger eller vedlikeholder kritisk programvareinfrastruktur.
 
@@ -166,7 +168,19 @@ For Copilot Business- og Enterprise-brukere må en administrator aktivere remote
 
 ---
 
-## 12. Modellvalg for tredjeparts coding agents
+## 12. Data residency (US + EU) og FedRAMP
+
+GitHub Copilot støtter nå dataoppholdskrav for USA og EU, slik at all inferens og tilknyttede data forblir innenfor din valgte geografi. EU-regionen er bygget på Microsofts EU Data Boundary og dekker EU-medlemsland pluss EFTA-land — det vil si Island, Liechtenstein, Norge og Sveits — fra 1. mai 2026. For amerikanske myndigheter er underliggende modellverter og infrastruktur FedRAMP Moderate-autorisert.
+
+Alle GA-funksjoner i Copilot er støttet: agent mode, inline-forslag, chat, cloud agent, code review, PR-oppsummeringer og Copilot CLI. Modeller fra OpenAI og Anthropic er tilgjengelige ved lansering, inkludert GPT-5.4, Claude Sonnet 4.6 og Claude Opus 4.6. Gemini-modeller er foreløpig ikke støttet fordi GCP ikke tilbyr dataresidente inferensendepunkter ennå.
+
+Data-residente forespørsler koster 10 % mer i modellmultiplikator, som reflekterer leverandørkostnader for regionale og compliance-sertifiserte endepunkter. Enterprise- og organisasjonsadministratorer aktiverer policyen fra Copilot-innstillingene — den er av som standard. Flere regioner (Japan, Australia) er planlagt senere i 2026.
+
+**Kilde:** [Data residency (US + EU) and FedRAMP-authorized models now available in GitHub Copilot](https://github.blog/changelog/2026-04-13-copilot-data-residency-in-us-eu-and-fedramp-compliance-now-available/) (GitHub Changelog, 13. april 2026)
+
+---
+
+## 13. Modellvalg for tredjeparts coding agents
 
 Claude og Codex coding agents på github.com støtter nå modellvalg. Når du starter en oppgave, velger du modell på samme måte som for Copilot cloud agent. Claude-brukere kan velge mellom Sonnet 4.5/4.6 og Opus 4.5/4.6, mens Codex-brukere kan velge mellom GPT-5.2-Codex, GPT-5.3-Codex og GPT-5.4.
 
@@ -176,7 +190,7 @@ Tilgang til tredjeparts-agenter følger med eksisterende Copilot-abonnement. For
 
 ---
 
-## 13. Selektiv utrulling av cloud agent med custom properties
+## 14. Selektiv utrulling av cloud agent med custom properties
 
 Enterprise-administratorer kan nå aktivere Copilot cloud agent per organisasjon, enten enkeltvis eller via custom properties. Tidligere var valget alt eller ingenting — nå kan du pilotere med utvalgte team og gradvis utvide tilgangen.
 
@@ -188,7 +202,7 @@ Merk: Custom properties evalueres kun på tidspunktet du konfigurerer. Endringer
 
 ---
 
-## 14. `gh skill` — agent skills fra terminalen
+## 15. `gh skill` — agent skills fra terminalen
 
 GitHub CLI v2.90.0 introduserer `gh skill`, en ny kommando for å installere, oppdatere, publisere og søke etter agent skills. Skills følger den åpne [agentskills.io-spesifikasjonen](https://agentskills.io/specification) og fungerer på tvers av hosters: Copilot, Claude Code, Cursor, Codex og Gemini CLI.
 
@@ -212,7 +226,7 @@ For de som vedlikeholder skills-repoer: `gh skill publish` validerer mot agentsk
 
 ---
 
-## 15. Claude Opus 4.7 tilgjengelig i Copilot
+## 16. Claude Opus 4.7 tilgjengelig i Copilot
 
 Anthropics nyeste Opus-modell ruller nå ut i Copilot. I GitHubs tidlige testing gir Opus 4.7 bedre ytelse på flertrinnsoppgaver og mer pålitelig agentisk utførelse enn forgjengeren. Modellen viser også framgang på langvarig resonnering og komplekse verktøyavhengige arbeidsflyter.
 
@@ -226,16 +240,16 @@ Tilgjengelig i VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, Git
 
 ---
 
-## 16. Flere oppdateringer (mid-april)
+## 17. Flere oppdateringer (mid-april)
 
-- **Modellvalg for tredjeparts-agenter**: Se seksjon 12. [Kilde](https://github.blog/changelog/2026-04-14-model-selection-for-claude-and-codex-agents-on-github-com)
+- **Modellvalg for tredjeparts-agenter**: Se seksjon 13. [Kilde](https://github.blog/changelog/2026-04-14-model-selection-for-claude-and-codex-agents-on-github-com)
 - **OIDC for Dependabot og code scanning**: Dependabot og code scanning støtter nå OIDC-tokens for autentisering mot private registre — erstatter langlevde secrets. [Kilde](https://github.blog/changelog/2026-04-14-oidc-support-for-dependabot-and-code-scanning)
 - **Rule insights dashboard**: Nytt visuelt dashboard for repository rulesets — se trender i blokkerte pushes, bypass-aktivitet og regelbrudd over tid. [Kilde](https://github.blog/changelog/2026-04-16-rule-insights-dashboard-and-unified-filter-bar)
 - **CodeQL 2.25.2**: Kotlin 2.3.20-støtte og andre oppdateringer. [Kilde](https://github.blog/changelog/2026-04-15-codeql-2-25-2-adds-kotlin-2-3-20-support-and-other-updates)
 
 ---
 
-## 17. BYOK for Copilot Business og Enterprise i VS Code
+## 18. BYOK for Copilot Business og Enterprise i VS Code
 
 VS Code 1.117 (22. april) introduserer Bring Your Own Key (BYOK) for Copilot Business- og Enterprise-brukere. Team som trenger spesifikke modeller for compliance, ytelse eller kostnadsårsaker kan nå koble til egne API-nøkler fra leverandører som OpenRouter, Ollama, Google og OpenAI — og bruke disse modellene direkte i VS Code-chatten.
 
@@ -247,7 +261,7 @@ Andre nyheter i 1.117 inkluderer inkrementell chat-rendering (eksperimentell) so
 
 ---
 
-## 18. Agentsesjoner synlige i Issues og Projects
+## 19. Agentsesjoner synlige i Issues og Projects
 
 Cloud agent-sesjoner er nå synlige direkte i GitHub Issues og Projects. En ny «session pill» på issues viser aktive og fullførte agentsesjoner, og du kan åpne en sesjon i sidepanelet for å se fremdrift, gjennomgå logger eller gi agenten retning — uten å forlate issue-visningen.
 
@@ -259,7 +273,7 @@ Dette gjør det lettere å holde oversikt over agentaktivitet i planleggingskont
 
 ---
 
-## 19. Copilot Chat med rikere PR-kontekst
+## 20. Copilot Chat med rikere PR-kontekst
 
 Copilot Chat på github.com har fått tre nye evner for pull requests. Når en PR gis som kontekst, inkluderer chatten nå kommentarer, filendringer, commits og reviews — ikke bare koden. Du kan be Copilot om å reviewe en PR og få en strukturert gjennomgang, eller be om en oppsummering for å raskt forstå hva endringene gjør.
 
@@ -269,7 +283,7 @@ Funksjonene virker både i on-page-chat (Copilot-knappen på en diff) og i den i
 
 ---
 
-## 20. Strukturert feilsøking med stack traces
+## 21. Strukturert feilsøking med stack traces
 
 Copilot Chat på github.com gjenkjenner nå stack traces mer pålitelig og gir en strukturert rotårsaksanalyse. Når du limer inn en stack trace, svarer Copilot med hva som feilet og hvor, hvilken antakelse som ble brutt, den mest sannsynlige rotårsaken med kodebevis, et konfidensnivå og foreslått fiks, og neste steg for verifisering.
 
@@ -279,7 +293,7 @@ Legg ved relevant repo- eller filkontekst for best resultat. Har du et reproduks
 
 ---
 
-## 21. Copilot for Jira: custom agents og mer
+## 22. Copilot for Jira: custom agents og mer
 
 Copilot cloud agent for Jira har fått flere tilpasninger. Du kan nå spesifisere en custom agent fra GitHub-repoet rett i Jira-ticketen, slik at agenten bruker teamets egne instruksjoner og verktøy. Agenten leser også Atlassian custom fields (som akseptansekriterier) og følger forgreningsregler definert i ticketen.
 
@@ -289,15 +303,16 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 
 ---
 
-## 22. Flere oppdateringer (sen april)
+## 23. Flere oppdateringer (sen april)
 
+- **Endringer i individuelle planer**: GitHub stanser nye registreringer for Pro, Pro+ og Student. Bruksgrenser strammes inn på Pro — høyere grenser kun på Pro+. Opus-modeller fjernes fra Pro (Opus 4.7 forblir på Pro+). Eksisterende brukere kan oppgradere eller få refusjon. [Kilde](https://github.blog/changelog/2026-04-20-changes-to-github-copilot-plans-for-individuals/)
 - **Pause på Copilot Business-registreringer**: GitHub stanser midlertidig nye selvbetjente Copilot Business-registreringer for organisasjoner på Free og Team. Eksisterende kunder er ikke berørt. [Kilde](https://github.blog/changelog/2026-04-22-pausing-new-self-serve-signups-for-github-copilot-business)
 - **Cloud agent-felt i usage metrics**: Nytt `used_copilot_cloud_agent`-felt i Copilot Usage Metrics API speiler `used_copilot_coding_agent` under nytt navn. Det gamle feltet fases ut 1. august 2026. [Kilde](https://github.blog/changelog/2026-04-23-copilot-cloud-agent-fields-added-to-usage-metrics)
 - **Endring i nedlastings-URL-er for metrikk-rapporter**: Fra 20. mai migreres nedlastings-URL-er til `copilot-reports.github.com`. Oppdater brannmur-/proxy-allowlister. [Kilde](https://github.blog/changelog/2026-04-22-upcoming-change-to-copilot-usage-metrics-report-download-urls)
 
 ---
 
-## 23. GPT-5.5 tilgjengelig i Copilot
+## 24. GPT-5.5 tilgjengelig i Copilot
 
 OpenAIs nyeste GPT-modell er nå tilgjengelig i GitHub Copilot. I GitHubs tidlige testing leverer GPT-5.5 sterkest ytelse på komplekse, flerstegs agentoppgaver og løser kodeutfordringer som tidligere GPT-modeller ikke klarte.
 
@@ -307,7 +322,7 @@ Modellen lanseres med en 7,5× premium request-multiplikator som kampanjepris. G
 
 ---
 
-## 24. Copilot går over til bruksbasert fakturering
+## 25. Copilot går over til bruksbasert fakturering
 
 GitHub kunngjør at alle Copilot-planer går over til bruksbasert fakturering 1. juni 2026. Premium request-enheter (PRU-er) erstattes av GitHub AI Credits. Forbruk beregnes basert på tokenbruk — input, output og cachede tokens — etter publiserte API-rater for hver modell.
 
@@ -319,7 +334,7 @@ For Business og Enterprise innføres «pooled usage» — ubrukte credits deles 
 
 ---
 
-## 25. Code review bruker Actions-minutter fra 1. juni
+## 26. Code review bruker Actions-minutter fra 1. juni
 
 I forbindelse med overgangen til bruksbasert fakturering kunngjør GitHub at Copilots agentbaserte kodegjennomgang vil forbruke GitHub Actions-minutter fra 1. juni. Hvert review faktureres på to måter: AI Credits (som all annen Copilot-bruk) og Actions-minutter fra eksisterende planentitlement for private repoer.
 
@@ -329,7 +344,7 @@ Offentlige repoer er ikke berørt — Actions-minutter forblir gratis der. Organ
 
 ---
 
-## 26. Cloud agent starter 20 % raskere
+## 27. Cloud agent starter 20 % raskere
 
 Copilot cloud agent starter nå over 20 % raskere takket være forhåndsbygde runner-miljøer med GitHub Actions custom images. Når du tildeler en issue til Copilot, starter en oppgave fra Agents-fanen, eller nevner `@copilot` i en PR, spinnes et skymiljø opp for å gjøre jobben. Ved å forhåndsbygge det miljøet med en custom Actions-image er oppstartskostnadene kuttet betydelig.
 
@@ -339,7 +354,7 @@ Dette bygger på 50 %-forbedringen fra mars og fortsetter å korte ned tilbakeme
 
 ---
 
-## 27. VS Code 1.118 — Agents-app, semantisk søk og token-effektivitet
+## 28. VS Code 1.118 — Agents-app, semantisk søk og token-effektivitet
 
 VS Code 1.118 (29. april) er en stor release for Copilot med fokus på effektivitet og nye agentopplevelser.
 
@@ -355,7 +370,7 @@ Andre nyheter: **Chronicle** (eksperimentell) indekserer chathistorikken i lokal
 
 ---
 
-## 28. Visual Studio april-oppdatering
+## 29. Visual Studio april-oppdatering
 
 Visual Studio 2026 april-oppdateringen fokuserer på agentiske arbeidsflyter. **Cloud agent-integrasjon** lar deg starte nye cloud agent-sesjoner direkte fra IDE-en — velg «Cloud» fra agentvelgeren, beskriv oppgaven, og agenten oppretter issue og PR på remote-infrastruktur mens du jobber videre.
 
@@ -378,6 +393,7 @@ Custom agents støtter nå brukerdefinisjoner lagret i `%USERPROFILE%/.github/ag
 | Selektiv cloud agent-utrulling | Nav kan pilotere coding agent med utvalgte team via custom properties og gradvis utvide tilgangen. |
 | PR-merge-metrikker | copilot-metrics kan hente nye felter for å måle om Copilot-review gir raskere merge. Konkrete tall til DORA-arbeid. |
 | Org-runner for cloud agent | Sentralstyrt runner-konfigurasjon. Nav kan sette standard for alle repoer og låse til self-hosted runners. |
+| Data residency (EU) | Norge er eksplisitt dekket via EFTA. Nav kan aktivere EU-dataopphold for å sikre at all Copilot-inferens forblir i EU/EFTA. 10 % prisøkning per forespørsel — vurder kost/nytte. |
 | Personvernpolicy | Nav bruker Enterprise — ikke berørt. Informer utviklere med personlige Copilot-kontoer om opt-out før 24. april. |
 | BYOK og lokale modeller i CLI | Relevant for team med spesielle datatilgangskrav eller som vil bruke egne Azure OpenAI-endepunkter. |
 | Dependabot + AI-agenter | Kan akselerere sikkerhetsoppdateringer i Navs ~500 repoer. Nyttig for breaking changes i major-oppgraderinger. |
