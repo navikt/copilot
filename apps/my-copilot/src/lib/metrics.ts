@@ -12,19 +12,6 @@ function getStore(): MetricsStore {
   return g[METRICS_KEY];
 }
 
-function normalizePage(path: string): string {
-  if (path === "/" || path === "") return "/";
-  if (path.startsWith("/install")) return "/install";
-  if (path.startsWith("/api/")) return "/api";
-  return `/${path.split("/")[1]}`;
-}
-
-export function recordPageView(path: string): void {
-  const page = normalizePage(path);
-  const store = getStore();
-  store.pageViews.set(page, (store.pageViews.get(page) || 0) + 1);
-}
-
 export function getEngagementMetrics(): string {
   const store = getStore();
   if (store.pageViews.size === 0) return "";

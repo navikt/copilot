@@ -35,8 +35,8 @@ export default function PersonvernPage() {
               personidentifiserende informasjon fra anonyme besøkende.
             </BodyLong>
             <BodyLong>
-              For innloggede Nav-ansatte henter vi navn fra Azure AD-tokenet for å vise det i brukergrensesnittet.
-              Denne informasjonen lagres ikke utover sesjonen.
+              For innloggede Nav-ansatte henter vi navn fra Azure AD-tokenet for å vise det i brukergrensesnittet. Denne
+              informasjonen lagres ikke utover sesjonen.
             </BodyLong>
           </VStack>
 

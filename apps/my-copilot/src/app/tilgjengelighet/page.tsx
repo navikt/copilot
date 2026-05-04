@@ -26,11 +26,7 @@ export default function TilgjengelighetPage() {
               <Link href="https://lovdata.no/dokument/NL/lov/2017-06-16-51">
                 likestillings- og diskrimineringsloven
               </Link>{" "}
-              og{" "}
-              <Link href="https://www.uutilsynet.no/wcag-standarden/wcag-21-standarden/140">
-                WCAG 2.1 nivå AA
-              </Link>
-              .
+              og <Link href="https://www.uutilsynet.no/wcag-standarden/wcag-21-standarden/140">WCAG 2.1 nivå AA</Link>.
             </BodyLong>
           </VStack>
 
@@ -39,10 +35,9 @@ export default function TilgjengelighetPage() {
               Slik har vi testet
             </Heading>
             <BodyLong>
-              Nettstedet er bygget med Nav sitt designsystem{" "}
-              <Link href="https://aksel.nav.no">Aksel</Link>, som er testet for universell utforming.
-              Vi bruker semantisk HTML, ARIA-attributter der nødvendig, og tastaturnavigasjon fungerer på alle
-              interaktive elementer.
+              Nettstedet er bygget med Nav sitt designsystem <Link href="https://aksel.nav.no">Aksel</Link>, som er
+              testet for universell utforming. Vi bruker semantisk HTML, ARIA-attributter der nødvendig, og
+              tastaturnavigasjon fungerer på alle interaktive elementer.
             </BodyLong>
           </VStack>
 
@@ -51,8 +46,8 @@ export default function TilgjengelighetPage() {
               Kjente mangler
             </Heading>
             <BodyLong>
-              Vi er ikke kjent med vesentlige tilgjengelighetsproblemer på nettstedet. Dersom du oppdager problemer,
-              ber vi deg melde fra (se kontaktinformasjon under).
+              Vi er ikke kjent med vesentlige tilgjengelighetsproblemer på nettstedet. Dersom du oppdager problemer, ber
+              vi deg melde fra (se kontaktinformasjon under).
             </BodyLong>
           </VStack>
 
@@ -74,10 +69,7 @@ export default function TilgjengelighetPage() {
             <BodyLong>
               Digitaliseringsdirektoratet fører tilsyn med universell utforming av IKT. Dersom du ikke er fornøyd med
               vårt svar, kan du{" "}
-              <Link href="https://www.uutilsynet.no/klage/klage-pa-nettlosning/1124">
-                klage til Uutilsynet
-              </Link>
-              .
+              <Link href="https://www.uutilsynet.no/klage/klage-pa-nettlosning/1124">klage til Uutilsynet</Link>.
             </BodyLong>
           </VStack>
 
