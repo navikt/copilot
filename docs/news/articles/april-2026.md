@@ -1,6 +1,6 @@
 ---
 title: "Nyheter og trender — April 2026"
-date: 2026-04-17
+date: 2026-05-01
 draft: false
 category: copilot
 excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, EU-dataopphold med EFTA-dekning, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, GPT-5.5 GA, bruksbasert fakturering fra 1. juni, code review bruker Actions-minutter, cloud agent 20 % raskere, VS Code 1.118 med Agents-app og token-effektivitet, Visual Studio april-oppdatering."
@@ -30,8 +30,6 @@ tags:
   - actions
   - visual-studio
 ---
-
-<!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
 
 April 2026 starter med infrastruktur og ender med økosystem. GitHub åpner Copilot-motoren som SDK, gir organisasjoner finkornet kontroll over coding agent, og lanserer `gh skill` for å installere og publisere agent skills rett fra terminalen. VS Code får Autopilot-modus, Claude Opus 4.7 blir tilgjengelig i Copilot, og den kontroversielle personvernpolicyen for treningsdata trer i kraft 24. april.
 
