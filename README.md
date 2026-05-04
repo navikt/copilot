@@ -212,6 +212,7 @@ Kjør `mise check` etter endringer for å validere alt.
 
 ```bash
 mise install          # Installer verktøy
+lefthook install      # Aktiver pre-commit og commit-msg hooks
 ```
 
 Hemmeligheter håndteres med fnox + macOS Keychain — ingen `.env`-filer. Hver app har en `fnox.toml` med nødvendige hemmeligheter:

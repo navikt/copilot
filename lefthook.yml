@@ -1,0 +1,45 @@
+# https://github.com/evilmartians/lefthook
+# Install hooks: lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    gofmt:
+      glob: "**/*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+
+    shellcheck:
+      glob: "**/*.sh"
+      run: shellcheck {staged_files}
+
+    eslint:
+      root: "apps/my-copilot"
+      glob: "**/*.{ts,tsx}"
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+
+    prettier:
+      root: "apps/my-copilot"
+      glob: "**/*.{ts,tsx,js,json,css,md}"
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        msg=$(cat {1})
+        # Skip merge commits
+        echo "$msg" | grep -qE '^Merge ' && exit 0
+        # Validate conventional commit format on subject line
+        if ! echo "$msg" | head -1 | grep -qE '^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\(.+\))?(!)?: .+'; then
+          echo "❌ Commit message must follow Conventional Commits format"
+          echo "   See: https://www.conventionalcommits.org"
+          echo ""
+          echo "   Examples:"
+          echo "     feat(my-copilot): add usage dashboard"
+          echo "     fix: correct token validation"
+          echo "     chore(deps): update go modules"
+          exit 1
+        fi
