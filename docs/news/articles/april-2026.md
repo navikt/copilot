@@ -3,7 +3,7 @@ title: "Nyheter og trender — April 2026"
 date: 2026-04-17
 draft: true
 category: copilot
-excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, Business-registreringer pauset."
+excerpt: "gh skill CLI for installasjon og publisering av agent skills, Claude Opus 4.7 GA, Autopilot-modus i VS Code, Copilot SDK i public preview, selektiv utrulling av cloud agent, personvernpolicy trer i kraft 24. april, BYOK og lokale modeller i Copilot CLI, Dependabot + AI-agenter, Project Glasswing, fjernstyr CLI fra nett og mobil, BYOK i VS Code for Business/Enterprise, agentsesjoner i Issues og Projects, Copilot Chat med PR-kontekst, Copilot for Jira med custom agents, GPT-5.5 GA, bruksbasert fakturering fra 1. juni, code review bruker Actions-minutter, cloud agent 20 % raskere, VS Code 1.118 med Agents-app og token-effektivitet, Visual Studio april-oppdatering."
 tags:
   - skills
   - github-cli
@@ -22,6 +22,11 @@ tags:
   - code-review
   - agentic-workflows
   - jira
+  - billing
+  - gpt
+  - performance
+  - actions
+  - visual-studio
 ---
 
 <!-- AI-REDAKSJONELT: Denne artikkelen er en oppsummering av de viktigste endringene og trendene — ikke en komplett liste. Prioriter det som er mest relevant for Nav-utviklere. Mindre oppdateringer samles i «Flere oppdateringer»-seksjonen. Individuelle nyheter dekkes av egne excerpt-filer i samme mappe. -->
@@ -292,6 +297,76 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 
 ---
 
+## 23. GPT-5.5 tilgjengelig i Copilot
+
+OpenAIs nyeste GPT-modell er nå tilgjengelig i GitHub Copilot. I GitHubs tidlige testing leverer GPT-5.5 sterkest ytelse på komplekse, flerstegs agentoppgaver og løser kodeutfordringer som tidligere GPT-modeller ikke klarte.
+
+Modellen lanseres med en 7,5× premium request-multiplikator som kampanjepris. GPT-5.5 er tilgjengelig for Pro+-, Business- og Enterprise-brukere i VS Code, Visual Studio, Copilot CLI, cloud agent, github.com, GitHub Mobile, JetBrains, Xcode og Eclipse. Business- og Enterprise-administratorer må aktivere GPT-5.5-policyen i Copilot-innstillingene.
+
+**Kilde:** [GPT-5.5 is generally available for GitHub Copilot](https://github.blog/changelog/2026-04-24-gpt-5-5-is-generally-available-for-github-copilot) (GitHub Changelog, 24. april 2026)
+
+---
+
+## 24. Copilot går over til bruksbasert fakturering
+
+GitHub kunngjør at alle Copilot-planer går over til bruksbasert fakturering 1. juni 2026. Premium request-enheter (PRU-er) erstattes av GitHub AI Credits. Forbruk beregnes basert på tokenbruk — input, output og cachede tokens — etter publiserte API-rater for hver modell.
+
+Planpriser endres ikke: Pro er $10/mnd, Pro+ er $39/mnd, Business er $19/bruker/mnd og Enterprise er $39/bruker/mnd. Hver plan inkluderer AI Credits tilsvarende prisen. Code completions og Next Edit-forslag forblir inkludert og forbruker ikke credits. Fallback til billigere modeller ved uttømt kvote fjernes — i stedet styrer tilgjengelige credits og admin-budsjettkontroller bruken.
+
+For Business og Enterprise innføres «pooled usage» — ubrukte credits deles på tvers av organisasjonen. Eksisterende kunder får kampanjekreditter i juni, juli og august (Business: $30/mnd, Enterprise: $70/mnd). Administratorer får nye budsjettkontroller på enterprise-, kostnadssenter- og brukernivå. En «preview bill»-opplevelse lanseres i mai for å gi innsyn i forventede kostnader.
+
+**Kilde:** [GitHub Copilot is moving to usage-based billing](https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/) (GitHub Blog, 27. april 2026)
+
+---
+
+## 25. Code review bruker Actions-minutter fra 1. juni
+
+I forbindelse med overgangen til bruksbasert fakturering kunngjør GitHub at Copilots agentbaserte kodegjennomgang vil forbruke GitHub Actions-minutter fra 1. juni. Hvert review faktureres på to måter: AI Credits (som all annen Copilot-bruk) og Actions-minutter fra eksisterende planentitlement for private repoer.
+
+Offentlige repoer er ikke berørt — Actions-minutter forblir gratis der. Organisasjoner bør gjennomgå sitt Actions-minutterforbruk og budsjettgrenser, og vurdere om de vil bruke større GitHub-hosted runners eller self-hosted runners (som faktureres annerledes). Ingen ekstra konfigurasjon er nødvendig for de som allerede har GitHub-hosted runners aktivert.
+
+**Kilde:** [GitHub Copilot code review will start consuming GitHub Actions minutes on June 1, 2026](https://github.blog/changelog/2026-04-27-github-copilot-code-review-will-start-consuming-github-actions-minutes-on-june-1-2026) (GitHub Changelog, 27. april 2026)
+
+---
+
+## 26. Cloud agent starter 20 % raskere
+
+Copilot cloud agent starter nå over 20 % raskere takket være forhåndsbygde runner-miljøer med GitHub Actions custom images. Når du tildeler en issue til Copilot, starter en oppgave fra Agents-fanen, eller nevner `@copilot` i en PR, spinnes et skymiljø opp for å gjøre jobben. Ved å forhåndsbygge det miljøet med en custom Actions-image er oppstartskostnadene kuttet betydelig.
+
+Dette bygger på 50 %-forbedringen fra mars og fortsetter å korte ned tilbakemeldingsløkken for cloud agent-brukere. Samlet er oppstartstiden nå over 60 % raskere enn ved starten av 2026.
+
+**Kilde:** [Copilot cloud agent starts 20% faster with Actions custom images](https://github.blog/changelog/2026-04-27-copilot-cloud-agent-starts-20-faster-with-actions-custom-images) (GitHub Changelog, 27. april 2026)
+
+---
+
+## 27. VS Code 1.118 — Agents-app, semantisk søk og token-effektivitet
+
+VS Code 1.118 (29. april) er en stor release for Copilot med fokus på effektivitet og nye agentopplevelser.
+
+**VS Code Agents-appen** (Insiders) er en dedikert følgeapp for parallelle agentsesjoner. Du kan starte den fra tittellinjen i VS Code, dele autentisering og innstillinger, og bruke den fra nettleseren via Dev Tunnels. Claude agent er nå tilgjengelig i Agents-appen sammen med Copilot CLI og cloud agent.
+
+**Semantisk indeksering** er nå tilgjengelig i alle arbeidsrom — ikke bare GitHub/ADO-repoer. Det gir agenten bedre kontekst ved å søke etter mening, ikke bare eksakte strenger.
+
+**Token-effektivitet** er et gjennomgående tema. Et nytt «tool search»-verktøy holder bare ~30 kjernevektøy i konteksten og laster resten on-demand, med opptil 20 % token-besparelse. Agentic search tool og agentic execution tool er spesialiserte sub-agenter drevet av mindre modeller som håndterer kodesøk og terminalkommandoer til lavere kostnad. WebSockets for OpenAI-modeller gir 12 % raskere respons. Prompt caching er forbedret slik at over 93 % av hver forespørsel gjenbrukes fra cache i lengre sesjoner.
+
+Andre nyheter: **Chronicle** (eksperimentell) indekserer chathistorikken i lokal SQLite for standup-rapporter og brukstips; **dedicated context for skills** isolerer skill-kjøring i en subagent; og en ny enterprise-policy (`ChatApprovedAccountOrganizations`) krever godkjent organisasjonsmedlemskap før AI-funksjoner aktiveres.
+
+**Kilde:** [Visual Studio Code 1.118 Release Notes](https://code.visualstudio.com/updates/v1_118) (VS Code, 29. april 2026)
+
+---
+
+## 28. Visual Studio april-oppdatering
+
+Visual Studio 2026 april-oppdateringen fokuserer på agentiske arbeidsflyter. **Cloud agent-integrasjon** lar deg starte nye cloud agent-sesjoner direkte fra IDE-en — velg «Cloud» fra agentvelgeren, beskriv oppgaven, og agenten oppretter issue og PR på remote-infrastruktur mens du jobber videre.
+
+**Debugger-agent** er en ny arbeidsflyt for agentic «issue to resolution». Start fra en GitHub- eller Azure DevOps-issue, og agenten reproduserer feilen, instrumenterer koden, diagnostiserer og foreslår en målrettet fiks gjennom faktisk kjøring — validert mot live kjøretidsatferd.
+
+Custom agents støtter nå brukerdefinisjoner lagret i `%USERPROFILE%/.github/agents/`, slik at personlige agenter følger deg på tvers av prosjekter. Agent skills oppdages fra flere steder inkludert `.claude/skills/` og `.agents/skills/` i tillegg til `.github/skills/`.
+
+**Kilde:** [GitHub Copilot in Visual Studio — April update](https://github.blog/changelog/2026-04-30-github-copilot-in-visual-studio-april-update) (GitHub Changelog, 30. april 2026)
+
+---
+
 ## Relevans for Nav
 
 | Trend | Hva det betyr for Nav |
@@ -314,3 +389,10 @@ Nye instruksjoner på Atlassian space-nivå lar deg sette standardverdier for ta
 | Copilot Chat med PR-kontekst | Strukturert review og oppsummering rett i github.com. Kan supplere code review-prosessen uten å forlate nettleseren. |
 | Copilot for Jira | Relevant for Nav-team som bruker Jira med GitHub. Custom agents og space-instruksjoner gir konsistent agentoppførsel på tvers av tickets. |
 | Metrikk-URL-endring | copilot-metrics-appen bør oppdateres til `copilot-reports.github.com` før 20. mai. `used_copilot_cloud_agent`-feltet bør tas i bruk før august. |
+| GPT-5.5 GA | Ny toppmodell for agentoppgaver. Enterprise-admin må aktivere policyen. 7,5× multiplikator gjør den dyr — test på komplekse oppgaver der billigere modeller feiler. |
+| Bruksbasert fakturering | Nav bruker Enterprise — pool-baserte credits erstatter PRU-er fra 1. juni. Administratorer bør sette budsjettkontroller og følge med på «preview bill» i mai. |
+| Code review + Actions-minutter | Nav må budsjettere Actions-minutter for agentbasert code review i private repoer. Gjennomgå eksisterende minutt-entitlement og budsjettkontroller. |
+| Cloud agent 20 % raskere | Samlet 60 %+ raskere oppstart i 2026. Kortere feedback-loop gjør cloud agent mer praktisk for daglig bruk. |
+| VS Code 1.118 token-effektivitet | Lavere token-forbruk betyr lavere kostnad under ny bruksbasert modell. Oppdater VS Code for å dra nytte av automatiske besparelser. |
+| VS Code Agents-appen | Parallelle agentsesjoner og web-tilgang via Dev Tunnels. Relevant for utviklere som jobber med flere oppgaver samtidig. |
+| Visual Studio debugger-agent | Relevant for .NET-team i Nav som bruker Visual Studio. Automatisert feilsøking fra issue til fiks. |
