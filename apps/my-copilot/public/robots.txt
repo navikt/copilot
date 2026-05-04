@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Private routes (require authentication)
+Disallow: /statistikk
+Disallow: /adopsjon
+Disallow: /kostnad
+Disallow: /abonnement
+Disallow: /kalkulator
+Disallow: /api/
+
+# Next.js build files (crawl budget)
+Disallow: /_next/
+Disallow: /*.json$
+
+Sitemap: https://ki-utvikling.nav.no/sitemap.xml

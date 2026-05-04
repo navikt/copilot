@@ -10,8 +10,19 @@ import { FooterMessage } from "@/components/footer-message";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Oh-My-Nav",
+  title: {
+    template: "%s — Oh-My-Nav",
+    default: "Oh-My-Nav",
+  },
   description: "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.",
+  metadataBase: new URL("https://ki-utvikling.nav.no"),
+  openGraph: {
+    type: "website",
+    locale: "nb_NO",
+    siteName: "Oh-My-Nav",
+    title: "Oh-My-Nav",
+    description: "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.",
+  },
 };
 
 export default async function RootLayout({
@@ -62,8 +73,11 @@ export default async function RootLayout({
             <HStack justify="space-between" align="center" wrap gap="space-8">
               <FooterMessage />
               <HStack gap="space-16">
-                <Link href="https://docs.github.com/en/copilot" className="text-gray-400 hover:text-white text-sm">
-                  Dokumentasjon
+                <Link href="/personvern" className="text-gray-400 hover:text-white text-sm">
+                  Personvern
+                </Link>
+                <Link href="/tilgjengelighet" className="text-gray-400 hover:text-white text-sm">
+                  Tilgjengelighet
                 </Link>
                 <Link href="https://github.com/navikt/copilot" className="text-gray-400 hover:text-white text-sm">
                   GitHub

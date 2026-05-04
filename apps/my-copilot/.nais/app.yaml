@@ -31,6 +31,8 @@ spec:
       - /*.svg
       - /*.png
       - /favicon.ico
+      - /robots.txt
+      - /sitemap.xml
       # All page routes — auth is handled in the application layer.
       # This lets Next.js show login redirects instead of raw Wonderwall intercepts.
       - /
@@ -46,6 +48,8 @@ spec:
       - /nav-pilot/**
       - /install
       - /install/**
+      - /personvern
+      - /tilgjengelighet
       - /statistikk
       - /statistikk/**
       - /adopsjon
