@@ -22,7 +22,7 @@ export default async function RootLayout({
   const user = await getUser(false);
 
   return (
-    <html lang="en">
+    <html lang="nb">
       <body className={`${inter.className} bg-gray-800`}>
         <header style={{ background: "#0f1825" }}>
           <Box
