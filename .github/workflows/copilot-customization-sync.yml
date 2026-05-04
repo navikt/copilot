@@ -84,8 +84,10 @@ jobs:
           fi
 
           # Run sync and capture exit code (stdout = JSON, stderr = log)
+          # Write to RUNNER_TEMP to avoid including the file in the PR commit
+          SYNC_RESULT="$RUNNER_TEMP/sync-result.json"
           set +e
-          nav-pilot sync $SYNC_FLAGS > sync-result.json
+          nav-pilot sync $SYNC_FLAGS > "$SYNC_RESULT"
           EXIT_CODE=$?
           set -e
 
@@ -93,13 +95,13 @@ jobs:
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
           elif [[ $EXIT_CODE -eq 2 ]]; then
             echo "::error::nav-pilot sync encountered errors"
-            cat sync-result.json
+            cat "$SYNC_RESULT"
             exit 1
           elif [[ $EXIT_CODE -eq 1 ]]; then
             # Verify we got valid JSON before treating as "updates available"
-            if ! jq empty sync-result.json &>/dev/null; then
+            if ! jq empty "$SYNC_RESULT" &>/dev/null; then
               echo "::error::nav-pilot sync failed (no valid JSON output)"
-              cat sync-result.json
+              cat "$SYNC_RESULT"
               exit 1
             fi
 
@@ -108,17 +110,17 @@ jobs:
             # Build PR body from JSON result
             {
               echo "body_lines<<BODY_EOF"
-              jq -r '.updates[].path' sync-result.json | while read -r f; do
+              jq -r '.updates[].path' "$SYNC_RESULT" | while read -r f; do
                 echo "- \`$f\`"
               done
               echo "BODY_EOF"
             } >> "$GITHUB_OUTPUT"
 
-            UPDATE_COUNT=$(jq '.updates | length' sync-result.json)
+            UPDATE_COUNT=$(jq '.updates | length' "$SYNC_RESULT")
             echo "update_count=$UPDATE_COUNT" >> "$GITHUB_OUTPUT"
           else
             echo "::error::nav-pilot sync failed with unexpected exit code $EXIT_CODE"
-            cat sync-result.json
+            cat "$SYNC_RESULT"
             exit 1
           fi
 
