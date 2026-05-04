@@ -1,4 +1,6 @@
 mcp_registry_host: mcp-registry.ekstern.dev.nav.no
 mcp_registry_url: https://mcp-registry.ekstern.dev.nav.no
+internal_host: min-copilot.ansatt.dev.nav.no
 ingresses:
-  - "https://min-copilot.intern.dev.nav.no"
+  - "https://ki-utvikling.ekstern.dev.nav.no"
+  - "https://min-copilot.ansatt.dev.nav.no"

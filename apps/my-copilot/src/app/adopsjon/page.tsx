@@ -16,6 +16,7 @@ import TeamTable from "@/components/team-table";
 import { formatNumber } from "@/lib/format";
 import { calculateTeamStats, calculateLanguageStats, formatAdoptionRate, formatScanDate } from "@/lib/adoption-utils";
 import type { AdoptionData } from "@/lib/types";
+import { getUser } from "@/lib/auth";
 
 // Static header component
 function AdoptionHeader() {
@@ -258,7 +259,9 @@ async function CachedAdoptionData() {
   );
 }
 
-export default function AdoptionPage() {
+export default async function AdoptionPage() {
+  await getUser();
+
   return (
     <>
       <AdoptionHeader />

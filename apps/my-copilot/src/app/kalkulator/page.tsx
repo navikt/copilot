@@ -3,6 +3,7 @@ import { Box, Heading, BodyShort, VStack, Skeleton, HGrid } from "@navikt/ds-rea
 import { getCachedCopilotBilling, getCachedPremiumRequestUsage } from "@/lib/cached-github";
 import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
 import { calculatePremiumMetrics } from "@/lib/billing-utils";
+import { getUser } from "@/lib/auth";
 import { getCLIMetrics } from "@/lib/data-utils";
 import CalculatorContent from "@/components/calculator-content";
 import type { ModelPremiumData, CLIData } from "@/lib/billing-calculator";
@@ -96,7 +97,9 @@ async function CalculatorData() {
   );
 }
 
-export default function KalkulatorPage() {
+export default async function KalkulatorPage() {
+  await getUser();
+
   return (
     <main>
       <KalkulatorHeader />

@@ -2,6 +2,7 @@ import { getCachedCopilotBilling } from "@/lib/cached-github";
 import { Suspense } from "react";
 import { Skeleton, Heading, BodyShort, Box } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
+import { getUser } from "@/lib/auth";
 
 function currencyFormat(num: number) {
   return `$${num.toFixed(2).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")} USD`;
@@ -135,7 +136,9 @@ async function BillingOverview() {
 }
 
 // Main page component using Partial Prerendering
-export default function Overview() {
+export default async function Overview() {
+  await getUser();
+
   return (
     <main>
       <OverviewHeader />

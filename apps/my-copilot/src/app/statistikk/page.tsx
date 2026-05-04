@@ -41,6 +41,7 @@ import {
 } from "@/lib/data-utils";
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
+import { getUser } from "@/lib/auth";
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -1090,6 +1091,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
 
 // Main page component using Partial Prerendering
 export default async function Usage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  await getUser();
   const params = await searchParams;
   const parsedDays = parseInt(params.days || "28", 10);
   const days = isNaN(parsedDays) ? 28 : parsedDays <= 0 ? 0 : Math.min(parsedDays, 365);

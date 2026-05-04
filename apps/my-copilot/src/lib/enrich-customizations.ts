@@ -52,8 +52,16 @@ function buildUsageMap(usage: CustomizationUsage[]): Map<string, CustomizationUs
 /**
  * Enrich catalog items with usage data from BigQuery.
  * Items without matching usage data get usageCount: 0 and usedBy: [].
+ * If usage is undefined (e.g. unauthenticated user), all items get 0 usage.
  */
-export function enrichWithUsage(items: AnyCustomization[], usage: CustomizationUsage[]): EnrichedCustomization[] {
+export function enrichWithUsage(
+  items: AnyCustomization[],
+  usage: CustomizationUsage[] | undefined
+): EnrichedCustomization[] {
+  if (!usage) {
+    return items.map((item) => ({ ...item, usageCount: 0, usedBy: [] }));
+  }
+
   const usageMap = buildUsageMap(usage);
 
   return items.map((item) => {

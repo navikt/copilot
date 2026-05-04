@@ -26,10 +26,28 @@ spec:
       enabled: true
       autoLogin: true
       autoLoginIgnorePaths:
+      # Static assets
       - /_next/**
       - /*.svg
+      - /*.png
       - /favicon.ico
+      # Public content routes (no login required)
+      - /
+      - /nyheter
+      - /nyheter/**
+      - /praksis
+      - /praksis/**
+      - /verktoy
+      - /verktoy/**
+      - /ordliste
+      - /ordliste/**
+      - /nav-pilot
+      - /nav-pilot/**
+      - /install
       - /install/**
+      # Health/metrics
+      - /health
+      - /metrics
   observability:
     autoInstrumentation:
       enabled: true
@@ -62,6 +80,8 @@ spec:
       value: "copilot_metrics"
     - name: BIGQUERY_TABLE
       value: "usage_metrics"
+    - name: INTERNAL_HOST
+      value: "{{internal_host}}"
   liveness:
     path: "/health"
     port: 3000
