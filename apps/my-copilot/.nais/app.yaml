@@ -31,7 +31,8 @@ spec:
       - /*.svg
       - /*.png
       - /favicon.ico
-      # Public content routes (no login required)
+      # All page routes — auth is handled in the application layer.
+      # This lets Next.js show login redirects instead of raw Wonderwall intercepts.
       - /
       - /nyheter
       - /nyheter/**
@@ -45,9 +46,20 @@ spec:
       - /nav-pilot/**
       - /install
       - /install/**
+      - /statistikk
+      - /statistikk/**
+      - /adopsjon
+      - /adopsjon/**
+      - /kostnad
+      - /kostnad/**
+      - /abonnement
+      - /abonnement/**
+      - /kalkulator
+      - /kalkulator/**
       # Health/metrics
       - /health
       - /metrics
+      # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs
   observability:
     autoInstrumentation:
       enabled: true
@@ -80,8 +92,6 @@ spec:
       value: "copilot_metrics"
     - name: BIGQUERY_TABLE
       value: "usage_metrics"
-    - name: INTERNAL_HOST
-      value: "{{internal_host}}"
   liveness:
     path: "/health"
     port: 3000

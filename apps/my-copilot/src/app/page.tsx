@@ -4,7 +4,7 @@ import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon, PadlockLockedIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
 import { NewsCard, FeaturedNewsCard } from "@/components/news-card";
-import { NAV_ITEMS, INTERNAL_HOST } from "@/lib/nav-items";
+import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
 
@@ -36,7 +36,7 @@ export default async function Home() {
               {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => (
                 <NavPill
                   key={href}
-                  href={requiresAuth && !user ? `https://${INTERNAL_HOST}${href}` : href}
+                  href={href}
                   icon={<Icon aria-hidden fontSize="1rem" />}
                   label={label}
                   locked={requiresAuth && !user}

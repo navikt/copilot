@@ -1,36 +1,44 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PRIVATE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement", "/kalkulator"];
+const PRIVATE_PAGE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement", "/kalkulator"];
 
 const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption"];
 
-const INTERNAL_HOST = process.env.INTERNAL_HOST ?? "min-copilot.ansatt.nav.no";
-
 export function isPrivatePath(pathname: string): boolean {
   return (
-    PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+    PRIVATE_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     PRIVATE_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
   );
 }
 
-function isInternalHost(host: string): boolean {
-  const normalized = host.split(":")[0];
-  return normalized === INTERNAL_HOST;
+function isPrivateApiPath(pathname: string): boolean {
+  return PRIVATE_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
 export function middleware(request: NextRequest) {
-  const host = request.headers.get("host") ?? "";
   const pathname = request.nextUrl.pathname;
 
-  // On public domain, redirect private routes to internal domain
-  if (!isInternalHost(host) && isPrivatePath(pathname)) {
-    const url = new URL(pathname, `https://${INTERNAL_HOST}`);
-    url.search = request.nextUrl.search;
-    return NextResponse.redirect(url);
+  if (!isPrivatePath(pathname)) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // If user is authenticated (Wonderwall sets Authorization header), pass through
+  const hasAuth = request.headers.get("Authorization");
+  if (hasAuth) {
+    return NextResponse.next();
+  }
+
+  // Private API routes without auth: 401
+  if (isPrivateApiPath(pathname)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Private page routes without auth: redirect to login
+  // Nav users (90%) get instant SSO via Azure AD — zero friction
+  const loginUrl = new URL("/oauth2/login", request.url);
+  loginUrl.searchParams.set("redirect", pathname + request.nextUrl.search);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {

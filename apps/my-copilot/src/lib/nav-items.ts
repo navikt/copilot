@@ -26,5 +26,3 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/abonnement", icon: PersonIcon, label: "Abonnement", requiresAuth: true },
   { href: "/ordliste", icon: InformationSquareIcon, label: "Ordliste" },
 ];
-
-export const INTERNAL_HOST = process.env.INTERNAL_HOST ?? "min-copilot.ansatt.nav.no";
