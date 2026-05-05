@@ -232,10 +232,7 @@ export default function Resources() {
             </li>
             <li className="flex gap-2">
               <span className="text-blue-600">▪</span>
-              <a
-                href="/ordliste"
-                className="text-blue-600 hover:underline text-sm"
-              >
+              <a href="/ordliste" className="text-blue-600 hover:underline text-sm">
                 Ordliste – begreper og forkortelser i Copilot-økosystemet
               </a>
             </li>

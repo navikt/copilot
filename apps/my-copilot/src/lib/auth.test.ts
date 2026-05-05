@@ -94,9 +94,7 @@ describe("getUser", () => {
 
     it("redirects on invalid token when shouldRedirect is true", async () => {
       mockHeaders("Bearer expired-token");
-      fetchMock.mockResolvedValueOnce(
-        new Response(JSON.stringify({ active: false, error: "token is expired" }))
-      );
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ active: false, error: "token is expired" })));
 
       await expect(getUser(true)).rejects.toThrow("NEXT_REDIRECT");
       expect(redirect).toHaveBeenCalledWith("/oauth2/login");
@@ -104,9 +102,7 @@ describe("getUser", () => {
 
     it("returns null on inactive token (shouldRedirect=false)", async () => {
       mockHeaders("Bearer invalid-token");
-      fetchMock.mockResolvedValueOnce(
-        new Response(JSON.stringify({ active: false, error: "token is expired" }))
-      );
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ active: false, error: "token is expired" })));
 
       const user = await getUser(false);
       expect(user).toBeNull();
@@ -205,9 +201,7 @@ describe("getUser", () => {
     it("handles missing groups in response", async () => {
       mockHeaders("Bearer valid-token");
       fetchMock.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ active: true, name: "Test, User", preferred_username: "user@nav.no" })
-        )
+        new Response(JSON.stringify({ active: true, name: "Test, User", preferred_username: "user@nav.no" }))
       );
 
       const user = await getUser(false);
@@ -216,9 +210,7 @@ describe("getUser", () => {
 
     it("handles missing preferred_username in response", async () => {
       mockHeaders("Bearer valid-token");
-      fetchMock.mockResolvedValueOnce(
-        new Response(JSON.stringify({ active: true, name: "Test, User", groups: [] }))
-      );
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ active: true, name: "Test, User", groups: [] })));
 
       const user = await getUser(false);
       expect(user!.email).toBe("");

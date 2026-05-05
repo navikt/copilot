@@ -5,15 +5,20 @@
  * without needing Azure AD or a real Wonderwall setup.
  *
  * Usage:
- *   npx tsx scripts/mock-texas.ts
+ *   pnpm tsx scripts/mock-texas.ts
  *
  * Then start the app with:
  *   NAIS_TOKEN_INTROSPECTION_ENDPOINT=http://localhost:6969/introspect pnpm dev
+ *
+ * Or use the combined command:
+ *   mise dev:auth
  *
  * Any token sent to the introspection endpoint will be treated as valid
  * and return a mock Nav user. Send "expired" or "invalid" as the token
  * to test error cases.
  */
+
+import { createServer } from "node:http";
 
 const MOCK_USER = {
   name: "Flaatten, Hans Kristian",
@@ -31,10 +36,7 @@ const MOCK_USER = {
 
 const port = Number(process.env.PORT ?? 6969);
 
-// Node.js http server
-import { createServer } from "node:http";
-
-const httpServer = createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/introspect") {
     const chunks: Buffer[] = [];
     for await (const chunk of req) {
@@ -77,7 +79,7 @@ const httpServer = createServer(async (req, res) => {
   res.end("Not found");
 });
 
-httpServer.listen(port, () => {
+server.listen(port, () => {
   console.log(`\n🤠 Mock Texas introspection server running on http://localhost:${port}/introspect`);
   console.log(`\nTo use with the app:`);
   console.log(`  NAIS_TOKEN_INTROSPECTION_ENDPOINT=http://localhost:${port}/introspect pnpm dev\n`);
