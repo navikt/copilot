@@ -232,36 +232,49 @@ export default function ToolsAndModes() {
             Modellvalg og kostnader
           </Heading>
         </div>
+        <Box background="warning-soft" padding="space-12" borderRadius="8" className="mb-4">
+          <BodyShort size="small">
+            <strong>Nytt kostnadsregime:</strong> GitHub går over til bruksbasert prising. Vi forventer omtrent 3×
+            kostnadsøkning for organisasjonen. Bruk modellene bevisst — velg <strong>Auto</strong> eller inkluderte
+            modeller der det er tilstrekkelig.
+          </BodyShort>
+        </Box>
         <BodyShort className="text-gray-600 text-sm mb-5">
-          Du har <strong>300 premium requests</strong> per måned. <strong>Auto</strong> gir 10 % rabatt og velger beste
-          modell automatisk. Multiplikatoren (1x, 3x, 0.33x) viser hvor mange requests som trekkes per forespørsel.
+          Du har <strong>300 premium requests</strong> per måned. Inkluderte modeller (GPT-5 mini, GPT-4.1, GPT-4o)
+          bruker ingen premium requests. <strong>Auto</strong> gir 10 % rabatt og velger beste modell automatisk.
         </BodyShort>
         <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
           <div>
             <Label size="small" className="text-green-700">
+              Inkluderte (0x)
+            </Label>
+            <BodyShort className="text-gray-600 text-xs">
+              GPT-5 mini, GPT-4.1, GPT-4o — ingen premium requests
+            </BodyShort>
+          </div>
+          <div>
+            <Label size="small" className="text-green-700">
               Auto (10 % rabatt)
             </Label>
-            <BodyShort className="text-gray-600 text-xs">Anbefalt – velger optimal modell automatisk</BodyShort>
+            <BodyShort className="text-gray-600 text-xs">
+              Anbefalt – velger optimal modell, 0.9× multiplikator
+            </BodyShort>
           </div>
           <div>
-            <Label size="small">Claude Sonnet 4 / 4.5</Label>
-            <BodyShort className="text-gray-600 text-xs">Balansert – god til de fleste oppgaver (1x)</BodyShort>
+            <Label size="small">Claude Sonnet 4 / 4.5 / 4.6</Label>
+            <BodyShort className="text-gray-600 text-xs">Balansert – god til de fleste oppgaver (1×)</BodyShort>
           </div>
           <div>
-            <Label size="small">Claude Opus 4.5</Label>
-            <BodyShort className="text-gray-600 text-xs">Kraftigst – komplekse oppgaver (3x)</BodyShort>
+            <Label size="small">GPT-5.2 / 5.4</Label>
+            <BodyShort className="text-gray-600 text-xs">OpenAI premium – bred kunnskap (1×)</BodyShort>
           </div>
           <div>
-            <Label size="small">GPT-5.1 / 5.2</Label>
-            <BodyShort className="text-gray-600 text-xs">OpenAI – bred kunnskap (1x)</BodyShort>
+            <Label size="small">Claude Opus 4.5 / 4.6</Label>
+            <BodyShort className="text-gray-600 text-xs">Kraftigst – komplekse oppgaver (3×)</BodyShort>
           </div>
           <div>
-            <Label size="small">Gemini 2.5 Pro / 3 Pro</Label>
-            <BodyShort className="text-gray-600 text-xs">Google – stor kontekst (1x)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">Haiku 4.5 / Gemini Flash</Label>
-            <BodyShort className="text-gray-600 text-xs">Raske – enklere oppgaver (0.33x)</BodyShort>
+            <Label size="small">Haiku 4.5 / GPT-5.4 mini</Label>
+            <BodyShort className="text-gray-600 text-xs">Raske – enklere oppgaver (0.33×)</BodyShort>
           </div>
         </HGrid>
         <BodyShort className="text-gray-500 text-xs mt-3">
