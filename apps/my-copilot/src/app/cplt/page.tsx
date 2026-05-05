@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
 import NextLink from "next/link";
-import { AltInstall } from "@/components/alt-install";
 import { CpltConfigExplorer } from "@/components/cplt-config-explorer";
 import {
   ShieldLockIcon,
@@ -228,7 +227,20 @@ function HeroSection({ stars }: { stars: number | null }) {
               </code>
               <CopyButton copyText={INSTALL_COMMAND} size="xsmall" style={{ color: "white" }} />
             </div>
-            <AltInstall />
+            <NextLink
+              href="https://github.com/navikt/cplt/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: "0.8125rem",
+                color: "#64748b",
+                textDecoration: "underline",
+                textDecorationStyle: "dotted",
+                textUnderlineOffset: "2px",
+              }}
+            >
+              Linux / CI? Download from GitHub Releases →
+            </NextLink>
             <p style={{ color: "#a7f3d0", fontSize: "0.8125rem", margin: 0 }}>
               macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF)
             </p>
