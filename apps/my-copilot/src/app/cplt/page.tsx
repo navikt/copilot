@@ -857,46 +857,55 @@ function HowItWorksSection() {
             ))}
           </HGrid>
 
-          {/* Doctor output hint */}
-          <div
-            className="rounded-xl w-full max-w-2xl mx-auto overflow-hidden"
-            style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-          >
+          {/* Doctor output */}
+          <VStack gap="space-8" className="max-w-2xl mx-auto w-full">
+            <Heading size="xsmall" level="3" className="text-center">
+              Verify your setup
+            </Heading>
+            <p className="text-center" style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0 }}>
+              Run <code style={{ fontSize: "0.8rem" }}>cplt --doctor</code> to confirm all sandbox primitives are
+              available on your system.
+            </p>
             <div
-              className="flex items-center gap-2 px-4 py-2"
-              style={{ background: "#1e1e1e", borderBottom: "1px solid #333" }}
+              className="rounded-xl w-full overflow-hidden"
+              style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             >
-              <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
-                $ cplt --doctor
-              </span>
-            </div>
-            <pre
-              className="p-4 font-mono leading-relaxed overflow-x-auto"
-              style={{ margin: 0, fontSize: "0.75rem", color: "#d4d4d4", background: "#1e1e1e" }}
-            >
-              <span style={{ color: "#4ade80" }}>✓</span>
-              {` macOS sandbox (Seatbelt/SBPL)
+              <div
+                className="flex items-center gap-2 px-4 py-2"
+                style={{ background: "#1e1e1e", borderBottom: "1px solid #333" }}
+              >
+                <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                  $ cplt --doctor
+                </span>
+              </div>
+              <pre
+                className="p-4 font-mono leading-relaxed overflow-x-auto"
+                style={{ margin: 0, fontSize: "0.75rem", color: "#d4d4d4", background: "#1e1e1e" }}
+              >
+                <span style={{ color: "#4ade80" }}>✓</span>
+                {` macOS sandbox (Seatbelt/SBPL)
 `}
-              <span style={{ color: "#4ade80" }}>✓</span>
-              {` CONNECT proxy ready
+                <span style={{ color: "#4ade80" }}>✓</span>
+                {` CONNECT proxy ready
 `}
-              <span style={{ color: "#4ade80" }}>✓</span>
-              {` Credential paths blocked
+                <span style={{ color: "#4ade80" }}>✓</span>
+                {` Credential paths blocked
 `}
-              <span style={{ color: "#4ade80" }}>✓</span>
-              {` Environment sanitized
+                <span style={{ color: "#4ade80" }}>✓</span>
+                {` Environment sanitized
 `}
-              <span style={{ color: "#4ade80" }}>✓</span>
-              {` Git hooks protected
+                <span style={{ color: "#4ade80" }}>✓</span>
+                {` Git hooks protected
 `}
-              <span style={{ color: "#4ade80" }}>✓</span>
-              {` Copilot CLI found
+                <span style={{ color: "#4ade80" }}>✓</span>
+                {` Copilot CLI found
 
 `}
-              <span style={{ color: "#4ade80" }}>All checks passed.</span>
-              {` Your sandbox is ready.`}
-            </pre>
-          </div>
+                <span style={{ color: "#4ade80" }}>All checks passed.</span>
+                {` Your sandbox is ready.`}
+              </pre>
+            </div>
+          </VStack>
 
           <div className="flex flex-col items-center gap-3">
             <NextLink
