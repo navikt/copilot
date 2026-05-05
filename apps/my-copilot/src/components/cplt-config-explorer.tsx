@@ -6,7 +6,7 @@ import type { CpltConfigKey } from "@/lib/cplt-config";
 
 type ConfigItem = CpltConfigKey & { example: string };
 
-const SECTIONS = ["all", "proxy", "sandbox", "allow", "deny"] as const;
+const SECTIONS = ["proxy", "sandbox", "allow", "deny"] as const;
 type Section = (typeof SECTIONS)[number];
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -36,17 +36,17 @@ function makeExample(item: CpltConfigKey): string {
 
 export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[] }) {
   const [search, setSearch] = useState("");
-  const [activeSection, setActiveSection] = useState<Section>("all");
+  const [activeSection, setActiveSection] = useState<Section | "all" | null>(null);
 
   const items: ConfigItem[] = useMemo(() => configKeys.map((k) => ({ ...k, example: makeExample(k) })), [configKeys]);
 
-  const hasActiveFilter = search.length > 0 || activeSection !== "all";
+  const hasActiveFilter = search.length > 0 || activeSection !== null;
 
   const filtered = useMemo(() => {
     if (!hasActiveFilter) return [];
     const q = search.toLowerCase();
     return items.filter((item) => {
-      if (activeSection !== "all" && item.section !== activeSection) return false;
+      if (activeSection !== null && activeSection !== "all" && item.section !== activeSection) return false;
       if (!q) return true;
       return item.key.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
     });
@@ -72,10 +72,10 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
           }}
         />
         <div className="flex gap-1.5 flex-wrap">
-          {SECTIONS.map((s) => (
+          {(["all", ...SECTIONS] as const).map((s) => (
             <button
               key={s}
-              onClick={() => setActiveSection(s)}
+              onClick={() => setActiveSection(activeSection === s ? null : s)}
               className="rounded-full font-medium cursor-pointer"
               style={{
                 padding: "0.375rem 0.875rem",
