@@ -55,7 +55,7 @@ export default async function RootLayout({
               ) : (
                 <Link
                   href="/oauth2/login"
-                  className="text-white/70 text-sm no-underline hover:text-white transition-colors"
+                  className="text-white/90 text-sm no-underline hover:text-white transition-colors"
                 >
                   Logg inn
                 </Link>
@@ -73,13 +73,13 @@ export default async function RootLayout({
             <HStack justify="space-between" align="center" wrap gap="space-8">
               <FooterMessage />
               <HStack gap="space-16">
-                <Link href="/personvern" className="text-gray-400 hover:text-white text-sm">
+                <Link href="/personvern" className="text-white/90 hover:text-white text-sm">
                   Personvern
                 </Link>
-                <Link href="/tilgjengelighet" className="text-gray-400 hover:text-white text-sm">
+                <Link href="/tilgjengelighet" className="text-white/90 hover:text-white text-sm">
                   Tilgjengelighet
                 </Link>
-                <Link href="https://github.com/navikt/copilot" className="text-gray-400 hover:text-white text-sm">
+                <Link href="https://github.com/navikt/copilot" className="text-white/90 hover:text-white text-sm">
                   GitHub
                 </Link>
               </HStack>
