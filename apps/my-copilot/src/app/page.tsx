@@ -3,7 +3,7 @@ import React from "react";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon, PadlockLockedIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
-import { NewsCard, FeaturedNewsCard } from "@/components/news-card";
+import { NewsFeed } from "@/components/news-feed";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
@@ -11,8 +11,6 @@ import { getUser } from "@/lib/auth";
 export default async function Home() {
   const user = await getUser(false);
   const news = getNewsItems();
-  const featured = news[0];
-  const rest = news.slice(1);
 
   return (
     <main>
@@ -58,14 +56,7 @@ export default async function Home() {
                 Siste nytt
               </Heading>
               <VStack gap="space-12">
-                {featured && <FeaturedNewsCard item={featured} />}
-                {rest.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 grid-flow-dense gap-3">
-                    {rest.map((item) => (
-                      <NewsCard key={item.slug} item={item} />
-                    ))}
-                  </div>
-                )}
+                <NewsFeed items={news} />
               </VStack>
             </Box>
 

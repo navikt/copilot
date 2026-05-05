@@ -2,9 +2,9 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 
-export type NewsCategory = "copilot" | "nav" | "nav-pilot" | "praksis";
+export type NewsCategory = "copilot" | "nav" | "nav-pilot" | "praksis" | "oppsummering";
 
-const VALID_CATEGORIES: Set<string> = new Set<string>(["copilot", "nav", "nav-pilot", "praksis"]);
+const VALID_CATEGORIES: Set<string> = new Set<string>(["copilot", "nav", "nav-pilot", "praksis", "oppsummering"]);
 
 function isValidCategory(value: unknown): value is NewsCategory {
   return typeof value === "string" && VALID_CATEGORIES.has(value);
@@ -110,9 +110,13 @@ export function getArticleSlugs(): string[] {
     .filter((s): s is string => s !== null);
 }
 
-export const CATEGORY_CONFIG: Record<NewsCategory, { label: string; variant: "info" | "success" | "warning" }> = {
+export const CATEGORY_CONFIG: Record<
+  NewsCategory,
+  { label: string; variant: "info" | "success" | "warning" | "neutral" }
+> = {
   copilot: { label: "Copilot", variant: "info" },
   nav: { label: "Nav", variant: "success" },
   "nav-pilot": { label: "Nav-pilot", variant: "info" },
   praksis: { label: "Praksis", variant: "warning" },
+  oppsummering: { label: "Oppsummering", variant: "neutral" },
 };

@@ -2,7 +2,7 @@
 title: "Nyheter og trender — April 2026"
 date: 2026-05-01
 draft: false
-category: copilot
+category: oppsummering
 excerpt: "Ny kostnadsmodell for Copilot fra 1. juni, EU-dataopphold med EFTA-dekning, Autopilot-modus i VS Code, gh skill CLI, Dependabot kan tildeles AI-agenter, Claude Opus 4.7 og GPT-5.5 GA, agentsesjoner i Issues og Projects."
 tags:
   - billing
