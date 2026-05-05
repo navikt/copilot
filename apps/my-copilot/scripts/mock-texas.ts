@@ -23,10 +23,7 @@ import { createServer } from "node:http";
 const MOCK_USER = {
   name: "Flaatten, Hans Kristian",
   preferred_username: "hans.kristian.flaatten@nav.no",
-  groups: [
-    "48120347-8582-4329-8673-7beb3ed6ca06",
-    "76e9ee7e-2cd1-4814-b199-6c0be007d7b4",
-  ],
+  groups: ["48120347-8582-4329-8673-7beb3ed6ca06", "76e9ee7e-2cd1-4814-b199-6c0be007d7b4"],
   sub: "mock-subject-id",
   aud: "mock-client-id",
   iss: "https://login.microsoftonline.com/mock-tenant/v2.0",
