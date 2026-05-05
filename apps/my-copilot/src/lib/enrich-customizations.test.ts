@@ -88,4 +88,18 @@ describe("enrichWithUsage", () => {
     expect(result[0].usageCount).toBe(7);
     expect(result[0].usedBy).toEqual(["repo-x"]);
   });
+
+  it("returns zero usage for all items when usage is undefined (unauthenticated)", () => {
+    const items: AnyCustomization[] = [
+      makeItem({ type: "agent", name: "nais-platform", filePath: ".github/agents/nais-platform.agent.md" }),
+      makeItem({ type: "agent", name: "other-agent", filePath: ".github/agents/other-agent.agent.md" }),
+    ];
+
+    const result = enrichWithUsage(items, undefined);
+    expect(result).toHaveLength(2);
+    expect(result[0].usageCount).toBe(0);
+    expect(result[0].usedBy).toEqual([]);
+    expect(result[1].usageCount).toBe(0);
+    expect(result[1].usedBy).toEqual([]);
+  });
 });

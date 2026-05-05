@@ -1,5 +1,4 @@
 import { getCopilotBilling } from "@/lib/github";
-import { getEngagementMetrics } from "@/lib/metrics";
 
 export async function GET() {
   const { billing, error } = await getCopilotBilling("navikt");
@@ -32,10 +31,7 @@ copilot_seats_active_this_cycle ${billing.seat_breakdown.active_this_cycle || 0}
 # TYPE copilot_seats_inactive_this_cycle gauge
 copilot_seats_inactive_this_cycle ${billing.seat_breakdown.inactive_this_cycle || 0}`;
 
-  const engagement = getEngagementMetrics();
-  const allMetrics = [billingMetrics, engagement].filter(Boolean).join("\n\n");
-
-  return new Response(allMetrics + "\n", {
+  return new Response(billingMetrics + "\n", {
     headers: { "Content-Type": "text/plain" },
   });
 }

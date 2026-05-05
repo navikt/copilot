@@ -34,8 +34,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Private page routes without auth: redirect to login
-  // Nav users (90%) get instant SSO via Azure AD — zero friction
+  // Private page routes without auth: redirect to Wonderwall login
   const loginUrl = new URL("/oauth2/login", request.url);
   loginUrl.searchParams.set("redirect", pathname + request.nextUrl.search);
   return NextResponse.redirect(loginUrl);

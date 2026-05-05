@@ -60,9 +60,8 @@ spec:
       - /abonnement/**
       - /kalkulator
       - /kalkulator/**
-      # Health/metrics
+      # Health (metrics NOT listed — Wonderwall blocks public access, Prometheus scrapes pod directly)
       - /health
-      - /metrics
       # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs
   observability:
     autoInstrumentation:
