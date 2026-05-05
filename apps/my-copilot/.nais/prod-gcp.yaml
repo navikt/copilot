@@ -2,4 +2,5 @@ mcp_registry_host: mcp-registry.nav.no
 mcp_registry_url: https://mcp-registry.nav.no
 ingresses:
   - "https://ki-utvikling.nav.no"
+  - "https://min-copilot.intern.nav.no"
   - "https://min-copilot.ansatt.nav.no"
