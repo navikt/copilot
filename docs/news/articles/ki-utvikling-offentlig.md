@@ -9,11 +9,15 @@ tags:
   - launch
 ---
 
-Siden lanseringen har Oh-My-Nav vært et internt verktøy bak Navs bedriftsinnlogging. Nå åpner vi dørene. Fra i dag er mesteparten av innholdet tilgjengelig for alle på **ki-utvikling.nav.no** — uten innlogging.
+Nav har lenge hatt en tydelig holdning til åpen kildekode: offentlig finansierte løsninger bør være offentlig tilgjengelig. Koden til [Nais](https://nais.io), [Aksel](https://aksel.nav.no) og hundrevis av andre repoer ligger åpent på GitHub — ikke primært for gjenbruk, men fordi åpenhet bygger tillit.
+
+Til nå har Oh-My-Nav vært et rent internt verktøy, gjemt bak bedriftsinnlogging. Det ga mening da innholdet var statistikk og abonnementshåndtering. Men etter hvert som vi har bygget ut nyheter, beste praksis og verktøyoversikter, har vi innsett at det meste av innholdet er nyttig for alle som jobber med AI-kodeverktøy — ikke bare Nav-ansatte.
+
+Så fra i dag er mesteparten av innholdet tilgjengelig for alle på **ki-utvikling.nav.no**, uten innlogging.
 
 ## Hva er åpent?
 
-Alt som handler om å bli bedre med AI-kodeverktøy er nå offentlig:
+Alt som handler om å bli bedre med AI-kodeverktøy:
 
 - **Nyheter** — oppdateringer om modeller, verktøy og funksjoner
 - **Beste praksis** — retningslinjer for bevisst og effektiv AI-bruk
@@ -21,27 +25,22 @@ Alt som handler om å bli bedre med AI-kodeverktøy er nå offentlig:
 - **Ordliste** — begreper og forkortelser i Copilot-økosystemet
 - **Nav-pilot** — brukerveiledning for Copilot CLI
 
-## Hva krever fortsatt innlogging?
+## Hva forblir internt?
 
-Data som er spesifikke for Nav krever fortsatt innlogging:
+Interne data krever fortsatt Nav-innlogging: bruksstatistikk, adopsjonsoversikter, kostnader og abonnementshåndtering. Disse tallene er bare relevante for oss, og vi ønsker ikke å dele dem offentlig.
 
-- Bruksstatistikk og adopsjon
-- Kostnader og fakturering
-- Abonnementshåndtering
-- Kalkulator
+Nav-ansatte logger inn med vanlig knapp — Azure AD gir automatisk SSO på Nav-nettet, så det er null ekstra klikk.
 
-Nav-ansatte logger inn via den vanlige knappen — Azure AD gir automatisk SSO på Nav-nettet, så det er null ekstra klikk.
+## Hvorfor dele dette åpent?
 
-## Hvorfor åpne?
+Motivasjonen er den samme som for alt annet vi åpner: åpenhet skaper tillit, og deling skaper verdi. Konkret håper vi at
 
-Vi deler erfaringene våre fordi:
+- andre offentlige virksomheter som ruller ut AI-kodeverktøy kan lære av erfaringene våre — hva som fungerer, hva som ikke gjør det, og hvilke praksiser som hjelper utviklere bruke verktøyene ansvarlig
+- utviklermiljøet utenfor Nav kan bidra med perspektiver vi ikke har tenkt på
+- åpenhet om hvordan vi bruker AI-verktøy gir innsyn i en teknologi mange har spørsmål om
 
-1. **Gjenbruk** — andre offentlige virksomheter kan bruke det vi har lært
-2. **Åpenhet** — Nav skal være åpne om hvordan vi bruker AI-verktøy
-3. **Samarbeid** — vi inviterer til bidrag fra utviklermiljøet
+Nav har over 700 åpne repoer på GitHub. Retningslinjene i [navikt/offentlig](https://github.com/navikt/offentlig) beskriver filosofien bak: koden vi skriver implementerer lovene Stortinget vedtar — da bør den være like tilgjengelig som lovene selv.
 
 ## Teknisk
 
-Begge domenene (`ki-utvikling.nav.no` og `min-copilot.ansatt.nav.no`) serveres av samme applikasjon. Appen håndterer autentisering — offentlige sider serveres fritt, mens private sider sender deg til innlogging.
-
-Den gamle adressen `min-copilot.ansatt.nav.no` fungerer som før for Nav-ansatte som har bokmerket den.
+Begge domenene (`ki-utvikling.nav.no` og `min-copilot.ansatt.nav.no`) serveres av samme applikasjon. Autentisering håndteres i applikasjonslaget: offentlige sider serveres fritt, private sider sender deg til innlogging. Den gamle adressen fungerer som før for Nav-ansatte som har bokmerket den.
