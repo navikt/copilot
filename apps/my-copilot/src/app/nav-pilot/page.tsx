@@ -785,21 +785,21 @@ function ComparisonSection() {
 
 const TESTIMONIALS = [
   {
-    quote: "Din tilbakemelding her",
-    team: "Ditt team",
-    context: "Din stack",
+    quote: "Jeg har brukt nav-pilot for planlegging av store refaktoreringer og synes den har vært veldig fin.",
+    team: "Frontendutvikler, Nav",
+    context: "Refaktorering og planlegging",
     color: "#a78bfa",
   },
   {
-    quote: "Din tilbakemelding her",
-    team: "Ditt team",
-    context: "Din stack",
+    quote: "nav-pilot gir meg en sikker og kvalitetssikret AI-plattform som kan tilpasses hvert enkelt teams behov",
+    team: "Utvikler, Nav",
+    context: "Teamtilpasning",
     color: "#60a5fa",
   },
   {
-    quote: "Din tilbakemelding her",
-    team: "Ditt team",
-    context: "Din stack",
+    quote: "Veldig kult med nav-pilot 🚀",
+    team: "Utvikler, Nav",
+    context: "",
     color: "#2dd4bf",
   },
 ];
