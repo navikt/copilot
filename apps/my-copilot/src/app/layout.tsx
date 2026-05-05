@@ -94,8 +94,8 @@ export default async function RootLayout({
             </HStack>
           </Box>
         </footer>
+        <Faro collectorUrl={process.env.NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL} />
       </body>
-      <Faro />
     </html>
   );
 }

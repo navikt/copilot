@@ -80,6 +80,9 @@ spec:
     logging:
       destinations:
         - id: loki
+  frontend:
+    generatedConfig:
+      mountPath: /tmp/nais.js
   envFrom:
     - secret: my-copilot
   env:

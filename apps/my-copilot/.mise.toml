@@ -6,9 +6,7 @@ fnox = "latest"
 [env]
 GITHUB_ORG = "navikt"
 GCP_TEAM_PROJECT_ID = "copilot-dev-e17a"
-NEXT_PUBLIC_FARO_APP_NAME = "my-copilot-browser"
-NEXT_PUBLIC_FARO_URL = "https://telemetry.nav.no/collect"
-NEXT_PUBLIC_FARO_NAMESPACE = "nais"
+NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL = "https://telemetry.ekstern.dev.nav.no/collect"
 
 [tasks.version]
 run = 'echo "$(date +%Y%m%d)-$(git rev-parse --short HEAD)"'

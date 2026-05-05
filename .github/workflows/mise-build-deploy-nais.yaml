@@ -324,6 +324,8 @@ jobs:
           push_image: ${{ github.ref == 'refs/heads/main' || (inputs.deploy-pr-to-dev && github.event_name == 'pull_request') }}
           dockerfile: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.dockerfile-path) || inputs.dockerfile-path }}
           docker_context: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.docker-context) || inputs.docker-context }}
+          build_args: |
+            APP_VERSION=${{ needs.meta.outputs.version }}
           cache_from: type=gha
           cache_to: type=gha,mode=max
 
