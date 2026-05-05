@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Chips, HStack, BodyShort } from "@navikt/ds-react";
+import { Chips, HStack, VStack, BodyShort, Heading } from "@navikt/ds-react";
 import type { NewsItem, NewsCategory } from "@/lib/news-types";
 import { CATEGORY_CONFIG } from "@/lib/news-types";
 import { NewsCard, FeaturedNewsCard } from "./news-card";
@@ -23,8 +23,11 @@ export function NewsFeed({ items }: NewsFeedProps) {
   const rest = filtered.slice(1);
 
   return (
-    <>
-      <HStack gap="space-8" wrap>
+    <VStack gap="space-12">
+      <HStack gap="space-12" align="center" wrap>
+        <Heading size="small" level="2">
+          Siste nytt
+        </Heading>
         <Chips>
           <Chips.Toggle selected={selected === null} onClick={() => setSelected(null)}>
             Alle
@@ -50,6 +53,6 @@ export function NewsFeed({ items }: NewsFeedProps) {
           ))}
         </div>
       )}
-    </>
+    </VStack>
   );
 }

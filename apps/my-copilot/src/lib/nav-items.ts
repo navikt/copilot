@@ -5,7 +5,6 @@ import {
   BankNoteIcon,
   PersonIcon,
   PieChartIcon,
-  InformationSquareIcon,
   RocketIcon,
 } from "@navikt/aksel-icons";
 
@@ -24,5 +23,4 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/adopsjon", icon: PieChartIcon, label: "Adopsjon", requiresAuth: true },
   { href: "/kostnad", icon: BankNoteIcon, label: "Kostnad", requiresAuth: true },
   { href: "/abonnement", icon: PersonIcon, label: "Abonnement", requiresAuth: true },
-  { href: "/ordliste", icon: InformationSquareIcon, label: "Ordliste" },
 ];

@@ -37,7 +37,7 @@ export default async function Home() {
                   href={href}
                   icon={<Icon aria-hidden fontSize="1rem" />}
                   label={label}
-                  locked={requiresAuth && !user}
+                  locked={requiresAuth}
                 />
               ))}
             </div>
@@ -52,12 +52,7 @@ export default async function Home() {
         >
           <VStack gap={{ xs: "space-32", md: "space-40" }}>
             <Box className="reveal-section">
-              <Heading size="small" level="2" className="mb-4">
-                Siste nytt
-              </Heading>
-              <VStack gap="space-12">
-                <NewsFeed items={news} />
-              </VStack>
+              <NewsFeed items={news} />
             </Box>
 
             <Box className="reveal-section">

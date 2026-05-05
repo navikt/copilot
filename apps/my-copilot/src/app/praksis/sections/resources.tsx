@@ -233,6 +233,15 @@ export default function Resources() {
             <li className="flex gap-2">
               <span className="text-blue-600">▪</span>
               <a
+                href="/ordliste"
+                className="text-blue-600 hover:underline text-sm"
+              >
+                Ordliste – begreper og forkortelser i Copilot-økosystemet
+              </a>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-blue-600">▪</span>
+              <a
                 href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding"
                 className="text-blue-600 hover:underline text-sm"
               >
