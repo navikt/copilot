@@ -50,6 +50,8 @@ spec:
       - /ordliste/**
       - /nav-pilot
       - /nav-pilot/**
+      - /cplt
+      - /cplt/**
       - /kom-i-gang
       - /kom-i-gang/**
       - /retningslinjer
