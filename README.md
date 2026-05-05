@@ -90,11 +90,21 @@ Bruk **MCP Onboarding**-serveren for å utforske tilpasninger, sjekke agent-read
 
 ## 🛠️ Applikasjoner
 
-Monorepo med fire applikasjoner:
+Monorepo med fire applikasjoner + cplt (eget repo):
+
+### cplt — Kernel-level sandbox for AI-agenter
+
+Sandboxer AI-kodingsagenter med OS-primitiver (macOS Seatbelt, Linux Landlock + seccomp-BPF). Blokkerer filsystemtilgang, nettverkstrafikk og credential-exfiltration.
+
+**Repo:** [navikt/cplt](https://github.com/navikt/cplt) · **Docs:** [min-copilot.ansatt.nav.no/cplt](https://min-copilot.ansatt.nav.no/cplt)
+
+```bash
+brew install navikt/tap/cplt
+```
 
 ### My Copilot — Selvbetjeningsportal
 
-Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen.
+Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen. Har også offentlige sider for [cplt](https://min-copilot.ansatt.nav.no/cplt), [nav-pilot](https://min-copilot.ansatt.nav.no/nav-pilot) og [kom i gang](https://min-copilot.ansatt.nav.no/kom-i-gang).
 
 **URL:** [min-copilot.ansatt.nav.no](https://min-copilot.ansatt.nav.no)
 
