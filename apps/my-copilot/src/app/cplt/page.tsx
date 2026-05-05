@@ -899,7 +899,6 @@ function HowItWorksSection() {
           </div>
 
           <div className="flex flex-col items-center gap-3">
-            <AltInstall />
             <NextLink
               href="https://github.com/navikt/cplt"
               target="_blank"
