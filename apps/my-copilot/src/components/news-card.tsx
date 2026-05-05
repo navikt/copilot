@@ -1,8 +1,8 @@
 import { Box, BodyShort, Heading, Tag, HStack } from "@navikt/ds-react";
 import { ExternalLinkIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
-import type { NewsItem } from "@/lib/news";
-import { CATEGORY_CONFIG } from "@/lib/news";
+import type { NewsItem } from "@/lib/news-types";
+import { CATEGORY_CONFIG } from "@/lib/news-types";
 import { formatDate } from "@/lib/format";
 
 function safeHref(url: string): string {

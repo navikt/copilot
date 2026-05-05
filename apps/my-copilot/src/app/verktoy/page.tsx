@@ -8,12 +8,17 @@ import { getMcpServers } from "@/lib/mcp-registry";
 import { getCachedCustomizationUsage } from "@/lib/cached-bigquery";
 import { enrichWithUsage } from "@/lib/enrich-customizations";
 import { DomainCards } from "./domain-cards";
+import { getUser } from "@/lib/auth";
 
 export default async function CustomizationsPage() {
+  const user = await getUser(false);
   const customizations = getAllCustomizations();
-  const [mcpServers, { usage }] = await Promise.all([getMcpServers(), getCachedCustomizationUsage()]);
+  const [mcpServers, usageResult] = await Promise.all([
+    getMcpServers(),
+    user ? getCachedCustomizationUsage() : Promise.resolve({ usage: undefined, error: null }),
+  ]);
   const items = [...customizations, ...mcpServers].sort((a, b) => a.name.localeCompare(b.name, "nb"));
-  const enrichedItems = enrichWithUsage(items, usage);
+  const enrichedItems = enrichWithUsage(items, usageResult.usage);
   const counts = getCountsByDomain(items);
 
   const domains = Object.entries(counts)

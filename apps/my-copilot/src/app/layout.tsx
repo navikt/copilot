@@ -10,8 +10,19 @@ import { FooterMessage } from "@/components/footer-message";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Min Copilot",
-  description: "Min Copilot er et selvbetjeningsverktøy for administrasjon av ditt GitHub Copilot abonnement.",
+  title: {
+    template: "%s — Oh-My-Nav",
+    default: "Oh-My-Nav",
+  },
+  description: "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.",
+  metadataBase: new URL("https://ki-utvikling.nav.no"),
+  openGraph: {
+    type: "website",
+    locale: "nb_NO",
+    siteName: "Oh-My-Nav",
+    title: "Oh-My-Nav",
+    description: "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.",
+  },
 };
 
 export default async function RootLayout({
@@ -21,12 +32,8 @@ export default async function RootLayout({
 }>) {
   const user = await getUser(false);
 
-  if (!user) {
-    return null;
-  }
-
   return (
-    <html lang="en">
+    <html lang="nb">
       <body className={`${inter.className} bg-gray-800`}>
         <header style={{ background: "#0f1825" }}>
           <Box
@@ -39,11 +46,20 @@ export default async function RootLayout({
                 href="/"
                 className="text-white/90 text-sm font-medium no-underline hover:text-white transition-colors"
               >
-                Min Copilot
+                Oh-My-Nav
               </NextLink>
-              <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                {user.firstName} {user.lastName}
-              </BodyShort>
+              {user ? (
+                <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
+                  {user.firstName} {user.lastName}
+                </BodyShort>
+              ) : (
+                <Link
+                  href="/oauth2/login"
+                  className="text-white/70 text-sm no-underline hover:text-white transition-colors"
+                >
+                  Logg inn
+                </Link>
+              )}
             </HStack>
           </Box>
         </header>
@@ -57,8 +73,11 @@ export default async function RootLayout({
             <HStack justify="space-between" align="center" wrap gap="space-8">
               <FooterMessage />
               <HStack gap="space-16">
-                <Link href="https://docs.github.com/en/copilot" className="text-gray-400 hover:text-white text-sm">
-                  Dokumentasjon
+                <Link href="/personvern" className="text-gray-400 hover:text-white text-sm">
+                  Personvern
+                </Link>
+                <Link href="/tilgjengelighet" className="text-gray-400 hover:text-white text-sm">
+                  Tilgjengelighet
                 </Link>
                 <Link href="https://github.com/navikt/copilot" className="text-gray-400 hover:text-white text-sm">
                   GitHub

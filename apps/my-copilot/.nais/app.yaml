@@ -26,10 +26,43 @@ spec:
       enabled: true
       autoLogin: true
       autoLoginIgnorePaths:
+      # Static assets
       - /_next/**
       - /*.svg
+      - /*.png
       - /favicon.ico
+      - /robots.txt
+      - /sitemap.xml
+      # All page routes — auth is handled in the application layer.
+      # This lets Next.js show login redirects instead of raw Wonderwall intercepts.
+      - /
+      - /nyheter
+      - /nyheter/**
+      - /praksis
+      - /praksis/**
+      - /verktoy
+      - /verktoy/**
+      - /ordliste
+      - /ordliste/**
+      - /nav-pilot
+      - /nav-pilot/**
+      - /install
       - /install/**
+      - /personvern
+      - /tilgjengelighet
+      - /statistikk
+      - /statistikk/**
+      - /adopsjon
+      - /adopsjon/**
+      - /kostnad
+      - /kostnad/**
+      - /abonnement
+      - /abonnement/**
+      - /kalkulator
+      - /kalkulator/**
+      # Health (metrics NOT listed — Wonderwall blocks public access, Prometheus scrapes pod directly)
+      - /health
+      # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs
   observability:
     autoInstrumentation:
       enabled: true

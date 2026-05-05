@@ -1,16 +1,16 @@
 import { getNewsItems } from "@/lib/news";
 import React from "react";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
-import { ExternalLinkIcon } from "@navikt/aksel-icons";
+import { ExternalLinkIcon, PadlockLockedIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
-import { NewsCard, FeaturedNewsCard } from "@/components/news-card";
+import { NewsFeed } from "@/components/news-feed";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
+import { getUser } from "@/lib/auth";
 
-export default function Home() {
+export default async function Home() {
+  const user = await getUser(false);
   const news = getNewsItems();
-  const featured = news[0];
-  const rest = news.slice(1);
 
   return (
     <main>
@@ -26,13 +26,19 @@ export default function Home() {
                 Copilot i Nav
               </Heading>
               <BodyShort className="max-w-md opacity-70 hero-animate-d1">
-                <Greeting />
+                {user && <Greeting />}
                 Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.
               </BodyShort>
             </VStack>
             <div className="flex flex-wrap gap-2 hero-animate-d2">
-              {NAV_ITEMS.map(({ href, icon: Icon, label }) => (
-                <NavPill key={href} href={href} icon={<Icon aria-hidden fontSize="1rem" />} label={label} />
+              {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => (
+                <NavPill
+                  key={href}
+                  href={href}
+                  icon={<Icon aria-hidden fontSize="1rem" />}
+                  label={label}
+                  locked={requiresAuth}
+                />
               ))}
             </div>
           </VStack>
@@ -46,19 +52,7 @@ export default function Home() {
         >
           <VStack gap={{ xs: "space-32", md: "space-40" }}>
             <Box className="reveal-section">
-              <Heading size="small" level="2" className="mb-4">
-                Siste nytt
-              </Heading>
-              <VStack gap="space-12">
-                {featured && <FeaturedNewsCard item={featured} />}
-                {rest.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 grid-flow-dense gap-3">
-                    {rest.map((item) => (
-                      <NewsCard key={item.slug} item={item} />
-                    ))}
-                  </div>
-                )}
-              </VStack>
+              <NewsFeed items={news} />
             </Box>
 
             <Box className="reveal-section">
@@ -120,7 +114,17 @@ function NavCard({
   );
 }
 
-function NavPill({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+function NavPill({
+  href,
+  icon,
+  label,
+  locked,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  locked?: boolean;
+}) {
   return (
     <NextLink
       href={href}
@@ -128,6 +132,7 @@ function NavPill({ href, icon, label }: { href: string; icon: React.ReactNode; l
     >
       {icon}
       {label}
+      {locked && <PadlockLockedIcon aria-label="Krever innlogging" fontSize="0.75rem" className="opacity-60" />}
     </NextLink>
   );
 }

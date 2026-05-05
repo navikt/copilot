@@ -43,6 +43,10 @@ description = "Build Next.js production bundle"
 run = "fnox exec -- pnpm dev"
 description = "Start Next.js development server (secrets from Keychain)"
 
+[tasks."dev:auth"]
+run = "pnpm tsx scripts/mock-texas.ts & sleep 1 && NAIS_TOKEN_INTROSPECTION_ENDPOINT=http://localhost:6969/introspect fnox exec -- pnpm dev"
+description = "Start dev server with mock Texas (tests auth flows locally)"
+
 [tasks.generate]
 run = "pnpm generate && pnpm prettier --write src/lib/copilot-manifest.json"
 description = "Generate customizations manifest from .github files"

@@ -5,17 +5,22 @@ import {
   BankNoteIcon,
   PersonIcon,
   PieChartIcon,
-  InformationSquareIcon,
   RocketIcon,
 } from "@navikt/aksel-icons";
 
-export const NAV_ITEMS = [
+export type NavItem = {
+  href: string;
+  icon: typeof BookIcon;
+  label: string;
+  requiresAuth?: boolean;
+};
+
+export const NAV_ITEMS: NavItem[] = [
   { href: "/nav-pilot", icon: RocketIcon, label: "nav-pilot" },
   { href: "/praksis", icon: BookIcon, label: "God praksis" },
   { href: "/verktoy", icon: WrenchIcon, label: "Verktøy" },
-  { href: "/statistikk", icon: LineGraphIcon, label: "Statistikk" },
-  { href: "/adopsjon", icon: PieChartIcon, label: "Adopsjon" },
-  { href: "/kostnad", icon: BankNoteIcon, label: "Kostnad" },
-  { href: "/abonnement", icon: PersonIcon, label: "Abonnement" },
-  { href: "/ordliste", icon: InformationSquareIcon, label: "Ordliste" },
+  { href: "/statistikk", icon: LineGraphIcon, label: "Statistikk", requiresAuth: true },
+  { href: "/adopsjon", icon: PieChartIcon, label: "Adopsjon", requiresAuth: true },
+  { href: "/kostnad", icon: BankNoteIcon, label: "Kostnad", requiresAuth: true },
+  { href: "/abonnement", icon: PersonIcon, label: "Abonnement", requiresAuth: true },
 ];

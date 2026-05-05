@@ -31,6 +31,7 @@ describe("CATEGORY_CONFIG", () => {
     expect(configKeys).toContain("nav");
     expect(configKeys).toContain("nav-pilot");
     expect(configKeys).toContain("praksis");
-    expect(configKeys).toHaveLength(4);
+    expect(configKeys).toContain("oppsummering");
+    expect(configKeys).toHaveLength(5);
   });
 });
