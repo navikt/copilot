@@ -67,25 +67,26 @@ export function TableOfContents({ items }: TableOfContentsProps) {
     <nav aria-label="Innholdsfortegnelse" className="toc">
       <p
         className="text-xs font-semibold text-gray-400 uppercase tracking-wider"
-        style={{ marginBottom: "var(--a-spacing-3)" }}
+        style={{ marginBottom: "var(--a-spacing-5)" }}
       >
         Innhold
       </p>
-      <ul style={{ display: "flex", flexDirection: "column", gap: "var(--a-spacing-1)" }}>
-        {items.map((item) =>
+      <ul style={{ display: "flex", flexDirection: "column", gap: "var(--a-spacing-2)" }}>
+        {items.map((item, index) =>
           hasGroups && item.children ? (
-            <li key={item.id} style={{ marginTop: "var(--a-spacing-3)" }} className="first:mt-0">
+            <li key={item.id} style={{ marginTop: index === 0 ? 0 : "var(--a-spacing-6)" }}>
+              {index > 0 && <div className="h-px bg-gray-200 mb-3" />}
               <a
                 href={`#${item.id}`}
                 onClick={(e) => handleClick(e, item.id)}
                 className={`block text-[11px] font-semibold uppercase tracking-wider no-underline transition-colors ${
                   activeId === item.id ? "text-blue-700" : "text-gray-400 hover:text-gray-600"
                 }`}
-                style={{ padding: "var(--a-spacing-1) var(--a-spacing-3)" }}
+                style={{ padding: "var(--a-spacing-1) var(--a-spacing-3)", marginBottom: "var(--a-spacing-2)" }}
               >
                 {item.label}
               </a>
-              <ul style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "2px" }}>
+              <ul style={{ display: "flex", flexDirection: "column", gap: "var(--a-spacing-1)" }}>
                 {item.children.map((child) => (
                   <li key={child.id}>
                     <a
@@ -101,7 +102,8 @@ export function TableOfContents({ items }: TableOfContentsProps) {
               </ul>
             </li>
           ) : (
-            <li key={item.id}>
+            <li key={item.id} style={{ marginTop: hasGroups ? "var(--a-spacing-6)" : 0 }}>
+              {hasGroups && <div className="h-px bg-gray-200 mb-3" />}
               <a
                 href={`#${item.id}`}
                 onClick={(e) => handleClick(e, item.id)}

@@ -1,4 +1,4 @@
-import { Heading, BodyShort, Box, Skeleton } from "@navikt/ds-react";
+import { Heading, Box, Skeleton } from "@navikt/ds-react";
 
 export default function Loading() {
   return (
@@ -7,9 +7,7 @@ export default function Loading() {
         <Heading size="xlarge" level="1" className="mb-2">
           God praksis
         </Heading>
-        <BodyShort className="text-gray-600 mb-12">
-          <Skeleton variant="text" width="60%" />
-        </BodyShort>
+        <Skeleton variant="text" width="60%" className="mb-12" />
 
         <div className="space-y-8">
           {Array(9)

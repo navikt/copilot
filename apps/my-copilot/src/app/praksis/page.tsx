@@ -3,6 +3,7 @@ import { PageHero } from "@/components/page-hero";
 import { TableOfContents } from "@/components/table-of-contents";
 import { BackToTop } from "@/components/back-to-top";
 import { LightBulbIcon } from "@navikt/aksel-icons";
+import { LevelSection, LevelTransition } from "@/components/level-section";
 import StrengthsLimitations from "./sections/strengths-limitations";
 import ToolsAndModes from "./sections/tools-and-modes";
 import PrepareForSuccess from "./sections/prepare-for-success";
@@ -32,33 +33,76 @@ export default async function BestPractices() {
               <div className="sticky top-6">
                 <TableOfContents
                   items={[
-                    { id: "styrker-begrensninger-og-farer", label: "Styrker og farer" },
-                    { id: "verktøy-og-moduser", label: "Verktøy og moduser" },
-                    { id: "forbered-for-suksess", label: "Forbered for suksess" },
-                    { id: "skriv-effektive-tilpasninger", label: "Effektive tilpasninger" },
-                    { id: "prompt-engineering", label: "Prompt engineering" },
-                    { id: "wrap-metoden-for-coding-agent", label: "WRAP-metoden" },
-                    { id: "orkestrer-og-styr-agenter", label: "Orkestrer agenter" },
-                    { id: "gjennomgå-copilots-arbeid", label: "Gjennomgå arbeid" },
-                    { id: "verifisering-nøkkelen-til-kvalitet", label: "Verifisering" },
-                    { id: "vanlige-mønstre-for-agent-mode", label: "Vanlige mønstre" },
+                    {
+                      id: "grunnleggende",
+                      label: "Nivå 1 · Grunnleggende",
+                      children: [
+                        { id: "styrker-begrensninger-og-farer", label: "Styrker og farer" },
+                        { id: "verktøy-og-moduser", label: "Verktøy og moduser" },
+                        { id: "gjennomgå-copilots-arbeid", label: "Gjennomgå arbeid" },
+                        { id: "verifisering-nøkkelen-til-kvalitet", label: "Verifisering" },
+                      ],
+                    },
+                    {
+                      id: "mellomnivå",
+                      label: "Nivå 2 · Mellomnivå",
+                      children: [
+                        { id: "prompt-engineering", label: "Prompt engineering" },
+                        { id: "forbered-for-suksess", label: "Forbered for suksess" },
+                      ],
+                    },
+                    {
+                      id: "avansert",
+                      label: "Nivå 3 · Avansert",
+                      children: [
+                        { id: "skriv-effektive-tilpasninger", label: "Effektive tilpasninger" },
+                        { id: "wrap-metoden-for-coding-agent", label: "WRAP-metoden" },
+                        { id: "orkestrer-og-styr-agenter", label: "Orkestrer agenter" },
+                        { id: "vanlige-mønstre-for-agent-mode", label: "Vanlige mønstre" },
+                      ],
+                    },
                     { id: "ressurser", label: "Ressurser" },
                   ]}
                 />
               </div>
             </aside>
             <div className="min-w-0 flex-1">
-              <VStack gap={{ xs: "space-32", md: "space-40" }}>
-                <StrengthsLimitations />
-                <ToolsAndModes />
-                <PrepareForSuccess />
-                <EffectiveCustomizations />
-                <PromptEngineering />
-                <WrapMethod />
-                <OrchestrateAgents />
-                <ReviewCopilotWork />
-                <Verification />
-                <AgentModePatterns />
+              <VStack gap={{ xs: "space-24", md: "space-32" }}>
+                {/* Grunnleggende */}
+                <LevelSection
+                  level="grunnleggende"
+                  title="Grunnleggende"
+                  description="Start her. Dette trenger alle som bruker Copilot."
+                >
+                  <StrengthsLimitations />
+                  <ToolsAndModes />
+                  <ReviewCopilotWork />
+                  <Verification />
+                </LevelSection>
+
+                <LevelTransition text="Bra! Du har grunnlaget. Klar for neste nivå?" />
+
+                {/* Mellomnivå */}
+                <LevelSection
+                  level="mellom"
+                  title="Mellomnivå"
+                  description="Etter noen ukers bruk. Gjør Copilot til en bedre partner."
+                >
+                  <PromptEngineering />
+                  <PrepareForSuccess />
+                </LevelSection>
+
+                <LevelTransition text="Du mestrer verktøyet. Klar for å bli en power user?" />
+
+                {/* Avansert */}
+                <LevelSection level="avansert" title="Avansert" description="For de som vil utnytte hele økosystemet.">
+                  <EffectiveCustomizations />
+                  <WrapMethod />
+                  <OrchestrateAgents />
+                  <AgentModePatterns />
+                </LevelSection>
+
+                {/* Ressurser */}
                 <Resources />
 
                 {/* Footer tip */}
