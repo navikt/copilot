@@ -9,7 +9,7 @@ tags:
   - launch
 ---
 
-Siden lanseringen har Min Copilot vært et internt verktøy bak Navs bedriftsinnlogging. Nå åpner vi dørene. Fra i dag er mesteparten av innholdet tilgjengelig for alle på **ki-utvikling.nav.no** — uten innlogging.
+Siden lanseringen har Oh-My-Nav vært et internt verktøy bak Navs bedriftsinnlogging. Nå åpner vi dørene. Fra i dag er mesteparten av innholdet tilgjengelig for alle på **ki-utvikling.nav.no** — uten innlogging.
 
 ## Hva er åpent?
 

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 const PRIVATE_PAGE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement", "/kalkulator"];
 
-const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption"];
+const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/statistikk/json"];
 
 export function isPrivatePath(pathname: string): boolean {
   return (

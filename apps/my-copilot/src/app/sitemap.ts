@@ -4,11 +4,10 @@ import { getNewsItems } from "@/lib/news";
 const BASE_URL = "https://ki-utvikling.nav.no";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const news = getNewsItems();
+  const news = getNewsItems().filter((item) => item.type === "article");
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL, changeFrequency: "weekly", priority: 1.0 },
-    { url: `${BASE_URL}/nyheter`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE_URL}/praksis`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/verktoy`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/ordliste`, changeFrequency: "monthly", priority: 0.7 },

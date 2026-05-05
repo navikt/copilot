@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Chips, HStack } from "@navikt/ds-react";
-import type { NewsItem, NewsCategory } from "@/lib/news";
-import { CATEGORY_CONFIG } from "@/lib/news";
+import { useState, useMemo } from "react";
+import { Chips, HStack, BodyShort } from "@navikt/ds-react";
+import type { NewsItem, NewsCategory } from "@/lib/news-types";
+import { CATEGORY_CONFIG } from "@/lib/news-types";
 import { NewsCard, FeaturedNewsCard } from "./news-card";
-
-const CATEGORIES: NewsCategory[] = ["copilot", "nav", "praksis", "nav-pilot", "oppsummering"];
 
 interface NewsFeedProps {
   items: NewsItem[];
@@ -14,6 +12,11 @@ interface NewsFeedProps {
 
 export function NewsFeed({ items }: NewsFeedProps) {
   const [selected, setSelected] = useState<NewsCategory | null>(null);
+
+  const availableCategories = useMemo(() => {
+    const cats = new Set(items.map((item) => item.category));
+    return (Object.keys(CATEGORY_CONFIG) as NewsCategory[]).filter((cat) => cats.has(cat));
+  }, [items]);
 
   const filtered = selected ? items.filter((item) => item.category === selected) : items;
   const featured = filtered[0];
@@ -26,7 +29,7 @@ export function NewsFeed({ items }: NewsFeedProps) {
           <Chips.Toggle selected={selected === null} onClick={() => setSelected(null)}>
             Alle
           </Chips.Toggle>
-          {CATEGORIES.map((cat) => (
+          {availableCategories.map((cat) => (
             <Chips.Toggle
               key={cat}
               selected={selected === cat}
@@ -38,6 +41,7 @@ export function NewsFeed({ items }: NewsFeedProps) {
         </Chips>
       </HStack>
 
+      {filtered.length === 0 && <BodyShort className="text-text-subtle">Ingen nyheter i denne kategorien.</BodyShort>}
       {featured && <FeaturedNewsCard item={featured} />}
       {rest.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 grid-flow-dense gap-3">

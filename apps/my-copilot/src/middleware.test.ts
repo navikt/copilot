@@ -145,6 +145,12 @@ describe("middleware", () => {
       expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
     });
 
+    it("returns 401 for /statistikk/json without auth", () => {
+      middleware(createMockRequest("/statistikk/json"));
+      expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
+      expect(NextResponse.redirect).not.toHaveBeenCalled();
+    });
+
     it("passes through /api/copilot with auth", () => {
       middleware(createMockRequest("/api/copilot", { auth: true }));
       expect(NextResponse.next).toHaveBeenCalled();

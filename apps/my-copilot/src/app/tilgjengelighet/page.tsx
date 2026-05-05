@@ -35,9 +35,9 @@ export default function TilgjengelighetPage() {
               Slik har vi testet
             </Heading>
             <BodyLong>
-              Nettstedet er bygget med Nav sitt designsystem <Link href="https://aksel.nav.no">Aksel</Link>, som er
-              testet for universell utforming. Vi bruker semantisk HTML, ARIA-attributter der nødvendig, og
-              tastaturnavigasjon fungerer på alle interaktive elementer.
+              Nettstedet er bygget med Navs designsystem <Link href="https://aksel.nav.no">Aksel</Link>, som er testet
+              for universell utforming. Vi bruker semantisk HTML, ARIA-attributter der nødvendig, og tastaturnavigasjon
+              fungerer på alle interaktive elementer.
             </BodyLong>
           </VStack>
 

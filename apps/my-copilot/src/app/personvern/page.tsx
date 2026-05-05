@@ -53,7 +53,7 @@ export default function PersonvernPage() {
               </li>
             </ul>
             <BodyLong>
-              Vi bruker ingen tredjeparts informasjonskapsler, reklamesporere eller analysekapsel som krever samtykke.
+              Vi bruker ingen tredjeparts informasjonskapsler, reklamesporere eller analysekapsler som krever samtykke.
             </BodyLong>
           </VStack>
 
@@ -63,7 +63,7 @@ export default function PersonvernPage() {
             </Heading>
             <BodyLong>
               Du har rett til innsyn, retting og sletting av personopplysninger. Les mer om dine rettigheter på{" "}
-              <Link href="https://www.nav.no/personvernerklaering">Nav sin personvernerklæring</Link>.
+              <Link href="https://www.nav.no/personvernerklaering">Navs personvernerklæring</Link>.
             </BodyLong>
           </VStack>
 
@@ -72,8 +72,8 @@ export default function PersonvernPage() {
               Kontakt
             </Heading>
             <BodyLong>
-              Spørsmål om personvern kan rettes til Nav sitt personvernombud. Se{" "}
-              <Link href="https://www.nav.no/personvernerklaering">Nav sin personvernerklæring</Link> for
+              Spørsmål om personvern kan rettes til Navs personvernombud. Se{" "}
+              <Link href="https://www.nav.no/personvernerklaering">Navs personvernerklæring</Link> for
               kontaktinformasjon.
             </BodyLong>
           </VStack>
