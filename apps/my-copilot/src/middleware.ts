@@ -17,6 +17,11 @@ function isPrivateApiPath(pathname: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
+  // In development, skip auth checks (getUser() returns a mock user)
+  if (process.env.NODE_ENV === "development") {
+    return NextResponse.next();
+  }
+
   const pathname = request.nextUrl.pathname;
 
   if (!isPrivatePath(pathname)) {

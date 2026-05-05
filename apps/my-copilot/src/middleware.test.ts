@@ -72,6 +72,14 @@ describe("isPrivatePath", () => {
 describe("middleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("skips auth checks in development mode", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    middleware(createMockRequest("/statistikk"));
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.redirect).not.toHaveBeenCalled();
   });
 
   describe("public paths → always pass through", () => {
