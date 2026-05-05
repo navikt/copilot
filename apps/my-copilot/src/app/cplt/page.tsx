@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { CpltConfigExplorer } from "@/components/cplt-config-explorer";
+import { fetchCpltConfigKeys } from "@/lib/cplt-config";
 import {
   ShieldLockIcon,
   TerminalIcon,
@@ -33,6 +34,7 @@ export const metadata: Metadata = {
 /* ---------- Data ---------- */
 
 const INSTALL_COMMAND = "brew install navikt/tap/cplt";
+const INSTALL_SCRIPT = "curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash";
 
 const PROTECTIONS = [
   {
@@ -118,7 +120,7 @@ async function getStarCount(): Promise<number | null> {
 /* ---------- Page ---------- */
 
 export default async function CpltPage() {
-  const stars = await getStarCount();
+  const [stars, configKeys] = await Promise.all([getStarCount(), fetchCpltConfigKeys()]);
   return (
     <main>
       <HeroSection stars={stars} />
@@ -126,7 +128,7 @@ export default async function CpltPage() {
       <ProtectionsSection />
       <ProxySection />
       <MultiAgentSection />
-      <ConfigSection />
+      <ConfigSection configKeys={configKeys} />
       <HowItWorksSection />
       <FooterSection />
     </main>
@@ -239,20 +241,18 @@ function HeroSection({ stars }: { stars: number | null }) {
               </code>
               <CopyButton copyText={INSTALL_COMMAND} size="xsmall" style={{ color: "white" }} />
             </div>
-            <NextLink
-              href="https://github.com/navikt/cplt/releases"
-              target="_blank"
-              rel="noopener noreferrer"
+            <div
+              className="rounded-lg px-4 py-2 flex items-center gap-3 max-w-full overflow-x-auto"
               style={{
-                fontSize: "0.8125rem",
-                color: "#64748b",
-                textDecoration: "underline",
-                textDecorationStyle: "dotted",
-                textUnderlineOffset: "2px",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.05)",
               }}
             >
-              Linux / CI? Download from GitHub Releases →
-            </NextLink>
+              <code className="font-mono" style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)" }}>
+                {INSTALL_SCRIPT}
+              </code>
+              <CopyButton copyText={INSTALL_SCRIPT} size="xsmall" style={{ color: "white" }} />
+            </div>
             <p style={{ color: "#a7f3d0", fontSize: "0.8125rem", margin: 0 }}>
               macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF)
             </p>
@@ -749,7 +749,7 @@ function MultiAgentSection() {
 
 /* ---------- Configuration ---------- */
 
-function ConfigSection() {
+function ConfigSection({ configKeys }: { configKeys: import("@/lib/cplt-config").CpltConfigKey[] }) {
   return (
     <section style={{ background: "white" }}>
       <Box
@@ -767,7 +767,7 @@ function ConfigSection() {
             </p>
           </div>
 
-          <CpltConfigExplorer />
+          <CpltConfigExplorer configKeys={configKeys} />
         </VStack>
       </Box>
     </section>
