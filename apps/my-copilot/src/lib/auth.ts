@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { validate } from "./jwt";
 
 const loginEndpoint = "/oauth2/login";
 
@@ -26,18 +25,6 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
     };
   }
 
-  const requiredEnvVars = ["AZURE_APP_CLIENT_ID", "AZURE_OPENID_CONFIG_JWKS_URI", "AZURE_OPENID_CONFIG_ISSUER"];
-
-  requiredEnvVars.forEach((name) => {
-    if (!process.env[name]) {
-      throw new Error(`Environment variable ${name} is not defined.`);
-    }
-  });
-
-  const AZURE_APP_CLIENT_ID = process.env.AZURE_APP_CLIENT_ID!;
-  const AZURE_OPENID_CONFIG_JWKS_URI = process.env.AZURE_OPENID_CONFIG_JWKS_URI!;
-  const AZURE_OPENID_CONFIG_ISSUER = process.env.AZURE_OPENID_CONFIG_ISSUER!;
-
   const authHeader = (await headers()).get("Authorization");
   if (!authHeader) {
     if (shouldRedirect) {
@@ -47,23 +34,19 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
   }
 
   const token = authHeader.replace("Bearer ", "");
-  const { isValid, payload, error } = await validate(
-    token,
-    AZURE_APP_CLIENT_ID,
-    AZURE_OPENID_CONFIG_ISSUER,
-    AZURE_OPENID_CONFIG_JWKS_URI
-  );
-  if (!isValid || !payload) {
-    console.error("Authorization token validation failed:", error);
+  const claims = await introspectToken(token);
+
+  if (!claims) {
+    console.error("Token introspection failed");
     if (shouldRedirect) {
       redirect(loginEndpoint);
     }
     return null;
   }
 
-  const [lastName, firstName] = payload.name ? payload.name.split(", ") : ["", ""];
-  const email = (payload.preferred_username ?? "").toLowerCase();
-  const groups = payload.groups ?? [];
+  const [lastName, firstName] = claims.name ? claims.name.split(", ") : ["", ""];
+  const email = (claims.preferred_username ?? "").toLowerCase();
+  const groups = claims.groups ?? [];
 
   return {
     firstName,
@@ -71,4 +54,43 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
     email,
     groups,
   };
+}
+
+interface IntrospectionResponse {
+  active: boolean;
+  error?: string;
+  name?: string;
+  preferred_username?: string;
+  groups?: string[];
+  [key: string]: unknown;
+}
+
+async function introspectToken(token: string): Promise<IntrospectionResponse | null> {
+  const endpoint = process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT;
+  if (!endpoint) {
+    throw new Error("NAIS_TOKEN_INTROSPECTION_ENDPOINT is not defined");
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identity_provider: "entra_id",
+        token,
+      }),
+    });
+
+    const result: IntrospectionResponse = await response.json();
+
+    if (!result.active) {
+      console.error("Token introspection: inactive token:", result.error);
+      return null;
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Token introspection request failed:", error);
+    return null;
+  }
 }
