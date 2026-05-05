@@ -45,7 +45,7 @@ export default function PersonvernPage() {
               Informasjonskapsler
             </Heading>
             <BodyLong>Vi bruker kun teknisk nødvendige informasjonskapsler:</BodyLong>
-            <ul className="list-disc ml-6 space-y-1">
+            <ul className="list-disc list-inside">
               <li>
                 <BodyLong as="span">
                   <strong>Sesjonskapsel</strong> — holder deg innlogget hvis du har logget inn med Nav-konto

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -15,7 +16,8 @@ export async function isAuthenticated(): Promise<boolean> {
   return user !== null;
 }
 
-export async function getUser(shouldRedirect: boolean = true): Promise<User | null> {
+// Memoize per request to avoid multiple Texas introspection calls
+const getCachedUser = cache(async (): Promise<User | null> => {
   // In development without Texas configured, return mock user
   if (process.env.NODE_ENV === "development" && !process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT) {
     return {
@@ -29,9 +31,6 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
   const authHeader = (await headers()).get("Authorization");
 
   if (!authHeader) {
-    if (shouldRedirect) {
-      redirect(loginEndpoint);
-    }
     return null;
   }
 
@@ -39,9 +38,6 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
   const claims = await introspectToken(token);
 
   if (!claims) {
-    if (shouldRedirect) {
-      redirect(loginEndpoint);
-    }
     return null;
   }
 
@@ -55,6 +51,16 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
     email,
     groups,
   };
+});
+
+export async function getUser(shouldRedirect: boolean = true): Promise<User | null> {
+  const user = await getCachedUser();
+
+  if (!user && shouldRedirect) {
+    redirect(loginEndpoint);
+  }
+
+  return user;
 }
 
 interface IntrospectionResponse {
