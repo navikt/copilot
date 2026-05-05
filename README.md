@@ -118,19 +118,21 @@ Offentlig register over Nav-godkjente MCP-servere. Implementerer [MCP Registry v
 
 **URL:** [mcp-registry.nav.no](https://mcp-registry.nav.no)
 
-#### For Enterprise/Organization Admins
+#### Organisasjonsoppsett (allerede konfigurert)
 
-**Enterprise Settings** → **AI Controls** → **MCP**:
+Nav har konfigurert MCP-policyen på organisasjonsnivå:
 
-1. Enable **MCP servers in Copilot**
-2. Set **MCP Registry URL**: `https://mcp-registry.nav.no`
-3. Choose policy: **Allow all** (discoverable) or **Registry only** (enforced)
+- **MCP servers in Copilot**: Enabled
+- **MCP Registry URL**: `https://mcp-registry.nav.no`
+- **Policy**: Registry only (kun servere fra registeret kan brukes)
 
-> **Important:** Use the base URL without any path suffix. The Copilot client appends `/v0.1/servers` automatically.
+Denne policyen håndheves automatisk for alle med Copilot-sete i navikt-organisasjonen. Enkeltbrukere kan ikke endre policyen.
+
+> **Håndhevelse**: Basert på server name/ID-matching. Lokale servere (som IntelliJ MCP) må ha en oppføring i registeret med ID som matcher nøyaktig det installerte server-ID-et. Se [GitHub docs: MCP allowlist enforcement](https://docs.github.com/en/copilot/reference/mcp-allowlist-enforcement).
 
 #### For IDE-brukere
 
-Registry-servere dukker automatisk opp i MCP-panelet i VS Code og JetBrains når registeret er konfigurert på organisasjonsnivå. Ingen oppsett per bruker.
+Registry-servere dukker automatisk opp i MCP-panelet i VS Code og JetBrains. Ingen oppsett per bruker.
 
 #### For Copilot CLI
 
