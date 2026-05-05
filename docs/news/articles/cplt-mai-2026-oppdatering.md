@@ -10,11 +10,28 @@ tags:
   - proxy
 ---
 
-[cplt](https://github.com/navikt/cplt) kjører GitHub Copilot CLI i en kernel-enforced sandbox som blokkerer tilgang til credentials, secrets og `.env`-filer. Installer med:
+## Hva er cplt?
+
+[cplt](https://github.com/navikt/cplt) sandboxer AI-kodingsagenter med OS-primitiver — macOS Seatbelt og Linux Landlock + seccomp-BPF. All tilgang til filer, nettverk og prosesser styres av kjernen, ikke av agenten selv.
+
+Nøkkelfunksjoner:
+
+- **Filsystem-sandbox** — agenten ser bare prosjektmappa og eksplisitt tillatte stier
+- **Nettverksproxy** — all utgående trafikk filtreres, telemetri og analytics blokkeres
+- **Credential-beskyttelse** — SSH-nøkler, `.env`-filer og registry-tokens er utilgjengelige
+- **Multi-agent** — støtter Copilot CLI, OpenCode og generiske shell-agenter
+- **Konfigurerbar** — én TOML-fil per prosjekt, alt kan overstyres per kjøring
 
 ```bash
 brew install navikt/tap/cplt
+cplt -- -p "fix the tests"
 ```
+
+Se [cplt-dokumentasjonen](/cplt) for interaktiv config-utforsker, nettverksdiagram og fullstendig funksjonsoversikt.
+
+---
+
+## Hva er nytt (mai 2026)
 
 Fire endringer denne uka gjør cplt tryggere og mer portabel.
 
