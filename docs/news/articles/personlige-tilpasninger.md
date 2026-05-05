@@ -116,13 +116,4 @@ GitHub har annonsert støtte for deling av agenter og skills på organisasjons- 
 mkdir -p ~/.copilot/skills ~/.copilot/agents
 ```
 
----
 
-## Relevans for Nav
-
-| Trend                                | Hva det betyr for Nav                                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Personlige skills og agenter         | Utviklere kan ha egne arbeidsflyt-tilpasninger uten å fylle opp team-repoet                                        |
-| navikt/copilot-skills som personlige | Våre skills fra [navikt/copilot](https://github.com/navikt/copilot) kan installeres globalt i `~/.copilot/skills/` |
-| Org-nivå (kommer)                    | Når organisasjonsnivå blir tilgjengelig, kan Nav distribuere felles agenter og skills sentralt                     |
-| CLI med globale instruksjoner        | Utviklere som bruker Copilot CLI kan ha personlige kodestandarder i `~/.copilot/copilot-instructions.md`           |
