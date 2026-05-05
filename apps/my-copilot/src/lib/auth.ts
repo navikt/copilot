@@ -16,7 +16,8 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 export async function getUser(shouldRedirect: boolean = true): Promise<User | null> {
-  if (process.env.NODE_ENV === "development") {
+  // In development without Texas configured, return mock user
+  if (process.env.NODE_ENV === "development" && !process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT) {
     return {
       firstName: "Hans Kristian",
       lastName: "Flaatten",
@@ -26,6 +27,7 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
   }
 
   const authHeader = (await headers()).get("Authorization");
+
   if (!authHeader) {
     if (shouldRedirect) {
       redirect(loginEndpoint);
@@ -37,7 +39,6 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
   const claims = await introspectToken(token);
 
   if (!claims) {
-    console.error("Token introspection failed");
     if (shouldRedirect) {
       redirect(loginEndpoint);
     }
@@ -80,6 +81,11 @@ async function introspectToken(token: string): Promise<IntrospectionResponse | n
         token,
       }),
     });
+
+    if (!response.ok) {
+      console.error(`Token introspection returned HTTP ${response.status}`);
+      return null;
+    }
 
     const result: IntrospectionResponse = await response.json();
 

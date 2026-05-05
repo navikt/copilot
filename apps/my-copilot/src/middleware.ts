@@ -17,8 +17,8 @@ function isPrivateApiPath(pathname: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
-  // In development, skip auth checks (getUser() returns a mock user)
-  if (process.env.NODE_ENV === "development") {
+  // In development without Texas configured, skip auth (mock user mode)
+  if (process.env.NODE_ENV === "development" && !process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT) {
     return NextResponse.next();
   }
 

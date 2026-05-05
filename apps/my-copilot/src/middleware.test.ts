@@ -75,11 +75,18 @@ describe("middleware", () => {
     vi.unstubAllEnvs();
   });
 
-  it("skips auth checks in development mode", () => {
+  it("skips auth checks in development mode without Texas", () => {
     vi.stubEnv("NODE_ENV", "development");
     middleware(createMockRequest("/statistikk"));
     expect(NextResponse.next).toHaveBeenCalled();
     expect(NextResponse.redirect).not.toHaveBeenCalled();
+  });
+
+  it("enforces auth in development mode when Texas is configured", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "http://localhost:6969/introspect");
+    middleware(createMockRequest("/statistikk"));
+    expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
   });
 
   describe("public paths → always pass through", () => {
