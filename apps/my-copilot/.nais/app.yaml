@@ -28,11 +28,15 @@ spec:
       autoLoginIgnorePaths:
       # Static assets
       - /_next/**
+      - /public/**
+      - /demos/**
       - /*.svg
       - /*.png
       - /favicon.ico
       - /robots.txt
       - /sitemap.xml
+      # OAuth endpoints (handled by Wonderwall sidecar)
+      - /oauth2/**
       # All page routes — auth is handled in the application layer.
       # This lets Next.js show login redirects instead of raw Wonderwall intercepts.
       - /
