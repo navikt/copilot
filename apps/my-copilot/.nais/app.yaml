@@ -50,6 +50,10 @@ spec:
       - /ordliste/**
       - /nav-pilot
       - /nav-pilot/**
+      - /kom-i-gang
+      - /kom-i-gang/**
+      - /retningslinjer
+      - /retningslinjer/**
       - /install
       - /install/**
       - /personvern

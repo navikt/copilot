@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { getCachedPremiumRequestUsage } from "@/lib/cached-github";
+import { getCachedPremiumRequestUsage, getCachedCopilotBilling } from "@/lib/cached-github";
 import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
@@ -96,6 +96,98 @@ async function PremiumUsageData({ currentYear, currentMonth }: { currentYear: nu
   );
 
   return premiumRequestsContent;
+}
+
+function currencyFormat(num: number) {
+  return `$${num.toFixed(2).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")} USD`;
+}
+
+// Cached billing data for cost tab
+async function BillingTabContent() {
+  "use cache";
+  const { cacheLife, cacheTag } = await import("next/cache");
+  cacheLife({ stale: 3600 });
+  cacheTag("billing-navikt");
+
+  const { billing, error } = await getCachedCopilotBilling("navikt");
+
+  if (error) return <ErrorState message={`Feil ved henting av faktureringsdata: ${error}`} />;
+  if (!billing) return <ErrorState message="Ingen faktureringsdata tilgjengelig" />;
+
+  return (
+    <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
+        <Heading size="small" level="2" spacing>
+          Lisensfordeling
+        </Heading>
+        <Table size="small">
+          <TableBody>
+            <TableRow>
+              <TableHeaderCell>Totalt antall lisenser</TableHeaderCell>
+              <TableDataCell>{formatNumber(billing.seat_breakdown.total ?? 0)}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>Aktiv denne perioden</TableHeaderCell>
+              <TableDataCell className="text-green-600 font-semibold">
+                {formatNumber(billing.seat_breakdown.active_this_cycle ?? 0)}
+              </TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>Inaktiv denne perioden</TableHeaderCell>
+              <TableDataCell>{formatNumber(billing.seat_breakdown.inactive_this_cycle ?? 0)}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>Lagt til denne perioden</TableHeaderCell>
+              <TableDataCell>{formatNumber(billing.seat_breakdown.added_this_cycle ?? 0)}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>Ventende invitasjon</TableHeaderCell>
+              <TableDataCell>{formatNumber(billing.seat_breakdown.pending_invitation ?? 0)}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>Ventende kansellering</TableHeaderCell>
+              <TableDataCell>{formatNumber(billing.seat_breakdown.pending_cancellation ?? 0)}</TableDataCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+        <Box background="info-soft" padding="space-12" borderRadius="8" className="mt-4">
+          <BodyShort weight="semibold">
+            Total kostnad: {currencyFormat((billing.seat_breakdown.total ?? 0) * 19)} / måned
+          </BodyShort>
+        </Box>
+      </Box>
+
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
+        <Heading size="small" level="2" spacing>
+          Organisasjonsinnstillinger
+        </Heading>
+        <Table size="small">
+          <TableBody>
+            <TableRow>
+              <TableHeaderCell>Administrasjon av lisenser</TableHeaderCell>
+              <TableDataCell className="capitalize">{billing.seat_management_setting}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>IDE Chat</TableHeaderCell>
+              <TableDataCell className="capitalize">{billing.ide_chat}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>Plattform Chat</TableHeaderCell>
+              <TableDataCell className="capitalize">{billing.platform_chat}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>CLI</TableHeaderCell>
+              <TableDataCell className="capitalize">{billing.cli}</TableDataCell>
+            </TableRow>
+            <TableRow>
+              <TableHeaderCell>Offentlige kodeforslag</TableHeaderCell>
+              <TableDataCell className="capitalize">{billing.public_code_suggestions}</TableDataCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </Box>
+    </HGrid>
+  );
 }
 
 // Main content component that takes usage data as props
@@ -1071,6 +1163,15 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
       content: (
         <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
           <PremiumUsageData currentYear={new Date().getFullYear()} currentMonth={new Date().getMonth() + 1} />
+        </Suspense>
+      ),
+    },
+    {
+      id: "kostnad",
+      label: "Kostnad",
+      content: (
+        <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
+          <BillingTabContent />
         </Suspense>
       ),
     },

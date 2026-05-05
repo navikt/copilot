@@ -49,9 +49,17 @@ export default async function RootLayout({
                 Oh-My-Nav
               </NextLink>
               {user ? (
-                <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                  {user.firstName} {user.lastName}
-                </BodyShort>
+                <HStack gap="space-16" align="center">
+                  <NextLink
+                    href="/abonnement"
+                    className="text-white/70 text-sm no-underline hover:text-white transition-colors"
+                  >
+                    Abonnement
+                  </NextLink>
+                  <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
+                    {user.firstName} {user.lastName}
+                  </BodyShort>
+                </HStack>
               ) : (
                 <Link
                   href="/oauth2/login"
