@@ -19,7 +19,7 @@ export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
         url: collectorUrl || "https://telemetry.nav.no/collect",
         paused: window.location.hostname === "localhost",
         app: {
-          name: "min-copilot",
+          name: "my-copilot",
           namespace: "copilot",
           version: process.env.NEXT_PUBLIC_APP_VERSION || "unknown",
         },
