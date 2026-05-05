@@ -16,6 +16,18 @@ export const metadata: Metadata = {
   title: "cplt — Sandbox for AI coding agents",
   description:
     "cplt runs GitHub Copilot CLI, OpenCode, or a plain shell inside a kernel-level sandbox so the agent can work on your project but cannot access your secrets.",
+  openGraph: {
+    title: "cplt — Sandbox for AI coding agents",
+    description:
+      "Kernel-level isolation for AI coding agents. Your secrets stay secret — enforced by the OS, not by trust.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "cplt — Sandbox for AI coding agents",
+    description:
+      "Kernel-level isolation for AI coding agents. Your secrets stay secret — enforced by the OS, not by trust.",
+  },
 };
 
 /* ---------- Data ---------- */

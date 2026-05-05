@@ -37,6 +37,18 @@ export const metadata: Metadata = {
   title: "nav-pilot — Copilot i Nav",
   description:
     "nav-pilot gir GitHub Copilot Navs institusjonelle kunnskap — fra Nais-manifester til TokenX, rett i editoren din.",
+  openGraph: {
+    title: "nav-pilot — Copilot i Nav",
+    description:
+      "GitHub Copilot med Navs institusjonelle kunnskap — Nais, TokenX, Aksel, Kotlin/Ktor og mer, rett i editoren.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "nav-pilot — Copilot i Nav",
+    description:
+      "GitHub Copilot med Navs institusjonelle kunnskap — Nais, TokenX, Aksel, Kotlin/Ktor og mer, rett i editoren.",
+  },
 };
 
 /* ---------- Data ---------- */
