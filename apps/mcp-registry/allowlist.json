@@ -229,7 +229,7 @@
     },
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-      "name": "com.jetbrains/intellij-mcp",
+      "name": "com.jetbrains/intellij",
       "description": "Access IntelliJ code intelligence, inspections, and refactoring tools via MCP.",
       "version": "2025.2.0",
       "status": "active",
@@ -239,6 +239,12 @@
         "url": "https://github.com/JetBrains/mcp-server-plugin",
         "source": "github"
       },
+      "remotes": [
+        {
+          "type": "sse",
+          "url": "http://127.0.0.1:63342/sse"
+        }
+      ],
       "tools": ["get_symbol_info", "get_file_problems", "get_project_dependencies", "get_project_modules", "search_in_files_by_text", "search_in_files_by_regex", "find_files_by_glob", "find_files_by_name_keyword", "get_file_text_by_path", "list_directory_tree", "get_all_open_file_paths", "get_run_configurations", "get_repositories", "create_new_file", "replace_text_in_file", "reformat_file", "rename_refactoring", "open_file_in_editor", "execute_terminal_command", "execute_run_configuration"],
       "tags": ["developer-tools", "ide", "jetbrains", "code-intelligence"],
       "examples": [
