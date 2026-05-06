@@ -26,6 +26,17 @@ export const terms: Term[] = [
     link: { href: "/praksis#vanlige-mønstre-for-agent-mode", label: "Mønstre for agent mode" },
   },
   {
+    term: "Agent harness",
+    definition:
+      "Kjøretidsmiljøet som kjører en AI-agent – for eksempel Copilot CLI eller OpenCode. Harnessen styrer hvilke verktøy agenten har tilgang til og hvordan den samhandler med operativsystemet.",
+  },
+  {
+    term: "Allowlist (MCP)",
+    definition:
+      "Listen over godkjente MCP-servere i Nav. Kun servere på denne listen kan brukes med Copilot. Styres via org policy på GitHub-organisasjonsnivå.",
+    link: { href: "/verktoy?type=mcp", label: "Se godkjente MCP-servere" },
+  },
+  {
     term: "Agentic loop",
     definition:
       "Arbeidssløyfen der en agent samler kontekst, planlegger, handler og verifiserer resultatet – i en kontinuerlig løkke til oppgaven er løst. Agenten gjentar syklusen og justerer kursen basert på resultater underveis.",
@@ -92,6 +103,11 @@ export const terms: Term[] = [
       "GitHubs agentdrevne utviklingsmiljø der du kan gå fra en GitHub issue til ferdig pull request med AI-hjelp.",
   },
   {
+    term: "Context exclusion",
+    definition:
+      "Regler som ekskluderer bestemte filer fra konteksten som sendes til AI-modellen. I Nav bruker vi dette til å holde .env-filer og andre hemmeligheter unna inference context. Kan settes per repo eller globalt på org-nivå.",
+  },
+  {
     term: "Custom agents",
     definition:
       "Spesialiserte Copilot-agenter definert i .agent.md-filer. Hver agent har egne instruksjoner, verktøytilgang og kontekst, og kan velges fra agent-menyen i editoren.",
@@ -142,10 +158,20 @@ export const terms: Term[] = [
     link: { href: "/praksis#forbered-for-suksess", label: "Forbered for suksess" },
   },
   {
+    term: "Inference context",
+    definition:
+      "Dataene som sendes til AI-modellen i en forespørsel – kode, filer, instruksjoner og samtalehistorikk. Innholdet kastes etter at svaret er generert og brukes ikke til trening.",
+  },
+  {
     term: "MCP (Model Context Protocol)",
     definition:
-      "En åpen standard for å koble AI-modeller til eksterne verktøy og datakilder. MCP lar agenter og Copilot bruke verktøy og data utenfor selve modellen.",
+      "En åpen standard for å koble AI-modeller til eksterne verktøy og datakilder. MCP-servere kan sende kode og kontekst til eksterne tjenester, og krever derfor godkjenning via org policy i Nav.",
     link: { href: "/verktoy?type=mcp", label: "Se MCP-servere" },
+  },
+  {
+    term: "Model provider",
+    definition:
+      "Tjenesten som kjører AI-modellen – for eksempel OpenAI, Anthropic eller Google. GitHub Copilot API fungerer som gateway og ruter forespørsler til riktig provider. Navs databehandleravtale er med GitHub, ikke direkte med providerne.",
   },
   {
     term: "Modell",
@@ -156,6 +182,12 @@ export const terms: Term[] = [
     term: "Next Edit Suggestions (NES)",
     definition:
       "Copilot forutser hvor du mest sannsynlig vil gjøre neste endring, og foreslår koden på riktig sted. Til forskjell fra inline suggestions, som fullfører der markøren står, hopper NES til neste relevante posisjon.",
+  },
+  {
+    term: "OpenCode",
+    definition:
+      "En av to godkjente agent-harnesser i Nav (sammen med Copilot CLI). OpenCode er en uavhengig open source-agent som bruker GitHub Copilot som model provider. Kjøres i terminalen.",
+    link: { href: "https://opencode.ai", label: "opencode.ai" },
   },
   {
     term: "Plan mode",
@@ -185,9 +217,15 @@ export const terms: Term[] = [
       "En aktiv samtale eller arbeidsøkt med Copilot. Innenfor en session husker modellen tidligere meldinger og kontekst, inntil sesjonen avsluttes eller kontekstvinduet fylles opp.",
   },
   {
+    term: "Sandbox (cplt)",
+    definition:
+      "Kernel-nivå isolasjon som begrenser hva en AI-agent kan gjøre på utviklermaskinen. cplt blokkerer tilgang til hemmeligheter, nøkler og .env-filer, og kontrollerer nettverkstrafikk. Operativsystemet håndhever reglene – det avhenger ikke av tillit til agenten.",
+    link: { href: "/cplt", label: "Om cplt" },
+  },
+  {
     term: "Skills",
     definition:
-      "Evner eller verktøy en agent kan bruke, for eksempel å søke i kode, lese filer, kalle et API eller kjøre tester. Skillsene bestemmer hva agenten kan gjøre.",
+      "Instruksjoner (prompts) som gir agenten domenekunnskap og mønstre for å løse bestemte oppgaver. Skills gir ikke agenten ekstra tilgang – de styrer bare hvordan agenten bruker verktøyene den allerede har.",
     link: { href: "/verktoy?type=skill", label: "Se skills" },
   },
   {
@@ -204,5 +242,15 @@ export const terms: Term[] = [
     term: "Tool calling",
     definition:
       "Mekanismen der en agent velger og bruker verktøy underveis – som filoperasjoner, terminalen, MCP-servere eller websøk. Det er tool calling som gjør at agenten kan handle, ikke bare svare.",
+  },
+  {
+    term: "Org policy",
+    definition:
+      "Regler på organisasjonsnivå i GitHub som styrer hvilke MCP-servere og verktøy som er tillatt. Nav bruker org policy til å begrense agenter til en godkjent liste, slik at de ikke kan koble til vilkårlige eksterne tjenester.",
+  },
+  {
+    term: "Prompt injection",
+    definition:
+      "Et angrep der ondsinnet tekst i kode, dokumenter eller input manipulerer AI-agenten til å utføre handlinger den ikke skal. Risikoen øker med verktøytilgang – en agent med skrivetilgang kan gjøre mer skade enn en som bare svarer.",
   },
 ];
