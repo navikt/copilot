@@ -1,12 +1,13 @@
 import {
   BookIcon,
-  WrenchIcon,
+  InformationSquareIcon,
   LineGraphIcon,
   PieChartIcon,
-  RocketIcon,
   PlayIcon,
+  RocketIcon,
   ShieldLockIcon,
   TerminalIcon,
+  WrenchIcon,
 } from "@navikt/aksel-icons";
 
 export type NavItem = {
@@ -25,4 +26,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/cplt", icon: TerminalIcon, label: "cplt" },
   { href: "/statistikk", icon: LineGraphIcon, label: "Statistikk", requiresAuth: true },
   { href: "/adopsjon", icon: PieChartIcon, label: "Adopsjon", requiresAuth: true },
+  { href: "/ordliste", icon: InformationSquareIcon, label: "Ordliste" },
 ];
