@@ -23,7 +23,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/verktoy", icon: WrenchIcon, label: "Verktøy" },
   { href: "/retningslinjer", icon: ShieldLockIcon, label: "Retningslinjer" },
   { href: "/nav-pilot", icon: RocketIcon, label: "nav-pilot" },
-  { href: "/ordliste", icon: BookIcon, label: "Ordlista" },
   { href: "/cplt", icon: TerminalIcon, label: "cplt" },
   { href: "/statistikk", icon: LineGraphIcon, label: "Statistikk", requiresAuth: true },
   { href: "/adopsjon", icon: PieChartIcon, label: "Adopsjon", requiresAuth: true },
