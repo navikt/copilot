@@ -12,7 +12,7 @@ Forskning (Multi-IF-benchmark) viser at norske instruksjoner gir 5–15 % lavere
 
 Refaktorert `nav-pilot.agent.md` med hybridstrategi:
 
-- **Engelsk** (maskininstruksjoner): Fasemaskin-tabell, blinde flekker, arketyper, beslutningstrær, review-perspektiver, leveransesjekkliste, vanlige mønstre, feilsøking, boundaries
+- **Engelsk** (maskininstruksjoner): Fasemaskin-tabell, blindsoner, arketyper, beslutningstrær, review-perspektiver, leveransesjekkliste, vanlige mønstre, feilsøking, boundaries
 - **Norsk** (brukersynlig output): Fasehoder, tilstandsfot, sjekkpunkt-mal, delegeringsmal, «Slik bruker du meg»-eksempler, @forfatter-delegering
 - Eksplisitt språkdirektiv lagt til: «Respond to users in Norwegian. All internal instructions in this file are in English for optimal adherence.»
 - Formalisert språkpolicy i AGENTS.md under «Customization Language»
@@ -29,7 +29,7 @@ Nav-pilot mistet fasebevissthet og persona under lange samtaler fordi instruksjo
 - **Tilbakerullingsregel** — ny informasjon som konflikter med tidligere beslutninger tvinger eksplisitt retur til tidligste berørte fase
 - **Utvidet Fase 3 (Review)** — fra 9 linjer til fullstendig 4-perspektiv-review med 16 konkrete spørsmål og strukturert output-mal med dom (Godkjent / Godkjent med endringer / Tilbake til Fase 2)
 - **Delegeringskontrakt** — «deleger kun delproblemet, aldri hele samtalen. Gjenoppta alltid kontroll med oppsummering.» Forhindrer at spesialistagenter overtar
-- **Nummererte blinde flekker** — 10 punkt med krav om dekningsrapport i Fase 1-sjekkpunkt
+- **Nummererte blindsoner** — 10 punkt med krav om dekningsrapport i Fase 1-sjekkpunkt
 - **Fasedisiplin i Boundaries** — nye ✅ Always og 🚫 Never-regler for faseoverskrift, tilstandsfot og fase-hopping
 
 ### Installasjonsskript — immunisert mot releasekaperng

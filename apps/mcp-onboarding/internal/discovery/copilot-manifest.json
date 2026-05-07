@@ -679,7 +679,7 @@
       "type": "skill",
       "name": "nav-deep-interview",
       "displayName": "nav-deep-interview",
-      "description": "Kjør et strukturert intervju for å avdekke blinde flekker *før* implementering starter. Basert på vanlige feil og oversikter i Nav-prosjekter.",
+      "description": "Kjør et strukturert intervju for å avdekke blindsoner *før* implementering starter. Basert på vanlige feil og oversikter i Nav-prosjekter.",
       "filePath": ".github/skills/nav-deep-interview",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/SKILL.md",

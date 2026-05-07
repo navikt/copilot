@@ -167,7 +167,7 @@ Vi har bakt forskningsfunnene direkte inn i AI-instruksene:
 
 Ikke bare «skriv kode for meg», men en 4-fase arbeidsflyt:
 
-1. **Intervju** — kartlegger blinde flekker (personvern, tilgangsstyring, feilhåndtering, observerbarhet, teamgrenser, endringskonsekvenser, teststrategi, migrering, bakoverkompatibilitet, dekommisjonering, kompetansebevaring)
+1. **Intervju** — kartlegger blindsoner (personvern, tilgangsstyring, feilhåndtering, observerbarhet, teamgrenser, endringskonsekvenser, teststrategi, migrering, bakoverkompatibilitet, dekommisjonering, kompetansebevaring)
 2. **Plan** — beslutningstrær for auth, kommunikasjon, database, CI/CD
 3. **Review** — fra fire perspektiver: sikkerhet, plattform, arkitektur, endringssikkerhet
 4. **Lever** — kode + dokumentasjon, med rød-sone-kode markert som TODO
@@ -218,7 +218,7 @@ Agenten *stopper* mellom fasene og venter på godkjenning. Den delegerer til spe
 
 ## Demoer (under presentasjonen)
 
-1. **nav-pilot planlegging** — vis fasestyring, blinde flekker, beslutningstrær
+1. **nav-pilot planlegging** — vis fasestyring, blindsoner, beslutningstrær
 2. **Grønn/rød sone i praksis** — vis hvordan instruksjonen markerer kjernelogikk
 3. **MCP-registry** — vis kontrollert verktøytilgang for agenter
 4. **Code review-agent** — vis automatisk kvalitetskontroll

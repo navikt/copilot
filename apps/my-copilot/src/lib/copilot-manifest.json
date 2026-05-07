@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-07T12:07:22.992Z",
+  "generatedAt": "2026-05-07T14:06:40.823Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -331,7 +331,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "8384742b958b4b84fd453fd783c08911b9e0cbaf66d4cf043fefd17a9a0b8a21",
+      "contentHash": "71eaa207ac601d66ef00753242efe830883ea5737b599ead577e4d30da73e0fe",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -1087,19 +1087,19 @@
     {
       "id": "nav-deep-interview",
       "name": "nav-deep-interview",
-      "description": "Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
+      "description": "Strukturert intervju som avdekker blindsoner i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
       "type": "skill",
       "domain": "general",
       "filePath": ".github/skills/nav-deep-interview/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-deep-interview/SKILL.md",
-      "contentHash": "88d9281e224ef435f08ceb58b805382563818ace228ffa492d81776fdc211bdc",
+      "contentHash": "836d0873167176e2dcff40402e2513c185f55323fe5d8dc37e1974de0eb3ca87",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["planning", "requirements", "interview", "onboarding", "nav-pilot"],
       "examples": [
         {
           "prompt": "Kjør et dypintervju for den nye dp-behandling-tjenesten",
-          "scenario": "Avdekk blinde flekker i nytt prosjekt"
+          "scenario": "Avdekk blindsoner i nytt prosjekt"
         },
         {
           "prompt": "Still de viktige spørsmålene vi glemmer før vi begynner å kode",

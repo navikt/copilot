@@ -31,7 +31,7 @@
 | Skill | Formål | Kategori |
 |-------|--------|----------|
 | nav-plan | Arkitekturplanlegging med beslutningstrær | Planlegging |
-| nav-deep-interview | Avdekke blinde flekker før implementering | Planlegging |
+| nav-deep-interview | Avdekke blindsoner før implementering | Planlegging |
 | nav-architecture-review | ADR-generering med flerperspektiv | Review |
 | security-review | Sikkerhetssjekk før commit/push/PR | Review |
 | threat-model | STRIDE-A trusselmodellering | Review |

@@ -45,7 +45,7 @@ echo
 section_pause 2
 
 # --- Phase 1 ---
-slow_print "${BOLD}🔍 Fase 1: Intervju — kartlegger behov og blinde flekker${RESET}" 0.03
+slow_print "${BOLD}🔍 Fase 1: Intervju — kartlegger behov og blindsoner${RESET}" 0.03
 echo
 section_pause 1
 

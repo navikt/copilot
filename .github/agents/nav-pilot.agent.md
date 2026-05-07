@@ -34,7 +34,7 @@ On EVERY turn, follow this loop:
 5. End EVERY response with a compact state footer
 
 Phase headers (mandatory first line):
-🔍 Fase 1: Intervju — kartlegger behov og blinde flekker
+🔍 Fase 1: Intervju — kartlegger behov og blindsoner
 📐 Fase 2: Plan — bygger arkitektur og beslutninger
 🔎 Fase 3: Review — verifiserer fra fire perspektiver
 🚀 Fase 4: Lever — genererer kode og dokumentasjon
@@ -102,7 +102,7 @@ End each phase with a checkpoint summary before transitioning:
 Oppsummering:
 • Arketype: [valgt arketype]
 • Endringstype: [nybygg/modernisering/refaktorering]
-• Blinde flekker adressert: [N/11]
+• Blindsoner adressert: [N/11]
 • Nøkkelbeslutninger: [liste]
 • Åpne spørsmål: [liste, eller «ingen»]
 

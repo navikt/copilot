@@ -98,7 +98,7 @@ Repoet har et sofistikert undervisningslag:
 
 ### Svakheter (kompetanseeroderende)
 
-Før disse endringene hadde repoet blinde flekker:
+Før disse endringene hadde repoet blindsoner:
 
 1. **Alle 7 prompt-maler** inneholdt null forklaringer av *hvorfor* — ren kodegenerering
 2. **Ingen omtale** av kompetansebevaring, AI-frie soner, eller bevisst tenkning
@@ -127,7 +127,7 @@ Hver prompt avsluttes nå med instruksjoner til AI om å forklare:
 
 ### 3. Agentoppdateringer
 
-- **nav-pilot**: Ny «Kompetansebevaring»-rad i blinde-flekker-tabellen + nye Always-regler
+- **nav-pilot**: Ny «Kompetansebevaring»-rad i blindsone-tabellen + nye Always-regler
 - **code-review**: Ny «AI-generert kode»-sjekk som verifiserer at utvikleren forstår designbeslutningene
 
 ## Videre arbeid
