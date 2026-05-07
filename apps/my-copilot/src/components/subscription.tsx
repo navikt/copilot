@@ -132,7 +132,49 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   };
 
   useEffect(() => {
-    fetchSubscription();
+    let cancelled = false;
+
+    async function loadSubscription() {
+      try {
+        const response = await fetch("/api/copilot");
+        const data = await response.json();
+
+        if (cancelled) return;
+
+        if (data.error) {
+          setSubscriptionError(data.error);
+          setErrorTraceId(data.traceId ?? null);
+          return;
+        }
+
+        if (data.githubAccountLinked === false) {
+          setNeedsGitHubLink(true);
+          setEligible(data.icanhazcopilot);
+          return;
+        }
+
+        setSubscriptionError(null);
+        setErrorTraceId(null);
+        setNeedsGitHubLink(false);
+        setEligible(data.icanhazcopilot);
+        setCopilotSubscription(data.subscription);
+        setGitHubUsername(data.githubUsername);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Error fetching subscription details:", error);
+        setErrorTraceId(null);
+        if (error instanceof Error) {
+          setSubscriptionError(error.message);
+        } else {
+          setSubscriptionError("Ukjent feil ved henting av abonnement");
+        }
+      }
+    }
+
+    loadSubscription();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

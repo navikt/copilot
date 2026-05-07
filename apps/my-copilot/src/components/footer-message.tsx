@@ -18,7 +18,7 @@ export function FooterMessage() {
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: randomize on client mount to avoid SSR mismatch
+
       setMessage(messages[Math.floor(Math.random() * messages.length)]);
     }
   }, []);

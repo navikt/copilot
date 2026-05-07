@@ -354,6 +354,10 @@ func interactiveRepoInstall(src *Source, scope *InstallScope) error {
 // promptInstallScope asks the user where to install: repo or user home.
 // Returns nil if the user cancels.
 func promptInstallScope(targetDir string) (*InstallScope, error) {
+	if !isInteractive() {
+		// Non-interactive: default to repo scope
+		return ScopeRepo(targetDir), nil
+	}
 	var choice string
 	err := huh.NewSelect[string]().
 		Title("Where to install?").

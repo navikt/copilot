@@ -11,6 +11,14 @@ for app in $APPS; do
   fi
 done
 
+echo "📦 cli/nav-pilot:"
+if (cd cli/nav-pilot && go get -u ./... && go mod tidy); then
+  echo ""
+else
+  failed+=("cli/nav-pilot")
+  echo ""
+fi
+
 echo "📦 scripts/generate-docs:"
 if (cd scripts/generate-docs && go get -u ./... && go mod tidy); then
   echo ""

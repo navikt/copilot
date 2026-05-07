@@ -16,6 +16,7 @@
 
 [tools]
 "go:github.com/sethvargo/ratchet" = "latest"
+"go:honnef.co/go/tools/cmd/staticcheck" = "latest"
 lefthook = "latest"
 shellcheck = "latest"
 
