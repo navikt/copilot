@@ -1,7 +1,6 @@
 [tools]
 go = "1.26"
 golangci-lint = "2.10.1"
-"go:honnef.co/go/tools/cmd/staticcheck" = "v0.7.0"
 
 [tasks.version]
 description = "Generate version string (YYYYMMDD-gitsha)"
@@ -53,7 +52,7 @@ run = "go vet ./..."
 
 [tasks.staticcheck]
 description = "Run staticcheck for advanced static analysis"
-run = "staticcheck ./..."
+run = "go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./..."
 
 [tasks.check]
 description = "Run all checks (fmt, vet, staticcheck, lint, test)"

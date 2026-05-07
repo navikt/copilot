@@ -16,7 +16,6 @@
 
 [tools]
 "go:github.com/sethvargo/ratchet" = "latest"
-"go:honnef.co/go/tools/cmd/staticcheck" = "v0.7.0"
 lefthook = "latest"
 shellcheck = "latest"
 
@@ -101,7 +100,7 @@ run = """
 echo "  build..."   && cd cli/nav-pilot && go build -o /dev/null . && \
 echo "  test..."    && go test -race ./... && \
 echo "  vet..."     && go vet ./... && \
-echo "  staticcheck..." && staticcheck ./... && \
+echo "  staticcheck..." && go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./... && \
 cd ../.. && \
 echo "  shellcheck..." && shellcheck scripts/install.sh && \
 echo "  ✅ nav-pilot checks passed"

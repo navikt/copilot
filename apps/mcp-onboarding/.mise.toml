@@ -1,7 +1,6 @@
 [tools]
 go = "1.26"
 golangci-lint = "2.10.1"
-"go:honnef.co/go/tools/cmd/staticcheck" = "v0.7.0"
 fnox = "latest"
 
 [tasks.version]
@@ -54,7 +53,7 @@ run = "go vet ./..."
 
 [tasks.staticcheck]
 description = "Run staticcheck for advanced static analysis"
-run = "staticcheck ./..."
+run = "go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./..."
 
 [tasks.generate]
 description = "Generate customizations manifest from .github files"
