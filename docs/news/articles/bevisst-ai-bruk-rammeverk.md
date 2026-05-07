@@ -42,7 +42,7 @@ Vi har bygget disse prinsippene direkte inn i Copilot-oppsettet:
 
 - **Global instruksjon** som gjelder alle filer — agenter forklarer nå *hvorfor*, ikke bare *hva*
 - **7 prompt-maler** har fått «Forstå koden»-seksjon med rød-sone-markør
-- **Nav-pilot** varsler om kompetansebevaring i blindflekk-sjekken
+- **Nav-pilot** varsler om kompetansebevaring i blindsone-sjekken
 - **Kodegjennomgang** sjekker at utvikleren forstår AI-genererte designvalg
 
 Verktøyene *oppfordrer* til refleksjon, men de kan ikke tvinge det. Rammeverket er til syvende og sist en personlig praksis — et sett med vaner som beskytter den dype forståelsen mens du bruker AI der det gir faktisk verdi.

@@ -44,7 +44,7 @@ Kjører `copilot --agent <name> -p "prompt" --allow-all` og sjekker output:
 nav-pilot bruker en 4-fase modell. Hver fase har et emoji-prefiks og en eksplisitt stopp:
 
 ```
-🔍 Fase 1: Intervju — kartlegger behov og blinde flekker
+🔍 Fase 1: Intervju — kartlegger behov og blindsoner
    Stiller spørsmål, identifiserer arketype
    ─────────────────────────────────────────
    ⏳ Venter på svar før Fase 2: Plan

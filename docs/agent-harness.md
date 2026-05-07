@@ -90,7 +90,7 @@ AI-baserte feedback-mekanismer som vurderer kvalitet kontekstuelt.
 | `@accessibility-agent` | WCAG 2.1/2.2, Aksel-mønstre, tastaturnavigasjon | In-session | Manuell (delegert) |
 | `@observability-agent` | Metrikk-instrumentering, tracing, varsling | In-session | Manuell (delegert) |
 | threat-model skill | STRIDE-A trusselanalyse | In-session (on-demand) | Manuell |
-| nav-deep-interview skill | Avdekker blinde flekker i prosjekter | In-session (on-demand) | Manuell |
+| nav-deep-interview skill | Avdekker blindsoner i prosjekter | In-session (on-demand) | Manuell |
 | nav-architecture-review skill | Arkitektur-ADR med flerperspektiv | In-session (on-demand) | Manuell |
 | security-review skill | Kodesjekk før commit/push/PR | In-session (on-demand) | Manuell |
 

@@ -1,6 +1,6 @@
 ---
 name: nav-deep-interview
-description: Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet
+description: Strukturert intervju som avdekker blindsoner i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet
 license: MIT
 metadata:
   domain: general
@@ -9,7 +9,7 @@ metadata:
 
 # Deep Interview — Nav Project Clarification
 
-Kjør et strukturert intervju for å avdekke blinde flekker *før* implementering starter. Basert på vanlige feil og oversikter i Nav-prosjekter.
+Kjør et strukturert intervju for å avdekke blindsoner *før* implementering starter. Basert på vanlige feil og oversikter i Nav-prosjekter.
 
 ## Workflow
 
@@ -94,13 +94,13 @@ Still disse spørsmålene hvis T1 avdekker modernisering/refaktorering:
 | M7 | Finnes det data som må migreres? Hvor mye? | Påvirker migreringspipeline og nedetid |
 | M8 | Har dere karakteriseringstester som låser dagens adferd? | Nødvendig for trygg refaktorering |
 
-## Steg 3: Sjekk blinde flekker
+## Steg 3: Sjekk blindsoner
 
-Etter intervjuet, sjekk om noen av disse vanlige blinde flekkene ble avdekket. Hvis ikke — still oppfølgingsspørsmål.
+Etter intervjuet, sjekk om noen av disse vanlige blindsonene ble avdekket. Hvis ikke — still oppfølgingsspørsmål.
 
 Se [blind-spots.md](./references/blind-spots.md) for en komplett liste over vanlige oversikter.
 
-**Kritiske blinde flekker (still alltid):**
+**Kritiske blindsoner (still alltid):**
 
 - [ ] Er auth-mekanismen verifisert mot caller-typen?
 - [ ] Er `accessPolicy.inbound` definert i Nais-manifestet?
@@ -109,7 +109,7 @@ Se [blind-spots.md](./references/blind-spots.md) for en komplett liste over vanl
 - [ ] Er det satt opp structured logging (JSON)?
 - [ ] Finnes det en strategi for dependency failure?
 
-**Ekstra blinde flekker for modernisering (still hvis T1 = modernisering):**
+**Ekstra blindsoner for modernisering (still hvis T1 = modernisering):**
 
 - [ ] Er bakoverkompatibilitet vurdert? (Kan gammel kode lese nytt skjema?)
 - [ ] Er rollback-plan definert og testet?

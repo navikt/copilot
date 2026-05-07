@@ -200,14 +200,14 @@ const COLLECTIONS = [
 const PLANNING_SKILLS = [
   {
     name: "$nav-deep-interview",
-    purpose: "Strukturert intervju som avdekker blinde flekker (personvern, auth, avhengigheter)",
+    purpose: "Strukturert intervju som avdekker blindsoner (personvern, auth, avhengigheter)",
     details: [
       "Personvern og data — PII-kategorier, dataklassifisering, sletteregler",
       "Plattform og auth — caller-type, avhengigheter, feilhåndtering",
       "Observerbarhet — forretningsmetrikker, varsling, on-call",
       "Team og prosess — avhengigheter, deadlines, erfaring",
     ],
-    refs: "data-classification.md, blind-spots.md (25+ vanlige blinde flekker fra ekte Nav-repoer)",
+    refs: "data-classification.md, blind-spots.md (25+ vanlige blindsoner fra ekte Nav-repoer)",
   },
   {
     name: "$nav-plan",
@@ -367,7 +367,7 @@ function IntroductionSection() {
               { name: "@nav-pilot", desc: "Planleggingsagent — din inngangsport", color: "#3b82f6", Icon: CompassIcon },
               {
                 name: "$nav-deep-interview",
-                desc: "Avdekker blinde flekker (personvern, auth, avhengigheter)",
+                desc: "Avdekker blindsoner (personvern, auth, avhengigheter)",
                 color: "#a78bfa",
                 Icon: MagnifyingGlassIcon,
               },
@@ -541,7 +541,7 @@ function IntroductionSection() {
             ))}
           </VStack>
           <BodyShort size="small" className="mt-4" style={{ color: "#64748b", fontStyle: "italic" }}>
-            Denne kunnskapen er kodet inn i nav-pilots beslutningstrær, blinde-flekker-sjekklister og diagnostiske trær.
+            Denne kunnskapen er kodet inn i nav-pilots beslutningstrær, blindsone-sjekklister og diagnostiske trær.
           </BodyShort>
         </div>
       </VStack>

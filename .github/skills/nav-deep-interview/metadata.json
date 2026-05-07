@@ -1,5 +1,5 @@
 {
-  "description": "Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
+  "description": "Strukturert intervju som avdekker blindsoner i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
   "domain": "general",
   "tags": ["planning", "requirements", "interview", "onboarding", "nav-pilot"],
   "references": [
@@ -9,7 +9,7 @@
   "examples": [
     {
       "prompt": "Kjør et dypintervju for den nye dp-behandling-tjenesten",
-      "scenario": "Avdekk blinde flekker i nytt prosjekt"
+      "scenario": "Avdekk blindsoner i nytt prosjekt"
     },
     {
       "prompt": "Still de viktige spørsmålene vi glemmer før vi begynner å kode",

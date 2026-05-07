@@ -119,7 +119,7 @@ const PIPELINE_STEPS = [
   {
     title: "Intervju",
     subtitle: "Dypdykk-intervju",
-    description: "Finner blinde flekker — dataklassifisering, auth-type, PII-risiko og avhengigheter.",
+    description: "Finner blindsoner — dataklassifisering, auth-type, PII-risiko og avhengigheter.",
     Icon: MagnifyingGlassIcon,
     color: "#a78bfa",
   },

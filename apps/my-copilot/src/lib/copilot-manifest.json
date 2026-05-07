@@ -1087,7 +1087,7 @@
     {
       "id": "nav-deep-interview",
       "name": "nav-deep-interview",
-      "description": "Strukturert intervju som avdekker blinde flekker i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
+      "description": "Strukturert intervju som avdekker blindsoner i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
       "type": "skill",
       "domain": "general",
       "filePath": ".github/skills/nav-deep-interview/SKILL.md",
@@ -1099,7 +1099,7 @@
       "examples": [
         {
           "prompt": "Kjør et dypintervju for den nye dp-behandling-tjenesten",
-          "scenario": "Avdekk blinde flekker i nytt prosjekt"
+          "scenario": "Avdekk blindsoner i nytt prosjekt"
         },
         {
           "prompt": "Still de viktige spørsmålene vi glemmer før vi begynner å kode",
