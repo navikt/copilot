@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-30T07:39:45.469Z",
+  "generatedAt": "2026-05-07T12:07:22.992Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1196,6 +1196,43 @@
         {
           "path": "references/diagnostic-trees.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-troubleshoot/references/diagnostic-trees.md"
+        }
+      ]
+    },
+    {
+      "id": "observability-debugging",
+      "name": "observability-debugging",
+      "description": "Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces — strukturerte debugging-workflows for Nav-utviklere",
+      "type": "skill",
+      "domain": "observability",
+      "filePath": ".github/skills/observability-debugging/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-debugging/SKILL.md",
+      "contentHash": "a1c1ba395ab34b26438291192d50a8c9a864ccbc0b1da09e71430db41bef72b3",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["debugging", "mimir", "loki", "tempo", "prometheus", "traces", "logs", "kubectl", "nais", "nav-pilot"],
+      "examples": [
+        {
+          "prompt": "Appen min har plutselig høy feilrate i prod, hjelp meg feilsøke",
+          "scenario": "Debugging error spike med metrics → logs → traces"
+        },
+        {
+          "prompt": "Responsetiden til /api/soknad er blitt mye tregere den siste timen",
+          "scenario": "Debugging latency med Mimir p95 og Tempo trace analysis"
+        },
+        {
+          "prompt": "Poden restartes hele tiden med OOMKilled, vis meg memory metrics",
+          "scenario": "Debugging resource exhaustion med kubectl og Mimir"
+        },
+        {
+          "prompt": "Vis meg hvordan jeg korrelerer en trace-ID fra loggen med Tempo",
+          "scenario": "Cross-pillar correlation fra logs til traces"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/query-library.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-debugging/references/query-library.md"
         }
       ]
     },

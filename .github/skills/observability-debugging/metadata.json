@@ -1,0 +1,26 @@
+{
+  "description": "Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces — strukturerte debugging-workflows for Nav-utviklere",
+  "domain": "observability",
+  "tags": ["debugging", "mimir", "loki", "tempo", "prometheus", "traces", "logs", "kubectl", "nais", "nav-pilot"],
+  "references": [
+    "references/query-library.md"
+  ],
+  "examples": [
+    {
+      "prompt": "Appen min har plutselig høy feilrate i prod, hjelp meg feilsøke",
+      "scenario": "Debugging error spike med metrics → logs → traces"
+    },
+    {
+      "prompt": "Responsetiden til /api/soknad er blitt mye tregere den siste timen",
+      "scenario": "Debugging latency med Mimir p95 og Tempo trace analysis"
+    },
+    {
+      "prompt": "Poden restartes hele tiden med OOMKilled, vis meg memory metrics",
+      "scenario": "Debugging resource exhaustion med kubectl og Mimir"
+    },
+    {
+      "prompt": "Vis meg hvordan jeg korrelerer en trace-ID fra loggen med Tempo",
+      "scenario": "Cross-pillar correlation fra logs til traces"
+    }
+  ]
+}

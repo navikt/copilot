@@ -738,6 +738,21 @@
     },
     {
       "type": "skill",
+      "name": "observability-debugging",
+      "displayName": "observability-debugging",
+      "description": "Structured debugging workflows using Nav's observability stack. Replaces guesswork with systematic investigation across metrics, logs, and traces.",
+      "filePath": ".github/skills/observability-debugging",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-debugging/SKILL.md",
+      "references": [
+        {
+          "path": "references/query-library.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-debugging/references/query-library.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "observability-setup",
       "displayName": "observability-setup",
       "description": "This skill provides patterns for setting up observability in Nais applications.",
