@@ -2,6 +2,7 @@
 title: "cplt — team-config med .cplt.toml"
 date: 2026-05-08
 category: praksis
+draft: true
 excerpt: "Teams kan nå committe sandbox-innstillinger til repoet. Alle som kjører cplt i repoet får automatisk riktig config uten manuelle flagg."
 tags:
   - cplt
