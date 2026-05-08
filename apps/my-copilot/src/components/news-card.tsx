@@ -71,7 +71,7 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
   const linkProps = isExternal ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
 
   return (
-    <Box borderRadius="12" padding={{ xs: "space-20", md: "space-32" }} asChild>
+    <Box background="neutral-soft" borderRadius="12" padding={{ xs: "space-20", md: "space-32" }} asChild>
       <NextLink href={href} {...linkProps} className="no-underline hover:shadow-lg transition-shadow featured-card">
         <div className="flex flex-col gap-5">
           <HStack gap="space-4" align="center">

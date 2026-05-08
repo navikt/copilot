@@ -1,9 +1,10 @@
 import { getNewsItems } from "@/lib/news";
 import React from "react";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
-import { ExternalLinkIcon, PadlockLockedIcon } from "@navikt/aksel-icons";
+import { ExternalLinkIcon, PadlockLockedIcon, PlayIcon, BookIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
 import { NewsFeed } from "@/components/news-feed";
+import { HighlightCards } from "@/components/pulse-strip";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
@@ -47,10 +48,14 @@ export default async function Home() {
 
       <section className="max-w-7xl mx-auto">
         <Box
-          paddingBlock={{ xs: "space-24", md: "space-40" }}
+          paddingBlock={{ xs: "space-16", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
-          <VStack gap={{ xs: "space-32", md: "space-40" }}>
+          <VStack gap={{ xs: "space-24", md: "space-32" }}>
+            <Box className="reveal-section">
+              <HighlightCards />
+            </Box>
+
             <Box className="reveal-section">
               <NewsFeed items={news} />
             </Box>
@@ -59,19 +64,24 @@ export default async function Home() {
               <Heading size="small" level="2" className="mb-4">
                 Ressurser
               </Heading>
-              <HGrid columns={{ xs: 1, sm: 2 }} gap="space-12">
+              <HGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="space-12">
+                <NavCard
+                  href="/kom-i-gang"
+                  icon={<PlayIcon aria-hidden />}
+                  title="Kom i gang"
+                  description="Alt du trenger for å starte med Copilot"
+                />
+                <NavCard
+                  href="/praksis"
+                  icon={<BookIcon aria-hidden />}
+                  title="God praksis"
+                  description="Mønstre og tips for effektiv AI-bruk"
+                />
                 <NavCard
                   href="https://docs.github.com/en/copilot"
                   icon={<ExternalLinkIcon aria-hidden />}
-                  title="GitHub Copilot Dokumentasjon"
+                  title="Dokumentasjon"
                   description="Offisiell dokumentasjon fra GitHub"
-                  external
-                />
-                <NavCard
-                  href="https://utvikling.intern.nav.no/teknisk/github-copilot.html"
-                  icon={<ExternalLinkIcon aria-hidden />}
-                  title="Om GitHub Copilot i Nav"
-                  description="Navs retningslinjer og oppsett"
                   external
                 />
               </HGrid>
