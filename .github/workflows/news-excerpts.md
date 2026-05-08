@@ -14,7 +14,6 @@ network:
   allowed:
     - defaults
     - github
-    - "github.blog"
     - "openai.com"
     - "anthropic.com"
     - "blog.google"
