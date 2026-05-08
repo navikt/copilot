@@ -1,6 +1,7 @@
 ---
 title: "Go er det beste språket for AI-agenter"
 date: 2026-02-25
+author: starefosen
 category: praksis
 excerpt: "Kompilering, enkelhet og idiomatiske konvensjoner gjør Go til et sweet spot for kodingsagenter."
 url: "https://getbruin.com/blog/go-is-the-best-language-for-agents/"

@@ -1,6 +1,7 @@
 ---
 title: "Automatisk synkronisering av Copilot-tilpasninger"
 date: 2026-04-14
+author: starefosen
 category: nav
 excerpt: "Ny reusable workflow holder agents, instructions, prompts og skills i repoet ditt oppdatert mot navikt/copilot. Åtte linjer YAML, ingen secrets."
 tags:

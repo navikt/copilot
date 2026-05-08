@@ -1,6 +1,7 @@
 ---
 title: "cplt oppdatering — proxy som standard, Linux-sandbox og credential-beskyttelse"
 date: 2026-05-06
+author: starefosen
 category: praksis
 excerpt: "Fire endringer som gjør cplt tryggere og mer portabel: proxy som standard, granulær logging, Linux-støtte og credential-beskyttelse."
 tags:

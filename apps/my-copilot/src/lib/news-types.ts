@@ -11,6 +11,7 @@ export interface NewsItem {
   type: "link" | "article";
   url?: string;
   content?: string;
+  author?: string;
 }
 
 export const CATEGORY_CONFIG: Record<

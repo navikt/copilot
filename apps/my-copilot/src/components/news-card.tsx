@@ -15,6 +15,18 @@ function safeHref(url: string): string {
 
 const DEFAULT_CATEGORY_CONFIG = { label: "Annet", variant: "info" as const };
 
+function AuthorAvatar({ author }: { author: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`https://github.com/${author}.png?size=32`} alt="" width={16} height={16} className="rounded-full" />
+      <BodyShort size="small" className="text-text-subtle">
+        {author}
+      </BodyShort>
+    </span>
+  );
+}
+
 export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) {
   const categoryConfig = CATEGORY_CONFIG[item.category] ?? DEFAULT_CATEGORY_CONFIG;
   const isLink = item.type === "link";
@@ -40,13 +52,14 @@ export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) 
         className={`no-underline hover:shadow-md transition-shadow news-card-${item.category}`}
       >
         <div className="flex flex-col gap-3 h-full">
-          <HStack gap="space-4" align="center">
+          <HStack gap="space-4" align="center" wrap>
             <Tag size="small" variant={categoryConfig.variant}>
               {categoryConfig.label}
             </Tag>
             <BodyShort size="small" className="text-text-subtle">
               {formatDate(item.date)}
             </BodyShort>
+            {item.author && <AuthorAvatar author={item.author} />}
           </HStack>
           <Heading size={isWide ? "small" : "xsmall"} level="3">
             <span className="flex items-center gap-2">
@@ -74,13 +87,14 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
     <Box background="neutral-soft" borderRadius="12" padding={{ xs: "space-20", md: "space-32" }} asChild>
       <NextLink href={href} {...linkProps} className="no-underline hover:shadow-lg transition-shadow featured-card">
         <div className="flex flex-col gap-5">
-          <HStack gap="space-4" align="center">
+          <HStack gap="space-4" align="center" wrap>
             <Tag size="small" variant={categoryConfig.variant}>
               {categoryConfig.label}
             </Tag>
             <BodyShort size="small" className="text-text-subtle">
               {formatDate(item.date)}
             </BodyShort>
+            {item.author && <AuthorAvatar author={item.author} />}
           </HStack>
           <Heading size="medium" level="2">
             <span className="flex items-center gap-2">

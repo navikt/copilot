@@ -48,6 +48,7 @@ function parseNewsFile(fileName: string): NewsItem {
     tags: data.tags ?? [],
     type: hasUrl && !hasContent ? "link" : "article",
     url: data.url,
+    author: data.author,
   };
 }
 
@@ -80,6 +81,7 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
     tags: data.tags ?? [],
     type: "article",
     url: data.url,
+    author: data.author,
     content,
   };
 }

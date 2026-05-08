@@ -1,6 +1,7 @@
 ---
 title: "Rammeverk for bevisst AI-bruk og kompetansebevaring"
 date: 2026-04-30
+author: starefosen
 category: praksis
 excerpt: "Grønn og rød sone, treforsøksregelen og «generer-så-forstå» — nye retningslinjer for å bruke AI-verktøy uten å miste den dype forståelsen."
 tags:

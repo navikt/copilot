@@ -1,6 +1,7 @@
 ---
 title: "cplt — sandbox for Copilot CLI"
 date: 2026-04-10
+author: starefosen
 category: praksis
 excerpt: "cplt kjører Copilot CLI inne i Apples Seatbelt-sandbox på macOS. Copilot kan jobbe med prosjektet ditt, men kjernen blokkerer tilgang til credentials, secrets og .env-filer."
 tags:
