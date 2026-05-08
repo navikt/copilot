@@ -25,8 +25,7 @@ func (s *Source) Cleanup() {
 // resolveSource finds the navikt/copilot source. Priority:
 //  1. Explicit --ref flag
 //  2. Local repo (walk up from CWD to git root — dev mode)
-//  3. Clone from the release tag matching this binary's version
-//  4. Clone from HEAD (only if version is "dev")
+//  3. Clone HEAD of main (always gets latest content)
 func resolveSource(ref, sourceRepo string) (*Source, error) {
 	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
@@ -59,21 +58,11 @@ func resolveSource(ref, sourceRepo string) (*Source, error) {
 		}
 	}
 
-	// For released binaries, clone from the matching release tag
-	if version != "dev" {
-		src, err := cloneRemote("nav-pilot/"+version, "")
-		if err != nil {
-			return nil, err
-		}
-		src.Version = version
-		return src, nil
-	}
-
+	// Always clone HEAD of main to get the latest content regardless of binary version
 	src, err := cloneRemote("", "")
 	if err != nil {
 		return nil, err
 	}
-	// Propagate the build-time version so state files always have a version.
 	src.Version = version
 	return src, nil
 }
