@@ -15,21 +15,23 @@ function safeHref(url: string): string {
 
 const DEFAULT_CATEGORY_CONFIG = { label: "Annet", variant: "info" as const };
 
-export function NewsCard({ item }: { item: NewsItem }) {
+export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) {
   const categoryConfig = CATEGORY_CONFIG[item.category] ?? DEFAULT_CATEGORY_CONFIG;
   const isLink = item.type === "link";
   const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
   const isExternal = isLink && !href.startsWith("/");
   const linkProps = isExternal ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
-  const isArticle = item.type === "article";
+  const isWide = span >= 2;
+
+  const spanClass = isWide ? "sm:col-span-2 md:col-span-2" : undefined;
 
   return (
     <Box
       borderColor="neutral"
       borderWidth="1"
-      borderRadius={isArticle ? "12" : "8"}
-      padding={isArticle ? { xs: "space-20", md: "space-24" } : "space-16"}
-      className={isArticle ? "sm:col-span-2 md:col-span-2" : undefined}
+      borderRadius={isWide ? "12" : "8"}
+      padding={isWide ? { xs: "space-20", md: "space-24" } : "space-16"}
+      className={spanClass}
       asChild
     >
       <NextLink
@@ -46,7 +48,7 @@ export function NewsCard({ item }: { item: NewsItem }) {
               {formatDate(item.date)}
             </BodyShort>
           </HStack>
-          <Heading size={isArticle ? "small" : "xsmall"} level="3">
+          <Heading size={isWide ? "small" : "xsmall"} level="3">
             <span className="flex items-center gap-2">
               {item.title}
               {isExternal && <ExternalLinkIcon aria-hidden fontSize="1rem" className="shrink-0" />}
