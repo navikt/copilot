@@ -8,22 +8,24 @@ import { NewsCard, FeaturedNewsCard } from "./news-card";
 
 interface NewsFeedProps {
   items: NewsItem[];
+  compact?: boolean;
 }
 
 const COLS = 3;
+const COLS_COMPACT = 2;
 
 /**
  * Greedy row-packing: articles prefer span-2, links span-1.
  * When an article doesn't fit in the remaining columns, it
  * downgrades to span-1 so the row fills without gaps.
  */
-function computeGridSpans(items: NewsItem[]): number[] {
+function computeGridSpans(items: NewsItem[], cols: number = COLS): number[] {
   const spans: number[] = [];
   let col = 0;
 
   for (const item of items) {
     const preferred = item.type === "article" ? 2 : 1;
-    const remaining = COLS - col;
+    const remaining = cols - col;
 
     if (preferred <= remaining) {
       spans.push(preferred);
@@ -33,13 +35,13 @@ function computeGridSpans(items: NewsItem[]): number[] {
       col += 1;
     }
 
-    if (col >= COLS) col = 0;
+    if (col >= cols) col = 0;
   }
 
   return spans;
 }
 
-export function NewsFeed({ items }: NewsFeedProps) {
+export function NewsFeed({ items, compact = false }: NewsFeedProps) {
   const [selected, setSelected] = useState<NewsCategory | null>(null);
 
   const availableCategories = useMemo(() => {
@@ -50,7 +52,10 @@ export function NewsFeed({ items }: NewsFeedProps) {
   const filtered = selected ? items.filter((item) => item.category === selected) : items;
   const featured = filtered[0];
   const rest = filtered.slice(1);
-  const spans = useMemo(() => computeGridSpans(rest), [rest]);
+  const cols = compact ? COLS_COMPACT : COLS;
+  const spans = useMemo(() => computeGridSpans(rest, cols), [rest, cols]);
+
+  const gridCols = compact ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3";
 
   return (
     <VStack gap="space-12">
@@ -77,7 +82,7 @@ export function NewsFeed({ items }: NewsFeedProps) {
       {filtered.length === 0 && <BodyShort className="text-text-subtle">Ingen nyheter i denne kategorien.</BodyShort>}
       {featured && <FeaturedNewsCard item={featured} />}
       {rest.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className={`grid ${gridCols} gap-3`}>
           {rest.map((item, i) => (
             <NewsCard key={item.slug} item={item} span={spans[i]} />
           ))}

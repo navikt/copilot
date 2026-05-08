@@ -5,6 +5,7 @@ import { ExternalLinkIcon, PadlockLockedIcon, PlayIcon, BookIcon } from "@navikt
 import NextLink from "next/link";
 import { NewsFeed } from "@/components/news-feed";
 import { HighlightCards } from "@/components/pulse-strip";
+import { Sidebar, SidebarCompact } from "@/components/sidebar";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
@@ -57,7 +58,15 @@ export default async function Home() {
             </Box>
 
             <Box className="reveal-section">
-              <NewsFeed items={news} />
+              <SidebarCompact />
+              <div className="flex gap-8 lg:gap-10">
+                <div className="flex-1 min-w-0">
+                  <NewsFeed items={news} compact />
+                </div>
+                <div className="w-64 shrink-0">
+                  <Sidebar />
+                </div>
+              </div>
             </Box>
 
             <Box className="reveal-section">

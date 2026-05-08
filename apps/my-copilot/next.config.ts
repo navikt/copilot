@@ -13,7 +13,7 @@ const securityHeaders = [
       "default-src 'self'",
       `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' blob: data: https://avatars.githubusercontent.com",
+      "img-src 'self' blob: data: https://avatars.githubusercontent.com https://github.com",
       "font-src 'self' data: https://cdn.nav.no",
       "connect-src 'self' https://telemetry.ekstern.dev.nav.no https://telemetry.nav.no",
       "frame-ancestors 'self'",
