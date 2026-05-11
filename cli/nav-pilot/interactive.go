@@ -435,6 +435,15 @@ func cliDisplayName(name string) string {
 	return name
 }
 
+// copilotAgentArgs returns extra CLI flags for a given agent.
+// nav-pilot benefits from plan mode and high reasoning effort.
+func copilotAgentArgs(agent string) []string {
+	if agent == "nav-pilot" {
+		return []string{"--mode", "plan", "--effort", "high"}
+	}
+	return nil
+}
+
 // launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
@@ -444,15 +453,19 @@ func launchCopilotWithAgent(agent string) {
 		return
 	}
 
-	args := []string{}
+	agentArgs := []string{}
 	if agent != "" {
+		agentArgs = append(agentArgs, "--agent", agent)
+		agentArgs = append(agentArgs, copilotAgentArgs(agent)...)
+	}
+
+	args := []string{}
+	if len(agentArgs) > 0 {
 		if cliName == "cplt" {
 			// cplt requires "--" to forward flags to the underlying Copilot CLI
-			args = append(args, "--", "--agent", agent)
-		} else {
-			// copilot CLI accepts --agent directly
-			args = append(args, "--agent", agent)
+			args = append(args, "--")
 		}
+		args = append(args, agentArgs...)
 	}
 
 	displayName := cliDisplayName(cliName)
