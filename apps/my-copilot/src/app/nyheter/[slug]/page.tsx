@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Box, VStack, Heading, BodyShort, BodyLong, Tag, HStack } from "@navikt/ds-react";
 import { notFound } from "next/navigation";
 import { getArticle, getArticleSlugs, CATEGORY_CONFIG } from "@/lib/news";
@@ -35,6 +36,37 @@ interface Props {
 
 export function generateStaticParams() {
   return getArticleSlugs().map((slug) => ({ slug }));
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const article = getArticle(slug);
+
+  if (!article) {
+    return {
+      title: "Artikkel ikke funnet",
+    };
+  }
+
+  const categoryConfig = CATEGORY_CONFIG[article.category] ?? { label: article.category, variant: "info" as const };
+
+  return {
+    title: article.title,
+    description: article.excerpt,
+    openGraph: {
+      title: article.title,
+      description: article.excerpt,
+      type: "article",
+      publishedTime: article.date,
+      authors: article.author ? [article.author] : undefined,
+      tags: article.tags,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description: article.excerpt,
+    },
+  };
 }
 
 export default async function ArticlePage({ params }: Props) {
