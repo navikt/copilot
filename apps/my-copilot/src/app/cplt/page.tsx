@@ -11,6 +11,8 @@ import {
   CheckmarkCircleIcon,
   CogRotationIcon,
   PersonGroupIcon,
+  WrenchIcon,
+  MagnifyingGlassIcon,
 } from "@navikt/aksel-icons";
 
 export const metadata: Metadata = {
@@ -128,6 +130,8 @@ export default async function CpltPage() {
       <ProtectionsSection />
       <ProxySection />
       <MultiAgentSection />
+      <TeamConfigSection />
+      <InitSection />
       <ConfigSection configKeys={configKeys} />
       <HowItWorksSection />
       <FooterSection />
@@ -747,6 +751,316 @@ function MultiAgentSection() {
   );
 }
 
+/* ---------- Team Configuration ---------- */
+
+function TeamConfigSection() {
+  return (
+    <section style={{ background: "white" }}>
+      <Box
+        paddingBlock={{ xs: "space-24", md: "space-40" }}
+        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+        className="max-w-5xl mx-auto"
+      >
+        <VStack gap={{ xs: "space-16", md: "space-24" }}>
+          <div className="text-center">
+            <Heading size="medium" level="2" className="mb-3">
+              Team configuration
+            </Heading>
+            <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
+              Commit sandbox settings to your repo. Everyone gets the right config automatically.
+            </p>
+          </div>
+
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-start">
+            {/* TOML example */}
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            >
+              <div
+                className="flex items-center justify-between px-4 py-2"
+                style={{ background: "#1e1e1e", borderBottom: "1px solid #333" }}
+              >
+                <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                  .cplt.toml
+                </span>
+                <CopyButton
+                  copyText={`[deny]\nenv = ["VAULT_TOKEN", "NPM_TOKEN"]\n\n[propose]\nallow_localhost_any = true\n\n[propose.allow]\nports = [5432]\nlocalhost = [3000]`}
+                  size="xsmall"
+                  style={{ color: "white" }}
+                />
+              </div>
+              <pre
+                className="p-4 font-mono leading-relaxed overflow-x-auto"
+                style={{ margin: 0, fontSize: "0.75rem", color: "#d4d4d4", background: "#1e1e1e" }}
+              >
+                <span style={{ color: "#94a3b8" }}># Tighten automatically — no approval needed</span>
+                {"\n"}
+                <span style={{ color: "#569cd6" }}>[deny]</span>
+                {"\n"}
+                <span style={{ color: "#9cdcfe" }}>env</span>
+                <span style={{ color: "#d4d4d4" }}> = [</span>
+                <span style={{ color: "#ce9178" }}>&quot;VAULT_TOKEN&quot;</span>
+                <span style={{ color: "#d4d4d4" }}>, </span>
+                <span style={{ color: "#ce9178" }}>&quot;NPM_TOKEN&quot;</span>
+                <span style={{ color: "#d4d4d4" }}>]</span>
+                {"\n\n"}
+                <span style={{ color: "#94a3b8" }}># Propose — requires `cplt trust` approval</span>
+                {"\n"}
+                <span style={{ color: "#569cd6" }}>[propose]</span>
+                {"\n"}
+                <span style={{ color: "#9cdcfe" }}>allow_localhost_any</span>
+                <span style={{ color: "#d4d4d4" }}> = </span>
+                <span style={{ color: "#569cd6" }}>true</span>
+                {"\n\n"}
+                <span style={{ color: "#569cd6" }}>[propose.allow]</span>
+                {"\n"}
+                <span style={{ color: "#9cdcfe" }}>ports</span>
+                <span style={{ color: "#d4d4d4" }}> = [</span>
+                <span style={{ color: "#b5cea8" }}>5432</span>
+                <span style={{ color: "#d4d4d4" }}>]</span>
+                {"\n"}
+                <span style={{ color: "#9cdcfe" }}>localhost</span>
+                <span style={{ color: "#d4d4d4" }}> = [</span>
+                <span style={{ color: "#b5cea8" }}>3000</span>
+                <span style={{ color: "#d4d4d4" }}>]</span>
+              </pre>
+            </div>
+
+            {/* Explanation */}
+            <VStack gap="space-16">
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex items-center justify-center rounded-lg shrink-0 mt-0.5"
+                  style={{
+                    width: "2.25rem",
+                    height: "2.25rem",
+                    background: "#10b98115",
+                    border: "1px solid #10b98130",
+                  }}
+                >
+                  <ShieldLockIcon fontSize="1.125rem" style={{ color: "#10b981" }} aria-hidden />
+                </div>
+                <div>
+                  <p className="font-semibold" style={{ color: "#0f172a", fontSize: "0.875rem", margin: 0 }}>
+                    [deny] — auto-applied
+                  </p>
+                  <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
+                    Can only tighten the sandbox. Block env vars, deny file paths — no approval needed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex items-center justify-center rounded-lg shrink-0 mt-0.5"
+                  style={{
+                    width: "2.25rem",
+                    height: "2.25rem",
+                    background: "#3b82f615",
+                    border: "1px solid #3b82f630",
+                  }}
+                >
+                  <CheckmarkCircleIcon fontSize="1.125rem" style={{ color: "#3b82f6" }} aria-hidden />
+                </div>
+                <div>
+                  <p className="font-semibold" style={{ color: "#0f172a", fontSize: "0.875rem", margin: 0 }}>
+                    [propose] — requires approval
+                  </p>
+                  <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
+                    Request additional permissions. Each developer approves with{" "}
+                    <code style={{ fontSize: "0.75rem" }}>cplt trust accept --all</code>. Content-pinned — any change
+                    invalidates the approval.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex items-center justify-center rounded-lg shrink-0 mt-0.5"
+                  style={{
+                    width: "2.25rem",
+                    height: "2.25rem",
+                    background: "#f59e0b15",
+                    border: "1px solid #f59e0b30",
+                  }}
+                >
+                  <WrenchIcon fontSize="1.125rem" style={{ color: "#f59e0b" }} aria-hidden />
+                </div>
+                <div>
+                  <p className="font-semibold" style={{ color: "#0f172a", fontSize: "0.875rem", margin: 0 }}>
+                    Tamper-proof
+                  </p>
+                  <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
+                    Read from git HEAD, not the working tree. The agent cannot modify its own sandbox config.
+                  </p>
+                </div>
+              </div>
+            </VStack>
+          </HGrid>
+        </VStack>
+      </Box>
+    </section>
+  );
+}
+
+/* ---------- cplt init ---------- */
+
+const ECOSYSTEMS = [
+  { name: "JVM", detail: "Gradle / Maven", color: "#f97316" },
+  { name: "Node.js", detail: "npm / pnpm", color: "#22c55e" },
+  { name: "Docker", detail: "Compose", color: "#2563eb" },
+  { name: "Python", detail: "pip / uv", color: "#eab308" },
+  { name: "Spring Boot", detail: "8080 + PG", color: "#22c55e" },
+  { name: "Ktor", detail: "8080", color: "#a855f7" },
+  { name: "Next.js", detail: "3000", color: "#0ea5e9" },
+  { name: "Flyway", detail: "PG 5432", color: "#dc2626" },
+  { name: "Playwright", detail: "browsers", color: "#f472b6" },
+  { name: "Rust / Go", detail: "defaults", color: "#94a3b8" },
+];
+
+function InitSection() {
+  return (
+    <section className="dark-section" style={{ background: "#0c1a14", color: "white" }}>
+      <Box
+        paddingBlock={{ xs: "space-16", md: "space-32" }}
+        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+        className="max-w-5xl mx-auto"
+      >
+        <VStack gap={{ xs: "space-16", md: "space-24" }}>
+          <div className="text-center">
+            <Heading size="medium" level="2" className="mb-3" style={{ color: "white" }}>
+              Auto-detect your project
+            </Heading>
+            <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
+              <code style={{ color: "#4ade80", fontSize: "0.875rem" }}>cplt init</code> scans your project for build
+              files, frameworks, and patterns — then generates the right{" "}
+              <code style={{ color: "#4ade80", fontSize: "0.875rem" }}>.cplt.toml</code> automatically.
+            </p>
+          </div>
+
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-start">
+            {/* Terminal mock */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+              <div
+                className="flex items-center gap-2 px-4 py-2"
+                style={{ background: "#161b22", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                  $ cplt init
+                </span>
+              </div>
+              <pre
+                className="p-4 font-mono leading-relaxed overflow-x-auto"
+                style={{ margin: 0, fontSize: "0.7rem", color: "#d4d4d4", background: "#0d1117" }}
+              >
+                <span style={{ color: "#4ade80" }}>Detected:</span>
+                {"\n"}
+                {"  "}
+                <span style={{ color: "#58a6ff" }}>Spring Boot</span>
+                {"  application.yml + spring-boot-starter\n"}
+                {"  "}
+                <span style={{ color: "#58a6ff" }}>Flyway</span>
+                {"       db/migration/ directory\n"}
+                {"  "}
+                <span style={{ color: "#58a6ff" }}>Docker</span>
+                {"       Dockerfile + compose.yml\n"}
+                {"  "}
+                <span style={{ color: "#58a6ff" }}>Gradle</span>
+                {"       build.gradle.kts\n"}
+                {"  "}
+                <span style={{ color: "#58a6ff" }}>.env</span>
+                {"         .env.example found\n"}
+                {"\n"}
+                <span style={{ color: "#4ade80" }}>Generated .cplt.toml:</span>
+                {"\n\n"}
+                <span style={{ color: "#94a3b8" }}># Deny access to sensitive env vars</span>
+                {"\n"}
+                <span style={{ color: "#569cd6" }}>[deny]</span>
+                {"\n"}
+                {"env = ["}
+                <span style={{ color: "#ce9178" }}>&quot;DB_PASSWORD&quot;</span>
+                {", "}
+                <span style={{ color: "#ce9178" }}>&quot;API_KEY&quot;</span>
+                {"]\n\n"}
+                <span style={{ color: "#569cd6" }}>[propose]</span>
+                {"\n"}
+                {"allow_jvm_attach = "}
+                <span style={{ color: "#569cd6" }}>true</span>
+                {"\n\n"}
+                <span style={{ color: "#569cd6" }}>[propose.allow]</span>
+                {"\n"}
+                {"ports = ["}
+                <span style={{ color: "#b5cea8" }}>5432</span>
+                {"]\n"}
+                {"localhost = ["}
+                <span style={{ color: "#b5cea8" }}>8080</span>
+                {"]\n\n"}
+                <span style={{ color: "#f59e0b" }}>⚠ allow_docker</span>
+                {"  Docker detected — grants broad access\n\n"}
+                <span style={{ color: "#94a3b8" }}>Run </span>
+                <span style={{ color: "#4ade80" }}>cplt init --write</span>
+                <span style={{ color: "#94a3b8" }}> to save</span>
+              </pre>
+            </div>
+
+            {/* Ecosystems grid */}
+            <VStack gap="space-16">
+              <div>
+                <p className="font-semibold mb-2" style={{ color: "white", fontSize: "0.875rem", margin: 0 }}>
+                  15 ecosystem detectors
+                </p>
+                <p style={{ color: "#94a3b8", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
+                  Each detector knows which sandbox permissions the ecosystem needs. Dangerous permissions get risk
+                  warnings.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {ECOSYSTEMS.map((eco) => (
+                  <div
+                    key={eco.name}
+                    className="rounded-lg flex items-center gap-2"
+                    style={{
+                      padding: "0.375rem 0.75rem",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <div className="rounded-full" style={{ width: "6px", height: "6px", background: eco.color }} />
+                    <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>{eco.name}</span>
+                    <span style={{ color: "#64748b", fontSize: "0.6875rem" }}>{eco.detail}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                className="rounded-lg flex items-start gap-3"
+                style={{
+                  padding: "0.75rem 1rem",
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <MagnifyingGlassIcon fontSize="1rem" style={{ color: "#94a3b8", marginTop: "0.125rem" }} aria-hidden />
+                <div>
+                  <p className="font-semibold" style={{ color: "white", fontSize: "0.8125rem", margin: 0 }}>
+                    Personal config with --global
+                  </p>
+                  <p style={{ color: "#94a3b8", fontSize: "0.75rem", lineHeight: 1.5, margin: "0.25rem 0 0" }}>
+                    Detects Gradle wrapper, Playwright browsers, GPG signing, and alternative agents on your machine.
+                    Writes to <code style={{ fontSize: "0.6875rem" }}>~/.config/cplt/config.toml</code>.
+                  </p>
+                </div>
+              </div>
+            </VStack>
+          </HGrid>
+        </VStack>
+      </Box>
+    </section>
+  );
+}
+
 /* ---------- Configuration ---------- */
 
 function ConfigSection({ configKeys }: { configKeys: import("@/lib/cplt-config").CpltConfigKey[] }) {
@@ -786,10 +1100,10 @@ function HowItWorksSection() {
       color: "#10b981",
     },
     {
-      title: "Shell Setup",
-      command: "cplt --shell-install",
-      description: "Makes 'copilot' run sandboxed by default. Persistent alias.",
-      Icon: CogRotationIcon,
+      title: "Configure",
+      command: "cplt init --write",
+      description: "Detect your project's tooling and generate sandbox config.",
+      Icon: MagnifyingGlassIcon,
       color: "#34d399",
     },
     {
@@ -881,52 +1195,40 @@ function HowItWorksSection() {
             ))}
           </HGrid>
 
-          {/* Doctor output */}
+          {/* Shell setup tip */}
           <VStack gap="space-8" className="max-w-2xl mx-auto w-full">
             <Heading size="xsmall" level="3" className="text-center">
-              Verify your setup
+              Make it the default
             </Heading>
             <p className="text-center" style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0 }}>
-              Run <code style={{ fontSize: "0.8rem" }}>cplt --doctor</code> to confirm all sandbox primitives are
-              available on your system.
+              Run <code style={{ fontSize: "0.8rem" }}>cplt --shell-install</code> so{" "}
+              <code style={{ fontSize: "0.8rem" }}>copilot</code> always runs sandboxed.
             </p>
             <div
               className="rounded-xl w-full overflow-hidden"
               style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             >
               <div
-                className="flex items-center gap-2 px-4 py-2"
+                className="flex items-center justify-between px-4 py-2"
                 style={{ background: "#1e1e1e", borderBottom: "1px solid #333" }}
               >
                 <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
-                  $ cplt --doctor
+                  $ cplt --shell-install
                 </span>
+                <CopyButton copyText="cplt --shell-install" size="xsmall" style={{ color: "white" }} />
               </div>
               <pre
                 className="p-4 font-mono leading-relaxed overflow-x-auto"
                 style={{ margin: 0, fontSize: "0.75rem", color: "#d4d4d4", background: "#1e1e1e" }}
               >
                 <span style={{ color: "#4ade80" }}>✓</span>
-                {` macOS sandbox (Seatbelt/SBPL)
-`}
-                <span style={{ color: "#4ade80" }}>✓</span>
-                {` CONNECT proxy ready
-`}
-                <span style={{ color: "#4ade80" }}>✓</span>
-                {` Credential paths blocked
-`}
-                <span style={{ color: "#4ade80" }}>✓</span>
-                {` Environment sanitized
-`}
-                <span style={{ color: "#4ade80" }}>✓</span>
-                {` Git hooks protected
-`}
-                <span style={{ color: "#4ade80" }}>✓</span>
-                {` Copilot CLI found
-
-`}
-                <span style={{ color: "#4ade80" }}>All checks passed.</span>
-                {` Your sandbox is ready.`}
+                {" Added to ~/.zshrc\n"}
+                <span style={{ color: "#4ade80" }}>✓</span> <span style={{ color: "#94a3b8" }}>copilot</span>
+                {" → "}
+                <span style={{ color: "#4ade80" }}>cplt</span>
+                {" (sandboxed)\n\n"}
+                <span style={{ color: "#94a3b8" }}>Restart your shell or: </span>
+                <span style={{ color: "#d4d4d4" }}>source ~/.zshrc</span>
               </pre>
             </div>
           </VStack>
