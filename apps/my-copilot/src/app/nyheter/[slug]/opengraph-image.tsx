@@ -163,8 +163,3 @@ export default async function Image({ params }: Props) {
     { ...size }
   );
 }
-
-export async function generateStaticParams() {
-  // This is handled by the parent route
-  return [];
-}
