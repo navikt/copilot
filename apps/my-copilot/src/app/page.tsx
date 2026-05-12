@@ -63,7 +63,7 @@ export default async function Home() {
                 <div className="flex-1 min-w-0">
                   <NewsFeed items={news} compact />
                 </div>
-                <div className="w-64 shrink-0">
+                <div className="hidden lg:block w-64 shrink-0">
                   <Sidebar />
                 </div>
               </div>
