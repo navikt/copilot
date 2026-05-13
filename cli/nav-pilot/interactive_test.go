@@ -233,3 +233,34 @@ func TestBuildCopilotArgs(t *testing.T) {
 		})
 	}
 }
+
+func TestUserCopilotDir(t *testing.T) {
+	// Create a temp HOME with user-scope agents but no instructions
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// No customizations → empty
+	if got := userCopilotDir(); got != "" {
+		t.Errorf("expected empty for no customizations, got %q", got)
+	}
+
+	// Create agents dir with an agent file
+	agentsDir := filepath.Join(home, ".copilot", ".github", "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "nav-pilot.agent.md"), []byte("test"), 0o644)
+
+	expected := filepath.Join(home, ".copilot")
+	if got := userCopilotDir(); got != expected {
+		t.Errorf("expected %q for agents-only, got %q", expected, got)
+	}
+
+	// Remove agents, add instructions instead
+	os.RemoveAll(filepath.Join(home, ".copilot", ".github", "agents"))
+	instrDir := filepath.Join(home, ".copilot", ".github", "instructions")
+	os.MkdirAll(instrDir, 0o755)
+	os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("test"), 0o644)
+
+	if got := userCopilotDir(); got != expected {
+		t.Errorf("expected %q for instructions-only, got %q", expected, got)
+	}
+}

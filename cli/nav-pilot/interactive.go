@@ -568,16 +568,15 @@ func offerLaunchCopilotWithAgents(agents []string) {
 }
 
 // copilotEnv returns the environment for launching cplt, injecting
-// COPILOT_CUSTOM_INSTRUCTIONS_DIRS if user-scope instructions exist.
+// COPILOT_CUSTOM_INSTRUCTIONS_DIRS if user-scope customizations exist
+// (instructions and/or agents).
 func copilotEnv() []string {
-	dir := userInstructionsDir()
-	if dir == "" {
+	copilotDir := userCopilotDir()
+	if copilotDir == "" {
 		return nil // nil inherits parent env
 	}
 
 	env := os.Environ()
-	// Merge with any existing COPILOT_CUSTOM_INSTRUCTIONS_DIRS value
-	copilotDir := filepath.Dir(filepath.Dir(dir)) // ~/.copilot (from ~/.copilot/.github/instructions)
 	key := "COPILOT_CUSTOM_INSTRUCTIONS_DIRS"
 	existing := os.Getenv(key)
 	if existing != "" {
@@ -605,17 +604,26 @@ func copilotEnv() []string {
 	return env
 }
 
-// userInstructionsDir returns the path to ~/.copilot/.github/instructions/
-// if it exists and contains at least one .instructions.md file, or "" otherwise.
-func userInstructionsDir() string {
+// userCopilotDir returns ~/.copilot if it contains user-scope customizations
+// (instructions or agents), or "" otherwise.
+func userCopilotDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
-	dir := filepath.Join(home, ".copilot", ".github", "instructions")
-	matches, err := filepath.Glob(filepath.Join(dir, "*.instructions.md"))
-	if err != nil || len(matches) == 0 {
-		return ""
+	base := filepath.Join(home, ".copilot")
+
+	// Check for instructions
+	instructions, _ := filepath.Glob(filepath.Join(base, ".github", "instructions", "*.instructions.md"))
+	if len(instructions) > 0 {
+		return base
 	}
-	return dir
+
+	// Check for agents
+	agents, _ := filepath.Glob(filepath.Join(base, ".github", "agents", "*.agent.md"))
+	if len(agents) > 0 {
+		return base
+	}
+
+	return ""
 }
