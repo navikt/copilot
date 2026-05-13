@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-13T07:06:28.121Z",
+  "generatedAt": "2026-05-13T08:45:43.237Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -25,6 +25,7 @@
         "com.figma/figma-mcp/get_design_context",
         "com.figma/figma-mcp/get_screenshot"
       ],
+      "model": ["Claude Haiku 4.5"],
       "tags": ["wcag", "a11y", "universell-utforming", "aksel", "aria"],
       "examples": [
         "Sjekk denne komponenten for tilgjengelighetsfeil",
@@ -71,6 +72,7 @@
         "io.github.navikt/github-mcp/get_latest_release",
         "io.github.navikt/github-mcp/list_releases"
       ],
+      "model": ["Claude Haiku 4.5"],
       "agentReferences": ["nais-agent"],
       "tags": [
         "aksel",
@@ -132,6 +134,7 @@
         "io.github.navikt/github-mcp/pull_request_read",
         "io.github.navikt/github-mcp/search_pull_requests"
       ],
+      "model": ["Claude Haiku 4.5", "GPT-5.3-Codex"],
       "agentReferences": ["nais-agent", "observability-agent", "security-champion-agent"],
       "tags": ["auth", "azure-ad", "tokenx", "id-porten", "security"],
       "examples": [
@@ -169,6 +172,7 @@
         "io.github.navikt/github-mcp/list_pull_requests",
         "io.github.navikt/github-mcp/search_pull_requests"
       ],
+      "model": ["GPT-5.3-Codex", "Claude Sonnet 4.6"],
       "agentReferences": [
         "accessibility-agent",
         "aksel-agent",
@@ -212,6 +216,7 @@
         "io.github.navikt/github-mcp/get_file_contents",
         "io.github.navikt/github-mcp/search_code"
       ],
+      "model": ["Claude Sonnet 4.6"],
       "tags": ["norsk", "teknisk-skriving", "redigering", "språk", "klarspråk", "ai-markører"],
       "examples": [
         {
@@ -265,6 +270,7 @@
         "io.github.navikt/github-mcp/pull_request_read",
         "io.github.navikt/github-mcp/search_pull_requests"
       ],
+      "model": ["GPT-5.3-Codex"],
       "agentReferences": ["nais-agent", "observability-agent", "security-champion-agent"],
       "tags": ["kafka", "events", "rapids-rivers", "streaming"],
       "examples": [
@@ -310,6 +316,7 @@
         "io.github.navikt/github-mcp/list_releases",
         "io.github.navikt/github-mcp/list_tags"
       ],
+      "model": ["GPT-5.3-Codex"],
       "agentReferences": ["auth-agent", "kafka-agent", "observability-agent", "security-champion-agent"],
       "tags": ["nais", "kubernetes", "deployment", "infrastructure"],
       "examples": [
@@ -354,6 +361,7 @@
         "io.github.navikt/github-mcp/get_latest_release",
         "io.github.navikt/github-mcp/list_releases"
       ],
+      "model": ["Claude Opus 4.6", "GPT-5.3-Codex"],
       "agentReferences": [
         "accessibility-agent",
         "aksel-agent",
@@ -416,6 +424,7 @@
         "io.github.navikt/github-mcp/pull_request_read",
         "io.github.navikt/github-mcp/search_pull_requests"
       ],
+      "model": ["Claude Haiku 4.5", "GPT-5.3-Codex"],
       "agentReferences": ["kafka-agent", "nais-agent", "security-champion-agent"],
       "tags": ["observability", "metrics", "logging", "tracing", "prometheus"],
       "examples": [
@@ -461,6 +470,7 @@
         "io.github.navikt/github-mcp/list_tags",
         "io.github.navikt/github-mcp/list_branches"
       ],
+      "model": ["Gemini 2.5 Pro", "Claude Haiku 4.5"],
       "agentReferences": [
         "aksel-agent",
         "auth-agent",
@@ -504,6 +514,7 @@
         "io.github.navikt/github-mcp/search_code",
         "io.github.navikt/github-mcp/search_repositories"
       ],
+      "model": ["GPT-5.3-Codex"],
       "agentReferences": ["code-review-agent", "nais-agent", "observability-agent", "security-champion-agent"]
     },
     {
@@ -541,6 +552,7 @@
         "io.github.navikt/github-mcp/list_tags",
         "io.github.navikt/github-mcp/list_branches"
       ],
+      "model": ["Claude Opus 4.6", "GPT-5.3-Codex"],
       "agentReferences": ["auth-agent", "nais-agent", "observability-agent"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
@@ -802,6 +814,7 @@
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "invocation": "#aksel-component",
+      "model": ["Claude Haiku 4.5"],
       "tags": ["aksel", "design-system", "react", "component"],
       "examples": ["#aksel-component Lag en varslingsbanner med ikon og lukkeknapp"]
     },
@@ -816,7 +829,8 @@
       "contentHash": "42a507250b011dbd7947a4729bcaf4baf8a9c8d6a72ba0904153051ee8939bf4",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fgolang-service.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fgolang-service.prompt.md",
-      "invocation": "#golang-service"
+      "invocation": "#golang-service",
+      "model": ["Claude Haiku 4.5"]
     },
     {
       "id": "kafka-topic",
@@ -830,6 +844,7 @@
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fkafka-topic.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fkafka-topic.prompt.md",
       "invocation": "#kafka-topic",
+      "model": ["GPT-5.3-Codex"],
       "tags": ["nais", "kafka", "rapids-rivers", "infrastructure"],
       "examples": ["#kafka-topic Legg til et topic for sykmeldingshendelser"]
     },
@@ -844,7 +859,8 @@
       "contentHash": "e5a24e1b9e9bc398ffbd697757c2974d7ea60ee3adf2ab38b3163f3729d4b469",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fktor-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fktor-endpoint.prompt.md",
-      "invocation": "#ktor-endpoint"
+      "invocation": "#ktor-endpoint",
+      "model": ["Claude Haiku 4.5"]
     },
     {
       "id": "nais-manifest",
@@ -858,6 +874,7 @@
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnais-manifest.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnais-manifest.prompt.md",
       "invocation": "#nais-manifest",
+      "model": ["GPT-5.3-Codex"],
       "tags": ["nais", "kubernetes", "deployment", "infrastructure"],
       "examples": ["#nais-manifest Generer et manifest for dp-soknad i prod-gcp"]
     },
@@ -873,6 +890,7 @@
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnextjs-api-route.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnextjs-api-route.prompt.md",
       "invocation": "#nextjs-api-route",
+      "model": ["Claude Haiku 4.5"],
       "tags": ["nextjs", "api-route", "app-router", "scaffold"],
       "examples": ["#api-route Lag en API-route for å hente brukerdata fra BigQuery"]
     },
@@ -888,6 +906,7 @@
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "invocation": "#spring-boot-endpoint",
+      "model": ["Claude Haiku 4.5"],
       "tags": ["spring-boot", "kotlin", "rest", "endpoint", "scaffold"],
       "examples": ["#spring-boot-endpoint Lag et CRUD-endepunkt for vedtak med PostgreSQL"]
     },
