@@ -1,6 +1,7 @@
 ---
 name: nais-manifest
 description: Generer et produksjonsklart Nais-applikasjonsmanifest for Kubernetes-deployment
+model: GPT-5.3-Codex
 ---
 
 You are creating a Nais application manifest in `.nais/app.yaml` for deploying to Nav's Kubernetes platform.

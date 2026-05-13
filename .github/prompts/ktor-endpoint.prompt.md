@@ -1,6 +1,7 @@
 ---
 name: ktor-endpoint
 description: Generer ein Ktor-rute med autentisering, validering og feilhåndtering
+model: Claude Haiku 4.5
 ---
 
 # Ktor Endpoint

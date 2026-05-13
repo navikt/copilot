@@ -1,6 +1,7 @@
 ---
 name: kafka-topic
 description: Legg til Kafka-topic-konfigurasjon i Nais-manifest og lag Rapids & Rivers event handler
+model: GPT-5.3-Codex
 ---
 
 You are helping configure Kafka integration for a Nav application using the Rapids & Rivers pattern.

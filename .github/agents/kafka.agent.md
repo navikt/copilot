@@ -1,6 +1,7 @@
 ---
 name: kafka-agent
 description: Rapids & Rivers, eventdrevet arkitektur, Kafka-mønstre og schema-design
+model: GPT-5.3-Codex
 tools:
   - execute
   - read

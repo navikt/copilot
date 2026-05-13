@@ -1,6 +1,7 @@
 ---
 name: aksel-component
 description: Scaffold en responsiv React-komponent med Aksel Design System og riktige spacing-tokens
+model: Claude Haiku 4.5
 ---
 
 Du lager en ny React-komponent med Navs Aksel Design System.

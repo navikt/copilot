@@ -1,6 +1,7 @@
 ---
 name: golang-service
 description: Scaffold ein Go HTTP-teneste med NAIS-mønster, pgx, sqlc og slog
+model: Claude Haiku 4.5
 ---
 
 # Go NAIS Service

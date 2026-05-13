@@ -1,6 +1,7 @@
 ---
 name: rust-agent
 description: Idiomatisk Rust-utvikling med cargo, clippy, error handling, async/tokio, unsafe og testing
+model: GPT-5.3-Codex
 tools:
   - execute
   - read

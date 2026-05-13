@@ -1,6 +1,7 @@
 ---
 name: aksel-agent
 description: Navs Aksel Design System (v8+) — komponenter, tokens, layout, theming og tilgjengelighet
+model: Claude Haiku 4.5
 tools:
   - execute
   - read
