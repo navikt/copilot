@@ -136,7 +136,9 @@ Vi tror de mest aktive brukerne har verdifull innsikt i hva som fungerer — og 
 
 ## Hva du merker
 
-Ingenting — `model:` setter default, men du kan fortsatt velge modell manuelt i model picker. Agenter som trenger mer kraft (nav-pilot, security-champion) bruker Opus 4.6 med Codex som fallback. I juni oppgraderer vi til Opus 4.7 — da koster alle Opus-modeller det samme per token.
+Ingenting — `model:` setter default, men du kan fortsatt velge modell manuelt i model picker. I juni oppgraderer vi til Opus 4.7 — da koster alle Opus-modeller det samme per token.
+
+**Bruk [`@nav-pilot`](https://min-copilot.ansatt.nav.no/nav-pilot) for tunge oppgaver.** Nav-pilot er vår primæragent for arkitektur, planlegging og implementering. Den bruker model-pinning med Opus 4.6 og GPT-5.3-Codex som fallback — du får altså den kraftigste modellen automatisk når du trenger den, uten å velge Opus manuelt for alt annet. For vanlig chat og kodearbeid: bruk Auto.
 
 **Kilder:**
 
