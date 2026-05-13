@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -312,6 +313,92 @@ func TestRootHandler(t *testing.T) {
 
 	if endpoints, ok := info["endpoints"].(map[string]interface{}); !ok || len(endpoints) == 0 {
 		t.Error("endpoints field is missing or empty")
+	}
+}
+
+func TestRootHandler_UnknownPath(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
+	w := httptest.NewRecorder()
+
+	rootHandler(w, req)
+
+	resp := w.Result()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected status 404 for unknown path, got %d", resp.StatusCode)
+	}
+}
+
+func TestRobotsTxtHandler(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
+	w := httptest.NewRecorder()
+
+	robotsTxtHandler(w, req)
+
+	resp := w.Result()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	if ct := resp.Header.Get("Content-Type"); ct != "text/plain; charset=utf-8" {
+		t.Errorf("expected Content-Type text/plain, got %s", ct)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	content := string(body)
+	if !strings.Contains(content, "Allow: /v0.1/") {
+		t.Error("robots.txt should allow /v0.1/")
+	}
+	if !strings.Contains(content, "Disallow: /health") {
+		t.Error("robots.txt should disallow /health")
+	}
+}
+
+func TestSecurityTxtHandler(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/security.txt", nil)
+	w := httptest.NewRecorder()
+
+	securityTxtHandler(w, req)
+
+	resp := w.Result()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	content := string(body)
+	if !strings.Contains(content, "Contact: soc@nav.no") {
+		t.Error("security.txt should contain Nav SOC contact")
+	}
+	if !strings.Contains(content, "Canonical: https://www.nav.no/.well-known/security.txt") {
+		t.Error("security.txt should reference canonical URL")
+	}
+}
+
+func TestFaviconHandler(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/favicon.ico", nil)
+	w := httptest.NewRecorder()
+
+	faviconHandler(w, req)
+
+	resp := w.Result()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", resp.StatusCode)
 	}
 }
 

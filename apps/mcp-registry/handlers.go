@@ -24,7 +24,11 @@ func metricsHandler() http.Handler {
 	return promhttp.Handler()
 }
 
-func rootHandler(w http.ResponseWriter, _ *http.Request) {
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"service":     "Nav MCP Registry",
 		"version":     "1.0.0",
@@ -38,6 +42,22 @@ func rootHandler(w http.ResponseWriter, _ *http.Request) {
 			"metrics":        "/metrics",
 		},
 	})
+}
+
+func robotsTxtHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("User-agent: *\nAllow: /v0.1/\nDisallow: /health\nDisallow: /ready\nDisallow: /metrics\n"))
+}
+
+func securityTxtHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("Contact: soc@nav.no\nPreferred-Languages: no, en\nCanonical: https://www.nav.no/.well-known/security.txt\nDisclosure: Full\n"))
+}
+
+func faviconHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func optionsHandler(w http.ResponseWriter, _ *http.Request) {

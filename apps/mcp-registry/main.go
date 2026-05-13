@@ -33,6 +33,9 @@ func main() {
 	http.Handle("/metrics", metricsHandler())
 	http.HandleFunc("/v0.1/servers", loggingMiddleware(config, makeServersListHandler(config)))
 	http.HandleFunc("/v0.1/servers/", loggingMiddleware(config, makeServerVersionHandler(config)))
+	http.HandleFunc("/robots.txt", robotsTxtHandler)
+	http.HandleFunc("/favicon.ico", faviconHandler)
+	http.HandleFunc("/.well-known/security.txt", securityTxtHandler)
 	http.HandleFunc("/", loggingMiddleware(config, rootHandler))
 
 	slog.Info("Allowlist validation passed - registry contains valid server configurations")
