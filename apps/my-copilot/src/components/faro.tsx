@@ -12,7 +12,7 @@ function sanitizeUrl(url: string): string {
 
 export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
   useEffect(() => {
-    if (faro.api) return;
+    if (faro.config) return;
 
     try {
       initializeFaro({
