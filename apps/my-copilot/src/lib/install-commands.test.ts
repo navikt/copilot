@@ -301,34 +301,34 @@ describe("getGhSkillInstallCommand", () => {
 });
 
 describe("getNavPilotAddCommand", () => {
-  it("generates nav-pilot add command for agent", () => {
+  it("generates nav-pilot install command for agent", () => {
     const result = getNavPilotAddCommand(agent)!;
-    expect(result.repo).toBe("nav-pilot add agent 1");
-    expect(result.user).toBe("nav-pilot add agent 1 --user");
+    expect(result.repo).toBe("nav-pilot install 1");
+    expect(result.user).toBe("nav-pilot install 1 --user");
   });
 
-  it("generates nav-pilot add command for agent with explicit id", () => {
+  it("generates nav-pilot install command for agent with explicit id", () => {
     const result = getNavPilotAddCommand(authAgent)!;
-    expect(result.repo).toBe("nav-pilot add agent auth-agent");
-    expect(result.user).toBe("nav-pilot add agent auth-agent --user");
+    expect(result.repo).toBe("nav-pilot install auth-agent");
+    expect(result.user).toBe("nav-pilot install auth-agent --user");
   });
 
-  it("generates nav-pilot add command for instruction using id, not display name", () => {
+  it("generates nav-pilot install command for instruction using id, not display name", () => {
     const result = getNavPilotAddCommand(instruction)!;
-    expect(result.repo).toBe("nav-pilot add instruction nextjs-aksel");
-    expect(result.user).toBe("nav-pilot add instruction nextjs-aksel --user");
+    expect(result.repo).toBe("nav-pilot install nextjs-aksel");
+    expect(result.user).toBe("nav-pilot install nextjs-aksel --user");
   });
 
-  it("generates nav-pilot add command for prompt", () => {
+  it("generates nav-pilot install command for prompt", () => {
     const result = getNavPilotAddCommand(prompt)!;
-    expect(result.repo).toBe("nav-pilot add prompt 1");
-    expect(result.user).toBe("nav-pilot add prompt 1 --user");
+    expect(result.repo).toBe("nav-pilot install 1");
+    expect(result.user).toBe("nav-pilot install 1 --user");
   });
 
-  it("generates nav-pilot add command for skill", () => {
+  it("generates nav-pilot install command for skill", () => {
     const result = getNavPilotAddCommand(skill)!;
-    expect(result.repo).toBe("nav-pilot add skill 1");
-    expect(result.user).toBe("nav-pilot add skill 1 --user");
+    expect(result.repo).toBe("nav-pilot install 1");
+    expect(result.user).toBe("nav-pilot install 1 --user");
   });
 
   it("returns null for mcp", () => {

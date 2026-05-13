@@ -254,24 +254,27 @@ const CLI_COMMANDS = [
   },
   { command: "nav-pilot install --dry-run <collection>", description: "Forhåndsvis hva som installeres" },
   { command: "nav-pilot install --force <collection>", description: "Overskriv lokalt endrede filer" },
-  { command: "nav-pilot list", description: "Vis tilgjengelige collections" },
-  { command: "nav-pilot list --items", description: "Vis alle tilgjengelige agenter, skills, etc." },
-  { command: "nav-pilot add <type> <name>", description: "Installer enkeltkomponent (agent, skill, etc.)" },
+  { command: "nav-pilot list", description: "Vis tilgjengelige collections og enkeltkomponenter" },
+  { command: "nav-pilot list --installed", description: "Vis installerte filer og integritet" },
+  { command: "nav-pilot install <name>", description: "Installer enkeltkomponent (agent, skill, etc.)" },
+  {
+    command: "nav-pilot install <name> --type <type>",
+    description: "Installer med eksplisitt type (agent, skill, instruction, prompt)",
+  },
   {
     command: "nav-pilot ignore <type> <name> --user",
     description: "Stopp varsel om en komponent uten å installere den",
   },
-  { command: "nav-pilot status", description: "Vis installerte filer og integritet" },
   { command: "nav-pilot uninstall", description: "Fjern alle installerte filer" },
   { command: "nav-pilot sync", description: "Sjekk om oppdateringer finnes (exit 1 hvis ja)" },
   { command: "nav-pilot sync --apply", description: "Oppdater filer direkte" },
   { command: "nav-pilot sync --json", description: "Maskinlesbar JSON-output" },
   {
     command: "<command> --json",
-    description: "Globalt flagg: JSON-output på alle kommandoer (install, add, status, sync, list, export)",
+    description: "Globalt flagg: JSON-output på alle kommandoer (install, list, sync, export)",
   },
   { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
-  { command: "nav-pilot update", description: "Oppdater nav-pilot CLI til nyeste versjon" },
+  { command: "nav-pilot upgrade", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   { command: "nav-pilot feedback", description: "Rapporter feil — åpner GitHub issue med diagnostikk" },
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
@@ -697,11 +700,11 @@ nav-pilot`}
           </BodyLong>
           <div className="space-y-3">
             {[
-              { label: "Se hva som ble installert", cmd: "nav-pilot status" },
-              { label: "Vis alle tilgjengelige collections", cmd: "nav-pilot list" },
+              { label: "Se hva som ble installert", cmd: "nav-pilot list --installed" },
+              { label: "Vis alle tilgjengelige collections og komponenter", cmd: "nav-pilot list" },
               {
                 label: "Installer en ekstra agent eller skill",
-                cmd: "nav-pilot add agent security-champion\nnav-pilot add skill postgresql-review",
+                cmd: "nav-pilot install security-champion\nnav-pilot install postgresql-review",
               },
               { label: "Sjekk om det finnes oppdateringer", cmd: "nav-pilot sync" },
               { label: "Rapporter feil eller foreslå forbedringer", cmd: "nav-pilot feedback" },
@@ -1193,7 +1196,7 @@ jobs:
           </BodyShort>
           <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
             Sletter du en fil manuelt uten override, markeres den som «ignorert» og gjenopprettes ikke av sync. Legg den
-            til igjen med <code className="font-mono text-xs">nav-pilot add</code> hvis du ombestemmer deg.
+            til igjen med <code className="font-mono text-xs">nav-pilot install</code> hvis du ombestemmer deg.
           </BodyShort>
           <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
             Har teamet en egen versjon av en fil med samme navn som kilden (f.eks. en egen{" "}
@@ -1227,7 +1230,7 @@ jobs:
               },
               {
                 q: "Hva om jeg sletter en fil manuelt?",
-                a: "Filen markeres som «ignorert» og legges ikke tilbake ved neste sync. Vil du ha den tilbake, kjør nav-pilot add <type> <name>.",
+                a: "Filen markeres som «ignorert» og legges ikke tilbake ved neste sync. Vil du ha den tilbake, kjør nav-pilot install <name>.",
               },
               {
                 q: "Jeg får varsel om en komponent jeg ikke vil installere. Hvordan stopper jeg det?",
@@ -1311,7 +1314,7 @@ function CliReferenceSection() {
           </BodyLong>
           <div className="mt-4 space-y-3">
             {[
-              { label: "Selvoppdatering", cmd: "nav-pilot update" },
+              { label: "Selvoppdatering", cmd: "nav-pilot upgrade" },
               { label: "Via Homebrew", cmd: "brew update && brew upgrade nav-pilot" },
             ].map((item) => (
               <div key={item.cmd}>
@@ -1435,7 +1438,7 @@ function CliReferenceSection() {
               </Label>
               <div className="space-y-3">
                 {[
-                  { label: "JSON-output for alle kommandoer", cmd: "nav-pilot status --json | jq ." },
+                  { label: "JSON-output for alle kommandoer", cmd: "nav-pilot list --installed --json | jq ." },
                   { label: "Sjekk oppdateringer i CI (exit 1 = oppdateringer finnes)", cmd: "nav-pilot sync --json" },
                   { label: "Installer i CI med JSON-resultat", cmd: "nav-pilot install --json kotlin-backend" },
                 ].map((item) => (

@@ -9,7 +9,7 @@ Skills er selvstendige mapper med instruksjoner og referansedata som gir Copilot
 ```bash
 mkdir -p .github/skills
 # Bruk nav-pilot CLI
-nav-pilot add skill <skill-name>
+nav-pilot install <skill-name>
 ```
 
 ## Tilgjengelige skills

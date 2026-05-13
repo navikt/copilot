@@ -47,7 +47,7 @@ func TestRun_InstallNoCollection(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when no collection given")
 	}
-	if !strings.Contains(err.Error(), "collection name") {
+	if !strings.Contains(err.Error(), "install requires a name") {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -952,9 +952,9 @@ func TestValidateStatePath(t *testing.T) {
 		{"/etc/passwd", true},
 		{"etc/passwd", true},
 		{".github/../../../etc/passwd", true},
-		{"agents/foo.agent.md", true},         // not under .github/
-		{".githu/agents/foo.agent.md", true},  // typo, not .github/
-		{"", true},                            // empty path
+		{"agents/foo.agent.md", true},        // not under .github/
+		{".githu/agents/foo.agent.md", true}, // typo, not .github/
+		{"", true},                           // empty path
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
@@ -1555,173 +1555,173 @@ func TestListAvailableItems_PromptDirectories(t *testing.T) {
 // ─── collectAllItems with instructions ──────────────────────────────────────
 
 func TestCollectAllItems_WithInstructions(t *testing.T) {
-source := t.TempDir()
-ghDir := filepath.Join(source, ".github")
+	source := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
 
-// Create agent
-agentsDir := filepath.Join(ghDir, "agents")
-os.MkdirAll(agentsDir, 0o755)
-os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("# Test"), 0o644)
+	// Create agent
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("# Test"), 0o644)
 
-// Create skill
-skillDir := filepath.Join(ghDir, "skills", "test-skill")
-os.MkdirAll(skillDir, 0o755)
-os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Skill"), 0o644)
+	// Create skill
+	skillDir := filepath.Join(ghDir, "skills", "test-skill")
+	os.MkdirAll(skillDir, 0o755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Skill"), 0o644)
 
-// Create instructions
-instrDir := filepath.Join(ghDir, "instructions")
-os.MkdirAll(instrDir, 0o755)
-os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("# Go"), 0o644)
-os.WriteFile(filepath.Join(instrDir, "kotlin.instructions.md"), []byte("# Kotlin"), 0o644)
-os.WriteFile(filepath.Join(instrDir, "not-an-instruction.md"), []byte("# Ignored"), 0o644) // wrong suffix
-os.WriteFile(filepath.Join(instrDir, "golang.metadata.json"), []byte("{}"), 0o644)         // not instruction
+	// Create instructions
+	instrDir := filepath.Join(ghDir, "instructions")
+	os.MkdirAll(instrDir, 0o755)
+	os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("# Go"), 0o644)
+	os.WriteFile(filepath.Join(instrDir, "kotlin.instructions.md"), []byte("# Kotlin"), 0o644)
+	os.WriteFile(filepath.Join(instrDir, "not-an-instruction.md"), []byte("# Ignored"), 0o644) // wrong suffix
+	os.WriteFile(filepath.Join(instrDir, "golang.metadata.json"), []byte("{}"), 0o644)         // not instruction
 
-m, err := collectAllItems(source)
-if err != nil {
-t.Fatalf("collectAllItems: %v", err)
-}
+	m, err := collectAllItems(source)
+	if err != nil {
+		t.Fatalf("collectAllItems: %v", err)
+	}
 
-if len(m.Agents) != 1 {
-t.Errorf("agents = %d, want 1", len(m.Agents))
-}
-if len(m.Skills) != 1 {
-t.Errorf("skills = %d, want 1", len(m.Skills))
-}
-if len(m.Instructions) != 2 {
-t.Errorf("instructions = %d, want 2 (got %v)", len(m.Instructions), m.Instructions)
-}
-// Verify sorted
-if len(m.Instructions) == 2 && (m.Instructions[0] != "golang" || m.Instructions[1] != "kotlin") {
-t.Errorf("instructions not sorted: %v", m.Instructions)
-}
+	if len(m.Agents) != 1 {
+		t.Errorf("agents = %d, want 1", len(m.Agents))
+	}
+	if len(m.Skills) != 1 {
+		t.Errorf("skills = %d, want 1", len(m.Skills))
+	}
+	if len(m.Instructions) != 2 {
+		t.Errorf("instructions = %d, want 2 (got %v)", len(m.Instructions), m.Instructions)
+	}
+	// Verify sorted
+	if len(m.Instructions) == 2 && (m.Instructions[0] != "golang" || m.Instructions[1] != "kotlin") {
+		t.Errorf("instructions not sorted: %v", m.Instructions)
+	}
 }
 
 // ─── instruction install path tests ─────────────────────────────────────────
 
 func TestInstallAllFromSource_WithInstructions(t *testing.T) {
-source := t.TempDir()
-target := t.TempDir()
-ghDir := filepath.Join(source, ".github")
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
 
-// Set up agent
-agentsDir := filepath.Join(ghDir, "agents")
-os.MkdirAll(agentsDir, 0o755)
-os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("# Agent"), 0o644)
+	// Set up agent
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("# Agent"), 0o644)
 
-// Set up instructions
-instrDir := filepath.Join(ghDir, "instructions")
-os.MkdirAll(instrDir, 0o755)
-os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("# Go instr"), 0o644)
-os.WriteFile(filepath.Join(instrDir, "kotlin.instructions.md"), []byte("# Kotlin instr"), 0o644)
+	// Set up instructions
+	instrDir := filepath.Join(ghDir, "instructions")
+	os.MkdirAll(instrDir, 0o755)
+	os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("# Go instr"), 0o644)
+	os.WriteFile(filepath.Join(instrDir, "kotlin.instructions.md"), []byte("# Kotlin instr"), 0o644)
 
-scope := &InstallScope{
-Name:           "user",
-RootDir:        target,
-StateFile:      ".nav-pilot-state.json",
-SupportedTypes: []string{"agent", "skill", "instruction"},
-}
-src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
+	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
 
-err := installAllFromSource(scope, src, nil, false, false, false)
-if err != nil {
-t.Fatalf("installAllFromSource: %v", err)
-}
+	err := installAllFromSource(scope, src, nil, false, false, false)
+	if err != nil {
+		t.Fatalf("installAllFromSource: %v", err)
+	}
 
-// Agent goes to target/agents/
-agentDst := filepath.Join(target, "agents", "test.agent.md")
-if _, err := os.Stat(agentDst); os.IsNotExist(err) {
-t.Error("agent not installed")
-}
+	// Agent goes to target/agents/
+	agentDst := filepath.Join(target, "agents", "test.agent.md")
+	if _, err := os.Stat(agentDst); os.IsNotExist(err) {
+		t.Error("agent not installed")
+	}
 
-// Instructions go to target/.github/instructions/
-for _, name := range []string{"golang", "kotlin"} {
-instrDst := filepath.Join(target, ".github", "instructions", name+".instructions.md")
-if _, err := os.Stat(instrDst); os.IsNotExist(err) {
-t.Errorf("instruction %q not installed at %s", name, instrDst)
-}
-}
+	// Instructions go to target/.github/instructions/
+	for _, name := range []string{"golang", "kotlin"} {
+		instrDst := filepath.Join(target, ".github", "instructions", name+".instructions.md")
+		if _, err := os.Stat(instrDst); os.IsNotExist(err) {
+			t.Errorf("instruction %q not installed at %s", name, instrDst)
+		}
+	}
 
-// Verify state tracks instructions with .github/ prefix
-state, err := readScopedState(scope)
-if err != nil {
-t.Fatalf("readScopedState: %v", err)
-}
-hasInstr := false
-for _, f := range state.Files {
-if strings.HasPrefix(f.Path, ".github/instructions/") {
-hasInstr = true
-break
-}
-}
-if !hasInstr {
-t.Error("state file should contain .github/instructions/ paths")
-}
+	// Verify state tracks instructions with .github/ prefix
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatalf("readScopedState: %v", err)
+	}
+	hasInstr := false
+	for _, f := range state.Files {
+		if strings.HasPrefix(f.Path, ".github/instructions/") {
+			hasInstr = true
+			break
+		}
+	}
+	if !hasInstr {
+		t.Error("state file should contain .github/instructions/ paths")
+	}
 }
 
 // ─── detectNewItems with instructions ───────────────────────────────────────
 
 func TestDetectNewItems_Instructions(t *testing.T) {
-source := t.TempDir()
-target := t.TempDir()
-ghDir := filepath.Join(source, ".github")
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
 
-// Set up source with agent + instruction
-agentsDir := filepath.Join(ghDir, "agents")
-os.MkdirAll(agentsDir, 0o755)
-os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("# Agent"), 0o644)
+	// Set up source with agent + instruction
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("# Agent"), 0o644)
 
-instrDir := filepath.Join(ghDir, "instructions")
-os.MkdirAll(instrDir, 0o755)
-os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("# Go"), 0o644)
+	instrDir := filepath.Join(ghDir, "instructions")
+	os.MkdirAll(instrDir, 0o755)
+	os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("# Go"), 0o644)
 
-scope := &InstallScope{
-Name:           "user",
-RootDir:        target,
-StateFile:      ".nav-pilot-state.json",
-SupportedTypes: []string{"agent", "skill", "instruction"},
-}
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
 
-// Write state with only the agent installed
-state := &StateFile{
-Collection: CollectionAll,
-Scope:      "user",
-Version:    "v1",
-Files: []InstalledFile{
-{Path: "agents/test.agent.md", Hash: "abc"},
-},
-}
-os.MkdirAll(target, 0o755)
-data, _ := json.Marshal(state)
-os.WriteFile(filepath.Join(target, ".nav-pilot-state.json"), data, 0o644)
+	// Write state with only the agent installed
+	state := &StateFile{
+		Collection: CollectionAll,
+		Scope:      "user",
+		Version:    "v1",
+		Files: []InstalledFile{
+			{Path: "agents/test.agent.md", Hash: "abc"},
+		},
+	}
+	os.MkdirAll(target, 0o755)
+	data, _ := json.Marshal(state)
+	os.WriteFile(filepath.Join(target, ".nav-pilot-state.json"), data, 0o644)
 
-newItems := detectNewItems(scope, source)
-if len(newItems) != 1 {
-t.Fatalf("expected 1 new item, got %d: %v", len(newItems), newItems)
-}
-if !strings.Contains(newItems[0], "instruction: golang") {
-t.Errorf("expected new instruction 'golang', got %q", newItems[0])
-}
+	newItems := detectNewItems(scope, source)
+	if len(newItems) != 1 {
+		t.Fatalf("expected 1 new item, got %d: %v", len(newItems), newItems)
+	}
+	if !strings.Contains(newItems[0], "instruction: golang") {
+		t.Errorf("expected new instruction 'golang', got %q", newItems[0])
+	}
 }
 
 // ─── copilotEnv tests ───────────────────────────────────────────────────────
 
 func TestCopilotEnv_NoInstructions(t *testing.T) {
-// When no instructions exist, copilotEnv should return nil (inherit parent env)
-env := copilotEnv()
-if env != nil {
-// This can be non-nil if the developer's own ~/.copilot has instructions.
-// Just check the key is present if non-nil.
-t.Log("copilotEnv returned non-nil (may have user instructions installed)")
-}
+	// When no instructions exist, copilotEnv should return nil (inherit parent env)
+	env := copilotEnv()
+	if env != nil {
+		// This can be non-nil if the developer's own ~/.copilot has instructions.
+		// Just check the key is present if non-nil.
+		t.Log("copilotEnv returned non-nil (may have user instructions installed)")
+	}
 }
 
 // ─── cmdEnv tests ───────────────────────────────────────────────────────────
 
 func TestCmdEnv_NoInstructions(t *testing.T) {
-// cmdEnv should not error even when no instructions exist
-// (it prints a hint to stderr)
-err := cmdEnv()
-if err != nil {
-t.Errorf("cmdEnv should not error: %v", err)
-}
+	// cmdEnv should not error even when no instructions exist
+	// (it prints a hint to stderr)
+	err := cmdEnv()
+	if err != nil {
+		t.Errorf("cmdEnv should not error: %v", err)
+	}
 }

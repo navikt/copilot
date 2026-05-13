@@ -51,60 +51,340 @@ func installItems(sourceDir string, scope *InstallScope, manifest *Manifest, dry
 // installArtifact handles the install for any artifact type.
 // Resolution, copy, hash logic are driven by the ArtifactKind.
 func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *ArtifactKind, name string, dryRun, force bool, result *installResult) error {
-if err := validateName(name); err != nil {
-return fmt.Errorf("invalid %s name: %w", kind.Name, err)
-}
+	if err := validateName(name); err != nil {
+		return fmt.Errorf("invalid %s name: %w", kind.Name, err)
+	}
 
-art, found := resolver.Get(kind, name)
-if !found {
-fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
-result.Skipped++
-return nil
-}
+	art, found := resolver.Get(kind, name)
+	if !found {
+		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
+		result.Skipped++
+		return nil
+	}
 
-dst := scope.DstPath(kind.Dir, art.FileName())
-relPath := scope.RelPath(kind.Dir, art.FileName())
-if art.IsDir {
-relPath += "/"
-}
+	dst := scope.DstPath(kind.Dir, art.FileName())
+	relPath := scope.RelPath(kind.Dir, art.FileName())
+	if art.IsDir {
+		relPath += "/"
+	}
 
-if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
-return err
-} else if c != nil && !force {
-fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
-result.Conflicts++
-return nil
-}
+	if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
+		return err
+	} else if c != nil && !force {
+		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
+		result.Conflicts++
+		return nil
+	}
 
-if dryRun {
-extra := ""
-if kind.IsDir {
-refCount := countDirFiles(filepath.Join(art.AbsPath, "references"))
-if refCount > 0 {
-extra = dim(fmt.Sprintf(" (%d reference file(s))", refCount))
-}
-}
-fmt.Printf("  %s %s%s\n", dim("→"), relPath, extra)
-result.Installed++
-return nil
-}
+	if dryRun {
+		extra := ""
+		if kind.IsDir {
+			refCount := countDirFiles(filepath.Join(art.AbsPath, "references"))
+			if refCount > 0 {
+				extra = dim(fmt.Sprintf(" (%d reference file(s))", refCount))
+			}
+		}
+		fmt.Printf("  %s %s%s\n", dim("→"), relPath, extra)
+		result.Installed++
+		return nil
+	}
 
-if err := copyArtifact(art.AbsPath, dst, scope.RootDir, art.IsDir); err != nil {
-	return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
-}
-hash, err := rawArtifactHash(dst, art.IsDir)
-if err != nil {
-	return fmt.Errorf("hashing installed %s %s: %w", kind.Name, name, err)
-}
-result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
+	if err := copyArtifact(art.AbsPath, dst, scope.RootDir, art.IsDir); err != nil {
+		return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
+	}
+	hash, err := rawArtifactHash(dst, art.IsDir)
+	if err != nil {
+		return fmt.Errorf("hashing installed %s %s: %w", kind.Name, name, err)
+	}
+	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
 
-fmt.Printf("  %s %s\n", green("✓"), name)
-result.Installed++
+	fmt.Printf("  %s %s\n", green("✓"), name)
+	result.Installed++
 
-return nil
+	return nil
 }
 
 // ─── Commands ───────────────────────────────────────────────────────────────
+
+// cmdInstallAuto resolves whether <name> is a collection or an individual artifact,
+// then dispatches to the appropriate installer. If --type is provided, it skips
+// collection lookup and installs a specific artifact type.
+func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
+	// If explicit --type given, go straight to single-artifact install
+	if itemType != "" {
+		if _, ok := kindByName[itemType]; !ok {
+			return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt", itemType)
+		}
+		return cmdAdd(itemType, name, scope, ref, sourceRepo, dryRun, force, jsonOutput)
+	}
+
+	if !dryRun && !scope.IsUser() {
+		if _, err := os.Stat(filepath.Join(scope.RootDir, ".git")); os.IsNotExist(err) {
+			return fmt.Errorf("target %q does not appear to be a git repository (no .git directory)", scope.RootDir)
+		}
+	}
+
+	if !jsonOutput {
+		fmt.Println(dim("Resolving source..."))
+	}
+	src, err := resolveSource(ref, sourceRepo)
+	if err != nil {
+		return err
+	}
+	defer src.Cleanup()
+
+	// Check if name matches a collection
+	isCollection := false
+	collections, _ := listCollectionDirs(src.Dir) // ignore error: missing dir = no collections
+	for _, c := range collections {
+		if c == name {
+			isCollection = true
+			break
+		}
+	}
+
+	// Check if name matches any artifact
+	resolver := NewSourceResolver(src.Dir)
+	var matchedKinds []*ArtifactKind
+	for _, kind := range AllKinds {
+		if _, ok := resolver.Get(kind, name); ok {
+			matchedKinds = append(matchedKinds, kind)
+		}
+	}
+
+	// Resolve ambiguity
+	if isCollection && len(matchedKinds) > 0 {
+		kindNames := make([]string, len(matchedKinds))
+		for i, k := range matchedKinds {
+			kindNames[i] = k.Name
+		}
+		return fmt.Errorf("%q matches both a collection and %s %s.\n  Install the collection: nav-pilot install %s\n  Install the %s: nav-pilot install %s --type %s",
+			name, articleFor(matchedKinds[0].Name), strings.Join(kindNames, ", "),
+			name, matchedKinds[0].Name, name, matchedKinds[0].Name)
+	}
+
+	if !isCollection && len(matchedKinds) > 1 {
+		kindNames := make([]string, len(matchedKinds))
+		for i, k := range matchedKinds {
+			kindNames[i] = k.Name
+		}
+		return fmt.Errorf("%q matches multiple artifact types: %s.\n  Use --type to specify: nav-pilot install %s --type <%s>",
+			name, strings.Join(kindNames, ", "), name, strings.Join(kindNames, "|"))
+	}
+
+	if isCollection {
+		return cmdInstallFromSource(name, src, scope, dryRun, force, jsonOutput)
+	}
+
+	if len(matchedKinds) == 1 {
+		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, dryRun, force, jsonOutput)
+	}
+
+	// Not found — suggest closest match
+	var candidates []string
+	candidates = append(candidates, collections...)
+	for _, kind := range AllKinds {
+		for _, art := range resolver.List(kind) {
+			candidates = append(candidates, art.Name)
+		}
+	}
+	if s := suggest(name, candidates); s != "" {
+		return fmt.Errorf("%q not found. Did you mean %q?\n\nRun 'nav-pilot list' to see available collections and items", name, s)
+	}
+	return fmt.Errorf("%q not found. Run 'nav-pilot list' to see available collections and items", name)
+}
+
+// articleFor returns "a" or "an" for an artifact kind name.
+func articleFor(kind string) string {
+	switch kind[0] {
+	case 'a', 'e', 'i', 'o', 'u':
+		return "an"
+	}
+	return "a"
+}
+
+// cmdInstallFromSource installs a collection from an already-resolved source.
+func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
+	manifest, err := loadManifest(src.Dir, collection)
+	if err != nil {
+		return err
+	}
+
+	sourceLabel := "navikt/copilot"
+
+	if !jsonOutput {
+		fmt.Println()
+		if dryRun {
+			fmt.Println(bold(fmt.Sprintf("Dry run: %s", collection)))
+		} else {
+			fmt.Println(bold(fmt.Sprintf("Installing: %s", collection)))
+		}
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
+		fmt.Println()
+	}
+
+	result, err := installItems(src.Dir, scope, manifest, dryRun, force)
+	if err != nil {
+		return err
+	}
+
+	if jsonOutput {
+		return outputJSON(map[string]interface{}{
+			"command":     "install",
+			"collection":  collection,
+			"scope":       scope.Name,
+			"source_sha":  src.SHA,
+			"version":     src.Version,
+			"installed":   result.Installed,
+			"conflicts":   result.Conflicts,
+			"unsupported": result.Unsupported,
+			"dry_run":     dryRun,
+		})
+	}
+
+	if result.Conflicts > 0 {
+		fmt.Printf("%s %d file(s) skipped due to conflicts. Use %s to overwrite.\n",
+			yellow("⚠"), result.Conflicts, bold("--force"))
+	}
+
+	if len(result.Unsupported) > 0 {
+		fmt.Printf("%s Skipped (not supported in %s scope): %s\n",
+			yellow("⚠"), scope.Name, strings.Join(result.Unsupported, ", "))
+	}
+
+	if dryRun {
+		fmt.Printf("%s Would install %d items from %q.\n",
+			dim("→"), result.Installed, collection)
+		return nil
+	}
+
+	stateVersion := src.Version
+
+	state := &StateFile{
+		Collection:  collection,
+		Version:     stateVersion,
+		Scope:       scope.Name,
+		SourceSHA:   src.SHA,
+		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
+		Files:       result.Files,
+	}
+	if err := writeScopedState(scope, state); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
+	}
+
+	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
+		green("✓"), result.Installed, collection, stateVersion, src.SHA)
+	fmt.Println()
+	if scope.IsUser() {
+		fmt.Println(dim("Agents and skills are now available across all your repos."))
+		fmt.Println(dim("Use @nav-pilot in Copilot Chat or copilot --agent nav-pilot"))
+	} else {
+		fmt.Println(dim("Next steps:"))
+		fmt.Println(dim("  1. Review the installed files in .github/"))
+		fmt.Println(dim("  2. Commit and push to enable Copilot customization"))
+		fmt.Println(dim("  3. Use @nav-pilot in Copilot to start planning"))
+	}
+
+	return nil
+}
+
+// cmdAddFromSource installs a single artifact from an already-resolved source.
+// It preserves the à-la-carte state semantics from cmdAdd.
+func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
+	if !scope.SupportsType(itemType) {
+		return fmt.Errorf("type %q is not supported in user scope. Only agents, skills, and instructions can be installed to ~/.copilot", itemType)
+	}
+
+	sourceLabel := "navikt/copilot"
+
+	result := &installResult{}
+
+	if !jsonOutput {
+		fmt.Println()
+		if dryRun {
+			fmt.Println(bold(fmt.Sprintf("Dry run: install %s %s", itemType, name)))
+		} else {
+			fmt.Println(bold(fmt.Sprintf("Installing %s: %s", itemType, name)))
+		}
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
+		fmt.Println()
+	}
+
+	kind := kindByName[itemType]
+	resolver := NewSourceResolver(src.Dir)
+	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
+	if installErr != nil {
+		return installErr
+	}
+
+	if jsonOutput {
+		return outputJSON(map[string]interface{}{
+			"command":    "install",
+			"type":       itemType,
+			"name":       name,
+			"scope":      scope.Name,
+			"source_sha": src.SHA,
+			"installed":  result.Installed,
+			"conflicts":  result.Conflicts,
+			"dry_run":    dryRun,
+		})
+	}
+
+	if result.Conflicts > 0 {
+		fmt.Printf("\n%s File already exists and differs. Use %s to overwrite.\n",
+			yellow("⚠"), bold("--force"))
+	}
+
+	if dryRun || result.Installed == 0 {
+		return nil
+	}
+
+	// Append to state file if one exists, otherwise create a minimal one
+	state, err := readScopedState(scope)
+	if err != nil {
+		return fmt.Errorf("reading existing state: %w", err)
+	}
+	if state == nil {
+		state = &StateFile{
+			Collection:  "(à la carte)",
+			Scope:       scope.Name,
+			Version:     src.Version,
+			SourceSHA:   src.SHA,
+			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+	state.SourceSHA = src.SHA
+	if state.Version == "" {
+		state.Version = src.Version
+	}
+
+	// Merge new files into state, avoiding duplicates
+	existing := make(map[string]bool)
+	for _, f := range state.Files {
+		existing[f.Path] = true
+	}
+	for _, f := range result.Files {
+		if !existing[f.Path] {
+			state.Files = append(state.Files, f)
+		} else {
+			for i, sf := range state.Files {
+				if sf.Path == f.Path {
+					state.Files[i].Hash = f.Hash
+					state.Files[i].Status = ""
+					break
+				}
+			}
+		}
+	}
+	if err := writeScopedState(scope, state); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
+	}
+
+	fmt.Printf("\n%s Installed %s %q.\n", green("✓"), itemType, name)
+	return nil
+}
 
 func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 	if !jsonOutput {
@@ -155,8 +435,8 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 		fmt.Printf("  %-20s %s %s\n", bold(name), m.Description, dim(fmt.Sprintf("(%d items)", total)))
 	}
 	fmt.Println()
-	fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
-	fmt.Printf("Install everything to user home: %s\n", bold("nav-pilot install --user"))
+	fmt.Printf("Install with: %s\n", bold("nav-pilot install <name>"))
+	fmt.Printf("Install everything to user home: %s\n", bold("nav-pilot install --user --all"))
 
 	if showItems {
 		fmt.Println()
@@ -179,7 +459,7 @@ func listAvailableItems(sourceDir string) error {
 		}
 		fmt.Println(bold(fmt.Sprintf("Available %s:", kind.Dir)))
 		for _, item := range items {
-			fmt.Printf("  %-30s %s\n", item.Name, dim("nav-pilot add "+kind.Name+" "+item.Name))
+			fmt.Printf("  %-30s %s\n", item.Name, dim("nav-pilot install "+item.Name))
 		}
 		fmt.Println()
 	}
@@ -309,6 +589,8 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	return nil
 }
 
+// cmdInstall installs a named collection. Used by the old direct dispatch path
+// and re-resolves source (unlike cmdInstallFromSource which reuses an existing source).
 func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	if !dryRun && !scope.IsUser() {
 		if _, err := os.Stat(filepath.Join(scope.RootDir, ".git")); os.IsNotExist(err) {
@@ -325,91 +607,7 @@ func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, 
 	}
 	defer src.Cleanup()
 
-	manifest, err := loadManifest(src.Dir, collection)
-	if err != nil {
-		return err
-	}
-
-	sourceLabel := "navikt/copilot"
-	if sourceRepo != "" {
-		sourceLabel = sourceRepo
-	}
-
-	if !jsonOutput {
-		fmt.Println()
-		if dryRun {
-			fmt.Println(bold(fmt.Sprintf("Dry run: %s", collection)))
-		} else {
-			fmt.Println(bold(fmt.Sprintf("Installing: %s", collection)))
-		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
-		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
-		fmt.Println()
-	}
-
-	result, err := installItems(src.Dir, scope, manifest, dryRun, force)
-	if err != nil {
-		return err
-	}
-
-	if jsonOutput {
-		return outputJSON(map[string]interface{}{
-			"command":     "install",
-			"collection":  collection,
-			"scope":       scope.Name,
-			"source_sha":  src.SHA,
-			"version":     src.Version,
-			"installed":   result.Installed,
-			"conflicts":   result.Conflicts,
-			"unsupported": result.Unsupported,
-			"dry_run":     dryRun,
-		})
-	}
-
-	if result.Conflicts > 0 {
-		fmt.Printf("%s %d file(s) skipped due to conflicts. Use %s to overwrite.\n",
-			yellow("⚠"), result.Conflicts, bold("--force"))
-	}
-
-	if len(result.Unsupported) > 0 {
-		fmt.Printf("%s Skipped (not supported in %s scope): %s\n",
-			yellow("⚠"), scope.Name, strings.Join(result.Unsupported, ", "))
-	}
-
-	if dryRun {
-		fmt.Printf("%s Would install %d items from %q.\n",
-			dim("→"), result.Installed, collection)
-		return nil
-	}
-
-	stateVersion := src.Version
-
-	state := &StateFile{
-		Collection:  collection,
-		Version:     stateVersion,
-		Scope:       scope.Name,
-		SourceSHA:   src.SHA,
-		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
-		Files:       result.Files,
-	}
-	if err := writeScopedState(scope, state); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
-	}
-
-	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
-		green("✓"), result.Installed, collection, stateVersion, src.SHA)
-	fmt.Println()
-	if scope.IsUser() {
-		fmt.Println(dim("Agents and skills are now available across all your repos."))
-		fmt.Println(dim("Use @nav-pilot in Copilot Chat or copilot --agent nav-pilot"))
-	} else {
-		fmt.Println(dim("Next steps:"))
-		fmt.Println(dim("  1. Review the installed files in .github/"))
-		fmt.Println(dim("  2. Commit and push to enable Copilot customization"))
-		fmt.Println(dim("  3. Use @nav-pilot in Copilot to start planning"))
-	}
-
-	return nil
+	return cmdInstallFromSource(collection, src, scope, dryRun, force, jsonOutput)
 }
 
 func cmdStatus(scope *InstallScope, jsonOutput bool) error {

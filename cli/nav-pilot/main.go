@@ -4,11 +4,10 @@
 //
 // Usage:
 //
-//	nav-pilot install <collection>         # install a collection
-//	nav-pilot add agent <name>             # install a single agent
+//	nav-pilot install <name>               # install a collection or single artifact
 //	nav-pilot sync                         # check for updates
 //	nav-pilot list                         # list available collections and items
-//	nav-pilot status                       # show installed state
+//	nav-pilot list --installed             # show installed state
 //	nav-pilot uninstall                    # remove installed files
 package main
 
@@ -43,18 +42,17 @@ Usage:
   nav-pilot <command> [flags]
 
 Commands:
-  install <collection>    Install a curated collection into the current repo
-  install --user          Install all agents, skills & instructions to ~/.copilot (user-wide)
+  install <name>          Install a collection or individual agent/skill/instruction/prompt
+  install --user --all    Install all agents, skills & instructions to ~/.copilot (user-wide)
   init                    Scaffold repo-local Copilot config files (AGENTS.md, instructions)
-  add <type> <name>       Install a single agent, skill, instruction, or prompt
-  ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
-  export <format>         Export Nav customizations to another tool's format
   sync                    Check for updates and optionally apply them
   list                    List available collections and items
-  status                  Show what's currently installed
+  list --installed        Show what's currently installed
+  upgrade                 Update nav-pilot CLI to the latest version
   uninstall               Remove installed collection files
-  update                  Update nav-pilot CLI to the latest version
+  export <format>         Export Nav customizations to another tool's format
   env                     Print shell exports for Copilot CLI integration
+  ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
   version                 Show version information
 
@@ -65,6 +63,8 @@ Flags:
   -r, --ref <ref>         Git branch or tag to install from
   -s, --source <repo>     Source repository (default: navikt/copilot)
   -u, --user              Install to ~/.copilot (user-wide, all agents, skills & instructions)
+  --type <type>           Artifact type for install (agent, skill, instruction, prompt)
+  --all                   Install everything (use with --user)
   --apply                 Apply available updates (sync only)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
@@ -72,8 +72,9 @@ Flags:
 Get started:
   nav-pilot                              # Install, upgrade, or launch Copilot sandbox (cplt)
   nav-pilot init                         # Scaffold AGENTS.md and Copilot instructions
-  nav-pilot list                         # See available collections
+  nav-pilot list                         # See available collections and items
   nav-pilot install kotlin-backend       # Install a collection
+  nav-pilot install security-champion    # Install a single agent
   nav-pilot install --dry-run fullstack  # Preview before installing
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
 
@@ -88,7 +89,7 @@ func run(args []string) error {
 	if version != "dev" {
 		if latest := checkStaleness(version); latest != "" {
 			fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
-				yellow("⚠"), latest, version, bold("nav-pilot update"))
+				yellow("⚠"), latest, version, bold("nav-pilot upgrade"))
 		}
 	}
 
@@ -103,8 +104,8 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided bool
-	var targetDir, ref, sourceRepo string
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided, installAll, listInstalled bool
+	var targetDir, ref, sourceRepo, installType string
 	var positional []string
 
 	targetDir = "."
@@ -121,6 +122,10 @@ func run(args []string) error {
 			jsonOutput = true
 		case "--items":
 			listItems = true
+		case "--installed":
+			listInstalled = true
+		case "--all":
+			installAll = true
 		case "-F", "--feature":
 			featureRequest = true
 		case "-u", "--user":
@@ -144,6 +149,12 @@ func run(args []string) error {
 			}
 			i++
 			sourceRepo = rest[i]
+		case "--type":
+			if i+1 >= len(rest) {
+				return fmt.Errorf("--type requires a value")
+			}
+			i++
+			installType = rest[i]
 		case "-h", "--help":
 			usage()
 			return nil
@@ -178,22 +189,34 @@ func run(args []string) error {
 	// Reject --user for commands that don't support scoped installs
 	if userScope {
 		switch command {
-		case "install", "add", "ignore", "sync", "status", "uninstall", "export":
+		case "install", "add", "ignore", "sync", "status", "uninstall", "export", "list":
 			// These commands support --user
 		default:
 			return fmt.Errorf("--user is not supported for %q", command)
 		}
 	}
 
+	// Validate --type is only used with install (or hidden add alias)
+	if installType != "" && command != "install" && command != "add" {
+		return fmt.Errorf("--type is only supported for the install command")
+	}
+
 	switch command {
 	case "install":
-		if userScope && len(positional) == 0 {
+		if userScope && (len(positional) == 0 || installAll) {
+			if len(positional) == 0 && !installAll {
+				fmt.Fprintf(os.Stderr, "%s In a future version, %s alone will require %s.\n  Run: %s\n\n",
+					yellow("⚠"), bold("install --user"), bold("--all"), bold("nav-pilot install --user --all"))
+			}
 			return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
 		}
 		if len(positional) == 0 {
-			return fmt.Errorf("install requires a collection name. Run 'nav-pilot list' to see available collections")
+			return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
 		}
-		return cmdInstall(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		if len(positional) > 1 {
+			return fmt.Errorf("install takes one name. Did you mean: nav-pilot install %s --type %s", positional[1], positional[0])
+		}
+		return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	case "init":
 		return cmdInit(targetDir, dryRun, force)
 	case "export":
@@ -202,6 +225,16 @@ func run(args []string) error {
 		}
 		return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	case "add":
+		// Deprecated: hidden alias for backward compatibility
+		if !jsonOutput {
+			if len(positional) >= 2 {
+				fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
+					yellow("⚠"), bold("nav-pilot add"), bold(fmt.Sprintf("nav-pilot install %s --type %s", positional[1], positional[0])))
+			} else {
+				fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
+					yellow("⚠"), bold("nav-pilot add"), bold("nav-pilot install <name>"))
+			}
+		}
 		if len(positional) < 2 {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
 		}
@@ -214,15 +247,33 @@ func run(args []string) error {
 	case "sync":
 		return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
 	case "list":
+		if listInstalled {
+			if userScope || targetProvided {
+				return cmdStatusScoped(scope, false, jsonOutput)
+			}
+			return cmdStatusAuto(targetDir, jsonOutput)
+		}
 		return cmdList(ref, sourceRepo, listItems, jsonOutput)
 	case "status":
+		// Deprecated: hidden alias for backward compatibility
+		if !jsonOutput {
+			fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
+				yellow("⚠"), bold("nav-pilot status"), bold("nav-pilot list --installed"))
+		}
 		if userScope || targetProvided {
 			return cmdStatusScoped(scope, false, jsonOutput)
 		}
 		return cmdStatusAuto(targetDir, jsonOutput)
 	case "uninstall":
 		return cmdUninstall(scope, dryRun)
+	case "upgrade":
+		return cmdUpdate()
 	case "update":
+		// Deprecated: hidden alias for backward compatibility
+		if !jsonOutput {
+			fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
+				yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
+		}
 		return cmdUpdate()
 	case "env":
 		return cmdEnv()
@@ -251,4 +302,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-

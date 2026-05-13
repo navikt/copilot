@@ -328,6 +328,8 @@ func cmdInit(targetDir string, dryRun, force bool) error {
 		fmt.Println(dim("Next steps:"))
 		fmt.Println(dim("  1. Fill in the TODO placeholders"))
 		fmt.Println(dim("  2. Commit and push to enable Copilot customization"))
+		fmt.Println(dim("  3. Install agents and skills: nav-pilot install <collection>"))
+		fmt.Println(dim("  4. See what's available: nav-pilot list"))
 	}
 	if skipped > 0 {
 		fmt.Printf("%s Skipped %d existing file(s).\n", yellow("⚠"), skipped)

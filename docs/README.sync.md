@@ -91,7 +91,7 @@ nav-pilot ignore agent security-champion --user
 nav-pilot ignore skill kotlin-app-config --user
 ```
 
-The item is recorded in your state file with `status: "ignored"` and will no longer appear in new-item reminders. Run `nav-pilot status --user` to see a summary — excluded items are shown separately from auto-ignored (deleted) ones.
+The item is recorded in your state file with `status: "ignored"` and will no longer appear in new-item reminders. Run `nav-pilot list --installed --user` to see a summary — excluded items are shown separately from auto-ignored (deleted) ones.
 
 > **Note:** `nav-pilot ignore` only applies to user-scope `(all)` installs. For repo-scope installs, use `copilot-sync.json` overrides instead (see section below).
 

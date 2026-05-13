@@ -8,13 +8,13 @@ nav-pilot er én Go-pakke (`package main`) uten interne moduler. Koden er delt i
 
 ```
 main.go          CLI-parsing, dispatch til cmd*-funksjoner
-install.go       install, list, status, uninstall
+install.go       install, install --auto-detect, list, status, uninstall
 init.go          scaffold repo-lokale Copilot-konfigurasjonsfiler
-add.go           add (enkeltartifakt)
+add.go           add (enkeltartifakt — deprecated alias for install)
 export.go        export (formatkonvertering)
 sync.go          sync (oppdateringssjekk)
 interactive.go   TUI-flyt med charmbracelet/huh
-update.go        selvoppdatering av binæren
+update.go        upgrade / update (selvoppdatering av binæren)
 feedback.go      åpner GitHub issue med diagnostikk
 env.go           shell-eksport for Copilot CLI-integrasjon
 scope.go         InstallScope (repo vs. user)
@@ -42,9 +42,10 @@ Hver kommando er en `cmd*`-funksjon som tar parsed argumenter og returnerer `err
 
 ```go
 func cmdExport(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
+func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
 func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error
-func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
+func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error  // deprecated alias
 func cmdInit(targetDir string, dryRun, force bool) error
 ```
 

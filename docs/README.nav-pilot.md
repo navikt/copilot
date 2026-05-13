@@ -21,10 +21,10 @@ nav-pilot                        # interaktiv velger
 nav-pilot install kotlin-backend # eller direkte
 
 # Personlig installasjon (fungerer på tvers av alle repoer)
-nav-pilot install --user  # installerer agenter, skills og instruksjoner til ~/.copilot/
+nav-pilot install --user --all  # installerer agenter, skills og instruksjoner til ~/.copilot/
 
 # Oppdater nav-pilot
-nav-pilot update
+nav-pilot upgrade
 
 # Rapporter en feil eller foreslå en forbedring
 nav-pilot feedback             # åpner bug-rapport i nettleser
@@ -35,7 +35,7 @@ nav-pilot feedback --feature   # åpner feature request
 
 ```bash
 # Enkleste metode — nav-pilot oppdaterer seg selv
-nav-pilot update
+nav-pilot upgrade
 
 # Alternativt via Homebrew
 brew update && brew upgrade nav-pilot
