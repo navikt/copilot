@@ -101,6 +101,7 @@ When fixing a bug or implementing a feature, change only what is necessary. Do n
   - Scopes in parentheses when helpful: `feat(docs):`, `style(my-copilot):`
 - **No `Co-authored-by` trailers** in commit messages
 - **Do not push** unless explicitly asked
+- **Do not amend commits on main** unless explicitly asked — use a new commit instead
 
 ## NAIS Deployment
 

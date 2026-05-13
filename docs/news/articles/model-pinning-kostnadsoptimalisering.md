@@ -140,6 +140,8 @@ Ingenting — `model:` setter default, men du kan fortsatt velge modell manuelt 
 
 **Bruk [`@nav-pilot`](/nav-pilot) for tunge oppgaver.** Nav-pilot er vår primæragent for arkitektur, planlegging og implementering. Den bruker model-pinning med Opus 4.6 og GPT-5.3-Codex som fallback — du får altså den kraftigste modellen automatisk når du trenger den, uten å velge Opus manuelt for alt annet. For vanlig chat og kodearbeid: bruk Auto.
 
+**Oppgrader nav-pilot for å få siste versjon.** Kjør `nav-pilot sync` i terminalen for å hente oppdaterte agenter, skills og modellinnstillinger. Da får du automatisk de nye kostnadsoptimaliserte modellvalgene.
+
 **Kilder:**
 
 - [Copilot model pinning — issue #216](https://github.com/navikt/copilot/issues/216) (navikt/copilot, mai 2026)

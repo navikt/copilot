@@ -103,6 +103,7 @@ interface ManifestItem {
   tags?: string[];
   examples?: ExampleItem[];
   references?: { path: string; rawUrl: string }[];
+  model?: string[];
 }
 
 /**
@@ -143,6 +144,11 @@ function getAgents(): ManifestItem[] {
     const rawUrl = `${RAW_BASE}/agents/${file}`;
     const description = (data.description as string) || "";
     const tools = Array.isArray(data.tools) ? data.tools : [];
+    const model = data.model
+      ? Array.isArray(data.model)
+        ? (data.model as string[])
+        : [data.model as string]
+      : undefined;
     const agentReferences = extractAgentReferences(body, name).filter((ref) => knownAgentIds.has(ref));
 
     return {
@@ -157,6 +163,7 @@ function getAgents(): ManifestItem[] {
       installUrl: buildInstallUrl("agent", rawUrl),
       insidersInstallUrl: buildInsidersInstallUrl("agent", rawUrl),
       tools,
+      ...(model && { model }),
       ...(agentReferences.length > 0 && { agentReferences }),
       ...(meta.tags && { tags: meta.tags }),
       ...(meta.examples && { examples: meta.examples }),
@@ -211,6 +218,11 @@ function getPrompts(): ManifestItem[] {
       const name = (data.name as string) || file.replace(".prompt.md", "");
       const rawUrl = `${RAW_BASE}/prompts/${file}`;
       const meta = loadMetadata(path.join(dir, file.replace(".prompt.md", ".metadata.json")));
+      const model = data.model
+        ? Array.isArray(data.model)
+          ? (data.model as string[])
+          : [data.model as string]
+        : undefined;
 
       return {
         id: name,
@@ -224,6 +236,7 @@ function getPrompts(): ManifestItem[] {
         installUrl: buildInstallUrl("prompt", rawUrl),
         insidersInstallUrl: buildInsidersInstallUrl("prompt", rawUrl),
         invocation: `#${name}`,
+        ...(model && { model }),
         ...(meta.tags && { tags: meta.tags }),
         ...(meta.examples && { examples: meta.examples }),
       };

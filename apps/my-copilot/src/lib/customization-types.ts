@@ -27,6 +27,7 @@ export interface Agent extends BaseCustomization {
   type: "agent";
   tools: string[];
   agentReferences?: string[];
+  model?: string[];
 }
 
 export interface Instruction extends BaseCustomization {
@@ -37,6 +38,7 @@ export interface Instruction extends BaseCustomization {
 export interface Prompt extends BaseCustomization {
   type: "prompt";
   invocation: string;
+  model?: string[];
 }
 
 export interface SkillReference {

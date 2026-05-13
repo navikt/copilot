@@ -67,6 +67,21 @@ export function StaticCustomizationDetails({
         <AgentReferences references={item.agentReferences} allItems={allItems} onNavigate={onNavigate} />
       )}
 
+      {(item.type === "agent" || item.type === "prompt") && item.model && item.model.length > 0 && (
+        <VStack gap="space-8">
+          <Heading size="xsmall" level="4">
+            Modell
+          </Heading>
+          <HStack gap="space-4" wrap>
+            {item.model.map((m) => (
+              <Tag key={m} size="xsmall" variant="neutral">
+                {m}
+              </Tag>
+            ))}
+          </HStack>
+        </VStack>
+      )}
+
       {item.type === "instruction" && (
         <VStack gap="space-8">
           <Heading size="xsmall" level="4">
