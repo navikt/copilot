@@ -2,7 +2,7 @@
 title: "Modell-pinning reduserer Copilot-kostnader med opptil 80 %"
 date: 2026-05-13
 author: starefosen
-category: copilot
+category: nav
 excerpt: "Model-pinning, caching, context engineering og sju konkrete tips for å holde Copilot-kostnadene nede når bruksbasert fakturering starter 1. juni."
 url: "https://github.com/navikt/copilot/issues/216"
 tags:
@@ -120,8 +120,19 @@ Mindre kontekst = færre input-tokens = lavere kostnad. Konkret:
 Agenter bruker flere tokens enn vanlig chat fordi de gjør flere kall. Spør deg:
 
 - Trenger jeg en agent, eller holder et enkelt chat-spørsmål?
-- Kan jeg løse dette med kodekomplettering i stedet?
+- Kan jeg løse dette med kodefullføring (code completion) i stedet?
 - Er dette en «grønn sone»-oppgave der AI gir mest verdi?
+
+## Hva vi planlegger videre
+
+Model-pinning er første steg. Framover ser vi på:
+
+- **Budsjetter per team:** Kredittgrenser per team, slik at forbruket fordeles rettferdig og ingen får overraskelser.
+- **Personlige budsjetter:** Veiledende kredittbudsjett per bruker, med varsling når du nærmer deg grensa.
+- **Forbruksoversikt:** Dashbord på min-copilot.ansatt.nav.no som viser hvem som bruker mest. Ikke for å henge ut noen, men for å lære av hverandre.
+- **Erfaringsdeling fra storforbrukere:** De som bruker mest AI Credits, blir invitert til å dele hva de jobber med og hvordan de bruker agenter. Målet er å spre gode arbeidsmønstre.
+
+Vi tror de mest aktive brukerne har verdifull innsikt i hva som fungerer — og hva som ikke gjør det. Den innsikten vil vi gjøre tilgjengelig for alle.
 
 ## Hva du merker
 

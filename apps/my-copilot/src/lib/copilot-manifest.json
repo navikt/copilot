@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-07T14:06:40.823Z",
+  "generatedAt": "2026-05-13T07:06:28.121Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -10,7 +10,7 @@
       "domain": "frontend",
       "filePath": ".github/agents/accessibility.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/accessibility.agent.md",
-      "contentHash": "98867df3e31b8cd4650e79ceb009a0fe98e9c22519cd2f834096c8f06d1f213b",
+      "contentHash": "6bf2a7cb4b069120e429acfe1d2751e5a4f0db1d14043a4596645a64fd1f1eaa",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faccessibility.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faccessibility.agent.md",
       "tools": [
@@ -42,7 +42,7 @@
       "domain": "frontend",
       "filePath": ".github/agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/aksel.agent.md",
-      "contentHash": "f3f31e695bc1df0f243d139cbaf81c41227d61d7b0f83453c7f44e1b41bb1113",
+      "contentHash": "3820ab7114887f87e16dbc588d50976d808a25f4a5d46f3fbe73cfbb733bd7c6",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "tools": [
@@ -111,7 +111,7 @@
       "domain": "auth",
       "filePath": ".github/agents/auth.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/auth.agent.md",
-      "contentHash": "97b03fd441f35a44ae0729d4cd1106065a52b77d18f191de27a9380037321bc1",
+      "contentHash": "93f6ccd0feb679646debafda21902142621d1f2db841683356efa7c83c53d68b",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fauth.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fauth.agent.md",
       "tools": [
@@ -153,7 +153,7 @@
       "domain": "general",
       "filePath": ".github/agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/code-review.agent.md",
-      "contentHash": "452bf7eb43ff1205e7f9c7da87f6a390009bbd04dea37ca4f71c23fd14431cf6",
+      "contentHash": "0dcd77f75b92d7233a7d07690a521cfbc98530e8384e989399c1fb2d5839d61b",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -200,7 +200,7 @@
       "domain": "general",
       "filePath": ".github/agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/forfatter.agent.md",
-      "contentHash": "4e55f4d189619dcb50f8f21c20c78a719127ae9e4990ddfb53ff3c7ba654ad87",
+      "contentHash": "6cc31221eab50d30ed73a404027cfb6fa5dd36375ed58afc6681e1c45880a199",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "tools": [
@@ -244,7 +244,7 @@
       "domain": "backend",
       "filePath": ".github/agents/kafka.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/kafka.agent.md",
-      "contentHash": "0b87e50b3d4178de43f8a0659bfa8795c4face7d36f73c60ed85b5fe6e9e6aed",
+      "contentHash": "fdf48699401904736c1ad1dcbce5f75a93719c6f25134407f9849c7b4dbed989",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fkafka.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fkafka.agent.md",
       "tools": [
@@ -286,7 +286,7 @@
       "domain": "platform",
       "filePath": ".github/agents/nais.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md",
-      "contentHash": "fa07ad8cfdf54a4a6dc68f0debd308c90abfbce0ed4fe634f75dddd6c601aa57",
+      "contentHash": "5cdca085bd4edc569e71df54bf7bf4728320576d0c74a7dccf230e95b4dfbb4e",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnais.agent.md",
       "tools": [
@@ -331,7 +331,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "71eaa207ac601d66ef00753242efe830883ea5737b599ead577e4d30da73e0fe",
+      "contentHash": "6ce36d8afc80f70f8f706f2b406b4cfa5e5fa571adf914f3c22b7333ec0aab90",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -395,7 +395,7 @@
       "domain": "observability",
       "filePath": ".github/agents/observability.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/observability.agent.md",
-      "contentHash": "5ba4036f431e3cfbf4596c22ef87d308164b69a9e5bec717798e42a034065f00",
+      "contentHash": "29814d262472524e03ace26f2a016948073cd74c7af385368714b9ed95cf8e8a",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fobservability.agent.md",
       "tools": [
@@ -437,7 +437,7 @@
       "domain": "general",
       "filePath": ".github/agents/research.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/research.agent.md",
-      "contentHash": "0e7d3ea4dab5f465f4d27eb544de13ea7a12b9d501f34a8630441fb759f78b4d",
+      "contentHash": "6f8d6a6ef061b2a08f3099811509a1544bfa11a4b5cf47967d8aa93818bbec4e",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fresearch.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fresearch.agent.md",
       "tools": [
@@ -489,7 +489,7 @@
       "domain": "general",
       "filePath": ".github/agents/rust.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/rust.agent.md",
-      "contentHash": "4b76a4f262339bf699c8f1a96da1fe9da0b5afd78c6d42dcdd49fb996afcf4e4",
+      "contentHash": "e54f5f17ba5c16aa07b700e81401f916a035fc525f39038f5fc80279a137c930",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Frust.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Frust.agent.md",
       "tools": [
@@ -514,7 +514,7 @@
       "domain": "general",
       "filePath": ".github/agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/security-champion.agent.md",
-      "contentHash": "3081dcf0ddde695d7f92488ddffd55bc785b8f0f94565449ccdf17d609248846",
+      "contentHash": "a42ca95f2a459fbb53be99369cebfcdbebc1fe748e487a6e8fa38c6cca736e23",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -798,7 +798,7 @@
       "domain": "frontend",
       "filePath": ".github/prompts/aksel-component.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/aksel-component.prompt.md",
-      "contentHash": "9119d15db318622dbebaa92cebb283ab199b65b084413922d2cb8f77b71b218d",
+      "contentHash": "dbeb27a9cad0e768863705c247739fd85c981d725e1eb9fa62d2aaefaf379c66",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "invocation": "#aksel-component",
@@ -813,7 +813,7 @@
       "domain": "general",
       "filePath": ".github/prompts/golang-service.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/golang-service.prompt.md",
-      "contentHash": "cfdbc1cff070400b2fa95e4568cb70108f9f345c05aba23822b6b078120748d9",
+      "contentHash": "42a507250b011dbd7947a4729bcaf4baf8a9c8d6a72ba0904153051ee8939bf4",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fgolang-service.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fgolang-service.prompt.md",
       "invocation": "#golang-service"
@@ -826,7 +826,7 @@
       "domain": "backend",
       "filePath": ".github/prompts/kafka-topic.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/kafka-topic.prompt.md",
-      "contentHash": "3204fac1321522bcb87aa12f677e4deb3f2ccd5511e671811202c6a433822647",
+      "contentHash": "4e3cb2fe36ecb2f4343fdb9385a82f7d34f4551f1a581c870759b2dbff37dd64",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fkafka-topic.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fkafka-topic.prompt.md",
       "invocation": "#kafka-topic",
@@ -841,7 +841,7 @@
       "domain": "general",
       "filePath": ".github/prompts/ktor-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/ktor-endpoint.prompt.md",
-      "contentHash": "12983729be4638134cefda967c22e46b495822e62bc17fa36689516122ac53ca",
+      "contentHash": "e5a24e1b9e9bc398ffbd697757c2974d7ea60ee3adf2ab38b3163f3729d4b469",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fktor-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fktor-endpoint.prompt.md",
       "invocation": "#ktor-endpoint"
@@ -854,7 +854,7 @@
       "domain": "platform",
       "filePath": ".github/prompts/nais-manifest.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/nais-manifest.prompt.md",
-      "contentHash": "a7564098ae008cce355adc87b70e4d857a926986373328671ddcad9e358ced72",
+      "contentHash": "8576571223ffef8a3a02b2e6ae8b5ac3ca1c2f2c2aa09740222fc7fbcac0f0e0",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnais-manifest.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnais-manifest.prompt.md",
       "invocation": "#nais-manifest",
@@ -869,7 +869,7 @@
       "domain": "frontend",
       "filePath": ".github/prompts/nextjs-api-route.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/nextjs-api-route.prompt.md",
-      "contentHash": "16655aaa2b055bf329c66ad340c043a9c3b3063ef3cfbed65fab5ff200fd9b20",
+      "contentHash": "691c380aa1e47757211de51ca1b54ca2ff72e8a8e78de1b05acb9c4d29353d2a",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnextjs-api-route.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fnextjs-api-route.prompt.md",
       "invocation": "#nextjs-api-route",
@@ -884,7 +884,7 @@
       "domain": "backend",
       "filePath": ".github/prompts/spring-boot-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "5b79c3b867419f3c05501b75339e9184af69401e0c2b68afeb79fe18b6e764a9",
+      "contentHash": "3e68aab2f5cbe4027b7b11faf928d1f179a6a2882f8d5c6358707caf28c98894",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "invocation": "#spring-boot-endpoint",
