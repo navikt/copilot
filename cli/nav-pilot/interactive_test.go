@@ -161,3 +161,22 @@ func TestCopilotAgentArgs(t *testing.T) {
 		}
 	}
 }
+
+func TestIsCplt(t *testing.T) {
+	// Create a fake binary that outputs cplt version info
+	dir := t.TempDir()
+	fakeCplt := filepath.Join(dir, "fake-cplt")
+	os.WriteFile(fakeCplt, []byte("#!/bin/sh\necho 'cplt version 1.0.43'"), 0o755)
+
+	if !isCplt(fakeCplt) {
+		t.Error("expected isCplt=true for binary that outputs 'cplt'")
+	}
+
+	// Create a fake binary that outputs copilot version info
+	fakeCopilot := filepath.Join(dir, "fake-copilot")
+	os.WriteFile(fakeCopilot, []byte("#!/bin/sh\necho 'GitHub Copilot CLI 1.0.0'"), 0o755)
+
+	if isCplt(fakeCopilot) {
+		t.Error("expected isCplt=false for binary that outputs 'GitHub Copilot CLI'")
+	}
+}

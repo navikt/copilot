@@ -417,14 +417,29 @@ func installedAgents(state *StateFile) []string {
 
 // findCopilotCLI returns the path to cplt or copilot CLI.
 // Prefers cplt (unambiguous GitHub Copilot CLI).
+// If the "copilot" binary is actually cplt (aliased), it's treated as cplt.
 func findCopilotCLI() (path, name string) {
 	if p, err := exec.LookPath("cplt"); err == nil {
 		return p, "cplt"
 	}
 	if p, err := exec.LookPath("copilot"); err == nil {
+		if isCplt(p) {
+			return p, "cplt"
+		}
 		return p, "copilot"
 	}
 	return "", ""
+}
+
+// isCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
+// its version output. Returns true if the binary identifies as cplt/sandbox.
+func isCplt(binPath string) bool {
+	out, err := exec.Command(binPath, "--version").CombinedOutput()
+	if err != nil {
+		return false
+	}
+	s := strings.ToLower(string(out))
+	return strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox")
 }
 
 // cliDisplayName returns a user-friendly name for the CLI binary.
