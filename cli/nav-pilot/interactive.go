@@ -459,15 +459,9 @@ func copilotAgentArgs(agent string) []string {
 	return nil
 }
 
-// launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
-// If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
-// so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
-func launchCopilotWithAgent(agent string) {
-	cliPath, cliName := findCopilotCLI()
-	if cliPath == "" {
-		return
-	}
-
+// buildCopilotArgs constructs the CLI arguments for launching copilot.
+// For cplt, agent flags are forwarded after "--" separator.
+func buildCopilotArgs(cliName, agent string) []string {
 	agentArgs := []string{}
 	if agent != "" {
 		agentArgs = append(agentArgs, "--agent", agent)
@@ -482,6 +476,19 @@ func launchCopilotWithAgent(agent string) {
 		}
 		args = append(args, agentArgs...)
 	}
+	return args
+}
+
+// launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
+// If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
+// so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
+func launchCopilotWithAgent(agent string) {
+	cliPath, cliName := findCopilotCLI()
+	if cliPath == "" {
+		return
+	}
+
+	args := buildCopilotArgs(cliName, agent)
 
 	displayName := cliDisplayName(cliName)
 	if agent != "" {

@@ -180,3 +180,56 @@ func TestIsCplt(t *testing.T) {
 		t.Error("expected isCplt=false for binary that outputs 'GitHub Copilot CLI'")
 	}
 }
+
+func TestBuildCopilotArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		cliName string
+		agent   string
+		want    []string
+	}{
+		{
+			name:    "cplt with agent",
+			cliName: "cplt",
+			agent:   "nav-pilot",
+			want:    []string{"--", "--agent", "nav-pilot", "--mode", "plan", "--effort", "high"},
+		},
+		{
+			name:    "copilot with agent",
+			cliName: "copilot",
+			agent:   "nav-pilot",
+			want:    []string{"--agent", "nav-pilot", "--mode", "plan", "--effort", "high"},
+		},
+		{
+			name:    "cplt without agent",
+			cliName: "cplt",
+			agent:   "",
+			want:    []string{},
+		},
+		{
+			name:    "copilot with non-nav-pilot agent",
+			cliName: "copilot",
+			agent:   "auth",
+			want:    []string{"--agent", "auth"},
+		},
+		{
+			name:    "cplt with non-nav-pilot agent",
+			cliName: "cplt",
+			agent:   "auth",
+			want:    []string{"--", "--agent", "auth"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildCopilotArgs(tt.cliName, tt.agent)
+			if len(got) != len(tt.want) {
+				t.Fatalf("buildCopilotArgs(%q, %q) = %v, want %v", tt.cliName, tt.agent, got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("buildCopilotArgs(%q, %q)[%d] = %q, want %q", tt.cliName, tt.agent, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
