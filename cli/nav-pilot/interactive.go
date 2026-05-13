@@ -532,7 +532,8 @@ func offerLaunchCopilot() {
 }
 
 // offerLaunchCopilotWithAgents prompts the user to launch the Copilot CLI
-// with the nav-pilot agent if it's among the installed agents.
+// with the nav-pilot agent. Always passes --agent nav-pilot since the
+// interactive flow's purpose is to launch copilot with nav-pilot context.
 func offerLaunchCopilotWithAgents(agents []string) {
 	cliPath, cliName := findCopilotCLI()
 	if cliPath == "" || !isInteractive() {
@@ -554,17 +555,8 @@ func offerLaunchCopilotWithAgents(agents []string) {
 		return
 	}
 
-	// Launch with nav-pilot agent if installed, otherwise plain launch
-	agent := ""
-	for _, a := range agents {
-		if a == "nav-pilot" {
-			agent = "nav-pilot"
-			break
-		}
-	}
-
 	fmt.Println()
-	launchCopilotWithAgent(agent)
+	launchCopilotWithAgent("nav-pilot")
 }
 
 // copilotEnv returns the environment for launching cplt, injecting
