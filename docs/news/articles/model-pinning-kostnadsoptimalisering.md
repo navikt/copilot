@@ -1,5 +1,5 @@
 ---
-title: "Modell-pinning reduserer Copilot-kostnader med opptil 80 %"
+title: "Fra fastpris til AI Credits: Strategier for kostnadseffektiv KI-bruk"
 date: 2026-05-13
 author: starefosen
 category: nav
