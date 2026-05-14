@@ -209,8 +209,8 @@ export default function RetningslinjerPage() {
 
             {/* Endringslogg */}
             <Section icon={<ClockIcon aria-hidden />} title="Endringslogg">
-              <div className="overflow-x-auto">
-                <table className="text-sm w-full">
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <table className="text-sm w-full min-w-max">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 pr-4 font-medium">Dato</th>
