@@ -1723,7 +1723,7 @@ function ResourcesSection() {
           <LinkableHeading size="small" level="3">
             Lenker
           </LinkableHeading>
-          <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+          <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 label: "GitHub-repo",

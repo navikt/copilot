@@ -633,15 +633,8 @@ function PipelineSection() {
             </p>
           </div>
 
-          {/* Connected stepper */}
-          <div
-            className="w-full items-stretch gap-0"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr auto 1fr auto 1fr auto 1fr",
-              alignItems: "stretch",
-            }}
-          >
+          {/* Connected stepper - responsive grid */}
+          <div className="flex flex-col md:grid md:items-stretch gap-4 md:gap-0" style={{ gridTemplateColumns: "repeat(7, auto)" }}>
             {PIPELINE_STEPS.map((step, i) => (
               <React.Fragment key={step.title}>
                 {/* Step box */}
@@ -739,52 +732,53 @@ function ComparisonSection() {
             </p>
           </div>
 
-          {/* High-contrast comparison table */}
-          <div
-            className="w-full rounded-xl overflow-hidden"
-            style={{ border: "1px solid #1e293b", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
-          >
-            {/* Dark header */}
-            <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr 2fr", background: "#0f172a" }}>
-              <div
-                className="px-6 py-4 flex items-center justify-center"
-                style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
-              >
-                <p
-                  className="font-semibold uppercase tracking-wider"
-                  style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
+          {/* High-contrast comparison table - responsive wrapper */}
+          <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div
+              className="rounded-xl overflow-hidden min-w-max sm:min-w-0"
+              style={{ border: "1px solid #1e293b", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+            >
+              {/* Dark header */}
+              <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr 2fr", background: "#0f172a" }}>
+                <div
+                  className="px-6 py-4 flex items-center justify-center"
+                  style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
                 >
-                  Område
-                </p>
-              </div>
-              <div
-                className="px-6 py-4 flex items-center justify-center"
-                style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
-              >
-                <p
-                  className="font-semibold"
-                  style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8125rem", margin: 0 }}
+                  <p
+                    className="font-semibold uppercase tracking-wider"
+                    style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
+                  >
+                    Område
+                  </p>
+                </div>
+                <div
+                  className="px-6 py-4 flex items-center justify-center"
+                  style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
                 >
-                  Vanlig Copilot
-                </p>
+                  <p
+                    className="font-semibold"
+                    style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8125rem", margin: 0 }}
+                  >
+                    Vanlig Copilot
+                  </p>
+                </div>
+                <div className="px-6 py-4 flex items-center justify-center gap-2">
+                  <p className="font-bold" style={{ color: "#60a5fa", fontSize: "0.875rem", margin: 0 }}>
+                    nav-pilot
+                  </p>
+                </div>
               </div>
-              <div className="px-6 py-4 flex items-center justify-center gap-2">
-                <p className="font-bold" style={{ color: "#60a5fa", fontSize: "0.875rem", margin: 0 }}>
-                  nav-pilot
-                </p>
-              </div>
-            </div>
 
-            {/* Rows */}
-            {COMPARISONS.map((row, i) => (
-              <div
-                key={row.feature}
-                className="grid gap-0"
-                style={{
-                  gridTemplateColumns: "1fr 1fr 2fr",
-                  borderTop: "1px solid #e2e8f0",
-                }}
-              >
+              {/* Rows */}
+              {COMPARISONS.map((row, i) => (
+                <div
+                  key={row.feature}
+                  className="grid gap-0"
+                  style={{
+                    gridTemplateColumns: "1fr 1fr 2fr",
+                    borderTop: "1px solid #e2e8f0",
+                  }}
+                >
                 <div
                   className="px-6 py-4 flex items-center justify-center"
                   style={{
@@ -819,6 +813,7 @@ function ComparisonSection() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         </VStack>
       </Box>
