@@ -287,12 +287,10 @@ function SecurityTableSection() {
             </p>
           </div>
 
-          <div
-            className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 rounded-xl"
-            style={{ border: "1px solid #1a3326", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
-          >
-            {/* Header */}
-            <div className="grid gap-0 min-w-max" style={{ gridTemplateColumns: "3fr 1fr 1fr", background: "#0c1a14" }}>
+          <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="rounded-xl overflow-hidden min-w-max sm:min-w-0" style={{ border: "1px solid #1a3326", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+              {/* Header */}
+              <div className="grid gap-0" style={{ gridTemplateColumns: "3fr 1fr 1fr", background: "#0c1a14" }}>
               <div className="px-6 py-4 flex items-center" style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}>
                 <p
                   className="font-semibold uppercase tracking-wider"
@@ -326,7 +324,7 @@ function SecurityTableSection() {
             {SECURITY_TABLE.map((row, i) => (
               <div
                 key={row.resource}
-                className="grid gap-0 min-w-max"
+                className="grid gap-0"
                 style={{
                   gridTemplateColumns: "3fr 1fr 1fr",
                   borderTop: "1px solid #e2e8f0",
@@ -415,6 +413,7 @@ function SecurityTableSection() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
 
           <p className="text-center" style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0 }}>
