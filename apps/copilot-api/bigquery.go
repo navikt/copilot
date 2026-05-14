@@ -13,11 +13,11 @@ import (
 
 // BigQueryClient wraps BigQuery operations for Copilot data
 type BigQueryClient struct {
-	client           *bigquery.Client
-	projectID        string
-	metricsDataset   string
-	metricsTable     string
-	adoptionDataset  string
+	client          *bigquery.Client
+	projectID       string
+	metricsDataset  string
+	metricsTable    string
+	adoptionDataset string
 }
 
 func newBigQueryClient(config *Config) (*BigQueryClient, error) {
@@ -45,25 +45,25 @@ type EnterpriseMetrics map[string]interface{}
 
 // AdoptionSummary represents the latest adoption scan summary
 type AdoptionSummary struct {
-	ScanDate                   string `bigquery:"scan_date" json:"scan_date"`
-	TotalRepos                 int64  `bigquery:"total_repos" json:"total_repos"`
-	ReposWithCustomizations    int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	ReposRecentlyActive        int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
-	ActiveReposWithCustomizations int64 `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
-	TotalAgents                int64  `bigquery:"total_agents" json:"total_agents"`
-	TotalSkills                int64  `bigquery:"total_skills" json:"total_skills"`
-	TotalInstructions          int64  `bigquery:"total_instructions" json:"total_instructions"`
-	TotalPrompts               int64  `bigquery:"total_prompts" json:"total_prompts"`
+	ScanDate                      string `bigquery:"scan_date" json:"scan_date"`
+	TotalRepos                    int64  `bigquery:"total_repos" json:"total_repos"`
+	ReposWithCustomizations       int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
+	ReposRecentlyActive           int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
+	ActiveReposWithCustomizations int64  `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
+	TotalAgents                   int64  `bigquery:"total_agents" json:"total_agents"`
+	TotalSkills                   int64  `bigquery:"total_skills" json:"total_skills"`
+	TotalInstructions             int64  `bigquery:"total_instructions" json:"total_instructions"`
+	TotalPrompts                  int64  `bigquery:"total_prompts" json:"total_prompts"`
 }
 
 // TeamAdoption represents adoption metrics for a single team
 type TeamAdoption struct {
-	ScanDate                   string `bigquery:"scan_date" json:"scan_date"`
-	Team                       string `bigquery:"team" json:"team"`
-	TotalRepos                 int64  `bigquery:"total_repos" json:"total_repos"`
-	ReposWithCustomizations    int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	ReposRecentlyActive        int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
-	ActiveReposWithCustomizations int64 `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
+	ScanDate                      string `bigquery:"scan_date" json:"scan_date"`
+	Team                          string `bigquery:"team" json:"team"`
+	TotalRepos                    int64  `bigquery:"total_repos" json:"total_repos"`
+	ReposWithCustomizations       int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
+	ReposRecentlyActive           int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
+	ActiveReposWithCustomizations int64  `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
 }
 
 // CustomizationDetail represents usage of a specific customization file
@@ -84,12 +84,12 @@ type CustomizationUsage struct {
 
 // LanguageAdoption represents adoption metrics for a programming language
 type LanguageAdoption struct {
-	ScanDate                   string `bigquery:"scan_date" json:"scan_date"`
-	Language                   string `bigquery:"language" json:"language"`
-	TotalRepos                 int64  `bigquery:"total_repos" json:"total_repos"`
-	ReposWithCustomizations    int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	ReposRecentlyActive        int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
-	ActiveReposWithCustomizations int64 `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
+	ScanDate                      string `bigquery:"scan_date" json:"scan_date"`
+	Language                      string `bigquery:"language" json:"language"`
+	TotalRepos                    int64  `bigquery:"total_repos" json:"total_repos"`
+	ReposWithCustomizations       int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
+	ReposRecentlyActive           int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
+	ActiveReposWithCustomizations int64  `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
 }
 
 func (bq *BigQueryClient) tableRef(dataset, table string) string {
@@ -103,14 +103,14 @@ func (bq *BigQueryClient) viewRef(dataset, view string) string {
 // GetDailyMetrics fetches daily usage metrics from BigQuery
 func (bq *BigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
 	tableRef := bq.tableRef(bq.metricsDataset, bq.metricsTable)
-	
+
 	whereClause := ""
 	if days != nil && *days > 0 {
 		whereClause = fmt.Sprintf("WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL %d DAY)", *days)
 	}
-	
+
 	queryStr := fmt.Sprintf("SELECT raw_record FROM %s %s ORDER BY day ASC", tableRef, whereClause)
-	
+
 	query := bq.client.Query(queryStr)
 	it, err := query.Read(ctx)
 	if err != nil {
@@ -318,7 +318,7 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 
 func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
 	cacheKey := fmt.Sprintf("daily_metrics_%v", days)
-	
+
 	if cached, ok := c.cache.Get(cacheKey); ok {
 		if metrics, ok := cached.([]EnterpriseMetrics); ok {
 			slog.Debug("Cache hit", "key", cacheKey)
@@ -337,7 +337,7 @@ func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) (
 
 func (c *CachedBigQueryClient) GetAdoptionSummary(ctx context.Context) (*AdoptionSummary, error) {
 	cacheKey := "adoption_summary"
-	
+
 	if cached, ok := c.cache.Get(cacheKey); ok {
 		if summary, ok := cached.(*AdoptionSummary); ok {
 			slog.Debug("Cache hit", "key", cacheKey)
@@ -356,7 +356,7 @@ func (c *CachedBigQueryClient) GetAdoptionSummary(ctx context.Context) (*Adoptio
 
 func (c *CachedBigQueryClient) GetTeamAdoption(ctx context.Context) ([]TeamAdoption, error) {
 	cacheKey := "team_adoption"
-	
+
 	if cached, ok := c.cache.Get(cacheKey); ok {
 		if teams, ok := cached.([]TeamAdoption); ok {
 			slog.Debug("Cache hit", "key", cacheKey)
@@ -375,7 +375,7 @@ func (c *CachedBigQueryClient) GetTeamAdoption(ctx context.Context) ([]TeamAdopt
 
 func (c *CachedBigQueryClient) GetCustomizationDetails(ctx context.Context) ([]CustomizationDetail, error) {
 	cacheKey := "customization_details"
-	
+
 	if cached, ok := c.cache.Get(cacheKey); ok {
 		if details, ok := cached.([]CustomizationDetail); ok {
 			slog.Debug("Cache hit", "key", cacheKey)
@@ -394,7 +394,7 @@ func (c *CachedBigQueryClient) GetCustomizationDetails(ctx context.Context) ([]C
 
 func (c *CachedBigQueryClient) GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error) {
 	cacheKey := "customization_usage"
-	
+
 	if cached, ok := c.cache.Get(cacheKey); ok {
 		if usage, ok := cached.([]CustomizationUsage); ok {
 			slog.Debug("Cache hit", "key", cacheKey)
@@ -413,7 +413,7 @@ func (c *CachedBigQueryClient) GetCustomizationUsage(ctx context.Context) ([]Cus
 
 func (c *CachedBigQueryClient) GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error) {
 	cacheKey := "language_adoption"
-	
+
 	if cached, ok := c.cache.Get(cacheKey); ok {
 		if langs, ok := cached.([]LanguageAdoption); ok {
 			slog.Debug("Cache hit", "key", cacheKey)

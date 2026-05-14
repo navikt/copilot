@@ -2,33 +2,27 @@
 
 ## Overview
 
-This document describes the architecture for extracting backend functionality from `my-copilot` (Next.js) into a dedicated `copilot-api` (Go) service.
+This document describes the architecture of the `copilot-api` backend service that powers `my-copilot` (Next.js frontend).
 
-## Current Implementation Status
+## Implementation Status
 
-### ✅ Phase 1: Backend API Skeleton (Complete)
-- Created `apps/copilot-api/` Go application
-- Implemented Azure AD On-Behalf-Of (OBO) token validation
+### ✅ Complete
+- Go backend service with 11 API endpoints
+- Azure AD On-Behalf-Of (OBO) token validation
 - JWKS caching with automatic refresh
-- Health endpoints (`/health`, `/ready`)
+- Health and readiness endpoints
 - RFC 7807 Problem Details error handling
-- OpenTelemetry auto-instrumentation ready
-- NAIS configuration (dev + prod)
-- Comprehensive unit tests (100% pass rate)
-
-### ✅ Phase 2: /metrics Endpoint (Complete)
+- OpenTelemetry auto-instrumentation
+- NAIS deployment (dev + prod)
 - GitHub App authentication with JWT + installation tokens
 - Background metrics collector (5min interval)
-- Cached Prometheus metrics endpoint
-- Metrics freshness tracking (`github_metrics_last_success_timestamp`)
-- my-copilot NAIS config updated with outbound rule
+- BigQuery operations with in-memory caching (1h TTL)
+- GitHub API operations (billing, seat management, SAML lookup)
+- Frontend migration complete - all main flows use backend API
 
-### 🔄 Phase 3: BigQuery Operations (Next)
-- Set up BigQuery client in Go
-- Migrate 6 query types to backend
-- Create canonical DTOs
-- Implement caching strategy
-- Update my-copilot to proxy to backend
+### ⏳ Future Enhancements
+- Premium request usage endpoint (currently handled directly in frontend)
+- Debug endpoint migration for raw BigQuery repo_scan queries
 
 ## Architecture Diagram
 
@@ -274,22 +268,19 @@ accessPolicy:
 - `NAIS_TOKEN_EXCHANGE_ENDPOINT` (Texas sidecar)
 - `COPILOT_API_URL` (internal: `http://copilot-api`)
 
-## Migration Strategy (Strangler Pattern)
+## Migration Status
 
-1. ✅ **Backend skeleton** — Deploy internal API with placeholder endpoints
-2. ✅ **Migrate /metrics** — Move to background collection pattern
-3. 🔄 **Migrate BigQuery reads** — Keep writes in my-copilot, reads from backend
-4. ⏳ **Migrate billing** — GitHub billing API to backend
-5. ⏳ **Migrate seat management** — Last due to audit requirements
-6. ⏳ **Cleanup my-copilot** — Remove Octokit, BigQuery client, secrets
+### ✅ Completed
+1. **Backend skeleton** — Deployed internal API with all endpoints
+2. **Migrated /metrics** — Background collection pattern with 5min refresh
+3. **Migrated BigQuery reads** — 6 endpoints for usage and adoption metrics
+4. **Migrated GitHub billing** — Billing API through backend
+5. **Migrated seat management** — Assign/unassign seats with audit logging
+6. **Frontend updated** — All main flows use backend API via OBO token exchange
 
-**Each phase:**
-- Deploy backend endpoint
-- Update my-copilot to call it
-- Compare outputs (golden tests)
-- Monitor for 24h in dev
-- Deploy to prod
-- Delete old code
+### Remaining Edge Cases
+- **Premium request usage** — Awaiting backend implementation
+- **Debug endpoint** — Admin-only raw BigQuery queries (low priority)
 
 ## Testing Strategy
 
@@ -328,14 +319,6 @@ accessPolicy:
 ### Traces (Tempo)
 - OpenTelemetry auto-instrumentation
 - Distributed tracing across BFF → Backend → GitHub/BigQuery
-
-## Open Questions / TODOs
-
-1. **BigQuery connection pooling** — Single global client or per-request?
-2. **Cache invalidation propagation** — How does backend tell BFF to invalidate?
-3. **GraphQL for SAML lookup** — Need GitHub GraphQL client in Go
-4. **Rate limit handling** — Retry with exponential backoff? Queue?
-5. **Audit log storage** — Structured logs sufficient or dedicated table?
 
 ## References
 

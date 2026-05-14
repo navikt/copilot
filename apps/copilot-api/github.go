@@ -235,7 +235,7 @@ type CopilotSeat struct {
 // getCopilotSeat fetches a user's Copilot seat data
 func (g *GitHubClient) getCopilotSeat(ctx context.Context, username string) (*CopilotSeat, error) {
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/members/%s/copilot", g.org, username)
-	
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -271,7 +271,7 @@ func (g *GitHubClient) getCopilotSeat(ctx context.Context, username string) (*Co
 // assignUserToCopilot assigns a Copilot seat to a user
 func (g *GitHubClient) assignUserToCopilot(ctx context.Context, username string) (*AssignResult, error) {
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/billing/selected_users", g.org)
-	
+
 	body := map[string]interface{}{
 		"selected_usernames": []string{username},
 	}
@@ -312,7 +312,7 @@ func (g *GitHubClient) assignUserToCopilot(ctx context.Context, username string)
 // unassignUserFromCopilot removes a Copilot seat from a user
 func (g *GitHubClient) unassignUserFromCopilot(ctx context.Context, username string) (*UnassignResult, error) {
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/billing/selected_users", g.org)
-	
+
 	body := map[string]interface{}{
 		"selected_usernames": []string{username},
 	}

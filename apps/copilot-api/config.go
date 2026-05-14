@@ -7,23 +7,23 @@ import (
 )
 
 type Config struct {
-	Port                 string
-	Environment          string
-	LogLevel             slog.Level
-	LoggedEndpoints      map[string]bool
-	AzureClientID        string
-	AzureIssuer          string
-	AzureJWKSURI         string
-	PreAuthorizedApps    string
-	GitHubOrg            string
-	GitHubAppID          string
-	GitHubAppPrivateKey  string
-	GitHubInstallationID string
-	GCPProjectID            string
-	CopilotMetricsDataset   string
-	CopilotMetricsTable     string
-	CopilotAdoptionDataset  string
-	CacheTTLHours           int
+	Port                   string
+	Environment            string
+	LogLevel               slog.Level
+	LoggedEndpoints        map[string]bool
+	AzureClientID          string
+	AzureIssuer            string
+	AzureJWKSURI           string
+	PreAuthorizedApps      string
+	GitHubOrg              string
+	GitHubAppID            string
+	GitHubAppPrivateKey    string
+	GitHubInstallationID   string
+	GCPProjectID           string
+	CopilotMetricsDataset  string
+	CopilotMetricsTable    string
+	CopilotAdoptionDataset string
+	CacheTTLHours          int
 }
 
 func loadConfig() *Config {
