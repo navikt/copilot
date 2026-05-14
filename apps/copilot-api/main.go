@@ -38,6 +38,22 @@ func main() {
 	// Start background metrics collector
 	startMetricsCollector(config, githubClient)
 
+	// Initialize BigQuery client (optional - endpoints will error if not configured)
+	var bqHandlers *BigQueryHandlers
+	if config.GCPProjectID != "" {
+		bqClient, err := newBigQueryClient(config)
+		if err != nil {
+			slog.Warn("BigQuery client initialization failed - data endpoints will be unavailable", "error", err)
+		} else {
+			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
+			cachedBQClient := newCachedBigQueryClient(bqClient, cacheTTL)
+			bqHandlers = newBigQueryHandlers(cachedBQClient)
+			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
+		}
+	} else {
+		slog.Warn("GCP_TEAM_PROJECT_ID not configured - BigQuery endpoints will be unavailable")
+	}
+
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
 
@@ -47,7 +63,7 @@ func main() {
 	http.Handle("/metrics", metricsHandler())
 
 	// Protected API endpoints
-	http.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config))))
+	http.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers))))
 
 	slog.Info("Server listening", "port", config.Port)
 

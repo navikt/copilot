@@ -20,10 +20,20 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // makeAPIRouter creates the main API router for /api/v1/
-func makeAPIRouter(config *Config) http.Handler {
+func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers) http.Handler {
 	mux := http.NewServeMux()
 
-	// Placeholder endpoints - to be implemented in later phases
+	// BigQuery endpoints
+	if bqHandlers != nil {
+		mux.HandleFunc("/api/v1/copilot/usage/metrics", bqHandlers.handleDailyMetrics)
+		mux.HandleFunc("/api/v1/copilot/adoption/summary", bqHandlers.handleAdoptionSummary)
+		mux.HandleFunc("/api/v1/copilot/adoption/teams", bqHandlers.handleTeamAdoption)
+		mux.HandleFunc("/api/v1/copilot/adoption/languages", bqHandlers.handleLanguageAdoption)
+		mux.HandleFunc("/api/v1/copilot/customizations/details", bqHandlers.handleCustomizationDetails)
+		mux.HandleFunc("/api/v1/copilot/customizations/usage", bqHandlers.handleCustomizationUsage)
+	}
+
+	// Placeholder endpoints - to be implemented in Phase 4
 	mux.HandleFunc("/api/v1/copilot/usage/summary", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/trends", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/features", notImplementedHandler)
@@ -32,10 +42,6 @@ func makeAPIRouter(config *Config) http.Handler {
 	mux.HandleFunc("/api/v1/copilot/usage/models", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/billing/summary", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/billing/premium", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/adoption/summary", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/adoption/teams", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/adoption/languages", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/customizations", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/seats/", notImplementedHandler)
 	mux.HandleFunc("/api/v1/mcp/servers", notImplementedHandler)
 

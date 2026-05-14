@@ -19,30 +19,32 @@ type Config struct {
 	GitHubAppID          string
 	GitHubAppPrivateKey  string
 	GitHubInstallationID string
-	GCPProjectID         string
-	MetricsDataset       string
-	MetricsTable         string
-	AdoptionDataset      string
+	GCPProjectID            string
+	CopilotMetricsDataset   string
+	CopilotMetricsTable     string
+	CopilotAdoptionDataset  string
+	CacheTTLHours           int
 }
 
 func loadConfig() *Config {
 	config := &Config{
-		Port:                 getEnv("PORT", "8080"),
-		Environment:          getEnv("NAIS_CLUSTER_NAME", "local"),
-		LogLevel:             parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
-		LoggedEndpoints:      parseEndpoints(getEnv("LOGGED_ENDPOINTS", "/api/v1/")),
-		AzureClientID:        getEnv("AZURE_APP_CLIENT_ID", ""),
-		AzureIssuer:          getEnv("AZURE_OPENID_CONFIG_ISSUER", ""),
-		AzureJWKSURI:         getEnv("AZURE_OPENID_CONFIG_JWKS_URI", ""),
-		PreAuthorizedApps:    getEnv("AZURE_APP_PRE_AUTHORIZED_APPS", ""),
-		GitHubOrg:            getEnv("GITHUB_ORG", "navikt"),
-		GitHubAppID:          os.Getenv("GITHUB_APP_ID"),
-		GitHubAppPrivateKey:  os.Getenv("GITHUB_APP_PRIVATE_KEY"),
-		GitHubInstallationID: os.Getenv("GITHUB_APP_INSTALLATION_ID"),
-		GCPProjectID:         os.Getenv("GCP_TEAM_PROJECT_ID"),
-		MetricsDataset:       getEnv("COPILOT_METRICS_DATASET", "copilot_metrics"),
-		MetricsTable:         getEnv("COPILOT_METRICS_TABLE", "usage_metrics"),
-		AdoptionDataset:      getEnv("COPILOT_ADOPTION_DATASET", "copilot_adoption"),
+		Port:                   getEnv("PORT", "8080"),
+		Environment:            getEnv("NAIS_CLUSTER_NAME", "local"),
+		LogLevel:               parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
+		LoggedEndpoints:        parseEndpoints(getEnv("LOGGED_ENDPOINTS", "/api/v1/")),
+		AzureClientID:          getEnv("AZURE_APP_CLIENT_ID", ""),
+		AzureIssuer:            getEnv("AZURE_OPENID_CONFIG_ISSUER", ""),
+		AzureJWKSURI:           getEnv("AZURE_OPENID_CONFIG_JWKS_URI", ""),
+		PreAuthorizedApps:      getEnv("AZURE_APP_PRE_AUTHORIZED_APPS", ""),
+		GitHubOrg:              getEnv("GITHUB_ORG", "navikt"),
+		GitHubAppID:            os.Getenv("GITHUB_APP_ID"),
+		GitHubAppPrivateKey:    os.Getenv("GITHUB_APP_PRIVATE_KEY"),
+		GitHubInstallationID:   os.Getenv("GITHUB_APP_INSTALLATION_ID"),
+		GCPProjectID:           os.Getenv("GCP_TEAM_PROJECT_ID"),
+		CopilotMetricsDataset:  getEnv("COPILOT_METRICS_DATASET", "copilot_metrics"),
+		CopilotMetricsTable:    getEnv("COPILOT_METRICS_TABLE", "usage_metrics"),
+		CopilotAdoptionDataset: getEnv("COPILOT_ADOPTION_DATASET", "copilot_adoption"),
+		CacheTTLHours:          1,
 	}
 
 	return config
