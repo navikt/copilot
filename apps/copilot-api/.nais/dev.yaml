@@ -1,0 +1,5 @@
+env:
+  - name: "LOG_LEVEL"
+    value: "DEBUG"
+  - name: "LOGGED_ENDPOINTS"
+    value: "/api/v1/,/health,/ready"

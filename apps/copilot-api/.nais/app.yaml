@@ -1,0 +1,89 @@
+apiVersion: "nais.io/v1alpha1"
+kind: "Application"
+metadata:
+  name: "copilot-api"
+  namespace: "copilot"
+spec:
+  image: {{image}}
+  port: 8080
+
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true
+
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: go
+    logging:
+      destinations:
+        - id: loki
+
+  envFrom:
+    - secret: copilot-api
+
+  env:
+    - name: "LOG_LEVEL"
+      value: "INFO"
+    - name: "LOGGED_ENDPOINTS"
+      value: "/api/v1/"
+    - name: "GITHUB_ORG"
+      value: "navikt"
+    - name: "COPILOT_METRICS_DATASET"
+      value: "copilot_metrics"
+    - name: "COPILOT_METRICS_TABLE"
+      value: "usage_metrics"
+    - name: "COPILOT_ADOPTION_DATASET"
+      value: "copilot_adoption"
+
+  liveness:
+    path: "/health"
+    port: 8080
+    initialDelay: 10
+    timeout: 1
+    periodSeconds: 10
+    failureThreshold: 3
+
+  readiness:
+    path: "/ready"
+    port: 8080
+    initialDelay: 10
+    timeout: 1
+    periodSeconds: 10
+    failureThreshold: 3
+
+  replicas:
+    min: 1
+    max: 2
+    cpuThresholdPercentage: 75
+
+  prometheus:
+    enabled: true
+    path: "/metrics"
+
+  resources:
+    limits:
+      memory: "512Mi"
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+
+  gcp:
+    bigQueryDatasets:
+      - name: copilot_metrics
+        permission: READ
+      - name: copilot_adoption
+        permission: READ
+
+  accessPolicy:
+    inbound:
+      rules:
+        - application: my-copilot
+          namespace: copilot
+    outbound:
+      external:
+        - host: api.github.com
+        - host: bigquery.googleapis.com
+        - host: storage.googleapis.com

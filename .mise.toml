@@ -20,7 +20,7 @@ lefthook = "latest"
 shellcheck = "latest"
 
 [env]
-APPS = "copilot-adoption copilot-metrics mcp-onboarding mcp-registry my-copilot"
+APPS = "copilot-adoption copilot-api copilot-metrics mcp-onboarding mcp-registry my-copilot"
 APPS_WITH_GENERATE = "mcp-onboarding my-copilot"
 
 # ─── Pipeline ────────────────────────────────────────────────────────────────
