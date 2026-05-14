@@ -21,6 +21,23 @@ func main() {
 		"log_level", config.LogLevel.String(),
 	)
 
+	// Initialize GitHub client (optional - metrics will show zeros if not configured)
+	var githubClient *GitHubClient
+	if config.GitHubAppID != "" && config.GitHubAppPrivateKey != "" && config.GitHubInstallationID != "" {
+		var err error
+		githubClient, err = newGitHubClient(config)
+		if err != nil {
+			slog.Warn("GitHub client initialization failed - metrics will be unavailable", "error", err)
+		} else {
+			slog.Info("GitHub client initialized successfully")
+		}
+	} else {
+		slog.Warn("GitHub App credentials not configured - metrics will show zeros")
+	}
+
+	// Start background metrics collector
+	startMetricsCollector(config, githubClient)
+
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
 

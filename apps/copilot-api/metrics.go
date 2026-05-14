@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -27,7 +28,6 @@ func metricsHandler() http.Handler {
 		defer metricsCollector.mu.RUnlock()
 
 		// Return metrics in Prometheus text format
-		// Note: In Phase 2, this will be populated by background collector
 		metrics := fmt.Sprintf(`# HELP github_metrics_last_success_timestamp Unix timestamp of last successful GitHub metrics collection
 # TYPE github_metrics_last_success_timestamp gauge
 github_metrics_last_success_timestamp %d
@@ -67,17 +67,24 @@ copilot_seats_cancelling %d
 }
 
 // startMetricsCollector starts the background metrics collection
-// This will be implemented in Phase 2
-func startMetricsCollector(config *Config) {
+func startMetricsCollector(config *Config, client *GitHubClient) {
+	// Collect immediately on startup (if configured)
+	if client != nil {
+		slog.Info("Running initial GitHub metrics collection")
+		collectGitHubMetrics(client)
+	}
+
+	// Start background collection every 5 minutes
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 
 		for range ticker.C {
-			// TODO: Implement in Phase 2
-			// - Fetch GitHub billing data
-			// - Update metricsCollector
-			// - Set lastCollectionTimestamp
+			if client != nil {
+				collectGitHubMetrics(client)
+			}
 		}
 	}()
+
+	slog.Info("GitHub metrics collector started", "interval", "5m")
 }

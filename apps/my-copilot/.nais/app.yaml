@@ -135,6 +135,9 @@ spec:
         permission: READ
   accessPolicy:
     outbound:
+      rules:
+        - application: copilot-api
+          namespace: copilot
       external:
         - host: api.github.com
         - host: avatars.githubusercontent.com
