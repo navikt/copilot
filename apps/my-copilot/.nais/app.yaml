@@ -142,6 +142,7 @@ spec:
         - host: {{mcp_registry_host}}
         - host: bigquery.googleapis.com
         - host: storage.googleapis.com
+        - host: raw.githubusercontent.com
   filesFrom:
     - emptyDir:
         medium: Memory
