@@ -1,13 +1,25 @@
 import { cacheLife, cacheTag } from "next/cache";
-import { getCopilotBilling, getPremiumRequestUsage } from "./github";
+import { getPremiumRequestUsage } from "./github";
 import { getFileContributors } from "./contributors";
+import { backendRequest } from "./backend-api";
+import { getUserToken } from "./auth";
 
 export async function getCachedCopilotBilling(org: string) {
   "use cache";
   cacheLife({ stale: 3600 });
   cacheTag("billing-navikt");
 
-  return await getCopilotBilling(org);
+  try {
+    const token = await getUserToken();
+    if (!token) {
+      throw new Error("No authentication token available");
+    }
+
+    const billing = await backendRequest("/api/v1/copilot/billing", token);
+    return { billing, error: null };
+  } catch (error) {
+    return { billing: {}, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 /**

@@ -105,6 +105,8 @@ spec:
       value: ALWAYS_ON
     - name: MCP_REGISTRY_URL
       value: "{{mcp_registry_url}}"
+    - name: COPILOT_API_URL
+      value: "http://copilot-api"
     - name: BIGQUERY_DATASET
       value: "copilot_metrics"
     - name: BIGQUERY_TABLE

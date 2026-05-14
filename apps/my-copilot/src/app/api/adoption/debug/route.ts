@@ -1,3 +1,5 @@
+// TODO: This debug endpoint still uses direct BigQuery access.
+// Backend API support for repo_scan queries needs to be implemented.
 import { getUser } from "@/lib/auth";
 import { loadBigQueryConfig, tableRef } from "@/lib/bigquery-config";
 import { BigQuery } from "@google-cloud/bigquery";

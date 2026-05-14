@@ -1,7 +1,7 @@
-import { getCopilotBilling } from "@/lib/github";
+import { getCachedCopilotBilling } from "@/lib/cached-github";
 
 export async function GET() {
-  const { billing, error } = await getCopilotBilling("navikt");
+  const { billing, error } = await getCachedCopilotBilling("navikt");
 
   if (error) {
     return new Response(`Error fetching billing data: ${error}`, { status: 500 });

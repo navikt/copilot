@@ -63,6 +63,25 @@ export async function getUser(shouldRedirect: boolean = true): Promise<User | nu
   return user;
 }
 
+/**
+ * Get the raw user token from the Authorization header.
+ * This is needed for backend API calls that require token exchange.
+ */
+export async function getUserToken(): Promise<string | null> {
+  // In development without Texas configured, return mock token
+  if (process.env.NODE_ENV === "development" && !process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT) {
+    return "mock-dev-token";
+  }
+
+  const authHeader = (await headers()).get("Authorization");
+
+  if (!authHeader) {
+    return null;
+  }
+
+  return authHeader.replace("Bearer ", "");
+}
+
 interface IntrospectionResponse {
   active: boolean;
   error?: string;

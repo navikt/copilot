@@ -1,20 +1,16 @@
 import { cacheLife, cacheTag } from "next/cache";
 import {
   getAdoptionCohorts,
-  getAdoptionSummary,
-  getCustomizationDetails,
-  getCustomizationUsage,
-  getDailyMetrics,
-  getLanguageAdoption,
   getMonthlyBillingUsage,
   getMonthlyModelUsage,
   getMonthlyTrends,
   getStalenessData,
-  getTeamAdoption,
   getTeamUsageSummary,
   getUserMetrics,
   getUserWeeklyTrends,
 } from "./bigquery";
+import { backendRequest } from "./backend-api";
+import { getUserToken } from "./auth";
 import type {
   AdoptionCohortDay,
   AdoptionData,
@@ -38,7 +34,15 @@ export async function getCachedBigQueryUsage(): Promise<{
   cacheTag("bq-usage");
 
   try {
-    const usage = await getDailyMetrics();
+    const token = await getUserToken();
+    if (!token) {
+      throw new Error("No authentication token available");
+    }
+
+    const usage = await backendRequest<EnterpriseMetrics[]>(
+      "/api/v1/copilot/usage/metrics",
+      token
+    );
     return { usage, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -56,11 +60,16 @@ export async function getCachedAdoptionData(): Promise<{
   cacheTag("bq-adoption");
 
   try {
+    const token = await getUserToken();
+    if (!token) {
+      throw new Error("No authentication token available");
+    }
+
     const [summary, teams, languages, customizationDetails] = await Promise.all([
-      getAdoptionSummary(),
-      getTeamAdoption(),
-      getLanguageAdoption(),
-      getCustomizationDetails(),
+      backendRequest("/api/v1/copilot/adoption/summary", token),
+      backendRequest("/api/v1/copilot/adoption/teams", token),
+      backendRequest("/api/v1/copilot/adoption/languages", token),
+      backendRequest("/api/v1/copilot/customizations/details", token),
     ]);
     return { data: { summary, teams, languages, customizationDetails }, error: null };
   } catch (err) {
@@ -79,7 +88,15 @@ export async function getCachedCustomizationUsage(): Promise<{
   cacheTag("bq-customization-usage");
 
   try {
-    const usage = await getCustomizationUsage();
+    const token = await getUserToken();
+    if (!token) {
+      throw new Error("No authentication token available");
+    }
+
+    const usage = await backendRequest<CustomizationUsage[]>(
+      "/api/v1/copilot/customizations/usage",
+      token
+    );
     return { usage, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

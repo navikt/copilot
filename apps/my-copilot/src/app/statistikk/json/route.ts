@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDailyMetrics } from "@/lib/bigquery";
+import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
 import { getUser } from "@/lib/auth";
 
 export async function GET() {
@@ -9,7 +9,11 @@ export async function GET() {
   }
 
   try {
-    const usage = await getDailyMetrics();
+    const { usage, error } = await getCachedBigQueryUsage();
+
+    if (error) {
+      return NextResponse.json({ error }, { status: 500 });
+    }
 
     if (!usage || usage.length === 0) {
       return NextResponse.json({ error: "No usage data available" }, { status: 404 });

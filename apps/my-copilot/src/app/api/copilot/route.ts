@@ -1,5 +1,5 @@
-import { getUser } from "@/lib/auth";
-import { assignUserToCopilot, getCopilotSeat, getUsernameBySamlIdentity, unassignUserFromCopilot } from "@/lib/github";
+import { getUser, getUserToken } from "@/lib/auth";
+import { backendRequest } from "@/lib/backend-api";
 import { getLoggerWithTraceContext, getTraceId } from "@/lib/logger";
 import { context } from "@opentelemetry/api";
 import { NextResponse } from "next/server";
@@ -11,6 +11,7 @@ export async function GET() {
 
   const org = "navikt";
   const user = await getUser(false);
+  const token = await getUserToken();
 
   const error = (message: string, status: number) => {
     if (status >= 500) {
@@ -22,7 +23,7 @@ export async function GET() {
     return NextResponse.json({ error: message, traceId }, { status });
   };
 
-  if (!user) {
+  if (!user || !token) {
     return error("User is not authenticated", 401);
   }
 
@@ -30,34 +31,39 @@ export async function GET() {
     return error("User email not found", 500);
   }
 
-  const { user: githubUsername, error: githubError } = await getUsernameBySamlIdentity(user.email, org);
+  try {
+    const samlResponse = await backendRequest<{ identity: string; username: string | null }>(
+      `/api/v1/copilot/saml/${encodeURIComponent(user.email)}`,
+      token
+    );
 
-  if (githubError) {
-    return error(githubError, 500);
-  }
+    const githubUsername = samlResponse.username;
 
-  if (!githubUsername) {
-    log.info({ email: user.email }, "GitHub account not linked for user");
+    if (!githubUsername) {
+      log.info({ email: user.email }, "GitHub account not linked for user");
+      return NextResponse.json({
+        githubAccountLinked: false,
+        icanhazcopilot: user.groups.length > 0,
+      });
+    }
+
+    const subscription = await backendRequest(
+      `/api/v1/copilot/seats/${githubUsername}`,
+      token
+    );
+
+    log.info({ email: user.email }, "User Copilot subscription status");
+
     return NextResponse.json({
-      githubAccountLinked: false,
+      githubAccountLinked: true,
       icanhazcopilot: user.groups.length > 0,
+      subscription,
+      githubUsername,
     });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return error(message, 500);
   }
-
-  const { copilot: subscription, error: copilotError } = await getCopilotSeat(org, githubUsername);
-
-  if (copilotError) {
-    return error(copilotError, 500);
-  }
-
-  log.info({ email: user.email }, "User Copilot subscription status");
-
-  return NextResponse.json({
-    githubAccountLinked: true,
-    icanhazcopilot: user.groups.length > 0,
-    subscription,
-    githubUsername,
-  });
 }
 
 enum Action {
@@ -71,6 +77,7 @@ export async function POST(request: Request) {
 
   const org = "navikt";
   const user = await getUser(false);
+  const token = await getUserToken();
 
   const error = (message: string, status: number) => {
     if (status >= 500) {
@@ -82,7 +89,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message, traceId }, { status });
   };
 
-  if (!user) {
+  if (!user || !token) {
     return error("User is not authenticated", 401);
   }
 
@@ -100,44 +107,52 @@ export async function POST(request: Request) {
     return error("Action is required", 400);
   }
 
-  const { user: githubUsername, error: githubError } = await getUsernameBySamlIdentity(user.email, org);
+  try {
+    const samlResponse = await backendRequest<{ identity: string; username: string | null }>(
+      `/api/v1/copilot/saml/${encodeURIComponent(user.email)}`,
+      token
+    );
 
-  if (githubError) {
-    return error(githubError, 500);
-  }
+    const githubUsername = samlResponse.username;
 
-  if (!githubUsername) {
-    return error("GitHub username was not found for user email", 400);
-  }
+    if (!githubUsername) {
+      return error("GitHub username was not found for user email", 400);
+    }
 
-  log.info({ email: user.email, action }, "User action on Copilot subscription");
+    log.info({ email: user.email, action }, "User action on Copilot subscription");
 
-  switch (action) {
-    case Action.Activate:
-      const { seats_created, error: activateError } = await assignUserToCopilot(org, githubUsername);
+    switch (action) {
+      case Action.Activate:
+        const activateResponse = await backendRequest<{ seats_created: number }>(
+          `/api/v1/copilot/seats/${githubUsername}`,
+          token,
+          { method: "POST", body: JSON.stringify({ username: githubUsername }) }
+        );
 
-      revalidateTag(`status-${githubUsername}`, "max");
-      revalidateTag("seats-navikt", "max");
-      revalidateTag("billing-navikt", "max");
+        revalidateTag(`status-${githubUsername}`, "max");
+        revalidateTag("seats-navikt", "max");
+        revalidateTag("billing-navikt", "max");
 
-      if (activateError) {
-        return error(activateError, 500);
-      }
+        return NextResponse.json({ seats_created: activateResponse.seats_created }, { status: 201 });
 
-      return NextResponse.json({ seats_created }, { status: 201 });
-    case Action.Deactivate:
-      const { seats_cancelled, error: deactivateError } = await unassignUserFromCopilot(org, githubUsername);
+      case Action.Deactivate:
+        const deactivateResponse = await backendRequest<{ seats_cancelled: number }>(
+          `/api/v1/copilot/seats/${githubUsername}`,
+          token,
+          { method: "DELETE" }
+        );
 
-      revalidateTag(`status-${githubUsername}`, "max");
-      revalidateTag("seats-navikt", "max");
-      revalidateTag("billing-navikt", "max");
+        revalidateTag(`status-${githubUsername}`, "max");
+        revalidateTag("seats-navikt", "max");
+        revalidateTag("billing-navikt", "max");
 
-      if (deactivateError) {
-        return error(deactivateError, 500);
-      }
+        return NextResponse.json({ seats_cancelled: deactivateResponse.seats_cancelled }, { status: 200 });
 
-      return NextResponse.json({ seats_cancelled }, { status: 200 });
-    default:
-      return error("Unknown action", 400);
+      default:
+        return error("Unknown action", 400);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return error(message, 500);
   }
 }
