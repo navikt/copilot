@@ -23,12 +23,14 @@ func main() {
 
 	// Initialize GitHub client (optional - metrics will show zeros if not configured)
 	var githubClient *GitHubClient
+	var ghHandlers *GitHubHandlers
 	if config.GitHubAppID != "" && config.GitHubAppPrivateKey != "" && config.GitHubInstallationID != "" {
 		var err error
 		githubClient, err = newGitHubClient(config)
 		if err != nil {
 			slog.Warn("GitHub client initialization failed - metrics will be unavailable", "error", err)
 		} else {
+			ghHandlers = newGitHubHandlers(githubClient)
 			slog.Info("GitHub client initialized successfully")
 		}
 	} else {
@@ -63,7 +65,7 @@ func main() {
 	http.Handle("/metrics", metricsHandler())
 
 	// Protected API endpoints
-	http.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers))))
+	http.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers))))
 
 	slog.Info("Server listening", "port", config.Port)
 

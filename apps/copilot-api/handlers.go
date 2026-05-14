@@ -20,7 +20,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // makeAPIRouter creates the main API router for /api/v1/
-func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers) http.Handler {
+func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	// BigQuery endpoints
@@ -33,16 +33,31 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers) http.Handler {
 		mux.HandleFunc("/api/v1/copilot/customizations/usage", bqHandlers.handleCustomizationUsage)
 	}
 
-	// Placeholder endpoints - to be implemented in Phase 4
+	// GitHub API endpoints
+	if ghHandlers != nil {
+		mux.HandleFunc("/api/v1/copilot/billing", ghHandlers.handleBilling)
+		mux.HandleFunc("/api/v1/copilot/seats/", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				ghHandlers.handleGetSeat(w, r)
+			case http.MethodPost:
+				ghHandlers.handleAssignSeat(w, r)
+			case http.MethodDelete:
+				ghHandlers.handleUnassignSeat(w, r)
+			default:
+				respondError(w, "method_not_allowed", "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+		mux.HandleFunc("/api/v1/copilot/saml/", ghHandlers.handleGetUsernameBySAML)
+	}
+
+	// Placeholder endpoints - to be implemented in future phases
 	mux.HandleFunc("/api/v1/copilot/usage/summary", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/trends", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/features", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/languages", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/editors", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/models", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/billing/summary", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/billing/premium", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/seats/", notImplementedHandler)
 	mux.HandleFunc("/api/v1/mcp/servers", notImplementedHandler)
 
 	return mux
