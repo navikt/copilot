@@ -456,8 +456,8 @@ function IntroductionSection() {
             parallellkjøring og selvkorrigering. nav-pilot bygger bedre <em>kunnskap</em>. Orkestrering blir
             standardvare — institusjonell kunnskap er vanskelig å kopiere.
           </BodyLong>
-          <div className="overflow-x-auto mt-4">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mt-4">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}></th>
@@ -749,8 +749,8 @@ function CollectionsSection() {
             Tilgjengelige collections
           </LinkableHeading>
 
-          <div className="overflow-x-auto mt-4">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mt-4">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   {["Collection", "Beskrivelse", "Agenter", "Skills", "Best for"].map((h) => (
@@ -798,8 +798,8 @@ function CollectionsSection() {
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
             Alle collections inkluderer fire planning skills som utgjør <strong>nav-pilot-pipelinen</strong>:
           </BodyShort>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
@@ -870,8 +870,8 @@ function PipelineSection() {
             Skills i detalj
           </LinkableHeading>
 
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+          <div className="mt-4 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155", whiteSpace: "nowrap" }}>
@@ -1348,8 +1348,8 @@ function CliReferenceSection() {
             Kommandooversikt
           </LinkableHeading>
 
-          <div className="overflow-x-auto mt-4">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mt-4">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
