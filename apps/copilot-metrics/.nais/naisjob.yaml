@@ -34,6 +34,7 @@ spec:
       external:
         - host: api.github.com
         - host: copilot-reports-acc0engfa5gra7ha.b01.azurefd.net
+        - host: copilot-reports.github.com
         - host: bigquery.googleapis.com
         - host: storage.googleapis.com
         - host: hooks.slack.com

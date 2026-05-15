@@ -255,6 +255,59 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 	return records, nil
 }
 
+// FetchDailyUserTeams fetches the user-teams-1-day report for the given day.
+// This report maps users to their GitHub teams and is used for team-level metrics aggregation.
+func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (*FetchResult, error) {
+	return c.fetchDailyReport(ctx, day, "user-teams-1-day")
+}
+
+// FetchDailyUserMetrics fetches the users-1-day report for the given day.
+// This report contains per-user usage metrics needed for team-level aggregation.
+func (c *GitHubClient) FetchDailyUserMetrics(ctx context.Context, day time.Time) (*FetchResult, error) {
+	return c.fetchDailyReport(ctx, day, "users-1-day")
+}
+
+// fetchDailyReport fetches a daily report by type, trying enterprise first then org.
+func (c *GitHubClient) fetchDailyReport(ctx context.Context, day time.Time, reportType string) (*FetchResult, error) {
+	dayStr := day.Format("2006-01-02")
+
+	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/%s?day=%s",
+		c.enterprise, reportType, dayStr)
+
+	slog.Debug("Fetching report", "type", reportType, "url", enterpriseURL, "day", dayStr)
+
+	records, err := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
+	if err == nil {
+		return &FetchResult{
+			Records: records,
+			Scope:   "enterprise",
+			ScopeID: c.enterprise,
+		}, nil
+	}
+
+	enterpriseErr := err
+	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "type", reportType, "error", enterpriseErr)
+
+	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/%s?day=%s",
+		c.org, reportType, dayStr)
+	slog.Debug("Fetching report (org fallback)", "type", reportType, "url", orgURL, "day", dayStr)
+
+	records, err = c.fetchMetricsFromURLWithRetry(ctx, orgURL)
+	if err != nil {
+		if isReportNotAvailable(enterpriseErr) {
+			return nil, fmt.Errorf("%w for %s (%s): enterprise report not generated yet and org endpoint also failed: %v",
+				ErrReportNotAvailable, dayStr, reportType, err)
+		}
+		return nil, fmt.Errorf("both enterprise and org %s endpoints failed: %w", reportType, err)
+	}
+
+	return &FetchResult{
+		Records: records,
+		Scope:   "organization",
+		ScopeID: c.org,
+	}, nil
+}
+
 // FetchLatest28DayReport fetches the latest 28-day rolling report.
 func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) (*FetchResult, error) {
 	url := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/enterprise-28-day/latest",

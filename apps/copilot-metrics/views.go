@@ -22,6 +22,7 @@ var views = []viewDefinition{
 	{name: "v_editor_stats", filename: "views/v_editor_stats.sql"},
 	{name: "v_model_stats", filename: "views/v_model_stats.sql"},
 	{name: "v_code_generation", filename: "views/v_code_generation.sql"},
+	{name: "v_team_daily_summary", filename: "views/v_team_daily_summary.sql"},
 }
 
 func (c *BigQueryClient) EnsureViewsExist(ctx context.Context) error {
@@ -55,6 +56,12 @@ func (c *BigQueryClient) createOrReplaceView(ctx context.Context, v viewDefiniti
 
 	// Replace remaining %s.%s.%s patterns for source table
 	sql = strings.ReplaceAll(sql, "`%s.%s.%s`", tableRef)
+
+	// Replace named table placeholders for supplementary tables
+	userTeamsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userTeamsTable)
+	userMetricsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userMetricsTable)
+	sql = strings.ReplaceAll(sql, "{{user_teams}}", userTeamsRef)
+	sql = strings.ReplaceAll(sql, "{{user_metrics}}", userMetricsRef)
 
 	slog.Info("Creating/updating view", "view", v.name)
 

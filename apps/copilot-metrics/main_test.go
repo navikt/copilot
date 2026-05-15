@@ -11,12 +11,30 @@ import (
 
 // mockFetcher is a test double for MetricsFetcher.
 type mockFetcher struct {
-	result *FetchResult
-	err    error
+	result            *FetchResult
+	err               error
+	userTeamsResult   *FetchResult
+	userTeamsErr      error
+	userMetricsResult *FetchResult
+	userMetricsErr    error
 }
 
 func (m *mockFetcher) FetchDailyMetrics(_ context.Context, _ time.Time) (*FetchResult, error) {
 	return m.result, m.err
+}
+
+func (m *mockFetcher) FetchDailyUserTeams(_ context.Context, _ time.Time) (*FetchResult, error) {
+	if m.userTeamsResult != nil || m.userTeamsErr != nil {
+		return m.userTeamsResult, m.userTeamsErr
+	}
+	return nil, ErrReportNotAvailable
+}
+
+func (m *mockFetcher) FetchDailyUserMetrics(_ context.Context, _ time.Time) (*FetchResult, error) {
+	if m.userMetricsResult != nil || m.userMetricsErr != nil {
+		return m.userMetricsResult, m.userMetricsErr
+	}
+	return nil, ErrReportNotAvailable
 }
 
 func (m *mockFetcher) FetchLatest28DayReport(_ context.Context) (*FetchResult, error) {
@@ -36,9 +54,21 @@ type mockStore struct {
 	insertedCount  int
 	deletedDay     time.Time
 	tableExistsErr error
+
+	// Supplementary report tracking
+	userTeamsInserted   int
+	userMetricsInserted int
 }
 
 func (m *mockStore) EnsureTableExists(_ context.Context) error {
+	return m.tableExistsErr
+}
+
+func (m *mockStore) EnsureUserTeamsTableExists(_ context.Context) error {
+	return m.tableExistsErr
+}
+
+func (m *mockStore) EnsureUserMetricsTableExists(_ context.Context) error {
 	return m.tableExistsErr
 }
 
@@ -49,13 +79,39 @@ func (m *mockStore) InsertMetrics(_ context.Context, day time.Time, scope, _ str
 	return m.insertErr
 }
 
+func (m *mockStore) InsertUserTeams(_ context.Context, _ time.Time, _, _ string, records []json.RawMessage) error {
+	m.userTeamsInserted = len(records)
+	return nil
+}
+
+func (m *mockStore) InsertUserMetrics(_ context.Context, _ time.Time, _, _ string, records []json.RawMessage) error {
+	m.userMetricsInserted = len(records)
+	return nil
+}
+
 func (m *mockStore) DayExists(_ context.Context, _ time.Time, _ string) (bool, error) {
 	return m.dayExists, m.dayExistsErr
+}
+
+func (m *mockStore) UserTeamsDayExists(_ context.Context, _ time.Time, _ string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockStore) UserMetricsDayExists(_ context.Context, _ time.Time, _ string) (bool, error) {
+	return false, nil
 }
 
 func (m *mockStore) DeleteDay(_ context.Context, day time.Time, _ string) error {
 	m.deletedDay = day
 	return m.deleteErr
+}
+
+func (m *mockStore) DeleteUserTeamsDay(_ context.Context, _ time.Time, _ string) error {
+	return nil
+}
+
+func (m *mockStore) DeleteUserMetricsDay(_ context.Context, _ time.Time, _ string) error {
+	return nil
 }
 
 func (m *mockStore) GetLatestDay(_ context.Context, _ string) (time.Time, error) {
@@ -250,6 +306,82 @@ func TestIngestDay_ReportNotAvailable(t *testing.T) {
 	// Verify insert was NOT called
 	if !store.insertedDay.IsZero() {
 		t.Error("expected insert NOT to be called when report is not available")
+	}
+}
+
+func TestIngestDay_WithSupplementaryReports(t *testing.T) {
+	ctx := context.Background()
+	day := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
+
+	fetcher := &mockFetcher{
+		result: &FetchResult{
+			Records: []json.RawMessage{json.RawMessage(`{"daily_active_users":30}`)},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+		userTeamsResult: &FetchResult{
+			Records: []json.RawMessage{
+				json.RawMessage(`{"user_id":"1","team_id":"100","slug":"team-a"}`),
+				json.RawMessage(`{"user_id":"2","team_id":"100","slug":"team-a"}`),
+			},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+		userMetricsResult: &FetchResult{
+			Records: []json.RawMessage{
+				json.RawMessage(`{"user_id":"1","is_active":true}`),
+				json.RawMessage(`{"user_id":"2","is_active":false}`),
+			},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+	}
+
+	store := &mockStore{}
+
+	err := ingestDay(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, day)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify entity metrics inserted
+	if store.insertedCount != 1 {
+		t.Errorf("expected 1 entity record, got %d", store.insertedCount)
+	}
+
+	// Verify supplementary reports inserted
+	if store.userTeamsInserted != 2 {
+		t.Errorf("expected 2 user-teams records, got %d", store.userTeamsInserted)
+	}
+	if store.userMetricsInserted != 2 {
+		t.Errorf("expected 2 user-metrics records, got %d", store.userMetricsInserted)
+	}
+}
+
+func TestIngestDay_SupplementaryFailureDoesNotFailIngestion(t *testing.T) {
+	ctx := context.Background()
+	day := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
+
+	fetcher := &mockFetcher{
+		result: &FetchResult{
+			Records: []json.RawMessage{json.RawMessage(`{"daily_active_users":30}`)},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+		userTeamsErr:   errors.New("API error"),
+		userMetricsErr: errors.New("API error"),
+	}
+
+	store := &mockStore{}
+
+	err := ingestDay(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, day)
+	if err != nil {
+		t.Fatalf("supplementary failures should not fail ingestion, got %v", err)
+	}
+
+	// Entity metrics should still be inserted
+	if store.insertedCount != 1 {
+		t.Errorf("expected 1 entity record, got %d", store.insertedCount)
 	}
 }
 
@@ -451,4 +583,12 @@ func (f *callbackFetcher) FetchDailyMetrics(_ context.Context, _ time.Time) (*Fe
 
 func (f *callbackFetcher) FetchLatest28DayReport(_ context.Context) (*FetchResult, error) {
 	return f.fn()
+}
+
+func (f *callbackFetcher) FetchDailyUserTeams(_ context.Context, _ time.Time) (*FetchResult, error) {
+	return nil, ErrReportNotAvailable
+}
+
+func (f *callbackFetcher) FetchDailyUserMetrics(_ context.Context, _ time.Time) (*FetchResult, error) {
+	return nil, ErrReportNotAvailable
 }

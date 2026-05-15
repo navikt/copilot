@@ -11,10 +11,12 @@ import (
 )
 
 type BigQueryClient struct {
-	client    *bigquery.Client
-	projectID string
-	dataset   string
-	table     string
+	client           *bigquery.Client
+	projectID        string
+	dataset          string
+	table            string
+	userTeamsTable   string
+	userMetricsTable string
 }
 
 type UsageMetricsRow struct {
@@ -32,10 +34,12 @@ func NewBigQueryClient(ctx context.Context, cfg *Config) (*BigQueryClient, error
 	}
 
 	return &BigQueryClient{
-		client:    client,
-		projectID: cfg.BigQueryProjectID,
-		dataset:   cfg.BigQueryDataset,
-		table:     cfg.BigQueryTable,
+		client:           client,
+		projectID:        cfg.BigQueryProjectID,
+		dataset:          cfg.BigQueryDataset,
+		table:            cfg.BigQueryTable,
+		userTeamsTable:   cfg.BigQueryUserTeamsTable,
+		userMetricsTable: cfg.BigQueryUserMetricsTable,
 	}, nil
 }
 
@@ -44,16 +48,29 @@ func (c *BigQueryClient) Close() error {
 }
 
 func (c *BigQueryClient) EnsureTableExists(ctx context.Context) error {
+	return c.ensureMetricsTable(ctx, c.table, "GitHub Copilot usage metrics from the Usage Metrics API")
+}
+
+func (c *BigQueryClient) EnsureUserTeamsTableExists(ctx context.Context) error {
+	return c.ensureMetricsTable(ctx, c.userTeamsTable, "GitHub Copilot user-to-team mappings from the Usage Metrics API")
+}
+
+func (c *BigQueryClient) EnsureUserMetricsTableExists(ctx context.Context) error {
+	return c.ensureMetricsTable(ctx, c.userMetricsTable, "GitHub Copilot per-user usage metrics from the Usage Metrics API")
+}
+
+// ensureMetricsTable creates a table with the standard metrics schema if it doesn't exist.
+func (c *BigQueryClient) ensureMetricsTable(ctx context.Context, tableName, description string) error {
 	dataset := c.client.Dataset(c.dataset)
-	table := dataset.Table(c.table)
+	table := dataset.Table(tableName)
 
 	_, err := table.Metadata(ctx)
 	if err == nil {
-		slog.Debug("Table already exists", "dataset", c.dataset, "table", c.table)
+		slog.Debug("Table already exists", "dataset", c.dataset, "table", tableName)
 		return nil
 	}
 
-	slog.Info("Creating table", "dataset", c.dataset, "table", c.table)
+	slog.Info("Creating table", "dataset", c.dataset, "table", tableName)
 
 	schema := bigquery.Schema{
 		{Name: "day", Type: bigquery.DateFieldType, Required: true, Description: "Calendar day of the metrics"},
@@ -72,24 +89,36 @@ func (c *BigQueryClient) EnsureTableExists(ctx context.Context) error {
 		Clustering: &bigquery.Clustering{
 			Fields: []string{"scope", "scope_id"},
 		},
-		Description: "GitHub Copilot usage metrics from the Usage Metrics API",
+		Description: description,
 	}
 
 	if err := table.Create(ctx, metadata); err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
+		return fmt.Errorf("failed to create table %s: %w", tableName, err)
 	}
 
-	slog.Info("Table created successfully")
+	slog.Info("Table created successfully", "table", tableName)
 	return nil
 }
 
 func (c *BigQueryClient) InsertMetrics(ctx context.Context, day time.Time, scope, scopeID string, records []json.RawMessage) error {
+	return c.insertRecords(ctx, c.table, day, scope, scopeID, records)
+}
+
+func (c *BigQueryClient) InsertUserTeams(ctx context.Context, day time.Time, scope, scopeID string, records []json.RawMessage) error {
+	return c.insertRecords(ctx, c.userTeamsTable, day, scope, scopeID, records)
+}
+
+func (c *BigQueryClient) InsertUserMetrics(ctx context.Context, day time.Time, scope, scopeID string, records []json.RawMessage) error {
+	return c.insertRecords(ctx, c.userMetricsTable, day, scope, scopeID, records)
+}
+
+func (c *BigQueryClient) insertRecords(ctx context.Context, tableName string, day time.Time, scope, scopeID string, records []json.RawMessage) error {
 	if len(records) == 0 {
-		slog.Warn("No records to insert", "day", day.Format("2006-01-02"))
+		slog.Warn("No records to insert", "table", tableName, "day", day.Format("2006-01-02"))
 		return nil
 	}
 
-	table := c.client.Dataset(c.dataset).Table(c.table)
+	table := c.client.Dataset(c.dataset).Table(tableName)
 	inserter := table.Inserter()
 
 	dayStr := day.Format("2006-01-02")
@@ -107,19 +136,31 @@ func (c *BigQueryClient) InsertMetrics(ctx context.Context, day time.Time, scope
 	}
 
 	if err := inserter.Put(ctx, rows); err != nil {
-		return fmt.Errorf("failed to insert rows: %w", err)
+		return fmt.Errorf("failed to insert rows into %s: %w", tableName, err)
 	}
 
-	slog.Info("Inserted metrics", "day", dayStr, "records", len(rows))
+	slog.Info("Inserted records", "table", tableName, "day", dayStr, "records", len(rows))
 	return nil
 }
 
 func (c *BigQueryClient) DayExists(ctx context.Context, day time.Time, scopeID string) (bool, error) {
+	return c.dayExistsInTable(ctx, c.table, day, scopeID)
+}
+
+func (c *BigQueryClient) UserTeamsDayExists(ctx context.Context, day time.Time, scopeID string) (bool, error) {
+	return c.dayExistsInTable(ctx, c.userTeamsTable, day, scopeID)
+}
+
+func (c *BigQueryClient) UserMetricsDayExists(ctx context.Context, day time.Time, scopeID string) (bool, error) {
+	return c.dayExistsInTable(ctx, c.userMetricsTable, day, scopeID)
+}
+
+func (c *BigQueryClient) dayExistsInTable(ctx context.Context, tableName string, day time.Time, scopeID string) (bool, error) {
 	dayStr := day.Format("2006-01-02")
 
 	query := c.client.Query(`
 		SELECT COUNT(*) as cnt
-		FROM ` + "`" + c.projectID + "." + c.dataset + "." + c.table + "`" + `
+		FROM ` + "`" + c.projectID + "." + c.dataset + "." + tableName + "`" + `
 		WHERE day = @day AND scope_id = @scopeID
 	`)
 	query.Parameters = []bigquery.QueryParameter{
@@ -143,10 +184,22 @@ func (c *BigQueryClient) DayExists(ctx context.Context, day time.Time, scopeID s
 }
 
 func (c *BigQueryClient) DeleteDay(ctx context.Context, day time.Time, scopeID string) error {
+	return c.deleteDayFromTable(ctx, c.table, day, scopeID)
+}
+
+func (c *BigQueryClient) DeleteUserTeamsDay(ctx context.Context, day time.Time, scopeID string) error {
+	return c.deleteDayFromTable(ctx, c.userTeamsTable, day, scopeID)
+}
+
+func (c *BigQueryClient) DeleteUserMetricsDay(ctx context.Context, day time.Time, scopeID string) error {
+	return c.deleteDayFromTable(ctx, c.userMetricsTable, day, scopeID)
+}
+
+func (c *BigQueryClient) deleteDayFromTable(ctx context.Context, tableName string, day time.Time, scopeID string) error {
 	dayStr := day.Format("2006-01-02")
 
 	query := c.client.Query(`
-		DELETE FROM ` + "`" + c.projectID + "." + c.dataset + "." + c.table + "`" + `
+		DELETE FROM ` + "`" + c.projectID + "." + c.dataset + "." + tableName + "`" + `
 		WHERE day = @day AND scope_id = @scopeID
 	`)
 	query.Parameters = []bigquery.QueryParameter{
@@ -167,7 +220,7 @@ func (c *BigQueryClient) DeleteDay(ctx context.Context, day time.Time, scopeID s
 		return fmt.Errorf("delete query failed: %w", status.Err())
 	}
 
-	slog.Debug("Deleted existing data for day", "day", dayStr, "scope_id", scopeID)
+	slog.Debug("Deleted existing data for day", "table", tableName, "day", dayStr, "scope_id", scopeID)
 	return nil
 }
 

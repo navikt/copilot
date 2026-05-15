@@ -39,6 +39,7 @@ func TestViewDefinitions(t *testing.T) {
 		"v_editor_stats",
 		"v_model_stats",
 		"v_code_generation",
+		"v_team_daily_summary",
 	}
 
 	if len(views) != len(expectedViews) {

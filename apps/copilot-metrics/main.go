@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -58,6 +59,16 @@ func main() {
 
 	if err := bqClient.EnsureTableExists(ctx); err != nil {
 		slog.Error("Failed to ensure table exists", "error", err)
+		os.Exit(1)
+	}
+
+	if err := bqClient.EnsureUserTeamsTableExists(ctx); err != nil {
+		slog.Error("Failed to ensure user_teams table exists", "error", err)
+		os.Exit(1)
+	}
+
+	if err := bqClient.EnsureUserMetricsTableExists(ctx); err != nil {
+		slog.Error("Failed to ensure user_metrics table exists", "error", err)
 		os.Exit(1)
 	}
 
@@ -189,7 +200,7 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, _ *Confi
 	dayStr := day.Format("2006-01-02")
 	slog.Info("Ingesting metrics", "day", dayStr)
 
-	// Fetch first to determine which scope (enterprise vs org) has data
+	// Fetch entity-level metrics (required)
 	result, err := gh.FetchDailyMetrics(ctx, day)
 	if err != nil {
 		if errors.Is(err, ErrReportNotAvailable) {
@@ -208,7 +219,7 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, _ *Confi
 
 	slog.Debug("Fetched metrics", "day", dayStr, "scope", result.Scope, "scope_id", result.ScopeID, "records", len(result.Records))
 
-	// Check if we already have data for this day/scope - delete for idempotent re-ingestion
+	// Idempotent re-ingestion: delete existing data first
 	exists, err := bq.DayExists(ctx, day, result.ScopeID)
 	if err != nil {
 		return fmt.Errorf("failed to check if day exists: %w", err)
@@ -224,8 +235,78 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, _ *Confi
 		return fmt.Errorf("failed to insert metrics: %w", err)
 	}
 
-	slog.Info("Successfully ingested metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
+	slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
+
+	// Fetch user-teams and per-user metrics (best-effort — don't fail the whole ingestion)
+	ingestSupplementary(ctx, gh, bq, day, result.ScopeID)
+
 	return nil
+}
+
+// ingestSupplementary fetches and stores user-teams and per-user reports.
+// Failures are logged but don't fail the overall ingestion — these reports
+// may not be available for all days (only from May 2026 onwards).
+func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, day time.Time, scopeID string) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("Panic in supplementary ingestion (recovered)", "day", day.Format("2006-01-02"), "panic", r)
+		}
+	}()
+
+	// 5-minute timeout so supplementary work can't starve the main job
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	dayStr := day.Format("2006-01-02")
+
+	// User-teams report
+	if teamsResult, err := gh.FetchDailyUserTeams(ctx, day); err != nil {
+		if !errors.Is(err, ErrReportNotAvailable) {
+			slog.Warn("Failed to fetch user-teams report", "day", dayStr, "error", err)
+		}
+	} else if len(teamsResult.Records) > 0 {
+		if err := upsertReport(ctx, bq.UserTeamsDayExists, bq.DeleteUserTeamsDay, bq.InsertUserTeams,
+			day, teamsResult); err != nil {
+			slog.Warn("Failed to store user-teams report", "day", dayStr, "error", err)
+		} else {
+			slog.Info("Ingested user-teams report", "day", dayStr, "records", len(teamsResult.Records))
+		}
+	}
+
+	// Per-user metrics report
+	if usersResult, err := gh.FetchDailyUserMetrics(ctx, day); err != nil {
+		if !errors.Is(err, ErrReportNotAvailable) {
+			slog.Warn("Failed to fetch per-user metrics report", "day", dayStr, "error", err)
+		}
+	} else if len(usersResult.Records) > 0 {
+		if err := upsertReport(ctx, bq.UserMetricsDayExists, bq.DeleteUserMetricsDay, bq.InsertUserMetrics,
+			day, usersResult); err != nil {
+			slog.Warn("Failed to store per-user metrics report", "day", dayStr, "error", err)
+		} else {
+			slog.Info("Ingested per-user metrics report", "day", dayStr, "records", len(usersResult.Records))
+		}
+	}
+}
+
+// upsertReport handles idempotent insert for a report: check exists → delete → insert.
+func upsertReport(
+	ctx context.Context,
+	existsFn func(context.Context, time.Time, string) (bool, error),
+	deleteFn func(context.Context, time.Time, string) error,
+	insertFn func(context.Context, time.Time, string, string, []json.RawMessage) error,
+	day time.Time,
+	result *FetchResult,
+) error {
+	exists, err := existsFn(ctx, day, result.ScopeID)
+	if err != nil {
+		return fmt.Errorf("check exists: %w", err)
+	}
+	if exists {
+		if err := deleteFn(ctx, day, result.ScopeID); err != nil {
+			return fmt.Errorf("delete existing: %w", err)
+		}
+	}
+	return insertFn(ctx, day, result.Scope, result.ScopeID, result.Records)
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {

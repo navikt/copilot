@@ -85,6 +85,14 @@ func (f *countingFetcher) FetchLatest28DayReport(_ context.Context) (*FetchResul
 	return f.result, f.err
 }
 
+func (f *countingFetcher) FetchDailyUserTeams(_ context.Context, _ time.Time) (*FetchResult, error) {
+	return nil, ErrReportNotAvailable
+}
+
+func (f *countingFetcher) FetchDailyUserMetrics(_ context.Context, _ time.Time) (*FetchResult, error) {
+	return nil, ErrReportNotAvailable
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }
