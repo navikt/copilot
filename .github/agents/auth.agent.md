@@ -1,9 +1,7 @@
 ---
 name: auth-agent
 description: Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-apper
-model:
-  - Claude Haiku 4.5
-  - GPT-5.3-Codex
+model: Claude Haiku 4.5
 tools:
   - execute
   - read

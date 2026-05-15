@@ -1,9 +1,7 @@
 ---
 name: security-champion-agent
 description: Navs sikkerhetsarkitektur, trusselmodellering, compliance og sikkerhetspraksis
-model:
-  - Claude Opus 4.6
-  - GPT-5.3-Codex
+model: Claude Opus 4.6
 tools:
   - execute
   - read
