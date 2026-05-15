@@ -1,7 +1,7 @@
 ---
 name: accessibility-agent
 description: WCAG 2.1/2.2, universell utforming, Aksel-tilgjengelighet og automatisert UU-testing
-model: Claude Haiku 4.5
+model: Claude Sonnet 4.6
 tools:
   - execute
   - read
