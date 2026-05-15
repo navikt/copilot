@@ -80,6 +80,63 @@ func TestRun_RefMissingValue(t *testing.T) {
 	}
 }
 
+// ─── Command alias tests ────────────────────────────────────────────────────
+
+func TestRun_AliasInstall(t *testing.T) {
+	// "i" should behave identically to "install" — error when no name given
+	err := run([]string{"i"})
+	if err == nil {
+		t.Fatal("expected error when no name given via alias")
+	}
+	if !strings.Contains(err.Error(), "install requires a name") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestRun_AliasList(t *testing.T) {
+	// "ls" should behave identically to "list"
+	err := run([]string{"ls", "--json"})
+	if err != nil {
+		t.Fatalf("list alias failed: %v", err)
+	}
+}
+
+func TestRun_AliasSync(t *testing.T) {
+	// "s" should behave identically to "sync"
+	err := run([]string{"s", "--json"})
+	if err != nil && err != errUpdatesAvailable && err != errSyncFailed {
+		t.Fatalf("sync alias failed unexpectedly: %v", err)
+	}
+}
+
+func TestRun_AliasUpgrade(t *testing.T) {
+	// "up" should behave identically to "upgrade" — non-nil error is acceptable
+	// (upgrade fetches from the network), but must not be "unknown command"
+	err := run([]string{"up"})
+	if err != nil && strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("alias 'up' was not resolved: %v", err)
+	}
+}
+
+func TestRun_AliasUninstall(t *testing.T) {
+	// "rm" should behave identically to "uninstall"
+	err := run([]string{"rm", "--dry-run"})
+	if err != nil {
+		t.Fatalf("uninstall alias failed: %v", err)
+	}
+}
+
+func TestRun_AliasDoesNotAffectUnknownCommands(t *testing.T) {
+	// Aliases must not accidentally suppress the unknown-command error
+	err := run([]string{"xyz"})
+	if err == nil {
+		t.Fatal("expected error for unknown command")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestIsGitRepo(t *testing.T) {
 	// Temp dir with .git
 	dir := t.TempDir()

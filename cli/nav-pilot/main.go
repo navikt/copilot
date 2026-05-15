@@ -32,6 +32,15 @@ var timeNow = time.Now
 
 // ─── CLI ────────────────────────────────────────────────────────────────────
 
+// commandAliases maps short aliases to their canonical command names.
+var commandAliases = map[string]string{
+	"i":  "install",
+	"ls": "list",
+	"s":  "sync",
+	"up": "upgrade",
+	"rm": "uninstall",
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, `nav-pilot — Nav's Copilot toolkit for developers
 
@@ -42,14 +51,14 @@ Usage:
   nav-pilot <command> [flags]
 
 Commands:
-  install <name>          Install a collection or individual agent/skill/instruction/prompt
+  install (i) <name>      Install a collection or individual agent/skill/instruction/prompt
   install --user --all    Install all agents, skills & instructions to ~/.copilot (user-wide)
   init                    Scaffold repo-local Copilot config files (AGENTS.md, instructions)
-  sync                    Check for updates and optionally apply them
-  list                    List available collections and items
+  sync (s)                Check for updates and optionally apply them
+  list (ls)               List available collections and items
   list --installed        Show what's currently installed
-  upgrade                 Update nav-pilot CLI to the latest version
-  uninstall               Remove installed collection files
+  upgrade (up)            Update nav-pilot CLI to the latest version
+  uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
@@ -103,6 +112,11 @@ func run(args []string) error {
 
 	command := args[0]
 	rest := args[1:]
+
+	// Resolve short aliases to canonical command names.
+	if canonical, ok := commandAliases[command]; ok {
+		command = canonical
+	}
 
 	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided, installAll, listInstalled bool
 	var targetDir, ref, sourceRepo, installType string
