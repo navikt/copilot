@@ -7,11 +7,12 @@ Teams that have installed customization files can use **nav-pilot sync** to chec
 ## Quick Reference
 
 ```bash
-nav-pilot sync              # Check for updates (exit 1 if available)
-nav-pilot sync --apply      # Apply updates directly
+nav-pilot sync              # Sync all scopes (repo + user)
+nav-pilot sync --apply      # Apply updates directly (all scopes)
+nav-pilot sync --user       # Sync user-scope only (~/.copilot/)
 nav-pilot sync --json       # Machine-readable output
-nav-pilot sync --user       # Sync user-scope install (~/.copilot/)
 nav-pilot sync --source navikt/my-team-copilot  # Sync from different source repo
+nav-pilot --sync            # Sync all scopes and launch Copilot (non-interactive)
 ```
 
 ## Automated Sync (GitHub Actions)

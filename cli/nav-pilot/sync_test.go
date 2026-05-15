@@ -909,9 +909,9 @@ func TestCountFileIntegrity_IgnoredFiles(t *testing.T) {
 
 	state := &StateFile{
 		Files: []InstalledFile{
-			{Path: ".github/a.md", Hash: hash1},                                          // ok
-			{Path: ".github/ignored.md", Hash: "x", Status: fileStatusIgnored},            // ignored
-			{Path: ".github/missing.md", Hash: "x"},                                      // missing
+			{Path: ".github/a.md", Hash: hash1},                                // ok
+			{Path: ".github/ignored.md", Hash: "x", Status: fileStatusIgnored}, // ignored
+			{Path: ".github/missing.md", Hash: "x"},                            // missing
 		},
 	}
 
@@ -1058,5 +1058,44 @@ func TestResolveSyncFiles_AutoDetect_RootLevelPromptDir(t *testing.T) {
 	}
 	if !found {
 		t.Error("should find review prompt dir with root-level source")
+	}
+}
+
+func TestCmdSyncAuto_BothScopes(t *testing.T) {
+	// Isolate HOME so user-scope state is not found
+	t.Setenv("HOME", t.TempDir())
+
+	// cmdSyncAuto with no installed scopes should report nothing
+	emptyDir := t.TempDir()
+	os.MkdirAll(filepath.Join(emptyDir, ".git"), 0o755)
+	err := cmdSyncAuto(emptyDir, "", "", false, false)
+	if err != nil {
+		t.Fatalf("expected nil for empty scopes, got: %v", err)
+	}
+}
+
+func TestCmdSyncAuto_NoInstall(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+
+	// Isolate HOME so user-scope state is not found
+	t.Setenv("HOME", t.TempDir())
+
+	// Capture output
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cmdSyncAuto(dir, "", "", false, false)
+
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(out), "No nav-pilot collection installed") {
+		t.Errorf("expected 'no collection' message, got: %s", out)
 	}
 }

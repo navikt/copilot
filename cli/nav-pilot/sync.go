@@ -227,6 +227,60 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	return nil
 }
 
+// cmdSyncAuto syncs all detected scopes (repo + user) when the user didn't
+// explicitly pick one with --user or --target. Mirrors how the interactive
+// flow and `list --installed` handle scope discovery.
+func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error {
+	repoScope := ScopeRepo(repoDir)
+	repoState, _ := readScopedState(repoScope)
+
+	userScope, userErr := ScopeUser()
+	var userState *StateFile
+	if userErr == nil {
+		userState, _ = readScopedState(userScope)
+	}
+
+	if repoState == nil && userState == nil {
+		if jsonOutput {
+			return outputJSON(map[string]interface{}{"installed": false})
+		}
+		fmt.Println("No nav-pilot collection installed (repo or user scope).")
+		fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
+		return nil
+	}
+
+	var firstErr error
+
+	if repoState != nil {
+		if !jsonOutput && userState != nil {
+			fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("repo"))
+		}
+		if err := cmdSync(repoScope, ref, sourceRepo, apply, jsonOutput); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	if userState != nil {
+		if !jsonOutput {
+			if repoState != nil {
+				fmt.Println()
+			}
+			if repoState != nil {
+				fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("user"))
+			}
+		}
+		if err := cmdSync(userScope, ref, sourceRepo, apply, jsonOutput); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	return firstErr
+}
+
 // syncFile represents a file to check during sync.
 type syncFile struct {
 	localPath  string // relative path in target repo (e.g. ".github/agents/nais.agent.md")

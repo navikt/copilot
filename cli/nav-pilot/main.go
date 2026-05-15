@@ -66,6 +66,7 @@ Flags:
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
   --all                   Install everything (use with --user)
   --apply                 Apply available updates (sync only)
+  --sync                  Sync all scopes and launch Copilot (non-interactive)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
 
@@ -98,6 +99,15 @@ func run(args []string) error {
 			return cmdInteractive()
 		}
 		usage()
+		return nil
+	}
+
+	// Handle --sync flag: non-interactive sync-all + launch
+	if args[0] == "--sync" {
+		if err := cmdSyncAuto(".", "", "", true, false); err != nil && err != errUpdatesAvailable {
+			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
+		}
+		launchCopilotWithAgent("nav-pilot")
 		return nil
 	}
 
@@ -245,7 +255,10 @@ func run(args []string) error {
 		}
 		return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
 	case "sync":
-		return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
+		if userScope || targetProvided {
+			return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
+		}
+		return cmdSyncAuto(targetDir, ref, sourceRepo, apply, jsonOutput)
 	case "list":
 		if listInstalled {
 			if userScope || targetProvided {
