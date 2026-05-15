@@ -288,131 +288,134 @@ function SecurityTableSection() {
           </div>
 
           <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="rounded-xl overflow-hidden min-w-max sm:min-w-0" style={{ border: "1px solid #1a3326", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+            <div
+              className="rounded-xl overflow-hidden min-w-max sm:min-w-0"
+              style={{ border: "1px solid #1a3326", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+            >
               {/* Header */}
               <div className="grid gap-0" style={{ gridTemplateColumns: "3fr 1fr 1fr", background: "#0c1a14" }}>
-              <div className="px-6 py-4 flex items-center" style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}>
-                <p
-                  className="font-semibold uppercase tracking-wider"
-                  style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
+                <div className="px-6 py-4 flex items-center" style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}>
+                  <p
+                    className="font-semibold uppercase tracking-wider"
+                    style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
+                  >
+                    Resource
+                  </p>
+                </div>
+                <div
+                  className="px-4 py-4 flex items-center justify-center"
+                  style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
                 >
-                  Resource
-                </p>
+                  <p
+                    className="font-semibold uppercase tracking-wider"
+                    style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
+                  >
+                    Without cplt
+                  </p>
+                </div>
+                <div className="px-4 py-4 flex items-center justify-center">
+                  <p
+                    className="font-semibold uppercase tracking-wider"
+                    style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
+                  >
+                    With cplt
+                  </p>
+                </div>
               </div>
-              <div
-                className="px-4 py-4 flex items-center justify-center"
-                style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
-              >
-                <p
-                  className="font-semibold uppercase tracking-wider"
-                  style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
-                >
-                  Without cplt
-                </p>
-              </div>
-              <div className="px-4 py-4 flex items-center justify-center">
-                <p
-                  className="font-semibold uppercase tracking-wider"
-                  style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
-                >
-                  With cplt
-                </p>
-              </div>
-            </div>
 
-            {/* Rows */}
-            {SECURITY_TABLE.map((row, i) => (
-              <div
-                key={row.resource}
-                className="grid gap-0"
-                style={{
-                  gridTemplateColumns: "3fr 1fr 1fr",
-                  borderTop: "1px solid #e2e8f0",
-                }}
-              >
+              {/* Rows */}
+              {SECURITY_TABLE.map((row, i) => (
                 <div
-                  className="px-6 py-3.5 flex items-center"
+                  key={row.resource}
+                  className="grid gap-0"
                   style={{
-                    borderRight: "1px solid #e2e8f0",
-                    background: i % 2 === 0 ? "#f8fafc" : "white",
+                    gridTemplateColumns: "3fr 1fr 1fr",
+                    borderTop: "1px solid #e2e8f0",
                   }}
                 >
-                  <p style={{ color: "#1e293b", fontSize: "0.875rem", margin: 0 }}>{row.resource}</p>
-                </div>
-                {/* Without cplt column */}
-                <div
-                  className="px-4 py-3.5 flex items-center justify-center gap-1.5"
-                  style={{
-                    borderRight: "1px solid #e2e8f0",
-                    background:
-                      row.without === "exposed"
-                        ? i % 2 === 0
-                          ? "#fef2f2"
-                          : "#fff5f5"
-                        : i % 2 === 0
-                          ? "#f0fdf4"
-                          : "#f7fef9",
-                  }}
-                >
-                  {row.without === "exposed" ? (
-                    <>
-                      <span style={{ color: "#dc2626", fontSize: "0.8rem" }} aria-hidden>
-                        ⚠
-                      </span>
-                      <p style={{ color: "#dc2626", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Exposed</p>
-                    </>
-                  ) : (
-                    <>
-                      <CheckmarkCircleIcon
-                        fontSize="0.875rem"
-                        style={{ color: "#22c55e", flexShrink: 0 }}
-                        aria-hidden
-                      />
-                      <p style={{ color: "#166534", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Allowed</p>
-                    </>
-                  )}
-                </div>
-                {/* With cplt column */}
-                <div
-                  className="px-4 py-3.5 flex items-center justify-center gap-1.5"
-                  style={{
-                    background:
-                      row.with === "blocked"
-                        ? i % 2 === 0
-                          ? "rgba(16, 185, 129, 0.06)"
-                          : "rgba(16, 185, 129, 0.03)"
-                        : row.with === "filtered"
+                  <div
+                    className="px-6 py-3.5 flex items-center"
+                    style={{
+                      borderRight: "1px solid #e2e8f0",
+                      background: i % 2 === 0 ? "#f8fafc" : "white",
+                    }}
+                  >
+                    <p style={{ color: "#1e293b", fontSize: "0.875rem", margin: 0 }}>{row.resource}</p>
+                  </div>
+                  {/* Without cplt column */}
+                  <div
+                    className="px-4 py-3.5 flex items-center justify-center gap-1.5"
+                    style={{
+                      borderRight: "1px solid #e2e8f0",
+                      background:
+                        row.without === "exposed"
                           ? i % 2 === 0
-                            ? "rgba(234, 179, 8, 0.06)"
-                            : "rgba(234, 179, 8, 0.03)"
+                            ? "#fef2f2"
+                            : "#fff5f5"
                           : i % 2 === 0
                             ? "#f0fdf4"
                             : "#f7fef9",
-                  }}
-                >
-                  {row.with === "blocked" ? (
-                    <>
-                      <ShieldLockIcon fontSize="0.875rem" style={{ color: "#10b981", flexShrink: 0 }} aria-hidden />
-                      <p style={{ color: "#10b981", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Protected</p>
-                    </>
-                  ) : row.with === "filtered" ? (
-                    <>
-                      <CloudIcon fontSize="0.875rem" style={{ color: "#d97706", flexShrink: 0 }} aria-hidden />
-                      <p style={{ color: "#d97706", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Filtered*</p>
-                    </>
-                  ) : (
-                    <>
-                      <CheckmarkCircleIcon
-                        fontSize="0.875rem"
-                        style={{ color: "#22c55e", flexShrink: 0 }}
-                        aria-hidden
-                      />
-                      <p style={{ color: "#166534", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Allowed</p>
-                    </>
-                  )}
+                    }}
+                  >
+                    {row.without === "exposed" ? (
+                      <>
+                        <span style={{ color: "#dc2626", fontSize: "0.8rem" }} aria-hidden>
+                          ⚠
+                        </span>
+                        <p style={{ color: "#dc2626", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Exposed</p>
+                      </>
+                    ) : (
+                      <>
+                        <CheckmarkCircleIcon
+                          fontSize="0.875rem"
+                          style={{ color: "#22c55e", flexShrink: 0 }}
+                          aria-hidden
+                        />
+                        <p style={{ color: "#166534", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Allowed</p>
+                      </>
+                    )}
+                  </div>
+                  {/* With cplt column */}
+                  <div
+                    className="px-4 py-3.5 flex items-center justify-center gap-1.5"
+                    style={{
+                      background:
+                        row.with === "blocked"
+                          ? i % 2 === 0
+                            ? "rgba(16, 185, 129, 0.06)"
+                            : "rgba(16, 185, 129, 0.03)"
+                          : row.with === "filtered"
+                            ? i % 2 === 0
+                              ? "rgba(234, 179, 8, 0.06)"
+                              : "rgba(234, 179, 8, 0.03)"
+                            : i % 2 === 0
+                              ? "#f0fdf4"
+                              : "#f7fef9",
+                    }}
+                  >
+                    {row.with === "blocked" ? (
+                      <>
+                        <ShieldLockIcon fontSize="0.875rem" style={{ color: "#10b981", flexShrink: 0 }} aria-hidden />
+                        <p style={{ color: "#10b981", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Protected</p>
+                      </>
+                    ) : row.with === "filtered" ? (
+                      <>
+                        <CloudIcon fontSize="0.875rem" style={{ color: "#d97706", flexShrink: 0 }} aria-hidden />
+                        <p style={{ color: "#d97706", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Filtered*</p>
+                      </>
+                    ) : (
+                      <>
+                        <CheckmarkCircleIcon
+                          fontSize="0.875rem"
+                          style={{ color: "#22c55e", flexShrink: 0 }}
+                          aria-hidden
+                        />
+                        <p style={{ color: "#166534", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>Allowed</p>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             </div>
           </div>
 

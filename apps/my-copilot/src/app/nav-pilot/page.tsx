@@ -634,7 +634,10 @@ function PipelineSection() {
           </div>
 
           {/* Connected stepper - responsive grid */}
-          <div className="flex flex-col md:grid md:items-stretch gap-4 md:gap-0" style={{ gridTemplateColumns: "repeat(7, auto)" }}>
+          <div
+            className="flex flex-col md:grid md:items-stretch gap-4 md:gap-0"
+            style={{ gridTemplateColumns: "repeat(7, auto)" }}
+          >
             {PIPELINE_STEPS.map((step, i) => (
               <React.Fragment key={step.title}>
                 {/* Step box */}
@@ -779,40 +782,42 @@ function ComparisonSection() {
                     borderTop: "1px solid #e2e8f0",
                   }}
                 >
-                <div
-                  className="px-6 py-4 flex items-center justify-center"
-                  style={{
-                    borderRight: "1px solid #e2e8f0",
-                    background: i % 2 === 0 ? "#f8fafc" : "white",
-                  }}
-                >
-                  <p className="font-semibold" style={{ color: "#1e293b", fontSize: "0.875rem", margin: 0 }}>
-                    {row.feature}
-                  </p>
+                  <div
+                    className="px-6 py-4 flex items-center justify-center"
+                    style={{
+                      borderRight: "1px solid #e2e8f0",
+                      background: i % 2 === 0 ? "#f8fafc" : "white",
+                    }}
+                  >
+                    <p className="font-semibold" style={{ color: "#1e293b", fontSize: "0.875rem", margin: 0 }}>
+                      {row.feature}
+                    </p>
+                  </div>
+                  <div
+                    className="px-6 py-4 flex items-center justify-center gap-2"
+                    style={{
+                      borderRight: "1px solid #e2e8f0",
+                      background: i % 2 === 0 ? "#fef2f2" : "#fff5f5",
+                    }}
+                  >
+                    <XMarkOctagonIcon fontSize="0.875rem" style={{ color: "#ef4444", flexShrink: 0 }} aria-hidden />
+                    <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0, fontStyle: "italic" }}>
+                      {row.generic}
+                    </p>
+                  </div>
+                  <div
+                    className="px-6 py-4 flex items-center gap-2 justify-center"
+                    style={{
+                      background: i % 2 === 0 ? "#f0fdf4" : "#f7fef9",
+                    }}
+                  >
+                    <CheckmarkCircleIcon fontSize="0.875rem" style={{ color: "#22c55e", flexShrink: 0 }} aria-hidden />
+                    <p style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>
+                      {row.navPilot}
+                    </p>
+                  </div>
                 </div>
-                <div
-                  className="px-6 py-4 flex items-center justify-center gap-2"
-                  style={{
-                    borderRight: "1px solid #e2e8f0",
-                    background: i % 2 === 0 ? "#fef2f2" : "#fff5f5",
-                  }}
-                >
-                  <XMarkOctagonIcon fontSize="0.875rem" style={{ color: "#ef4444", flexShrink: 0 }} aria-hidden />
-                  <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0, fontStyle: "italic" }}>
-                    {row.generic}
-                  </p>
-                </div>
-                <div
-                  className="px-6 py-4 flex items-center gap-2 justify-center"
-                  style={{
-                    background: i % 2 === 0 ? "#f0fdf4" : "#f7fef9",
-                  }}
-                >
-                  <CheckmarkCircleIcon fontSize="0.875rem" style={{ color: "#22c55e", flexShrink: 0 }} aria-hidden />
-                  <p style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>{row.navPilot}</p>
-                </div>
-              </div>
-            ))}
+              ))}
             </div>
           </div>
         </VStack>
