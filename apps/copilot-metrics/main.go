@@ -196,49 +196,50 @@ func ingestMissing(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg 
 	return nil
 }
 
-func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, _ *Config, day time.Time) error {
+func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config, day time.Time) error {
 	dayStr := day.Format("2006-01-02")
 	slog.Info("Ingesting metrics", "day", dayStr)
 
-	// Fetch entity-level metrics (required)
+	// Fetch entity-level metrics
 	result, err := gh.FetchDailyMetrics(ctx, day)
 	if err != nil {
 		if errors.Is(err, ErrReportNotAvailable) {
-			slog.Warn("Report not available yet — will be picked up by next run or backfill",
+			slog.Warn("Entity report not available yet",
 				"day", dayStr,
 			)
-			return nil
+		} else {
+			slog.Error("Failed to fetch entity metrics", "day", dayStr, "error", err)
 		}
-		return fmt.Errorf("failed to fetch metrics: %w", err)
-	}
+	} else if len(result.Records) == 0 {
+		slog.Warn("No entity records returned for day", "day", dayStr)
+	} else {
+		slog.Debug("Fetched entity metrics", "day", dayStr, "scope", result.Scope, "scope_id", result.ScopeID, "records", len(result.Records))
 
-	if len(result.Records) == 0 {
-		slog.Warn("No records returned for day", "day", dayStr)
-		return nil
-	}
-
-	slog.Debug("Fetched metrics", "day", dayStr, "scope", result.Scope, "scope_id", result.ScopeID, "records", len(result.Records))
-
-	// Idempotent re-ingestion: delete existing data first
-	exists, err := bq.DayExists(ctx, day, result.ScopeID)
-	if err != nil {
-		return fmt.Errorf("failed to check if day exists: %w", err)
-	}
-	if exists {
-		slog.Info("Day already exists, deleting for re-ingestion", "day", dayStr, "scope_id", result.ScopeID)
-		if err := bq.DeleteDay(ctx, day, result.ScopeID); err != nil {
-			return fmt.Errorf("failed to delete existing data: %w", err)
+		exists, checkErr := bq.DayExists(ctx, day, result.ScopeID)
+		if checkErr != nil {
+			return fmt.Errorf("failed to check if day exists: %w", checkErr)
 		}
+		if exists {
+			slog.Info("Day already exists, deleting for re-ingestion", "day", dayStr, "scope_id", result.ScopeID)
+			if delErr := bq.DeleteDay(ctx, day, result.ScopeID); delErr != nil {
+				return fmt.Errorf("failed to delete existing data: %w", delErr)
+			}
+		}
+
+		if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
+			return fmt.Errorf("failed to insert metrics: %w", insErr)
+		}
+
+		slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
 	}
 
-	if err := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); err != nil {
-		return fmt.Errorf("failed to insert metrics: %w", err)
+	// Always attempt supplementary ingestion, independent of entity metrics.
+	// Use entity scope if available, otherwise fall back to enterprise slug from config.
+	scopeID := cfg.EnterpriseSlug
+	if result != nil && result.ScopeID != "" {
+		scopeID = result.ScopeID
 	}
-
-	slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
-
-	// Fetch user-teams and per-user metrics (best-effort — don't fail the whole ingestion)
-	ingestSupplementary(ctx, gh, bq, day, result.ScopeID)
+	ingestSupplementary(ctx, gh, bq, day, scopeID)
 
 	return nil
 }
@@ -261,7 +262,9 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 
 	// User-teams report
 	if teamsResult, err := gh.FetchDailyUserTeams(ctx, day); err != nil {
-		if !errors.Is(err, ErrReportNotAvailable) {
+		if errors.Is(err, ErrReportNotAvailable) {
+			slog.Info("User-teams report not available yet", "day", dayStr)
+		} else {
 			slog.Warn("Failed to fetch user-teams report", "day", dayStr, "error", err)
 		}
 	} else if len(teamsResult.Records) > 0 {
@@ -275,7 +278,9 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 
 	// Per-user metrics report
 	if usersResult, err := gh.FetchDailyUserMetrics(ctx, day); err != nil {
-		if !errors.Is(err, ErrReportNotAvailable) {
+		if errors.Is(err, ErrReportNotAvailable) {
+			slog.Info("Per-user metrics report not available yet", "day", dayStr)
+		} else {
 			slog.Warn("Failed to fetch per-user metrics report", "day", dayStr, "error", err)
 		}
 	} else if len(usersResult.Records) > 0 {

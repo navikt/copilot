@@ -191,9 +191,15 @@ func TestIngestDay_FetchError(t *testing.T) {
 
 	store := &mockStore{}
 
+	// Entity fetch errors no longer fail ingestDay — supplementary is still attempted
 	err := ingestDay(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, day)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	if err != nil {
+		t.Fatalf("expected no error (entity failure is non-fatal), got %v", err)
+	}
+
+	// Verify entity insert was NOT called
+	if !store.insertedDay.IsZero() {
+		t.Error("expected entity insert NOT to be called")
 	}
 }
 
@@ -306,6 +312,45 @@ func TestIngestDay_ReportNotAvailable(t *testing.T) {
 	// Verify insert was NOT called
 	if !store.insertedDay.IsZero() {
 		t.Error("expected insert NOT to be called when report is not available")
+	}
+}
+
+func TestIngestDay_EntityNotAvailableButSupplementarySucceeds(t *testing.T) {
+	ctx := context.Background()
+	day := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
+
+	fetcher := &mockFetcher{
+		err: fmt.Errorf("%w: report not ready", ErrReportNotAvailable),
+		userTeamsResult: &FetchResult{
+			Records: []json.RawMessage{json.RawMessage(`{"user_id":"1","team_id":"100","slug":"team-a"}`)},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+		userMetricsResult: &FetchResult{
+			Records: []json.RawMessage{json.RawMessage(`{"user_id":"1","is_active":true}`)},
+			Scope:   "enterprise",
+			ScopeID: "nav",
+		},
+	}
+
+	store := &mockStore{}
+
+	err := ingestDay(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, day)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Entity metrics should NOT be inserted
+	if !store.insertedDay.IsZero() {
+		t.Error("expected entity insert NOT to be called")
+	}
+
+	// Supplementary reports SHOULD be inserted despite entity being unavailable
+	if store.userTeamsInserted != 1 {
+		t.Errorf("expected 1 user-teams record, got %d", store.userTeamsInserted)
+	}
+	if store.userMetricsInserted != 1 {
+		t.Errorf("expected 1 user-metrics record, got %d", store.userMetricsInserted)
 	}
 }
 

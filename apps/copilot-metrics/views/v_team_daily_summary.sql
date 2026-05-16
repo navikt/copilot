@@ -7,7 +7,10 @@ WITH user_teams AS (
     JSON_VALUE(raw_record, '$.user_login') AS user_login,
     JSON_VALUE(raw_record, '$.team_id') AS team_id,
     JSON_VALUE(raw_record, '$.slug') AS team_slug,
-    JSON_VALUE(raw_record, '$.organization_id') AS organization_id
+    COALESCE(
+      JSON_VALUE(raw_record, '$.organization_id'),
+      JSON_VALUE(raw_record, '$.enterprise_id')
+    ) AS entity_id
   FROM {{user_teams}}
 ),
 user_metrics AS (
@@ -27,7 +30,7 @@ SELECT
   ut.day,
   ut.team_id,
   ut.team_slug,
-  ut.organization_id,
+  ut.entity_id,
   ut.scope_id,
   COUNT(DISTINCT ut.user_id) AS total_users,
   COUNTIF(um.is_active) AS active_users,
@@ -41,5 +44,5 @@ LEFT JOIN user_metrics um
   ON ut.user_id = um.user_id
   AND ut.day = um.day
   AND ut.scope_id = um.scope_id
-GROUP BY ut.day, ut.team_id, ut.team_slug, ut.organization_id, ut.scope_id
+GROUP BY ut.day, ut.team_id, ut.team_slug, ut.entity_id, ut.scope_id
 ORDER BY ut.day DESC, active_users DESC;
