@@ -94,7 +94,16 @@ func (c *JWKSCache) refresh() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	resp, err := http.Get(c.jwksURI)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.jwksURI, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create JWKS request: %w", err)
+	}
+
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch JWKS: %w", err)
 	}
@@ -232,16 +241,25 @@ func (v *TokenValidator) validate(tokenString string) (*User, error) {
 	}
 
 	// Validate authorized party (azp) - CRITICAL security check
+	// Fail closed: if no pre-authorized apps are configured, reject all requests
 	azp, _ := claims["azp"].(string)
-	if len(v.preAuthorizedApps) > 0 && !v.preAuthorizedApps[azp] {
+	if len(v.preAuthorizedApps) == 0 {
+		return nil, errors.New("no pre-authorized apps configured — rejecting all requests")
+	}
+	if !v.preAuthorizedApps[azp] {
 		return nil, fmt.Errorf("unauthorized client: %s", azp)
 	}
 
 	// Extract user information
+	email := getStringClaim(claims, "email")
+	if email == "" {
+		email = getStringClaim(claims, "preferred_username")
+	}
+
 	user := &User{
 		AZP:               azp,
 		PreferredUsername: getStringClaim(claims, "preferred_username"),
-		Email:             getStringClaim(claims, "preferred_username"), // Often the same
+		Email:             email,
 		Name:              getStringClaim(claims, "name"),
 		NAVident:          getStringClaim(claims, "NAVident"),
 	}

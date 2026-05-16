@@ -3,7 +3,7 @@ import { Box, Heading, BodyShort, VStack, Skeleton, HGrid } from "@navikt/ds-rea
 import { getCachedCopilotBilling, getCachedPremiumRequestUsage } from "@/lib/cached-github";
 import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
 import { calculatePremiumMetrics } from "@/lib/billing-utils";
-import { getUser } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { getCLIMetrics } from "@/lib/data-utils";
 import CalculatorContent from "@/components/calculator-content";
 import type { ModelPremiumData, CLIData } from "@/lib/billing-calculator";
@@ -33,10 +33,15 @@ function KalkulatorHeader() {
 }
 
 async function CalculatorData() {
+  const token = await getUserToken();
+  if (!token) {
+    return <BodyShort>Ikke autentisert — kan ikke hente data</BodyShort>;
+  }
+
   // Fetch uncached data first so Next.js marks this as dynamic before we use Date
   const [billingResult, bigqueryResult] = await Promise.all([
-    getCachedCopilotBilling("navikt"),
-    getCachedBigQueryUsage(),
+    getCachedCopilotBilling(token),
+    getCachedBigQueryUsage(token),
   ]);
 
   const now = new Date();

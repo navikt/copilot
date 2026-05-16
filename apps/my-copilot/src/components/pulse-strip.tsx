@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getCachedBigQueryUsage, getCachedAdoptionData } from "@/lib/cached-bigquery";
 import { getAggregatedMetrics } from "@/lib/data-utils";
+import { getUserToken } from "@/lib/auth";
 
 function HighlightCard({
   href,
@@ -80,7 +81,8 @@ function CustomizationBreakdownCard() {
 }
 
 async function UsageCard() {
-  const { usage, error } = await getCachedBigQueryUsage();
+  const token = await getUserToken();
+  const { usage, error } = token ? await getCachedBigQueryUsage(token) : { usage: null, error: "Not authenticated" };
 
   const metrics = !error && usage?.length ? getAggregatedMetrics(usage) : null;
   const total = metrics?.monthlyActiveUsers || 1;
@@ -124,10 +126,13 @@ async function UsageCard() {
 }
 
 async function StatsCard() {
-  const [{ usage, error: usageError }, { data: adoptionData, error: adoptionError }] = await Promise.all([
-    getCachedBigQueryUsage(),
-    getCachedAdoptionData(),
-  ]);
+  const token = await getUserToken();
+  const [{ usage, error: usageError }, { data: adoptionData, error: adoptionError }] = token
+    ? await Promise.all([getCachedBigQueryUsage(token), getCachedAdoptionData(token)])
+    : [
+        { usage: null, error: "Not authenticated" },
+        { data: null, error: "Not authenticated" },
+      ];
 
   const metrics = !usageError && usage?.length ? getAggregatedMetrics(usage) : null;
   const acceptanceRate = metrics?.overallAcceptanceRate ?? 30;

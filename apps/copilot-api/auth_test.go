@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -63,7 +64,7 @@ func TestExtractBearerToken(t *testing.T) {
 			}
 
 			if err != nil && tt.errContains != "" {
-				if !contains(err.Error(), tt.errContains) {
+				if !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("extractBearerToken() error = %v, should contain %q", err, tt.errContains)
 				}
 			}
@@ -272,17 +273,4 @@ func TestJWKSCache(t *testing.T) {
 	if err != nil {
 		t.Errorf("getKey() error = %v", err)
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsMiddle(s, substr)))
-}
-
-func containsMiddle(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

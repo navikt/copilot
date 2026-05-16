@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
-import { getUser } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 
 export async function GET() {
   const user = await getUser(false);
@@ -8,8 +8,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getUserToken();
+  if (!token) {
+    return NextResponse.json({ error: "No authentication token" }, { status: 401 });
+  }
+
   try {
-    const { usage, error } = await getCachedBigQueryUsage();
+    const { usage, error } = await getCachedBigQueryUsage(token);
 
     if (error) {
       return NextResponse.json({ error }, { status: 500 });

@@ -3,8 +3,14 @@
  */
 
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
-const NAIS_CLUSTER = process.env.NAIS_CLUSTER_NAME || "dev-gcp";
-const COPILOT_API_AUDIENCE = `api://${NAIS_CLUSTER}.copilot.copilot-api/.default`;
+
+function getCopilotApiAudience(): string {
+  const cluster = process.env.NAIS_CLUSTER_NAME;
+  if (!cluster) {
+    throw new Error("NAIS_CLUSTER_NAME not configured — cannot determine backend API audience");
+  }
+  return `api://${cluster}.copilot.copilot-api`;
+}
 
 interface TokenExchangeResponse {
   access_token: string;
@@ -27,7 +33,7 @@ async function exchangeToken(userToken: string): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       identity_provider: "entra_id",
-      target: COPILOT_API_AUDIENCE,
+      target: getCopilotApiAudience(),
       user_token: userToken,
     }),
   });
@@ -44,11 +50,7 @@ async function exchangeToken(userToken: string): Promise<string> {
 /**
  * Call backend API with OBO token
  */
-async function backendRequest<T>(
-  path: string,
-  userToken: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function backendRequest<T>(path: string, userToken: string, options: RequestInit = {}): Promise<T> {
   const oboToken = await exchangeToken(userToken);
 
   const response = await fetch(`${COPILOT_API_URL}${path}`, {

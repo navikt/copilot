@@ -21,11 +21,6 @@ func newGitHubHandlers(githubClient *GitHubClient) *GitHubHandlers {
 
 // handleBilling handles GET /api/v1/copilot/billing
 func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	billing, err := h.githubClient.getCopilotBilling(r.Context())
 	if err != nil {
 		slog.Error("Failed to fetch billing", "error", err)
@@ -38,13 +33,8 @@ func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
 
 // handleGetSeat handles GET /api/v1/copilot/seats/{username}
 func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	username := extractUsername(r.URL.Path)
-	if username == "" {
+	username := r.PathValue("username")
+	if username == "" || strings.Contains(username, "/") {
 		respondError(w, "invalid_parameter", "Username is required", http.StatusBadRequest)
 		return
 	}
@@ -61,11 +51,6 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 
 // handleAssignSeat handles POST /api/v1/copilot/seats
 func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		respondError(w, "method_not_allowed", "Only POST is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Get authenticated user from context
 	user, ok := getUserFromContext(r.Context())
 	if !ok || user == nil {
@@ -113,11 +98,6 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 
 // handleUnassignSeat handles DELETE /api/v1/copilot/seats/{username}
 func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		respondError(w, "method_not_allowed", "Only DELETE is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Get authenticated user from context
 	user, ok := getUserFromContext(r.Context())
 	if !ok || user == nil {
@@ -125,8 +105,8 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	username := extractUsername(r.URL.Path)
-	if username == "" {
+	username := r.PathValue("username")
+	if username == "" || strings.Contains(username, "/") {
 		respondError(w, "invalid_parameter", "Username is required", http.StatusBadRequest)
 		return
 	}
@@ -158,13 +138,8 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 
 // handleGetUsernameBySAML handles GET /api/v1/copilot/saml/{identity}
 func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	identity := extractUsername(r.URL.Path) // Reuse path extraction
-	if identity == "" {
+	identity := r.PathValue("identity")
+	if identity == "" || strings.Contains(identity, "/") {
 		respondError(w, "invalid_parameter", "SAML identity is required", http.StatusBadRequest)
 		return
 	}
@@ -188,13 +163,4 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 		"identity": identity,
 		"username": username,
 	}, http.StatusOK)
-}
-
-// extractUsername extracts username from path like /api/v1/copilot/seats/octocat
-func extractUsername(path string) string {
-	parts := strings.Split(strings.TrimSuffix(path, "/"), "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	return ""
 }

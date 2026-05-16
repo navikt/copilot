@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -25,6 +26,7 @@ type GitHubClient struct {
 	installationID string
 	token          string
 	tokenExpiry    time.Time
+	tokenMu        sync.Mutex
 }
 
 func newGitHubClient(config *Config) (*GitHubClient, error) {
@@ -76,6 +78,9 @@ func (g *GitHubClient) generateJWT() (string, error) {
 
 // getInstallationToken gets an installation access token
 func (g *GitHubClient) getInstallationToken(ctx context.Context) (string, error) {
+	g.tokenMu.Lock()
+	defer g.tokenMu.Unlock()
+
 	// Return cached token if still valid
 	if g.token != "" && time.Now().Before(g.tokenExpiry) {
 		return g.token, nil
@@ -132,6 +137,10 @@ type CopilotBilling struct {
 		InactiveThisCycle   int `json:"inactive_this_cycle"`
 	} `json:"seat_breakdown"`
 	SeatManagementSetting string `json:"seat_management_setting,omitempty"`
+	IDEChat               string `json:"ide_chat,omitempty"`
+	PlatformChat          string `json:"platform_chat,omitempty"`
+	CLI                   string `json:"cli,omitempty"`
+	PublicCodeSuggestions string `json:"public_code_suggestions,omitempty"`
 }
 
 // setAuthHeaders sets the required auth headers for GitHub API requests

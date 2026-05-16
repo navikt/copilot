@@ -224,6 +224,23 @@ export interface CLIMetrics {
   promptTokensSum: number;
 }
 
+// Copilot Billing types (from GitHub API via copilot-api)
+export interface CopilotBilling {
+  seat_breakdown: {
+    total: number;
+    added_this_cycle: number;
+    pending_invitation: number;
+    pending_cancellation: number;
+    active_this_cycle: number;
+    inactive_this_cycle: number;
+  };
+  seat_management_setting?: string;
+  ide_chat?: string;
+  platform_chat?: string;
+  cli?: string;
+  public_code_suggestions?: string;
+}
+
 // Billing types
 interface PremiumRequestUsageItem {
   product: string;

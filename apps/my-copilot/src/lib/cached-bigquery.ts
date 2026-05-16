@@ -1,48 +1,20 @@
-import { cacheLife, cacheTag } from "next/cache";
-import {
-  getAdoptionCohorts,
-  getMonthlyBillingUsage,
-  getMonthlyModelUsage,
-  getMonthlyTrends,
-  getStalenessData,
-  getTeamUsageSummary,
-  getUserMetrics,
-  getUserWeeklyTrends,
-} from "./bigquery";
 import { backendRequest } from "./backend-api";
-import { getUserToken } from "./auth";
 import type {
-  AdoptionCohortDay,
   AdoptionData,
+  AdoptionSummary,
+  CustomizationDetail,
   CustomizationUsage,
   EnterpriseMetrics,
-  MonthlyBillingUsage,
-  MonthlyModelUsage,
-  MonthlyTrend,
-  StalenessSummary,
-  TeamUsageSummary,
-  UserMetricsSummary,
-  WeeklyTrend,
+  LanguageAdoption,
+  TeamAdoption,
 } from "./types";
 
-export async function getCachedBigQueryUsage(): Promise<{
+export async function getCachedBigQueryUsage(token: string): Promise<{
   usage: EnterpriseMetrics[] | null;
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-usage");
-
   try {
-    const token = await getUserToken();
-    if (!token) {
-      throw new Error("No authentication token available");
-    }
-
-    const usage = await backendRequest<EnterpriseMetrics[]>(
-      "/api/v1/copilot/usage/metrics",
-      token
-    );
+    const usage = await backendRequest<EnterpriseMetrics[]>("/api/v1/copilot/usage/metrics", token);
     return { usage, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -51,25 +23,16 @@ export async function getCachedBigQueryUsage(): Promise<{
   }
 }
 
-export async function getCachedAdoptionData(): Promise<{
+export async function getCachedAdoptionData(token: string): Promise<{
   data: AdoptionData | null;
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-adoption");
-
   try {
-    const token = await getUserToken();
-    if (!token) {
-      throw new Error("No authentication token available");
-    }
-
     const [summary, teams, languages, customizationDetails] = await Promise.all([
-      backendRequest("/api/v1/copilot/adoption/summary", token),
-      backendRequest("/api/v1/copilot/adoption/teams", token),
-      backendRequest("/api/v1/copilot/adoption/languages", token),
-      backendRequest("/api/v1/copilot/customizations/details", token),
+      backendRequest<AdoptionSummary>("/api/v1/copilot/adoption/summary", token),
+      backendRequest<TeamAdoption[]>("/api/v1/copilot/adoption/teams", token),
+      backendRequest<LanguageAdoption[]>("/api/v1/copilot/adoption/languages", token),
+      backendRequest<CustomizationDetail[]>("/api/v1/copilot/customizations/details", token),
     ]);
     return { data: { summary, teams, languages, customizationDetails }, error: null };
   } catch (err) {
@@ -79,185 +42,16 @@ export async function getCachedAdoptionData(): Promise<{
   }
 }
 
-export async function getCachedCustomizationUsage(): Promise<{
+export async function getCachedCustomizationUsage(token: string): Promise<{
   usage: CustomizationUsage[];
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-customization-usage");
-
   try {
-    const token = await getUserToken();
-    if (!token) {
-      throw new Error("No authentication token available");
-    }
-
-    const usage = await backendRequest<CustomizationUsage[]>(
-      "/api/v1/copilot/customizations/usage",
-      token
-    );
+    const usage = await backendRequest<CustomizationUsage[]>("/api/v1/copilot/customizations/usage", token);
     return { usage, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cached-bigquery] getCachedCustomizationUsage failed:", err);
     return { usage: [], error: message };
-  }
-}
-
-export async function getCachedStalenessData(): Promise<{
-  data: StalenessSummary | null;
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-staleness");
-
-  try {
-    const files = await getStalenessData();
-    const totalInstances = files.reduce((sum, f) => sum + f.total_repos, 0);
-    const inSyncCount = files.reduce((sum, f) => sum + f.in_sync_repos, 0);
-    const outOfSyncCount = files.reduce((sum, f) => sum + f.out_of_sync_repos, 0);
-
-    const summary: StalenessSummary = {
-      total_files: files.length,
-      total_file_instances: totalInstances,
-      in_sync_count: inSyncCount,
-      out_of_sync_count: outOfSyncCount,
-      sync_rate: totalInstances > 0 ? inSyncCount / totalInstances : 0,
-      files,
-    };
-
-    return { data: summary, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedStalenessData failed:", err);
-    return { data: null, error: message };
-  }
-}
-
-export async function getCachedTeamUsage(): Promise<{
-  teams: TeamUsageSummary[];
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-team-usage");
-
-  try {
-    const teams = await getTeamUsageSummary(7);
-    return { teams, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedTeamUsage failed:", err);
-    return { teams: [], error: message };
-  }
-}
-
-export async function getCachedUserMetrics(userLogin: string): Promise<{
-  metrics: UserMetricsSummary | null;
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-user-metrics", userLogin);
-
-  try {
-    const metrics = await getUserMetrics(userLogin, 30);
-    return { metrics, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedUserMetrics failed:", err);
-    return { metrics: null, error: message };
-  }
-}
-
-export async function getCachedMonthlyTrends(): Promise<{
-  trends: MonthlyTrend[];
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-monthly-trends");
-
-  try {
-    const trends = await getMonthlyTrends(12);
-    return { trends, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedMonthlyTrends failed:", err);
-    return { trends: [], error: message };
-  }
-}
-
-export async function getCachedUserWeeklyTrends(userLogin: string): Promise<{
-  trends: WeeklyTrend[];
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-user-weekly-trends", userLogin);
-
-  try {
-    const trends = await getUserWeeklyTrends(userLogin, 12);
-    return { trends, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedUserWeeklyTrends failed:", err);
-    return { trends: [], error: message };
-  }
-}
-
-export async function getCachedMonthlyModelUsage(): Promise<{
-  usage: MonthlyModelUsage[];
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-monthly-model-usage");
-
-  try {
-    const usage = await getMonthlyModelUsage(12);
-    return { usage, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedMonthlyModelUsage failed:", err);
-    return { usage: [], error: message };
-  }
-}
-
-export async function getCachedMonthlyBillingUsage(): Promise<{
-  usage: MonthlyBillingUsage[];
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-monthly-billing-usage");
-
-  try {
-    const usage = await getMonthlyBillingUsage(12);
-    return { usage, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedMonthlyBillingUsage failed:", err);
-    return { usage: [], error: message };
-  }
-}
-
-export async function getCachedAdoptionCohorts(): Promise<{
-  cohorts: AdoptionCohortDay[];
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-adoption-cohorts");
-
-  try {
-    const cohorts = await getAdoptionCohorts(90);
-    return { cohorts, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedAdoptionCohorts failed:", err);
-    return { cohorts: [], error: message };
   }
 }

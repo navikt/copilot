@@ -59,21 +59,26 @@ func main() {
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
 
+	// Set up routing on a local mux (not global DefaultServeMux)
+	mux := http.NewServeMux()
+
 	// Public endpoints
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/ready", readyHandler)
-	http.Handle("/metrics", metricsHandler())
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/ready", readyHandler)
+	mux.Handle("/metrics", metricsHandler())
 
 	// Protected API endpoints
-	http.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers))))
+	mux.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers))))
 
 	slog.Info("Server listening", "port", config.Port)
 
 	server := &http.Server{
-		Addr:         ":" + config.Port,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		Addr:              ":" + config.Port,
+		Handler:           mux,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	if err := server.ListenAndServe(); err != nil {

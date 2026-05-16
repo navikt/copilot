@@ -25,30 +25,21 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 
 	// BigQuery endpoints
 	if bqHandlers != nil {
-		mux.HandleFunc("/api/v1/copilot/usage/metrics", bqHandlers.handleDailyMetrics)
-		mux.HandleFunc("/api/v1/copilot/adoption/summary", bqHandlers.handleAdoptionSummary)
-		mux.HandleFunc("/api/v1/copilot/adoption/teams", bqHandlers.handleTeamAdoption)
-		mux.HandleFunc("/api/v1/copilot/adoption/languages", bqHandlers.handleLanguageAdoption)
-		mux.HandleFunc("/api/v1/copilot/customizations/details", bqHandlers.handleCustomizationDetails)
-		mux.HandleFunc("/api/v1/copilot/customizations/usage", bqHandlers.handleCustomizationUsage)
+		mux.HandleFunc("GET /api/v1/copilot/usage/metrics", bqHandlers.handleDailyMetrics)
+		mux.HandleFunc("GET /api/v1/copilot/adoption/summary", bqHandlers.handleAdoptionSummary)
+		mux.HandleFunc("GET /api/v1/copilot/adoption/teams", bqHandlers.handleTeamAdoption)
+		mux.HandleFunc("GET /api/v1/copilot/adoption/languages", bqHandlers.handleLanguageAdoption)
+		mux.HandleFunc("GET /api/v1/copilot/customizations/details", bqHandlers.handleCustomizationDetails)
+		mux.HandleFunc("GET /api/v1/copilot/customizations/usage", bqHandlers.handleCustomizationUsage)
 	}
 
 	// GitHub API endpoints
 	if ghHandlers != nil {
-		mux.HandleFunc("/api/v1/copilot/billing", ghHandlers.handleBilling)
-		mux.HandleFunc("/api/v1/copilot/seats/", func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodGet:
-				ghHandlers.handleGetSeat(w, r)
-			case http.MethodPost:
-				ghHandlers.handleAssignSeat(w, r)
-			case http.MethodDelete:
-				ghHandlers.handleUnassignSeat(w, r)
-			default:
-				respondError(w, "method_not_allowed", "Method not allowed", http.StatusMethodNotAllowed)
-			}
-		})
-		mux.HandleFunc("/api/v1/copilot/saml/", ghHandlers.handleGetUsernameBySAML)
+		mux.HandleFunc("GET /api/v1/copilot/billing", ghHandlers.handleBilling)
+		mux.HandleFunc("GET /api/v1/copilot/seats/{username}", ghHandlers.handleGetSeat)
+		mux.HandleFunc("POST /api/v1/copilot/seats", ghHandlers.handleAssignSeat)
+		mux.HandleFunc("DELETE /api/v1/copilot/seats/{username}", ghHandlers.handleUnassignSeat)
+		mux.HandleFunc("GET /api/v1/copilot/saml/{identity}", ghHandlers.handleGetUsernameBySAML)
 	}
 
 	// Placeholder endpoints - to be implemented in future phases

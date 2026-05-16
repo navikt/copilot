@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -99,7 +100,7 @@ func TestRespondError(t *testing.T) {
 
 			// Verify response body contains expected fields
 			body := rec.Body.String()
-			if !contains(body, tt.detail) {
+			if !strings.Contains(body, tt.detail) {
 				t.Errorf("Response body should contain detail %q, got %q", tt.detail, body)
 			}
 		})

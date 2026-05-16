@@ -1,5 +1,8 @@
 FROM golang:1.26-alpine AS builder
 
+ARG TARGETOS
+ARG TARGETARCH
+
 WORKDIR /app
 
 # Copy dependency files
@@ -10,7 +13,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o copilot-api .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o copilot-api .
 
 # Final stage
 FROM gcr.io/distroless/static-debian12:nonroot
@@ -20,9 +23,6 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/copilot-api .
 
-# Use non-root user
-USER 65532:65532
-
 EXPOSE 8080
 
-ENTRYPOINT ["/app/copilot-api"]
+ENTRYPOINT ["./copilot-api"]

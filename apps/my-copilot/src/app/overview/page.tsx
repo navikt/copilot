@@ -1,4 +1,5 @@
 import { getCachedCopilotBilling } from "@/lib/cached-github";
+import { getUserToken } from "@/lib/auth";
 import { Suspense } from "react";
 import { Skeleton, Heading, BodyShort, Box } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
@@ -12,14 +13,18 @@ function OverviewHeader() {
   return <PageHero title="Kostnad" description="Lisenser, fakturering og kostnadsfordeling for GitHub Copilot." />;
 }
 
-// Cached billing data component
+// Billing data component
 async function BillingOverview() {
-  "use cache";
-  const { cacheLife, cacheTag } = await import("next/cache");
-  cacheLife({ stale: 3600 });
-  cacheTag("billing-navikt");
+  const token = await getUserToken();
+  if (!token) {
+    return (
+      <Box background="danger-soft" padding="space-16" borderRadius="8">
+        <BodyShort className="text-red-600">Ikke autentisert — kan ikke hente faktureringsdata</BodyShort>
+      </Box>
+    );
+  }
 
-  const { billing, error } = await getCachedCopilotBilling("navikt");
+  const { billing, error } = await getCachedCopilotBilling(token);
 
   if (error) {
     return (
