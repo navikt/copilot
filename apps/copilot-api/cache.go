@@ -18,12 +18,23 @@ type Cache struct {
 	ttl     time.Duration
 }
 
-// NewCache creates a new cache with the specified TTL
+// NewCache creates a new cache with the specified TTL and starts a background cleanup goroutine
 func NewCache(ttl time.Duration) *Cache {
-	return &Cache{
+	c := &Cache{
 		entries: make(map[string]CacheEntry),
 		ttl:     ttl,
 	}
+
+	// Run cache cleanup every TTL interval
+	go func() {
+		ticker := time.NewTicker(ttl)
+		defer ticker.Stop()
+		for range ticker.C {
+			c.Cleanup()
+		}
+	}()
+
+	return c
 }
 
 // Get retrieves a value from the cache

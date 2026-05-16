@@ -87,3 +87,4 @@ spec:
         - host: api.github.com
         - host: bigquery.googleapis.com
         - host: storage.googleapis.com
+        - host: login.microsoftonline.com

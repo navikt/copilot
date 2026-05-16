@@ -82,11 +82,3 @@ func parseEndpoints(input string) map[string]bool {
 	}
 	return endpoints
 }
-
-func getEndpointsList(endpoints map[string]bool) []string {
-	list := make([]string, 0, len(endpoints))
-	for endpoint := range endpoints {
-		list = append(list, endpoint)
-	}
-	return list
-}

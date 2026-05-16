@@ -346,7 +346,7 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 				return
 			}
 
-			slog.Debug("User authenticated", "email", user.Email, "navident", user.NAVident)
+			slog.Debug("User authenticated", "navident", user.NAVident)
 
 			ctx := context.WithValue(r.Context(), userContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))

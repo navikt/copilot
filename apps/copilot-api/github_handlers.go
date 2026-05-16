@@ -46,6 +46,11 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if seat == nil {
+		respondError(w, "not_found", fmt.Sprintf("No Copilot seat found for user %s", username), http.StatusNotFound)
+		return
+	}
+
 	respondJSON(w, seat, http.StatusOK)
 }
 
@@ -93,7 +98,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	respondJSON(w, map[string]interface{}{
 		"seats_created": result.SeatsCreated,
 		"username":      req.Username,
-	}, http.StatusOK)
+	}, http.StatusCreated)
 }
 
 // handleUnassignSeat handles DELETE /api/v1/copilot/seats/{username}

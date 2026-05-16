@@ -4,6 +4,8 @@
 
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 
+const isLocalDev = !process.env.NAIS_CLUSTER_NAME;
+
 function getCopilotApiAudience(): string {
   const cluster = process.env.NAIS_CLUSTER_NAME;
   if (!cluster) {
@@ -48,18 +50,22 @@ async function exchangeToken(userToken: string): Promise<string> {
 }
 
 /**
- * Call backend API with OBO token
+ * Call backend API with OBO token (or directly in local dev)
  */
 async function backendRequest<T>(path: string, userToken: string, options: RequestInit = {}): Promise<T> {
-  const oboToken = await exchangeToken(userToken);
+  const headers: Record<string, string> = {
+    ...((options.headers as Record<string, string>) || {}),
+    "Content-Type": "application/json",
+  };
+
+  if (!isLocalDev) {
+    const oboToken = await exchangeToken(userToken);
+    headers.Authorization = `Bearer ${oboToken}`;
+  }
 
   const response = await fetch(`${COPILOT_API_URL}${path}`, {
     ...options,
-    headers: {
-      ...options.headers,
-      Authorization: `Bearer ${oboToken}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 
   if (!response.ok) {

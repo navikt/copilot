@@ -106,12 +106,18 @@ func (bq *BigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]Ent
 
 	whereClause := ""
 	if days != nil && *days > 0 {
-		whereClause = fmt.Sprintf("WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL %d DAY)", *days)
+		whereClause = "WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)"
 	}
 
 	queryStr := fmt.Sprintf("SELECT raw_record FROM %s %s ORDER BY day ASC", tableRef, whereClause)
 
 	query := bq.client.Query(queryStr)
+	if days != nil && *days > 0 {
+		query.Parameters = append(query.Parameters, bigquery.QueryParameter{
+			Name:  "days",
+			Value: *days,
+		})
+	}
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
