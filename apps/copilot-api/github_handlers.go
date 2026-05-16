@@ -5,8 +5,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 )
+
+// validGitHubUsername matches GitHub's username rules: alphanumeric + hyphens, 1-39 chars
+var validGitHubUsername = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
+
+func isValidGitHubUsername(s string) bool {
+	return validGitHubUsername.MatchString(s)
+}
 
 // GitHubHandlers wraps handlers that use GitHub API
 type GitHubHandlers struct {
@@ -34,8 +42,8 @@ func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
 // handleGetSeat handles GET /api/v1/copilot/seats/{username}
 func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
-	if username == "" || strings.Contains(username, "/") {
-		respondError(w, "invalid_parameter", "Username is required", http.StatusBadRequest)
+	if !isValidGitHubUsername(username) {
+		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
 
@@ -66,13 +74,14 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	var req struct {
 		Username string `json:"username"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	body := http.MaxBytesReader(w, r.Body, 1024)
+	if err := json.NewDecoder(body).Decode(&req); err != nil {
 		respondError(w, "invalid_request", "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
 
-	if req.Username == "" {
-		respondError(w, "invalid_parameter", "username is required", http.StatusBadRequest)
+	if !isValidGitHubUsername(req.Username) {
+		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
 
@@ -83,7 +92,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 			"actor", user.Email,
 			"error", err,
 		)
-		respondError(w, "github_error", fmt.Sprintf("Failed to assign seat: %s", err.Error()), http.StatusInternalServerError)
+		respondError(w, "github_error", "Failed to assign Copilot seat", http.StatusInternalServerError)
 		return
 	}
 
@@ -111,8 +120,8 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 	}
 
 	username := r.PathValue("username")
-	if username == "" || strings.Contains(username, "/") {
-		respondError(w, "invalid_parameter", "Username is required", http.StatusBadRequest)
+	if !isValidGitHubUsername(username) {
+		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
 
@@ -123,7 +132,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 			"actor", user.Email,
 			"error", err,
 		)
-		respondError(w, "github_error", fmt.Sprintf("Failed to unassign seat: %s", err.Error()), http.StatusInternalServerError)
+		respondError(w, "github_error", "Failed to unassign Copilot seat", http.StatusInternalServerError)
 		return
 	}
 
@@ -144,8 +153,8 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 // handleGetUsernameBySAML handles GET /api/v1/copilot/saml/{identity}
 func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.Request) {
 	identity := r.PathValue("identity")
-	if identity == "" || strings.Contains(identity, "/") {
-		respondError(w, "invalid_parameter", "SAML identity is required", http.StatusBadRequest)
+	if identity == "" || len(identity) > 254 || strings.Contains(identity, "/") {
+		respondError(w, "invalid_parameter", "Invalid SAML identity", http.StatusBadRequest)
 		return
 	}
 

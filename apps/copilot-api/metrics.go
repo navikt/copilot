@@ -15,6 +15,7 @@ type MetricsCollector struct {
 	githubSeatsTotal        int64
 	githubSeatsActive       int64
 	githubSeatsInactive     int64
+	githubSeatsAdded        int64
 	githubSeatsPending      int64
 	githubSeatsCancelling   int64
 }
@@ -36,26 +37,31 @@ github_metrics_last_success_timestamp %d
 # TYPE copilot_seats_total gauge
 copilot_seats_total %d
 
-# HELP copilot_seats_active Number of active Copilot seats this cycle
-# TYPE copilot_seats_active gauge
-copilot_seats_active %d
+# HELP copilot_seats_active_this_cycle Number of active Copilot seats this cycle
+# TYPE copilot_seats_active_this_cycle gauge
+copilot_seats_active_this_cycle %d
 
-# HELP copilot_seats_inactive Number of inactive Copilot seats this cycle
-# TYPE copilot_seats_inactive gauge
-copilot_seats_inactive %d
+# HELP copilot_seats_inactive_this_cycle Number of inactive Copilot seats this cycle
+# TYPE copilot_seats_inactive_this_cycle gauge
+copilot_seats_inactive_this_cycle %d
 
-# HELP copilot_seats_pending Number of Copilot seats pending invitation
-# TYPE copilot_seats_pending gauge
-copilot_seats_pending %d
+# HELP copilot_seats_added_this_cycle Number of Copilot seats added this cycle
+# TYPE copilot_seats_added_this_cycle gauge
+copilot_seats_added_this_cycle %d
 
-# HELP copilot_seats_cancelling Number of Copilot seats pending cancellation
-# TYPE copilot_seats_cancelling gauge
-copilot_seats_cancelling %d
+# HELP copilot_seats_pending_invitation Number of Copilot seats pending invitation
+# TYPE copilot_seats_pending_invitation gauge
+copilot_seats_pending_invitation %d
+
+# HELP copilot_seats_pending_cancellation Number of Copilot seats pending cancellation
+# TYPE copilot_seats_pending_cancellation gauge
+copilot_seats_pending_cancellation %d
 `,
 			metricsCollector.lastCollectionTimestamp,
 			metricsCollector.githubSeatsTotal,
 			metricsCollector.githubSeatsActive,
 			metricsCollector.githubSeatsInactive,
+			metricsCollector.githubSeatsAdded,
 			metricsCollector.githubSeatsPending,
 			metricsCollector.githubSeatsCancelling,
 		)

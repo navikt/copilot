@@ -210,6 +210,7 @@ func collectGitHubMetrics(client *GitHubClient) {
 	metricsCollector.githubSeatsTotal = int64(billing.SeatBreakdown.Total)
 	metricsCollector.githubSeatsActive = int64(billing.SeatBreakdown.ActiveThisCycle)
 	metricsCollector.githubSeatsInactive = int64(billing.SeatBreakdown.InactiveThisCycle)
+	metricsCollector.githubSeatsAdded = int64(billing.SeatBreakdown.AddedThisCycle)
 	metricsCollector.githubSeatsPending = int64(billing.SeatBreakdown.PendingInvitation)
 	metricsCollector.githubSeatsCancelling = int64(billing.SeatBreakdown.PendingCancellation)
 	metricsCollector.lastCollectionTimestamp = time.Now().Unix()

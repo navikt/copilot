@@ -3,36 +3,14 @@
 Monorepo containing Nav's GitHub Copilot ecosystem tools:
 
 - **my-copilot** — Self-service portal for managing Copilot subscriptions (Next.js 16, TypeScript)
+- **copilot-api** — Backend API for Copilot data and seat management (Go)
 - **copilot-metrics** — Naisjob that populates BigQuery with daily Copilot usage metrics (Go)
 - **mcp-onboarding** — Reference MCP server with GitHub OAuth (Go)
 - **mcp-registry** — Public registry for Nav-approved MCP servers (Go)
 
 All apps deployed on NAIS (Kubernetes on GCP).
 
-## Target Users
-
-Our primary users are ~600 developers at Nav who use GitHub Copilot daily. The vast majority are developers in product teams with end-to-end responsibility for their applications — they build, deploy, operate, and monitor their own services. Most write **Kotlin** (backend, Ktor/Spring) and **TypeScript/React** (frontend, Next.js) and are comfortable in both IntelliJ and VS Code.
-
-A smaller group of non-developers also use the tools: operators, designers, and architects. Our tooling is optimized for developers, but should remain accessible to anyone working in a repo.
-
-We are pushing developers towards **autonomous AI agent work in the terminal** — primarily Copilot CLI, but our most advanced users also use tools like opencode and Pi (all backed by their corporate GitHub Copilot subscription). Demand is high, which makes cost optimization a priority: keep token costs down without sacrificing quality.
-
-### User profiles
-
-| Profile | Description | Primary interface |
-|---------|-------------|-------------------|
-| **IDE developer** | Majority of users. Codes in IntelliJ or VS Code, uses Copilot Chat for quick questions and inline completions. | VS Code Chat / IntelliJ |
-| **Terminal agent user** | Growing segment. Runs multi-step agentic sessions for scaffolding, refactoring, debugging. Prefers keyboard-driven workflow. | Copilot CLI, opencode, Pi |
-| **Team lead / platform** | Manages collections, instructions, and customizations for their team. Configures what developers get out of the box. | `.github/` config files, `mise` tasks |
-
-### How users interact with nav-pilot and skills
-
-1. **Primary entry point**: `nav-pilot --sync` syncs configs and launches Copilot CLI with the `@nav-pilot` agent. This is the recommended way to start AI coding sessions — it ensures collections, instructions, and skills are up to date.
-2. **In VS Code**: User writes `@nav-pilot` in Chat. Same agent, same conventions, just a different interface.
-3. **Skills are invoked by name** in the chat message — either with `$` prefix (`$terse-mode`) or without (`bruk terse-mode`). The `$` is our visual convention, not required syntax. Skills work across VS Code, Copilot CLI, opencode, and cloud agent.
-4. **Most users never invoke skills manually.** Nav-pilot auto-routes relevant knowledge based on file types and request context. Skills exist for power users who want explicit control.
-5. **Instructions load automatically** based on `applyTo` glob patterns — users don't need to know they exist.
-6. **Cost awareness**: With usage-based billing, every token counts. Our tooling defaults to concise output, on-demand skill loading, and focused sessions to keep costs down without user effort.
+**Security architecture documented in [SECURITY.md](SECURITY.md)** — read before modifying auth, network policies, or secret management.
 
 ## Build & Test Commands
 
@@ -48,7 +26,7 @@ mise all      # Full pipeline: generate → check → build
 Per-app (run from `apps/<name>/`):
 
 ```bash
-# Go apps (mcp-onboarding, mcp-registry)
+# Go apps (copilot-api, mcp-onboarding, mcp-registry)
 mise check    # fmt, vet, staticcheck, golangci-lint, test
 mise test     # go test -v ./...
 mise build    # go build
@@ -63,13 +41,14 @@ mise build    # next build
 
 ```text
 apps/
+  copilot-api/        # Go backend API — GitHub API, BigQuery, seat management
   mcp-onboarding/     # Go MCP server — OAuth, 16 tools, readiness assessment
   mcp-registry/       # Go registry API — allowlist.json, MCP Registry v0.1 spec
-  my-copilot/         # Next.js 16 — App Router, Aksel Design System
+  my-copilot/         # Next.js 16 — App Router, Aksel Design System (BFF)
     src/
       app/            # Routes and API handlers
       components/     # React components
-      lib/            # Utilities, auth, GitHub API client
+      lib/            # Utilities, auth, backend API client
 .github/
   instructions/       # Scoped Copilot instructions (*.instructions.md)
   agents/             # Custom Copilot agents (*.agent.md)
@@ -77,6 +56,7 @@ apps/
   skills/             # Domain knowledge packages (SKILL.md)
   copilot-instructions.md  # Global Copilot instructions
 docs/                 # Documentation
+SECURITY.md           # Security architecture, trust zones, auth flow
 ```
 
 ### Customization Language
@@ -93,7 +73,7 @@ docs/                 # Documentation
 
 When fixing a bug or implementing a feature, change only what is necessary. Do not rename variables, restructure working code, or refactor beyond the task at hand. Keep diffs small and focused so they are easy to review.
 
-### Go (mcp-onboarding, mcp-registry)
+### Go (copilot-api, mcp-onboarding, mcp-registry)
 
 - Standard library preferred — minimal dependencies
 - `go vet` + `staticcheck` + `golangci-lint` for linting
@@ -135,6 +115,8 @@ When fixing a bug or implementing a feature, change only what is necessary. Do n
 - Environment configs: dev + prod
 
 ## Boundaries
+
+See [SECURITY.md](SECURITY.md) for the full security architecture, trust zones, and auth flow.
 
 ### Always
 

@@ -5,11 +5,14 @@
 Monorepo containing Nav's GitHub Copilot ecosystem tools:
 
 - **my-copilot** - Self-service portal for managing Copilot subscriptions (Next.js 16)
+- **copilot-api** - Backend API for Copilot data and seat management (Go)
 - **copilot-metrics** - Naisjob that populates BigQuery with daily Copilot usage metrics (Go)
 - **mcp-onboarding** - Reference MCP server with GitHub OAuth (Go)
 - **mcp-registry** - Public registry for Nav-approved MCP servers (Go)
 
 All applications deployed on NAIS platform with environment-specific configurations.
+
+**Security architecture:** See [SECURITY.md](../../SECURITY.md) for trust zones, auth flow, and secret isolation.
 
 ---
 
@@ -213,6 +216,65 @@ formatNumber(151354); // "151 354" (Norwegian locale)
 ✅ Always: Use Nav DS spacing tokens, run `mise check` after all changes, TypeScript strict mode
 ⚠️ Ask first: Auth changes, GitHub API modifications, data aggregation changes
 🚫 Never: Tailwind p-/m- utilities, commit secrets, skip type checking
+
+---
+
+## apps/copilot-api (Go + Backend API)
+
+Backend API that holds all external service credentials (GitHub App, BigQuery). See [SECURITY.md](../../SECURITY.md) for the full security architecture.
+
+### Commands
+
+Working directory: `apps/copilot-api`
+
+**Run after all changes:** `mise check`
+
+**Available tasks:**
+
+- `mise check` - Run all checks (fmt, vet, staticcheck, lint, test)
+- `mise test` - Run tests with verbose output
+- `mise dev` - Run with DEBUG logging (http://localhost:8080)
+
+### Tech Stack
+
+- Go with standard library
+- Azure AD JWT validation (JWKS + azp)
+- BigQuery client for usage analytics
+- GitHub App authentication (installation tokens)
+- Prometheus metrics (background collection)
+
+### Architecture
+
+```
+my-copilot (BFF) → OBO token → copilot-api → GitHub API / BigQuery
+```
+
+### Key Files
+
+- `auth.go` — Azure AD JWT validation, JWKS cache, azp check, auth middleware
+- `github.go` — GitHub App auth, installation tokens, billing/seat/SAML
+- `github_handlers.go` — HTTP handlers for seat management
+- `bigquery.go` — BigQuery queries + cached wrapper
+- `bigquery_handlers.go` — HTTP handlers for BigQuery data
+- `handlers.go` — Router, middleware chain, RFC 7807 errors
+- `main.go` — Server setup, graceful shutdown
+- `metrics.go` — Prometheus metrics with background collection
+- `config.go` — Environment config
+- `cache.go` — In-memory TTL cache
+
+### Security Boundaries
+
+- **All `/api/v1/` routes** require Azure AD OBO token with valid `azp`
+- **`/health`, `/ready`, `/metrics`** are public (pod-level, not exposed via ingress)
+- **Input validation** uses regex for GitHub usernames, MaxBytesReader for request bodies
+- **Error responses** never leak upstream error details to clients
+- **Secrets** come from Nais Secrets (`envFrom`), never hardcoded
+
+### Boundaries
+
+✅ Always: Validate azp claim, parameterize queries, log mutations with actor, run `mise check`
+⚠️ Ask first: Auth mechanism changes, network policy changes, new outbound rules
+🚫 Never: Log PII at INFO+, forward raw errors to clients, bypass azp validation
 
 ---
 
