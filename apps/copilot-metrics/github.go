@@ -256,9 +256,74 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 }
 
 // FetchDailyUserTeams fetches the user-teams-1-day report for the given day.
-// This report maps users to their GitHub teams and is used for team-level metrics aggregation.
+// Fetches from both enterprise and org endpoints to ensure all teams are captured.
+// Enterprise teams and org teams may differ — the enterprise endpoint returns teams
+// visible at enterprise level, while org endpoint returns org-level teams.
 func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (*FetchResult, error) {
-	return c.fetchDailyReport(ctx, day, "user-teams-1-day")
+	dayStr := day.Format("2006-01-02")
+
+	// Try enterprise endpoint first
+	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/%s?day=%s",
+		c.enterprise, "user-teams-1-day", dayStr)
+	enterpriseRecords, enterpriseErr := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
+
+	// Also try org endpoint for org-level teams
+	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/%s?day=%s",
+		c.org, "user-teams-1-day", dayStr)
+	orgRecords, orgErr := c.fetchMetricsFromURLWithRetry(ctx, orgURL)
+
+	// Merge results — deduplicate by user_id + team_id
+	var allRecords []json.RawMessage
+	seen := make(map[string]bool)
+
+	addRecords := func(records []json.RawMessage) {
+		for _, r := range records {
+			var entry struct {
+				UserID string `json:"user_id"`
+				TeamID string `json:"team_id"`
+			}
+			if err := json.Unmarshal(r, &entry); err == nil {
+				key := entry.UserID + ":" + entry.TeamID
+				if !seen[key] {
+					seen[key] = true
+					allRecords = append(allRecords, r)
+				}
+			} else {
+				allRecords = append(allRecords, r)
+			}
+		}
+	}
+
+	if enterpriseErr == nil {
+		addRecords(enterpriseRecords)
+	}
+	if orgErr == nil {
+		addRecords(orgRecords)
+	}
+
+	if len(allRecords) > 0 {
+		scope := "enterprise"
+		scopeID := c.enterprise
+		if enterpriseErr != nil {
+			scope = "organization"
+			scopeID = c.org
+		}
+		return &FetchResult{
+			Records: allRecords,
+			Scope:   scope,
+			ScopeID: scopeID,
+		}, nil
+	}
+
+	// Both failed
+	if enterpriseErr != nil && orgErr != nil {
+		if isReportNotAvailable(enterpriseErr) {
+			return nil, fmt.Errorf("%w for %s (user-teams-1-day): both endpoints failed", ErrReportNotAvailable, dayStr)
+		}
+		return nil, fmt.Errorf("both enterprise and org user-teams-1-day endpoints failed: enterprise=%v, org=%v", enterpriseErr, orgErr)
+	}
+
+	return &FetchResult{Records: allRecords, Scope: "enterprise", ScopeID: c.enterprise}, nil
 }
 
 // FetchDailyUserMetrics fetches the users-1-day report for the given day.
