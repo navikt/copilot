@@ -43,14 +43,6 @@ export const getBackgroundColor = (color: string, opacity: number = 0.1): string
   return color.replace("1)", `${opacity})`);
 };
 
-// Create gradient for area charts
-export const createGradient = (ctx: CanvasRenderingContext2D, color: string, height: number = 300): CanvasGradient => {
-  const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, color.replace("1)", "0.3)"));
-  gradient.addColorStop(1, color.replace("1)", "0.02)"));
-  return gradient;
-};
-
 // GitHub-style grid options
 const githubGridStyle = {
   color: "rgba(0, 0, 0, 0.06)",

@@ -354,3 +354,31 @@ export interface AdoptionData {
  * "all" = all non-archived repos.
  */
 export type AdoptionScope = "all" | "active";
+
+/**
+ * Team-level Copilot usage summary aggregated over a time window.
+ * Sourced from the v_team_daily_summary BigQuery view.
+ */
+export interface TeamUsageSummary {
+  team_slug: string;
+  avg_active_users: number;
+  total_users: number;
+  total_acceptances: number;
+  total_interactions: number;
+  total_lines_accepted: number;
+  days_with_data: number;
+}
+
+/**
+ * Per-user Copilot usage summary for the logged-in user.
+ * Sourced from user_metrics table joined with user_teams.
+ */
+export interface UserMetricsSummary {
+  user_login: string;
+  total_acceptances: number;
+  total_interactions: number;
+  total_lines_accepted: number;
+  active_days: number;
+  days_in_period: number;
+  teams: string[];
+}

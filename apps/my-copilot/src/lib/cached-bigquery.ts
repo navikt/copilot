@@ -6,8 +6,16 @@ import {
   getDailyMetrics,
   getLanguageAdoption,
   getTeamAdoption,
+  getTeamUsageSummary,
+  getUserMetrics,
 } from "./bigquery";
-import type { AdoptionData, CustomizationUsage, EnterpriseMetrics } from "./types";
+import type {
+  AdoptionData,
+  CustomizationUsage,
+  EnterpriseMetrics,
+  TeamUsageSummary,
+  UserMetricsSummary,
+} from "./types";
 
 export async function getCachedBigQueryUsage(): Promise<{
   usage: EnterpriseMetrics[] | null;
@@ -65,5 +73,41 @@ export async function getCachedCustomizationUsage(): Promise<{
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cached-bigquery] getCachedCustomizationUsage failed:", err);
     return { usage: [], error: message };
+  }
+}
+
+export async function getCachedTeamUsage(): Promise<{
+  teams: TeamUsageSummary[];
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({ stale: 3600 });
+  cacheTag("bq-team-usage");
+
+  try {
+    const teams = await getTeamUsageSummary(7);
+    return { teams, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[cached-bigquery] getCachedTeamUsage failed:", err);
+    return { teams: [], error: message };
+  }
+}
+
+export async function getCachedUserMetrics(userLogin: string): Promise<{
+  metrics: UserMetricsSummary | null;
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({ stale: 3600 });
+  cacheTag("bq-user-metrics", userLogin);
+
+  try {
+    const metrics = await getUserMetrics(userLogin, 7);
+    return { metrics, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[cached-bigquery] getCachedUserMetrics failed:", err);
+    return { metrics: null, error: message };
   }
 }
