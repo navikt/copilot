@@ -200,7 +200,9 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 	dayStr := day.Format("2006-01-02")
 	slog.Info("Ingesting metrics", "day", dayStr)
 
-	// Fetch entity-level metrics
+	// Fetch entity-level metrics.
+	// Track hard failures so we can propagate them after supplementary ingestion.
+	var entityErr error
 	result, err := gh.FetchDailyMetrics(ctx, day)
 	if err != nil {
 		if errors.Is(err, ErrReportNotAvailable) {
@@ -209,6 +211,7 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 			)
 		} else {
 			slog.Error("Failed to fetch entity metrics", "day", dayStr, "error", err)
+			entityErr = fmt.Errorf("failed to fetch metrics: %w", err)
 		}
 	} else if len(result.Records) == 0 {
 		slog.Warn("No entity records returned for day", "day", dayStr)
@@ -241,7 +244,7 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 	}
 	ingestSupplementary(ctx, gh, bq, day, scopeID)
 
-	return nil
+	return entityErr
 }
 
 // ingestSupplementary fetches and stores user-teams and per-user reports.

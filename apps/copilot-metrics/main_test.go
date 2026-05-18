@@ -191,10 +191,11 @@ func TestIngestDay_FetchError(t *testing.T) {
 
 	store := &mockStore{}
 
-	// Entity fetch errors no longer fail ingestDay — supplementary is still attempted
+	// Entity fetch errors are returned so callers can track error rates,
+	// but supplementary ingestion is still attempted before returning.
 	err := ingestDay(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, day)
-	if err != nil {
-		t.Fatalf("expected no error (entity failure is non-fatal), got %v", err)
+	if err == nil {
+		t.Fatal("expected entity fetch error to be returned")
 	}
 
 	// Verify entity insert was NOT called
