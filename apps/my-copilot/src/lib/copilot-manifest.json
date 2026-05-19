@@ -1226,7 +1226,7 @@
       "domain": "observability",
       "filePath": ".github/skills/observability-debugging/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-debugging/SKILL.md",
-      "contentHash": "a1c1ba395ab34b26438291192d50a8c9a864ccbc0b1da09e71430db41bef72b3",
+      "contentHash": "b93058442cb1d65247446e6736250a9747b792b833f50176a8e61d6f32685abd",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["debugging", "mimir", "loki", "tempo", "prometheus", "traces", "logs", "kubectl", "nais", "nav-pilot"],

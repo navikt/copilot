@@ -17,7 +17,7 @@ Structured debugging workflows using Nav's observability stack. Replaces guesswo
 | Pillar | Tool | Answers | Endpoint |
 |--------|------|---------|----------|
 | **Metrics** | Mimir (Prometheus) | *What* is happening? (rates, quantiles, saturation) | `mimir.nav.cloud.nais.io` |
-| **Logs** | Loki | *Why* is it happening? (errors, context, messages) | `loki.$env.nav.cloud.nais.io` |
+| **Logs** | Loki | *Why* is it happening? (errors, context, messages) | `loki.nav.cloud.nais.io` |
 | **Traces** | Tempo | *Where* in the call chain? (latency, dependencies) | `tempo.$env.nav.cloud.nais.io` |
 
 ## Debugging Workflow
@@ -42,15 +42,15 @@ Symptom
 
 ```bash
 # Query metrics directly (replace $QUERY with PromQL)
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=$QUERY" | jq .
 
 # Example: Error rate for an app
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=sum(rate(http_server_requests_seconds_count{app=\"$APP\",status=~\"5..\"}[5m]))" | jq .
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=sum(rate(http_server_requests_seconds_count{k8s_cluster_name=\"$CLUSTER\", app=\"$APP\",status=~\"5..\"}[5m]))" | jq .
 
 # Range query (last hour)
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query_range?query=$QUERY&start=$(date -d '1 hour ago' +%s)&end=$(date +%s)&step=60" | jq .
 ```
 
@@ -63,15 +63,15 @@ curl -s -H "X-Scope-OrgID: tenant" \
 
 ```bash
 # Query via Loki API (dev environment)
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://loki.dev-gcp.nav.cloud.nais.io/loki/api/v1/query_range" \
-  --data-urlencode "query={service_name=\"$APP\"} |= \"ERROR\"" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://loki.nav.cloud.nais.io/loki/api/v1/query_range" \
+  --data-urlencode "query={k8s_cluster_name=~\"dev.*\",service_name=\"$APP\"} |= \"ERROR\"" \
   --data-urlencode "limit=50" | jq .
 
 # Prod environment
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://loki.prod-gcp.nav.cloud.nais.io/loki/api/v1/query_range" \
-  --data-urlencode "query={service_name=\"$APP\"} | json | level=\"error\"" | jq .
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://loki.nav.cloud.nais.io/loki/api/v1/query_range" \
+  --data-urlencode "query={k8s_cluster_name=~\"prod.*\",service_name=\"$APP\"} | json | level=\"error\"" | jq .
 ```
 
 ### Tempo — Trace Search
@@ -80,17 +80,17 @@ curl -s -H "X-Scope-OrgID: tenant" \
 
 ```bash
 # Search traces by service name (dev)
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://tempo.dev-gcp.nav.cloud.nais.io/api/search" \
   --data-urlencode "q={resource.service.name=\"$APP\"}" \
   --data-urlencode "limit=20" | jq '.traces[] | select(.rootServiceName == "$APP")'
 
 # Find slow traces (>2s)
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://tempo.dev-gcp.nav.cloud.nais.io/api/search?q={resource.service.name=\"$APP\" && duration>2s}" | jq .
 
 # Get trace by ID
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://tempo.dev-gcp.nav.cloud.nais.io/api/traces/$TRACE_ID" | jq .
 ```
 
@@ -100,18 +100,18 @@ curl -s -H "X-Scope-OrgID: tenant" \
 
 ```bash
 # 1. Confirm error rate in Mimir
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=sum(rate(http_server_requests_seconds_count{app=\"$APP\",status=~\"5..\"}[5m]))by(uri)" | jq .
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=sum(rate(http_server_requests_seconds_count{k8s_cluster_name=\"$CLUSTER\",app=\"$APP\",status=~\"5..\"}[5m]))by(uri)" | jq .
 
 # 2. Find error logs in Loki (last 15 min)
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://loki.prod-gcp.nav.cloud.nais.io/loki/api/v1/query_range" \
-  --data-urlencode "query={service_name=\"$APP\"} | json | level=\"error\"" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://loki.nav.cloud.nais.io/loki/api/v1/query_range" \
+  --data-urlencode "query={k8s_cluster_name=\"$CLUSTER\",service_name=\"$APP\"} | json | level=\"error\"" \
   --data-urlencode "limit=20" \
   --data-urlencode "start=$(date -d '15 minutes ago' +%s)000000000" | jq '.data.result[].values[][1]' | head -10
 
 # 3. Extract trace_id from error log, then look up in Tempo
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://tempo.prod-gcp.nav.cloud.nais.io/api/traces/$TRACE_ID" | jq '.batches[].scopeSpans[].spans[] | {name, status, duration: (.endTimeUnixNano - .startTimeUnixNano) / 1000000}'
 ```
 
@@ -119,15 +119,15 @@ curl -s -H "X-Scope-OrgID: tenant" \
 
 ```bash
 # 1. Find slow endpoints in Mimir (p95 latency)
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_server_requests_seconds_bucket{app=\"$APP\"}[5m]))by(le,uri))" | jq '.data.result[] | {endpoint: .metric.uri, p95_seconds: .value[1]}'
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_server_requests_seconds_bucket{k8s_cluster_name=\"$CLUSTER\",app=\"$APP\"}[5m]))by(le,uri))" | jq '.data.result[] | {endpoint: .metric.uri, p95_seconds: .value[1]}'
 
 # 2. Find slow traces in Tempo
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://tempo.prod-gcp.nav.cloud.nais.io/api/search?q={resource.service.name=\"$APP\" && duration>1s}&limit=10" | jq .
 
 # 3. Inspect trace for bottleneck span
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://tempo.prod-gcp.nav.cloud.nais.io/api/traces/$TRACE_ID" | jq '.batches[].scopeSpans[].spans[] | select((.endTimeUnixNano - .startTimeUnixNano) > 500000000) | {name, duration_ms: (.endTimeUnixNano - .startTimeUnixNano) / 1000000}'
 ```
 
@@ -138,12 +138,12 @@ curl -s -H "X-Scope-OrgID: tenant" \
 kubectl get pods -n $NAMESPACE -l app=$APP
 
 # 2. Memory usage (% of limit)
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=container_memory_working_set_bytes{app=\"$APP\"}/container_spec_memory_limit_bytes{app=\"$APP\"}*100" | jq '.data.result[] | {pod: .metric.pod, memory_pct: .value[1]}'
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=container_memory_working_set_bytes{k8s_cluster_name=\"$CLUSTER\",app=\"$APP\"}/container_spec_memory_limit_bytes{k8s_cluster_name=\"$CLUSTER\",app=\"$APP\"}*100" | jq '.data.result[] | {pod: .metric.pod, memory_pct: .value[1]}'
 
 # 3. CPU throttling
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=rate(container_cpu_cfs_throttled_periods_total{app=\"$APP\"}[5m])/rate(container_cpu_cfs_periods_total{app=\"$APP\"}[5m])*100" | jq .
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=rate(container_cpu_cfs_throttled_periods_total{k8s_cluster_name=\"$CLUSTER\",app=\"$APP\"}[5m])/rate(container_cpu_cfs_periods_total{k8s_cluster_name=\"$CLUSTER\",app=\"$APP\"}[5m])*100" | jq .
 
 # 4. Recent OOM kills in logs
 kubectl get events -n $NAMESPACE --field-selector reason=OOMKilling --sort-by='.lastTimestamp' | tail -5
@@ -192,7 +192,7 @@ Tempo returns OpenTelemetry-format traces with deeply nested spans. Key jq recip
 
 ```bash
 # List all spans with timing (flat overview)
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://tempo.$env.nav.cloud.nais.io/api/traces/$TRACE_ID" | \
   jq '[.batches[].scopeSpans[].spans[] | {
     name,
@@ -235,8 +235,8 @@ curl -s ... | jq '[.batches[].scopeSpans[].spans[] | {
 
 ```bash
 # Search results → summary table
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://tempo.$env.nav.cloud.nais.io/api/search?q={resource.service.name=\"$APP\"}&limit=20" | \
+curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
+  "https://tempo.$env.nav.cloud.nais.io/api/search?q={resource.k8s.cluster.name=\"$CLUSTER\" && resource.service.name=\"$APP\"}&limit=20" | \
   jq '.traces[] | {
     traceID,
     rootServiceName,
@@ -287,8 +287,8 @@ In Grafana Explore:
 - Start with the symptom and pick the right starting pillar
 - Correlate across at least two pillars before concluding
 - Include the time window in queries (avoid querying "all time")
-- Use `X-Scope-OrgID: tenant` header for all API calls
-- Replace `$APP`, `$NAMESPACE`, `$env` with actual values
+- Use `X-Scope-OrgID: tenant` and `User-Agent: nav-pilot/observability-debugging` headers for all API calls
+- Replace `$CLUSTER`, `$APP`, `$NAMESPACE`, `$env` with actual values
 
 ### ⚠️ Ask First
 
