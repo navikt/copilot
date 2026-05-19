@@ -20,7 +20,8 @@ import (
 var ErrReportNotAvailable = errors.New("report not available")
 
 type GitHubClient struct {
-	httpClient     *http.Client // GitHub API client with auth
+	httpClient     *http.Client // GitHub API client with enterprise installation auth
+	orgHttpClient  *http.Client // GitHub API client with org installation auth (nil if not configured)
 	downloadClient *http.Client // Plain client for pre-signed URLs
 	enterprise     string
 	org            string
@@ -49,7 +50,7 @@ func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
 		return nil, fmt.Errorf("failed to create GitHub App transport: %w", err)
 	}
 
-	return &GitHubClient{
+	client := &GitHubClient{
 		httpClient: &http.Client{
 			Transport: transport,
 			Timeout:   30 * time.Second,
@@ -59,7 +60,29 @@ func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
 		},
 		enterprise: cfg.EnterpriseSlug,
 		org:        cfg.OrganizationSlug,
-	}, nil
+	}
+
+	// Create separate org client if org installation ID is configured
+	if cfg.GitHubAppOrgInstallationID != 0 {
+		orgTransport, err := ghinstallation.New(
+			http.DefaultTransport,
+			cfg.GitHubAppID,
+			cfg.GitHubAppOrgInstallationID,
+			[]byte(cfg.GitHubAppPrivateKey),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GitHub App org transport: %w", err)
+		}
+		client.orgHttpClient = &http.Client{
+			Transport: orgTransport,
+			Timeout:   30 * time.Second,
+		}
+		slog.Info("Org installation configured", "org", cfg.OrganizationSlug, "installation_id", cfg.GitHubAppOrgInstallationID)
+	} else {
+		slog.Warn("No org installation ID configured — org-level endpoints will use enterprise token (may fail with 403)")
+	}
+
+	return client, nil
 }
 
 // FetchDailyMetrics fetches metrics for a specific day, trying enterprise first then org.
@@ -107,6 +130,15 @@ func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*F
 
 // fetchMetricsFromURLWithRetry retries transient failures with exponential backoff.
 func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url string) ([]json.RawMessage, error) {
+	return c.fetchWithRetry(ctx, url, c.fetchMetricsFromURL)
+}
+
+// fetchMetricsFromURLWithRetryOrg uses the org installation token with retries.
+func (c *GitHubClient) fetchMetricsFromURLWithRetryOrg(ctx context.Context, url string) ([]json.RawMessage, error) {
+	return c.fetchWithRetry(ctx, url, c.fetchMetricsFromURLWithOrg)
+}
+
+func (c *GitHubClient) fetchWithRetry(ctx context.Context, url string, fetchFn func(context.Context, string) ([]json.RawMessage, error)) ([]json.RawMessage, error) {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
@@ -119,7 +151,7 @@ func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url str
 			}
 		}
 
-		records, err := c.fetchMetricsFromURL(ctx, url)
+		records, err := fetchFn(ctx, url)
 		if err == nil {
 			if attempt > 0 {
 				slog.Info("Request succeeded after retry", "url", url, "attempts", attempt+1)
@@ -164,6 +196,19 @@ func truncate(s string, max int) string {
 }
 
 func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]json.RawMessage, error) {
+	return c.fetchMetricsFromURLWith(ctx, url, c.httpClient)
+}
+
+// fetchMetricsFromURLWithOrg uses the org installation token for org-level endpoints.
+func (c *GitHubClient) fetchMetricsFromURLWithOrg(ctx context.Context, url string) ([]json.RawMessage, error) {
+	client := c.httpClient
+	if c.orgHttpClient != nil {
+		client = c.orgHttpClient
+	}
+	return c.fetchMetricsFromURLWith(ctx, url, client)
+}
+
+func (c *GitHubClient) fetchMetricsFromURLWith(ctx context.Context, url string, client *http.Client) ([]json.RawMessage, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -174,7 +219,7 @@ func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]j
 
 	slog.Debug("GitHub API request", "method", "GET", "url", url)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -303,7 +348,7 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/%s?day=%s",
 		c.org, "user-teams-1-day", dayStr)
 	slog.Info("Fetching user-teams report", "scope", "organization", "org", c.org, "day", dayStr)
-	orgRecords, orgErr := c.fetchMetricsFromURLWithRetry(ctx, orgURL)
+	orgRecords, orgErr := c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
 	if orgErr != nil {
 		slog.Warn("Org user-teams endpoint failed", "day", dayStr, "org", c.org, "error", orgErr)
 	} else {

@@ -8,19 +8,20 @@ import (
 )
 
 type Config struct {
-	Port                     string
-	LogLevel                 slog.Level
-	EnterpriseSlug           string
-	OrganizationSlug         string
-	GitHubAppID              int64
-	GitHubAppPrivateKey      string
-	GitHubAppInstallationID  int64
-	BigQueryProjectID        string
-	BigQueryDataset          string
-	BigQueryTable            string
-	BigQueryUserTeamsTable   string
-	BigQueryUserMetricsTable string
-	SlackWebhookURL          string
+	Port                       string
+	LogLevel                   slog.Level
+	EnterpriseSlug             string
+	OrganizationSlug           string
+	GitHubAppID                int64
+	GitHubAppPrivateKey        string
+	GitHubAppInstallationID    int64
+	GitHubAppOrgInstallationID int64 // Optional: separate installation for org-level endpoints
+	BigQueryProjectID          string
+	BigQueryDataset            string
+	BigQueryTable              string
+	BigQueryUserTeamsTable     string
+	BigQueryUserMetricsTable   string
+	SlackWebhookURL            string
 }
 
 func loadConfig() *Config {
@@ -31,7 +32,8 @@ func loadConfig() *Config {
 		OrganizationSlug:         getEnv("GITHUB_ORG", "navikt"),
 		GitHubAppID:              getEnvInt64("GITHUB_APP_ID", 0),
 		GitHubAppPrivateKey:      getEnv("GITHUB_APP_PRIVATE_KEY", ""),
-		GitHubAppInstallationID:  getEnvInt64("GITHUB_APP_INSTALLATION_ID", 0),
+		GitHubAppInstallationID:    getEnvInt64("GITHUB_APP_INSTALLATION_ID", 0),
+		GitHubAppOrgInstallationID: getEnvInt64("GITHUB_APP_ORG_INSTALLATION_ID", 0),
 		BigQueryProjectID:        getEnv("GCP_TEAM_PROJECT_ID", ""),
 		BigQueryDataset:          getEnv("BIGQUERY_DATASET", "copilot_metrics"),
 		BigQueryTable:            getEnv("BIGQUERY_TABLE", "usage_metrics"),
