@@ -111,7 +111,7 @@ func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url str
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
 			backoff := time.Duration(1<<attempt) * time.Second // 2s, 4s
-			slog.Debug("Retrying after backoff", "attempt", attempt+1, "backoff", backoff)
+			slog.Debug("Retrying after backoff", "url", url, "attempt", attempt+1, "backoff", backoff, "last_error", lastErr)
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -121,12 +121,19 @@ func (c *GitHubClient) fetchMetricsFromURLWithRetry(ctx context.Context, url str
 
 		records, err := c.fetchMetricsFromURL(ctx, url)
 		if err == nil {
+			if attempt > 0 {
+				slog.Info("Request succeeded after retry", "url", url, "attempts", attempt+1)
+			}
 			return records, nil
 		}
 		lastErr = err
 
 		// Don't retry on errors that won't resolve with a retry
 		if isClientError(err) || isReportNotAvailable(err) || isDecodeError(err) {
+			slog.Debug("Non-retryable error", "url", url, "error", err,
+				"is_client_error", isClientError(err),
+				"is_not_available", isReportNotAvailable(err),
+				"is_decode_error", isDecodeError(err))
 			return nil, err
 		}
 	}
@@ -165,15 +172,22 @@ func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]j
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 
+	slog.Debug("GitHub API request", "method", "GET", "url", url)
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	slog.Debug("GitHub API response", "url", url, "status", resp.StatusCode,
+		"content_type", resp.Header.Get("Content-Type"),
+		"rate_remaining", resp.Header.Get("X-Ratelimit-Remaining"),
+		"rate_limit", resp.Header.Get("X-Ratelimit-Limit"))
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, truncate(string(body), 500))
 	}
 
 	// Read body so we can inspect it before decoding. The API sometimes returns
@@ -182,6 +196,8 @@ func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]j
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
+
+	slog.Debug("GitHub API response body", "url", url, "body_bytes", len(body))
 
 	trimmed := strings.TrimSpace(string(body))
 	if len(trimmed) > 0 && trimmed[0] == '"' {
@@ -194,14 +210,16 @@ func (c *GitHubClient) fetchMetricsFromURL(ctx context.Context, url string) ([]j
 		return nil, fmt.Errorf("failed to decode report response (body: %s): %w", truncate(trimmed, 200), err)
 	}
 
-	slog.Info("Got download links", "count", len(reportResp.DownloadLinks), "report_day", reportResp.ReportDay)
+	slog.Info("Got download links", "count", len(reportResp.DownloadLinks), "report_day", reportResp.ReportDay, "url", url)
 
 	var allRecords []json.RawMessage
 	for i, downloadURL := range reportResp.DownloadLinks {
+		slog.Debug("Downloading NDJSON file", "file_index", i, "total_files", len(reportResp.DownloadLinks))
 		records, err := c.downloadAndParseNDJSON(ctx, downloadURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download file %d: %w", i, err)
 		}
+		slog.Debug("Downloaded NDJSON file", "file_index", i, "records", len(records))
 		allRecords = append(allRecords, records...)
 	}
 
@@ -214,6 +232,8 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
 
+	slog.Debug("Downloading NDJSON", "content_length_hint", req.Header.Get("Content-Length"))
+
 	// Use downloadClient (no auth) for pre-signed URLs
 	resp, err := c.downloadClient.Do(req)
 	if err != nil {
@@ -225,11 +245,16 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
 	}
 
+	slog.Debug("NDJSON download response", "status", resp.StatusCode,
+		"content_length", resp.Header.Get("Content-Length"),
+		"content_type", resp.Header.Get("Content-Type"))
+
 	var records []json.RawMessage
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
 
 	lineNum := 0
+	invalidLines := 0
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Bytes()
@@ -238,7 +263,8 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 		}
 
 		if !json.Valid(line) {
-			slog.Warn("Invalid JSON line", "line", lineNum)
+			invalidLines++
+			slog.Warn("Invalid JSON line in NDJSON", "line_number", lineNum)
 			continue
 		}
 
@@ -251,7 +277,7 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 		return nil, fmt.Errorf("error reading NDJSON: %w", err)
 	}
 
-	slog.Debug("Parsed NDJSON", "records", len(records))
+	slog.Debug("Parsed NDJSON", "total_lines", lineNum, "valid_records", len(records), "invalid_lines", invalidLines)
 	return records, nil
 }
 
@@ -262,15 +288,27 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (*FetchResult, error) {
 	dayStr := day.Format("2006-01-02")
 
-	// Try enterprise endpoint first
+	// Try enterprise endpoint
 	enterpriseURL := fmt.Sprintf("https://api.github.com/enterprises/%s/copilot/metrics/reports/%s?day=%s",
 		c.enterprise, "user-teams-1-day", dayStr)
+	slog.Info("Fetching user-teams report", "scope", "enterprise", "day", dayStr)
 	enterpriseRecords, enterpriseErr := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
+	if enterpriseErr != nil {
+		slog.Warn("Enterprise user-teams endpoint failed", "day", dayStr, "error", enterpriseErr)
+	} else {
+		slog.Info("Enterprise user-teams fetched", "day", dayStr, "records", len(enterpriseRecords))
+	}
 
 	// Also try org endpoint for org-level teams
 	orgURL := fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/%s?day=%s",
 		c.org, "user-teams-1-day", dayStr)
+	slog.Info("Fetching user-teams report", "scope", "organization", "org", c.org, "day", dayStr)
 	orgRecords, orgErr := c.fetchMetricsFromURLWithRetry(ctx, orgURL)
+	if orgErr != nil {
+		slog.Warn("Org user-teams endpoint failed", "day", dayStr, "org", c.org, "error", orgErr)
+	} else {
+		slog.Info("Org user-teams fetched", "day", dayStr, "org", c.org, "records", len(orgRecords))
+	}
 
 	// Merge results — deduplicate by user_id + team_id
 	var allRecords []json.RawMessage
@@ -300,6 +338,10 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 	if orgErr == nil {
 		addRecords(orgRecords)
 	}
+
+	slog.Info("User-teams merge complete", "day", dayStr,
+		"enterprise_ok", enterpriseErr == nil, "org_ok", orgErr == nil,
+		"total_records", len(allRecords), "deduplicated_keys", len(seen))
 
 	if len(allRecords) > 0 {
 		scope := "enterprise"
