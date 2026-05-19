@@ -17,6 +17,7 @@ import (
 func main() {
 	backfill := flag.Bool("backfill", false, "Run historical backfill from Oct 10, 2025 to today")
 	backfillFrom := flag.String("backfill-from", "2025-10-10", "Start date for backfill (YYYY-MM-DD)")
+	backfillForce := flag.Bool("force", false, "Force re-ingestion even if data already exists")
 	runOnce := flag.Bool("run-once", false, "Run single ingestion for yesterday and exit")
 	flag.Parse()
 
@@ -83,7 +84,7 @@ func main() {
 			slog.Error("Invalid backfill-from date", "error", err)
 			os.Exit(1)
 		}
-		if err := runBackfill(ctx, ghClient, bqClient, config, startDate); err != nil {
+		if err := runBackfill(ctx, ghClient, bqClient, config, startDate, *backfillForce); err != nil {
 			slog.Error("Backfill failed", "error", err)
 			os.Exit(1)
 		}

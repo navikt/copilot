@@ -15,7 +15,7 @@ func TestRunBackfill_AbortsOnHighErrorRate(t *testing.T) {
 	store := &mockStore{}
 	startDate := time.Date(2025, 10, 10, 0, 0, 0, 0, time.UTC)
 
-	err := runBackfill(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, startDate)
+	err := runBackfill(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, startDate, false)
 
 	if err == nil {
 		t.Fatal("expected backfill to abort, got nil")
@@ -37,7 +37,7 @@ func TestRunBackfill_AlreadyUpToDate(t *testing.T) {
 
 	fetcher := &countingFetcher{}
 
-	err := runBackfill(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, time.Date(2025, 10, 10, 0, 0, 0, 0, time.UTC))
+	err := runBackfill(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, time.Date(2025, 10, 10, 0, 0, 0, 0, time.UTC), false)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -53,7 +53,7 @@ func TestRunBackfill_CancelledContext(t *testing.T) {
 	store := &mockStore{}
 	fetcher := &countingFetcher{}
 
-	err := runBackfill(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, time.Date(2025, 10, 10, 0, 0, 0, 0, time.UTC))
+	err := runBackfill(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, time.Date(2025, 10, 10, 0, 0, 0, 0, time.UTC), false)
 	if err == nil {
 		t.Fatal("expected context error, got nil")
 	}

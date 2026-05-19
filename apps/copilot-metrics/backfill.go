@@ -17,21 +17,26 @@ const (
 	maxErrorRate = 50
 )
 
-func runBackfill(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config, startDate time.Time) error {
+func runBackfill(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config, startDate time.Time, force bool) error {
 	endDate := time.Now().UTC().AddDate(0, 0, -1)
 
 	slog.Info("Starting historical backfill",
 		"start", startDate.Format("2006-01-02"),
 		"end", endDate.Format("2006-01-02"),
+		"force", force,
 	)
 
-	latestDay, err := bq.GetLatestDay(ctx, cfg.EnterpriseSlug)
-	if err != nil {
-		slog.Warn("Could not get latest day from BigQuery", "error", err)
-	} else if !latestDay.IsZero() {
-		slog.Info("Found existing data", "latest_day", latestDay.Format("2006-01-02"))
-		startDate = latestDay.AddDate(0, 0, 1)
-		slog.Info("Adjusted start date to continue from latest", "new_start", startDate.Format("2006-01-02"))
+	if !force {
+		latestDay, err := bq.GetLatestDay(ctx, cfg.EnterpriseSlug)
+		if err != nil {
+			slog.Warn("Could not get latest day from BigQuery", "error", err)
+		} else if !latestDay.IsZero() {
+			slog.Info("Found existing data", "latest_day", latestDay.Format("2006-01-02"))
+			startDate = latestDay.AddDate(0, 0, 1)
+			slog.Info("Adjusted start date to continue from latest", "new_start", startDate.Format("2006-01-02"))
+		}
+	} else {
+		slog.Info("Force mode enabled — will re-ingest existing days")
 	}
 
 	if startDate.After(endDate) {
