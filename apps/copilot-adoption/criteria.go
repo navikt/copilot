@@ -76,6 +76,7 @@ func (c SearchCriteria) MatchFiles(names []string) []string {
 //   - .github/aw/*.md                      GitHub Agentic Workflows (directory, github/gh-aw)
 //   - .agents/skills/*                     Installed agent skills (directory, gh skill install)
 //   - .github/.nav-pilot-state.json        nav-pilot installation state marker (file)
+//   - .cplt.toml                            cplt CLI per-repo sandbox config (file)
 //
 // Other AI tools (for comparison metrics):
 //   - Cursor: .cursorrules, .cursor/rules/*.mdc, .cursorignore
@@ -221,6 +222,14 @@ func DefaultCriteria() []SearchCriteria {
 			Category:    "nav_pilot_state",
 			Description: "nav-pilot installation state marker",
 			TreePath:    ".github/.nav-pilot-state.json",
+			CheckType:   CheckFile,
+		},
+
+		// --- cplt CLI ---
+		{
+			Category:    "cplt_toml",
+			Description: "cplt CLI per-repo sandbox configuration",
+			TreePath:    ".cplt.toml",
 			CheckType:   CheckFile,
 		},
 	}

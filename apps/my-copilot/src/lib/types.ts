@@ -283,6 +283,7 @@ export interface AdoptionSummary {
   repos_with_agentic_workflows: number;
   repos_with_agents_skills: number;
   repos_with_nav_pilot_state: number;
+  repos_with_cplt_toml: number;
   repos_with_any_non_copilot_ai: number;
   avg_customization_count: number;
   max_customization_count: number;
@@ -309,6 +310,7 @@ export interface TeamAdoption {
   with_agentic_workflows: number;
   with_agents_skills: number;
   with_nav_pilot_state: number;
+  with_cplt_toml: number;
 }
 
 export interface LanguageAdoption {

@@ -38,6 +38,7 @@ SELECT
   COUNTIF(JSON_VALUE(customizations, '$.agentic_workflows.exists') = 'true' AND NOT is_archived) AS repos_with_agentic_workflows,
   COUNTIF(JSON_VALUE(customizations, '$.agents_skills.exists') = 'true' AND NOT is_archived) AS repos_with_agents_skills,
   COUNTIF(JSON_VALUE(customizations, '$.nav_pilot_state.exists') = 'true' AND NOT is_archived) AS repos_with_nav_pilot_state,
+  COUNTIF(JSON_VALUE(customizations, '$.cplt_toml.exists') = 'true' AND NOT is_archived) AS repos_with_cplt_toml,
   -- Aggregate: any non-Copilot AI tool
   COUNTIF((
     JSON_VALUE(customizations, '$.cursorrules.exists') = 'true' OR

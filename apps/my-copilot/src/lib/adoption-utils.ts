@@ -64,6 +64,12 @@ export function extractCustomizationTypes(summary: AdoptionSummary): Customizati
       value: summary.repos_with_nav_pilot_state,
       group: "nav-pilot",
     },
+    {
+      key: "cplt_toml",
+      label: ".cplt.toml",
+      value: summary.repos_with_cplt_toml,
+      group: "copilot",
+    },
   ];
 
   return types.sort((a, b) => b.value - a.value);

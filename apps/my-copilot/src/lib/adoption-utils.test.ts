@@ -54,6 +54,7 @@ const mockSummary: AdoptionSummary = {
   repos_with_agentic_workflows: 2,
   repos_with_agents_skills: 3,
   repos_with_nav_pilot_state: 6,
+  repos_with_cplt_toml: 5,
   repos_with_any_non_copilot_ai: 18,
   avg_customization_count: 1.2,
   max_customization_count: 5,
@@ -81,6 +82,7 @@ const mockTeams: TeamAdoption[] = [
     with_agentic_workflows: 0,
     with_agents_skills: 0,
     with_nav_pilot_state: 1,
+    with_cplt_toml: 1,
   },
   {
     scan_date: "2026-03-13",
@@ -103,6 +105,7 @@ const mockTeams: TeamAdoption[] = [
     with_agentic_workflows: 0,
     with_agents_skills: 0,
     with_nav_pilot_state: 0,
+    with_cplt_toml: 0,
   },
   {
     scan_date: "2026-03-13",
@@ -125,6 +128,7 @@ const mockTeams: TeamAdoption[] = [
     with_agentic_workflows: 1,
     with_agents_skills: 1,
     with_nav_pilot_state: 2,
+    with_cplt_toml: 1,
   },
   {
     scan_date: "2026-03-13",
@@ -147,6 +151,7 @@ const mockTeams: TeamAdoption[] = [
     with_agentic_workflows: 0,
     with_agents_skills: 0,
     with_nav_pilot_state: 0,
+    with_cplt_toml: 0,
   },
 ];
 
@@ -209,7 +214,7 @@ describe("extractCustomizationTypes", () => {
   it("should extract and sort customization types by value descending", () => {
     const result = extractCustomizationTypes(mockSummary);
 
-    expect(result.length).toBe(13);
+    expect(result.length).toBe(14);
     expect(result[0].label).toBe("copilot-instructions.md");
     expect(result[0].value).toBe(80);
     // Verify sorting
@@ -235,6 +240,7 @@ describe("extractCustomizationTypes", () => {
     expect(keys).toContain("agentic_workflows");
     expect(keys).toContain("agents_skills");
     expect(keys).toContain("nav_pilot_state");
+    expect(keys).toContain("cplt_toml");
   });
 
   it("should assign correct groups", () => {
@@ -244,7 +250,7 @@ describe("extractCustomizationTypes", () => {
     const agentic = result.filter((t) => t.group === "agentic");
     const navPilot = result.filter((t) => t.group === "nav-pilot");
 
-    expect(copilot.length).toBe(9);
+    expect(copilot.length).toBe(10);
     expect(agentic.length).toBe(3);
     expect(navPilot.length).toBe(1);
   });
