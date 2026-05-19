@@ -47,7 +47,7 @@ curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: te
 
 # Example: Error rate for an app
 curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
-  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=sum(rate(http_server_requests_seconds_count{app=\"$APP\",status=~\"5..\"}[5m]))" | jq .
+  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=sum(rate(http_server_requests_seconds_count{k8s_cluster_name=\"$CLUSTER\", app=\"$APP\",status=~\"5..\"}[5m]))" | jq .
 
 # Range query (last hour)
 curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
