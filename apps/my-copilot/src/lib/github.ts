@@ -51,12 +51,7 @@ export async function getUsernameBySamlIdentity(
   `;
 
   try {
-    const variables = {
-      organization,
-      identity,
-    };
-
-    const response = (await octokit.graphql(query, variables)) as {
+    const response = (await octokit.graphql(query, { organization, identity })) as {
       organization: {
         samlIdentityProvider: {
           externalIdentities: {
@@ -82,11 +77,44 @@ export async function getUsernameBySamlIdentity(
     if (externalIdentities.length > 0) {
       const user = externalIdentities[0].node.user;
       if (!user) {
-        // SAML identity exists but is not linked to a GitHub user — not an error,
-        // the user just needs to authenticate via GitHub SSO.
         return { user: null, error: null };
       }
       return { user: user.login, error: null };
+    }
+
+    return { user: null, error: null };
+  } catch (error) {
+    return { user: null, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+
+/**
+ * Look up GitHub login via SCIM provisioned identity in an org (REST API).
+ * Uses email/userName filter to find the linked GitHub account.
+ */
+export async function getUsernameByScim(
+  email: string,
+  org: string = "navikt"
+): Promise<{ user: string | null; error: string | null }> {
+  "use cache";
+  const { cacheLife, cacheTag } = await import("next/cache");
+  cacheLife({ stale: 3600 });
+  cacheTag(`scim-username-${email}`);
+
+  try {
+    const { data } = await octokit.request("GET /scim/v2/organizations/{org}/Users", {
+      org,
+      filter: `externalId eq "${email}"`,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+
+    const resources = (data as { Resources?: Array<{ userName: string; externalId?: string }> }).Resources;
+    if (resources && resources.length > 0) {
+      // userName in GitHub SCIM is the GitHub login
+      return { user: resources[0].userName, error: null };
     }
 
     return { user: null, error: null };
@@ -231,7 +259,28 @@ export async function getPremiumRequestUsage(
       },
     });
 
-    return { usage: data as PremiumRequestUsage, error: null };
+    // GitHub API returns snake_case, map to our camelCase types
+    const raw = data as Record<string, unknown>;
+    const rawItems = (raw.usage_items ?? raw.usageItems ?? []) as Record<string, unknown>[];
+    const usage: PremiumRequestUsage = {
+      timePeriod: (raw.time_period ?? raw.timePeriod) as PremiumRequestUsage["timePeriod"],
+      organization: (raw.organization ?? org) as string,
+      usageItems: rawItems.map((item) => ({
+        product: item.product as string,
+        sku: item.sku as string,
+        model: item.model as string,
+        unitType: (item.unit_type ?? item.unitType) as string,
+        pricePerUnit: (item.price_per_unit ?? item.pricePerUnit) as number,
+        grossQuantity: (item.gross_quantity ?? item.grossQuantity) as number,
+        grossAmount: (item.gross_amount ?? item.grossAmount) as number,
+        discountQuantity: (item.discount_quantity ?? item.discountQuantity) as number,
+        discountAmount: (item.discount_amount ?? item.discountAmount) as number,
+        netQuantity: (item.net_quantity ?? item.netQuantity) as number,
+        netAmount: (item.net_amount ?? item.netAmount) as number,
+      })),
+    };
+
+    return { usage, error: null };
   } catch (error) {
     return { usage: null, error: error instanceof Error ? error.message : String(error) };
   }

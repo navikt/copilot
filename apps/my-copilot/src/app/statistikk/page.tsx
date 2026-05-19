@@ -32,7 +32,7 @@ import {
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
 import { getUser } from "@/lib/auth";
-import { getUsernameBySamlIdentity } from "@/lib/github";
+import { getUsernameByScim } from "@/lib/github";
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -111,11 +111,20 @@ async function TeamUsageContent() {
   if (!teams || teams.length === 0)
     return <ErrorState message="Ingen teamdata tilgjengelig ennå. Data samles inn fra 15. mai 2026." />;
 
-  // Resolve user's GitHub username and personal metrics
+  // Resolve user's GitHub username via SCIM and fetch personal metrics from BigQuery
   let userTeams: string[] = [];
   let userMetrics = null;
   if (user?.email) {
-    const { user: ghLogin } = await getUsernameBySamlIdentity(user.email, "navikt");
+    let ghLogin: string | null = null;
+
+    // DEV_GITHUB_LOGIN bypasses SCIM when GitHub App auth is broken locally
+    if (process.env.DEV_GITHUB_LOGIN) {
+      ghLogin = process.env.DEV_GITHUB_LOGIN;
+    } else {
+      const { user: resolved } = await getUsernameByScim(user.email);
+      ghLogin = resolved;
+    }
+
     if (ghLogin) {
       const { metrics } = await getCachedUserMetrics(ghLogin);
       if (metrics) {
