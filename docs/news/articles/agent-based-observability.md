@@ -2,7 +2,7 @@
 title: "Agentbasert observability — når Copilot feilsøker produksjon for deg"
 date: 2026-05-20
 author: starefosen
-category: skills
+category: nav-pilot
 excerpt: "Hvordan vi ga Copilot-agenter direkte tilgang til Mimir, Loki og Tempo — slik at de kan feilsøke problemer i produksjon uten at du forlater editoren."
 tags:
   - observability
@@ -14,15 +14,13 @@ tags:
   - debugging
 ---
 
-# Agentbasert observability — når Copilot feilsøker produksjon for deg
-
-For å feilsøke produksjonshendelser hopper du gjerne mellom Grafana, terminalen og editoren. Du skriver PromQL-spørringer, graver i logger, finner trace-IDer og kobler det hele sammen i hodet. Hva om agenten kan gjøre denne jobbren enklere for deg?
+For å feilsøke produksjonshendelser hopper du gjerne mellom Grafana, terminalen og editoren. Du skriver PromQL-spørringer, graver i logger, finner trace-ID-er og kobler det hele sammen i hodet. Hva om agenten kan gjøre denne jobben enklere for deg?
 
 ## Fra logger til strukturert observability
 
 Nav har systematisk jobbet med å fjerne persondata fra logger og URLer. Det var nødvendig, men kan i noen tilfeller gjøre loggene vanskeligere å bruke til feilsøking — uten fødselsnummer eller navn i logglinjene er det ikke alltid opplagt å spore en feil gjennom systemet.
 
-Som et kompenserende tiltak har vi tatt et større løft på å ta i bruk metrikker (Prometheus/Mimir) og distribuerte traces (Tempo) med auot-instrumentering for applikasjoner i Nais. Du kan se *hvor* i kallkjeden en feil oppstår, *hvilke* endepunkter som er trege, og *hvordan* systemet oppfører seg over tid — uten å eksponere persondata.
+Som et kompenserende tiltak har vi tatt et større løft på å ta i bruk metrikker (Prometheus/Mimir) og distribuerte traces (Tempo) med auto-instrumentering for applikasjoner i Nais. Du kan se *hvor* i kallkjeden en feil oppstår, *hvilke* endepunkter som er trege, og *hvordan* systemet oppfører seg over tid — uten å eksponere persondata.
 
 Utfordringen er å klare å bruke dette aktivt. PromQL har bratt læringskurve. Tempo-traces krever at du vet hvilke spørringer du skal stille. Grafana-dashboards tar tid å lage og blir fort utdaterte. Resultatet er at mange fortsatt søker gjennom mengder med logg for å finne nåla i høystakken.
 
@@ -52,15 +50,14 @@ kubectl get pods -n team-x -l app=min-app \
   -o custom-columns=POD:.metadata.name,RESTARTS:.status.containerStatuses[0].restartCount
 
 # Sjekk minnebruk mot limit (Mimir)
-curl -s -H "X-Scope-OrgID: tenant" \
-  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query?query=
-    container_memory_working_set_bytes{k8s_cluster_name=\"prod-gcp\",app=\"min-app\"}
-    /container_spec_memory_limit_bytes{k8s_cluster_name=\"prod-gcp\",app=\"min-app\"}*100"
+curl -s -G -H "X-Scope-OrgID: tenant" \
+  "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query" \
+  --data-urlencode 'query=container_memory_working_set_bytes{k8s_cluster_name="prod-gcp",app="min-app"}/container_spec_memory_limit_bytes{k8s_cluster_name="prod-gcp",app="min-app"}*100'
 
 # Finn feilmeldinger rundt OOM-tidspunkt (Loki)
-curl -s -H "X-Scope-OrgID: tenant" \
+curl -s -G -H "X-Scope-OrgID: tenant" \
   "https://loki.nav.cloud.nais.io/loki/api/v1/query_range" \
-  --data-urlencode "query={k8s_cluster_name=\"prod-gcp\",service_name=\"min-app\"} | json | detected_level=\"error\""
+  --data-urlencode 'query={k8s_cluster_name="prod-gcp",service_name="min-app"} | detected_level="error"'
 
 # Hent trace for å se hvilken downstream-tjeneste som feiler (Tempo)
 curl -s -H "X-Scope-OrgID: tenant" \
@@ -108,7 +105,7 @@ Deretter: «Feilsøk høy latens på /api/vedtak i prod» — og se agenten jobb
 - `cplt` installert lokalt
 - OpenTelemetry auto-instrumentering aktivert (`spec.observability.autoInstrumentation.enabled: true` i nais.yaml)
 
-Mimir, Loki og Tempo er tilgjengelig for alle Nais-apper uten ekstra konfigurasjon. Og helt til slutt, viste du at agenter kan generere Grafana dasbhoards for deg som JSON som kan importeres inn i Grafana?
+Mimir, Loki og Tempo er tilgjengelig for alle Nais-apper uten ekstra konfigurasjon. Og helt til slutt, visste du at agenter kan generere Grafana-dashboards for deg som JSON som kan importeres direkte?
 
 ---
 
