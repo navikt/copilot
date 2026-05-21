@@ -389,13 +389,17 @@ export interface UserMetricsSummary {
   days_used_agent: number;
   days_used_chat: number;
   days_used_cli: number;
+  days_used_code_review: number;
   // Chat mode breakdown (number of requests per mode)
   chat_agent_requests: number;
   chat_ask_requests: number;
   chat_edit_requests: number;
   chat_plan_requests: number;
-  // CLI token/request metrics
+  chat_custom_requests: number;
+  // CLI metrics
   cli_total_requests: number;
+  cli_prompts: number;
+  cli_sessions: number;
   cli_prompt_tokens: number;
   cli_output_tokens: number;
   teams: string[];

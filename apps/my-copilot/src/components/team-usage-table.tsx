@@ -172,7 +172,8 @@ export default function TeamUsageTable({
               {(userMetrics.chat_agent_requests > 0 ||
                 userMetrics.chat_ask_requests > 0 ||
                 userMetrics.chat_edit_requests > 0 ||
-                userMetrics.chat_plan_requests > 0) && (
+                userMetrics.chat_plan_requests > 0 ||
+                userMetrics.chat_custom_requests > 0) && (
                 <Box background="info-soft" padding="space-16" borderRadius="8">
                   <VStack gap="space-8">
                     <BodyShort weight="semibold" size="small">
@@ -211,6 +212,14 @@ export default function TeamUsageTable({
                           </BodyShort>
                         </div>
                       )}
+                      {userMetrics.chat_custom_requests > 0 && (
+                        <div>
+                          <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_custom_requests)}</div>
+                          <BodyShort size="small" className="text-gray-500">
+                            Custom agent
+                          </BodyShort>
+                        </div>
+                      )}
                     </HGrid>
                   </VStack>
                 </Box>
@@ -222,13 +231,38 @@ export default function TeamUsageTable({
                     <BodyShort weight="semibold" size="small">
                       CLI
                     </BodyShort>
-                    <div>
-                      <div className="text-sm font-semibold">
-                        {formatNumber(userMetrics.cli_total_requests)} forespørsler
+                    <HGrid columns={2} gap="space-8">
+                      <div>
+                        <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_prompts)}</div>
+                        <BodyShort size="small" className="text-gray-500">
+                          Spørringer
+                        </BodyShort>
                       </div>
+                      <div>
+                        <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_sessions)}</div>
+                        <BodyShort size="small" className="text-gray-500">
+                          Økter
+                        </BodyShort>
+                      </div>
+                    </HGrid>
+                    <BodyShort size="small" className="text-gray-500">
+                      {formatNumber(userMetrics.cli_prompt_tokens)} inn / {formatNumber(userMetrics.cli_output_tokens)}{" "}
+                      ut tokens
+                    </BodyShort>
+                  </VStack>
+                </Box>
+              )}
+              {/* Code Review */}
+              {userMetrics.days_used_code_review > 0 && (
+                <Box background="success-soft" padding="space-16" borderRadius="8">
+                  <VStack gap="space-8">
+                    <BodyShort weight="semibold" size="small">
+                      Code review
+                    </BodyShort>
+                    <div>
+                      <div className="text-sm font-semibold">{userMetrics.days_used_code_review} dager</div>
                       <BodyShort size="small" className="text-gray-500">
-                        {formatNumber(userMetrics.cli_prompt_tokens)} inn /{" "}
-                        {formatNumber(userMetrics.cli_output_tokens)} ut tokens
+                        Brukt Copilot code review
                       </BodyShort>
                     </div>
                   </VStack>
