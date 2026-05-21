@@ -16,8 +16,18 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
     return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
 
-  // Get unique months and top models (by total interactions across all months)
+  // Get unique months and top models (by latest month interactions, falling back to total)
   const months = [...new Set(data.map((d) => d.month))].sort();
+  const latestMonthStr = months[months.length - 1];
+  const latestMonthData = data.filter((d) => d.month === latestMonthStr);
+
+  // Use latest month ranking to pick which models to show (most relevant now)
+  const topModels = latestMonthData
+    .sort((a, b) => b.interactions - a.interactions)
+    .slice(0, 8)
+    .map((d) => d.model);
+
+  // Also compute totals for summary cards
   const modelTotals = new Map<string, { interactions: number; tokens: number }>();
   for (const d of data) {
     const existing = modelTotals.get(d.model) || { interactions: 0, tokens: 0 };
@@ -25,11 +35,6 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
     existing.tokens += d.prompt_tokens + d.output_tokens;
     modelTotals.set(d.model, existing);
   }
-
-  const topModels = [...modelTotals.entries()]
-    .sort((a, b) => b[1].interactions - a[1].interactions)
-    .slice(0, 8)
-    .map(([model]) => model);
 
   // Build stacked bar datasets for interactions
   const interactionDatasets = topModels.map((model, i) => ({
