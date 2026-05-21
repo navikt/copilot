@@ -220,7 +220,7 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
       )}
 
       <Alert variant="info" size="small">
-        Team med færre enn 5 Copilot-brukere vises ikke (GitHub-begrensning). Data tilgjengelig fra 15. mai 2026.
+        Team med færre enn 5 Copilot-brukere vises ikke (GitHub-begrensning).
       </Alert>
 
       <HStack gap="space-8" align="end">
