@@ -69,17 +69,11 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
             <Heading size="xsmall" level="3">
               Din bruk siste 7 dager
             </Heading>
-            <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">
+            <HGrid columns={{ xs: 2, sm: 4, md: 6 }} gap="space-8">
               <div className="text-center">
                 <div className="text-lg font-semibold">{userMetrics.active_days}</div>
                 <BodyShort size="small" className="text-gray-600">
                   Aktive dager
-                </BodyShort>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_acceptances)}</div>
-                <BodyShort size="small" className="text-gray-600">
-                  Aksepterte forslag
                 </BodyShort>
               </div>
               <div className="text-center">
@@ -89,9 +83,35 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
                 </BodyShort>
               </div>
               <div className="text-center">
+                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_acceptances)}</div>
+                <BodyShort size="small" className="text-gray-600">
+                  Aksepterte forslag
+                </BodyShort>
+              </div>
+              <div className="text-center">
                 <div className="text-lg font-semibold">{formatNumber(userMetrics.total_lines_accepted)}</div>
                 <BodyShort size="small" className="text-gray-600">
-                  Linjer akseptert
+                  Linjer lagt til
+                </BodyShort>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_lines_suggested)}</div>
+                <BodyShort size="small" className="text-gray-600">
+                  Linjer foreslått
+                </BodyShort>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold">
+                  {[
+                    userMetrics.days_used_agent > 0 && "Agent",
+                    userMetrics.days_used_chat > 0 && "Chat",
+                    userMetrics.days_used_cli > 0 && "CLI",
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "–"}
+                </div>
+                <BodyShort size="small" className="text-gray-600">
+                  Funksjoner brukt
                 </BodyShort>
               </div>
             </HGrid>

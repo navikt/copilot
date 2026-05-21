@@ -363,8 +363,10 @@ export interface TeamUsageSummary {
   team_slug: string;
   avg_active_users: number;
   total_users: number;
+  total_generations: number;
   total_acceptances: number;
   total_interactions: number;
+  total_lines_suggested: number;
   total_lines_accepted: number;
   days_with_data: number;
 }
@@ -377,8 +379,14 @@ export interface UserMetricsSummary {
   user_login: string;
   total_acceptances: number;
   total_interactions: number;
+  total_generations: number;
+  total_lines_suggested: number;
   total_lines_accepted: number;
+  total_lines_deleted: number;
   active_days: number;
   days_in_period: number;
+  days_used_agent: number;
+  days_used_chat: number;
+  days_used_cli: number;
   teams: string[];
 }
