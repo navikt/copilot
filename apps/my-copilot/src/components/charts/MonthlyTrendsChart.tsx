@@ -13,7 +13,7 @@ interface MonthlyTrendsChartProps {
 
 const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
-    return <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>;
+    return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
 
   const labels = data.map((d) => {

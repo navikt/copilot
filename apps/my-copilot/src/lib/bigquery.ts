@@ -405,6 +405,7 @@ export class CopilotBigQueryClient {
    */
   async getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {
     const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
+    const days = weeks * 7;
 
     const query = `
       SELECT
@@ -418,7 +419,7 @@ export class CopilotBigQueryClient {
         COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens,
         COUNT(*) AS active_days
       FROM ${metricsRef}
-      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @weeks * 7 DAY)
+      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
         AND scope = 'enterprise'
         AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
       GROUP BY week
@@ -426,7 +427,7 @@ export class CopilotBigQueryClient {
     `;
 
     try {
-      return await this.query<WeeklyTrend>(query, { weeks, userLogin });
+      return await this.query<WeeklyTrend>(query, { days, userLogin });
     } catch (err) {
       console.error("[bigquery] getUserWeeklyTrends failed:", err);
       throw err;

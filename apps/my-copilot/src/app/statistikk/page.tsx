@@ -92,10 +92,12 @@ async function TeamUsageContent() {
     }
 
     if (ghLogin) {
-      const [{ metrics }, { trends: weeklyTrends }] = await Promise.all([
+      const [{ metrics, error: metricsError }, { trends: weeklyTrends, error: trendsError }] = await Promise.all([
         getCachedUserMetrics(ghLogin),
         getCachedUserWeeklyTrends(ghLogin),
       ]);
+      if (metricsError) console.error("[statistikk] User metrics failed:", metricsError);
+      if (trendsError) console.error("[statistikk] User weekly trends failed:", trendsError);
       if (metrics) {
         userTeams = metrics.teams.filter((t) => !IGNORED_TEAMS.has(t));
         userMetrics = metrics;
@@ -149,7 +151,10 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
   // Fetch monthly trends for the dashboard
-  const { trends: monthlyTrends } = await getCachedMonthlyTrends();
+  const { trends: monthlyTrends, error: monthlyError } = await getCachedMonthlyTrends();
+  if (monthlyError) {
+    console.error("[statistikk] Monthly trends failed:", monthlyError);
+  }
 
   // Find the last COMPLETE month (not the current partial month)
   // A month is "complete" if it has 28+ days of data or isn't the current calendar month
