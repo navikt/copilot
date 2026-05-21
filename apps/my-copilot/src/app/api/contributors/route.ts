@@ -1,3 +1,4 @@
+import { getUser } from "@/lib/auth";
 import { getCachedFileContributors } from "@/lib/cached-github";
 import { getAllCustomizations } from "@/lib/customizations";
 import type { Skill } from "@/lib/customization-types";
@@ -28,6 +29,11 @@ function resolveFilePaths(itemId: string): string[] | null {
 }
 
 export async function GET(request: Request) {
+  const user = await getUser(false);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const itemId = searchParams.get("id");
 

@@ -43,12 +43,19 @@ interface TeamUsageTableProps {
   userTeams?: string[];
   userMetrics?: UserMetricsSummary | null;
   userWeeklyTrends?: WeeklyTrend[] | null;
+  allowAllTeams?: boolean;
 }
 
-export default function TeamUsageTable({ teams, userTeams = [], userMetrics, userWeeklyTrends }: TeamUsageTableProps) {
+export default function TeamUsageTable({
+  teams,
+  userTeams = [],
+  userMetrics,
+  userWeeklyTrends,
+  allowAllTeams = false,
+}: TeamUsageTableProps) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [showMyTeams, setShowMyTeams] = useState(false);
+  const [showMyTeams, setShowMyTeams] = useState(!allowAllTeams);
   const [sortKey, setSortKey] = useState<SortKey>("total_interactions");
   const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("descending");
 
@@ -252,7 +259,7 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
       </Alert>
 
       <HStack gap="space-8" align="end" wrap>
-        {userTeams.length > 0 && (
+        {allowAllTeams && userTeams.length > 0 && (
           <ToggleGroup
             size="small"
             value={showMyTeams ? "mine" : "alle"}

@@ -63,16 +63,18 @@ async function CachedUsageData() {
   return <UsageContent usage={filteredUsage} />;
 }
 
+// Whether to allow viewing all teams (disabled in prod until approved)
+const ALLOW_ALL_TEAMS = process.env.NODE_ENV === "development";
+
 // Cached team usage data component — resolves user's teams for highlighting
 async function TeamUsageContent() {
-  const [{ teams, error }, user] = await Promise.all([getCachedTeamUsage(), getUser(false)]);
+  const [{ teams, error }, user] = await Promise.all([getCachedTeamUsage(), getUser()]);
 
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
   if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
 
   // Filter out the catch-all org team — it contains all users and skews comparisons
   const IGNORED_TEAMS = new Set(["nav-it-github-users"]);
-  const filteredTeams = teams.filter((t) => !IGNORED_TEAMS.has(t.team_slug));
 
   // Resolve user's GitHub username via SCIM and fetch personal metrics from BigQuery
   let userTeams: string[] = [];
@@ -82,7 +84,7 @@ async function TeamUsageContent() {
     let ghLogin: string | null = null;
 
     // DEV_GITHUB_LOGIN bypasses SCIM when GitHub App auth is broken locally
-    if (process.env.DEV_GITHUB_LOGIN) {
+    if (process.env.NODE_ENV === "development" && process.env.DEV_GITHUB_LOGIN) {
       ghLogin = process.env.DEV_GITHUB_LOGIN;
     } else {
       const { user: resolved } = await getUsernameByScim(user.email);
@@ -104,12 +106,21 @@ async function TeamUsageContent() {
     }
   }
 
+  // Server-side access control: only send teams the user belongs to.
+  // In prod, we restrict to user's own teams to prevent cross-team data exposure.
+  // In dev, all teams are available for debugging.
+  const userTeamSet = new Set(userTeams.map((t) => t.toLowerCase()));
+  const visibleTeams = teams
+    .filter((t) => !IGNORED_TEAMS.has(t.team_slug))
+    .filter((t) => ALLOW_ALL_TEAMS || userTeamSet.has(t.team_slug.toLowerCase()));
+
   return (
     <TeamUsageTable
-      teams={filteredTeams}
+      teams={visibleTeams}
       userTeams={userTeams}
       userMetrics={userMetrics}
       userWeeklyTrends={userWeeklyTrends}
+      allowAllTeams={ALLOW_ALL_TEAMS}
     />
   );
 }

@@ -88,7 +88,6 @@ export async function getUsernameBySamlIdentity(
   }
 }
 
-
 /**
  * Look up GitHub login via SCIM provisioned identity in an org (REST API).
  * Uses email/userName filter to find the linked GitHub account.
@@ -101,6 +100,11 @@ export async function getUsernameByScim(
   const { cacheLife, cacheTag } = await import("next/cache");
   cacheLife({ stale: 3600 });
   cacheTag(`scim-username-${email}`);
+
+  // Validate email format to prevent SCIM filter injection
+  if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+    return { user: null, error: "Invalid email format" };
+  }
 
   try {
     const { data } = await octokit.request("GET /scim/v2/organizations/{org}/Users", {
