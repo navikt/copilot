@@ -12,7 +12,7 @@ import Tabs from "@/components/tabs";
 import TeamUsageTable from "@/components/team-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
 import ModelUsageChart from "@/components/charts/ModelUsageChart";
-import AdoptionTrendChart from "@/components/charts/AdoptionTrendChart";
+
 import GenerationModeChart from "@/components/charts/GenerationModeChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import MetricCard from "@/components/metric-card";
@@ -31,7 +31,6 @@ import {
   getAggregatedMetrics,
   getPRMetrics,
   buildTrendData,
-  buildAdoptionTrendData,
   buildModelChartData,
   getGenerationModeSummary,
   buildGenerationModeTrendData,
@@ -172,7 +171,6 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   const generationModeSummary = getGenerationModeSummary(usage);
 
   const trendData = buildTrendData(usage);
-  const adoptionTrendData = buildAdoptionTrendData(usage);
   const modelChartData = buildModelChartData(usage);
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
@@ -243,8 +241,8 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
         />
         <MetricCard
           value={formatNumber(totalActivityLatest || aggregatedMetrics.totalInteractions)}
-          label="Copilot-handlinger"
-          helpTitle="Copilot-handlinger"
+          label="Copilot-aktivitet"
+          helpTitle="Copilot-aktivitet"
           helpText="Sum av kodeforslag generert, chat/agent-interaksjoner og CLI-forespørsler i siste hele måned."
           subtitle={totalActivityPrev ? momChange(totalActivityLatest, totalActivityPrev) : undefined}
         />
@@ -271,87 +269,13 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
       {/* Monthly trends — THE story */}
       {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
 
-      {/* Feature adoption breakdown — where are users? */}
-      <Box background="neutral-soft" padding="space-24" borderRadius="12">
-        <VStack gap="space-16">
-          <div className="flex items-center gap-2">
-            <Heading size="small" level="3">
-              Adopsjonsfordeling
-            </Heading>
-            <HelpText title="Adopsjon" placement="top">
-              Viser bruk av Copilots ulike funksjoner. Alle tall er basert på GitHubs rullende 30-dagersvindu (siste dag
-              i valgt periode). 7-dagers rullerende snitt i grafen.
-            </HelpText>
-          </div>
-          <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
-            <Box background="info-soft" padding="space-16" borderRadius="8">
-              <div className="text-center">
-                <Heading size="large" level="4">
-                  {formatNumber(aggregatedMetrics.monthlyActiveChatUsers)}
-                </Heading>
-                <BodyShort size="small" className="text-gray-600">
-                  Chat
-                </BodyShort>
-                <BodyShort size="small" className="text-gray-500">
-                  {aggregatedMetrics.monthlyActiveUsers > 0
-                    ? `${Math.round((aggregatedMetrics.monthlyActiveChatUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} %`
-                    : ""}
-                </BodyShort>
-              </div>
-            </Box>
-            <Box background="success-soft" padding="space-16" borderRadius="8">
-              <div className="text-center">
-                <Heading size="large" level="4">
-                  {formatNumber(aggregatedMetrics.monthlyActiveAgentUsers)}
-                </Heading>
-                <BodyShort size="small" className="text-gray-600">
-                  Agent
-                </BodyShort>
-                <BodyShort size="small" className="text-gray-500">
-                  {aggregatedMetrics.monthlyActiveUsers > 0
-                    ? `${Math.round((aggregatedMetrics.monthlyActiveAgentUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} %`
-                    : ""}
-                </BodyShort>
-              </div>
-            </Box>
-            <Box background="warning-soft" padding="space-16" borderRadius="8">
-              <div className="text-center">
-                <Heading size="large" level="4">
-                  {formatNumber(aggregatedMetrics.dailyActiveCLIUsers)}
-                </Heading>
-                <BodyShort size="small" className="text-gray-600">
-                  CLI
-                </BodyShort>
-                <BodyShort size="small" className="text-gray-500">
-                  siste dag
-                </BodyShort>
-              </div>
-            </Box>
-            <Box background="accent-soft" padding="space-16" borderRadius="8">
-              <div className="text-center">
-                <Heading size="large" level="4">
-                  {formatNumber(aggregatedMetrics.monthlyActiveUsers)}
-                </Heading>
-                <BodyShort size="small" className="text-gray-600">
-                  Totalt
-                </BodyShort>
-                <BodyShort size="small" className="text-gray-500">
-                  30 dager
-                </BodyShort>
-              </div>
-            </Box>
-          </HGrid>
-          <AdoptionTrendChart data={adoptionTrendData} />
-        </VStack>
-      </Box>
-
       {/* Generation mode: user-initiated vs agent-initiated */}
       {generationModeSummary && (
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
             <div className="flex items-center gap-2">
               <Heading size="small" level="3">
-                Bruker- vs. agentinitiiert kode
+                Bruker vs. agent
               </Heading>
               <HelpText title="Genereringsmodus" placement="top">
                 Fordeling mellom kode generert av brukeren (forslag, inline chat) og kode generert autonomt av agenten.
@@ -364,7 +288,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                   <Heading size="large" level="4">
                     {formatNumber(generationModeSummary.userInitiatedGenerations)}
                   </Heading>
-                  <BodyShort className="text-gray-600">Brukerinitiiert</BodyShort>
+                  <BodyShort className="text-gray-600">Bruker</BodyShort>
                 </div>
               </Box>
               <Box background="accent-soft" padding="space-16" borderRadius="8">
@@ -372,7 +296,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                   <Heading size="large" level="4">
                     {formatNumber(generationModeSummary.agentInitiatedGenerations)}
                   </Heading>
-                  <BodyShort className="text-gray-600">Agentinitiiert</BodyShort>
+                  <BodyShort className="text-gray-600">Agent</BodyShort>
                 </div>
               </Box>
               <Box background="success-soft" padding="space-16" borderRadius="8">
@@ -389,19 +313,24 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
         </Box>
       )}
 
-      {/* PR impact */}
+      {/* PR & Code Review */}
       {prMetrics && prMetrics.totalCreated > 0 && (
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
             <div className="flex items-center gap-2">
               <Heading size="small" level="3">
-                Pull request-påvirkning
+                Pull requests og code review
               </Heading>
               <HelpText title="Pull requests" placement="top">
-                PR-er der Copilot var involvert som forfatter eller reviewer. Viser konkret innvirkning på
-                leveransetakt.
+                PR-er der Copilot var involvert som forfatter (coding agent) eller reviewer (code review). Basert på
+                siste {usage.length} dager med data.
               </HelpText>
             </div>
+
+            {/* Copilot as author (coding agent) */}
+            <BodyShort weight="semibold" size="small" className="text-gray-600">
+              Copilot som forfatter
+            </BodyShort>
             <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
               <Box background="accent-soft" padding="space-16" borderRadius="8">
                 <div className="text-center">
@@ -409,14 +338,14 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                     {formatNumber(prMetrics.totalCreatedByCopilot)}
                   </Heading>
                   <BodyShort size="small" className="text-gray-600">
-                    PR-er av Copilot
+                    PR-er opprettet
                   </BodyShort>
                 </div>
               </Box>
               <Box background="success-soft" padding="space-16" borderRadius="8">
                 <div className="text-center">
                   <Heading size="large" level="4">
-                    {formatNumber(prMetrics.totalMerged)}
+                    {formatNumber(prMetrics.totalMergedCreatedByCopilot)}
                   </Heading>
                   <BodyShort size="small" className="text-gray-600">
                     Merget
@@ -426,20 +355,110 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
               <Box background="info-soft" padding="space-16" borderRadius="8">
                 <div className="text-center">
                   <Heading size="large" level="4">
-                    {formatMinutes(prMetrics.medianMinutesToMerge)}
+                    {formatMinutes(prMetrics.medianMinutesToMergeCopilotAuthored)}
                   </Heading>
                   <BodyShort size="small" className="text-gray-600">
-                    Tid til merge
+                    Median tid til merge
                   </BodyShort>
                 </div>
               </Box>
               <Box background="warning-soft" padding="space-16" borderRadius="8">
                 <div className="text-center">
                   <Heading size="large" level="4">
+                    {prMetrics.totalCreated > 0
+                      ? `${Math.round((prMetrics.totalCreatedByCopilot / prMetrics.totalCreated) * 100)} %`
+                      : "—"}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Andel av alle PR-er
+                  </BodyShort>
+                </div>
+              </Box>
+            </HGrid>
+
+            {/* Copilot as reviewer (code review) */}
+            <BodyShort weight="semibold" size="small" className="text-gray-600">
+              Copilot code review
+            </BodyShort>
+            <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(prMetrics.totalReviewedByCopilot)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    PR-er reviewet
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="success-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {prMetrics.totalReviewed > 0
+                      ? `${Math.round((prMetrics.totalReviewedByCopilot / prMetrics.totalReviewed) * 100)} %`
+                      : "—"}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Andel av reviews
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="info-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(prMetrics.totalCopilotSuggestions)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Forslag gitt
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="warning-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {prMetrics.totalCopilotSuggestions > 0
+                      ? `${Math.round((prMetrics.totalCopilotAppliedSuggestions / prMetrics.totalCopilotSuggestions) * 100)} %`
+                      : "—"}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Forslag brukt
+                  </BodyShort>
+                </div>
+              </Box>
+            </HGrid>
+
+            {/* Comparison: merge time */}
+            <BodyShort weight="semibold" size="small" className="text-gray-600">
+              Tid til merge (median)
+            </BodyShort>
+            <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
+              <Box background="neutral-moderate" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatMinutes(prMetrics.medianMinutesToMerge)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Alle PR-er
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
                     {formatMinutes(prMetrics.medianMinutesToMergeCopilotAuthored)}
                   </Heading>
                   <BodyShort size="small" className="text-gray-600">
-                    Copilot-PR tid
+                    Copilot-forfattet
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="success-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatMinutes(prMetrics.medianMinutesToMergeCopilotReviewed)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Copilot-reviewet
                   </BodyShort>
                 </div>
               </Box>

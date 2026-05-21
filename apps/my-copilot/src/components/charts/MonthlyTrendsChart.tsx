@@ -139,7 +139,7 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
               {formatNumber(latest.code_generations + latest.ide_interactions + latest.cli_requests)}
             </div>
             <BodyShort size="small" className="text-gray-600">
-              Handlinger
+              Aktivitet
             </BodyShort>
             {prev && (
               <BodyShort size="small" className="text-gray-500">
@@ -191,7 +191,7 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
         </Box>
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-8">
-            <BodyShort weight="semibold">Handlinger per type</BodyShort>
+            <BodyShort weight="semibold">Aktivitet per type</BodyShort>
             <div className="aspect-[2/1]">
               <Bar data={activityChartData} options={barOptions} />
             </div>
