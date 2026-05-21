@@ -165,10 +165,12 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
 
   // Find the last COMPLETE month (not the current partial month)
   // A month is "complete" if it has 28+ days of data or isn't the current calendar month
-  const now = new Date();
-  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const completeMonths = monthlyTrends.filter((m) => m.month !== currentMonthStr);
-  const currentMonth = monthlyTrends.find((m) => m.month === currentMonthStr);
+  // Use the latest month in the data as reference to avoid new Date() prerender issues
+  const latestMonth = monthlyTrends.length > 0 ? monthlyTrends[monthlyTrends.length - 1].month : null;
+  const completeMonths = latestMonth
+    ? monthlyTrends.filter((m) => m.month !== latestMonth || m.days_in_month >= 28)
+    : monthlyTrends;
+  const currentMonth = latestMonth ? monthlyTrends.find((m) => m.month === latestMonth && m.days_in_month < 28) : null;
 
   // Use last complete month for hero, with MoM comparison to the one before
   const latestComplete = completeMonths.length > 0 ? completeMonths[completeMonths.length - 1] : null;
@@ -210,7 +212,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
       {heroMonthLabel && (
         <BodyShort size="small" className="text-gray-500">
           Nøkkeltall for {heroMonthLabel}
-          {currentMonth && ` • Hittil i ${currentMonthStr}: ${formatNumber(currentMonth.unique_users)} brukere`}
+          {currentMonth && ` • Hittil i ${currentMonth.month}: ${formatNumber(currentMonth.unique_users)} brukere`}
         </BodyShort>
       )}
       <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">

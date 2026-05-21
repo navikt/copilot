@@ -407,8 +407,8 @@ export class CopilotBigQueryClient {
         COALESCE(SUM(ua.cli_prompt_tokens), 0) AS cli_prompt_tokens,
         COALESCE(SUM(ua.cli_output_tokens), 0) AS cli_output_tokens,
         -- Model breakdown (top 5)
-        ma.top_models,
-        ta.teams
+        ANY_VALUE(ma.top_models) AS top_models,
+        ANY_VALUE(ta.teams) AS teams
       FROM user_activity ua
       CROSS JOIN model_agg ma
       CROSS JOIN team_agg ta
@@ -496,15 +496,11 @@ export class CopilotBigQueryClient {
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
         GROUP BY week
       ),
-      weekly_models_ranked AS (
+      weekly_models AS (
         SELECT
           FORMAT_DATE('%G-W%V', day) AS week,
           JSON_VALUE(mf, '$.model') AS model,
-          SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)) AS interactions,
-          ROW_NUMBER() OVER (
-            PARTITION BY FORMAT_DATE('%G-W%V', day)
-            ORDER BY SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)) DESC
-          ) AS rn
+          SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)) AS interactions
         FROM ${metricsRef},
           UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
@@ -514,6 +510,14 @@ export class CopilotBigQueryClient {
           AND JSON_VALUE(mf, '$.model') != 'others'
         GROUP BY week, model
         HAVING interactions > 0
+      ),
+      weekly_models_ranked AS (
+        SELECT
+          week,
+          model,
+          interactions,
+          ROW_NUMBER() OVER (PARTITION BY week ORDER BY interactions DESC) AS rn
+        FROM weekly_models
       ),
       weekly_models_agg AS (
         SELECT
