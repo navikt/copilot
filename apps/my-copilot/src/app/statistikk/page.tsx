@@ -112,11 +112,7 @@ async function PremiumUsageData({ currentYear, currentMonth }: { currentYear: nu
 
 // Cached team usage data component — resolves user's teams for highlighting
 async function TeamUsageContent() {
-  const [{ teams, error }, user, { trends: monthlyTrends }] = await Promise.all([
-    getCachedTeamUsage(),
-    getUser(false),
-    getCachedMonthlyTrends(),
-  ]);
+  const [{ teams, error }, user] = await Promise.all([getCachedTeamUsage(), getUser(false)]);
 
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
   if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
@@ -152,15 +148,7 @@ async function TeamUsageContent() {
   }
 
   return (
-    <VStack gap="space-24">
-      <TeamUsageTable
-        teams={teams}
-        userTeams={userTeams}
-        userMetrics={userMetrics}
-        userWeeklyTrends={userWeeklyTrends}
-      />
-      {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
-    </VStack>
+    <TeamUsageTable teams={teams} userTeams={userTeams} userMetrics={userMetrics} userWeeklyTrends={userWeeklyTrends} />
   );
 }
 
@@ -188,66 +176,101 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   const modelChartData = buildModelChartData(usage);
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
-  // Tab content components
-  const overviewContent = (
+  // Fetch monthly trends for the dashboard
+  const { trends: monthlyTrends } = await getCachedMonthlyTrends();
+
+  // Compute key dashboard metrics from monthly trends
+  const latestMonth = monthlyTrends.length > 0 ? monthlyTrends[monthlyTrends.length - 1] : null;
+  const prevMonth = monthlyTrends.length > 1 ? monthlyTrends[monthlyTrends.length - 2] : null;
+
+  function momChange(current: number, previous: number | undefined): string | undefined {
+    if (!previous || previous === 0) return undefined;
+    const change = Math.round(((current - previous) / previous) * 100);
+    return change > 0
+      ? `↑ ${change} % fra forrige måned`
+      : change < 0
+        ? `↓ ${Math.abs(change)} % fra forrige måned`
+        : "Uendret";
+  }
+
+  // Agent share: what % of users are using agent mode
+  const agentShare =
+    latestMonth && latestMonth.unique_users > 0
+      ? Math.round((latestMonth.agent_users / latestMonth.unique_users) * 100)
+      : 0;
+
+  // Total requests for latest month (IDE + CLI)
+  const totalRequestsLatest = latestMonth ? latestMonth.ide_interactions + latestMonth.cli_requests : 0;
+  const totalRequestsPrev = prevMonth ? prevMonth.ide_interactions + prevMonth.cli_requests : 0;
+
+  // ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
+  const dashboardContent = (
     <VStack gap="space-24">
-      {/* 1. Key Metrics Cards */}
-      <Heading size="small">Nøkkeltall</Heading>
+      {/* Hero metrics — the 4 numbers that matter */}
       <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
         <MetricCard
-          value={formatNumber(aggregatedMetrics.dailyActiveUsers)}
-          label="Daglig aktive brukere"
-          helpTitle="Daglig aktive brukere"
-          helpText="Antall unike brukere som brukte Copilot siste dag i perioden."
+          value={formatNumber(latestMonth?.unique_users ?? aggregatedMetrics.monthlyActiveUsers)}
+          label="Aktive brukere"
+          helpTitle="Aktive brukere"
+          helpText="Unike brukere som brukte Copilot denne måneden. Inkluderer kodeforslag, chat, agent og CLI."
+          subtitle={latestMonth && prevMonth ? momChange(latestMonth.unique_users, prevMonth.unique_users) : undefined}
         />
         <MetricCard
-          value={formatNumber(aggregatedMetrics.monthlyActiveUsers)}
-          label="Månedlig aktive brukere"
-          helpTitle="Månedlig aktive brukere"
-          helpText="Antall unike brukere som har brukt Copilot siste 30 dager."
+          value={formatNumber(totalRequestsLatest || aggregatedMetrics.totalInteractions)}
+          label="AI-forespørsler"
+          helpTitle="AI-forespørsler"
+          helpText="Totalt antall forespørsler til Copilot (IDE-interaksjoner + CLI-forespørsler) denne måneden."
+          subtitle={totalRequestsPrev ? momChange(totalRequestsLatest, totalRequestsPrev) : undefined}
         />
         <MetricCard
-          value={`${aggregatedMetrics.overallAcceptanceRate}%`}
+          value={`${agentShare} %`}
+          label="Agent-adopsjon"
+          helpTitle="Agent-adopsjon"
+          helpText="Andel av aktive brukere som har brukt agent mode denne måneden. Agent mode er den mest avanserte Copilot-funksjonen."
+          subtitle={
+            prevMonth && prevMonth.unique_users > 0
+              ? momChange(agentShare, Math.round((prevMonth.agent_users / prevMonth.unique_users) * 100))
+              : undefined
+          }
+        />
+        <MetricCard
+          value={`${aggregatedMetrics.overallAcceptanceRate} %`}
           label="Aksepteringsrate"
           helpTitle="Aksepteringsrate"
           helpText="Andel av Copilots kodeforslag som utviklerne aksepterer. Gode rater ligger mellom 20–40 %."
-        />
-        <MetricCard
-          value={formatNumber(aggregatedMetrics.totalInteractions)}
-          label="Totale interaksjoner"
-          helpTitle="Totale interaksjoner"
-          helpText="Alle interaksjoner med Copilot i perioden: chat, agent-forespørsler, kodeforslag og andre handlinger."
+          subtitle="Kodeforslag i editor"
         />
       </HGrid>
 
-      {/* 2. Adoption Section — Chat, Agent, CLI */}
+      {/* Monthly trends — THE story */}
+      {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
+
+      {/* Feature adoption breakdown — where are users? */}
       <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <VStack gap="space-16">
           <div className="flex items-center gap-2">
             <Heading size="small" level="3">
-              Adopsjon
+              Funksjon&shy;adopsjons&shy;fordeling
             </Heading>
             <HelpText title="Adopsjon" placement="top">
-              Alle serier viser 7-dagers rullerende snitt for enkel sammenligning. Chat og agent er basert på GitHubs
+              Viser hvordan brukerne fordeler seg mellom Copilots ulike funksjoner. Chat og agent basert på GitHubs
               rullende 30-dagersvindu, CLI på daglige tall.
             </HelpText>
           </div>
-          <BodyShort className="text-gray-600">
-            Bruk av Copilots funksjoner. Alle grafer viser 7-dagers rullerende snitt.
-          </BodyShort>
-          <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
+          <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
             <Box background="info-soft" padding="space-16" borderRadius="8">
               <div className="text-center">
                 <Heading size="large" level="4">
                   {formatNumber(aggregatedMetrics.monthlyActiveChatUsers)}
                 </Heading>
-                <div className="flex items-center justify-center gap-1">
-                  <BodyShort className="text-gray-600">Chat-brukere</BodyShort>
-                  <HelpText title="Chat-brukere" placement="top">
-                    Unike brukere som har brukt Copilot Chat siste 30 dager. Inkluderer inline chat, spør-modus og
-                    egendefinerte moduser.
-                  </HelpText>
-                </div>
+                <BodyShort size="small" className="text-gray-600">
+                  Chat
+                </BodyShort>
+                <BodyShort size="small" className="text-gray-500">
+                  {aggregatedMetrics.monthlyActiveUsers > 0
+                    ? `${Math.round((aggregatedMetrics.monthlyActiveChatUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} % av brukere`
+                    : ""}
+                </BodyShort>
               </div>
             </Box>
             <Box background="success-soft" padding="space-16" borderRadius="8">
@@ -255,13 +278,14 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                 <Heading size="large" level="4">
                   {formatNumber(aggregatedMetrics.monthlyActiveAgentUsers)}
                 </Heading>
-                <div className="flex items-center justify-center gap-1">
-                  <BodyShort className="text-gray-600">Agent-brukere</BodyShort>
-                  <HelpText title="Agent-brukere" placement="top">
-                    Unike brukere som har brukt agent mode siste 30 dager. I agent mode kan Copilot redigere filer,
-                    kjøre tester og lage pull requests i flere steg.
-                  </HelpText>
-                </div>
+                <BodyShort size="small" className="text-gray-600">
+                  Agent
+                </BodyShort>
+                <BodyShort size="small" className="text-gray-500">
+                  {aggregatedMetrics.monthlyActiveUsers > 0
+                    ? `${Math.round((aggregatedMetrics.monthlyActiveAgentUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} % av brukere`
+                    : ""}
+                </BodyShort>
               </div>
             </Box>
             <Box background="warning-soft" padding="space-16" borderRadius="8">
@@ -269,13 +293,25 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                 <Heading size="large" level="4">
                   {formatNumber(aggregatedMetrics.dailyActiveCLIUsers)}
                 </Heading>
-                <div className="flex items-center justify-center gap-1">
-                  <BodyShort className="text-gray-600">CLI-brukere</BodyShort>
-                  <HelpText title="CLI-brukere" placement="top">
-                    Brukere som brukte Copilot CLI i terminalen. Kortet viser siste dags tall, grafen viser 7-dagers
-                    snitt.
-                  </HelpText>
-                </div>
+                <BodyShort size="small" className="text-gray-600">
+                  CLI
+                </BodyShort>
+                <BodyShort size="small" className="text-gray-500">
+                  daglig
+                </BodyShort>
+              </div>
+            </Box>
+            <Box background="accent-soft" padding="space-16" borderRadius="8">
+              <div className="text-center">
+                <Heading size="large" level="4">
+                  {formatNumber(aggregatedMetrics.monthlyActiveUsers)}
+                </Heading>
+                <BodyShort size="small" className="text-gray-600">
+                  Totalt
+                </BodyShort>
+                <BodyShort size="small" className="text-gray-500">
+                  30 dager
+                </BodyShort>
               </div>
             </Box>
           </HGrid>
@@ -283,78 +319,123 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
         </VStack>
       </Box>
 
-      {/* 3. Daily Activity Trend */}
-      <TrendChart data={trendData} />
+      {/* Generation mode: user-initiated vs agent-initiated */}
+      {generationModeSummary && (
+        <Box background="neutral-soft" padding="space-24" borderRadius="12">
+          <VStack gap="space-16">
+            <div className="flex items-center gap-2">
+              <Heading size="small" level="3">
+                Bruker- vs. agentinitiiert kode
+              </Heading>
+              <HelpText title="Genereringsmodus" placement="top">
+                Fordeling mellom kode generert av brukeren (forslag, inline chat) og kode generert autonomt av agenten.
+                Høyere agent-andel betyr mer autonomt AI-arbeid.
+              </HelpText>
+            </div>
+            <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
+              <Box background="info-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(generationModeSummary.userInitiatedGenerations)}
+                  </Heading>
+                  <BodyShort className="text-gray-600">Brukerinitiiert</BodyShort>
+                </div>
+              </Box>
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(generationModeSummary.agentInitiatedGenerations)}
+                  </Heading>
+                  <BodyShort className="text-gray-600">Agentinitiiert</BodyShort>
+                </div>
+              </Box>
+              <Box background="success-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {generationModeSummary.agentShare} %
+                  </Heading>
+                  <BodyShort className="text-gray-600">Agent-andel</BodyShort>
+                </div>
+              </Box>
+            </HGrid>
+            <GenerationModeChart data={generationModeTrendData} />
+          </VStack>
+        </Box>
+      )}
 
-      {/* 4. Compact Top Languages & Editors */}
-      <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
+      {/* PR impact */}
+      {prMetrics && prMetrics.totalCreated > 0 && (
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
-          <VStack gap="space-12">
-            <Heading size="small" level="3">
-              Topp-språk
-            </Heading>
-            <Table size="small">
-              <TableBody>
-                {topLanguages.slice(0, 5).map((lang: LanguageData, i: number) => (
-                  <TableRow key={lang.name}>
-                    <TableDataCell className="w-8">
-                      <BodyShort className="text-gray-500">{i + 1}.</BodyShort>
-                    </TableDataCell>
-                    <TableDataCell>
-                      <BodyShort weight="semibold" className="capitalize">
-                        {lang.name}
-                      </BodyShort>
-                    </TableDataCell>
-                    <TableDataCell align="right">
-                      <BodyShort className="text-gray-600">{lang.acceptanceRate}%</BodyShort>
-                    </TableDataCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <VStack gap="space-16">
+            <div className="flex items-center gap-2">
+              <Heading size="small" level="3">
+                Pull request-påvirkning
+              </Heading>
+              <HelpText title="Pull requests" placement="top">
+                PR-er der Copilot var involvert som forfatter eller reviewer. Viser konkret innvirkning på
+                leveransetakt.
+              </HelpText>
+            </div>
+            <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(prMetrics.totalCreatedByCopilot)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    PR-er av Copilot
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="success-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(prMetrics.totalMerged)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Merget
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="info-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatMinutes(prMetrics.medianMinutesToMerge)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Tid til merge
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="warning-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatMinutes(prMetrics.medianMinutesToMergeCopilotAuthored)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Copilot-PR tid
+                  </BodyShort>
+                </div>
+              </Box>
+            </HGrid>
           </VStack>
         </Box>
-        <Box background="neutral-soft" padding="space-24" borderRadius="12">
-          <VStack gap="space-12">
-            <Heading size="small" level="3">
-              Topp-verktøy
-            </Heading>
-            <Table size="small">
-              <TableBody>
-                {editorStats.slice(0, 4).map((editor: EditorData, i: number) => (
-                  <TableRow key={editor.name}>
-                    <TableDataCell className="w-8">
-                      <BodyShort className="text-gray-500">{i + 1}.</BodyShort>
-                    </TableDataCell>
-                    <TableDataCell>
-                      <BodyShort weight="semibold">{editor.name}</BodyShort>
-                    </TableDataCell>
-                    <TableDataCell align="right">
-                      <BodyShort className="text-gray-600">{formatNumber(editor.generations)}</BodyShort>
-                    </TableDataCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </VStack>
-        </Box>
-      </HGrid>
+      )}
     </VStack>
   );
 
+  // ─── TAB 2: DETALJER (Deep dives) ───
   const detailsContent = (
     <VStack gap="space-24">
+      {/* Daily Activity Trend */}
+      <TrendChart data={trendData} />
+
       {/* Code Suggestions */}
       <Box background="neutral-soft" padding="space-24" borderRadius="12">
         <VStack gap="space-16">
-          <div className="flex items-center gap-2">
-            <Heading size="small" level="3">
-              Kodeforslag
-            </Heading>
-            <HelpText title="Kodeforslag" placement="top">
-              Inline kodeforslag i editoren. Hvor mange Copilot har generert, og hvor mange utviklerne aksepterte.
-            </HelpText>
-          </div>
+          <Heading size="small" level="3">
+            Kodeforslag
+          </Heading>
           <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
             <Box background="info-soft" padding="space-16" borderRadius="8">
               <div className="text-center">
@@ -384,129 +465,59 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
         </VStack>
       </Box>
 
-      {/* Generation Mode Split */}
-      {generationModeSummary && (
+      {/* Languages & Editors */}
+      <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
-          <VStack gap="space-16">
-            <div className="flex items-center gap-2">
-              <Heading size="small" level="3">
-                Bruker- vs. agentinitiiert
-              </Heading>
-              <HelpText title="Genereringsmodus" placement="top">
-                Fordeling mellom brukerinitiierte handlinger (kodeforslag, inline chat, spør-modus) og agentinitiierte
-                (agent-modus, agent-redigering, redigeringsmodus).
-              </HelpText>
-            </div>
-            <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
-              <Box background="info-soft" padding="space-16" borderRadius="8">
-                <div className="text-center">
-                  <Heading size="large" level="4">
-                    {formatNumber(generationModeSummary.userInitiatedGenerations)}
-                  </Heading>
-                  <BodyShort className="text-gray-600">Brukerinitiiert</BodyShort>
-                </div>
-              </Box>
-              <Box background="accent-soft" padding="space-16" borderRadius="8">
-                <div className="text-center">
-                  <Heading size="large" level="4">
-                    {formatNumber(generationModeSummary.agentInitiatedGenerations)}
-                  </Heading>
-                  <BodyShort className="text-gray-600">Agentinitiiert</BodyShort>
-                </div>
-              </Box>
-              <Box background="success-soft" padding="space-16" borderRadius="8">
-                <div className="text-center">
-                  <Heading size="large" level="4">
-                    {generationModeSummary.agentShare}%
-                  </Heading>
-                  <BodyShort className="text-gray-600">Agent-andel</BodyShort>
-                </div>
-              </Box>
-            </HGrid>
-            <GenerationModeChart data={generationModeTrendData} />
+          <VStack gap="space-12">
+            <Heading size="small" level="3">
+              Topp-språk
+            </Heading>
+            <Table size="small">
+              <TableBody>
+                {topLanguages.slice(0, 8).map((lang: LanguageData, i: number) => (
+                  <TableRow key={lang.name}>
+                    <TableDataCell className="w-8">
+                      <BodyShort className="text-gray-500">{i + 1}.</BodyShort>
+                    </TableDataCell>
+                    <TableDataCell>
+                      <BodyShort weight="semibold" className="capitalize">
+                        {lang.name}
+                      </BodyShort>
+                    </TableDataCell>
+                    <TableDataCell align="right">
+                      <BodyShort className="text-gray-600">{lang.acceptanceRate}%</BodyShort>
+                    </TableDataCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </VStack>
         </Box>
-      )}
-
-      {/* PR Metrics */}
-      {prMetrics && prMetrics.totalCreated > 0 && (
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
-          <VStack gap="space-16">
-            <div className="flex items-center gap-2">
-              <Heading size="small" level="3">
-                Pull requests
-              </Heading>
-              <HelpText title="Pull requests" placement="top">
-                PR-aktivitet der Copilot var involvert som forfatter eller reviewer.
-              </HelpText>
-            </div>
-
-            <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
-              <Box background="accent-soft" padding="space-16" borderRadius="8">
-                <div className="text-center">
-                  <Heading size="large" level="4">
-                    {formatNumber(prMetrics.totalCreated)}
-                  </Heading>
-                  <BodyShort className="text-gray-600">Totalt opprettet</BodyShort>
-                </div>
-              </Box>
-              <Box background="success-soft" padding="space-16" borderRadius="8">
-                <div className="text-center">
-                  <Heading size="large" level="4">
-                    {formatNumber(prMetrics.totalCreatedByCopilot)}
-                  </Heading>
-                  <BodyShort className="text-gray-600">Opprettet av Copilot</BodyShort>
-                </div>
-              </Box>
-              <Box background="info-soft" padding="space-16" borderRadius="8">
-                <div className="text-center">
-                  <Heading size="large" level="4">
-                    {formatNumber(prMetrics.totalMerged)}
-                  </Heading>
-                  <BodyShort className="text-gray-600">Merget</BodyShort>
-                </div>
-              </Box>
-              <Box background="warning-soft" padding="space-16" borderRadius="8">
-                <div className="text-center">
-                  <Heading size="large" level="4">
-                    {formatNumber(prMetrics.totalReviewedByCopilot)}
-                  </Heading>
-                  <BodyShort className="text-gray-600">Reviewed av Copilot</BodyShort>
-                </div>
-              </Box>
-            </HGrid>
-
-            {(prMetrics.medianMinutesToMerge > 0 || prMetrics.medianMinutesToMergeCopilotAuthored > 0) && (
-              <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
-                <Box background="neutral-moderate" padding="space-16" borderRadius="8">
-                  <div className="text-center">
-                    <Heading size="large" level="4">
-                      {formatMinutes(prMetrics.medianMinutesToMerge)}
-                    </Heading>
-                    <BodyShort className="text-gray-600">Median tid til merge</BodyShort>
-                  </div>
-                </Box>
-                <Box background="success-soft" padding="space-16" borderRadius="8">
-                  <div className="text-center">
-                    <Heading size="large" level="4">
-                      {formatMinutes(prMetrics.medianMinutesToMergeCopilotAuthored)}
-                    </Heading>
-                    <BodyShort className="text-gray-600">Median tid (Copilot-PR)</BodyShort>
-                  </div>
-                </Box>
-                <Box background="info-soft" padding="space-16" borderRadius="8">
-                  <div className="text-center">
-                    <Heading size="large" level="4">
-                      {formatMinutes(prMetrics.medianMinutesToMergeCopilotReviewed)}
-                    </Heading>
-                    <BodyShort className="text-gray-600">Median tid (Copilot-review)</BodyShort>
-                  </div>
-                </Box>
-              </HGrid>
-            )}
+          <VStack gap="space-12">
+            <Heading size="small" level="3">
+              Verktøy
+            </Heading>
+            <Table size="small">
+              <TableBody>
+                {editorStats.map((editor: EditorData, i: number) => (
+                  <TableRow key={editor.name}>
+                    <TableDataCell className="w-8">
+                      <BodyShort className="text-gray-500">{i + 1}.</BodyShort>
+                    </TableDataCell>
+                    <TableDataCell>
+                      <BodyShort weight="semibold">{editor.name}</BodyShort>
+                    </TableDataCell>
+                    <TableDataCell align="right">
+                      <BodyShort className="text-gray-600">{formatNumber(editor.generations)}</BodyShort>
+                    </TableDataCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </VStack>
         </Box>
-      )}
+      </HGrid>
 
       {/* Model Usage */}
       {modelUsageMetrics && modelUsageMetrics.length > 0 && (
@@ -561,10 +572,10 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   );
 
   const tabs = [
-    { id: "overview", label: "Oversikt", content: overviewContent },
+    { id: "dashboard", label: "Dashboard", content: dashboardContent },
     {
       id: "team",
-      label: "Teamoversikt",
+      label: "Team",
       content: (
         <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
           <TeamUsageContent />
@@ -578,10 +589,9 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
     <>
       <VStack gap="space-24">
         <BodyShort className="text-gray-600">
-          Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager) • Viser organisasjonens bruk
-          av GitHub Copilot
+          Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager)
         </BodyShort>
-        <Tabs tabs={tabs} defaultTab="overview" />
+        <Tabs tabs={tabs} defaultTab="dashboard" />
       </VStack>
     </>
   );
