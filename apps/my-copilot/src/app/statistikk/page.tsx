@@ -127,13 +127,10 @@ async function TeamUsageContent() {
   );
 }
 
-// Main content component that takes usage data as props
+// Main content component that takes usage data as props.
+// Individual data fetches (getCachedMonthlyTrends, etc.) are cached at the function level,
+// so this component doesn't need its own "use cache" directive.
 async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
-  "use cache";
-  const { cacheLife, cacheTag } = await import("next/cache");
-  cacheLife({ stale: 3600 });
-  cacheTag("usage-navikt");
-
   const dateRange = getDateRange(usage);
   if (!dateRange) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
 
