@@ -34,7 +34,7 @@ import {
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
 import { getUser } from "@/lib/auth";
-import { getUsernameByScim } from "@/lib/github";
+import { getUsernameBySamlIdentity, getUsernameByScim } from "@/lib/github";
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -87,8 +87,18 @@ async function TeamUsageContent() {
     if (process.env.NODE_ENV === "development" && process.env.DEV_GITHUB_LOGIN) {
       ghLogin = process.env.DEV_GITHUB_LOGIN;
     } else {
-      const { user: resolved } = await getUsernameByScim(user.email);
-      ghLogin = resolved;
+      // Try SCIM first (fastest, REST API), fall back to SAML GraphQL if not found
+      const { user: scimUser, error: scimError } = await getUsernameByScim(user.email);
+      if (scimError) console.error("[statistikk] SCIM lookup failed:", scimError);
+
+      if (scimUser) {
+        ghLogin = scimUser;
+      } else {
+        // SCIM may not have the user — try SAML identity provider lookup
+        const { user: samlUser, error: samlError } = await getUsernameBySamlIdentity(user.email, "navikt");
+        if (samlError) console.error("[statistikk] SAML lookup failed:", samlError);
+        ghLogin = samlUser;
+      }
     }
 
     if (ghLogin) {
