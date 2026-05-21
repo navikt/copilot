@@ -440,6 +440,20 @@ export interface MonthlyModelUsage {
 }
 
 /**
+ * Monthly billing usage per model from the Enhanced Billing API.
+ * Contains premium request counts and costs — accurate across all surfaces.
+ */
+export interface MonthlyBillingUsage {
+  month: string;
+  model: string;
+  sku: string;
+  gross_requests: number;
+  net_requests: number;
+  gross_amount: number;
+  net_amount: number;
+}
+
+/**
  * Weekly personal trend data for a single user.
  */
 export interface WeeklyTrend {

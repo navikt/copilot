@@ -6,6 +6,7 @@ import type {
   CustomizationUsage,
   EnterpriseMetrics,
   LanguageAdoption,
+  MonthlyBillingUsage,
   MonthlyModelUsage,
   MonthlyTrend,
   TeamAdoption,
@@ -533,6 +534,39 @@ export class CopilotBigQueryClient {
   }
 
   /**
+   * Get monthly billing usage per model from the billing_usage table.
+   * This is the authoritative source for premium request counts per model,
+   * covering all surfaces (IDE, CLI, agents).
+   */
+  async getMonthlyBillingUsage(months: number = 12): Promise<MonthlyBillingUsage[]> {
+    const billingRef = tableRef(this.config.projectId, this.config.metricsDataset, "billing_usage");
+
+    const query = `
+      SELECT
+        FORMAT_DATE('%Y-%m', day) AS month,
+        model,
+        sku,
+        SUM(gross_quantity) AS gross_requests,
+        SUM(net_quantity) AS net_requests,
+        SUM(gross_amount) AS gross_amount,
+        SUM(net_amount) AS net_amount
+      FROM ${billingRef}
+      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        AND scope_id = 'nav'
+        AND gross_quantity > 0
+      GROUP BY month, model, sku
+      ORDER BY month, gross_requests DESC
+    `;
+
+    try {
+      return await this.query<MonthlyBillingUsage>(query, { months });
+    } catch (err) {
+      console.error("[bigquery] getMonthlyBillingUsage failed:", err);
+      throw err;
+    }
+  }
+
+  /**
    * Get personal weekly trends for a specific user.
    * Uses partition pruning on `day` and cluster pruning on `scope`.
    */
@@ -665,6 +699,10 @@ export async function getMonthlyTrends(months: number = 12): Promise<MonthlyTren
 
 export async function getMonthlyModelUsage(months: number = 12): Promise<MonthlyModelUsage[]> {
   return getDefaultClient().getMonthlyModelUsage(months);
+}
+
+export async function getMonthlyBillingUsage(months: number = 12): Promise<MonthlyBillingUsage[]> {
+  return getDefaultClient().getMonthlyBillingUsage(months);
 }
 
 export async function getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {

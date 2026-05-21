@@ -5,6 +5,7 @@ import {
   getCachedUserMetrics,
   getCachedMonthlyTrends,
   getCachedMonthlyModelUsage,
+  getCachedMonthlyBillingUsage,
   getCachedUserWeeklyTrends,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
@@ -160,13 +161,19 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
   // Fetch monthly trends and model usage for the dashboard
-  const [{ trends: monthlyTrends, error: monthlyError }, { usage: monthlyModelUsage, error: modelUsageError }] =
-    await Promise.all([getCachedMonthlyTrends(), getCachedMonthlyModelUsage()]);
+  const [
+    { trends: monthlyTrends, error: monthlyError },
+    { usage: monthlyModelUsage, error: modelUsageError },
+    { usage: billingUsage, error: billingError },
+  ] = await Promise.all([getCachedMonthlyTrends(), getCachedMonthlyModelUsage(), getCachedMonthlyBillingUsage()]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
   }
   if (modelUsageError) {
     console.error("[statistikk] Monthly model usage failed:", modelUsageError);
+  }
+  if (billingError) {
+    console.error("[statistikk] Monthly billing usage failed:", billingError);
   }
 
   // Find the last COMPLETE month (not the current partial month)
@@ -264,7 +271,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
       {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
 
       {/* Monthly model/token usage */}
-      {monthlyModelUsage.length > 0 && <MonthlyModelChart data={monthlyModelUsage} />}
+      {monthlyModelUsage.length > 0 && <MonthlyModelChart data={monthlyModelUsage} billingData={billingUsage} />}
 
       {/* Generation mode: user-initiated vs agent-initiated */}
       {generationModeSummary && (
