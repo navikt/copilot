@@ -196,23 +196,54 @@ export class CopilotBigQueryClient {
 
   /**
    * Get team-level Copilot usage summary for the last N days.
-   * Aggregates from the v_team_daily_summary view in the metrics dataset.
+   * Queries user_teams and user_metrics tables directly (no view dependency).
    */
   async getTeamUsageSummary(days: number = 7): Promise<TeamUsageSummary[]> {
-    const ref = viewRef(this.config.projectId, this.config.metricsDataset, "v_team_daily_summary");
+    const teamsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_teams");
+    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
+    // Use latest team membership snapshot and join against all metrics in the period.
+    // Team membership is relatively stable day-to-day, so we use the most recent
+    // day's assignments to attribute metrics across the full window.
     const query = `
+      WITH latest_teams AS (
+        SELECT
+          JSON_VALUE(raw_record, '$.user_id') AS user_id,
+          JSON_VALUE(raw_record, '$.slug') AS team_slug
+        FROM ${teamsRef}
+        WHERE day = (SELECT MAX(day) FROM ${teamsRef})
+        GROUP BY user_id, team_slug
+      ),
+      metrics AS (
+        SELECT
+          day,
+          JSON_VALUE(raw_record, '$.user_id') AS user_id,
+          CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
+          CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
+          CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted
+        FROM ${metricsRef}
+        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+      ),
+      team_metrics AS (
+        SELECT
+          t.team_slug,
+          m.user_id,
+          m.day,
+          COALESCE(m.acceptances, 0) AS acceptances,
+          COALESCE(m.interactions, 0) AS interactions,
+          COALESCE(m.lines_accepted, 0) AS lines_accepted
+        FROM latest_teams t
+        INNER JOIN metrics m ON t.user_id = m.user_id
+      )
       SELECT
         team_slug,
-        ROUND(AVG(active_users), 1) AS avg_active_users,
-        MAX(total_users) AS total_users,
-        SUM(total_acceptances) AS total_acceptances,
-        SUM(total_interactions) AS total_interactions,
-        SUM(total_lines_accepted) AS total_lines_accepted,
+        COUNT(DISTINCT CASE WHEN acceptances + interactions > 0 THEN user_id END) AS avg_active_users,
+        COUNT(DISTINCT user_id) AS total_users,
+        SUM(acceptances) AS total_acceptances,
+        SUM(interactions) AS total_interactions,
+        SUM(lines_accepted) AS total_lines_accepted,
         COUNT(DISTINCT day) AS days_with_data
-      FROM ${ref}
-      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+      FROM team_metrics
       GROUP BY team_slug
-      HAVING days_with_data >= 3
       ORDER BY avg_active_users DESC
     `;
 
@@ -238,8 +269,7 @@ export class CopilotBigQueryClient {
           JSON_VALUE(raw_record, '$.user_login') AS user_login,
           CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
           CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
-          CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
-          CAST(JSON_VALUE(raw_record, '$.is_active') AS BOOL) AS is_active
+          CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted
         FROM ${metricsRef}
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
@@ -255,7 +285,7 @@ export class CopilotBigQueryClient {
         COALESCE(SUM(ua.acceptances), 0) AS total_acceptances,
         COALESCE(SUM(ua.interactions), 0) AS total_interactions,
         COALESCE(SUM(ua.lines_accepted), 0) AS total_lines_accepted,
-        COUNTIF(ua.is_active) AS active_days,
+        COUNTIF(COALESCE(ua.acceptances, 0) + COALESCE(ua.interactions, 0) > 0) AS active_days,
         COUNT(*) AS days_in_period,
         ARRAY(SELECT team_slug FROM user_team_list) AS teams
       FROM user_activity ua

@@ -105,8 +105,7 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
       )}
 
       <Alert variant="info" size="small">
-        Team med færre enn 5 Copilot-brukere vises ikke (GitHub-begrensning). Viser kun enterprise-team — for
-        organisasjonsteam trenger vi en pipelineoppdatering. Data tilgjengelig fra 15. mai 2026.
+        Team med færre enn 5 Copilot-brukere vises ikke (GitHub-begrensning). Data tilgjengelig fra 15. mai 2026.
       </Alert>
 
       <Search
@@ -126,7 +125,7 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
                 Team
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="avg_active_users" sortable align="right">
-                Aktive brukere (snitt/dag)
+                Aktive brukere
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="total_acceptances" sortable align="right">
                 Aksepterte kodeforslag
