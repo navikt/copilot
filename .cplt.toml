@@ -18,4 +18,5 @@ allow_localhost_any = true
 
 [propose.allow]
 localhost = [3000]
+read = ["~/.config/gcloud/application_default_credentials.json", "~/.config/gcloud/virtenv/bin"]
 
