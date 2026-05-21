@@ -381,17 +381,21 @@ func ingestCurrentMonthBilling(ctx context.Context, billing *BillingClient, bq *
 	now := time.Now().UTC()
 	year, month := now.Year(), int(now.Month())
 
-	ingestBillingMonth(ctx, billing, bq, cfg, year, month, true)
+	if err := ingestBillingMonth(ctx, billing, bq, cfg, year, month, true); err != nil {
+		slog.Warn("Failed to ingest current month billing", "year", year, "month", month, "error", err)
+	}
 
 	// Also re-ingest previous month if we're in the first few days (data may still be finalizing)
 	if now.Day() <= 5 {
 		prevMonth := now.AddDate(0, -1, 0)
-		ingestBillingMonth(ctx, billing, bq, cfg, prevMonth.Year(), int(prevMonth.Month()), true)
+		if err := ingestBillingMonth(ctx, billing, bq, cfg, prevMonth.Year(), int(prevMonth.Month()), true); err != nil {
+			slog.Warn("Failed to ingest previous month billing", "error", err)
+		}
 	}
 }
 
 // ingestBillingMonth fetches and stores billing data for a specific month.
-func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQueryClient, cfg *Config, year, month int, force bool) {
+func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQueryClient, cfg *Config, year, month int, force bool) error {
 	slog.Info("Ingesting billing data", "year", year, "month", month, "force", force)
 
 	if !force {
@@ -400,14 +404,13 @@ func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQuer
 			slog.Warn("Failed to check billing month existence", "year", year, "month", month, "error", err)
 		} else if exists {
 			slog.Info("Billing data already exists, skipping", "year", year, "month", month)
-			return
+			return nil
 		}
 	}
 
 	resp, err := billing.FetchMonthlyUsage(ctx, year, month)
 	if err != nil {
-		slog.Warn("Failed to fetch billing data", "year", year, "month", month, "error", err)
-		return
+		return fmt.Errorf("fetch billing data: %w", err)
 	}
 
 	// Filter to items with actual usage
@@ -420,7 +423,7 @@ func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQuer
 
 	if len(items) == 0 {
 		slog.Info("No billing usage for month", "year", year, "month", month)
-		return
+		return nil
 	}
 
 	// Delete existing data before re-inserting (idempotent)
@@ -429,11 +432,11 @@ func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQuer
 	}
 
 	if err := bq.InsertBillingUsage(ctx, year, month, cfg.EnterpriseSlug, items); err != nil {
-		slog.Error("Failed to insert billing data", "year", year, "month", month, "error", err)
-		return
+		return fmt.Errorf("insert billing data: %w", err)
 	}
 
 	slog.Info("Billing data ingested successfully", "year", year, "month", month, "items", len(items))
+	return nil
 }
 
 // runBillingBackfill ingests billing data for all months from startMonth to current.
@@ -451,8 +454,12 @@ func runBillingBackfill(ctx context.Context, billing *BillingClient, bq *BigQuer
 		}
 
 		year, month := current.Year(), int(current.Month())
-		ingestBillingMonth(ctx, billing, bq, cfg, year, month, force)
-		successCount++
+		if err := ingestBillingMonth(ctx, billing, bq, cfg, year, month, force); err != nil {
+			slog.Warn("Failed to ingest billing month", "year", year, "month", month, "error", err)
+			errorCount++
+		} else {
+			successCount++
+		}
 
 		current = current.AddDate(0, 1, 0)
 
