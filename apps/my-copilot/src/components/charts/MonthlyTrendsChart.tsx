@@ -16,11 +16,19 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
     return <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>;
   }
 
-  const labels = data.map((d) => d.month);
+  const labels = data.map((d) => {
+    // Mark current partial month
+    const now = new Date();
+    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return d.month === currentMonthStr ? `${d.month} *` : d.month;
+  });
 
-  // Summary: latest month vs previous
-  const latest = data[data.length - 1];
-  const prev = data.length > 1 ? data[data.length - 2] : null;
+  // Summary: latest COMPLETE month vs previous
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const completeMonths = data.filter((d) => d.month !== currentMonthStr);
+  const latest = completeMonths.length > 0 ? completeMonths[completeMonths.length - 1] : data[data.length - 1];
+  const prev = completeMonths.length > 1 ? completeMonths[completeMonths.length - 2] : null;
 
   const usersChartData = {
     labels,
@@ -60,7 +68,14 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
     labels,
     datasets: [
       {
-        label: "IDE-interaksjoner",
+        label: "Kodeforslag",
+        data: data.map((d) => d.code_generations),
+        backgroundColor: getBackgroundColor(chartColors[4] || "#8b5cf6", 0.6),
+        borderColor: chartColors[4] || "#8b5cf6",
+        borderWidth: 1,
+      },
+      {
+        label: "Chat/agent-interaksjoner",
         data: data.map((d) => d.ide_interactions),
         backgroundColor: getBackgroundColor(chartColors[0], 0.6),
         borderColor: chartColors[0],
@@ -71,13 +86,6 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
         data: data.map((d) => d.cli_requests),
         backgroundColor: getBackgroundColor(chartColors[3], 0.6),
         borderColor: chartColors[3],
-        borderWidth: 1,
-      },
-      {
-        label: "Aksepterte forslag",
-        data: data.map((d) => d.acceptances),
-        backgroundColor: getBackgroundColor(chartColors[1], 0.6),
-        borderColor: chartColors[1],
         borderWidth: 1,
       },
     ],
@@ -127,13 +135,18 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
         </Box>
         <Box background="success-soft" padding="space-12" borderRadius="8">
           <div className="text-center">
-            <div className="text-lg font-semibold">{formatNumber(latest.ide_interactions + latest.cli_requests)}</div>
+            <div className="text-lg font-semibold">
+              {formatNumber(latest.code_generations + latest.ide_interactions + latest.cli_requests)}
+            </div>
             <BodyShort size="small" className="text-gray-600">
-              Forespørsler
+              Handlinger
             </BodyShort>
             {prev && (
               <BodyShort size="small" className="text-gray-500">
-                {pctChange(latest.ide_interactions + latest.cli_requests, prev.ide_interactions + prev.cli_requests)}
+                {pctChange(
+                  latest.code_generations + latest.ide_interactions + latest.cli_requests,
+                  prev.code_generations + prev.ide_interactions + prev.cli_requests
+                )}
               </BodyShort>
             )}
           </div>
@@ -178,7 +191,7 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
         </Box>
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-8">
-            <BodyShort weight="semibold">Aktivitet</BodyShort>
+            <BodyShort weight="semibold">Handlinger per type</BodyShort>
             <div className="aspect-[2/1]">
               <Bar data={activityChartData} options={barOptions} />
             </div>

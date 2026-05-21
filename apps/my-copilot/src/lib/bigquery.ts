@@ -349,8 +349,17 @@ export class CopilotBigQueryClient {
     const query = `
       SELECT
         FORMAT_DATE('%Y-%m', day) AS month,
-        COUNT(DISTINCT JSON_VALUE(raw_record, '$.user_id')) AS unique_users,
+        COUNT(DISTINCT day) AS days_in_month,
+        -- Only count users with actual activity (not just appearing in report)
+        COUNT(DISTINCT IF(
+          COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0)
+          + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
+          + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64), 0) > 0,
+          JSON_VALUE(raw_record, '$.user_id'),
+          NULL
+        )) AS unique_users,
         COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)), 0) AS ide_interactions,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64)), 0) AS code_generations,
         COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64)), 0) AS cli_requests,
         COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
         COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens,

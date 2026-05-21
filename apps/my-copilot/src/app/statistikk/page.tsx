@@ -179,9 +179,16 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   // Fetch monthly trends for the dashboard
   const { trends: monthlyTrends } = await getCachedMonthlyTrends();
 
-  // Compute key dashboard metrics from monthly trends
-  const latestMonth = monthlyTrends.length > 0 ? monthlyTrends[monthlyTrends.length - 1] : null;
-  const prevMonth = monthlyTrends.length > 1 ? monthlyTrends[monthlyTrends.length - 2] : null;
+  // Find the last COMPLETE month (not the current partial month)
+  // A month is "complete" if it has 28+ days of data or isn't the current calendar month
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const completeMonths = monthlyTrends.filter((m) => m.month !== currentMonthStr);
+  const currentMonth = monthlyTrends.find((m) => m.month === currentMonthStr);
+
+  // Use last complete month for hero, with MoM comparison to the one before
+  const latestComplete = completeMonths.length > 0 ? completeMonths[completeMonths.length - 1] : null;
+  const prevComplete = completeMonths.length > 1 ? completeMonths[completeMonths.length - 2] : null;
 
   function momChange(current: number, previous: number | undefined): string | undefined {
     if (!previous || previous === 0) return undefined;
@@ -193,43 +200,62 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
         : "Uendret";
   }
 
-  // Agent share: what % of users are using agent mode
+  // Agent share: what % of active users are using agent mode
   const agentShare =
-    latestMonth && latestMonth.unique_users > 0
-      ? Math.round((latestMonth.agent_users / latestMonth.unique_users) * 100)
+    latestComplete && latestComplete.unique_users > 0
+      ? Math.round((latestComplete.agent_users / latestComplete.unique_users) * 100)
       : 0;
 
-  // Total requests for latest month (IDE + CLI)
-  const totalRequestsLatest = latestMonth ? latestMonth.ide_interactions + latestMonth.cli_requests : 0;
-  const totalRequestsPrev = prevMonth ? prevMonth.ide_interactions + prevMonth.cli_requests : 0;
+  // Total activity: completions + chat/interactions + CLI
+  const totalActivityLatest = latestComplete
+    ? latestComplete.code_generations + latestComplete.ide_interactions + latestComplete.cli_requests
+    : 0;
+  const totalActivityPrev = prevComplete
+    ? prevComplete.code_generations + prevComplete.ide_interactions + prevComplete.cli_requests
+    : 0;
+
+  // Month label for hero subtitle
+  const heroMonthLabel = latestComplete
+    ? new Date(latestComplete.month + "-01").toLocaleDateString("nb-NO", { month: "long", year: "numeric" })
+    : undefined;
 
   // ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
   const dashboardContent = (
     <VStack gap="space-24">
       {/* Hero metrics — the 4 numbers that matter */}
+      {heroMonthLabel && (
+        <BodyShort size="small" className="text-gray-500">
+          Nøkkeltall for {heroMonthLabel}
+          {currentMonth && ` • Hittil i ${currentMonthStr}: ${formatNumber(currentMonth.unique_users)} brukere`}
+        </BodyShort>
+      )}
       <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
         <MetricCard
-          value={formatNumber(latestMonth?.unique_users ?? aggregatedMetrics.monthlyActiveUsers)}
+          value={formatNumber(latestComplete?.unique_users ?? aggregatedMetrics.monthlyActiveUsers)}
           label="Aktive brukere"
           helpTitle="Aktive brukere"
-          helpText="Unike brukere som brukte Copilot denne måneden. Inkluderer kodeforslag, chat, agent og CLI."
-          subtitle={latestMonth && prevMonth ? momChange(latestMonth.unique_users, prevMonth.unique_users) : undefined}
+          helpText="Unike brukere med faktisk aktivitet (kodeforslag, chat-interaksjoner eller CLI-bruk) i siste hele måned."
+          subtitle={
+            latestComplete && prevComplete
+              ? momChange(latestComplete.unique_users, prevComplete.unique_users)
+              : undefined
+          }
         />
         <MetricCard
-          value={formatNumber(totalRequestsLatest || aggregatedMetrics.totalInteractions)}
-          label="AI-forespørsler"
-          helpTitle="AI-forespørsler"
-          helpText="Totalt antall forespørsler til Copilot (IDE-interaksjoner + CLI-forespørsler) denne måneden."
-          subtitle={totalRequestsPrev ? momChange(totalRequestsLatest, totalRequestsPrev) : undefined}
+          value={formatNumber(totalActivityLatest || aggregatedMetrics.totalInteractions)}
+          label="Copilot-handlinger"
+          helpTitle="Copilot-handlinger"
+          helpText="Sum av kodeforslag generert, chat/agent-interaksjoner og CLI-forespørsler i siste hele måned."
+          subtitle={totalActivityPrev ? momChange(totalActivityLatest, totalActivityPrev) : undefined}
         />
         <MetricCard
           value={`${agentShare} %`}
           label="Agent-adopsjon"
           helpTitle="Agent-adopsjon"
-          helpText="Andel av aktive brukere som har brukt agent mode denne måneden. Agent mode er den mest avanserte Copilot-funksjonen."
+          helpText="Andel av aktive brukere som brukte agent mode minst én gang i siste hele måned."
           subtitle={
-            prevMonth && prevMonth.unique_users > 0
-              ? momChange(agentShare, Math.round((prevMonth.agent_users / prevMonth.unique_users) * 100))
+            prevComplete && prevComplete.unique_users > 0
+              ? momChange(agentShare, Math.round((prevComplete.agent_users / prevComplete.unique_users) * 100))
               : undefined
           }
         />
@@ -237,8 +263,8 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
           value={`${aggregatedMetrics.overallAcceptanceRate} %`}
           label="Aksepteringsrate"
           helpTitle="Aksepteringsrate"
-          helpText="Andel av Copilots kodeforslag som utviklerne aksepterer. Gode rater ligger mellom 20–40 %."
-          subtitle="Kodeforslag i editor"
+          helpText={`Andel av kodeforslag i editoren som utviklerne aksepterer (siste ${usage.length} dager). Gode rater ligger mellom 20–40 %.`}
+          subtitle={`Siste ${usage.length} dager`}
         />
       </HGrid>
 
@@ -250,11 +276,11 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
         <VStack gap="space-16">
           <div className="flex items-center gap-2">
             <Heading size="small" level="3">
-              Funksjon&shy;adopsjons&shy;fordeling
+              Adopsjonsfordeling
             </Heading>
             <HelpText title="Adopsjon" placement="top">
-              Viser hvordan brukerne fordeler seg mellom Copilots ulike funksjoner. Chat og agent basert på GitHubs
-              rullende 30-dagersvindu, CLI på daglige tall.
+              Viser bruk av Copilots ulike funksjoner. Alle tall er basert på GitHubs rullende 30-dagersvindu (siste dag
+              i valgt periode). 7-dagers rullerende snitt i grafen.
             </HelpText>
           </div>
           <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
@@ -268,7 +294,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                 </BodyShort>
                 <BodyShort size="small" className="text-gray-500">
                   {aggregatedMetrics.monthlyActiveUsers > 0
-                    ? `${Math.round((aggregatedMetrics.monthlyActiveChatUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} % av brukere`
+                    ? `${Math.round((aggregatedMetrics.monthlyActiveChatUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} %`
                     : ""}
                 </BodyShort>
               </div>
@@ -283,7 +309,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                 </BodyShort>
                 <BodyShort size="small" className="text-gray-500">
                   {aggregatedMetrics.monthlyActiveUsers > 0
-                    ? `${Math.round((aggregatedMetrics.monthlyActiveAgentUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} % av brukere`
+                    ? `${Math.round((aggregatedMetrics.monthlyActiveAgentUsers / aggregatedMetrics.monthlyActiveUsers) * 100)} %`
                     : ""}
                 </BodyShort>
               </div>
@@ -297,7 +323,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
                   CLI
                 </BodyShort>
                 <BodyShort size="small" className="text-gray-500">
-                  daglig
+                  siste dag
                 </BodyShort>
               </div>
             </Box>

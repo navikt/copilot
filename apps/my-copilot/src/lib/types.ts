@@ -405,8 +405,10 @@ export interface UserMetricsSummary {
  */
 export interface MonthlyTrend {
   month: string;
+  days_in_month: number;
   unique_users: number;
   ide_interactions: number;
+  code_generations: number;
   cli_requests: number;
   prompt_tokens: number;
   output_tokens: number;
