@@ -15,7 +15,8 @@ type Config struct {
 	GitHubAppID                int64
 	GitHubAppPrivateKey        string
 	GitHubAppInstallationID    int64
-	GitHubAppOrgInstallationID int64 // Optional: separate installation for org-level endpoints
+	GitHubAppOrgInstallationID int64  // Optional: separate installation for org-level endpoints
+	GitHubBillingToken         string // Classic PAT with admin:enterprise scope for billing API
 	BigQueryProjectID          string
 	BigQueryDataset            string
 	BigQueryTable              string
@@ -34,6 +35,7 @@ func loadConfig() *Config {
 		GitHubAppPrivateKey:        strings.ReplaceAll(getEnv("GITHUB_APP_PRIVATE_KEY", ""), `\n`, "\n"),
 		GitHubAppInstallationID:    getEnvInt64("GITHUB_APP_INSTALLATION_ID", 0),
 		GitHubAppOrgInstallationID: getEnvInt64("GITHUB_APP_ORG_INSTALLATION_ID", 0),
+		GitHubBillingToken:         getEnv("GITHUB_BILLING_TOKEN", ""),
 		BigQueryProjectID:          getEnv("GCP_TEAM_PROJECT_ID", ""),
 		BigQueryDataset:            getEnv("BIGQUERY_DATASET", "copilot_metrics"),
 		BigQueryTable:              getEnv("BIGQUERY_TABLE", "usage_metrics"),

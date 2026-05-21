@@ -44,6 +44,16 @@ copilot-metrics --backfill
 copilot-metrics --backfill --backfill-from=2025-10-10
 ```
 
+### Billing usage backfill
+
+One-time operation to load premium request billing data per model (requires `GITHUB_BILLING_TOKEN`):
+
+```bash
+copilot-metrics --billing-backfill
+copilot-metrics --billing-backfill --billing-from=2025-01
+copilot-metrics --billing-backfill --billing-from=2025-01 --force
+```
+
 ### Local development
 
 ```bash
@@ -67,12 +77,15 @@ go run . --run-once
 | `GITHUB_APP_ID`              | GitHub App ID                        | (required)        |
 | `GITHUB_APP_PRIVATE_KEY`     | GitHub App private key (PEM)         | (required)        |
 | `GITHUB_APP_INSTALLATION_ID` | GitHub App installation ID           | (required)        |
+| `GITHUB_BILLING_TOKEN`       | Classic PAT with `admin:enterprise` for billing API | (optional) |
 | `GCP_TEAM_PROJECT_ID`        | GCP project (from NAIS)              | (required)        |
 | `BIGQUERY_DATASET`           | BigQuery dataset name                | `copilot_metrics` |
 | `BIGQUERY_TABLE`             | BigQuery table name                  | `usage_metrics`   |
 | `SLACK_WEBHOOK_URL`          | Slack webhook for failure alerts     | (optional)        |
 
 ## BigQuery Schema
+
+### `usage_metrics` table
 
 | Column       | Type      | Description                    |
 | ------------ | --------- | ------------------------------ |
@@ -84,12 +97,45 @@ go run . --run-once
 
 Table is partitioned by `day` and clustered by `scope`, `scope_id`.
 
+### `billing_usage` table
+
+Per-model premium request billing data from the Enhanced Billing API.
+
+| Column         | Type      | Description                           |
+| -------------- | --------- | ------------------------------------- |
+| `day`          | DATE      | First day of the billing month        |
+| `year`         | INTEGER   | Billing year                          |
+| `month`        | INTEGER   | Billing month                         |
+| `scope_id`     | STRING    | Enterprise slug                       |
+| `product`      | STRING    | Product (e.g. `Copilot`)              |
+| `sku`          | STRING    | SKU (e.g. `Copilot Premium Request`)  |
+| `model`        | STRING    | Model name (e.g. `Claude Opus 4.7`)   |
+| `unit_type`    | STRING    | Unit type (e.g. `requests`)           |
+| `price_per_unit` | FLOAT   | Price per unit in USD                 |
+| `gross_quantity` | FLOAT   | Total quantity before discounts       |
+| `gross_amount` | FLOAT     | Total USD before discounts            |
+| `net_quantity`  | FLOAT    | Billed quantity                       |
+| `net_amount`   | FLOAT     | Billed USD                            |
+| `raw_record`   | JSON      | Full API record                       |
+| `loaded_at`    | TIMESTAMP | When the row was inserted             |
+
+Table is partitioned by month and clustered by `scope_id`, `model`.
+
 ## GitHub App Permissions
 
 The GitHub App requires:
 
 - `enterprise_copilot_metrics: read` (for enterprise-level data)
 - Or `organization_copilot_metrics: read` (fallback)
+
+## Billing API Access
+
+The premium request billing endpoint (`/enterprises/{enterprise}/settings/billing/premium_request/usage`) **cannot** be accessed by GitHub App tokens. It requires a classic Personal Access Token (PAT) with:
+
+- `admin:enterprise` scope
+- User must be an enterprise admin or billing manager
+
+Set `GITHUB_BILLING_TOKEN` in the `copilot-metrics` secret to enable billing ingestion.
 
 ## Deployment
 
