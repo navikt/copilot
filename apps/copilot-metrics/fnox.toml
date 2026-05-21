@@ -6,4 +6,5 @@ GITHUB_APP_ID = { provider = "keychain", value = "GITHUB_APP_ID" }
 GITHUB_APP_PRIVATE_KEY = { provider = "keychain", value = "GITHUB_APP_PRIVATE_KEY" }
 GITHUB_APP_INSTALLATION_ID = { provider = "keychain", value = "GITHUB_APP_INSTALLATION_ID" }
 GITHUB_APP_ORG_INSTALLATION_ID = { provider = "keychain", value = "GITHUB_APP_ORG_INSTALLATION_ID" }
+GITHUB_BILLING_TOKEN = { provider = "keychain", value = "GITHUB_BILLING_TOKEN" }
 SLACK_WEBHOOK_URL = { provider = "keychain", value = "SLACK_WEBHOOK_URL" }

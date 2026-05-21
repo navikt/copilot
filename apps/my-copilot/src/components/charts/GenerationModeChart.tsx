@@ -29,7 +29,7 @@ const GenerationModeChart: React.FC<GenerationModeChartProps> = ({ data }) => {
     labels: data.days,
     datasets: [
       {
-        label: "Brukerinitiiert",
+        label: "Bruker",
         data: data.userInitiated,
         borderColor: chartColors[0],
         backgroundColor: getBackgroundColor(chartColors[0]),
@@ -37,7 +37,7 @@ const GenerationModeChart: React.FC<GenerationModeChartProps> = ({ data }) => {
         tension: 0.4,
       },
       {
-        label: "Agentinitiiert",
+        label: "Agent",
         data: data.agentInitiated,
         borderColor: chartColors[2],
         backgroundColor: getBackgroundColor(chartColors[2]),
@@ -53,7 +53,7 @@ const GenerationModeChart: React.FC<GenerationModeChartProps> = ({ data }) => {
       ...commonLineOptions.plugins,
       title: {
         display: true,
-        text: "Genereringer — brukerinitiiert vs. agentinitiiert",
+        text: "Genereringer — bruker vs. agent",
       },
       tooltip: {
         ...commonLineOptions.plugins.tooltip,

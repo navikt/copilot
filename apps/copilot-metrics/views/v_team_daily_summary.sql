@@ -22,8 +22,7 @@ user_metrics AS (
     CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
     CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
     CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
-    CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
-    CAST(JSON_VALUE(raw_record, '$.is_active') AS BOOL) AS is_active
+    CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted
   FROM {{user_metrics}}
 )
 SELECT
@@ -33,7 +32,7 @@ SELECT
   ut.entity_id,
   ut.scope_id,
   COUNT(DISTINCT ut.user_id) AS total_users,
-  COUNTIF(um.is_active) AS active_users,
+  COUNTIF(COALESCE(um.acceptances, 0) + COALESCE(um.interactions, 0) > 0) AS active_users,
   SUM(COALESCE(um.generations, 0)) AS total_generations,
   SUM(COALESCE(um.acceptances, 0)) AS total_acceptances,
   SUM(COALESCE(um.interactions, 0)) AS total_interactions,

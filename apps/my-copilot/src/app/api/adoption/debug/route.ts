@@ -4,6 +4,11 @@ import { BigQuery } from "@google-cloud/bigquery";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
+  // Debug endpoint — only available in development
+  if (process.env.NODE_ENV !== "development") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const user = await getUser(false);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

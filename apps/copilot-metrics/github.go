@@ -410,7 +410,14 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		return nil, fmt.Errorf("both enterprise and org user-teams-1-day endpoints failed: enterprise=%v, org=%v", enterpriseErr, orgErr)
 	}
 
-	return &FetchResult{Records: allRecords, Scope: "enterprise", ScopeID: c.enterprise}, nil
+	// One endpoint succeeded but returned 0 records
+	scope := "enterprise"
+	scopeID := c.enterprise
+	if enterpriseErr != nil {
+		scope = "organization"
+		scopeID = c.org
+	}
+	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID}, nil
 }
 
 // FetchDailyUserMetrics fetches the users-1-day report for the given day.

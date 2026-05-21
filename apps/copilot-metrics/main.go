@@ -18,6 +18,8 @@ func main() {
 	backfill := flag.Bool("backfill", false, "Run historical backfill from Oct 10, 2025 to today")
 	backfillFrom := flag.String("backfill-from", "2025-10-10", "Start date for backfill (YYYY-MM-DD)")
 	backfillForce := flag.Bool("force", false, "Force re-ingestion even if data already exists")
+	billingBackfill := flag.Bool("billing-backfill", false, "Backfill billing data from billing-from month to current month")
+	billingFrom := flag.String("billing-from", "2025-01", "Start month for billing backfill (YYYY-MM)")
 	runOnce := flag.Bool("run-once", false, "Run single ingestion for yesterday and exit")
 	flag.Parse()
 
@@ -77,6 +79,35 @@ func main() {
 		slog.Warn("Failed to ensure views exist (continuing without views)", "error", err)
 	}
 
+	// Set up billing client (optional — requires classic PAT)
+	billingClient := NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug)
+	if billingClient != nil {
+		slog.Info("Billing client configured — premium request usage ingestion enabled")
+		if err := bqClient.EnsureBillingTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure billing table exists", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing usage ingestion disabled")
+	}
+
+	if *billingBackfill {
+		if billingClient == nil {
+			slog.Error("Billing backfill requires GITHUB_BILLING_TOKEN")
+			os.Exit(1)
+		}
+		startMonth, err := time.Parse("2006-01", *billingFrom)
+		if err != nil {
+			slog.Error("Invalid billing-from month", "error", err)
+			os.Exit(1)
+		}
+		if err := runBillingBackfill(ctx, billingClient, bqClient, config, startMonth, *backfillForce); err != nil {
+			slog.Error("Billing backfill failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if *backfill {
 		startDate, err := time.Parse("2006-01-02", *backfillFrom)
 		if err != nil {
@@ -98,6 +129,10 @@ func main() {
 			}
 			slog.Error("Ingestion failed", "error", err)
 			os.Exit(1)
+		}
+		// Ingest current month's billing data (always re-ingests since it's cumulative)
+		if billingClient != nil {
+			ingestCurrentMonthBilling(ctx, billingClient, bqClient, config)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
@@ -220,20 +255,23 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 
 		exists, checkErr := bq.DayExists(ctx, day, result.ScopeID)
 		if checkErr != nil {
-			return fmt.Errorf("failed to check if day exists: %w", checkErr)
-		}
-		if exists {
+			entityErr = fmt.Errorf("failed to check if day exists: %w", checkErr)
+		} else if exists {
 			slog.Info("Day already exists, deleting for re-ingestion", "day", dayStr, "scope_id", result.ScopeID)
 			if delErr := bq.DeleteDay(ctx, day, result.ScopeID); delErr != nil {
-				return fmt.Errorf("failed to delete existing data: %w", delErr)
+				slog.Warn("Entity data already exists and cannot be replaced (skipping entity, continuing with supplementary)", "day", dayStr, "error", delErr)
+			} else if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
+				entityErr = fmt.Errorf("failed to insert metrics: %w", insErr)
+			} else {
+				slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
+			}
+		} else {
+			if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
+				entityErr = fmt.Errorf("failed to insert metrics: %w", insErr)
+			} else {
+				slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
 			}
 		}
-
-		if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
-			return fmt.Errorf("failed to insert metrics: %w", insErr)
-		}
-
-		slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
 	}
 
 	// Always attempt supplementary ingestion, independent of entity metrics.
@@ -335,4 +373,100 @@ func metricsHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprint(w, "# HELP copilot_metrics_up Application is up\n")
 	_, _ = fmt.Fprint(w, "# TYPE copilot_metrics_up gauge\n")
 	_, _ = fmt.Fprint(w, "copilot_metrics_up 1\n")
+}
+
+// ingestCurrentMonthBilling fetches and stores billing data for the current month.
+// Always re-ingests since monthly data is cumulative and updates throughout the month.
+func ingestCurrentMonthBilling(ctx context.Context, billing *BillingClient, bq *BigQueryClient, cfg *Config) {
+	now := time.Now().UTC()
+	year, month := now.Year(), int(now.Month())
+
+	if err := ingestBillingMonth(ctx, billing, bq, cfg, year, month, true); err != nil {
+		slog.Warn("Failed to ingest current month billing", "year", year, "month", month, "error", err)
+	}
+
+	// Also re-ingest previous month if we're in the first few days (data may still be finalizing)
+	if now.Day() <= 5 {
+		prevMonth := now.AddDate(0, -1, 0)
+		if err := ingestBillingMonth(ctx, billing, bq, cfg, prevMonth.Year(), int(prevMonth.Month()), true); err != nil {
+			slog.Warn("Failed to ingest previous month billing", "error", err)
+		}
+	}
+}
+
+// ingestBillingMonth fetches and stores billing data for a specific month.
+func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQueryClient, cfg *Config, year, month int, force bool) error {
+	slog.Info("Ingesting billing data", "year", year, "month", month, "force", force)
+
+	if !force {
+		exists, err := bq.BillingMonthExists(ctx, year, month, cfg.EnterpriseSlug)
+		if err != nil {
+			slog.Warn("Failed to check billing month existence", "year", year, "month", month, "error", err)
+		} else if exists {
+			slog.Info("Billing data already exists, skipping", "year", year, "month", month)
+			return nil
+		}
+	}
+
+	resp, err := billing.FetchMonthlyUsage(ctx, year, month)
+	if err != nil {
+		return fmt.Errorf("fetch billing data: %w", err)
+	}
+
+	// Filter to items with actual usage
+	var items []BillingUsageItem
+	for _, item := range resp.UsageItems {
+		if item.GrossQuantity > 0 {
+			items = append(items, item)
+		}
+	}
+
+	if len(items) == 0 {
+		slog.Info("No billing usage for month", "year", year, "month", month)
+		return nil
+	}
+
+	// Delete existing data before re-inserting (idempotent)
+	if err := bq.DeleteBillingMonth(ctx, year, month, cfg.EnterpriseSlug); err != nil {
+		slog.Warn("Failed to delete existing billing data (continuing)", "error", err)
+	}
+
+	if err := bq.InsertBillingUsage(ctx, year, month, cfg.EnterpriseSlug, items); err != nil {
+		return fmt.Errorf("insert billing data: %w", err)
+	}
+
+	slog.Info("Billing data ingested successfully", "year", year, "month", month, "items", len(items))
+	return nil
+}
+
+// runBillingBackfill ingests billing data for all months from startMonth to current.
+func runBillingBackfill(ctx context.Context, billing *BillingClient, bq *BigQueryClient, cfg *Config, startMonth time.Time, force bool) error {
+	now := time.Now().UTC()
+	current := time.Date(startMonth.Year(), startMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+
+	var successCount, errorCount int
+	for !current.After(end) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		year, month := current.Year(), int(current.Month())
+		if err := ingestBillingMonth(ctx, billing, bq, cfg, year, month, force); err != nil {
+			slog.Warn("Failed to ingest billing month", "year", year, "month", month, "error", err)
+			errorCount++
+		} else {
+			successCount++
+		}
+
+		current = current.AddDate(0, 1, 0)
+
+		// Small delay to avoid rate limiting
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	slog.Info("Billing backfill completed", "months_processed", successCount, "errors", errorCount)
+	return nil
 }
