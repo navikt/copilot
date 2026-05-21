@@ -64,7 +64,9 @@ func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -87,7 +89,7 @@ func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
 	// Test NewBillingClient with token returns non-nil
 	validClient := NewBillingClient("some-token", "nav")
 	if validClient == nil {
-		t.Error("expected non-nil client with valid token")
+		t.Fatal("expected non-nil client with valid token")
 	}
 	if validClient.enterprise != "nav" {
 		t.Errorf("expected enterprise 'nav', got %s", validClient.enterprise)
