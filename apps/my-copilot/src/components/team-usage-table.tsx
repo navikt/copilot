@@ -23,9 +23,10 @@ import WeeklyTrendsChart from "@/components/charts/WeeklyTrendsChart";
 function CopyJsonButton({ data, label = "Kopier JSON" }: { data: unknown; label?: string }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }, [data]);
   return (
     <Button variant="tertiary-neutral" size="xsmall" onClick={handleCopy}>
@@ -238,7 +239,7 @@ export default function TeamUsageTable({
             {/* Personal weekly trends */}
             {userWeeklyTrends && userWeeklyTrends.length > 1 && (
               <div>
-                <BodyShort weight="semibold" size="small" className="mb-2">
+                <BodyShort weight="semibold" size="small">
                   Ukentlig aktivitet
                 </BodyShort>
                 <WeeklyTrendsChart data={userWeeklyTrends} />
@@ -322,7 +323,7 @@ export default function TeamUsageTable({
             {pageTeams.length === 0 && (
               <TableRow>
                 <TableDataCell colSpan={5}>
-                  <BodyShort className="text-gray-500 py-4 text-center">
+                  <BodyShort className="text-gray-500 text-center">
                     {search ? "Ingen team funnet for søket ditt." : "Ingen teamdata tilgjengelig ennå."}
                   </BodyShort>
                 </TableDataCell>

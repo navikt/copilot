@@ -25,7 +25,7 @@ export async function getUsernameBySamlIdentity(
   "use cache";
   const { cacheLife, cacheTag } = await import("next/cache");
   cacheLife({ stale: 3600 });
-  cacheTag(`username-${identity}`);
+  cacheTag(`username-${identity.split("@")[0]}`);
 
   const query = `
     query($organization: String!, $identity: String!) {
@@ -99,7 +99,9 @@ export async function getUsernameByScim(
   "use cache";
   const { cacheLife, cacheTag } = await import("next/cache");
   cacheLife({ stale: 3600 });
-  cacheTag(`scim-username-${email}`);
+  // Use email prefix (before @) as cache key — avoids full PII in cache tags
+  const emailKey = email.split("@")[0].replace(/[^a-zA-Z0-9.-]/g, "");
+  cacheTag(`scim-username-${emailKey}`);
 
   // Validate email format to prevent SCIM filter injection
   if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
