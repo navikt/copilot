@@ -6,6 +6,11 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    settings: {
+      react: {
+        version: "19",
+      },
+    },
     rules: {
       // Disable false positive for already-escaped quotes in JSX
       "react/no-unescaped-entities": "off",
