@@ -18,7 +18,6 @@ import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import PremiumRequestsContent from "@/components/premium-requests-content";
-import TimeframeSelector from "@/components/timeframe-selector";
 import { calculatePremiumMetrics } from "@/lib/billing-utils";
 import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
@@ -52,27 +51,17 @@ function formatMinutes(minutes: number): string {
 
 // Static header component (automatically prerendered)
 function UsageHeader() {
-  return (
-    <PageHero
-      title="Statistikk"
-      description="Bruksdata og trender for GitHub Copilot i Nav."
-      actions={
-        <Suspense fallback={<Skeleton variant="rectangle" width={192} height={40} />}>
-          <TimeframeSelector />
-        </Suspense>
-      }
-    />
-  );
+  return <PageHero title="Statistikk" description="Bruksdata og trender for GitHub Copilot i Nav." />;
 }
 
-// Cached data component
-async function CachedUsageData({ days }: { days: number }) {
+// Cached data component — uses last 28 days of entity-level data
+async function CachedUsageData() {
   const { usage, error } = await getCachedBigQueryUsage();
 
   if (error) return <ErrorState message={`Feil ved henting av bruksdata: ${error}`} />;
   if (!usage || usage.length === 0) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
 
-  const filteredUsage = days > 0 ? usage.slice(-days) : usage;
+  const filteredUsage = usage.slice(-28);
 
   return <UsageContent usage={filteredUsage} />;
 }
@@ -643,11 +632,8 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
 }
 
 // Main page component using Partial Prerendering
-export default async function Usage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+export default async function Usage() {
   await getUser();
-  const params = await searchParams;
-  const parsedDays = parseInt(params.days || "28", 10);
-  const days = isNaN(parsedDays) ? 28 : parsedDays <= 0 ? 0 : Math.min(parsedDays, 365);
 
   return (
     <main>
@@ -666,7 +652,7 @@ export default async function Usage({ searchParams }: { searchParams: Promise<{ 
                 </div>
               }
             >
-              <CachedUsageData days={days} />
+              <CachedUsageData />
             </Suspense>
           </section>
         </Box>

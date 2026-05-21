@@ -92,140 +92,147 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
     <VStack gap="space-16">
       {/* Personal stats card */}
       {userMetrics && (
-        <Box background="info-soft" padding="space-16" borderRadius="8">
-          <VStack gap="space-12">
+        <Box background="neutral-soft" padding="space-24" borderRadius="12">
+          <VStack gap="space-16">
             <HStack justify="space-between" align="center">
-              <Heading size="xsmall" level="3">
-                Din bruk siste 7 dager
-              </Heading>
+              <div>
+                <Heading size="small" level="3">
+                  Din bruk
+                </Heading>
+                <BodyShort size="small" className="text-gray-600">
+                  Siste {userMetrics.days_in_period} dager ({userMetrics.active_days} aktive)
+                </BodyShort>
+              </div>
               <CopyJsonButton data={userMetrics} label="📋 JSON" />
             </HStack>
-            {/* Activity overview */}
-            <HGrid columns={{ xs: 2, sm: 3, md: 6 }} gap="space-8">
-              <div className="text-center">
-                <div className="text-lg font-semibold">{userMetrics.active_days}</div>
-                <BodyShort size="small" className="text-gray-600">
-                  Aktive dager
-                </BodyShort>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">
-                  {formatNumber(userMetrics.total_interactions + userMetrics.cli_total_requests)}
+
+            {/* Primary metrics */}
+            <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
+              <Box background="info-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(userMetrics.total_interactions + userMetrics.cli_total_requests)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Forespørsler
+                  </BodyShort>
                 </div>
-                <BodyShort size="small" className="text-gray-600">
-                  Totalt forespørsler
-                </BodyShort>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_acceptances)}</div>
-                <BodyShort size="small" className="text-gray-600">
-                  Aksepterte forslag
-                </BodyShort>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_lines_accepted)}</div>
-                <BodyShort size="small" className="text-gray-600">
-                  Linjer lagt til
-                </BodyShort>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_lines_deleted)}</div>
-                <BodyShort size="small" className="text-gray-600">
-                  Linjer slettet
-                </BodyShort>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_lines_suggested)}</div>
-                <BodyShort size="small" className="text-gray-600">
-                  Linjer foreslått
-                </BodyShort>
-              </div>
+              </Box>
+              <Box background="success-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(userMetrics.total_acceptances)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Aksepterte forslag
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="accent-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(userMetrics.total_lines_accepted)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Linjer lagt til
+                  </BodyShort>
+                </div>
+              </Box>
+              <Box background="warning-soft" padding="space-16" borderRadius="8">
+                <div className="text-center">
+                  <Heading size="large" level="4">
+                    {formatNumber(userMetrics.total_lines_deleted)}
+                  </Heading>
+                  <BodyShort size="small" className="text-gray-600">
+                    Linjer slettet
+                  </BodyShort>
+                </div>
+              </Box>
             </HGrid>
-            {/* Chat requests by mode */}
-            {(userMetrics.chat_agent_requests > 0 ||
-              userMetrics.chat_ask_requests > 0 ||
-              userMetrics.chat_edit_requests > 0 ||
-              userMetrics.chat_plan_requests > 0) && (
-              <div>
-                <BodyShort size="small" className="text-gray-600 mb-1">
-                  Chat-forespørsler per modus
-                </BodyShort>
-                <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">
-                  {userMetrics.chat_agent_requests > 0 && (
-                    <div className="text-center">
-                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_agent_requests)}</div>
-                      <BodyShort size="small" className="text-gray-500">
-                        Agent
-                      </BodyShort>
-                    </div>
-                  )}
-                  {userMetrics.chat_ask_requests > 0 && (
-                    <div className="text-center">
-                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_ask_requests)}</div>
-                      <BodyShort size="small" className="text-gray-500">
-                        Ask
-                      </BodyShort>
-                    </div>
-                  )}
-                  {userMetrics.chat_edit_requests > 0 && (
-                    <div className="text-center">
-                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_edit_requests)}</div>
-                      <BodyShort size="small" className="text-gray-500">
-                        Edit
-                      </BodyShort>
-                    </div>
-                  )}
-                  {userMetrics.chat_plan_requests > 0 && (
-                    <div className="text-center">
-                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_plan_requests)}</div>
-                      <BodyShort size="small" className="text-gray-500">
-                        Plan
-                      </BodyShort>
-                    </div>
-                  )}
-                </HGrid>
-              </div>
-            )}
-            {/* CLI token usage */}
-            {userMetrics.cli_total_requests > 0 && (
-              <div>
-                <BodyShort size="small" className="text-gray-600 mb-1">
-                  CLI-bruk
-                </BodyShort>
-                <HGrid columns={{ xs: 3 }} gap="space-8">
-                  <div className="text-center">
-                    <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_total_requests)}</div>
-                    <BodyShort size="small" className="text-gray-500">
-                      Forespørsler
+
+            {/* Feature usage breakdown */}
+            <HGrid columns={{ xs: 1, sm: 2 }} gap="space-16">
+              {/* Chat modes */}
+              {(userMetrics.chat_agent_requests > 0 ||
+                userMetrics.chat_ask_requests > 0 ||
+                userMetrics.chat_edit_requests > 0 ||
+                userMetrics.chat_plan_requests > 0) && (
+                <Box background="info-soft" padding="space-16" borderRadius="8">
+                  <VStack gap="space-8">
+                    <BodyShort weight="semibold" size="small">
+                      IDE-chat
                     </BodyShort>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_prompt_tokens)}</div>
-                    <BodyShort size="small" className="text-gray-500">
-                      Prompt-tokens
+                    <HGrid columns={2} gap="space-8">
+                      {userMetrics.chat_agent_requests > 0 && (
+                        <div>
+                          <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_agent_requests)}</div>
+                          <BodyShort size="small" className="text-gray-500">
+                            Agent
+                          </BodyShort>
+                        </div>
+                      )}
+                      {userMetrics.chat_ask_requests > 0 && (
+                        <div>
+                          <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_ask_requests)}</div>
+                          <BodyShort size="small" className="text-gray-500">
+                            Ask
+                          </BodyShort>
+                        </div>
+                      )}
+                      {userMetrics.chat_edit_requests > 0 && (
+                        <div>
+                          <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_edit_requests)}</div>
+                          <BodyShort size="small" className="text-gray-500">
+                            Edit
+                          </BodyShort>
+                        </div>
+                      )}
+                      {userMetrics.chat_plan_requests > 0 && (
+                        <div>
+                          <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_plan_requests)}</div>
+                          <BodyShort size="small" className="text-gray-500">
+                            Plan
+                          </BodyShort>
+                        </div>
+                      )}
+                    </HGrid>
+                  </VStack>
+                </Box>
+              )}
+              {/* CLI */}
+              {userMetrics.cli_total_requests > 0 && (
+                <Box background="accent-soft" padding="space-16" borderRadius="8">
+                  <VStack gap="space-8">
+                    <BodyShort weight="semibold" size="small">
+                      CLI
                     </BodyShort>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_output_tokens)}</div>
-                    <BodyShort size="small" className="text-gray-500">
-                      Output-tokens
-                    </BodyShort>
-                  </div>
-                </HGrid>
-              </div>
-            )}
+                    <div>
+                      <div className="text-sm font-semibold">
+                        {formatNumber(userMetrics.cli_total_requests)} forespørsler
+                      </div>
+                      <BodyShort size="small" className="text-gray-500">
+                        {formatNumber(userMetrics.cli_prompt_tokens)} inn /{" "}
+                        {formatNumber(userMetrics.cli_output_tokens)} ut tokens
+                      </BodyShort>
+                    </div>
+                  </VStack>
+                </Box>
+              )}
+            </HGrid>
+
             {/* Personal weekly trends */}
             {userWeeklyTrends && userWeeklyTrends.length > 1 && (
               <div>
-                <BodyShort size="small" className="text-gray-600 mb-1">
-                  Ukentlig aktivitet (siste 12 uker)
+                <BodyShort weight="semibold" size="small" className="mb-2">
+                  Ukentlig aktivitet
                 </BodyShort>
                 <WeeklyTrendsChart data={userWeeklyTrends} />
               </div>
             )}
+
             {userTeams.length > 0 && (
-              <BodyShort size="small" className="text-gray-600">
-                Dine team: {userTeams.join(", ")}
+              <BodyShort size="small" className="text-gray-500">
+                Team: {userTeams.join(", ")}
               </BodyShort>
             )}
           </VStack>

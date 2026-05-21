@@ -107,7 +107,7 @@ export async function getCachedUserMetrics(userLogin: string): Promise<{
   cacheTag("bq-user-metrics", userLogin);
 
   try {
-    const metrics = await getUserMetrics(userLogin, 7);
+    const metrics = await getUserMetrics(userLogin, 30);
     return { metrics, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
