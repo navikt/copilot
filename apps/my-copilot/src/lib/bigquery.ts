@@ -6,9 +6,11 @@ import type {
   CustomizationUsage,
   EnterpriseMetrics,
   LanguageAdoption,
+  MonthlyTrend,
   TeamAdoption,
   TeamUsageSummary,
   UserMetricsSummary,
+  WeeklyTrend,
 } from "./types";
 
 /**
@@ -336,6 +338,73 @@ export class CopilotBigQueryClient {
       throw err;
     }
   }
+
+  /**
+   * Get org-wide monthly trends aggregated from user_metrics.
+   * Uses COUNT(DISTINCT) for user counts per feature to avoid double-counting.
+   */
+  async getMonthlyTrends(months: number = 12): Promise<MonthlyTrend[]> {
+    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
+
+    const query = `
+      SELECT
+        FORMAT_DATE('%Y-%m', day) AS month,
+        COUNT(DISTINCT JSON_VALUE(raw_record, '$.user_id')) AS unique_users,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)), 0) AS ide_interactions,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64)), 0) AS cli_requests,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)), 0) AS lines_added,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_deleted_sum') AS INT64)), 0) AS lines_deleted,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances,
+        COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS agent_users,
+        COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS chat_users,
+        COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS cli_users
+      FROM ${metricsRef}
+      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+      GROUP BY month
+      ORDER BY month
+    `;
+
+    try {
+      return await this.query<MonthlyTrend>(query, { months });
+    } catch (err) {
+      console.error("[bigquery] getMonthlyTrends failed:", err);
+      throw err;
+    }
+  }
+
+  /**
+   * Get personal weekly trends for a specific user.
+   */
+  async getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {
+    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
+
+    const query = `
+      SELECT
+        FORMAT_DATE('%G-W%V', day) AS week,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64)), 0) AS cli_requests,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)), 0) AS lines_added,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_deleted_sum') AS INT64)), 0) AS lines_deleted,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens,
+        COUNT(*) AS active_days
+      FROM ${metricsRef}
+      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @weeks * 7 DAY)
+        AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+      GROUP BY week
+      ORDER BY week
+    `;
+
+    try {
+      return await this.query<WeeklyTrend>(query, { weeks, userLogin });
+    } catch (err) {
+      console.error("[bigquery] getUserWeeklyTrends failed:", err);
+      throw err;
+    }
+  }
 }
 
 // Default client instance (lazy-loaded)
@@ -379,4 +448,12 @@ export async function getTeamUsageSummary(days?: number): Promise<TeamUsageSumma
 
 export async function getUserMetrics(userLogin: string, days?: number): Promise<UserMetricsSummary | null> {
   return getDefaultClient().getUserMetrics(userLogin, days);
+}
+
+export async function getMonthlyTrends(months: number = 12): Promise<MonthlyTrend[]> {
+  return getDefaultClient().getMonthlyTrends(months);
+}
+
+export async function getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {
+  return getDefaultClient().getUserWeeklyTrends(userLogin, weeks);
 }

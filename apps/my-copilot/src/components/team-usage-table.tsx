@@ -15,8 +15,9 @@ import {
   Button,
 } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
-import type { TeamUsageSummary, UserMetricsSummary } from "@/lib/types";
+import type { TeamUsageSummary, UserMetricsSummary, WeeklyTrend } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
+import WeeklyTrendsChart from "@/components/charts/WeeklyTrendsChart";
 
 function CopyJsonButton({ data, label = "Kopier JSON" }: { data: unknown; label?: string }) {
   const [copied, setCopied] = useState(false);
@@ -40,9 +41,10 @@ interface TeamUsageTableProps {
   teams: TeamUsageSummary[];
   userTeams?: string[];
   userMetrics?: UserMetricsSummary | null;
+  userWeeklyTrends?: WeeklyTrend[] | null;
 }
 
-export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: TeamUsageTableProps) {
+export default function TeamUsageTable({ teams, userTeams = [], userMetrics, userWeeklyTrends }: TeamUsageTableProps) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("avg_active_users");
@@ -107,9 +109,11 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
                 </BodyShort>
               </div>
               <div className="text-center">
-                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_interactions)}</div>
+                <div className="text-lg font-semibold">
+                  {formatNumber(userMetrics.total_interactions + userMetrics.cli_total_requests)}
+                </div>
                 <BodyShort size="small" className="text-gray-600">
-                  Forespørsler
+                  Totalt forespørsler
                 </BodyShort>
               </div>
               <div className="text-center">
@@ -208,6 +212,15 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
                     </BodyShort>
                   </div>
                 </HGrid>
+              </div>
+            )}
+            {/* Personal weekly trends */}
+            {userWeeklyTrends && userWeeklyTrends.length > 1 && (
+              <div>
+                <BodyShort size="small" className="text-gray-600 mb-1">
+                  Ukentlig aktivitet (siste 12 uker)
+                </BodyShort>
+                <WeeklyTrendsChart data={userWeeklyTrends} />
               </div>
             )}
             {userTeams.length > 0 && (

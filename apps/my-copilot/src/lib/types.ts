@@ -399,3 +399,36 @@ export interface UserMetricsSummary {
   cli_output_tokens: number;
   teams: string[];
 }
+
+/**
+ * Monthly org-wide trend data aggregated from user_metrics.
+ */
+export interface MonthlyTrend {
+  month: string;
+  unique_users: number;
+  ide_interactions: number;
+  cli_requests: number;
+  prompt_tokens: number;
+  output_tokens: number;
+  lines_added: number;
+  lines_deleted: number;
+  acceptances: number;
+  agent_users: number;
+  chat_users: number;
+  cli_users: number;
+}
+
+/**
+ * Weekly personal trend data for a single user.
+ */
+export interface WeeklyTrend {
+  week: string;
+  interactions: number;
+  cli_requests: number;
+  acceptances: number;
+  lines_added: number;
+  lines_deleted: number;
+  prompt_tokens: number;
+  output_tokens: number;
+  active_days: number;
+}

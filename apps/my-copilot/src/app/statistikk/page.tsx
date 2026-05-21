@@ -1,6 +1,12 @@
 import React, { Suspense } from "react";
 import { getCachedPremiumRequestUsage } from "@/lib/cached-github";
-import { getCachedBigQueryUsage, getCachedTeamUsage, getCachedUserMetrics } from "@/lib/cached-bigquery";
+import {
+  getCachedBigQueryUsage,
+  getCachedTeamUsage,
+  getCachedUserMetrics,
+  getCachedMonthlyTrends,
+  getCachedUserWeeklyTrends,
+} from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
 import TeamUsageTable from "@/components/team-usage-table";
@@ -8,6 +14,7 @@ import TrendChart from "@/components/charts/TrendChart";
 import ModelUsageChart from "@/components/charts/ModelUsageChart";
 import AdoptionTrendChart from "@/components/charts/AdoptionTrendChart";
 import GenerationModeChart from "@/components/charts/GenerationModeChart";
+import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import PremiumRequestsContent from "@/components/premium-requests-content";
@@ -105,15 +112,19 @@ async function PremiumUsageData({ currentYear, currentMonth }: { currentYear: nu
 
 // Cached team usage data component — resolves user's teams for highlighting
 async function TeamUsageContent() {
-  const [{ teams, error }, user] = await Promise.all([getCachedTeamUsage(), getUser(false)]);
+  const [{ teams, error }, user, { trends: monthlyTrends }] = await Promise.all([
+    getCachedTeamUsage(),
+    getUser(false),
+    getCachedMonthlyTrends(),
+  ]);
 
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
-  if (!teams || teams.length === 0)
-    return <ErrorState message="Ingen teamdata tilgjengelig ennå. Data samles inn fra 15. mai 2026." />;
+  if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
 
   // Resolve user's GitHub username via SCIM and fetch personal metrics from BigQuery
   let userTeams: string[] = [];
   let userMetrics = null;
+  let userWeeklyTrends = null;
   if (user?.email) {
     let ghLogin: string | null = null;
 
@@ -126,15 +137,31 @@ async function TeamUsageContent() {
     }
 
     if (ghLogin) {
-      const { metrics } = await getCachedUserMetrics(ghLogin);
+      const [{ metrics }, { trends: weeklyTrends }] = await Promise.all([
+        getCachedUserMetrics(ghLogin),
+        getCachedUserWeeklyTrends(ghLogin),
+      ]);
       if (metrics) {
         userTeams = metrics.teams;
         userMetrics = metrics;
       }
+      if (weeklyTrends.length > 0) {
+        userWeeklyTrends = weeklyTrends;
+      }
     }
   }
 
-  return <TeamUsageTable teams={teams} userTeams={userTeams} userMetrics={userMetrics} />;
+  return (
+    <VStack gap="space-24">
+      <TeamUsageTable
+        teams={teams}
+        userTeams={userTeams}
+        userMetrics={userMetrics}
+        userWeeklyTrends={userWeeklyTrends}
+      />
+      {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
+    </VStack>
+  );
 }
 
 // Main content component that takes usage data as props

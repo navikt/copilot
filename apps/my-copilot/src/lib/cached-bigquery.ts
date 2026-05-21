@@ -5,16 +5,20 @@ import {
   getCustomizationUsage,
   getDailyMetrics,
   getLanguageAdoption,
+  getMonthlyTrends,
   getTeamAdoption,
   getTeamUsageSummary,
   getUserMetrics,
+  getUserWeeklyTrends,
 } from "./bigquery";
 import type {
   AdoptionData,
   CustomizationUsage,
   EnterpriseMetrics,
+  MonthlyTrend,
   TeamUsageSummary,
   UserMetricsSummary,
+  WeeklyTrend,
 } from "./types";
 
 export async function getCachedBigQueryUsage(): Promise<{
@@ -109,5 +113,41 @@ export async function getCachedUserMetrics(userLogin: string): Promise<{
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cached-bigquery] getCachedUserMetrics failed:", err);
     return { metrics: null, error: message };
+  }
+}
+
+export async function getCachedMonthlyTrends(): Promise<{
+  trends: MonthlyTrend[];
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({ stale: 3600 });
+  cacheTag("bq-monthly-trends");
+
+  try {
+    const trends = await getMonthlyTrends(12);
+    return { trends, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[cached-bigquery] getCachedMonthlyTrends failed:", err);
+    return { trends: [], error: message };
+  }
+}
+
+export async function getCachedUserWeeklyTrends(userLogin: string): Promise<{
+  trends: WeeklyTrend[];
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({ stale: 3600 });
+  cacheTag("bq-user-weekly-trends", userLogin);
+
+  try {
+    const trends = await getUserWeeklyTrends(userLogin, 12);
+    return { trends, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[cached-bigquery] getCachedUserWeeklyTrends failed:", err);
+    return { trends: [], error: message };
   }
 }
