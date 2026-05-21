@@ -313,12 +313,6 @@ export default function TeamUsageTable({
                 <WeeklyTrendsChart data={userWeeklyTrends} />
               </div>
             )}
-
-            {userTeams.length > 0 && (
-              <BodyShort size="small" className="text-gray-500">
-                Team: {userTeams.join(", ")}
-              </BodyShort>
-            )}
           </VStack>
         </Box>
       )}
