@@ -5,6 +5,7 @@ import {
   getCustomizationUsage,
   getDailyMetrics,
   getLanguageAdoption,
+  getMonthlyModelUsage,
   getMonthlyTrends,
   getTeamAdoption,
   getTeamUsageSummary,
@@ -15,6 +16,7 @@ import type {
   AdoptionData,
   CustomizationUsage,
   EnterpriseMetrics,
+  MonthlyModelUsage,
   MonthlyTrend,
   TeamUsageSummary,
   UserMetricsSummary,
@@ -149,5 +151,23 @@ export async function getCachedUserWeeklyTrends(userLogin: string): Promise<{
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cached-bigquery] getCachedUserWeeklyTrends failed:", err);
     return { trends: [], error: message };
+  }
+}
+
+export async function getCachedMonthlyModelUsage(): Promise<{
+  usage: MonthlyModelUsage[];
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({ stale: 3600 });
+  cacheTag("bq-monthly-model-usage");
+
+  try {
+    const usage = await getMonthlyModelUsage(12);
+    return { usage, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[cached-bigquery] getCachedMonthlyModelUsage failed:", err);
+    return { usage: [], error: message };
   }
 }

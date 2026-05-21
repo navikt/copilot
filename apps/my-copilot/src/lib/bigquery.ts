@@ -6,6 +6,7 @@ import type {
   CustomizationUsage,
   EnterpriseMetrics,
   LanguageAdoption,
+  MonthlyModelUsage,
   MonthlyTrend,
   TeamAdoption,
   TeamUsageSummary,
@@ -471,6 +472,39 @@ export class CopilotBigQueryClient {
   }
 
   /**
+   * Get org-wide monthly model/token usage breakdown.
+   * Returns one row per model per month, ordered by month then interactions.
+   */
+  async getMonthlyModelUsage(months: number = 12): Promise<MonthlyModelUsage[]> {
+    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
+
+    const query = `
+      SELECT
+        FORMAT_DATE('%Y-%m', day) AS month,
+        JSON_VALUE(mf, '$.model') AS model,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens
+      FROM ${metricsRef},
+        UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
+      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        AND scope = 'enterprise'
+        AND JSON_VALUE(mf, '$.model') IS NOT NULL
+        AND JSON_VALUE(mf, '$.model') != 'others'
+      GROUP BY month, model
+      HAVING interactions > 0
+      ORDER BY month, interactions DESC
+    `;
+
+    try {
+      return await this.query<MonthlyModelUsage>(query, { months });
+    } catch (err) {
+      console.error("[bigquery] getMonthlyModelUsage failed:", err);
+      throw err;
+    }
+  }
+
+  /**
    * Get personal weekly trends for a specific user.
    * Uses partition pruning on `day` and cluster pruning on `scope`.
    */
@@ -597,6 +631,10 @@ export async function getUserMetrics(userLogin: string, days?: number): Promise<
 
 export async function getMonthlyTrends(months: number = 12): Promise<MonthlyTrend[]> {
   return getDefaultClient().getMonthlyTrends(months);
+}
+
+export async function getMonthlyModelUsage(months: number = 12): Promise<MonthlyModelUsage[]> {
+  return getDefaultClient().getMonthlyModelUsage(months);
 }
 
 export async function getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {

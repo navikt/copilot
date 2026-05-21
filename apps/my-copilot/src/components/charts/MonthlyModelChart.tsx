@@ -1,0 +1,128 @@
+"use client";
+
+import type { MonthlyModelUsage } from "@/lib/types";
+import React from "react";
+import { Bar } from "react-chartjs-2";
+import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { VStack, BodyShort, Box, Heading, HGrid } from "@navikt/ds-react";
+import { formatNumber } from "@/lib/format";
+
+interface MonthlyModelChartProps {
+  data: MonthlyModelUsage[];
+}
+
+const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
+  if (!data || data.length === 0) {
+    return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
+  }
+
+  // Get unique months and top models (by total interactions across all months)
+  const months = [...new Set(data.map((d) => d.month))].sort();
+  const modelTotals = new Map<string, { interactions: number; tokens: number }>();
+  for (const d of data) {
+    const existing = modelTotals.get(d.model) || { interactions: 0, tokens: 0 };
+    existing.interactions += d.interactions;
+    existing.tokens += d.prompt_tokens + d.output_tokens;
+    modelTotals.set(d.model, existing);
+  }
+
+  const topModels = [...modelTotals.entries()]
+    .sort((a, b) => b[1].interactions - a[1].interactions)
+    .slice(0, 8)
+    .map(([model]) => model);
+
+  // Build stacked bar datasets for interactions
+  const interactionDatasets = topModels.map((model, i) => ({
+    label: model,
+    data: months.map((month) => data.find((d) => d.month === month && d.model === model)?.interactions || 0),
+    backgroundColor: getBackgroundColor(chartColors[i % chartColors.length], 0.7),
+    borderColor: chartColors[i % chartColors.length],
+    borderWidth: 1,
+  }));
+
+  // Build stacked bar datasets for tokens
+  const tokenDatasets = topModels.map((model, i) => ({
+    label: model,
+    data: months.map((month) => {
+      const entry = data.find((d) => d.month === month && d.model === model);
+      return entry ? entry.prompt_tokens + entry.output_tokens : 0;
+    }),
+    backgroundColor: getBackgroundColor(chartColors[i % chartColors.length], 0.7),
+    borderColor: chartColors[i % chartColors.length],
+    borderWidth: 1,
+  }));
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: { usePointStyle: true, pointStyle: "circle", padding: 12, font: { size: 10 } },
+      },
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, beginAtZero: true, grid: { color: "rgba(0,0,0,0.06)" } },
+    },
+  };
+
+  // Summary: latest month model distribution
+  const latestMonth = months[months.length - 1];
+  const latestData = data.filter((d) => d.month === latestMonth);
+  const totalLatestInteractions = latestData.reduce((s, d) => s + d.interactions, 0);
+  const totalLatestTokens = latestData.reduce((s, d) => s + d.prompt_tokens + d.output_tokens, 0);
+
+  return (
+    <VStack gap="space-16">
+      <Heading size="small" level="3">
+        AI-modeller over tid
+      </Heading>
+
+      <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">
+        {latestData
+          .sort((a, b) => b.interactions - a.interactions)
+          .slice(0, 4)
+          .map((d) => (
+            <Box key={d.model} background="neutral-soft" padding="space-12" borderRadius="8">
+              <div className="text-center">
+                <BodyShort size="small" weight="semibold" className="truncate" title={d.model}>
+                  {d.model}
+                </BodyShort>
+                <div className="text-lg font-semibold">
+                  {totalLatestInteractions > 0 ? Math.round((d.interactions / totalLatestInteractions) * 100) : 0} %
+                </div>
+                <BodyShort size="small" className="text-gray-500">
+                  {formatNumber(d.interactions)} forespørsler
+                </BodyShort>
+              </div>
+            </Box>
+          ))}
+      </HGrid>
+
+      <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+        <Box background="neutral-soft" padding="space-16" borderRadius="8">
+          <VStack gap="space-8">
+            <BodyShort weight="semibold">Forespørsler per modell</BodyShort>
+            <div className="aspect-[2/1]">
+              <Bar data={{ labels: months, datasets: interactionDatasets }} options={barOptions} />
+            </div>
+          </VStack>
+        </Box>
+        <Box background="neutral-soft" padding="space-16" borderRadius="8">
+          <VStack gap="space-8">
+            <BodyShort weight="semibold">Token-forbruk per modell</BodyShort>
+            <BodyShort size="small" className="text-gray-500">
+              Totalt {latestMonth}: {formatNumber(totalLatestTokens)} tokens
+            </BodyShort>
+            <div className="aspect-[2/1]">
+              <Bar data={{ labels: months, datasets: tokenDatasets }} options={barOptions} />
+            </div>
+          </VStack>
+        </Box>
+      </HGrid>
+    </VStack>
+  );
+};
+
+export default MonthlyModelChart;

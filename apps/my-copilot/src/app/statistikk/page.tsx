@@ -4,6 +4,7 @@ import {
   getCachedTeamUsage,
   getCachedUserMetrics,
   getCachedMonthlyTrends,
+  getCachedMonthlyModelUsage,
   getCachedUserWeeklyTrends,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
@@ -14,6 +15,7 @@ import ModelUsageChart from "@/components/charts/ModelUsageChart";
 
 import GenerationModeChart from "@/components/charts/GenerationModeChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
+import MonthlyModelChart from "@/components/charts/MonthlyModelChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
@@ -157,10 +159,14 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   const modelChartData = buildModelChartData(usage);
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
-  // Fetch monthly trends for the dashboard
-  const { trends: monthlyTrends, error: monthlyError } = await getCachedMonthlyTrends();
+  // Fetch monthly trends and model usage for the dashboard
+  const [{ trends: monthlyTrends, error: monthlyError }, { usage: monthlyModelUsage, error: modelUsageError }] =
+    await Promise.all([getCachedMonthlyTrends(), getCachedMonthlyModelUsage()]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
+  }
+  if (modelUsageError) {
+    console.error("[statistikk] Monthly model usage failed:", modelUsageError);
   }
 
   // Find the last COMPLETE month (not the current partial month)
@@ -256,6 +262,9 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
 
       {/* Monthly trends — THE story */}
       {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
+
+      {/* Monthly model/token usage */}
+      {monthlyModelUsage.length > 0 && <MonthlyModelChart data={monthlyModelUsage} />}
 
       {/* Generation mode: user-initiated vs agent-initiated */}
       {generationModeSummary && (

@@ -429,6 +429,17 @@ export interface MonthlyTrend {
 }
 
 /**
+ * Monthly model usage data for org-wide trends.
+ */
+export interface MonthlyModelUsage {
+  month: string;
+  model: string;
+  interactions: number;
+  prompt_tokens: number;
+  output_tokens: number;
+}
+
+/**
  * Weekly personal trend data for a single user.
  */
 export interface WeeklyTrend {
