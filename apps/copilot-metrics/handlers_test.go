@@ -88,11 +88,12 @@ func TestIngestDay_DeleteError(t *testing.T) {
 	}
 
 	err := ingestDay(ctx, fetcher, store, &Config{EnterpriseSlug: "nav"}, day)
-	if err == nil {
-		t.Fatal("expected error on delete failure, got nil")
+	if err != nil {
+		t.Fatalf("delete failure should not fail ingestion (entity skipped), got %v", err)
 	}
-	if !strings.Contains(err.Error(), "failed to delete") {
-		t.Errorf("unexpected error message: %v", err)
+	// Entity should NOT be re-inserted since delete failed
+	if store.insertedCount != 0 {
+		t.Errorf("expected no entity insert after delete failure, got %d", store.insertedCount)
 	}
 }
 

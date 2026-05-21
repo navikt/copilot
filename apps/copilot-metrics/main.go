@@ -220,20 +220,23 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 
 		exists, checkErr := bq.DayExists(ctx, day, result.ScopeID)
 		if checkErr != nil {
-			return fmt.Errorf("failed to check if day exists: %w", checkErr)
-		}
-		if exists {
+			entityErr = fmt.Errorf("failed to check if day exists: %w", checkErr)
+		} else if exists {
 			slog.Info("Day already exists, deleting for re-ingestion", "day", dayStr, "scope_id", result.ScopeID)
 			if delErr := bq.DeleteDay(ctx, day, result.ScopeID); delErr != nil {
-				return fmt.Errorf("failed to delete existing data: %w", delErr)
+				slog.Warn("Entity data already exists and cannot be replaced (skipping entity, continuing with supplementary)", "day", dayStr, "error", delErr)
+			} else if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
+				entityErr = fmt.Errorf("failed to insert metrics: %w", insErr)
+			} else {
+				slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
+			}
+		} else {
+			if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
+				entityErr = fmt.Errorf("failed to insert metrics: %w", insErr)
+			} else {
+				slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
 			}
 		}
-
-		if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
-			return fmt.Errorf("failed to insert metrics: %w", insErr)
-		}
-
-		slog.Info("Successfully ingested entity metrics", "day", dayStr, "scope", result.Scope, "records", len(result.Records))
 	}
 
 	// Always attempt supplementary ingestion, independent of entity metrics.
