@@ -105,6 +105,10 @@ async function TeamUsageContent() {
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
   if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
 
+  // Filter out the catch-all org team — it contains all users and skews comparisons
+  const IGNORED_TEAMS = new Set(["nav-it-github-users"]);
+  const filteredTeams = teams.filter((t) => !IGNORED_TEAMS.has(t.team_slug));
+
   // Resolve user's GitHub username via SCIM and fetch personal metrics from BigQuery
   let userTeams: string[] = [];
   let userMetrics = null;
@@ -126,7 +130,7 @@ async function TeamUsageContent() {
         getCachedUserWeeklyTrends(ghLogin),
       ]);
       if (metrics) {
-        userTeams = metrics.teams;
+        userTeams = metrics.teams.filter((t) => !IGNORED_TEAMS.has(t));
         userMetrics = metrics;
       }
       if (weeklyTrends.length > 0) {
@@ -136,7 +140,12 @@ async function TeamUsageContent() {
   }
 
   return (
-    <TeamUsageTable teams={teams} userTeams={userTeams} userMetrics={userMetrics} userWeeklyTrends={userWeeklyTrends} />
+    <TeamUsageTable
+      teams={filteredTeams}
+      userTeams={userTeams}
+      userMetrics={userMetrics}
+      userWeeklyTrends={userWeeklyTrends}
+    />
   );
 }
 
@@ -606,17 +615,17 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   );
 
   const tabs = [
-    { id: "dashboard", label: "Dashboard", content: dashboardContent },
+    { id: "dashboard", label: "Oversikt", content: dashboardContent },
     {
       id: "team",
-      label: "Team",
+      label: "Meg og team",
       content: (
         <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
           <TeamUsageContent />
         </Suspense>
       ),
     },
-    { id: "details", label: "Detaljer", content: detailsContent },
+    { id: "details", label: "Utforsking", content: detailsContent },
   ];
 
   return (
