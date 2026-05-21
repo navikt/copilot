@@ -65,11 +65,12 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
       {/* Personal stats card */}
       {userMetrics && (
         <Box background="info-soft" padding="space-16" borderRadius="8">
-          <VStack gap="space-8">
+          <VStack gap="space-12">
             <Heading size="xsmall" level="3">
               Din bruk siste 7 dager
             </Heading>
-            <HGrid columns={{ xs: 2, sm: 4, md: 6 }} gap="space-8">
+            {/* Activity overview */}
+            <HGrid columns={{ xs: 2, sm: 3, md: 6 }} gap="space-8">
               <div className="text-center">
                 <div className="text-lg font-semibold">{userMetrics.active_days}</div>
                 <BodyShort size="small" className="text-gray-600">
@@ -79,7 +80,7 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
               <div className="text-center">
                 <div className="text-lg font-semibold">{formatNumber(userMetrics.total_interactions)}</div>
                 <BodyShort size="small" className="text-gray-600">
-                  Interaksjoner
+                  Forespørsler
                 </BodyShort>
               </div>
               <div className="text-center">
@@ -95,26 +96,91 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
                 </BodyShort>
               </div>
               <div className="text-center">
+                <div className="text-lg font-semibold">{formatNumber(userMetrics.total_lines_deleted)}</div>
+                <BodyShort size="small" className="text-gray-600">
+                  Linjer slettet
+                </BodyShort>
+              </div>
+              <div className="text-center">
                 <div className="text-lg font-semibold">{formatNumber(userMetrics.total_lines_suggested)}</div>
                 <BodyShort size="small" className="text-gray-600">
                   Linjer foreslått
                 </BodyShort>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">
-                  {[
-                    userMetrics.days_used_agent > 0 && "Agent",
-                    userMetrics.days_used_chat > 0 && "Chat",
-                    userMetrics.days_used_cli > 0 && "CLI",
-                  ]
-                    .filter(Boolean)
-                    .join(", ") || "–"}
-                </div>
-                <BodyShort size="small" className="text-gray-600">
-                  Funksjoner brukt
-                </BodyShort>
-              </div>
             </HGrid>
+            {/* Chat requests by mode */}
+            {(userMetrics.chat_agent_requests > 0 ||
+              userMetrics.chat_ask_requests > 0 ||
+              userMetrics.chat_edit_requests > 0 ||
+              userMetrics.chat_plan_requests > 0) && (
+              <div>
+                <BodyShort size="small" className="text-gray-600 mb-1">
+                  Chat-forespørsler per modus
+                </BodyShort>
+                <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">
+                  {userMetrics.chat_agent_requests > 0 && (
+                    <div className="text-center">
+                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_agent_requests)}</div>
+                      <BodyShort size="small" className="text-gray-500">
+                        Agent
+                      </BodyShort>
+                    </div>
+                  )}
+                  {userMetrics.chat_ask_requests > 0 && (
+                    <div className="text-center">
+                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_ask_requests)}</div>
+                      <BodyShort size="small" className="text-gray-500">
+                        Ask
+                      </BodyShort>
+                    </div>
+                  )}
+                  {userMetrics.chat_edit_requests > 0 && (
+                    <div className="text-center">
+                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_edit_requests)}</div>
+                      <BodyShort size="small" className="text-gray-500">
+                        Edit
+                      </BodyShort>
+                    </div>
+                  )}
+                  {userMetrics.chat_plan_requests > 0 && (
+                    <div className="text-center">
+                      <div className="text-sm font-semibold">{formatNumber(userMetrics.chat_plan_requests)}</div>
+                      <BodyShort size="small" className="text-gray-500">
+                        Plan
+                      </BodyShort>
+                    </div>
+                  )}
+                </HGrid>
+              </div>
+            )}
+            {/* CLI token usage */}
+            {userMetrics.cli_total_requests > 0 && (
+              <div>
+                <BodyShort size="small" className="text-gray-600 mb-1">
+                  CLI-bruk
+                </BodyShort>
+                <HGrid columns={{ xs: 3 }} gap="space-8">
+                  <div className="text-center">
+                    <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_total_requests)}</div>
+                    <BodyShort size="small" className="text-gray-500">
+                      Forespørsler
+                    </BodyShort>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_prompt_tokens)}</div>
+                    <BodyShort size="small" className="text-gray-500">
+                      Prompt-tokens
+                    </BodyShort>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-semibold">{formatNumber(userMetrics.cli_output_tokens)}</div>
+                    <BodyShort size="small" className="text-gray-500">
+                      Output-tokens
+                    </BodyShort>
+                  </div>
+                </HGrid>
+              </div>
+            )}
             {userTeams.length > 0 && (
               <BodyShort size="small" className="text-gray-600">
                 Dine team: {userTeams.join(", ")}

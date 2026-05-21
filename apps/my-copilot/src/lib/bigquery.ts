@@ -281,7 +281,16 @@ export class CopilotBigQueryClient {
           CAST(JSON_VALUE(raw_record, '$.loc_deleted_sum') AS INT64) AS lines_deleted,
           CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent,
           CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL) AS used_chat,
-          CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL) AS used_cli
+          CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL) AS used_cli,
+          -- Chat mode breakdown
+          CAST(JSON_VALUE(raw_record, '$.chat_panel_agent_mode') AS INT64) AS chat_agent_mode,
+          CAST(JSON_VALUE(raw_record, '$.chat_panel_ask_mode') AS INT64) AS chat_ask_mode,
+          CAST(JSON_VALUE(raw_record, '$.chat_panel_edit_mode') AS INT64) AS chat_edit_mode,
+          CAST(JSON_VALUE(raw_record, '$.chat_panel_plan_mode') AS INT64) AS chat_plan_mode,
+          -- CLI token/request metrics
+          CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64) AS cli_requests,
+          CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64) AS cli_prompt_tokens,
+          CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64) AS cli_output_tokens
         FROM ${metricsRef}
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
@@ -305,6 +314,15 @@ export class CopilotBigQueryClient {
         COUNTIF(ua.used_agent) AS days_used_agent,
         COUNTIF(ua.used_chat) AS days_used_chat,
         COUNTIF(ua.used_cli) AS days_used_cli,
+        -- Chat mode totals
+        COALESCE(SUM(ua.chat_agent_mode), 0) AS chat_agent_requests,
+        COALESCE(SUM(ua.chat_ask_mode), 0) AS chat_ask_requests,
+        COALESCE(SUM(ua.chat_edit_mode), 0) AS chat_edit_requests,
+        COALESCE(SUM(ua.chat_plan_mode), 0) AS chat_plan_requests,
+        -- CLI totals
+        COALESCE(SUM(ua.cli_requests), 0) AS cli_total_requests,
+        COALESCE(SUM(ua.cli_prompt_tokens), 0) AS cli_prompt_tokens,
+        COALESCE(SUM(ua.cli_output_tokens), 0) AS cli_output_tokens,
         ARRAY(SELECT team_slug FROM user_team_list) AS teams
       FROM user_activity ua
     `;
