@@ -231,7 +231,8 @@ export class CopilotBigQueryClient {
           SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
           SAFE_CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
           SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent
+          SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent,
+          raw_record
         FROM ${metricsRef}
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
@@ -246,23 +247,43 @@ export class CopilotBigQueryClient {
           COALESCE(m.interactions, 0) AS interactions,
           COALESCE(m.lines_suggested, 0) AS lines_suggested,
           COALESCE(m.lines_accepted, 0) AS lines_accepted,
-          COALESCE(m.used_agent, FALSE) AS used_agent
+          COALESCE(m.used_agent, FALSE) AS used_agent,
+          m.raw_record
         FROM latest_teams t
         INNER JOIN metrics m ON t.user_id = m.user_id
+      ),
+      team_model_usage AS (
+        SELECT
+          tm.team_slug,
+          JSON_VALUE(mf, '$.model') AS model,
+          SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)) AS interactions
+        FROM team_metrics tm,
+          UNNEST(JSON_QUERY_ARRAY(tm.raw_record, '$.totals_by_model_feature')) AS mf
+        WHERE JSON_VALUE(mf, '$.model') IS NOT NULL
+          AND JSON_VALUE(mf, '$.model') != 'others'
+        GROUP BY tm.team_slug, model
+        HAVING interactions > 0
       )
       SELECT
-        team_slug,
-        COUNT(DISTINCT CASE WHEN acceptances + interactions > 0 THEN user_id END) AS avg_active_users,
-        COUNT(DISTINCT user_id) AS total_users,
-        SUM(generations) AS total_generations,
-        SUM(acceptances) AS total_acceptances,
-        SUM(interactions) AS total_interactions,
-        SUM(lines_suggested) AS total_lines_suggested,
-        SUM(lines_accepted) AS total_lines_accepted,
-        COUNT(DISTINCT CASE WHEN used_agent THEN user_id END) AS agent_users,
-        COUNT(DISTINCT day) AS days_with_data
-      FROM team_metrics
-      GROUP BY team_slug
+        tm.team_slug,
+        COUNT(DISTINCT CASE WHEN tm.acceptances + tm.interactions > 0 THEN tm.user_id END) AS avg_active_users,
+        COUNT(DISTINCT tm.user_id) AS total_users,
+        SUM(tm.generations) AS total_generations,
+        SUM(tm.acceptances) AS total_acceptances,
+        SUM(tm.interactions) AS total_interactions,
+        SUM(tm.lines_suggested) AS total_lines_suggested,
+        SUM(tm.lines_accepted) AS total_lines_accepted,
+        COUNT(DISTINCT CASE WHEN tm.used_agent THEN tm.user_id END) AS agent_users,
+        COUNT(DISTINCT tm.day) AS days_with_data,
+        ARRAY(
+          SELECT AS STRUCT model, interactions
+          FROM team_model_usage tmu
+          WHERE tmu.team_slug = tm.team_slug
+          ORDER BY interactions DESC
+          LIMIT 3
+        ) AS top_models
+      FROM team_metrics tm
+      GROUP BY tm.team_slug
       ORDER BY avg_active_users DESC
     `;
 
@@ -432,22 +453,49 @@ export class CopilotBigQueryClient {
     const days = weeks * 7;
 
     const query = `
+      WITH weekly_data AS (
+        SELECT
+          FORMAT_DATE('%G-W%V', day) AS week,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64)), 0) AS cli_requests,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)), 0) AS lines_added,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_deleted_sum') AS INT64)), 0) AS lines_deleted,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens,
+          COUNT(*) AS active_days
+        FROM ${metricsRef}
+        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+          AND scope = 'enterprise'
+          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+        GROUP BY week
+      ),
+      weekly_models AS (
+        SELECT
+          FORMAT_DATE('%G-W%V', day) AS week,
+          JSON_VALUE(mf, '$.model') AS model,
+          SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)) AS interactions
+        FROM ${metricsRef},
+          UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
+        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+          AND scope = 'enterprise'
+          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+          AND JSON_VALUE(mf, '$.model') IS NOT NULL
+          AND JSON_VALUE(mf, '$.model') != 'others'
+        GROUP BY week, model
+        HAVING interactions > 0
+      )
       SELECT
-        FORMAT_DATE('%G-W%V', day) AS week,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64)), 0) AS cli_requests,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)), 0) AS lines_added,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_deleted_sum') AS INT64)), 0) AS lines_deleted,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens,
-        COUNT(*) AS active_days
-      FROM ${metricsRef}
-      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
-        AND scope = 'enterprise'
-        AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
-      GROUP BY week
-      ORDER BY week
+        wd.*,
+        ARRAY(
+          SELECT AS STRUCT model, interactions
+          FROM weekly_models wm
+          WHERE wm.week = wd.week
+          ORDER BY interactions DESC
+          LIMIT 5
+        ) AS models
+      FROM weekly_data wd
+      ORDER BY wd.week
     `;
 
     try {

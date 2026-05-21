@@ -364,6 +364,7 @@ export default function TeamUsageTable({
               <Table.ColumnHeader scope="col" sortKey="agent_users" sortable align="right">
                 Agent-brukere
               </Table.ColumnHeader>
+              <Table.ColumnHeader scope="col">Modellmiks</Table.ColumnHeader>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -371,6 +372,8 @@ export default function TeamUsageTable({
               const isUserTeam = userTeamSet.has(team.team_slug.toLowerCase());
               const adoptionPct =
                 team.total_users > 0 ? Math.round((team.avg_active_users / team.total_users) * 100) : 0;
+              const topModels = team.top_models || [];
+              const modelTotal = topModels.reduce((s, m) => s + m.interactions, 0);
               return (
                 <TableRow key={team.team_slug} className={isUserTeam ? "bg-blue-50 font-medium" : ""}>
                   <TableDataCell>
@@ -385,12 +388,25 @@ export default function TeamUsageTable({
                   <TableDataCell align="right">
                     {team.agent_users} / {team.avg_active_users}
                   </TableDataCell>
+                  <TableDataCell>
+                    {topModels.length > 0 ? (
+                      <div className="flex gap-1 flex-wrap">
+                        {topModels.map((m) => (
+                          <span key={m.model} className="text-xs bg-gray-100 rounded px-1" title={m.model}>
+                            {m.model.replace(/^Auto: /, "")} ({Math.round((m.interactions / modelTotal) * 100)}%)
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">–</span>
+                    )}
+                  </TableDataCell>
                 </TableRow>
               );
             })}
             {pageTeams.length === 0 && (
               <TableRow>
-                <TableDataCell colSpan={5}>
+                <TableDataCell colSpan={6}>
                   <BodyShort className="text-gray-500 text-center">
                     {search ? "Ingen team funnet for søket ditt." : "Ingen teamdata tilgjengelig ennå."}
                   </BodyShort>

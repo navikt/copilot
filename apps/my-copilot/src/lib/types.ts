@@ -370,6 +370,7 @@ export interface TeamUsageSummary {
   total_lines_accepted: number;
   agent_users: number;
   days_with_data: number;
+  top_models?: Array<{ model: string; interactions: number }>;
 }
 
 /**
@@ -440,4 +441,5 @@ export interface WeeklyTrend {
   prompt_tokens: number;
   output_tokens: number;
   active_days: number;
+  models?: Array<{ model: string; interactions: number }>;
 }
