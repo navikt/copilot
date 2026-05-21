@@ -115,6 +115,19 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
       <Heading size="small" level="3">
         AI-modeller over tid
       </Heading>
+      <BodyShort size="small" className="text-gray-500">
+        Basert på brukerinitiierte interaksjoner (ekskluderer bakgrunnskall fra agenter). For fullstendig
+        premium-forbruk, se{" "}
+        <a
+          href="https://github.com/enterprises/nav/settings/copilot/usage"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          GitHub Premium Request Analytics
+        </a>
+        .
+      </BodyShort>
 
       <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">
         {latestData
