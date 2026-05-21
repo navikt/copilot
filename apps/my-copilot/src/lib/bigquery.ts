@@ -308,7 +308,8 @@ export class CopilotBigQueryClient {
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.prompt_count') AS INT64) AS cli_prompts,
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.session_count') AS INT64) AS cli_sessions,
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64) AS cli_prompt_tokens,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64) AS cli_output_tokens
+          SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64) AS cli_output_tokens,
+          raw_record
         FROM ${metricsRef}
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
@@ -320,6 +321,19 @@ export class CopilotBigQueryClient {
         WHERE day = (SELECT MAX(day) FROM ${teamsRef} WHERE scope = 'enterprise')
           AND scope = 'enterprise'
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+      ),
+      model_usage AS (
+        SELECT
+          JSON_VALUE(mf, '$.model') AS model,
+          SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)) AS interactions
+        FROM user_activity,
+          UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
+        WHERE JSON_VALUE(mf, '$.model') IS NOT NULL
+          AND JSON_VALUE(mf, '$.model') != 'others'
+        GROUP BY model
+        HAVING interactions > 0
+        ORDER BY interactions DESC
+        LIMIT 5
       )
       SELECT
         @userLogin AS user_login,
@@ -347,6 +361,8 @@ export class CopilotBigQueryClient {
         COALESCE(SUM(ua.cli_sessions), 0) AS cli_sessions,
         COALESCE(SUM(ua.cli_prompt_tokens), 0) AS cli_prompt_tokens,
         COALESCE(SUM(ua.cli_output_tokens), 0) AS cli_output_tokens,
+        -- Model breakdown (top 5)
+        ARRAY(SELECT AS STRUCT model, interactions FROM model_usage) AS top_models,
         ARRAY(SELECT team_slug FROM user_team_list) AS teams
       FROM user_activity ua
     `;

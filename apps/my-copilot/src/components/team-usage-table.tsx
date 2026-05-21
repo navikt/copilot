@@ -270,6 +270,40 @@ export default function TeamUsageTable({
               )}
             </HGrid>
 
+            {/* Model usage breakdown */}
+            {userMetrics.top_models && userMetrics.top_models.length > 0 && (
+              <Box background="neutral-soft" padding="space-16" borderRadius="8">
+                <VStack gap="space-8">
+                  <BodyShort weight="semibold" size="small">
+                    AI-modeller i bruk
+                  </BodyShort>
+                  <VStack gap="space-4">
+                    {userMetrics.top_models.map((m) => {
+                      const totalInteractions = userMetrics.top_models.reduce((s, x) => s + x.interactions, 0);
+                      const pct = totalInteractions > 0 ? Math.round((m.interactions / totalInteractions) * 100) : 0;
+                      return (
+                        <div key={m.model} className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline">
+                              <BodyShort size="small" className="truncate">
+                                {m.model}
+                              </BodyShort>
+                              <BodyShort size="small" className="text-gray-500 ml-2 shrink-0">
+                                {pct} %
+                              </BodyShort>
+                            </div>
+                            <div className="h-1.5 bg-gray-200 rounded-full mt-0.5">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </VStack>
+                </VStack>
+              </Box>
+            )}
+
             {/* Personal weekly trends */}
             {userWeeklyTrends && userWeeklyTrends.length > 1 && (
               <div>

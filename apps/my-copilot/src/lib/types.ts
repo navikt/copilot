@@ -402,6 +402,8 @@ export interface UserMetricsSummary {
   cli_sessions: number;
   cli_prompt_tokens: number;
   cli_output_tokens: number;
+  // Model usage breakdown
+  top_models: Array<{ model: string; interactions: number }>;
   teams: string[];
 }
 
