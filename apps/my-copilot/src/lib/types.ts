@@ -368,6 +368,7 @@ export interface TeamUsageSummary {
   total_interactions: number;
   total_lines_suggested: number;
   total_lines_accepted: number;
+  agent_users: number;
   days_with_data: number;
 }
 

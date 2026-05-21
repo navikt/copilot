@@ -36,7 +36,7 @@ function CopyJsonButton({ data, label = "Kopier JSON" }: { data: unknown; label?
 
 const PAGE_SIZE = 15;
 
-type SortKey = "team_slug" | "avg_active_users" | "total_acceptances" | "total_interactions" | "total_lines_accepted";
+type SortKey = "team_slug" | "avg_active_users" | "total_acceptances" | "total_interactions" | "agent_users";
 
 interface TeamUsageTableProps {
   teams: TeamUsageSummary[];
@@ -94,7 +94,7 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
       return rates.length > 0 ? Math.round(rates[Math.floor(rates.length / 2)] * 100) : 0;
     })();
 
-    return { bestTeam: bestTeam.team_slug, percentile, adoptionRate, orgMedianAdoption };
+    return { primaryTeam: bestTeam.team_slug, percentile, adoptionRate, orgMedianAdoption };
   }, [teams, userTeams, userTeamSet]);
 
   const filteredTeams = useMemo(() => {
@@ -286,19 +286,19 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
               <Box background="success-soft" padding="space-16" borderRadius="8">
                 <VStack gap="space-8">
                   <BodyShort weight="semibold" size="small">
-                    Ditt beste team: {teamComparison.bestTeam}
+                    {teamComparison.primaryTeam}
                   </BodyShort>
                   <HGrid columns={{ xs: 1, sm: 2 }} gap="space-8">
-                    <div>
-                      <div className="text-sm font-semibold">Topp {100 - teamComparison.percentile} %</div>
-                      <BodyShort size="small" className="text-gray-500">
-                        Aktivitet per bruker
-                      </BodyShort>
-                    </div>
                     <div>
                       <div className="text-sm font-semibold">{teamComparison.adoptionRate} % adopsjon</div>
                       <BodyShort size="small" className="text-gray-500">
                         Org-median: {teamComparison.orgMedianAdoption} %
+                      </BodyShort>
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold">Persentil {teamComparison.percentile}</div>
+                      <BodyShort size="small" className="text-gray-500">
+                        Aktivitet per bruker
                       </BodyShort>
                     </div>
                   </HGrid>
@@ -345,22 +345,24 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
                 Team
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="avg_active_users" sortable align="right">
-                Aktive brukere
+                Aktive / totalt
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="total_acceptances" sortable align="right">
-                Aksepterte kodeforslag
+                Aksepterte forslag
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="total_interactions" sortable align="right">
-                Interaksjoner
+                Chat + agent
               </Table.ColumnHeader>
-              <Table.ColumnHeader scope="col" sortKey="total_lines_accepted" sortable align="right">
-                Linjer akseptert
+              <Table.ColumnHeader scope="col" sortKey="agent_users" sortable align="right">
+                Agent-brukere
               </Table.ColumnHeader>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pageTeams.map((team) => {
               const isUserTeam = userTeamSet.has(team.team_slug.toLowerCase());
+              const adoptionPct =
+                team.total_users > 0 ? Math.round((team.avg_active_users / team.total_users) * 100) : 0;
               return (
                 <TableRow key={team.team_slug} className={isUserTeam ? "bg-blue-50 font-medium" : ""}>
                   <TableDataCell>
@@ -368,11 +370,13 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
                     {isUserTeam && " ⭐"}
                   </TableDataCell>
                   <TableDataCell align="right">
-                    {team.avg_active_users} av {team.total_users}
+                    {team.avg_active_users} / {team.total_users} ({adoptionPct} %)
                   </TableDataCell>
                   <TableDataCell align="right">{formatNumber(team.total_acceptances)}</TableDataCell>
                   <TableDataCell align="right">{formatNumber(team.total_interactions)}</TableDataCell>
-                  <TableDataCell align="right">{formatNumber(team.total_lines_accepted)}</TableDataCell>
+                  <TableDataCell align="right">
+                    {team.agent_users} / {team.avg_active_users}
+                  </TableDataCell>
                 </TableRow>
               );
             })}

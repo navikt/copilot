@@ -230,7 +230,8 @@ export class CopilotBigQueryClient {
           SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
           SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
           SAFE_CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted
+          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent
         FROM ${metricsRef}
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
@@ -244,7 +245,8 @@ export class CopilotBigQueryClient {
           COALESCE(m.acceptances, 0) AS acceptances,
           COALESCE(m.interactions, 0) AS interactions,
           COALESCE(m.lines_suggested, 0) AS lines_suggested,
-          COALESCE(m.lines_accepted, 0) AS lines_accepted
+          COALESCE(m.lines_accepted, 0) AS lines_accepted,
+          COALESCE(m.used_agent, FALSE) AS used_agent
         FROM latest_teams t
         INNER JOIN metrics m ON t.user_id = m.user_id
       )
@@ -257,6 +259,7 @@ export class CopilotBigQueryClient {
         SUM(interactions) AS total_interactions,
         SUM(lines_suggested) AS total_lines_suggested,
         SUM(lines_accepted) AS total_lines_accepted,
+        COUNT(DISTINCT CASE WHEN used_agent THEN user_id END) AS agent_users,
         COUNT(DISTINCT day) AS days_with_data
       FROM team_metrics
       GROUP BY team_slug

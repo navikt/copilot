@@ -1,5 +1,4 @@
 import React, { Suspense } from "react";
-import { getCachedPremiumRequestUsage } from "@/lib/cached-github";
 import {
   getCachedBigQueryUsage,
   getCachedTeamUsage,
@@ -17,8 +16,6 @@ import GenerationModeChart from "@/components/charts/GenerationModeChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import PremiumRequestsContent from "@/components/premium-requests-content";
-import { calculatePremiumMetrics } from "@/lib/billing-utils";
 import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
@@ -64,38 +61,6 @@ async function CachedUsageData() {
   const filteredUsage = usage.slice(-28);
 
   return <UsageContent usage={filteredUsage} />;
-}
-
-// Cached premium data component — tries current month, falls back to previous month
-async function PremiumUsageData({ currentYear, currentMonth }: { currentYear: number; currentMonth: number }) {
-  "use cache";
-  const { cacheLife, cacheTag } = await import("next/cache");
-  cacheLife({ stale: 300 });
-  cacheTag("premium-usage-navikt");
-
-  const { usage: premiumUsage } = await getCachedPremiumRequestUsage("navikt", currentYear, currentMonth);
-
-  if (premiumUsage?.usageItems?.length) {
-    return <PremiumRequestsContent metrics={calculatePremiumMetrics(premiumUsage)} />;
-  }
-
-  // Fallback to previous month if current month has no data yet
-  const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-  const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-  const { usage: prevUsage } = await getCachedPremiumRequestUsage("navikt", prevYear, prevMonth);
-
-  if (prevUsage?.usageItems?.length) {
-    return (
-      <>
-        <BodyShort className="text-gray-500 mb-2">
-          Viser forrige måned — data for denne måneden er ikke tilgjengelig ennå.
-        </BodyShort>
-        <PremiumRequestsContent metrics={calculatePremiumMetrics(prevUsage)} />
-      </>
-    );
-  }
-
-  return <BodyShort className="text-gray-500">Ingen data om premiumforespørsler tilgjengelig.</BodyShort>;
 }
 
 // Cached team usage data component — resolves user's teams for highlighting
@@ -599,18 +564,6 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
           </VStack>
         </Box>
       )}
-
-      {/* Premium Requests */}
-      <Box background="neutral-soft" padding="space-24" borderRadius="12">
-        <VStack gap="space-16">
-          <Heading size="small" level="3">
-            Premiumforespørsler
-          </Heading>
-          <Suspense fallback={<Skeleton variant="rectangle" height={100} />}>
-            <PremiumUsageData currentYear={new Date().getFullYear()} currentMonth={new Date().getMonth() + 1} />
-          </Suspense>
-        </VStack>
-      </Box>
     </VStack>
   );
 
