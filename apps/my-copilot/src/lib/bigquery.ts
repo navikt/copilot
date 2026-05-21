@@ -75,15 +75,23 @@ export class CopilotBigQueryClient {
 
   /**
    * Get daily Copilot usage metrics.
-   * @param days - Optional number of days to limit results to
+   * Uses partition pruning on `day` column for cost efficiency.
+   * @param days - Optional number of days to limit results to (default: 365)
    */
   async getDailyMetrics(days?: number): Promise<EnterpriseMetrics[]> {
     const ref = this.metricsTableRef();
-    const whereClause = days != null ? `WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)` : "";
-    const query = `SELECT raw_record FROM ${ref} ${whereClause} ORDER BY day ASC`;
+    // Always limit to avoid full table scans; entity metrics are ~1 row/day so cost is low
+    const effectiveDays = days ?? 365;
+    const query = `
+      SELECT raw_record
+      FROM ${ref}
+      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+        AND scope = 'enterprise'
+      ORDER BY day ASC
+    `;
 
     try {
-      const rows = await this.query<{ raw_record: string }>(query, days != null ? { days } : undefined);
+      const rows = await this.query<{ raw_record: string }>(query, { days: effectiveDays });
       return rows.map((row) => (typeof row.raw_record === "string" ? JSON.parse(row.raw_record) : row.raw_record));
     } catch (err) {
       console.error("[bigquery] getDailyMetrics failed:", err);
@@ -199,33 +207,33 @@ export class CopilotBigQueryClient {
   /**
    * Get team-level Copilot usage summary for the last N days.
    * Queries user_teams and user_metrics tables directly (no view dependency).
+   * Uses partition pruning on `day` and cluster pruning on `scope`.
    */
   async getTeamUsageSummary(days: number = 7): Promise<TeamUsageSummary[]> {
     const teamsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_teams");
     const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
-    // Use latest team membership snapshot and join against all metrics in the period.
-    // Team membership is relatively stable day-to-day, so we use the most recent
-    // day's assignments to attribute metrics across the full window.
     const query = `
       WITH latest_teams AS (
         SELECT
           JSON_VALUE(raw_record, '$.user_id') AS user_id,
           JSON_VALUE(raw_record, '$.slug') AS team_slug
         FROM ${teamsRef}
-        WHERE day = (SELECT MAX(day) FROM ${teamsRef})
+        WHERE day = (SELECT MAX(day) FROM ${teamsRef} WHERE scope = 'enterprise')
+          AND scope = 'enterprise'
         GROUP BY user_id, team_slug
       ),
       metrics AS (
         SELECT
-          day,
           JSON_VALUE(raw_record, '$.user_id') AS user_id,
-          CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64) AS generations,
-          CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
-          CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
-          CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
-          CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted
+          day,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64) AS generations,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted
         FROM ${metricsRef}
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+          AND scope = 'enterprise'
       ),
       team_metrics AS (
         SELECT
@@ -266,6 +274,7 @@ export class CopilotBigQueryClient {
   /**
    * Get personal usage metrics for a specific GitHub user.
    * Queries user_metrics table directly and joins user_teams for team membership.
+   * Uses partition pruning on `day` and cluster pruning on `scope`.
    */
   async getUserMetrics(userLogin: string, days: number = 7): Promise<UserMetricsSummary | null> {
     const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
@@ -275,32 +284,34 @@ export class CopilotBigQueryClient {
       WITH user_activity AS (
         SELECT
           JSON_VALUE(raw_record, '$.user_login') AS user_login,
-          CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64) AS generations,
-          CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
-          CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
-          CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
-          CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
-          CAST(JSON_VALUE(raw_record, '$.loc_deleted_sum') AS INT64) AS lines_deleted,
-          CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent,
-          CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL) AS used_chat,
-          CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL) AS used_cli,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64) AS generations,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_deleted_sum') AS INT64) AS lines_deleted,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL) AS used_chat,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL) AS used_cli,
           -- Chat mode breakdown
-          CAST(JSON_VALUE(raw_record, '$.chat_panel_agent_mode') AS INT64) AS chat_agent_mode,
-          CAST(JSON_VALUE(raw_record, '$.chat_panel_ask_mode') AS INT64) AS chat_ask_mode,
-          CAST(JSON_VALUE(raw_record, '$.chat_panel_edit_mode') AS INT64) AS chat_edit_mode,
-          CAST(JSON_VALUE(raw_record, '$.chat_panel_plan_mode') AS INT64) AS chat_plan_mode,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_agent_mode') AS INT64) AS chat_agent_mode,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_ask_mode') AS INT64) AS chat_ask_mode,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_edit_mode') AS INT64) AS chat_edit_mode,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_plan_mode') AS INT64) AS chat_plan_mode,
           -- CLI token/request metrics
-          CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64) AS cli_requests,
-          CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64) AS cli_prompt_tokens,
-          CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64) AS cli_output_tokens
+          SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64) AS cli_requests,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64) AS cli_prompt_tokens,
+          SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64) AS cli_output_tokens
         FROM ${metricsRef}
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+          AND scope = 'enterprise'
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
       ),
       user_team_list AS (
         SELECT DISTINCT JSON_VALUE(raw_record, '$.slug') AS team_slug
         FROM ${teamsRef}
-        WHERE day = (SELECT MAX(day) FROM ${teamsRef} WHERE JSON_VALUE(raw_record, '$.user_login') = @userLogin)
+        WHERE day = (SELECT MAX(day) FROM ${teamsRef} WHERE scope = 'enterprise')
+          AND scope = 'enterprise'
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
       )
       SELECT
@@ -342,6 +353,7 @@ export class CopilotBigQueryClient {
   /**
    * Get org-wide monthly trends aggregated from user_metrics.
    * Uses COUNT(DISTINCT) for user counts per feature to avoid double-counting.
+   * Leverages partition pruning on `day` and cluster pruning on `scope`.
    */
   async getMonthlyTrends(months: number = 12): Promise<MonthlyTrend[]> {
     const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
@@ -371,6 +383,7 @@ export class CopilotBigQueryClient {
         COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS cli_users
       FROM ${metricsRef}
       WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        AND scope = 'enterprise'
       GROUP BY month
       ORDER BY month
     `;
@@ -385,6 +398,7 @@ export class CopilotBigQueryClient {
 
   /**
    * Get personal weekly trends for a specific user.
+   * Uses partition pruning on `day` and cluster pruning on `scope`.
    */
   async getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {
     const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
@@ -402,6 +416,7 @@ export class CopilotBigQueryClient {
         COUNT(*) AS active_days
       FROM ${metricsRef}
       WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @weeks * 7 DAY)
+        AND scope = 'enterprise'
         AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
       GROUP BY week
       ORDER BY week
