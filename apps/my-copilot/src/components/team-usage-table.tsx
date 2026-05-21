@@ -347,18 +347,18 @@ export default function TeamUsageTable({
                 Team
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="avg_active_users" sortable align="right">
-                Aktive / totalt
+                Aktive
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="total_acceptances" sortable align="right">
-                Aksepterte forslag
+                Forslag
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="total_interactions" sortable align="right">
-                Chat + agent
+                Chat
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="agent_users" sortable align="right">
-                Agent-brukere
+                Agent
               </Table.ColumnHeader>
-              <Table.ColumnHeader scope="col">Modellmiks</Table.ColumnHeader>
+              <Table.ColumnHeader scope="col">Modeller</Table.ColumnHeader>
             </TableRow>
           </TableHeader>
           <TableBody>
