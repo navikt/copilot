@@ -478,22 +478,42 @@ export class CopilotBigQueryClient {
   async getMonthlyModelUsage(months: number = 12): Promise<MonthlyModelUsage[]> {
     const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
 
+    // Token data lives in totals_by_cli, not per model. We aggregate CLI tokens
+    // per month alongside per-model interactions from totals_by_model_feature.
     const query = `
+      WITH model_interactions AS (
+        SELECT
+          FORMAT_DATE('%Y-%m', day) AS month,
+          JSON_VALUE(mf, '$.model') AS model,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions
+        FROM ${metricsRef},
+          UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
+        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND scope = 'enterprise'
+          AND JSON_VALUE(mf, '$.model') IS NOT NULL
+          AND JSON_VALUE(mf, '$.model') != 'others'
+        GROUP BY month, model
+        HAVING interactions > 0
+      ),
+      monthly_tokens AS (
+        SELECT
+          FORMAT_DATE('%Y-%m', day) AS month,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens
+        FROM ${metricsRef}
+        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND scope = 'enterprise'
+        GROUP BY month
+      )
       SELECT
-        FORMAT_DATE('%Y-%m', day) AS month,
-        JSON_VALUE(mf, '$.model') AS model,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
-        COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens
-      FROM ${metricsRef},
-        UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
-      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
-        AND scope = 'enterprise'
-        AND JSON_VALUE(mf, '$.model') IS NOT NULL
-        AND JSON_VALUE(mf, '$.model') != 'others'
-      GROUP BY month, model
-      HAVING interactions > 0
-      ORDER BY month, interactions DESC
+        mi.month,
+        mi.model,
+        mi.interactions,
+        COALESCE(mt.prompt_tokens, 0) AS prompt_tokens,
+        COALESCE(mt.output_tokens, 0) AS output_tokens
+      FROM model_interactions mi
+      LEFT JOIN monthly_tokens mt ON mi.month = mt.month
+      ORDER BY mi.month, mi.interactions DESC
     `;
 
     try {

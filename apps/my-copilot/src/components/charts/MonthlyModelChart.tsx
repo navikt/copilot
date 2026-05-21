@@ -40,17 +40,47 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
     borderWidth: 1,
   }));
 
-  // Build stacked bar datasets for tokens
-  const tokenDatasets = topModels.map((model, i) => ({
-    label: model,
-    data: months.map((month) => {
-      const entry = data.find((d) => d.month === month && d.model === model);
-      return entry ? entry.prompt_tokens + entry.output_tokens : 0;
-    }),
-    backgroundColor: getBackgroundColor(chartColors[i % chartColors.length], 0.7),
-    borderColor: chartColors[i % chartColors.length],
-    borderWidth: 1,
-  }));
+  // Build stacked bar datasets for tokens (total CLI tokens per month, not per-model)
+  // Token data comes from totals_by_cli and is the same for all models in a month
+  const monthlyTokens = months.map((month) => {
+    const entry = data.find((d) => d.month === month);
+    return {
+      prompt: entry?.prompt_tokens || 0,
+      output: entry?.output_tokens || 0,
+    };
+  });
+
+  const tokenBarDatasets = [
+    {
+      label: "Prompt-tokens",
+      data: monthlyTokens.map((t) => t.prompt),
+      backgroundColor: getBackgroundColor(chartColors[0], 0.7),
+      borderColor: chartColors[0],
+      borderWidth: 1,
+    },
+    {
+      label: "Output-tokens",
+      data: monthlyTokens.map((t) => t.output),
+      backgroundColor: getBackgroundColor(chartColors[1], 0.7),
+      borderColor: chartColors[1],
+      borderWidth: 1,
+    },
+  ];
+
+  const tokenBarOptions = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: { usePointStyle: true, pointStyle: "circle", padding: 12, font: { size: 10 } },
+      },
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, beginAtZero: true, grid: { color: "rgba(0,0,0,0.06)" } },
+    },
+  };
 
   const barOptions = {
     responsive: true,
@@ -71,7 +101,9 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
   const latestMonth = months[months.length - 1];
   const latestData = data.filter((d) => d.month === latestMonth);
   const totalLatestInteractions = latestData.reduce((s, d) => s + d.interactions, 0);
-  const totalLatestTokens = latestData.reduce((s, d) => s + d.prompt_tokens + d.output_tokens, 0);
+  // Tokens are per-month totals (from CLI), take from first entry
+  const latestEntry = latestData[0];
+  const totalLatestTokens = latestEntry ? latestEntry.prompt_tokens + latestEntry.output_tokens : 0;
 
   return (
     <VStack gap="space-16">
@@ -111,12 +143,12 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
         </Box>
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-8">
-            <BodyShort weight="semibold">Token-forbruk per modell</BodyShort>
+            <BodyShort weight="semibold">CLI token-forbruk over tid</BodyShort>
             <BodyShort size="small" className="text-gray-500">
               Totalt {latestMonth}: {formatNumber(totalLatestTokens)} tokens
             </BodyShort>
             <div className="aspect-[2/1]">
-              <Bar data={{ labels: months, datasets: tokenDatasets }} options={barOptions} />
+              <Bar data={{ labels: months, datasets: tokenBarDatasets }} options={tokenBarOptions} />
             </div>
           </VStack>
         </Box>
