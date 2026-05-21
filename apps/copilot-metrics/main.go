@@ -74,8 +74,7 @@ func main() {
 	}
 
 	if err := bqClient.EnsureViewsExist(ctx); err != nil {
-		slog.Error("Failed to ensure views exist", "error", err)
-		os.Exit(1)
+		slog.Warn("Failed to ensure views exist (continuing without views)", "error", err)
 	}
 
 	if *backfill {
