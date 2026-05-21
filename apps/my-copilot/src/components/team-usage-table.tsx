@@ -49,53 +49,10 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [showMyTeams, setShowMyTeams] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("avg_active_users");
+  const [sortKey, setSortKey] = useState<SortKey>("total_interactions");
   const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("descending");
 
   const userTeamSet = useMemo(() => new Set(userTeams.map((t) => t.toLowerCase())), [userTeams]);
-
-  // Compute comparison stats: how user's teams rank vs all teams
-  const teamComparison = useMemo(() => {
-    if (userTeams.length === 0 || teams.length < 3) return null;
-    const myTeams = teams.filter((t) => userTeamSet.has(t.team_slug.toLowerCase()));
-    if (myTeams.length === 0) return null;
-
-    // Per-user activity rate (acceptances per active user per day)
-    const activityRates = teams
-      .filter((t) => t.avg_active_users > 0 && t.days_with_data > 0)
-      .map((t) => t.total_acceptances / t.avg_active_users / t.days_with_data);
-    activityRates.sort((a, b) => a - b);
-
-    const bestTeam = myTeams.reduce((best, t) => {
-      const rate =
-        t.avg_active_users > 0 && t.days_with_data > 0
-          ? t.total_acceptances / t.avg_active_users / t.days_with_data
-          : 0;
-      const bestRate =
-        best.avg_active_users > 0 && best.days_with_data > 0
-          ? best.total_acceptances / best.avg_active_users / best.days_with_data
-          : 0;
-      return rate > bestRate ? t : best;
-    }, myTeams[0]);
-
-    const bestRate =
-      bestTeam.avg_active_users > 0 && bestTeam.days_with_data > 0
-        ? bestTeam.total_acceptances / bestTeam.avg_active_users / bestTeam.days_with_data
-        : 0;
-    const rank = activityRates.filter((r) => r <= bestRate).length;
-    const percentile = Math.round((rank / activityRates.length) * 100);
-
-    // Adoption rate (active / total)
-    const adoptionRate =
-      bestTeam.total_users > 0 ? Math.round((bestTeam.avg_active_users / bestTeam.total_users) * 100) : 0;
-    const orgMedianAdoption = (() => {
-      const rates = teams.filter((t) => t.total_users > 0).map((t) => t.avg_active_users / t.total_users);
-      rates.sort((a, b) => a - b);
-      return rates.length > 0 ? Math.round(rates[Math.floor(rates.length / 2)] * 100) : 0;
-    })();
-
-    return { primaryTeam: bestTeam.team_slug, percentile, adoptionRate, orgMedianAdoption };
-  }, [teams, userTeams, userTeamSet]);
 
   const filteredTeams = useMemo(() => {
     let result = teams;
@@ -281,32 +238,7 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
               </div>
             )}
 
-            {/* Team comparison */}
-            {teamComparison && (
-              <Box background="success-soft" padding="space-16" borderRadius="8">
-                <VStack gap="space-8">
-                  <BodyShort weight="semibold" size="small">
-                    {teamComparison.primaryTeam}
-                  </BodyShort>
-                  <HGrid columns={{ xs: 1, sm: 2 }} gap="space-8">
-                    <div>
-                      <div className="text-sm font-semibold">{teamComparison.adoptionRate} % adopsjon</div>
-                      <BodyShort size="small" className="text-gray-500">
-                        Org-median: {teamComparison.orgMedianAdoption} %
-                      </BodyShort>
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Persentil {teamComparison.percentile}</div>
-                      <BodyShort size="small" className="text-gray-500">
-                        Aktivitet per bruker
-                      </BodyShort>
-                    </div>
-                  </HGrid>
-                </VStack>
-              </Box>
-            )}
-
-            {userTeams.length > 0 && !teamComparison && (
+            {userTeams.length > 0 && (
               <BodyShort size="small" className="text-gray-500">
                 Team: {userTeams.join(", ")}
               </BodyShort>
