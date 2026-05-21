@@ -119,8 +119,8 @@ curl -s localhost:8080/metrics | grep kafka
 ```bash
 # Sjekk at River-validering matcher
 # Vanlige feil:
-# - demandValue("@event_name", "feil_navn") → meldinger ignoreres stille
-# - requireKey("felt_som_mangler") → kaster exception
+# - precondition { it.requireValue("@event_name", "feil_navn") } → meldinger ignoreres stille
+# - validate { it.requireKey("felt_som_mangler") } → onError() kalles
 # - Manglende interestedIn() → felt er null
 
 # Sjekk rejected messages (hvis app logger dem)

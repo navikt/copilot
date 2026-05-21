@@ -62,7 +62,7 @@ teamtiltak.saksbehandling.v1    # Domene-hendelser
 class VedtakRiver(rapidsConnection: RapidsConnection) : River.PacketListener {
     init {
         River(rapidsConnection).apply {
-            validate { it.demandValue("@event_name", "vedtak_fattet") }
+            precondition { it.requireValue("@event_name", "vedtak_fattet") }
             validate { it.requireKey("vedtakId", "fnr", "fom", "tom") }
             validate { it.interestedIn("beløp") }
         }.register(this)

@@ -176,7 +176,7 @@ Bruk når du endrer skjema eller splittar topics.
 ```kotlin
 // Legg til nye felt som optional — eksisterende konsumenter ignorerer dem
 River(rapidsConnection).apply {
-    validate { it.demandValue("@event_name", "vedtak_fattet") }
+    precondition { it.requireValue("@event_name", "vedtak_fattet") }
     validate { it.requireKey("vedtakId", "fnr") }
     validate { it.interestedIn("begrunnelse") }  // Nytt optional felt
 }.register(this)
