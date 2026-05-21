@@ -1,10 +1,36 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { HStack, Pagination, Table, Search, Alert, VStack, BodyShort, Box, HGrid, Heading } from "@navikt/ds-react";
+import { useState, useMemo, useCallback } from "react";
+import {
+  HStack,
+  Pagination,
+  Table,
+  Search,
+  Alert,
+  VStack,
+  BodyShort,
+  Box,
+  HGrid,
+  Heading,
+  Button,
+} from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamUsageSummary, UserMetricsSummary } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
+
+function CopyJsonButton({ data, label = "Kopier JSON" }: { data: unknown; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [data]);
+  return (
+    <Button variant="tertiary-neutral" size="xsmall" onClick={handleCopy}>
+      {copied ? "✓ Kopiert" : label}
+    </Button>
+  );
+}
 
 const PAGE_SIZE = 15;
 
@@ -66,9 +92,12 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
       {userMetrics && (
         <Box background="info-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-12">
-            <Heading size="xsmall" level="3">
-              Din bruk siste 7 dager
-            </Heading>
+            <HStack justify="space-between" align="center">
+              <Heading size="xsmall" level="3">
+                Din bruk siste 7 dager
+              </Heading>
+              <CopyJsonButton data={userMetrics} label="📋 JSON" />
+            </HStack>
             {/* Activity overview */}
             <HGrid columns={{ xs: 2, sm: 3, md: 6 }} gap="space-8">
               <div className="text-center">
@@ -194,14 +223,17 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics }: T
         Team med færre enn 5 Copilot-brukere vises ikke (GitHub-begrensning). Data tilgjengelig fra 15. mai 2026.
       </Alert>
 
-      <Search
-        label="Finn teamet ditt"
-        size="small"
-        variant="simple"
-        value={search}
-        onChange={handleSearch}
-        className="max-w-xs"
-      />
+      <HStack gap="space-8" align="end">
+        <Search
+          label="Finn teamet ditt"
+          size="small"
+          variant="simple"
+          value={search}
+          onChange={handleSearch}
+          className="max-w-xs"
+        />
+        <CopyJsonButton data={sortedTeams} label="📋 Teams JSON" />
+      </HStack>
 
       <div className="overflow-x-auto">
         <Table size="small" sort={{ orderBy: sortKey, direction: sortDirection }} onSortChange={handleSort}>
