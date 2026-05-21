@@ -13,6 +13,7 @@ import {
   HGrid,
   Heading,
   Button,
+  ToggleGroup,
 } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamUsageSummary, UserMetricsSummary, WeeklyTrend } from "@/lib/types";
@@ -47,16 +48,23 @@ interface TeamUsageTableProps {
 export default function TeamUsageTable({ teams, userTeams = [], userMetrics, userWeeklyTrends }: TeamUsageTableProps) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [showMyTeams, setShowMyTeams] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("avg_active_users");
   const [sortDirection, setSortDirection] = useState<"ascending" | "descending">("descending");
 
   const userTeamSet = useMemo(() => new Set(userTeams.map((t) => t.toLowerCase())), [userTeams]);
 
   const filteredTeams = useMemo(() => {
-    if (!search.trim()) return teams;
-    const query = search.toLowerCase();
-    return teams.filter((t) => t.team_slug.toLowerCase().includes(query));
-  }, [teams, search]);
+    let result = teams;
+    if (showMyTeams) {
+      result = result.filter((t) => userTeamSet.has(t.team_slug.toLowerCase()));
+    }
+    if (search.trim()) {
+      const query = search.toLowerCase();
+      result = result.filter((t) => t.team_slug.toLowerCase().includes(query));
+    }
+    return result;
+  }, [teams, search, showMyTeams, userTeamSet]);
 
   const sortedTeams = useMemo(() => {
     return [...filteredTeams].sort((a, b) => {
@@ -243,16 +251,22 @@ export default function TeamUsageTable({ teams, userTeams = [], userMetrics, use
         Team med færre enn 5 Copilot-brukere vises ikke (GitHub-begrensning).
       </Alert>
 
-      <HStack gap="space-8" align="end">
-        <Search
-          label="Finn teamet ditt"
-          size="small"
-          variant="simple"
-          value={search}
-          onChange={handleSearch}
-          className="max-w-xs"
-        />
-        <CopyJsonButton data={sortedTeams} label="📋 Teams JSON" />
+      <HStack gap="space-8" align="end" wrap>
+        {userTeams.length > 0 && (
+          <ToggleGroup
+            size="small"
+            value={showMyTeams ? "mine" : "alle"}
+            onChange={(val) => {
+              setShowMyTeams(val === "mine");
+              setPage(1);
+            }}
+          >
+            <ToggleGroup.Item value="alle">Alle team</ToggleGroup.Item>
+            <ToggleGroup.Item value="mine">Mine team</ToggleGroup.Item>
+          </ToggleGroup>
+        )}
+        <Search label="Søk" size="small" variant="simple" value={search} onChange={handleSearch} className="max-w-xs" />
+        <CopyJsonButton data={sortedTeams} label="📋 JSON" />
       </HStack>
 
       <div className="overflow-x-auto">
