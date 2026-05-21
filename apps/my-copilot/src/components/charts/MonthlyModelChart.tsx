@@ -116,17 +116,15 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
         AI-modeller over tid
       </Heading>
       <BodyShort size="small" className="text-gray-500">
-        Basert på brukerinitiierte interaksjoner (ekskluderer bakgrunnskall fra agenter). For fullstendig
-        premium-forbruk, se{" "}
+        Aktivitet per modell: interaksjoner + kodeforslag + aksepteringer.{" "}
         <a
           href="https://github.com/enterprises/nav/settings/copilot/usage"
           target="_blank"
           rel="noopener noreferrer"
           className="underline"
         >
-          GitHub Premium Request Analytics
+          Premium-forespørsler (fakturering)
         </a>
-        .
       </BodyShort>
 
       <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">
@@ -143,7 +141,7 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
                   {totalLatestInteractions > 0 ? Math.round((d.interactions / totalLatestInteractions) * 100) : 0} %
                 </div>
                 <BodyShort size="small" className="text-gray-500">
-                  {formatNumber(d.interactions)} forespørsler
+                  {formatNumber(d.interactions)} aktiviteter
                 </BodyShort>
               </div>
             </Box>
@@ -153,7 +151,7 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data }) => {
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-8">
-            <BodyShort weight="semibold">Forespørsler per modell</BodyShort>
+            <BodyShort weight="semibold">Aktivitet per modell</BodyShort>
             <div className="aspect-[2/1]">
               <Bar data={{ labels: months, datasets: interactionDatasets }} options={barOptions} />
             </div>

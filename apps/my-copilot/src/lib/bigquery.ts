@@ -479,13 +479,17 @@ export class CopilotBigQueryClient {
     const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
 
     // Token data lives in totals_by_cli, not per model. We aggregate CLI tokens
-    // per month alongside per-model interactions from totals_by_model_feature.
+    // per month alongside per-model activity from totals_by_model_feature.
+    // We sum ALL activity: interactions + code generations + code acceptances
+    // to get a more accurate picture of actual model usage.
     const query = `
-      WITH model_interactions AS (
+      WITH model_activity AS (
         SELECT
           FORMAT_DATE('%Y-%m', day) AS month,
           JSON_VALUE(mf, '$.model') AS model,
-          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_generation_activity_count') AS INT64)), 0) AS generations,
+          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances
         FROM ${metricsRef},
           UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
@@ -493,7 +497,7 @@ export class CopilotBigQueryClient {
           AND JSON_VALUE(mf, '$.model') IS NOT NULL
           AND JSON_VALUE(mf, '$.model') != 'others'
         GROUP BY month, model
-        HAVING interactions > 0
+        HAVING (interactions + generations) > 0
       ),
       monthly_tokens AS (
         SELECT
@@ -506,14 +510,14 @@ export class CopilotBigQueryClient {
         GROUP BY month
       )
       SELECT
-        mi.month,
-        mi.model,
-        mi.interactions,
+        ma.month,
+        ma.model,
+        (ma.interactions + ma.generations + ma.acceptances) AS interactions,
         COALESCE(mt.prompt_tokens, 0) AS prompt_tokens,
         COALESCE(mt.output_tokens, 0) AS output_tokens
-      FROM model_interactions mi
-      LEFT JOIN monthly_tokens mt ON mi.month = mt.month
-      ORDER BY mi.month, mi.interactions DESC
+      FROM model_activity ma
+      LEFT JOIN monthly_tokens mt ON ma.month = mt.month
+      ORDER BY ma.month, interactions DESC
     `;
 
     try {
