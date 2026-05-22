@@ -306,6 +306,15 @@
     },
     {
       "type": "instruction",
+      "name": "code-review",
+      "displayName": "Code Review",
+      "description": "Generelle review-instruksjoner for Copilot code review — sikkerhet, NAIS, GitHub Actions og testkvalitet",
+      "filePath": ".github/instructions/code-review.instructions.md",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/code-review.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/code-review.instructions.md"
+    },
+    {
+      "type": "instruction",
       "name": "database",
       "displayName": "Database Development",
       "description": "Flyway migration standards, PostgreSQL schema patterns, safe alterations.",

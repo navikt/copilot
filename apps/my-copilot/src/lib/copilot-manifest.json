@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-20T18:47:28.886Z",
+  "generatedAt": "2026-05-22T08:37:23.796Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -580,6 +580,24 @@
       "applyTo": "src/**/*.{tsx,jsx}",
       "tags": ["accessibility", "wcag", "a11y", "universell-utforming"],
       "examples": ["Legg til riktige ARIA-attributter på dette skjemaet"]
+    },
+    {
+      "id": "code-review",
+      "name": "Code Review",
+      "description": "Generelle review-instruksjoner for Copilot code review — sikkerhet, NAIS, GitHub Actions og testkvalitet",
+      "type": "instruction",
+      "domain": "auth",
+      "filePath": ".github/instructions/code-review.instructions.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/code-review.instructions.md",
+      "contentHash": "76088d9c7d0e39090270a9ee0579f5660d41092cd00daeddaea4ece16b5d3626",
+      "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fcode-review.instructions.md",
+      "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fcode-review.instructions.md",
+      "applyTo": "**",
+      "tags": ["code-review", "security", "nais", "github-actions"],
+      "examples": [
+        "Flagg sikkerhetskritiske endringer i PR-er som hemmeligheter, PII i logger og auth-endringer",
+        "Identifiser risiko i NAIS-konfig, GitHub Actions og testdekning"
+      ]
     },
     {
       "id": "database",

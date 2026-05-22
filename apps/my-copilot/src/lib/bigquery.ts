@@ -213,6 +213,9 @@ export class CopilotBigQueryClient {
    */
   async getStalenessData(): Promise<StalenessFile[]> {
     const viewName = "v_staleness_summary";
+    // Only include files where in_sync IS NOT NULL — these are files that exist
+    // in our canonical source repo (navikt/copilot). Team-specific files that
+    // don't have a canonical version will have in_sync = NULL and are excluded.
     const query = `
       SELECT
         category,
@@ -224,6 +227,7 @@ export class CopilotBigQueryClient {
         COUNTIF(is_recently_active) AS recently_active_repos
       FROM ${this.adoptionViewRef(viewName)}
       WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
+        AND in_sync IS NOT NULL
       GROUP BY category, file_name
       ORDER BY total_repos DESC
     `;

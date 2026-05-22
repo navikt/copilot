@@ -1,0 +1,10 @@
+{
+  "displayName": "Code Review",
+  "description": "Generelle review-instruksjoner for Copilot code review — sikkerhet, NAIS, GitHub Actions og testkvalitet",
+  "domain": "auth",
+  "tags": ["code-review", "security", "nais", "github-actions"],
+  "examples": [
+    "Flagg sikkerhetskritiske endringer i PR-er som hemmeligheter, PII i logger og auth-endringer",
+    "Identifiser risiko i NAIS-konfig, GitHub Actions og testdekning"
+  ]
+}

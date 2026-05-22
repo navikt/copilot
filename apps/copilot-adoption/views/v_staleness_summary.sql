@@ -95,7 +95,7 @@ SELECT
   category,
   file_name,
   oid,
-  IFNULL(in_sync, false) AS in_sync
+  in_sync
 FROM file_data
 WHERE file_name IS NOT NULL
 ORDER BY scan_date DESC, org, repo, category, file_name
