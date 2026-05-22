@@ -9,6 +9,7 @@ import type {
   MonthlyBillingUsage,
   MonthlyModelUsage,
   MonthlyTrend,
+  StalenessFile,
   TeamAdoption,
   TeamUsageSummary,
   UserMetricsSummary,
@@ -202,6 +203,35 @@ export class CopilotBigQueryClient {
       return await this.query<LanguageAdoption>(query);
     } catch (err) {
       console.error("[bigquery] getLanguageAdoption failed:", err);
+      throw err;
+    }
+  }
+
+  /**
+   * Get aggregated staleness/sync data per file for the latest scan.
+   * Groups by category and file_name to show sync status across repos.
+   */
+  async getStalenessData(): Promise<StalenessFile[]> {
+    const viewName = "v_staleness_summary";
+    const query = `
+      SELECT
+        category,
+        file_name,
+        COUNT(*) AS total_repos,
+        COUNTIF(in_sync) AS in_sync_repos,
+        COUNTIF(NOT in_sync) AS out_of_sync_repos,
+        SAFE_DIVIDE(COUNTIF(in_sync), COUNT(*)) AS sync_rate,
+        COUNTIF(is_recently_active) AS recently_active_repos
+      FROM ${this.adoptionViewRef(viewName)}
+      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
+      GROUP BY category, file_name
+      ORDER BY total_repos DESC
+    `;
+
+    try {
+      return await this.query<StalenessFile>(query);
+    } catch (err) {
+      console.error("[bigquery] getStalenessData failed:", err);
       throw err;
     }
   }
@@ -707,4 +737,8 @@ export async function getMonthlyBillingUsage(months: number = 12): Promise<Month
 
 export async function getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {
   return getDefaultClient().getUserWeeklyTrends(userLogin, weeks);
+}
+
+export async function getStalenessData(): Promise<StalenessFile[]> {
+  return getDefaultClient().getStalenessData();
 }

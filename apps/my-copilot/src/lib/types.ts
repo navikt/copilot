@@ -349,6 +349,32 @@ export interface AdoptionData {
 }
 
 /**
+ * Aggregated sync/staleness data per file across repos.
+ * Sourced from v_staleness_summary BigQuery view.
+ */
+export interface StalenessFile {
+  category: string;
+  file_name: string;
+  total_repos: number;
+  in_sync_repos: number;
+  out_of_sync_repos: number;
+  sync_rate: number;
+  recently_active_repos: number;
+}
+
+/**
+ * Overall staleness summary stats.
+ */
+export interface StalenessSummary {
+  total_files: number;
+  total_file_instances: number;
+  in_sync_count: number;
+  out_of_sync_count: number;
+  sync_rate: number;
+  files: StalenessFile[];
+}
+
+/**
  * Scope for filtering adoption data by repo activity.
  * "active" = repos with commit in last 90 days.
  * "all" = all non-archived repos.

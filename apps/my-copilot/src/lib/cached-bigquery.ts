@@ -8,6 +8,7 @@ import {
   getMonthlyBillingUsage,
   getMonthlyModelUsage,
   getMonthlyTrends,
+  getStalenessData,
   getTeamAdoption,
   getTeamUsageSummary,
   getUserMetrics,
@@ -20,6 +21,7 @@ import type {
   MonthlyBillingUsage,
   MonthlyModelUsage,
   MonthlyTrend,
+  StalenessSummary,
   TeamUsageSummary,
   UserMetricsSummary,
   WeeklyTrend,
@@ -81,6 +83,37 @@ export async function getCachedCustomizationUsage(): Promise<{
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cached-bigquery] getCachedCustomizationUsage failed:", err);
     return { usage: [], error: message };
+  }
+}
+
+export async function getCachedStalenessData(): Promise<{
+  data: StalenessSummary | null;
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({ stale: 3600 });
+  cacheTag("bq-staleness");
+
+  try {
+    const files = await getStalenessData();
+    const totalInstances = files.reduce((sum, f) => sum + f.total_repos, 0);
+    const inSyncCount = files.reduce((sum, f) => sum + f.in_sync_repos, 0);
+    const outOfSyncCount = files.reduce((sum, f) => sum + f.out_of_sync_repos, 0);
+
+    const summary: StalenessSummary = {
+      total_files: files.length,
+      total_file_instances: totalInstances,
+      in_sync_count: inSyncCount,
+      out_of_sync_count: outOfSyncCount,
+      sync_rate: totalInstances > 0 ? inSyncCount / totalInstances : 0,
+      files,
+    };
+
+    return { data: summary, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[cached-bigquery] getCachedStalenessData failed:", err);
+    return { data: null, error: message };
   }
 }
 
