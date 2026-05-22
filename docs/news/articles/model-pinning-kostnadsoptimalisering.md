@@ -25,6 +25,7 @@ Hver Business-bruker får 1 900 AI Credits per måned ($19). Credits pooler på 
 | Input per 1M tokens | $5.00 | $3.00 | Opus er 67 % dyrere |
 | Output per 1M tokens | $25.00 | $15.00 | Opus er 67 % dyrere |
 | Cached input per 1M tokens | $0.50 | $0.30 | Opus er 67 % dyrere |
+| Cache write per 1M tokens | $6.25 | $3.75 | Opus er 67 % dyrere |
 | Typisk interaksjon (3K inn / 5K ut) | $0.14 | $0.084 | $0.056 mer per kall |
 | 50 kall per dag | $7.00 | $4.20 | $2.80 spart per dag |
 | Per bruker per måned (50 kall/dag) | ~$140 | ~$84 | ~$56 spart |
@@ -67,12 +68,33 @@ Auto-modus har innebygd rabatt og velger riktig modell for oppgaven. Trenger du 
 
 ### 2. Bruk caching — hold sesjonen åpen
 
-Cached tokens koster **10 % av vanlige input-tokens**. Copilot cacher kontekst fra tidligere i sesjonen automatisk. Eksempel med GPT-5.3-Codex:
+Copilot skiller mellom tre token-typer: **input**, **output** og **cached input**. Cached input koster **90 % mindre** enn vanlig input — kontekst fra tidligere i sesjonen gjenbrukes automatisk.
 
-- Første spørring (10K input-tokens): $0.0175
-- Neste spørring i samme sesjon (90 % cache hit): $0.0033
+**Cached input-priser (per 1M tokens):**
 
-Lukker du sesjonen og starter på nytt, betaler du full pris igjen. Hold sesjoner åpne når du jobber med relaterte oppgaver.
+| Modell | Input | Cached input | Cache write (kun Anthropic) |
+| --- | --- | --- | --- |
+| GPT-5.3-Codex | $1.75 | $0.175 | — |
+| Claude Sonnet 4.6 | $3.00 | $0.30 | $3.75 |
+| Claude Opus 4.6 | $5.00 | $0.50 | $6.25 |
+| GPT-5 mini | $0.25 | $0.025 | — |
+
+Anthropic-modeller har en ekstra **cache write**-kostnad (25 % over vanlig input) første gang konteksten skrives til cache, men 90 % billigere ved påfølgende lesinger.
+
+**Eksempel med GPT-5.3-Codex:**
+
+- Første spørring (10K input-tokens): 10K × $1.75/1M = $0.0175
+- Neste spørring i samme sesjon (90 % cache hit): 1K × $1.75/1M + 9K × $0.175/1M = $0.0033
+- Besparelse: **81 %** ved høy cache hit rate
+
+**Cache-adferd:**
+
+- Cachen gjelder innenfor sesjonen — lukker du sesjonen, betaler du full pris igjen
+- Auto model selection velger modell langs «naturlige cache-grenser» for å unngå ekstra cachekostnader ([kilde](https://docs.github.com/en/copilot/concepts/auto-model-selection))
+- Modellbytte midt i sesjonen invaliderer cachen — unngå dette
+- GitHub dokumenterer ingen cache-TTL, men sesjonsbasert caching betyr i praksis at cachen varer så lenge sesjonen er aktiv
+
+**Best practice:** Hold sesjoner åpne når du jobber med relaterte oppgaver. Bruk Auto eller en agent med pinnet modell — begge unngår modellbytte som bryter cache.
 
 ### 3. Kodekomplettering er gratis
 
