@@ -102,3 +102,5 @@ Bindestrek ved engelsk+norsk:
 - "vi" og "du", ikke "bruker" og "man" i interne dokumenter
 - Unngå superlativer og amerikansk stil
 - Konsekvent bokmål, ikke bland inn nynorsk
+- Vanlige nynorsk-feil fra KI: -ingar (skal være -inger), -leg (skal være -lig), kv- (skal være hv-), ei-/eig- (skal være e-/eg-), medan→mens, vorte→blitt, vart→ble, berre→bare, mykje→mye, difor→derfor
+- Svensk som siver inn: engångs-→engangs-, ändring→endring (å/ä der bokmål har a/e)
