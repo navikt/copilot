@@ -66,7 +66,7 @@ gh guard er en default-deny policy engine som klassifiserer over 150 `gh`-komman
 
 ### git guard — push-beskyttelse
 
-git guard blokkerer `git push`, `request-pull` og `send-pack`. Alt annet — commit, branch, rebase, stash — fungerer som normalt.
+git guard blokkerer `git push`, `git request-pull` og `git send-pack`. Alt annet — commit, branch, rebase, stash — fungerer som normalt.
 
 Trenger agenten å pushe til en feature branch?
 
