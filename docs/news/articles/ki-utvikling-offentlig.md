@@ -1,7 +1,7 @@
 ---
 title: "ki-utvikling.nav.no — nå åpen for alle"
 date: 2026-05-05
-author: starefosen
+author: starefossen
 category: nav
 excerpt: "Nyheter, god praksis, verktøy og retningslinjer er nå tilgjengelig for alle utviklere — ikke bare Nav-ansatte."
 tags:

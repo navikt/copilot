@@ -1,7 +1,7 @@
 ---
 title: "Parallell utvikling med /fleet og Git worktrees"
 date: 2026-04-21
-author: starefosen
+author: starefossen
 category: praksis
 excerpt: "Slik bruker du Copilot CLI sin /fleet-kommando og Git worktrees til å kjøre flere AI-agenter samtidig — uten filkonflikter og med full isolasjon."
 tags:

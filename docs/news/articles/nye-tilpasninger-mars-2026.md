@@ -1,7 +1,7 @@
 ---
 title: "17 nye Copilot-tilpasninger for Nav-utviklere"
 date: 2026-03-17
-author: starefosen
+author: starefossen
 category: nav
 excerpt: "Tre instruksjoner, fem skills, to agenter, to prompts og seks utvidelser. Dekker kodegjennomgang, Spring Boot, Playwright, PostgreSQL, Docker med Chainguard og WCAG-tilgjengelighet."
 tags:

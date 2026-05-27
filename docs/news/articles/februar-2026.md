@@ -1,7 +1,7 @@
 ---
 title: "Nyheter og trender — Februar 2026"
 date: 2026-02-28
-author: starefosen
+author: starefossen
 category: oppsummering
 excerpt: "Agent HQ med Claude og Codex, GitHub Agentic Workflows, Copilots minnesystem, Copilot SDK, AGENTS.md-debatten, og stemningen i utviklermiljøet."
 tags:

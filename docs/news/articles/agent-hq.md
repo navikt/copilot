@@ -1,7 +1,7 @@
 ---
 title: "GitHub Agent HQ: Claude og Codex i public preview"
 date: 2026-02-04
-author: starefosen
+author: starefossen
 category: copilot
 excerpt: "Utviklere med Copilot Pro+ eller Enterprise kan nå sette Claude, Codex og Copilot på samme issue eller PR."
 url: "https://github.blog/news-insights/company-news/pick-your-agent-use-claude-and-codex-on-agent-hq/"

@@ -1,7 +1,7 @@
 ---
 title: "Personlige Copilot-tilpasninger som følger deg mellom prosjekter"
 date: 2026-03-20
-author: starefosen
+author: starefossen
 category: praksis
 excerpt: "Skills og agenter kan lagres i ~/.copilot/ og brukes på tvers av alle repoer. CLI støtter også globale instruksjoner."
 tags:

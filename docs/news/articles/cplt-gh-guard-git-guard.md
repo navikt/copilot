@@ -1,7 +1,7 @@
 ---
 title: "gh guard og git guard: blokkér destruktive kommandoer i sandbox"
 date: 2026-05-27
-author: starefosen
+author: starefossen
 category: praksis
 excerpt: "cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kjører i sandbox. Én kommando skrur det på."
 tags:

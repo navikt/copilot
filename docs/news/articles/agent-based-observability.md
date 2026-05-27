@@ -1,7 +1,7 @@
 ---
 title: "Agentbasert observability — når Copilot feilsøker produksjon for deg"
 date: 2026-05-20
-author: starefosen
+author: starefossen
 category: nav-pilot
 excerpt: "Hvordan vi ga Copilot-agenter direkte tilgang til Mimir, Loki og Tempo — slik at de kan feilsøke problemer i produksjon uten at du forlater editoren."
 tags:

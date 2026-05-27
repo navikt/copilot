@@ -1,7 +1,7 @@
 ---
 title: "MCP-servere nå tilgjengelig fra verktøysiden"
 date: 2026-03-10
-author: starefosen
+author: starefossen
 category: nav
 excerpt: "Verktøysiden viser nå MCP-servere fra Navs MCP-register — med installasjonsinstruksjoner, verktøyliste og direkte CLI-kommandoer for VS Code."
 tags:

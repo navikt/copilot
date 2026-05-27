@@ -1,7 +1,7 @@
 ---
 title: "Fra fastpris til AI Credits: Strategier for kostnadseffektiv KI-bruk"
 date: 2026-05-13
-author: starefosen
+author: starefossen
 category: nav
 excerpt: "Model-pinning, caching, context engineering og sju konkrete tips for å holde Copilot-kostnadene nede når bruksbasert fakturering starter 1. juni."
 url: "https://github.com/navikt/copilot/issues/216"

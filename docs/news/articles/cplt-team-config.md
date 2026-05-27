@@ -1,7 +1,7 @@
 ---
 title: "cplt — team-config og auto-generert sandbox"
 date: 2026-05-11
-author: starefosen
+author: starefossen
 category: praksis
 excerpt: "Teams kan nå committe sandbox-innstillinger til repoet, og cplt init skanner prosjektet og genererer riktig config automatisk."
 tags:

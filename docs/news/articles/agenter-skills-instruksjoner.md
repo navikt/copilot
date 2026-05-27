@@ -1,7 +1,7 @@
 ---
 title: "Agenter, skills eller instruksjoner? Slik velger du riktig"
 date: 2026-05-22
-author: starefosen
+author: starefossen
 category: praksis
 excerpt: "Copilot har flere typer tilpasninger. Her er når du bruker hva — med beslutningstre og eksempler fra navikt."
 tags:
