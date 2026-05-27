@@ -1,0 +1,6 @@
+{
+  "domain": "backend",
+  "tags": ["rust", "cargo", "clippy", "async", "tokio"],
+  "deprecated": true,
+  "deprecatedMessage": "Bruk /rust-development skill i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet."
+}

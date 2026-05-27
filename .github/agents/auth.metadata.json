@@ -1,6 +1,8 @@
 {
   "domain": "auth",
   "tags": ["auth", "azure-ad", "tokenx", "id-porten", "security"],
+  "deprecated": true,
+  "deprecatedMessage": "Bruk /nav-auth skill i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.",
   "examples": [
     {
       "prompt": "@auth-agent Sett opp Azure AD-autentisering i fp-sak",

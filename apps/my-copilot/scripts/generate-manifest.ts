@@ -17,6 +17,8 @@ interface Metadata {
   references?: string[];
   excluded?: boolean;
   examples?: ExampleItem[];
+  deprecated?: boolean;
+  deprecatedMessage?: string;
 }
 
 function loadMetadata(metadataPath: string): Metadata {
@@ -104,6 +106,8 @@ interface ManifestItem {
   examples?: ExampleItem[];
   references?: { path: string; rawUrl: string }[];
   model?: string[];
+  deprecated?: boolean;
+  deprecatedMessage?: string;
 }
 
 /**
@@ -167,6 +171,8 @@ function getAgents(): ManifestItem[] {
       ...(agentReferences.length > 0 && { agentReferences }),
       ...(meta.tags && { tags: meta.tags }),
       ...(meta.examples && { examples: meta.examples }),
+      ...(meta.deprecated && { deprecated: true }),
+      ...(meta.deprecatedMessage && { deprecatedMessage: meta.deprecatedMessage }),
     };
   });
 }
@@ -201,6 +207,8 @@ function getInstructions(): ManifestItem[] {
         applyTo,
         ...(meta.tags && { tags: meta.tags }),
         ...(meta.examples && { examples: meta.examples }),
+        ...(meta.deprecated && { deprecated: true }),
+        ...(meta.deprecatedMessage && { deprecatedMessage: meta.deprecatedMessage }),
       };
     });
 }
@@ -239,6 +247,8 @@ function getPrompts(): ManifestItem[] {
         ...(model && { model }),
         ...(meta.tags && { tags: meta.tags }),
         ...(meta.examples && { examples: meta.examples }),
+        ...(meta.deprecated && { deprecated: true }),
+        ...(meta.deprecatedMessage && { deprecatedMessage: meta.deprecatedMessage }),
       };
     });
 }
@@ -279,6 +289,8 @@ function getSkills(): ManifestItem[] {
         ...(meta.tags && { tags: meta.tags }),
         ...(meta.examples && { examples: meta.examples }),
         ...(references && references.length > 0 && { references }),
+        ...(meta.deprecated && { deprecated: true }),
+        ...(meta.deprecatedMessage && { deprecatedMessage: meta.deprecatedMessage }),
       };
     });
 }

@@ -23,9 +23,12 @@ nav-pilot install <skill-name>
 | **conventional-commit** | Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format | [`.github/skills/conventional-commit/`](../.github/skills/conventional-commit/SKILL.md) |
 | **flyway-migration** | Databasemigrasjonsmønstre med Flyway og versjonerte SQL-skript | [`.github/skills/flyway-migration/`](../.github/skills/flyway-migration/SKILL.md) |
 | **java-to-kotlin** | Trinnvis Java-til-Kotlin-migrering med rammeverk-bevisste transformasjoner for Spring, Ktor og Nav-mønstre | [`.github/skills/java-to-kotlin/`](../.github/skills/java-to-kotlin/SKILL.md) |
+| **kafka** | Rapids & Rivers, eventdrevet arkitektur, Kafka-mønstre og schema-design for Nav-applikasjoner | [`.github/skills/kafka/`](../.github/skills/kafka/SKILL.md) |
 | **kotlin-app-config** | Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger | [`.github/skills/kotlin-app-config/`](../.github/skills/kotlin-app-config/SKILL.md) |
 | **ktor-scaffold** | Scaffold eit nytt Ktor-prosjekt med Kotliquery, Flyway, Koin og Nais-konfigurasjon | [`.github/skills/ktor-scaffold/`](../.github/skills/ktor-scaffold/SKILL.md) |
+| **nais** | Nais-deployment, GCP-ressurser, pod-lifecycle og feilsøking på plattformen | [`.github/skills/nais/`](../.github/skills/nais/SKILL.md) |
 | **nav-architecture-review** | Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav | [`.github/skills/nav-architecture-review/`](../.github/skills/nav-architecture-review/SKILL.md) |
+| **nav-auth** | Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-applikasjoner | [`.github/skills/nav-auth/`](../.github/skills/nav-auth/SKILL.md) |
 | **nav-deep-interview** | Strukturert intervju som avdekker blindsoner i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet | [`.github/skills/nav-deep-interview/`](../.github/skills/nav-deep-interview/SKILL.md) |
 | **nav-plan** | Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database og Nais-konfigurasjon | [`.github/skills/nav-plan/`](../.github/skills/nav-plan/SKILL.md) |
 | **nav-troubleshoot** | Strukturerte diagnostiske trær for vanlige Nav-plattformproblemer — pod-krasj, auth-feil, Kafka-lag og databaseproblemer | [`.github/skills/nav-troubleshoot/`](../.github/skills/nav-troubleshoot/SKILL.md) |

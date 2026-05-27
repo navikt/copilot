@@ -23,6 +23,8 @@ tools:
 
 # Observability Agent
 
+> ⚠️ **Deprecated**: Bruk `/observability-setup` eller `/observability-debugging` skills i stedet. Denne agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.
+
 Observability expert for Nav applications. Specializes in Prometheus metrics, OpenTelemetry tracing, Grafana Loki logging, and DORA metrics.
 
 ## Output — vis fremdrift

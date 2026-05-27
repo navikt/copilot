@@ -1,6 +1,8 @@
 {
   "domain": "backend",
   "tags": ["kafka", "events", "rapids-rivers", "streaming"],
+  "deprecated": true,
+  "deprecatedMessage": "Bruk /kafka skill i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.",
   "examples": [
     {
       "prompt": "@kafka-agent Lag en Rapids & Rivers consumer for sykmeldingshendelser i syfosmmanuell-backend",
