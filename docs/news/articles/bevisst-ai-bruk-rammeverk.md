@@ -46,7 +46,7 @@ Vi har bygget disse prinsippene direkte inn i Copilot-oppsettet:
 - **Nav-pilot** varsler om kompetansebevaring i blindsone-sjekken
 - **Kodegjennomgang** sjekker at utvikleren forstår AI-genererte designvalg
 
-Verktøyene *oppfordrer* til refleksjon, men de kan ikke tvinge det. Rammeverket er til syvende og sist en personlig praksis — et sett med vaner som beskytter den dype forståelsen mens du bruker AI der det gir faktisk verdi.
+Verktøyene *oppfordrer* til refleksjon, men de kan ikke tvinge det. Rammeverket er til syvende og sist en personlig praksis — vaner som beskytter den dype forståelsen mens du bruker AI der det faktisk gir verdi.
 
 ## Les mer
 

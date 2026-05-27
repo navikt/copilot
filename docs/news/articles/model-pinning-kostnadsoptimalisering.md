@@ -154,13 +154,13 @@ Model-pinning er første steg. Framover ser vi på:
 - **Forbruksoversikt:** Dashbord på min-copilot.ansatt.nav.no som viser hvem som bruker mest. Ikke for å henge ut noen, men for å lære av hverandre.
 - **Erfaringsdeling fra storforbrukere:** De som bruker mest AI Credits, blir invitert til å dele hva de jobber med og hvordan de bruker agenter. Målet er å spre gode arbeidsmønstre.
 
-Vi tror de mest aktive brukerne har verdifull innsikt i hva som fungerer — og hva som ikke gjør det. Den innsikten vil vi gjøre tilgjengelig for alle.
+Vi tror de mest aktive brukerne har verdifull innsikt i hva som fungerer — og hva som ikke gjør det. Den innsikten vil vi dele bredt.
 
 ## Hva du merker
 
 Ingenting — `model:` setter default, men du kan fortsatt velge modell manuelt i model picker. I juni oppgraderer vi til Opus 4.7 — da koster alle Opus-modeller det samme per token.
 
-**Bruk [`@nav-pilot`](/nav-pilot) for tunge oppgaver.** Nav-pilot er vår primæragent for arkitektur, planlegging og implementering. Den bruker model-pinning med Opus 4.6 og GPT-5.3-Codex som fallback — du får altså den kraftigste modellen automatisk når du trenger den, uten å velge Opus manuelt for alt annet. For vanlig chat og kodearbeid: bruk Auto.
+**Bruk [`@nav-pilot`](/nav-pilot) for tunge oppgaver.** Nav-pilot er vår primæragent for arkitektur, planlegging og implementering. Den bruker model-pinning med Opus 4.6 og GPT-5.3-Codex som fallback — du får automatisk den kraftigste modellen når du trenger den, uten å velge Opus manuelt for alt annet. For vanlig chat og kodearbeid: bruk Auto.
 
 **Oppgrader nav-pilot for å få siste versjon.** Kjør `nav-pilot sync` i terminalen for å hente oppdaterte agenter, skills og modellinnstillinger. Da får du automatisk de nye kostnadsoptimaliserte modellvalgene.
 
