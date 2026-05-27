@@ -125,7 +125,7 @@ Trenger du verktøybegrensning, modellvalg eller MCP?
 Er det domenekunnskap, workflow eller prosedyre?
   → Ja → Skill (SKILL.md)
 
-Er det en enkel engångsoppgave med forhåndsdefinert kontekst?
+Er det en enkel engangsoppgave med forhåndsdefinert kontekst?
   → Ja → Prompt (.prompt.md)
 ```
 

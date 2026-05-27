@@ -16,7 +16,7 @@ tags:
   - dependabot
 ---
 
-April 2026 var måneden GitHub la om kostnadsmodellen for Copilot, åpnet EU-dataopphold med Norge dekket via EFTA, og ga utviklere et helt nytt sett verktøy: Autopilot i VS Code, `gh skill` i terminalen, og to nye toppmodeller. Her er det viktigste for Nav-utviklere.
+April 2026 var måneden GitHub la om kostnadsmodellen for Copilot, åpnet EU-dataopphold med Norge dekket via EFTA, og ga utviklere nye verktøy: Autopilot i VS Code, `gh skill` i terminalen og to nye toppmodeller. Her er det viktigste for Nav-utviklere.
 
 ---
 
@@ -93,7 +93,7 @@ Noen avhengighetssårbarheter krever mer enn en versjonsbump — de trenger kode
 
 Du kan tildele flere agenter til samme varsel — hver jobber uavhengig og åpner sin egen PR, så du kan sammenligne tilnærminger. Spesielt nyttig for major version-oppgraderinger med breaking changes, nedgradering av kompromitterte pakker, og komplekse scenarier som faller utenfor Dependabots regelmotor.
 
-For Navs ~500 repoer kan dette akselerere sikkerhetsoppdateringer betraktelig. Krever GitHub Code Security og Copilot-abonnement med tilgang til coding agent.
+For Navs ~500 repoer kan dette gi raskere sikkerhetsoppdateringer. Krever GitHub Code Security og Copilot-abonnement med tilgang til coding agent.
 
 **Kilde:** [Dependabot alerts are now assignable to AI agents for remediation](https://github.blog/changelog/2026-04-07-dependabot-alerts-are-now-assignable-to-ai-agents-for-remediation) (GitHub Changelog, 7. april 2026)
 
@@ -119,7 +119,7 @@ Den høye prisen gjør at de bør spares til oppgaver der billigere modeller fak
 
 ## 7. Agentsesjoner synlige i Issues og Projects
 
-Cloud agent-sesjoner er nå synlige direkte i GitHub Issues og Projects. En «session pill» på issues viser aktive og fullførte agentsesjoner, og du kan åpne en sesjon i sidepanelet for å se fremdrift, gjennomgå logger eller gi agenten retning — uten å forlate issue-visningen.
+Cloud agent-sesjoner er nå synlige direkte i GitHub Issues og Projects. En «session pill» på issues viser aktive og fullførte agentsesjoner, og du kan åpne en sesjon i sidepanelet for å se fremdrift, gjennomgå logger eller gi agenten retning — uten å gå ut av issue-visningen.
 
 I Projects er «Show agent sessions» aktivert som standard for både nye og eksisterende visninger. Klikk på en agentsesjon i prosjekttavlen for å åpne den i sidepanelet.
 
@@ -129,7 +129,7 @@ Dette gjør det lettere å holde oversikt over agentaktivitet i planleggingskont
 
 ---
 
-## Også verdt å vite
+## Flere korte oppdateringer
 
 Korte oppdateringer som er nyttige å kjenne til, men som ikke krever handling fra de fleste:
 

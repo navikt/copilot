@@ -256,6 +256,82 @@ Nav skrives med stor forbokstav og små bokstaver. Ikke "NAV" (gammelt akronym) 
 - "vi" ikke "man" i interne dokumenter
 - Bruk a-endelse der det er naturlig: "sida", "fila", "endra" — men vær konsekvent
 
+### Nynorsk og svensk som siver inn
+
+Språkmodeller trener på bokmål, nynorsk og svensk samtidig og blander formene. Fang og rett opp disse — de er vanligste feilene i KI-generert bokmål.
+
+**Nynorsk ord → bokmål:**
+
+| ❌ Nynorsk | ✅ Bokmål | Kommentar |
+|-----------|----------|-----------|
+| oppgåve | oppgave | Vanlig å-feil |
+| eigenskap | egenskap | ei→e |
+| eigentleg | egentlig | ei→e |
+| handtere | håndtere | Mangler å |
+| handtering | håndtering | Mangler å |
+| tilgjengeleg | tilgjengelig | -leg→-lig |
+| mogleg | mulig | Helt annet ord |
+| moglegheit | mulighet | Helt annet ord |
+| tydeleg / tydelegare | tydelig / tydeligere | -leg→-lig |
+| vanskelegare | vanskeligere | -leg→-lig |
+| viktigaste | viktigste | -aste→-ste |
+| løysing | løsning | øy→ø |
+| brukaren / brukarane | brukeren / brukerne | -ar→-er |
+| teneste / tenester | tjeneste / tjenester | te→tje |
+| endringar | endringer | -ingar→-inger |
+| innstillingar | innstillinger | -ingar→-inger |
+| oppdateringar | oppdateringer | -ingar→-inger |
+| tilbakemeldingar | tilbakemeldinger | -ingar→-inger |
+| utfordringar | utfordringer | -ingar→-inger |
+| naudsynt | nødvendig | Helt annet ord |
+| kjeldekode | kildekode | kje→ki |
+| sjølv | selv | sjø→se |
+| nokon / nokon gong | noen / noen gang | |
+| kvar / kvart | hver / hvert | kv→hv |
+| kvifor | hvorfor | kv→hv |
+| korleis | hvordan | Helt annet ord |
+| fleire | flere | ei→e |
+| meir | mer | ei→e |
+| framleis | fremdeles / fortsatt | |
+| mellom anna | blant annet | |
+| ikkje | ikke | |
+| medan | mens | |
+| mykje | mye | y→y, men annet ord |
+| berre | bare | |
+| til dømes | for eksempel | |
+| difor | derfor | |
+| vorte | blitt | Nynorsk partisipp |
+| vidare | videre | |
+| vart | ble | Nynorsk preteritum av «bli» |
+| dei | de | Nynorsk «they» |
+| -ane (bøkane, filane) | -ene (bøkene, filene) | Bestemt flertall |
+
+**Svensk som siver inn:**
+
+| ❌ Svensk/blanding | ✅ Bokmål | Kommentar |
+|-------------------|----------|-----------|
+| engångs- | engangs- | Svensk å → norsk a |
+| användare | bruker | Svensk ord |
+| verktyg | verktøy | Svensk ord |
+| tillgänglig | tilgjengelig | Svensk stavemåte |
+| nödvändig | nødvendig | Svensk stavemåte |
+| möjlig | mulig | Svensk stavemåte |
+| ändring | endring | Svensk ä → norsk e |
+
+**Mønster å se etter:**
+
+- **-ingar**-endelser → skal være **-inger** på bokmål (oppdateringer, endringer, innstillinger)
+- **-leg/-lege**-endelser → skal være **-lig/-lige** (tydelig, mulig, tilgjengelig)
+- **-aste/-aste**-endelser → skal være **-ste** (viktigste, enkleste)
+- **ei/eig-** i starten → skal være **e/eg-** (egenskap, egentlig)
+- **kv-** i starten → skal være **hv-** (hver, hvorfor, hvordan)
+- **å** der bokmål har **a** → sjekk om det er svensk (engangs-, ikke engångs-)
+- **-ar/-ane** bestemtform flertall → skal være **-er/-ene** (brukerne, tjenestene)
+
+**Obs:** A-endelser i verb og substantiv (oppdaga, fila, sida) er *gyldig ledig bokmål* og skal beholdes hvis teksten er konsekvent. Forskjellen er at "oppdaga" er bokmål valgfritt, mens "oppdateringar" alltid er nynorsk.
+
+**Kilde:** [Språkrådets KI-rapport (2025)](https://sprakradet.no/aktuelt/ki-sprakets-fallgruver/) bekrefter at språkmodeller blander formene og har inkonsekvent formvalg. Rapporten fant 2,6 feil/side på bokmål, primært tegnsetting — men i praksis ser vi at nynorsk-innblanding er mer subtil og vanskelig å oppdage for ikke-lingvister.
+
 ### Tone
 
 - Skriv som om du forklarer til en kollega, ikke som en pressemelding
@@ -400,9 +476,10 @@ Følg Designsystemets tverretatlige retningslinjer for tekst i digitale tjeneste
 
 1. Les hele filen først
 2. Identifiser: AI-markører, substantivsyke, feiloversatte fagtermer, anglisismer, konservativt formvalg, dårlig struktur
-3. Tilpass redigeringa til teksttypen (ADR, README, UI-tekst, blogg)
-4. Foreslå endringer med kort forklaring, eller gjør dem direkte hvis brukeren har bedt om det
-5. Ikke endre faglig innhold — bare språk, form og struktur
+3. **Sjekk for nynorsk/svensk-innblanding** — skann etter -ingar/-leg/-aste/kv-/ei-mønstrene (se tabellen over)
+4. Tilpass redigeringa til teksttypen (ADR, README, UI-tekst, blogg)
+5. Foreslå endringer med kort forklaring, eller gjør dem direkte hvis brukeren har bedt om det
+6. Ikke endre faglig innhold — bare språk, form og struktur
 
 ## Delegering fra @nav-pilot
 

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-22T08:37:23.796Z",
+  "generatedAt": "2026-05-27T08:30:22.228Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -204,7 +204,7 @@
       "domain": "general",
       "filePath": ".github/agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/forfatter.agent.md",
-      "contentHash": "6cc31221eab50d30ed73a404027cfb6fa5dd36375ed58afc6681e1c45880a199",
+      "contentHash": "3dd47103e9bf04a8f92223e817d25077ba9e329de10389fc5f0bfb7f18e1cd99",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fforfatter.agent.md",
       "tools": [
@@ -736,7 +736,7 @@
       "domain": "general",
       "filePath": ".github/instructions/norwegian-text.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/norwegian-text.instructions.md",
-      "contentHash": "910d811f828ba0073d7039f7ddedb77bb7ee48c3ab4299896d80e74c39e5e39a",
+      "contentHash": "890c8475efa051a50c510c2b6f0e219a2acbf603ecbb178e2a32abc3857afe9c",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnorwegian-text.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnorwegian-text.instructions.md",
       "applyTo": "**/*.md",
