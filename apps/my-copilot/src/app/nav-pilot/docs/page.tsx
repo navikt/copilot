@@ -124,59 +124,60 @@ const COLLECTIONS = [
   {
     name: "kotlin-backend",
     description: "Kotlin/Ktor og Spring Boot på Nais",
-    agents: 6,
-    skills: 13,
+    agents: 4,
+    skills: 22,
     bestFor: "Backend-API-er og hendelseskonsumenter",
     details: {
-      agents: "auth, kafka, nais, observability, security-champion, nav-pilot",
+      agents: "code-review, research, security-champion, nav-pilot",
       skills:
-        "api-design, flyway-migration, java-to-kotlin, kotlin-app-config, ktor-scaffold, observability-setup, security-review, threat-model, tokenx-auth, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, postgresql-review, readme-review, security-review, spring-boot-scaffold, threat-model, tokenx-auth, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
-        "kotlin-ktor, kotlin-spring, security-owasp, testing, testing-kotlin, github-actions, docker, database",
+        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, security-owasp, testing, testing-kotlin, github-actions, docker, database",
       prompts: "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest",
     },
   },
   {
     name: "frontend",
     description: "Rammeverk-uavhengig frontend (Astro, Remix, Vite …)",
-    agents: 4,
-    skills: 7,
+    agents: 5,
+    skills: 9,
     bestFor: "Frontends som ikke bruker Next.js",
     details: {
-      agents: "accessibility, aksel, forfatter, nav-pilot",
+      agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-spacing, playwright-testing, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions: "testing, testing-typescript, accessibility, github-actions, docker",
+        "aksel-spacing, conventional-commit, playwright-testing, readme-review, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+      instructions:
+        "code-review, deliberate-ai-use, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker",
       prompts: "aksel-component, nais-manifest",
     },
   },
   {
     name: "nextjs-frontend",
     description: "Next.js med Aksel Design System",
-    agents: 4,
-    skills: 7,
+    agents: 5,
+    skills: 9,
     bestFor: "Innbygger- og saksbehandler-frontends",
     details: {
-      agents: "accessibility, aksel, forfatter, nav-pilot",
+      agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-spacing, playwright-testing, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions: "nextjs-aksel, performance, testing, testing-typescript, accessibility, github-actions, docker",
+        "aksel-spacing, conventional-commit, playwright-testing, readme-review, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+      instructions:
+        "code-review, deliberate-ai-use, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker",
       prompts: "aksel-component, nextjs-api-route, nais-manifest",
     },
   },
   {
     name: "fullstack",
     description: "Komplett stack (backend + frontend)",
-    agents: 10,
-    skills: 16,
+    agents: 7,
+    skills: 25,
     bestFor: "Team som eier hele stacken",
     details: {
-      agents:
-        "accessibility, aksel, auth, code-review, forfatter, kafka, nais, observability, security-champion, nav-pilot",
+      agents: "accessibility, aksel, code-review, forfatter, research, security-champion, nav-pilot",
       skills:
-        "aksel-spacing, api-design, flyway-migration, java-to-kotlin, kotlin-app-config, ktor-scaffold, observability-setup, playwright-testing, security-review, threat-model, tokenx-auth, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "aksel-spacing, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, spring-boot-scaffold, threat-model, tokenx-auth, web-design-reviewer, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
-        "kotlin-ktor, kotlin-spring, golang, nextjs-aksel, performance, security-owasp, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database",
+        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, security-owasp, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database",
       prompts:
         "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest, aksel-component, nextjs-api-route, golang-service",
     },
@@ -185,13 +186,13 @@ const COLLECTIONS = [
     name: "platform",
     description: "Nais, observability, sikkerhet og Go",
     agents: 4,
-    skills: 8,
+    skills: 13,
     bestFor: "Plattform- og DevOps-team",
     details: {
-      agents: "nais, observability, security-champion, nav-pilot",
+      agents: "code-review, research, security-champion, nav-pilot",
       skills:
-        "observability-setup, security-review, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions: "golang, security-owasp, github-actions, docker",
+        "conventional-commit, nais, observability-setup, observability-debugging, readme-review, rust-development, security-review, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+      instructions: "code-review, deliberate-ai-use, golang, security-owasp, testing, github-actions, docker",
       prompts: "golang-service, nais-manifest",
     },
   },

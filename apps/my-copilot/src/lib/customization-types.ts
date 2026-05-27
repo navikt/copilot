@@ -21,6 +21,8 @@ interface BaseCustomization {
   insidersInstallUrl: string | null;
   tags?: string[];
   examples?: ExampleItem[];
+  deprecated?: boolean;
+  deprecatedMessage?: string;
 }
 
 export interface Agent extends BaseCustomization {

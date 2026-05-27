@@ -78,8 +78,11 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
     return () => window.removeEventListener("domain-filter", handler);
   }, []);
 
+  const nonDeprecatedCount = useMemo(() => items.filter((i) => !i.deprecated).length, [items]);
+
   const filtered = useMemo(() => {
     const result = items.filter((item) => {
+      if (item.deprecated) return false;
       if (selectedType && item.type !== selectedType) return false;
       if (selectedDomain && item.domain !== selectedDomain) return false;
       if (search) {
@@ -162,7 +165,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           </Chips>
         </HStack>
         <BodyShort size="small" className="text-gray-500">
-          {filtered.length} av {items.length} tilpasninger
+          {filtered.length} av {nonDeprecatedCount} tilpasninger
         </BodyShort>
       </HStack>
 

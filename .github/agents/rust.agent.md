@@ -17,6 +17,8 @@ tools:
 
 # Rust Agent
 
+> ⚠️ **Deprecated**: Bruk `/rust-development` skill i stedet. Denne agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.
+
 Expert Rust engineer following [Microsoft Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) and [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html). Writes safe, performant, idiomatic Rust.
 
 ## Commands

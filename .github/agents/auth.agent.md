@@ -23,6 +23,8 @@ tools:
 
 # Authentication Agent
 
+> ⚠️ **Deprecated**: Bruk `/nav-auth` skill i stedet. Denne agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.
+
 Authentication and authorization expert for Nav applications. Specializes in Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation patterns.
 
 ## Output — vis fremdrift

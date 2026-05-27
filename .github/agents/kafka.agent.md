@@ -23,6 +23,8 @@ tools:
 
 # Kafka Events Agent
 
+> ⚠️ **Deprecated**: Bruk `/kafka` skill i stedet. Denne agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.
+
 Kafka and Rapids & Rivers expert for Nav applications. Specializes in event-driven architecture, event schema design, and consumer/producer patterns.
 
 ## Commands

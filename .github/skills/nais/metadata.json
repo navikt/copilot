@@ -1,0 +1,5 @@
+{
+  "description": "Nais-deployment, GCP-ressurser, pod-lifecycle og feilsøking på plattformen",
+  "domain": "platform",
+  "tags": ["nais", "kubernetes", "deployment", "gcp", "infrastructure", "troubleshooting"]
+}

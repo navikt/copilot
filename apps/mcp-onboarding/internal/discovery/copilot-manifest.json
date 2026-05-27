@@ -649,6 +649,15 @@
     },
     {
       "type": "skill",
+      "name": "kafka",
+      "displayName": "kafka",
+      "description": "Patterns, templates, and procedures for building event-driven systems with Kafka on Nais. Covers Rapids \u0026 Rivers framework, event schema design, and consumer/producer patterns.",
+      "filePath": ".github/skills/kafka",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/kafka/SKILL.md"
+    },
+    {
+      "type": "skill",
       "name": "kotlin-app-config",
       "displayName": "kotlin-app-config",
       "description": "This skill provides patterns for type-safe environment configuration using Kotlin sealed classes.",
@@ -664,6 +673,15 @@
       "filePath": ".github/skills/ktor-scaffold",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/ktor-scaffold/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "nais",
+      "displayName": "nais",
+      "description": "Patterns and procedures for deploying, configuring, and troubleshooting applications on Nais (Kubernetes on GCP).",
+      "filePath": ".github/skills/nais",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nais/SKILL.md"
     },
     {
       "type": "skill",
@@ -683,6 +701,15 @@
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-architecture-review/references/nav-principles.md"
         }
       ]
+    },
+    {
+      "type": "skill",
+      "name": "nav-auth",
+      "displayName": "nav-auth",
+      "description": "Patterns for authentication and authorization in Nav applications. Covers Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation.",
+      "filePath": ".github/skills/nav-auth",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-auth/SKILL.md"
     },
     {
       "type": "skill",

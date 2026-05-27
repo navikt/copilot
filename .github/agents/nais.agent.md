@@ -26,6 +26,8 @@ tools:
 
 # Nais Platform Agent
 
+> ⚠️ **Deprecated**: Bruk `/nais` skill i stedet. Denne agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.
+
 Nais platform expert for Nav applications. Specializes in Kubernetes deployment, GCP resources (PostgreSQL, Kafka), and platform troubleshooting.
 
 ## Output — vis fremdrift

@@ -1,0 +1,5 @@
+{
+  "description": "Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-applikasjoner",
+  "domain": "auth",
+  "tags": ["auth", "azure-ad", "tokenx", "id-porten", "maskinporten", "jwt", "oasis"]
+}

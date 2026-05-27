@@ -1,6 +1,8 @@
 {
   "domain": "observability",
   "tags": ["observability", "metrics", "logging", "tracing", "prometheus"],
+  "deprecated": true,
+  "deprecatedMessage": "Bruk /observability-setup eller /observability-debugging skills i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.",
   "examples": [
     {
       "prompt": "@observability-agent Sett opp Prometheus-metrikker for REST-endepunktene i mulighetsrommet",

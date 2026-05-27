@@ -1,6 +1,8 @@
 {
   "domain": "platform",
   "tags": ["nais", "kubernetes", "deployment", "infrastructure"],
+  "deprecated": true,
+  "deprecatedMessage": "Bruk /nais skill i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.",
   "examples": [
     {
       "prompt": "@nais-agent Lag et Nais-manifest for dp-soknad med PostgreSQL og Redis",
