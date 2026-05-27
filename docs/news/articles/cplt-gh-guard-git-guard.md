@@ -3,7 +3,7 @@ title: "gh guard og git guard: blokkér destruktive kommandoer i sandbox"
 date: 2026-05-27
 author: starefosen
 category: praksis
-excerpt: "cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kjører i sandbox. gh guard hindrer sletting og merging, git guard hindrer push."
+excerpt: "cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kjører i sandbox. Én kommando skrur det på."
 tags:
   - copilot-cli
   - security
@@ -11,57 +11,70 @@ tags:
   - cplt
 ---
 
-cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kjører i sandbox. gh guard og git guard hindrer agenten i å slette repoer, pushe til main eller merge PR-er på egen hånd.
+cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kjører i sandbox. Én kommando skrur det på — ingen manuell config-redigering.
 
-## Hvorfor dette trengs
+## Problemet
 
-Under testing oppdaga vi at agenter kan gjøre uventede ting. Ett eksempel: en agent som fikk i oppgave å rydde opp i stale branches, kjørte `gh pr merge` som del av en «cleanup-rutine» ingen ba om. gh guard og git guard gir deg kontroll over hva agenten faktisk kan gjøre mot GitHub og git.
+Agenter kan gjøre uventede ting. Ett eksempel: en agent som fikk i oppgave å rydde opp i stale branches, kjørte `gh pr merge` som del av en «cleanup-rutine» ingen ba om.
 
-## Slik aktiverer du det
+## Kom i gang
 
-Legg til i `~/.config/cplt/config.toml`:
-
-```toml
-[gh_guard]
-enabled = true
-mode = "block"
-
-[git_guard]
-enabled = true
-mode = "block"
+```sh
+cplt config set gh_guard.enabled true
+cplt config set git_guard.enabled true
 ```
 
-Eller som CLI-flagg for én enkelt kjøring (overstyrer config):
+Det er alt. Neste gang du kjører `cplt` blokkeres destruktive operasjoner automatisk.
+
+### Vil du teste forsiktig først?
+
+Start i audit-modus for å se hva agenten prøver å gjøre, uten å blokkere noe:
+
+```sh
+cplt config set gh_guard.mode audit
+cplt config set git_guard.mode audit
+```
+
+Gå til `warn` når du vil se advarsler, og `block` når du er klar til å håndheve:
+
+```sh
+cplt config set gh_guard.mode block
+cplt config set git_guard.mode block
+```
+
+### Engangskjøring uten å endre config
+
+CLI-flagg overstyrer config for én enkelt kjøring:
 
 ```sh
 cplt --gh-guard --git-guard
 ```
 
-### Tre enforcement modes
+## Hva blokkeres?
 
-| Mode    | Oppførsel                                  |
-| ------- | ------------------------------------------ |
-| `block` | Kommandoen stoppes (default når aktivert)  |
-| `warn`  | Skriver advarsel, men lar kommandoen kjøre |
-| `audit` | Logger stille uten å forstyrre             |
+### gh guard — trelagsmodell
 
-Start med `audit` for å se hva agentene gjør, gå til `warn`, og skru på `block` når du er trygg.
+gh guard er en default-deny policy engine som klassifiserer over 150 `gh`-kommandoer i tre nivåer:
 
-## Hva gjør gh guard?
+| Nivå           | Eksempler                         | Tilgang             |
+| -------------- | --------------------------------- | ------------------- |
+| **Read**       | `gh issue list`, `gh pr view`     | Fungerer fritt      |
+| **Write**      | `gh pr create`, `gh issue edit`   | Bare i eget repo    |
+| **Destruktiv** | `gh repo delete`, `gh pr merge`   | Alltid blokkert     |
 
-gh guard er en default-deny policy engine mellom agenten og `gh`-kommandoer. Den klassifiserer over 150 kommandoer på tvers av 23 grupper i tre nivåer:
+`gh api`-kall begrenses til `/repos/{current-repo}/...`. Org-level og cross-repo API-tilgang blokkeres.
 
-- **Read** (list, view, status) — fungerer på tvers av repoer
-- **Write** (create, edit, close) — begrensa til repoet agenten jobber i
-- **Destruktive** (delete, transfer, lock) — alltid blokkert
-
-Agenten kan lese issues og PR-er fritt, opprette branches i sitt eget repo, men aldri slette noe eller røre andre repoer.
-
-## Hva gjør git guard?
+### git guard — push-beskyttelse
 
 git guard blokkerer `git push`, `request-pull` og `send-pack`. Alt annet — commit, branch, rebase, stash — fungerer som normalt.
 
-Trenger agenten å pushe til en fork? Legg til et unntak i config:
+Trenger agenten å pushe til en fork?
+
+```sh
+cplt config set git_guard.protect_default_branch_only true
+```
+
+Eller legg til et strukturert unntak i `~/.config/cplt/config.toml`:
 
 ```toml
 [[git_guard.allow_push]]
@@ -70,7 +83,7 @@ branches = ["agent/*"]
 force = false
 ```
 
-## Hva ser agenten når noe blokkeres?
+## Hva ser agenten?
 
 ```
 ⛔ sandbox restriction: `gh pr merge` is not allowed.
@@ -84,13 +97,20 @@ Agenten får beskjed om å rapportere tilbake til deg — ingen retry-loops.
 
 - **Token-isolasjon**: Tokenet slettes fra filsystemet etter første lesing. Subprosesser kan ikke nå det.
 - **API-scoping**: `gh api`-kall begrensa til `/repos/{current-repo}/...`. Org-level og cross-repo blokkeres.
-- **Sikkerhetsmodell**: Policy bakes inn i wrapper-scriptet ved sandbox-oppstart. Agenten kan ikke endre reglene etter start.
+- **Sikkerhetsmodell**: Policy bakes inn i wrapper-scriptet ved sandbox-oppstart. Agenten kan ikke endre reglene innenfra.
 
-## Rollout-plan
+## Anbefalt oppsett
 
-1. **Nå**: Opt-in — du aktiverer selv
-2. **Neste fase**: Default `true` med `mode = "warn"`
-3. **Deretter**: `mode = "block"` som default
+For de fleste utviklere anbefaler vi:
+
+```sh
+cplt config set gh_guard.enabled true
+cplt config set gh_guard.mode block
+cplt config set git_guard.enabled true
+cplt config set git_guard.mode block
+```
+
+Fire kommandoer, full beskyttelse.
 
 ---
 
