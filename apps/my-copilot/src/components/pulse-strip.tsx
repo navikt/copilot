@@ -6,10 +6,20 @@ import { getAllCustomizations } from "@/lib/customizations";
 import { getCachedBigQueryUsage, getCachedAdoptionData } from "@/lib/cached-bigquery";
 import { getAggregatedMetrics } from "@/lib/data-utils";
 
-function HighlightCard({ href, title, children }: { href: string; title: string; children: React.ReactNode }) {
+function HighlightCard({
+  href,
+  title,
+  prefetch,
+  children,
+}: {
+  href: string;
+  title: string;
+  prefetch?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <Box background="neutral-soft" borderRadius="8" padding="space-16" asChild>
-      <NextLink href={href} className="no-underline hover:shadow-md transition-shadow group">
+      <NextLink href={href} prefetch={prefetch} className="no-underline hover:shadow-md transition-shadow group">
         <VStack gap="space-8">
           <HStack gap="space-4" align="center" justify="space-between">
             <BodyShort size="small" weight="semibold">
@@ -93,7 +103,7 @@ async function UsageCard() {
   ];
 
   return (
-    <HighlightCard href="/statistikk" title="Bruksmønster">
+    <HighlightCard href="/statistikk" prefetch={false} title="Bruksmønster">
       <HStack gap="space-8" className="w-full" justify="center">
         {items.map((item) => (
           <VStack key={item.label} align="center" gap="space-4" className="flex-1">
@@ -129,7 +139,7 @@ async function StatsCard() {
       : 15;
 
   return (
-    <HighlightCard href="/statistikk" title="Nøkkeltall">
+    <HighlightCard href="/statistikk" prefetch={false} title="Nøkkeltall">
       <VStack gap="space-8">
         <div>
           <Heading size="medium" level="3">

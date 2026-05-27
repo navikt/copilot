@@ -37,12 +37,13 @@ export function PageHero({ title, description, actions, badge }: PageHeroProps) 
             {actions && <div className="shrink-0">{actions}</div>}
           </div>
           <nav aria-label="Hovednavigasjon" className="flex flex-wrap gap-2">
-            {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+            {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => {
               const isActive = pathname === href || pathname.startsWith(href + "/");
               return (
                 <NextLink
                   key={href}
                   href={href}
+                  prefetch={requiresAuth ? false : undefined}
                   aria-current={isActive ? "page" : undefined}
                   className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm no-underline transition-colors ${
                     isActive ? "bg-white/25 text-white" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"

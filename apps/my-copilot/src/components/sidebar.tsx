@@ -130,7 +130,11 @@ function QuickNav() {
           <ul className="list-none">
             {links.map(({ href, icon: Icon, label, requiresAuth }) => (
               <li key={href}>
-                <NextLink href={href} className="no-underline text-sm hover:underline flex items-center gap-2">
+                <NextLink
+                  href={href}
+                  prefetch={requiresAuth ? false : undefined}
+                  className="no-underline text-sm hover:underline flex items-center gap-2"
+                >
                   <Icon aria-hidden fontSize="1rem" className="text-text-subtle shrink-0" />
                   {label}
                   {requiresAuth && (
