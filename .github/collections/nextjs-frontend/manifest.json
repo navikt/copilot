@@ -5,12 +5,15 @@
   "agents": [
     "accessibility",
     "aksel",
+    "code-review",
     "forfatter",
     "nav-pilot"
   ],
   "skills": [
     "aksel-spacing",
+    "conventional-commit",
     "playwright-testing",
+    "readme-review",
     "web-design-reviewer",
     "nav-plan",
     "nav-deep-interview",
@@ -18,7 +21,10 @@
     "nav-troubleshoot"
   ],
   "instructions": [
+    "code-review",
+    "deliberate-ai-use",
     "nextjs-aksel",
+    "norwegian-text",
     "performance",
     "testing",
     "testing-typescript",
