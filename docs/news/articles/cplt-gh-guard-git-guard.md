@@ -15,7 +15,7 @@ cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kj�
 
 ## Problemet
 
-Agenter kan gjøre uventede ting. Ett eksempel: en agent som fikk i oppgave å rydde opp i stale branches, kjørte `gh pr merge` som del av en «cleanup-rutine» ingen ba om.
+Agenter er svært ivrige på å pushe koden de har skrevet — gjerne rett til main — uten review. En annen agent som fikk i oppgave å rydde opp i gamle branches, kjørte `gh pr merge` som del av en «cleanup-rutine» ingen hadde bedt om. Brukere kjører med fulle tilganger i `gh` og `git` på alle lokale terminaler, og det er ingen innebygde mekanismer for å begrense hva en agent kan gjøre når den først har tilgang til å kjøre kommandoer.
 
 ## Kom i gang
 
@@ -24,7 +24,7 @@ cplt config set gh_guard.enabled true
 cplt config set git_guard.enabled true
 ```
 
-Det er alt. Neste gang du kjører `cplt` blokkeres destruktive operasjoner automatisk.
+Det er alt. Neste gang du kjører `cplt`, blokkeres destruktive operasjoner automatisk.
 
 ### Vil du teste forsiktig først?
 
@@ -68,7 +68,7 @@ gh guard er en default-deny policy engine som klassifiserer over 150 `gh`-komman
 
 git guard blokkerer `git push`, `request-pull` og `send-pack`. Alt annet — commit, branch, rebase, stash — fungerer som normalt.
 
-Trenger agenten å pushe til en fork?
+Trenger agenten å pushe til en feature branch?
 
 ```sh
 cplt config set git_guard.protect_default_branch_only true
@@ -88,26 +88,26 @@ force = false
 ```
 ⛔ sandbox restriction: `gh pr merge` is not allowed.
 This command is classified as destructive and blocked by gh guard.
-Please report this to the user and suggest an alternative approach.
+Please make a note of this for the human operator and continue with your remaining work.
 ```
 
 Agenten får beskjed om å rapportere tilbake til deg — ingen retry-loops.
 
-## Under panseret
+## Slik fungerer det
 
 - **Token-isolasjon**: Tokenet slettes fra filsystemet etter første lesing. Subprosesser kan ikke nå det.
-- **API-scoping**: `gh api`-kall begrensa til `/repos/{current-repo}/...`. Org-level og cross-repo blokkeres.
+- **API-scoping**: Samme repo-avgrensing som over — subprosesser arver ikke bredere tilgang.
 - **Sikkerhetsmodell**: Policy bakes inn i wrapper-scriptet ved sandbox-oppstart. Agenten kan ikke endre reglene innenfra.
 
 ## Anbefalt oppsett
 
-For de fleste utviklere anbefaler vi:
+For de fleste anbefaler vi dette oppsettet:
 
 ```sh
 cplt config set gh_guard.enabled true
-cplt config set gh_guard.mode block
+cplt config set gh_guard.mode block   # default
 cplt config set git_guard.enabled true
-cplt config set git_guard.mode block
+cplt config set git_guard.mode block   # default
 ```
 
 Fire kommandoer, full beskyttelse.
