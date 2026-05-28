@@ -1,0 +1,23 @@
+{
+  "description": "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet",
+  "domain": "general",
+  "tags": ["token-optimization", "output", "conciseness", "communication-style"],
+  "examples": [
+    {
+      "scenario": "Aktiver terse mode",
+      "prompt": "Bruk $terse-mode"
+    },
+    {
+      "scenario": "Ultra-kompakt",
+      "prompt": "Aktiver terse-mode ultra"
+    },
+    {
+      "scenario": "Tilbake til vanlig",
+      "prompt": "Stopp terse"
+    },
+    {
+      "scenario": "Kort forklaring",
+      "prompt": "Forklar connection pooling med $terse-mode"
+    }
+  ]
+}

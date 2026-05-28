@@ -23,6 +23,7 @@
     "postgresql-review",
     "readme-review",
     "security-review",
+    "security-owasp",
     "spring-boot-scaffold",
     "threat-model",
     "tokenx-auth",
@@ -30,19 +31,20 @@
     "nav-plan",
     "nav-deep-interview",
     "nav-architecture-review",
-    "nav-troubleshoot"
+    "nav-troubleshoot",
+    "terse-mode"
   ],
   "instructions": [
     "code-review",
     "deliberate-ai-use",
     "kotlin-ktor",
     "kotlin-spring",
-    "security-owasp",
     "testing",
     "testing-kotlin",
     "github-actions",
     "docker",
-    "database"
+    "database",
+    "security-owasp"
   ],
   "prompts": [
     "ktor-endpoint",

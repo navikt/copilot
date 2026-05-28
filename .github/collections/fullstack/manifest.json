@@ -28,6 +28,7 @@
     "postgresql-review",
     "readme-review",
     "security-review",
+    "security-owasp",
     "spring-boot-scaffold",
     "threat-model",
     "tokenx-auth",
@@ -36,7 +37,8 @@
     "nav-plan",
     "nav-deep-interview",
     "nav-architecture-review",
-    "nav-troubleshoot"
+    "nav-troubleshoot",
+    "terse-mode"
   ],
   "instructions": [
     "code-review",
@@ -47,14 +49,14 @@
     "nextjs-aksel",
     "norwegian-text",
     "performance",
-    "security-owasp",
     "testing",
     "testing-kotlin",
     "testing-typescript",
     "accessibility",
     "github-actions",
     "docker",
-    "database"
+    "database",
+    "security-owasp"
   ],
   "prompts": [
     "ktor-endpoint",

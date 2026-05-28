@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-27T09:24:41.470Z",
+  "generatedAt": "2026-05-28T21:58:23.320Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -344,7 +344,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "e50baf495f28613f5beb56b94071a4635698e07523798379386085981c84f023",
+      "contentHash": "d04fd3fc8eef124b654e4bf32430878fcfb1798e6bfccf0ac2270ce4013ce42f",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -775,16 +775,16 @@
     {
       "id": "security-owasp",
       "name": "OWASP Top 10:2025",
-      "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging",
+      "description": "Sikkerhetskritiske regler for all kode — peker til $security-owasp skill for detaljerte mønstre",
       "type": "instruction",
       "domain": "auth",
       "filePath": ".github/instructions/security-owasp.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/security-owasp.instructions.md",
-      "contentHash": "6d2de01195174566927e5eb71149deada4b6e4029f5b7195183dfef03a8f6c36",
+      "contentHash": "3388700634dd315d4224813dbb1d3e35f4784e28ad6d0993f4e1e16e6919f86e",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fsecurity-owasp.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fsecurity-owasp.instructions.md",
-      "applyTo": "**/*.{kt,go}",
-      "tags": ["security", "owasp", "kotlin", "go"],
+      "applyTo": "**/*.{kt,go,java,ts,tsx}",
+      "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "typescript"],
       "examples": [
         "Forebygg SQL- og kommandoinjeksjon med parameteriserte spørringer og trygg inputvalidering",
         "Verifiser tilgangskontroll eksplisitt og unngå logging av hemmeligheter"
@@ -1495,6 +1495,41 @@
       ]
     },
     {
+      "id": "security-owasp",
+      "name": "security-owasp",
+      "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin, Go, Java og Node.js — tilgangskontroll, forsyningskjede, injeksjon og feilhåndtering",
+      "type": "skill",
+      "domain": "auth",
+      "filePath": ".github/skills/security-owasp/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/security-owasp/SKILL.md",
+      "contentHash": "1d72bcd9d530e5cd28e8683384a356024375d71f6a5b849c2c28049635b75d30",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "nais", "supply-chain"],
+      "examples": [
+        {
+          "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endepunktene mine",
+          "scenario": "OWASP A01 — tilgangskontroll i Kotlin"
+        },
+        {
+          "prompt": "Hvordan unngår jeg SQL-injeksjon med Kotliquery?",
+          "scenario": "OWASP A05 — injeksjonsbeskyttelse"
+        },
+        {
+          "prompt": "Sjekk Go-koden min for supply chain-sikkerhet",
+          "scenario": "OWASP A03 — forsyningskjede-sikkerhet"
+        },
+        {
+          "prompt": "Sikre feilhåndtering i Spring Boot-controlleren min",
+          "scenario": "OWASP A10 — håndtering av eksepsjonelle tilstander"
+        },
+        {
+          "prompt": "Sjekk Next.js API-rutene mine for sikkerhetsproblemer",
+          "scenario": "OWASP — Node.js/Next.js-mønstre"
+        }
+      ]
+    },
+    {
       "id": "security-review",
       "name": "security-review",
       "description": "Bruk før commit, push eller pull request for å sjekke at koden er trygg å merge",
@@ -1545,6 +1580,37 @@
         {
           "scenario": "Prosjektstruktur",
           "prompt": "Generer prosjektstruktur for ny backend-tjeneste"
+        }
+      ]
+    },
+    {
+      "id": "terse-mode",
+      "name": "terse-mode",
+      "description": "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/terse-mode/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md",
+      "contentHash": "eeb77129950ea8ac253127eae3ae9c8fe653745265a38ea3ebb15c309e367a8d",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["token-optimization", "output", "conciseness", "communication-style"],
+      "examples": [
+        {
+          "scenario": "Aktiver terse mode",
+          "prompt": "Bruk $terse-mode"
+        },
+        {
+          "scenario": "Ultra-kompakt",
+          "prompt": "Aktiver terse-mode ultra"
+        },
+        {
+          "scenario": "Tilbake til vanlig",
+          "prompt": "Stopp terse"
+        },
+        {
+          "scenario": "Kort forklaring",
+          "prompt": "Forklar connection pooling med $terse-mode"
         }
       ]
     },

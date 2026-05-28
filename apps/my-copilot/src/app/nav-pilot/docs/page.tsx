@@ -52,6 +52,7 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "installasjon", label: "Installasjon (5 min)" },
       { id: "personlig-installasjon", label: "Personlig installasjon (valgfritt)" },
       { id: "første-kommandoer", label: "Første kommandoer" },
+      { id: "vanlige-oppgaver", label: "Vanlige oppgaver" },
     ],
   },
   {
@@ -125,14 +126,14 @@ const COLLECTIONS = [
     name: "kotlin-backend",
     description: "Kotlin/Ktor og Spring Boot på Nais",
     agents: 4,
-    skills: 22,
+    skills: 24,
     bestFor: "Backend-API-er og hendelseskonsumenter",
     details: {
       agents: "code-review, research, security-champion, nav-pilot",
       skills:
-        "api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, postgresql-review, readme-review, security-review, spring-boot-scaffold, threat-model, tokenx-auth, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
-        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, security-owasp, testing, testing-kotlin, github-actions, docker, database",
+        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, testing, testing-kotlin, github-actions, docker, database, security-owasp",
       prompts: "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest",
     },
   },
@@ -140,14 +141,14 @@ const COLLECTIONS = [
     name: "frontend",
     description: "Rammeverk-uavhengig frontend (Astro, Remix, Vite …)",
     agents: 5,
-    skills: 9,
+    skills: 11,
     bestFor: "Frontends som ikke bruker Next.js",
     details: {
       agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-spacing, conventional-commit, playwright-testing, readme-review, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "aksel-spacing, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
-        "code-review, deliberate-ai-use, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker",
+        "code-review, deliberate-ai-use, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nais-manifest",
     },
   },
@@ -155,14 +156,14 @@ const COLLECTIONS = [
     name: "nextjs-frontend",
     description: "Next.js med Aksel Design System",
     agents: 5,
-    skills: 9,
+    skills: 11,
     bestFor: "Innbygger- og saksbehandler-frontends",
     details: {
       agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-spacing, conventional-commit, playwright-testing, readme-review, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "aksel-spacing, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
-        "code-review, deliberate-ai-use, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker",
+        "code-review, deliberate-ai-use, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nextjs-api-route, nais-manifest",
     },
   },
@@ -170,14 +171,14 @@ const COLLECTIONS = [
     name: "fullstack",
     description: "Komplett stack (backend + frontend)",
     agents: 7,
-    skills: 25,
+    skills: 27,
     bestFor: "Team som eier hele stacken",
     details: {
       agents: "accessibility, aksel, code-review, forfatter, research, security-champion, nav-pilot",
       skills:
-        "aksel-spacing, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, spring-boot-scaffold, threat-model, tokenx-auth, web-design-reviewer, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "aksel-spacing, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, web-design-reviewer, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
-        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, security-owasp, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database",
+        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database, security-owasp",
       prompts:
         "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest, aksel-component, nextjs-api-route, golang-service",
     },
@@ -186,13 +187,13 @@ const COLLECTIONS = [
     name: "platform",
     description: "Nais, observability, sikkerhet og Go",
     agents: 4,
-    skills: 13,
+    skills: 15,
     bestFor: "Plattform- og DevOps-team",
     details: {
       agents: "code-review, research, security-champion, nav-pilot",
       skills:
-        "conventional-commit, nais, observability-setup, observability-debugging, readme-review, rust-development, security-review, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions: "code-review, deliberate-ai-use, golang, security-owasp, testing, github-actions, docker",
+        "conventional-commit, nais, observability-setup, observability-debugging, readme-review, rust-development, security-review, security-owasp, terse-mode, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+      instructions: "code-review, deliberate-ai-use, golang, testing, github-actions, docker, security-owasp",
       prompts: "golang-service, nais-manifest",
     },
   },
@@ -719,6 +720,53 @@ nav-pilot`}
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Common tasks — job-oriented view */}
+        <div id="vanlige-oppgaver">
+          <LinkableHeading size="small" level="3">
+            Vanlige oppgaver
+          </LinkableHeading>
+          <BodyLong className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Du trenger ikke huske skill-navn. Bare beskriv oppgaven — nav-pilot bruker riktig kunnskap automatisk. Her
+            er eksempler:
+          </BodyLong>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  <th scope="col" className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                    Oppgave
+                  </th>
+                  <th scope="col" className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                    Eksempel-prompt
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { task: "Bygge ny tjeneste", prompt: "Jeg trenger en ny tjeneste for dagpenger" },
+                  { task: "Legge til autentisering", prompt: "Legg til TokenX-validering i API-et" },
+                  { task: "Debugge deploy", prompt: "Poden min krasjer i dev, hjelp meg feilsøke" },
+                  { task: "Gjennomgå før PR", prompt: "Gjør en sikkerhetsgjennomgang av disse endringene" },
+                  { task: "Sette opp Kafka", prompt: "Vi trenger en Kafka-consumer for vedtakshendelser" },
+                  { task: "Legge til observerbarhet", prompt: "Sett opp metrikker og tracing for tjenesten" },
+                  { task: "Migrere Java → Kotlin", prompt: "Hjelp meg migrere denne klassen til Kotlin" },
+                  { task: "Få kortere svar", prompt: "$terse-mode" },
+                  { task: "Planlegge arkitektur", prompt: "Planlegg arkitekturen for nytt saksbehandlersystem" },
+                ].map((row) => (
+                  <tr key={row.task} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <td className="py-2 pr-4 font-medium" style={{ color: "#1e293b" }}>
+                      {row.task}
+                    </td>
+                    <td className="py-2 pr-4" style={{ color: "#475569", fontStyle: "italic" }}>
+                      «{row.prompt}»
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </VStack>

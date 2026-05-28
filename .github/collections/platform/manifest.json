@@ -16,21 +16,23 @@
     "readme-review",
     "rust-development",
     "security-review",
+    "security-owasp",
     "threat-model",
     "workstation-security",
     "nav-plan",
     "nav-deep-interview",
     "nav-architecture-review",
-    "nav-troubleshoot"
+    "nav-troubleshoot",
+    "terse-mode"
   ],
   "instructions": [
     "code-review",
     "deliberate-ai-use",
     "golang",
-    "security-owasp",
     "testing",
     "github-actions",
-    "docker"
+    "docker",
+    "security-owasp"
   ],
   "prompts": [
     "nais-manifest",

@@ -2,6 +2,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -26,6 +28,12 @@ type InstructionFrontmatter struct {
 
 // PromptFrontmatter represents the frontmatter in prompt files
 type PromptFrontmatter struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+}
+
+// SkillFrontmatter represents the YAML frontmatter in a skill file
+type SkillFrontmatter struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
 }
@@ -159,6 +167,7 @@ func (g *Generator) loadAgents(dir string) ([]discovery.Customization, error) {
 			Category:    category,
 			Tags:        tags,
 			FilePath:    relPath,
+			ContentHash: hashContent(content),
 			UseCases:    g.extractUseCases(string(content)),
 			InstallURL:  g.generateInstallURL(discovery.TypeAgent, relPath),
 			RawURL:      g.generateRawURL(relPath),
@@ -214,6 +223,7 @@ func (g *Generator) loadInstructions(dir string) ([]discovery.Customization, err
 			Description: description,
 			Tags:        tags,
 			FilePath:    relPath,
+			ContentHash: hashContent(content),
 			InstallURL:  g.generateInstallURL(discovery.TypeInstruction, relPath),
 			RawURL:      g.generateRawURL(relPath),
 		})
@@ -251,6 +261,7 @@ func (g *Generator) loadPrompts(dir string) ([]discovery.Customization, error) {
 			Description: fm.Description,
 			Tags:        tags,
 			FilePath:    relPath,
+			ContentHash: hashContent(content),
 			InstallURL:  g.generateInstallURL(discovery.TypePrompt, relPath),
 			RawURL:      g.generateRawURL(relPath),
 		})
@@ -282,10 +293,19 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 		}
 
 		name := entry.Name()
-		description := g.extractDescription(string(content))
-		relPath := path.Join(".github/skills", name)
+		relPath := path.Join(".github/skills", name, "SKILL.md")
 
-		// Read metadata.json (single source of truth for references and exclusion)
+		var fm SkillFrontmatter
+		if err := parseFrontmatter(string(content), &fm); err != nil {
+			return nil, fmt.Errorf("failed to parse frontmatter in %s: %w", skillFile, err)
+		}
+
+		description := fm.Description
+		if description == "" {
+			description = g.extractDescription(string(content))
+		}
+
+		// Read metadata.json (single source of truth for references, exclusion, and generated description)
 		var refs []discovery.SkillReference
 		metaFile := filepath.Join(dir, name, "metadata.json")
 		if metaData, err := os.ReadFile(metaFile); err == nil { //nolint:gosec // Generator needs to read .github files
@@ -293,6 +313,9 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 			if err := json.Unmarshal(metaData, &meta); err == nil {
 				if meta.Excluded {
 					continue
+				}
+				if meta.Description != "" {
+					description = meta.Description
 				}
 				for _, ref := range meta.References {
 					refs = append(refs, discovery.SkillReference{
@@ -309,8 +332,9 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 			DisplayName: name,
 			Description: description,
 			FilePath:    relPath,
+			ContentHash: hashContent(content),
 			InstallURL:  "",
-			RawURL:      g.generateRawURL(path.Join(relPath, "SKILL.md")),
+			RawURL:      g.generateRawURL(relPath),
 			References:  refs,
 		})
 	}
@@ -435,6 +459,11 @@ func (g *Generator) extractDescription(content string) string {
 		}
 	}
 	return "No description available"
+}
+
+func hashContent(content []byte) string {
+	sum := sha256.Sum256(content)
+	return hex.EncodeToString(sum[:])
 }
 
 func (g *Generator) humanizeName(name string) string {

@@ -42,6 +42,7 @@ type Customization struct {
 	Category    string            `json:"category,omitempty"`
 	Tags        []string          `json:"tags,omitempty"`
 	FilePath    string            `json:"filePath"`
+	ContentHash string            `json:"contentHash,omitempty"`
 	UseCases    []string          `json:"useCases,omitempty"`
 	InstallURL  string            `json:"installUrl"`
 	RawURL      string            `json:"rawUrl"`

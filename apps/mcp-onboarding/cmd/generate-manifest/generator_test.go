@@ -85,6 +85,15 @@ Some content.
 	if len(s.References) != 0 {
 		t.Errorf("expected 0 references, got %d", len(s.References))
 	}
+	if s.Description != "A simple skill" {
+		t.Errorf("expected metadata description, got %q", s.Description)
+	}
+	if !strings.HasSuffix(s.FilePath, "SKILL.md") {
+		t.Errorf("FilePath should end with SKILL.md, got %q", s.FilePath)
+	}
+	if s.ContentHash == "" {
+		t.Error("ContentHash should not be empty")
+	}
 	if !strings.HasSuffix(s.RawURL, "SKILL.md") {
 		t.Errorf("RawURL should end with SKILL.md, got %q", s.RawURL)
 	}
@@ -147,6 +156,9 @@ description: No metadata
 
 	if len(skills[0].References) != 0 {
 		t.Errorf("expected 0 references without metadata, got %d", len(skills[0].References))
+	}
+	if skills[0].Description != "No metadata" {
+		t.Errorf("expected frontmatter description fallback, got %q", skills[0].Description)
 	}
 }
 

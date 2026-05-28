@@ -1,0 +1,27 @@
+{
+  "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin, Go, Java og Node.js — tilgangskontroll, forsyningskjede, injeksjon og feilhåndtering",
+  "domain": "auth",
+  "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "nais", "supply-chain"],
+  "examples": [
+    {
+      "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endepunktene mine",
+      "scenario": "OWASP A01 — tilgangskontroll i Kotlin"
+    },
+    {
+      "prompt": "Hvordan unngår jeg SQL-injeksjon med Kotliquery?",
+      "scenario": "OWASP A05 — injeksjonsbeskyttelse"
+    },
+    {
+      "prompt": "Sjekk Go-koden min for supply chain-sikkerhet",
+      "scenario": "OWASP A03 — forsyningskjede-sikkerhet"
+    },
+    {
+      "prompt": "Sikre feilhåndtering i Spring Boot-controlleren min",
+      "scenario": "OWASP A10 — håndtering av eksepsjonelle tilstander"
+    },
+    {
+      "prompt": "Sjekk Next.js API-rutene mine for sikkerhetsproblemer",
+      "scenario": "OWASP — Node.js/Next.js-mønstre"
+    }
+  ]
+}

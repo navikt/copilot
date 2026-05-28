@@ -12,7 +12,7 @@ En samling Copilot-tilpasninger for Nav-økosystemet:
 - **🤖 [12 Agenter](docs/README.agents.md)** — Spesialiserte AI-assistenter for Nav-domener
 - **📋 [16 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
 - **⚡ [7 Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
-- **🎯 [26 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
+- **🎯 [28 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
 - **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret
 <!-- END GENERATED COUNTS -->
 
@@ -60,7 +60,7 @@ Gå til **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/
 - **[Agenter →](docs/README.agents.md)** — VS Code one-click, JetBrains via coding agent
 - **[Instruksjoner →](docs/README.instructions.md)** — Alle editorer
 - **[Prompts →](docs/README.prompts.md)** — VS Code, JetBrains
-- **[Skills →](docs/README.skills.md)** — VS Code
+- **[Skills →](docs/README.skills.md)** — VS Code (`security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js)
 - **[MCP-servere →](docs/README.mcp.md)** — Alle editorer
 - **[Samlinger →](docs/README.collections.md)** — Installer alt på én gang
 - **[nav-pilot →](docs/README.nav-pilot.md)** — Navs AI-utviklerverktøy

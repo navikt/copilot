@@ -1,8 +1,8 @@
 {
   "displayName": "OWASP Top 10:2025",
-  "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging",
+  "description": "Sikkerhetskritiske regler for all kode — peker til $security-owasp skill for detaljerte mønstre",
   "domain": "auth",
-  "tags": ["security", "owasp", "kotlin", "go"],
+  "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "typescript"],
   "examples": [
     "Forebygg SQL- og kommandoinjeksjon med parameteriserte spørringer og trygg inputvalidering",
     "Verifiser tilgangskontroll eksplisitt og unngå logging av hemmeligheter"
