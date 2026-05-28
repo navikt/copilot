@@ -736,10 +736,10 @@ nav-pilot`}
             <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
-                  <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                  <th scope="col" className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
                     Oppgave
                   </th>
-                  <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                  <th scope="col" className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
                     Eksempel-prompt
                   </th>
                 </tr>

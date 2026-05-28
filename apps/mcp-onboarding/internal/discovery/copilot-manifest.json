@@ -183,7 +183,7 @@
         "infrastructure"
       ],
       "filePath": ".github/agents/nav-pilot.agent.md",
-      "contentHash": "33aee16b826029e16161ae3f24842c31eb94adf64eaf0b4935b8a15e3a16c654",
+      "contentHash": "fe1c04e89d6dcaa4441244981c1bed3f484749c13dfe6a713e92a5e13510dd38",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -959,7 +959,7 @@
       "displayName": "terse-mode",
       "description": "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet",
       "filePath": ".github/skills/terse-mode/SKILL.md",
-      "contentHash": "1ec174b9877c029d682829904f6629bf0fcc66deba7d411c984fa3f977325c3e",
+      "contentHash": "eeb77129950ea8ac253127eae3ae9c8fe653745265a38ea3ebb15c309e367a8d",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md"
     },

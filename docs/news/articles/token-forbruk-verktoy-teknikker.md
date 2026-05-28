@@ -45,7 +45,7 @@ Den bygger på de samme idéene som Caveman, men er skrevet for norsk arbeidsfly
 - **normal** — fragmenter og mindre fyllord. God standard for hverdagsarbeid
 - **ultra** — telegrafisk stil for raske iterasjoner
 
-Det viktigste er ikke bare at svarene blir kortere. Skillen har en eksplisitt vedvaringsregel som hindrer modellen i å drive tilbake til lange svar etter noen runder. Den har også **auto-klarhet**: ved sikkerhetsvarsler, destruktive operasjoner eller tvetydige steg bytter den automatisk tilbake til full prosa.
+Det viktigste er ikke bare at svarene blir kortere. Skilen har en eksplisitt vedvaringsregel som hindrer modellen i å falle tilbake til lange svar etter noen runder. Den har også **auto-klarhet**: ved sikkerhetsvarsler, destruktive operasjoner eller tvetydige steg bytter den automatisk tilbake til full prosa.
 
 Praktisk bruk:
 
@@ -61,14 +61,15 @@ Dette er førstevalget vårt for output-komprimering i Nav-miljøet: native, nor
 
 [RTK](https://github.com/rtk-ai/rtk) (55k+ stjerner) er et praktisk verktøy for team som bruker agenter i terminalen. Det komprimerer kommandoutput før den når LLM-konteksten. Det treffer et annet problem enn `$terse-mode`: ikke agentens prosa, men verktøyutdata.
 
-**Konkret besparelse i en 30-minutters sesjon:**
+**Typisk besparelse (illustrativt eksempel):**
 
 | Operasjon | Uten RTK | Med RTK | Besparelse |
 | --------- | -------- | ------- | ---------- |
-| `cat` / `read` (20x) | 40 000 | 12 000 | −70 % |
-| `cargo test` / `npm test` (5x) | 25 000 | 2 500 | −90 % |
-| `git diff` (5x) | 10 000 | 2 500 | −75 % |
-| **Totalt** | **~118 000** | **~24 000** | **−80 %** |
+| `cat` / `read` (20x) | ~40 000 | ~12 000 | ~70 % |
+| `cargo test` / `npm test` (5x) | ~25 000 | ~2 500 | ~90 % |
+| `git diff` (5x) | ~10 000 | ~2 500 | ~75 % |
+
+RTK rapporterer selv 60–90 % reduksjon avhengig av verktøytype.
 
 Installer med én kommando: `brew install rtk`. For Copilot CLI bruker du `rtk init -g --copilot`, som setter opp en `PreToolUse`-hook. Det fungerer godt med `kubectl`, `git`, `go test` og `cargo test`, altså kommandoer mange av oss bruker i Nais-arbeidsflyter.
 
@@ -76,7 +77,7 @@ RTK og `$terse-mode` er komplementære: RTK kutter verktøyutdata, `$terse-mode`
 
 ### Caveman — ekstern output-komprimering
 
-[Caveman](https://github.com/JuliusBrussee/caveman) (54k+ stjerner) er fortsatt relevant. Det er et populært oppsett for output-komprimering og fungerer også med Copilot. Forskjellen nå er at du ikke trenger Caveman for å få samme stilgrep i nav-pilot.
+[Caveman](https://github.com/JuliusBrussee/caveman) (66k+ stjerner) er fortsatt relevant. Det er et populært oppsett for output-komprimering og fungerer også med Copilot. Forskjellen nå er at du ikke trenger Caveman for å få samme stilgrep i nav-pilot.
 
 **Når Caveman fortsatt er nyttig:**
 

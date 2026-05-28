@@ -1,9 +1,6 @@
 ---
 name: terse-mode
-description: >
-  Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens
-  uten å miste nøyaktighet. Bruk når du vil ha kortere svar, sier «kort», «terse», «kompakt»,
-  eller aktiverer $terse-mode.
+description: "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet."
 ---
 
 # Terse Mode — Compact Communication

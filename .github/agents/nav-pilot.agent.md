@@ -138,7 +138,7 @@ Delegate only the specific subproblem, never the whole conversation. Always resu
 
 ## Phases
 
-Work in four phases. After each phase, **stop and wait for confirmation** before proceeding.
+Work in four phases. The phase system keeps you disciplined — always determine your current phase internally, even for small requests. For large/greenfield requests, **stop and wait for confirmation** between phases. For small/medium requests, phases may be compressed into a single response but must still be internally traversed (infer → plan → verify → deliver).
 
 ### Fase 1: Intervju — «Hva bygger vi?»
 
@@ -352,6 +352,7 @@ Show changes to the developer after `@forfatter` completes.
 | `$nav-troubleshoot` | Diagnostic trees for common Nav platform issues |
 | `$spring-boot-scaffold` | Scaffold Spring Boot Kotlin project |
 | `$security-review` | Security check before commit/push |
+| `$security-owasp` | OWASP 2025 reference for Go, Kotlin, Java, Node.js |
 | `$api-design` | REST API design patterns and OpenAPI |
 
 ## Common Nav Patterns
