@@ -1,7 +1,7 @@
 ---
 name: nav-pilot
 description: Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre
-model: Claude Opus 4.6
+model: Claude Opus 4.8
 tools:
   - execute
   - read

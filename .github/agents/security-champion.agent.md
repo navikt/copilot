@@ -1,7 +1,7 @@
 ---
 name: security-champion-agent
 description: Navs sikkerhetsarkitektur, trusselmodellering, compliance og sikkerhetspraksis
-model: Claude Opus 4.6
+model: Claude Opus 4.8
 tools:
   - execute
   - read

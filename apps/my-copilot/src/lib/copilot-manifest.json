@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-28T18:54:42.909Z",
+  "generatedAt": "2026-05-28T18:56:42.032Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -344,7 +344,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "4edd2bf17bbc723b4c77c672a348b8449dbbea89394a5ba86867942ad5c5c3aa",
+      "contentHash": "33aee16b826029e16161ae3f24842c31eb94adf64eaf0b4935b8a15e3a16c654",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -367,7 +367,7 @@
         "io.github.navikt/github-mcp/get_latest_release",
         "io.github.navikt/github-mcp/list_releases"
       ],
-      "model": ["Claude Opus 4.6"],
+      "model": ["Claude Opus 4.8"],
       "agentReferences": [
         "accessibility-agent",
         "aksel-agent",
@@ -536,7 +536,7 @@
       "domain": "general",
       "filePath": ".github/agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/security-champion.agent.md",
-      "contentHash": "5ccba48b66938fd01f18b762501bbea2cf2db4ae5d76d355bffa44b13ff6ffb0",
+      "contentHash": "53302a5fa90f6a7e5cc3a890dbc88462373e7f0897374ae3e7ea18e1cf531d05",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -563,7 +563,7 @@
         "io.github.navikt/github-mcp/list_tags",
         "io.github.navikt/github-mcp/list_branches"
       ],
-      "model": ["Claude Opus 4.6"],
+      "model": ["Claude Opus 4.8"],
       "agentReferences": ["auth-agent", "nais-agent", "observability-agent"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
