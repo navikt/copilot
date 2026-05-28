@@ -30,7 +30,8 @@
     "golang",
     "testing",
     "github-actions",
-    "docker"
+    "docker",
+    "security-owasp"
   ],
   "prompts": [
     "nais-manifest",

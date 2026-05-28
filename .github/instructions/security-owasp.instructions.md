@@ -1,10 +1,10 @@
 ---
-applyTo: "**/*.{kt,go}"
+applyTo: "**/*.{kt,go,java,ts,tsx}"
 ---
 
 # Security Essentials
 
-For detailed OWASP Top 10:2025 code-level patterns (Kotlin and Go), invoke the `$security-owasp` skill.
+For detailed OWASP Top 10:2025 code-level patterns (Kotlin, Go, Java, Node.js), invoke the `$security-owasp` skill.
 
 ## Critical Rules (always apply)
 

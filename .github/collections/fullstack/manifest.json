@@ -54,7 +54,8 @@
     "accessibility",
     "github-actions",
     "docker",
-    "database"
+    "database",
+    "security-owasp"
   ],
   "prompts": [
     "ktor-endpoint",

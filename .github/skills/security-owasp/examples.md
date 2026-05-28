@@ -1,621 +1,552 @@
-## A01: Broken Access Control
+# OWASP Top 10:2025 — examples
 
-The most critical category. Every endpoint that returns or modifies a resource must verify the caller owns or is authorized for that resource.
+Reference snippets for Kotlin, Go, Java (Spring Boot), and Node.js / Next.js.
 
-### Kotlin (Ktor)
+Each subsection shows a short ❌ anti-pattern and a matching ✅ correct pattern.
+
+## A01: Broken Access Control (incl. SSRF)
+
+### Kotlin
 
 ```kotlin
-// ❌ IDOR — trusts user-supplied ID without ownership check
-get("/api/vedtak/{id}") {
-    val id = call.parameters["id"]!!.toLong()
-    val vedtak = vedtakRepository.findById(id)
-    call.respond(vedtak)
-}
+// ❌ IDOR — trusts caller-supplied id
+val vedtak = vedtakRepository.findById(call.parameters["id"]!!.toLong())
+call.respond(vedtak)
 
-// ✅ Verify ownership before returning resource
-get("/api/vedtak/{id}") {
-    val bruker = call.hentBruker()
-    val id = call.parameters["id"]!!.toLong()
-    val vedtak = vedtakRepository.findById(id)
-        ?: return@get call.respond(HttpStatusCode.NotFound)
-    if (vedtak.brukerId != bruker.id) {
-        return@get call.respond(HttpStatusCode.Forbidden)
-    }
-    call.respond(vedtak.toDTO())
-}
+// ✅ Verify resource ownership before returning data
+val bruker = call.hentBruker()
+val vedtak = vedtakRepository.findById(call.parameters["id"]!!.toLong()) ?: return@get call.respond(HttpStatusCode.NotFound)
+if (vedtak.brukerId != bruker.id) return@get call.respond(HttpStatusCode.Forbidden)
+call.respond(vedtak.toDTO())
 ```
 
 ### Go
 
 ```go
-// ❌ Handler trusts user-supplied tenant ID
-func GetResource(w http.ResponseWriter, r *http.Request) {
-    tenantID := r.URL.Query().Get("tenant_id")
-    resources := db.FindByTenant(r.Context(), tenantID)
-    json.NewEncoder(w).Encode(resources)
+// ❌ SSRF — fetches user-supplied URL directly
+resp, _ := http.Get(r.URL.Query().Get("url"))
+
+// ✅ Allowlist host and require HTTPS
+u, err := url.Parse(r.URL.Query().Get("url"))
+if err != nil || u.Scheme != "https" || !allowedHosts[u.Hostname()] {
+http.Error(w, "host not allowed", http.StatusForbidden)
+return
+}
+resp, _ := http.Get(u.String())
+```
+
+### Java (Spring Boot)
+
+```java
+// ❌ Authenticated user can read any vedtak by id
+@GetMapping("/api/vedtak/{id}")
+VedtakDto hent(@PathVariable Long id) { return service.hent(id); }
+
+// ✅ Enforce access at method boundary
+@GetMapping("/api/vedtak/{id}")
+@PreAuthorize("@vedtakAuth.canRead(#id, authentication)")
+VedtakDto hent(@PathVariable Long id) { return service.hent(id); }
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ Route handler trusts sakId from query string
+export async function GET(req: NextRequest) {
+  return Response.json(await hentVedtak(req.nextUrl.searchParams.get("sakId")!))
 }
 
-// ✅ Extract tenant from authenticated token, not query params
-func GetResource(w http.ResponseWriter, r *http.Request) {
-    claims := auth.ClaimsFromContext(r.Context())
-    resources, err := db.FindByTenant(r.Context(), claims.TenantID)
-    if err != nil {
-        http.Error(w, "internal error", http.StatusInternalServerError)
-        return
-    }
-    json.NewEncoder(w).Encode(resources)
+// ✅ Scope lookup to authenticated bruker
+export async function GET() {
+  const session = await requireSession()
+  return Response.json(await hentVedtakForBruker(session.brukerId))
 }
 ```
 
 ### Patterns
 
-- **Deny by default** — require explicit grants, not explicit denials
-- **Resource-level checks** — not just "is authenticated" but "owns this resource"
-- **M2M tokens** — validate `azp` claim against `AZURE_APP_PRE_AUTHORIZED_APPS`
-- **Horizontal privilege** — user A must never access user B's data via predictable IDs
+- Verify ownership and scope on every resource, not only at login.
+- Deny by default when authorization data is missing or ambiguous.
+- For SSRF, allowlist outbound hosts, require HTTPS, and block loopback and metadata addresses.
+- For M2M tokens, validate `azp` against pre-authorized apps.
 
-## A02: Cryptographic Failures
+## A02: Security Misconfiguration
 
 ### Kotlin
 
 ```kotlin
-// ❌ Weak hashing — MD5/SHA-1 are broken for passwords
-val hash = MessageDigest.getInstance("MD5").digest(password.toByteArray())
+// ❌ Open CORS in production
+install(CORS) { anyHost() }
 
-// ❌ Hardcoded encryption key
-val secretKey = "my-super-secret-key-12345678"
-
-// ✅ bcrypt for password hashing
-import org.mindrot.jbcrypt.BCrypt
-val hashed = BCrypt.hashpw(password, BCrypt.gensalt(12))
-val valid = BCrypt.checkpw(candidatePassword, hashed)
-
-// ✅ Secrets from Nais environment
-val encryptionKey = System.getenv("ENCRYPTION_KEY")
-    ?: throw IllegalStateException("ENCRYPTION_KEY not configured")
+// ✅ Restrict origins explicitly
+install(CORS) {
+    allowHost("my-copilot.intern.nav.no", schemes = listOf("https"))
+}
 ```
 
 ### Go
 
 ```go
-// ❌ MD5 for integrity — trivially broken
-import "crypto/md5"
-hash := md5.Sum([]byte(data))
+// ❌ Debug endpoint on public listener
+mux.HandleFunc("/debug/pprof/", pprof.Index)
 
-// ❌ Disabling TLS verification
-client := &http.Client{
-    Transport: &http.Transport{
-        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-    },
-}
+// ✅ Debug endpoint on internal-only listener
+internalMux := http.NewServeMux()
+internalMux.HandleFunc("/debug/pprof/", pprof.Index)
+go http.ListenAndServe("127.0.0.1:9090", internalMux)
+```
 
-// ✅ SHA-256 for integrity checks
-import "crypto/sha256"
-hash := sha256.Sum256([]byte(data))
+### Java (Spring Boot)
+
+```java
+// ❌ Wildcard CORS on controller
+@CrossOrigin(origins = "*")
+@RestController class VedtakController {}
+
+// ✅ Restrictive CORS via Spring Security
+cfg.setAllowedOrigins(List.of("https://my-copilot.intern.nav.no"));
+cfg.setAllowedMethods(List.of("GET", "POST"));
+source.registerCorsConfiguration("/**", cfg);
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ Over-broad Server Actions config
+serverActions: { allowedOrigins: ["*"], bodySizeLimit: "20mb" }
+
+// ✅ Same-origin by default, add only trusted proxies when needed
+serverActions: { allowedOrigins: ["my-proxy.intern.nav.no"], bodySizeLimit: "1mb" }
+```
+
+### Patterns
+
+- Restrict CORS to known origins, methods, and headers.
+- Keep debug and admin endpoints off public ingress.
+- Disable development-only features in production.
+- Return generic client errors; keep stack traces and SQL errors in logs only.
+
+## A03: Software Supply Chain Failures
+
+### Kotlin
+
+```kotlin
+// ❌ Floating dependency versions
+implementation("org.postgresql:postgresql:+")
+
+// ✅ Pin and lock dependencies
+implementation("org.postgresql:postgresql:42.7.5")
+dependencyLocking { lockAllConfigurations() }
+```
+
+### Go
+
+```go
+// ❌ Missing verification step in CI
+// go test ./...
+
+// ✅ Verify integrity and known vulnerabilities
+// go mod verify
+// govulncheck ./...
+```
+
+### Java (Spring Boot)
+
+```xml
+<!-- ❌ Floating ranges in pom.xml -->
+<version>[5.8,)</version>
+
+<!-- ✅ Pin exact version and keep lockfile/BOM updated -->
+<version>5.8.16</version>
+```
+
+### Node.js / Next.js
+
+```json
+// ❌ Floating dependency range
+"next": "^16.0.0"
+
+// ✅ Pin version and commit lockfile
+"next": "16.0.0"
+```
+
+### Patterns
+
+- Pin dependencies and commit lockfiles (`go.sum`, `gradle.lockfile`, `package-lock.json` or `pnpm-lock.yaml`).
+- Scan dependencies regularly with `govulncheck`, `npm audit`, Trivy, or equivalent CI checks.
+- Pin GitHub Actions to full commit SHA, not tags or branches.
+- Prefer maintained, first-party packages over abandoned wrappers.
+
+## A04: Cryptographic Failures
+
+### Kotlin
+
+```kotlin
+// ❌ Weak password hashing
+val hash = MessageDigest.getInstance("MD5").digest(password.toByteArray())
 
 // ✅ bcrypt for passwords
-import "golang.org/x/crypto/bcrypt"
-hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-err = bcrypt.CompareHashAndPassword(hashed, []byte(candidate))
+val hashed = BCrypt.hashpw(password, BCrypt.gensalt(12))
+```
 
-// ✅ Default TLS config (Go enforces TLS 1.2+ by default)
+### Go
+
+```go
+// ❌ TLS verification disabled
+client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+
+// ✅ Use default TLS verification
 client := &http.Client{}
 ```
 
-### Patterns
+### Java (Spring Boot)
 
-- **Passwords**: bcrypt (cost ≥ 12) or argon2id — never MD5/SHA-1/SHA-256
-- **TLS**: 1.2+ enforced — never set `InsecureSkipVerify: true`
-- **Secrets**: always from Nais environment variables or Secret resources — never hardcoded
-- **Encryption keys**: use AES-256-GCM, rotate keys periodically
+```java
+// ❌ Hardcoded secret and reversible password storage
+String signingKey = "secret";
+String stored = password;
 
-## A03: Injection
-
-### Kotlin (Kotliquery / JdbcTemplate)
-
-```kotlin
-// ❌ SQL injection via string template
-fun findByStatus(status: String): List<Vedtak> =
-    using(sessionOf(dataSource)) { session ->
-        session.run(
-            queryOf("SELECT * FROM vedtak WHERE status = '$status'")
-                .map { row -> row.toVedtak() }.asList
-        )
-    }
-
-// ❌ Command injection via ProcessBuilder
-fun convert(filename: String): String {
-    val process = ProcessBuilder("sh", "-c", "convert $filename output.pdf").start()
-    return process.inputStream.bufferedReader().readText()
-}
-
-// ✅ Parameterized query — Kotliquery
-fun findByStatus(status: String): List<Vedtak> =
-    using(sessionOf(dataSource)) { session ->
-        session.run(
-            queryOf("SELECT * FROM vedtak WHERE status = ?", status)
-                .map { row -> row.toVedtak() }.asList
-        )
-    }
-
-// ✅ Avoid shell — pass arguments directly
-fun convert(filename: String): String {
-    require(filename.matches(Regex("[a-zA-Z0-9._-]+"))) { "Invalid filename" }
-    val process = ProcessBuilder("convert", filename, "output.pdf").start()
-    return process.inputStream.bufferedReader().readText()
-}
+// ✅ Secret from env and adaptive password hashing
+String signingKey = env.getRequiredProperty("JWT_SIGNING_KEY");
+String stored = passwordEncoder.encode(password);
 ```
 
-### Go (pgx)
+### Node.js / Next.js
+
+```ts
+// ❌ Weak hash and hardcoded secret
+const hash = createHash("sha1").update(password).digest("hex")
+const jwtSecret = "secret"
+
+// ✅ Use scrypt/bcrypt and env-managed secret
+const hash = await scryptHash(password)
+const jwtSecret = process.env.JWT_SECRET!
+```
+
+### Patterns
+
+- Use bcrypt or argon2id for passwords, never MD5 or SHA-only hashes.
+- Keep secrets in Nais env vars or secret resources, never in source.
+- Require modern TLS and never set `InsecureSkipVerify: true`.
+- Prefer authenticated encryption such as AES-256-GCM when you encrypt application data.
+
+## A05: Injection
+
+### Kotlin
+
+```kotlin
+// ❌ SQL injection via string interpolation
+queryOf("SELECT * FROM vedtak WHERE status = '$status'")
+
+// ✅ Parameterized query
+queryOf("SELECT * FROM vedtak WHERE status = ?", status)
+```
+
+### Go
 
 ```go
-// ❌ SQL injection via fmt.Sprintf
-func FindByStatus(ctx context.Context, pool *pgxpool.Pool, status string) ([]Vedtak, error) {
-    query := fmt.Sprintf("SELECT * FROM vedtak WHERE status = '%s'", status)
-    rows, err := pool.Query(ctx, query)
-    // ...
-}
+// ❌ Shell injection via sh -c
+exec.Command("sh", "-c", fmt.Sprintf("journalctl -u %s", service)).Run()
 
-// ❌ Template injection — using text/template with user input as template
-tmpl, _ := template.New("t").Parse(userInput)
+// ✅ Pass arguments directly
+exec.Command("journalctl", "-u", service).Run()
+```
 
-// ✅ Parameterized query — pgx
-func FindByStatus(ctx context.Context, pool *pgxpool.Pool, status string) ([]Vedtak, error) {
-    rows, err := pool.Query(ctx, "SELECT * FROM vedtak WHERE status = $1", status)
-    // ...
-}
+### Java (Spring Boot)
 
-// ✅ Use html/template with user input as data, not template
-tmpl, _ := template.New("t").Parse("Hello, {{.Name}}")
-tmpl.Execute(w, map[string]string{"Name": userInput})
+```java
+// ❌ SQL injection in JdbcTemplate
+jdbcTemplate.query("SELECT * FROM vedtak WHERE fnr = '" + fnr + "'", rowMapper);
+
+// ✅ Prepared parameters in JdbcTemplate
+jdbcTemplate.query("SELECT * FROM vedtak WHERE fnr = ?", rowMapper, fnr);
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ Raw SQL and unsanitized user HTML
+await prisma.$queryRawUnsafe(`SELECT * FROM vedtak WHERE fnr = '${fnr}'`)
+return <div dangerouslySetInnerHTML={{ __html: kommentar }} />
+
+// ✅ Parameterize SQL and sanitize rendered content
+await prisma.$queryRaw`SELECT * FROM vedtak WHERE fnr = ${fnr}`
+return <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(kommentar) }} />
 ```
 
 ### Patterns
 
-- **SQL**: always parameterized — `?` (Kotlin), `$1` (pgx) — never string concatenation
-- **Shell**: avoid `sh -c` — pass arguments as separate strings to `ProcessBuilder` / `exec.Command`
-- **Templates**: user input is **data**, never part of the template itself
+- Parameterize all SQL queries; never build SQL with string concatenation.
+- Avoid shell execution for user-controlled data.
+- Validate input at the boundary before it reaches template, shell, or database code.
+- Treat user input as data, never as code or template source.
 
-## A04: Insecure Design
+## A06: Insecure Design
 
-### Kotlin (Ktor)
+### Kotlin
 
 ```kotlin
-// ❌ No rate limiting on login endpoint
-post("/api/login") {
-    val credentials = call.receive<LoginRequest>()
-    val user = authService.authenticate(credentials)
-    call.respond(user.toToken())
-}
+// ❌ Business rule missing — negative beløp accepted
+fun opprettVedtak(belop: BigDecimal) = vedtakService.opprett(belop)
 
-// ❌ Negative amount allowed — business logic flaw
-fun transfer(from: Account, to: Account, amount: BigDecimal) {
-    from.balance -= amount
-    to.balance += amount
-}
-
-// ✅ Rate limiting middleware
-install(RateLimit) {
-    register(RateLimitName("auth")) {
-        rateLimiter(limit = 10, refillPeriod = 60.seconds)
-        requestKey { call.request.origin.remoteAddress }
-    }
-}
-authenticate {
-    rateLimit(RateLimitName("auth")) {
-        post("/api/login") { /* ... */ }
-    }
-}
-
-// ✅ Validate business rules at boundaries
-fun transfer(from: Account, to: Account, amount: BigDecimal) {
-    require(amount > BigDecimal.ZERO) { "Amount must be positive" }
-    require(from.balance >= amount) { "Insufficient funds" }
-    from.balance -= amount
-    to.balance += amount
+// ✅ Enforce domain rules before state changes
+fun opprettVedtak(belop: BigDecimal): Vedtak {
+    require(belop > BigDecimal.ZERO) { "Beløp må være positivt" }
+    return vedtakService.opprett(belop)
 }
 ```
 
 ### Go
 
 ```go
-// ❌ No rate limiting
+// ❌ No rate limiting on login
 http.HandleFunc("/api/login", handleLogin)
 
-// ✅ Rate limiting with middleware
-import "golang.org/x/time/rate"
+// ✅ Rate limit sensitive endpoints
+http.Handle("/api/login", rateLimitMiddleware(limiter, http.HandlerFunc(handleLogin)))
+```
 
-func rateLimitMiddleware(limiter *rate.Limiter, next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        if !limiter.Allow() {
-            http.Error(w, "too many requests", http.StatusTooManyRequests)
-            return
-        }
-        next.ServeHTTP(w, r)
-    })
-}
+### Java (Spring Boot)
 
-// ✅ Validate business rules
-func Transfer(from, to *Account, amount int64) error {
-    if amount <= 0 {
-        return fmt.Errorf("amount must be positive: %d", amount)
-    }
-    if from.Balance < amount {
-        return fmt.Errorf("insufficient funds")
-    }
-    from.Balance -= amount
-    to.Balance += amount
-    return nil
+```java
+// ❌ No validation of request body
+public ResponseEntity<?> opprett(@RequestBody VedtakRequest req) { return ok(service.opprett(req)); }
+
+// ✅ Validate shape early and enforce business rules in service
+public ResponseEntity<?> opprett(@RequestBody @Valid VedtakRequest req) { return ok(service.opprett(req)); }
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ Server Action trusts raw form data
+export async function opprettVedtak(_: unknown, formData: FormData) { return save(formData.get("belop")) }
+
+// ✅ Validate input before mutation
+export async function opprettVedtak(_: unknown, formData: FormData) {
+  const data = schema.parse({ belop: Number(formData.get("belop")) })
+  return save(data.belop)
 }
 ```
 
 ### Patterns
 
-- **Rate limiting** on authentication, password reset, and OTP endpoints
-- **Input validation** at service boundaries — never trust client-side validation alone
-- **Idempotency keys** for financial operations to prevent double-processing
-- **Race conditions** — use database-level locking for balance checks, not in-memory checks
+- Validate input shape at the boundary, then enforce business rules in the domain layer.
+- Add rate limiting to login, password reset, OTP, and expensive mutations.
+- Use idempotency for operations that can otherwise be double-submitted.
+- Design for fail-closed behavior when state is uncertain.
 
-## A05: Security Misconfiguration
+## A07: Authentication Failures
 
 ### Kotlin
 
 ```kotlin
-// ❌ Wildcard CORS — allows any origin
-install(CORS) {
-    anyHost()
-}
-
-// ❌ Ktor development mode in production
-// application.conf: ktor.development = true
-
-// ✅ Restrictive CORS — named origins only
-install(CORS) {
-    allowHost("my-app.intern.nav.no", schemes = listOf("https"))
-    allowHeader(HttpHeaders.Authorization)
-    allowHeader(HttpHeaders.ContentType)
-}
-
-// ✅ Production-safe error responses
-install(StatusPages) {
-    exception<Throwable> { call, cause ->
-        logger.error(cause) { "Unhandled exception" }
-        call.respond(
-            HttpStatusCode.InternalServerError,
-            mapOf("error" to "Internal server error")
-        )
-    }
-}
-```
-
-### Go
-
-```go
-// ❌ pprof exposed in production
-import _ "net/http/pprof"
-http.ListenAndServe(":8080", nil)
-
-// ❌ Verbose error responses leaking internals
-http.Error(w, fmt.Sprintf("database error: %v", err), 500)
-
-// ✅ pprof on separate internal port (not exposed via ingress)
-go func() {
-    debugMux := http.NewServeMux()
-    debugMux.HandleFunc("/debug/pprof/", pprof.Index)
-    http.ListenAndServe("localhost:6060", debugMux)
-}()
-
-// ✅ Sanitized error responses
-if err != nil {
-    slog.Error("database query failed", "error", err)
-    http.Error(w, "internal server error", http.StatusInternalServerError)
-    return
-}
-```
-
-### Patterns
-
-- **CORS**: explicit origins only — never `*` or `anyHost()`
-- **Debug endpoints**: pprof/actuator on internal port, never on public ingress
-- **Error messages**: log details server-side, return generic messages to clients
-- **Production profiles**: disable development mode, verbose errors, debug features
-
-## A06: Vulnerable and Outdated Components
-
-### Kotlin
-
-```bash
-# Gradle dependency vulnerability check
-./gradlew dependencyCheckAnalyze
-
-# Trivy repo scan (covers all languages)
-trivy repo .
-```
-
-### Go
-
-```bash
-# Go vulnerability check
-govulncheck ./...
-
-# Verify go.sum integrity
-go mod verify
-
-# Trivy repo scan
-trivy repo .
-```
-
-### Patterns
-
-- **Automated updates**: Dependabot or Renovate for dependency PRs
-- **SBOM**: generate in CI with `trivy repo . --format cyclonedx`
-- **Pin versions**: lock files (`go.sum`, `gradle.lockfile`) checked into git
-
-> For full scanning workflow, run the `security-review` skill.
-
-## A07: Identification and Authentication Failures
-
-### Kotlin
-
-```kotlin
-// ❌ Missing claim validation — accepts any valid JWT
-fun validateToken(token: String): Claims {
-    return Jwts.parserBuilder()
-        .setSigningKey(key)
-        .build()
-        .parseClaimsJws(token)
-        .body
-}
-
-// ✅ Strict claim validation — verify issuer, audience, expiry
-fun validateToken(token: String): Claims {
-    return Jwts.parserBuilder()
-        .setSigningKey(key)
-        .requireIssuer(expectedIssuer)
-        .requireAudience(expectedAudience)
-        .build()
-        .parseClaimsJws(token)
-        .body
-        .also { claims ->
-            require(claims.expiration.after(Date())) { "Token expired" }
-        }
-}
-```
-
-### Go
-
-```go
-// ❌ JWT validation skips critical claims
-func ValidateToken(tokenString string) (*Claims, error) {
-    token, err := jwt.Parse(tokenString, keyFunc)
-    if err != nil {
-        return nil, err
-    }
-    return token.Claims.(*Claims), nil
-}
+// ❌ Accepts any signed JWT
+val claims = parser.parseClaimsJws(token).body
 
 // ✅ Validate issuer, audience, and expiry
-func ValidateToken(tokenString string) (*Claims, error) {
-    token, err := jwt.ParseWithClaims(tokenString, &Claims{},
-        keyFunc,
-        jwt.WithIssuer(expectedIssuer),
-        jwt.WithAudience(expectedAudience),
-        jwt.WithExpirationRequired(),
-        jwt.WithValidMethods([]string{"RS256"}),
-    )
-    if err != nil {
-        return nil, fmt.Errorf("token validation failed: %w", err)
-    }
-    return token.Claims.(*Claims), nil
-}
+val claims = parser.requireIssuer(issuer).requireAudience(audience).build().parseClaimsJws(token).body
+require(claims.expiration.after(Date()))
+```
+
+### Go
+
+```go
+// ❌ Token parsed without claim validation
+jwt.Parse(tokenString, keyFunc)
+
+// ✅ Enforce issuer, audience, expiry, and algorithm
+jwt.ParseWithClaims(tokenString, &Claims{}, keyFunc,
+jwt.WithIssuer(expectedIssuer), jwt.WithAudience(expectedAudience), jwt.WithValidMethods([]string{"RS256"}))
+```
+
+### Java (Spring Boot)
+
+```java
+// ❌ Custom auth check trusts unsigned header
+String user = request.getHeader("X-User");
+
+// ✅ Let Spring Security validate JWT and enforce auth centrally
+http.oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+http.authorizeHttpRequests(auth -> auth.requestMatchers("/api/**").authenticated());
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ middleware only checks cookie presence
+if (!req.cookies.get("session")) return NextResponse.redirect(new URL("/login", req.url))
+
+// ✅ middleware guards routes, action re-checks session and Origin
+if (!req.cookies.get("session")) return NextResponse.redirect(new URL("/login", req.url))
+const session = await requireSession()
+const h = await headers()
+if (h.get("origin") !== `https://${h.get("host")}`) throw new Error("CSRF blocked")
 ```
 
 ### Patterns
 
-- **Wonderwall** — delegate user-facing auth to Nais sidecar, don't roll your own
-- **JWT validation** — always check `exp`, `iss`, `aud`, and signing algorithm
-- **Session management** — invalidate sessions on logout and password change
-- **M2M tokens** — validate `azp` against pre-authorized apps list
+- Prefer platform or framework auth components over custom token parsing.
+- Validate `iss`, `aud`, `exp`, and accepted signing algorithms.
+- Use secure, HTTP-only, `SameSite` cookies for browser sessions.
+- Re-check authentication and authorization inside Server Actions and route handlers.
 
-## A08: Software and Data Integrity Failures
-
-### CI/CD Pipeline
-
-```yaml
-# ❌ Unpinned action — tag can be compromised
-- uses: actions/checkout@v4
-
-# ✅ SHA-pinned with version comment
-- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-```
+## A08: Software or Data Integrity Failures
 
 ### Kotlin
 
 ```kotlin
-// ❌ Unsafe Jackson polymorphic deserialization — allows arbitrary class instantiation
+// ❌ Unsafe polymorphic deserialization
 objectMapper.enableDefaultTyping()
 
-// ✅ Restrict polymorphic types to known classes
-objectMapper.activateDefaultTyping(
-    BasicPolymorphicTypeValidator.builder()
-        .allowIfSubType("no.nav.myapp.dto.")
-        .build(),
-    ObjectMapper.DefaultTyping.NON_FINAL
-)
-
-// ✅ Prefer explicit DTOs — no polymorphism needed
-data class VedtakRequest(val type: String, val belop: BigDecimal)
+// ✅ Decode into explicit DTOs
+val req = objectMapper.readValue(payload, VedtakRequest::class.java)
 ```
 
 ### Go
 
 ```go
-// ❌ Decoding gob from untrusted source — arbitrary types
-func HandleUpload(w http.ResponseWriter, r *http.Request) {
-    var data interface{}
-    gob.NewDecoder(r.Body).Decode(&data)
-}
+// ❌ Decode untrusted input into interface{}
+var payload interface{}
+json.NewDecoder(r.Body).Decode(&payload)
 
-// ✅ Decode into concrete, known types only
-func HandleUpload(w http.ResponseWriter, r *http.Request) {
-    var req VedtakRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "invalid request body", http.StatusBadRequest)
-        return
-    }
-}
+// ✅ Decode into concrete request type
+var req VedtakRequest
+json.NewDecoder(r.Body).Decode(&req)
+```
+
+### Java (Spring Boot)
+
+```java
+// ❌ Trust webhook payload without signature check
+service.importVedtak(body);
+
+// ✅ Verify signature before processing data
+if (!signatureVerifier.isValid(signature, body)) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+service.importVedtak(body);
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ Process callback body without integrity check
+await behandleVedtak(await req.text())
+
+// ✅ Verify HMAC before accepting payload
+const body = await req.text()
+if (!isValidSignature(req.headers.get("x-signature"), body)) return new Response("unauthorized", { status: 401 })
+await behandleVedtak(body)
 ```
 
 ### Patterns
 
-- **GitHub Actions**: pin all actions to full SHA — see `github-actions` instruction
-- **Container images**: use signed images from Nav's Chainguard registry
-- **Deserialization**: decode into concrete types, never `interface{}` or `Any` from untrusted input
-- **SBOM attestation**: attach provenance to container images in CI
+- Decode untrusted input into explicit DTOs, not generic object graphs.
+- Verify signatures on webhooks, callbacks, and imported artifacts before use.
+- Pin CI dependencies and actions so your pipeline is reproducible.
+- Return only minimal, trusted data from server code to clients.
 
-## A09: Security Logging and Monitoring Failures
+## A09: Security Logging and Alerting Failures
 
 ### Kotlin
 
 ```kotlin
-// ❌ Logging PII — GDPR violation
-logger.info("Opprettet vedtak for bruker ${bruker.fnr}, navn: ${bruker.navn}")
-
-// ❌ No audit trail for sensitive operations
-fun slettVedtak(id: Long) {
-    vedtakRepository.deleteById(id)
-}
-
-// ✅ Structured logging without PII — use correlation IDs
-import net.logstash.logback.argument.StructuredArguments.kv
-logger.info("Vedtak opprettet",
-    kv("vedtakId", vedtak.id),
-    kv("sakId", sak.id),
-    kv("callId", MDC.get("callId"))
-)
-
-// ✅ Audit trail for sensitive operations
-fun slettVedtak(id: Long, utfortAv: String) {
-    logger.info("Vedtak slettet",
-        kv("vedtakId", id),
-        kv("utfortAv", utfortAv),
-        kv("handling", "SLETT_VEDTAK")
-    )
-    vedtakRepository.deleteById(id)
-}
-```
-
-### Go
-
-```go
-// ❌ Logging PII
-slog.Info("created vedtak", "fnr", bruker.Fnr, "name", bruker.Name)
-
-// ❌ No request correlation
-slog.Info("processing request")
+// ❌ PII in logs
+log.info("Opprettet vedtak for fnr=${bruker.fnr}")
 
 // ✅ Structured logging without PII
-slog.Info("vedtak created",
-    "vedtak_id", vedtak.ID,
-    "sak_id", sak.ID,
-)
+log.info("Vedtak opprettet", kv("vedtakId", vedtak.id), kv("sakId", vedtak.sakId), kv("callId", callId))
+```
 
-// ✅ Request-scoped logger with correlation ID
-func withRequestID(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        requestID := r.Header.Get("X-Request-ID")
-        if requestID == "" {
-            requestID = uuid.NewString()
-        }
-        ctx := context.WithValue(r.Context(), requestIDKey, requestID)
-        logger := slog.With("request_id", requestID)
-        ctx = context.WithValue(ctx, loggerKey, logger)
-        next.ServeHTTP(w, r.WithContext(ctx))
-    })
-}
+### Go
 
-// ✅ Audit trail for sensitive operations
-func DeleteVedtak(ctx context.Context, id int64) error {
-    logger := loggerFromContext(ctx)
-    logger.Info("vedtak deleted",
-        "vedtak_id", id,
-        "action", "DELETE_VEDTAK",
-    )
-    return repo.Delete(ctx, id)
-}
+```go
+// ❌ Logs fnr directly
+slog.Info("vedtak created", "fnr", bruker.Fnr)
+
+// ✅ Use opaque IDs and request correlation
+slog.Info("vedtak created", "vedtak_id", vedtak.ID, "sak_id", vedtak.SakID, "request_id", requestID)
+```
+
+### Java (Spring Boot)
+
+```java
+// ❌ Leaks fnr in logs
+log.info("Opprettet vedtak for fnr={}", fnr);
+
+// ✅ Log opaque identifiers and trace context
+log.info("Vedtak opprettet vedtakId={} sakId={} traceId={}", vedtakId, sakId, MDC.get("traceId"));
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ Logs request body with fnr
+logger.info({ body }, "oppretter vedtak")
+
+// ✅ Structured audit log without PII
+logger.info({ vedtakId, sakId, requestId }, "vedtak opprettet")
 ```
 
 ### Patterns
 
-- **Never log PII**: fnr, name, address, phone, email — use opaque IDs (sakId, vedtakId)
-- **Correlation IDs**: propagate `X-Request-ID` / `callId` across service boundaries
-- **Audit trail**: log who did what, when — for vedtak, utbetaling, access grants
-- **Structured logging**: use `kv()` (Kotlin) or `slog` fields (Go) — never string interpolation
+- Never log fnr, tokens, raw request bodies, or secrets.
+- Use structured logs with correlation IDs and opaque resource IDs.
+- Create audit events for sensitive actions such as vedtak changes and access grants.
+- Alert on suspicious patterns such as repeated auth failures or unusual traffic spikes.
 
-## A10: Server-Side Request Forgery (SSRF)
+## A10: Mishandling of Exceptional Conditions
 
 ### Kotlin
 
 ```kotlin
-// ❌ User-controlled URL passed directly to HTTP client
-get("/api/fetch") {
-    val url = call.request.queryParameters["url"]!!
-    val response = httpClient.get(url)
-    call.respond(response.bodyAsText())
-}
+// ❌ Swallows errors and keeps going
+val req = runCatching { call.receive<VedtakRequest>() }.getOrNull()
 
-// ✅ Validate against allowlist of known hosts
-private val allowedHosts = setOf("api.nav.no", "pdl-api.intern.nav.no")
-
-get("/api/fetch") {
-    val url = Url(call.request.queryParameters["url"]!!)
-    require(url.host in allowedHosts) { "Host not allowed: ${url.host}" }
-    require(url.protocol == URLProtocol.HTTPS) { "HTTPS required" }
-    val response = httpClient.get(url)
-    call.respond(response.bodyAsText())
+// ✅ Fail safely and return sanitized error
+val req = try { call.receive<VedtakRequest>() } catch (e: Exception) {
+    log.warn("Invalid vedtak request", kv("callId", callId))
+    return@post call.respond(HttpStatusCode.BadRequest, "Ugyldig forespørsel")
 }
 ```
 
 ### Go
 
 ```go
-// ❌ User-provided URL fetched without validation
-func ProxyHandler(w http.ResponseWriter, r *http.Request) {
-    targetURL := r.URL.Query().Get("url")
-    resp, _ := http.Get(targetURL)
-    io.Copy(w, resp.Body)
-}
+// ❌ Ignores decode error
+json.NewDecoder(r.Body).Decode(&req)
 
-// ✅ Validate against allowlist before fetching
-var allowedHosts = map[string]bool{
-    "api.nav.no":              true,
-    "pdl-api.intern.nav.no":   true,
+// ✅ Handle error explicitly and stop processing
+if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+http.Error(w, "invalid request", http.StatusBadRequest)
+return
 }
+```
 
-func ProxyHandler(w http.ResponseWriter, r *http.Request) {
-    targetURL, err := url.Parse(r.URL.Query().Get("url"))
-    if err != nil || !allowedHosts[targetURL.Hostname()] {
-        http.Error(w, "host not allowed", http.StatusForbidden)
-        return
-    }
-    if targetURL.Scheme != "https" {
-        http.Error(w, "HTTPS required", http.StatusBadRequest)
-        return
-    }
-    resp, err := http.Get(targetURL.String())
-    if err != nil {
-        http.Error(w, "fetch failed", http.StatusBadGateway)
-        return
-    }
-    defer resp.Body.Close()
-    io.Copy(w, resp.Body)
-}
+### Java (Spring Boot)
+
+```java
+// ❌ Leaks internal exception details to client
+return ResponseEntity.internalServerError().body(Map.of("error", ex.getMessage()));
+
+// ✅ Centralize sanitization in @RestControllerAdvice
+@ExceptionHandler(Exception.class)
+ResponseEntity<Map<String, String>> handle(Exception ex) { return ResponseEntity.internalServerError().body(Map.of("error", "Internal server error")); }
+```
+
+### Node.js / Next.js
+
+```ts
+// ❌ Returns stack trace to client
+return Response.json({ error: err.stack }, { status: 500 })
+
+// ✅ Log details server-side, return generic response
+logger.error({ err, requestId }, "route failed")
+return Response.json({ error: "Internal server error" }, { status: 500 })
 ```
 
 ### Patterns
 
-- **URL allowlists** — only permit known, trusted hosts
-- **HTTPS enforcement** — reject plain HTTP outbound requests
-- **Nais egress policy** — use `accessPolicy.outbound.external` as defense-in-depth
-- **Block internal ranges** — reject `127.0.0.1`, `10.x`, `169.254.169.254` (metadata API)
-
+- Handle parse, IO, and database errors explicitly.
+- Fail closed when the system cannot determine a safe outcome.
+- Keep detailed exception data in logs, not in responses.
+- Centralize error mapping in middleware, exception mappers, or route helpers.

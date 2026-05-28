@@ -60,7 +60,7 @@ Gå til **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/
 - **[Agenter →](docs/README.agents.md)** — VS Code one-click, JetBrains via coding agent
 - **[Instruksjoner →](docs/README.instructions.md)** — Alle editorer
 - **[Prompts →](docs/README.prompts.md)** — VS Code, JetBrains
-- **[Skills →](docs/README.skills.md)** — VS Code
+- **[Skills →](docs/README.skills.md)** — VS Code (`security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js)
 - **[MCP-servere →](docs/README.mcp.md)** — Alle editorer
 - **[Samlinger →](docs/README.collections.md)** — Installer alt på én gang
 - **[nav-pilot →](docs/README.nav-pilot.md)** — Navs AI-utviklerverktøy

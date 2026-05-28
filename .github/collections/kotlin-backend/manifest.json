@@ -42,7 +42,8 @@
     "testing-kotlin",
     "github-actions",
     "docker",
-    "database"
+    "database",
+    "security-owasp"
   ],
   "prompts": [
     "ktor-endpoint",

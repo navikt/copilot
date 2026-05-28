@@ -18,7 +18,8 @@
     "nav-plan",
     "nav-deep-interview",
     "nav-architecture-review",
-    "nav-troubleshoot"
+    "nav-troubleshoot",
+    "security-owasp"
   ],
   "instructions": [
     "code-review",
@@ -30,7 +31,8 @@
     "testing-typescript",
     "accessibility",
     "github-actions",
-    "docker"
+    "docker",
+    "security-owasp"
   ],
   "prompts": [
     "aksel-component",
