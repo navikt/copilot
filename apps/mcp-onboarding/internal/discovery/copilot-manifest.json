@@ -183,7 +183,7 @@
         "infrastructure"
       ],
       "filePath": ".github/agents/nav-pilot.agent.md",
-      "contentHash": "fe1c04e89d6dcaa4441244981c1bed3f484749c13dfe6a713e92a5e13510dd38",
+      "contentHash": "d04fd3fc8eef124b654e4bf32430878fcfb1798e6bfccf0ac2270ce4013ce42f",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -293,7 +293,7 @@
         "vulnerability"
       ],
       "filePath": ".github/agents/security-champion.agent.md",
-      "contentHash": "53302a5fa90f6a7e5cc3a890dbc88462373e7f0897374ae3e7ea18e1cf531d05",
+      "contentHash": "5ccba48b66938fd01f18b762501bbea2cf2db4ae5d76d355bffa44b13ff6ffb0",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",

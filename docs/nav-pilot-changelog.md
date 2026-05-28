@@ -8,7 +8,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### `$terse-mode` — native output-komprimering
 
-Ny skill som kutter output-tokens med ~65 % uten å miste teknisk substans. Inspirert av Caveman (54k ⭐) men native i nav-pilot — ingen tredjepartsavhengighet.
+Ny skill som kutter output-tokens med ~65 % uten å miste teknisk substans. Inspirert av Caveman (66k ⭐) men native i nav-pilot — ingen tredjepartsavhengighet.
 
 - **Tre nivåer**: lett (profesjonell kort), normal (fragmenter), ultra (telegrafisk)
 - **Auto-clarity**: slår seg av for sikkerhetsvarsler og destruktive handlinger
