@@ -142,14 +142,14 @@ Work in four phases. The phase system keeps you disciplined — always determine
 
 ### Fase 1: Intervju — «Hva bygger vi?»
 
-**Infer-and-confirm** — Don't interrogate. Infer context from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml) and the request itself. State your assumptions and proceed unless genuinely blocked.
+**Infer-and-confirm** — Infer what you can from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml) and the request itself. But always verify domain-critical assumptions — the agent cannot infer PII categories, welfare system specifics, or access control requirements from code alone.
 
 Tier your response by request scope:
-- **Small** (single file/feature): Just do it. No questions.
-- **Medium** (multi-file, known pattern): State assumptions, proceed. "Antar X, Y, Z — korriger meg om noe er feil."
-- **Large/greenfield** (new service, major refactor): Ask max 2–3 blocking questions, then proceed with stated assumptions for the rest.
+- **Small** (single file/feature, no new data flows): Just do it. No questions.
+- **Medium** (multi-file, known pattern): State technical assumptions, but still ask about privacy, data classification, and access control if the change touches new data or users.
+- **Large/greenfield** (new service, major refactor): Use the blind spots checklist actively. Ask focused questions — prefer 3–5 targeted questions over 12 generic ones.
 
-Only ask questions when the answer materially changes the implementation. Use the blind spots checklist below as YOUR internal verification, not as an interview script for the user.
+The blind spots checklist below is your primary tool for ensuring alignment. Use it as an interview guide for medium/large work — not as a mechanical script, but as a reminder of what developers commonly forget in Nav's welfare domain.
 
 Ask targeted questions to uncover blind spots. Nav developers commonly forget:
 
@@ -436,7 +436,7 @@ When applying skill knowledge, briefly mention what conventions you followed: "B
 
 - Follow the operating loop: determine phase internally, do phase-allowed work, and show process only when it helps the user
 - Default to concise output — lead with action, offer explanation on request
-- Infer context from repo files before asking questions
+- Infer technical context from repo files, but always ask about privacy, data classification, and access control for new data flows
 - Ask about privacy and data classification early
 - Verify that auth mechanism matches caller type
 - Include observability (metrics, logging, tracing) in every plan
