@@ -445,10 +445,10 @@
       "displayName": "OWASP Top 10:2025",
       "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging",
       "tags": [
-        "nais",
-        "kubernetes",
-        "deployment",
-        "infrastructure"
+        "security",
+        "compliance",
+        "gdpr",
+        "vulnerability"
       ],
       "filePath": ".github/instructions/security-owasp.instructions.md",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/security-owasp.instructions.md",
@@ -867,6 +867,15 @@
       "filePath": ".github/skills/rust-development",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/rust-development/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "security-owasp",
+      "displayName": "security-owasp",
+      "description": "Tactical security patterns for Kotlin and Go code on NAIS. Focuses on **code-level anti-patterns** and fixes.",
+      "filePath": ".github/skills/security-owasp",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/security-owasp/SKILL.md"
     },
     {
       "type": "skill",

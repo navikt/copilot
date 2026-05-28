@@ -38,6 +38,7 @@ nav-pilot install <skill-name>
 | **postgresql-review** | PostgreSQL query review, optimalisering og beste praksis for Nav-applikasjoner | [`.github/skills/postgresql-review/`](../.github/skills/postgresql-review/SKILL.md) |
 | **readme-review** | Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob | [`.github/skills/readme-review/`](../.github/skills/readme-review/SKILL.md) |
 | **rust-development** | Idiomatisk Rust-utvikling med cargo, clippy, error handling, async/tokio, unsafe og testing | [`.github/skills/rust-development/`](../.github/skills/rust-development/SKILL.md) |
+| **security-owasp** | OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging | [`.github/skills/security-owasp/`](../.github/skills/security-owasp/SKILL.md) |
 | **security-review** | Bruk før commit, push eller pull request for å sjekke at koden er trygg å merge | [`.github/skills/security-review/`](../.github/skills/security-review/SKILL.md) |
 | **spring-boot-scaffold** | Scaffold et nytt Spring Boot Kotlin-prosjekt med Nais-konfigurasjon, Flyway og standard Nav-mønstre | [`.github/skills/spring-boot-scaffold/`](../.github/skills/spring-boot-scaffold/SKILL.md) |
 | **threat-model** | STRIDE-A trusselmodellering for Nais-mikrotjenester — dataflyt, tillitsgrenser og risikovurdering | [`.github/skills/threat-model/`](../.github/skills/threat-model/SKILL.md) |

@@ -1,0 +1,19 @@
+{
+  "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging",
+  "domain": "auth",
+  "tags": ["security", "owasp", "kotlin", "go", "nais"],
+  "examples": [
+    {
+      "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endepunktene mine",
+      "scenario": "Trenger OWASP A01 referanse for Kotlin"
+    },
+    {
+      "prompt": "Hvordan unngår jeg SQL-injeksjon med Kotliquery?",
+      "scenario": "Trenger OWASP A03 referanse"
+    },
+    {
+      "prompt": "Sjekk Go-koden min for kryptografi-feil",
+      "scenario": "Trenger OWASP A02 referanse for Go"
+    }
+  ]
+}

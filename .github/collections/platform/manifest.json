@@ -16,6 +16,7 @@
     "readme-review",
     "rust-development",
     "security-review",
+    "security-owasp",
     "threat-model",
     "workstation-security",
     "nav-plan",
@@ -27,7 +28,6 @@
     "code-review",
     "deliberate-ai-use",
     "golang",
-    "security-owasp",
     "testing",
     "github-actions",
     "docker"

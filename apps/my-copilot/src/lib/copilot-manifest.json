@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-27T09:24:41.470Z",
+  "generatedAt": "2026-05-28T16:46:45.216Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -780,7 +780,7 @@
       "domain": "auth",
       "filePath": ".github/instructions/security-owasp.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/security-owasp.instructions.md",
-      "contentHash": "6d2de01195174566927e5eb71149deada4b6e4029f5b7195183dfef03a8f6c36",
+      "contentHash": "811658564b1be5ddfe4d403b37165c72ab63e1da707a7e57ae56d0de24775527",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fsecurity-owasp.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fsecurity-owasp.instructions.md",
       "applyTo": "**/*.{kt,go}",
@@ -1491,6 +1491,33 @@
         {
           "prompt": "Gjennomgå unsafe-koden min",
           "scenario": "Review av unsafe-kode"
+        }
+      ]
+    },
+    {
+      "id": "security-owasp",
+      "name": "security-owasp",
+      "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin og Go — injeksjon, tilgangskontroll, kryptografi og logging",
+      "type": "skill",
+      "domain": "auth",
+      "filePath": ".github/skills/security-owasp/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/security-owasp/SKILL.md",
+      "contentHash": "e18e549965fdbbf0fbda6a92ac2d5c35af1778c5f2cc1c94b297636f228d6526",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["security", "owasp", "kotlin", "go", "nais"],
+      "examples": [
+        {
+          "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endepunktene mine",
+          "scenario": "Trenger OWASP A01 referanse for Kotlin"
+        },
+        {
+          "prompt": "Hvordan unngår jeg SQL-injeksjon med Kotliquery?",
+          "scenario": "Trenger OWASP A03 referanse"
+        },
+        {
+          "prompt": "Sjekk Go-koden min for kryptografi-feil",
+          "scenario": "Trenger OWASP A02 referanse for Go"
         }
       ]
     },
