@@ -3,7 +3,7 @@ title: "Slik holder du token-forbruket nede"
 date: 2026-05-28
 author: starefossen
 category: praksis
-excerpt: "Praktiske verktøy og teknikker for å redusere token-forbruk i agentiske arbeidsflyter — fra RTK og Caveman til kontekstkomprimering og instruksjonsarkitektur."
+excerpt: "Praktiske verktøy og teknikker for å redusere token-forbruk i agentiske arbeidsflyter — fra native $terse-mode og RTK til kontekstkomprimering og smartere instruksjonsarkitektur."
 tags:
   - token-optimization
   - cost-optimization
@@ -15,171 +15,174 @@ tags:
   - owasp
 ---
 
-Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) blir token-forbruk direkte synlig på regningen. Den skjulte kostnadsdriveren er input-tokens: hver runde i en agentisk sesjon sender hele konteksten på nytt — systemprompt, instruksjonsfiler, åpne filer, samtalehistorikk. En enkelt flerstegs-sesjon i Copilot CLI kan bruke over 1 million input-tokens. [Vantage sin analyse](https://www.vantage.sh/blog/agentic-coding-costs) viser at kostnader varierer opptil 30x mellom kjøringer på samme oppgave.
+Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) blir token-forbruk direkte synlig på regningen. Den skjulte kostnadsdriveren er ofte input-tokens: hver runde i en agentisk sesjon sender hele konteksten på nytt — systemprompt, instruksjonsfiler, åpne filer og samtalehistorikk. En enkelt flerstegs-sesjon i Copilot CLI kan bruke over 1 million input-tokens. [Vantage sin analyse](https://www.vantage.sh/blog/agentic-coding-costs) viser at kostnader varierer opptil 30x mellom kjøringer på samme oppgave.
 
-Her er verktøy og teknikker som fungerer med GitHub Copilot-økosystemet.
+Nytt funn fra forskningen gjør dette ekstra interessant: en [2026-studie på arXiv](https://arxiv.org/abs/2604.00025) fant at store modeller ble **26 prosentpoeng mer treffsikre** på enkelte resonneringsoppgaver når de ble tvunget til å svare kort. For mye forklaring gir flere feil. Terse betyr derfor ikke nødvendigvis dårligere svar.
+
+Her er verktøy og teknikker som fungerer med GitHub Copilot-økosystemet i dag.
 
 ## Konkrete tall fra dette repoet
 
-I dag flyttet vi `security-owasp.instructions.md` (21 KB) fra alltid-aktiv instruks til en on-demand skill. Før ble OWASP-referansen lastet ved hver Go- og Kotlin-redigering, også når oppgaven ikke handlet om sikkerhet. Nå ligger bare en kort instruksjonsstub igjen med kritiske regler og peker til skillen.
+Vi flyttet `security-owasp.instructions.md` fra alltid-aktiv instruks til en on-demand skill. Før ble OWASP-referansen lastet ved hver Go- og Kotlin-redigering, også når oppgaven ikke handlet om sikkerhet. Nå ligger bare en kort instruksjonsstub igjen med kritiske regler og peker til skillen.
 
 | Måling | Før | Etter | Endring |
-|--------|-----|-------|---------|
+| ------ | --- | ----- | ------- |
 | `security-owasp` per redigering | 21 KB | ~1 KB stub | −95 % |
 | Go-kontekst | 42 KB | 22 KB | −20 KB |
 | Kotlin-kontekst | 54 KB | 34 KB | −20 KB |
 
-Det viktigste poenget er ikke bare færre tokens. Vi fikk også en tydeligere deling mellom regler som alltid gjelder og referansemateriale som bare trengs av og til.
+Dette er fortsatt det mest lønnsomme grepet vi har gjort: flytt referansemateriale ut av hot path. Instruksjonsfiler er i hovedsak maskinlest innmat. Det betyr at vi trygt kan komprimere dem hardere enn vi ville gjort med menneskevennlig dokumentasjon, så lenge reglene fortsatt er presise.
 
 ## Verktøy
 
-### RTK — Rust Token Killer
+### `$terse-mode` — native tershet i nav-pilot
 
-[RTK](https://github.com/rtk-ai/rtk) er et praktisk verktøy for Nav-team som bruker agenter i terminalen. Det er en Apache 2.0-lisensiert Rust-binær med 55k+ GitHub-stjerner, og det komprimerer kommandoutput før den når LLM-konteksten.
+Den viktigste nyheten er at nav-pilot nå har en innebygd [`$terse-mode`](https://github.com/navikt/copilot/blob/main/.github/skills/terse-mode/SKILL.md)-skill. Du trenger ikke installere noe. Skriv bare `$terse-mode` i en Copilot-sesjon.
+
+Den bygger på de samme idéene som Caveman, men er skrevet for norsk arbeidsflyt og følger nav-pilot-konvensjonene våre:
+
+- **lett** — korte, profesjonelle svar med hele setninger
+- **normal** — fragmenter og mindre fyllord. God standard for hverdagsarbeid
+- **ultra** — telegrafisk stil for raske iterasjoner
+
+Det viktigste er ikke bare at svarene blir kortere. Skillen har en eksplisitt vedvaringsregel som hindrer modellen i å drive tilbake til lange svar etter noen runder. Den har også **auto-klarhet**: ved sikkerhetsvarsler, destruktive operasjoner eller tvetydige steg bytter den automatisk tilbake til full prosa.
+
+Praktisk bruk:
+
+```text
+$terse-mode
+Aktiver terse-mode ultra
+Stopp terse
+```
+
+Dette er førstevalget vårt for output-komprimering i Nav-miljøet: native, norsk, ingen tredjepartsavhengighet.
+
+### RTK — komprimerer verktøyutdata
+
+[RTK](https://github.com/rtk-ai/rtk) (55k+ stjerner) er et praktisk verktøy for team som bruker agenter i terminalen. Det komprimerer kommandoutput før den når LLM-konteksten. Det treffer et annet problem enn `$terse-mode`: ikke agentens prosa, men verktøyutdata.
 
 **Konkret besparelse i en 30-minutters sesjon:**
 
 | Operasjon | Uten RTK | Med RTK | Besparelse |
-|-----------|----------|---------|------------|
+| --------- | -------- | ------- | ---------- |
 | `cat` / `read` (20x) | 40 000 | 12 000 | −70 % |
 | `cargo test` / `npm test` (5x) | 25 000 | 2 500 | −90 % |
 | `git diff` (5x) | 10 000 | 2 500 | −75 % |
 | **Totalt** | **~118 000** | **~24 000** | **−80 %** |
 
-Installer med én kommando: `brew install rtk`. For Copilot CLI bruker du `rtk init -g --copilot`, som setter opp en `PreToolUse`-hook. Det fungerer godt med `kubectl`, `git`, `go test` og `cargo test`, altså kommandoer mange av oss bruker i NAIS-arbeidsflyter.
+Installer med én kommando: `brew install rtk`. For Copilot CLI bruker du `rtk init -g --copilot`, som setter opp en `PreToolUse`-hook. Det fungerer godt med `kubectl`, `git`, `go test` og `cargo test`, altså kommandoer mange av oss bruker i Nais-arbeidsflyter.
 
-RTK jobber på et annet lag enn egne repo-tiltak som `nav-pilot` og instruksjonsopprydding. RTK komprimerer verktøyutdata. Repo-arbeidet vårt kutter alltid-lastet kontekst. Du får best effekt når du gjør begge deler.
+RTK og `$terse-mode` er komplementære: RTK kutter verktøyutdata, `$terse-mode` kutter agentprosa.
 
-### Caveman — output-token-komprimering
+### Caveman — ekstern output-komprimering
 
-[Caveman](https://github.com/JuliusBrussee/caveman) (54k+ ⭐, MIT) er en skill/plugin som instruerer agenten til å svare kort og konsist — dropper fyllord, beholder teknisk nøyaktighet. Gjennomsnittlig **65 % reduksjon i output-tokens** (benchmarked).
+[Caveman](https://github.com/JuliusBrussee/caveman) (54k+ stjerner) er fortsatt relevant. Det er et populært oppsett for output-komprimering og fungerer også med Copilot. Forskjellen nå er at du ikke trenger Caveman for å få samme stilgrep i nav-pilot.
 
-**Installasjon for Copilot:**
-```bash
-npx -y github:JuliusBrussee/caveman -- --only copilot --with-init
-```
+**Når Caveman fortsatt er nyttig:**
 
-**Vurdering for Nav-team:**
-- ✅ Fungerer med Copilot — legger en instruksjon i `.github/copilot-instructions.md`
-- ⚠️ Konflikter med nav-pilot sin eksisterende `copilot-instructions.md` — krever manuell koordinering
-- 🟡 `caveman-compress` kan omskrive instruksjonsfiler til kortere form (~46 % besparelse), men gjør filene vanskeligere å vedlikeholde for mennesker
-- 🟡 Kun output-tokens — input/kontekst påvirkes ikke (med unntak av `caveman-compress`)
+- du vil ha samme terse-stil på tvers av flere assistenter utenfor nav-pilot
+- du vil eksperimentere med `caveman-compress` for å korte ned instruksjonsfiler
+- du eier repoets `copilot-instructions.md` og vil la et eksternt verktøy skrive dit
 
-**Anbefaling:** Individuelt valg for utviklere som ønsker tersere svar. Ikke noe nav-pilot bør aktivere for alle — det endrer kommunikasjonsstilen. Bruk heller RTK for lavrisiko besparelser, og vurder Caveman som et personlig tillegg.
+For Nav-team er anbefalingen enklere enn før: start med `$terse-mode`. Vurder Caveman hvis du trenger et agent-uavhengig oppsett.
 
-> **Forskningstips:** En [2026-studie](https://arxiv.org/abs/2604.00025) fant at krav om korte svar faktisk **forbedret nøyaktigheten med 26 poeng** på visse benchmarks. Kort ≠ dårligere.
+### TOON — mindre tokens for strukturerte data
 
-### TOON — Token-Oriented Object Notation
-
-[TOON](https://toonformat.dev/) ([spec](https://github.com/toon-format/spec)) er et serialiseringsformat designet for LLM-kontekster. Det koder JSON-datamodellen med 30–60 % færre tokens, uten tap av informasjon.
+[TOON](https://toonformat.dev/) ([spec](https://github.com/toon-format/spec)) er et serialiseringsformat designet for LLM-kontekster. Det koder JSON-lignende data med 30–60 % færre tokens, uten tap av informasjon.
 
 **Eksempel:**
+
 ```json
 { "users": [{ "id": 1, "name": "Ada" }, { "id": 2, "name": "Linus" }] }
 ```
-```
+
+```text
 users[2]{id,name}:
   1,Ada
   2,Linus
 ```
 
-Potensielt nyttig for MCP-servere som returnerer strukturerte data. Implementasjoner finnes for TypeScript, Python, Go og Rust. Vi har [notert dette for videre testing](https://github.com/navikt/copilot/issues/258) med Copilot-arbeidsflyter.
+Dette er mest relevant for MCP-servere og verktøy som sender mye strukturert data. Hvis du eier formatet selv, er TOON ofte et bedre grep enn å be modellen være «kort».
 
 ### Copilot Memory — innebygd kontekstbevaring
 
-GitHub Copilot har [innebygd memory](/nyheter/copilot-memory) som lagrer fakta og preferanser på tvers av sesjoner. Dette er den enkleste formen for kontekstbevaring — det krever ingen oppsett og fungerer automatisk i VS Code og Copilot CLI.
+GitHub Copilot har [innebygd memory](/nyheter/copilot-memory) som lagrer fakta og preferanser på tvers av sesjoner. For lengre økter bruker Copilot CLI også checkpointing, som komprimerer eldre kontekst når vinduet fylles opp.
 
-For lengre sesjoner bruker Copilot CLI automatisk checkpointing: den oppsummerer konteksten ved jevne intervaller slik at sesjonen kan fortsette uten å miste tråden.
+Det løser ikke alt, men det reduserer behovet for å gjenta samme bakgrunnsinformasjon i hver nye sesjon.
 
 ## Teknikker
 
-### 1. Kontekstkomprimering (innebygd i Copilot CLI)
+### 1. Avklaring før implementering
 
-Copilot CLI har innebygd kontekstkomprimering som trigges automatisk når kontekstvinduet fylles opp. Den oppsummerer eldre kontekst til en kompakt form via checkpointing. Besparelse: 65–90 % per syklus.
+En stor del av token-sløsing kommer ikke fra lange svar, men fra lange misforståelser. Matt Pocock sitt [skills-repo](https://github.com/mattpocock/skills) har passert 109k stjerner og populariserte **grill**-mønsteret: la agenten kjøre et sokratisk, nesten adversarialt intervju før implementering starter.
 
-Tips: Strukturer arbeidet med tydelige overskrifter og eksplisitte tilstandsrapporter — dette overlever komprimering bedre enn implisitt kontekst.
+Poenget er enkelt: bruk noen få presise spørsmål først, så slipper du ti runder med «mente du A eller B?». I vårt økosystem dekker [`$nav-deep-interview`](https://github.com/navikt/copilot/blob/main/.github/skills/nav-deep-interview/SKILL.md) mye av det samme behovet. Den avdekker blindsoner rundt personvern, auth, avhengigheter og observerbarhet før koden skrives.
 
-### 2. Dynamiske verktøysett (MCP)
+Hvis oppgaven er uklar, er dette ofte den billigste token-optimaliseringen du kan gjøre.
 
-[Speakeasy rapporterer 100x reduksjon](https://www.speakeasy.com/blog/how-we-reduced-token-usage-by-100x-dynamic-toolsets-v2) ved å gå fra å laste alle verktøyskjemaer på forhånd til et søk → beskriv → utfør-mønster. 400 verktøy gikk fra 410 000 tokens til 8 000–31 000.
+### 2. Kontekstkomprimering i Copilot CLI
 
-Relevant for team som bruker mange MCP-servere: bruk [Atlassian mcp-compressor](https://github.com/atlassian/mcp-compressor) for skjemakomprimering (44–97 % reduksjon) eller implementer progressiv avsløring i egne servere.
+Copilot CLI har innebygd kontekstkomprimering som trigges automatisk når kontekstvinduet fylles opp. Den oppsummerer eldre kontekst via checkpointing. Besparelsen er stor, men du får best effekt hvis samtalen er strukturert.
 
-### 3. Instruksjonsarkitektur (Copilot-spesifikk)
+Tips: bruk tydelige overskrifter, eksplisitte tilstandsrapporter og korte beslutningsnotater underveis. Slike signaler overlever komprimering bedre enn løs prat.
 
-Flytt sjelden brukt innhold fra alltid-aktive instruksjonsfiler (`.github/instructions/`) til **on-demand skills** (`.github/skills/`) som bare lastes ved behov. Instruksjonsfiler med `applyTo: "**"` lastes ved *hver* interaksjon. Filer med filtype-spesifikke patterns lastes ved redigering av matchende filer.
+### 3. Instruksjonsarkitektur
+
+Her ligger de største input-gevinstene i repo vi kontrollerer selv.
+
+Det viktigste feltet i en Copilot-instruksjon er ofte ikke teksten, men `applyTo`-globen. Den er Copilot sitt sterkeste lazy-loading-grep. En fil med `applyTo: "**"` er alltid på. En fil med et smalt mønster lastes bare når den faktisk trengs.
+
+Det vi ser nå, er et tydelig mønster:
+
+- **Komprimer maskininnhold hardt.** Instruksjonsfiler leses primært av modellen, ikke av mennesker
+- **Hold stabile filer stabile.** Prompt caching treffer best når de sjelden endres og starter med det samme innholdet hver gang
+- **Bruk konkrete dropp-lister.** Ord som «dropp artikler, høflighetsfraser og hedging» virker bedre enn vage instrukser som «vær kort»
+- **Flytt oppslagsverk til skills.** Det ga oss 42 KB → 22 KB i Go-kontekst og 54 KB → 34 KB i Kotlin-kontekst
 
 Faustregel: Hvis en instruks bare er relevant for 10 % av oppgavene, hører den hjemme i en skill.
 
-#### Slik skriver du effektive instruksjoner og skills
+### 4. Dynamiske verktøysett i MCP
 
-- **Hold instruksjoner lean.** Ta bare med regler som faktisk gjelder per redigering: sjekklister, kritiske regler og korte påpekninger.
-- **Flytt referansemateriale til skills.** Kodeeksempler, utdypinger, matriser og lange forklaringer hører hjemme i innhold som lastes på forespørsel.
-- **Følg skill-lint-regelen.** Hold `SKILL.md` under 500 linjer. Del opp i `SKILL.md` + referansefiler som `examples.md` når innholdet blir stort.
-- **Bruk en fast struktur.** Instruksjonsstub med kritiske regler og peker til skill → skill med konsise mønstre → `examples.md` med full referanse.
+[Speakeasy rapporterer 100x reduksjon](https://www.speakeasy.com/blog/how-we-reduced-token-usage-by-100x-dynamic-toolsets-v2) ved å gå fra å laste alle verktøyskjemaer på forhånd til et søk → beskriv → utfør-mønster. 400 verktøy gikk fra 410 000 tokens til 8 000–31 000.
 
-Det var akkurat dette vi gjorde med OWASP-innholdet: en kort sikkerhetsinstruks ble stående igjen, mens detaljene flyttet til `security-owasp`-skillen og egne eksempelfiler.
+Relevant for team som bruker mange MCP-servere: bruk [Atlassian mcp-compressor](https://github.com/atlassian/mcp-compressor) for skjemakomprimering eller implementer progressiv avsløring i egne servere.
 
-#### OWASP Top 10:2025 bør ligge i skillen, ikke i hot path
+### 5. Output-kontroll med eksplisitte regler
 
-OWASP-listen for 2025 gjør dette enda tydeligere. Den inneholder både nye kategorier og flyttede temaer:
+Ikke skriv bare «be concise». Det er for vagt. Gi modellen konkrete stilregler eller bruk en skill som allerede gjør det.
 
-- **A03: Software Supply Chain Failures** erstatter «Vulnerable Components»
-- **A10: Mishandling of Exceptional Conditions** er ny
-- **SSRF** er slått sammen inn i **A01: Broken Access Control**
-- **Security Misconfiguration** er flyttet til **A02**
+Tre nivåer som fungerer i praksis:
 
-Denne typen oversikter endrer seg. Derfor bør du legge den fulle referansen i en skill som er enkel å oppdatere, mens instruksjonsfila bare minner om de viktigste reglene som alltid gjelder.
+- **lett** for vanlig samarbeid og PR-gjennomgang
+- **normal** for daglig terminalarbeid
+- **ultra** for raske iterasjoner når du kjenner domenet godt
 
-#### Instruksjon → skill er et mønster du kan kopiere
+Det er akkurat derfor `$terse-mode` fungerer bedre enn en løs énlinjer i prompten: den spesifiserer hva som skal bort, når full prosa må tilbake og at stilen skal vedvare.
 
-Dette er ikke bare et grep for sikkerhetsfiler. Det er et generelt mønster for alle repo med mye kontekst:
+### 6. Modell-routing
 
-1. **Mål hvilke instruksjonsfiler som alltid lastes.** Start med de største filene.
-2. **Skill mellom regler og oppslagsverk.** Regler blir i instruksjonen, oppslagsverket flyttes ut.
-3. **Lag en liten stub.** Behold 5–10 kritiske regler og en tydelig peker til riktig skill.
-4. **Samle eksempler i egne filer.** Da holder du `SKILL.md` kort uten å miste nytteverdien.
-5. **Mål på nytt etter flytting.** Se på faktisk kontekststørrelse per interaksjon, ikke bare filstørrelse.
+Bruk billige og raske modeller for enkle oppgaver som klassifisering, filsøk og formatering. Reserver frontier-modeller for kompleks resonnering. Copilot CLI gjør dette allerede med explore-agenter på Haiku.
 
-For team som jobber mye i Go, Kotlin, TypeScript eller YAML er dette ofte den enkleste måten å kutte tokens uten å ofre kvalitet.
+### 7. Filtrer verktøyresponsene
 
-#### Praktisk anbefaling for Nav-team
+Returner bare feltene du trenger fra MCP-verktøy. Ikke dump hele objekter hvis brukeren bare trenger `name`, `id` og `status`.
 
-Hvis du bare skal prøve ett eksternt verktøy, start med RTK. Det er enkelt å installere, lett å teste i egen terminal og treffer kommandoene vi bruker mest i Nav: `kubectl`, `git`, `go test` og `cargo test`.
-
-Anbefalt oppsett:
-
-1. `brew install rtk`
-2. `rtk init -g --copilot`
-3. Kjør en vanlig arbeidsøkt og sammenlign output før og etter
-
-RTK er et godt første grep fordi det ikke krever at du skriver om instruksjoner eller skills. Samtidig erstatter det ikke repo-opprydding. Bruk RTK for kommandoutput, og bruk instruksjon → skill-mønsteret for å kutte statisk kontekst.
-
-### 4. Output-kontroll
-
-Sett `"Code only, no explanation"` eller tilsvarende i agentinstruksjoner. Output-tokens koster 2–5x mer enn input. Besparelse: 40–70 %.
-
-### 5. Modell-routing
-
-Bruk billige og raske modeller (Haiku, GPT-5-mini) for enkle oppgaver som klassifisering, filsøk og formatering. Reserver frontier-modeller for kompleks resonnering. Copilot CLI gjør dette allerede med explore-agenter på Haiku.
-
-### 6. Verktøyutdata-filtrering
-
-Returner bare nødvendige felter fra MCP-verktøy. Aldri dump hele objekter. [MindStudio dokumenterer 80–98 % reduksjon](https://www.mindstudio.ai/blog/reduce-token-usage-ai-agents-mcp-optimization) bare ved å begrense responsstørrelse.
+Hvis du kontrollerer output-formatet, har du ofte mer å hente på responsfiltrering eller TOON enn på å be modellen oppsummere dataene etterpå.
 
 ## Hva du kan gjøre i dag
 
-1. **Installer RTK** (`brew install rtk && rtk init -g --copilot`) — umiddelbar besparelse på kommandoutput
-2. **Mål instruksjonskonteksten din** — finn filer som lastes ofte og er større enn de trenger å være
-3. **Flytt oppslagsverk til skills** — behold bare kritiske regler i instruksjonsfila
-4. **Sett skill-tak på 500 linjer** — del store skills i `SKILL.md` og referansefiler
-5. **Oppdater sikkerhetsreferanser i skillen** når OWASP, NIST eller interne standarder endrer seg
-6. **Be om terse output og bruk riktig modell** — ikke bruk dyr modell til enkle oppgaver
+1. **Slå på `$terse-mode`** i neste Copilot-sesjon. Start med `lett`, bytt til `ultra` når du vil ha høy fart
+2. **Installer RTK** med `brew install rtk && rtk init -g --copilot`
+3. **Bruk `$nav-deep-interview`** før større endringer. Færre misforståelser gir kortere sesjoner
+4. **Se på `applyTo`-mønstrene dine** og finn instruksjoner som lastes oftere enn de burde
+5. **Flytt referansestoff til skills** og behold bare kritiske regler i instruksjonsfila
+6. **Gjør instruksjoner mer konkrete** med dropp-lister og korte, stabile regler i toppen av filen
+7. **Komprimer strukturerte data** med TOON eller smalere responser fra MCP-verktøy
 
 ## Videre lesing
 
-- [GitHub: Improving Token Efficiency in Agentic Workflows](https://github.blog/ai-and-ml/github-copilot/improving-token-efficiency-in-github-agentic-workflows/) — GitHubs egen tilnærming
+- [GitHub: Improving Token Efficiency in Agentic Workflows](https://github.blog/ai-and-ml/github-copilot/improving-token-efficiency-in-github-agentic-workflows/) — GitHub sin egen tilnærming
+- [arXiv: Brief is better?](https://arxiv.org/abs/2604.00025) — studie om hvorfor korte svar kan gi bedre nøyaktighet
+- [Matt Pocock: skills](https://github.com/mattpocock/skills) — grill-mønster, TDD og andre agent-skills
 - [awesome-llm-token-optimization](https://github.com/pleasedodisturb/awesome-llm-token-optimization) — kuratert samling
-- [Morph: 7 Context Compression Methods Compared](https://www.morphllm.com/context-compression) — benchmark av metoder
-- [SEP-1576: Mitigating Token Bloat in MCP](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1576) — spesifikasjonsforslag
 - [Vantage: Hidden Cost Driver in Agentic Coding](https://www.vantage.sh/blog/agentic-coding-costs) — kostnadsanalyse
