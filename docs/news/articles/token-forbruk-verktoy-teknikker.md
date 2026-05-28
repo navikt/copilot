@@ -50,11 +50,24 @@ Installer med én kommando: `brew install rtk`. For Copilot CLI bruker du `rtk i
 
 RTK jobber på et annet lag enn egne repo-tiltak som `nav-pilot` og instruksjonsopprydding. RTK komprimerer verktøyutdata. Repo-arbeidet vårt kutter alltid-lastet kontekst. Du får best effekt når du gjør begge deler.
 
-### Caveman — idé, ikke verifisert verktøy
+### Caveman — output-token-komprimering
 
-Tidligere pekte vi til «Caveman» som et offentlig verktøy for semantisk komprimering. Det ser ikke ut til å finnes som et verifiserbart, offentlig verktøy. Behold derfor dette som en idé, ikke som en anbefalt installasjon.
+[Caveman](https://github.com/JuliusBrussee/caveman) (54k+ ⭐, MIT) er en skill/plugin som instruerer agenten til å svare kort og konsist — dropper fyllord, beholder teknisk nøyaktighet. Gjennomsnittlig **65 % reduksjon i output-tokens** (benchmarked).
 
-Poenget står fortsatt: korte, tette instruksjoner gir ofte bedre signal enn lange tekster med mye fyll. Men i praksis er RTK, bedre instruksjonsarkitektur og mindre MCP-responser tryggere tiltak å starte med.
+**Installasjon for Copilot:**
+```bash
+npx -y github:JuliusBrussee/caveman -- --only copilot --with-init
+```
+
+**Vurdering for Nav-team:**
+- ✅ Fungerer med Copilot — legger en instruksjon i `.github/copilot-instructions.md`
+- ⚠️ Konflikter med nav-pilot sin eksisterende `copilot-instructions.md` — krever manuell koordinering
+- 🟡 `caveman-compress` kan omskrive instruksjonsfiler til kortere form (~46 % besparelse), men gjør filene vanskeligere å vedlikeholde for mennesker
+- 🟡 Kun output-tokens — input/kontekst påvirkes ikke (med unntak av `caveman-compress`)
+
+**Anbefaling:** Individuelt valg for utviklere som ønsker tersere svar. Ikke noe nav-pilot bør aktivere for alle — det endrer kommunikasjonsstilen. Bruk heller RTK for lavrisiko besparelser, og vurder Caveman som et personlig tillegg.
+
+> **Forskningstips:** En [2026-studie](https://arxiv.org/abs/2604.00025) fant at krav om korte svar faktisk **forbedret nøyaktigheten med 26 poeng** på visse benchmarks. Kort ≠ dårligere.
 
 ### TOON — Token-Oriented Object Notation
 
