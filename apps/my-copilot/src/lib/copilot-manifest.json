@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-28T18:38:25.305Z",
+  "generatedAt": "2026-05-28T18:54:42.909Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -344,7 +344,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot.agent.md",
-      "contentHash": "e50baf495f28613f5beb56b94071a4635698e07523798379386085981c84f023",
+      "contentHash": "4edd2bf17bbc723b4c77c672a348b8449dbbea89394a5ba86867942ad5c5c3aa",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -1591,7 +1591,7 @@
       "domain": "general",
       "filePath": ".github/skills/terse-mode/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md",
-      "contentHash": "09f297d619a4885c6b4a41b3c3ca4755264570fe81d6bcc9f6a23c967e556881",
+      "contentHash": "1ec174b9877c029d682829904f6629bf0fcc66deba7d411c984fa3f977325c3e",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["token-optimization", "output", "conciseness", "communication-style"],

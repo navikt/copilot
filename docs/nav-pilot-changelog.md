@@ -22,6 +22,80 @@ Tilgjengelig i alle 5 samlinger (kotlin-backend, frontend, nextjs-frontend, full
 
 Oppdatert sikkerhetsskill med OWASP Top 10 2025, utvidet fra kun Go/Kotlin til også Java og Node.js/Next.js. Flyttet fra always-on instruksjon (21 KB per interaksjon) til on-demand skill.
 
+### nav-pilot oppførsel — kortere svar og smartere kontekst
+
+- **Concise by default**: nav-pilot gir nå korte, handlingsrettede svar som standard. Si «forklar» for detaljer.
+- **Infer-and-confirm**: Infererer kontekst fra repo-filer i stedet for å stille mange spørsmål. Stiller maks 2–3 spørsmål ved store/uklare oppgaver.
+- **Skill-routing**: Anvender automatisk riktig Nav-kunnskap (auth, Nais, Kafka, sikkerhet) basert på kontekst — brukeren trenger ikke huske skill-navn.
+
+---
+
+## 2026-05-19
+
+### Agenter vs skills — deprecation og erstatning
+
+Deprecerte 5 agenter som manglet verktøytilgang (ga kun råd, kunne ikke gjøre endringer). Erstattet med tilsvarende skills som fungerer som kunnskapspakker inne i agenter som *har* verktøy.
+
+Refs: #255
+
+### Bevisst AI-bruk — kompetansebevaringsrammeverk
+
+Ny instruksjon (`deliberate-ai-use.instructions.md`) basert på Anthropic-, MIT- og Nav-forskning. Klassifiserer oppgaver i grønn sone (AI-egnet) og rød sone (lær manuelt først). Inkluderer «generer-så-forstå»-mønster.
+
+Refs: #187
+
+---
+
+## 2026-05-14
+
+### `nav-pilot init` — scaffold repo-lokal Copilot-konfig
+
+Ny kommando som genererer `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` tilpasset repoet ditt.
+
+### Code review-instruksjoner
+
+Ny `code-review.instructions.md` som gir Copilot Code Review kontekst om Nav-konvensjoner (sikkerhet, Nais, auth, infrastruktur).
+
+---
+
+## 2026-05-07
+
+### nav-pilot CLI forenklet til 4 kommandoer
+
+Breaking change: CLI-en ble forenklet fra mange subcommands til `install`, `update`, `init` og `ignore`. Synk skjer nå automatisk ved install/update.
+
+### `--sync`-flagg og default all-scopes
+
+`nav-pilot install` synkroniserer nå alle scopes (agents, skills, instructions, prompts) som standard. Bruk `--sync=false` for å hoppe over.
+
+---
+
+## 2026-04-28
+
+### `$readme-review` skill
+
+Ny skill for strukturell gjennomgang og generering av README-er tilpasset prosjekttype (tjeneste, bibliotek, monorepo, naisjob).
+
+### Norsk tekstkvalitets-instruksjon
+
+Ny `norwegian-text.instructions.md` som aktiveres for alle `.md`-filer. Sikrer klart språk, riktige fagtermer og konsistent norsk.
+
+### AI Credits-kalkulator
+
+Ny side på ki-utvikling.nav.no som estimerer månedlig Copilot-kostnad basert på modellvalg og bruksmønster.
+
+---
+
+## 2026-04-22
+
+### `nav-pilot ignore` — undertrykk påminnelser
+
+Ny kommando for å undertrykke «nye elementer tilgjengelig»-påminnelser for spesifikke filer eller scopes.
+
+### `/fleet` og Git worktrees-artikkel
+
+Dokumentasjon om hvordan bruke Copilot `/fleet` med Git worktrees for parallell utvikling.
+
 ---
 
 ## 2026-04-20

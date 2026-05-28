@@ -52,6 +52,7 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "installasjon", label: "Installasjon (5 min)" },
       { id: "personlig-installasjon", label: "Personlig installasjon (valgfritt)" },
       { id: "første-kommandoer", label: "Første kommandoer" },
+      { id: "vanlige-oppgaver", label: "Vanlige oppgaver" },
     ],
   },
   {
@@ -719,6 +720,53 @@ nav-pilot`}
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Common tasks — job-oriented view */}
+        <div id="vanlige-oppgaver">
+          <LinkableHeading size="small" level="3">
+            Vanlige oppgaver
+          </LinkableHeading>
+          <BodyLong className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Du trenger ikke huske skill-navn. Bare beskriv oppgaven — nav-pilot bruker riktig kunnskap automatisk. Her
+            er eksempler:
+          </BodyLong>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                    Oppgave
+                  </th>
+                  <th className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                    Eksempel-prompt
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { task: "Bygge ny tjeneste", prompt: "Jeg trenger en ny tjeneste for dagpenger" },
+                  { task: "Legge til autentisering", prompt: "Legg til TokenX-validering i API-et" },
+                  { task: "Debugge deploy", prompt: "Poden min krasjer i dev, hjelp meg feilsøke" },
+                  { task: "Gjennomgå før PR", prompt: "Gjør en sikkerhetsgjennomgang av disse endringene" },
+                  { task: "Sette opp Kafka", prompt: "Vi trenger en Kafka-consumer for vedtakshendelser" },
+                  { task: "Legge til observerbarhet", prompt: "Sett opp metrikker og tracing for tjenesten" },
+                  { task: "Migrere Java → Kotlin", prompt: "Hjelp meg migrere denne klassen til Kotlin" },
+                  { task: "Få kortere svar", prompt: "$terse-mode" },
+                  { task: "Planlegge arkitektur", prompt: "Planlegg arkitekturen for nytt saksbehandlersystem" },
+                ].map((row) => (
+                  <tr key={row.task} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <td className="py-2 pr-4 font-medium" style={{ color: "#1e293b" }}>
+                      {row.task}
+                    </td>
+                    <td className="py-2 pr-4" style={{ color: "#475569", fontStyle: "italic" }}>
+                      «{row.prompt}»
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </VStack>
