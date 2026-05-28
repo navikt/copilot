@@ -122,6 +122,20 @@ nav-pilot
 
 Starter interaktiv modus — sjekker oppdateringer og tilbyr å starte Copilot med valgt agent.
 
+### Tips: Bruk skills for spesialisert hjelp
+
+Skills er on-demand kunnskapspakker du aktiverer med `$skill-navn`:
+
+| Skill | Hva den gjør |
+|-------|-------------|
+| `$terse-mode` | Kompakt output — sparer ~65 % output-tokens |
+| `$security-owasp` | OWASP 2025-sjekk for Go, Kotlin, Java, Node.js |
+| `$nav-deep-interview` | Strukturert intervju før implementering |
+| `$api-design` | REST API-design med Nav-konvensjoner |
+| `$nais` | Deployment og plattformhjelp |
+
+Se alle tilgjengelige skills med `$help` eller på [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-pilot/docs).
+
 ## For bidragsytere
 
 ### Endre agenten

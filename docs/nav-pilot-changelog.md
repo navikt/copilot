@@ -4,6 +4,26 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ---
 
+## 2026-05-28
+
+### `$terse-mode` — native output-komprimering
+
+Ny skill som kutter output-tokens med ~65 % uten å miste teknisk substans. Inspirert av Caveman (54k ⭐) men native i nav-pilot — ingen tredjepartsavhengighet.
+
+- **Tre nivåer**: lett (profesjonell kort), normal (fragmenter), ultra (telegrafisk)
+- **Auto-clarity**: slår seg av for sikkerhetsvarsler og destruktive handlinger
+- **Persistens**: anti-drift-instruksjon hindrer modellen i å falle tilbake til verbose
+- **Norsk ordliste**: dropper fyllord som «Selvfølgelig», «La meg», «Absolutt»
+- Aktivér med `$terse-mode` i Copilot Chat
+
+Tilgjengelig i alle 5 samlinger (kotlin-backend, frontend, nextjs-frontend, fullstack, platform).
+
+### `$security-owasp` — OWASP 2025 med Java og Node.js
+
+Oppdatert sikkerhetsskill med OWASP Top 10 2025, utvidet fra kun Go/Kotlin til også Java og Node.js/Next.js. Flyttet fra always-on instruksjon (21 KB per interaksjon) til on-demand skill.
+
+---
+
 ## 2026-04-20
 
 ### Språkstrategi — engelsk for maskininstruksjoner, norsk for brukersynlig output

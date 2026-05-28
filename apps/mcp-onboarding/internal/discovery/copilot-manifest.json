@@ -955,6 +955,16 @@
     },
     {
       "type": "skill",
+      "name": "terse-mode",
+      "displayName": "terse-mode",
+      "description": "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet",
+      "filePath": ".github/skills/terse-mode/SKILL.md",
+      "contentHash": "09f297d619a4885c6b4a41b3c3ca4755264570fe81d6bcc9f6a23c967e556881",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md"
+    },
+    {
+      "type": "skill",
       "name": "threat-model",
       "displayName": "threat-model",
       "description": "STRIDE-A trusselmodellering for Nais-mikrotjenester — dataflyt, tillitsgrenser og risikovurdering",

@@ -22,7 +22,8 @@
     "nav-plan",
     "nav-deep-interview",
     "nav-architecture-review",
-    "nav-troubleshoot"
+    "nav-troubleshoot",
+    "terse-mode"
   ],
   "instructions": [
     "code-review",

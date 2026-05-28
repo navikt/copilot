@@ -19,7 +19,8 @@
     "nav-deep-interview",
     "nav-architecture-review",
     "nav-troubleshoot",
-    "security-owasp"
+    "security-owasp",
+    "terse-mode"
   ],
   "instructions": [
     "code-review",

@@ -41,6 +41,7 @@ nav-pilot install <skill-name>
 | **security-owasp** | OWASP Top 10:2025 kodenivå-mønstre for Kotlin, Go, Java og Node.js — tilgangskontroll, forsyningskjede, injeksjon og feilhåndtering | [`.github/skills/security-owasp/`](../.github/skills/security-owasp/SKILL.md) |
 | **security-review** | Bruk før commit, push eller pull request for å sjekke at koden er trygg å merge | [`.github/skills/security-review/`](../.github/skills/security-review/SKILL.md) |
 | **spring-boot-scaffold** | Scaffold et nytt Spring Boot Kotlin-prosjekt med Nais-konfigurasjon, Flyway og standard Nav-mønstre | [`.github/skills/spring-boot-scaffold/`](../.github/skills/spring-boot-scaffold/SKILL.md) |
+| **terse-mode** | > | [`.github/skills/terse-mode/`](../.github/skills/terse-mode/SKILL.md) |
 | **threat-model** | STRIDE-A trusselmodellering for Nais-mikrotjenester — dataflyt, tillitsgrenser og risikovurdering | [`.github/skills/threat-model/`](../.github/skills/threat-model/SKILL.md) |
 | **tokenx-auth** | Tjeneste-til-tjeneste-autentisering med TokenX token exchange i Nais | [`.github/skills/tokenx-auth/`](../.github/skills/tokenx-auth/SKILL.md) |
 | **web-design-reviewer** | Visuell inspeksjon av nettsider for å identifisere og fikse designproblemer. Trigges av forespørsler som "sjekk designet", "gå gjennom UI-en", "fiks layouten", "finn designfeil". Finner problemer med responsivt design, tilgjengelighet, visuell konsistens og layout, og fikser dem i kildekoden. | [`.github/skills/web-design-reviewer/`](../.github/skills/web-design-reviewer/SKILL.md) |

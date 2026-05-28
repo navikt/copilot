@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-28T18:01:48.939Z",
+  "generatedAt": "2026-05-28T18:38:25.305Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1580,6 +1580,37 @@
         {
           "scenario": "Prosjektstruktur",
           "prompt": "Generer prosjektstruktur for ny backend-tjeneste"
+        }
+      ]
+    },
+    {
+      "id": "terse-mode",
+      "name": "terse-mode",
+      "description": ">",
+      "type": "skill",
+      "domain": "general",
+      "filePath": ".github/skills/terse-mode/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md",
+      "contentHash": "09f297d619a4885c6b4a41b3c3ca4755264570fe81d6bcc9f6a23c967e556881",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["token-optimization", "output", "conciseness", "communication-style"],
+      "examples": [
+        {
+          "scenario": "Aktiver terse mode",
+          "prompt": "Bruk $terse-mode"
+        },
+        {
+          "scenario": "Ultra-kompakt",
+          "prompt": "Aktiver terse-mode ultra"
+        },
+        {
+          "scenario": "Tilbake til vanlig",
+          "prompt": "Stopp terse"
+        },
+        {
+          "scenario": "Kort forklaring",
+          "prompt": "Forklar connection pooling med $terse-mode"
         }
       ]
     },
