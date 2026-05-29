@@ -29,7 +29,7 @@ Du trenger ikke gjøre noe spesielt. Bare bruk `@nav-pilot` i stedet for standar
 
 ## Vil du ha enda kortere svar? Bruk `$terse-mode`
 
-Skriv `$terse-mode` i en Copilot-sesjon for å skru på ekstra kompakt stil. Tre nivåer:
+`$`-prefikset er Copilot sin måte å aktivere en [skill](https://code.visualstudio.com/docs/copilot/customization/agent-skills) — tenk på det som en kommando du skriver i chatten. Skriv `$terse-mode` for å skru på ekstra kompakt stil. Tre nivåer:
 
 | Nivå | Hva den gjør | Eksempel |
 | ---- | ------------ | -------- |
@@ -61,19 +61,21 @@ Den dyreste token-sløsingen er misforståelser. Fem runder med «mente du A ell
 
 Jo mer kontekst du gir i første melding, jo færre runder bruker du.
 
-### 2. Bruk `$nav-deep-interview` for store oppgaver
+### 2. For store oppgaver: la intervjuet gjøre jobben
 
-Før en større endring (ny tjeneste, stor refaktor): start med [`$nav-deep-interview`](https://github.com/navikt/copilot/blob/main/.github/skills/nav-deep-interview/SKILL.md). Den stiller presise spørsmål om personvern, auth og avhengigheter *før* koden skrives.
+`@nav-pilot` starter alltid med en intervjufase der den kartlegger blindsoner — personvern, auth, avhengigheter. For små oppgaver går dette raskt. For store oppgaver (ny tjeneste, stor refaktor) bruker den mer tid på å stille presise spørsmål.
+
+Hvis du vil ha et enda grundigere intervju, kan du be om det eksplisitt med `$nav-deep-interview`. Den kjører en strukturert gjennomgang med impactanalyse og dekker flere områder enn standardintervjuet.
 
 Fem minutter med avklaring slår en bortkastet sesjon.
 
 ### 3. Hold sesjoner fokuserte
 
-Copilot sender hele samtalehistorikken med hver melding. Jo lengre samtale, jo mer betaler du per svar. Én oppgave per sesjon holder kostnadene nede og gir bedre svar.
+Copilot bruker [prompt caching](/nyheter/model-pinning-kostnadsoptimalisering) — kontekst fra tidligere i sesjonen koster opptil 90 % mindre enn ny kontekst. Det betyr at du *ikke* trenger å starte ny sesjon bare for å spare penger. Men en fokusert sesjon gir bedre svar fordi modellen slipper å filtrere bort irrelevant historikk.
 
-- Start ny sesjon når du bytter oppgave
-- Skriv tydelig hva du vil ha i første melding
-- Unngå «kan du også...» etter at oppgaven er ferdig
+- Én oppgave per sesjon gir mer presise svar
+- Unngå «kan du også...» som tar sesjonen i helt ny retning
+- Lang, ufokusert historikk forvirrer — ikke bare koster
 
 ### 4. La `@nav-pilot` finne verktøyene
 
@@ -92,8 +94,8 @@ Du kan be om en spesifikk skill med `$skill-navn`, men for de fleste oppgaver kl
 | Bruk `@nav-pilot` | Alle | Skriv `@nav-pilot` foran spørsmålet — kompakte svar er standard |
 | `$terse-mode` | Deg som vil ha kortere svar | Skriv `$terse-mode` i starten av sesjonen |
 | Vær presis | Alle | Nevn språk, rammeverk og integrasjoner i første melding |
-| `$nav-deep-interview` | Nye tjenester, stor refaktor | Skriv `$nav-deep-interview` før du starter |
-| Ny sesjon per oppgave | Alle | Lukk gammel sesjon, start ny når du bytter fokus |
+| `$nav-deep-interview` | Nye tjenester, stor refaktor | Skriv `$nav-deep-interview` for grundigere avklaring |
+| Fokuserte sesjoner | Alle | Hold deg til én oppgave per sesjon — bedre svar |
 
 ---
 
