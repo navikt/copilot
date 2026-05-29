@@ -258,6 +258,50 @@ func TestComputeSkippedItems_EmptyManifest(t *testing.T) {
 	}
 }
 
+// ─── RelPathForName tests ───────────────────────────────────────────────────
+
+func TestRelPathForName_UserScope(t *testing.T) {
+	scope := &InstallScope{Name: "user", RootDir: t.TempDir(), PathPrefix: ""}
+
+	tests := []struct {
+		kind *ArtifactKind
+		name string
+		want string
+	}{
+		{KindAgent, "auth-agent", "agents/auth-agent.agent.md"},
+		{KindSkill, "kafka", "skills/kafka/"},
+		{KindInstruction, "golang", ".github/instructions/golang.instructions.md"},
+		{KindPrompt, "conventional-commit", "prompts/conventional-commit.prompt.md"},
+	}
+	for _, tt := range tests {
+		got := tt.kind.RelPathForName(scope, tt.name)
+		if got != tt.want {
+			t.Errorf("RelPathForName(%s, %q) = %q, want %q", tt.kind.Name, tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestRelPathForName_RepoScope(t *testing.T) {
+	scope := ScopeRepo(t.TempDir())
+
+	tests := []struct {
+		kind *ArtifactKind
+		name string
+		want string
+	}{
+		{KindAgent, "auth-agent", ".github/agents/auth-agent.agent.md"},
+		{KindSkill, "kafka", ".github/skills/kafka/"},
+		{KindInstruction, "golang", ".github/instructions/golang.instructions.md"},
+		{KindPrompt, "conventional-commit", ".github/prompts/conventional-commit.prompt.md"},
+	}
+	for _, tt := range tests {
+		got := tt.kind.RelPathForName(scope, tt.name)
+		if got != tt.want {
+			t.Errorf("RelPathForName(%s, %q) = %q, want %q", tt.kind.Name, tt.name, got, tt.want)
+		}
+	}
+}
+
 // ─── interactiveItemPicker guard test ───────────────────────────────────────
 
 func TestInteractiveItemPicker_NonInteractiveReturnsError(t *testing.T) {

@@ -342,11 +342,7 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 	var newItems []string
 	for _, kind := range []*ArtifactKind{KindAgent, KindSkill, KindInstruction} {
 		for _, art := range resolver.List(kind) {
-			fileName := art.FileName()
-			relPath := scope.RelPath(kind.Dir, fileName)
-			if art.IsDir {
-				relPath += "/"
-			}
+			relPath := kind.RelPathForName(scope, art.Name)
 			if !installed[relPath] {
 				newItems = append(newItems, kind.Name+": "+art.Name)
 			}

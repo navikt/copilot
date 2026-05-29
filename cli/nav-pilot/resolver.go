@@ -10,10 +10,10 @@ import (
 // ArtifactKind describes the filesystem shape of one artifact type.
 // Differences between types are captured here, not in code branches.
 type ArtifactKind struct {
-	Name     string   // singular: "agent", "skill", "instruction", "prompt"
-	Dir      string   // plural directory: "agents", "skills", "instructions", "prompts"
-	Suffix   string   // file extension: ".agent.md", ".instructions.md", ".prompt.md"
-	IsDir    bool     // always a directory (skills)
+	Name     string // singular: "agent", "skill", "instruction", "prompt"
+	Dir      string // plural directory: "agents", "skills", "instructions", "prompts"
+	Suffix   string // file extension: ".agent.md", ".instructions.md", ".prompt.md"
+	IsDir    bool   // always a directory (skills)
 	CanBeDir bool   // may be file or directory (prompts)
 	Marker   string // required file inside directory: "SKILL.md"
 }
@@ -52,6 +52,20 @@ func (r Resolved) FileName() string {
 		return r.Name
 	}
 	return r.Name + r.Kind.Suffix
+}
+
+// RelPathForName returns the state-file relative path for a named item in this scope.
+// Centralizes the name→path mapping used by picker defaults, skipped items, and sync.
+func (k *ArtifactKind) RelPathForName(scope *InstallScope, name string) string {
+	fileName := name + k.Suffix
+	if k.IsDir {
+		fileName = name
+	}
+	relPath := scope.RelPath(k.Dir, fileName)
+	if k.IsDir {
+		relPath += "/"
+	}
+	return relPath
 }
 
 // SourceResolver centralizes all source-repo path resolution.

@@ -313,14 +313,7 @@ func buildPickerDefaults(full *Manifest, existingState *StateFile, scope *Instal
 
 	// Helper: check if an item should be selected
 	isSelected := func(kind *ArtifactKind, name string) bool {
-		fileName := name + kind.Suffix
-		if kind.IsDir {
-			fileName = name
-		}
-		relPath := scope.RelPath(kind.Dir, fileName)
-		if kind.IsDir {
-			relPath += "/"
-		}
+		relPath := kind.RelPathForName(scope, name)
 		if ignoredSet[relPath] {
 			return false // explicitly ignored
 		}
@@ -443,16 +436,8 @@ func computeSkippedItems(full, selected *Manifest, scope *InstallScope) []Instal
 			if selectedSet[kind.Name+":"+name] {
 				continue
 			}
-			fileName := name + kind.Suffix
-			if kind.IsDir {
-				fileName = name
-			}
-			relPath := scope.RelPath(kind.Dir, fileName)
-			if kind.IsDir {
-				relPath += "/"
-			}
 			skipped = append(skipped, InstalledFile{
-				Path:   relPath,
+				Path:   kind.RelPathForName(scope, name),
 				Hash:   "",
 				Status: fileStatusIgnored,
 			})
@@ -528,9 +513,9 @@ func interactiveRepoInstall(src *Source, scope *InstallScope) error {
 		return nil
 	}
 
-	// Install
+	// Install using the already-resolved source (avoid redundant git clone)
 	fmt.Println()
-	if err := cmdInstall(selected, scope, "", "", false, false, false); err != nil {
+	if err := cmdInstallFromSource(selected, src, scope, false, false, false); err != nil {
 		return err
 	}
 
