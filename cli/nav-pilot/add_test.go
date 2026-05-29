@@ -596,6 +596,60 @@ func TestCmdInstall_DryRunNoSideEffects(t *testing.T) {
 	}
 }
 
+// TestInstallArtifact_ConflictStillTracked ensures that conflicted (skipped) files
+// are still recorded in state so future syncs can manage them.
+func TestInstallArtifact_ConflictStillTracked(t *testing.T) {
+	source := createFixtureSource(t)
+	target := t.TempDir()
+	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+
+	// First install (clean)
+	manifest, err := loadManifest(source, "test-collection")
+	if err != nil {
+		t.Fatalf("loadManifest: %v", err)
+	}
+	result, err := installItems(source, ScopeRepo(target), manifest, false, false)
+	if err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+	if result.Installed != 4 {
+		t.Fatalf("expected 4 installed, got %d", result.Installed)
+	}
+
+	// Modify one installed file to create a conflict
+	agentPath := filepath.Join(target, ".github/agents/test.agent.md")
+	os.WriteFile(agentPath, []byte("# Modified locally"), 0o644)
+
+	// Second install WITHOUT force — should report conflict but still track it
+	result2, err := installItems(source, ScopeRepo(target), manifest, false, false)
+	if err != nil {
+		t.Fatalf("second install: %v", err)
+	}
+	if result2.Conflicts != 1 {
+		t.Errorf("expected 1 conflict, got %d", result2.Conflicts)
+	}
+
+	// The conflicted file should still be in result.Files (tracked in state)
+	totalTracked := len(result2.Files)
+	if totalTracked != 4 {
+		t.Errorf("expected 4 files tracked in state (including conflict), got %d", totalTracked)
+	}
+
+	// Verify the conflicted agent is tracked with its current (modified) hash
+	found := false
+	for _, f := range result2.Files {
+		if strings.Contains(f.Path, "test.agent.md") {
+			found = true
+			if f.Hash == "" {
+				t.Error("conflicted file has empty hash in state")
+			}
+		}
+	}
+	if !found {
+		t.Error("conflicted agent file not found in state tracking")
+	}
+}
+
 // TestCmdStatus_Integrity tests status command reports correct integrity.
 func TestCmdStatus_Integrity(t *testing.T) {
 	source := createFixtureSource(t)
