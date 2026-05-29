@@ -21,7 +21,10 @@ function KalkulatorHeader() {
             Kalkulator
           </Heading>
           <BodyShort className="max-w-2xl opacity-80">
-            Estimer hva dagens bruk vil koste med den nye AI Credits-faktureringsmodellen fra 1. juni 2026.
+            Estimer hva dagens bruk vil koste med den nye AI Credits-faktureringsmodellen fra 1. juni 2026.{" "}
+            <a href="/priser" className="underline">
+              Se modellpriser →
+            </a>
           </BodyShort>
         </VStack>
       </Box>

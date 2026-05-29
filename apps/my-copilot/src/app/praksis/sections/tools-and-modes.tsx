@@ -2,6 +2,7 @@ import { Heading, BodyShort, Box, HGrid, Label } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
+import NextLink from "next/link";
 
 export default function ToolsAndModes() {
   return (
@@ -236,7 +237,10 @@ export default function ToolsAndModes() {
           <BodyShort size="small">
             <strong>Nytt kostnadsregime:</strong> GitHub går over til bruksbasert prising. Vi forventer omtrent 3×
             kostnadsøkning for organisasjonen. Bruk modellene bevisst — velg <strong>Auto</strong> eller inkluderte
-            modeller der det er tilstrekkelig.
+            modeller der det er tilstrekkelig.{" "}
+            <NextLink href="/priser" className="underline">
+              Se fullstendig pristabell →
+            </NextLink>
           </BodyShort>
         </Box>
         <BodyShort className="text-gray-600 text-sm mb-5">

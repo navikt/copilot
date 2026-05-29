@@ -32,6 +32,8 @@ Hver Business-bruker får 1 900 AI Credits per måned ($19). Credits pooler på 
 
 Med 600 brukere og et snitt på 10 kall per dag: Opus koster ca. $28/bruker/mnd — det er mer enn hele Business-kvoten på $19.
 
+> 📊 Se [fullstendig pristabell for alle modeller](/priser) — oppdateres automatisk fra GitHub docs.
+
 Med model-pinning styrer vi hvilken modell hver agent og prompt bruker, ut fra hva oppgaven krever. For de fleste oppgaver er Sonnet eller billigere modeller mer enn godt nok.
 
 ## Hva vi har gjort
