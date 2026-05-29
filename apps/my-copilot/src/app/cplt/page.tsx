@@ -705,7 +705,7 @@ function GuardsSection() {
             </p>
           </div>
 
-          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-start">
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-stretch">
             {/* gh guard */}
             <div
               className="rounded-xl overflow-hidden"
@@ -944,7 +944,7 @@ function TeamConfigSection() {
             </p>
           </div>
 
-          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-start">
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-stretch">
             {/* TOML example */}
             <div
               className="rounded-xl overflow-hidden"
@@ -1112,7 +1112,7 @@ function InitSection() {
             </p>
           </div>
 
-          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-start">
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-stretch">
             {/* Terminal mock */}
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
               <div
