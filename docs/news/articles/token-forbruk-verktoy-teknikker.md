@@ -29,7 +29,7 @@ Du trenger ikke gjøre noe spesielt. Bare bruk `@nav-pilot` i stedet for standar
 
 ## Vil du ha enda kortere svar? Bruk `$terse-mode`
 
-`$`-prefikset er Copilot sin måte å aktivere en [skill](https://code.visualstudio.com/docs/copilot/customization/agent-skills) — tenk på det som en kommando du skriver i chatten. Skriv `$terse-mode` for å skru på ekstra kompakt stil. Tre nivåer:
+`$`-prefikset er vår konvensjon for å markere skill-navn — det gjør det tydelig for både deg og agenten at du ber om en spesifikk [skill](https://code.visualstudio.com/docs/copilot/customization/agent-skills). Du kan også bare skrive navnet uten `$` (f.eks. «terse-mode» eller «bruk terse-mode»). Agenten gjenkjenner det uansett. Skriv `$terse-mode` for å skru på ekstra kompakt stil. Tre nivåer:
 
 | Nivå | Hva den gjør | Eksempel |
 | ---- | ------------ | -------- |
