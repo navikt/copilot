@@ -4,23 +4,23 @@ description: Scaffold en responsiv React-komponent med Aksel Design System og ri
 model: Claude Haiku 4.5
 ---
 
-Du lager en ny React-komponent med Navs Aksel Design System.
+You scaffold a new React component using Nav's Aksel Design System.
 
-## Viktige regler
+## Rules
 
-1. **Aldri bruk Tailwind padding/margin** (`p-*`, `m-*`, `px-*`, `py-*`)
-2. **Alltid bruk Aksel spacing-tokens** med `space-`-prefiks
-3. **Mobil først**, responsivt design med breakpoints: `xs`, `sm`, `md`, `lg`, `xl`
-4. **Bruk Aksel-komponenter**: Box, VStack, HGrid, Heading, BodyShort, Button, etc.
+1. **Never use Tailwind padding/margin** (`p-*`, `m-*`, `px-*`, `py-*`)
+2. **Always use Aksel spacing tokens** with `space-` prefix
+3. **Mobile-first**, responsive design with breakpoints: `xs`, `sm`, `md`, `lg`, `xl`
+4. **Use Aksel components**: Box, VStack, HGrid, Heading, BodyShort, Button, etc.
 
-## Spør brukeren
+## Ask the user
 
-1. **Komponentnavn**: Hva heter komponenten? (PascalCase)
-2. **Formål**: Hva gjør komponenten?
-3. **Layout**: Card, listeelement, form, dashboard-seksjon, etc.?
-4. **Responsiv**: Skal layouten endre seg på ulike skjermstørrelser?
+1. **Component name**: What is the component called? (PascalCase)
+2. **Purpose**: What does the component do?
+3. **Layout**: Card, list item, form, dashboard section, etc.?
+4. **Responsive**: Should the layout change across screen sizes?
 
-## Komponentmal
+## Component template
 
 ```tsx
 import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
@@ -28,7 +28,7 @@ import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
 interface {ComponentName}Props {
   title: string;
   description?: string;
-  // Legg til flere props etter behov
+  // Add more props as needed
 }
 
 export function {ComponentName}({
@@ -56,9 +56,9 @@ export function {ComponentName}({
 }
 ```
 
-## Vanlige mønstre
+## Common patterns
 
-### Card-komponent
+### Card component
 
 ```tsx
 <Box
@@ -76,7 +76,7 @@ export function {ComponentName}({
 </Box>
 ```
 
-### Responsiv grid-layout
+### Responsive grid layout
 
 ```tsx
 <HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="4">
@@ -86,7 +86,7 @@ export function {ComponentName}({
 </HGrid>
 ```
 
-### Form-seksjon
+### Form section
 
 ```tsx
 <Box paddingBlock="space-24">
@@ -95,9 +95,9 @@ export function {ComponentName}({
       Form Title
     </Heading>
     <VStack gap="4">
-      <TextField label="Felt 1" />
-      <TextField label="Felt 2" />
-      <Button>Send inn</Button>
+      <TextField label="Field 1" />
+      <TextField label="Field 2" />
+      <Button>Submit</Button>
     </VStack>
   </VStack>
 </Box>
@@ -242,8 +242,8 @@ After generating the component, explain:
 
 1. **Spacing-tokens vs Tailwind** — Why Aksel uses semantic tokens (`space-16`) instead of utility classes (`p-4`). What happens to consistency when teams mix approaches?
 2. **Responsive design** — Why mobile-first (`xs` as base, overrides at `md`/`lg`)? What's the cognitive difference between mobile-first and desktop-first?
-3. **Komponentvalg** — Why `Box`/`VStack`/`HGrid` instead of raw `<div>` with CSS. What accessibility and maintainability benefits do these provide?
-4. **Heading-nivåer** — Why `level` matters for accessibility (screen readers use heading hierarchy for navigation). What breaks with wrong heading levels?
+3. **Component choice** — Why `Box`/`VStack`/`HGrid` instead of raw `<div>` with CSS. What accessibility and maintainability benefits do these provide?
+4. **Heading levels** — Why `level` matters for accessibility (screen readers use heading hierarchy for navigation). What breaks with wrong heading levels?
 
 🔴 **Rød sone**: Accessibility markup (heading levels, ARIA attributes, labels) is worth understanding deeply — automated tools only catch ~30% of accessibility issues.
 
