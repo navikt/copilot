@@ -14,7 +14,7 @@ tags:
 
 Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) betaler du per token. Lange sesjoner med mye frem og tilbake koster mer. Den gode nyheten: du kan få kortere, mer presise svar uten å miste kvalitet.
 
-En [2026-studie](https://arxiv.org/abs/2604.00025) fant at modeller ble mer treffsikre når de ble tvunget til å svare kort. Kortere svar er altså ikke bare billigere — de kan også være bedre.
+En [2026-studie](https://arxiv.org/abs/2604.00025) fant at modeller ble mer treffsikre når de ble tvunget til å svare kort. Kortere svar kan derfor koste mindre og gi bedre resultat.
 
 ## Det viktigste først: bruk `nav-pilot` CLI
 
@@ -184,7 +184,7 @@ Andre tips for vedlikeholdere:
 
 ### RTK — komprimerer terminaloutput
 
-[RTK](https://github.com/rtk-ai/rtk) komprimerer kommandoutput (testresultater, diff, kubectl) før den når kontekstvinduet. Nyttig hvis du bruker Copilot CLI mye.
+[RTK](https://github.com/rtk-ai/rtk) komprimerer kommando-output (testresultater, diff, kubectl) før den når kontekstvinduet. Nyttig hvis du bruker Copilot CLI mye.
 
 ```bash
 brew install rtk
