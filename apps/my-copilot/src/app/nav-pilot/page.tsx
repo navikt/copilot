@@ -71,6 +71,23 @@ const COLLECTIONS = [
     "@event_name", "vedtak"
   )}
 }`,
+    contents: {
+      agents: ["code-review", "research", "security-champion", "nav-pilot"],
+      skills: [
+        "api-design",
+        "kafka",
+        "ktor-scaffold",
+        "spring-boot-scaffold",
+        "flyway-migration",
+        "java-to-kotlin",
+        "nav-auth",
+        "tokenx-auth",
+        "nais",
+        "postgresql-review",
+        "observability-setup",
+        "observability-debugging",
+      ],
+    },
   },
   {
     id: "nextjs-frontend",
@@ -84,6 +101,10 @@ const COLLECTIONS = [
     codePreview: `<Box padding="space-24">
   <HGrid columns={{ xs: 1, md: 2 }}>
     <Heading level="1" size="large">`,
+    contents: {
+      agents: ["accessibility", "aksel", "code-review", "forfatter", "nav-pilot"],
+      skills: ["aksel-spacing", "playwright-testing", "web-design-reviewer", "conventional-commit", "readme-review"],
+    },
   },
   {
     id: "fullstack",
@@ -98,6 +119,25 @@ const COLLECTIONS = [
   inbound:
     rules:
       - application: frontend`,
+    contents: {
+      agents: ["accessibility", "aksel", "code-review", "forfatter", "research", "security-champion", "nav-pilot"],
+      skills: [
+        "aksel-spacing",
+        "api-design",
+        "kafka",
+        "ktor-scaffold",
+        "spring-boot-scaffold",
+        "flyway-migration",
+        "java-to-kotlin",
+        "nav-auth",
+        "tokenx-auth",
+        "nais",
+        "playwright-testing",
+        "postgresql-review",
+        "observability-setup",
+        "web-design-reviewer",
+      ],
+    },
   },
   {
     id: "platform",
@@ -112,6 +152,20 @@ const COLLECTIONS = [
   autoInstrumentation:
     enabled: true
     runtime: java`,
+    contents: {
+      agents: ["code-review", "research", "security-champion", "nav-pilot"],
+      skills: [
+        "nais",
+        "observability-setup",
+        "observability-debugging",
+        "rust-development",
+        "security-review",
+        "threat-model",
+        "workstation-security",
+        "conventional-commit",
+        "readme-review",
+      ],
+    },
   },
 ];
 
@@ -536,6 +590,7 @@ function CollectionCard({
   Icon,
   logos,
   codePreview,
+  contents,
 }: (typeof COLLECTIONS)[number]) {
   return (
     <div
@@ -545,7 +600,7 @@ function CollectionCard({
         border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      {/* Text area — 2/3 */}
+      {/* Text area */}
       <Box padding={{ xs: "space-12", md: "space-16" }} className="flex flex-col" style={{ flex: "2 1 0%" }}>
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-3 mb-3">
@@ -591,7 +646,49 @@ function CollectionCard({
         </div>
       </Box>
 
-      {/* Code preview — 1/3 */}
+      {/* Contents preview */}
+      <div
+        className="px-4 py-3"
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(0,0,0,0.2)",
+        }}
+      >
+        <div className="mb-2">
+          <span style={{ fontSize: "0.65rem", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Agenter
+          </span>
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {contents.agents.map((a) => (
+              <code
+                key={a}
+                className="font-mono rounded px-1.5 py-0.5"
+                style={{ fontSize: "0.65rem", background: "rgba(96,165,250,0.12)", color: "#93c5fd" }}
+              >
+                {a}
+              </code>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span style={{ fontSize: "0.65rem", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Skills (utvalg)
+          </span>
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {contents.skills.map((s) => (
+              <code
+                key={s}
+                className="font-mono rounded px-1.5 py-0.5"
+                style={{ fontSize: "0.65rem", background: "rgba(167,139,250,0.12)", color: "#c4b5fd" }}
+              >
+                {s}
+              </code>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Code preview */}
       <div
         className="px-4 py-3 flex flex-col"
         style={{

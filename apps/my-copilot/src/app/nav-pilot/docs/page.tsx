@@ -60,6 +60,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Collections",
     children: [
       { id: "tilgjengelige-collections", label: "Tilgjengelige collections" },
+      { id: "innhold-i-hver-collection", label: "Innhold i hver collection" },
       { id: "planning-skills", label: "Planning skills" },
     ],
   },
@@ -350,20 +351,20 @@ function IntroductionSection() {
             Hva er nav-pilot?
           </LinkableHeading>
           <BodyLong className="mt-3 mb-6" style={{ color: "#475569" }}>
-            nav-pilot gjør GitHub Copilot til en Nav-ekspert. I stedet for å huske alle mønstrene, beslutningstrærne og
-            fellene selv — spør{" "}
+            nav-pilot er et <strong>CLI-verktøy</strong> og en <strong>AI-agent</strong>. CLI-et installerer agenter,
+            skills og instruksjoner i repoet ditt. Agenten (
             <code
               className="text-sm font-mono rounded px-1.5 py-0.5"
               style={{ background: "#f1f5f9", color: "#3b82f6" }}
             >
               @nav-pilot
             </code>
-            .
+            ) bruker denne kunnskapen til å planlegge og arkitektere Nav-applikasjoner i Copilot Chat.
           </BodyLong>
           <BodyLong style={{ color: "#475569" }}>
-            nav-pilot er en samling av <strong>én agent, fire skills og fem collections</strong> som koder inn Navs
-            institusjonelle kunnskap som kjørbare arbeidsflyter. CLI-verktøyet installerer markdown-filer — selve
-            AI-funksjonaliteten kjøres av GitHub Copilot.
+            nav-pilot inneholder <strong>én planleggingsagent, fire planning skills og fem collections</strong>.
+            Collectionene koder Navs institusjonelle kunnskap som kjørbare arbeidsflyter. CLI-et installerer
+            markdown-filer — selve AI-funksjonaliteten kjøres av GitHub Copilot.
           </BodyLong>
 
           {/* Component overview cards */}
@@ -837,6 +838,98 @@ function CollectionsSection() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Collection contents detail */}
+        <div>
+          <LinkableHeading size="small" level="3">
+            Innhold i hver collection
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Hver collection inneholder også planning skills, instruksjoner og prompts:
+          </BodyShort>
+          <VStack gap="space-12">
+            {COLLECTIONS.map((c) => (
+              <details key={c.name} className="group">
+                <summary
+                  className="cursor-pointer list-none flex items-center gap-2 py-2 px-3 rounded-lg transition-colors"
+                  style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+                >
+                  <span style={{ fontSize: "0.75rem", color: "#64748b", transition: "transform 0.2s" }}>▶</span>
+                  <code className="text-sm font-mono font-semibold" style={{ color: "#3b82f6" }}>
+                    {c.name}
+                  </code>
+                  <span style={{ color: "#64748b", fontSize: "0.8125rem" }}>— {c.description}</span>
+                </summary>
+                <div className="mt-2 ml-6 space-y-3">
+                  <div>
+                    <Label size="small" style={{ color: "#334155" }}>
+                      Agenter ({c.agents})
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {c.details.agents.split(", ").map((a) => (
+                        <code
+                          key={a}
+                          className="text-xs font-mono rounded px-1.5 py-0.5"
+                          style={{ background: "#eff6ff", color: "#3b82f6" }}
+                        >
+                          {a}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label size="small" style={{ color: "#334155" }}>
+                      Skills ({c.skills})
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {c.details.skills.split(", ").map((s) => (
+                        <code
+                          key={s}
+                          className="text-xs font-mono rounded px-1.5 py-0.5"
+                          style={{ background: "#f5f3ff", color: "#7c3aed" }}
+                        >
+                          {s}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label size="small" style={{ color: "#334155" }}>
+                      Instruksjoner
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {c.details.instructions.split(", ").map((i) => (
+                        <code
+                          key={i}
+                          className="text-xs font-mono rounded px-1.5 py-0.5"
+                          style={{ background: "#f0fdf4", color: "#16a34a" }}
+                        >
+                          {i}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label size="small" style={{ color: "#334155" }}>
+                      Prompts
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {c.details.prompts.split(", ").map((p) => (
+                        <code
+                          key={p}
+                          className="text-xs font-mono rounded px-1.5 py-0.5"
+                          style={{ background: "#fff7ed", color: "#ea580c" }}
+                        >
+                          {p}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            ))}
+          </VStack>
         </div>
 
         {/* Planning skills table */}

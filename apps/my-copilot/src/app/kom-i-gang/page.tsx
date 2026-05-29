@@ -175,8 +175,10 @@ export default function KomIGangPage() {
               <Step number={3} title="Sett opp nav-pilot i repoet">
                 <VStack gap="space-8">
                   <BodyLong>
-                    nav-pilot er Navs egen Copilot-agent. Den kjenner Nav-stacken (Kotlin, Ktor, Nais, Aksel, Kafka) og
-                    kan planlegge, arkitektere og bygge Nav-applikasjoner.
+                    nav-pilot er et <strong>CLI-verktøy</strong> og en <strong>AI-agent</strong>. CLI-et installerer
+                    agenter, skills og instruksjoner i repoet ditt. Agenten (
+                    <code className="bg-gray-100 px-1 rounded">@nav-pilot</code>) bruker denne kunnskapen i Copilot
+                    Chat.
                   </BodyLong>
                   <Box background="neutral-soft" padding="space-16" borderRadius="8">
                     <VStack gap="space-8">
@@ -185,11 +187,22 @@ export default function KomIGangPage() {
                         <div>nav-pilot</div>
                       </div>
                       <BodyShort size="small">
-                        Velger samling, installerer agenter, instruksjoner og skills i repoet ditt. Du kan også{" "}
+                        Velg collection for stacken din (f.eks.{" "}
+                        <code className="bg-white/50 px-1 rounded">kotlin-backend</code> eller{" "}
+                        <code className="bg-white/50 px-1 rounded">fullstack</code>) — filene installeres i{" "}
+                        <code className="bg-white/50 px-1 rounded">.github/</code>. Du kan også{" "}
                         <NextLink href="/install" className="text-blue-600 hover:underline">
                           installere via nettleseren
                         </NextLink>
                         .
+                      </BodyShort>
+                      <BodyShort size="small" style={{ color: "#64748b" }}>
+                        💡 Kjør <code className="bg-white/50 px-1 rounded">nav-pilot sync</code> når du vil sjekke om
+                        det finnes oppdateringer — eller sett opp{" "}
+                        <NextLink href="/nav-pilot/docs#automatisk-sync" className="text-blue-600 hover:underline">
+                          automatisk sync
+                        </NextLink>{" "}
+                        via GitHub Actions.
                       </BodyShort>
                     </VStack>
                   </Box>
