@@ -12,7 +12,7 @@ tags:
   - nav-pilot
 ---
 
-Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) betaler du per token. Lange sesjoner med mye frem og tilbake koster mer. Den gode nyheten: du kan få kortere, mer presise svar uten å miste kvalitet — og det er enklere enn du tror.
+Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) betaler du per token. Lange sesjoner med mye frem og tilbake koster mer. Den gode nyheten: du kan få kortere, mer presise svar uten å miste kvalitet.
 
 En [2026-studie](https://arxiv.org/abs/2604.00025) fant at modeller ble mer treffsikre når de ble tvunget til å svare kort. Kortere svar er altså ikke bare billigere — de kan også være bedre.
 
@@ -49,7 +49,7 @@ Stilen vedvarer hele sesjonen. Ved sikkerhetsvarsler eller destruktive handlinge
 
 ## Fire vaner som kutter kostnader
 
-### 1. Vær presis i forespørselen
+### 1. Vær presis i spørsmålet
 
 Den dyreste token-sløsingen er misforståelser. Fem runder med «mente du A eller B?» koster mer enn ett godt spørsmål.
 
@@ -59,13 +59,13 @@ Den dyreste token-sløsingen er misforståelser. Fem runder med «mente du A ell
 **Billig** (presist → agenten kan starte med én gang):
 > «Lag et Ktor REST-endepunkt som tar imot dagpengesøknader over Kafka fra dp-soknad. Kotlin, Nais, Postgres.»
 
-Jo mer kontekst du gir opp front, jo færre runder bruker du. Nevn språk, rammeverk, og hva tjenesten skal snakke med.
+Jo mer kontekst du gir i første melding, jo færre runder bruker du.
 
 ### 2. Bruk `$nav-deep-interview` for store oppgaver
 
 Før en større endring (ny tjeneste, stor refaktor): start med [`$nav-deep-interview`](https://github.com/navikt/copilot/blob/main/.github/skills/nav-deep-interview/SKILL.md). Den stiller presise spørsmål om personvern, auth og avhengigheter *før* koden skrives.
 
-Det er billigere å bruke 5 minutter på avklaring enn å kaste bort en hel sesjon fordi agenten antok feil datamodell.
+Fem minutter med avklaring slår en bortkastet sesjon.
 
 ### 3. Hold sesjoner fokuserte
 
@@ -97,15 +97,15 @@ Du kan be om en spesifikk skill med `$skill-navn`, men for de fleste oppgaver kl
 
 ---
 
-## For viderekomne: hva skjer under panseret
+## Under panseret
 
 Resten er for deg som vedlikeholder instruksjoner, bygger MCP-servere, eller vil forstå *hvorfor* tipsene over fungerer.
 
 ### Hvorfor kortere kontekst gir bedre svar
 
-Hver gang du sender en melding, pakker Copilot med alt: systemprompt, instruksjonsfiler, åpne filer, verktøydefinisjoner og hele samtalehistorikken. En flerstegs-sesjon i Copilot CLI kan bruke over 1 million input-tokens. [Vantage sin analyse](https://www.vantage.sh/blog/agentic-coding-costs) viser at kostnader varierer opptil 30x mellom kjøringer på samme oppgave.
+Hver gang du sender en melding, pakker Copilot med alt: systemprompt, instruksjonsfiler, åpne filer, verktøydefinisjoner og hele samtalehistorikken. En flerstegssesjon i Copilot CLI kan bruke over 1 million input-tokens. [Vantage sin analyse](https://www.vantage.sh/blog/agentic-coding-costs) viser at kostnader varierer opptil 30x mellom kjøringer på samme oppgave.
 
-Det betyr at de to største besparelsene er:
+De to største besparelsene:
 1. **Kortere sesjoner** (færre runder = mindre historikk å sende)
 2. **Mindre instruksjonslast** (smalere `applyTo`-mønstre = færre filer i konteksten)
 
@@ -119,7 +119,7 @@ Vi hadde en OWASP-sikkerhetsinstruks på 21 KB som ble lastet ved *hver eneste* 
 | Go-kontekst totalt | 42 KB | 22 KB |
 | Kotlin-kontekst totalt | 54 KB | 34 KB |
 
-**Tommelfingerregel:** Hvis en instruks bare er relevant for 10 % av oppgavene, hør den hjemme i en skill — ikke i en alltid-aktiv fil.
+**Tommelfingerregel:** Hvis en instruks bare er relevant for 10 % av oppgavene, hører den hjemme i en skill — ikke i en alltid-aktiv fil.
 
 ### Instruksjonsarkitektur
 
@@ -143,7 +143,7 @@ brew install rtk
 rtk init -g --copilot
 ```
 
-RTK rapporterer 60–90 % reduksjon på verktøydata. Det er komplementært med `$terse-mode`: RTK kutter det agenten *leser*, terse-mode kutter det agenten *skriver*.
+RTK rapporterer 60–90 % reduksjon på verktøydata. RTK og `$terse-mode` utfyller hverandre: RTK kutter det agenten *leser*, terse-mode kutter det agenten *skriver*.
 
 ### TOON og dynamiske verktøysett
 
