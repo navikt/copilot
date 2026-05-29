@@ -540,8 +540,8 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 	err := huh.NewSelect[string]().
 		Title("Where to install?").
 		Options(
-			huh.NewOption("This repo (.github/) — full collection, commit to enable", "repo"),
-			huh.NewOption("User home (~/.copilot/) — agents & skills across all repos", "user"),
+			huh.NewOption("This repo (.github/) — collection with prompts, commit and push to enable", "repo"),
+			huh.NewOption("User home (~/.copilot/) — agents, skills & instructions across all repos", "user"),
 		).
 		Value(&choice).
 		WithTheme(navTheme()).
