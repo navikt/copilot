@@ -1,6 +1,6 @@
-# 🧭 nav-pilot — Navs AI-utviklerverktøy
+# 🧭 nav-pilot — CLI-verktøy og AI-agent
 
-nav-pilot gjør GitHub Copilot til en Nav-ekspert. Én agent med en 4-fase modell (Intervju → Plan → Review → Lever) som koder inn Navs institusjonelle kunnskap.
+nav-pilot er et CLI-verktøy og en AI-agent. CLI-et installerer agenter, skills og instruksjoner i repoet ditt. Agenten (`@nav-pilot`) guider deg gjennom fire faser — Intervju, Plan, Review og Lever — i Copilot Chat.
 
 📖 **Full dokumentasjon:** [min-copilot.ansatt.nav.no/nav-pilot/docs](https://min-copilot.ansatt.nav.no/nav-pilot/docs)
 

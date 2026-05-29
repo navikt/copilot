@@ -221,6 +221,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		}
 		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
+		printManifestContents(manifest)
 		fmt.Println()
 	}
 
@@ -433,6 +434,9 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 		}
 		total := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts)
 		fmt.Printf("  %-20s %s %s\n", bold(name), m.Description, dim(fmt.Sprintf("(%d items)", total)))
+		if len(m.Agents) > 0 {
+			fmt.Printf("  %-20s %s\n", "", dim("agents: "+strings.Join(m.Agents, ", ")))
+		}
 	}
 	fmt.Println()
 	fmt.Printf("Install with: %s\n", bold("nav-pilot install <name>"))

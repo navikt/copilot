@@ -302,27 +302,14 @@ func interactiveRepoInstall(src *Source, scope *InstallScope) error {
 		return nil // user cancelled
 	}
 
-	// Show preview
+	// Show preview with contents
 	m, err := loadManifest(src.Dir, selected)
 	if err != nil {
 		return err
 	}
 	fmt.Println()
 	fmt.Printf("%s %s — %s\n", dim("→"), bold(selected), m.Description)
-	parts := []string{}
-	if len(m.Agents) > 0 {
-		parts = append(parts, fmt.Sprintf("%d agents", len(m.Agents)))
-	}
-	if len(m.Skills) > 0 {
-		parts = append(parts, fmt.Sprintf("%d skills", len(m.Skills)))
-	}
-	if len(m.Instructions) > 0 {
-		parts = append(parts, fmt.Sprintf("%d instructions", len(m.Instructions)))
-	}
-	if len(m.Prompts) > 0 {
-		parts = append(parts, fmt.Sprintf("%d prompts", len(m.Prompts)))
-	}
-	fmt.Printf("  %s\n", dim(strings.Join(parts, ", ")))
+	printManifestContents(m)
 	fmt.Println()
 
 	// Confirm install
@@ -362,8 +349,8 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 	err := huh.NewSelect[string]().
 		Title("Where to install?").
 		Options(
-			huh.NewOption("This repo (.github/) — full collection", "repo"),
-			huh.NewOption("User home (~/.copilot/) — agents, skills & instructions, works across all repos", "user"),
+			huh.NewOption("This repo (.github/) — full collection, commit to enable", "repo"),
+			huh.NewOption("User home (~/.copilot/) — agents & skills across all repos", "user"),
 		).
 		Value(&choice).
 		WithTheme(navTheme()).
@@ -394,6 +381,29 @@ func uniqueStrings(s []string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// printManifestContents prints the contents of a manifest in a readable format.
+// Shows each category with names, truncating long lists with "...".
+func printManifestContents(m *Manifest) {
+	const maxItems = 8
+	printCategory := func(label string, items []string) {
+		if len(items) == 0 {
+			return
+		}
+		display := items
+		suffix := ""
+		if len(items) > maxItems {
+			display = items[:maxItems]
+			suffix = fmt.Sprintf(", … (%d total)", len(items))
+		}
+		fmt.Printf("  %-16s %s%s\n", dim(fmt.Sprintf("%d %s:", len(items), label)),
+			strings.Join(display, ", "), dim(suffix))
+	}
+	printCategory("agents", m.Agents)
+	printCategory("skills", m.Skills)
+	printCategory("instructions", m.Instructions)
+	printCategory("prompts", m.Prompts)
 }
 
 // installedAgents extracts agent names from the state file's installed files.

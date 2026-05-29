@@ -1,5 +1,7 @@
 # nav-pilot design
 
+nav-pilot is both a CLI tool and an AI agent. The CLI installs agents, skills, and instructions into a repository. The agent (`@nav-pilot`) uses that knowledge in Copilot Chat.
+
 Designmønstre og konvensjoner i nav-pilot CLI. Nye kommandoer og endringer skal følge disse.
 
 ## Arkitektur

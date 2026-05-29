@@ -42,10 +42,10 @@ var commandAliases = map[string]string{
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `nav-pilot — Nav's Copilot toolkit for developers
+	fmt.Fprintf(os.Stderr, `nav-pilot — Nav's Copilot toolkit
 
-Installs curated agents, skills, instructions, and prompts that teach
-GitHub Copilot Nav's platform, patterns, and conventions.
+CLI tool that installs agents, skills, and instructions for GitHub Copilot.
+Once installed, use @nav-pilot in Copilot Chat to plan and build Nav apps.
 
 Usage:
   nav-pilot <command> [flags]
@@ -71,7 +71,7 @@ Flags:
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from
   -s, --source <repo>     Source repository (default: navikt/copilot)
-  -u, --user              Install to ~/.copilot (user-wide, all agents, skills & instructions)
+  -u, --user              Install to ~/.copilot — works across all repos (agents, skills & instructions only)
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
   --all                   Install everything (use with --user)
   --apply                 Apply available updates (sync only)
@@ -80,12 +80,12 @@ Flags:
   -F, --feature           Submit a feature request (feedback only)
 
 Get started:
-  nav-pilot                              # Install, upgrade, or launch Copilot sandbox (cplt)
-  nav-pilot init                         # Scaffold AGENTS.md and Copilot instructions
+  nav-pilot                              # Interactive: install, upgrade, or launch Copilot
   nav-pilot list                         # See available collections and items
-  nav-pilot install kotlin-backend       # Install a collection
+  nav-pilot install kotlin-backend       # Install a collection to .github/
+  nav-pilot install --user --all         # Install everything to ~/.copilot (all repos)
   nav-pilot install security-champion    # Install a single agent
-  nav-pilot install --dry-run fullstack  # Preview before installing
+  nav-pilot sync                         # Check for updates
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
 
 After installing, use @nav-pilot in GitHub Copilot Chat.
