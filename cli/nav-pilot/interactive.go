@@ -219,7 +219,8 @@ func interactiveUserOnlyInstall() error {
 	return interactiveUserInstall(src)
 }
 
-// interactiveUserInstall installs all agents, skills & instructions to user home.
+// interactiveUserInstall installs agents, skills & instructions to user home.
+// Offers a two-step flow: install everything or customize selection.
 // Called from both interactiveFreshInstall (user scope selected) and interactiveUserOnlyInstall.
 func interactiveUserInstall(src *Source) error {
 	manifest, err := collectAllItems(src.Dir)
@@ -232,36 +233,235 @@ func interactiveUserInstall(src *Source) error {
 		return fmt.Errorf("no agents, skills, or instructions found in source")
 	}
 
-	if isInteractive() {
-		fmt.Println()
-		var installChoice string
-		err = huh.NewSelect[string]().
-			Title(fmt.Sprintf("Install all %d agents, skills & instructions to ~/.copilot?", total)).
-			Options(
-				huh.NewOption("Yes", "yes"),
-				huh.NewOption("No", "no"),
-			).
-			Value(&installChoice).
-			WithTheme(navTheme()).
-			Run()
-		if err != nil || installChoice != "yes" {
-			fmt.Println(dim("Cancelled."))
-			return nil
-		}
-	}
-
 	scope, err := ScopeUser()
 	if err != nil {
 		return err
 	}
 
+	// Check for existing install to pre-select items
+	existingState, _ := readScopedState(scope)
+
+	var skippedItems []InstalledFile
+
+	if isInteractive() {
+		fmt.Println()
+		var installChoice string
+		err = huh.NewSelect[string]().
+			Title(fmt.Sprintf("Install %d agents, skills & instructions to ~/.copilot?", total)).
+			Options(
+				huh.NewOption(fmt.Sprintf("Install everything (%d items)", total), "all"),
+				huh.NewOption("Customize selection", "custom"),
+				huh.NewOption("Cancel", "cancel"),
+			).
+			Value(&installChoice).
+			WithTheme(navTheme()).
+			Run()
+		if err != nil || installChoice == "cancel" {
+			fmt.Println(dim("Cancelled."))
+			return nil
+		}
+
+		if installChoice == "custom" {
+			selected, skipped, pickerErr := interactiveItemPicker(manifest, existingState, scope)
+			if pickerErr != nil {
+				return pickerErr
+			}
+			if selected == nil {
+				fmt.Println(dim("Cancelled."))
+				return nil
+			}
+			manifest = selected
+			skippedItems = skipped
+		}
+	}
+
 	fmt.Println()
-	if err := installAllFromSource(scope, src, manifest, false, false, false); err != nil {
+	if err := installAllFromSource(scope, src, manifest, false, false, false, skippedItems...); err != nil {
 		return err
 	}
 
 	offerLaunchCopilot()
 	return nil
+}
+
+// buildPickerDefaults determines which items should be pre-selected in the picker.
+// For a fresh install (no existing state): all items are selected.
+// For a re-install: items active in state are selected, ignored items are not,
+// and new items not in state are selected (so users discover new additions).
+func buildPickerDefaults(full *Manifest, existingState *StateFile, scope *InstallScope) map[string][]string {
+	defaults := make(map[string][]string)
+
+	hasExisting := existingState != nil && len(existingState.Files) > 0
+	if !hasExisting {
+		// Fresh install: all selected
+		defaults["agents"] = append([]string{}, full.Agents...)
+		defaults["skills"] = append([]string{}, full.Skills...)
+		defaults["instructions"] = append([]string{}, full.Instructions...)
+		return defaults
+	}
+
+	// Build sets of active and ignored paths from state
+	activeSet := make(map[string]bool)
+	ignoredSet := make(map[string]bool)
+	for _, f := range existingState.Files {
+		if f.Status == fileStatusIgnored {
+			ignoredSet[f.Path] = true
+		} else {
+			activeSet[f.Path] = true
+		}
+	}
+
+	// Helper: check if an item should be selected
+	isSelected := func(kind *ArtifactKind, name string) bool {
+		fileName := name + kind.Suffix
+		if kind.IsDir {
+			fileName = name
+		}
+		relPath := scope.RelPath(kind.Dir, fileName)
+		if kind.IsDir {
+			relPath += "/"
+		}
+		if ignoredSet[relPath] {
+			return false // explicitly ignored
+		}
+		if activeSet[relPath] {
+			return true // actively installed
+		}
+		return true // new item not in state: default to selected
+	}
+
+	type group struct {
+		key   string
+		kind  *ArtifactKind
+		names []string
+	}
+	for _, g := range []group{
+		{"agents", KindAgent, full.Agents},
+		{"skills", KindSkill, full.Skills},
+		{"instructions", KindInstruction, full.Instructions},
+	} {
+		for _, name := range g.names {
+			if isSelected(g.kind, name) {
+				defaults[g.key] = append(defaults[g.key], name)
+			}
+		}
+	}
+	return defaults
+}
+
+// interactiveItemPicker shows multiselect pickers for each artifact category.
+// Returns a manifest containing only the selected items, ignored entries for
+// deselected items, or (nil, nil, nil) if cancelled.
+// Must be called from an interactive context (isInteractive() == true).
+func interactiveItemPicker(full *Manifest, existingState *StateFile, scope *InstallScope) (*Manifest, []InstalledFile, error) {
+	if !isInteractive() {
+		return nil, nil, fmt.Errorf("interactive item picker requires a terminal")
+	}
+
+	defaults := buildPickerDefaults(full, existingState, scope)
+
+	type pickerGroup struct {
+		label string
+		key   string
+		kind  *ArtifactKind
+		names []string
+	}
+	groups := []pickerGroup{
+		{"Agents", "agents", KindAgent, full.Agents},
+		{"Skills", "skills", KindSkill, full.Skills},
+		{"Instructions", "instructions", KindInstruction, full.Instructions},
+	}
+
+	selected := &Manifest{
+		Name:        full.Name,
+		Description: full.Description,
+	}
+
+	for _, g := range groups {
+		if len(g.names) == 0 {
+			continue
+		}
+
+		var options []huh.Option[string]
+		for _, name := range g.names {
+			options = append(options, huh.NewOption(name, name))
+		}
+
+		chosen := defaults[g.key]
+		err := huh.NewMultiSelect[string]().
+			Title(fmt.Sprintf("%s (%d available)", g.label, len(g.names))).
+			Options(options...).
+			Value(&chosen).
+			WithTheme(navTheme()).
+			Run()
+		if err != nil {
+			return nil, nil, nil // user cancelled
+		}
+
+		switch g.kind {
+		case KindAgent:
+			selected.Agents = chosen
+		case KindSkill:
+			selected.Skills = chosen
+		case KindInstruction:
+			selected.Instructions = chosen
+		}
+	}
+
+	totalSelected := len(selected.Agents) + len(selected.Skills) + len(selected.Instructions)
+	totalAvailable := len(full.Agents) + len(full.Skills) + len(full.Instructions)
+
+	if totalSelected == 0 {
+		fmt.Println(dim("No items selected."))
+		return nil, nil, nil
+	}
+
+	fmt.Println()
+	fmt.Printf("%s Selected %d of %d items.\n", dim("→"), totalSelected, totalAvailable)
+
+	skippedItems := computeSkippedItems(full, selected, scope)
+	return selected, skippedItems, nil
+}
+
+// computeSkippedItems returns InstalledFile entries for items in full but not in selected.
+// These are stored as ignored in the state file so sync and detectNewItems skip them.
+func computeSkippedItems(full, selected *Manifest, scope *InstallScope) []InstalledFile {
+	selectedSet := make(map[string]bool)
+	for _, name := range selected.Agents {
+		selectedSet["agent:"+name] = true
+	}
+	for _, name := range selected.Skills {
+		selectedSet["skill:"+name] = true
+	}
+	for _, name := range selected.Instructions {
+		selectedSet["instruction:"+name] = true
+	}
+
+	var skipped []InstalledFile
+	addSkipped := func(kind *ArtifactKind, names []string) {
+		for _, name := range names {
+			if selectedSet[kind.Name+":"+name] {
+				continue
+			}
+			fileName := name + kind.Suffix
+			if kind.IsDir {
+				fileName = name
+			}
+			relPath := scope.RelPath(kind.Dir, fileName)
+			if kind.IsDir {
+				relPath += "/"
+			}
+			skipped = append(skipped, InstalledFile{
+				Path:   relPath,
+				Hash:   "",
+				Status: fileStatusIgnored,
+			})
+		}
+	}
+	addSkipped(KindAgent, full.Agents)
+	addSkipped(KindSkill, full.Skills)
+	addSkipped(KindInstruction, full.Instructions)
+	return skipped
 }
 
 // interactiveRepoInstall handles repo-scope collection picker flow.

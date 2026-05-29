@@ -499,8 +499,9 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 
 // installAllFromSource installs all agents+skills from source.
 // If manifest is nil, it scans the source directory to discover items.
+// extraStateFiles are appended to the state file after install (e.g. ignored items from picker).
 // Extracted so both cmdInstallAll and the interactive flow can share this.
-func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool) error {
+func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool, extraStateFiles ...InstalledFile) error {
 	if manifest == nil {
 		var err error
 		manifest, err = collectAllItems(src.Dir)
@@ -566,6 +567,12 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       result.Files,
 	}
+
+	// Append items the user explicitly deselected in the picker as ignored.
+	if len(extraStateFiles) > 0 {
+		state.Files = append(state.Files, extraStateFiles...)
+	}
+
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}

@@ -1782,3 +1782,330 @@ func TestCmdEnv_NoInstructions(t *testing.T) {
 		t.Errorf("cmdEnv should not error: %v", err)
 	}
 }
+
+// ─── install with ignored items (picker integration) ────────────────────────
+
+func TestInstallAllFromSource_WithIgnoredItems(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
+
+	// Set up 3 agents, 1 skill, 1 instruction in source
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "auth-agent.agent.md"), []byte("# Auth"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "nais-agent.agent.md"), []byte("# Nais"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "rust-agent.agent.md"), []byte("# Rust"), 0o644)
+
+	skillDir := filepath.Join(ghDir, "skills", "kafka")
+	os.MkdirAll(skillDir, 0o755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Kafka"), 0o644)
+
+	instrDir := filepath.Join(ghDir, "instructions")
+	os.MkdirAll(instrDir, 0o755)
+	os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("# Go"), 0o644)
+
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
+	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
+
+	// Only install auth-agent and kafka, skip rust-agent, nais-agent, golang
+	manifest := &Manifest{
+		Name:   "(all)",
+		Agents: []string{"auth-agent"},
+		Skills: []string{"kafka"},
+	}
+	skippedItems := []InstalledFile{
+		{Path: "agents/nais-agent.agent.md", Hash: "", Status: fileStatusIgnored},
+		{Path: "agents/rust-agent.agent.md", Hash: "", Status: fileStatusIgnored},
+		{Path: ".github/instructions/golang.instructions.md", Hash: "", Status: fileStatusIgnored},
+	}
+
+	err := installAllFromSource(scope, src, manifest, false, false, false, skippedItems...)
+	if err != nil {
+		t.Fatalf("installAllFromSource: %v", err)
+	}
+
+	// Read state file
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatalf("readScopedState: %v", err)
+	}
+
+	// Count active vs ignored
+	active := 0
+	ignored := 0
+	for _, f := range state.Files {
+		if f.Status == fileStatusIgnored {
+			ignored++
+		} else {
+			active++
+		}
+	}
+
+	if active != 2 {
+		t.Errorf("expected 2 active files, got %d", active)
+	}
+	if ignored != 3 {
+		t.Errorf("expected 3 ignored files, got %d", ignored)
+	}
+
+	// Verify installed files exist
+	if _, err := os.Stat(filepath.Join(target, "agents", "auth-agent.agent.md")); os.IsNotExist(err) {
+		t.Error("auth-agent not installed")
+	}
+	if _, err := os.Stat(filepath.Join(target, "skills", "kafka", "SKILL.md")); os.IsNotExist(err) {
+		t.Error("kafka skill not installed")
+	}
+
+	// Verify ignored files do NOT exist
+	if _, err := os.Stat(filepath.Join(target, "agents", "rust-agent.agent.md")); !os.IsNotExist(err) {
+		t.Error("rust-agent should not be installed")
+	}
+	if _, err := os.Stat(filepath.Join(target, "agents", "nais-agent.agent.md")); !os.IsNotExist(err) {
+		t.Error("nais-agent should not be installed")
+	}
+}
+
+func TestInstallAllFromSource_IgnoredItems_DryRun(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
+
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "auth-agent.agent.md"), []byte("# Auth"), 0o644)
+
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
+	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
+	manifest := &Manifest{Name: "(all)", Agents: []string{"auth-agent"}}
+	skippedItems := []InstalledFile{
+		{Path: "agents/rust-agent.agent.md", Hash: "", Status: fileStatusIgnored},
+	}
+
+	err := installAllFromSource(scope, src, manifest, true, false, false, skippedItems...)
+	if err != nil {
+		t.Fatalf("dry run: %v", err)
+	}
+
+	// Dry run should NOT write state file
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatalf("readScopedState: %v", err)
+	}
+	if state != nil {
+		t.Error("dry run should not write state file")
+	}
+}
+
+func TestInstallAllFromSource_NoDuplicatePaths(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
+
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "auth-agent.agent.md"), []byte("# Auth"), 0o644)
+
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
+	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
+	manifest := &Manifest{Name: "(all)", Agents: []string{"auth-agent"}}
+
+	err := installAllFromSource(scope, src, manifest, false, false, false)
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatalf("readScopedState: %v", err)
+	}
+
+	// Verify no duplicate paths
+	seen := make(map[string]bool)
+	for _, f := range state.Files {
+		if seen[f.Path] {
+			t.Errorf("duplicate path in state: %s", f.Path)
+		}
+		seen[f.Path] = true
+	}
+}
+
+// ─── picker → install → sync cycle ─────────────────────────────────────────
+
+func TestPickerInstallSyncCycle(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
+
+	// Step 1: Set up source with 3 agents
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "auth-agent.agent.md"), []byte("# Auth v1"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "nais-agent.agent.md"), []byte("# Nais v1"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "rust-agent.agent.md"), []byte("# Rust v1"), 0o644)
+
+	skillDir := filepath.Join(ghDir, "skills", "kafka")
+	os.MkdirAll(skillDir, 0o755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Kafka v1"), 0o644)
+
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
+	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
+
+	// Step 2: Install with partial selection (simulating picker)
+	selectedManifest := &Manifest{
+		Name:   "(all)",
+		Agents: []string{"auth-agent", "nais-agent"},
+		Skills: []string{"kafka"},
+	}
+	skippedItems := computeSkippedItems(
+		&Manifest{Agents: []string{"auth-agent", "nais-agent", "rust-agent"}, Skills: []string{"kafka"}},
+		selectedManifest,
+		scope,
+	)
+
+	err := installAllFromSource(scope, src, selectedManifest, false, false, false, skippedItems...)
+	if err != nil {
+		t.Fatalf("initial install: %v", err)
+	}
+
+	// Step 3: Verify resolveSyncFiles skips ignored items
+	syncFiles, _, err := resolveSyncFiles(scope, source)
+	if err != nil {
+		t.Fatalf("resolveSyncFiles: %v", err)
+	}
+
+	for _, sf := range syncFiles {
+		if strings.Contains(sf.localPath, "rust-agent") {
+			t.Errorf("resolveSyncFiles should skip ignored rust-agent, got: %s", sf.localPath)
+		}
+	}
+	if len(syncFiles) != 3 {
+		t.Errorf("expected 3 sync files (2 agents + 1 skill), got %d", len(syncFiles))
+	}
+
+	// Step 4: Update source (new version of installed agent)
+	os.WriteFile(filepath.Join(agentsDir, "auth-agent.agent.md"), []byte("# Auth v2 — updated"), 0o644)
+
+	// Step 5: Verify checkSyncFile detects the update
+	for _, sf := range syncFiles {
+		if strings.Contains(sf.localPath, "auth-agent") {
+			update, err := checkSyncFile(scope.RootDir, source, sf)
+			if err != nil {
+				t.Fatalf("checkSyncFile: %v", err)
+			}
+			if update == nil {
+				t.Error("expected update for auth-agent after source change")
+			}
+			break
+		}
+	}
+
+	// Step 6: Verify detectNewItems does NOT report the ignored item
+	newItems := detectNewItems(scope, source)
+	for _, item := range newItems {
+		if strings.Contains(item, "rust-agent") {
+			t.Errorf("detectNewItems should not report ignored rust-agent: %v", newItems)
+		}
+	}
+}
+
+func TestPickerInstallSyncCycle_NewSourceItem(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
+
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "auth-agent.agent.md"), []byte("# Auth"), 0o644)
+
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
+	src := &Source{Dir: source, SHA: "abc1234", Version: "dev"}
+
+	// Install everything
+	err := installAllFromSource(scope, src, nil, false, false, false)
+	if err != nil {
+		t.Fatalf("initial install: %v", err)
+	}
+
+	// Add a new agent to source
+	os.WriteFile(filepath.Join(agentsDir, "brand-new.agent.md"), []byte("# New"), 0o644)
+
+	// detectNewItems should find it
+	newItems := detectNewItems(scope, source)
+	found := false
+	for _, item := range newItems {
+		if strings.Contains(item, "brand-new") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("detectNewItems should find brand-new agent, got: %v", newItems)
+	}
+}
+
+func TestDetectNewItems_IgnoredItemNotReported(t *testing.T) {
+	source := t.TempDir()
+	target := t.TempDir()
+	ghDir := filepath.Join(source, ".github")
+
+	agentsDir := filepath.Join(ghDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "auth-agent.agent.md"), []byte("# Auth"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "rust-agent.agent.md"), []byte("# Rust"), 0o644)
+
+	scope := &InstallScope{
+		Name:           "user",
+		RootDir:        target,
+		StateFile:      ".nav-pilot-state.json",
+		SupportedTypes: []string{"agent", "skill", "instruction"},
+	}
+
+	// Write state with auth active, rust ignored
+	state := &StateFile{
+		Collection: CollectionAll,
+		Version:    "dev",
+		Scope:      "user",
+		Files: []InstalledFile{
+			{Path: "agents/auth-agent.agent.md", Hash: "abc"},
+			{Path: "agents/rust-agent.agent.md", Hash: "", Status: fileStatusIgnored},
+		},
+	}
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatalf("writeScopedState: %v", err)
+	}
+
+	newItems := detectNewItems(scope, source)
+	for _, item := range newItems {
+		if strings.Contains(item, "rust-agent") {
+			t.Errorf("ignored item should not be reported as new: %v", newItems)
+		}
+	}
+	if len(newItems) != 0 {
+		t.Errorf("expected no new items, got %v", newItems)
+	}
+}
