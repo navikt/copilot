@@ -199,7 +199,11 @@ func interactiveFreshInstall(targetDir string) error {
 	}
 
 	// Repo scope: pick a collection
-	return interactiveRepoInstall(src, scope)
+	if err := interactiveRepoInstall(src, scope); err != nil {
+		return err
+	}
+	offerLaunchCopilot()
+	return nil
 }
 
 // interactiveUserOnlyInstall handles fresh install when not in a git repo.
@@ -221,13 +225,17 @@ func interactiveUserOnlyInstall() error {
 
 // interactiveUserInstall installs agents, skills & instructions to user home.
 // Offers a two-step flow: install everything or customize selection.
-// Called from both interactiveFreshInstall (user scope selected) and interactiveUserOnlyInstall.
+// Called from interactiveFreshInstall and interactiveUserOnlyInstall (root command only).
 func interactiveUserInstall(src *Source) error {
 	scope, err := ScopeUser()
 	if err != nil {
 		return err
 	}
-	return interactiveUserInstallFromSource(scope, src)
+	if err := interactiveUserInstallFromSource(scope, src); err != nil {
+		return err
+	}
+	offerLaunchCopilot()
+	return nil
 }
 
 // interactiveUserInstallFromSource is the shared implementation for user-scope interactive install.
@@ -280,13 +288,11 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source) error {
 		}
 	}
 
-	fmt.Println()
-	if err := installAllFromSource(scope, src, manifest, false, false, false, skippedItems...); err != nil {
-		return err
-	}
+	// If re-installing (existing state), force-update managed files
+	forceUpdate := existingState != nil && len(existingState.Files) > 0
 
-	offerLaunchCopilot()
-	return nil
+	fmt.Println()
+	return installAllFromSource(scope, src, manifest, false, forceUpdate, false, skippedItems...)
 }
 
 // buildPickerDefaults determines which items should be pre-selected in the picker.
@@ -520,12 +526,7 @@ func interactiveRepoInstall(src *Source, scope *InstallScope) error {
 
 	// Install using the already-resolved source (avoid redundant git clone)
 	fmt.Println()
-	if err := cmdInstallFromSource(selected, src, scope, false, false, false); err != nil {
-		return err
-	}
-
-	offerLaunchCopilot()
-	return nil
+	return cmdInstallFromSource(selected, src, scope, false, false, false)
 }
 
 // promptInstallScope asks the user where to install: repo or user home.
