@@ -11,7 +11,9 @@ All apps deployed on NAIS (Kubernetes on GCP).
 
 ## Target Users
 
-Our primary users are ~600 developers at Nav who use GitHub Copilot daily. Most write **Kotlin** (backend, Ktor/Spring) and **TypeScript/React** (frontend, Next.js) and are comfortable in both IntelliJ and VS Code.
+Our primary users are ~600 developers at Nav who use GitHub Copilot daily. The vast majority are developers in product teams with end-to-end responsibility for their applications — they build, deploy, operate, and monitor their own services. Most write **Kotlin** (backend, Ktor/Spring) and **TypeScript/React** (frontend, Next.js) and are comfortable in both IntelliJ and VS Code.
+
+A smaller group of non-developers also use the tools: operators, designers, and architects. Our tooling is optimized for developers, but should remain accessible to anyone working in a repo.
 
 We are pushing developers towards **autonomous AI agent work in the terminal** — primarily Copilot CLI, but our most advanced users also use tools like opencode and Pi (all backed by their corporate GitHub Copilot subscription). Demand is high, which makes cost optimization a priority: keep token costs down without sacrificing quality.
 
