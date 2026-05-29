@@ -1,0 +1,231 @@
+/**
+ * GitHub Copilot model pricing data.
+ * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
+ * Last updated: 2026-05-29
+ *
+ * All prices are per 1 million tokens in USD.
+ * 1 AI credit = $0.01 USD.
+ */
+
+export interface ModelPrice {
+  model: string;
+  provider: "OpenAI" | "Anthropic" | "Google" | "GitHub";
+  category: "Lightweight" | "Versatile" | "Powerful";
+  status: "GA" | "Public preview";
+  input: number;
+  cachedInput: number;
+  cacheWrite?: number; // Anthropic only
+  output: number;
+  note?: string;
+}
+
+export const MODEL_PRICING: ModelPrice[] = [
+  // OpenAI
+  {
+    model: "GPT-4.1",
+    provider: "OpenAI",
+    category: "Versatile",
+    status: "GA",
+    input: 2.0,
+    cachedInput: 0.5,
+    output: 8.0,
+    note: "Included model",
+  },
+  {
+    model: "GPT-5 mini",
+    provider: "OpenAI",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.25,
+    cachedInput: 0.025,
+    output: 2.0,
+    note: "Included model",
+  },
+  {
+    model: "GPT-5.2",
+    provider: "OpenAI",
+    category: "Versatile",
+    status: "GA",
+    input: 1.75,
+    cachedInput: 0.175,
+    output: 14.0,
+  },
+  {
+    model: "GPT-5.2-Codex",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 1.75,
+    cachedInput: 0.175,
+    output: 14.0,
+  },
+  {
+    model: "GPT-5.3-Codex",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 1.75,
+    cachedInput: 0.175,
+    output: 14.0,
+  },
+  {
+    model: "GPT-5.4",
+    provider: "OpenAI",
+    category: "Versatile",
+    status: "GA",
+    input: 2.5,
+    cachedInput: 0.25,
+    output: 15.0,
+    note: "≤272K tokens",
+  },
+  {
+    model: "GPT-5.4 mini",
+    provider: "OpenAI",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.75,
+    cachedInput: 0.075,
+    output: 4.5,
+  },
+  {
+    model: "GPT-5.4 nano",
+    provider: "OpenAI",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.2,
+    cachedInput: 0.02,
+    output: 1.25,
+  },
+  {
+    model: "GPT-5.5",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 5.0,
+    cachedInput: 0.5,
+    output: 30.0,
+  },
+  // Anthropic
+  {
+    model: "Claude Haiku 4.5",
+    provider: "Anthropic",
+    category: "Versatile",
+    status: "GA",
+    input: 1.0,
+    cachedInput: 0.1,
+    cacheWrite: 1.25,
+    output: 5.0,
+  },
+  {
+    model: "Claude Sonnet 4",
+    provider: "Anthropic",
+    category: "Versatile",
+    status: "GA",
+    input: 3.0,
+    cachedInput: 0.3,
+    cacheWrite: 3.75,
+    output: 15.0,
+  },
+  {
+    model: "Claude Sonnet 4.5",
+    provider: "Anthropic",
+    category: "Versatile",
+    status: "GA",
+    input: 3.0,
+    cachedInput: 0.3,
+    cacheWrite: 3.75,
+    output: 15.0,
+  },
+  {
+    model: "Claude Sonnet 4.6",
+    provider: "Anthropic",
+    category: "Versatile",
+    status: "GA",
+    input: 3.0,
+    cachedInput: 0.3,
+    cacheWrite: 3.75,
+    output: 15.0,
+  },
+  {
+    model: "Claude Opus 4.5",
+    provider: "Anthropic",
+    category: "Powerful",
+    status: "GA",
+    input: 5.0,
+    cachedInput: 0.5,
+    cacheWrite: 6.25,
+    output: 25.0,
+  },
+  {
+    model: "Claude Opus 4.6",
+    provider: "Anthropic",
+    category: "Powerful",
+    status: "GA",
+    input: 5.0,
+    cachedInput: 0.5,
+    cacheWrite: 6.25,
+    output: 25.0,
+  },
+  {
+    model: "Claude Opus 4.7",
+    provider: "Anthropic",
+    category: "Powerful",
+    status: "GA",
+    input: 5.0,
+    cachedInput: 0.5,
+    cacheWrite: 6.25,
+    output: 25.0,
+  },
+  // Google
+  {
+    model: "Gemini 2.5 Pro",
+    provider: "Google",
+    category: "Powerful",
+    status: "GA",
+    input: 1.25,
+    cachedInput: 0.125,
+    output: 10.0,
+    note: "≤200K tokens",
+  },
+  {
+    model: "Gemini 3 Flash",
+    provider: "Google",
+    category: "Lightweight",
+    status: "Public preview",
+    input: 0.5,
+    cachedInput: 0.05,
+    output: 3.0,
+  },
+  {
+    model: "Gemini 3.1 Pro",
+    provider: "Google",
+    category: "Powerful",
+    status: "Public preview",
+    input: 2.0,
+    cachedInput: 0.2,
+    output: 12.0,
+    note: "≤200K tokens",
+  },
+  {
+    model: "Gemini 3.5 Flash",
+    provider: "Google",
+    category: "Lightweight",
+    status: "GA",
+    input: 1.5,
+    cachedInput: 0.15,
+    output: 9.0,
+  },
+  // GitHub
+  {
+    model: "Raptor mini",
+    provider: "GitHub",
+    category: "Versatile",
+    status: "Public preview",
+    input: 0.25,
+    cachedInput: 0.025,
+    output: 2.0,
+  },
+];
+
+export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
+export const PRICING_LAST_UPDATED = "2026-05-29";
