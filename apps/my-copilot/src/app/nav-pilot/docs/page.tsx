@@ -91,6 +91,16 @@ const DOC_SECTIONS: TocItem[] = [
     ],
   },
   {
+    id: "tilpasning",
+    label: "Tilpasning",
+    children: [
+      { id: "team-egne-instruksjoner", label: "Team-egne instruksjoner" },
+      { id: "prosjektkontekst-med-nav-pilot-init", label: "Prosjektkontekst med nav-pilot init" },
+      { id: "overstyre-installerte-filer", label: "Overstyre installerte filer" },
+      { id: "ignorere-enkeltkomponenter", label: "Ignorere enkeltkomponenter" },
+    ],
+  },
+  {
     id: "cli-referanse",
     label: "CLI-referanse",
     children: [
@@ -324,6 +334,7 @@ export default function NavPilotDocs() {
                 <PipelineSection />
                 <CompetenceSection />
                 <SyncSection />
+                <CustomizationSection />
                 <CliReferenceSection />
                 <HowItWorksSection />
                 <ResourcesSection />
@@ -1418,7 +1429,113 @@ jobs:
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Section 6: CLI-referanse
+   Section 6: Tilpasning
+   ═══════════════════════════════════════════════════════════════ */
+
+function CustomizationSection() {
+  return (
+    <section id="tilpasning">
+      <VStack gap="space-16">
+        <div>
+          <LinkableHeading size="medium" level="2">
+            Tilpasning
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            nav-pilot gir teamet et godt utgangspunkt, men repoet ditt trenger ofte egne regler og egen kontekst. Her er
+            de fire mekanismene du bruker for å tilpasse installasjonen uten å miste kontrollen.
+          </BodyLong>
+        </div>
+
+        <div id="team-egne-instruksjoner">
+          <LinkableHeading size="small" level="3">
+            Team-egne instruksjoner
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Legg egne filer i <code className="font-mono text-xs">.github/instructions/</code> ved siden av det
+            nav-pilot installerer. nav-pilot berører aldri filer det ikke selv har installert, så teamet kan trygt legge
+            inn egne konvensjoner her.
+          </BodyLong>
+          <div className="mt-4">
+            <CodeBlock compact>
+              {`.github/instructions/
+  golang.instructions.md           ← installed by nav-pilot
+  security-owasp.instructions.md   ← installed by nav-pilot
+  team-conventions.instructions.md ← your team's own file`}
+            </CodeBlock>
+          </div>
+        </div>
+
+        <div id="prosjektkontekst-med-nav-pilot-init">
+          <LinkableHeading size="small" level="3">
+            Prosjektkontekst med nav-pilot init
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Kjør <code className="font-mono text-xs">nav-pilot init</code> når du vil fylle inn prosjektspesifikk
+            kontekst. Kommandoen lager tre malfiler med TODO-er som teamet fyller ut selv. nav-pilot oppretter dem én
+            gang, men forvalter dem ikke videre.
+          </BodyLong>
+          <div className="mt-4 space-y-3">
+            <CodeBlock compact>{`nav-pilot init`}</CodeBlock>
+            <CodeBlock compact>
+              {`AGENTS.md
+.github/copilot-instructions.md
+.github/copilot-review-instructions.md`}
+            </CodeBlock>
+          </div>
+        </div>
+
+        <div id="overstyre-installerte-filer">
+          <LinkableHeading size="small" level="3">
+            Overstyre installerte filer
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Vil dere eie en fil som nav-pilot vanligvis oppdaterer, legger dere den i{" "}
+            <code className="font-mono text-xs">.github/copilot-sync.json</code>. Filer i{" "}
+            <code className="font-mono text-xs">overrides</code> hoppes over under{" "}
+            <code className="font-mono text-xs">nav-pilot sync</code>, så teamets versjon blir stående.
+          </BodyLong>
+          <div className="mt-4">
+            <CodeBlock compact>
+              {`{
+  "overrides": [
+    ".github/instructions/golang.instructions.md"
+  ]
+}`}
+            </CodeBlock>
+          </div>
+        </div>
+
+        <div id="ignorere-enkeltkomponenter">
+          <LinkableHeading size="small" level="3">
+            Ignorere enkeltkomponenter
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Bruker du installasjon på brukernivå, kan du undertrykke enkeltkomponenter du ikke vil ha varsler om.{" "}
+            <code className="font-mono text-xs">nav-pilot ignore</code> er bare for{" "}
+            <code className="font-mono text-xs">--user</code>-installasjoner.
+          </BodyLong>
+          <div className="mt-4 space-y-3">
+            <CodeBlock compact>{`nav-pilot ignore agent rust-agent --user`}</CodeBlock>
+            <CodeBlock compact>{`nav-pilot ignore skill rust-development --user`}</CodeBlock>
+          </div>
+        </div>
+
+        <Box background="neutral-soft" padding="space-16" borderRadius="8">
+          <BodyLong size="small" style={{ color: "#475569" }}>
+            Velg mekanisme etter behov: egne instruksjoner for nye regler,{" "}
+            <code className="font-mono text-xs">init</code>
+            for prosjektkontekst, <code className="font-mono text-xs">overrides</code> når dere vil eie en installert
+            fil, og <code className="font-mono text-xs">ignore</code> for brukerinstallerte komponenter dere ikke
+            trenger.
+          </BodyLong>
+        </Box>
+      </VStack>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Section 7: CLI-referanse
    ═══════════════════════════════════════════════════════════════ */
 
 function CliReferenceSection() {
