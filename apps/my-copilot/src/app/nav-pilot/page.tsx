@@ -118,8 +118,8 @@ const COLLECTIONS = [
 const PIPELINE_STEPS = [
   {
     title: "Intervju",
-    subtitle: "Dypdykk-intervju",
-    description: "Finner blindsoner — dataklassifisering, auth-type, PII-risiko og avhengigheter.",
+    subtitle: "Smart intervju",
+    description: "Små oppgaver: bare gjør det. Medium/store: sjekker blindsoner — personvern, auth og avhengigheter.",
     Icon: MagnifyingGlassIcon,
     color: "#a78bfa",
   },
@@ -225,7 +225,7 @@ function HeroSection({ stars }: { stars: number | null }) {
               className="max-w-2xl mx-auto hero-animate-d1"
               style={{ color: "#94a3b8", fontSize: "1.125rem", lineHeight: 1.7, marginBlock: 0, textAlign: "center" }}
             >
-              Navs institusjonelle kunnskap — arkitektur, modernisering og beste praksis — direkte i editoren din.
+              Navs institusjonelle kunnskap — arkitektur, modernisering og beste praksis — i terminalen og editoren.
             </p>
             {/* GitHub badge */}
             <div className="flex justify-center hero-animate-d1">
@@ -979,7 +979,7 @@ function GetStartedSection() {
               Kom i gang
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
-              Installer en samling og bruk @nav-pilot med én gang.
+              Installer en samling og start en AI-sesjon med én kommando.
             </p>
           </div>
 
@@ -1010,40 +1010,40 @@ function GetStartedSection() {
 
               <div>
                 <Heading size="xsmall" level="3" className="mb-2">
-                  2. Kjør nav-pilot i repoet ditt
+                  2. Start en AI-sesjon
                 </Heading>
                 <div
                   className="rounded-lg p-4 overflow-x-auto flex items-center gap-3"
                   style={{ background: "#1e1e1e" }}
                 >
                   <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
-                    nav-pilot
+                    nav-pilot --sync
                   </code>
-                  <CopyButton copyText="nav-pilot" size="xsmall" style={{ color: "white" }} />
+                  <CopyButton copyText="nav-pilot --sync" size="xsmall" style={{ color: "white" }} />
                 </div>
                 <p className="mt-2" style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.5rem 0 0" }}>
-                  Velger samling, installerer og starter Copilot-sandkassen (cplt) — alt interaktivt.
+                  Sjekker oppdateringer og starter Copilot med @nav-pilot. nav-pilot varsler deg automatisk hver 24.
+                  time om nye oppdateringer er tilgjengelige.
                 </p>
               </div>
 
               <div>
                 <Heading size="xsmall" level="3" className="mb-2">
-                  3. Start @nav-pilot i editoren
+                  3. Gi en presis oppgave
                 </Heading>
-                <p style={{ color: "#475569", margin: 0 }}>Åpne Copilot Chat og skriv:</p>
+                <p style={{ color: "#475569", margin: 0 }}>Beskriv oppgaven med språk, rammeverk og kontekst:</p>
                 <div
                   className="rounded-lg p-4 overflow-x-auto flex items-center gap-3 mt-2"
                   style={{ background: "#1e1e1e" }}
                 >
                   <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
-                    @nav-pilot Jeg trenger en ny tjeneste for dagpenger
+                    Lag et Ktor REST-endepunkt /vedtak/&#123;id&#125; med TokenX. Postgres via kotliquery.
                   </code>
-                  <CopyButton
-                    copyText="@nav-pilot Jeg trenger en ny tjeneste for dagpenger"
-                    size="xsmall"
-                    style={{ color: "white" }}
-                  />
                 </div>
+                <p className="mt-2" style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.5rem 0 0" }}>
+                  Vil du kortere svar? Skriv <code style={{ fontSize: "0.75rem" }}>terse-mode</code> i starten av
+                  sesjonen.
+                </p>
               </div>
 
               <div>
