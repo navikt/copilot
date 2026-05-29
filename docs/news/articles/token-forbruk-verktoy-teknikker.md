@@ -62,7 +62,7 @@ Stopp terse                     ← tilbake til vanlig stil
 
 Stilen vedvarer hele sesjonen. Ved sikkerhetsvarsler eller destruktive handlinger bytter den automatisk tilbake til full prosa — du mister aldri viktig informasjon.
 
-## Fire vaner som kutter kostnader
+## Fem vaner som kutter kostnader
 
 ### 1. Vær presis i spørsmålet
 
@@ -78,9 +78,9 @@ Jo mer kontekst du gir i første melding, jo færre runder bruker du.
 
 ### 2. For store oppgaver: la intervjuet gjøre jobben
 
-`@nav-pilot` starter alltid med en intervjufase der den kartlegger blindsoner — personvern, auth, avhengigheter. For små oppgaver går dette raskt. For store oppgaver (ny tjeneste, stor refaktor) bruker den mer tid på å stille presise spørsmål.
+For små oppgaver gjør nav-pilot jobben direkte — ingen spørsmål. For medium/store oppgaver går den gjennom en kort intervjufase der den sjekker blindsoner som personvern, auth og avhengigheter.
 
-Hvis du vil ha et enda grundigere intervju, kan du be om det eksplisitt med `$nav-deep-interview`. Den kjører en strukturert gjennomgang med impactanalyse og dekker flere områder enn standardintervjuet.
+Hvis du vil ha et enda grundigere intervju, be om det med `nav-deep-interview`. Den kjører en strukturert gjennomgang med impactanalyse.
 
 Fem minutter med avklaring slår en bortkastet sesjon.
 
@@ -92,25 +92,54 @@ Copilot bruker [prompt caching](/nyheter/model-pinning-kostnadsoptimalisering) �
 - Unngå «kan du også...» som tar sesjonen i helt ny retning
 - Lang, ufokusert historikk forvirrer — ikke bare koster
 
-### 4. La `@nav-pilot` finne verktøyene
+### 4. La nav-pilot finne verktøyene
 
-Du trenger ikke huske alle skills. `@nav-pilot` bruker riktig kunnskap basert på konteksten:
+Du trenger ikke huske alle skills. Nav-pilot bruker riktig kunnskap basert på konteksten:
 
-- Skriver du Go eller Kotlin? → Sikkerhetsregler (OWASP) er allerede aktive
+- Skriver du Kotlin eller TypeScript? → Sikkerhetsregler (OWASP) er allerede aktive
 - Jobber du med Nais-manifest? → Nais-kunnskap aktiveres
 - Trenger du auth? → TokenX/Azure AD-kunnskap brukes
 
-Du kan be om en spesifikk skill med `$skill-navn`, men for de fleste oppgaver klarer nav-pilot seg selv.
+Du kan be om en spesifikk skill med navn (f.eks. `bruk terse-mode`), men for de fleste oppgaver klarer nav-pilot seg selv.
+
+### 5. Hjelp agenten med å lese mindre
+
+I terminalen er den største token-lekkasjen ofte verktøyoutput — testlogger, stacktraces, store diffs. Noen vaner som hjelper:
+
+- La agenten lese filer selv i stedet for å lime inn hele filer
+- Ved testfeil: gi den relevante feilmeldingen, ikke hele build-loggen
+- Be agenten kjøre målrettede tester (`./gradlew test --tests *MinTest`) før full pipeline
+- Pek på branch eller fil for diff i stedet for å lime inn manuelt
+
+## Gode første meldinger
+
+Eksempler som gir presise svar uten mange oppfølgingsrunder:
+
+```text
+Legg til et nytt REST-endepunkt /vedtak/{id} i Ktor-appen.
+Valider tilgang med TokenX. Hent vedtak fra Postgres via kotliquery.
+Les eksisterende endepunkter i src/main/kotlin/routes/ for stil.
+
+Finn ut hvorfor /soknader-siden i Next.js-appen re-rendrer mye.
+Sjekk komponenten i src/app/soknader/page.tsx. Foreslå minimal fix.
+
+Podden dp-soknad krasjer i dev med OOMKilled. Se på .nais/dev.yaml
+og foreslå justeringer. Ikke endre prod-konfig.
+
+Migrer denne Java-klassen til idiomatic Kotlin. Behold samme
+offentlige API. Bruk sealed class for feilhåndtering.
+```
 
 ## Oppsummert
 
 | Tips | For hvem | Hva du gjør |
 | ---- | -------- | ----------- |
 | Start via `nav-pilot` | Alle | `nav-pilot --sync` synkroniserer og starter Copilot med riktig oppsett |
-| `$terse-mode` | Deg som vil ha kortere svar | Skriv `terse-mode` eller `$terse-mode` i starten av sesjonen |
 | Vær presis | Alle | Nevn språk, rammeverk og integrasjoner i første melding |
-| `$nav-deep-interview` | Nye tjenester, stor refaktor | Skriv `$nav-deep-interview` for grundigere avklaring |
-| Fokuserte sesjoner | Alle | Hold deg til én oppgave per sesjon — bedre svar |
+| Fokuserte sesjoner | Alle | Én oppgave per sesjon — start ny når du bytter problem |
+| La agenten lese | Alle i terminalen | Ikke lim inn store filer/logger — la agenten lese selv |
+| `terse-mode` | Deg som vil ha kortere svar | Skriv `terse-mode` i starten av sesjonen |
+| `nav-deep-interview` | Nye tjenester, stor refaktor | Skriv `nav-deep-interview` for grundigere avklaring |
 
 ---
 
@@ -160,7 +189,9 @@ brew install rtk
 rtk init -g --copilot
 ```
 
-RTK rapporterer 60–90 % reduksjon på verktøydata. RTK og `$terse-mode` utfyller hverandre: RTK kutter det agenten *leser*, terse-mode kutter det agenten *skriver*.
+RTK rapporterer 60–90 % reduksjon på verktøydata. RTK og terse-mode utfyller hverandre: RTK kutter det agenten *leser*, terse-mode kutter det agenten *skriver*.
+
+**Merk:** RTK prosesserer terminaloutput lokalt. Sjekk at verktøyet er godkjent for ditt team før du bruker det med output som kan inneholde sensitive data.
 
 ### TOON og dynamiske verktøysett
 
