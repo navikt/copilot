@@ -11,22 +11,25 @@ All apps deployed on NAIS (Kubernetes on GCP).
 
 ## Target Users
 
-Our primary users are ~600 developers at Nav who use GitHub Copilot daily. They interact primarily through **Copilot CLI** (terminal) and **VS Code Copilot Chat**.
+Our primary users are ~600 developers at Nav who use GitHub Copilot daily. Most write **Kotlin** (backend, Ktor/Spring) and **TypeScript/React** (frontend, Next.js) and are comfortable in both IntelliJ and VS Code.
+
+We are pushing developers towards **autonomous AI agent work in the terminal** — primarily Copilot CLI, but our most advanced users also use tools like opencode and Pi (all backed by their corporate GitHub Copilot subscription). Demand is high, which makes cost optimization a priority: keep token costs down without sacrificing quality.
 
 ### User profiles
 
-| Profile | Description | Primary interface | Interaction style |
-|---------|-------------|-------------------|-------------------|
-| **Terminal-first developer** | Uses Copilot CLI for code generation, refactoring, debugging. Prefers keyboard and command line. | `copilot` CLI | Writes task descriptions, expects code output. Invokes skills by name in messages. |
-| **VS Code chat user** | Uses Copilot Chat panel alongside editor. Selects files, asks questions about code. | VS Code Chat | `@nav-pilot` + natural language. Uses `$skill-name` or just skill names inline. |
-| **Team lead / platform** | Manages collections, instructions, and customizations for their team. | `.github/` config files | Edits YAML/markdown, runs `mise` commands. |
+| Profile | Description | Primary interface |
+|---------|-------------|-------------------|
+| **IDE developer** | Majority of users. Codes in IntelliJ or VS Code, uses Copilot Chat for quick questions and inline completions. | VS Code Chat / IntelliJ |
+| **Terminal agent user** | Growing segment. Runs multi-step agentic sessions for scaffolding, refactoring, debugging. Prefers keyboard-driven workflow. | Copilot CLI, opencode, Pi |
+| **Team lead / platform** | Manages collections, instructions, and customizations for their team. Configures what developers get out of the box. | `.github/` config files, `mise` tasks |
 
 ### How users interact with nav-pilot and skills
 
-1. **Default experience**: User writes `@nav-pilot` (VS Code) or just starts a session in a repo with our collections installed (CLI). Nav-pilot applies conventions silently, interviews when needed, delivers code.
-2. **Skills are invoked by name** in the chat message — either with `$` prefix (`$terse-mode`) or without (`bruk terse-mode`). The `$` is our visual convention, not required syntax. Skills work in VS Code, Copilot CLI, and cloud agent.
+1. **Default experience**: User writes `@nav-pilot` (VS Code) or starts a session in a repo with our collections installed (CLI). Nav-pilot applies conventions silently, interviews when needed, delivers code.
+2. **Skills are invoked by name** in the chat message — either with `$` prefix (`$terse-mode`) or without (`bruk terse-mode`). The `$` is our visual convention, not required syntax. Skills work across VS Code, Copilot CLI, opencode, and cloud agent.
 3. **Most users never invoke skills manually.** Nav-pilot auto-routes relevant knowledge based on file types and request context. Skills exist for power users who want explicit control.
 4. **Instructions load automatically** based on `applyTo` glob patterns — users don't need to know they exist.
+5. **Cost awareness**: With usage-based billing, every token counts. Our tooling defaults to concise output, on-demand skill loading, and focused sessions to keep costs down without user effort.
 
 ## Build & Test Commands
 
