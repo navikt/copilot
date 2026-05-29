@@ -228,13 +228,13 @@ func run(args []string) error {
 	switch command {
 	case "install":
 		if userScope && (len(positional) == 0 || installAll) {
-			if len(positional) == 0 && !installAll {
-				fmt.Fprintf(os.Stderr, "%s In a future version, %s alone will require %s.\n  Run: %s\n\n",
-					yellow("⚠"), bold("install --user"), bold("--all"), bold("nav-pilot install --user --all"))
-			}
 			return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
 		}
 		if len(positional) == 0 {
+			// No args: launch interactive flow if in a terminal
+			if isInteractive() && !jsonOutput {
+				return cmdInstallInteractive(targetDir, ref, sourceRepo)
+			}
 			return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
 		}
 		if len(positional) > 1 {

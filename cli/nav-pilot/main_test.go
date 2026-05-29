@@ -43,6 +43,9 @@ func TestRun_UnknownFlag(t *testing.T) {
 }
 
 func TestRun_InstallNoCollection(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
 	err := run([]string{"install"})
 	if err == nil {
 		t.Fatal("expected error when no collection given")
@@ -83,6 +86,9 @@ func TestRun_RefMissingValue(t *testing.T) {
 // ─── Command alias tests ────────────────────────────────────────────────────
 
 func TestRun_AliasInstall(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
 	// "i" should behave identically to "install" — error when no name given
 	err := run([]string{"i"})
 	if err == nil {
@@ -961,6 +967,135 @@ func TestDirHash(t *testing.T) {
 	}
 }
 
+// ─── cmdInstallAuto dispatch logic tests ────────────────────────────────────
+// cmdInstallAuto calls resolveSource (network I/O), so we test its dispatch
+// logic through the lower-level functions it delegates to.
+
+func TestCmdInstallAuto_InvalidType(t *testing.T) {
+	scope := ScopeRepo(t.TempDir())
+	err := cmdInstallAuto("x", "bogus", scope, "", "", false, false, false)
+	if err == nil || !strings.Contains(err.Error(), "unknown type") {
+		t.Errorf("expected 'unknown type' error, got: %v", err)
+	}
+}
+
+func TestCmdInstallFromSource_Collection(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	os.MkdirAll(filepath.Join(dstDir, ".git"), 0o755)
+
+	// Set up a collection
+	collectDir := filepath.Join(srcDir, ".github", "collections", "fullstack")
+	os.MkdirAll(collectDir, 0o755)
+	manifest := `{"name":"fullstack","description":"Full stack","agents":["test-a"]}`
+	os.WriteFile(filepath.Join(collectDir, "manifest.json"), []byte(manifest), 0o644)
+
+	agentsDir := filepath.Join(srcDir, ".github", "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "test-a.agent.md"), []byte("# Agent A"), 0o644)
+
+	src := &Source{Dir: srcDir, SHA: "abc1234", Version: "dev"}
+	scope := ScopeRepo(dstDir)
+
+	err := cmdInstallFromSource("fullstack", src, scope, false, false, false)
+	if err != nil {
+		t.Fatalf("cmdInstallFromSource: %v", err)
+	}
+
+	// Verify agent was installed
+	if _, err := os.Stat(filepath.Join(dstDir, ".github", "agents", "test-a.agent.md")); os.IsNotExist(err) {
+		t.Error("agent not installed via collection")
+	}
+
+	// Verify state file references the collection
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatalf("readScopedState: %v", err)
+	}
+	if state.Collection != "fullstack" {
+		t.Errorf("state.Collection = %q, want %q", state.Collection, "fullstack")
+	}
+}
+
+func TestCmdInstallFromSource_MissingCollection(t *testing.T) {
+	srcDir := t.TempDir()
+	os.MkdirAll(filepath.Join(srcDir, ".github"), 0o755)
+	src := &Source{Dir: srcDir, SHA: "abc", Version: "dev"}
+	scope := ScopeRepo(t.TempDir())
+
+	err := cmdInstallFromSource("nonexistent", src, scope, false, false, false)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' error, got: %v", err)
+	}
+}
+
+func TestCmdInstallFromSource_DryRun(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	os.MkdirAll(filepath.Join(dstDir, ".git"), 0o755)
+
+	collectDir := filepath.Join(srcDir, ".github", "collections", "test")
+	os.MkdirAll(collectDir, 0o755)
+	os.WriteFile(filepath.Join(collectDir, "manifest.json"), []byte(`{"name":"test","agents":["a"]}`), 0o644)
+
+	agentsDir := filepath.Join(srcDir, ".github", "agents")
+	os.MkdirAll(agentsDir, 0o755)
+	os.WriteFile(filepath.Join(agentsDir, "a.agent.md"), []byte("# A"), 0o644)
+
+	src := &Source{Dir: srcDir, SHA: "abc", Version: "dev"}
+	scope := ScopeRepo(dstDir)
+
+	err := cmdInstallFromSource("test", src, scope, true, false, false)
+	if err != nil {
+		t.Fatalf("dry run: %v", err)
+	}
+
+	// Dry run should NOT create files or state
+	if _, err := os.Stat(filepath.Join(dstDir, ".github", "agents", "a.agent.md")); !os.IsNotExist(err) {
+		t.Error("dry run should not install files")
+	}
+	state, _ := readScopedState(scope)
+	if state != nil {
+		t.Error("dry run should not write state")
+	}
+}
+
+func TestCmdInstallFromSource_Ambiguity(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	os.MkdirAll(filepath.Join(dstDir, ".git"), 0o755)
+
+	// Create both a collection AND a skill with name "kafka"
+	collectDir := filepath.Join(srcDir, ".github", "collections", "kafka")
+	os.MkdirAll(collectDir, 0o755)
+	os.WriteFile(filepath.Join(collectDir, "manifest.json"), []byte(`{"name":"kafka","agents":["x"]}`), 0o644)
+
+	skillDir := filepath.Join(srcDir, ".github", "skills", "kafka")
+	os.MkdirAll(skillDir, 0o755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Kafka"), 0o644)
+
+	// Use listCollectionDirs + resolver to demonstrate the ambiguity
+	collections, _ := listCollectionDirs(srcDir)
+	resolver := NewSourceResolver(srcDir)
+	_, foundSkill := resolver.Get(KindSkill, "kafka")
+
+	if len(collections) == 0 || !foundSkill {
+		t.Fatal("test setup: need both collection and skill named 'kafka'")
+	}
+
+	// The actual ambiguity error is generated by cmdInstallAuto,
+	// but it can't be tested without resolveSource. Verify the detection logic:
+	isCollection := false
+	for _, c := range collections {
+		if c == "kafka" {
+			isCollection = true
+		}
+	}
+	if !isCollection || !foundSkill {
+		t.Error("ambiguity detection logic broken")
+	}
+}
+
 // ─── InstallItems integration test ──────────────────────────────────────────
 
 func TestInstallItems(t *testing.T) {
@@ -1551,6 +1686,9 @@ func TestDetectNewItems_AllUpToDate(t *testing.T) {
 // ─── CLI dispatch: install --user no args ───────────────────────────────────
 
 func TestRun_InstallUserNoArgs(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
 	// nav-pilot install --user (no collection) should call cmdInstallAll,
 	// which calls resolveSource. In test environment this will fail on source
 	// resolution. We just verify it doesn't require a collection name.

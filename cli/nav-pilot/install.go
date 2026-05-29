@@ -63,10 +63,7 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 	}
 
 	dst := scope.DstPath(kind.Dir, art.FileName())
-	relPath := scope.RelPath(kind.Dir, art.FileName())
-	if art.IsDir {
-		relPath += "/"
-	}
+	relPath := kind.RelPathForName(scope, art.Name)
 
 	if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
 		return err
@@ -482,8 +479,47 @@ func collectAvailableItems(sourceDir string) map[string][]string {
 	return result
 }
 
+// cmdInstallInteractive handles `nav-pilot install` with no arguments in an interactive terminal.
+// Reuses the same scope picker and collection/item pickers as the root `nav-pilot` command.
+func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
+	fmt.Println(dim("Resolving source..."))
+
+	src, err := resolveSource(ref, sourceRepo)
+	if err != nil {
+		return err
+	}
+	defer src.Cleanup()
+
+	if targetDir == "" {
+		// Not in a git repo — only user-home scope is possible
+		scope, scopeErr := ScopeUser()
+		if scopeErr != nil {
+			return scopeErr
+		}
+		return interactiveUserInstallFromSource(scope, src)
+	}
+
+	// In a git repo: ask where to install
+	scope, err := promptInstallScope(targetDir)
+	if err != nil {
+		return err
+	}
+	if scope == nil {
+		fmt.Println(dim("Cancelled."))
+		return nil
+	}
+
+	if scope.IsUser() {
+		return interactiveUserInstallFromSource(scope, src)
+	}
+
+	// Repo scope: pick a collection
+	return interactiveRepoInstall(src, scope)
+}
+
 // cmdInstallAll installs all agents and skills to user scope by scanning the source.
 // Used when `nav-pilot install --user` is run without a collection name.
+// When interactive, offers the same picker as the root `nav-pilot` command.
 func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
@@ -493,6 +529,11 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 		return err
 	}
 	defer src.Cleanup()
+
+	// Interactive mode: offer the picker (same UX as `nav-pilot` root command)
+	if isInteractive() && !dryRun && !jsonOutput {
+		return interactiveUserInstallFromSource(scope, src)
+	}
 
 	return installAllFromSource(scope, src, nil, dryRun, force, jsonOutput)
 }
@@ -602,25 +643,6 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 
 // cmdInstall installs a named collection. Used by the old direct dispatch path
 // and re-resolves source (unlike cmdInstallFromSource which reuses an existing source).
-func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
-	if !dryRun && !scope.IsUser() {
-		if _, err := os.Stat(filepath.Join(scope.RootDir, ".git")); os.IsNotExist(err) {
-			return fmt.Errorf("target %q does not appear to be a git repository (no .git directory)", scope.RootDir)
-		}
-	}
-
-	if !jsonOutput {
-		fmt.Println(dim("Resolving source..."))
-	}
-	src, err := resolveSource(ref, sourceRepo)
-	if err != nil {
-		return err
-	}
-	defer src.Cleanup()
-
-	return cmdInstallFromSource(collection, src, scope, dryRun, force, jsonOutput)
-}
-
 func cmdStatus(scope *InstallScope, jsonOutput bool) error {
 	return cmdStatusScoped(scope, false, jsonOutput)
 }

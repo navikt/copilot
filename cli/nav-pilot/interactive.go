@@ -223,6 +223,16 @@ func interactiveUserOnlyInstall() error {
 // Offers a two-step flow: install everything or customize selection.
 // Called from both interactiveFreshInstall (user scope selected) and interactiveUserOnlyInstall.
 func interactiveUserInstall(src *Source) error {
+	scope, err := ScopeUser()
+	if err != nil {
+		return err
+	}
+	return interactiveUserInstallFromSource(scope, src)
+}
+
+// interactiveUserInstallFromSource is the shared implementation for user-scope interactive install.
+// Used by both the root `nav-pilot` command and `nav-pilot install --user`.
+func interactiveUserInstallFromSource(scope *InstallScope, src *Source) error {
 	manifest, err := collectAllItems(src.Dir)
 	if err != nil {
 		return err
@@ -231,11 +241,6 @@ func interactiveUserInstall(src *Source) error {
 	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions)
 	if total == 0 {
 		return fmt.Errorf("no agents, skills, or instructions found in source")
-	}
-
-	scope, err := ScopeUser()
-	if err != nil {
-		return err
 	}
 
 	// Check for existing install to pre-select items
