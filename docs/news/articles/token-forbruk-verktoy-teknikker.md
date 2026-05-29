@@ -21,7 +21,7 @@ En [2026-studie](https://arxiv.org/abs/2604.00025) fant at modeller ble mer tref
 `nav-pilot` er kommandolinjeverktøyet som holder Copilot-oppsettet ditt oppdatert og starter Copilot med riktig konfigurasjon. Den enkleste måten å starte en AI-sesjon:
 
 ```bash
-nav-pilot --sync    # synkroniserer, deretter starter Copilot med @nav-pilot-agenten
+nav-pilot --sync    # synkroniserer, deretter starter Copilot med @nav-pilot
 ```
 
 Eventuelt steg for steg:
