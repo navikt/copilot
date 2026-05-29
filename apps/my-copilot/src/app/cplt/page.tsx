@@ -76,6 +76,7 @@ const SECURITY_TABLE = [
   { resource: "Git hooks, /tmp execution, SSH agent", without: "exposed", with: "blocked" },
   { resource: "Outbound network (HTTPS)", without: "exposed", with: "filtered" },
   { resource: "Private IPs and localhost", without: "exposed", with: "blocked" },
+  { resource: "Destructive git/gh commands (push, merge, delete)", without: "exposed", with: "blocked" },
   { resource: "Copilot auth and tool caches (read-only)", without: "allowed", with: "allowed" },
 ];
 
@@ -129,6 +130,7 @@ export default async function CpltPage() {
       <SecurityTableSection />
       <ProtectionsSection />
       <ProxySection />
+      <GuardsSection />
       <MultiAgentSection />
       <TeamConfigSection />
       <InitSection />
@@ -670,6 +672,175 @@ function ProxySection() {
               </defs>
             </svg>
           </div>
+        </VStack>
+      </Box>
+    </section>
+  );
+}
+
+/* ---------- Guards ---------- */
+
+const GH_GUARD_LEVELS = [
+  { level: "Read", examples: "gh issue list, gh pr view", access: "Allowed", color: "#22c55e" },
+  { level: "Write", examples: "gh pr create, gh issue edit", access: "Own repo only", color: "#f59e0b" },
+  { level: "Destructive", examples: "gh repo delete, gh pr merge", access: "Always blocked", color: "#dc2626" },
+];
+
+function GuardsSection() {
+  return (
+    <section style={{ background: "white" }}>
+      <Box
+        paddingBlock={{ xs: "space-24", md: "space-40" }}
+        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+        className="max-w-5xl mx-auto"
+      >
+        <VStack gap={{ xs: "space-16", md: "space-24" }}>
+          <div className="text-center">
+            <Heading size="medium" level="2" className="mb-3">
+              gh guard &amp; git guard
+            </Heading>
+            <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
+              Block destructive GitHub and git operations. The agent can commit and branch — but not push to main or
+              merge PRs.
+            </p>
+          </div>
+
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-start">
+            {/* gh guard */}
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            >
+              <div className="px-5 py-4" style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <Heading size="xsmall" level="3">
+                  gh guard — three-tier policy
+                </Heading>
+                <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.25rem 0 0" }}>
+                  Default-deny engine classifying 150+ <code style={{ fontSize: "0.75rem" }}>gh</code> commands.
+                </p>
+              </div>
+              <div>
+                {GH_GUARD_LEVELS.map((row, i) => (
+                  <div
+                    key={row.level}
+                    className="flex items-center gap-3 px-5 py-3"
+                    style={{ borderTop: i > 0 ? "1px solid #f1f5f9" : undefined }}
+                  >
+                    <div
+                      className="rounded-full shrink-0"
+                      style={{ width: "8px", height: "8px", background: row.color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold" style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0 }}>
+                        {row.level}
+                      </p>
+                      <p style={{ color: "#94a3b8", fontSize: "0.75rem", margin: 0 }}>{row.examples}</p>
+                    </div>
+                    <span
+                      className="shrink-0 font-semibold rounded-full px-2.5 py-0.5"
+                      style={{ fontSize: "0.6875rem", background: `${row.color}15`, color: row.color }}
+                    >
+                      {row.access}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 py-3" style={{ background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
+                <p style={{ color: "#64748b", fontSize: "0.75rem", margin: 0 }}>
+                  <code style={{ fontSize: "0.6875rem" }}>gh api</code> calls restricted to{" "}
+                  <code style={{ fontSize: "0.6875rem" }}>/repos/&#123;current-repo&#125;/...</code>
+                </p>
+              </div>
+            </div>
+
+            {/* git guard + enable commands */}
+            <VStack gap="space-16">
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+              >
+                <div className="px-5 py-4" style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <Heading size="xsmall" level="3">
+                    git guard — push protection
+                  </Heading>
+                  <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.25rem 0 0" }}>
+                    Blocks <code style={{ fontSize: "0.75rem" }}>push</code>,{" "}
+                    <code style={{ fontSize: "0.75rem" }}>request-pull</code>, and{" "}
+                    <code style={{ fontSize: "0.75rem" }}>send-pack</code>. Commit, branch, rebase — all fine.
+                  </p>
+                </div>
+                <div className="px-5 py-3" style={{ background: "#f8fafc" }}>
+                  <p style={{ color: "#64748b", fontSize: "0.75rem", margin: 0 }}>
+                    Feature branches only?{" "}
+                    <code style={{ fontSize: "0.6875rem" }}>
+                      cplt config set git_guard.protect_default_branch_only true
+                    </code>
+                  </p>
+                </div>
+              </div>
+
+              {/* Enable commands */}
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+              >
+                <div
+                  className="flex items-center justify-between px-4 py-2"
+                  style={{ background: "#1e1e1e", borderBottom: "1px solid #333" }}
+                >
+                  <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                    Enable guards
+                  </span>
+                  <CopyButton
+                    copyText="cplt config set gh_guard.enabled true && cplt config set git_guard.enabled true"
+                    size="xsmall"
+                    style={{ color: "white" }}
+                  />
+                </div>
+                <pre
+                  className="p-4 font-mono leading-relaxed overflow-x-auto"
+                  style={{ margin: 0, fontSize: "0.75rem", color: "#d4d4d4", background: "#1e1e1e" }}
+                >
+                  <span style={{ color: "#4ade80" }}>$</span>
+                  {" cplt config set gh_guard.enabled true\n"}
+                  <span style={{ color: "#4ade80" }}>$</span>
+                  {" cplt config set git_guard.enabled true"}
+                </pre>
+              </div>
+
+              {/* What agent sees */}
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+              >
+                <div
+                  className="flex items-center justify-between px-4 py-2"
+                  style={{ background: "#1e1e1e", borderBottom: "1px solid #333" }}
+                >
+                  <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                    What the agent sees
+                  </span>
+                </div>
+                <pre
+                  className="p-4 font-mono leading-relaxed overflow-x-auto"
+                  style={{ margin: 0, fontSize: "0.7rem", color: "#d4d4d4", background: "#1e1e1e" }}
+                >
+                  <span style={{ color: "#f87171" }}>⛔ sandbox restriction:</span>
+                  {" `gh pr merge` is not allowed.\n"}
+                  {"This command is classified as destructive\n"}
+                  {"and blocked by gh guard.\n\n"}
+                  <span style={{ color: "#94a3b8" }}>
+                    Please note this for the human operator{"\n"}and continue with your remaining work.
+                  </span>
+                </pre>
+              </div>
+            </VStack>
+          </HGrid>
+
+          <p className="text-center" style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0 }}>
+            Start with <code style={{ fontSize: "0.75rem" }}>--gh-guard --git-guard</code> flags for a single run, or{" "}
+            <code style={{ fontSize: "0.75rem" }}>mode: audit</code> to observe before enforcing.
+          </p>
         </VStack>
       </Box>
     </section>
