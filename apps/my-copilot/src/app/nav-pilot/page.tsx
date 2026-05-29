@@ -1212,6 +1212,22 @@ function FooterTagline() {
           </p>
           <div className="flex flex-wrap gap-6 justify-center" style={{ fontSize: "0.875rem" }}>
             <NextLink
+              href="/nav-pilot/docs#kommandooversikt"
+              className="no-underline transition-colors"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              Kommandoer
+            </NextLink>
+            <NextLink
+              href="https://github.com/navikt/copilot/issues/new/choose"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="no-underline transition-colors"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              Gi tilbakemelding
+            </NextLink>
+            <NextLink
               href="https://github.com/navikt/copilot"
               target="_blank"
               rel="noopener noreferrer"
