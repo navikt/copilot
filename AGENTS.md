@@ -27,11 +27,12 @@ We are pushing developers towards **autonomous AI agent work in the terminal** �
 
 ### How users interact with nav-pilot and skills
 
-1. **Default experience**: User writes `@nav-pilot` (VS Code) or starts a session in a repo with our collections installed (CLI). Nav-pilot applies conventions silently, interviews when needed, delivers code.
-2. **Skills are invoked by name** in the chat message — either with `$` prefix (`$terse-mode`) or without (`bruk terse-mode`). The `$` is our visual convention, not required syntax. Skills work across VS Code, Copilot CLI, opencode, and cloud agent.
-3. **Most users never invoke skills manually.** Nav-pilot auto-routes relevant knowledge based on file types and request context. Skills exist for power users who want explicit control.
-4. **Instructions load automatically** based on `applyTo` glob patterns — users don't need to know they exist.
-5. **Cost awareness**: With usage-based billing, every token counts. Our tooling defaults to concise output, on-demand skill loading, and focused sessions to keep costs down without user effort.
+1. **Primary entry point**: `nav-pilot --sync` syncs configs and launches Copilot CLI with the `@nav-pilot` agent. This is the recommended way to start AI coding sessions — it ensures collections, instructions, and skills are up to date.
+2. **In VS Code**: User writes `@nav-pilot` in Chat. Same agent, same conventions, just a different interface.
+3. **Skills are invoked by name** in the chat message — either with `$` prefix (`$terse-mode`) or without (`bruk terse-mode`). The `$` is our visual convention, not required syntax. Skills work across VS Code, Copilot CLI, opencode, and cloud agent.
+4. **Most users never invoke skills manually.** Nav-pilot auto-routes relevant knowledge based on file types and request context. Skills exist for power users who want explicit control.
+5. **Instructions load automatically** based on `applyTo` glob patterns — users don't need to know they exist.
+6. **Cost awareness**: With usage-based billing, every token counts. Our tooling defaults to concise output, on-demand skill loading, and focused sessions to keep costs down without user effort.
 
 ## Build & Test Commands
 

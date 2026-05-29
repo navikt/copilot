@@ -16,16 +16,31 @@ Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) bet
 
 En [2026-studie](https://arxiv.org/abs/2604.00025) fant at modeller ble mer treffsikre når de ble tvunget til å svare kort. Kortere svar er altså ikke bare billigere — de kan også være bedre.
 
-## Det viktigste først: bruk `@nav-pilot`
+## Det viktigste først: bruk `nav-pilot` CLI
 
-`@nav-pilot` er allerede satt opp for å gi deg kompakte svar. Den:
+`nav-pilot` er kommandolinjeverktøyet som holder Copilot-oppsettet ditt oppdatert og starter Copilot med riktig konfigurasjon. Den enkleste måten å starte en AI-sesjon:
 
-- Starter med konklusjonen, ikke forklaringen
-- Viser kode direkte uten lang innledning
-- Tilbyr «Si 'forklar' for detaljer» når den hopper over begrunnelse
-- Spør bare når svaret faktisk endrer implementeringen
+```bash
+nav-pilot --sync    # synkroniserer, deretter starter Copilot med @nav-pilot-agenten
+```
 
-Du trenger ikke gjøre noe spesielt. Bare bruk `@nav-pilot` i stedet for standard Copilot Chat, så får du dette automatisk.
+Eventuelt steg for steg:
+
+```bash
+nav-pilot install kotlin-backend   # installer collection for teamet ditt
+nav-pilot sync                     # sjekk for oppdateringer
+nav-pilot                          # interaktiv meny — install, sync, eller start Copilot
+```
+
+Når du starter Copilot via `nav-pilot`, får du automatisk:
+
+- Konklusjonen først, ikke forklaringen
+- Kode direkte uten lang innledning
+- «Si 'forklar' for detaljer» når begrunnelse hoppes over
+- Spørsmål bare når svaret faktisk endrer implementeringen
+- Nav-konvensjoner (Aksel, Nais, auth) uten at du trenger å be om det
+
+I VS Code Chat kan du skrive `@nav-pilot` for å få det samme.
 
 ## Vil du ha enda kortere svar? Bruk `$terse-mode`
 
@@ -91,8 +106,8 @@ Du kan be om en spesifikk skill med `$skill-navn`, men for de fleste oppgaver kl
 
 | Tips | For hvem | Hva du gjør |
 | ---- | -------- | ----------- |
-| Bruk `@nav-pilot` | Alle | Skriv `@nav-pilot` foran spørsmålet — kompakte svar er standard |
-| `$terse-mode` | Deg som vil ha kortere svar | Skriv `$terse-mode` i starten av sesjonen |
+| Start via `nav-pilot` | Alle | `nav-pilot --sync` synkroniserer og starter Copilot med riktig oppsett |
+| `$terse-mode` | Deg som vil ha kortere svar | Skriv `terse-mode` eller `$terse-mode` i starten av sesjonen |
 | Vær presis | Alle | Nevn språk, rammeverk og integrasjoner i første melding |
 | `$nav-deep-interview` | Nye tjenester, stor refaktor | Skriv `$nav-deep-interview` for grundigere avklaring |
 | Fokuserte sesjoner | Alle | Hold deg til én oppgave per sesjon — bedre svar |
