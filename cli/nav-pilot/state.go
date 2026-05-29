@@ -23,12 +23,16 @@ type StateFile struct {
 type InstalledFile struct {
 	Path   string `json:"path"`
 	Hash   string `json:"hash"`
-	Status string `json:"status,omitempty"` // "" = active, fileStatusIgnored = intentionally deleted
+	Status string `json:"status,omitempty"` // "" = active, fileStatusIgnored = intentionally excluded, fileStatusConflict = exists with local modifications
 }
 
-// fileStatusIgnored marks a file as intentionally deleted by the user.
+// fileStatusIgnored marks a file as intentionally excluded by the user.
 // Sync and status skip files with this status.
 const fileStatusIgnored = "ignored"
+
+// fileStatusConflict marks a file that existed with local modifications at install time.
+// The user declined to overwrite it, so sync should not touch it until resolved.
+const fileStatusConflict = "conflict"
 
 // readState reads state for the given repo directory (legacy convenience wrapper).
 func readState(targetDir string) (*StateFile, error) {

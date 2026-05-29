@@ -635,13 +635,16 @@ func TestInstallArtifact_ConflictStillTracked(t *testing.T) {
 		t.Errorf("expected 4 files tracked in state (including conflict), got %d", totalTracked)
 	}
 
-	// Verify the conflicted agent is tracked with its current (modified) hash
+	// Verify the conflicted agent is tracked with conflict status
 	found := false
 	for _, f := range result2.Files {
 		if strings.Contains(f.Path, "test.agent.md") {
 			found = true
 			if f.Hash == "" {
 				t.Error("conflicted file has empty hash in state")
+			}
+			if f.Status != fileStatusConflict {
+				t.Errorf("conflicted file should have status %q, got %q", fileStatusConflict, f.Status)
 			}
 		}
 	}

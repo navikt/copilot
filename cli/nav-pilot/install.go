@@ -69,11 +69,11 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 		return err
 	} else if c != nil && !force {
 		// File exists and differs but we're not forcing — skip the overwrite
-		// but still track it in state so future syncs can update it.
+		// but track as conflict so it's not lost from state or reported as "new".
 		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
 		existingHash, hashErr := rawArtifactHash(dst, art.IsDir)
 		if hashErr == nil {
-			result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: existingHash})
+			result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: existingHash, Status: fileStatusConflict})
 		}
 		result.Conflicts++
 		return nil

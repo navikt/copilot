@@ -819,6 +819,38 @@ func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
 	}
 }
 
+func TestResolveSyncFiles_SkipsConflictedFiles(t *testing.T) {
+	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// Create source
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "auth.agent.md"), []byte("# Auth"), 0o644)
+
+	state := &StateFile{
+		Collection: "(all)",
+		Version:    "2025.07",
+		Scope:      "repo",
+		Files: []InstalledFile{
+			{Path: ".github/agents/nais.agent.md", Hash: "abc123"},
+			{Path: ".github/agents/auth.agent.md", Hash: "def456", Status: fileStatusConflict},
+		},
+	}
+	writeState(dir, state)
+
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("files count = %d, want 1 (conflicted file should be excluded)", len(files))
+	}
+	if files[0].localPath != ".github/agents/nais.agent.md" {
+		t.Errorf("expected nais agent, got %s", files[0].localPath)
+	}
+}
+
 func TestMarkFilesIgnored(t *testing.T) {
 	dir := t.TempDir()
 	scope := ScopeRepo(dir)

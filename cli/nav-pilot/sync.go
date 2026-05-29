@@ -204,15 +204,15 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		fmt.Fprintf(os.Stderr, "%s Could not update state file: %v\n", yellow("⚠"), err)
 	}
 
-	// Only bump source SHA if ALL updates were applied successfully
+	// Only bump source SHA and version if ALL updates were applied successfully
 	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {
 			state.SourceSHA = src.SHA
-		}
-		// Use the binary's release version directly.
-		// "dev" means local/unreleased build — checkStaleness() skips it.
-		if src.Version != "" {
-			state.Version = src.Version
+			// Use the binary's release version directly.
+			// "dev" means local/unreleased build — checkStaleness() skips it.
+			if src.Version != "" {
+				state.Version = src.Version
+			}
 		}
 		if err := writeScopedState(scope, state); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not update state: %v\n", yellow("⚠"), err)
@@ -298,11 +298,11 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string
 	}
 
 	if state != nil {
-		// State-based: check all installed files, skip ignored ones
+		// State-based: check all installed files, skip ignored and conflicted ones
 		resolver := NewSourceResolver(sourceDir)
 		var files []syncFile
 		for _, f := range state.Files {
-			if f.Status == fileStatusIgnored {
+			if f.Status == fileStatusIgnored || f.Status == fileStatusConflict {
 				continue
 			}
 			sp := resolver.MapLocalPath(f.Path, scope.IsUser())

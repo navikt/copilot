@@ -207,6 +207,13 @@ func run(args []string) error {
 			return fmt.Errorf("resolving user home: %w", err)
 		}
 	} else {
+		// For repo scope without explicit --target, resolve to git root
+		// so commands work from any subdirectory.
+		if !targetProvided {
+			if root := findGitRoot(targetDir); root != "" {
+				targetDir = root
+			}
+		}
 		scope = ScopeRepo(targetDir)
 	}
 
