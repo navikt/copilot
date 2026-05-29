@@ -42,9 +42,11 @@ Når du starter Copilot via `nav-pilot`, får du automatisk:
 
 I VS Code Chat kan du skrive `@nav-pilot` for å få det samme.
 
-## Vil du ha enda kortere svar? Bruk `$terse-mode`
+## Vil du ha enda kortere svar? Bruk `terse-mode`
 
-`$`-prefikset er vår konvensjon for å markere skill-navn — det gjør det tydelig for både deg og agenten at du ber om en spesifikk [skill](https://code.visualstudio.com/docs/copilot/customization/agent-skills). Du kan også bare skrive navnet uten `$` (f.eks. «terse-mode» eller «bruk terse-mode»). Agenten gjenkjenner det uansett. Skriv `$terse-mode` for å skru på ekstra kompakt stil. Tre nivåer:
+Skills er tilleggskunnskap nav-pilot kan bruke. Du aktiverer dem ved å skrive navnet i meldingen — enten med `$`-prefiks (`$terse-mode`) eller uten (`bruk terse-mode`). `$` er vår visuelle konvensjon, ikke påkrevd syntax. Les mer om [skills i VS Code-dokumentasjonen](https://code.visualstudio.com/docs/copilot/customization/agent-skills).
+
+Skriv `terse-mode` for å skru på ekstra kompakt stil. Tre nivåer:
 
 | Nivå | Hva den gjør | Eksempel |
 | ---- | ------------ | -------- |
@@ -55,9 +57,9 @@ I VS Code Chat kan du skrive `@nav-pilot` for å få det samme.
 Slik bruker du det:
 
 ```text
-@nav-pilot $terse-mode          ← slår på normal-nivå
-@nav-pilot $terse-mode ultra    ← for raske iterasjoner
-Stopp terse                     ← tilbake til vanlig stil
+terse-mode                ← slår på normal-nivå
+terse-mode ultra          ← for raske iterasjoner
+Stopp terse               ← tilbake til vanlig stil
 ```
 
 Stilen vedvarer hele sesjonen. Ved sikkerhetsvarsler eller destruktive handlinger bytter den automatisk tilbake til full prosa — du mister aldri viktig informasjon.
