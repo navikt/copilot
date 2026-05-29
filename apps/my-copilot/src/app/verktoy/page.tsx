@@ -1,7 +1,9 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { Heading, Box, VStack } from "@navikt/ds-react";
-import { getAllCustomizations, getCountsByDomain } from "@/lib/customizations";
+import { getAllCustomizations, getCountsByDomain, getCustomizationById } from "@/lib/customizations";
 import type { Domain } from "@/lib/customization-types";
+import { TYPE_LABELS } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
 import { PageHero } from "@/components/page-hero";
 import { getMcpServers } from "@/lib/mcp-registry";
@@ -9,6 +11,54 @@ import { getCachedCustomizationUsage } from "@/lib/cached-bigquery";
 import { enrichWithUsage } from "@/lib/enrich-customizations";
 import { DomainCards } from "./domain-cards";
 import { getUser } from "@/lib/auth";
+
+interface Props {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const params = await searchParams;
+  const itemId = typeof params.item === "string" ? params.item : undefined;
+
+  if (itemId) {
+    const item = getCustomizationById(itemId);
+    if (item) {
+      const typeLabel = TYPE_LABELS[item.type];
+      const title = `${item.name} — ${typeLabel}`;
+      const description = item.description;
+
+      return {
+        title,
+        description,
+        openGraph: {
+          title: `${item.name} — ${typeLabel} for GitHub Copilot`,
+          description,
+          type: "website",
+        },
+        twitter: {
+          card: "summary_large_image",
+          title: `${item.name} — ${typeLabel} for GitHub Copilot`,
+          description,
+        },
+      };
+    }
+  }
+
+  return {
+    title: "Verktøy — Copilot-tilpasninger for Nav",
+    description: "Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere for Navs stack.",
+    openGraph: {
+      title: "Verktøy — Copilot-tilpasninger for Nav",
+      description: "Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere for Navs stack.",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Verktøy — Copilot-tilpasninger for Nav",
+      description: "Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere for Navs stack.",
+    },
+  };
+}
 
 export default async function CustomizationsPage() {
   const user = await getUser(false);

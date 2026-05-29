@@ -5,6 +5,10 @@ export function getAllCustomizations(): AnyCustomization[] {
   return manifest.items as AnyCustomization[];
 }
 
+export function getCustomizationById(id: string): AnyCustomization | undefined {
+  return (manifest.items as AnyCustomization[]).find((item) => item.id === id);
+}
+
 /**
  * Get set of official file names from the manifest.
  * For skills, extracts the directory name (e.g., "observability-setup") since
