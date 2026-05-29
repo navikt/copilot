@@ -81,6 +81,16 @@ run = "bash scripts/sync-skills-dirs.sh --fix"
 description = "Verify docs page COLLECTIONS data matches manifest.json files"
 run = "bash scripts/lint-collections.sh"
 
+# ─── Pricing ──────────────────────────────────────────────────────────────────
+
+[tasks."pricing:check"]
+description = "Check if model pricing data is in sync with GitHub docs"
+run = "node scripts/sync-model-pricing.mjs --check"
+
+[tasks."pricing:sync"]
+description = "Fetch latest model pricing from GitHub docs and update data file"
+run = "node scripts/sync-model-pricing.mjs"
+
 # ─── nav-pilot installer ─────────────────────────────────────────────────────
 
 [tasks."nav-pilot:build"]

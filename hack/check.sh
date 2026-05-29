@@ -45,6 +45,14 @@ else
   echo ""
 fi
 
+echo "💰 pricing:"
+if mise run pricing:check; then
+  echo ""
+else
+  failed+=("pricing")
+  echo ""
+fi
+
 echo "🧭 nav-pilot:"
 if mise run nav-pilot:check; then
   echo ""
