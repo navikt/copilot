@@ -85,14 +85,14 @@ env = { LOG_LEVEL = "DEBUG" }
 run = "fnox exec -- go run . --run-once"
 
 [tasks."run:backfill"]
-description = "Run historical backfill (dev, from 2025-06-01)"
+description = "Run historical backfill (dev, from 2025-10-10)"
 env = { LOG_LEVEL = "DEBUG", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }
-run = "fnox exec -- go run . --backfill --backfill-from=${BACKFILL_FROM:-2025-06-01} --force"
+run = "fnox exec -- go run . --backfill --backfill-from=${BACKFILL_FROM:-2025-10-10} --force"
 
 [tasks."run:backfill:prod"]
-description = "Run historical backfill (prod, from 2025-06-01)"
+description = "Run historical backfill (prod, from 2025-10-10)"
 env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
-run = "fnox exec -- go run . --backfill --backfill-from=${BACKFILL_FROM:-2025-06-01} --force"
+run = "fnox exec -- go run . --backfill --backfill-from=${BACKFILL_FROM:-2025-10-10} --force"
 
 [tasks."docker:build"]
 description = "Build Docker image"

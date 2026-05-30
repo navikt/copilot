@@ -438,6 +438,7 @@ func TestIsClientError(t *testing.T) {
 	}{
 		{errors.New("API returned status 404: not found"), true},
 		{errors.New("API returned status 401: unauthorized"), true},
+		{errors.New("API returned status 204: "), true},
 		{errors.New("API returned status 500: internal error"), false},
 		{errors.New("connection timeout"), false},
 	}

@@ -172,10 +172,11 @@ func (c *GitHubClient) fetchWithRetry(ctx context.Context, url string, fetchFn f
 	return nil, fmt.Errorf("failed after 3 attempts: %w", lastErr)
 }
 
-// isClientError checks if the error indicates a 4xx HTTP status.
+// isClientError checks if the error indicates a 4xx HTTP status or 204 (No Content).
+// 204 is treated as non-retryable because it means "no data available for this day".
 func isClientError(err error) bool {
 	errStr := err.Error()
-	return strings.Contains(errStr, "status 4")
+	return strings.Contains(errStr, "status 4") || strings.Contains(errStr, "status 204")
 }
 
 // isReportNotAvailable checks if the error indicates the report hasn't been generated yet.
