@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
   // Enable Cache Components (Partial Prerendering)
   cacheComponents: true,
   turbopack: {
-    // Empty config to silence Turbopack migration warning
+    root: "../..",
   },
   experimental: {
     optimizePackageImports: ["@navikt/ds-react", "@navikt/aksel-icons"],
