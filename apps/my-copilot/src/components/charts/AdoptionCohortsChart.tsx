@@ -7,16 +7,74 @@ import { commonLineOptions, getBackgroundColor, chartWrapperClass, NO_DATA_MESSA
 
 // Phase colors: muted gray → blue → purple → green
 const phaseColors = [
-  "rgba(156, 163, 175, 1)", // Phase 0 — No cohort (gray)
-  "rgba(59, 130, 246, 1)", // Phase 1 — Code first (blue)
-  "rgba(139, 92, 246, 1)", // Phase 2 — Agent first (purple)
-  "rgba(16, 185, 129, 1)", // Phase 3 — Multi-agent (green)
+  "rgba(156, 163, 175, 1)", // Phase 0 — Ingen AI-bruk (gray)
+  "rgba(59, 130, 246, 1)", // Phase 1 — Kodeforslag (blue)
+  "rgba(139, 92, 246, 1)", // Phase 2 — Én agent-flate (purple)
+  "rgba(16, 185, 129, 1)", // Phase 3 — Flere agent-flater (green)
 ];
 
-const phaseLabels = ["Ingen kohort", "Kode først", "Agent først", "Multi-agent"];
+const phaseLabels = [
+  "Fase 0: Ingen AI-bruk",
+  "Fase 1: Kodeforslag",
+  "Fase 2: Én agentflate",
+  "Fase 3: Flere agentflater",
+];
 
 interface AdoptionCohortsChartProps {
   data: AdoptionCohortDay[];
+}
+
+/**
+ * Aggregate daily data into ISO weeks (Monday-based).
+ * For each week, takes the average user count per phase.
+ */
+function aggregateToWeeks(data: AdoptionCohortTrendData): AdoptionCohortTrendData {
+  const weekMap = new Map<string, { phase0: number[]; phase1: number[]; phase2: number[]; phase3: number[] }>();
+
+  for (let i = 0; i < data.days.length; i++) {
+    const date = new Date(data.days[i]);
+    // ISO week: Monday-based — get the Monday of the week
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(date.setDate(diff));
+    const weekLabel = monday.toISOString().slice(0, 10);
+
+    if (!weekMap.has(weekLabel)) {
+      weekMap.set(weekLabel, { phase0: [], phase1: [], phase2: [], phase3: [] });
+    }
+    const entry = weekMap.get(weekLabel)!;
+    entry.phase0.push(data.phase0[i]);
+    entry.phase1.push(data.phase1[i]);
+    entry.phase2.push(data.phase2[i]);
+    entry.phase3.push(data.phase3[i]);
+  }
+
+  const sortedWeeks = [...weekMap.keys()].sort();
+  const avg = (arr: number[]) => (arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length));
+
+  const result: AdoptionCohortTrendData = {
+    days: sortedWeeks,
+    phase0: [],
+    phase1: [],
+    phase2: [],
+    phase3: [],
+    total: [],
+  };
+
+  for (const week of sortedWeeks) {
+    const entry = weekMap.get(week)!;
+    const p0 = avg(entry.phase0);
+    const p1 = avg(entry.phase1);
+    const p2 = avg(entry.phase2);
+    const p3 = avg(entry.phase3);
+    result.phase0.push(p0);
+    result.phase1.push(p1);
+    result.phase2.push(p2);
+    result.phase3.push(p3);
+    result.total.push(p0 + p1 + p2 + p3);
+  }
+
+  return result;
 }
 
 /**
@@ -58,6 +116,8 @@ export function transformCohortData(data: AdoptionCohortDay[]): AdoptionCohortTr
   return result;
 }
 
+const WEEKLY_THRESHOLD_DAYS = 28;
+
 const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (
@@ -67,10 +127,22 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
     );
   }
 
-  const trend = transformCohortData(data);
+  let trend = transformCohortData(data);
+  const useWeekly = trend.days.length > WEEKLY_THRESHOLD_DAYS;
+  if (useWeekly) {
+    trend = aggregateToWeeks(trend);
+  }
+
+  const formatLabel = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (useWeekly) {
+      return `Uke ${d.toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}`;
+    }
+    return d.toLocaleDateString("nb-NO", { day: "numeric", month: "short" });
+  };
 
   const chartData = {
-    labels: trend.days,
+    labels: trend.days.map(formatLabel),
     datasets: [
       {
         label: phaseLabels[3],
@@ -117,7 +189,7 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       ...commonLineOptions.plugins,
       title: {
         display: true,
-        text: "AI-adopsjonskohorter over tid",
+        text: useWeekly ? "AI-adopsjon – ukesgjennomsnitt" : "AI-adopsjon – daglig fordeling",
         font: { size: 14, weight: "bold" as const },
         padding: { bottom: 16 },
       },

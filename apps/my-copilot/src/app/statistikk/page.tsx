@@ -334,13 +334,31 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
           <VStack gap="space-16">
             <div className="flex items-center gap-2">
               <Heading size="small" level="3">
-                AI-adopsjonskohorter
+                AI-adopsjonsfaser
               </Heading>
-              <HelpText title="AI-adopsjonskohorter" placement="top">
-                GitHubs inndeling av brukere basert på AI-bruksmønster (rullerende 28-dagers vindu). Fase 1:
-                Kodeforslag. Fase 2: Bruker én agent-flate. Fase 3: Bruker flere agent-flater.
+              <HelpText title="Om adopsjonsfasene" placement="top">
+                GitHub klassifiserer brukere i faser basert på AI-aktivitet de siste 28 dagene. Grafen viser utviklingen
+                over tid.
               </HelpText>
             </div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-4">
+              <div>
+                <dt className="font-medium text-gray-600">Fase 0</dt>
+                <dd>Ingen AI-bruk siste 28 dager</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-600">Fase 1</dt>
+                <dd>Bruker kodeforslag (inline completions)</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-600">Fase 2</dt>
+                <dd>Bruker AI-agent i ett verktøy (f.eks. bare Chat)</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-600">Fase 3</dt>
+                <dd>Bruker AI-agent i flere verktøy (f.eks. Chat + CLI)</dd>
+              </div>
+            </dl>
             <AdoptionCohortsChart data={adoptionCohorts} />
           </VStack>
         </Box>
