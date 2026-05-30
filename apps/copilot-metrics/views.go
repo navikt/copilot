@@ -23,6 +23,7 @@ var views = []viewDefinition{
 	{name: "v_model_stats", filename: "views/v_model_stats.sql"},
 	{name: "v_code_generation", filename: "views/v_code_generation.sql"},
 	{name: "v_team_daily_summary", filename: "views/v_team_daily_summary.sql"},
+	{name: "v_adoption_cohorts", filename: "views/v_adoption_cohorts.sql"},
 }
 
 func (c *BigQueryClient) EnsureViewsExist(ctx context.Context) error {

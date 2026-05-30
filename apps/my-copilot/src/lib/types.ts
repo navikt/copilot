@@ -494,3 +494,24 @@ export interface WeeklyTrend {
   active_days: number;
   models?: Array<{ model: string; interactions: number }>;
 }
+
+// AI Adoption Cohort types (from user_metrics ai_adoption_phase field)
+export interface AdoptionCohortDay {
+  day: string;
+  phase: number; // 0 = No cohort, 1 = Code first, 2 = Agent first, 3 = Multi-agent
+  phase_version: string; // "v1"
+  user_count: number;
+  avg_generations: number;
+  avg_acceptances: number;
+  avg_interactions: number;
+  avg_lines_added: number;
+}
+
+export interface AdoptionCohortTrendData {
+  days: string[];
+  phase0: number[];
+  phase1: number[];
+  phase2: number[];
+  phase3: number[];
+  total: number[];
+}

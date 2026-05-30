@@ -7,6 +7,7 @@ import {
   getCachedMonthlyModelUsage,
   getCachedMonthlyBillingUsage,
   getCachedUserWeeklyTrends,
+  getCachedAdoptionCohorts,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
@@ -17,6 +18,7 @@ import ModelUsageChart from "@/components/charts/ModelUsageChart";
 import GenerationModeChart from "@/components/charts/GenerationModeChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import MonthlyModelChart from "@/components/charts/MonthlyModelChart";
+import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
@@ -165,7 +167,13 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
     { trends: monthlyTrends, error: monthlyError },
     { usage: monthlyModelUsage, error: modelUsageError },
     { usage: billingUsage, error: billingError },
-  ] = await Promise.all([getCachedMonthlyTrends(), getCachedMonthlyModelUsage(), getCachedMonthlyBillingUsage()]);
+    { cohorts: adoptionCohorts, error: cohortsError },
+  ] = await Promise.all([
+    getCachedMonthlyTrends(),
+    getCachedMonthlyModelUsage(),
+    getCachedMonthlyBillingUsage(),
+    getCachedAdoptionCohorts(),
+  ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
   }
@@ -174,6 +182,9 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
   }
   if (billingError) {
     console.error("[statistikk] Monthly billing usage failed:", billingError);
+  }
+  if (cohortsError) {
+    console.error("[statistikk] Adoption cohorts failed:", cohortsError);
   }
 
   // Find the last COMPLETE month (not the current partial month)
@@ -313,6 +324,24 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
               </Box>
             </HGrid>
             <GenerationModeChart data={generationModeTrendData} />
+          </VStack>
+        </Box>
+      )}
+
+      {/* AI Adoption Cohorts */}
+      {adoptionCohorts.length > 0 && (
+        <Box background="neutral-soft" padding="space-24" borderRadius="12">
+          <VStack gap="space-16">
+            <div className="flex items-center gap-2">
+              <Heading size="small" level="3">
+                AI-adopsjonskohorter
+              </Heading>
+              <HelpText title="AI-adopsjonskohorter" placement="top">
+                GitHubs inndeling av brukere basert på AI-bruksmønster (rullerende 28-dagers vindu). Fase 1:
+                Kodeforslag. Fase 2: Bruker én agent-flate. Fase 3: Bruker flere agent-flater.
+              </HelpText>
+            </div>
+            <AdoptionCohortsChart data={adoptionCohorts} />
           </VStack>
         </Box>
       )}

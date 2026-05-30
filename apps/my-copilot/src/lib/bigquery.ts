@@ -1,6 +1,7 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { loadBigQueryConfig, tableRef, viewRef, type BigQueryConfig } from "./bigquery-config";
 import type {
+  AdoptionCohortDay,
   AdoptionSummary,
   CustomizationDetail,
   CustomizationUsage,
@@ -682,6 +683,40 @@ export class CopilotBigQueryClient {
       throw err;
     }
   }
+
+  /**
+   * Get AI adoption cohort distribution over time.
+   * Returns per-day phase breakdown from the user_metrics table.
+   * Data available from 2026-05-29 (when GitHub added ai_adoption_phase field).
+   */
+  async getAdoptionCohorts(days: number = 90): Promise<AdoptionCohortDay[]> {
+    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
+
+    const query = `
+      SELECT
+        day,
+        CAST(JSON_VALUE(raw_record, '$.ai_adoption_phase.phase') AS INT64) AS phase,
+        JSON_VALUE(raw_record, '$.ai_adoption_phase.version') AS phase_version,
+        COUNT(DISTINCT JSON_VALUE(raw_record, '$.user_id')) AS user_count,
+        AVG(CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64)) AS avg_generations,
+        AVG(CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)) AS avg_acceptances,
+        AVG(CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)) AS avg_interactions,
+        AVG(CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)) AS avg_lines_added
+      FROM ${metricsRef}
+      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+        AND scope = 'enterprise'
+        AND JSON_VALUE(raw_record, '$.ai_adoption_phase.phase') IS NOT NULL
+      GROUP BY day, phase, phase_version
+      ORDER BY day, phase
+    `;
+
+    try {
+      return await this.query<AdoptionCohortDay>(query, { days });
+    } catch (err) {
+      console.error("[bigquery] getAdoptionCohorts failed:", err);
+      throw err;
+    }
+  }
 }
 
 // Default client instance (lazy-loaded)
@@ -745,4 +780,8 @@ export async function getUserWeeklyTrends(userLogin: string, weeks: number = 12)
 
 export async function getStalenessData(): Promise<StalenessFile[]> {
   return getDefaultClient().getStalenessData();
+}
+
+export async function getAdoptionCohorts(days?: number): Promise<AdoptionCohortDay[]> {
+  return getDefaultClient().getAdoptionCohorts(days);
 }

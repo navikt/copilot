@@ -1,5 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache";
 import {
+  getAdoptionCohorts,
   getAdoptionSummary,
   getCustomizationDetails,
   getCustomizationUsage,
@@ -15,6 +16,7 @@ import {
   getUserWeeklyTrends,
 } from "./bigquery";
 import type {
+  AdoptionCohortDay,
   AdoptionData,
   CustomizationUsage,
   EnterpriseMetrics,
@@ -222,5 +224,23 @@ export async function getCachedMonthlyBillingUsage(): Promise<{
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cached-bigquery] getCachedMonthlyBillingUsage failed:", err);
     return { usage: [], error: message };
+  }
+}
+
+export async function getCachedAdoptionCohorts(): Promise<{
+  cohorts: AdoptionCohortDay[];
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({ stale: 3600 });
+  cacheTag("bq-adoption-cohorts");
+
+  try {
+    const cohorts = await getAdoptionCohorts(90);
+    return { cohorts, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[cached-bigquery] getCachedAdoptionCohorts failed:", err);
+    return { cohorts: [], error: message };
   }
 }
