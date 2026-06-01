@@ -8,6 +8,18 @@ const BACKEND_REQUEST_TIMEOUT_MS = 15000;
 
 const isLocalDev = !process.env.NAIS_CLUSTER_NAME;
 
+/**
+ * Error thrown when the backend API responds with a non-2xx status.
+ * Carries the HTTP status so callers can handle specific cases gracefully
+ * (e.g. a 404 from the seat endpoint means "user has no Copilot seat").
+ */
+export class BackendApiError extends Error {
+  constructor(public readonly status: number) {
+    super(`Backend API error (${status})`);
+    this.name = "BackendApiError";
+  }
+}
+
 function getCopilotApiAudience(): string {
   // Azure AD OBO audience format: api://<cluster>.<namespace>.<app-name>/.default
   // The /.default scope is required by Entra ID for OBO token exchange
@@ -105,11 +117,7 @@ async function backendRequest<T>(path: string, userToken: string, options: Reque
   );
 
   if (!response.ok) {
-    const contentType = response.headers.get("content-type");
-    if (contentType?.includes("application/problem+json")) {
-      throw new Error(`Backend API error (${response.status})`);
-    }
-    throw new Error(`Backend API returned ${response.status}`);
+    throw new BackendApiError(response.status);
   }
 
   return response.json() as Promise<T>;

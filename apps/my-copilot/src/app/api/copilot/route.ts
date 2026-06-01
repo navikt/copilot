@@ -1,5 +1,5 @@
 import { getUser, getUserToken } from "@/lib/auth";
-import { backendRequest } from "@/lib/backend-api";
+import { backendRequest, BackendApiError } from "@/lib/backend-api";
 import { getLoggerWithTraceContext, getTraceId } from "@/lib/logger";
 import { context } from "@opentelemetry/api";
 import { NextResponse } from "next/server";
@@ -45,7 +45,19 @@ export async function GET() {
       });
     }
 
-    const subscription = await backendRequest(`/api/v1/copilot/seats/${githubUsername}`, token);
+    // A 404 from the seat endpoint is a valid state: the user is linked to a
+    // GitHub account but has no Copilot seat/license. Treat it as "no
+    // subscription" rather than an error so the UI can show the activate state.
+    let subscription: unknown = null;
+    try {
+      subscription = await backendRequest(`/api/v1/copilot/seats/${githubUsername}`, token);
+    } catch (err) {
+      if (err instanceof BackendApiError && err.status === 404) {
+        log.info({ email: user.email }, "User has no Copilot seat");
+      } else {
+        throw err;
+      }
+    }
 
     log.info({ email: user.email }, "User Copilot subscription status");
 
