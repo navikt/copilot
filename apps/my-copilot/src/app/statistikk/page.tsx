@@ -200,13 +200,13 @@ async function BillingTabContent() {
   );
 }
 
-// Main content component that takes usage data as props
+// Main content component that takes usage data as props.
+// NOT cached: it renders <PremiumUsageData/> (which calls getUserToken() →
+// headers()) as a child, so wrapping this in "use cache" would run headers()
+// inside a cache scope (a <Suspense> boundary does not break the cache scope).
+// The underlying org-wide usage data is already cached in copilot-api; the
+// per-request work here is only cheap in-memory aggregation of the usage prop.
 async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
-  "use cache";
-  const { cacheLife, cacheTag } = await import("next/cache");
-  cacheLife({ stale: 3600 });
-  cacheTag("usage-navikt");
-
   const dateRange = getDateRange(usage);
   if (!dateRange) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
 
