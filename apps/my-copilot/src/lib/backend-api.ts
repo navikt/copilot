@@ -83,8 +83,7 @@ async function exchangeToken(userToken: string): Promise<string> {
   );
 
   if (!response.ok) {
-    const responseText = await response.text();
-    console.error(`Token exchange failed (${response.status}): ${responseText}`);
+    console.error(`Token exchange failed (${response.status})`);
     throw new Error(`Token exchange failed (${response.status})`);
   }
 

@@ -17,11 +17,10 @@ This document describes the architecture of the `copilot-api` backend service th
 - GitHub App authentication with JWT + installation tokens
 - Background metrics collector (5min interval)
 - BigQuery operations with in-memory caching (1h TTL)
-- GitHub API operations (billing, seat management, SAML lookup)
+- GitHub API operations (billing, premium request usage, seat management, SAML lookup)
 - Frontend migration complete - all main flows use backend API
 
 ### ⏳ Future Enhancements
-- Premium request usage endpoint (currently handled directly in frontend)
 - Debug endpoint migration for raw BigQuery repo_scan queries
 
 ## Architecture Diagram
@@ -279,7 +278,6 @@ accessPolicy:
 6. **Frontend updated** — All main flows use backend API via OBO token exchange
 
 ### Remaining Edge Cases
-- **Premium request usage** — Awaiting backend implementation
 - **Debug endpoint** — Admin-only raw BigQuery queries (low priority)
 
 ## Testing Strategy

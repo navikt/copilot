@@ -25,6 +25,12 @@ var metricsCollector = &MetricsCollector{}
 // metricsHandler returns Prometheus metrics
 func metricsHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
 		metricsCollector.mu.RLock()
 		defer metricsCollector.mu.RUnlock()
 
@@ -67,6 +73,7 @@ copilot_seats_pending_cancellation %d
 		)
 
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(metrics))
 	})

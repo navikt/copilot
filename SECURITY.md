@@ -88,7 +88,7 @@ copilot-api endpoints that access external services:
 | BigQuery credentials | copilot-api pod (via GCP Workload Identity) | copilot-api only |
 | Azure AD client config | Both pods (injected by Nais) | Auto-managed |
 
-**NOTE:** `github.ts` in my-copilot still holds GitHub App credentials for `getPremiumRequestUsage` which has not yet been migrated. This is a known gap — tracked for removal once the premium usage endpoint is implemented in copilot-api.
+All external service credentials (GitHub App, BigQuery) live exclusively in the `copilot-api` pod. `my-copilot` holds no GitHub App credentials and reaches GitHub and BigQuery only through `copilot-api` via Azure AD OBO tokens.
 
 ## Network Policy
 
@@ -183,8 +183,8 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 ### 🚫 Never
 
 - Commit secrets or credentials to git
-- Log PII (email, FNR) at INFO level or above
+- Log PII (email, FNR) at INFO level or above, except the minimal actor identity required for audit logging of mutations
 - Forward raw upstream error messages to clients
 - Skip input validation on external boundaries
 - Bypass `azp` validation (even for "internal" services)
-- Give my-copilot direct access to GitHub App credentials (migration goal)
+- Give my-copilot direct access to GitHub App credentials

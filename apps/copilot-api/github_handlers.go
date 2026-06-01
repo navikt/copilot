@@ -177,7 +177,7 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 
 	username, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), identity)
 	if err != nil {
-		slog.Error("Failed to lookup SAML identity", "identity", identity, "error", err)
+		slog.Error("Failed to lookup SAML identity", "error", err)
 		respondError(w, "github_error", "Failed to lookup SAML identity", http.StatusInternalServerError)
 		return
 	}

@@ -40,6 +40,7 @@ Browser → Wonderwall → my-copilot (BFF) → Texas (OBO) → copilot-api → 
 #### Billing
 
 - `GET /api/v1/copilot/billing` — Enterprise billing overview
+- `GET /api/v1/copilot/billing/premium` — Premium request usage
 
 #### Adoption
 
@@ -59,6 +60,7 @@ Browser → Wonderwall → my-copilot (BFF) → Texas (OBO) → copilot-api → 
 - `POST /api/v1/copilot/seats` — Assign seat to user
 - `DELETE /api/v1/copilot/seats/{username}` — Remove user seat
 - `GET /api/v1/copilot/saml/{identity}` — Resolve GitHub username from SAML identity
+- `GET /api/v1/copilot/repo-contributors` — Repository file contributors
 
 #### MCP
 

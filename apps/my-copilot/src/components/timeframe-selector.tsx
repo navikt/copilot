@@ -16,7 +16,8 @@ export default function TimeframeSelector() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const currentDays = parseInt(searchParams.get("days") || "28", 10);
+  const requestedDays = parseInt(searchParams.get("days") || "28", 10);
+  const currentDays = TIMEFRAME_OPTIONS.some((option) => option.value === requestedDays) ? requestedDays : 28;
 
   const handleSelect = (days: number) => {
     const params = new URLSearchParams(searchParams.toString());
