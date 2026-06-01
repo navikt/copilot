@@ -9,12 +9,13 @@ const BACKEND_REQUEST_TIMEOUT_MS = 15000;
 const isLocalDev = !process.env.NAIS_CLUSTER_NAME;
 
 function getCopilotApiAudience(): string {
+  // Azure AD OBO audience format: api://<cluster>.<namespace>.<app-name>/.default
+  // The /.default scope is required by Entra ID for OBO token exchange
   const cluster = process.env.NAIS_CLUSTER_NAME;
   if (!cluster) {
     throw new Error("NAIS_CLUSTER_NAME not configured — cannot determine backend API audience");
   }
-  // TokenX audience format: api://{cluster}.{namespace}.{app-name}
-  return `api://${cluster}.copilot.copilot-api`;
+  return `api://${cluster}.copilot.copilot-api/.default`;
 }
 
 interface TokenExchangeResponse {
