@@ -25,6 +25,7 @@ func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 }
 
 // handleDailyMetrics handles GET /api/v1/copilot/usage/metrics?days=N
+// Cache: 1 hour (metrics are aggregated daily)
 func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return
@@ -46,10 +47,12 @@ func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	cacheControl(w, 3600, true) // 1 hour, public
 	respondJSON(w, metrics, http.StatusOK)
 }
 
 // handleAdoptionSummary handles GET /api/v1/copilot/adoption/summary
+// Cache: 1 hour (aggregated metrics)
 func (h *BigQueryHandlers) handleAdoptionSummary(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return
@@ -62,14 +65,17 @@ func (h *BigQueryHandlers) handleAdoptionSummary(w http.ResponseWriter, r *http.
 	}
 
 	if summary == nil {
+		cacheControl(w, 3600, true)
 		respondJSON(w, map[string]interface{}{}, http.StatusOK)
 		return
 	}
 
+	cacheControl(w, 3600, true)
 	respondJSON(w, summary, http.StatusOK)
 }
 
 // handleTeamAdoption handles GET /api/v1/copilot/adoption/teams
+// Cache: 1 hour (aggregated team metrics)
 func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return
@@ -81,10 +87,12 @@ func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	cacheControl(w, 3600, true)
 	respondJSON(w, teams, http.StatusOK)
 }
 
 // handleCustomizationDetails handles GET /api/v1/copilot/customizations/details
+// Cache: 1 hour (aggregated customization data)
 func (h *BigQueryHandlers) handleCustomizationDetails(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return
@@ -96,10 +104,12 @@ func (h *BigQueryHandlers) handleCustomizationDetails(w http.ResponseWriter, r *
 		return
 	}
 
+	cacheControl(w, 3600, true)
 	respondJSON(w, details, http.StatusOK)
 }
 
 // handleCustomizationUsage handles GET /api/v1/copilot/customizations/usage
+// Cache: 1 hour (aggregated customization usage)
 func (h *BigQueryHandlers) handleCustomizationUsage(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return
@@ -111,10 +121,12 @@ func (h *BigQueryHandlers) handleCustomizationUsage(w http.ResponseWriter, r *ht
 		return
 	}
 
+	cacheControl(w, 3600, true)
 	respondJSON(w, usage, http.StatusOK)
 }
 
 // handleLanguageAdoption handles GET /api/v1/copilot/adoption/languages
+// Cache: 1 hour (language adoption metrics)
 func (h *BigQueryHandlers) handleLanguageAdoption(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return
@@ -126,10 +138,12 @@ func (h *BigQueryHandlers) handleLanguageAdoption(w http.ResponseWriter, r *http
 		return
 	}
 
+	cacheControl(w, 3600, true)
 	respondJSON(w, langs, http.StatusOK)
 }
 
 // handleAdoptionStaleness handles GET /api/v1/copilot/adoption/staleness
+// Cache: 1 hour (staleness data updated daily)
 func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return
@@ -162,5 +176,6 @@ func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *htt
 		Files:              files,
 	}
 
+	cacheControl(w, 3600, true)
 	respondJSON(w, summary, http.StatusOK)
 }

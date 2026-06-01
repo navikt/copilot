@@ -307,3 +307,198 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlePremiumRequestUsage(t *testing.T) {
+	tests := []struct {
+		name       string
+		org        string
+		year       string
+		month      string
+		mockData   *PremiumRequestUsage
+		mockErr    error
+		wantStatus int
+	}{
+		{
+			name:       "returns data with optional year and month",
+			org:        "nav",
+			mockData:   &PremiumRequestUsage{},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns data with only year",
+			org:        "nav",
+			year:       "2024",
+			mockData:   &PremiumRequestUsage{},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns data with only month",
+			org:        "nav",
+			month:      "6",
+			mockData:   &PremiumRequestUsage{},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "rejects missing org parameter",
+			month:      "6",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rejects invalid year format",
+			org:        "nav",
+			year:       "invalid",
+			month:      "6",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rejects invalid month value (too high)",
+			org:        "nav",
+			year:       "2024",
+			month:      "13",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rejects invalid month value (zero)",
+			org:        "nav",
+			year:       "2024",
+			month:      "0",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 500 on backend error",
+			org:        "nav",
+			year:       "2024",
+			month:      "6",
+			mockErr:    errors.New("github error"),
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockGitHubClient{premiumUsage: tc.mockData, premiumErr: tc.mockErr}
+			h := newGitHubHandlers(mock)
+
+			query := ""
+			if tc.org != "" {
+				query += "org=" + tc.org
+			}
+			if tc.year != "" {
+				if query != "" {
+					query += "&"
+				}
+				query += "year=" + tc.year
+			}
+			if tc.month != "" {
+				if query != "" {
+					query += "&"
+				}
+				query += "month=" + tc.month
+			}
+
+			url := "/api/v1/copilot/billing/premium"
+			if query != "" {
+				url += "?" + query
+			}
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			rec := httptest.NewRecorder()
+			h.handlePremiumRequestUsage(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestHandleRepositoryContributors(t *testing.T) {
+	tests := []struct {
+		name       string
+		owner      string
+		repo       string
+		paths      string
+		mockData   []Contributor
+		mockErr    error
+		wantStatus int
+	}{
+		{
+			name:       "returns contributors on success",
+			owner:      "navikt",
+			repo:       "copilot",
+			paths:      `["src/main.go","src/api.go"]`,
+			mockData:   []Contributor{{Login: "user1"}, {Login: "user2"}},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "rejects missing owner parameter",
+			repo:       "copilot",
+			paths:      `["src/main.go"]`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rejects missing repo parameter",
+			owner:      "navikt",
+			paths:      `["src/main.go"]`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rejects missing paths parameter",
+			owner:      "navikt",
+			repo:       "copilot",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rejects invalid JSON in paths",
+			owner:      "navikt",
+			repo:       "copilot",
+			paths:      "not-json",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 500 on backend error",
+			owner:      "navikt",
+			repo:       "copilot",
+			paths:      `["src/main.go"]`,
+			mockErr:    errors.New("github error"),
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockGitHubClient{contributors: tc.mockData, contributorsErr: tc.mockErr}
+			h := newGitHubHandlers(mock)
+
+			query := ""
+			if tc.owner != "" {
+				query += "owner=" + tc.owner
+			}
+			if tc.repo != "" {
+				if query != "" {
+					query += "&"
+				}
+				query += "repo=" + tc.repo
+			}
+			if tc.paths != "" {
+				if query != "" {
+					query += "&"
+				}
+				query += "paths=" + tc.paths
+			}
+
+			url := "/api/v1/copilot/repo-contributors"
+			if query != "" {
+				url += "?" + query
+			}
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			rec := httptest.NewRecorder()
+			h.handleRepositoryContributors(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
+			}
+		})
+	}
+}

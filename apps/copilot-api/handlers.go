@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -82,6 +83,26 @@ func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
 	respondError(w, "not_implemented", "This endpoint is not yet implemented", http.StatusNotImplemented)
 }
 
+// cacheControl sets HTTP cache headers for responses
+// duration: cache duration in seconds (max-age and s-maxage)
+// public: if true, cache is shareable; if false, cache is private to the user
+func cacheControl(w http.ResponseWriter, duration int, public bool) {
+	var policy string
+	if public {
+		policy = fmt.Sprintf("public, max-age=%d, s-maxage=%d", duration, duration)
+	} else {
+		policy = fmt.Sprintf("private, max-age=%d", duration)
+	}
+	w.Header().Set("Cache-Control", policy)
+}
+
+// noCacheControl disables caching for responses (mutations, sensitive data)
+func noCacheControl(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+}
+
 // RFC 7807 Problem Details response
 type ProblemDetail struct {
 	Type     string `json:"type"`
@@ -105,6 +126,7 @@ func respondError(w http.ResponseWriter, errorType, detail string, status int) {
 	}
 
 	w.Header().Set("Content-Type", "application/problem+json")
+	noCacheControl(w)
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(problem); err != nil {
 		slog.Error("Failed to encode problem details response", "error", err)

@@ -48,6 +48,7 @@ func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheControl(w, 900, true) // 15 min, public (billing summary)
 	respondJSON(w, billing, http.StatusOK)
 }
 
@@ -71,6 +72,7 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheControl(w, 300, false) // 5 min, private (user-specific)
 	respondJSON(w, seat, http.StatusOK)
 }
 
@@ -116,6 +118,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 		"seats_created", result.SeatsCreated,
 	)
 
+	noCacheControl(w)
 	respondJSON(w, map[string]interface{}{
 		"seats_created": result.SeatsCreated,
 		"username":      req.Username,
@@ -156,6 +159,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 		"seats_cancelled", result.SeatsCancelled,
 	)
 
+	noCacheControl(w)
 	respondJSON(w, map[string]interface{}{
 		"seats_cancelled": result.SeatsCancelled,
 		"username":        username,
@@ -163,6 +167,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 }
 
 // handleGetUsernameBySAML handles GET /api/v1/copilot/saml/{identity}
+// Cache: 30 min (SAML identity mappings rarely change)
 func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.Request) {
 	identity := r.PathValue("identity")
 	if identity == "" || len(identity) > 254 || strings.Contains(identity, "/") {
@@ -178,6 +183,7 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 	}
 
 	if username == "" {
+		cacheControl(w, 1800, false)
 		respondJSON(w, map[string]interface{}{
 			"identity": identity,
 			"username": nil,
@@ -185,6 +191,7 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 		return
 	}
 
+	cacheControl(w, 1800, false)
 	respondJSON(w, map[string]interface{}{
 		"identity": identity,
 		"username": username,
@@ -192,6 +199,7 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 }
 
 // handlePremiumRequestUsage handles GET /api/v1/copilot/billing/premium
+// Cache: 1 hour (billing data updated daily)
 func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *http.Request) {
 	org := r.URL.Query().Get("org")
 	if org == "" || !isValidGitHubUsername(org) {
@@ -225,10 +233,12 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 		return
 	}
 
+	cacheControl(w, 3600, true)
 	respondJSON(w, usage, http.StatusOK)
 }
 
 // handleRepositoryContributors handles GET /api/v1/copilot/repo-contributors
+// Cache: 7 days (contributors list is stable)
 func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *http.Request) {
 	owner := r.URL.Query().Get("owner")
 	repo := r.URL.Query().Get("repo")
@@ -274,6 +284,7 @@ func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *
 		return
 	}
 
+	cacheControl(w, 604800, true) // 7 days, public
 	respondJSON(w, map[string]interface{}{
 		"contributors": contributors,
 	}, http.StatusOK)

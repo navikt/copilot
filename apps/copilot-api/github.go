@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -560,7 +561,7 @@ func (g *GitHubClient) getPremiumRequestUsage(ctx context.Context, org string, y
 // Contributor represents a repository contributor
 type Contributor struct {
 	Login     string `json:"login"`
-	AvatarURL string `json:"avatar_url"`
+	AvatarURL string `json:"avatarUrl"`
 }
 
 // getRepositoryContributors fetches contributors for repository paths via REST API
@@ -574,10 +575,11 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 	var contributors []Contributor
 
 	for _, path := range paths {
-		url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?path=%s&per_page=100",
-			owner, repo, strings.TrimSpace(path))
+		encodedPath := url.QueryEscape(strings.TrimSpace(path))
+		apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?path=%s&per_page=100",
+			owner, repo, encodedPath)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 		if err != nil {
 			return nil, fmt.Errorf("create request: %w", err)
 		}
