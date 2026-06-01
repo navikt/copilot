@@ -13,9 +13,8 @@ function getCopilotApiAudience(): string {
   if (!cluster) {
     throw new Error("NAIS_CLUSTER_NAME not configured — cannot determine backend API audience");
   }
-  // TokenX audience format: api://{cluster}.{app-name}
-  // For copilot-api service with clientName: copilot-api
-  return `api://${cluster}.copilot-api`;
+  // TokenX audience format: api://{cluster}.{namespace}.{app-name}
+  return `api://${cluster}.copilot.copilot-api`;
 }
 
 interface TokenExchangeResponse {
@@ -71,6 +70,8 @@ async function exchangeToken(userToken: string): Promise<string> {
   );
 
   if (!response.ok) {
+    const responseText = await response.text();
+    console.error(`Token exchange failed (${response.status}): ${responseText}`);
     throw new Error(`Token exchange failed (${response.status})`);
   }
 
