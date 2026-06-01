@@ -19,36 +19,6 @@ export async function getCachedCopilotBilling(token: string): Promise<{
 }
 
 /**
- * Cached version of premium request usage via backend API.
- * Premium usage data for current month updates frequently.
- */
-export async function getCachedPremiumRequestUsage(
-  org: string,
-  year?: number,
-  month?: number
-): Promise<{
-  usage: PremiumRequestUsage | null;
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({
-    stale: 300, // 5 minutes until considered stale
-    revalidate: 900, // 15 minutes until revalidated
-    expire: 3600, // 1 hour until expired
-  });
-  cacheTag("premium-usage", org, `${year}-${month}`);
-
-  try {
-    // This function is called server-side during page render
-    // For now, it requires the backend context (no token available here)
-    // The frontend pages that use this should pass a token
-    return { usage: null, error: "Premium usage requires authentication context" };
-  } catch (error) {
-    return { usage: null, error: getErrorMessage(error) };
-  }
-}
-
-/**
  * Fetch premium request usage for an organization via backend API.
  * Requires authentication token.
  */

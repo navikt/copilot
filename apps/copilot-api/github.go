@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -457,9 +458,16 @@ func (g *GitHubClient) getUsernameBySamlIdentity(ctx context.Context, identity s
 
 // PremiumRequestUsage represents GitHub premium request usage for an organization
 type PremiumRequestUsage struct {
-	TimePeriod   string             `json:"time_period"`
+	TimePeriod   BillingTimePeriod  `json:"timePeriod"`
 	Organization string             `json:"organization"`
-	UsageItems   []PremiumUsageItem `json:"usage_items"`
+	UsageItems   []PremiumUsageItem `json:"usageItems"`
+}
+
+// BillingTimePeriod represents a billing period (year, month, optional day)
+type BillingTimePeriod struct {
+	Year  int `json:"year"`
+	Month int `json:"month,omitempty"`
+	Day   int `json:"day,omitempty"`
 }
 
 // PremiumUsageItem represents a single premium request usage item
@@ -467,14 +475,48 @@ type PremiumUsageItem struct {
 	Product          string  `json:"product"`
 	SKU              string  `json:"sku"`
 	Model            string  `json:"model"`
-	UnitType         string  `json:"unit_type"`
-	PricePerUnit     float64 `json:"price_per_unit"`
-	GrossQuantity    int     `json:"gross_quantity"`
-	GrossAmount      float64 `json:"gross_amount"`
-	DiscountQuantity int     `json:"discount_quantity"`
-	DiscountAmount   float64 `json:"discount_amount"`
-	NetQuantity      int     `json:"net_quantity"`
-	NetAmount        float64 `json:"net_amount"`
+	UnitType         string  `json:"unitType"`
+	PricePerUnit     float64 `json:"pricePerUnit"`
+	GrossQuantity    int     `json:"grossQuantity"`
+	GrossAmount      float64 `json:"grossAmount"`
+	DiscountQuantity int     `json:"discountQuantity"`
+	DiscountAmount   float64 `json:"discountAmount"`
+	NetQuantity      int     `json:"netQuantity"`
+	NetAmount        float64 `json:"netAmount"`
+}
+
+// parseTimePeriod parses a time period string (format: "YYYY-MM" or "YYYY") into a BillingTimePeriod
+func parseTimePeriod(period string) (BillingTimePeriod, error) {
+	tp := BillingTimePeriod{}
+	parts := strings.Split(period, "-")
+
+	if len(parts) < 1 {
+		return tp, errors.New("invalid time period format")
+	}
+
+	year, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return tp, fmt.Errorf("invalid year: %w", err)
+	}
+	tp.Year = year
+
+	if len(parts) >= 2 {
+		month, err := strconv.Atoi(parts[1])
+		if err != nil || month < 1 || month > 12 {
+			return tp, fmt.Errorf("invalid month: %w", err)
+		}
+		tp.Month = month
+	}
+
+	if len(parts) >= 3 {
+		day, err := strconv.Atoi(parts[2])
+		if err != nil || day < 1 || day > 31 {
+			return tp, fmt.Errorf("invalid day: %w", err)
+		}
+		tp.Day = day
+	}
+
+	return tp, nil
 }
 
 // getPremiumRequestUsage fetches premium request usage for an organization
@@ -533,8 +575,14 @@ func (g *GitHubClient) getPremiumRequestUsage(ctx context.Context, org string, y
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
+	// Parse timePeriod string (format: "YYYY-MM" or "YYYY" or similar)
+	timePeriod, err := parseTimePeriod(result.TimePeriod)
+	if err != nil {
+		return nil, fmt.Errorf("parse time period: %w", err)
+	}
+
 	usage := &PremiumRequestUsage{
-		TimePeriod:   result.TimePeriod,
+		TimePeriod:   timePeriod,
 		Organization: result.Organization,
 		UsageItems:   make([]PremiumUsageItem, len(result.UsageItems)),
 	}
@@ -600,8 +648,9 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 
 		var commits []struct {
 			Author *struct {
-				Login string `json:"login"`
-				Type  string `json:"type"`
+				Login     string `json:"login"`
+				Type      string `json:"type"`
+				AvatarURL string `json:"avatar_url"`
 			} `json:"author"`
 		}
 
@@ -624,9 +673,14 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 
 			if !seen[login] {
 				seen[login] = true
+				avatarURL := commit.Author.AvatarURL
+				if avatarURL == "" {
+					// Fallback if avatar_url not provided
+					avatarURL = fmt.Sprintf("https://github.com/%s.png", login)
+				}
 				contributors = append(contributors, Contributor{
 					Login:     login,
-					AvatarURL: fmt.Sprintf("https://avatars.githubusercontent.com/u/%s?v=4", login),
+					AvatarURL: avatarURL,
 				})
 			}
 		}

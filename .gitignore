@@ -68,3 +68,4 @@ Gemini_Generated_Image*
 node_modules/
 # Build artifacts
 apps/copilot-api/bin/
+apps/copilot-api/copilot-api
