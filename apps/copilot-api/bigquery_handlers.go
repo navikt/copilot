@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 )
@@ -43,6 +44,7 @@ func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Req
 
 	metrics, err := h.bqClient.GetDailyMetrics(r.Context(), days)
 	if err != nil {
+		slog.Error("Failed to fetch daily metrics", "error", err)
 		respondError(w, "internal_error", "Failed to fetch daily metrics", http.StatusInternalServerError)
 		return
 	}
@@ -60,6 +62,7 @@ func (h *BigQueryHandlers) handleAdoptionSummary(w http.ResponseWriter, r *http.
 
 	summary, err := h.bqClient.GetAdoptionSummary(r.Context())
 	if err != nil {
+		slog.Error("Failed to fetch adoption summary", "error", err)
 		respondError(w, "internal_error", "Failed to fetch adoption summary", http.StatusInternalServerError)
 		return
 	}
@@ -83,6 +86,7 @@ func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Req
 
 	teams, err := h.bqClient.GetTeamAdoption(r.Context())
 	if err != nil {
+		slog.Error("Failed to fetch team adoption", "error", err)
 		respondError(w, "internal_error", "Failed to fetch team adoption", http.StatusInternalServerError)
 		return
 	}
@@ -100,6 +104,7 @@ func (h *BigQueryHandlers) handleCustomizationDetails(w http.ResponseWriter, r *
 
 	details, err := h.bqClient.GetCustomizationDetails(r.Context())
 	if err != nil {
+		slog.Error("Failed to fetch customization details", "error", err)
 		respondError(w, "internal_error", "Failed to fetch customization details", http.StatusInternalServerError)
 		return
 	}
@@ -117,6 +122,7 @@ func (h *BigQueryHandlers) handleCustomizationUsage(w http.ResponseWriter, r *ht
 
 	usage, err := h.bqClient.GetCustomizationUsage(r.Context())
 	if err != nil {
+		slog.Error("Failed to fetch customization usage", "error", err)
 		respondError(w, "internal_error", "Failed to fetch customization usage", http.StatusInternalServerError)
 		return
 	}
@@ -134,6 +140,7 @@ func (h *BigQueryHandlers) handleLanguageAdoption(w http.ResponseWriter, r *http
 
 	langs, err := h.bqClient.GetLanguageAdoption(r.Context())
 	if err != nil {
+		slog.Error("Failed to fetch language adoption", "error", err)
 		respondError(w, "internal_error", "Failed to fetch language adoption", http.StatusInternalServerError)
 		return
 	}
@@ -151,6 +158,7 @@ func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *htt
 
 	files, err := h.bqClient.GetStalenessData(r.Context())
 	if err != nil {
+		slog.Error("Failed to fetch staleness data", "error", err)
 		respondError(w, "internal_error", "Failed to fetch staleness data", http.StatusInternalServerError)
 		return
 	}

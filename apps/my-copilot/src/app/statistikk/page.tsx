@@ -84,13 +84,11 @@ async function CachedUsageData({ days }: { days: number }) {
   return <UsageContent usage={filteredUsage} />;
 }
 
-// Cached premium data component
+// Premium data component (dynamic: requires per-request auth token, so it cannot
+// run inside "use cache" — getUserToken() reads request headers. The underlying
+// org-wide premium data is cached in getCachedPremiumRequestUsageWithToken and in
+// copilot-api. This component is always rendered inside <Suspense>.)
 async function PremiumUsageData({ currentYear, currentMonth }: { currentYear: number; currentMonth: number }) {
-  "use cache";
-  const { cacheLife, cacheTag } = await import("next/cache");
-  cacheLife({ stale: 300 });
-  cacheTag("premium-usage-navikt");
-
   const token = await getUserToken();
   if (!token) {
     return <BodyShort className="text-gray-500">Ikke autentisert for premiumdata.</BodyShort>;
