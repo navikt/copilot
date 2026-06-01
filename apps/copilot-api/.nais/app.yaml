@@ -13,6 +13,10 @@ spec:
       tenant: nav.no
       allowAllUsers: true
 
+  tokenx:
+    enabled: true
+    clientName: copilot-api
+
   observability:
     autoInstrumentation:
       enabled: true

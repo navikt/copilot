@@ -13,7 +13,9 @@ function getCopilotApiAudience(): string {
   if (!cluster) {
     throw new Error("NAIS_CLUSTER_NAME not configured — cannot determine backend API audience");
   }
-  return `api://${cluster}.copilot.copilot-api`;
+  // TokenX audience format: api://{cluster}.{app-name}
+  // For copilot-api service with clientName: copilot-api
+  return `api://${cluster}.copilot-api`;
 }
 
 interface TokenExchangeResponse {
