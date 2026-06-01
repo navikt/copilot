@@ -189,11 +189,10 @@ func newTokenValidator(config *Config) (*TokenValidator, error) {
 			ClientID string `json:"clientId"`
 		}
 		if err := json.Unmarshal([]byte(config.PreAuthorizedApps), &apps); err != nil {
-			slog.Warn("Failed to parse pre-authorized apps", "error", err)
-		} else {
-			for _, app := range apps {
-				preAuth[app.ClientID] = true
-			}
+			return nil, fmt.Errorf("failed to parse pre-authorized apps: %w", err)
+		}
+		for _, app := range apps {
+			preAuth[app.ClientID] = true
 		}
 	}
 
@@ -237,9 +236,9 @@ func (v *TokenValidator) validate(tokenString string) (*User, error) {
 		return nil, fmt.Errorf("invalid issuer: expected %s, got %s", v.issuer, iss)
 	}
 
-	// Validate audience
-	if aud, ok := claims["aud"].(string); !ok || aud != v.audience {
-		return nil, fmt.Errorf("invalid audience: expected %s, got %s", v.audience, aud)
+	// Validate audience (supports both string and array forms)
+	if !validateAudience(claims["aud"], v.audience) {
+		return nil, fmt.Errorf("invalid audience: expected %s", v.audience)
 	}
 
 	// Validate expiry
@@ -298,12 +297,33 @@ func extractBearerToken(r *http.Request) (string, error) {
 		return "", errors.New("authorization header missing")
 	}
 
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || parts[0] != "Bearer" {
+	parts := strings.Fields(strings.TrimSpace(authHeader))
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
 		return "", errors.New("invalid authorization header format")
 	}
 
 	return parts[1], nil
+}
+
+func validateAudience(rawAudience interface{}, expectedAudience string) bool {
+	switch audience := rawAudience.(type) {
+	case string:
+		return audience == expectedAudience
+	case []interface{}:
+		for _, item := range audience {
+			if value, ok := item.(string); ok && value == expectedAudience {
+				return true
+			}
+		}
+	case []string:
+		for _, value := range audience {
+			if value == expectedAudience {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // makeAuthMiddleware creates authentication middleware

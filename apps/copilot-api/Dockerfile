@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine AS builder
+FROM cgr.dev/chainguard/go:latest-dev AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -13,10 +13,10 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o copilot-api .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w" -o copilot-api .
 
 # Final stage
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM cgr.dev/chainguard/static:latest
 
 WORKDIR /app
 

@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 const fetchMock = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal("fetch", fetchMock);
 
-import { getUser, isAuthenticated } from "./auth";
+import { getUser, getUserToken, isAuthenticated } from "./auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -131,6 +131,24 @@ describe("getUser", () => {
       await getUser(false);
       const body = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
       expect(body.token).toBe("abc123");
+    });
+
+    it("accepts mixed-case bearer scheme", async () => {
+      mockHeaders("bEaReR abc123");
+      fetchMock.mockResolvedValueOnce(
+        new Response(JSON.stringify({ active: true, preferred_username: "a@nav.no", groups: [] }))
+      );
+
+      await getUser(false);
+      const body = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+      expect(body.token).toBe("abc123");
+    });
+
+    it("returns null when authorization header is malformed", async () => {
+      mockHeaders("Bearer abc def");
+      const user = await getUser(false);
+      expect(user).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("returns null when introspection request fails (network error)", async () => {
@@ -255,5 +273,24 @@ describe("isAuthenticated", () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ active: false, error: "expired" })));
 
     expect(await isAuthenticated()).toBe(false);
+  });
+});
+
+describe("getUserToken", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("returns token for valid bearer header", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    mockHeaders("Bearer token123");
+    expect(await getUserToken()).toBe("token123");
+  });
+
+  it("returns null for malformed header", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    mockHeaders("Bearer token123 extra");
+    expect(await getUserToken()).toBeNull();
   });
 });

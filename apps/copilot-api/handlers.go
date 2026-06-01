@@ -9,19 +9,35 @@ import (
 
 // healthHandler handles /health endpoint
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if _, err := w.Write([]byte("OK")); err != nil {
+		slog.Warn("Failed to write health response", "error", err)
+	}
 }
 
 // readyHandler handles /ready endpoint
 func readyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 	if !authMiddlewareReady.Load() {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte("AUTH_UNAVAILABLE"))
+		if _, err := w.Write([]byte("AUTH_UNAVAILABLE")); err != nil {
+			slog.Warn("Failed to write ready response", "error", err)
+		}
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if _, err := w.Write([]byte("OK")); err != nil {
+		slog.Warn("Failed to write ready response", "error", err)
+	}
 }
 
 // makeAPIRouter creates the main API router for /api/v1/
@@ -88,7 +104,9 @@ func respondError(w http.ResponseWriter, errorType, detail string, status int) {
 
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(problem)
+	if err := json.NewEncoder(w).Encode(problem); err != nil {
+		slog.Error("Failed to encode problem details response", "error", err)
+	}
 }
 
 func respondJSON(w http.ResponseWriter, data interface{}, status int) {

@@ -13,9 +13,12 @@ type CacheEntry struct {
 
 // Cache is a simple in-memory cache with TTL
 type Cache struct {
-	mu      sync.RWMutex
-	entries map[string]CacheEntry
-	ttl     time.Duration
+	mu       sync.RWMutex
+	entries  map[string]CacheEntry
+	ttl      time.Duration
+	stopOnce sync.Once
+	stopCh   chan struct{}
+	doneCh   chan struct{}
 }
 
 // NewCache creates a new cache with the specified TTL and starts a background cleanup goroutine
@@ -23,14 +26,22 @@ func NewCache(ttl time.Duration) *Cache {
 	c := &Cache{
 		entries: make(map[string]CacheEntry),
 		ttl:     ttl,
+		stopCh:  make(chan struct{}),
+		doneCh:  make(chan struct{}),
 	}
 
 	// Run cache cleanup every TTL interval
 	go func() {
 		ticker := time.NewTicker(ttl)
 		defer ticker.Stop()
-		for range ticker.C {
-			c.Cleanup()
+		defer close(c.doneCh)
+		for {
+			select {
+			case <-ticker.C:
+				c.Cleanup()
+			case <-c.stopCh:
+				return
+			}
 		}
 	}()
 
@@ -92,4 +103,12 @@ func (c *Cache) Cleanup() {
 			delete(c.entries, key)
 		}
 	}
+}
+
+// Stop stops the background cleanup goroutine.
+func (c *Cache) Stop() {
+	c.stopOnce.Do(func() {
+		close(c.stopCh)
+		<-c.doneCh
+	})
 }

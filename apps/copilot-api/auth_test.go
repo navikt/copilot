@@ -45,8 +45,20 @@ func TestExtractBearerToken(t *testing.T) {
 		{
 			name:       "bearer with extra spaces",
 			authHeader: "Bearer   token123",
-			wantToken:  "  token123",
+			wantToken:  "token123",
 			wantErr:    false,
+		},
+		{
+			name:       "case-insensitive bearer scheme",
+			authHeader: "bEaReR token123",
+			wantToken:  "token123",
+			wantErr:    false,
+		},
+		{
+			name:        "invalid format with extra segments",
+			authHeader:  "Bearer token123 extra",
+			wantErr:     true,
+			errContains: "invalid",
 		},
 	}
 
@@ -71,6 +83,49 @@ func TestExtractBearerToken(t *testing.T) {
 
 			if !tt.wantErr && token != tt.wantToken {
 				t.Errorf("extractBearerToken() = %v, want %v", token, tt.wantToken)
+			}
+		})
+	}
+}
+
+func TestValidateAudience(t *testing.T) {
+	tests := []struct {
+		name      string
+		audience  interface{}
+		expected  string
+		wantValid bool
+	}{
+		{
+			name:      "string audience matches",
+			audience:  "api://copilot",
+			expected:  "api://copilot",
+			wantValid: true,
+		},
+		{
+			name:      "string audience mismatch",
+			audience:  "api://other",
+			expected:  "api://copilot",
+			wantValid: false,
+		},
+		{
+			name:      "array audience matches",
+			audience:  []interface{}{"api://other", "api://copilot"},
+			expected:  "api://copilot",
+			wantValid: true,
+		},
+		{
+			name:      "array audience mismatch",
+			audience:  []interface{}{"api://other"},
+			expected:  "api://copilot",
+			wantValid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validateAudience(tt.audience, tt.expected)
+			if got != tt.wantValid {
+				t.Fatalf("validateAudience() = %v, want %v", got, tt.wantValid)
 			}
 		})
 	}

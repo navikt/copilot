@@ -29,37 +29,40 @@ Browser → Wonderwall → my-copilot (BFF) → Texas (OBO) → copilot-api → 
 
 #### Usage Metrics
 
-- `GET /api/v1/copilot/usage/summary` — Aggregated usage metrics
-- `GET /api/v1/copilot/usage/trends` — Time-series usage trends
-- `GET /api/v1/copilot/usage/features` — Feature adoption data
-- `GET /api/v1/copilot/usage/languages` — Language usage distribution
-- `GET /api/v1/copilot/usage/editors` — Editor usage distribution
-- `GET /api/v1/copilot/usage/models` — AI model usage statistics
+- `GET /api/v1/copilot/usage/metrics` — Daily usage metrics
+- `GET /api/v1/copilot/usage/summary` — Not implemented yet
+- `GET /api/v1/copilot/usage/trends` — Not implemented yet
+- `GET /api/v1/copilot/usage/features` — Not implemented yet
+- `GET /api/v1/copilot/usage/languages` — Not implemented yet
+- `GET /api/v1/copilot/usage/editors` — Not implemented yet
+- `GET /api/v1/copilot/usage/models` — Not implemented yet
 
 #### Billing
 
-- `GET /api/v1/copilot/billing/summary` — Billing overview
-- `GET /api/v1/copilot/billing/premium` — Premium request usage
+- `GET /api/v1/copilot/billing` — Enterprise billing overview
 
 #### Adoption
 
 - `GET /api/v1/copilot/adoption/summary` — Adoption overview
 - `GET /api/v1/copilot/adoption/teams` — Team-level adoption
 - `GET /api/v1/copilot/adoption/languages` — Language-specific adoption
+- `GET /api/v1/copilot/adoption/staleness` — Last activity per repository
 
 #### Customizations
 
-- `GET /api/v1/copilot/customizations` — Customization details and usage
+- `GET /api/v1/copilot/customizations/details` — Customization details
+- `GET /api/v1/copilot/customizations/usage` — Customization usage
 
 #### Seats
 
 - `GET /api/v1/copilot/seats/{username}` — User seat status
 - `POST /api/v1/copilot/seats` — Assign seat to user
 - `DELETE /api/v1/copilot/seats/{username}` — Remove user seat
+- `GET /api/v1/copilot/saml/{identity}` — Resolve GitHub username from SAML identity
 
 #### MCP
 
-- `GET /api/v1/mcp/servers` — List approved MCP servers
+- `GET /api/v1/mcp/servers` — Not implemented yet
 
 ## Authentication
 
@@ -69,7 +72,7 @@ API uses **Azure AD On-Behalf-Of (OBO)** tokens obtained via Texas sidecar. The 
 
 1. **Signature** — verified against Azure AD JWKS
 2. **Issuer** — `https://login.microsoftonline.com/{tenant}/v2.0`
-3. **Audience** — `api://{cluster}.copilot.copilot-api/.default`
+3. **Audience** — `AZURE_APP_CLIENT_ID` (supports both string and array `aud` claims)
 4. **Authorized Party (azp)** — must match pre-authorized client (my-copilot)
 5. **Expiry** — token must not be expired
 

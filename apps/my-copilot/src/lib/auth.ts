@@ -29,12 +29,10 @@ const getCachedUser = cache(async (): Promise<User | null> => {
   }
 
   const authHeader = (await headers()).get("Authorization");
-
-  if (!authHeader) {
+  const token = parseBearerToken(authHeader);
+  if (!token) {
     return null;
   }
-
-  const token = authHeader.replace("Bearer ", "");
   const claims = await introspectToken(token);
 
   if (!claims) {
@@ -74,12 +72,7 @@ export async function getUserToken(): Promise<string | null> {
   }
 
   const authHeader = (await headers()).get("Authorization");
-
-  if (!authHeader) {
-    return null;
-  }
-
-  return authHeader.replace("Bearer ", "");
+  return parseBearerToken(authHeader);
 }
 
 interface IntrospectionResponse {
@@ -89,6 +82,19 @@ interface IntrospectionResponse {
   preferred_username?: string;
   groups?: string[];
   [key: string]: unknown;
+}
+
+function parseBearerToken(authHeader: string | null): string | null {
+  if (!authHeader) {
+    return null;
+  }
+
+  const parts = authHeader.trim().split(/\s+/);
+  if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer" || !parts[1]) {
+    return null;
+  }
+
+  return parts[1];
 }
 
 async function introspectToken(token: string): Promise<IntrospectionResponse | null> {

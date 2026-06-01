@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
+import { ToggleGroup } from "@navikt/ds-react";
 
 const TIMEFRAME_OPTIONS = [
   { label: "7 dager", value: 7 },
@@ -24,24 +25,14 @@ export default function TimeframeSelector() {
   };
 
   return (
-    <div className="flex gap-1 flex-wrap">
+    <ToggleGroup size="small" value={String(currentDays)} onChange={(val) => handleSelect(Number(val))}>
       {TIMEFRAME_OPTIONS.map((option) => {
-        const isActive = currentDays === option.value;
         return (
-          <button
-            key={option.value}
-            onClick={() => handleSelect(option.value)}
-            className={[
-              "px-3 py-1 rounded text-sm border transition-colors",
-              isActive
-                ? "bg-blue-600 border-blue-600 text-white"
-                : "bg-white border-gray-300 text-gray-700 hover:border-gray-400",
-            ].join(" ")}
-          >
+          <ToggleGroup.Item key={option.value} value={String(option.value)}>
             {option.label}
-          </button>
+          </ToggleGroup.Item>
         );
       })}
-    </div>
+    </ToggleGroup>
   );
 }

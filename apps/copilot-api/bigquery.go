@@ -509,3 +509,7 @@ func (c *CachedBigQueryClient) GetStalenessData(ctx context.Context) ([]Stalenes
 		return c.client.GetStalenessData(ctx)
 	})
 }
+
+func (c *CachedBigQueryClient) Close() {
+	c.cache.Stop()
+}

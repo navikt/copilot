@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -45,18 +46,22 @@ func main() {
 
 	// Initialize BigQuery client (optional - endpoints will error if not configured)
 	var bqHandlers *BigQueryHandlers
+	var cachedBQClient *CachedBigQueryClient
 	if config.GCPProjectID != "" {
 		bqClient, err := newBigQueryClient(config)
 		if err != nil {
 			slog.Warn("BigQuery client initialization failed - data endpoints will be unavailable", "error", err)
 		} else {
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
-			cachedBQClient := newCachedBigQueryClient(bqClient, cacheTTL)
+			cachedBQClient = newCachedBigQueryClient(bqClient, cacheTTL)
 			bqHandlers = newBigQueryHandlers(cachedBQClient)
 			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
 		}
 	} else {
 		slog.Warn("GCP_TEAM_PROJECT_ID not configured - BigQuery endpoints will be unavailable")
+	}
+	if cachedBQClient != nil {
+		defer cachedBQClient.Close()
 	}
 
 	// Middleware
@@ -89,7 +94,7 @@ func main() {
 	defer stop()
 
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Server failed", "error", err)
 			os.Exit(1)
 		}

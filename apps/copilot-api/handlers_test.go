@@ -37,6 +37,34 @@ func TestReadyHandler(t *testing.T) {
 	}
 }
 
+func TestHealthHandlerMethodNotAllowed(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/health", nil)
+	rec := httptest.NewRecorder()
+
+	healthHandler(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status 405, got %d", rec.Code)
+	}
+	if allow := rec.Header().Get("Allow"); allow != http.MethodGet {
+		t.Errorf("Expected Allow header %q, got %q", http.MethodGet, allow)
+	}
+}
+
+func TestReadyHandlerMethodNotAllowed(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/ready", nil)
+	rec := httptest.NewRecorder()
+
+	readyHandler(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status 405, got %d", rec.Code)
+	}
+	if allow := rec.Header().Get("Allow"); allow != http.MethodGet {
+		t.Errorf("Expected Allow header %q, got %q", http.MethodGet, allow)
+	}
+}
+
 func TestNotImplementedHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
 	rec := httptest.NewRecorder()
