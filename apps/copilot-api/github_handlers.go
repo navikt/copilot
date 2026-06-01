@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -16,12 +17,21 @@ func isValidGitHubUsername(s string) bool {
 	return validGitHubUsername.MatchString(s)
 }
 
-// GitHubHandlers wraps handlers that use GitHub API
-type GitHubHandlers struct {
-	githubClient *GitHubClient
+// GitHubAPI abstracts GitHub API operations for testability
+type GitHubAPI interface {
+	getCopilotBilling(ctx context.Context) (*CopilotBilling, error)
+	getCopilotSeat(ctx context.Context, username string) (*CopilotSeat, error)
+	assignUserToCopilot(ctx context.Context, username string) (*AssignResult, error)
+	unassignUserFromCopilot(ctx context.Context, username string) (*UnassignResult, error)
+	getUsernameBySamlIdentity(ctx context.Context, identity string) (string, error)
 }
 
-func newGitHubHandlers(githubClient *GitHubClient) *GitHubHandlers {
+// GitHubHandlers wraps handlers that use GitHub API
+type GitHubHandlers struct {
+	githubClient GitHubAPI
+}
+
+func newGitHubHandlers(githubClient GitHubAPI) *GitHubHandlers {
 	return &GitHubHandlers{
 		githubClient: githubClient,
 	}

@@ -1,5 +1,6 @@
 import { getUser, getUserToken } from "@/lib/auth";
 import { backendRequest } from "@/lib/backend-api";
+import { revalidateTag } from "next/cache";
 import { getLoggerWithTraceContext, getTraceId } from "@/lib/logger";
 import { context } from "@opentelemetry/api";
 import { NextResponse } from "next/server";
@@ -56,8 +57,8 @@ export async function GET() {
       githubUsername,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return error(message, 500);
+    log.error({ err }, "Failed to fetch Copilot subscription status");
+    return error("Failed to fetch Copilot subscription status", 500);
   }
 }
 
@@ -122,6 +123,8 @@ export async function POST(request: Request) {
           body: JSON.stringify({ username: githubUsername }),
         });
 
+        revalidateTag("seats-navikt", "max");
+        revalidateTag("billing-navikt", "max");
         return NextResponse.json({ seats_created: activateResponse.seats_created }, { status: 201 });
 
       case Action.Deactivate:
@@ -131,13 +134,15 @@ export async function POST(request: Request) {
           { method: "DELETE" }
         );
 
+        revalidateTag("seats-navikt", "max");
+        revalidateTag("billing-navikt", "max");
         return NextResponse.json({ seats_cancelled: deactivateResponse.seats_cancelled }, { status: 200 });
 
       default:
         return error("Unknown action", 400);
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return error(message, 500);
+    log.error({ err, action }, "Failed to process Copilot subscription action");
+    return error("Failed to process Copilot subscription action", 500);
   }
 }

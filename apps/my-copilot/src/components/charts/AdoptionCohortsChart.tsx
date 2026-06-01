@@ -214,5 +214,3 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
     </div>
   );
 };
-
-export default AdoptionCohortsChart;

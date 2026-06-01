@@ -3,6 +3,8 @@
  */
 
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
+const TOKEN_EXCHANGE_TIMEOUT_MS = 5000;
+const BACKEND_REQUEST_TIMEOUT_MS = 15000;
 
 const isLocalDev = !process.env.NAIS_CLUSTER_NAME;
 
@@ -21,6 +23,27 @@ interface TokenExchangeResponse {
   expires_in: number;
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(timeoutMessage);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /**
  * Exchange user token for backend API OBO token via Texas sidecar
  */
@@ -30,19 +53,23 @@ async function exchangeToken(userToken: string): Promise<string> {
     throw new Error("NAIS_TOKEN_EXCHANGE_ENDPOINT not configured");
   }
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      identity_provider: "entra_id",
-      target: getCopilotApiAudience(),
-      user_token: userToken,
-    }),
-  });
+  const response = await fetchWithTimeout(
+    endpoint,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identity_provider: "entra_id",
+        target: getCopilotApiAudience(),
+        user_token: userToken,
+      }),
+    },
+    TOKEN_EXCHANGE_TIMEOUT_MS,
+    "Token exchange timed out"
+  );
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Token exchange failed (${response.status}): ${text}`);
+    throw new Error(`Token exchange failed (${response.status})`);
   }
 
   const result: TokenExchangeResponse = await response.json();
@@ -63,16 +90,20 @@ async function backendRequest<T>(path: string, userToken: string, options: Reque
     headers.Authorization = `Bearer ${oboToken}`;
   }
 
-  const response = await fetch(`${COPILOT_API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  const response = await fetchWithTimeout(
+    `${COPILOT_API_URL}${path}`,
+    {
+      ...options,
+      headers,
+    },
+    BACKEND_REQUEST_TIMEOUT_MS,
+    "Backend request timed out"
+  );
 
   if (!response.ok) {
     const contentType = response.headers.get("content-type");
     if (contentType?.includes("application/problem+json")) {
-      const problem = await response.json();
-      throw new Error(`Backend API error: ${problem.detail || problem.title}`);
+      throw new Error(`Backend API error (${response.status})`);
     }
     throw new Error(`Backend API returned ${response.status}`);
   }

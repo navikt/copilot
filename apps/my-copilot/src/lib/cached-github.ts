@@ -4,6 +4,10 @@ import { getFileContributors } from "./contributors";
 import { backendRequest } from "./backend-api";
 import type { CopilotBilling } from "./types";
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export async function getCachedCopilotBilling(token: string): Promise<{
   billing: CopilotBilling | null;
   error: string | null;
@@ -12,7 +16,7 @@ export async function getCachedCopilotBilling(token: string): Promise<{
     const billing = await backendRequest<CopilotBilling>("/api/v1/copilot/billing", token);
     return { billing, error: null };
   } catch (error) {
-    return { billing: null, error: error instanceof Error ? error.message : String(error) };
+    return { billing: null, error: getErrorMessage(error) };
   }
 }
 

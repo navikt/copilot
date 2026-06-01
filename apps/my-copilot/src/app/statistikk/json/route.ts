@@ -17,7 +17,7 @@ export async function GET() {
     const { usage, error } = await getCachedBigQueryUsage(token);
 
     if (error) {
-      return NextResponse.json({ error }, { status: 500 });
+      return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 });
     }
 
     if (!usage || usage.length === 0) {
@@ -25,10 +25,7 @@ export async function GET() {
     }
 
     return NextResponse.json(usage);
-  } catch (err) {
-    return NextResponse.json(
-      { error: `Failed to fetch usage data: ${err instanceof Error ? err.message : String(err)}` },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 });
   }
 }

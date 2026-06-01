@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { getCachedAdoptionData } from "@/lib/cached-bigquery";
+import { getCachedAdoptionData, getCachedStalenessData } from "@/lib/cached-bigquery";
 import { getUserToken } from "@/lib/auth";
 import Tabs from "@/components/tabs";
 import {
@@ -11,12 +11,13 @@ import {
 } from "@/components/charts/adoption";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Box, Heading, HGrid, Skeleton, VStack, BodyShort } from "@navikt/ds-react";
+import { Box, Heading, HGrid, Skeleton, VStack, BodyShort, Table } from "@navikt/ds-react";
+import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import TeamTable from "@/components/team-table";
 import { formatNumber } from "@/lib/format";
 import { calculateTeamStats, calculateLanguageStats, formatAdoptionRate, formatScanDate } from "@/lib/adoption-utils";
-import type { AdoptionData } from "@/lib/types";
+import type { AdoptionData, StalenessSummary } from "@/lib/types";
 import { getUser } from "@/lib/auth";
 
 // Static header component
@@ -220,12 +221,100 @@ function TopCustomizationsContent({ data }: { data: AdoptionData }) {
   );
 }
 
+// Sync/staleness tab content
+function SyncContent({ staleness }: { staleness: StalenessSummary }) {
+  const syncPercent = `${(staleness.sync_rate * 100).toFixed(0)}%`;
+  const outOfSyncFiles = staleness.files
+    .filter((f) => f.out_of_sync_repos > 0)
+    .sort((a, b) => b.out_of_sync_repos - a.out_of_sync_repos);
+
+  return (
+    <VStack gap="space-24">
+      <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
+        <MetricCard
+          value={formatNumber(staleness.total_files)}
+          label="Sporede filer"
+          helpTitle="Sporede filer"
+          helpText="Antall unike filer (agenter, instruksjoner, prompts, skills) som spores for synkronisering"
+        />
+        <MetricCard
+          value={formatNumber(staleness.total_file_instances)}
+          label="Fil-instanser totalt"
+          helpTitle="Fil-instanser"
+          helpText="Totalt antall fil-instanser på tvers av alle repoer"
+        />
+        <MetricCard
+          value={syncPercent}
+          label="Synkroniseringsrate"
+          helpTitle="Synkroniseringsrate"
+          helpText="Andel fil-instanser som er i synk med kanonisk kilde"
+          subtitle={`${formatNumber(staleness.in_sync_count)} av ${formatNumber(staleness.total_file_instances)}`}
+        />
+        <MetricCard
+          value={formatNumber(staleness.out_of_sync_count)}
+          label="Ute av synk"
+          helpTitle="Ute av synk"
+          helpText="Fil-instanser som ikke matcher kanonisk kilde og kan trenge oppdatering"
+        />
+      </HGrid>
+
+      {outOfSyncFiles.length > 0 && (
+        <Box background="default" padding="space-20" borderRadius="8" className="border border-gray-200">
+          <VStack gap="space-16">
+            <Heading size="small" level="4">
+              Filer ute av synk
+            </Heading>
+            <BodyShort size="small" className="text-gray-600">
+              Filer som finnes i flere repoer men ikke matcher kanonisk kilde. Sortert etter antall repoer ute av synk.
+            </BodyShort>
+            <Table size="small">
+              <TableHeader>
+                <TableRow>
+                  <TableHeaderCell>Fil</TableHeaderCell>
+                  <TableHeaderCell>Kategori</TableHeaderCell>
+                  <TableHeaderCell align="right">Totalt repoer</TableHeaderCell>
+                  <TableHeaderCell align="right">I synk</TableHeaderCell>
+                  <TableHeaderCell align="right">Ute av synk</TableHeaderCell>
+                  <TableHeaderCell align="right">Synk-rate</TableHeaderCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {outOfSyncFiles.slice(0, 30).map((file) => (
+                  <TableRow key={`${file.category}-${file.file_name}`}>
+                    <TableDataCell className="font-mono text-sm">{file.file_name}</TableDataCell>
+                    <TableDataCell>{file.category}</TableDataCell>
+                    <TableDataCell align="right">{file.total_repos}</TableDataCell>
+                    <TableDataCell align="right">{file.in_sync_repos}</TableDataCell>
+                    <TableDataCell align="right" className="font-semibold text-red-600">
+                      {file.out_of_sync_repos}
+                    </TableDataCell>
+                    <TableDataCell align="right">{(file.sync_rate * 100).toFixed(0)}%</TableDataCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </VStack>
+        </Box>
+      )}
+
+      {outOfSyncFiles.length === 0 && (
+        <Box background="neutral-soft" padding="space-20" borderRadius="8">
+          <BodyShort className="text-center text-gray-600">Alle sporede filer er i synk 🎉</BodyShort>
+        </Box>
+      )}
+    </VStack>
+  );
+}
+
 // Cached data component
 async function CachedAdoptionData() {
   const token = await getUserToken();
   if (!token) return <ErrorState message="Ikke autentisert" />;
 
-  const { data, error } = await getCachedAdoptionData(token);
+  const [{ data, error }, { data: staleness, error: stalenessError }] = await Promise.all([
+    getCachedAdoptionData(token),
+    getCachedStalenessData(token),
+  ]);
 
   if (error) return <ErrorState message={`Feil ved henting av adopsjonsdata: ${error}`} />;
   if (!data) return <ErrorState message="Ingen adopsjonsdata tilgjengelig" />;
@@ -253,6 +342,15 @@ async function CachedAdoptionData() {
       label: "Språk",
       content: <LanguageContent data={data} />,
     },
+    ...(staleness && !stalenessError
+      ? [
+          {
+            id: "synkronisering",
+            label: "Synkronisering",
+            content: <SyncContent staleness={staleness} />,
+          },
+        ]
+      : []),
   ];
 
   return (

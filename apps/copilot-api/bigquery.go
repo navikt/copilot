@@ -45,25 +45,65 @@ type EnterpriseMetrics map[string]interface{}
 
 // AdoptionSummary represents the latest adoption scan summary
 type AdoptionSummary struct {
-	ScanDate                      string `bigquery:"scan_date" json:"scan_date"`
-	TotalRepos                    int64  `bigquery:"total_repos" json:"total_repos"`
-	ReposWithCustomizations       int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	ReposRecentlyActive           int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
-	ActiveReposWithCustomizations int64  `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
-	TotalAgents                   int64  `bigquery:"total_agents" json:"total_agents"`
-	TotalSkills                   int64  `bigquery:"total_skills" json:"total_skills"`
-	TotalInstructions             int64  `bigquery:"total_instructions" json:"total_instructions"`
-	TotalPrompts                  int64  `bigquery:"total_prompts" json:"total_prompts"`
+	ScanDate                     string  `bigquery:"scan_date" json:"scan_date"`
+	TotalRepos                   int64   `bigquery:"total_repos" json:"total_repos"`
+	ActiveRepos                  int64   `bigquery:"active_repos" json:"active_repos"`
+	ArchivedRepos                int64   `bigquery:"archived_repos" json:"archived_repos"`
+	ActiveReposWithRecentCommits int64   `bigquery:"active_repos_with_recent_commits" json:"active_repos_with_recent_commits"`
+	DormantRepos                 int64   `bigquery:"dormant_repos" json:"dormant_repos"`
+	UnknownLastCommitRepos       int64   `bigquery:"unknown_last_commit_repos" json:"unknown_last_commit_repos"`
+	ReposWithAnyCustomization    int64   `bigquery:"repos_with_any_customization" json:"repos_with_any_customization"`
+	ReposWithoutCustomization    int64   `bigquery:"repos_without_customization" json:"repos_without_customization"`
+	AdoptionRate                 float64 `bigquery:"adoption_rate" json:"adoption_rate"`
+	AdoptionRateActiveOnly       float64 `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
+	ReposWithCopilotInstructions int64   `bigquery:"repos_with_copilot_instructions" json:"repos_with_copilot_instructions"`
+	ReposWithAgentsMD            int64   `bigquery:"repos_with_agents_md" json:"repos_with_agents_md"`
+	ReposWithAgents              int64   `bigquery:"repos_with_agents" json:"repos_with_agents"`
+	ReposWithInstructions        int64   `bigquery:"repos_with_instructions" json:"repos_with_instructions"`
+	ReposWithPrompts             int64   `bigquery:"repos_with_prompts" json:"repos_with_prompts"`
+	ReposWithSkills              int64   `bigquery:"repos_with_skills" json:"repos_with_skills"`
+	ReposWithMCPConfig           int64   `bigquery:"repos_with_mcp_config" json:"repos_with_mcp_config"`
+	ReposWithCopilotDir          int64   `bigquery:"repos_with_copilot_dir" json:"repos_with_copilot_dir"`
+	ReposWithCopilotReviewInst   int64   `bigquery:"repos_with_copilot_review_instructions" json:"repos_with_copilot_review_instructions"`
+	ReposWithCursorRules         int64   `bigquery:"repos_with_cursorrules" json:"repos_with_cursorrules"`
+	ReposWithCursorRulesDir      int64   `bigquery:"repos_with_cursor_rules_dir" json:"repos_with_cursor_rules_dir"`
+	ReposWithClaudeMD            int64   `bigquery:"repos_with_claude_md" json:"repos_with_claude_md"`
+	ReposWithWindsurfRules       int64   `bigquery:"repos_with_windsurfrules" json:"repos_with_windsurfrules"`
+	ReposWithCursorIgnore        int64   `bigquery:"repos_with_cursorignore" json:"repos_with_cursorignore"`
+	ReposWithClaudeSettings      int64   `bigquery:"repos_with_claude_settings" json:"repos_with_claude_settings"`
+	ReposWithCopilotSetupSteps   int64   `bigquery:"repos_with_copilot_setup_steps" json:"repos_with_copilot_setup_steps"`
+	ReposWithAgenticWorkflows    int64   `bigquery:"repos_with_agentic_workflows" json:"repos_with_agentic_workflows"`
+	ReposWithAgentsSkills        int64   `bigquery:"repos_with_agents_skills" json:"repos_with_agents_skills"`
+	ReposWithNavPilotState       int64   `bigquery:"repos_with_nav_pilot_state" json:"repos_with_nav_pilot_state"`
+	ReposWithCPLTToml            int64   `bigquery:"repos_with_cplt_toml" json:"repos_with_cplt_toml"`
+	ReposWithAnyNonCopilotAI     int64   `bigquery:"repos_with_any_non_copilot_ai" json:"repos_with_any_non_copilot_ai"`
+	AvgCustomizationCount        float64 `bigquery:"avg_customization_count" json:"avg_customization_count"`
+	MaxCustomizationCount        int64   `bigquery:"max_customization_count" json:"max_customization_count"`
 }
 
 // TeamAdoption represents adoption metrics for a single team
 type TeamAdoption struct {
-	ScanDate                      string `bigquery:"scan_date" json:"scan_date"`
-	Team                          string `bigquery:"team" json:"team"`
-	TotalRepos                    int64  `bigquery:"total_repos" json:"total_repos"`
-	ReposWithCustomizations       int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	ReposRecentlyActive           int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
-	ActiveReposWithCustomizations int64  `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
+	ScanDate                string  `bigquery:"scan_date" json:"scan_date"`
+	TeamSlug                string  `bigquery:"team_slug" json:"team_slug"`
+	TeamName                string  `bigquery:"team_name" json:"team_name"`
+	TeamRepos               int64   `bigquery:"team_repos" json:"team_repos"`
+	ActiveRepos             int64   `bigquery:"active_repos" json:"active_repos"`
+	RecentlyActiveRepos     int64   `bigquery:"recently_active_repos" json:"recently_active_repos"`
+	ReposWithCustomizations int64   `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
+	AdoptionRate            float64 `bigquery:"adoption_rate" json:"adoption_rate"`
+	AdoptionRateActiveOnly  float64 `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
+	WithCopilotInstructions int64   `bigquery:"with_copilot_instructions" json:"with_copilot_instructions"`
+	WithAgentsMD            int64   `bigquery:"with_agents_md" json:"with_agents_md"`
+	WithAgents              int64   `bigquery:"with_agents" json:"with_agents"`
+	WithInstructions        int64   `bigquery:"with_instructions" json:"with_instructions"`
+	WithPrompts             int64   `bigquery:"with_prompts" json:"with_prompts"`
+	WithSkills              int64   `bigquery:"with_skills" json:"with_skills"`
+	WithMCPConfig           int64   `bigquery:"with_mcp_config" json:"with_mcp_config"`
+	WithCopilotSetupSteps   int64   `bigquery:"with_copilot_setup_steps" json:"with_copilot_setup_steps"`
+	WithAgenticWorkflows    int64   `bigquery:"with_agentic_workflows" json:"with_agentic_workflows"`
+	WithAgentsSkills        int64   `bigquery:"with_agents_skills" json:"with_agents_skills"`
+	WithNavPilotState       int64   `bigquery:"with_nav_pilot_state" json:"with_nav_pilot_state"`
+	WithCPLTToml            int64   `bigquery:"with_cplt_toml" json:"with_cplt_toml"`
 }
 
 // CustomizationDetail represents usage of a specific customization file
@@ -84,12 +124,38 @@ type CustomizationUsage struct {
 
 // LanguageAdoption represents adoption metrics for a programming language
 type LanguageAdoption struct {
-	ScanDate                      string `bigquery:"scan_date" json:"scan_date"`
-	Language                      string `bigquery:"language" json:"language"`
-	TotalRepos                    int64  `bigquery:"total_repos" json:"total_repos"`
-	ReposWithCustomizations       int64  `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	ReposRecentlyActive           int64  `bigquery:"repos_recently_active" json:"repos_recently_active"`
-	ActiveReposWithCustomizations int64  `bigquery:"active_repos_with_customizations" json:"active_repos_with_customizations"`
+	ScanDate                string  `bigquery:"scan_date" json:"scan_date"`
+	Language                string  `bigquery:"language" json:"language"`
+	TotalRepos              int64   `bigquery:"total_repos" json:"total_repos"`
+	RecentlyActiveRepos     int64   `bigquery:"recently_active_repos" json:"recently_active_repos"`
+	ReposWithCustomizations int64   `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
+	AdoptionRate            float64 `bigquery:"adoption_rate" json:"adoption_rate"`
+	AdoptionRateActiveOnly  float64 `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
+	WithCopilotInstructions int64   `bigquery:"with_copilot_instructions" json:"with_copilot_instructions"`
+	WithAgents              int64   `bigquery:"with_agents" json:"with_agents"`
+	WithInstructions        int64   `bigquery:"with_instructions" json:"with_instructions"`
+	WithMCPConfig           int64   `bigquery:"with_mcp_config" json:"with_mcp_config"`
+}
+
+// StalenessFile represents sync status for a single customization file across repos
+type StalenessFile struct {
+	Category            string  `bigquery:"category" json:"category"`
+	FileName            string  `bigquery:"file_name" json:"file_name"`
+	TotalRepos          int64   `bigquery:"total_repos" json:"total_repos"`
+	InSyncRepos         int64   `bigquery:"in_sync_repos" json:"in_sync_repos"`
+	OutOfSyncRepos      int64   `bigquery:"out_of_sync_repos" json:"out_of_sync_repos"`
+	SyncRate            float64 `bigquery:"sync_rate" json:"sync_rate"`
+	RecentlyActiveRepos int64   `bigquery:"recently_active_repos" json:"recently_active_repos"`
+}
+
+// StalenessSummary aggregates staleness across all tracked files
+type StalenessSummary struct {
+	TotalFiles         int64           `json:"total_files"`
+	TotalFileInstances int64           `json:"total_file_instances"`
+	InSyncCount        int64           `json:"in_sync_count"`
+	OutOfSyncCount     int64           `json:"out_of_sync_count"`
+	SyncRate           float64         `json:"sync_rate"`
+	Files              []StalenessFile `json:"files"`
 }
 
 func (bq *BigQueryClient) tableRef(dataset, table string) string {
@@ -103,21 +169,24 @@ func (bq *BigQueryClient) viewRef(dataset, view string) string {
 // GetDailyMetrics fetches daily usage metrics from BigQuery
 func (bq *BigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
 	tableRef := bq.tableRef(bq.metricsDataset, bq.metricsTable)
-
-	whereClause := ""
+	effectiveDays := 365
 	if days != nil && *days > 0 {
-		whereClause = "WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)"
+		effectiveDays = *days
 	}
 
-	queryStr := fmt.Sprintf("SELECT raw_record FROM %s %s ORDER BY day ASC", tableRef, whereClause)
+	queryStr := fmt.Sprintf(`
+		SELECT raw_record
+		FROM %s
+		WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+			AND scope = 'enterprise'
+		ORDER BY day ASC
+	`, tableRef)
 
 	query := bq.client.Query(queryStr)
-	if days != nil && *days > 0 {
-		query.Parameters = append(query.Parameters, bigquery.QueryParameter{
-			Name:  "days",
-			Value: *days,
-		})
-	}
+	query.Parameters = append(query.Parameters, bigquery.QueryParameter{
+		Name:  "days",
+		Value: effectiveDays,
+	})
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
@@ -309,6 +378,58 @@ func (bq *BigQueryClient) GetLanguageAdoption(ctx context.Context) ([]LanguageAd
 	return results, nil
 }
 
+// GetStalenessData fetches file-level sync status from v_staleness_summary view
+func (bq *BigQueryClient) GetStalenessData(ctx context.Context) ([]StalenessFile, error) {
+	viewRef := bq.viewRef(bq.adoptionDataset, "v_staleness_summary")
+	queryStr := fmt.Sprintf(`
+		SELECT
+			category,
+			file_name,
+			COUNT(*) AS total_repos,
+			COUNTIF(in_sync) AS in_sync_repos,
+			COUNTIF(NOT in_sync) AS out_of_sync_repos,
+			SAFE_DIVIDE(COUNTIF(in_sync), COUNT(*)) AS sync_rate,
+			COUNTIF(is_recently_active) AS recently_active_repos
+		FROM %s
+		WHERE scan_date = (SELECT MAX(scan_date) FROM %s)
+			AND in_sync IS NOT NULL
+		GROUP BY category, file_name
+		ORDER BY total_repos DESC
+	`, viewRef, viewRef)
+
+	query := bq.client.Query(queryStr)
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+
+	var results []StalenessFile
+	for {
+		var file StalenessFile
+		err := it.Next(&file)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("iterate results: %w", err)
+		}
+		results = append(results, file)
+	}
+
+	return results, nil
+}
+
+// BigQueryQuerier abstracts BigQuery operations for testability
+type BigQueryQuerier interface {
+	GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error)
+	GetAdoptionSummary(ctx context.Context) (*AdoptionSummary, error)
+	GetTeamAdoption(ctx context.Context) ([]TeamAdoption, error)
+	GetCustomizationDetails(ctx context.Context) ([]CustomizationDetail, error)
+	GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error)
+	GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error)
+	GetStalenessData(ctx context.Context) ([]StalenessFile, error)
+}
+
 // Cache wrapper for BigQuery operations
 type CachedBigQueryClient struct {
 	client *BigQueryClient
@@ -322,116 +443,69 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 	}
 }
 
-func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
-	cacheKey := fmt.Sprintf("daily_metrics_%v", days)
-
-	if cached, ok := c.cache.Get(cacheKey); ok {
-		if metrics, ok := cached.([]EnterpriseMetrics); ok {
+func getCachedValue[T any](cache *Cache, cacheKey string, loader func() (T, error)) (T, error) {
+	var zero T
+	if cached, ok := cache.Get(cacheKey); ok {
+		if value, ok := cached.(T); ok {
 			slog.Debug("Cache hit", "key", cacheKey)
-			return metrics, nil
+			return value, nil
 		}
 	}
 
-	metrics, err := c.client.GetDailyMetrics(ctx, days)
+	value, err := loader()
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
 
-	c.cache.Set(cacheKey, metrics)
-	return metrics, nil
+	cache.Set(cacheKey, value)
+	return value, nil
+}
+
+func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
+	cacheKey := fmt.Sprintf("daily_metrics_%v", days)
+	return getCachedValue(c.cache, cacheKey, func() ([]EnterpriseMetrics, error) {
+		return c.client.GetDailyMetrics(ctx, days)
+	})
 }
 
 func (c *CachedBigQueryClient) GetAdoptionSummary(ctx context.Context) (*AdoptionSummary, error) {
 	cacheKey := "adoption_summary"
-
-	if cached, ok := c.cache.Get(cacheKey); ok {
-		if summary, ok := cached.(*AdoptionSummary); ok {
-			slog.Debug("Cache hit", "key", cacheKey)
-			return summary, nil
-		}
-	}
-
-	summary, err := c.client.GetAdoptionSummary(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	c.cache.Set(cacheKey, summary)
-	return summary, nil
+	return getCachedValue(c.cache, cacheKey, func() (*AdoptionSummary, error) {
+		return c.client.GetAdoptionSummary(ctx)
+	})
 }
 
 func (c *CachedBigQueryClient) GetTeamAdoption(ctx context.Context) ([]TeamAdoption, error) {
 	cacheKey := "team_adoption"
-
-	if cached, ok := c.cache.Get(cacheKey); ok {
-		if teams, ok := cached.([]TeamAdoption); ok {
-			slog.Debug("Cache hit", "key", cacheKey)
-			return teams, nil
-		}
-	}
-
-	teams, err := c.client.GetTeamAdoption(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	c.cache.Set(cacheKey, teams)
-	return teams, nil
+	return getCachedValue(c.cache, cacheKey, func() ([]TeamAdoption, error) {
+		return c.client.GetTeamAdoption(ctx)
+	})
 }
 
 func (c *CachedBigQueryClient) GetCustomizationDetails(ctx context.Context) ([]CustomizationDetail, error) {
 	cacheKey := "customization_details"
-
-	if cached, ok := c.cache.Get(cacheKey); ok {
-		if details, ok := cached.([]CustomizationDetail); ok {
-			slog.Debug("Cache hit", "key", cacheKey)
-			return details, nil
-		}
-	}
-
-	details, err := c.client.GetCustomizationDetails(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	c.cache.Set(cacheKey, details)
-	return details, nil
+	return getCachedValue(c.cache, cacheKey, func() ([]CustomizationDetail, error) {
+		return c.client.GetCustomizationDetails(ctx)
+	})
 }
 
 func (c *CachedBigQueryClient) GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error) {
 	cacheKey := "customization_usage"
-
-	if cached, ok := c.cache.Get(cacheKey); ok {
-		if usage, ok := cached.([]CustomizationUsage); ok {
-			slog.Debug("Cache hit", "key", cacheKey)
-			return usage, nil
-		}
-	}
-
-	usage, err := c.client.GetCustomizationUsage(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	c.cache.Set(cacheKey, usage)
-	return usage, nil
+	return getCachedValue(c.cache, cacheKey, func() ([]CustomizationUsage, error) {
+		return c.client.GetCustomizationUsage(ctx)
+	})
 }
 
 func (c *CachedBigQueryClient) GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error) {
 	cacheKey := "language_adoption"
+	return getCachedValue(c.cache, cacheKey, func() ([]LanguageAdoption, error) {
+		return c.client.GetLanguageAdoption(ctx)
+	})
+}
 
-	if cached, ok := c.cache.Get(cacheKey); ok {
-		if langs, ok := cached.([]LanguageAdoption); ok {
-			slog.Debug("Cache hit", "key", cacheKey)
-			return langs, nil
-		}
-	}
-
-	langs, err := c.client.GetLanguageAdoption(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	c.cache.Set(cacheKey, langs)
-	return langs, nil
+func (c *CachedBigQueryClient) GetStalenessData(ctx context.Context) ([]StalenessFile, error) {
+	cacheKey := "staleness_data"
+	return getCachedValue(c.cache, cacheKey, func() ([]StalenessFile, error) {
+		return c.client.GetStalenessData(ctx)
+	})
 }

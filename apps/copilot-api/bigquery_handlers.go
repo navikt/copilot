@@ -7,19 +7,26 @@ import (
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {
-	bqClient *CachedBigQueryClient
+	bqClient BigQueryQuerier
 }
 
-func newBigQueryHandlers(bqClient *CachedBigQueryClient) *BigQueryHandlers {
+func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 	return &BigQueryHandlers{
 		bqClient: bqClient,
 	}
 }
 
+func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
+	if r.Method == method {
+		return true
+	}
+	respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
+	return false
+}
+
 // handleDailyMetrics handles GET /api/v1/copilot/usage/metrics?days=N
 func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -44,8 +51,7 @@ func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Req
 
 // handleAdoptionSummary handles GET /api/v1/copilot/adoption/summary
 func (h *BigQueryHandlers) handleAdoptionSummary(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -65,8 +71,7 @@ func (h *BigQueryHandlers) handleAdoptionSummary(w http.ResponseWriter, r *http.
 
 // handleTeamAdoption handles GET /api/v1/copilot/adoption/teams
 func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -81,8 +86,7 @@ func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Req
 
 // handleCustomizationDetails handles GET /api/v1/copilot/customizations/details
 func (h *BigQueryHandlers) handleCustomizationDetails(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -97,8 +101,7 @@ func (h *BigQueryHandlers) handleCustomizationDetails(w http.ResponseWriter, r *
 
 // handleCustomizationUsage handles GET /api/v1/copilot/customizations/usage
 func (h *BigQueryHandlers) handleCustomizationUsage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -113,8 +116,7 @@ func (h *BigQueryHandlers) handleCustomizationUsage(w http.ResponseWriter, r *ht
 
 // handleLanguageAdoption handles GET /api/v1/copilot/adoption/languages
 func (h *BigQueryHandlers) handleLanguageAdoption(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondError(w, "method_not_allowed", "Only GET is allowed", http.StatusMethodNotAllowed)
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 
@@ -125,4 +127,40 @@ func (h *BigQueryHandlers) handleLanguageAdoption(w http.ResponseWriter, r *http
 	}
 
 	respondJSON(w, langs, http.StatusOK)
+}
+
+// handleAdoptionStaleness handles GET /api/v1/copilot/adoption/staleness
+func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+
+	files, err := h.bqClient.GetStalenessData(r.Context())
+	if err != nil {
+		respondError(w, "internal_error", "Failed to fetch staleness data", http.StatusInternalServerError)
+		return
+	}
+
+	var totalInstances, inSyncCount, outOfSyncCount int64
+	for _, f := range files {
+		totalInstances += f.TotalRepos
+		inSyncCount += f.InSyncRepos
+		outOfSyncCount += f.OutOfSyncRepos
+	}
+
+	var syncRate float64
+	if totalInstances > 0 {
+		syncRate = float64(inSyncCount) / float64(totalInstances)
+	}
+
+	summary := StalenessSummary{
+		TotalFiles:         int64(len(files)),
+		TotalFileInstances: totalInstances,
+		InSyncCount:        inSyncCount,
+		OutOfSyncCount:     outOfSyncCount,
+		SyncRate:           syncRate,
+		Files:              files,
+	}
+
+	respondJSON(w, summary, http.StatusOK)
 }

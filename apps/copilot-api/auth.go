@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -20,6 +21,12 @@ import (
 type contextKey string
 
 const userContextKey contextKey = "user"
+
+var authMiddlewareReady atomic.Bool
+
+func init() {
+	authMiddlewareReady.Store(true)
+}
 
 // User represents an authenticated user from Azure AD token
 type User struct {
@@ -173,7 +180,7 @@ type TokenValidator struct {
 
 func newTokenValidator(config *Config) (*TokenValidator, error) {
 	if config.AzureIssuer == "" || config.AzureClientID == "" || config.AzureJWKSURI == "" {
-		return nil, errors.New("Azure AD configuration incomplete")
+		return nil, errors.New("azure AD configuration incomplete")
 	}
 
 	preAuth := make(map[string]bool)
@@ -303,6 +310,7 @@ func extractBearerToken(r *http.Request) (string, error) {
 func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 	// In development without Azure config, allow requests through
 	if config.Environment == "local" && config.AzureIssuer == "" {
+		authMiddlewareReady.Store(true)
 		slog.Warn("Running in development mode without Azure AD validation")
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -322,6 +330,7 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 
 	validator, err := newTokenValidator(config)
 	if err != nil {
+		authMiddlewareReady.Store(false)
 		slog.Error("Failed to create token validator", "error", err)
 		// Return middleware that rejects all requests
 		return func(next http.Handler) http.Handler {
@@ -330,6 +339,7 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 			})
 		}
 	}
+	authMiddlewareReady.Store(true)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

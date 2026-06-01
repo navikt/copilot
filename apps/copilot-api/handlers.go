@@ -15,6 +15,11 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 // readyHandler handles /ready endpoint
 func readyHandler(w http.ResponseWriter, r *http.Request) {
+	if !authMiddlewareReady.Load() {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte("AUTH_UNAVAILABLE"))
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }
@@ -29,6 +34,7 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 		mux.HandleFunc("GET /api/v1/copilot/adoption/summary", bqHandlers.handleAdoptionSummary)
 		mux.HandleFunc("GET /api/v1/copilot/adoption/teams", bqHandlers.handleTeamAdoption)
 		mux.HandleFunc("GET /api/v1/copilot/adoption/languages", bqHandlers.handleLanguageAdoption)
+		mux.HandleFunc("GET /api/v1/copilot/adoption/staleness", bqHandlers.handleAdoptionStaleness)
 		mux.HandleFunc("GET /api/v1/copilot/customizations/details", bqHandlers.handleCustomizationDetails)
 		mux.HandleFunc("GET /api/v1/copilot/customizations/usage", bqHandlers.handleCustomizationUsage)
 	}
