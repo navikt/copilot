@@ -97,11 +97,18 @@ function parseBearerToken(authHeader: string | null): string | null {
   return parts[1];
 }
 
+const INTROSPECTION_TIMEOUT_MS = 5000;
+
 async function introspectToken(token: string): Promise<IntrospectionResponse | null> {
   const endpoint = process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT;
   if (!endpoint) {
     throw new Error("NAIS_TOKEN_INTROSPECTION_ENDPOINT is not defined");
   }
+
+  // Every authenticated request passes through here; without a timeout a slow
+  // Texas sidecar would hang the auth path. Fail closed (return null) on timeout.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), INTROSPECTION_TIMEOUT_MS);
 
   try {
     const response = await fetch(endpoint, {
@@ -111,6 +118,7 @@ async function introspectToken(token: string): Promise<IntrospectionResponse | n
         identity_provider: "entra_id",
         token,
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -129,5 +137,7 @@ async function introspectToken(token: string): Promise<IntrospectionResponse | n
   } catch (error) {
     console.error("Token introspection request failed:", error);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
