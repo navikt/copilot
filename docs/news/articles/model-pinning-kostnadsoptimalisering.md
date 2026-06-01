@@ -38,11 +38,11 @@ Med model-pinning styrer vi hvilken modell hver agent og prompt bruker, ut fra h
 
 ## Hva vi har gjort
 
-Alle 12 agenter og 7 prompts i `.github/agents/` og `.github/prompts/` har fått `model:` i YAML-frontmatter. Modellvalget er gjort ut fra benchmarks og oppgavetype:
+Alle 13 agenter og 7 prompts i `.github/agents/` og `.github/prompts/` har fått `model:` i YAML-frontmatter. Modellvalget er gjort ut fra benchmarks og oppgavetype:
 
 | Modell | Agenter/prompts | Pris (input/output per 1M tokens) | Begrunnelse |
 | --- | --- | --- | --- |
-| Claude Opus 4.6 | nav-pilot, security-champion | $5 / $25 | Agentic planning, 83 % OWASP-recall |
+| Claude Opus 4.6 | nav-pilot-opus, security-champion | $5 / $25 | Dyp risikovurdering og kritisk review |
 | GPT-5.3-Codex | code-review, rust, kafka, nais, kafka-topic, nais-manifest | $1.75 / $14 | Terminal-Bench 75 %, KubeBench-leder |
 | Claude Sonnet 4.6 | forfatter | $3 / $15 | Best på norsk språk |
 | Claude Haiku 4.5 | aksel, accessibility, auth, observability + 5 scaffold-prompts | $1 / $5 | Sjekklister og maler, 73 % SWE-bench |
@@ -66,7 +66,7 @@ Promokreditter juni–august gir 3 000 credits per bruker i stedet for 1 900. De
 
 ### 1. Bruk Auto — ikke Opus for alt
 
-Auto-modus har innebygd rabatt og velger riktig modell for oppgaven. Trenger du Opus, bruk agenter som `@nav-pilot` eller `@security-champion` — de har Opus pinnet fordi oppgavene krever det. For vanlig chat og kodearbeid er Auto eller Sonnet like bra til langt lavere pris.
+Auto-modus har innebygd rabatt og velger riktig modell for oppgaven. Trenger du Opus, bruk agenter som `@nav-pilot-opus` eller `@security-champion` for dyp analyse. `@nav-pilot` kjører Sonnet som standard for lavere kostnad på rutineoppgaver.
 
 ### 2. Bruk caching — hold sesjonen åpen
 
@@ -162,7 +162,7 @@ Vi tror de mest aktive brukerne har verdifull innsikt i hva som fungerer — og 
 
 Ingenting — `model:` setter default, men du kan fortsatt velge modell manuelt i model picker. I juni oppgraderer vi til Opus 4.7 — da koster alle Opus-modeller det samme per token.
 
-**Bruk [`@nav-pilot`](/nav-pilot) for tunge oppgaver.** Nav-pilot er vår primæragent for arkitektur, planlegging og implementering. Den bruker model-pinning med Opus 4.6 og GPT-5.3-Codex som fallback — du får automatisk den kraftigste modellen når du trenger den, uten å velge Opus manuelt for alt annet. For vanlig chat og kodearbeid: bruk Auto.
+**Bruk [`@nav-pilot`](/nav-pilot) som standard, og `@nav-pilot-opus` for tunge vurderinger.** Nav-pilot bruker Sonnet som default for kostnadseffektiv planlegging. Når du trenger dyp tradeoff-analyse og kritisk review, bruk nav-pilot-opus (Opus) eksplisitt.
 
 **Oppgrader nav-pilot for å få siste versjon.** Kjør `nav-pilot sync` i terminalen for å hente oppdaterte agenter, skills og modellinnstillinger. Da får du automatisk de nye kostnadsoptimaliserte modellvalgene.
 

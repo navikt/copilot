@@ -1,0 +1,18 @@
+{
+  "domain": "general",
+  "tags": ["planning", "architecture", "review", "security", "nav-pilot"],
+  "examples": [
+    {
+      "prompt": "@nav-pilot-opus Vurder auth-arkitekturen vår (TokenX vs Azure) for denne flyten",
+      "scenario": "Høyrisiko auth-beslutning"
+    },
+    {
+      "prompt": "@nav-pilot-opus Gjør kritisk review av denne migrasjonsplanen før vi implementerer",
+      "scenario": "Dyp planreview før utrulling"
+    },
+    {
+      "prompt": "@nav-pilot-opus Sammenlign disse to arkitekturalternativene med tradeoffs",
+      "scenario": "Arkitekturvalg med avveininger"
+    }
+  ]
+}

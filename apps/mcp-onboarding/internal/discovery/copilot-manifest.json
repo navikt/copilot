@@ -172,6 +172,21 @@
     },
     {
       "type": "agent",
+      "name": "nav-pilot-opus",
+      "displayName": "@nav-pilot-opus",
+      "description": "Dyp analyse for høyrisiko planlegging, arkitekturvalg og kritisk review i Nav-prosjekter",
+      "filePath": ".github/agents/nav-pilot-opus.agent.md",
+      "contentHash": "42f37206df5410767e3ce7ae254cbecec459d19ff5da6b416458d6e7f52878e1",
+      "useCases": [
+        "Network policies",
+        "Secrets management",
+        "GDPR compliance"
+      ],
+      "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot-opus.agent.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nav-pilot-opus.agent.md"
+    },
+    {
+      "type": "agent",
       "name": "nav-pilot",
       "displayName": "@nav-pilot",
       "description": "Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre",
@@ -183,7 +198,7 @@
         "infrastructure"
       ],
       "filePath": ".github/agents/nav-pilot.agent.md",
-      "contentHash": "d04fd3fc8eef124b654e4bf32430878fcfb1798e6bfccf0ac2270ce4013ce42f",
+      "contentHash": "8fe80cd04579ad96990ae047ac3cc8a588849358879c82e07109902afe4f10bf",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
