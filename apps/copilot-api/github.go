@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,7 +36,8 @@ func newGitHubClient(config *Config) (*GitHubClient, error) {
 	}
 
 	// Parse private key
-	block, _ := pem.Decode([]byte(config.GitHubAppPrivateKey))
+	privateKeyPEM := normalizePrivateKeyPEM(config.GitHubAppPrivateKey)
+	block, _ := pem.Decode([]byte(privateKeyPEM))
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
@@ -61,6 +63,14 @@ func newGitHubClient(config *Config) (*GitHubClient, error) {
 		privateKey:     privateKey,
 		installationID: config.GitHubInstallationID,
 	}, nil
+}
+
+func normalizePrivateKeyPEM(key string) string {
+	normalized := strings.TrimSpace(key)
+	if strings.Contains(normalized, `\n`) {
+		normalized = strings.ReplaceAll(normalized, `\n`, "\n")
+	}
+	return normalized
 }
 
 // generateJWT creates a GitHub App JWT
