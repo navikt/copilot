@@ -74,12 +74,6 @@ spec:
       # Health (metrics NOT listed — Wonderwall blocks public access, Prometheus scrapes pod directly)
       - /health
       # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs
-    tokenx:
-      enabled: true
-      clientName: my-copilot
-      consumers:
-        - name: copilot-api
-          namespace: copilot
   observability:
     autoInstrumentation:
       enabled: true
