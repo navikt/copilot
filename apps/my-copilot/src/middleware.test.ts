@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { isPrivatePath, middleware } from "./middleware";
+import { isPrivatePath, proxy } from "./proxy";
 
 vi.mock("next/server", () => {
   return {
@@ -69,7 +69,7 @@ describe("isPrivatePath", () => {
   });
 });
 
-describe("middleware", () => {
+describe("proxy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
@@ -77,7 +77,7 @@ describe("middleware", () => {
 
   it("skips auth checks in development mode without Texas", () => {
     vi.stubEnv("NODE_ENV", "development");
-    middleware(createMockRequest("/statistikk"));
+    proxy(createMockRequest("/statistikk"));
     expect(NextResponse.next).toHaveBeenCalled();
     expect(NextResponse.redirect).not.toHaveBeenCalled();
   });
@@ -85,44 +85,44 @@ describe("middleware", () => {
   it("enforces auth in development mode when Texas is configured", () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "http://localhost:6969/introspect");
-    middleware(createMockRequest("/statistikk"));
+    proxy(createMockRequest("/statistikk"));
     expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
   });
 
   describe("public paths → always pass through", () => {
     it("passes through public paths without auth", () => {
-      middleware(createMockRequest("/praksis"));
+      proxy(createMockRequest("/praksis"));
       expect(NextResponse.next).toHaveBeenCalled();
       expect(NextResponse.redirect).not.toHaveBeenCalled();
     });
 
     it("passes through /api/contributors without auth", () => {
-      middleware(createMockRequest("/api/contributors"));
+      proxy(createMockRequest("/api/contributors"));
       expect(NextResponse.next).toHaveBeenCalled();
     });
 
     it("passes through root path", () => {
-      middleware(createMockRequest("/"));
+      proxy(createMockRequest("/"));
       expect(NextResponse.next).toHaveBeenCalled();
     });
   });
 
   describe("private pages + authenticated → pass through", () => {
     it("passes through /statistikk with auth", () => {
-      middleware(createMockRequest("/statistikk", { auth: true }));
+      proxy(createMockRequest("/statistikk", { auth: true }));
       expect(NextResponse.next).toHaveBeenCalled();
       expect(NextResponse.redirect).not.toHaveBeenCalled();
     });
 
     it("passes through /kostnad with auth", () => {
-      middleware(createMockRequest("/kostnad", { auth: true }));
+      proxy(createMockRequest("/kostnad", { auth: true }));
       expect(NextResponse.next).toHaveBeenCalled();
     });
   });
 
   describe("private pages + unauthenticated → login redirect", () => {
     it("redirects /statistikk to /oauth2/login", () => {
-      middleware(createMockRequest("/statistikk"));
+      proxy(createMockRequest("/statistikk"));
       expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
       const url = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL;
       expect(url.pathname).toBe("/oauth2/login");
@@ -130,44 +130,44 @@ describe("middleware", () => {
     });
 
     it("redirects /adopsjon to /oauth2/login", () => {
-      middleware(createMockRequest("/adopsjon"));
+      proxy(createMockRequest("/adopsjon"));
       expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
       const url = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL;
       expect(url.searchParams.get("redirect")).toBe("/adopsjon");
     });
 
     it("preserves query string in redirect", () => {
-      middleware(createMockRequest("/statistikk", { search: "?tab=models" }));
+      proxy(createMockRequest("/statistikk", { search: "?tab=models" }));
       const url = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL;
       expect(url.searchParams.get("redirect")).toBe("/statistikk?tab=models");
     });
 
     it("redirects /kalkulator to /oauth2/login", () => {
-      middleware(createMockRequest("/kalkulator"));
+      proxy(createMockRequest("/kalkulator"));
       expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("private API + unauthenticated → 401 JSON", () => {
     it("returns 401 for /api/copilot without auth", () => {
-      middleware(createMockRequest("/api/copilot"));
+      proxy(createMockRequest("/api/copilot"));
       expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
       expect(NextResponse.redirect).not.toHaveBeenCalled();
     });
 
     it("returns 401 for /api/adoption without auth", () => {
-      middleware(createMockRequest("/api/adoption"));
+      proxy(createMockRequest("/api/adoption"));
       expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
     });
 
     it("returns 401 for /statistikk/json without auth", () => {
-      middleware(createMockRequest("/statistikk/json"));
+      proxy(createMockRequest("/statistikk/json"));
       expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
       expect(NextResponse.redirect).not.toHaveBeenCalled();
     });
 
     it("passes through /api/copilot with auth", () => {
-      middleware(createMockRequest("/api/copilot", { auth: true }));
+      proxy(createMockRequest("/api/copilot", { auth: true }));
       expect(NextResponse.next).toHaveBeenCalled();
       expect(NextResponse.json).not.toHaveBeenCalled();
     });

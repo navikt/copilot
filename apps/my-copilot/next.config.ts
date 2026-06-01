@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -48,7 +49,7 @@ const nextConfig: NextConfig = {
   // Enable Cache Components (Partial Prerendering)
   cacheComponents: true,
   turbopack: {
-    root: ".",
+    root: path.resolve("."),
   },
   experimental: {
     optimizePackageImports: ["@navikt/ds-react", "@navikt/aksel-icons"],

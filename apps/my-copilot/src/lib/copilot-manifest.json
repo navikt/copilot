@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-01T07:51:01.519Z",
+  "generatedAt": "2026-06-01T11:03:26.545Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1639,7 +1639,7 @@
       "domain": "general",
       "filePath": ".github/skills/terse-mode/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md",
-      "contentHash": "eeb77129950ea8ac253127eae3ae9c8fe653745265a38ea3ebb15c309e367a8d",
+      "contentHash": "26ec6b397bdd2e9611c00be143354bc76997102bfa7eea18b5483e69c01f1865",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["token-optimization", "output", "conciseness", "communication-style"],

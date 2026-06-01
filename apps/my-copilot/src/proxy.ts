@@ -16,7 +16,7 @@ function isPrivateApiPath(pathname: string): boolean {
   return PRIVATE_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // In development without Texas configured, skip auth (mock user mode)
   if (process.env.NODE_ENV === "development" && !process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT) {
     return NextResponse.next();
