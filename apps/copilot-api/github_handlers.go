@@ -24,6 +24,8 @@ type GitHubAPI interface {
 	assignUserToCopilot(ctx context.Context, username string) (*AssignResult, error)
 	unassignUserFromCopilot(ctx context.Context, username string) (*UnassignResult, error)
 	getUsernameBySamlIdentity(ctx context.Context, identity string) (string, error)
+	getPremiumRequestUsage(ctx context.Context, org string, year, month int) (*PremiumRequestUsage, error)
+	getRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]Contributor, error)
 }
 
 // GitHubHandlers wraps handlers that use GitHub API
@@ -186,5 +188,93 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 	respondJSON(w, map[string]interface{}{
 		"identity": identity,
 		"username": username,
+	}, http.StatusOK)
+}
+
+// handlePremiumRequestUsage handles GET /api/v1/copilot/billing/premium
+func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *http.Request) {
+	org := r.URL.Query().Get("org")
+	if org == "" || !isValidGitHubUsername(org) {
+		respondError(w, "invalid_parameter", "Invalid organization name", http.StatusBadRequest)
+		return
+	}
+
+	year := 0
+	month := 0
+
+	if yearStr := r.URL.Query().Get("year"); yearStr != "" {
+		_, err := fmt.Sscanf(yearStr, "%d", &year)
+		if err != nil || year < 2000 || year > 2999 {
+			respondError(w, "invalid_parameter", "Invalid year parameter", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if monthStr := r.URL.Query().Get("month"); monthStr != "" {
+		_, err := fmt.Sscanf(monthStr, "%d", &month)
+		if err != nil || month < 1 || month > 12 {
+			respondError(w, "invalid_parameter", "Invalid month parameter", http.StatusBadRequest)
+			return
+		}
+	}
+
+	usage, err := h.githubClient.getPremiumRequestUsage(r.Context(), org, year, month)
+	if err != nil {
+		slog.Error("Failed to fetch premium request usage", "org", org, "error", err)
+		respondError(w, "github_error", "Failed to fetch premium request usage", http.StatusInternalServerError)
+		return
+	}
+
+	respondJSON(w, usage, http.StatusOK)
+}
+
+// handleRepositoryContributors handles GET /api/v1/copilot/repo-contributors
+func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *http.Request) {
+	owner := r.URL.Query().Get("owner")
+	repo := r.URL.Query().Get("repo")
+	pathsJSON := r.URL.Query().Get("paths")
+
+	if owner == "" || !isValidGitHubUsername(owner) {
+		respondError(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
+		return
+	}
+
+	if repo == "" || len(repo) > 255 {
+		respondError(w, "invalid_parameter", "Invalid repository name", http.StatusBadRequest)
+		return
+	}
+
+	if pathsJSON == "" {
+		respondError(w, "invalid_parameter", "Missing paths parameter", http.StatusBadRequest)
+		return
+	}
+
+	var paths []string
+	if err := json.Unmarshal([]byte(pathsJSON), &paths); err != nil {
+		respondError(w, "invalid_parameter", "Invalid paths format", http.StatusBadRequest)
+		return
+	}
+
+	if len(paths) == 0 || len(paths) > 50 {
+		respondError(w, "invalid_parameter", "Must provide 1-50 paths", http.StatusBadRequest)
+		return
+	}
+
+	for _, path := range paths {
+		if len(path) > 512 {
+			respondError(w, "invalid_parameter", "Path too long", http.StatusBadRequest)
+			return
+		}
+	}
+
+	contributors, err := h.githubClient.getRepositoryContributors(r.Context(), owner, repo, paths)
+	if err != nil {
+		slog.Error("Failed to fetch contributors", "owner", owner, "repo", repo, "error", err)
+		respondError(w, "github_error", "Failed to fetch contributors", http.StatusInternalServerError)
+		return
+	}
+
+	respondJSON(w, map[string]interface{}{
+		"contributors": contributors,
 	}, http.StatusOK)
 }

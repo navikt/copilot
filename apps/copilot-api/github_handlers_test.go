@@ -11,16 +11,20 @@ import (
 
 // mockGitHubClient implements GitHubAPI for testing
 type mockGitHubClient struct {
-	billing        *CopilotBilling
-	billingErr     error
-	seat           *CopilotSeat
-	seatErr        error
-	assignResult   *AssignResult
-	assignErr      error
-	unassignResult *UnassignResult
-	unassignErr    error
-	samlUsername   string
-	samlErr        error
+	billing         *CopilotBilling
+	billingErr      error
+	seat            *CopilotSeat
+	seatErr         error
+	assignResult    *AssignResult
+	assignErr       error
+	unassignResult  *UnassignResult
+	unassignErr     error
+	samlUsername    string
+	samlErr         error
+	premiumUsage    *PremiumRequestUsage
+	premiumErr      error
+	contributors    []Contributor
+	contributorsErr error
 }
 
 func (m *mockGitHubClient) getCopilotBilling(_ context.Context) (*CopilotBilling, error) {
@@ -41,6 +45,14 @@ func (m *mockGitHubClient) unassignUserFromCopilot(_ context.Context, _ string) 
 
 func (m *mockGitHubClient) getUsernameBySamlIdentity(_ context.Context, _ string) (string, error) {
 	return m.samlUsername, m.samlErr
+}
+
+func (m *mockGitHubClient) getPremiumRequestUsage(_ context.Context, _ string, _ int, _ int) (*PremiumRequestUsage, error) {
+	return m.premiumUsage, m.premiumErr
+}
+
+func (m *mockGitHubClient) getRepositoryContributors(_ context.Context, _ string, _ string, _ []string) ([]Contributor, error) {
+	return m.contributors, m.contributorsErr
 }
 
 // userContext injects a User into the request context (test helper)

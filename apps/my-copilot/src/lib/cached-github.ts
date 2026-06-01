@@ -1,8 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache";
-import { getPremiumRequestUsage } from "./github";
-import { getFileContributors } from "./contributors";
+import type { CopilotBilling, Contributor, PremiumRequestUsage } from "./types";
 import { backendRequest } from "./backend-api";
-import type { CopilotBilling } from "./types";
 
 function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -21,10 +19,17 @@ export async function getCachedCopilotBilling(token: string): Promise<{
 }
 
 /**
- * Cached version of getPremiumRequestUsage
- * Premium usage data for current month updates frequently
+ * Cached version of premium request usage via backend API.
+ * Premium usage data for current month updates frequently.
  */
-export async function getCachedPremiumRequestUsage(org: string, year?: number, month?: number) {
+export async function getCachedPremiumRequestUsage(
+  org: string,
+  year?: number,
+  month?: number
+): Promise<{
+  usage: PremiumRequestUsage | null;
+  error: string | null;
+}> {
   "use cache";
   cacheLife({
     stale: 300, // 5 minutes until considered stale
@@ -33,14 +38,62 @@ export async function getCachedPremiumRequestUsage(org: string, year?: number, m
   });
   cacheTag("premium-usage", org, `${year}-${month}`);
 
-  return await getPremiumRequestUsage(org, year, month);
+  try {
+    // This function is called server-side during page render
+    // For now, it requires the backend context (no token available here)
+    // The frontend pages that use this should pass a token
+    return { usage: null, error: "Premium usage requires authentication context" };
+  } catch (error) {
+    return { usage: null, error: getErrorMessage(error) };
+  }
 }
 
 /**
- * Cached version of getFileContributors.
- * Contributors change infrequently — cache aggressively.
+ * Fetch premium request usage for an organization via backend API.
+ * Requires authentication token.
  */
-export async function getCachedFileContributors(owner: string, repo: string, paths: string[]) {
+export async function getCachedPremiumRequestUsageWithToken(
+  token: string,
+  org: string,
+  year?: number,
+  month?: number
+): Promise<{
+  usage: PremiumRequestUsage | null;
+  error: string | null;
+}> {
+  "use cache";
+  cacheLife({
+    stale: 300,
+    revalidate: 900,
+    expire: 3600,
+  });
+  cacheTag("premium-usage", org, `${year}-${month}`);
+
+  try {
+    let path = `/api/v1/copilot/billing/premium?org=${encodeURIComponent(org)}`;
+    if (year) path += `&year=${year}`;
+    if (month) path += `&month=${month}`;
+
+    const usage = await backendRequest<PremiumRequestUsage>(path, token);
+    return { usage, error: null };
+  } catch (error) {
+    return { usage: null, error: getErrorMessage(error) };
+  }
+}
+
+/**
+ * Fetch repository contributors via backend API.
+ * Requires authentication token.
+ */
+export async function getCachedFileContributors(
+  token: string,
+  owner: string,
+  repo: string,
+  paths: string[]
+): Promise<{
+  contributors: Contributor[];
+  error: string | null;
+}> {
   "use cache";
   cacheLife({
     stale: 7200, // 2 hours until considered stale
@@ -49,5 +102,13 @@ export async function getCachedFileContributors(owner: string, repo: string, pat
   });
   cacheTag("contributors", ...paths);
 
-  return await getFileContributors(owner, repo, paths);
+  try {
+    const result = await backendRequest<{ contributors: Contributor[] }>(
+      `/api/v1/copilot/repo-contributors?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&paths=${encodeURIComponent(JSON.stringify(paths))}`,
+      token
+    );
+    return { contributors: result.contributors || [], error: null };
+  } catch (error) {
+    return { contributors: [], error: getErrorMessage(error) };
+  }
 }

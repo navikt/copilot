@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Box, Heading, BodyShort, VStack, Skeleton, HGrid } from "@navikt/ds-react";
-import { getCachedCopilotBilling, getCachedPremiumRequestUsage } from "@/lib/cached-github";
+import { getCachedCopilotBilling, getCachedPremiumRequestUsageWithToken } from "@/lib/cached-github";
 import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
 import { calculatePremiumMetrics } from "@/lib/billing-utils";
 import { getUser, getUserToken } from "@/lib/auth";
@@ -48,7 +48,7 @@ async function CalculatorData() {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
-  const premiumResult = await getCachedPremiumRequestUsage("navikt", currentYear, currentMonth);
+  const premiumResult = await getCachedPremiumRequestUsageWithToken(token, "navikt", currentYear, currentMonth);
 
   const seats = billingResult.billing?.seat_breakdown?.total ?? 581;
 

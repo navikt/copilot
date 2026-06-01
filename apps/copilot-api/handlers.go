@@ -58,6 +58,8 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	// GitHub API endpoints
 	if ghHandlers != nil {
 		mux.HandleFunc("GET /api/v1/copilot/billing", ghHandlers.handleBilling)
+		mux.HandleFunc("GET /api/v1/copilot/billing/premium", ghHandlers.handlePremiumRequestUsage)
+		mux.HandleFunc("GET /api/v1/copilot/repo-contributors", ghHandlers.handleRepositoryContributors)
 		mux.HandleFunc("GET /api/v1/copilot/seats/{username}", ghHandlers.handleGetSeat)
 		mux.HandleFunc("POST /api/v1/copilot/seats", ghHandlers.handleAssignSeat)
 		mux.HandleFunc("DELETE /api/v1/copilot/seats/{username}", ghHandlers.handleUnassignSeat)

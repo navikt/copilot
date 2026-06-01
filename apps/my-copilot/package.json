@@ -18,7 +18,6 @@
     "generate": "node --experimental-strip-types scripts/generate-manifest.ts"
   },
   "dependencies": {
-    "@google-cloud/bigquery": "^8.3.1",
     "@grafana/faro-web-sdk": "^2.6.3",
     "@grafana/faro-web-tracing": "^2.6.3",
     "@headlessui/react": "2.2.10",
@@ -26,8 +25,6 @@
     "@navikt/aksel-icons": "8.10.5",
     "@navikt/ds-css": "^8.10.5",
     "@navikt/ds-react": "^8.10.5",
-    "@octokit/auth-app": "^8.2.0",
-    "@octokit/rest": "^22.0.1",
     "@opentelemetry/api": "^1.9.1",
     "@tailwindcss/postcss": "^4.3.0",
     "chart.js": "^4.5.1",

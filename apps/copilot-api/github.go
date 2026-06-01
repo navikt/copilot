@@ -453,3 +453,182 @@ func (g *GitHubClient) getUsernameBySamlIdentity(ctx context.Context, identity s
 
 	return "", nil
 }
+
+// PremiumRequestUsage represents GitHub premium request usage for an organization
+type PremiumRequestUsage struct {
+	TimePeriod   string             `json:"time_period"`
+	Organization string             `json:"organization"`
+	UsageItems   []PremiumUsageItem `json:"usage_items"`
+}
+
+// PremiumUsageItem represents a single premium request usage item
+type PremiumUsageItem struct {
+	Product          string  `json:"product"`
+	SKU              string  `json:"sku"`
+	Model            string  `json:"model"`
+	UnitType         string  `json:"unit_type"`
+	PricePerUnit     float64 `json:"price_per_unit"`
+	GrossQuantity    int     `json:"gross_quantity"`
+	GrossAmount      float64 `json:"gross_amount"`
+	DiscountQuantity int     `json:"discount_quantity"`
+	DiscountAmount   float64 `json:"discount_amount"`
+	NetQuantity      int     `json:"net_quantity"`
+	NetAmount        float64 `json:"net_amount"`
+}
+
+// getPremiumRequestUsage fetches premium request usage for an organization
+func (g *GitHubClient) getPremiumRequestUsage(ctx context.Context, org string, year, month int) (*PremiumRequestUsage, error) {
+	token, err := g.getInstallationToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get installation token: %w", err)
+	}
+
+	url := fmt.Sprintf("https://api.github.com/orgs/%s/settings/billing/premium_request/usage", org)
+	if year > 0 {
+		url += fmt.Sprintf("?year=%d", year)
+		if month > 0 {
+			url += fmt.Sprintf("&month=%d", month)
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+	}
+
+	var result struct {
+		TimePeriod   string `json:"time_period"`
+		Organization string `json:"organization"`
+		UsageItems   []struct {
+			Product          string  `json:"product"`
+			SKU              string  `json:"sku"`
+			Model            string  `json:"model"`
+			UnitType         string  `json:"unit_type"`
+			PricePerUnit     float64 `json:"price_per_unit"`
+			GrossQuantity    int     `json:"gross_quantity"`
+			GrossAmount      float64 `json:"gross_amount"`
+			DiscountQuantity int     `json:"discount_quantity"`
+			DiscountAmount   float64 `json:"discount_amount"`
+			NetQuantity      int     `json:"net_quantity"`
+			NetAmount        float64 `json:"net_amount"`
+		} `json:"usage_items"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	usage := &PremiumRequestUsage{
+		TimePeriod:   result.TimePeriod,
+		Organization: result.Organization,
+		UsageItems:   make([]PremiumUsageItem, len(result.UsageItems)),
+	}
+
+	for i, item := range result.UsageItems {
+		usage.UsageItems[i] = PremiumUsageItem{
+			Product:          item.Product,
+			SKU:              item.SKU,
+			Model:            item.Model,
+			UnitType:         item.UnitType,
+			PricePerUnit:     item.PricePerUnit,
+			GrossQuantity:    item.GrossQuantity,
+			GrossAmount:      item.GrossAmount,
+			DiscountQuantity: item.DiscountQuantity,
+			DiscountAmount:   item.DiscountAmount,
+			NetQuantity:      item.NetQuantity,
+			NetAmount:        item.NetAmount,
+		}
+	}
+
+	return usage, nil
+}
+
+// Contributor represents a repository contributor
+type Contributor struct {
+	Login     string `json:"login"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+// getRepositoryContributors fetches contributors for repository paths via REST API
+func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]Contributor, error) {
+	token, err := g.getInstallationToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get installation token: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	var contributors []Contributor
+
+	for _, path := range paths {
+		url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?path=%s&per_page=100",
+			owner, repo, strings.TrimSpace(path))
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
+		}
+
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+		resp, err := g.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("execute request: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("GitHub API returned %d for path %s", resp.StatusCode, path)
+		}
+
+		var commits []struct {
+			Author *struct {
+				Login string `json:"login"`
+				Type  string `json:"type"`
+			} `json:"author"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&commits); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("decode response: %w", err)
+		}
+		resp.Body.Close()
+
+		for _, commit := range commits {
+			if commit.Author == nil || commit.Author.Login == "" {
+				continue
+			}
+
+			login := commit.Author.Login
+			// Skip bot accounts
+			if commit.Author.Type == "Bot" || strings.HasSuffix(login, "[bot]") {
+				continue
+			}
+
+			if !seen[login] {
+				seen[login] = true
+				contributors = append(contributors, Contributor{
+					Login:     login,
+					AvatarURL: fmt.Sprintf("https://avatars.githubusercontent.com/u/%s?v=4", login),
+				})
+			}
+		}
+	}
+
+	return contributors, nil
+}

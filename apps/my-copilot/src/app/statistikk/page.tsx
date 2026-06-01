@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { getCachedPremiumRequestUsage, getCachedCopilotBilling } from "@/lib/cached-github";
+import { getCachedPremiumRequestUsageWithToken, getCachedCopilotBilling } from "@/lib/cached-github";
 import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
 import { getUserToken } from "@/lib/auth";
 import type { EnterpriseMetrics } from "@/lib/types";
@@ -91,7 +91,17 @@ async function PremiumUsageData({ currentYear, currentMonth }: { currentYear: nu
   cacheLife({ stale: 300 });
   cacheTag("premium-usage-navikt");
 
-  const { usage: premiumUsage } = await getCachedPremiumRequestUsage("navikt", currentYear, currentMonth);
+  const token = await getUserToken();
+  if (!token) {
+    return <BodyShort className="text-gray-500">Ikke autentisert for premiumdata.</BodyShort>;
+  }
+
+  const { usage: premiumUsage } = await getCachedPremiumRequestUsageWithToken(
+    token,
+    "navikt",
+    currentYear,
+    currentMonth
+  );
 
   const premiumRequestsContent = premiumUsage?.usageItems?.length ? (
     <PremiumRequestsContent metrics={calculatePremiumMetrics(premiumUsage)} />

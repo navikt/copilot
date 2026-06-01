@@ -418,3 +418,9 @@ export interface AdoptionCohortTrendData {
   phase3: number[];
   total: number[];
 }
+
+// Repository contributor types
+export interface Contributor {
+  login: string;
+  avatarUrl: string;
+}
