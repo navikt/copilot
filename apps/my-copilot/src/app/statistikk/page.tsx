@@ -21,7 +21,7 @@ import MonthlyModelChart from "@/components/charts/MonthlyModelChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
+import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import {
@@ -294,15 +294,25 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
 
       {/* Global AI credit budget */}
       {globalBudget && (
-        <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
-          <MetricCard
-            value={`${formatNumber(Math.round(globalBudget.totalConsumed))} USD`}
-            label="Totalt AI-kreditforbruk"
-            helpTitle="Totalt AI-kreditforbruk"
-            helpText="Sum av AI-kreditforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i GitHub Copilot."
-            subtitle={`${globalBudget.activeUsers} aktive brukere · ${formatNumber(globalBudget.perUserBudget)} USD per bruker`}
-          />
-        </HGrid>
+        <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
+          <HStack gap="space-16" align="center" justify="space-between" wrap={false}>
+            <HStack gap="space-8" align="center">
+              <BodyShort className="text-gray-600 text-sm">Totalt AI-kreditforbruk</BodyShort>
+              <HelpText title="Totalt AI-kreditforbruk">
+                Sum av AI-kreditforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i
+                GitHub Copilot.
+              </HelpText>
+            </HStack>
+            <HStack gap="space-24" align="center">
+              <Heading size="medium" level="2">
+                {formatNumber(Math.round(globalBudget.totalConsumed))} USD
+              </Heading>
+              <BodyShort className="text-gray-500 text-sm">
+                {globalBudget.activeUsers} aktive brukere · {formatNumber(globalBudget.perUserBudget)} USD per bruker
+              </BodyShort>
+            </HStack>
+          </HStack>
+        </Box>
       )}
 
       {/* Monthly trends — THE story */}
