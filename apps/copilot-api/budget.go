@@ -100,15 +100,17 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 		if err != nil {
 			return nil, fmt.Errorf("fetch budgets page %d: %w", page, err)
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("budgets API returned %d", resp.StatusCode)
+			resp.Body.Close()
+			return nil, fmt.Errorf("budgets API returned %d on page %d", resp.StatusCode, page)
 		}
 
 		var result budgetListResponse
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			return nil, fmt.Errorf("decode budgets page %d: %w", page, err)
+		decodeErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decodeErr != nil {
+			return nil, fmt.Errorf("decode budgets page %d: %w", page, decodeErr)
 		}
 
 		all = append(all, result.Budgets...)

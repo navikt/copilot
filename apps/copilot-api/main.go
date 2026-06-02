@@ -66,7 +66,7 @@ func main() {
 
 	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
 	var budgetHandlers *BudgetHandlers
-	if config.GitHubBillingToken != "" && ghHandlers != nil {
+	if config.GitHubBillingToken != "" && githubClient != nil {
 		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
 		budgetHandlers = newBudgetHandlers(budgetClient, githubClient)
 		slog.Info("Budget client initialized successfully")

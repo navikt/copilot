@@ -147,43 +147,49 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
     let cancelled = false;
 
     async function loadSubscription() {
-      try {
-        const [subscriptionResponse, budgetResponse] = await Promise.all([fetch("/api/copilot"), fetch("/api/budget")]);
-        const data = await subscriptionResponse.json();
+      const [subscriptionResult, budgetResult] = await Promise.allSettled([
+        fetch("/api/copilot"),
+        fetch("/api/budget"),
+      ]);
 
-        if (cancelled) return;
+      if (cancelled) return;
 
-        if (data.error) {
-          setSubscriptionError(data.error);
-          setErrorTraceId(data.traceId ?? null);
-        } else if (data.githubAccountLinked === false) {
-          setNeedsGitHubLink(true);
-          setEligible(data.icanhazcopilot);
-        } else {
-          setSubscriptionError(null);
-          setErrorTraceId(null);
-          setNeedsGitHubLink(false);
-          setEligible(data.icanhazcopilot);
-          setCopilotSubscription(data.subscription);
-          setGitHubUsername(data.githubUsername);
-        }
-
-        if (budgetResponse.ok) {
-          const budgetData = await budgetResponse.json();
-          if (!cancelled) setBudget(budgetData);
-        }
-      } catch (error) {
-        if (cancelled) return;
-        console.error("Error fetching subscription details:", error);
-        setErrorTraceId(null);
-        if (error instanceof Error) {
-          setSubscriptionError(error.message);
-        } else {
+      // Handle subscription independently
+      if (subscriptionResult.status === "fulfilled") {
+        try {
+          const data = await subscriptionResult.value.json();
+          if (data.error) {
+            setSubscriptionError(data.error);
+            setErrorTraceId(data.traceId ?? null);
+          } else if (data.githubAccountLinked === false) {
+            setNeedsGitHubLink(true);
+            setEligible(data.icanhazcopilot);
+          } else {
+            setSubscriptionError(null);
+            setErrorTraceId(null);
+            setNeedsGitHubLink(false);
+            setEligible(data.icanhazcopilot);
+            setCopilotSubscription(data.subscription);
+            setGitHubUsername(data.githubUsername);
+          }
+        } catch {
           setSubscriptionError("Ukjent feil ved henting av abonnement");
         }
-      } finally {
-        if (!cancelled) setLoading(false);
+      } else {
+        setSubscriptionError("Ukjent feil ved henting av abonnement");
       }
+
+      // Handle budget independently — always attempted regardless of subscription outcome
+      if (budgetResult.status === "fulfilled" && budgetResult.value.ok) {
+        try {
+          const budgetData = await budgetResult.value.json();
+          if (!cancelled) setBudget(budgetData);
+        } catch {
+          // Budget parse failure — leave budget as null, card shows fallback text
+        }
+      }
+
+      if (!cancelled) setLoading(false);
     }
 
     loadSubscription();

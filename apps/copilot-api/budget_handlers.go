@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 )
 
 // BudgetHandlers handles the enterprise AI credit budget endpoint.
@@ -31,12 +30,12 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 
 	username, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			respondError(w, "not_found", "GitHub account not linked to Nav organisation", http.StatusNotFound)
-			return
-		}
 		slog.Error("Failed to resolve GitHub username via SAML", "error", err)
 		respondError(w, "saml_error", "Failed to resolve GitHub identity", http.StatusInternalServerError)
+		return
+	}
+	if username == "" {
+		respondError(w, "not_found", "GitHub account not linked to Nav organisation", http.StatusNotFound)
 		return
 	}
 
