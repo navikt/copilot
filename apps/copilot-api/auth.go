@@ -25,7 +25,7 @@ const userContextKey contextKey = "user"
 var authMiddlewareReady atomic.Bool
 
 func init() {
-	authMiddlewareReady.Store(true)
+	authMiddlewareReady.Store(false)
 }
 
 // User represents an authenticated user from Azure AD token
