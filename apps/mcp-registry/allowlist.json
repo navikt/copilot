@@ -65,6 +65,49 @@
     },
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.github.navikt/aksel-mcp",
+      "description": "Integrate Aksel design system context into your development workflow for enhanced UI development and documentation access.",
+      "version": "0.1.0-rc.1",
+      "status": "active",
+      "publishedAt": "2026-06-02T00:00:00Z",
+      "websiteUrl": "https://github.com/navikt/aksel/tree/main/%40navikt/aksel-mcp",
+      "repository": {
+        "url": "https://github.com/navikt/aksel/tree/main/%40navikt/aksel-mcp",
+        "source": "github"
+      },
+      "tools": ["aksel_docs", "aksel_token_details", "aksel_icons_search", "aksel_component_props"],
+      "tags": ["Aksel", "designsystem", "ui", "frontend", "developer-tools"],
+      "examples": [
+        {
+          "scenario": "Søk i Aksel-dokumentasjon",
+          "prompt": "Hvordan bruker jeg Aksel Button-komponenten?"
+        },
+        {
+          "scenario": "Finn ikon",
+          "prompt": "Finn et Aksel-ikon som passer for en nedlastingsknapp"
+        },
+        {
+          "scenario": "Få detaljert informasjon om en Aksel-komponent",
+          "prompt": "Vis alle props og typer for Aksel Button-komponenten"
+        },
+        {
+          "scenario": "Få detaljer om et Aksel-token",
+          "prompt": "Hvordan token bør jeg bruke for bakgrunnsfarge?"
+        }
+      ],
+      "packages": [
+        {
+          "registryType": "npm",
+          "identifier": "@navikt/aksel-mcp",
+          "runtimeHint": "node",
+          "transport": {
+            "type": "stdio"
+          }
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.figma/figma-mcp",
       "description": "Bring Figma design context into your coding workflow for design-to-code generation.",
       "version": "1.0.0",
