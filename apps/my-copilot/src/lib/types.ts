@@ -96,38 +96,6 @@ export interface DailyTrend {
   agentUsers: number;
 }
 
-export interface AdoptionTrendData {
-  days: string[];
-  chatUsers: number[];
-  agentUsers: number[];
-  cliUsers: number[];
-}
-
-export interface LanguageChartData {
-  days: string[];
-  languages: { name: string; values: number[] }[];
-}
-
-export interface EditorChartData {
-  days: string[];
-  editors: { name: string; values: number[] }[];
-}
-
-export interface FeatureChartData {
-  labels: string[];
-  acceptances: number[];
-  generations: number[];
-  interactions: number[];
-}
-
-export interface LinesOfCodeChartData {
-  days: string[];
-  suggested: number[];
-  accepted: number[];
-  deletionsSuggested: number[];
-  deletionsAccepted: number[];
-}
-
 export interface ModelChartData {
   name: string;
   generations: number;
@@ -187,17 +155,6 @@ export interface AggregatedMetrics {
   linesAcceptanceRate: number;
 }
 
-export interface FeatureAdoptionMetrics {
-  features: {
-    name: string;
-    label: string;
-    acceptances: number;
-    generations: number;
-    interactions: number;
-  }[];
-  totalActiveUsers: number;
-}
-
 export interface PRMetrics {
   totalCreated: number;
   totalMerged: number;
@@ -222,6 +179,23 @@ export interface CLIMetrics {
   avgTokensPerRequest: number;
   outputTokensSum: number;
   promptTokensSum: number;
+}
+
+// Copilot Billing types (from GitHub API via copilot-api)
+export interface CopilotBilling {
+  seat_breakdown: {
+    total: number;
+    added_this_cycle: number;
+    pending_invitation: number;
+    pending_cancellation: number;
+    active_this_cycle: number;
+    inactive_this_cycle: number;
+  };
+  seat_management_setting?: string;
+  ide_chat?: string;
+  platform_chat?: string;
+  cli?: string;
+  public_code_suggestions?: string;
 }
 
 // Billing types
@@ -381,10 +355,6 @@ export interface StalenessSummary {
  */
 export type AdoptionScope = "all" | "active";
 
-/**
- * Team-level Copilot usage summary aggregated over a time window.
- * Sourced from the v_team_daily_summary BigQuery view.
- */
 export interface TeamUsageSummary {
   team_slug: string;
   avg_active_users: number;
@@ -399,10 +369,6 @@ export interface TeamUsageSummary {
   top_models?: Array<{ model: string; interactions: number }>;
 }
 
-/**
- * Per-user Copilot usage summary for the logged-in user.
- * Sourced from user_metrics table joined with user_teams.
- */
 export interface UserMetricsSummary {
   user_login: string;
   total_acceptances: number;
@@ -434,9 +400,6 @@ export interface UserMetricsSummary {
   teams: string[];
 }
 
-/**
- * Monthly org-wide trend data aggregated from user_metrics.
- */
 export interface MonthlyTrend {
   month: string;
   days_in_month: number;
@@ -454,9 +417,6 @@ export interface MonthlyTrend {
   cli_users: number;
 }
 
-/**
- * Monthly model usage data for org-wide trends.
- */
 export interface MonthlyModelUsage {
   month: string;
   model: string;
@@ -465,10 +425,6 @@ export interface MonthlyModelUsage {
   output_tokens: number;
 }
 
-/**
- * Monthly billing usage per model from the Enhanced Billing API.
- * Contains premium request counts and costs — accurate across all surfaces.
- */
 export interface MonthlyBillingUsage {
   month: string;
   model: string;
@@ -479,9 +435,6 @@ export interface MonthlyBillingUsage {
   net_amount: number;
 }
 
-/**
- * Weekly personal trend data for a single user.
- */
 export interface WeeklyTrend {
   week: string;
   interactions: number;
@@ -514,4 +467,10 @@ export interface AdoptionCohortTrendData {
   phase2: number[];
   phase3: number[];
   total: number[];
+}
+
+// Repository contributor types
+export interface Contributor {
+  login: string;
+  avatarUrl: string;
 }

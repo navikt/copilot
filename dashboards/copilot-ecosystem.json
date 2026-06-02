@@ -2159,7 +2159,7 @@
       },
       "id": 450,
       "panels": [],
-      "title": "My Copilot — Seats & Engagement",
+      "title": "Copilot API — Seats & Engagement",
       "type": "row"
     },
     {
@@ -2215,7 +2215,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "max(copilot_seats_total{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_total{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -2276,7 +2276,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "max(copilot_seats_active_this_cycle{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_active_this_cycle{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -2337,7 +2337,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "max(copilot_seats_inactive_this_cycle{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_inactive_this_cycle{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -2398,7 +2398,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "max(copilot_seats_added_this_cycle{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_added_this_cycle{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -2459,7 +2459,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "max(copilot_seats_pending_invitation{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_pending_invitation{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -2520,7 +2520,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "max(copilot_seats_pending_cancellation{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_pending_cancellation{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -2773,32 +2773,32 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "max(copilot_seats_total{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_total{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "Total",
           "refId": "A"
         },
         {
-          "expr": "max(copilot_seats_active_this_cycle{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_active_this_cycle{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "Active",
           "refId": "B"
         },
         {
-          "expr": "max(copilot_seats_inactive_this_cycle{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_inactive_this_cycle{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "Inactive",
           "refId": "C"
         },
         {
-          "expr": "max(copilot_seats_added_this_cycle{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_added_this_cycle{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "Added",
           "refId": "D"
         },
         {
-          "expr": "max(copilot_seats_pending_invitation{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_pending_invitation{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "Pending Invitation",
           "refId": "E"
         },
         {
-          "expr": "max(copilot_seats_pending_cancellation{namespace=\"$namespace\", app=\"my-copilot\"})",
+          "expr": "max(copilot_seats_pending_cancellation{namespace=\"$namespace\", app=\"copilot-api\"})",
           "legendFormat": "Pending Cancellation",
           "refId": "F"
         }

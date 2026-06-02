@@ -1,13 +1,13 @@
 import React, { Suspense } from "react";
 import {
-  getCachedBigQueryUsage,
-  getCachedTeamUsage,
-  getCachedUserMetrics,
-  getCachedMonthlyTrends,
-  getCachedMonthlyModelUsage,
-  getCachedMonthlyBillingUsage,
-  getCachedUserWeeklyTrends,
-  getCachedAdoptionCohorts,
+  getCopilotUsageMetrics,
+  getTeamUsage,
+  getUserMetrics,
+  getMonthlyTrends,
+  getMonthlyModelUsage,
+  getMonthlyBillingUsage,
+  getUserWeeklyTrends,
+  getAdoptionCohorts,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
@@ -38,8 +38,8 @@ import {
 } from "@/lib/data-utils";
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
-import { getUser } from "@/lib/auth";
-import { getUsernameBySamlIdentity, getUsernameByScim } from "@/lib/github";
+import { getUser, getUserToken } from "@/lib/auth";
+import { backendRequest } from "@/lib/backend-api";
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -57,23 +57,23 @@ function UsageHeader() {
 }
 
 // Cached data component — uses last 28 days of entity-level data
-async function CachedUsageData() {
-  const { usage, error } = await getCachedBigQueryUsage();
+async function CachedUsageData({ token }: { token: string }) {
+  const { usage, error } = await getCopilotUsageMetrics(token);
 
   if (error) return <ErrorState message={`Feil ved henting av bruksdata: ${error}`} />;
   if (!usage || usage.length === 0) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
 
   const filteredUsage = usage.slice(-28);
 
-  return <UsageContent usage={filteredUsage} />;
+  return <UsageContent usage={filteredUsage} token={token} />;
 }
 
 // Whether to allow viewing all teams (disabled in prod until approved)
 const ALLOW_ALL_TEAMS = process.env.NODE_ENV === "development";
 
 // Cached team usage data component — resolves user's teams for highlighting
-async function TeamUsageContent() {
-  const [{ teams, error }, user] = await Promise.all([getCachedTeamUsage(), getUser()]);
+async function TeamUsageContent({ token }: { token: string }) {
+  const [{ teams, error }, user] = await Promise.all([getTeamUsage(token), getUser()]);
 
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
   if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
@@ -81,40 +81,43 @@ async function TeamUsageContent() {
   // Filter out the catch-all org team — it contains all users and skews comparisons
   const IGNORED_TEAMS = new Set(["nav-it-github-users"]);
 
-  // Resolve user's GitHub username via SCIM and fetch personal metrics from BigQuery
+  // Resolve user's GitHub username and fetch personal metrics from BigQuery
   let userTeams: string[] = [];
   let userMetrics = null;
   let userWeeklyTrends = null;
   if (user?.email) {
     let ghLogin: string | null = null;
 
-    // DEV_GITHUB_LOGIN bypasses SCIM when GitHub App auth is broken locally
+    // DEV_GITHUB_LOGIN bypasses SAML lookup when GitHub App auth is broken locally
     if (process.env.NODE_ENV === "development" && process.env.DEV_GITHUB_LOGIN) {
       ghLogin = process.env.DEV_GITHUB_LOGIN;
     } else {
-      // Try SCIM first (fastest, REST API), fall back to SAML GraphQL if not found
-      const { user: scimUser, error: scimError } = await getUsernameByScim(user.email);
-      if (scimError) console.error("[statistikk] SCIM lookup failed:", scimError);
-
-      if (scimUser) {
-        ghLogin = scimUser;
-      } else {
-        // SCIM may not have the user — try SAML identity provider lookup
-        const { user: samlUser, error: samlError } = await getUsernameBySamlIdentity(user.email, "navikt");
-        if (samlError) console.error("[statistikk] SAML lookup failed:", samlError);
-        ghLogin = samlUser;
+      try {
+        const saml = await backendRequest<{ identity: string; username: string | null }>(
+          `/api/v1/copilot/saml/${encodeURIComponent(user.email)}`,
+          token
+        );
+        ghLogin = saml.username;
+        // NOTE: SCIM-based username lookup was removed during the backend migration
+        // (the previous BFF called getUsernameByScim as a fallback for users who
+        // appear in SCIM but not in SAML). That endpoint no longer exists in the
+        // backend. Users in SCIM-only will resolve ghLogin=null here and therefore
+        // not see their personal metrics tab. This is a known gap pending product
+        // confirmation — see issue backlog.
+      } catch (err) {
+        console.error("[statistikk] SAML lookup failed:", err);
       }
     }
 
     if (ghLogin) {
       const [{ metrics, error: metricsError }, { trends: weeklyTrends, error: trendsError }] = await Promise.all([
-        getCachedUserMetrics(ghLogin),
-        getCachedUserWeeklyTrends(ghLogin),
+        getUserMetrics(ghLogin, token),
+        getUserWeeklyTrends(ghLogin, token),
       ]);
       if (metricsError) console.error("[statistikk] User metrics failed:", metricsError);
       if (trendsError) console.error("[statistikk] User weekly trends failed:", trendsError);
       if (metrics) {
-        userTeams = metrics.teams.filter((t) => !IGNORED_TEAMS.has(t));
+        userTeams = (metrics.teams ?? []).filter((t) => !IGNORED_TEAMS.has(t));
         userMetrics = metrics;
       }
       if (weeklyTrends.length > 0) {
@@ -143,9 +146,10 @@ async function TeamUsageContent() {
 }
 
 // Main content component that takes usage data as props.
-// Individual data fetches (getCachedMonthlyTrends, etc.) are cached at the function level,
-// so this component doesn't need its own "use cache" directive.
-async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
+// Individual data fetches are NOT cached at the BFF layer — caching is owned
+// by copilot-api (1 h in-memory cache). Each request fetches fresh data from
+// the backend, which is the single source of truth for cache lifetime.
+async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
   const dateRange = getDateRange(usage);
   if (!dateRange) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
 
@@ -169,10 +173,10 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
     { usage: billingUsage, error: billingError },
     { cohorts: adoptionCohorts, error: cohortsError },
   ] = await Promise.all([
-    getCachedMonthlyTrends(),
-    getCachedMonthlyModelUsage(),
-    getCachedMonthlyBillingUsage(),
-    getCachedAdoptionCohorts(),
+    getMonthlyTrends(token),
+    getMonthlyModelUsage(token),
+    getMonthlyBillingUsage(token),
+    getAdoptionCohorts(token),
   ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
@@ -662,7 +666,7 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
       label: "Meg og team",
       content: (
         <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-          <TeamUsageContent />
+          <TeamUsageContent token={token} />
         </Suspense>
       ),
     },
@@ -684,6 +688,11 @@ async function UsageContent({ usage }: { usage: EnterpriseMetrics[] }) {
 // Main page component using Partial Prerendering
 export default async function Usage() {
   await getUser();
+  const token = await getUserToken();
+
+  if (!token) {
+    return <ErrorState message="Mangler innloggingstoken" />;
+  }
 
   return (
     <main>
@@ -702,7 +711,7 @@ export default async function Usage() {
                 </div>
               }
             >
-              <CachedUsageData />
+              <CachedUsageData token={token} />
             </Suspense>
           </section>
         </Box>

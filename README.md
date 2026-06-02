@@ -90,7 +90,7 @@ Bruk **MCP Onboarding**-serveren for å utforske tilpasninger, sjekke agent-read
 
 ## 🛠️ Applikasjoner
 
-Monorepo med fire applikasjoner + cplt (eget repo):
+Monorepo med fem applikasjoner + cplt (eget repo):
 
 ### cplt — Kernel-level sandbox for AI-agenter
 
@@ -107,6 +107,17 @@ brew install navikt/tap/cplt
 Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen. Har også offentlige sider for [cplt](https://min-copilot.ansatt.nav.no/cplt), [nav-pilot](https://min-copilot.ansatt.nav.no/nav-pilot) og [kom i gang](https://min-copilot.ansatt.nav.no/kom-i-gang).
 
 **URL:** [min-copilot.ansatt.nav.no](https://min-copilot.ansatt.nav.no)
+
+### Copilot API — Backend for my-copilot
+
+Go-tjeneste som håndterer BigQuery-analyser, GitHub API-operasjoner og seat-administrasjon. Bruker Azure AD On-Behalf-Of (OBO) token exchange for sikker kommunikasjon.
+
+- 11 API-endepunkter for bruksdata, adopsjon, tilpasninger, fakturering og seat-administrasjon
+- In-memory cache (1t TTL) for BigQuery-data
+- Bakgrunnsinnsamling av metrikker hvert 5. minutt
+- Audit logging av alle seat-endringer
+
+**Arkitektur:** Se [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ### Copilot Metrics — BigQuery-datapipeline
 
@@ -200,7 +211,12 @@ Tilpasningene dekker Navs kjernestack:
 │   ├── README.skills.md
 │   ├── README.testing.md
 │   └── README.collections.md
-├── apps/                 # Nav applications (my-copilot, copilot-metrics, mcp-registry, mcp-onboarding)
+├── apps/                 # Nav applications
+│   ├── copilot-api/      # Go backend API (BigQuery, GitHub API, seat management)
+│   ├── copilot-metrics/  # BigQuery data pipeline (Naisjob)
+│   ├── mcp-onboarding/   # MCP server for agent readiness
+│   ├── mcp-registry/     # MCP server registry
+│   └── my-copilot/       # Next.js frontend portal
 └── dashboards/           # Grafana dashboard definitions
 ```
 

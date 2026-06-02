@@ -1,261 +1,129 @@
-import { BigQuery } from "@google-cloud/bigquery";
-import { loadBigQueryConfig, tableRef, viewRef, type BigQueryConfig } from "./bigquery-config";
-import type {
-  AdoptionCohortDay,
-  AdoptionSummary,
-  CustomizationDetail,
-  CustomizationUsage,
-  EnterpriseMetrics,
-  LanguageAdoption,
-  MonthlyBillingUsage,
-  MonthlyModelUsage,
-  MonthlyTrend,
-  StalenessFile,
-  TeamAdoption,
-  TeamUsageSummary,
-  UserMetricsSummary,
-  WeeklyTrend,
-} from "./types";
+package main
 
-/**
- * Serialize BigQuery row to plain object.
- * BigQuery returns special objects for DATE, TIMESTAMP, etc. that cannot be
- * passed from Server Components to Client Components. This converts them to
- * plain JSON-serializable values.
- */
-function serializeBigQueryRow<T>(row: Record<string, unknown>): T {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    if (value && typeof value === "object" && "value" in value) {
-      // BigQuery DATE/TIMESTAMP objects have a `value` property
-      result[key] = (value as { value: string }).value;
-    } else {
-      result[key] = value;
-    }
-  }
-  return result as T;
+import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/civil"
+)
+
+type ModelInteractions struct {
+	Model        string `bigquery:"model" json:"model"`
+	Interactions int64  `bigquery:"interactions" json:"interactions"`
 }
 
-/**
- * BigQuery client abstraction for Copilot data access.
- *
- * This class provides a clean interface for querying Copilot metrics and adoption data,
- * with proper dependency injection for testability.
- */
-export class CopilotBigQueryClient {
-  private readonly bigquery: BigQuery;
-  private readonly config: BigQueryConfig;
+type TeamUsageSummary struct {
+	TeamSlug            string              `bigquery:"team_slug" json:"team_slug"`
+	AvgActiveUsers      int64               `bigquery:"avg_active_users" json:"avg_active_users"`
+	TotalUsers          int64               `bigquery:"total_users" json:"total_users"`
+	TotalGenerations    int64               `bigquery:"total_generations" json:"total_generations"`
+	TotalAcceptances    int64               `bigquery:"total_acceptances" json:"total_acceptances"`
+	TotalInteractions   int64               `bigquery:"total_interactions" json:"total_interactions"`
+	TotalLinesSuggested int64               `bigquery:"total_lines_suggested" json:"total_lines_suggested"`
+	TotalLinesAccepted  int64               `bigquery:"total_lines_accepted" json:"total_lines_accepted"`
+	AgentUsers          int64               `bigquery:"agent_users" json:"agent_users"`
+	DaysWithData        int64               `bigquery:"days_with_data" json:"days_with_data"`
+	TopModels           []ModelInteractions `bigquery:"top_models" json:"top_models,omitempty"`
+}
 
-  constructor(config: BigQueryConfig, bigquery?: BigQuery) {
-    this.config = config;
-    this.bigquery = bigquery ?? new BigQuery({ projectId: config.projectId });
-  }
+type UserMetricsSummary struct {
+	UserLogin           string              `bigquery:"user_login" json:"user_login"`
+	TotalAcceptances    int64               `bigquery:"total_acceptances" json:"total_acceptances"`
+	TotalInteractions   int64               `bigquery:"total_interactions" json:"total_interactions"`
+	TotalGenerations    int64               `bigquery:"total_generations" json:"total_generations"`
+	TotalLinesSuggested int64               `bigquery:"total_lines_suggested" json:"total_lines_suggested"`
+	TotalLinesAccepted  int64               `bigquery:"total_lines_accepted" json:"total_lines_accepted"`
+	TotalLinesDeleted   int64               `bigquery:"total_lines_deleted" json:"total_lines_deleted"`
+	ActiveDays          int64               `bigquery:"active_days" json:"active_days"`
+	DaysInPeriod        int64               `bigquery:"days_in_period" json:"days_in_period"`
+	DaysUsedAgent       int64               `bigquery:"days_used_agent" json:"days_used_agent"`
+	DaysUsedChat        int64               `bigquery:"days_used_chat" json:"days_used_chat"`
+	DaysUsedCLI         int64               `bigquery:"days_used_cli" json:"days_used_cli"`
+	DaysUsedCodeReview  int64               `bigquery:"days_used_code_review" json:"days_used_code_review"`
+	ChatAgentRequests   int64               `bigquery:"chat_agent_requests" json:"chat_agent_requests"`
+	ChatAskRequests     int64               `bigquery:"chat_ask_requests" json:"chat_ask_requests"`
+	ChatEditRequests    int64               `bigquery:"chat_edit_requests" json:"chat_edit_requests"`
+	ChatPlanRequests    int64               `bigquery:"chat_plan_requests" json:"chat_plan_requests"`
+	ChatCustomRequests  int64               `bigquery:"chat_custom_requests" json:"chat_custom_requests"`
+	CLITotalRequests    int64               `bigquery:"cli_total_requests" json:"cli_total_requests"`
+	CLIPrompts          int64               `bigquery:"cli_prompts" json:"cli_prompts"`
+	CLISessions         int64               `bigquery:"cli_sessions" json:"cli_sessions"`
+	CLIPromptTokens     int64               `bigquery:"cli_prompt_tokens" json:"cli_prompt_tokens"`
+	CLIOutputTokens     int64               `bigquery:"cli_output_tokens" json:"cli_output_tokens"`
+	TopModels           []ModelInteractions `bigquery:"top_models" json:"top_models"`
+	Teams               []string            `bigquery:"teams" json:"teams"`
+}
 
-  /**
-   * Get the metrics table reference.
-   */
-  private metricsTableRef(): string {
-    return tableRef(this.config.projectId, this.config.metricsDataset, this.config.metricsTable);
-  }
+type MonthlyTrend struct {
+	Month           string `bigquery:"month" json:"month"`
+	DaysInMonth     int64  `bigquery:"days_in_month" json:"days_in_month"`
+	UniqueUsers     int64  `bigquery:"unique_users" json:"unique_users"`
+	IDEInteractions int64  `bigquery:"ide_interactions" json:"ide_interactions"`
+	CodeGenerations int64  `bigquery:"code_generations" json:"code_generations"`
+	CLIRequests     int64  `bigquery:"cli_requests" json:"cli_requests"`
+	PromptTokens    int64  `bigquery:"prompt_tokens" json:"prompt_tokens"`
+	OutputTokens    int64  `bigquery:"output_tokens" json:"output_tokens"`
+	LinesAdded      int64  `bigquery:"lines_added" json:"lines_added"`
+	LinesDeleted    int64  `bigquery:"lines_deleted" json:"lines_deleted"`
+	Acceptances     int64  `bigquery:"acceptances" json:"acceptances"`
+	AgentUsers      int64  `bigquery:"agent_users" json:"agent_users"`
+	ChatUsers       int64  `bigquery:"chat_users" json:"chat_users"`
+	CLIUsers        int64  `bigquery:"cli_users" json:"cli_users"`
+}
 
-  /**
-   * Get an adoption view reference.
-   */
-  private adoptionViewRef(viewName: string): string {
-    return viewRef(this.config.projectId, this.config.adoptionDataset, viewName);
-  }
+type MonthlyModelUsage struct {
+	Month        string `bigquery:"month" json:"month"`
+	Model        string `bigquery:"model" json:"model"`
+	Interactions int64  `bigquery:"interactions" json:"interactions"`
+	PromptTokens int64  `bigquery:"prompt_tokens" json:"prompt_tokens"`
+	OutputTokens int64  `bigquery:"output_tokens" json:"output_tokens"`
+}
 
-  /**
-   * Execute a query and return typed results.
-   * Results are serialized to plain objects for Server→Client component compatibility.
-   */
-  private async query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
-    const [rows] = await this.bigquery.query({
-      query: sql,
-      params,
-    });
-    return (rows as Record<string, unknown>[]).map((row) => serializeBigQueryRow<T>(row));
-  }
+type MonthlyBillingUsage struct {
+	Month         string  `bigquery:"month" json:"month"`
+	Model         string  `bigquery:"model" json:"model"`
+	SKU           string  `bigquery:"sku" json:"sku"`
+	GrossRequests int64   `bigquery:"gross_requests" json:"gross_requests"`
+	NetRequests   int64   `bigquery:"net_requests" json:"net_requests"`
+	GrossAmount   float64 `bigquery:"gross_amount" json:"gross_amount"`
+	NetAmount     float64 `bigquery:"net_amount" json:"net_amount"`
+}
 
-  /**
-   * Get daily Copilot usage metrics.
-   * Uses partition pruning on `day` column for cost efficiency.
-   * @param days - Optional number of days to limit results to (default: 365)
-   */
-  async getDailyMetrics(days?: number): Promise<EnterpriseMetrics[]> {
-    const ref = this.metricsTableRef();
-    // Always limit to avoid full table scans; entity metrics are ~1 row/day so cost is low
-    const effectiveDays = days ?? 365;
-    const query = `
-      SELECT raw_record
-      FROM ${ref}
-      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
-        AND scope = 'enterprise'
-      ORDER BY day ASC
-    `;
+type WeeklyTrend struct {
+	Week         string              `bigquery:"week" json:"week"`
+	Interactions int64               `bigquery:"interactions" json:"interactions"`
+	CLIRequests  int64               `bigquery:"cli_requests" json:"cli_requests"`
+	Acceptances  int64               `bigquery:"acceptances" json:"acceptances"`
+	LinesAdded   int64               `bigquery:"lines_added" json:"lines_added"`
+	LinesDeleted int64               `bigquery:"lines_deleted" json:"lines_deleted"`
+	PromptTokens int64               `bigquery:"prompt_tokens" json:"prompt_tokens"`
+	OutputTokens int64               `bigquery:"output_tokens" json:"output_tokens"`
+	ActiveDays   int64               `bigquery:"active_days" json:"active_days"`
+	Models       []ModelInteractions `bigquery:"models" json:"models,omitempty"`
+}
 
-    try {
-      const rows = await this.query<{ raw_record: string }>(query, { days: effectiveDays });
-      return rows.map((row) => (typeof row.raw_record === "string" ? JSON.parse(row.raw_record) : row.raw_record));
-    } catch (err) {
-      console.error("[bigquery] getDailyMetrics failed:", err);
-      throw err;
-    }
-  }
+type AdoptionCohortDay struct {
+	Day             civil.Date `bigquery:"day" json:"day"`
+	Phase           int64      `bigquery:"phase" json:"phase"`
+	PhaseVersion    string     `bigquery:"phase_version" json:"phase_version"`
+	UserCount       int64      `bigquery:"user_count" json:"user_count"`
+	AvgGenerations  float64    `bigquery:"avg_generations" json:"avg_generations"`
+	AvgAcceptances  float64    `bigquery:"avg_acceptances" json:"avg_acceptances"`
+	AvgInteractions float64    `bigquery:"avg_interactions" json:"avg_interactions"`
+	AvgLinesAdded   float64    `bigquery:"avg_lines_added" json:"avg_lines_added"`
+}
 
-  /**
-   * Get the latest adoption summary.
-   */
-  async getAdoptionSummary(): Promise<AdoptionSummary | null> {
-    const query = `
-      SELECT * FROM ${this.adoptionViewRef("v_adoption_summary")}
-      ORDER BY scan_date DESC
-      LIMIT 1
-    `;
-
-    try {
-      const rows = await this.query<AdoptionSummary>(query);
-      return rows.length > 0 ? rows[0] : null;
-    } catch (err) {
-      console.error("[bigquery] getAdoptionSummary failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get team adoption data for the latest scan.
-   */
-  async getTeamAdoption(): Promise<TeamAdoption[]> {
-    const viewName = "v_team_adoption";
-    const query = `
-      SELECT * FROM ${this.adoptionViewRef(viewName)}
-      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
-      ORDER BY repos_with_customizations DESC
-    `;
-
-    try {
-      return await this.query<TeamAdoption>(query);
-    } catch (err) {
-      console.error("[bigquery] getTeamAdoption failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get top customization files (agents, skills, instructions, prompts) for the latest scan.
-   */
-  async getCustomizationDetails(): Promise<CustomizationDetail[]> {
-    const viewName = "v_customization_details";
-    const query = `
-      SELECT category, file_name,
-        COUNT(DISTINCT repo) AS repo_count,
-        COUNTIF(is_recently_active) AS active_repo_count
-      FROM ${this.adoptionViewRef(viewName)}
-      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
-      GROUP BY category, file_name
-      ORDER BY repo_count DESC
-    `;
-
-    try {
-      return await this.query<CustomizationDetail>(query);
-    } catch (err) {
-      console.error("[bigquery] getCustomizationDetails failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get customization usage with sample repo names for catalog enrichment.
-   */
-  async getCustomizationUsage(): Promise<CustomizationUsage[]> {
-    const viewName = "v_customization_details";
-    const query = `
-      SELECT
-        category,
-        file_name,
-        COUNT(DISTINCT repo) AS repo_count,
-        ARRAY_AGG(DISTINCT repo ORDER BY repo LIMIT 5) AS sample_repos
-      FROM ${this.adoptionViewRef(viewName)}
-      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
-      GROUP BY category, file_name
-      ORDER BY repo_count DESC
-    `;
-
-    try {
-      return await this.query<CustomizationUsage>(query);
-    } catch (err) {
-      console.error("[bigquery] getCustomizationUsage failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get language adoption data for the latest scan.
-   */
-  async getLanguageAdoption(): Promise<LanguageAdoption[]> {
-    const viewName = "v_language_adoption";
-    const query = `
-      SELECT * FROM ${this.adoptionViewRef(viewName)}
-      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
-      ORDER BY total_repos DESC
-    `;
-
-    try {
-      return await this.query<LanguageAdoption>(query);
-    } catch (err) {
-      console.error("[bigquery] getLanguageAdoption failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get aggregated staleness/sync data per file for the latest scan.
-   * Groups by category and file_name to show sync status across repos.
-   */
-  async getStalenessData(): Promise<StalenessFile[]> {
-    const viewName = "v_staleness_summary";
-    // Only include files where in_sync IS NOT NULL — these are files that exist
-    // in our canonical source repo (navikt/copilot). Team-specific files that
-    // don't have a canonical version will have in_sync = NULL and are excluded.
-    const query = `
-      SELECT
-        category,
-        file_name,
-        COUNT(*) AS total_repos,
-        COUNTIF(in_sync) AS in_sync_repos,
-        COUNTIF(NOT in_sync) AS out_of_sync_repos,
-        SAFE_DIVIDE(COUNTIF(in_sync), COUNT(*)) AS sync_rate,
-        COUNTIF(is_recently_active) AS recently_active_repos
-      FROM ${this.adoptionViewRef(viewName)}
-      WHERE scan_date = (SELECT MAX(scan_date) FROM ${this.adoptionViewRef(viewName)})
-        AND in_sync IS NOT NULL
-      GROUP BY category, file_name
-      ORDER BY total_repos DESC
-    `;
-
-    try {
-      return await this.query<StalenessFile>(query);
-    } catch (err) {
-      console.error("[bigquery] getStalenessData failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get team-level Copilot usage summary for the last N days.
-   * Queries user_teams and user_metrics tables directly (no view dependency).
-   * Uses partition pruning on `day` and cluster pruning on `scope`.
-   */
-  async getTeamUsageSummary(days: number = 7): Promise<TeamUsageSummary[]> {
-    const teamsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_teams");
-    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
-    const query = `
+func (bq *BigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error) {
+	teamsRef := bq.tableRef(bq.metricsDataset, "user_teams")
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	queryStr := fmt.Sprintf(`
       WITH latest_teams AS (
         SELECT
           JSON_VALUE(raw_record, '$.user_id') AS user_id,
           JSON_VALUE(raw_record, '$.slug') AS team_slug
-        FROM ${teamsRef}
-        WHERE day = (SELECT MAX(day) FROM ${teamsRef} WHERE scope = 'enterprise')
+        FROM %s
+        WHERE day = (SELECT MAX(day) FROM %s WHERE scope = 'enterprise')
           AND scope = 'enterprise'
         GROUP BY user_id, team_slug
       ),
@@ -270,7 +138,7 @@ export class CopilotBigQueryClient {
           SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
           SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent,
           raw_record
-        FROM ${metricsRef}
+        FROM %s
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
       ),
@@ -340,26 +208,21 @@ export class CopilotBigQueryClient {
       FROM team_summary ts
       LEFT JOIN team_models_agg tma ON tma.team_slug = ts.team_slug
       ORDER BY ts.avg_active_users DESC
-    `;
+    `, teamsRef, teamsRef, metricsRef)
 
-    try {
-      return await this.query<TeamUsageSummary>(query, { days });
-    } catch (err) {
-      console.error("[bigquery] getTeamUsageSummary failed:", err);
-      throw err;
-    }
-  }
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[TeamUsageSummary](it)
+}
 
-  /**
-   * Get personal usage metrics for a specific GitHub user.
-   * Queries user_metrics table directly and joins user_teams for team membership.
-   * Uses partition pruning on `day` and cluster pruning on `scope`.
-   */
-  async getUserMetrics(userLogin: string, days: number = 7): Promise<UserMetricsSummary | null> {
-    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
-    const teamsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_teams");
-
-    const query = `
+func (bq *BigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error) {
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	teamsRef := bq.tableRef(bq.metricsDataset, "user_teams")
+	queryStr := fmt.Sprintf(`
       WITH user_activity AS (
         SELECT
           JSON_VALUE(raw_record, '$.user_login') AS user_login,
@@ -373,28 +236,26 @@ export class CopilotBigQueryClient {
           SAFE_CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL) AS used_chat,
           SAFE_CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL) AS used_cli,
           SAFE_CAST(JSON_VALUE(raw_record, '$.used_copilot_code_review_active') AS BOOL) AS used_code_review,
-          -- Chat mode breakdown
           SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_agent_mode') AS INT64) AS chat_agent_mode,
           SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_ask_mode') AS INT64) AS chat_ask_mode,
           SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_edit_mode') AS INT64) AS chat_edit_mode,
           SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_plan_mode') AS INT64) AS chat_plan_mode,
           SAFE_CAST(JSON_VALUE(raw_record, '$.chat_panel_custom_mode') AS INT64) AS chat_custom_mode,
-          -- CLI metrics
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64) AS cli_requests,
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.prompt_count') AS INT64) AS cli_prompts,
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.session_count') AS INT64) AS cli_sessions,
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64) AS cli_prompt_tokens,
           SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64) AS cli_output_tokens,
           raw_record
-        FROM ${metricsRef}
+        FROM %s
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
       ),
       user_team_list AS (
         SELECT DISTINCT JSON_VALUE(raw_record, '$.slug') AS team_slug
-        FROM ${teamsRef}
-        WHERE day = (SELECT MAX(day) FROM ${teamsRef} WHERE scope = 'enterprise')
+        FROM %s
+        WHERE day = (SELECT MAX(day) FROM %s WHERE scope = 'enterprise')
           AND scope = 'enterprise'
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
       ),
@@ -435,49 +296,45 @@ export class CopilotBigQueryClient {
         COUNTIF(ua.used_chat) AS days_used_chat,
         COUNTIF(ua.used_cli) AS days_used_cli,
         COUNTIF(ua.used_code_review) AS days_used_code_review,
-        -- Chat mode totals
         COALESCE(SUM(ua.chat_agent_mode), 0) AS chat_agent_requests,
         COALESCE(SUM(ua.chat_ask_mode), 0) AS chat_ask_requests,
         COALESCE(SUM(ua.chat_edit_mode), 0) AS chat_edit_requests,
         COALESCE(SUM(ua.chat_plan_mode), 0) AS chat_plan_requests,
         COALESCE(SUM(ua.chat_custom_mode), 0) AS chat_custom_requests,
-        -- CLI totals
         COALESCE(SUM(ua.cli_requests), 0) AS cli_total_requests,
         COALESCE(SUM(ua.cli_prompts), 0) AS cli_prompts,
         COALESCE(SUM(ua.cli_sessions), 0) AS cli_sessions,
         COALESCE(SUM(ua.cli_prompt_tokens), 0) AS cli_prompt_tokens,
         COALESCE(SUM(ua.cli_output_tokens), 0) AS cli_output_tokens,
-        -- Model breakdown (top 5)
         ANY_VALUE(ma.top_models) AS top_models,
         ANY_VALUE(ta.teams) AS teams
       FROM user_activity ua
       CROSS JOIN model_agg ma
       CROSS JOIN team_agg ta
-    `;
+    `, metricsRef, teamsRef, teamsRef)
 
-    try {
-      const rows = await this.query<UserMetricsSummary>(query, { days, userLogin });
-      if (rows.length === 0 || rows[0].days_in_period === 0) return null;
-      return rows[0];
-    } catch (err) {
-      console.error("[bigquery] getUserMetrics failed:", err);
-      throw err;
-    }
-  }
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}, {Name: "userLogin", Value: userLogin}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	summaryPtr, err := readSingleRow[UserMetricsSummary](it)
+	if err != nil {
+		return nil, err
+	}
+	if summaryPtr == nil || summaryPtr.DaysInPeriod == 0 {
+		return nil, nil
+	}
+	return summaryPtr, nil
+}
 
-  /**
-   * Get org-wide monthly trends aggregated from user_metrics.
-   * Uses COUNT(DISTINCT) for user counts per feature to avoid double-counting.
-   * Leverages partition pruning on `day` and cluster pruning on `scope`.
-   */
-  async getMonthlyTrends(months: number = 12): Promise<MonthlyTrend[]> {
-    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
-
-    const query = `
+func (bq *BigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error) {
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	queryStr := fmt.Sprintf(`
       SELECT
-        FORMAT_DATE('%Y-%m', day) AS month,
+        FORMAT_DATE('%%Y-%%m', day) AS month,
         COUNT(DISTINCT day) AS days_in_month,
-        -- Only count users with actual activity (not just appearing in report)
         COUNT(DISTINCT IF(
           COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0)
           + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
@@ -496,41 +353,32 @@ export class CopilotBigQueryClient {
         COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS agent_users,
         COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS chat_users,
         COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS cli_users
-      FROM ${metricsRef}
+      FROM %s
       WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
         AND scope = 'enterprise'
       GROUP BY month
       ORDER BY month
-    `;
+    `, metricsRef)
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "months", Value: months}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[MonthlyTrend](it)
+}
 
-    try {
-      return await this.query<MonthlyTrend>(query, { months });
-    } catch (err) {
-      console.error("[bigquery] getMonthlyTrends failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get org-wide monthly model/token usage breakdown.
-   * Returns one row per model per month, ordered by month then interactions.
-   */
-  async getMonthlyModelUsage(months: number = 12): Promise<MonthlyModelUsage[]> {
-    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
-
-    // Token data lives in totals_by_cli, not per model. We aggregate CLI tokens
-    // per month alongside per-model activity from totals_by_model_feature.
-    // We sum ALL activity: interactions + code generations + code acceptances
-    // to get a more accurate picture of actual model usage.
-    const query = `
+func (bq *BigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error) {
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	queryStr := fmt.Sprintf(`
       WITH model_activity AS (
         SELECT
-          FORMAT_DATE('%Y-%m', day) AS month,
+          FORMAT_DATE('%%Y-%%m', day) AS month,
           JSON_VALUE(mf, '$.model') AS model,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_generation_activity_count') AS INT64)), 0) AS generations,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances
-        FROM ${metricsRef},
+        FROM %s,
           UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
           AND scope = 'enterprise'
@@ -541,10 +389,10 @@ export class CopilotBigQueryClient {
       ),
       monthly_tokens AS (
         SELECT
-          FORMAT_DATE('%Y-%m', day) AS month,
+          FORMAT_DATE('%%Y-%%m', day) AS month,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens
-        FROM ${metricsRef}
+        FROM %s
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
           AND scope = 'enterprise'
         GROUP BY month
@@ -558,61 +406,50 @@ export class CopilotBigQueryClient {
       FROM model_activity ma
       LEFT JOIN monthly_tokens mt ON ma.month = mt.month
       ORDER BY ma.month, interactions DESC
-    `;
+    `, metricsRef, metricsRef)
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "months", Value: months}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[MonthlyModelUsage](it)
+}
 
-    try {
-      return await this.query<MonthlyModelUsage>(query, { months });
-    } catch (err) {
-      console.error("[bigquery] getMonthlyModelUsage failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get monthly billing usage per model from the billing_usage table.
-   * This is the authoritative source for premium request counts per model,
-   * covering all surfaces (IDE, CLI, agents).
-   */
-  async getMonthlyBillingUsage(months: number = 12): Promise<MonthlyBillingUsage[]> {
-    const billingRef = tableRef(this.config.projectId, this.config.metricsDataset, "billing_usage");
-
-    const query = `
+func (bq *BigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error) {
+	billingRef := bq.tableRef(bq.metricsDataset, "billing_usage")
+	queryStr := fmt.Sprintf(`
       SELECT
-        FORMAT_DATE('%Y-%m', day) AS month,
+        FORMAT_DATE('%%Y-%%m', day) AS month,
         model,
         sku,
         SUM(gross_quantity) AS gross_requests,
         SUM(net_quantity) AS net_requests,
         SUM(gross_amount) AS gross_amount,
         SUM(net_amount) AS net_amount
-      FROM ${billingRef}
+      FROM %s
       WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
         AND scope_id = 'nav'
         AND gross_quantity > 0
       GROUP BY month, model, sku
       ORDER BY month, gross_requests DESC
-    `;
+    `, billingRef)
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "months", Value: months}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[MonthlyBillingUsage](it)
+}
 
-    try {
-      return await this.query<MonthlyBillingUsage>(query, { months });
-    } catch (err) {
-      console.error("[bigquery] getMonthlyBillingUsage failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get personal weekly trends for a specific user.
-   * Uses partition pruning on `day` and cluster pruning on `scope`.
-   */
-  async getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {
-    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
-    const days = weeks * 7;
-
-    const query = `
+func (bq *BigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error) {
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	days := weeks * 7
+	queryStr := fmt.Sprintf(`
       WITH weekly_data AS (
         SELECT
-          FORMAT_DATE('%G-W%V', day) AS week,
+          FORMAT_DATE('%%G-W%%V', day) AS week,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64)), 0) AS cli_requests,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances,
@@ -621,7 +458,7 @@ export class CopilotBigQueryClient {
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens,
           COUNT(*) AS active_days
-        FROM ${metricsRef}
+        FROM %s
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
           AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
@@ -629,12 +466,12 @@ export class CopilotBigQueryClient {
       ),
       weekly_models AS (
         SELECT
-          FORMAT_DATE('%G-W%V', day) AS week,
+          FORMAT_DATE('%%G-W%%V', day) AS week,
           JSON_VALUE(mf, '$.model') AS model,
           SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64))
             + SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_generation_activity_count') AS INT64))
             + SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)) AS interactions
-        FROM ${metricsRef},
+        FROM %s,
           UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
@@ -674,115 +511,41 @@ export class CopilotBigQueryClient {
       FROM weekly_data wd
       LEFT JOIN weekly_models_agg wma ON wma.week = wd.week
       ORDER BY wd.week
-    `;
+    `, metricsRef, metricsRef)
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}, {Name: "userLogin", Value: userLogin}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[WeeklyTrend](it)
+}
 
-    try {
-      return await this.query<WeeklyTrend>(query, { days, userLogin });
-    } catch (err) {
-      console.error("[bigquery] getUserWeeklyTrends failed:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Get AI adoption cohort distribution over time.
-   * Returns per-day phase breakdown from the user_metrics table.
-   * Data available from 2026-05-29 (when GitHub added ai_adoption_phase field).
-   */
-  async getAdoptionCohorts(days: number = 90): Promise<AdoptionCohortDay[]> {
-    const metricsRef = tableRef(this.config.projectId, this.config.metricsDataset, "user_metrics");
-
-    const query = `
+func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error) {
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	queryStr := fmt.Sprintf(`
       SELECT
         day,
-        SAFE_CAST(REGEXP_EXTRACT(JSON_VALUE(raw_record, '$.ai_adoption_phase.phase'), r'\\d+') AS INT64) AS phase,
+        SAFE_CAST(REGEXP_EXTRACT(JSON_VALUE(raw_record, '$.ai_adoption_phase.phase'), r'\d+') AS INT64) AS phase,
         JSON_VALUE(raw_record, '$.ai_adoption_phase.version') AS phase_version,
         COUNT(DISTINCT JSON_VALUE(raw_record, '$.user_id')) AS user_count,
         AVG(CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64)) AS avg_generations,
         AVG(CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)) AS avg_acceptances,
         AVG(CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)) AS avg_interactions,
         AVG(CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)) AS avg_lines_added
-      FROM ${metricsRef}
+      FROM %s
       WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
         AND scope = 'enterprise'
         AND JSON_VALUE(raw_record, '$.ai_adoption_phase.phase') IS NOT NULL
       GROUP BY day, phase, phase_version
       HAVING phase IS NOT NULL
       ORDER BY day, phase
-    `;
-
-    try {
-      return await this.query<AdoptionCohortDay>(query, { days });
-    } catch (err) {
-      console.error("[bigquery] getAdoptionCohorts failed:", err);
-      throw err;
-    }
-  }
-}
-
-// Default client instance (lazy-loaded)
-let defaultClient: CopilotBigQueryClient | null = null;
-
-function getDefaultClient(): CopilotBigQueryClient {
-  if (!defaultClient) {
-    defaultClient = new CopilotBigQueryClient(loadBigQueryConfig());
-  }
-  return defaultClient;
-}
-
-// Export convenience functions that use the default client
-export async function getDailyMetrics(days?: number): Promise<EnterpriseMetrics[]> {
-  return getDefaultClient().getDailyMetrics(days);
-}
-
-export async function getAdoptionSummary(): Promise<AdoptionSummary | null> {
-  return getDefaultClient().getAdoptionSummary();
-}
-
-export async function getTeamAdoption(): Promise<TeamAdoption[]> {
-  return getDefaultClient().getTeamAdoption();
-}
-
-export async function getLanguageAdoption(): Promise<LanguageAdoption[]> {
-  return getDefaultClient().getLanguageAdoption();
-}
-
-export async function getCustomizationDetails(): Promise<CustomizationDetail[]> {
-  return getDefaultClient().getCustomizationDetails();
-}
-
-export async function getCustomizationUsage(): Promise<CustomizationUsage[]> {
-  return getDefaultClient().getCustomizationUsage();
-}
-
-export async function getTeamUsageSummary(days?: number): Promise<TeamUsageSummary[]> {
-  return getDefaultClient().getTeamUsageSummary(days);
-}
-
-export async function getUserMetrics(userLogin: string, days?: number): Promise<UserMetricsSummary | null> {
-  return getDefaultClient().getUserMetrics(userLogin, days);
-}
-
-export async function getMonthlyTrends(months: number = 12): Promise<MonthlyTrend[]> {
-  return getDefaultClient().getMonthlyTrends(months);
-}
-
-export async function getMonthlyModelUsage(months: number = 12): Promise<MonthlyModelUsage[]> {
-  return getDefaultClient().getMonthlyModelUsage(months);
-}
-
-export async function getMonthlyBillingUsage(months: number = 12): Promise<MonthlyBillingUsage[]> {
-  return getDefaultClient().getMonthlyBillingUsage(months);
-}
-
-export async function getUserWeeklyTrends(userLogin: string, weeks: number = 12): Promise<WeeklyTrend[]> {
-  return getDefaultClient().getUserWeeklyTrends(userLogin, weeks);
-}
-
-export async function getStalenessData(): Promise<StalenessFile[]> {
-  return getDefaultClient().getStalenessData();
-}
-
-export async function getAdoptionCohorts(days?: number): Promise<AdoptionCohortDay[]> {
-  return getDefaultClient().getAdoptionCohorts(days);
+    `, metricsRef)
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[AdoptionCohortDay](it)
 }

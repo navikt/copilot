@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import { Box, Heading, BodyShort, VStack, Skeleton, HGrid } from "@navikt/ds-react";
-import { getCachedCopilotBilling, getCachedPremiumRequestUsage } from "@/lib/cached-github";
-import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
+import { getCopilotBilling, getPremiumRequestUsage } from "@/lib/cached-github";
+import { getCopilotUsageMetrics } from "@/lib/cached-bigquery";
 import { calculatePremiumMetrics } from "@/lib/billing-utils";
-import { getUser } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { getCLIMetrics } from "@/lib/data-utils";
 import CalculatorContent from "@/components/calculator-content";
 import type { ModelPremiumData, CLIData } from "@/lib/billing-calculator";
@@ -33,17 +33,18 @@ function KalkulatorHeader() {
 }
 
 async function CalculatorData() {
-  // Fetch uncached data first so Next.js marks this as dynamic before we use Date
-  const [billingResult, bigqueryResult] = await Promise.all([
-    getCachedCopilotBilling("navikt"),
-    getCachedBigQueryUsage(),
-  ]);
+  const token = await getUserToken();
+  if (!token) {
+    return <BodyShort>Ikke autentisert — kan ikke hente data</BodyShort>;
+  }
+
+  const [billingResult, bigqueryResult] = await Promise.all([getCopilotBilling(token), getCopilotUsageMetrics(token)]);
 
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
-  const premiumResult = await getCachedPremiumRequestUsage("navikt", currentYear, currentMonth);
+  const premiumResult = await getPremiumRequestUsage(token, "navikt", currentYear, currentMonth);
 
   const seats = billingResult.billing?.seat_breakdown?.total ?? 581;
 

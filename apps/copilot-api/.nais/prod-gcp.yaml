@@ -1,0 +1,5 @@
+# Intentionally empty — production uses all defaults from app.yaml.
+# This file must exist because the deploy pipeline references .nais/{cluster}.yaml
+# for every cluster in nais-clusters (see .github/workflows/copilot-api.yaml).
+# Add env overrides here if production ever needs values different from app.yaml.
+{}

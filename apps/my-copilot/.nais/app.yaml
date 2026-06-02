@@ -84,8 +84,6 @@ spec:
   frontend:
     generatedConfig:
       mountPath: /tmp/nais.js
-  envFrom:
-    - secret: my-copilot
   env:
     - name: "NODE_ENV"
       value: "production"
@@ -105,10 +103,8 @@ spec:
       value: ALWAYS_ON
     - name: MCP_REGISTRY_URL
       value: "{{mcp_registry_url}}"
-    - name: BIGQUERY_DATASET
-      value: "copilot_metrics"
-    - name: BIGQUERY_TABLE
-      value: "usage_metrics"
+    - name: COPILOT_API_URL
+      value: "http://copilot-api"
   liveness:
     path: "/health"
     port: 3000
@@ -118,30 +114,23 @@ spec:
   replicas:
     min: 1
     max: 1
-  prometheus:
-    enabled: true
-    path: "/metrics"
   resources:
     limits:
       memory: "512Mi"
     requests:
       cpu: "10m"
       memory: "128Mi"
-  gcp:
-    bigQueryDatasets:
-      - name: copilot_metrics
-        permission: READ
-      - name: copilot_adoption
-        permission: READ
+
   accessPolicy:
     outbound:
+      rules:
+        - application: copilot-api
+          namespace: copilot
       external:
         - host: api.github.com
         - host: avatars.githubusercontent.com
         - host: login.microsoftonline.com
         - host: {{mcp_registry_host}}
-        - host: bigquery.googleapis.com
-        - host: storage.googleapis.com
         - host: raw.githubusercontent.com
   filesFrom:
     - emptyDir:

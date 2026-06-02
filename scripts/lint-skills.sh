@@ -12,7 +12,7 @@ set -euo pipefail
 
 SKILLS_DIR=".github/skills"
 MAX_LINES=500
-TOKEN_WARN=3000   # "standard" — approaching diminishing returns
+TOKEN_WARN=4500   # "standard" — approaching diminishing returns
 TOKEN_ERROR=5000  # "comprehensive" — hurts performance ~2.9pp
 MAX_REF_DEPTH=1   # max directory depth for file references from SKILL.md
 

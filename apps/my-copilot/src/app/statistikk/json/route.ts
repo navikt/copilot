@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDailyMetrics } from "@/lib/bigquery";
-import { getUser } from "@/lib/auth";
+import { getCopilotUsageMetrics } from "@/lib/cached-bigquery";
+import { getUser, getUserToken } from "@/lib/auth";
 
 export async function GET() {
   const user = await getUser(false);
@@ -8,18 +8,24 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getUserToken();
+  if (!token) {
+    return NextResponse.json({ error: "No authentication token" }, { status: 401 });
+  }
+
   try {
-    const usage = await getDailyMetrics();
+    const { usage, error } = await getCopilotUsageMetrics(token);
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 });
+    }
 
     if (!usage || usage.length === 0) {
       return NextResponse.json({ error: "No usage data available" }, { status: 404 });
     }
 
     return NextResponse.json(usage);
-  } catch (err) {
-    return NextResponse.json(
-      { error: `Failed to fetch usage data: ${err instanceof Error ? err.message : String(err)}` },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 });
   }
 }

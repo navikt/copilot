@@ -974,7 +974,7 @@
       "displayName": "terse-mode",
       "description": "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet",
       "filePath": ".github/skills/terse-mode/SKILL.md",
-      "contentHash": "eeb77129950ea8ac253127eae3ae9c8fe653745265a38ea3ebb15c309e367a8d",
+      "contentHash": "26ec6b397bdd2e9611c00be143354bc76997102bfa7eea18b5483e69c01f1865",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md"
     },

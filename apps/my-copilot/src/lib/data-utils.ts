@@ -1,18 +1,12 @@
 import type {
   EnterpriseMetrics,
   AggregatedMetrics,
-  FeatureAdoptionMetrics,
   PRMetrics,
   CLIMetrics,
   LanguageData,
   EditorData,
   ModelData,
   DailyTrend,
-  AdoptionTrendData,
-  LanguageChartData,
-  EditorChartData,
-  FeatureChartData,
-  LinesOfCodeChartData,
   ModelChartData,
   GenerationModeTrendData,
   GenerationModeSummary,
@@ -27,8 +21,6 @@ const FEATURE_LABELS: Record<string, string> = {
   chat_panel_edit_mode: "Redigeringsmodus",
   chat_inline: "Inline chat",
 };
-
-const EXCLUDED_FEATURES = new Set(["chat_panel_unknown_mode"]);
 
 // Generation mode classification (matches v_code_generation.sql)
 const USER_INITIATED_FEATURES = new Set(["code_completion", "chat_panel_ask_mode", "chat_inline"]);
@@ -87,38 +79,6 @@ export const getAggregatedMetrics = (usage: EnterpriseMetrics[]): AggregatedMetr
     totalInteractions,
     overallAcceptanceRate: calculateAcceptanceRate(totalAcceptances, totalGenerations),
     linesAcceptanceRate: calculateAcceptanceRate(totalLinesAccepted, totalLinesSuggested),
-  };
-};
-
-export const getFeatureAdoption = (usage: EnterpriseMetrics[]): FeatureAdoptionMetrics | null => {
-  if (!usage || usage.length === 0) return null;
-
-  const featureMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
-  for (const day of usage) {
-    for (const f of day.totals_by_feature || []) {
-      if (f.feature === "others" || EXCLUDED_FEATURES.has(f.feature)) continue;
-      const existing = featureMap.get(f.feature) || { acceptances: 0, generations: 0, interactions: 0 };
-      existing.acceptances += f.code_acceptance_activity_count || 0;
-      existing.generations += f.code_generation_activity_count || 0;
-      existing.interactions += f.user_initiated_interaction_count || 0;
-      featureMap.set(f.feature, existing);
-    }
-  }
-
-  const features = Array.from(featureMap.entries()).map(([name, data]) => ({
-    name,
-    label: FEATURE_LABELS[name] || name,
-    acceptances: data.acceptances,
-    generations: data.generations,
-    interactions: data.interactions,
-  }));
-
-  features.sort((a, b) => b.generations - a.generations);
-
-  const latest = usage[usage.length - 1];
-  return {
-    features,
-    totalActiveUsers: latest.daily_active_users || 0,
   };
 };
 
@@ -306,109 +266,6 @@ export const buildTrendData = (usage: EnterpriseMetrics[]): DailyTrend[] => {
       agentUsers: agentFeatures.reduce((s, f) => s + (f.code_generation_activity_count || 0), 0),
     };
   });
-};
-
-export const buildAdoptionTrendData = (usage: EnterpriseMetrics[]): AdoptionTrendData => {
-  // All three series use a 7-day rolling average for consistent comparison.
-  // Chat/agent come from GitHub's monthly_active_*_users (30-day window),
-  // CLI comes from daily_active_cli_users. The 7-day average smooths all series.
-  const chatRaw = usage.map((d) => d.monthly_active_chat_users || 0);
-  const agentRaw = usage.map((d) => d.monthly_active_agent_users || 0);
-  const cliRaw = usage.map((d) => d.daily_active_cli_users || 0);
-
-  const rollingAverage = (values: number[], windowSize: number): number[] => {
-    return values.map((_, i) => {
-      const start = Math.max(0, i - windowSize + 1);
-      const window = values.slice(start, i + 1);
-      const sum = window.reduce((a, b) => a + b, 0);
-      return Math.round(sum / window.length);
-    });
-  };
-
-  return {
-    days: usage.map((d) => d.day),
-    chatUsers: rollingAverage(chatRaw, 7),
-    agentUsers: rollingAverage(agentRaw, 7),
-    cliUsers: rollingAverage(cliRaw, 7),
-  };
-};
-
-export const buildLanguageChartData = (usage: EnterpriseMetrics[], limit: number = 8): LanguageChartData => {
-  const topLangs = getTopLanguages(usage, limit);
-  const topNames = topLangs.map((l) => l.name);
-
-  const days = usage.map((d) => d.day);
-  const languages = topNames.map((name) => ({
-    name,
-    values: usage.map((day) => {
-      const entries = (day.totals_by_language_feature || []).filter((lf) => lf.language === name);
-      return entries.reduce((s, e) => s + (e.code_generation_activity_count || 0), 0);
-    }),
-  }));
-
-  return { days, languages };
-};
-
-export const buildEditorChartData = (usage: EnterpriseMetrics[]): EditorChartData => {
-  const allEditors = new Set<string>();
-  for (const day of usage) {
-    for (const ide of day.totals_by_ide || []) {
-      allEditors.add(ide.ide);
-    }
-  }
-
-  const hasCLI = usage.some((d) => d.totals_by_cli && d.totals_by_cli.request_count > 0);
-
-  const days = usage.map((d) => d.day);
-  const editors = Array.from(allEditors).map((name) => ({
-    name,
-    values: usage.map((day) => {
-      const ide = (day.totals_by_ide || []).find((i) => i.ide === name);
-      return ide?.code_generation_activity_count || 0;
-    }),
-  }));
-
-  if (hasCLI) {
-    editors.push({
-      name: "Copilot CLI",
-      values: usage.map((day) => day.totals_by_cli?.request_count || 0),
-    });
-  }
-
-  return { days, editors };
-};
-
-export const buildFeatureChartData = (usage: EnterpriseMetrics[]): FeatureChartData => {
-  const featureMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
-  for (const day of usage) {
-    for (const f of day.totals_by_feature || []) {
-      if (f.feature === "others" || EXCLUDED_FEATURES.has(f.feature)) continue;
-      const existing = featureMap.get(f.feature) || { acceptances: 0, generations: 0, interactions: 0 };
-      existing.acceptances += f.code_acceptance_activity_count || 0;
-      existing.generations += f.code_generation_activity_count || 0;
-      existing.interactions += f.user_initiated_interaction_count || 0;
-      featureMap.set(f.feature, existing);
-    }
-  }
-
-  const sorted = Array.from(featureMap.entries()).sort((a, b) => b[1].generations - a[1].generations);
-
-  return {
-    labels: sorted.map(([name]) => FEATURE_LABELS[name] || name),
-    acceptances: sorted.map(([, d]) => d.acceptances),
-    generations: sorted.map(([, d]) => d.generations),
-    interactions: sorted.map(([, d]) => d.interactions),
-  };
-};
-
-export const buildLinesOfCodeData = (usage: EnterpriseMetrics[]): LinesOfCodeChartData => {
-  return {
-    days: usage.map((d) => d.day),
-    suggested: usage.map((d) => d.loc_suggested_to_add_sum || 0),
-    accepted: usage.map((d) => d.loc_added_sum || 0),
-    deletionsSuggested: usage.map((d) => d.loc_suggested_to_delete_sum || 0),
-    deletionsAccepted: usage.map((d) => d.loc_deleted_sum || 0),
-  };
 };
 
 export const buildModelChartData = (usage: EnterpriseMetrics[], limit: number = 8): ModelChartData[] => {

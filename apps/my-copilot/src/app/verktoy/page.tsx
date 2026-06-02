@@ -7,10 +7,11 @@ import { TYPE_LABELS } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
 import { PageHero } from "@/components/page-hero";
 import { getMcpServers } from "@/lib/mcp-registry";
-import { getCachedCustomizationUsage } from "@/lib/cached-bigquery";
+import { getCustomizationUsage } from "@/lib/cached-bigquery";
+import { getUserToken, getUser } from "@/lib/auth";
 import { enrichWithUsage } from "@/lib/enrich-customizations";
 import { DomainCards } from "./domain-cards";
-import { getUser } from "@/lib/auth";
+import type { CustomizationUsage } from "@/lib/types";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -63,9 +64,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 export default async function CustomizationsPage() {
   const user = await getUser(false);
   const customizations = getAllCustomizations();
+  const token = user ? await getUserToken() : null;
   const [mcpServers, usageResult] = await Promise.all([
     getMcpServers(),
-    user ? getCachedCustomizationUsage() : Promise.resolve({ usage: undefined, error: null }),
+    token ? getCustomizationUsage(token) : Promise.resolve({ usage: [] as CustomizationUsage[], error: null }),
   ]);
   const items = [...customizations, ...mcpServers].sort((a, b) => a.name.localeCompare(b.name, "nb"));
   const enrichedItems = enrichWithUsage(items, usageResult.usage);

@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
-import { getCachedAdoptionData, getCachedStalenessData } from "@/lib/cached-bigquery";
+import { getAdoptionData, getStalenessData } from "@/lib/cached-bigquery";
+import { getUserToken } from "@/lib/auth";
 import Tabs from "@/components/tabs";
 import {
   CustomizationTypeChart,
@@ -53,34 +54,26 @@ function OverviewContent({ data }: { data: AdoptionData }) {
 
   return (
     <VStack gap="space-24">
-      <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
+      <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
         <MetricCard
           value={activeOnlyPercent}
-          label="Adopsjonsrate (aktive)"
-          helpTitle="Adopsjonsrate for nylig aktive repoer"
-          helpText="Andel repoer med commit siste 90 dager som har minst én AI-tilpasning"
+          label="Adopsjonsrate (aktive repoer)"
+          helpTitle="Adopsjonsrate for aktive repoer"
+          helpText="Andel repoer med commit siste 90 dager som har minst én Copilot-tilpasning"
           subtitle={`${adoptionPercent} inkl. sovende`}
         />
         <MetricCard
           value={formatNumber(summary.repos_with_any_customization)}
           label="Repoer med tilpasninger"
           helpTitle="Repoer med tilpasninger"
-          helpText="Antall aktive repoer med minst én AI-tilpasning"
+          helpText="Antall aktive repoer med minst én Copilot-tilpasning"
           subtitle={`av ${formatNumber(summary.active_repos)} aktive`}
         />
         <MetricCard
-          value={formatNumber(summary.active_repos_with_recent_commits)}
-          label="Nylig aktive repoer"
-          helpTitle="Nylig aktive repoer"
-          helpText="Repoer med commit siste 90 dager"
-          subtitle={`${formatNumber(summary.dormant_repos)} sovende`}
-        />
-        <MetricCard
-          value={summary.avg_customization_count?.toFixed(1) ?? "—"}
-          label="Snitt tilpasninger per repo"
-          helpTitle="Gjennomsnittlig antall tilpasninger"
-          helpText="Gjennomsnittlig antall AI-tilpasningsfiler per aktivt repo"
-          subtitle={`Maks: ${summary.max_customization_count}`}
+          value={formatNumber(summary.repos_with_copilot_instructions)}
+          label="copilot-instructions.md"
+          helpTitle="Copilot Instructions"
+          helpText="Repoer med .github/copilot-instructions.md"
         />
       </HGrid>
 
@@ -315,9 +308,12 @@ function SyncContent({ staleness }: { staleness: StalenessSummary }) {
 
 // Cached data component
 async function CachedAdoptionData() {
+  const token = await getUserToken();
+  if (!token) return <ErrorState message="Ikke autentisert" />;
+
   const [{ data, error }, { data: staleness, error: stalenessError }] = await Promise.all([
-    getCachedAdoptionData(),
-    getCachedStalenessData(),
+    getAdoptionData(token),
+    getStalenessData(token),
   ]);
 
   if (error) return <ErrorState message={`Feil ved henting av adopsjonsdata: ${error}`} />;

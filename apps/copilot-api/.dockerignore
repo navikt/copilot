@@ -1,0 +1,24 @@
+# Build artifacts
+bin/
+*.out
+*.test
+coverage.html
+
+# Development
+.mise.toml
+.golangci.yml
+hack/
+
+# Documentation
+README.md
+*.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,246 +1,184 @@
-import { cacheLife, cacheTag } from "next/cache";
-import {
-  getAdoptionCohorts,
-  getAdoptionSummary,
-  getCustomizationDetails,
-  getCustomizationUsage,
-  getDailyMetrics,
-  getLanguageAdoption,
-  getMonthlyBillingUsage,
-  getMonthlyModelUsage,
-  getMonthlyTrends,
-  getStalenessData,
-  getTeamAdoption,
-  getTeamUsageSummary,
-  getUserMetrics,
-  getUserWeeklyTrends,
-} from "./bigquery";
+/**
+ * Backend data fetchers for Copilot analytics.
+ *
+ * Caching is owned entirely by the backend (copilot-api has a 1 h in-memory
+ * cache). These functions are thin proxies — they do NOT add a second BFF
+ * cache layer. The "cached-bigquery" file name is kept for now to avoid a
+ * large import-path churn while this file is the subject of a rename refactor.
+ */
+import { backendRequest, BackendApiError } from "./backend-api";
 import type {
-  AdoptionCohortDay,
   AdoptionData,
+  AdoptionSummary,
+  CustomizationDetail,
   CustomizationUsage,
   EnterpriseMetrics,
+  LanguageAdoption,
   MonthlyBillingUsage,
   MonthlyModelUsage,
   MonthlyTrend,
   StalenessSummary,
+  TeamAdoption,
   TeamUsageSummary,
   UserMetricsSummary,
   WeeklyTrend,
+  AdoptionCohortDay,
 } from "./types";
 
-export async function getCachedBigQueryUsage(): Promise<{
+function getErrorMessage(label: string, err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[copilot-data] ${label} failed:`, err);
+  return message;
+}
+
+async function fetchNullable<T>(
+  label: string,
+  fetcher: () => Promise<T>
+): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const data = await fetcher();
+    return { data, error: null };
+  } catch (err) {
+    return { data: null, error: getErrorMessage(label, err) };
+  }
+}
+
+async function fetchWithFallback<T>(
+  label: string,
+  fallback: T,
+  fetcher: () => Promise<T>
+): Promise<{ data: T; error: string | null }> {
+  try {
+    const data = await fetcher();
+    return { data, error: null };
+  } catch (err) {
+    return { data: fallback, error: getErrorMessage(label, err) };
+  }
+}
+
+export async function getCopilotUsageMetrics(token: string): Promise<{
   usage: EnterpriseMetrics[] | null;
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-usage");
-
-  try {
-    const usage = await getDailyMetrics();
-    return { usage, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedBigQueryUsage failed:", err);
-    return { usage: null, error: message };
-  }
+  const result = await fetchNullable("getCopilotUsageMetrics", () =>
+    backendRequest<EnterpriseMetrics[]>("/api/v1/copilot/usage/metrics", token)
+  );
+  return { usage: result.data, error: result.error };
 }
 
-export async function getCachedAdoptionData(): Promise<{
+export async function getAdoptionData(token: string): Promise<{
   data: AdoptionData | null;
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-adoption");
-
-  try {
+  return fetchNullable("getAdoptionData", async () => {
     const [summary, teams, languages, customizationDetails] = await Promise.all([
-      getAdoptionSummary(),
-      getTeamAdoption(),
-      getLanguageAdoption(),
-      getCustomizationDetails(),
+      backendRequest<AdoptionSummary>("/api/v1/copilot/adoption/summary", token),
+      backendRequest<TeamAdoption[]>("/api/v1/copilot/adoption/teams", token),
+      backendRequest<LanguageAdoption[]>("/api/v1/copilot/adoption/languages", token),
+      backendRequest<CustomizationDetail[]>("/api/v1/copilot/customizations/details", token),
     ]);
-    return { data: { summary, teams, languages, customizationDetails }, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedAdoptionData failed:", err);
-    return { data: null, error: message };
-  }
+
+    return { summary, teams, languages, customizationDetails };
+  });
 }
 
-export async function getCachedCustomizationUsage(): Promise<{
+export async function getCustomizationUsage(token: string): Promise<{
   usage: CustomizationUsage[];
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-customization-usage");
-
-  try {
-    const usage = await getCustomizationUsage();
-    return { usage, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedCustomizationUsage failed:", err);
-    return { usage: [], error: message };
-  }
+  const result = await fetchWithFallback("getCustomizationUsage", [] as CustomizationUsage[], () =>
+    backendRequest<CustomizationUsage[]>("/api/v1/copilot/customizations/usage", token)
+  );
+  return { usage: result.data, error: result.error };
 }
 
-export async function getCachedStalenessData(): Promise<{
+export async function getStalenessData(token: string): Promise<{
   data: StalenessSummary | null;
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-staleness");
-
-  try {
-    const files = await getStalenessData();
-    const totalInstances = files.reduce((sum, f) => sum + f.total_repos, 0);
-    const inSyncCount = files.reduce((sum, f) => sum + f.in_sync_repos, 0);
-    const outOfSyncCount = files.reduce((sum, f) => sum + f.out_of_sync_repos, 0);
-
-    const summary: StalenessSummary = {
-      total_files: files.length,
-      total_file_instances: totalInstances,
-      in_sync_count: inSyncCount,
-      out_of_sync_count: outOfSyncCount,
-      sync_rate: totalInstances > 0 ? inSyncCount / totalInstances : 0,
-      files,
-    };
-
-    return { data: summary, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedStalenessData failed:", err);
-    return { data: null, error: message };
-  }
+  return fetchNullable("getStalenessData", () =>
+    backendRequest<StalenessSummary>("/api/v1/copilot/adoption/staleness", token)
+  );
 }
 
-export async function getCachedTeamUsage(): Promise<{
+export async function getTeamUsage(token: string): Promise<{
   teams: TeamUsageSummary[];
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-team-usage");
-
-  try {
-    const teams = await getTeamUsageSummary(7);
-    return { teams, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedTeamUsage failed:", err);
-    return { teams: [], error: message };
-  }
+  const result = await fetchWithFallback("getTeamUsage", [] as TeamUsageSummary[], () =>
+    backendRequest<TeamUsageSummary[]>("/api/v1/copilot/usage/team-summary", token)
+  );
+  return { teams: result.data, error: result.error };
 }
 
-export async function getCachedUserMetrics(userLogin: string): Promise<{
-  metrics: UserMetricsSummary | null;
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-user-metrics", userLogin);
-
-  try {
-    const metrics = await getUserMetrics(userLogin, 30);
-    return { metrics, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedUserMetrics failed:", err);
-    return { metrics: null, error: message };
-  }
+export async function getUserMetrics(
+  username: string,
+  token: string
+): Promise<{ metrics: UserMetricsSummary | null; error: string | null }> {
+  const result = await fetchNullable("getUserMetrics", async () => {
+    try {
+      return await backendRequest<UserMetricsSummary>(
+        `/api/v1/copilot/usage/user/${encodeURIComponent(username)}`,
+        token
+      );
+    } catch (err) {
+      // A 404 is a valid state: the user is linked to a GitHub account but has
+      // no Copilot usage in the period. Treat as "no metrics", not an error.
+      if (err instanceof BackendApiError && err.status === 404) {
+        return null;
+      }
+      throw err;
+    }
+  });
+  return { metrics: result.data, error: result.error };
 }
 
-export async function getCachedMonthlyTrends(): Promise<{
+export async function getUserWeeklyTrends(
+  username: string,
+  token: string
+): Promise<{ trends: WeeklyTrend[]; error: string | null }> {
+  const result = await fetchWithFallback("getUserWeeklyTrends", [] as WeeklyTrend[], () =>
+    backendRequest<WeeklyTrend[]>(`/api/v1/copilot/usage/user/${encodeURIComponent(username)}/weekly`, token)
+  );
+  return { trends: result.data, error: result.error };
+}
+
+export async function getMonthlyTrends(token: string): Promise<{
   trends: MonthlyTrend[];
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-monthly-trends");
-
-  try {
-    const trends = await getMonthlyTrends(12);
-    return { trends, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedMonthlyTrends failed:", err);
-    return { trends: [], error: message };
-  }
+  const result = await fetchWithFallback("getMonthlyTrends", [] as MonthlyTrend[], () =>
+    backendRequest<MonthlyTrend[]>("/api/v1/copilot/usage/trends", token)
+  );
+  return { trends: result.data, error: result.error };
 }
 
-export async function getCachedUserWeeklyTrends(userLogin: string): Promise<{
-  trends: WeeklyTrend[];
-  error: string | null;
-}> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-user-weekly-trends", userLogin);
-
-  try {
-    const trends = await getUserWeeklyTrends(userLogin, 12);
-    return { trends, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedUserWeeklyTrends failed:", err);
-    return { trends: [], error: message };
-  }
-}
-
-export async function getCachedMonthlyModelUsage(): Promise<{
+export async function getMonthlyModelUsage(token: string): Promise<{
   usage: MonthlyModelUsage[];
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-monthly-model-usage");
-
-  try {
-    const usage = await getMonthlyModelUsage(12);
-    return { usage, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedMonthlyModelUsage failed:", err);
-    return { usage: [], error: message };
-  }
+  const result = await fetchWithFallback("getMonthlyModelUsage", [] as MonthlyModelUsage[], () =>
+    backendRequest<MonthlyModelUsage[]>("/api/v1/copilot/usage/models", token)
+  );
+  return { usage: result.data, error: result.error };
 }
 
-export async function getCachedMonthlyBillingUsage(): Promise<{
+export async function getMonthlyBillingUsage(token: string): Promise<{
   usage: MonthlyBillingUsage[];
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-monthly-billing-usage");
-
-  try {
-    const usage = await getMonthlyBillingUsage(12);
-    return { usage, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedMonthlyBillingUsage failed:", err);
-    return { usage: [], error: message };
-  }
+  const result = await fetchWithFallback("getMonthlyBillingUsage", [] as MonthlyBillingUsage[], () =>
+    backendRequest<MonthlyBillingUsage[]>("/api/v1/copilot/billing/monthly", token)
+  );
+  return { usage: result.data, error: result.error };
 }
 
-export async function getCachedAdoptionCohorts(): Promise<{
+export async function getAdoptionCohorts(token: string): Promise<{
   cohorts: AdoptionCohortDay[];
   error: string | null;
 }> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("bq-adoption-cohorts");
-
-  try {
-    const cohorts = await getAdoptionCohorts(90);
-    return { cohorts, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[cached-bigquery] getCachedAdoptionCohorts failed:", err);
-    return { cohorts: [], error: message };
-  }
+  const result = await fetchWithFallback("getAdoptionCohorts", [] as AdoptionCohortDay[], () =>
+    backendRequest<AdoptionCohortDay[]>("/api/v1/copilot/adoption/cohorts", token)
+  );
+  return { cohorts: result.data, error: result.error };
 }

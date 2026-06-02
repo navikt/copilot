@@ -1,5 +1,5 @@
-import { getUser } from "@/lib/auth";
-import { getCachedFileContributors } from "@/lib/cached-github";
+import { getUser, getUserToken } from "@/lib/auth";
+import { getFileContributors } from "@/lib/cached-github";
 import { getAllCustomizations } from "@/lib/customizations";
 import type { Skill } from "@/lib/customization-types";
 import { NextResponse } from "next/server";
@@ -34,6 +34,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getUserToken();
+  if (!token) {
+    return NextResponse.json({ error: "Token not available" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const itemId = searchParams.get("id");
 
@@ -46,7 +51,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown item" }, { status: 404 });
   }
 
-  const { contributors, error } = await getCachedFileContributors(OWNER, REPO, paths);
+  const { contributors, error } = await getFileContributors(token, OWNER, REPO, paths);
 
   if (error) {
     return NextResponse.json({ error }, { status: 502 });

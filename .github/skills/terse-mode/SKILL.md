@@ -1,6 +1,7 @@
 ---
 name: terse-mode
 description: "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet."
+license: "MIT"
 ---
 
 # Terse Mode — Compact Communication
@@ -18,6 +19,10 @@ Activate compact output style. All technical substance preserved. Only filler re
 
 Not: "Selvfølgelig! Jeg hjelper deg gjerne med det. Problemet du opplever skyldes sannsynligvis…"
 Yes: "Bug i auth-middleware. Token-expiry bruker `<` ikke `<=`. Fiks:"
+
+```text
+Bug i auth-middleware. Token-expiry bruker < ikke <=. Fiks:
+```
 
 ## Intensity levels
 
