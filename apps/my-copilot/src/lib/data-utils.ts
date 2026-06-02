@@ -22,8 +22,6 @@ const FEATURE_LABELS: Record<string, string> = {
   chat_inline: "Inline chat",
 };
 
-const EXCLUDED_FEATURES = new Set(["chat_panel_unknown_mode"]);
-
 // Generation mode classification (matches v_code_generation.sql)
 const USER_INITIATED_FEATURES = new Set(["code_completion", "chat_panel_ask_mode", "chat_inline"]);
 const AGENT_INITIATED_FEATURES = new Set([
