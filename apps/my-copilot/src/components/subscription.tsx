@@ -400,6 +400,11 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     <BodyShort>
                       <strong>Månedlig budsjett:</strong> {formatNumber(budget.budgetAmount)} USD
                     </BodyShort>
+                    <BodyShort size="small" className="text-gray-600">
+                      {budget.isOverride
+                        ? "Forbruksdata er ikke tilgjengelig for dette budsjettet."
+                        : "GitHub rapporterer ikke individuelt forbruk for standardbudsjettet."}
+                    </BodyShort>
                   </>
                 )}
                 {!budget.isOverride && (
