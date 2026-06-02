@@ -46,7 +46,7 @@ cd "$ROOT_DIR"
 (cd apps/copilot-api && mise run dev 2>&1 | prefix_output "api" "$CYAN") &
 API_PID=$!
 
-(cd apps/my-copilot && mise run dev 2>&1 | prefix_output "web" "$GREEN") &
+(cd apps/my-copilot && COPILOT_API_URL=http://localhost:8080 mise run dev 2>&1 | prefix_output "web" "$GREEN") &
 WEB_PID=$!
 
 wait "$API_PID" "$WEB_PID"
