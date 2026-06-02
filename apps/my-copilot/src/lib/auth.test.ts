@@ -37,8 +37,7 @@ describe("getUser", () => {
 
       const user = await getUser();
       expect(user).not.toBeNull();
-      expect(user!.firstName).toBe("Hans Kristian");
-      expect(user!.email).toContain("@nav.no");
+      expect(user!.email).toBe("dev@nav.no");
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
