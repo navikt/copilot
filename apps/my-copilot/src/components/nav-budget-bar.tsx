@@ -15,7 +15,7 @@ export default function NavBudgetBar() {
     fetch("/api/budget")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.budgetAmount) setBudget(data);
+        if (data && typeof data.budgetAmount === "number") setBudget(data);
       })
       .catch(() => {});
   }, []);
@@ -23,12 +23,12 @@ export default function NavBudgetBar() {
   if (!budget || budget.consumedAmount === null) return null;
 
   const pct = Math.min(100, Math.round((budget.consumedAmount / budget.budgetAmount) * 100));
-  const color = pct > 90 ? "#f9251d" : pct > 70 ? "#FF9100" : "#06893A";
+  const color = pct > 90 ? "var(--a-icon-danger)" : pct > 70 ? "var(--a-icon-warning)" : "var(--a-icon-success)";
 
   return (
     <div
       style={{ display: "flex", alignItems: "center", gap: "6px" }}
-      title={`${pct}% av AI-kreditbudsjettet brukt denne måneden`}
+      title={`${pct}% av AI-kredittbudsjettet brukt denne måneden`}
     >
       <div
         style={{
@@ -39,7 +39,7 @@ export default function NavBudgetBar() {
           overflow: "hidden",
         }}
         role="progressbar"
-        aria-label={`${pct}% av AI-kreditbudsjettet brukt`}
+        aria-label={`${pct}% av AI-kredittbudsjettet brukt`}
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}

@@ -103,6 +103,8 @@ spec:
       value: ALWAYS_ON
     - name: MCP_REGISTRY_URL
       value: "{{mcp_registry_url}}"
+    - name: MCP_REGISTRY_PUBLIC_URL
+      value: "{{mcp_registry_public_url}}"
     - name: COPILOT_API_URL
       value: "http://copilot-api"
   liveness:

@@ -3,6 +3,7 @@ import type { Domain, McpServerCustomization } from "./customization-types";
 import type { UsageExample } from "./manifest-types";
 
 const MCP_REGISTRY_URL = process.env.MCP_REGISTRY_URL || "https://mcp-registry.nav.no";
+const MCP_REGISTRY_PUBLIC_URL = process.env.MCP_REGISTRY_PUBLIC_URL || MCP_REGISTRY_URL;
 
 interface ServerResponse {
   server: {
@@ -70,7 +71,7 @@ function formatServerName(name: string): string {
 }
 
 function getMcpRegistryHost(): string {
-  const url = MCP_REGISTRY_URL.replace(/^https?:\/\//, "");
+  const url = MCP_REGISTRY_PUBLIC_URL.replace(/^https?:\/\//, "");
   return url.replace(/\/$/, "");
 }
 

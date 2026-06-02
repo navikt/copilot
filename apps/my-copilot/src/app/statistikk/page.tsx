@@ -309,9 +309,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
           <VStack gap="space-8">
             <HStack gap="space-8" align="center" justify="space-between">
               <HStack gap="space-8" align="center">
-                <BodyShort className="text-gray-600 text-sm">Totalt AI-kreditforbruk</BodyShort>
-                <HelpText title="Totalt AI-kreditforbruk">
-                  Sum av AI-kreditforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i
+                <BodyShort className="text-gray-600 text-sm">Totalt AI-kredittforbruk</BodyShort>
+                <HelpText title="Totalt AI-kredittforbruk">
+                  Sum av AI-kredittforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i
                   GitHub Copilot.
                 </HelpText>
               </HStack>
