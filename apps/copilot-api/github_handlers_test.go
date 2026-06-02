@@ -156,8 +156,11 @@ func TestHandleGetSeat(t *testing.T) {
 func TestHandleAssignSeat(t *testing.T) {
 	actor := &User{Email: "actor@nav.no", NAVident: "A123456"}
 
-	t.Run("assigns seat with valid request and authenticated user", func(t *testing.T) {
-		mock := &mockGitHubClient{assignResult: &AssignResult{SeatsCreated: 1}}
+	t.Run("assigns seat when username matches caller SAML identity", func(t *testing.T) {
+		mock := &mockGitHubClient{
+			samlUsername: "octocat",
+			assignResult: &AssignResult{SeatsCreated: 1},
+		}
 		h := newGitHubHandlers(mock)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
@@ -208,13 +211,61 @@ func TestHandleAssignSeat(t *testing.T) {
 			t.Errorf("status: got %d, want 400", rec.Code)
 		}
 	})
+
+	t.Run("returns 500 when SAML lookup fails", func(t *testing.T) {
+		mock := &mockGitHubClient{samlErr: errors.New("saml unavailable")}
+		h := newGitHubHandlers(mock)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
+			strings.NewReader(`{"username":"octocat"}`))
+		req = userContext(req, actor)
+		rec := httptest.NewRecorder()
+		h.handleAssignSeat(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status: got %d, want 500", rec.Code)
+		}
+	})
+
+	t.Run("returns 403 when caller has no linked GitHub account", func(t *testing.T) {
+		mock := &mockGitHubClient{samlUsername: ""}
+		h := newGitHubHandlers(mock)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
+			strings.NewReader(`{"username":"octocat"}`))
+		req = userContext(req, actor)
+		rec := httptest.NewRecorder()
+		h.handleAssignSeat(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want 403", rec.Code)
+		}
+	})
+
+	t.Run("returns 403 when username does not match caller identity", func(t *testing.T) {
+		mock := &mockGitHubClient{samlUsername: "other-user"}
+		h := newGitHubHandlers(mock)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
+			strings.NewReader(`{"username":"octocat"}`))
+		req = userContext(req, actor)
+		rec := httptest.NewRecorder()
+		h.handleAssignSeat(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want 403", rec.Code)
+		}
+	})
 }
 
 func TestHandleUnassignSeat(t *testing.T) {
 	actor := &User{Email: "actor@nav.no", NAVident: "A123456"}
 
-	t.Run("unassigns seat with valid request and authenticated user", func(t *testing.T) {
-		mock := &mockGitHubClient{unassignResult: &UnassignResult{SeatsCancelled: 1}}
+	t.Run("unassigns seat when username matches caller SAML identity", func(t *testing.T) {
+		mock := &mockGitHubClient{
+			samlUsername:   "octocat",
+			unassignResult: &UnassignResult{SeatsCancelled: 1},
+		}
 		h := newGitHubHandlers(mock)
 
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/octocat", nil)
@@ -250,6 +301,51 @@ func TestHandleUnassignSeat(t *testing.T) {
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("status: got %d, want 400", rec.Code)
+		}
+	})
+
+	t.Run("returns 500 when SAML lookup fails", func(t *testing.T) {
+		mock := &mockGitHubClient{samlErr: errors.New("saml unavailable")}
+		h := newGitHubHandlers(mock)
+
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/octocat", nil)
+		req.SetPathValue("username", "octocat")
+		req = userContext(req, actor)
+		rec := httptest.NewRecorder()
+		h.handleUnassignSeat(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status: got %d, want 500", rec.Code)
+		}
+	})
+
+	t.Run("returns 403 when caller has no linked GitHub account", func(t *testing.T) {
+		mock := &mockGitHubClient{samlUsername: ""}
+		h := newGitHubHandlers(mock)
+
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/octocat", nil)
+		req.SetPathValue("username", "octocat")
+		req = userContext(req, actor)
+		rec := httptest.NewRecorder()
+		h.handleUnassignSeat(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want 403", rec.Code)
+		}
+	})
+
+	t.Run("returns 403 when username does not match caller identity", func(t *testing.T) {
+		mock := &mockGitHubClient{samlUsername: "other-user"}
+		h := newGitHubHandlers(mock)
+
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/copilot/seats/octocat", nil)
+		req.SetPathValue("username", "octocat")
+		req = userContext(req, actor)
+		rec := httptest.NewRecorder()
+		h.handleUnassignSeat(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want 403", rec.Code)
 		}
 	})
 }

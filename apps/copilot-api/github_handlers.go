@@ -100,6 +100,28 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Defense-in-depth: verify the requested username resolves to the authenticated caller.
+	// The BFF already performs this check, but enforcing it here ensures the backend
+	// cannot be used to manage seats for other users even if the BFF were bypassed.
+	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
+	if err != nil {
+		slog.Error("Failed to verify caller identity via SAML", "error", err)
+		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
+		return
+	}
+	if resolvedUsername == "" {
+		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
+		return
+	}
+	if !strings.EqualFold(resolvedUsername, req.Username) {
+		slog.Warn("Seat assignment denied: username mismatch",
+			"requested_username", req.Username,
+			"actor_navident", user.NAVident,
+		)
+		respondError(w, "forbidden", "You can only manage your own Copilot seat", http.StatusForbidden)
+		return
+	}
+
 	result, err := h.githubClient.assignUserToCopilot(r.Context(), req.Username)
 	if err != nil {
 		slog.Error("Failed to assign seat",
@@ -137,6 +159,28 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 	username := r.PathValue("username")
 	if !isValidGitHubUsername(username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		return
+	}
+
+	// Defense-in-depth: verify the requested username resolves to the authenticated caller.
+	// The BFF already performs this check, but enforcing it here ensures the backend
+	// cannot be used to manage seats for other users even if the BFF were bypassed.
+	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
+	if err != nil {
+		slog.Error("Failed to verify caller identity via SAML", "error", err)
+		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
+		return
+	}
+	if resolvedUsername == "" {
+		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
+		return
+	}
+	if !strings.EqualFold(resolvedUsername, username) {
+		slog.Warn("Seat unassignment denied: username mismatch",
+			"requested_username", username,
+			"actor_navident", user.NAVident,
+		)
+		respondError(w, "forbidden", "You can only manage your own Copilot seat", http.StatusForbidden)
 		return
 	}
 
