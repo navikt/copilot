@@ -314,7 +314,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
                 height: "10px",
                 width: "100%",
                 borderRadius: "var(--a-border-radius-full)",
-                backgroundColor: "var(--a-surface-neutral)",
+                backgroundColor: "var(--a-border-default)",
               }}
               role="progressbar"
               aria-label={`${Math.round((globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget)) * 100)}% av totalt budsjett brukt`}

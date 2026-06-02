@@ -371,7 +371,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                           height: "10px",
                           width: "100%",
                           borderRadius: "var(--a-border-radius-full)",
-                          backgroundColor: "var(--a-surface-neutral)",
+                          backgroundColor: "var(--a-border-default)",
                         }}
                         role="progressbar"
                         aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av budsjettet brukt`}
