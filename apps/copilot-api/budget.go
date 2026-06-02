@@ -23,7 +23,8 @@ type BudgetEntry struct {
 }
 
 type budgetListResponse struct {
-	Budgets []BudgetEntry `json:"budgets"`
+	Budgets     []BudgetEntry `json:"budgets"`
+	HasNextPage bool          `json:"has_next_page"`
 }
 
 // UserBudget is the resolved budget for a specific user.
@@ -121,8 +122,7 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 
 		all = append(all, result.Budgets...)
 
-		// GitHub paginates with Link header; stop when we get fewer than a full page
-		if len(result.Budgets) < 100 {
+		if !result.HasNextPage {
 			break
 		}
 		page++
