@@ -52,7 +52,49 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data, billingData
     borderWidth: 1,
   }));
 
-  // Billing summary cards
+  // Billing cost per month (gross and net amounts)
+  const billingCostByModel = new Map<string, Map<string, number>>();
+  const billingNetByMonth = new Map<string, number>();
+  if (hasBillingData) {
+    for (const item of billingData) {
+      const model = normalizeBillingModel(item.model);
+      if (!billingCostByModel.has(model)) billingCostByModel.set(model, new Map());
+      const monthMap = billingCostByModel.get(model)!;
+      monthMap.set(item.month, (monthMap.get(item.month) || 0) + item.gross_amount);
+      billingNetByMonth.set(item.month, (billingNetByMonth.get(item.month) || 0) + item.net_amount);
+    }
+  }
+
+  const costTopModels = hasBillingData
+    ? [...billingCostByModel.entries()]
+        .map(([model, monthMap]) => ({ model, latest: monthMap.get(latestBillingMonth) || 0 }))
+        .sort((a, b) => b.latest - a.latest)
+        .slice(0, 8)
+        .map((d) => d.model)
+    : [];
+
+  const costDatasets = costTopModels.map((model, i) => ({
+    label: model,
+    data: billingMonths.map((month) => Math.round((billingCostByModel.get(model)?.get(month) || 0) * 100) / 100),
+    backgroundColor: getBackgroundColor(chartColors[i % chartColors.length], 0.7),
+    borderColor: chartColors[i % chartColors.length],
+    borderWidth: 1,
+    stack: "gross",
+    type: "bar" as const,
+  }));
+
+  const netAmountLine = {
+    label: "Netto (etter rabatt)",
+    data: billingMonths.map((month) => Math.round((billingNetByMonth.get(month) || 0) * 100) / 100),
+    borderColor: "#1a1a2e",
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    pointRadius: 3,
+    type: "line" as const,
+    stack: undefined,
+    order: 0,
+  };
+
   const billingLatestData = hasBillingData
     ? [...billingByModel.entries()]
         .map(([model, monthMap]) => ({ model, requests: monthMap.get(latestBillingMonth) || 0 }))
@@ -163,7 +205,7 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data, billingData
             ))}
           </HGrid>
 
-          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+          <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
             <Box background="neutral-soft" padding="space-16" borderRadius="8">
               <VStack gap="space-8">
                 <BodyShort weight="semibold">Premium-forespørsler per modell</BodyShort>
@@ -180,6 +222,27 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data, billingData
                 </BodyShort>
                 <div className="aspect-[2/1]">
                   <Bar data={{ labels: months, datasets: tokenBarDatasets }} options={barOptions} />
+                </div>
+              </VStack>
+            </Box>
+            <Box background="neutral-soft" padding="space-16" borderRadius="8">
+              <VStack gap="space-8">
+                <BodyShort weight="semibold">Månedlig kostnad (USD)</BodyShort>
+                <BodyShort size="small" className="text-gray-500">
+                  Brutto per modell — nettolinje viser faktisk fakturert beløp
+                </BodyShort>
+                <div className="aspect-[2/1]">
+                  <Bar
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    data={{ labels: billingMonths, datasets: [...costDatasets, netAmountLine] as any[] }}
+                    options={{
+                      ...barOptions,
+                      scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, grid: { color: "rgba(0,0,0,0.06)" } },
+                      },
+                    }}
+                  />
                 </div>
               </VStack>
             </Box>
