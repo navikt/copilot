@@ -79,16 +79,21 @@ func main() {
 		slog.Warn("Failed to ensure views exist (continuing without views)", "error", err)
 	}
 
-	// Set up billing client (optional — requires classic PAT)
+	// Set up billing + budget clients (optional — require classic PAT with admin:enterprise scope)
 	billingClient := NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug)
+	budgetClient := NewBudgetClient(config.GitHubBillingToken, config.EnterpriseSlug)
 	if billingClient != nil {
-		slog.Info("Billing client configured — premium request usage ingestion enabled")
+		slog.Info("Billing client configured — premium request usage and budget snapshot ingestion enabled")
 		if err := bqClient.EnsureBillingTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure billing table exists", "error", err)
 			os.Exit(1)
 		}
+		if err := bqClient.EnsureBudgetSnapshotsTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure budget_snapshots table exists", "error", err)
+			os.Exit(1)
+		}
 	} else {
-		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing usage ingestion disabled")
+		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing usage and budget snapshot ingestion disabled")
 	}
 
 	if *billingBackfill {
@@ -133,6 +138,10 @@ func main() {
 		// Ingest current month's billing data (always re-ingests since it's cumulative)
 		if billingClient != nil {
 			ingestCurrentMonthBilling(ctx, billingClient, bqClient, config)
+		}
+		// Ingest today's budget snapshot (always re-ingests since consumption is live)
+		if budgetClient != nil {
+			ingestTodayBudgetSnapshot(ctx, budgetClient, bqClient, config)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
@@ -469,4 +478,43 @@ func runBillingBackfill(ctx context.Context, billing *BillingClient, bq *BigQuer
 
 	slog.Info("Billing backfill completed", "months_processed", successCount, "errors", errorCount)
 	return nil
+}
+
+// ingestTodayBudgetSnapshot fetches all budget entries from GitHub and stores a daily snapshot.
+// Always overwrites today's snapshot since consumed_amount is live and cumulative within the month.
+// Errors are logged as warnings — budget snapshots are supplementary data.
+func ingestTodayBudgetSnapshot(ctx context.Context, budget *BudgetClient, bq *BigQueryClient, cfg *Config) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	dateStr := today.Format("2006-01-02")
+
+	slog.Info("Ingesting budget snapshot", "date", dateStr)
+
+	entries, err := budget.FetchAllBudgets(ctx)
+	if err != nil {
+		slog.Warn("Failed to fetch budget entries from GitHub API", "date", dateStr, "error", err)
+		return
+	}
+
+	if len(entries) == 0 {
+		slog.Info("No budget entries returned", "date", dateStr)
+		return
+	}
+
+	// Delete existing snapshot for today before re-inserting (idempotent).
+	// If the check or delete fails we still attempt insert — BigQuery data may not exist yet.
+	exists, checkErr := bq.BudgetSnapshotExists(ctx, today, cfg.EnterpriseSlug)
+	if checkErr != nil {
+		slog.Warn("Could not check if budget snapshot exists (proceeding with insert)", "date", dateStr, "error", checkErr)
+	} else if exists {
+		if delErr := bq.DeleteBudgetSnapshot(ctx, today, cfg.EnterpriseSlug); delErr != nil {
+			slog.Warn("Failed to delete existing budget snapshot (proceeding with insert)", "date", dateStr, "error", delErr)
+		}
+	}
+
+	if err := bq.InsertBudgetSnapshots(ctx, today, cfg.EnterpriseSlug, entries); err != nil {
+		slog.Warn("Failed to insert budget snapshot", "date", dateStr, "error", err)
+		return
+	}
+
+	slog.Info("Budget snapshot ingested successfully", "date", dateStr, "entries", len(entries))
 }
