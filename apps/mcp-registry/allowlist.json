@@ -90,10 +90,8 @@
           "scenario": "Få detaljert informasjon om en Aksel-komponent",
           "prompt": "Vis alle props og typer for Aksel Button-komponenten"
         },
-        {
           "scenario": "Få detaljer om et Aksel-token",
-          "prompt": "Hvordan token bør jeg bruke for bakgrunnsfarge?"
-        }
+          "prompt": "Hvilket token bør jeg bruke for bakgrunnsfarge?"
       ],
       "packages": [
         {
