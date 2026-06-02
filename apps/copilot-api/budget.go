@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -74,6 +75,11 @@ func (c *BudgetClient) getEnterpriseBudgets(ctx context.Context) ([]BudgetEntry,
 	c.mu.Unlock()
 
 	slog.Debug("Enterprise budgets cached", "count", len(entries))
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		for _, e := range entries {
+			slog.Debug("Budget entry", "scope", e.BudgetScope, "entity", e.BudgetEntityName, "amount", e.BudgetAmount)
+		}
+	}
 	return entries, nil
 }
 
@@ -166,7 +172,7 @@ func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*Use
 		if e.BudgetScope == "multi_user_customer" {
 			defaultBudget = e.BudgetAmount
 		}
-		if e.BudgetScope == "user" && e.BudgetEntityName == username {
+		if e.BudgetScope == "member" && strings.EqualFold(e.BudgetEntityName, username) {
 			userEntry = e
 		}
 	}
