@@ -96,38 +96,6 @@ export interface DailyTrend {
   agentUsers: number;
 }
 
-export interface AdoptionTrendData {
-  days: string[];
-  chatUsers: number[];
-  agentUsers: number[];
-  cliUsers: number[];
-}
-
-export interface LanguageChartData {
-  days: string[];
-  languages: { name: string; values: number[] }[];
-}
-
-export interface EditorChartData {
-  days: string[];
-  editors: { name: string; values: number[] }[];
-}
-
-export interface FeatureChartData {
-  labels: string[];
-  acceptances: number[];
-  generations: number[];
-  interactions: number[];
-}
-
-export interface LinesOfCodeChartData {
-  days: string[];
-  suggested: number[];
-  accepted: number[];
-  deletionsSuggested: number[];
-  deletionsAccepted: number[];
-}
-
 export interface ModelChartData {
   name: string;
   generations: number;
@@ -185,17 +153,6 @@ export interface AggregatedMetrics {
   totalInteractions: number;
   overallAcceptanceRate: number;
   linesAcceptanceRate: number;
-}
-
-export interface FeatureAdoptionMetrics {
-  features: {
-    name: string;
-    label: string;
-    acceptances: number;
-    generations: number;
-    interactions: number;
-  }[];
-  totalActiveUsers: number;
 }
 
 export interface PRMetrics {
