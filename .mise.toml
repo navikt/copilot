@@ -23,6 +23,12 @@ shellcheck = "latest"
 APPS = "copilot-adoption copilot-api copilot-metrics mcp-onboarding mcp-registry my-copilot"
 APPS_WITH_GENERATE = "mcp-onboarding my-copilot"
 
+# ─── Local development ───────────────────────────────────────────────────────
+
+[tasks.dev]
+description = "Start copilot-api (:8080) and my-copilot (:3000) with hot reload"
+run = "bash hack/dev.sh"
+
 # ─── Pipeline ────────────────────────────────────────────────────────────────
 
 [tasks.all]

@@ -1,6 +1,7 @@
 [tools]
 go = "1.26"
 golangci-lint = "2.10.1"
+"go:github.com/air-verse/air" = "latest"
 
 [tasks.version]
 description = "Generate version string (YYYYMMDD-gitsha)"
@@ -67,9 +68,9 @@ description = "Run the application locally"
 run = "go run ."
 
 [tasks.dev]
-description = "Run with development settings (DEBUG log level)"
+description = "Run with hot reload (air) and DEBUG log level"
 env = { LOG_LEVEL = "DEBUG", LOGGED_ENDPOINTS = "/api/v1/,/health,/ready" }
-run = "go run ."
+run = "air"
 
 [tasks.clean]
 description = "Clean build artifacts and test outputs"
