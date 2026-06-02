@@ -23,7 +23,7 @@ export default function NavBudgetBar() {
   if (!budget || budget.consumedAmount === null) return null;
 
   const pct = Math.min(100, Math.round((budget.consumedAmount / budget.budgetAmount) * 100));
-  const color = pct > 90 ? "var(--a-icon-danger)" : pct > 70 ? "var(--a-icon-warning)" : "var(--a-icon-success)";
+  const color = pct > 90 ? "#f87171" : pct > 70 ? "#fbbf24" : "#60a5fa";
 
   return (
     <div
