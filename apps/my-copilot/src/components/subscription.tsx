@@ -1,8 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort, Link } from "@navikt/ds-react";
+import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort, Link, Tag } from "@navikt/ds-react";
 import { User } from "@/lib/auth";
+
+interface BudgetData {
+  budgetAmount: number;
+  consumedAmount: number | null;
+  isOverride: boolean;
+  defaultBudget: number;
+}
 
 interface SubscriptionDetailsProps {
   icanhazcopilot: boolean;
@@ -67,6 +74,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [errorTraceId, setErrorTraceId] = useState<string | null>(null);
   const [needsGitHubLink, setNeedsGitHubLink] = useState<boolean>(false);
+  const [budget, setBudget] = useState<BudgetData | null>(null);
 
   const fetchSubscription = async () => {
     setLoading(true);
@@ -140,29 +148,30 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
 
     async function loadSubscription() {
       try {
-        const response = await fetch("/api/copilot");
-        const data = await response.json();
+        const [subscriptionResponse, budgetResponse] = await Promise.all([fetch("/api/copilot"), fetch("/api/budget")]);
+        const data = await subscriptionResponse.json();
 
         if (cancelled) return;
 
         if (data.error) {
           setSubscriptionError(data.error);
           setErrorTraceId(data.traceId ?? null);
-          return;
-        }
-
-        if (data.githubAccountLinked === false) {
+        } else if (data.githubAccountLinked === false) {
           setNeedsGitHubLink(true);
           setEligible(data.icanhazcopilot);
-          return;
+        } else {
+          setSubscriptionError(null);
+          setErrorTraceId(null);
+          setNeedsGitHubLink(false);
+          setEligible(data.icanhazcopilot);
+          setCopilotSubscription(data.subscription);
+          setGitHubUsername(data.githubUsername);
         }
 
-        setSubscriptionError(null);
-        setErrorTraceId(null);
-        setNeedsGitHubLink(false);
-        setEligible(data.icanhazcopilot);
-        setCopilotSubscription(data.subscription);
-        setGitHubUsername(data.githubUsername);
+        if (budgetResponse.ok) {
+          const budgetData = await budgetResponse.json();
+          if (!cancelled) setBudget(budgetData);
+        }
       } catch (error) {
         if (cancelled) return;
         console.error("Error fetching subscription details:", error);
@@ -215,7 +224,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         </Box>
       )}
 
-      <HGrid columns={{ xs: 1, md: 2 }} gap="space-8">
+      <HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="space-8">
         {" "}
         <Box padding="space-8" borderRadius="8" className="border">
           {" "}
@@ -316,6 +325,69 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                   ))}
                 </ul>
               </div>
+            )}
+          </VStack>
+        </Box>
+        <Box padding="space-8" borderRadius="8" className="border">
+          <VStack gap="space-4">
+            <Heading size="medium" level="3">
+              AI-kredittbudsjett
+            </Heading>
+            {loading ? (
+              <VStack gap="space-4" role="status" className="max-w-sm animate-pulse">
+                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 w-40"></div>
+                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-56"></div>
+                <span className="sr-only">Laster budsjett...</span>
+              </VStack>
+            ) : budget ? (
+              <>
+                {budget.isOverride && (
+                  <Tag variant="info" size="small">
+                    Utvidet budsjett
+                  </Tag>
+                )}
+                <BodyShort>
+                  <strong>Månedlig budsjett:</strong> ${budget.budgetAmount.toFixed(2)}
+                </BodyShort>
+                {budget.consumedAmount !== null && (
+                  <>
+                    <BodyShort>
+                      <strong>Brukt denne måneden:</strong> ${budget.consumedAmount.toFixed(2)}
+                    </BodyShort>
+                    <BodyShort>
+                      <strong>Gjenstående:</strong> $
+                      {Math.max(0, budget.budgetAmount - budget.consumedAmount).toFixed(2)}
+                    </BodyShort>
+                    <div
+                      className="w-full bg-gray-200 rounded-full"
+                      style={{ height: "8px" }}
+                      aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% brukt`}
+                      role="progressbar"
+                      aria-valuenow={budget.consumedAmount}
+                      aria-valuemin={0}
+                      aria-valuemax={budget.budgetAmount}
+                    >
+                      <div
+                        className={`h-full rounded-full ${
+                          budget.consumedAmount / budget.budgetAmount > 0.9
+                            ? "bg-red-500"
+                            : budget.consumedAmount / budget.budgetAmount > 0.7
+                              ? "bg-yellow-400"
+                              : "bg-green-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(100, Math.round((budget.consumedAmount / budget.budgetAmount) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+                {!budget.isOverride && (
+                  <BodyShort size="small">Dette er standardbudsjettet for alle Nav-utviklere.</BodyShort>
+                )}
+              </>
+            ) : (
+              <BodyShort>Budsjettinformasjon er ikke tilgjengelig.</BodyShort>
             )}
           </VStack>
         </Box>

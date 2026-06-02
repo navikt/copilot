@@ -42,7 +42,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // makeAPIRouter creates the main API router for /api/v1/
-func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers) http.Handler {
+func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	// BigQuery endpoints
@@ -72,6 +72,11 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 		mux.HandleFunc("POST /api/v1/copilot/seats", ghHandlers.handleAssignSeat)
 		mux.HandleFunc("DELETE /api/v1/copilot/seats/{username}", ghHandlers.handleUnassignSeat)
 		mux.HandleFunc("GET /api/v1/copilot/saml/{identity}", ghHandlers.handleGetUsernameBySAML)
+	}
+
+	// Enterprise budget endpoint
+	if budgetHandlers != nil {
+		mux.HandleFunc("GET /api/v1/copilot/budget", budgetHandlers.handleGetBudget)
 	}
 
 	// Placeholder endpoints - to be implemented in future phases
