@@ -84,6 +84,16 @@ description = "Run single ingestion for yesterday"
 env = { LOG_LEVEL = "DEBUG" }
 run = "fnox exec -- go run . --run-once"
 
+[tasks."run:billing-backfill"]
+description = "Backfill billing usage data from 2026-03 (dev)"
+env = { LOG_LEVEL = "DEBUG", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }
+run = "fnox exec -- go run . --billing-backfill --billing-from=${BILLING_FROM:-2026-03} --force"
+
+[tasks."run:billing-backfill:prod"]
+description = "Backfill billing usage data from 2026-03 (prod)"
+env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
+run = "fnox exec -- go run . --billing-backfill --billing-from=${BILLING_FROM:-2026-03} --force"
+
 [tasks."run:backfill"]
 description = "Run historical backfill (dev, from 2025-10-10)"
 env = { LOG_LEVEL = "DEBUG", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }

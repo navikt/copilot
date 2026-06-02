@@ -20,11 +20,16 @@ export async function isAuthenticated(): Promise<boolean> {
 const getCachedUser = cache(async (): Promise<User | null> => {
   // In development without Texas configured, return mock user
   if (process.env.NODE_ENV === "development" && !process.env.NAIS_TOKEN_INTROSPECTION_ENDPOINT) {
+    const email = process.env.DEV_USER_EMAIL ?? "dev@nav.no";
+    const [firstName = "Dev", lastName = "User"] = email
+      .split("@")[0]
+      .split(".")
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1));
     return {
-      firstName: "Hans Kristian",
-      lastName: "Flaatten",
-      email: "hans.kristian.flaatten@nav.no",
-      groups: ["group1", "group2"],
+      firstName,
+      lastName,
+      email,
+      groups: (process.env.DEV_USER_GROUPS ?? "").split(",").filter(Boolean),
     };
   }
 

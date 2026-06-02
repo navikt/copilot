@@ -6,7 +6,11 @@ const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 const TOKEN_EXCHANGE_TIMEOUT_MS = 5000;
 const BACKEND_REQUEST_TIMEOUT_MS = 15000;
 
-const isLocalDev = !process.env.NAIS_CLUSTER_NAME;
+// Local dev: no Texas sidecar means no token exchange endpoint.
+// Use this check (not NAIS_CLUSTER_NAME) to stay consistent with auth.ts
+// and to handle cases where NAIS_CLUSTER_NAME is set in .env.local but
+// there is no Texas sidecar running.
+const isLocalDev = !process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT;
 
 /**
  * Error thrown when the backend API responds with a non-2xx status.

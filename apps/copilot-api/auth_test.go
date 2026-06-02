@@ -178,6 +178,10 @@ func TestGetUserFromContext(t *testing.T) {
 }
 
 func TestMakeAuthMiddleware_DevMode(t *testing.T) {
+	// The dev mock user's email is configurable via DEV_USER_EMAIL so local dev can
+	// resolve a real GitHub identity (e.g. for the budget endpoint's SAML lookup).
+	t.Setenv("DEV_USER_EMAIL", "tester@nav.no")
+
 	config := &Config{
 		Environment: "local",
 		AzureIssuer: "", // No Azure config = dev mode
@@ -192,8 +196,11 @@ func TestMakeAuthMiddleware_DevMode(t *testing.T) {
 			return
 		}
 
-		if user.Email != "dev@nav.no" {
-			t.Errorf("Expected dev user email, got %s", user.Email)
+		if user.Email != "tester@nav.no" {
+			t.Errorf("Expected dev user email tester@nav.no, got %s", user.Email)
+		}
+		if user.PreferredUsername != "tester@nav.no" {
+			t.Errorf("Expected PreferredUsername tester@nav.no, got %s", user.PreferredUsername)
 		}
 
 		w.WriteHeader(http.StatusOK)

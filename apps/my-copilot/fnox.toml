@@ -2,6 +2,4 @@
 keychain = { type = "keychain", service = "copilot-portal" }
 
 [secrets]
-GITHUB_APP_ID= { provider = "keychain", value = "GITHUB_APP_ID" }
-GITHUB_APP_PRIVATE_KEY= { provider = "keychain", value = "GITHUB_APP_PRIVATE_KEY" }
-GITHUB_APP_INSTALLATION_ID= { provider = "keychain", value = "GITHUB_APP_INSTALLATION_ID" }
+# my-copilot er en BFF som kaller copilot-api — GitHub App-credentials håndteres der

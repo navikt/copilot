@@ -1,0 +1,25 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+bin = "./tmp/copilot-api"
+cmd = "go build -o ./tmp/copilot-api ."
+delay = 500
+exclude_dir = ["tmp", "bin", "vendor", "testdata"]
+include_ext = ["go"]
+kill_delay = "200ms"
+send_interrupt = true
+stop_on_error = false
+
+[color]
+app = ""
+build = "yellow"
+main = "green"
+runner = "cyan"
+watcher = "cyan"
+
+[log]
+time = true
+
+[misc]
+clean_on_exit = true
