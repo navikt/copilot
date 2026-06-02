@@ -49,7 +49,7 @@ func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cacheControl(w, 900, true) // 15 min, public (billing summary)
+	cacheControl(w, 900, false) // 15 min, private (billing summary)
 	respondJSON(w, billing, http.StatusOK)
 }
 
@@ -234,7 +234,7 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
 }
 
@@ -285,7 +285,7 @@ func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *
 		return
 	}
 
-	cacheControl(w, 604800, true) // 7 days, public
+	cacheControl(w, 604800, false) // 7 days, private
 	respondJSON(w, map[string]interface{}{
 		"contributors": contributors,
 	}, http.StatusOK)

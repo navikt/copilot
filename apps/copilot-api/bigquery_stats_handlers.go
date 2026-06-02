@@ -37,7 +37,7 @@ func (h *BigQueryHandlers) handleTeamUsageSummary(w http.ResponseWriter, r *http
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
 }
 
@@ -83,7 +83,7 @@ func (h *BigQueryHandlers) handleMonthlyTrends(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, trends, http.StatusOK)
 }
 
@@ -101,7 +101,7 @@ func (h *BigQueryHandlers) handleMonthlyModelUsage(w http.ResponseWriter, r *htt
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
 }
 
@@ -119,7 +119,7 @@ func (h *BigQueryHandlers) handleMonthlyBillingUsage(w http.ResponseWriter, r *h
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
 }
 
@@ -161,6 +161,6 @@ func (h *BigQueryHandlers) handleAdoptionCohorts(w http.ResponseWriter, r *http.
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, cohorts, http.StatusOK)
 }

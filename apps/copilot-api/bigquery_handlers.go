@@ -49,7 +49,7 @@ func (h *BigQueryHandlers) handleDailyMetrics(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	cacheControl(w, 3600, true) // 1 hour, public
+	cacheControl(w, 3600, false) // 1 hour, public
 	respondJSON(w, metrics, http.StatusOK)
 }
 
@@ -68,12 +68,12 @@ func (h *BigQueryHandlers) handleAdoptionSummary(w http.ResponseWriter, r *http.
 	}
 
 	if summary == nil {
-		cacheControl(w, 3600, true)
+		cacheControl(w, 3600, false)
 		respondJSON(w, map[string]interface{}{}, http.StatusOK)
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, summary, http.StatusOK)
 }
 
@@ -91,7 +91,7 @@ func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, teams, http.StatusOK)
 }
 
@@ -109,7 +109,7 @@ func (h *BigQueryHandlers) handleCustomizationDetails(w http.ResponseWriter, r *
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, details, http.StatusOK)
 }
 
@@ -127,7 +127,7 @@ func (h *BigQueryHandlers) handleCustomizationUsage(w http.ResponseWriter, r *ht
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
 }
 
@@ -145,7 +145,7 @@ func (h *BigQueryHandlers) handleLanguageAdoption(w http.ResponseWriter, r *http
 		return
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, langs, http.StatusOK)
 }
 
@@ -184,6 +184,6 @@ func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *htt
 		Files:              files,
 	}
 
-	cacheControl(w, 3600, true)
+	cacheControl(w, 3600, false)
 	respondJSON(w, summary, http.StatusOK)
 }
