@@ -3,7 +3,7 @@ import { Box, HGrid, Heading, BodyShort, HStack, VStack, Skeleton } from "@navik
 import { ArrowRightIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
 import { getAllCustomizations } from "@/lib/customizations";
-import { getCachedBigQueryUsage, getCachedAdoptionData } from "@/lib/cached-bigquery";
+import { getCopilotUsageMetrics, getAdoptionData } from "@/lib/cached-bigquery";
 import { getAggregatedMetrics } from "@/lib/data-utils";
 import { getUserToken } from "@/lib/auth";
 
@@ -82,7 +82,7 @@ function CustomizationBreakdownCard() {
 
 async function UsageCard() {
   const token = await getUserToken();
-  const { usage, error } = token ? await getCachedBigQueryUsage(token) : { usage: null, error: "Not authenticated" };
+  const { usage, error } = token ? await getCopilotUsageMetrics(token) : { usage: null, error: "Not authenticated" };
 
   const metrics = !error && usage?.length ? getAggregatedMetrics(usage) : null;
   const total = metrics?.monthlyActiveUsers || 1;
@@ -128,7 +128,7 @@ async function UsageCard() {
 async function StatsCard() {
   const token = await getUserToken();
   const [{ usage, error: usageError }, { data: adoptionData, error: adoptionError }] = token
-    ? await Promise.all([getCachedBigQueryUsage(token), getCachedAdoptionData(token)])
+    ? await Promise.all([getCopilotUsageMetrics(token), getAdoptionData(token)])
     : [
         { usage: null, error: "Not authenticated" },
         { data: null, error: "Not authenticated" },

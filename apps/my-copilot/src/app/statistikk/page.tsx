@@ -1,13 +1,13 @@
 import React, { Suspense } from "react";
 import {
-  getCachedBigQueryUsage,
-  getCachedTeamUsage,
-  getCachedUserMetrics,
-  getCachedMonthlyTrends,
-  getCachedMonthlyModelUsage,
-  getCachedMonthlyBillingUsage,
-  getCachedUserWeeklyTrends,
-  getCachedAdoptionCohorts,
+  getCopilotUsageMetrics,
+  getTeamUsage,
+  getUserMetrics,
+  getMonthlyTrends,
+  getMonthlyModelUsage,
+  getMonthlyBillingUsage,
+  getUserWeeklyTrends,
+  getAdoptionCohorts,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
@@ -58,7 +58,7 @@ function UsageHeader() {
 
 // Cached data component — uses last 28 days of entity-level data
 async function CachedUsageData({ token }: { token: string }) {
-  const { usage, error } = await getCachedBigQueryUsage(token);
+  const { usage, error } = await getCopilotUsageMetrics(token);
 
   if (error) return <ErrorState message={`Feil ved henting av bruksdata: ${error}`} />;
   if (!usage || usage.length === 0) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
@@ -73,7 +73,7 @@ const ALLOW_ALL_TEAMS = process.env.NODE_ENV === "development";
 
 // Cached team usage data component — resolves user's teams for highlighting
 async function TeamUsageContent({ token }: { token: string }) {
-  const [{ teams, error }, user] = await Promise.all([getCachedTeamUsage(token), getUser()]);
+  const [{ teams, error }, user] = await Promise.all([getTeamUsage(token), getUser()]);
 
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
   if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
@@ -98,6 +98,12 @@ async function TeamUsageContent({ token }: { token: string }) {
           token
         );
         ghLogin = saml.username;
+        // NOTE: SCIM-based username lookup was removed during the backend migration
+        // (the previous BFF called getUsernameByScim as a fallback for users who
+        // appear in SCIM but not in SAML). That endpoint no longer exists in the
+        // backend. Users in SCIM-only will resolve ghLogin=null here and therefore
+        // not see their personal metrics tab. This is a known gap pending product
+        // confirmation — see issue backlog.
       } catch (err) {
         console.error("[statistikk] SAML lookup failed:", err);
       }
@@ -105,8 +111,8 @@ async function TeamUsageContent({ token }: { token: string }) {
 
     if (ghLogin) {
       const [{ metrics, error: metricsError }, { trends: weeklyTrends, error: trendsError }] = await Promise.all([
-        getCachedUserMetrics(ghLogin, token),
-        getCachedUserWeeklyTrends(ghLogin, token),
+        getUserMetrics(ghLogin, token),
+        getUserWeeklyTrends(ghLogin, token),
       ]);
       if (metricsError) console.error("[statistikk] User metrics failed:", metricsError);
       if (trendsError) console.error("[statistikk] User weekly trends failed:", trendsError);
@@ -140,8 +146,9 @@ async function TeamUsageContent({ token }: { token: string }) {
 }
 
 // Main content component that takes usage data as props.
-// Individual data fetches (getCachedMonthlyTrends, etc.) are cached at the function level,
-// so this component doesn't need its own "use cache" directive.
+// Individual data fetches are NOT cached at the BFF layer — caching is owned
+// by copilot-api (1 h in-memory cache). Each request fetches fresh data from
+// the backend, which is the single source of truth for cache lifetime.
 async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
   const dateRange = getDateRange(usage);
   if (!dateRange) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
@@ -166,10 +173,10 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     { usage: billingUsage, error: billingError },
     { cohorts: adoptionCohorts, error: cohortsError },
   ] = await Promise.all([
-    getCachedMonthlyTrends(token),
-    getCachedMonthlyModelUsage(token),
-    getCachedMonthlyBillingUsage(token),
-    getCachedAdoptionCohorts(token),
+    getMonthlyTrends(token),
+    getMonthlyModelUsage(token),
+    getMonthlyBillingUsage(token),
+    getAdoptionCohorts(token),
   ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);

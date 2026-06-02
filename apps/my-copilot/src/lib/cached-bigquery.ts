@@ -1,3 +1,11 @@
+/**
+ * Backend data fetchers for Copilot analytics.
+ *
+ * Caching is owned entirely by the backend (copilot-api has a 1 h in-memory
+ * cache). These functions are thin proxies — they do NOT add a second BFF
+ * cache layer. The "cached-bigquery" file name is kept for now to avoid a
+ * large import-path churn while this file is the subject of a rename refactor.
+ */
 import { backendRequest, BackendApiError } from "./backend-api";
 import type {
   AdoptionData,
@@ -19,7 +27,7 @@ import type {
 
 function getErrorMessage(label: string, err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`[cached-bigquery] ${label} failed:`, err);
+  console.error(`[copilot-data] ${label} failed:`, err);
   return message;
 }
 
@@ -48,21 +56,21 @@ async function fetchWithFallback<T>(
   }
 }
 
-export async function getCachedBigQueryUsage(token: string): Promise<{
+export async function getCopilotUsageMetrics(token: string): Promise<{
   usage: EnterpriseMetrics[] | null;
   error: string | null;
 }> {
-  const result = await fetchNullable("getCachedBigQueryUsage", () =>
+  const result = await fetchNullable("getCopilotUsageMetrics", () =>
     backendRequest<EnterpriseMetrics[]>("/api/v1/copilot/usage/metrics", token)
   );
   return { usage: result.data, error: result.error };
 }
 
-export async function getCachedAdoptionData(token: string): Promise<{
+export async function getAdoptionData(token: string): Promise<{
   data: AdoptionData | null;
   error: string | null;
 }> {
-  return fetchNullable("getCachedAdoptionData", async () => {
+  return fetchNullable("getAdoptionData", async () => {
     const [summary, teams, languages, customizationDetails] = await Promise.all([
       backendRequest<AdoptionSummary>("/api/v1/copilot/adoption/summary", token),
       backendRequest<TeamAdoption[]>("/api/v1/copilot/adoption/teams", token),
@@ -74,40 +82,40 @@ export async function getCachedAdoptionData(token: string): Promise<{
   });
 }
 
-export async function getCachedCustomizationUsage(token: string): Promise<{
+export async function getCustomizationUsage(token: string): Promise<{
   usage: CustomizationUsage[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getCachedCustomizationUsage", [] as CustomizationUsage[], () =>
+  const result = await fetchWithFallback("getCustomizationUsage", [] as CustomizationUsage[], () =>
     backendRequest<CustomizationUsage[]>("/api/v1/copilot/customizations/usage", token)
   );
   return { usage: result.data, error: result.error };
 }
 
-export async function getCachedStalenessData(token: string): Promise<{
+export async function getStalenessData(token: string): Promise<{
   data: StalenessSummary | null;
   error: string | null;
 }> {
-  return fetchNullable("getCachedStalenessData", () =>
+  return fetchNullable("getStalenessData", () =>
     backendRequest<StalenessSummary>("/api/v1/copilot/adoption/staleness", token)
   );
 }
 
-export async function getCachedTeamUsage(token: string): Promise<{
+export async function getTeamUsage(token: string): Promise<{
   teams: TeamUsageSummary[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getCachedTeamUsage", [] as TeamUsageSummary[], () =>
+  const result = await fetchWithFallback("getTeamUsage", [] as TeamUsageSummary[], () =>
     backendRequest<TeamUsageSummary[]>("/api/v1/copilot/usage/team-summary", token)
   );
   return { teams: result.data, error: result.error };
 }
 
-export async function getCachedUserMetrics(
+export async function getUserMetrics(
   username: string,
   token: string
 ): Promise<{ metrics: UserMetricsSummary | null; error: string | null }> {
-  const result = await fetchNullable("getCachedUserMetrics", async () => {
+  const result = await fetchNullable("getUserMetrics", async () => {
     try {
       return await backendRequest<UserMetricsSummary>(
         `/api/v1/copilot/usage/user/${encodeURIComponent(username)}`,
@@ -125,51 +133,51 @@ export async function getCachedUserMetrics(
   return { metrics: result.data, error: result.error };
 }
 
-export async function getCachedUserWeeklyTrends(
+export async function getUserWeeklyTrends(
   username: string,
   token: string
 ): Promise<{ trends: WeeklyTrend[]; error: string | null }> {
-  const result = await fetchWithFallback("getCachedUserWeeklyTrends", [] as WeeklyTrend[], () =>
+  const result = await fetchWithFallback("getUserWeeklyTrends", [] as WeeklyTrend[], () =>
     backendRequest<WeeklyTrend[]>(`/api/v1/copilot/usage/user/${encodeURIComponent(username)}/weekly`, token)
   );
   return { trends: result.data, error: result.error };
 }
 
-export async function getCachedMonthlyTrends(token: string): Promise<{
+export async function getMonthlyTrends(token: string): Promise<{
   trends: MonthlyTrend[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getCachedMonthlyTrends", [] as MonthlyTrend[], () =>
+  const result = await fetchWithFallback("getMonthlyTrends", [] as MonthlyTrend[], () =>
     backendRequest<MonthlyTrend[]>("/api/v1/copilot/usage/trends", token)
   );
   return { trends: result.data, error: result.error };
 }
 
-export async function getCachedMonthlyModelUsage(token: string): Promise<{
+export async function getMonthlyModelUsage(token: string): Promise<{
   usage: MonthlyModelUsage[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getCachedMonthlyModelUsage", [] as MonthlyModelUsage[], () =>
+  const result = await fetchWithFallback("getMonthlyModelUsage", [] as MonthlyModelUsage[], () =>
     backendRequest<MonthlyModelUsage[]>("/api/v1/copilot/usage/models", token)
   );
   return { usage: result.data, error: result.error };
 }
 
-export async function getCachedMonthlyBillingUsage(token: string): Promise<{
+export async function getMonthlyBillingUsage(token: string): Promise<{
   usage: MonthlyBillingUsage[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getCachedMonthlyBillingUsage", [] as MonthlyBillingUsage[], () =>
+  const result = await fetchWithFallback("getMonthlyBillingUsage", [] as MonthlyBillingUsage[], () =>
     backendRequest<MonthlyBillingUsage[]>("/api/v1/copilot/billing/monthly", token)
   );
   return { usage: result.data, error: result.error };
 }
 
-export async function getCachedAdoptionCohorts(token: string): Promise<{
+export async function getAdoptionCohorts(token: string): Promise<{
   cohorts: AdoptionCohortDay[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getCachedAdoptionCohorts", [] as AdoptionCohortDay[], () =>
+  const result = await fetchWithFallback("getAdoptionCohorts", [] as AdoptionCohortDay[], () =>
     backendRequest<AdoptionCohortDay[]>("/api/v1/copilot/adoption/cohorts", token)
   );
   return { cohorts: result.data, error: result.error };

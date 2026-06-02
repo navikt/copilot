@@ -1,4 +1,4 @@
-import { getCachedCopilotBilling } from "@/lib/cached-github";
+import { getCopilotBilling } from "@/lib/cached-github";
 import { getUserToken } from "@/lib/auth";
 import { Suspense } from "react";
 import { Skeleton, Heading, BodyShort, Box } from "@navikt/ds-react";
@@ -24,7 +24,7 @@ async function BillingOverview() {
     );
   }
 
-  const { billing, error } = await getCachedCopilotBilling(token);
+  const { billing, error } = await getCopilotBilling(token);
 
   if (error) {
     return (

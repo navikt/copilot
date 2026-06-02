@@ -7,7 +7,7 @@ import { TYPE_LABELS } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
 import { PageHero } from "@/components/page-hero";
 import { getMcpServers } from "@/lib/mcp-registry";
-import { getCachedCustomizationUsage } from "@/lib/cached-bigquery";
+import { getCustomizationUsage } from "@/lib/cached-bigquery";
 import { getUserToken, getUser } from "@/lib/auth";
 import { enrichWithUsage } from "@/lib/enrich-customizations";
 import { DomainCards } from "./domain-cards";
@@ -67,7 +67,7 @@ export default async function CustomizationsPage() {
   const token = user ? await getUserToken() : null;
   const [mcpServers, usageResult] = await Promise.all([
     getMcpServers(),
-    token ? getCachedCustomizationUsage(token) : Promise.resolve({ usage: [] as CustomizationUsage[], error: null }),
+    token ? getCustomizationUsage(token) : Promise.resolve({ usage: [] as CustomizationUsage[], error: null }),
   ]);
   const items = [...customizations, ...mcpServers].sort((a, b) => a.name.localeCompare(b.name, "nb"));
   const enrichedItems = enrichWithUsage(items, usageResult.usage);

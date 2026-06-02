@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { getCachedAdoptionData, getCachedStalenessData } from "@/lib/cached-bigquery";
+import { getAdoptionData, getStalenessData } from "@/lib/cached-bigquery";
 import { getUserToken } from "@/lib/auth";
 import Tabs from "@/components/tabs";
 import {
@@ -312,8 +312,8 @@ async function CachedAdoptionData() {
   if (!token) return <ErrorState message="Ikke autentisert" />;
 
   const [{ data, error }, { data: staleness, error: stalenessError }] = await Promise.all([
-    getCachedAdoptionData(token),
-    getCachedStalenessData(token),
+    getAdoptionData(token),
+    getStalenessData(token),
   ]);
 
   if (error) return <ErrorState message={`Feil ved henting av adopsjonsdata: ${error}`} />;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCachedBigQueryUsage } from "@/lib/cached-bigquery";
+import { getCopilotUsageMetrics } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 
 export async function GET() {
@@ -14,7 +14,7 @@ export async function GET() {
   }
 
   try {
-    const { usage, error } = await getCachedBigQueryUsage(token);
+    const { usage, error } = await getCopilotUsageMetrics(token);
 
     if (error) {
       return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 });
