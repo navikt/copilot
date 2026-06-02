@@ -1,7 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort, Link, Tag, Skeleton } from "@navikt/ds-react";
+import {
+  Button,
+  Alert,
+  Box,
+  VStack,
+  HGrid,
+  Heading,
+  BodyShort,
+  Link,
+  Tag,
+  Skeleton,
+  ProgressBar,
+} from "@navikt/ds-react";
 import { User } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
 
@@ -366,33 +378,12 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                           {formatNumber(budget.consumedAmount)} / {formatNumber(budget.budgetAmount)} USD
                         </BodyShort>
                       </div>
-                      <div
-                        style={{
-                          height: "10px",
-                          width: "100%",
-                          borderRadius: "var(--a-border-radius-full)",
-                          backgroundColor: "var(--a-border-default)",
-                        }}
-                        role="progressbar"
+                      <ProgressBar
+                        value={budget.consumedAmount}
+                        valueMax={budget.budgetAmount}
+                        size="small"
                         aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av budsjettet brukt`}
-                        aria-valuenow={budget.consumedAmount}
-                        aria-valuemin={0}
-                        aria-valuemax={budget.budgetAmount}
-                      >
-                        <div
-                          style={{
-                            height: "100%",
-                            borderRadius: "var(--a-border-radius-full)",
-                            width: `${Math.min(100, Math.round((budget.consumedAmount / budget.budgetAmount) * 100))}%`,
-                            backgroundColor:
-                              budget.consumedAmount / budget.budgetAmount > 0.9
-                                ? "var(--a-icon-danger)"
-                                : budget.consumedAmount / budget.budgetAmount > 0.7
-                                  ? "var(--a-icon-warning)"
-                                  : "var(--a-icon-success)",
-                          }}
-                        />
-                      </div>
+                      />
                     </div>
                     <BodyShort>
                       <strong>Gjenstående:</strong>{" "}

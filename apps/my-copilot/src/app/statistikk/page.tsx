@@ -21,7 +21,18 @@ import MonthlyModelChart from "@/components/charts/MonthlyModelChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
+import {
+  Table,
+  BodyShort,
+  Heading,
+  HGrid,
+  Box,
+  HelpText,
+  Skeleton,
+  VStack,
+  HStack,
+  ProgressBar,
+} from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import {
@@ -309,33 +320,12 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
                 {formatNumber(globalBudget.activeUsers * globalBudget.perUserBudget)} USD
               </BodyShort>
             </HStack>
-            <div
-              style={{
-                height: "10px",
-                width: "100%",
-                borderRadius: "var(--a-border-radius-full)",
-                backgroundColor: "var(--a-border-default)",
-              }}
-              role="progressbar"
+            <ProgressBar
+              value={Math.round(globalBudget.totalConsumed)}
+              valueMax={globalBudget.activeUsers * globalBudget.perUserBudget}
+              size="small"
               aria-label={`${Math.round((globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget)) * 100)}% av totalt budsjett brukt`}
-              aria-valuenow={Math.round(globalBudget.totalConsumed)}
-              aria-valuemin={0}
-              aria-valuemax={globalBudget.activeUsers * globalBudget.perUserBudget}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  borderRadius: "var(--a-border-radius-full)",
-                  width: `${Math.min(100, Math.round((globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget)) * 100))}%`,
-                  backgroundColor:
-                    globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget) > 0.9
-                      ? "var(--a-icon-danger)"
-                      : globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget) > 0.7
-                        ? "var(--a-icon-warning)"
-                        : "var(--a-icon-success)",
-                }}
-              />
-            </div>
+            />
             <BodyShort className="text-gray-500 text-sm">
               {globalBudget.activeUsers} aktive brukere · {formatNumber(globalBudget.perUserBudget)} USD per bruker
             </BodyShort>
