@@ -38,7 +38,7 @@ export async function GET() {
     const githubUsername = samlResponse.username;
 
     if (!githubUsername) {
-      log.info({ email: user.email }, "GitHub account not linked for user");
+      log.info("GitHub account not linked for user");
       return NextResponse.json({
         githubAccountLinked: false,
         icanhazcopilot: user.groups.length > 0,
@@ -53,13 +53,13 @@ export async function GET() {
       subscription = await backendRequest(`/api/v1/copilot/seats/${githubUsername}`, token);
     } catch (err) {
       if (err instanceof BackendApiError && err.status === 404) {
-        log.info({ email: user.email }, "User has no Copilot seat");
+        log.info("User has no Copilot seat");
       } else {
         throw err;
       }
     }
 
-    log.info({ email: user.email }, "User Copilot subscription status");
+    log.info("User Copilot subscription status fetched");
 
     return NextResponse.json({
       githubAccountLinked: true,
@@ -125,8 +125,11 @@ export async function POST(request: Request) {
       return error("GitHub username was not found for user email", 400);
     }
 
-    log.info({ email: user.email, action }, "User action on Copilot subscription");
+    log.info({ action }, "User action on Copilot subscription");
 
+    // No BFF-level cache to invalidate after mutations: the BFF no longer caches
+    // GitHub/billing data (caching is owned by copilot-api). The next GET request
+    // will receive fresh data directly from the backend.
     switch (action) {
       case Action.Activate:
         const activateResponse = await backendRequest<{ seats_created: number }>(`/api/v1/copilot/seats`, token, {
