@@ -126,11 +126,12 @@ spec:
       rules:
         - application: copilot-api
           namespace: copilot
+        - application: mcp-registry
+          namespace: copilot
       external:
         - host: api.github.com
         - host: avatars.githubusercontent.com
         - host: login.microsoftonline.com
-        - host: {{mcp_registry_host}}
         - host: raw.githubusercontent.com
   filesFrom:
     - emptyDir:

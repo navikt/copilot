@@ -1,5 +1,4 @@
-mcp_registry_host: mcp-registry.ekstern.dev.nav.no
-mcp_registry_url: https://mcp-registry.ekstern.dev.nav.no
+mcp_registry_url: http://mcp-registry
 ingresses:
   - "https://ki-utvikling.ekstern.dev.nav.no"
   - "https://min-copilot.intern.dev.nav.no"
