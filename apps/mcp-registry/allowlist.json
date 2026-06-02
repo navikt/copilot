@@ -76,7 +76,7 @@
         "source": "github"
       },
       "tools": ["aksel_docs", "aksel_token_details", "aksel_icons_search", "aksel_component_props"],
-      "tags": ["Aksel", "designsystem", "ui", "frontend", "developer-tools"],
+      "tags": ["aksel", "designsystem", "ui", "frontend", "developer-tools"],
       "examples": [
         {
           "scenario": "Søk i Aksel-dokumentasjon",
