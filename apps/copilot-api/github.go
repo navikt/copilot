@@ -191,9 +191,7 @@ func (g *GitHubClient) getCopilotBilling(ctx context.Context) (*CopilotBilling, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		var buf bytes.Buffer
-		buf.ReadFrom(resp.Body)
-		slog.Error("GitHub API error", "status", resp.StatusCode, "body", buf.String())
+		slog.Error("GitHub API error", "status", resp.StatusCode)
 		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
 

@@ -103,17 +103,16 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		slog.Error("Failed to assign seat",
 			"username", req.Username,
-			"actor", user.Email,
+			"actor_navident", user.NAVident,
 			"error", err,
 		)
 		respondError(w, "github_error", "Failed to assign Copilot seat", http.StatusInternalServerError)
 		return
 	}
 
-	// Audit log
+	// Audit log: use NAVident only — email is PII and must not be logged at INFO+
 	slog.Info("Copilot seat assigned",
 		"username", req.Username,
-		"actor", user.Email,
 		"actor_navident", user.NAVident,
 		"seats_created", result.SeatsCreated,
 	)
@@ -144,17 +143,16 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		slog.Error("Failed to unassign seat",
 			"username", username,
-			"actor", user.Email,
+			"actor_navident", user.NAVident,
 			"error", err,
 		)
 		respondError(w, "github_error", "Failed to unassign Copilot seat", http.StatusInternalServerError)
 		return
 	}
 
-	// Audit log
+	// Audit log: use NAVident only — email is PII and must not be logged at INFO+
 	slog.Info("Copilot seat unassigned",
 		"username", username,
-		"actor", user.Email,
 		"actor_navident", user.NAVident,
 		"seats_cancelled", result.SeatsCancelled,
 	)
