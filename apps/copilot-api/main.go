@@ -64,6 +64,16 @@ func main() {
 		defer cachedBQClient.Close()
 	}
 
+	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
+	var budgetHandlers *BudgetHandlers
+	if config.GitHubBillingToken != "" && githubClient != nil {
+		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
+		budgetHandlers = newBudgetHandlers(budgetClient, githubClient)
+		slog.Info("Budget client initialized successfully")
+	} else {
+		slog.Warn("GITHUB_BILLING_TOKEN not configured - budget endpoint will be unavailable")
+	}
+
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
 
@@ -76,7 +86,7 @@ func main() {
 	mux.Handle("/metrics", metricsHandler())
 
 	// Protected API endpoints
-	mux.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers))))
+	mux.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers))))
 
 	slog.Info("Server listening", "port", config.Port)
 

@@ -1,8 +1,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort, Link } from "@navikt/ds-react";
+import {
+  Button,
+  Alert,
+  Box,
+  VStack,
+  HGrid,
+  Heading,
+  BodyShort,
+  Link,
+  Tag,
+  Skeleton,
+  ProgressBar,
+} from "@navikt/ds-react";
 import { User } from "@/lib/auth";
+import { formatNumber } from "@/lib/format";
+
+interface BudgetData {
+  budgetAmount: number;
+  consumedAmount: number | null;
+  isOverride: boolean;
+  defaultBudget: number;
+}
 
 interface SubscriptionDetailsProps {
   icanhazcopilot: boolean;
@@ -67,6 +87,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [errorTraceId, setErrorTraceId] = useState<string | null>(null);
   const [needsGitHubLink, setNeedsGitHubLink] = useState<boolean>(false);
+  const [budget, setBudget] = useState<BudgetData | null>(null);
 
   const fetchSubscription = async () => {
     setLoading(true);
@@ -139,42 +160,49 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
     let cancelled = false;
 
     async function loadSubscription() {
-      try {
-        const response = await fetch("/api/copilot");
-        const data = await response.json();
+      const [subscriptionResult, budgetResult] = await Promise.allSettled([
+        fetch("/api/copilot"),
+        fetch("/api/budget"),
+      ]);
 
-        if (cancelled) return;
+      if (cancelled) return;
 
-        if (data.error) {
-          setSubscriptionError(data.error);
-          setErrorTraceId(data.traceId ?? null);
-          return;
-        }
-
-        if (data.githubAccountLinked === false) {
-          setNeedsGitHubLink(true);
-          setEligible(data.icanhazcopilot);
-          return;
-        }
-
-        setSubscriptionError(null);
-        setErrorTraceId(null);
-        setNeedsGitHubLink(false);
-        setEligible(data.icanhazcopilot);
-        setCopilotSubscription(data.subscription);
-        setGitHubUsername(data.githubUsername);
-      } catch (error) {
-        if (cancelled) return;
-        console.error("Error fetching subscription details:", error);
-        setErrorTraceId(null);
-        if (error instanceof Error) {
-          setSubscriptionError(error.message);
-        } else {
+      // Handle subscription independently
+      if (subscriptionResult.status === "fulfilled") {
+        try {
+          const data = await subscriptionResult.value.json();
+          if (data.error) {
+            setSubscriptionError(data.error);
+            setErrorTraceId(data.traceId ?? null);
+          } else if (data.githubAccountLinked === false) {
+            setNeedsGitHubLink(true);
+            setEligible(data.icanhazcopilot);
+          } else {
+            setSubscriptionError(null);
+            setErrorTraceId(null);
+            setNeedsGitHubLink(false);
+            setEligible(data.icanhazcopilot);
+            setCopilotSubscription(data.subscription);
+            setGitHubUsername(data.githubUsername);
+          }
+        } catch {
           setSubscriptionError("Ukjent feil ved henting av abonnement");
         }
-      } finally {
-        if (!cancelled) setLoading(false);
+      } else {
+        setSubscriptionError("Ukjent feil ved henting av abonnement");
       }
+
+      // Handle budget independently — always attempted regardless of subscription outcome
+      if (budgetResult.status === "fulfilled" && budgetResult.value.ok) {
+        try {
+          const budgetData = await budgetResult.value.json();
+          if (!cancelled) setBudget(budgetData);
+        } catch {
+          // Budget parse failure — leave budget as null, card shows fallback text
+        }
+      }
+
+      if (!cancelled) setLoading(false);
     }
 
     loadSubscription();
@@ -215,7 +243,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         </Box>
       )}
 
-      <HGrid columns={{ xs: 1, md: 2 }} gap="space-8">
+      <HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="space-8">
         {" "}
         <Box padding="space-8" borderRadius="8" className="border">
           {" "}
@@ -316,6 +344,70 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                   ))}
                 </ul>
               </div>
+            )}
+          </VStack>
+        </Box>
+        <Box padding="space-8" borderRadius="8" className="border">
+          <VStack gap="space-4">
+            <Heading size="medium" level="3">
+              AI-kredittbudsjett
+            </Heading>
+            {loading ? (
+              <VStack gap="space-4" role="status">
+                <Skeleton variant="text" width="10rem" />
+                <Skeleton variant="text" width="14rem" />
+                <span className="sr-only">Laster budsjett...</span>
+              </VStack>
+            ) : budget ? (
+              <>
+                {budget.consumedAmount !== null ? (
+                  <>
+                    <div style={{ width: "100%" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "var(--a-spacing-1)",
+                        }}
+                      >
+                        <BodyShort size="small" className="text-gray-600">
+                          {budget.isOverride ? "Utvidet budsjett" : "Budsjett"} ·{" "}
+                          {Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% brukt
+                        </BodyShort>
+                        <BodyShort size="small" className="text-gray-600">
+                          {formatNumber(budget.consumedAmount)} / {formatNumber(budget.budgetAmount)} USD
+                        </BodyShort>
+                      </div>
+                      <ProgressBar
+                        value={budget.consumedAmount}
+                        valueMax={budget.budgetAmount}
+                        size="small"
+                        aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av budsjettet brukt`}
+                      />
+                    </div>
+                    <BodyShort>
+                      <strong>Gjenstående:</strong>{" "}
+                      {formatNumber(Math.max(0, budget.budgetAmount - budget.consumedAmount))} USD
+                    </BodyShort>
+                  </>
+                ) : (
+                  <>
+                    {budget.isOverride && (
+                      <Tag variant="info" size="small">
+                        Utvidet budsjett
+                      </Tag>
+                    )}
+                    <BodyShort>
+                      <strong>Månedlig budsjett:</strong> {formatNumber(budget.budgetAmount)} USD
+                    </BodyShort>
+                  </>
+                )}
+                {!budget.isOverride && (
+                  <BodyShort size="small">Dette er standardbudsjettet for alle Nav-utviklere.</BodyShort>
+                )}
+              </>
+            ) : (
+              <BodyShort>Budsjettinformasjon er ikke tilgjengelig.</BodyShort>
             )}
           </VStack>
         </Box>

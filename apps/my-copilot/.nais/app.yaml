@@ -103,6 +103,8 @@ spec:
       value: ALWAYS_ON
     - name: MCP_REGISTRY_URL
       value: "{{mcp_registry_url}}"
+    - name: MCP_REGISTRY_PUBLIC_URL
+      value: "{{mcp_registry_public_url}}"
     - name: COPILOT_API_URL
       value: "http://copilot-api"
   liveness:
@@ -126,11 +128,12 @@ spec:
       rules:
         - application: copilot-api
           namespace: copilot
+        - application: mcp-registry
+          namespace: copilot
       external:
         - host: api.github.com
         - host: avatars.githubusercontent.com
         - host: login.microsoftonline.com
-        - host: {{mcp_registry_host}}
         - host: raw.githubusercontent.com
   filesFrom:
     - emptyDir:

@@ -16,9 +16,11 @@ type Config struct {
 	AzureJWKSURI           string
 	PreAuthorizedApps      string
 	GitHubOrg              string
+	GitHubEnterprise       string
 	GitHubAppID            string
 	GitHubAppPrivateKey    string
 	GitHubInstallationID   string
+	GitHubBillingToken     string
 	GCPProjectID           string
 	CopilotMetricsDataset  string
 	CopilotMetricsTable    string
@@ -37,9 +39,11 @@ func loadConfig() *Config {
 		AzureJWKSURI:           getEnv("AZURE_OPENID_CONFIG_JWKS_URI", ""),
 		PreAuthorizedApps:      getEnv("AZURE_APP_PRE_AUTHORIZED_APPS", ""),
 		GitHubOrg:              getEnv("GITHUB_ORG", "navikt"),
+		GitHubEnterprise:       getEnv("GITHUB_ENTERPRISE", "nav"),
 		GitHubAppID:            os.Getenv("GITHUB_APP_ID"),
 		GitHubAppPrivateKey:    os.Getenv("GITHUB_APP_PRIVATE_KEY"),
 		GitHubInstallationID:   os.Getenv("GITHUB_APP_INSTALLATION_ID"),
+		GitHubBillingToken:     os.Getenv("GITHUB_BILLING_TOKEN"),
 		GCPProjectID:           os.Getenv("GCP_TEAM_PROJECT_ID"),
 		CopilotMetricsDataset:  getEnv("COPILOT_METRICS_DATASET", "copilot_metrics"),
 		CopilotMetricsTable:    getEnv("COPILOT_METRICS_TABLE", "usage_metrics"),

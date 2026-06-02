@@ -42,6 +42,11 @@ spec:
       value: "/,/v0.1/servers"
     - name: SERVICE_NAME
       value: "mcp-registry"
+  accessPolicy:
+    inbound:
+      rules:
+        - application: my-copilot
+          namespace: copilot
   ingresses:
   {{#each ingresses as |url|}}
     - {{url}}
