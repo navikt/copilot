@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -209,7 +210,8 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 	month := 0
 
 	if yearStr := r.URL.Query().Get("year"); yearStr != "" {
-		_, err := fmt.Sscanf(yearStr, "%d", &year)
+		var err error
+		year, err = strconv.Atoi(yearStr)
 		if err != nil || year < 2000 || year > 2999 {
 			respondError(w, "invalid_parameter", "Invalid year parameter", http.StatusBadRequest)
 			return
@@ -217,7 +219,8 @@ func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *htt
 	}
 
 	if monthStr := r.URL.Query().Get("month"); monthStr != "" {
-		_, err := fmt.Sscanf(monthStr, "%d", &month)
+		var err error
+		month, err = strconv.Atoi(monthStr)
 		if err != nil || month < 1 || month > 12 {
 			respondError(w, "invalid_parameter", "Invalid month parameter", http.StatusBadRequest)
 			return
