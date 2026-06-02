@@ -119,6 +119,7 @@ describe("getUser", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identity_provider: "entra_id", token: "my-jwt-token" }),
+        signal: expect.any(AbortSignal),
       });
     });
 
