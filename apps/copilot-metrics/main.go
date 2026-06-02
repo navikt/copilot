@@ -92,6 +92,10 @@ func main() {
 			slog.Error("Failed to ensure budget_snapshots table exists", "error", err)
 			os.Exit(1)
 		}
+		if err := bqClient.EnsureUserBudgetSnapshotsTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure user_budget_snapshots table exists", "error", err)
+			os.Exit(1)
+		}
 	} else {
 		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing usage and budget snapshot ingestion disabled")
 	}
@@ -142,6 +146,7 @@ func main() {
 		// Ingest today's budget snapshot (always re-ingests since consumption is live)
 		if budgetClient != nil {
 			ingestTodayBudgetSnapshot(ctx, budgetClient, bqClient, config)
+			ingestTodayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
@@ -517,4 +522,52 @@ func ingestTodayBudgetSnapshot(ctx context.Context, budget *BudgetClient, bq *Bi
 	}
 
 	slog.Info("Budget snapshot ingested successfully", "date", dateStr, "entries", len(entries))
+}
+
+// ingestTodayUserBudgetSnapshot fetches the current budget consumption for ALL Copilot
+// seat holders and stores a daily snapshot. This gives a complete picture of AI credit
+// spend across all users (not just the 27 with override budgets).
+// Errors are logged as warnings — this is supplementary data.
+func ingestTodayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, budget *BudgetClient, bq *BigQueryClient, cfg *Config) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	dateStr := today.Format("2006-01-02")
+
+	slog.Info("Ingesting user budget snapshot", "date", dateStr)
+
+	logins, err := gh.FetchAllCopilotLogins(ctx)
+	if err != nil {
+		slog.Warn("Failed to fetch Copilot seat holders — skipping user budget snapshot", "date", dateStr, "error", err)
+		return
+	}
+	if len(logins) == 0 {
+		slog.Info("No active Copilot seat holders found", "date", dateStr)
+		return
+	}
+
+	entries, err := budget.FetchAllUserBudgets(ctx, logins)
+	if err != nil {
+		slog.Warn("Failed to fetch user budgets", "date", dateStr, "error", err)
+		return
+	}
+	if len(entries) == 0 {
+		slog.Info("No user budget data returned", "date", dateStr)
+		return
+	}
+
+	// Delete existing snapshot for today before re-inserting (idempotent).
+	exists, checkErr := bq.UserBudgetSnapshotExists(ctx, today, cfg.EnterpriseSlug)
+	if checkErr != nil {
+		slog.Warn("Could not check if user budget snapshot exists (proceeding with insert)", "date", dateStr, "error", checkErr)
+	} else if exists {
+		if delErr := bq.DeleteUserBudgetSnapshot(ctx, today, cfg.EnterpriseSlug); delErr != nil {
+			slog.Warn("Failed to delete existing user budget snapshot (proceeding with insert)", "date", dateStr, "error", delErr)
+		}
+	}
+
+	if err := bq.InsertUserBudgetSnapshots(ctx, today, cfg.EnterpriseSlug, entries); err != nil {
+		slog.Warn("Failed to insert user budget snapshot", "date", dateStr, "error", err)
+		return
+	}
+
+	slog.Info("User budget snapshot ingested successfully", "date", dateStr, "users", len(entries))
 }

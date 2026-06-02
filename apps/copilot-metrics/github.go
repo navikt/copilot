@@ -499,3 +499,70 @@ func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) (*FetchResult
 		ScopeID: c.org,
 	}, nil
 }
+
+// copilotSeatResponse is the response from the Copilot billing seats API.
+type copilotSeatResponse struct {
+	TotalSeats int `json:"total_seats"`
+	Seats      []struct {
+		Assignee struct {
+			Login string `json:"login"`
+		} `json:"assignee"`
+	} `json:"seats"`
+}
+
+// FetchAllCopilotLogins returns the GitHub login for every active Copilot seat holder.
+// Uses the enterprise installation token which has access to enterprise billing endpoints.
+func (c *GitHubClient) FetchAllCopilotLogins(ctx context.Context) ([]string, error) {
+	var logins []string
+	page := 1
+
+	for {
+		url := fmt.Sprintf(
+			"https://api.github.com/enterprises/%s/copilot/billing/seats?per_page=100&page=%d",
+			c.enterprise, page,
+		)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create seats request page %d: %w", page, err)
+		}
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("fetch seats page %d: %w", page, err)
+		}
+
+		body, readErr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if readErr != nil {
+			return nil, fmt.Errorf("read seats page %d: %w", page, readErr)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("seats API returned %d on page %d: %s", resp.StatusCode, page, truncate(string(body), 300))
+		}
+
+		var result copilotSeatResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			return nil, fmt.Errorf("decode seats page %d: %w", page, err)
+		}
+
+		for _, seat := range result.Seats {
+			if seat.Assignee.Login != "" {
+				logins = append(logins, seat.Assignee.Login)
+			}
+		}
+
+		slog.Debug("Fetched seats page", "page", page, "on_page", len(result.Seats), "total_so_far", len(logins), "total_seats", result.TotalSeats)
+
+		if len(result.Seats) == 0 || len(logins) >= result.TotalSeats {
+			break
+		}
+		page++
+	}
+
+	slog.Info("Fetched all Copilot seat holders", "count", len(logins))
+	return logins, nil
+}

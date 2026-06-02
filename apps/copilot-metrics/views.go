@@ -24,6 +24,9 @@ var views = []viewDefinition{
 	{name: "v_code_generation", filename: "views/v_code_generation.sql"},
 	{name: "v_team_daily_summary", filename: "views/v_team_daily_summary.sql"},
 	{name: "v_adoption_cohorts", filename: "views/v_adoption_cohorts.sql"},
+	{name: "v_billing_monthly_trend", filename: "views/v_billing_monthly_trend.sql"},
+	{name: "v_billing_model_breakdown", filename: "views/v_billing_model_breakdown.sql"},
+	{name: "v_user_budget_trend", filename: "views/v_user_budget_trend.sql"},
 }
 
 func (c *BigQueryClient) EnsureViewsExist(ctx context.Context) error {
@@ -61,8 +64,12 @@ func (c *BigQueryClient) createOrReplaceView(ctx context.Context, v viewDefiniti
 	// Replace named table placeholders for supplementary tables
 	userTeamsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userTeamsTable)
 	userMetricsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userMetricsTable)
+	billingUsageRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageTable)
+	userBudgetSnapshotsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, userBudgetSnapshotsTable)
 	sql = strings.ReplaceAll(sql, "{{user_teams}}", userTeamsRef)
 	sql = strings.ReplaceAll(sql, "{{user_metrics}}", userMetricsRef)
+	sql = strings.ReplaceAll(sql, "{{billing_usage}}", billingUsageRef)
+	sql = strings.ReplaceAll(sql, "{{user_budget_snapshots}}", userBudgetSnapshotsRef)
 
 	slog.Info("Creating/updating view", "view", v.name)
 
