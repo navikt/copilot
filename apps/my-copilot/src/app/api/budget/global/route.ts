@@ -3,8 +3,9 @@ import { backendRequest, BackendApiError } from "@/lib/backend-api";
 import { NextResponse } from "next/server";
 
 export interface GlobalBudgetResponse {
-  budgetAmount: number;
-  consumedAmount: number | null;
+  totalConsumed: number;
+  perUserBudget: number;
+  activeUsers: number;
 }
 
 export async function GET() {

@@ -178,7 +178,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     getMonthlyModelUsage(token),
     getMonthlyBillingUsage(token),
     getAdoptionCohorts(token),
-    backendRequest<{ budgetAmount: number; consumedAmount: number | null }>(
+    backendRequest<{ totalConsumed: number; perUserBudget: number; activeUsers: number }>(
       "/api/v1/copilot/budget/global",
       token
     ).catch((err) => {
@@ -296,15 +296,11 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       {globalBudget && (
         <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
           <MetricCard
-            value={`${formatNumber(globalBudget.budgetAmount)} USD`}
-            label="Global AI-kredittramme"
-            helpTitle="Global AI-kredittramme"
-            helpText="Månedlig AI-kredittbudsjett for hele Nav-organisasjonen. Inkluderer alle GitHub Copilot-modeller og agentkjøringer."
-            subtitle={
-              globalBudget.consumedAmount != null
-                ? `Brukt: ${formatNumber(globalBudget.consumedAmount)} USD`
-                : undefined
-            }
+            value={`${formatNumber(Math.round(globalBudget.totalConsumed))} USD`}
+            label="Totalt AI-kreditforbruk"
+            helpTitle="Totalt AI-kreditforbruk"
+            helpText="Sum av AI-kreditforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i GitHub Copilot."
+            subtitle={`${globalBudget.activeUsers} aktive brukere · ${formatNumber(globalBudget.perUserBudget)} USD per bruker`}
           />
         </HGrid>
       )}

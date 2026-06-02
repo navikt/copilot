@@ -133,27 +133,46 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 
 var errBudgetNotFound = errors.New("budget not found for user")
 
-// GlobalBudget is the enterprise-level AI credit budget (multi_user_customer scope).
+// GlobalBudget aggregates AI credit consumption across all users this month.
 type GlobalBudget struct {
-	BudgetAmount   float64  `json:"budgetAmount"`
-	ConsumedAmount *float64 `json:"consumedAmount"`
+	TotalConsumed float64 `json:"totalConsumed"`
+	PerUserBudget float64 `json:"perUserBudget"`
+	ActiveUsers   int     `json:"activeUsers"`
 }
 
-// getGlobalBudget returns the enterprise-wide default AI credit budget.
+// getGlobalBudget aggregates AI credit consumption across all budget entries.
+// Returns total consumed, per-user default budget, and count of active users.
 func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, error) {
 	entries, err := c.getEnterpriseBudgets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get enterprise budgets: %w", err)
 	}
+
+	var perUserBudget float64
+	var totalConsumed float64
+	activeUsers := 0
+
 	for _, e := range entries {
 		if e.BudgetScope == "multi_user_customer" {
-			return &GlobalBudget{
-				BudgetAmount:   e.BudgetAmount,
-				ConsumedAmount: e.ConsumedAmount,
-			}, nil
+			perUserBudget = e.BudgetAmount
+		}
+		if e.BudgetScope == "user" && e.ConsumedAmount != nil {
+			totalConsumed += *e.ConsumedAmount
+			if *e.ConsumedAmount > 0 {
+				activeUsers++
+			}
 		}
 	}
-	return nil, errBudgetNotFound
+
+	if perUserBudget == 0 && totalConsumed == 0 {
+		return nil, errBudgetNotFound
+	}
+
+	return &GlobalBudget{
+		TotalConsumed: totalConsumed,
+		PerUserBudget: perUserBudget,
+		ActiveUsers:   activeUsers,
+	}, nil
 }
 
 // getUserBudget resolves the budget for a given GitHub username.
@@ -172,7 +191,7 @@ func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*Use
 		if e.BudgetScope == "multi_user_customer" {
 			defaultBudget = e.BudgetAmount
 		}
-		if e.BudgetScope == "member" && strings.EqualFold(e.BudgetEntityName, username) {
+		if e.BudgetScope == "user" && strings.EqualFold(e.BudgetEntityName, username) {
 			userEntry = e
 		}
 	}
