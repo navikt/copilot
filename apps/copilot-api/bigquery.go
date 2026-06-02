@@ -195,15 +195,24 @@ func (bq *BigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]Ent
 
 	var results []EnterpriseMetrics
 	for {
-		var row struct {
-			RawRecord string `bigquery:"raw_record"`
-		}
-		err := it.Next(&row)
+		var values []bigquery.Value
+		err := it.Next(&values)
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
 			return nil, fmt.Errorf("iterate results: %w", err)
+		}
+
+		var row struct {
+			RawRecord string `bigquery:"raw_record"`
+		}
+		if err := decodeBQRow(it.Schema, values, &row); err != nil {
+			slog.Warn("Failed to decode row", "error", err)
+			continue
+		}
+		if row.RawRecord == "" {
+			continue
 		}
 
 		var metrics EnterpriseMetrics
@@ -233,16 +242,7 @@ func (bq *BigQueryClient) GetAdoptionSummary(ctx context.Context) (*AdoptionSumm
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	var summary AdoptionSummary
-	err = it.Next(&summary)
-	if err == iterator.Done {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read result: %w", err)
-	}
-
-	return &summary, nil
+	return readSingleRow[AdoptionSummary](it)
 }
 
 // GetTeamAdoption fetches team adoption metrics for the latest scan
@@ -260,20 +260,7 @@ func (bq *BigQueryClient) GetTeamAdoption(ctx context.Context) ([]TeamAdoption, 
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	var results []TeamAdoption
-	for {
-		var team TeamAdoption
-		err := it.Next(&team)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("iterate results: %w", err)
-		}
-		results = append(results, team)
-	}
-
-	return results, nil
+	return readAllRows[TeamAdoption](it)
 }
 
 // GetCustomizationDetails fetches aggregated customization file usage
@@ -295,20 +282,7 @@ func (bq *BigQueryClient) GetCustomizationDetails(ctx context.Context) ([]Custom
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	var results []CustomizationDetail
-	for {
-		var detail CustomizationDetail
-		err := it.Next(&detail)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("iterate results: %w", err)
-		}
-		results = append(results, detail)
-	}
-
-	return results, nil
+	return readAllRows[CustomizationDetail](it)
 }
 
 // GetCustomizationUsage fetches customization usage with sample repositories
@@ -332,20 +306,7 @@ func (bq *BigQueryClient) GetCustomizationUsage(ctx context.Context) ([]Customiz
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	var results []CustomizationUsage
-	for {
-		var usage CustomizationUsage
-		err := it.Next(&usage)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("iterate results: %w", err)
-		}
-		results = append(results, usage)
-	}
-
-	return results, nil
+	return readAllRows[CustomizationUsage](it)
 }
 
 // GetLanguageAdoption fetches language adoption metrics for the latest scan
@@ -363,20 +324,7 @@ func (bq *BigQueryClient) GetLanguageAdoption(ctx context.Context) ([]LanguageAd
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	var results []LanguageAdoption
-	for {
-		var lang LanguageAdoption
-		err := it.Next(&lang)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("iterate results: %w", err)
-		}
-		results = append(results, lang)
-	}
-
-	return results, nil
+	return readAllRows[LanguageAdoption](it)
 }
 
 // GetStalenessData fetches file-level sync status from v_staleness_summary view
@@ -404,20 +352,7 @@ func (bq *BigQueryClient) GetStalenessData(ctx context.Context) ([]StalenessFile
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	var results []StalenessFile
-	for {
-		var file StalenessFile
-		err := it.Next(&file)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("iterate results: %w", err)
-		}
-		results = append(results, file)
-	}
-
-	return results, nil
+	return readAllRows[StalenessFile](it)
 }
 
 // BigQueryQuerier abstracts BigQuery operations for testability

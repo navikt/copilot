@@ -6,7 +6,6 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
-	"google.golang.org/api/iterator"
 )
 
 type ModelInteractions struct {
@@ -113,22 +112,6 @@ type AdoptionCohortDay struct {
 	AvgAcceptances  float64    `bigquery:"avg_acceptances" json:"avg_acceptances"`
 	AvgInteractions float64    `bigquery:"avg_interactions" json:"avg_interactions"`
 	AvgLinesAdded   float64    `bigquery:"avg_lines_added" json:"avg_lines_added"`
-}
-
-func readAllRows[T any](it *bigquery.RowIterator) ([]T, error) {
-	var results []T
-	for {
-		var row T
-		err := it.Next(&row)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("iterate results: %w", err)
-		}
-		results = append(results, row)
-	}
-	return results, nil
 }
 
 func (bq *BigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error) {
@@ -336,15 +319,14 @@ func (bq *BigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, 
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
-	var summary UserMetricsSummary
-	err = it.Next(&summary)
-	if err == iterator.Done || summary.DaysInPeriod == 0 {
+	summaryPtr, err := readSingleRow[UserMetricsSummary](it)
+	if err != nil {
+		return nil, err
+	}
+	if summaryPtr == nil || summaryPtr.DaysInPeriod == 0 {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, fmt.Errorf("read result: %w", err)
-	}
-	return &summary, nil
+	return summaryPtr, nil
 }
 
 func (bq *BigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error) {
