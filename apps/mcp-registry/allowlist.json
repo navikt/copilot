@@ -12,7 +12,19 @@
         "url": "https://github.com/github/github-mcp-server",
         "source": "github"
       },
-      "tools": ["get_file_contents", "search_repositories", "create_issue", "list_issues", "create_pull_request", "list_pull_requests", "search_code", "get_commit", "list_commits", "create_branch", "list_branches"],
+      "tools": [
+        "get_file_contents",
+        "search_repositories",
+        "create_issue",
+        "list_issues",
+        "create_pull_request",
+        "list_pull_requests",
+        "search_code",
+        "get_commit",
+        "list_commits",
+        "create_branch",
+        "list_branches"
+      ],
       "tags": ["developer-tools", "version-control", "github"],
       "examples": [
         {
@@ -44,7 +56,19 @@
         "source": "github",
         "subfolder": "apps/mcp-onboarding"
       },
-      "tools": ["hello_world", "greet", "whoami", "echo", "get_time", "list_agents", "list_instructions", "list_prompts", "list_skills", "check_agent_readiness", "generate_agents_md"],
+      "tools": [
+        "hello_world",
+        "greet",
+        "whoami",
+        "echo",
+        "get_time",
+        "list_agents",
+        "list_instructions",
+        "list_prompts",
+        "list_skills",
+        "check_agent_readiness",
+        "generate_agents_md"
+      ],
       "tags": ["developer-tools", "onboarding", "nav-internal"],
       "examples": [
         {
@@ -75,7 +99,12 @@
         "url": "https://github.com/navikt/aksel/tree/main/%40navikt/aksel-mcp",
         "source": "github"
       },
-      "tools": ["aksel_docs", "aksel_token_details", "aksel_icons_search", "aksel_component_props"],
+      "tools": [
+        "aksel_docs",
+        "aksel_token_details",
+        "aksel_icons_search",
+        "aksel_component_props"
+      ],
       "tags": ["aksel", "designsystem", "ui", "frontend", "developer-tools"],
       "examples": [
         {
@@ -90,8 +119,10 @@
           "scenario": "Få detaljert informasjon om en Aksel-komponent",
           "prompt": "Vis alle props og typer for Aksel Button-komponenten"
         },
+        {
           "scenario": "Få detaljer om et Aksel-token",
           "prompt": "Hvilket token bør jeg bruke for bakgrunnsfarge?"
+        }
       ],
       "packages": [
         {
@@ -116,7 +147,13 @@
         "url": "https://github.com/figma/mcp-server-guide",
         "source": "github"
       },
-      "tools": ["get_design_context", "get_screenshot", "get_metadata", "get_figjam", "generate_diagram"],
+      "tools": [
+        "get_design_context",
+        "get_screenshot",
+        "get_metadata",
+        "get_figjam",
+        "generate_diagram"
+      ],
       "tags": ["design", "frontend", "figma"],
       "examples": [
         {
@@ -220,7 +257,14 @@
         "url": "https://github.com/microsoft/playwright-mcp",
         "source": "github"
       },
-      "tools": ["browser_navigate", "browser_click", "browser_type", "browser_snapshot", "browser_take_screenshot", "browser_wait"],
+      "tools": [
+        "browser_navigate",
+        "browser_click",
+        "browser_type",
+        "browser_snapshot",
+        "browser_take_screenshot",
+        "browser_wait"
+      ],
       "tags": ["testing", "browser-automation", "frontend"],
       "examples": [
         {
@@ -286,7 +330,28 @@
           "url": "http://127.0.0.1:64342/sse"
         }
       ],
-      "tools": ["get_symbol_info", "get_file_problems", "get_project_dependencies", "get_project_modules", "search_in_files_by_text", "search_in_files_by_regex", "find_files_by_glob", "find_files_by_name_keyword", "get_file_text_by_path", "list_directory_tree", "get_all_open_file_paths", "get_run_configurations", "get_repositories", "create_new_file", "replace_text_in_file", "reformat_file", "rename_refactoring", "open_file_in_editor", "execute_terminal_command", "execute_run_configuration"],
+      "tools": [
+        "get_symbol_info",
+        "get_file_problems",
+        "get_project_dependencies",
+        "get_project_modules",
+        "search_in_files_by_text",
+        "search_in_files_by_regex",
+        "find_files_by_glob",
+        "find_files_by_name_keyword",
+        "get_file_text_by_path",
+        "list_directory_tree",
+        "get_all_open_file_paths",
+        "get_run_configurations",
+        "get_repositories",
+        "create_new_file",
+        "replace_text_in_file",
+        "reformat_file",
+        "rename_refactoring",
+        "open_file_in_editor",
+        "execute_terminal_command",
+        "execute_run_configuration"
+      ],
       "tags": ["developer-tools", "ide", "jetbrains", "code-intelligence"],
       "examples": [
         {
