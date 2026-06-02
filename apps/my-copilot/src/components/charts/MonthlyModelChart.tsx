@@ -36,21 +36,6 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data, billingData
 
   // Top billing models by latest month
   const latestBillingMonth = billingMonths[billingMonths.length - 1];
-  const billingTopModels = hasBillingData
-    ? [...billingByModel.entries()]
-        .map(([model, monthMap]) => ({ model, latest: monthMap.get(latestBillingMonth) || 0 }))
-        .sort((a, b) => b.latest - a.latest)
-        .slice(0, 8)
-        .map((d) => d.model)
-    : [];
-
-  const billingDatasets = billingTopModels.map((model, i) => ({
-    label: model,
-    data: billingMonths.map((month) => Math.round(billingByModel.get(model)?.get(month) || 0)),
-    backgroundColor: getBackgroundColor(chartColors[i % chartColors.length], 0.7),
-    borderColor: chartColors[i % chartColors.length],
-    borderWidth: 1,
-  }));
 
   // Billing cost per month (gross and net amounts)
   const billingCostByModel = new Map<string, Map<string, number>>();
@@ -205,15 +190,7 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data, billingData
             ))}
           </HGrid>
 
-          <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
-            <Box background="neutral-soft" padding="space-16" borderRadius="8">
-              <VStack gap="space-8">
-                <BodyShort weight="semibold">Premium-forespørsler per modell</BodyShort>
-                <div className="aspect-[2/1]">
-                  <Bar data={{ labels: billingMonths, datasets: billingDatasets }} options={barOptions} />
-                </div>
-              </VStack>
-            </Box>
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
             <Box background="neutral-soft" padding="space-16" borderRadius="8">
               <VStack gap="space-8">
                 <BodyShort weight="semibold">CLI token-forbruk over tid</BodyShort>
