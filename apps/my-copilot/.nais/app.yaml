@@ -84,8 +84,6 @@ spec:
   frontend:
     generatedConfig:
       mountPath: /tmp/nais.js
-  envFrom:
-    - secret: my-copilot
   env:
     - name: "NODE_ENV"
       value: "production"
