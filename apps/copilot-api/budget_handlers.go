@@ -68,6 +68,15 @@ func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Use the background-collected seat count for an accurate active user total.
+	// The budget API only lists override users, not all licensed seats.
+	metricsCollector.mu.RLock()
+	activeSeats := metricsCollector.githubSeatsActive
+	metricsCollector.mu.RUnlock()
+	if activeSeats > 0 {
+		budget.ActiveUsers = int(activeSeats)
+	}
+
 	cacheControl(w, 30*60, true) // public — same for all users
 	respondJSON(w, budget, http.StatusOK)
 }
