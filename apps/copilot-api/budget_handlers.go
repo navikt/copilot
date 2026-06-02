@@ -53,3 +53,21 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 	cacheControl(w, 30*60, false)
 	respondJSON(w, budget, http.StatusOK)
 }
+
+// handleGetGlobalBudget handles GET /api/v1/copilot/budget/global.
+// Returns the enterprise-wide default AI credit budget (no SAML lookup required).
+func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Request) {
+	budget, err := h.budgetClient.getGlobalBudget(r.Context())
+	if err != nil {
+		if errors.Is(err, errBudgetNotFound) {
+			respondError(w, "not_found", "No global budget data found", http.StatusNotFound)
+			return
+		}
+		slog.Error("Failed to fetch global budget", "error", err)
+		respondError(w, "budget_error", "Failed to fetch budget data", http.StatusInternalServerError)
+		return
+	}
+
+	cacheControl(w, 30*60, true) // public — same for all users
+	respondJSON(w, budget, http.StatusOK)
+}

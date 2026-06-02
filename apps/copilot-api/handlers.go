@@ -74,9 +74,10 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 		mux.HandleFunc("GET /api/v1/copilot/saml/{identity}", ghHandlers.handleGetUsernameBySAML)
 	}
 
-	// Enterprise budget endpoint
+	// Enterprise budget endpoints
 	if budgetHandlers != nil {
 		mux.HandleFunc("GET /api/v1/copilot/budget", budgetHandlers.handleGetBudget)
+		mux.HandleFunc("GET /api/v1/copilot/budget/global", budgetHandlers.handleGetGlobalBudget)
 	}
 
 	// Placeholder endpoints - to be implemented in future phases

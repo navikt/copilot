@@ -127,6 +127,29 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 
 var errBudgetNotFound = errors.New("budget not found for user")
 
+// GlobalBudget is the enterprise-level AI credit budget (multi_user_customer scope).
+type GlobalBudget struct {
+	BudgetAmount   float64  `json:"budgetAmount"`
+	ConsumedAmount *float64 `json:"consumedAmount"`
+}
+
+// getGlobalBudget returns the enterprise-wide default AI credit budget.
+func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, error) {
+	entries, err := c.getEnterpriseBudgets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get enterprise budgets: %w", err)
+	}
+	for _, e := range entries {
+		if e.BudgetScope == "multi_user_customer" {
+			return &GlobalBudget{
+				BudgetAmount:   e.BudgetAmount,
+				ConsumedAmount: e.ConsumedAmount,
+			}, nil
+		}
+	}
+	return nil, errBudgetNotFound
+}
+
 // getUserBudget resolves the budget for a given GitHub username.
 // Returns the user-specific override if present, otherwise the enterprise default.
 func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*UserBudget, error) {

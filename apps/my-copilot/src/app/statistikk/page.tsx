@@ -39,7 +39,7 @@ import {
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
-import { backendRequest } from "@/lib/backend-api";
+import { backendRequest, BackendApiError } from "@/lib/backend-api";
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -172,11 +172,21 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     { usage: monthlyModelUsage, error: modelUsageError },
     { usage: billingUsage, error: billingError },
     { cohorts: adoptionCohorts, error: cohortsError },
+    globalBudget,
   ] = await Promise.all([
     getMonthlyTrends(token),
     getMonthlyModelUsage(token),
     getMonthlyBillingUsage(token),
     getAdoptionCohorts(token),
+    backendRequest<{ budgetAmount: number; consumedAmount: number | null }>(
+      "/api/v1/copilot/budget/global",
+      token
+    ).catch((err) => {
+      if (!(err instanceof BackendApiError && err.status === 404)) {
+        console.error("[statistikk] Global budget fetch failed:", err);
+      }
+      return null;
+    }),
   ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
@@ -281,6 +291,23 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
           subtitle={`Siste ${usage.length} dager`}
         />
       </HGrid>
+
+      {/* Global AI credit budget */}
+      {globalBudget && (
+        <HGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="space-16">
+          <MetricCard
+            value={`${formatNumber(globalBudget.budgetAmount)} USD`}
+            label="Global AI-kredittramme"
+            helpTitle="Global AI-kredittramme"
+            helpText="Månedlig AI-kredittbudsjett for hele Nav-organisasjonen. Inkluderer alle GitHub Copilot-modeller og agentkjøringer."
+            subtitle={
+              globalBudget.consumedAmount != null
+                ? `Brukt: ${formatNumber(globalBudget.consumedAmount)} USD`
+                : undefined
+            }
+          />
+        </HGrid>
+      )}
 
       {/* Monthly trends — THE story */}
       {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
