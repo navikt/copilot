@@ -294,7 +294,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
 
       {/* Global AI credit budget */}
       {globalBudget && (
-        <HGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="space-16">
+        <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
           <MetricCard
             value={`${formatNumber(globalBudget.budgetAmount)} USD`}
             label="Global AI-kredittramme"

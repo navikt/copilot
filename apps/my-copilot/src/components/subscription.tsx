@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort, Link, Tag } from "@navikt/ds-react";
+import { Button, Alert, Box, VStack, HGrid, Heading, BodyShort, Link, Tag, Skeleton } from "@navikt/ds-react";
 import { User } from "@/lib/auth";
+import { formatNumber } from "@/lib/format";
 
 interface BudgetData {
   budgetAmount: number;
@@ -340,9 +341,9 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               AI-kredittbudsjett
             </Heading>
             {loading ? (
-              <VStack gap="space-4" role="status" className="max-w-sm animate-pulse">
-                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 w-40"></div>
-                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-56"></div>
+              <VStack gap="space-4" role="status">
+                <Skeleton variant="text" width="10rem" />
+                <Skeleton variant="text" width="14rem" />
                 <span className="sr-only">Laster budsjett...</span>
               </VStack>
             ) : budget ? (
@@ -353,20 +354,24 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                   </Tag>
                 )}
                 <BodyShort>
-                  <strong>Månedlig budsjett:</strong> ${budget.budgetAmount.toFixed(2)}
+                  <strong>Månedlig budsjett:</strong> {formatNumber(budget.budgetAmount)} USD
                 </BodyShort>
                 {budget.consumedAmount !== null && (
                   <>
                     <BodyShort>
-                      <strong>Brukt denne måneden:</strong> ${budget.consumedAmount.toFixed(2)}
+                      <strong>Brukt denne måneden:</strong> {formatNumber(budget.consumedAmount)} USD
                     </BodyShort>
                     <BodyShort>
-                      <strong>Gjenstående:</strong> $
-                      {Math.max(0, budget.budgetAmount - budget.consumedAmount).toFixed(2)}
+                      <strong>Gjenstående:</strong>{" "}
+                      {formatNumber(Math.max(0, budget.budgetAmount - budget.consumedAmount))} USD
                     </BodyShort>
                     <div
-                      className="w-full bg-gray-200 rounded-full"
-                      style={{ height: "8px" }}
+                      style={{
+                        height: "8px",
+                        width: "100%",
+                        borderRadius: "var(--a-border-radius-full)",
+                        backgroundColor: "var(--a-surface-neutral)",
+                      }}
                       aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% brukt`}
                       role="progressbar"
                       aria-valuenow={budget.consumedAmount}
@@ -374,15 +379,16 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                       aria-valuemax={budget.budgetAmount}
                     >
                       <div
-                        className={`h-full rounded-full ${
-                          budget.consumedAmount / budget.budgetAmount > 0.9
-                            ? "bg-red-500"
-                            : budget.consumedAmount / budget.budgetAmount > 0.7
-                              ? "bg-yellow-400"
-                              : "bg-green-500"
-                        }`}
                         style={{
+                          height: "100%",
+                          borderRadius: "var(--a-border-radius-full)",
                           width: `${Math.min(100, Math.round((budget.consumedAmount / budget.budgetAmount) * 100))}%`,
+                          backgroundColor:
+                            budget.consumedAmount / budget.budgetAmount > 0.9
+                              ? "var(--a-icon-danger)"
+                              : budget.consumedAmount / budget.budgetAmount > 0.7
+                                ? "var(--a-icon-warning)"
+                                : "var(--a-icon-success)",
                         }}
                       />
                     </div>
