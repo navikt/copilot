@@ -54,6 +54,13 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 		mux.HandleFunc("GET /api/v1/copilot/adoption/staleness", bqHandlers.handleAdoptionStaleness)
 		mux.HandleFunc("GET /api/v1/copilot/customizations/details", bqHandlers.handleCustomizationDetails)
 		mux.HandleFunc("GET /api/v1/copilot/customizations/usage", bqHandlers.handleCustomizationUsage)
+		mux.HandleFunc("GET /api/v1/copilot/usage/team-summary", bqHandlers.handleTeamUsageSummary)
+		mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}", bqHandlers.handleUserMetrics)
+		mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/weekly", bqHandlers.handleUserWeeklyTrends)
+		mux.HandleFunc("GET /api/v1/copilot/usage/trends", bqHandlers.handleMonthlyTrends)
+		mux.HandleFunc("GET /api/v1/copilot/usage/models", bqHandlers.handleMonthlyModelUsage)
+		mux.HandleFunc("GET /api/v1/copilot/billing/monthly", bqHandlers.handleMonthlyBillingUsage)
+		mux.HandleFunc("GET /api/v1/copilot/adoption/cohorts", bqHandlers.handleAdoptionCohorts)
 	}
 
 	// GitHub API endpoints
@@ -69,11 +76,9 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 
 	// Placeholder endpoints - to be implemented in future phases
 	mux.HandleFunc("/api/v1/copilot/usage/summary", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/trends", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/features", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/languages", notImplementedHandler)
 	mux.HandleFunc("/api/v1/copilot/usage/editors", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/models", notImplementedHandler)
 	mux.HandleFunc("/api/v1/mcp/servers", notImplementedHandler)
 
 	return mux

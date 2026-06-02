@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"cloud.google.com/go/civil"
 )
 
 // mockBigQueryClient implements BigQueryQuerier for testing
@@ -25,6 +27,20 @@ type mockBigQueryClient struct {
 	langAdoptionErr    error
 	stalenessFiles     []StalenessFile
 	stalenessErr       error
+	teamUsage          []TeamUsageSummary
+	teamUsageErr       error
+	userMetrics        *UserMetricsSummary
+	userMetricsErr     error
+	monthlyTrends      []MonthlyTrend
+	monthlyTrendsErr   error
+	monthlyModels      []MonthlyModelUsage
+	monthlyModelsErr   error
+	monthlyBilling     []MonthlyBillingUsage
+	monthlyBillingErr  error
+	weeklyTrends       []WeeklyTrend
+	weeklyTrendsErr    error
+	cohorts            []AdoptionCohortDay
+	cohortsErr         error
 }
 
 func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]EnterpriseMetrics, error) {
@@ -53,6 +69,34 @@ func (m *mockBigQueryClient) GetLanguageAdoption(_ context.Context) ([]LanguageA
 
 func (m *mockBigQueryClient) GetStalenessData(_ context.Context) ([]StalenessFile, error) {
 	return m.stalenessFiles, m.stalenessErr
+}
+
+func (m *mockBigQueryClient) GetTeamUsageSummary(_ context.Context, _ int) ([]TeamUsageSummary, error) {
+	return m.teamUsage, m.teamUsageErr
+}
+
+func (m *mockBigQueryClient) GetUserMetrics(_ context.Context, _ string, _ int) (*UserMetricsSummary, error) {
+	return m.userMetrics, m.userMetricsErr
+}
+
+func (m *mockBigQueryClient) GetMonthlyTrends(_ context.Context, _ int) ([]MonthlyTrend, error) {
+	return m.monthlyTrends, m.monthlyTrendsErr
+}
+
+func (m *mockBigQueryClient) GetMonthlyModelUsage(_ context.Context, _ int) ([]MonthlyModelUsage, error) {
+	return m.monthlyModels, m.monthlyModelsErr
+}
+
+func (m *mockBigQueryClient) GetMonthlyBillingUsage(_ context.Context, _ int) ([]MonthlyBillingUsage, error) {
+	return m.monthlyBilling, m.monthlyBillingErr
+}
+
+func (m *mockBigQueryClient) GetUserWeeklyTrends(_ context.Context, _ string, _ int) ([]WeeklyTrend, error) {
+	return m.weeklyTrends, m.weeklyTrendsErr
+}
+
+func (m *mockBigQueryClient) GetAdoptionCohorts(_ context.Context, _ int) ([]AdoptionCohortDay, error) {
+	return m.cohorts, m.cohortsErr
 }
 
 func TestHandleDailyMetrics(t *testing.T) {
@@ -272,7 +316,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 
 func TestHandleTeamAdoption(t *testing.T) {
 	t.Run("returns team adoption data", func(t *testing.T) {
-		mock := &mockBigQueryClient{teamAdoption: []TeamAdoption{{TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5}}}
+		mock := &mockBigQueryClient{teamAdoption: []TeamAdoption{{ScanDate: civil.Date{Year: 2026, Month: 6, Day: 2}, TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5}}}
 		h := newBigQueryHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/teams", nil)
 		rec := httptest.NewRecorder()
@@ -301,6 +345,147 @@ func TestHandleTeamAdoption(t *testing.T) {
 			t.Errorf("status: got %d, want 500", rec.Code)
 		}
 	})
+}
+
+func TestHandleNewStatsEndpoints(t *testing.T) {
+	validDate := civil.Date{Year: 2026, Month: 6, Day: 2}
+	tests := []struct {
+		name       string
+		mock       *mockBigQueryClient
+		req        *http.Request
+		handle     func(*BigQueryHandlers, http.ResponseWriter, *http.Request)
+		wantStatus int
+	}{
+		{
+			name:       "team summary success",
+			mock:       &mockBigQueryClient{teamUsage: []TeamUsageSummary{{TeamSlug: "team-a", TotalUsers: 2}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-summary", nil),
+			handle:     (*BigQueryHandlers).handleTeamUsageSummary,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "team summary error",
+			mock:       &mockBigQueryClient{teamUsageErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-summary", nil),
+			handle:     (*BigQueryHandlers).handleTeamUsageSummary,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "user metrics success",
+			mock:       &mockBigQueryClient{userMetrics: &UserMetricsSummary{UserLogin: "octocat", DaysInPeriod: 7}},
+			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
+			handle:     (*BigQueryHandlers).handleUserMetrics,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "user metrics not found",
+			mock:       &mockBigQueryClient{},
+			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
+			handle:     (*BigQueryHandlers).handleUserMetrics,
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "user metrics error",
+			mock:       &mockBigQueryClient{userMetricsErr: errors.New("bq")},
+			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
+			handle:     (*BigQueryHandlers).handleUserMetrics,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "user metrics invalid username",
+			mock:       &mockBigQueryClient{},
+			req:        requestWithUsername("/api/v1/copilot/usage/user/bad", "bad/user"),
+			handle:     (*BigQueryHandlers).handleUserMetrics,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "monthly trends success",
+			mock:       &mockBigQueryClient{monthlyTrends: []MonthlyTrend{{Month: "2026-06", UniqueUsers: 10}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/trends", nil),
+			handle:     (*BigQueryHandlers).handleMonthlyTrends,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "monthly trends error",
+			mock:       &mockBigQueryClient{monthlyTrendsErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/trends", nil),
+			handle:     (*BigQueryHandlers).handleMonthlyTrends,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "monthly models success",
+			mock:       &mockBigQueryClient{monthlyModels: []MonthlyModelUsage{{Month: "2026-06", Model: "gpt", Interactions: 1}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/models", nil),
+			handle:     (*BigQueryHandlers).handleMonthlyModelUsage,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "monthly models error",
+			mock:       &mockBigQueryClient{monthlyModelsErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/models", nil),
+			handle:     (*BigQueryHandlers).handleMonthlyModelUsage,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "monthly billing success",
+			mock:       &mockBigQueryClient{monthlyBilling: []MonthlyBillingUsage{{Month: "2026-06", Model: "gpt", SKU: "premium", GrossRequests: 2}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/monthly", nil),
+			handle:     (*BigQueryHandlers).handleMonthlyBillingUsage,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "monthly billing error",
+			mock:       &mockBigQueryClient{monthlyBillingErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/monthly", nil),
+			handle:     (*BigQueryHandlers).handleMonthlyBillingUsage,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "weekly trends success",
+			mock:       &mockBigQueryClient{weeklyTrends: []WeeklyTrend{{Week: "2026-W23", Interactions: 3}}},
+			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat/weekly", "octocat"),
+			handle:     (*BigQueryHandlers).handleUserWeeklyTrends,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "weekly trends error",
+			mock:       &mockBigQueryClient{weeklyTrendsErr: errors.New("bq")},
+			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat/weekly", "octocat"),
+			handle:     (*BigQueryHandlers).handleUserWeeklyTrends,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "cohorts success",
+			mock:       &mockBigQueryClient{cohorts: []AdoptionCohortDay{{Day: validDate, Phase: 1, UserCount: 4}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil),
+			handle:     (*BigQueryHandlers).handleAdoptionCohorts,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "cohorts error",
+			mock:       &mockBigQueryClient{cohortsErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil),
+			handle:     (*BigQueryHandlers).handleAdoptionCohorts,
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newBigQueryHandlers(tc.mock)
+			rec := httptest.NewRecorder()
+			tc.handle(h, rec, tc.req)
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status: got %d, want %d; body=%s", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+		})
+	}
+}
+
+func requestWithUsername(path, username string) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.SetPathValue("username", username)
+	return req
 }
 
 // abs returns the absolute value of a float64

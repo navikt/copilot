@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/civil"
 	"google.golang.org/api/iterator"
 )
 
@@ -45,65 +46,65 @@ type EnterpriseMetrics map[string]interface{}
 
 // AdoptionSummary represents the latest adoption scan summary
 type AdoptionSummary struct {
-	ScanDate                     string  `bigquery:"scan_date" json:"scan_date"`
-	TotalRepos                   int64   `bigquery:"total_repos" json:"total_repos"`
-	ActiveRepos                  int64   `bigquery:"active_repos" json:"active_repos"`
-	ArchivedRepos                int64   `bigquery:"archived_repos" json:"archived_repos"`
-	ActiveReposWithRecentCommits int64   `bigquery:"active_repos_with_recent_commits" json:"active_repos_with_recent_commits"`
-	DormantRepos                 int64   `bigquery:"dormant_repos" json:"dormant_repos"`
-	UnknownLastCommitRepos       int64   `bigquery:"unknown_last_commit_repos" json:"unknown_last_commit_repos"`
-	ReposWithAnyCustomization    int64   `bigquery:"repos_with_any_customization" json:"repos_with_any_customization"`
-	ReposWithoutCustomization    int64   `bigquery:"repos_without_customization" json:"repos_without_customization"`
-	AdoptionRate                 float64 `bigquery:"adoption_rate" json:"adoption_rate"`
-	AdoptionRateActiveOnly       float64 `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
-	ReposWithCopilotInstructions int64   `bigquery:"repos_with_copilot_instructions" json:"repos_with_copilot_instructions"`
-	ReposWithAgentsMD            int64   `bigquery:"repos_with_agents_md" json:"repos_with_agents_md"`
-	ReposWithAgents              int64   `bigquery:"repos_with_agents" json:"repos_with_agents"`
-	ReposWithInstructions        int64   `bigquery:"repos_with_instructions" json:"repos_with_instructions"`
-	ReposWithPrompts             int64   `bigquery:"repos_with_prompts" json:"repos_with_prompts"`
-	ReposWithSkills              int64   `bigquery:"repos_with_skills" json:"repos_with_skills"`
-	ReposWithMCPConfig           int64   `bigquery:"repos_with_mcp_config" json:"repos_with_mcp_config"`
-	ReposWithCopilotDir          int64   `bigquery:"repos_with_copilot_dir" json:"repos_with_copilot_dir"`
-	ReposWithCopilotReviewInst   int64   `bigquery:"repos_with_copilot_review_instructions" json:"repos_with_copilot_review_instructions"`
-	ReposWithCursorRules         int64   `bigquery:"repos_with_cursorrules" json:"repos_with_cursorrules"`
-	ReposWithCursorRulesDir      int64   `bigquery:"repos_with_cursor_rules_dir" json:"repos_with_cursor_rules_dir"`
-	ReposWithClaudeMD            int64   `bigquery:"repos_with_claude_md" json:"repos_with_claude_md"`
-	ReposWithWindsurfRules       int64   `bigquery:"repos_with_windsurfrules" json:"repos_with_windsurfrules"`
-	ReposWithCursorIgnore        int64   `bigquery:"repos_with_cursorignore" json:"repos_with_cursorignore"`
-	ReposWithClaudeSettings      int64   `bigquery:"repos_with_claude_settings" json:"repos_with_claude_settings"`
-	ReposWithCopilotSetupSteps   int64   `bigquery:"repos_with_copilot_setup_steps" json:"repos_with_copilot_setup_steps"`
-	ReposWithAgenticWorkflows    int64   `bigquery:"repos_with_agentic_workflows" json:"repos_with_agentic_workflows"`
-	ReposWithAgentsSkills        int64   `bigquery:"repos_with_agents_skills" json:"repos_with_agents_skills"`
-	ReposWithNavPilotState       int64   `bigquery:"repos_with_nav_pilot_state" json:"repos_with_nav_pilot_state"`
-	ReposWithCPLTToml            int64   `bigquery:"repos_with_cplt_toml" json:"repos_with_cplt_toml"`
-	ReposWithAnyNonCopilotAI     int64   `bigquery:"repos_with_any_non_copilot_ai" json:"repos_with_any_non_copilot_ai"`
-	AvgCustomizationCount        float64 `bigquery:"avg_customization_count" json:"avg_customization_count"`
-	MaxCustomizationCount        int64   `bigquery:"max_customization_count" json:"max_customization_count"`
+	ScanDate                     civil.Date `bigquery:"scan_date" json:"scan_date"`
+	TotalRepos                   int64      `bigquery:"total_repos" json:"total_repos"`
+	ActiveRepos                  int64      `bigquery:"active_repos" json:"active_repos"`
+	ArchivedRepos                int64      `bigquery:"archived_repos" json:"archived_repos"`
+	ActiveReposWithRecentCommits int64      `bigquery:"active_repos_with_recent_commits" json:"active_repos_with_recent_commits"`
+	DormantRepos                 int64      `bigquery:"dormant_repos" json:"dormant_repos"`
+	UnknownLastCommitRepos       int64      `bigquery:"unknown_last_commit_repos" json:"unknown_last_commit_repos"`
+	ReposWithAnyCustomization    int64      `bigquery:"repos_with_any_customization" json:"repos_with_any_customization"`
+	ReposWithoutCustomization    int64      `bigquery:"repos_without_customization" json:"repos_without_customization"`
+	AdoptionRate                 float64    `bigquery:"adoption_rate" json:"adoption_rate"`
+	AdoptionRateActiveOnly       float64    `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
+	ReposWithCopilotInstructions int64      `bigquery:"repos_with_copilot_instructions" json:"repos_with_copilot_instructions"`
+	ReposWithAgentsMD            int64      `bigquery:"repos_with_agents_md" json:"repos_with_agents_md"`
+	ReposWithAgents              int64      `bigquery:"repos_with_agents" json:"repos_with_agents"`
+	ReposWithInstructions        int64      `bigquery:"repos_with_instructions" json:"repos_with_instructions"`
+	ReposWithPrompts             int64      `bigquery:"repos_with_prompts" json:"repos_with_prompts"`
+	ReposWithSkills              int64      `bigquery:"repos_with_skills" json:"repos_with_skills"`
+	ReposWithMCPConfig           int64      `bigquery:"repos_with_mcp_config" json:"repos_with_mcp_config"`
+	ReposWithCopilotDir          int64      `bigquery:"repos_with_copilot_dir" json:"repos_with_copilot_dir"`
+	ReposWithCopilotReviewInst   int64      `bigquery:"repos_with_copilot_review_instructions" json:"repos_with_copilot_review_instructions"`
+	ReposWithCursorRules         int64      `bigquery:"repos_with_cursorrules" json:"repos_with_cursorrules"`
+	ReposWithCursorRulesDir      int64      `bigquery:"repos_with_cursor_rules_dir" json:"repos_with_cursor_rules_dir"`
+	ReposWithClaudeMD            int64      `bigquery:"repos_with_claude_md" json:"repos_with_claude_md"`
+	ReposWithWindsurfRules       int64      `bigquery:"repos_with_windsurfrules" json:"repos_with_windsurfrules"`
+	ReposWithCursorIgnore        int64      `bigquery:"repos_with_cursorignore" json:"repos_with_cursorignore"`
+	ReposWithClaudeSettings      int64      `bigquery:"repos_with_claude_settings" json:"repos_with_claude_settings"`
+	ReposWithCopilotSetupSteps   int64      `bigquery:"repos_with_copilot_setup_steps" json:"repos_with_copilot_setup_steps"`
+	ReposWithAgenticWorkflows    int64      `bigquery:"repos_with_agentic_workflows" json:"repos_with_agentic_workflows"`
+	ReposWithAgentsSkills        int64      `bigquery:"repos_with_agents_skills" json:"repos_with_agents_skills"`
+	ReposWithNavPilotState       int64      `bigquery:"repos_with_nav_pilot_state" json:"repos_with_nav_pilot_state"`
+	ReposWithCPLTToml            int64      `bigquery:"repos_with_cplt_toml" json:"repos_with_cplt_toml"`
+	ReposWithAnyNonCopilotAI     int64      `bigquery:"repos_with_any_non_copilot_ai" json:"repos_with_any_non_copilot_ai"`
+	AvgCustomizationCount        float64    `bigquery:"avg_customization_count" json:"avg_customization_count"`
+	MaxCustomizationCount        int64      `bigquery:"max_customization_count" json:"max_customization_count"`
 }
 
 // TeamAdoption represents adoption metrics for a single team
 type TeamAdoption struct {
-	ScanDate                string  `bigquery:"scan_date" json:"scan_date"`
-	TeamSlug                string  `bigquery:"team_slug" json:"team_slug"`
-	TeamName                string  `bigquery:"team_name" json:"team_name"`
-	TeamRepos               int64   `bigquery:"team_repos" json:"team_repos"`
-	ActiveRepos             int64   `bigquery:"active_repos" json:"active_repos"`
-	RecentlyActiveRepos     int64   `bigquery:"recently_active_repos" json:"recently_active_repos"`
-	ReposWithCustomizations int64   `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	AdoptionRate            float64 `bigquery:"adoption_rate" json:"adoption_rate"`
-	AdoptionRateActiveOnly  float64 `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
-	WithCopilotInstructions int64   `bigquery:"with_copilot_instructions" json:"with_copilot_instructions"`
-	WithAgentsMD            int64   `bigquery:"with_agents_md" json:"with_agents_md"`
-	WithAgents              int64   `bigquery:"with_agents" json:"with_agents"`
-	WithInstructions        int64   `bigquery:"with_instructions" json:"with_instructions"`
-	WithPrompts             int64   `bigquery:"with_prompts" json:"with_prompts"`
-	WithSkills              int64   `bigquery:"with_skills" json:"with_skills"`
-	WithMCPConfig           int64   `bigquery:"with_mcp_config" json:"with_mcp_config"`
-	WithCopilotSetupSteps   int64   `bigquery:"with_copilot_setup_steps" json:"with_copilot_setup_steps"`
-	WithAgenticWorkflows    int64   `bigquery:"with_agentic_workflows" json:"with_agentic_workflows"`
-	WithAgentsSkills        int64   `bigquery:"with_agents_skills" json:"with_agents_skills"`
-	WithNavPilotState       int64   `bigquery:"with_nav_pilot_state" json:"with_nav_pilot_state"`
-	WithCPLTToml            int64   `bigquery:"with_cplt_toml" json:"with_cplt_toml"`
+	ScanDate                civil.Date `bigquery:"scan_date" json:"scan_date"`
+	TeamSlug                string     `bigquery:"team_slug" json:"team_slug"`
+	TeamName                string     `bigquery:"team_name" json:"team_name"`
+	TeamRepos               int64      `bigquery:"team_repos" json:"team_repos"`
+	ActiveRepos             int64      `bigquery:"active_repos" json:"active_repos"`
+	RecentlyActiveRepos     int64      `bigquery:"recently_active_repos" json:"recently_active_repos"`
+	ReposWithCustomizations int64      `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
+	AdoptionRate            float64    `bigquery:"adoption_rate" json:"adoption_rate"`
+	AdoptionRateActiveOnly  float64    `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
+	WithCopilotInstructions int64      `bigquery:"with_copilot_instructions" json:"with_copilot_instructions"`
+	WithAgentsMD            int64      `bigquery:"with_agents_md" json:"with_agents_md"`
+	WithAgents              int64      `bigquery:"with_agents" json:"with_agents"`
+	WithInstructions        int64      `bigquery:"with_instructions" json:"with_instructions"`
+	WithPrompts             int64      `bigquery:"with_prompts" json:"with_prompts"`
+	WithSkills              int64      `bigquery:"with_skills" json:"with_skills"`
+	WithMCPConfig           int64      `bigquery:"with_mcp_config" json:"with_mcp_config"`
+	WithCopilotSetupSteps   int64      `bigquery:"with_copilot_setup_steps" json:"with_copilot_setup_steps"`
+	WithAgenticWorkflows    int64      `bigquery:"with_agentic_workflows" json:"with_agentic_workflows"`
+	WithAgentsSkills        int64      `bigquery:"with_agents_skills" json:"with_agents_skills"`
+	WithNavPilotState       int64      `bigquery:"with_nav_pilot_state" json:"with_nav_pilot_state"`
+	WithCPLTToml            int64      `bigquery:"with_cplt_toml" json:"with_cplt_toml"`
 }
 
 // CustomizationDetail represents usage of a specific customization file
@@ -124,17 +125,17 @@ type CustomizationUsage struct {
 
 // LanguageAdoption represents adoption metrics for a programming language
 type LanguageAdoption struct {
-	ScanDate                string  `bigquery:"scan_date" json:"scan_date"`
-	Language                string  `bigquery:"language" json:"language"`
-	TotalRepos              int64   `bigquery:"total_repos" json:"total_repos"`
-	RecentlyActiveRepos     int64   `bigquery:"recently_active_repos" json:"recently_active_repos"`
-	ReposWithCustomizations int64   `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
-	AdoptionRate            float64 `bigquery:"adoption_rate" json:"adoption_rate"`
-	AdoptionRateActiveOnly  float64 `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
-	WithCopilotInstructions int64   `bigquery:"with_copilot_instructions" json:"with_copilot_instructions"`
-	WithAgents              int64   `bigquery:"with_agents" json:"with_agents"`
-	WithInstructions        int64   `bigquery:"with_instructions" json:"with_instructions"`
-	WithMCPConfig           int64   `bigquery:"with_mcp_config" json:"with_mcp_config"`
+	ScanDate                civil.Date `bigquery:"scan_date" json:"scan_date"`
+	Language                string     `bigquery:"language" json:"language"`
+	TotalRepos              int64      `bigquery:"total_repos" json:"total_repos"`
+	RecentlyActiveRepos     int64      `bigquery:"recently_active_repos" json:"recently_active_repos"`
+	ReposWithCustomizations int64      `bigquery:"repos_with_customizations" json:"repos_with_customizations"`
+	AdoptionRate            float64    `bigquery:"adoption_rate" json:"adoption_rate"`
+	AdoptionRateActiveOnly  float64    `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
+	WithCopilotInstructions int64      `bigquery:"with_copilot_instructions" json:"with_copilot_instructions"`
+	WithAgents              int64      `bigquery:"with_agents" json:"with_agents"`
+	WithInstructions        int64      `bigquery:"with_instructions" json:"with_instructions"`
+	WithMCPConfig           int64      `bigquery:"with_mcp_config" json:"with_mcp_config"`
 }
 
 // StalenessFile represents sync status for a single customization file across repos
@@ -428,6 +429,13 @@ type BigQueryQuerier interface {
 	GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error)
 	GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error)
 	GetStalenessData(ctx context.Context) ([]StalenessFile, error)
+	GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error)
+	GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error)
+	GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error)
+	GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error)
+	GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error)
+	GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error)
+	GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error)
 }
 
 // Cache wrapper for BigQuery operations
@@ -507,6 +515,55 @@ func (c *CachedBigQueryClient) GetStalenessData(ctx context.Context) ([]Stalenes
 	cacheKey := "staleness_data"
 	return getCachedValue(c.cache, cacheKey, func() ([]StalenessFile, error) {
 		return c.client.GetStalenessData(ctx)
+	})
+}
+
+func (c *CachedBigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error) {
+	cacheKey := fmt.Sprintf("team_usage_summary_%d", days)
+	return getCachedValue(c.cache, cacheKey, func() ([]TeamUsageSummary, error) {
+		return c.client.GetTeamUsageSummary(ctx, days)
+	})
+}
+
+func (c *CachedBigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error) {
+	cacheKey := fmt.Sprintf("user_metrics_%s_%d", userLogin, days)
+	return getCachedValue(c.cache, cacheKey, func() (*UserMetricsSummary, error) {
+		return c.client.GetUserMetrics(ctx, userLogin, days)
+	})
+}
+
+func (c *CachedBigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error) {
+	cacheKey := fmt.Sprintf("monthly_trends_%d", months)
+	return getCachedValue(c.cache, cacheKey, func() ([]MonthlyTrend, error) {
+		return c.client.GetMonthlyTrends(ctx, months)
+	})
+}
+
+func (c *CachedBigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error) {
+	cacheKey := fmt.Sprintf("monthly_model_usage_%d", months)
+	return getCachedValue(c.cache, cacheKey, func() ([]MonthlyModelUsage, error) {
+		return c.client.GetMonthlyModelUsage(ctx, months)
+	})
+}
+
+func (c *CachedBigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error) {
+	cacheKey := fmt.Sprintf("monthly_billing_usage_%d", months)
+	return getCachedValue(c.cache, cacheKey, func() ([]MonthlyBillingUsage, error) {
+		return c.client.GetMonthlyBillingUsage(ctx, months)
+	})
+}
+
+func (c *CachedBigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error) {
+	cacheKey := fmt.Sprintf("user_weekly_trends_%s_%d", userLogin, weeks)
+	return getCachedValue(c.cache, cacheKey, func() ([]WeeklyTrend, error) {
+		return c.client.GetUserWeeklyTrends(ctx, userLogin, weeks)
+	})
+}
+
+func (c *CachedBigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error) {
+	cacheKey := fmt.Sprintf("adoption_cohorts_%d", days)
+	return getCachedValue(c.cache, cacheKey, func() ([]AdoptionCohortDay, error) {
+		return c.client.GetAdoptionCohorts(ctx, days)
 	})
 }
 

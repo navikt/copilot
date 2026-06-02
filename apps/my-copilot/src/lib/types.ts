@@ -398,6 +398,99 @@ export interface StalenessSummary {
  */
 export type AdoptionScope = "all" | "active";
 
+export interface TeamUsageSummary {
+  team_slug: string;
+  avg_active_users: number;
+  total_users: number;
+  total_generations: number;
+  total_acceptances: number;
+  total_interactions: number;
+  total_lines_suggested: number;
+  total_lines_accepted: number;
+  agent_users: number;
+  days_with_data: number;
+  top_models?: Array<{ model: string; interactions: number }>;
+}
+
+export interface UserMetricsSummary {
+  user_login: string;
+  total_acceptances: number;
+  total_interactions: number;
+  total_generations: number;
+  total_lines_suggested: number;
+  total_lines_accepted: number;
+  total_lines_deleted: number;
+  active_days: number;
+  days_in_period: number;
+  days_used_agent: number;
+  days_used_chat: number;
+  days_used_cli: number;
+  days_used_code_review: number;
+  // Chat mode breakdown (number of requests per mode)
+  chat_agent_requests: number;
+  chat_ask_requests: number;
+  chat_edit_requests: number;
+  chat_plan_requests: number;
+  chat_custom_requests: number;
+  // CLI metrics
+  cli_total_requests: number;
+  cli_prompts: number;
+  cli_sessions: number;
+  cli_prompt_tokens: number;
+  cli_output_tokens: number;
+  // Model usage breakdown
+  top_models: Array<{ model: string; interactions: number }>;
+  teams: string[];
+}
+
+export interface MonthlyTrend {
+  month: string;
+  days_in_month: number;
+  unique_users: number;
+  ide_interactions: number;
+  code_generations: number;
+  cli_requests: number;
+  prompt_tokens: number;
+  output_tokens: number;
+  lines_added: number;
+  lines_deleted: number;
+  acceptances: number;
+  agent_users: number;
+  chat_users: number;
+  cli_users: number;
+}
+
+export interface MonthlyModelUsage {
+  month: string;
+  model: string;
+  interactions: number;
+  prompt_tokens: number;
+  output_tokens: number;
+}
+
+export interface MonthlyBillingUsage {
+  month: string;
+  model: string;
+  sku: string;
+  gross_requests: number;
+  net_requests: number;
+  gross_amount: number;
+  net_amount: number;
+}
+
+export interface WeeklyTrend {
+  week: string;
+  interactions: number;
+  cli_requests: number;
+  acceptances: number;
+  lines_added: number;
+  lines_deleted: number;
+  prompt_tokens: number;
+  output_tokens: number;
+  active_days: number;
+  models?: Array<{ model: string; interactions: number }>;
+}
+
 // AI Adoption Cohort types (from user_metrics ai_adoption_phase field)
 export interface AdoptionCohortDay {
   day: string;

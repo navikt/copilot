@@ -27,7 +27,7 @@ async function updateCopilotSubscription(action: "activate" | "deactivate") {
 }
 
 const SubscriptionActionButton: React.FC<{
-  subscription: SubscriptionDetailsProps["subscription"];
+  subscription: SubscriptionDetailsProps["subscription"] | null;
   onClick: () => void;
 }> = ({ subscription, onClick }) => {
   let buttonColor:
@@ -60,6 +60,7 @@ const SubscriptionActionButton: React.FC<{
 };
 
 const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ user, showGroups = false }) => {
+  const [loading, setLoading] = useState<boolean>(true);
   const [eligibility, setEligible] = useState<boolean>(false);
   const [subscription, setCopilotSubscription] = useState<SubscriptionDetailsProps["subscription"] | null>(null);
   const [githubUsername, setGitHubUsername] = useState<string | null>(null);
@@ -68,6 +69,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   const [needsGitHubLink, setNeedsGitHubLink] = useState<boolean>(false);
 
   const fetchSubscription = async () => {
+    setLoading(true);
     try {
       const response = await fetch("/api/copilot");
       const data = await response.json();
@@ -98,6 +100,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
       } else {
         setSubscriptionError("Ukjent feil ved henting av abonnement");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -168,6 +172,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         } else {
           setSubscriptionError("Ukjent feil ved henting av abonnement");
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -213,7 +219,24 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         {" "}
         <Box padding="space-8" borderRadius="8" className="border">
           {" "}
-          {subscription && eligibility ? (
+          {loading ? (
+            <VStack gap="space-4" role="status" className="max-w-sm animate-pulse">
+              <div className="h-6 bg-gray-200 rounded-full dark:bg-gray-700 w-48"></div>
+              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-90"></div>
+              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-82.5"></div>
+              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-75"></div>
+              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-90"></div>
+              <span className="sr-only">Loading...</span>
+            </VStack>
+          ) : needsGitHubLink ? (
+            <BodyShort>Koble GitHub-kontoen din til navikt-organisasjonen for å aktivere Copilot.</BodyShort>
+          ) : !eligibility ? (
+            <BodyShort>
+              Du har ikke tilgang til å få GitHub Copilot nå. GitHub Copilot er bare tilgjengelig for ansatte og
+              konsulenter i Utvikling og Data.
+            </BodyShort>
+          ) : subscription ? (
             <VStack gap="space-4">
               <BodyShort>
                 <strong>Plan:</strong>{" "}
@@ -246,20 +269,15 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               </BodyShort>
               <SubscriptionActionButton subscription={subscription} onClick={handleClick} />
             </VStack>
-          ) : subscription && !eligibility ? (
-            <BodyShort>
-              Du har ikke tilgang til å få GitHub Copilot nå. GitHub Copilot er bare tilgjengelig for ansatte og
-              konsulenter i Utvikling og Data.
-            </BodyShort>
           ) : (
-            <VStack gap="space-4" role="status" className="max-w-sm animate-pulse">
-              <div className="h-6 bg-gray-200 rounded-full dark:bg-gray-700 w-48"></div>
-              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-90"></div>
-              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700"></div>
-              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-82.5"></div>
-              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-75"></div>
-              <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-90"></div>
-              <span className="sr-only">Loading...</span>
+            <VStack gap="space-4">
+              <Heading size="small" level="3">
+                Du har ikke Copilot ennå
+              </Heading>
+              <BodyShort>
+                Du er kvalifisert for GitHub Copilot. Aktiver for å komme i gang – det tar bare et øyeblikk.
+              </BodyShort>
+              <SubscriptionActionButton subscription={subscription} onClick={handleClick} />
             </VStack>
           )}
         </Box>
@@ -281,10 +299,12 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                   {" "}
                   <a href={`https://github.com/${githubUsername}`}>{githubUsername}</a>
                 </span>
-              ) : (
+              ) : loading ? (
                 <div role="status" className="inline-block animate-pulse" style={{ marginLeft: "8px" }}>
                   <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 w-32"></div>
                 </div>
+              ) : (
+                <span> Ikke koblet</span>
               )}
             </div>
             {showGroups && (
