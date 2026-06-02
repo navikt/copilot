@@ -6,6 +6,7 @@ import { getUser } from "@/lib/auth";
 import Faro from "@/components/faro";
 import NextLink from "next/link";
 import { FooterMessage } from "@/components/footer-message";
+import NavBudgetBar from "@/components/nav-budget-bar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -56,6 +57,7 @@ export default async function RootLayout({
                   >
                     Abonnement
                   </NextLink>
+                  <NavBudgetBar />
                   <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
                     {user.firstName} {user.lastName}
                   </BodyShort>

@@ -295,23 +295,51 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       {/* Global AI credit budget */}
       {globalBudget && (
         <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
-          <HStack gap="space-16" align="center" justify="space-between" wrap={false}>
-            <HStack gap="space-8" align="center">
-              <BodyShort className="text-gray-600 text-sm">Totalt AI-kreditforbruk</BodyShort>
-              <HelpText title="Totalt AI-kreditforbruk">
-                Sum av AI-kreditforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i
-                GitHub Copilot.
-              </HelpText>
-            </HStack>
-            <HStack gap="space-24" align="center">
-              <Heading size="medium" level="2">
-                {formatNumber(Math.round(globalBudget.totalConsumed))} USD
-              </Heading>
+          <VStack gap="space-8">
+            <HStack gap="space-8" align="center" justify="space-between">
+              <HStack gap="space-8" align="center">
+                <BodyShort className="text-gray-600 text-sm">Totalt AI-kreditforbruk</BodyShort>
+                <HelpText title="Totalt AI-kreditforbruk">
+                  Sum av AI-kreditforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i
+                  GitHub Copilot.
+                </HelpText>
+              </HStack>
               <BodyShort className="text-gray-500 text-sm">
-                {globalBudget.activeUsers} aktive brukere · {formatNumber(globalBudget.perUserBudget)} USD per bruker
+                {formatNumber(Math.round(globalBudget.totalConsumed))} /{" "}
+                {formatNumber(globalBudget.activeUsers * globalBudget.perUserBudget)} USD
               </BodyShort>
             </HStack>
-          </HStack>
+            <div
+              style={{
+                height: "10px",
+                width: "100%",
+                borderRadius: "var(--a-border-radius-full)",
+                backgroundColor: "var(--a-surface-neutral)",
+              }}
+              role="progressbar"
+              aria-label={`${Math.round((globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget)) * 100)}% av totalt budsjett brukt`}
+              aria-valuenow={Math.round(globalBudget.totalConsumed)}
+              aria-valuemin={0}
+              aria-valuemax={globalBudget.activeUsers * globalBudget.perUserBudget}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: "var(--a-border-radius-full)",
+                  width: `${Math.min(100, Math.round((globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget)) * 100))}%`,
+                  backgroundColor:
+                    globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget) > 0.9
+                      ? "var(--a-icon-danger)"
+                      : globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget) > 0.7
+                        ? "var(--a-icon-warning)"
+                        : "var(--a-icon-success)",
+                }}
+              />
+            </div>
+            <BodyShort className="text-gray-500 text-sm">
+              {globalBudget.activeUsers} aktive brukere · {formatNumber(globalBudget.perUserBudget)} USD per bruker
+            </BodyShort>
+          </VStack>
         </Box>
       )}
 

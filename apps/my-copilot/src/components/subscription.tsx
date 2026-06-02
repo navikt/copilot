@@ -348,50 +348,67 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               </VStack>
             ) : budget ? (
               <>
-                {budget.isOverride && (
-                  <Tag variant="info" size="small">
-                    Utvidet budsjett
-                  </Tag>
-                )}
-                <BodyShort>
-                  <strong>Månedlig budsjett:</strong> {formatNumber(budget.budgetAmount)} USD
-                </BodyShort>
-                {budget.consumedAmount !== null && (
+                {budget.consumedAmount !== null ? (
                   <>
-                    <BodyShort>
-                      <strong>Brukt denne måneden:</strong> {formatNumber(budget.consumedAmount)} USD
-                    </BodyShort>
+                    <div style={{ width: "100%" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "var(--a-spacing-1)",
+                        }}
+                      >
+                        <BodyShort size="small" className="text-gray-600">
+                          {budget.isOverride ? "Utvidet budsjett" : "Budsjett"} ·{" "}
+                          {Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% brukt
+                        </BodyShort>
+                        <BodyShort size="small" className="text-gray-600">
+                          {formatNumber(budget.consumedAmount)} / {formatNumber(budget.budgetAmount)} USD
+                        </BodyShort>
+                      </div>
+                      <div
+                        style={{
+                          height: "10px",
+                          width: "100%",
+                          borderRadius: "var(--a-border-radius-full)",
+                          backgroundColor: "var(--a-surface-neutral)",
+                        }}
+                        role="progressbar"
+                        aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av budsjettet brukt`}
+                        aria-valuenow={budget.consumedAmount}
+                        aria-valuemin={0}
+                        aria-valuemax={budget.budgetAmount}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            borderRadius: "var(--a-border-radius-full)",
+                            width: `${Math.min(100, Math.round((budget.consumedAmount / budget.budgetAmount) * 100))}%`,
+                            backgroundColor:
+                              budget.consumedAmount / budget.budgetAmount > 0.9
+                                ? "var(--a-icon-danger)"
+                                : budget.consumedAmount / budget.budgetAmount > 0.7
+                                  ? "var(--a-icon-warning)"
+                                  : "var(--a-icon-success)",
+                          }}
+                        />
+                      </div>
+                    </div>
                     <BodyShort>
                       <strong>Gjenstående:</strong>{" "}
                       {formatNumber(Math.max(0, budget.budgetAmount - budget.consumedAmount))} USD
                     </BodyShort>
-                    <div
-                      style={{
-                        height: "8px",
-                        width: "100%",
-                        borderRadius: "var(--a-border-radius-full)",
-                        backgroundColor: "var(--a-surface-neutral)",
-                      }}
-                      aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% brukt`}
-                      role="progressbar"
-                      aria-valuenow={budget.consumedAmount}
-                      aria-valuemin={0}
-                      aria-valuemax={budget.budgetAmount}
-                    >
-                      <div
-                        style={{
-                          height: "100%",
-                          borderRadius: "var(--a-border-radius-full)",
-                          width: `${Math.min(100, Math.round((budget.consumedAmount / budget.budgetAmount) * 100))}%`,
-                          backgroundColor:
-                            budget.consumedAmount / budget.budgetAmount > 0.9
-                              ? "var(--a-icon-danger)"
-                              : budget.consumedAmount / budget.budgetAmount > 0.7
-                                ? "var(--a-icon-warning)"
-                                : "var(--a-icon-success)",
-                        }}
-                      />
-                    </div>
+                  </>
+                ) : (
+                  <>
+                    {budget.isOverride && (
+                      <Tag variant="info" size="small">
+                        Utvidet budsjett
+                      </Tag>
+                    )}
+                    <BodyShort>
+                      <strong>Månedlig budsjett:</strong> {formatNumber(budget.budgetAmount)} USD
+                    </BodyShort>
                   </>
                 )}
                 {!budget.isOverride && (
