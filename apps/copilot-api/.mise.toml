@@ -68,9 +68,9 @@ description = "Run the application locally"
 run = "go run ."
 
 [tasks.dev]
-description = "Run with hot reload (air) and DEBUG log level"
-env = { LOG_LEVEL = "DEBUG", LOGGED_ENDPOINTS = "/api/v1/,/health,/ready" }
-run = "air"
+description = "Run with hot reload (air), DEBUG log level, and secrets from Keychain via fnox"
+env = { LOG_LEVEL = "DEBUG", LOGGED_ENDPOINTS = "/api/v1/,/health,/ready", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }
+run = "fnox exec -- air"
 
 [tasks.clean]
 description = "Clean build artifacts and test outputs"

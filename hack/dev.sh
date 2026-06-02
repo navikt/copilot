@@ -43,10 +43,22 @@ echo ""
 
 cd "$ROOT_DIR"
 
-(cd apps/copilot-api && mise run dev 2>&1 | prefix_output "api" "$CYAN") &
+# Export secrets from keychain into this shell's environment.
+# Child processes (air, pnpm) inherit these vars naturally.
+eval "$(cd apps/copilot-api && fnox export -f env 2>/dev/null)" || true
+eval "$(cd apps/my-copilot  && fnox export -f env 2>/dev/null)" || true
+
+# Single source of truth for the local dev user. Inherited by BOTH child processes:
+# - my-copilot: mock logged-in user (email + derived name)
+# - copilot-api: mock token context; drives SAML username lookup (e.g. budget endpoint
+#   resolves this email -> GitHub username). Kept here (not in mise [env]) so it never
+#   pollutes `mise check`/CI test runs, which expect the default dev@nav.no.
+export DEV_USER_EMAIL="${DEV_USER_EMAIL:-hans.kristian.flaatten@nav.no}"
+
+(cd apps/copilot-api && LOG_LEVEL=DEBUG GCP_TEAM_PROJECT_ID=copilot-dev-e17a LOGGED_ENDPOINTS="/api/v1/,/health,/ready" mise exec -- air 2>&1 | prefix_output "api" "$CYAN") &
 API_PID=$!
 
-(cd apps/my-copilot && COPILOT_API_URL=http://localhost:8080 mise run dev 2>&1 | prefix_output "web" "$GREEN") &
+(cd apps/my-copilot && COPILOT_API_URL=http://localhost:8080 mise exec -- pnpm dev 2>&1 | prefix_output "web" "$GREEN") &
 WEB_PID=$!
 
 wait "$API_PID" "$WEB_PID"

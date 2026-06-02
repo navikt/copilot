@@ -7,6 +7,7 @@ fnox = "latest"
 GITHUB_ORG = "navikt"
 GCP_TEAM_PROJECT_ID = "copilot-dev-e17a"
 NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL = "https://telemetry.ekstern.dev.nav.no/collect"
+DEV_USER_GROUPS = "48120347-8582-4329-8673-7beb3ed6ca06"
 
 [tasks.version]
 run = 'echo "$(date +%Y%m%d)-$(git rev-parse --short HEAD)"'
