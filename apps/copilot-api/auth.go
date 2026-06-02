@@ -331,15 +331,18 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 	// In development without Azure config, allow requests through
 	if config.Environment == "local" && config.AzureIssuer == "" {
 		authMiddlewareReady.Store(true)
-		slog.Warn("Running in development mode without Azure AD validation")
+		// The mock user's email drives SAML-based username resolution (e.g. the budget
+		// endpoint). Make it configurable so local dev can resolve a real GitHub identity.
+		devEmail := getEnv("DEV_USER_EMAIL", "dev@nav.no")
+		slog.Warn("Running in development mode without Azure AD validation", "devUserEmail", devEmail)
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Mock user for development
 				ctx := context.WithValue(r.Context(), userContextKey, &User{
-					Email:             "dev@nav.no",
+					Email:             devEmail,
 					Name:              "Developer User",
 					NAVident:          "DEV001",
-					PreferredUsername: "dev@nav.no",
+					PreferredUsername: devEmail,
 					Groups:            []string{"dev-group"},
 					AZP:               "dev-client",
 				})
