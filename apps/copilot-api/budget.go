@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -25,6 +24,18 @@ type BudgetEntry struct {
 type budgetListResponse struct {
 	Budgets     []BudgetEntry `json:"budgets"`
 	HasNextPage bool          `json:"has_next_page"`
+}
+
+// effectiveBudget is returned by the budgets API when filtered by ?user={username}.
+type effectiveBudget struct {
+	ID             string  `json:"id"`
+	BudgetAmount   float64 `json:"budget_amount"`
+	ConsumedAmount float64 `json:"consumed_amount"`
+}
+
+type userBudgetResponse struct {
+	Budgets         []BudgetEntry    `json:"budgets"`
+	EffectiveBudget *effectiveBudget `json:"effective_budget"`
 }
 
 // UserBudget is the resolved budget for a specific user.
@@ -175,43 +186,74 @@ func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, erro
 	}, nil
 }
 
-// getUserBudget resolves the budget for a given GitHub username.
-// Returns the user-specific override if present, otherwise the enterprise default.
+// getUserBudget resolves the effective budget and consumption for a given GitHub username.
+// Uses the ?user={username} query parameter which returns per-user consumed_amount for all
+// users — both override users and those on the default multi_user_customer budget.
 func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*UserBudget, error) {
-	entries, err := c.getEnterpriseBudgets(ctx)
+	url := fmt.Sprintf(
+		"https://api.github.com/enterprises/%s/settings/billing/budgets?user=%s",
+		c.enterprise, username,
+	)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("get enterprise budgets: %w", err)
+		return nil, fmt.Errorf("create user budget request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.billingToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch user budget: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errBudgetNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("user budget API returned %d", resp.StatusCode)
 	}
 
-	var defaultBudget float64
-	var userEntry *BudgetEntry
-
-	for i := range entries {
-		e := &entries[i]
-		if e.BudgetScope == "multi_user_customer" {
-			defaultBudget = e.BudgetAmount
-		}
-		if e.BudgetScope == "user" && strings.EqualFold(e.BudgetEntityName, username) {
-			userEntry = e
-		}
+	var result userBudgetResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode user budget: %w", err)
 	}
 
-	if defaultBudget == 0 && userEntry == nil {
+	if result.EffectiveBudget == nil {
 		return nil, errBudgetNotFound
 	}
 
-	if userEntry != nil {
-		return &UserBudget{
-			BudgetAmount:   userEntry.BudgetAmount,
-			ConsumedAmount: userEntry.ConsumedAmount,
-			IsOverride:     true,
-			DefaultBudget:  defaultBudget,
-		}, nil
+	// Determine if this is an override budget by checking if the returned scope is "user"
+	isOverride := false
+	for _, b := range result.Budgets {
+		if b.BudgetScope == "user" {
+			isOverride = true
+			break
+		}
 	}
 
+	// defaultBudget is the per-user standard amount from the enterprise default
+	defaultBudget := result.EffectiveBudget.BudgetAmount
+	if isOverride {
+		// For override users, fetch the enterprise default from the cached list
+		entries, err := c.getEnterpriseBudgets(ctx)
+		if err == nil {
+			for _, e := range entries {
+				if e.BudgetScope == "multi_user_customer" {
+					defaultBudget = e.BudgetAmount
+					break
+				}
+			}
+		}
+	}
+
+	consumed := result.EffectiveBudget.ConsumedAmount
 	return &UserBudget{
-		BudgetAmount:  defaultBudget,
-		IsOverride:    false,
-		DefaultBudget: defaultBudget,
+		BudgetAmount:   result.EffectiveBudget.BudgetAmount,
+		ConsumedAmount: &consumed,
+		IsOverride:     isOverride,
+		DefaultBudget:  defaultBudget,
 	}, nil
 }
