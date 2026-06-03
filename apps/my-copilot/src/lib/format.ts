@@ -5,7 +5,7 @@
  * @returns Formatted string with space as thousands separator
  */
 export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("nb-NO").format(value);
+  return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(value);
 }
 
 /**
