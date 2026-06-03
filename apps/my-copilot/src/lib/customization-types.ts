@@ -1,8 +1,10 @@
 export type CustomizationType = "agent" | "instruction" | "prompt" | "skill" | "mcp";
 
 export type { Domain } from "./manifest-types";
+export type { CollectionId } from "./manifest-types";
 import type { ExampleItem } from "./manifest-types";
 import type { Domain } from "./manifest-types";
+import type { CollectionId } from "./manifest-types";
 
 export interface Contributor {
   login: string;
@@ -23,6 +25,7 @@ interface BaseCustomization {
   examples?: ExampleItem[];
   deprecated?: boolean;
   deprecatedMessage?: string;
+  collections?: CollectionId[];
 }
 
 export interface Agent extends BaseCustomization {
@@ -137,4 +140,32 @@ export const TYPE_LABELS: Record<CustomizationType, string> = {
   prompt: "Prompt",
   skill: "Skill",
   mcp: "MCP Server",
+};
+
+export interface CollectionConfig {
+  label: string;
+  description: string;
+}
+
+export const COLLECTION_CONFIGS: Record<CollectionId, CollectionConfig> = {
+  frontend: {
+    label: "Frontend",
+    description: "Rammeverk-uavhengig frontend — Astro, Remix, Vite og andre",
+  },
+  fullstack: {
+    label: "Fullstack",
+    description: "Backend + frontend — komplett for tjenesteteam",
+  },
+  "kotlin-backend": {
+    label: "Kotlin backend",
+    description: "Kotlin/Ktor og Spring Boot på Nais",
+  },
+  "nextjs-frontend": {
+    label: "Next.js frontend",
+    description: "Next.js med Aksel Design System",
+  },
+  platform: {
+    label: "Platform",
+    description: "Plattformteam og DevOps — Nais, observability, sikkerhet, Go",
+  },
 };
