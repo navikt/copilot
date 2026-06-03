@@ -4,6 +4,34 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ---
 
+## 2026-06-03
+
+### nav-pilot — sterkere fasedisiplin og rød-sone-håndhevelse
+
+Analyse av agent-interaksjoner viste at nav-pilot for ofte hoppet over fasestopp og leverte kode uten å deklarere rød sone. Omskrevet fasemaskinen og rød/grønn-sone-systemet med 8 konkrete forbedringer. Fil: 492 → 336 linjer (−32 %).
+
+**Fasedisiplin:**
+
+- **PHASE INTEGRITY** — ny seksjon øverst i filen som eksplisitt forbyr fase N+1-innhold i samme svar som fase N-utput. `Phase gates override concise-by-default.`
+- **Scope-klassifisering** — erstatter vage small/medium/large med eksplisitt tre-nivå-tabell (trivial/compressed/full) med entydige kriterier per nivå. Default til Full ved tvil, PII, auth, ny API-kontrakt eller nytt dataflyt
+- **Kontekst-anker** — etter 5+ svar begynner nav-pilot med én linje som oppsummerer fase, nøkkelbeslutninger og åpne spørsmål. Kompenserer for LLM-konteksttap i lange samtaler
+- **FORBIDDEN-regel** — eksplisitt klausulen «generating Phase N+1 content in the same response as Phase N output» fjernet tvetydighet
+
+**Rød/grønn sone:**
+
+- **🔴 Rød-sone-deklarasjon som punkt #10** — obligatorisk i alle Fase 2-planer. Inkluderer begrunnelse per element, ikke bare en liste. Grønn-sone-elementer er «les gjennom før merge», ikke «trygt»
+- **Explain-back-regel** — etter at utvikleren implementerer rød-sone-kode ber nav-pilot dem forklare den tilbake. Mer effektivt enn stub-blokkering alene (basert på Anthropic-studie 2026)
+- **Blindsoner #1/#2 alltid-obligatorisk** — personvern og tilgangskontroll merket ⚠️ uavhengig av scope-tier når endringen berører brukerdata eller nye endepunkter
+
+**Filstruktur:**
+
+- Fjernet «Slik bruker du meg»-seksjon (25 linjer, lav atferdsverdi)
+- Kondensert HikariCP-kodeblokk og Nais YAML-eksempler til kompakte tabeller/bullets
+- Forkortet Opus-eskaleringseksjon til kjernetriggere
+- Vedlikeholder `<operating_loop>` XML-tag og 6 høykonsekvens-mønster inline
+
+---
+
 ## 2026-05-28
 
 ### `$terse-mode` — native output-komprimering
