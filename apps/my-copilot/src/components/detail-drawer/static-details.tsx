@@ -5,6 +5,7 @@ import { DownloadIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { normalizeExample } from "@/lib/manifest-types";
 import { getNavPilotAddCommand, getGhSkillInstallCommand, CLIENT_SUPPORT } from "@/lib/install-commands";
+import { COLLECTION_CONFIGS } from "@/lib/customization-types";
 import { ToolList, ExclusiveAccordion } from "./shared";
 
 function AgentReferences({
@@ -65,6 +66,42 @@ export function StaticCustomizationDetails({
 
       {item.type === "agent" && item.agentReferences && item.agentReferences.length > 0 && (
         <AgentReferences references={item.agentReferences} allItems={allItems} onNavigate={onNavigate} />
+      )}
+
+      {item.collections && item.collections.length > 0 && (
+        <VStack gap="space-8">
+          <Heading size="xsmall" level="4">
+            Del av samlinger
+          </Heading>
+          <VStack gap="space-4">
+            {item.collections.map((col) => {
+              const config = COLLECTION_CONFIGS[col];
+              const installCmd = `nav-pilot install ${col}`;
+              return (
+                <Box key={col} background="neutral-soft" borderRadius="8" padding="space-8">
+                  <HStack gap="space-8" align="center" justify="space-between" wrap>
+                    <VStack gap="space-2">
+                      <Tag size="xsmall" variant="alt1">
+                        {config?.label ?? col}
+                      </Tag>
+                      {config?.description && (
+                        <BodyShort size="small" className="text-gray-500">
+                          {config.description}
+                        </BodyShort>
+                      )}
+                    </VStack>
+                    <div className="relative">
+                      <code className="text-xs bg-white rounded px-2 py-1 pr-8 inline-block">{installCmd}</code>
+                      <div className="absolute top-0 right-0">
+                        <CopyButton size="xsmall" copyText={installCmd} />
+                      </div>
+                    </div>
+                  </HStack>
+                </Box>
+              );
+            })}
+          </VStack>
+        </VStack>
       )}
 
       {(item.type === "agent" || item.type === "prompt") && item.model && item.model.length > 0 && (

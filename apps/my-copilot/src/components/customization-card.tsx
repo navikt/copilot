@@ -3,7 +3,7 @@
 import { Box, BodyShort, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
 import { DownloadIcon, ChevronRightIcon, WrenchIcon, ComponentIcon, RocketIcon } from "@navikt/aksel-icons";
 import { SiGnometerminal, SiIntellijidea, SiGithub } from "@icons-pack/react-simple-icons";
-import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
+import { DOMAIN_CONFIGS, TYPE_LABELS, COLLECTION_CONFIGS } from "@/lib/customization-types";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { transportLabel, getToolCount, CLIENT_SUPPORT, CLIENT_LABELS } from "@/lib/install-commands";
 
@@ -90,6 +90,16 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
         <BodyShort size="small" className="text-gray-600 line-clamp-3">
           {item.description}
         </BodyShort>
+
+        {item.collections && item.collections.length > 0 && (
+          <HStack gap="space-4" wrap>
+            {item.collections.map((col) => (
+              <Tag key={col} size="xsmall" variant="alt1">
+                {COLLECTION_CONFIGS[col]?.label ?? col}
+              </Tag>
+            ))}
+          </HStack>
+        )}
 
         <div className="flex items-center justify-between gap-(--a-spacing-8) mt-auto">
           <HStack gap="space-8" align="center">

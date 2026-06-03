@@ -6,6 +6,7 @@ import { VALID_DOMAINS } from "../src/lib/manifest-types.ts";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 const GITHUB_DIR = path.join(REPO_ROOT, ".github");
+const COLLECTIONS_DIR = path.join(GITHUB_DIR, "collections");
 const RAW_BASE = "https://raw.githubusercontent.com/navikt/copilot/main/.github";
 const OUTPUT = path.resolve(import.meta.dirname, "../src/lib/copilot-manifest.json");
 
@@ -108,6 +109,50 @@ interface ManifestItem {
   model?: string[];
   deprecated?: boolean;
   deprecatedMessage?: string;
+  collections?: string[];
+}
+
+interface CollectionManifest {
+  name: string;
+  agents?: string[];
+  skills?: string[];
+  instructions?: string[];
+  prompts?: string[];
+}
+
+/**
+ * Read all collection manifest.json files and build a reverse index:
+ * "type:id" → string[] of collection names that include that item.
+ */
+function buildCollectionsIndex(): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+  if (!fs.existsSync(COLLECTIONS_DIR)) return index;
+
+  for (const entry of fs.readdirSync(COLLECTIONS_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const manifestPath = path.join(COLLECTIONS_DIR, entry.name, "manifest.json");
+    if (!fs.existsSync(manifestPath)) continue;
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as CollectionManifest;
+    const collectionId = entry.name;
+
+    for (const id of manifest.agents ?? []) {
+      const key = `agent:${id}`;
+      index.set(key, [...(index.get(key) ?? []), collectionId]);
+    }
+    for (const id of manifest.skills ?? []) {
+      const key = `skill:${id}`;
+      index.set(key, [...(index.get(key) ?? []), collectionId]);
+    }
+    for (const id of manifest.instructions ?? []) {
+      const key = `instruction:${id}`;
+      index.set(key, [...(index.get(key) ?? []), collectionId]);
+    }
+    for (const id of manifest.prompts ?? []) {
+      const key = `prompt:${id}`;
+      index.set(key, [...(index.get(key) ?? []), collectionId]);
+    }
+  }
+  return index;
 }
 
 /**
@@ -295,7 +340,18 @@ function getSkills(): ManifestItem[] {
     });
 }
 
-const items = [...getAgents(), ...getInstructions(), ...getPrompts(), ...getSkills()];
+const collectionsIndex = buildCollectionsIndex();
+
+function withCollections(item: ManifestItem): ManifestItem {
+  const key = `${item.type}:${item.id}`;
+  const itemCollections = collectionsIndex.get(key);
+  if (itemCollections && itemCollections.length > 0) {
+    return { ...item, collections: itemCollections.sort() };
+  }
+  return item;
+}
+
+const items = [...getAgents(), ...getInstructions(), ...getPrompts(), ...getSkills()].map(withCollections);
 
 let existing: { items: unknown; generatedAt: string } | null = null;
 try {
