@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useId } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Box, Search, HGrid, HStack, VStack, BodyShort, Chips } from "@navikt/ds-react";
+import { Box, Button, Search, HGrid, HStack, VStack, BodyShort, Chips, UNSAFE_Combobox } from "@navikt/ds-react";
 import type { CustomizationType, Domain, CollectionId } from "@/lib/customization-types";
-import { DOMAIN_CONFIGS, TYPE_LABELS, COLLECTION_CONFIGS } from "@/lib/customization-types";
+import { TYPE_LABELS, COLLECTION_CONFIGS } from "@/lib/customization-types";
 import { VALID_COLLECTIONS } from "@/lib/manifest-types";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { CustomizationCard } from "./customization-card";
@@ -14,16 +14,18 @@ const TYPES: CustomizationType[] = ["agent", "instruction", "prompt", "skill", "
 
 type SortOption = "alpha" | "most-used";
 
-function isValidType(value: string | null): value is CustomizationType {
-  return value !== null && TYPES.includes(value as CustomizationType);
+function parseTypes(value: string | null): CustomizationType[] {
+  if (!value) return [];
+  return value.split(",").filter((v): v is CustomizationType => TYPES.includes(v as CustomizationType));
+}
+
+function parseCollections(value: string | null): CollectionId[] {
+  if (!value) return [];
+  return value.split(",").filter((v): v is CollectionId => (VALID_COLLECTIONS as readonly string[]).includes(v));
 }
 
 function isValidDomain(value: string | null, domains: Domain[]): value is Domain {
   return value !== null && domains.includes(value as Domain);
-}
-
-function isValidCollection(value: string | null): value is CollectionId {
-  return value !== null && (VALID_COLLECTIONS as readonly string[]).includes(value);
 }
 
 interface CustomizationCatalogProps {
@@ -39,21 +41,17 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
     return Array.from(domains) as Domain[];
   }, [items]);
 
-  const initialType = searchParams.get("type");
   const initialDomain = searchParams.get("domain");
-  const initialCollection = searchParams.get("collection");
   const initialSearch = searchParams.get("q") ?? "";
   const initialItem = searchParams.get("item");
 
   const [search, setSearch] = useState(initialSearch);
-  const [selectedType, setSelectedType] = useState<CustomizationType | null>(
-    isValidType(initialType) ? initialType : null
-  );
+  const [selectedTypes, setSelectedTypes] = useState<CustomizationType[]>(parseTypes(searchParams.get("type")));
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(
     isValidDomain(initialDomain, allDomains) ? initialDomain : null
   );
-  const [selectedCollection, setSelectedCollection] = useState<CollectionId | null>(
-    isValidCollection(initialCollection) ? initialCollection : null
+  const [selectedCollections, setSelectedCollections] = useState<CollectionId[]>(
+    parseCollections(searchParams.get("collection"))
   );
   const [selectedItem, setSelectedItem] = useState<EnrichedCustomization | null>(() => {
     if (initialItem) {
@@ -70,14 +68,14 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
       return;
     }
     const params = new URLSearchParams();
-    if (selectedType) params.set("type", selectedType);
+    if (selectedTypes.length > 0) params.set("type", selectedTypes.join(","));
     if (selectedDomain) params.set("domain", selectedDomain);
-    if (selectedCollection) params.set("collection", selectedCollection);
+    if (selectedCollections.length > 0) params.set("collection", selectedCollections.join(","));
     if (search) params.set("q", search);
     if (selectedItem) params.set("item", selectedItem.id);
     const qs = params.toString();
     router.replace(qs ? `?${qs}` : "/verktoy", { scroll: false });
-  }, [selectedType, selectedDomain, selectedCollection, search, selectedItem, router]);
+  }, [selectedTypes, selectedDomain, selectedCollections, search, selectedItem, router]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -93,9 +91,10 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   const filtered = useMemo(() => {
     const result = items.filter((item) => {
       if (item.deprecated) return false;
-      if (selectedType && item.type !== selectedType) return false;
+      if (selectedTypes.length > 0 && !selectedTypes.includes(item.type)) return false;
       if (selectedDomain && item.domain !== selectedDomain) return false;
-      if (selectedCollection && !item.collections?.includes(selectedCollection)) return false;
+      if (selectedCollections.length > 0 && !item.collections?.some((c) => selectedCollections.includes(c)))
+        return false;
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -111,71 +110,74 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
       return result.sort((a, b) => b.usageCount - a.usageCount || a.name.localeCompare(b.name, "nb"));
     }
     return result.sort((a, b) => a.name.localeCompare(b.name, "nb"));
-  }, [items, search, selectedType, selectedDomain, selectedCollection, sortBy]);
+  }, [items, search, selectedTypes, selectedDomain, selectedCollections, sortBy]);
+
+  const typeId = useId();
+  const collectionId = useId();
+
+  const typeOptions = useMemo(() => TYPES.map((type) => ({ label: TYPE_LABELS[type], value: type })), []);
+  const collectionOptions = useMemo(
+    () => VALID_COLLECTIONS.map((c) => ({ label: COLLECTION_CONFIGS[c].label, value: c })),
+    []
+  );
+
+  const hasActiveFilters = selectedTypes.length > 0 || !!selectedDomain || selectedCollections.length > 0 || !!search;
+
+  function resetFilters() {
+    setSelectedTypes([]);
+    setSelectedDomain(null);
+    setSelectedCollections([]);
+    setSearch("");
+  }
 
   return (
     <VStack gap="space-16">
-      <Box>
-        <Search
-          label="Søk i tilpasninger"
-          hideLabel
-          variant="simple"
-          placeholder="Søk etter navn, beskrivelse..."
-          value={search}
-          onChange={setSearch}
-          onClear={() => setSearch("")}
-        />
-      </Box>
+      <Search
+        label="Søk i tilpasninger"
+        hideLabel
+        variant="simple"
+        placeholder="Søk etter navn, beskrivelse..."
+        value={search}
+        onChange={setSearch}
+        onClear={() => setSearch("")}
+      />
 
       <HStack gap="space-8" wrap>
-        <Chips>
-          <Chips.Toggle selected={selectedType === null} onClick={() => setSelectedType(null)}>
-            Alle typer
-          </Chips.Toggle>
-          {TYPES.map((type) => (
-            <Chips.Toggle
-              key={type}
-              selected={selectedType === type}
-              onClick={() => setSelectedType(selectedType === type ? null : type)}
-            >
-              {TYPE_LABELS[type]}
-            </Chips.Toggle>
-          ))}
-        </Chips>
-      </HStack>
-
-      <HStack gap="space-8" wrap>
-        <Chips>
-          <Chips.Toggle selected={selectedDomain === null} onClick={() => setSelectedDomain(null)}>
-            Alle domener
-          </Chips.Toggle>
-          {allDomains.map((domain) => (
-            <Chips.Toggle
-              key={domain}
-              selected={selectedDomain === domain}
-              onClick={() => setSelectedDomain(selectedDomain === domain ? null : domain)}
-            >
-              {DOMAIN_CONFIGS[domain].label}
-            </Chips.Toggle>
-          ))}
-        </Chips>
-      </HStack>
-
-      <HStack gap="space-8" wrap>
-        <Chips>
-          <Chips.Toggle selected={selectedCollection === null} onClick={() => setSelectedCollection(null)}>
-            Alle samlinger
-          </Chips.Toggle>
-          {VALID_COLLECTIONS.map((collection) => (
-            <Chips.Toggle
-              key={collection}
-              selected={selectedCollection === collection}
-              onClick={() => setSelectedCollection(selectedCollection === collection ? null : collection)}
-            >
-              {COLLECTION_CONFIGS[collection].label}
-            </Chips.Toggle>
-          ))}
-        </Chips>
+        <div className="min-w-48">
+          <UNSAFE_Combobox
+            id={typeId}
+            label="Type"
+            isMultiSelect
+            options={typeOptions}
+            selectedOptions={typeOptions.filter((o) => selectedTypes.includes(o.value))}
+            onToggleSelected={(value, isSelected) => {
+              const type = value as CustomizationType;
+              setSelectedTypes((prev) => (isSelected ? [...prev, type] : prev.filter((t) => t !== type)));
+            }}
+            placeholder="Alle typer"
+          />
+        </div>
+        <div className="min-w-56">
+          <UNSAFE_Combobox
+            id={collectionId}
+            label="Samling"
+            isMultiSelect
+            options={collectionOptions}
+            selectedOptions={collectionOptions.filter((o) => selectedCollections.includes(o.value as CollectionId))}
+            onToggleSelected={(value, isSelected) => {
+              const col = value as CollectionId;
+              setSelectedCollections((prev) => (isSelected ? [...prev, col] : prev.filter((c) => c !== col)));
+            }}
+            placeholder="Alle samlinger"
+          />
+        </div>
+        {hasActiveFilters && (
+          <div className="flex items-end pb-1">
+            <Button variant="tertiary-neutral" size="small" onClick={resetFilters}>
+              Nullstill filtre
+            </Button>
+          </div>
+        )}
       </HStack>
 
       <HStack gap="space-8" align="center" justify="space-between" wrap>
