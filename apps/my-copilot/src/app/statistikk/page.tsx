@@ -21,18 +21,7 @@ import MonthlyModelChart from "@/components/charts/MonthlyModelChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import {
-  Table,
-  BodyShort,
-  Heading,
-  HGrid,
-  Box,
-  HelpText,
-  Skeleton,
-  VStack,
-  HStack,
-  ProgressBar,
-} from "@navikt/ds-react";
+import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import {
@@ -50,7 +39,7 @@ import {
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
-import { backendRequest, BackendApiError } from "@/lib/backend-api";
+import { backendRequest } from "@/lib/backend-api";
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -183,21 +172,11 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     { usage: monthlyModelUsage, error: modelUsageError },
     { usage: billingUsage, error: billingError },
     { cohorts: adoptionCohorts, error: cohortsError },
-    globalBudget,
   ] = await Promise.all([
     getMonthlyTrends(token),
     getMonthlyModelUsage(token),
     getMonthlyBillingUsage(token),
     getAdoptionCohorts(token),
-    backendRequest<{ totalConsumed: number; perUserBudget: number; activeUsers: number }>(
-      "/api/v1/copilot/budget/global",
-      token
-    ).catch((err) => {
-      if (!(err instanceof BackendApiError && err.status === 404)) {
-        console.error("[statistikk] Global budget fetch failed:", err);
-      }
-      return null;
-    }),
   ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
@@ -254,6 +233,18 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     ? new Date(latestComplete.month + "-01").toLocaleDateString("nb-NO", { month: "long", year: "numeric" })
     : undefined;
 
+  // Latest complete billing month summary
+  const latestBillingMonth = (() => {
+    if (!billingUsage || billingUsage.length === 0) return null;
+    const months = [...new Set(billingUsage.map((r) => r.month))].sort();
+    const latest = months[months.length - 1];
+    const rows = billingUsage.filter((r) => r.month === latest);
+    const netAmount = rows.reduce((sum, r) => sum + r.net_amount, 0);
+    const grossAmount = rows.reduce((sum, r) => sum + r.gross_amount, 0);
+    const label = new Date(latest + "-01").toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
+    return { month: latest, label, netAmount, grossAmount };
+  })();
+
   // ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
   const dashboardContent = (
     <VStack gap="space-24">
@@ -303,33 +294,26 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         />
       </HGrid>
 
-      {/* Global AI credit budget */}
-      {globalBudget && (
+      {/* Latest billing month summary */}
+      {latestBillingMonth && (
         <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
-          <VStack gap="space-8">
-            <HStack gap="space-8" align="center" justify="space-between">
-              <HStack gap="space-8" align="center">
-                <BodyShort className="text-gray-600 text-sm">Totalt AI-kredittforbruk</BodyShort>
-                <HelpText title="Totalt AI-kredittforbruk">
-                  Sum av AI-kredittforbruk for alle Nav-utviklere denne måneden. Inkluderer brukere med aktivt forbruk i
-                  GitHub Copilot.
-                </HelpText>
-              </HStack>
+          <HStack gap="space-8" align="center" justify="space-between">
+            <HStack gap="space-8" align="center">
+              <BodyShort className="text-gray-600 text-sm">Fakturert {latestBillingMonth.label}</BodyShort>
+              <HelpText title="Fakturert beløp">
+                Faktisk fakturert beløp fra GitHub for premium AI-modellforespørsler (etter Nav-rabatt). Kilde: GitHub
+                Enhanced Billing API.
+              </HelpText>
+            </HStack>
+            <HStack gap="space-16" align="center">
               <BodyShort className="text-gray-500 text-sm">
-                {formatNumber(Math.round(globalBudget.totalConsumed))} /{" "}
-                {formatNumber(globalBudget.activeUsers * globalBudget.perUserBudget)} USD
+                Brutto: {formatNumber(Math.round(latestBillingMonth.grossAmount))} USD
+              </BodyShort>
+              <BodyShort className="text-gray-800 text-sm font-semibold">
+                Netto: {formatNumber(Math.round(latestBillingMonth.netAmount))} USD
               </BodyShort>
             </HStack>
-            <ProgressBar
-              value={Math.round(globalBudget.totalConsumed)}
-              valueMax={globalBudget.activeUsers * globalBudget.perUserBudget}
-              size="small"
-              aria-label={`${Math.round((globalBudget.totalConsumed / (globalBudget.activeUsers * globalBudget.perUserBudget)) * 100)}% av totalt budsjett brukt`}
-            />
-            <BodyShort className="text-gray-500 text-sm">
-              {globalBudget.activeUsers} aktive brukere · {formatNumber(globalBudget.perUserBudget)} USD per bruker
-            </BodyShort>
-          </VStack>
+          </HStack>
         </Box>
       )}
 
