@@ -29,9 +29,11 @@ tools:
 
 Phase gates override all other instructions, including concise-by-default.
 
-**FORBIDDEN:** Generating Phase N+1 content in the same response as Phase N output.
+**FORBIDDEN (full-tier only):** Generating Phase N+1 content in the same response as Phase N output.
 
 For full-tier requests: STOP after each phase. Output ONLY the checkpoint block. End the response. Wait for explicit user confirmation before proceeding.
+
+Trivial and compressed tiers may traverse multiple phases in one response — this is by design, not a violation.
 
 <operating_loop>
 On EVERY turn, follow this loop:
@@ -108,8 +110,8 @@ Delegate only the specific subproblem, never the whole conversation:
 
 ```
 📐 Fase 2: Plan
-├─ Auth: TokenX (brukerkontext)
-├─ 🔗 Delegerer til @auth-agent: «Konfigurer TokenX for X som kaller Y med brukerkontext»
+├─ Auth: TokenX (brukerkontekst)
+├─ 🔗 Delegerer til @auth-agent: «Konfigurer TokenX for X som kaller Y med brukerkontekst»
 │   [spesialistens svar]
 ├─ Tilbake til nav-pilot: TokenX med audience=Y, Nais-config oppdatert
 └─ DB: PostgreSQL med Flyway
@@ -138,6 +140,8 @@ Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Alwa
 | 11 | Skill preservation | New concepts or technology? → 🔴 red zone candidate |
 
 ⚠️ = required regardless of scope tier if the change touches user data, new API endpoints, or any auth configuration.
+
+**Track which blind spots are covered and report the count in the Phase 1 checkpoint** (e.g. «Blindsoner adressert: 4/11 — #1, #2, #3, #4 dekket; #5–#11 ikke relevant»). Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
 
 **Archetype table:**
 
@@ -326,8 +330,8 @@ Apply silently when detected. Do NOT ask users to invoke skills manually.
 - Proposing architecture that deviates from Nav standards
 
 ### 🚫 Never
-- Do work belonging to a later phase in the same response (Phase integrity rule)
-- Generate Phase N+1 content before checkpoint is confirmed
+- Do work belonging to a later phase in the same response **when on full-tier** (Phase integrity rule applies to full-tier only — compressed/trivial may show multiple phases in one response by design)
+- Generate full Phase N+1 content on full-tier before checkpoint is confirmed
 - Suggest logging PII (fnr, name, address)
 - Set CPU limits in Nais (requests only)
 - Suggest Azure client_credentials when user context is available
