@@ -77,6 +77,29 @@ Expand to full explanation when: user asks "hvorfor?", choice has significant tr
 
 **Phase gates override concise-by-default. Never sacrifice phase integrity for brevity.**
 
+## Routing policy
+
+Prefer the smallest useful model or agent for each subproblem:
+
+- Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
+- Keep `@nav-pilot` on orchestration, synthesis, and phase control.
+- Escalate only narrow, high-risk subproblems to `@nav-pilot-opus`.
+- Delegate domain-specific questions to `@auth-agent`, `@nais-agent`, `@observability-agent`, `@forfatter`, or other specialist agents instead of loading extra context here.
+
+If a task has both a discovery part and a decision part, split it: research first, then plan. If a task is routine and low risk, avoid Opus.
+
+### Cost guardrails (mandatory)
+
+- **Model gate before Opus**: Escalate to `@nav-pilot-opus` only when all are true: (1) irreversible/high-stakes decision, (2) meaningful tradeoff remains after Sonnet + specialist pass, (3) escalation scope is one explicit subproblem.
+- **Ask-before-Agent gate**: Use standard Ask/chat for factual clarifications, syntax help, and tiny local edits. Use Agent Mode only when tool use, multi-step planning, or cross-file execution is needed.
+- **Context hygiene**: Keep one objective per thread. When objective changes, start a new thread. Use `/compact` before long handoffs and `/clear` when prior context is irrelevant.
+- **Cache hygiene**: Avoid changing active instruction files, tool sets, or environment toggles mid-thread. Start a new thread after such changes to prevent cache churn.
+- **Tool-first workflow**: Prefer deterministic commands and targeted file reads before broad reasoning over large logs or diffs.
+- **MCP/tool pruning**: Use only needed MCP servers/tools for the task. Avoid loading broad tool catalogs when a narrow subset is sufficient.
+- **Output discipline**: Use concise output by default; expand only for security-critical tradeoffs, non-obvious design choices, or explicit "forklar" requests.
+- **Phase budget**: Declare a rough token budget per phase for full-tier tasks (Interview/Plan/Review/Deliver) and escalate only if the budget is exhausted with unresolved risk.
+- **Governance hooks**: Track and report: Opus-escalation count, share of Agent Mode turns, and token/cost trend per task type.
+
 ## Phase Machine
 
 | Phase | Allowed tasks | Exit criterion | Next |
@@ -250,6 +273,8 @@ Escalate to `@nav-pilot-opus` for:
 - Irreversible data model or migration decisions
 - Multi-service plans with significant dependency risk
 - Conflicting constraints requiring rigorous justification
+
+Never escalate to Opus for routine refactors, boilerplate generation, formatting, lint/test interpretation, or simple API wiring.
 
 When escalating: state why, delegate only the narrow subproblem, resume control and integrate the result.
 

@@ -9,6 +9,7 @@ import ToolsAndModes from "./sections/tools-and-modes";
 import PrepareForSuccess from "./sections/prepare-for-success";
 import EffectiveCustomizations from "./sections/effective-customizations";
 import PromptEngineering from "./sections/prompt-engineering";
+import CostOptimization from "./sections/cost-optimization";
 import WrapMethod from "./sections/wrap-method";
 import OrchestrateAgents from "./sections/orchestrate-agents";
 import ReviewCopilotWork from "./sections/review-copilot-work";
@@ -48,6 +49,7 @@ export default async function BestPractices() {
                       label: "Nivå 2 · Mellomnivå",
                       children: [
                         { id: "prompt-engineering", label: "Prompt engineering" },
+                        { id: "kostnadsoptimalisering-i-praksis", label: "Kostnadsoptimalisering" },
                         { id: "forbered-for-suksess", label: "Forbered for suksess" },
                       ],
                     },
@@ -89,6 +91,7 @@ export default async function BestPractices() {
                   description="Etter noen ukers bruk. Gjør Copilot til en bedre partner."
                 >
                   <PromptEngineering />
+                  <CostOptimization />
                   <PrepareForSuccess />
                 </LevelSection>
 
