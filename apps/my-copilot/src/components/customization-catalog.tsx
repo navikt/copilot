@@ -144,7 +144,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             onClear={() => setSearch("")}
           />
         </div>
-        <div className="w-1/4">
+        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden">
           <UNSAFE_Combobox
             id={typeId}
             label="Type"
@@ -155,10 +155,10 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
               const type = value as CustomizationType;
               setSelectedTypes((prev) => (isSelected ? [...prev, type] : prev.filter((t) => t !== type)));
             }}
-            placeholder="Alle typer"
+            placeholder={selectedTypes.length > 0 ? `${selectedTypes.length} valgt` : "Alle typer"}
           />
         </div>
-        <div className="w-1/4">
+        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden">
           <UNSAFE_Combobox
             id={collectionId}
             label="Samling"
@@ -169,7 +169,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
               const col = value as CollectionId;
               setSelectedCollections((prev) => (isSelected ? [...prev, col] : prev.filter((c) => c !== col)));
             }}
-            placeholder="Alle samlinger"
+            placeholder={selectedCollections.length > 0 ? `${selectedCollections.length} valgt` : "Alle samlinger"}
           />
         </div>
         {hasActiveFilters && (
