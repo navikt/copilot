@@ -386,7 +386,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                       />
                     </div>
                     <BodyShort size="small">
-                      Grensen er satt for å unngå uventet høyt forbruk — ikke et mål om å bruke opp.
+                      Grensen er satt for å unngå uventet høyt forbruk — ikke et mål om å bruke opp. Ubrukt kapasitet
+                      overføres ikke og Nav betaler kun for faktisk forbruk.
                     </BodyShort>
                   </>
                 ) : (
@@ -408,7 +409,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                 )}
                 {!budget.isOverride && (
                   <BodyShort size="small">
-                    Standardgrense for alle Nav-utviklere. Bruk Copilot normalt — grensen er ikke et mål om å nå.
+                    Standardgrense for alle Nav-utviklere. Bruk Copilot normalt — Nav betaler kun for faktisk forbruk,
+                    ikke for ubrukt kapasitet.
                   </BodyShort>
                 )}
               </>
