@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func main() {
@@ -85,8 +87,14 @@ func main() {
 	mux.HandleFunc("/ready", readyHandler)
 	mux.Handle("/metrics", metricsHandler())
 
-	// Protected API endpoints
-	mux.Handle("/api/v1/", loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers))))
+	// Protected API endpoints — wrapped with OTel tracing
+	mux.Handle("/api/v1/", otelhttp.NewHandler(
+		loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers))),
+		"api",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}),
+	))
 
 	slog.Info("Server listening", "port", config.Port)
 

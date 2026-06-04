@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 // healthHandler handles /health endpoint
@@ -196,11 +198,18 @@ func loggingMiddleware(config *Config, next http.Handler) http.Handler {
 		}
 
 		if shouldLog {
-			slog.Info("HTTP request",
+			args := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
 				"remote_addr", r.RemoteAddr,
-			)
+			}
+			if sc := trace.SpanFromContext(r.Context()).SpanContext(); sc.IsValid() {
+				args = append(args,
+					"trace_id", sc.TraceID().String(),
+					"span_id", sc.SpanID().String(),
+				)
+			}
+			slog.Info("HTTP request", args...)
 		}
 
 		next.ServeHTTP(w, r)
