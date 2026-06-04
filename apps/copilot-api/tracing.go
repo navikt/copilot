@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -24,7 +25,7 @@ func initTracer(ctx context.Context, serviceName string) (func(context.Context) 
 		return func(context.Context) error { return nil }, nil
 	}
 
-	exporter, err := otlptracehttp.New(ctx)
+	exporter, err := otlptracegrpc.New(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("create OTLP trace exporter: %w", err)
 	}
@@ -49,6 +50,8 @@ func initTracer(ctx context.Context, serviceName string) (func(context.Context) 
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
+
+	slog.Info("OTel tracer initialized", "endpoint", endpoint, "service", serviceName)
 
 	return tp.Shutdown, nil
 }
