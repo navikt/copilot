@@ -132,18 +132,19 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
 
   return (
     <VStack gap="space-16">
-      <Search
-        label="Søk i tilpasninger"
-        hideLabel
-        variant="simple"
-        placeholder="Søk etter navn, beskrivelse..."
-        value={search}
-        onChange={setSearch}
-        onClear={() => setSearch("")}
-      />
-
-      <HStack gap="space-8" wrap>
-        <div className="min-w-48">
+      <div className="flex gap-4 items-end">
+        <div className="w-1/2">
+          <Search
+            label="Søk i tilpasninger"
+            hideLabel
+            variant="simple"
+            placeholder="Søk etter navn, beskrivelse..."
+            value={search}
+            onChange={setSearch}
+            onClear={() => setSearch("")}
+          />
+        </div>
+        <div className="w-1/4">
           <UNSAFE_Combobox
             id={typeId}
             label="Type"
@@ -157,7 +158,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             placeholder="Alle typer"
           />
         </div>
-        <div className="min-w-56">
+        <div className="w-1/4">
           <UNSAFE_Combobox
             id={collectionId}
             label="Samling"
@@ -172,13 +173,11 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           />
         </div>
         {hasActiveFilters && (
-          <div className="flex items-end pb-1">
-            <Button variant="tertiary-neutral" size="small" onClick={resetFilters}>
-              Nullstill filtre
-            </Button>
-          </div>
+          <Button variant="tertiary-neutral" size="small" onClick={resetFilters}>
+            Nullstill filtre
+          </Button>
         )}
-      </HStack>
+      </div>
 
       <HStack gap="space-8" align="center" justify="space-between" wrap>
         <HStack gap="space-8" align="center">
