@@ -4,6 +4,77 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ---
 
+## 2026-06-04
+
+### nav-pilot web docs — README-audit og riktig integrasjon
+
+Fjernet README-embedding fra `/nav-pilot/docs` og gjorde i stedet en målrettet innholdsjustering i web docs:
+
+- La til lenke til primær dokumentasjon: `https://ki-utvikling.nav.no/nav-pilot`
+- La til lenke til changelog i ressursseksjonen
+- Beholdt docs-siden som kuratert dokumentasjon i stedet for å rendere README rått
+- Fjernet duplikatinnhold i leseflyten:
+  - «Første kommandoer» ble erstattet med pekere til «CLI-referanse»
+  - «Livssyklus» ble fjernet fra TOC og erstattet med kort krysslenke til relevante seksjoner
+
+### README — slanket for web docs-først
+
+`docs/README.nav-pilot.md` er redusert til en kort inngangsside:
+
+- kort beskrivelse + lenke til online docs
+- minimale komme-i-gang-kommandoer
+- korte bidragsyter-pekere
+
+### my-copilot — nav-pilot README inn i web docs
+
+Denne tilnærmingen ble testet og deretter erstattet samme dag med kuratert docs-side (se «README-audit og riktig integrasjon» over).
+
+- Rå README-embedding i docs-side er fjernet
+
+### nav-pilot — ekstra kosttiltak fra oppdatert research
+
+La inn flere håndhevbare tiltak som ikke var eksplisitt dekket tidligere:
+
+- **Ask-before-Agent gate**: små fakta-/syntaksoppgaver skal løses i Ask/chat før Agent Mode vurderes
+- **Cache-hygiene**: unngå bytte av instruksjoner/verktøy midt i tråd; start ny tråd for stabil cache
+- **Fasebudsjett**: grovt tokenbudsjett per fase i full-tier oppgaver
+- **Governance hooks**: følg Opus-eskaleringer, Agent Mode-andel og kosttrend per oppgavetype
+
+### Dokumentasjonsstruktur for kosteffektiv Copilot-bruk
+
+Dokumentasjonen ble tydelig delt i fire lag for mindre sprik mellom policy og formidling:
+
+- `.github/agents/nav-pilot.agent.md` er styrende policy (fasit)
+- `docs/README.nav-pilot.md` er operativ playbook for bruk
+- `docs/nav-pilot-changelog.md` er sporbar endringslogg
+- `apps/my-copilot/src/app/praksis/sections/cost-optimization.tsx` er pedagogisk praksis-side
+
+### nav-pilot — routing-policy for lavere tokenkost
+
+La til en eksplisitt routing-policy i `nav-pilot.agent.md` for å redusere unødvendig kontekst og modellkost:
+
+- Bruk `@research-agent` først til kartlegging og faktainnhenting
+- Hold `@nav-pilot` til orkestrering, syntese og fasekontroll
+- Eskaler kun smale høyrisiko-delproblemer til `@nav-pilot-opus`
+- Deleger domenespørsmål til spesialistagenter i stedet for å laste alt i én kontekst
+
+### Dokumentasjon — tydeligere føringer for agentvalg
+
+Oppdatert `docs/README.nav-pilot.md` med kort, praktisk anbefaling om når `@research-agent` og `@nav-pilot-opus` bør brukes.
+
+### nav-pilot — operasjonelle kostnadsvern på routing
+
+For å dekke hele research-bildet (7 tiltak) ble policyen skjerpet med håndhevbare regler:
+
+- **Model-gate for Opus**: Krever irreversibel/høyrisiko-beslutning + uløst tradeoff + smalt delproblem før eskalering
+- **Eksplisitt «never escalate»** for rutineoppgaver (boilerplate, enkel wiring, lint/test-tolkning)
+- **Konteksthygiene**: én oppgave per tråd, bruk `/compact` ved handoff, `/clear` ved problembytte
+- **Tool-first** som standard: deterministiske kommandoer før bred LLM-tolkning
+- **MCP/tool-pruning**: hold aktive verktøysett smale for aktuell oppgave
+- **Output-disciplin**: kort output som default, utvid bare ved reelle tradeoffs/sikkerhetsbehov
+
+---
+
 ## 2026-06-03
 
 ### nav-pilot — sterkere fasedisiplin og rød-sone-håndhevelse

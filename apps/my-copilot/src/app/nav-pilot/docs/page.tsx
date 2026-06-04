@@ -51,7 +51,6 @@ const DOC_SECTIONS: TocItem[] = [
     children: [
       { id: "installasjon", label: "Installasjon (5 min)" },
       { id: "personlig-installasjon", label: "Personlig installasjon (valgfritt)" },
-      { id: "første-kommandoer", label: "Første kommandoer" },
       { id: "vanlige-oppgaver", label: "Vanlige oppgaver" },
     ],
   },
@@ -112,10 +111,7 @@ const DOC_SECTIONS: TocItem[] = [
   {
     id: "slik-fungerer-det",
     label: "Slik fungerer det",
-    children: [
-      { id: "filstruktur", label: "Filstruktur" },
-      { id: "livssyklus", label: "Livssyklus" },
-    ],
+    children: [{ id: "filstruktur", label: "Filstruktur" }],
   },
   {
     id: "ressurser",
@@ -705,35 +701,15 @@ nav-pilot`}
           </div>
         </div>
 
-        <div id="første-kommandoer">
-          <LinkableHeading size="small" level="3">
-            Første kommandoer
-          </LinkableHeading>
-          <BodyLong className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Her er noen nyttige kommandoer:
-          </BodyLong>
-          <div className="space-y-3">
-            {[
-              { label: "Se hva som ble installert", cmd: "nav-pilot list --installed" },
-              { label: "Vis alle tilgjengelige collections og komponenter", cmd: "nav-pilot list" },
-              {
-                label: "Installer en ekstra agent eller skill",
-                cmd: "nav-pilot install security-champion\nnav-pilot install postgresql-review",
-              },
-              { label: "Sjekk om det finnes oppdateringer", cmd: "nav-pilot sync" },
-              { label: "Rapporter feil eller foreslå forbedringer", cmd: "nav-pilot feedback" },
-            ].map((item) => (
-              <div key={item.label}>
-                <Label size="small" style={{ color: "#64748b" }}>
-                  {item.label}
-                </Label>
-                <div className="mt-1">
-                  <CodeBlock compact>{item.cmd}</CodeBlock>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Box background="neutral-soft" borderRadius="8" padding="space-12">
+          <BodyShort size="small" style={{ color: "#475569" }}>
+            Trenger du full kommandoreferanse? Gå til{" "}
+            <NextLink href="#kommandooversikt" className="text-blue-600 hover:underline">
+              CLI-referanse
+            </NextLink>
+            . Her i «Kom i gang» holder vi kun minimumsstegene.
+          </BodyShort>
+        </Box>
 
         {/* Common tasks — job-oriented view */}
         <div id="vanlige-oppgaver">
@@ -1757,89 +1733,19 @@ function HowItWorksSection() {
           <FileExplorer />
         </div>
 
-        {/* Lifecycle */}
-        <div id="livssyklus">
-          <LinkableHeading size="small" level="3">
-            Livssyklus
-          </LinkableHeading>
-          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Fra installasjon til daglig bruk — slik henger delene sammen.
+        <Box background="neutral-soft" borderRadius="8" padding="space-12">
+          <BodyShort size="small" style={{ color: "#475569" }}>
+            Flyten fra installasjon til daglig bruk er dekket i{" "}
+            <NextLink href="#installasjon" className="text-blue-600 hover:underline">
+              Kom i gang
+            </NextLink>{" "}
+            og{" "}
+            <NextLink href="#kommandooversikt" className="text-blue-600 hover:underline">
+              CLI-referanse
+            </NextLink>
+            . Denne seksjonen viser kun filstrukturen.
           </BodyShort>
-          <div className="flex flex-col" style={{ gap: "2px" }}>
-            {[
-              {
-                step: "1",
-                title: "Installer",
-                desc: "nav-pilot install kopierer markdown-filer fra navikt/copilot til .github/ i repoet ditt.",
-                cmd: "nav-pilot install kotlin-backend",
-                accent: "#3b82f6",
-                bg: "#eff6ff",
-              },
-              {
-                step: "2",
-                title: "Commit og push",
-                desc: "Filene committes som vanlig kode. Hele teamet får samme Copilot-tilpasning.",
-                cmd: "git add .github/ && git commit",
-                accent: "#7c3aed",
-                bg: "#f5f3ff",
-              },
-              {
-                step: "3",
-                title: "Copilot leser automatisk",
-                desc: "GitHub Copilot oppdager filene og tilpasser seg. Instruksjoner aktiveres automatisk, agenter kalles med @.",
-                cmd: "@nav-pilot planlegg et nytt API",
-                accent: "#059669",
-                bg: "#ecfdf5",
-              },
-              {
-                step: "4",
-                title: "Hold oppdatert",
-                desc: "nav-pilot sjekker automatisk om det finnes oppdateringer. Bruk sync for å hente nye skills og forbedringer.",
-                cmd: "nav-pilot sync --apply",
-                accent: "#d97706",
-                bg: "#fffbeb",
-              },
-            ].map((phase, i, arr) => (
-              <div
-                key={phase.step}
-                className="flex items-start gap-4"
-                style={{
-                  padding: "1rem 1.25rem",
-                  background: phase.bg,
-                  borderRadius: i === 0 ? "10px 10px 0 0" : i === arr.length - 1 ? "0 0 10px 10px" : "0",
-                }}
-              >
-                <div
-                  className="flex-shrink-0 flex items-center justify-center rounded-full font-bold"
-                  style={{
-                    width: "2rem",
-                    height: "2rem",
-                    background: "white",
-                    color: phase.accent,
-                    fontSize: "0.875rem",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                  }}
-                >
-                  {phase.step}
-                </div>
-                <div className="flex-1">
-                  <Label size="small" style={{ color: phase.accent }}>
-                    {phase.title}
-                  </Label>
-                  <BodyShort size="small" style={{ color: "#475569" }}>
-                    {phase.desc}
-                  </BodyShort>
-                  <code
-                    className="text-xs font-mono mt-1 inline-block rounded px-1.5 py-0.5"
-                    style={{ background: "rgba(255,255,255,0.7)", color: "#64748b" }}
-                  >
-                    {phase.cmd}
-                  </code>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        </Box>
       </VStack>
     </section>
   );
@@ -1985,9 +1891,14 @@ function ResourcesSection() {
           <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                label: "GitHub-repo",
-                href: "https://github.com/navikt/copilot",
-                desc: "Kildekode og issues",
+                label: "Kom i gang",
+                href: "#kom-i-gang",
+                desc: "Minimumssteg for installasjon og første bruk",
+              },
+              {
+                label: "CLI-referanse",
+                href: "#kommandooversikt",
+                desc: "Kommandoreferanse med eksempler",
               },
               {
                 label: "Alle verktøy",
@@ -1998,11 +1909,6 @@ function ResourcesSection() {
                 label: "God praksis",
                 href: "/praksis",
                 desc: "Lær å bruke Copilot effektivt",
-              },
-              {
-                label: "Nais-dokumentasjon",
-                href: "https://doc.nais.io",
-                desc: "Plattformdokumentasjon",
               },
             ].map((link) => (
               <NextLink
