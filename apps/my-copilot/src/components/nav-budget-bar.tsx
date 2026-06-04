@@ -28,7 +28,7 @@ export default function NavBudgetBar() {
   return (
     <div
       style={{ display: "flex", alignItems: "center", gap: "6px" }}
-      title={`${pct}% av AI-kredittbudsjettet brukt denne måneden`}
+      title={`${pct}% av AI-kredittgrensen brukt denne måneden`}
     >
       <div
         style={{
@@ -39,7 +39,7 @@ export default function NavBudgetBar() {
           overflow: "hidden",
         }}
         role="progressbar"
-        aria-label={`${pct}% av AI-kredittbudsjettet brukt`}
+        aria-label={`${pct}% av AI-kredittgrensen brukt`}
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}

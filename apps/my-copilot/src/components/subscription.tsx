@@ -350,7 +350,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         <Box padding="space-8" borderRadius="8" className="border">
           <VStack gap="space-4">
             <Heading size="medium" level="3">
-              AI-kredittbudsjett
+              AI-kredittgrense
             </Heading>
             {loading ? (
               <VStack gap="space-4" role="status">
@@ -371,7 +371,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                         }}
                       >
                         <BodyShort size="small" className="text-gray-600">
-                          {budget.isOverride ? "Utvidet budsjett" : "Budsjett"} ·{" "}
+                          {budget.isOverride ? "Utvidet grense" : "Grense"} ·{" "}
                           {Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% brukt
                         </BodyShort>
                         <BodyShort size="small" className="text-gray-600">
@@ -382,12 +382,11 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                         value={budget.consumedAmount}
                         valueMax={budget.budgetAmount}
                         size="small"
-                        aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av budsjettet brukt`}
+                        aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av AI-kredittgrensen brukt`}
                       />
                     </div>
-                    <BodyShort>
-                      <strong>Gjenstående:</strong>{" "}
-                      {formatNumber(Math.max(0, budget.budgetAmount - budget.consumedAmount))} USD
+                    <BodyShort size="small">
+                      Grensen er satt for å unngå uventet høyt forbruk — ikke et mål om å bruke opp.
                     </BodyShort>
                   </>
                 ) : (
@@ -398,17 +397,19 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                       </Tag>
                     )}
                     <BodyShort>
-                      <strong>Månedlig budsjett:</strong> {formatNumber(budget.budgetAmount)} USD
+                      <strong>Månedlig grense:</strong> {formatNumber(budget.budgetAmount)} USD
                     </BodyShort>
                     <BodyShort size="small" className="text-gray-600">
                       {budget.isOverride
-                        ? "Forbruksdata er ikke tilgjengelig for dette budsjettet."
-                        : "GitHub rapporterer ikke individuelt forbruk for standardbudsjettet."}
+                        ? "Forbruksdata er ikke tilgjengelig for denne grensen."
+                        : "GitHub rapporterer ikke individuelt forbruk for standardgrensen."}
                     </BodyShort>
                   </>
                 )}
                 {!budget.isOverride && (
-                  <BodyShort size="small">Dette er standardbudsjettet for alle Nav-utviklere.</BodyShort>
+                  <BodyShort size="small">
+                    Standardgrense for alle Nav-utviklere. Bruk Copilot normalt — grensen er ikke et mål om å nå.
+                  </BodyShort>
                 )}
               </>
             ) : (
