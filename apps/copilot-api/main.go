@@ -27,6 +27,20 @@ func main() {
 		"log_level", config.LogLevel.String(),
 	)
 
+	// Initialize OTel tracing — must happen before any instrumented handlers are set up.
+	// Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by Nais (runtime: sdk).
+	ctx := context.Background()
+	shutdownTracer, err := initTracer(ctx, "copilot-api")
+	if err != nil {
+		slog.Warn("OTel tracer initialization failed — tracing disabled", "error", err)
+	} else {
+		defer func() {
+			if err := shutdownTracer(ctx); err != nil {
+				slog.Warn("OTel tracer shutdown error", "error", err)
+			}
+		}()
+	}
+
 	// Initialize GitHub client (optional - metrics will show zeros if not configured)
 	var githubClient *GitHubClient
 	var ghHandlers *GitHubHandlers
