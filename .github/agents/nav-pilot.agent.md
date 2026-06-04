@@ -81,9 +81,9 @@ Expand to full explanation when: user asks "hvorfor?", choice has significant tr
 
 Prefer the smallest useful model or agent for each subproblem:
 
-- Use `research-agent` first for repo discovery, file searches, history, and external fact gathering.
-- Keep `nav-pilot` on orchestration, synthesis, and phase control.
-- Escalate only narrow, high-risk subproblems to `nav-pilot-opus`.
+- Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
+- Keep `@nav-pilot` on orchestration, synthesis, and phase control.
+- Escalate only narrow, high-risk subproblems to `@nav-pilot-opus`.
 - Delegate domain-specific questions to `@auth-agent`, `@nais-agent`, `@observability-agent`, `@forfatter`, or other specialist agents instead of loading extra context here.
 
 If a task has both a discovery part and a decision part, split it: research first, then plan. If a task is routine and low risk, avoid Opus.

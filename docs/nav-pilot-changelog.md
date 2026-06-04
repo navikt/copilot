@@ -58,10 +58,6 @@ La til en eksplisitt routing-policy i `nav-pilot.agent.md` for å redusere unød
 - Eskaler kun smale høyrisiko-delproblemer til `@nav-pilot-opus`
 - Deleger domenespørsmål til spesialistagenter i stedet for å laste alt i én kontekst
 
-### Dokumentasjon — tydeligere føringer for agentvalg
-
-Oppdatert `docs/README.nav-pilot.md` med kort, praktisk anbefaling om når `@research-agent` og `@nav-pilot-opus` bør brukes.
-
 ### nav-pilot — operasjonelle kostnadsvern på routing
 
 For å dekke hele research-bildet (7 tiltak) ble policyen skjerpet med håndhevbare regler:
@@ -71,7 +67,7 @@ For å dekke hele research-bildet (7 tiltak) ble policyen skjerpet med håndhevb
 - **Konteksthygiene**: én oppgave per tråd, bruk `/compact` ved handoff, `/clear` ved problembytte
 - **Tool-first** som standard: deterministiske kommandoer før bred LLM-tolkning
 - **MCP/tool-pruning**: hold aktive verktøysett smale for aktuell oppgave
-- **Output-disciplin**: kort output som default, utvid bare ved reelle tradeoffs/sikkerhetsbehov
+- **Output-disiplin**: kort output som standard, utvid bare ved reelle tradeoffs/sikkerhetsbehov
 
 ---
 

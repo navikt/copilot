@@ -104,11 +104,17 @@ export default function CostOptimization() {
               Erfaringer som går igjen
             </Heading>
             <Box paddingBlock="space-8">
-              <VStack gap="space-8">
-                <BodyShort size="small">- Lange sesjoner er sjelden billigst, selv med cache.</BodyShort>
-                <BodyShort size="small">- Ubrukte verktøy i konteksten gir merkbar token-kost over tid.</BodyShort>
-                <BodyShort size="small">- Smal delegering gir bedre svar enn én stor "gjør alt"-prompt.</BodyShort>
-              </VStack>
+              <ul style={{ paddingInlineStart: "1.25rem", margin: 0 }}>
+                <li>
+                  <BodyShort size="small">Lange sesjoner er sjelden billigst, selv med cache.</BodyShort>
+                </li>
+                <li>
+                  <BodyShort size="small">Ubrukte verktøy i konteksten gir merkbar token-kost over tid.</BodyShort>
+                </li>
+                <li>
+                  <BodyShort size="small">Smal delegering gir bedre svar enn én stor "gjør alt"-prompt.</BodyShort>
+                </li>
+              </ul>
             </Box>
           </Box>
 
