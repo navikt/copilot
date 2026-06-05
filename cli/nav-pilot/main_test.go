@@ -2127,7 +2127,7 @@ func TestPickerInstallSyncCycle(t *testing.T) {
 	}
 
 	// Step 3: Verify resolveSyncFiles skips ignored items
-	syncFiles, _, err := resolveSyncFiles(scope, source)
+	syncFiles, _, err := resolveSyncFiles(scope, source, false)
 	if err != nil {
 		t.Fatalf("resolveSyncFiles: %v", err)
 	}
