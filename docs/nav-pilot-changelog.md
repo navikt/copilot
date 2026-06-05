@@ -2,16 +2,6 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
-## 2026-06-05
-
-### nav-pilot CLI — launch følger agent-default (ikke tvungen `auto`)
-
-Justerte launch-policy i `cli/nav-pilot` for bedre balanse mellom kost og kvalitet for alle brukere:
-
-- Fjerner tvungen `--model auto` ved `--agent nav-pilot`
-- Setter ikke `effort` eksplisitt i launch-argumenter
-- Lar modellvalg styres av agent-default (Sonnet i agentfilen) eller eksplisitt bruker-overstyring
-
 ---
 
 ## 2026-06-04

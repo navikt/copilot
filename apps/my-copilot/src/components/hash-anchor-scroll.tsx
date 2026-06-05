@@ -7,7 +7,12 @@ function scrollToHash(): boolean {
   const hash = window.location.hash.slice(1);
   if (!hash) return true;
 
-  const id = decodeURIComponent(hash);
+  let id = hash;
+  try {
+    id = decodeURIComponent(hash);
+  } catch {
+    // Keep raw hash if fragment is malformed.
+  }
   const target = document.getElementById(id);
   if (!target) return false;
 

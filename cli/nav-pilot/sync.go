@@ -112,12 +112,6 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		}
 		fmt.Println()
 	}
-	if !jsonOutput && len(conflictPaths) > 0 && !apply {
-		for _, p := range conflictPaths {
-			fmt.Printf("  %s %s (conflict — skipped, run sync --apply to overwrite)\n", dim("⊘"), p)
-		}
-		fmt.Println()
-	}
 
 	// Compare each file against source.
 	// Files that are in state but missing on disk are treated as intentionally
@@ -245,6 +239,11 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	// Update state with new hashes
 	if err := updateScopedStateHashes(scope, appliedUpdates); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update state file: %v\n", yellow("⚠"), err)
+	}
+	if apply {
+		if err := clearResolvedConflicts(scope, src.Dir, files, conflictPaths); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not clear resolved conflicts: %v\n", yellow("⚠"), err)
+		}
 	}
 
 	// Only bump source SHA and version if ALL updates were applied successfully
@@ -554,6 +553,57 @@ func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
 		state.Files[i].Status = ""
 	}
 
+	return writeScopedState(scope, state)
+}
+
+// clearResolvedConflicts clears conflict status for files that currently match source.
+func clearResolvedConflicts(scope *InstallScope, sourceDir string, files []syncFile, conflictPaths []string) error {
+	if len(conflictPaths) == 0 {
+		return nil
+	}
+
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+
+	byLocalPath := make(map[string]syncFile, len(files))
+	for _, sf := range files {
+		byLocalPath[sf.localPath] = sf
+	}
+	conflictSet := make(map[string]bool, len(conflictPaths))
+	for _, p := range conflictPaths {
+		conflictSet[p] = true
+	}
+
+	changed := false
+	for i, f := range state.Files {
+		if !conflictSet[f.Path] {
+			continue
+		}
+		sf, ok := byLocalPath[f.Path]
+		if !ok {
+			continue
+		}
+
+		localFull := filepath.Join(scope.RootDir, sf.localPath)
+		sourceFull := filepath.Join(sourceDir, sf.sourcePath)
+		isDir := strings.HasSuffix(sf.localPath, "/")
+
+		localHash, localErr := rawArtifactHash(localFull, isDir)
+		sourceHash, sourceErr := rawArtifactHash(sourceFull, isDir)
+		if localErr != nil || sourceErr != nil {
+			continue
+		}
+		if localHash == sourceHash && state.Files[i].Status != "" {
+			state.Files[i].Status = ""
+			changed = true
+		}
+	}
+
+	if !changed {
+		return nil
+	}
 	return writeScopedState(scope, state)
 }
 
