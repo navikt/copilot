@@ -27,9 +27,10 @@ func TestResolveSyncFiles_WithState(t *testing.T) {
 			{Path: ".github/skills/api-design/", Hash: "def456"},
 		},
 	}
+
 	writeState(dir, state)
 
-	files, collection, err := resolveSyncFiles(ScopeRepo(dir), sourceDir)
+	files, collection, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,6 +42,41 @@ func TestResolveSyncFiles_WithState(t *testing.T) {
 	}
 	if !files[1].isDir {
 		t.Error("skill path should be detected as dir")
+	}
+}
+
+func TestResolveSyncFiles_ConflictHandling(t *testing.T) {
+	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nav-pilot.agent.md"), []byte("# New"), 0o644)
+
+	state := &StateFile{
+		Collection: "fullstack",
+		Version:    "2025.07",
+		Files: []InstalledFile{
+			{Path: ".github/agents/nav-pilot.agent.md", Hash: "abc123", Status: fileStatusConflict},
+		},
+	}
+	writeState(dir, state)
+
+	// Default sync check should skip conflicts
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("files count (exclude conflicts) = %d, want 0", len(files))
+	}
+
+	// Apply mode should include conflicts so they can be overwritten
+	files, _, err = resolveSyncFiles(ScopeRepo(dir), sourceDir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("files count (include conflicts) = %d, want 1", len(files))
 	}
 }
 
@@ -63,7 +99,7 @@ func TestResolveSyncFiles_AutoDetect(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
-	files, collection, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	files, collection, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +144,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelSource(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,6 +358,34 @@ func TestUpdateStateHashes(t *testing.T) {
 	}
 }
 
+func TestUpdateStateHashes_ClearsConflictStatus(t *testing.T) {
+	dir := t.TempDir()
+
+	rel := filepath.Join(".github", "agents", "x.agent.md")
+	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(dir, rel), []byte("updated content"), 0o644)
+
+	state := &StateFile{
+		Collection: "test",
+		Files: []InstalledFile{
+			{Path: rel, Hash: "oldhash", Status: fileStatusConflict},
+		},
+	}
+	writeState(dir, state)
+
+	newHash, _ := fileHash(filepath.Join(dir, rel))
+	updates := []syncUpdate{{Path: rel, CurrentHash: "oldhash", SourceHash: newHash}}
+
+	if err := updateStateHashes(dir, updates); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := readState(dir)
+	if got.Files[0].Status != "" {
+		t.Errorf("status = %q, want empty", got.Files[0].Status)
+	}
+}
+
 func TestUpdateStateHashes_NoState(t *testing.T) {
 	dir := t.TempDir()
 	// Should not error when no state file exists
@@ -437,7 +501,7 @@ func TestResolveSyncFiles_UserScope_PathRemapping(t *testing.T) {
 	}
 	writeScopedState(scope, state)
 
-	files, collection, err := resolveSyncFiles(scope, sourceDir)
+	files, collection, err := resolveSyncFiles(scope, sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -497,7 +561,7 @@ func TestResolveSyncFiles_UserScope_InstructionPathNotDoubled(t *testing.T) {
 	}
 	writeScopedState(scope, state)
 
-	files, _, err := resolveSyncFiles(scope, sourceDir)
+	files, _, err := resolveSyncFiles(scope, sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -613,7 +677,7 @@ func TestResolveSyncFiles_UserScope_NoState_ReturnsEmpty(t *testing.T) {
 		SupportedTypes: []string{"agent", "skill", "instruction"},
 	}
 
-	files, collection, err := resolveSyncFiles(scope, "")
+	files, collection, err := resolveSyncFiles(scope, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -805,7 +869,7 @@ func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir)
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -839,7 +903,7 @@ func TestResolveSyncFiles_SkipsConflictedFiles(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir)
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -923,7 +987,7 @@ func TestStateFile_BackwardsCompat_NoStatusField(t *testing.T) {
 	}
 
 	// resolveSyncFiles should include all files (none ignored)
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), "")
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -977,7 +1041,7 @@ func TestResolveSyncFiles_AutoDetect_InvalidRootFallsBack(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "my-skill"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "my-skill", "SKILL.md"), []byte("new-legacy"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1009,7 +1073,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelAgents(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1041,7 +1105,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelInstructions(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "instructions"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "instructions", "go.instructions.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1073,7 +1137,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelPromptDir(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "prompts", "review"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "prompts", "review", "prompt.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1129,5 +1193,54 @@ func TestCmdSyncAuto_NoInstall(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "No nav-pilot collection installed") {
 		t.Errorf("expected 'no collection' message, got: %s", out)
+	}
+}
+
+func TestCmdSyncAuto_BothScopes_PrintsScopeFeedback(t *testing.T) {
+	repoDir := t.TempDir()
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	// Repo scope state
+	os.MkdirAll(filepath.Join(repoDir, ".git"), 0o755)
+	repoScope := ScopeRepo(repoDir)
+	if err := writeScopedState(repoScope, &StateFile{Collection: "fullstack", Scope: "repo"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// User scope state
+	userScope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeScopedState(userScope, &StateFile{Collection: CollectionAll, Scope: "user"}); err != nil {
+		t.Fatal(err)
+	}
+
+	origCmdSyncFn := cmdSyncFn
+	t.Cleanup(func() { cmdSyncFn = origCmdSyncFn })
+	cmdSyncFn = func(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
+		return nil
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err = cmdSyncAuto(repoDir, "", "", false, false)
+
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	output := string(out)
+	if !strings.Contains(output, "Repo scope synced") {
+		t.Errorf("expected repo synced feedback, got: %s", output)
+	}
+	if !strings.Contains(output, "User scope synced") {
+		t.Errorf("expected user synced feedback, got: %s", output)
 	}
 }

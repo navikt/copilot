@@ -809,7 +809,7 @@ func TestCmdAdd_ClearsIgnoredStatus(t *testing.T) {
 	}
 
 	// Verify resolveSyncFiles includes the file again
-	files, _, err := resolveSyncFiles(scope, "")
+	files, _, err := resolveSyncFiles(scope, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

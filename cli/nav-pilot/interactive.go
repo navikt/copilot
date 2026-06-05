@@ -652,11 +652,10 @@ func cliDisplayName(name string) string {
 }
 
 // copilotAgentArgs returns extra CLI flags for a given agent.
-// nav-pilot benefits from plan mode and high reasoning effort.
+// Keep this empty by default so model/effort selection follows agent defaults
+// (or explicit user overrides in the CLI), not hardcoded launch arguments.
 func copilotAgentArgs(agent string) []string {
-	if agent == "nav-pilot" {
-		return []string{"--mode", "plan", "--effort", "high"}
-	}
+	_ = agent
 	return nil
 }
 

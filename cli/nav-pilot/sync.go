@@ -16,6 +16,7 @@ type syncResult struct {
 	Errors    []string     `json:"errors,omitempty"`
 	Overrides []string     `json:"overrides,omitempty"`
 	Ignored   []string     `json:"ignored,omitempty"`
+	Conflicts []string     `json:"conflicts,omitempty"`
 }
 
 type syncUpdate struct {
@@ -33,6 +34,9 @@ var errUpdatesAvailable = fmt.Errorf("updates available")
 // main() maps this to exit code 2 to distinguish from "updates available".
 var errSyncFailed = fmt.Errorf("sync failed")
 
+// cmdSyncFn is overridable in tests.
+var cmdSyncFn = cmdSync
+
 // cmdSync checks installed files against source and optionally applies updates.
 //
 // Modes:
@@ -41,19 +45,42 @@ var errSyncFailed = fmt.Errorf("sync failed")
 //
 // Works with both state-based repos (nav-pilot install) and auto-detected repos.
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveSourceForSync(ref, sourceRepo)
 	if err != nil {
 		return err
 	}
 	defer src.Cleanup()
 
 	// Determine which files to check
-	files, _, err := resolveSyncFiles(scope, src.Dir)
+	files, _, err := resolveSyncFiles(scope, src.Dir, apply)
 	if err != nil {
 		return err
 	}
 
+	conflictPaths := conflictStatePaths(scope)
+
 	if len(files) == 0 {
+		if len(conflictPaths) > 0 && !apply {
+			result := syncResult{
+				UpToDate:  false,
+				Source:    src.SHA,
+				Conflicts: conflictPaths,
+			}
+			if jsonOutput {
+				if err := outputJSON(result); err != nil {
+					return err
+				}
+				return errUpdatesAvailable
+			}
+			fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
+				yellow("⚠"), len(conflictPaths), src.SHA)
+			for _, p := range conflictPaths {
+				fmt.Printf("  %s %s\n", dim("⊘"), p)
+			}
+			fmt.Println()
+			fmt.Printf("Run %s to apply updates.\n", bold("nav-pilot sync --apply"))
+			return errUpdatesAvailable
+		}
 		if jsonOutput {
 			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
 		}
@@ -129,12 +156,13 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	}
 
 	result := syncResult{
-		UpToDate:  len(updates) == 0 && len(syncErrors) == 0,
+		UpToDate:  len(updates) == 0 && len(syncErrors) == 0 && (apply || len(conflictPaths) == 0),
 		Source:    src.SHA,
 		Updates:   updates,
 		Errors:    syncErrors,
 		Overrides: overriddenPaths,
 		Ignored:   ignoredPaths,
+		Conflicts: conflictPaths,
 	}
 
 	if jsonOutput {
@@ -171,12 +199,21 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	}
 
 	// Report updates
-	fmt.Printf("%s %d of %d files have updates available (source: %s)\n\n",
-		yellow("⚠"), len(updates), len(files), src.SHA)
-	for _, u := range updates {
-		fmt.Printf("  %s %s\n", yellow("~"), u.Path)
+	if len(updates) > 0 {
+		fmt.Printf("%s %d of %d files have updates available (source: %s)\n\n",
+			yellow("⚠"), len(updates), len(files), src.SHA)
+		for _, u := range updates {
+			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
+		}
+		fmt.Println()
+	} else if len(conflictPaths) > 0 && !apply {
+		fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
+			yellow("⚠"), len(conflictPaths), src.SHA)
+		for _, p := range conflictPaths {
+			fmt.Printf("  %s %s\n", dim("⊘"), p)
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
 	if !apply {
 		fmt.Printf("Run %s to apply updates.\n", bold("nav-pilot sync --apply"))
@@ -202,6 +239,11 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	// Update state with new hashes
 	if err := updateScopedStateHashes(scope, appliedUpdates); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update state file: %v\n", yellow("⚠"), err)
+	}
+	if apply {
+		if err := clearResolvedConflicts(scope, src.Dir, files, conflictPaths); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not clear resolved conflicts: %v\n", yellow("⚠"), err)
+		}
 	}
 
 	// Only bump source SHA and version if ALL updates were applied successfully
@@ -252,13 +294,22 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 	var firstErr error
 
 	if repoState != nil {
-		if !jsonOutput && userState != nil {
+		if !jsonOutput {
 			fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("repo"))
 		}
-		if err := cmdSync(repoScope, ref, sourceRepo, apply, jsonOutput); err != nil {
+		if err := cmdSyncFn(repoScope, ref, sourceRepo, apply, jsonOutput); err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
+			if !jsonOutput {
+				if err == errUpdatesAvailable {
+					fmt.Printf("%s Repo scope has updates available.\n", yellow("⚠"))
+				} else {
+					fmt.Printf("%s Repo scope sync failed.\n", yellow("⚠"))
+				}
+			}
+		} else if !jsonOutput {
+			fmt.Printf("%s Repo scope synced.\n", green("✓"))
 		}
 	}
 
@@ -267,14 +318,21 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 			if repoState != nil {
 				fmt.Println()
 			}
-			if repoState != nil {
-				fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("user"))
-			}
+			fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("user"))
 		}
-		if err := cmdSync(userScope, ref, sourceRepo, apply, jsonOutput); err != nil {
+		if err := cmdSyncFn(userScope, ref, sourceRepo, apply, jsonOutput); err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
+			if !jsonOutput {
+				if err == errUpdatesAvailable {
+					fmt.Printf("%s User scope has updates available.\n", yellow("⚠"))
+				} else {
+					fmt.Printf("%s User scope sync failed.\n", yellow("⚠"))
+				}
+			}
+		} else if !jsonOutput {
+			fmt.Printf("%s User scope synced.\n", green("✓"))
 		}
 	}
 
@@ -291,7 +349,7 @@ type syncFile struct {
 // resolveSyncFiles determines which files to sync.
 // If a state file exists, uses the installed file list.
 // Otherwise, auto-detects customization files in the target repo.
-func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string, error) {
+func resolveSyncFiles(scope *InstallScope, sourceDir string, includeConflicts bool) ([]syncFile, string, error) {
 	state, err := readScopedState(scope)
 	if err != nil {
 		return nil, "", fmt.Errorf("reading state: %w", err)
@@ -302,7 +360,10 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string
 		resolver := NewSourceResolver(sourceDir)
 		var files []syncFile
 		for _, f := range state.Files {
-			if f.Status == fileStatusIgnored || f.Status == fileStatusConflict {
+			if f.Status == fileStatusIgnored {
+				continue
+			}
+			if f.Status == fileStatusConflict && !includeConflicts {
 				continue
 			}
 			sp := resolver.MapLocalPath(f.Path, scope.IsUser())
@@ -322,6 +383,20 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string) ([]syncFile, string
 
 	// Auto-detect: scan for customization files that also exist in source
 	return autoDetectSyncFiles(scope.RootDir, sourceDir)
+}
+
+func conflictStatePaths(scope *InstallScope) []string {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+	var conflicts []string
+	for _, f := range state.Files {
+		if f.Status == fileStatusConflict {
+			conflicts = append(conflicts, f.Path)
+		}
+	}
+	return conflicts
 }
 
 // detectNewItems checks if the source has agents/skills/instructions not in the state file.
@@ -475,8 +550,60 @@ func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
 			continue
 		}
 		state.Files[i].Hash = hash
+		state.Files[i].Status = ""
 	}
 
+	return writeScopedState(scope, state)
+}
+
+// clearResolvedConflicts clears conflict status for files that currently match source.
+func clearResolvedConflicts(scope *InstallScope, sourceDir string, files []syncFile, conflictPaths []string) error {
+	if len(conflictPaths) == 0 {
+		return nil
+	}
+
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+
+	byLocalPath := make(map[string]syncFile, len(files))
+	for _, sf := range files {
+		byLocalPath[sf.localPath] = sf
+	}
+	conflictSet := make(map[string]bool, len(conflictPaths))
+	for _, p := range conflictPaths {
+		conflictSet[p] = true
+	}
+
+	changed := false
+	for i, f := range state.Files {
+		if !conflictSet[f.Path] {
+			continue
+		}
+		sf, ok := byLocalPath[f.Path]
+		if !ok {
+			continue
+		}
+
+		localFull := filepath.Join(scope.RootDir, sf.localPath)
+		sourceFull := filepath.Join(sourceDir, sf.sourcePath)
+		isDir := strings.HasSuffix(sf.localPath, "/")
+
+		localHash, localErr := rawArtifactHash(localFull, isDir)
+		sourceHash, sourceErr := rawArtifactHash(sourceFull, isDir)
+		if localErr != nil || sourceErr != nil {
+			continue
+		}
+		if localHash == sourceHash && state.Files[i].Status != "" {
+			state.Files[i].Status = ""
+			changed = true
+		}
+	}
+
+	if !changed {
+		return nil
+	}
 	return writeScopedState(scope, state)
 }
 

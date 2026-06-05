@@ -2,6 +2,24 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-06-05
+
+### nav-pilot og my-copilot — sync, launch og hash-anchor
+
+### nav-pilot CLI — launch og sync
+
+- Launch sender ikke lenger tvungne `--mode plan` / `--effort high`; agent-default og bruker-overstyring gjelder
+- `sync` viser konfliktfiler tydelig i output/JSON når de blir hoppet over
+- `sync --apply` rydder `conflict`-status når filer faktisk matcher source
+- Forbedret auto-sync feedback per scope (repo/user)
+- Egen source-resolve-strategi for sync + utvidet testdekning
+
+### my-copilot — navigasjon og prising
+
+- La til hash-anchor scrolling ved hard reload (`HashAnchorScroll` i root layout)
+- Robust håndtering av ugyldig URL-fragment (fallback når `decodeURIComponent` feiler)
+- Synket model-pricing-data (inkludert oppdatert dato og modelliste)
+
 ---
 
 ## 2026-06-04
