@@ -7,6 +7,7 @@ import Faro from "@/components/faro";
 import NextLink from "next/link";
 import { FooterMessage } from "@/components/footer-message";
 import NavBudgetBar from "@/components/nav-budget-bar";
+import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,6 +37,7 @@ export default async function RootLayout({
   return (
     <html lang="nb">
       <body className={`${inter.className} bg-gray-800`}>
+        <HashAnchorScroll />
         <header style={{ background: "#0f1825" }}>
           <Box
             paddingBlock="space-8"
