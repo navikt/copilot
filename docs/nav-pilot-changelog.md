@@ -4,9 +4,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-06-05
 
-### PR #276 — netto endringer mot `main`
-
-Denne posten beskriver kun det som faktisk er forskjellig fra `main` i PR-en (ikke mellomsteg i branch-historikken).
+### nav-pilot og my-copilot — sync, launch og hash-anchor
 
 ### nav-pilot CLI — launch og sync
 
