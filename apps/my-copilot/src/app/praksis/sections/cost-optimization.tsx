@@ -1,6 +1,13 @@
 import { BodyShort, Box, Heading, HGrid, HStack, VStack } from "@navikt/ds-react";
 import { LinkableHeading } from "@/components/linkable-heading";
-import { CurrencyExchangeIcon, SparklesIcon, PersonGroupIcon, CogIcon, ArrowRightIcon } from "@navikt/aksel-icons";
+import {
+  CurrencyExchangeIcon,
+  SparklesIcon,
+  PersonGroupIcon,
+  CogIcon,
+  ArrowRightIcon,
+  FileTextIcon,
+} from "@navikt/aksel-icons";
 import NextLink from "next/link";
 
 export default function CostOptimization() {
@@ -10,8 +17,8 @@ export default function CostOptimization() {
         Kostnadsoptimalisering i praksis
       </LinkableHeading>
       <BodyShort size="small" className="text-gray-600">
-        Fem tiltak med høy effekt: presise spørsmål, smale sesjoner, riktig agentvalg, kort output og mindre
-        verktøy-overhead.
+        Seks tiltak med høy effekt: presise spørsmål, smale sesjoner, riktig agentvalg, kort output, minimale
+        instruksjonsfiler og mindre verktøy-overhead.
       </BodyShort>
 
       <Box paddingBlock="space-16">
@@ -99,6 +106,22 @@ export default function CostOptimization() {
             </VStack>
           </Box>
 
+          <Box background="danger-soft" padding="space-16" borderRadius="8">
+            <VStack gap="space-8">
+              <HStack gap="space-8" align="center">
+                <FileTextIcon className="text-red-700" aria-hidden />
+                <Heading size="small" level="3" className="text-red-700">
+                  6. Hold instruksjonsfiler minimale
+                </Heading>
+              </HStack>
+              <BodyShort size="small" className="text-gray-700">
+                <code>AGENTS.md</code> og <code>copilot-instructions.md</code> injiseres i{" "}
+                <strong>hver forespørsel</strong>. Skriv kortfattet; bruk <code>applyTo</code>-glob for å begrense
+                scope, og legg domeneinnhold i skill- og agent-filer som bare lastes ved eksplisitt bruk.
+              </BodyShort>
+            </VStack>
+          </Box>
+
           <Box background="neutral-soft" borderWidth="1" borderRadius="8" padding="space-16">
             <Heading size="xsmall" level="3">
               Erfaringer som går igjen
@@ -113,6 +136,11 @@ export default function CostOptimization() {
                 </li>
                 <li>
                   <BodyShort size="small">Smal delegering gir bedre svar enn én stor "gjør alt"-prompt.</BodyShort>
+                </li>
+                <li>
+                  <BodyShort size="small">
+                    En <code>AGENTS.md</code> på 500 linjer koster like mye som en på 50 — hver eneste gang.
+                  </BodyShort>
                 </li>
               </ul>
             </Box>
