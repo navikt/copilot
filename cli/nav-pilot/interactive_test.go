@@ -475,7 +475,7 @@ func TestCopilotAgentArgs(t *testing.T) {
 		agent string
 		want  []string
 	}{
-		{"nav-pilot", []string{"--model", "auto"}},
+		{"nav-pilot", nil},
 		{"auth", nil},
 		{"", nil},
 	}
@@ -523,13 +523,13 @@ func TestBuildCopilotArgs(t *testing.T) {
 			name:    "cplt with agent",
 			cliName: "cplt",
 			agent:   "nav-pilot",
-			want:    []string{"--", "--agent", "nav-pilot", "--model", "auto"},
+			want:    []string{"--", "--agent", "nav-pilot"},
 		},
 		{
 			name:    "copilot with agent",
 			cliName: "copilot",
 			agent:   "nav-pilot",
-			want:    []string{"--agent", "nav-pilot", "--model", "auto"},
+			want:    []string{"--agent", "nav-pilot"},
 		},
 		{
 			name:    "cplt without agent",

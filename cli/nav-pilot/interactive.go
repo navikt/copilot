@@ -652,12 +652,10 @@ func cliDisplayName(name string) string {
 }
 
 // copilotAgentArgs returns extra CLI flags for a given agent.
-// For nav-pilot we pin model selection to auto to avoid unexpected jumps
-// to a specific model when launching via --agent.
+// Keep this empty by default so model/effort selection follows agent defaults
+// (or explicit user overrides in the CLI), not hardcoded launch arguments.
 func copilotAgentArgs(agent string) []string {
-	if agent == "nav-pilot" {
-		return []string{"--model", "auto"}
-	}
+	_ = agent
 	return nil
 }
 
