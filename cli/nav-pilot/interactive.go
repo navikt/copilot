@@ -652,10 +652,11 @@ func cliDisplayName(name string) string {
 }
 
 // copilotAgentArgs returns extra CLI flags for a given agent.
-// nav-pilot benefits from plan mode and high reasoning effort.
+// For nav-pilot we pin model selection to auto to avoid unexpected jumps
+// to a specific model when launching via --agent.
 func copilotAgentArgs(agent string) []string {
 	if agent == "nav-pilot" {
-		return []string{"--mode", "plan", "--effort", "high"}
+		return []string{"--model", "auto"}
 	}
 	return nil
 }

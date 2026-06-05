@@ -16,6 +16,9 @@ type Source struct {
 	Version string // release version (e.g. "2026.04.14-..."), empty for local dev
 }
 
+// cloneRemoteFn is overridable in tests.
+var cloneRemoteFn = cloneRemote
+
 func (s *Source) Cleanup() {
 	if s.TempDir != "" {
 		os.RemoveAll(s.TempDir)
@@ -29,11 +32,11 @@ func (s *Source) Cleanup() {
 func resolveSource(ref, sourceRepo string) (*Source, error) {
 	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
-		return cloneRemote(ref, sourceRepo)
+		return cloneRemoteFn(ref, sourceRepo)
 	}
 
 	if ref != "" {
-		src, err := cloneRemote(ref, "")
+		src, err := cloneRemoteFn(ref, "")
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +62,22 @@ func resolveSource(ref, sourceRepo string) (*Source, error) {
 	}
 
 	// Always clone HEAD of main to get the latest content regardless of binary version
-	src, err := cloneRemote("", "")
+	src, err := cloneRemoteFn("", "")
+	if err != nil {
+		return nil, err
+	}
+	src.Version = version
+	return src, nil
+}
+
+// resolveSourceForSync resolves source for sync checks.
+// Unlike resolveSource, it skips local repo auto-detection when no ref/source
+// is provided, so sync compares against upstream content by default.
+func resolveSourceForSync(ref, sourceRepo string) (*Source, error) {
+	if sourceRepo != "" || ref != "" {
+		return resolveSource(ref, sourceRepo)
+	}
+	src, err := cloneRemoteFn("", "")
 	if err != nil {
 		return nil, err
 	}
