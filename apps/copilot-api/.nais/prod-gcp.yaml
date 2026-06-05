@@ -1,5 +1,12 @@
-# Intentionally empty — production uses all defaults from app.yaml.
-# This file must exist because the deploy pipeline references .nais/{cluster}.yaml
-# for every cluster in nais-clusters (see .github/workflows/copilot-api.yaml).
-# Add env overrides here if production ever needs values different from app.yaml.
-{}
+env:
+  - name: "VIDEO_BUCKET_PUBLIC_PROD"
+    value: "{{video_bucket_public_prod}}"
+  - name: "VIDEO_BUCKET_RAW_PROD"
+    value: "{{video_bucket_raw_prod}}"
+  - name: "VIDEO_FEED_CACHE_SECONDS"
+    value: "60"
+
+gcp:
+  buckets:
+    - name: "{{video_bucket_public_prod}}"
+    - name: "{{video_bucket_raw_prod}}"

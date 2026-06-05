@@ -92,6 +92,7 @@ func main() {
 
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
+	videoHandlers := newVideoHandlers(config)
 
 	// Set up routing on a local mux (not global DefaultServeMux)
 	mux := http.NewServeMux()
@@ -100,6 +101,13 @@ func main() {
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/ready", readyHandler)
 	mux.Handle("/metrics", metricsHandler())
+	mux.Handle("/public/v1/", otelhttp.NewHandler(
+		loggingMiddleware(config, makePublicRouter(config, videoHandlers)),
+		"public-api",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}),
+	))
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", otelhttp.NewHandler(

@@ -105,6 +105,13 @@ API uses **Azure AD On-Behalf-Of (OBO)** tokens obtained via Texas sidecar. The 
 | `COPILOT_METRICS_DATASET` | BigQuery metrics dataset | `copilot_metrics` |
 | `COPILOT_METRICS_TABLE` | BigQuery metrics table | `usage_metrics` |
 | `COPILOT_ADOPTION_DATASET` | BigQuery adoption dataset | `copilot_adoption` |
+| `VIDEO_BUCKET_PUBLIC_DEV` | Dev public video bucket | injected by NAIS |
+| `VIDEO_BUCKET_PUBLIC_PROD` | Prod public video bucket | injected by NAIS |
+| `VIDEO_BUCKET_RAW_DEV` | Dev raw video bucket | injected by NAIS |
+| `VIDEO_BUCKET_RAW_PROD` | Prod raw video bucket | injected by NAIS |
+| `VIDEO_MANIFEST_PATH` | Local manifest path for tests/dev | `video_manifest.json` |
+| `VIDEO_PUBLIC_BASE_URL` | Optional override for public GCS base URL | `https://storage.googleapis.com/<bucket>` |
+| `VIDEO_FEED_CACHE_SECONDS` | Feed response and manifest cache TTL | `60` |
 
 ## Development
 

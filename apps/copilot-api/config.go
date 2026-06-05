@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -26,9 +27,16 @@ type Config struct {
 	CopilotMetricsTable    string
 	CopilotAdoptionDataset string
 	CacheTTLHours          int
+	VideoManifestURL       string
+	VideoManifestPath      string
+	VideoBucketPublic      string
+	VideoBucketRaw         string
+	VideoPublicBaseURL     string
+	VideoFeedCacheSeconds  int
 }
 
 func loadConfig() *Config {
+	environment := getEnv("NAIS_CLUSTER_NAME", "local")
 	config := &Config{
 		Port:                   getEnv("PORT", "8080"),
 		Environment:            getEnv("NAIS_CLUSTER_NAME", "local"),
@@ -49,6 +57,12 @@ func loadConfig() *Config {
 		CopilotMetricsTable:    getEnv("COPILOT_METRICS_TABLE", "usage_metrics"),
 		CopilotAdoptionDataset: getEnv("COPILOT_ADOPTION_DATASET", "copilot_adoption"),
 		CacheTTLHours:          1,
+		VideoManifestURL:       getEnv("VIDEO_MANIFEST_URL", ""),
+		VideoManifestPath:      getEnv("VIDEO_MANIFEST_PATH", ""),
+		VideoBucketPublic:      selectVideoValue(environment, os.Getenv("VIDEO_BUCKET_PUBLIC_DEV"), os.Getenv("VIDEO_BUCKET_PUBLIC_PROD"), os.Getenv("VIDEO_BUCKET_PUBLIC")),
+		VideoBucketRaw:         selectVideoValue(environment, os.Getenv("VIDEO_BUCKET_RAW_DEV"), os.Getenv("VIDEO_BUCKET_RAW_PROD"), os.Getenv("VIDEO_BUCKET_RAW")),
+		VideoPublicBaseURL:     getEnv("VIDEO_PUBLIC_BASE_URL", ""),
+		VideoFeedCacheSeconds:  getEnvInt("VIDEO_FEED_CACHE_SECONDS", 60),
 	}
 
 	return config
@@ -59,6 +73,53 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+	return n
+}
+
+func selectVideoValue(environment, devValue, prodValue, fallback string) string {
+	switch normalizeEnvironment(environment) {
+	case "dev":
+		if devValue != "" {
+			return devValue
+		}
+	case "prod":
+		if prodValue != "" {
+			return prodValue
+		}
+	}
+
+	if fallback != "" {
+		return fallback
+	}
+	if devValue != "" {
+		return devValue
+	}
+	if prodValue != "" {
+		return prodValue
+	}
+	return ""
+}
+
+func normalizeEnvironment(environment string) string {
+	switch strings.ToLower(strings.TrimSpace(environment)) {
+	case "dev", "dev-gcp", "development":
+		return "dev"
+	case "prod", "prod-gcp", "production":
+		return "prod"
+	default:
+		return ""
+	}
 }
 
 func parseLogLevel(level string) slog.Level {

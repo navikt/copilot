@@ -3,6 +3,18 @@ env:
     value: "DEBUG"
   - name: "LOGGED_ENDPOINTS"
     value: "/api/v1/,/health,/ready"
+  - name: "VIDEO_BUCKET_PUBLIC_DEV"
+    value: "{{video_bucket_public_dev}}"
+  - name: "VIDEO_BUCKET_RAW_DEV"
+    value: "{{video_bucket_raw_dev}}"
+  - name: "VIDEO_FEED_CACHE_SECONDS"
+    value: "60"
+
+gcp:
+  buckets:
+    - name: "{{video_bucket_public_dev}}"
+    - name: "{{video_bucket_raw_dev}}"
+
   # NOTE: AZURE_APP_PRE_AUTHORIZED_APPS must be set via NAIS secret with my-copilot's client ID
   # Format: [{"clientId": "my-copilot-client-id"}]
   # This allows my-copilot to call this API with delegated user credentials

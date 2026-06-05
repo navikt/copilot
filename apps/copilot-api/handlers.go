@@ -109,6 +109,25 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	return mux
 }
 
+// makePublicRouter creates the public router for unauthenticated endpoints.
+func makePublicRouter(config *Config, videoHandlers *VideoHandlers) http.Handler {
+	mux := http.NewServeMux()
+
+	videoStub := serviceUnavailableHandler("Video service is not configured for this environment")
+	video := func(h http.HandlerFunc) http.HandlerFunc {
+		if videoHandlers != nil {
+			return h
+		}
+		return videoStub
+	}
+
+	mux.HandleFunc("GET /public/v1/videos", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoFeed })))
+	mux.HandleFunc("GET /public/v1/videos/{id}/play", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoPlay })))
+	mux.HandleFunc("GET /public/v1/videos/{id}/captions", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoCaptions })))
+
+	return mux
+}
+
 // nilSafe extracts a handler method from a potentially-nil handler struct.
 // The caller is responsible for guarding against nil before using the result.
 func nilSafe[T any](h *T, fn func(*T) http.HandlerFunc) http.HandlerFunc {

@@ -6,13 +6,16 @@ import NextLink from "next/link";
 import { NewsFeed } from "@/components/news-feed";
 import { HighlightCards } from "@/components/pulse-strip";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
+import { ShortsFeed } from "@/components/shorts-feed";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
+import { getPublicVideoFeed } from "@/lib/public-videos";
 
 export default async function Home() {
   const user = await getUser(false);
   const news = getNewsItems();
+  const videos = await getPublicVideoFeed(5);
 
   return (
     <main>
@@ -68,6 +71,20 @@ export default async function Home() {
                 </div>
               </div>
             </Box>
+
+            {videos.length > 0 ? (
+              <Box className="reveal-section">
+                <VStack gap="space-8">
+                  <Heading size="small" level="2">
+                    Korte videoer
+                  </Heading>
+                  <BodyShort className="text-text-subtle">
+                    Praktiske demoer i kortformat. Feeden er redaksjonell og oppdateres fortløpende.
+                  </BodyShort>
+                  <ShortsFeed videos={videos} />
+                </VStack>
+              </Box>
+            ) : null}
 
             <Box className="reveal-section">
               <Heading size="small" level="2" className="mb-4">
