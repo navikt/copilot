@@ -35,33 +35,14 @@ function parsePricingTables(html) {
 
   // Extract provider sections by matching h3 headers followed by tables
   const sections = [
-    { provider: "OpenAI", hasCacheWrite: false },
-    { provider: "Anthropic", hasCacheWrite: true },
-    { provider: "Google", hasCacheWrite: false },
-    { provider: "GitHub", hasCacheWrite: false },
+    { provider: "OpenAI", anchorId: "openai" },
+    { provider: "Anthropic", anchorId: "anthropic" },
+    { provider: "Google", anchorId: "google" },
+    { provider: "GitHub", anchorId: "fine-tuned-github" },
   ];
 
   for (const section of sections) {
-    // Find the section anchor and its table
-    const anchorId = section.provider.toLowerCase().replace(/[^a-z]/g, "-");
-    // Try multiple anchor patterns
-    const patterns = [
-      `id="${anchorId}"`,
-      `id="fine-tuned-github"`, // GitHub section has different anchor
-    ];
-
-    let sectionStart = -1;
-    for (const pattern of patterns) {
-      const idx = html.indexOf(pattern);
-      if (idx !== -1 && (section.provider !== "GitHub" || pattern.includes("fine-tuned"))) {
-        sectionStart = idx;
-        break;
-      } else if (idx !== -1 && section.provider !== "GitHub") {
-        sectionStart = idx;
-        break;
-      }
-    }
-
+    const sectionStart = html.indexOf(`id="${section.anchorId}"`);
     if (sectionStart === -1) {
       console.warn(`Warning: Could not find section for ${section.provider}`);
       continue;
@@ -74,38 +55,48 @@ function parsePricingTables(html) {
     if (tableEnd === -1) continue;
     const tableHtml = html.substring(tableStart, tableEnd + 8);
 
-    // Parse rows
     const rows = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)];
     // Skip header row
+    const headerCells =
+      rows.length > 0
+       ? [...rows[0][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) => stripHtml(m[1]).trim())
+       : [];
+    const headerIndex = (name) => headerCells.findIndex((cell) => cell.toLowerCase() === name.toLowerCase());
+
     for (let i = 1; i < rows.length; i++) {
       const cells = [...rows[i][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map(
-        (m) => stripHtml(m[1]).trim(),
+       (m) => stripHtml(m[1]).trim(),
       );
 
       if (cells.length < 5) continue;
 
-      let model, status, category, input, cachedInput, cacheWrite, output;
-
-      if (section.hasCacheWrite) {
-        // Anthropic: Model, Status, Category, Input, Cached, CacheWrite, Output
-        [model, status, category, input, cachedInput, cacheWrite, output] = cells;
-      } else {
-        // Others: Model, Status, Category, Input, Cached, Output
-        [model, status, category, input, cachedInput, output] = cells;
-      }
-
-      const entry = {
-        model: cleanModelName(model),
-        provider: section.provider,
-        category: normalizeCategory(category),
-        status: normalizeStatus(status),
-        input: parsePrice(input),
-        cachedInput: parsePrice(cachedInput),
-        output: parsePrice(output),
+      const getCell = (name) => {
+       const idx = headerIndex(name);
+       return idx >= 0 ? cells[idx] : undefined;
       };
 
-      if (section.hasCacheWrite && cacheWrite) {
-        entry.cacheWrite = parsePrice(cacheWrite);
+      const model = getCell("Model");
+      if (!model) continue;
+      const status = getCell("Release status");
+      const category = getCell("Category");
+      const input = getCell("Input");
+      const cachedInput = getCell("Cached input");
+      const cacheWriteIdx = headerIndex("Cache write");
+      const output = getCell("Output");
+      const cacheWrite = cacheWriteIdx >= 0 ? cells[cacheWriteIdx] : undefined;
+
+      const entry = {
+       model: cleanModelName(model),
+       provider: section.provider,
+       category: normalizeCategory(category),
+       status: normalizeStatus(status),
+       input: parsePrice(input),
+       cachedInput: parsePrice(cachedInput),
+       output: parsePrice(output),
+      };
+
+      if (cacheWrite) {
+       entry.cacheWrite = parsePrice(cacheWrite);
       }
 
       // Detect notes from footnotes

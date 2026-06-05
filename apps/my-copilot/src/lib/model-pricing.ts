@@ -69,6 +69,15 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 15,
   },
   {
+    model: "GPT-5.4",
+    provider: "OpenAI",
+    category: "Versatile",
+    status: "GA",
+    input: 5,
+    cachedInput: 0.5,
+    output: 22.5,
+  },
+  {
     model: "GPT-5.4 mini",
     provider: "OpenAI",
     category: "Lightweight",
@@ -94,6 +103,15 @@ export const MODEL_PRICING: ModelPrice[] = [
     input: 5,
     cachedInput: 0.5,
     output: 30,
+  },
+  {
+    model: "GPT-5.5",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 10,
+    cachedInput: 1,
+    output: 45,
   },
   // Anthropic
   {
@@ -203,6 +221,15 @@ export const MODEL_PRICING: ModelPrice[] = [
     input: 2,
     cachedInput: 0.2,
     output: 12,
+  },
+  {
+    model: "Gemini 3.1 Pro",
+    provider: "Google",
+    category: "Powerful",
+    status: "Public preview",
+    input: 4,
+    cachedInput: 0.4,
+    output: 18,
   },
   {
     model: "Gemini 3.5 Flash",
