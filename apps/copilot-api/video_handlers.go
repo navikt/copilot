@@ -110,9 +110,12 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 
 	entries, err := h.manifestCache.get(r.Context())
 	if err != nil {
-		slog.Error("Failed to load video manifest", "error", err)
-		respondError(w, "service_unavailable", "Video feed is unavailable", http.StatusServiceUnavailable)
-		return
+		if len(entries) == 0 {
+			slog.Error("Failed to load video manifest", "error", err)
+			respondError(w, "service_unavailable", "Video feed is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("Serving stale video manifest after refresh error", "error", err)
 	}
 
 	limit := 10

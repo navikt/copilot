@@ -75,6 +75,14 @@ function gsPath(bucket: string, objectPath: string): string {
   return `gs://${bucket}/${objectPath}`;
 }
 
+const VALID_OBJECT_PATH_RE = /^[a-zA-Z0-9][a-zA-Z0-9/_\-.]*$/;
+
+function validateObjectPath(objectPath: string, label: string) {
+  if (!VALID_OBJECT_PATH_RE.test(objectPath) || objectPath.includes("..") || objectPath.includes("//")) {
+    throw new Error(`Invalid ${label}; object path contains unsupported characters`);
+  }
+}
+
 function readManifest(manifestTarget: string): ManifestItem[] {
   try {
     const output = execFileSync("gsutil", ["cat", manifestTarget], { encoding: "utf8" }).trim();
@@ -130,6 +138,11 @@ function main() {
   const hlsObject = `${targetPrefix}/${hlsFile.split("/").pop() ?? "master.m3u8"}`;
   const mp4Object = mp4File ? `${targetPrefix}/${mp4File.split("/").pop() ?? "video.mp4"}` : "";
   const captionsObject = captionsFile ? `${targetPrefix}/${captionsFile.split("/").pop() ?? "captions.vtt"}` : "";
+
+  validateObjectPath(posterObject, "poster-file");
+  validateObjectPath(hlsObject, "hls-file");
+  if (mp4Object) validateObjectPath(mp4Object, "mp4-file");
+  if (captionsObject) validateObjectPath(captionsObject, "captions-file");
 
   upload(posterFile, gsPath(bucketPublic, posterObject));
   upload(hlsFile, gsPath(bucketPublic, hlsObject));

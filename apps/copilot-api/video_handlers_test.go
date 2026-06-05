@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -171,6 +172,69 @@ func TestVideoFeedEndpoint(t *testing.T) {
 	}
 	if strings.Contains(body, `"id":"draft-video"`) {
 		t.Fatalf("did not expect unpublished video in feed, got %s", body)
+	}
+}
+
+func TestVideoFeedEndpointServesStaleManifestOnRefreshError(t *testing.T) {
+	server, _ := newTestVideoManifestServer(t)
+	cfg := &Config{
+		VideoManifestURL:      server.URL,
+		VideoBucketPublic:     "copilot-videos-public",
+		VideoFeedCacheSeconds: 60,
+	}
+	videoHandlers := newVideoHandlers(cfg)
+
+	current := time.Unix(0, 0)
+	var loads int
+	videoHandlers.manifestCache.now = func() time.Time { return current }
+	videoHandlers.manifestCache.loader = func(context.Context, string) ([]VideoManifestEntry, error) {
+		loads++
+		if loads == 1 {
+			return []VideoManifestEntry{{
+				ID:              "intro-cli",
+				Title:           "Intro",
+				DurationSec:     42,
+				AspectRatio:     "9:16",
+				PublishedAt:     current.Add(time.Minute),
+				PosterObject:    "videos/intro-cli/poster.jpg",
+				HLSMasterObject: "videos/intro-cli/master.m3u8",
+				IsPublished:     true,
+			}}, nil
+		}
+		return []VideoManifestEntry{{
+			ID:              "new-video",
+			Title:           "New",
+			DurationSec:     42,
+			AspectRatio:     "9:16",
+			PublishedAt:     current.Add(2 * time.Minute),
+			PosterObject:    "videos/new-video/poster.jpg",
+			HLSMasterObject: "videos/new-video/master.m3u8",
+			IsPublished:     true,
+		}}, fmt.Errorf("temporary manifest refresh failure")
+	}
+
+	router := makePublicRouter(cfg, videoHandlers)
+	reqWarm := httptest.NewRequest(http.MethodGet, "/public/v1/videos?limit=10", nil)
+	recWarm := httptest.NewRecorder()
+	router.ServeHTTP(recWarm, reqWarm)
+	if recWarm.Code != http.StatusOK {
+		t.Fatalf("expected warm cache request to succeed, got %d", recWarm.Code)
+	}
+
+	current = current.Add(time.Minute + time.Second)
+	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos?limit=10", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected stale response to stay 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"id":"intro-cli"`) {
+		t.Fatalf("expected stale video in feed, got %s", body)
+	}
+	if strings.Contains(body, `"id":"new-video"`) {
+		t.Fatalf("did not expect refreshed video after manifest error, got %s", body)
 	}
 }
 

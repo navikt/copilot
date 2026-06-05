@@ -98,8 +98,8 @@ Kan du forbedre praksis-siden?
 
 ```text
 # Billig variant
-Mål: Oppdater seksjon om kostoptimalisering med informasjon om hvordan AGENTS.md / copilot-instructions.md påvirker tokenkostnad og konkrete anbefalinger for å redusere kost i praksis med å holde innholde i disse filene minimalt og relevant.
-Fil: apps/my-copilot/src/app/praksis/sections/cost-optimizations.tsx
+Mål: Oppdater seksjon om kostoptimalisering med informasjon om hvordan AGENTS.md / copilot-instructions.md påvirker tokenkostnad og konkrete anbefalinger for å redusere kost i praksis med å holde innholdet i disse filene minimalt og relevant.
+Fil: apps/my-copilot/src/app/praksis/sections/cost-optimization.tsx
 Begrensning: Ikke endre andre filer. Bruk eksisterende Nav DS-komponenter.
 Output: Vis kun patch + 2 linjer forklaring.
 ```

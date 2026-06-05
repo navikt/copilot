@@ -18,6 +18,5 @@ type VideoKPIEvent = {
 
 export function emitVideoKPIEvent(event: VideoKPIEventName, payload: VideoKPIEventPayload) {
   const entry: VideoKPIEvent = { event, payload };
-  console.info("[video-kpi]", entry);
   window.dispatchEvent(new CustomEvent<VideoKPIEvent>("video-kpi", { detail: entry }));
 }
