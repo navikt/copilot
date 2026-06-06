@@ -11,6 +11,7 @@ env:
 gcp:
   buckets:
     - name: "copilot-videos-public-dev"
+      # Redeploy trigger: verify bucket provisioning in dev.
 
   # NOTE: AZURE_APP_PRE_AUTHORIZED_APPS must be set via NAIS secret with my-copilot's client ID
   # Format: [{"clientId": "my-copilot-client-id"}]
