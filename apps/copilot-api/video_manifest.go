@@ -23,10 +23,19 @@ var (
 )
 
 type VideoMetadata struct {
-	Series  string   `json:"series,omitempty"`
-	Season  int      `json:"season,omitempty"`
-	Episode int      `json:"episode,omitempty"`
-	Tags    []string `json:"tags,omitempty"`
+	Series  string                  `json:"series,omitempty"`
+	Season  int                     `json:"season,omitempty"`
+	Episode int                     `json:"episode,omitempty"`
+	Tags    []string                `json:"tags,omitempty"`
+	Overlay []VideoOverlayComponent `json:"overlay,omitempty"`
+}
+
+type VideoOverlayComponent struct {
+	Kind           string   `json:"kind"`
+	Anchor         string   `json:"anchor"`
+	Labels         []string `json:"labels"`
+	HighlightIndex *int     `json:"highlight_index,omitempty"`
+	Monospace      *bool    `json:"monospace,omitempty"`
 }
 
 type VideoManifestEntry struct {

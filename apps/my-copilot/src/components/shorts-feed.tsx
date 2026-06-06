@@ -5,6 +5,7 @@ import { BodyShort, Box, Heading, HStack, VStack } from "@navikt/ds-react";
 import { useEffect, useRef, useState } from "react";
 import type { HomepageVideo } from "@/lib/public-videos";
 import { emitVideoKPIEvent } from "@/lib/video-kpi-events";
+import { VideoOverlayRenderer } from "./video-overlay-renderer";
 
 type ShortsFeedProps = {
   videos: HomepageVideo[];
@@ -145,6 +146,7 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
                     aria-label={`Åpne video: ${video.title}`}
                   >
                     <img src={video.posterUrl} alt="" className="h-full w-full object-cover" />
+                    <VideoOverlayRenderer overlays={video.metadata?.overlay} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="inline-flex items-center justify-center rounded-full bg-black/60 text-white p-3">

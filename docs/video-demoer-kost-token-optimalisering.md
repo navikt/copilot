@@ -63,6 +63,285 @@ Bruk PRD-en `docs/prd-video-hosting-og-visning.md` som kilde for større, ekte a
 
 **Mål med #meta:** Minst én leveranseklar deloppgave per episodeblokk når vi bruker tokens på større arbeid.
 
+## Mechanical overlay metadata
+
+Bruk dette som frontend-metadata, ikke som hardkodet app-logikk. Den ekstraherte posteren skal være basebildet; overlayene rendres mekanisk i frontend fra feltene under.
+
+**Felles stilregel:** behold terminalbildet og ansiktet, legg overlays i ledig plass, bruk høy kontrast, tydelig typografi og serieidentitet, og unngå å dekke viktig innhold. Hver episode må ha eget fargegrep og eget motiv.
+
+### Felles skjema
+
+```ts
+type OverlayKind =
+  | "episode-number"
+  | "badge"
+  | "chip"
+  | "rule-pill"
+  | "counter"
+  | "ladder"
+  | "pipeline"
+  | "compare-bars"
+  | "kpi-grid"
+  | "warning-cards"
+  | "index-list";
+
+interface OverlayComponent {
+  kind: OverlayKind;
+  anchor: "top-left" | "top-right" | "center-left" | "center-right" | "bottom-left" | "bottom-right" | "bottom-full";
+  labels: string[];
+  highlightIndex?: number;
+  monospace?: boolean;
+}
+
+interface EpisodeOverlayMeta {
+  id: string;
+  title: string;
+  accent: string;
+  secondaryAccent?: string;
+  motif: string;
+  poster: string;
+  components: OverlayComponent[];
+}
+```
+
+### Episode 1: Presis prompt på første forsøk
+
+```yaml
+id: "1"
+title: "Presis prompt på første forsøk"
+accent: amber
+motif: "crosshair + prompt card"
+poster: "/posters/ep-01.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["01"]
+  - kind: chip
+    anchor: center-left
+    monospace: true
+    labels: ["Mål", "Fil", "Begrensning", "Output"]
+  - kind: chip
+    anchor: center-right
+    monospace: true
+    labels: ["cost-optimization.tsx"]
+  - kind: counter
+    anchor: bottom-left
+    labels: ["3 → 1"]
+  - kind: badge
+    anchor: bottom-right
+    labels: ["patch + 2 linjer"]
+  - kind: badge
+    anchor: top-right
+    labels: ["✓"]
+```
+
+### Episode 2: En oppgave per tråd
+
+```yaml
+id: "2"
+title: "En oppgave per tråd"
+accent: teal
+motif: "split threads + scissors node"
+poster: "/posters/ep-02.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["02"]
+  - kind: chip
+    anchor: center-left
+    monospace: true
+    labels: ["/resume", "/compact", "/clear"]
+  - kind: chip
+    anchor: top-right
+    labels: ["chronicle search"]
+  - kind: chip
+    anchor: center-right
+    monospace: true
+    labels: [".../adoption/summary"]
+  - kind: rule-pill
+    anchor: bottom-full
+    labels: ["nytt mål = ny tråd"]
+```
+
+### Episode 3: Riktig agentvalg
+
+```yaml
+id: "3"
+title: "Riktig modus til riktig jobb"
+accent: indigo
+secondaryAccent: orange
+motif: "autonomy ladder + agent stack"
+poster: "/posters/ep-03.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["03"]
+  - kind: ladder
+    anchor: center-left
+    labels: ["ask/execute", "plan (Shift+Tab)", "/autopilot"]
+    highlightIndex: 1
+  - kind: chip
+    anchor: center-right
+    monospace: true
+    labels: ["@research-agent", "@nav-pilot", "@nav-pilot-opus"]
+  - kind: chip
+    anchor: bottom-left
+    monospace: true
+    labels: ["DATE/string-mismatch"]
+```
+
+### Episode 4: Tool-first workflow
+
+```yaml
+id: "4"
+title: "Tool-first workflow"
+accent: cyan
+motif: "tool pipeline -> AI node"
+poster: "/posters/ep-04.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["04"]
+  - kind: pipeline
+    anchor: bottom-full
+    labels: ["gh pr view 275", "git diff --name-only", "rg"]
+    highlightIndex: 2
+    monospace: true
+  - kind: rule-pill
+    anchor: center-right
+    labels: ["verktøy først, modell etterpå"]
+  - kind: badge
+    anchor: top-right
+    labels: ["PR #275"]
+```
+
+### Episode 5: Kort output uten kvalitetstap
+
+```yaml
+id: "5"
+title: "Kort output uten kvalitetstap"
+accent: lime
+motif: "before/after density bars"
+poster: "/posters/ep-05.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["05"]
+  - kind: badge
+    anchor: top-right
+    labels: ["@terse-mode"]
+  - kind: compare-bars
+    anchor: center
+    labels: ["full", "kort"]
+  - kind: rule-pill
+    anchor: bottom-full
+    labels: ["maks 5 punkter · 1 linje"]
+```
+
+### Episode 6: Kosteffektiv PR-flyt
+
+```yaml
+id: "6"
+title: "Kosteffektiv PR-flyt"
+accent: green
+motif: "PR pipeline"
+poster: "/posters/ep-06.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["06"]
+  - kind: pipeline
+    anchor: bottom-full
+    labels: ["commit", "PR", "review", "fix"]
+    highlightIndex: 2
+  - kind: badge
+    anchor: top-right
+    labels: ["PR #275"]
+  - kind: rule-pill
+    anchor: center-right
+    labels: ["1 nå / 2 senere / 3 avvist"]
+  - kind: rule-pill
+    anchor: center-left
+    labels: ["små PR-er, tydelig scope"]
+```
+
+### Bonus A: Tre dyre anti-mønstre
+
+```yaml
+id: "bonus-a"
+title: "Tre dyre anti-mønstre"
+accent: red
+motif: "warning cards"
+poster: "/posters/bonus-a.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["A"]
+  - kind: warning-cards
+    anchor: center
+    labels: ["full log-dump", "for bred prompt", "feil modellvalg"]
+  - kind: badge
+    anchor: bottom-right
+    labels: ["rg først"]
+```
+
+### Bonus B: Mål effekt i statistikk
+
+```yaml
+id: "bonus-b"
+title: "Mål effekt i statistikk"
+accent: blue-teal
+motif: "dashboard"
+poster: "/posters/bonus-b.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["B"]
+  - kind: kpi-grid
+    anchor: center
+    labels: ["kost/uke", "andel eskalerte", "runder per oppgave"]
+  - kind: rule-pill
+    anchor: bottom-full
+    labels: ["ukentlig 15-min"]
+```
+
+### Bonus C: Chronicle — innsikt på tvers av agentsesjoner
+
+```yaml
+id: "bonus-c"
+title: "Chronicle — innsikt på tvers av agentsesjoner"
+accent: violet
+secondaryAccent: indigo
+motif: "searchable session index"
+poster: "/posters/bonus-c.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["C"]
+  - kind: index-list
+    anchor: center-left
+    labels: ["search", "standup", "tips", "cost-tips", "improve", "reindex"]
+  - kind: chip
+    anchor: bottom-right
+    monospace: true
+    labels: ["/context", "/instructions"]
+```
+
+## Frontend-lag
+
+- Baseposter: uendret, full-bleed object-cover.
+- Scrim per overlay: liten mørk plate bak hver komponent, ikke heldekkende dim.
+- Motivlag: stige, pipeline, bars, index-list som SVG/DOM.
+- Tekstlag: chips, badges og serienummer.
+- Beskyttede soner: tittel og webcam-inset skal aldri få overlays.
+
+## Overgang fra AI-prompt til mekanisk overlay
+
+1. Behold metadatafeltene, men bytt ut generator-prompt med `components`.
+2. La frontend rendere `OverlayComponent[]` direkte.
+3. Bruk `accent` og `secondaryAccent` til kantlinjer og utheving, ikke til store fargeflater.
+4. Valider at hver episode har minst ett unikt motiv og en unik primæraaccent.
+
 ## Episode 1: Presis prompt på første forsøk
 
 **Mål:** Vise hvordan presis første melding kutter antall runder.

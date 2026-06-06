@@ -27,6 +27,22 @@ type VideoFeedResponse = {
   next_cursor?: string;
 };
 
+export type OverlayComponent = {
+  kind: "episode-number" | "badge" | "chip" | "counter" | "rule-pill" | string;
+  anchor:
+    | "top-left"
+    | "top-right"
+    | "center-left"
+    | "center-right"
+    | "center"
+    | "bottom-left"
+    | "bottom-right"
+    | "bottom-full";
+  labels: string[];
+  highlightIndex?: number;
+  monospace?: boolean;
+};
+
 export type HomepageVideo = {
   id: string;
   title: string;
@@ -43,6 +59,7 @@ export type HomepageVideo = {
     season?: number;
     episode?: number;
     tags?: string[];
+    overlay?: OverlayComponent[];
   };
 };
 
