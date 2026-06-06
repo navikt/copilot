@@ -1,138 +1,59 @@
 # AGENTS.md — navikt/copilot
 
-Monorepo containing Nav's GitHub Copilot ecosystem tools:
+Minimal guide for agents working in this repository.
 
-- **my-copilot** — Self-service portal for managing Copilot subscriptions (Next.js 16, TypeScript)
-- **copilot-api** — Backend API for Copilot data and seat management (Go)
-- **copilot-metrics** — Naisjob that populates BigQuery with daily Copilot usage metrics (Go)
-- **mcp-onboarding** — Reference MCP server with GitHub OAuth (Go)
-- **mcp-registry** — Public registry for Nav-approved MCP servers (Go)
+## What this repo is
 
-All apps deployed on NAIS (Kubernetes on GCP).
+Monorepo for Nav’s Copilot ecosystem:
 
-**Security architecture documented in [SECURITY.md](SECURITY.md)** — read before modifying auth, network policies, or secret management.
+- `apps/my-copilot` (Next.js/TypeScript web app)
+- `apps/copilot-api` (Go backend API)
+- `apps/copilot-metrics` (Go metrics job)
+- `apps/mcp-onboarding` (Go MCP reference server)
+- `apps/mcp-registry` (Go MCP registry API)
 
-## Build & Test Commands
+Security model and trust boundaries: see `SECURITY.md`.
+
+## Efficiency rule (mandatory)
+
+Always prefix shell commands with `rtk`.
+
+```bash
+rtk git status
+rtk mise check
+rtk gh pr view 123
+rtk go test ./...
+```
+
+In chained commands, prefix every command:
+
+```bash
+rtk git add . && rtk git commit -m "msg" && rtk git push
+```
+
+## Standard commands
 
 From repo root:
 
 ```bash
-mise check    # Lint + type check + test all apps
-mise test     # Run all tests (verbose)
-mise build    # Build all apps
-mise all      # Full pipeline: generate → check → build
+rtk mise check
+rtk mise test
+rtk mise build
+rtk mise all
 ```
 
-Per-app (run from `apps/<name>/`):
+Per app: run `rtk mise check` in the app directory after edits.
 
-```bash
-# Go apps (copilot-api, mcp-onboarding, mcp-registry)
-mise check    # fmt, vet, staticcheck, golangci-lint, test
-mise test     # go test -v ./...
-mise build    # go build
+## Repo conventions that matter
 
-# Next.js app (my-copilot)
-mise check    # ESLint, TypeScript, Prettier, Knip, Vitest
-mise test     # pnpm test (Vitest)
-mise build    # next build
-```
+- Keep diffs small and task-focused (minimal editing).
+- Reuse existing patterns before adding new abstractions.
+- In `my-copilot`, use Aksel spacing tokens (not Tailwind `p-*/m-*` utilities).
+- Do not commit secrets.
+- Do not push unless explicitly asked.
 
-## Project Structure
+## When in doubt
 
-```text
-apps/
-  copilot-api/        # Go backend API — GitHub API, BigQuery, seat management
-  mcp-onboarding/     # Go MCP server — OAuth, 16 tools, readiness assessment
-  mcp-registry/       # Go registry API — allowlist.json, MCP Registry v0.1 spec
-  my-copilot/         # Next.js 16 — App Router, Aksel Design System (BFF)
-    src/
-      app/            # Routes and API handlers
-      components/     # React components
-      lib/            # Utilities, auth, backend API client
-.github/
-  instructions/       # Scoped Copilot instructions (*.instructions.md)
-  agents/             # Custom Copilot agents (*.agent.md)
-  prompts/            # Reusable prompt templates (*.prompt.md)
-  skills/             # Domain knowledge packages (SKILL.md)
-  copilot-instructions.md  # Global Copilot instructions
-docs/                 # Documentation
-SECURITY.md           # Security architecture, trust zones, auth flow
-```
-
-### Customization Language
-
-- **YAML descriptions**: Norwegian (shown in VS Code agent/skill picker and on the my-copilot website)
-- **Machine instructions** (operating loops, rules, boundaries, checklists): English — maximizes LLM instruction adherence, especially in multi-turn conversations
-- **User-visible output templates** (phase headers, progress indicators, checkpoint summaries): Norwegian — UX matters for Nav developers
-- **Domain content** (decision trees, reference tables, code examples): English
-- **Exceptions**: `@forfatter` and `@accessibility-agent` use Norwegian body content per their domain (UI/UX, accessibility, Norwegian language)
-
-## Code Style
-
-### Minimal Editing
-
-When fixing a bug or implementing a feature, change only what is necessary. Do not rename variables, restructure working code, or refactor beyond the task at hand. Keep diffs small and focused so they are easy to review.
-
-### Go (copilot-api, mcp-onboarding, mcp-registry)
-
-- Standard library preferred — minimal dependencies
-- `go vet` + `staticcheck` + `golangci-lint` for linting
-- Table-driven tests
-- `slog` for structured logging
-- Error wrapping with `fmt.Errorf("context: %w", err)`
-
-### TypeScript/Next.js (my-copilot)
-
-- TypeScript strict mode
-- Nav Aksel Design System (`@navikt/ds-react`) for UI components
-- **Always use Aksel spacing tokens (Box, VStack, HStack), never Tailwind p-/m- utilities**
-- ESLint + Prettier + Knip for code quality
-- Vitest for testing
-- **Norwegian UI text**: Follow `apps/my-copilot/ORDBOK.md` for terminology — keep English tech terms where there's no good Norwegian alternative, use simple words, avoid unnecessary anglicisms
-
-## Git Workflow
-
-- Feature branches off `main`
-- PRs require passing CI checks
-- Squash merge to `main`
-- **Semantic commit messages** using [Conventional Commits](https://www.conventionalcommits.org/):
-  - `feat:` new features
-  - `fix:` bug fixes
-  - `style:` visual/UI changes (no logic change)
-  - `refactor:` code restructuring
-  - `docs:` documentation changes
-  - `chore:` maintenance, config, dependencies
-  - `test:` adding or updating tests
-  - Scopes in parentheses when helpful: `feat(docs):`, `style(my-copilot):`
-- **No `Co-authored-by` trailers** in commit messages
-- **Do not push** unless explicitly asked
-- **Do not amend commits on main** unless explicitly asked — use a new commit instead
-
-## NAIS Deployment
-
-- Manifests in `apps/<name>/.nais/`
-- Required endpoints: `/isalive`, `/isready`, `/metrics`
-- Environment configs: dev + prod
-
-## Boundaries
-
-See [SECURITY.md](SECURITY.md) for the full security architecture, trust zones, and auth flow.
-
-### Always
-
-- Run `mise check` after changes
-- Follow existing code patterns in the project
-- Use parameterized queries for any database access
-- Validate all external input
-
-### Ask First
-
-- Changing authentication mechanisms
-- Modifying NAIS production configurations
-- Adding new dependencies
-
-### Never
-
-- Commit secrets or credentials
-- Use Tailwind p-/m- utilities instead of Aksel spacing tokens
-- Skip input validation on external boundaries
+- Start with the smallest safe change.
+- Validate with existing checks (`rtk mise check`, or `rtk mise all` for cross-repo impact).
+- Prefer deterministic tools first (`rtk rg`, `rtk git`, `rtk gh`), then LLM synthesis.
