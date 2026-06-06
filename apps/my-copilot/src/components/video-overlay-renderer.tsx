@@ -4,6 +4,7 @@ import { Tag, BodyShort } from "@navikt/ds-react";
 import { useRef, useEffect, useState } from "react";
 import type { OverlayComponent } from "@/lib/public-videos";
 import { getAnchorStyles } from "@/lib/overlay-positioning";
+import { HeaderOverlayGroup } from "./header-overlay-group";
 
 type VideoOverlayRendererProps = {
   overlays?: OverlayComponent[];
@@ -20,21 +21,6 @@ const OVERLAY_PRIORITY: Record<string, number> = {
 
 function getOverlayPriority(kind: string): number {
   return OVERLAY_PRIORITY[kind] ?? 0;
-}
-
-function EpisodeNumber({ labels, monospace, isMobile }: { labels: string[]; monospace?: boolean; isMobile: boolean }) {
-  const label = labels[0] ?? "";
-  return (
-    <Tag
-      variant="neutral"
-      size={isMobile ? "small" : "medium"}
-      className={`${monospace ? "font-mono" : ""} truncate`}
-      style={{ padding: isMobile ? "0.4rem 0.6rem" : "0.5rem 0.75rem" }}
-      title={label}
-    >
-      {label}
-    </Tag>
-  );
 }
 
 function Badge({ labels, isMobile }: { labels: string[]; isMobile: boolean }) {
@@ -65,7 +51,7 @@ function Counter({ labels, isMobile }: { labels: string[]; isMobile: boolean }) 
   const label = labels[0] ?? "";
   return (
     <div
-      className="bg-black/50 text-white rounded text-xs"
+      className="bg-black/65 text-white rounded text-xs"
       style={{ padding: isMobile ? "0.4rem 0.5rem" : "0.5rem 0.5rem" }}
     >
       <BodyShort size="small" className="text-white">
@@ -90,7 +76,7 @@ function RulePill({ labels }: { labels: string[] }) {
 
 function GenericOverlay({ labels, isMobile }: { labels: string[]; isMobile: boolean }) {
   return (
-    <div className="bg-black/50 text-white rounded" style={{ padding: isMobile ? "0.4rem 0.5rem" : "0.5rem 0.5rem" }}>
+    <div className="bg-black/65 text-white rounded" style={{ padding: isMobile ? "0.4rem 0.5rem" : "0.5rem 0.5rem" }}>
       <BodyShort size="small" className="text-white text-xs">
         {labels.join(", ")}
       </BodyShort>
@@ -126,12 +112,22 @@ export function VideoOverlayRenderer({ overlays }: VideoOverlayRendererProps) {
     return null;
   }
 
-  // Sort overlays by priority (highest first, so they render on top)
-  const sortedOverlays = [...overlays].sort((a, b) => getOverlayPriority(b.kind) - getOverlayPriority(a.kind));
+  // Separate header overlays (top-left anchored) from other overlays
+  const headerOverlays = overlays.filter((o) => o.anchor === "top-left");
+  const otherOverlays = overlays.filter((o) => o.anchor !== "top-left");
+
+  // Sort other overlays by priority (highest first, so they render on top)
+  const sortedOtherOverlays = [...otherOverlays].sort(
+    (a, b) => getOverlayPriority(b.kind) - getOverlayPriority(a.kind)
+  );
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }} aria-hidden="true">
-      {sortedOverlays.map((overlay, index) => {
+      {/* Header overlay group */}
+      {headerOverlays.length > 0 && <HeaderOverlayGroup overlays={headerOverlays} isMobile={isMobile} />}
+
+      {/* Other overlays */}
+      {sortedOtherOverlays.map((overlay, index) => {
         const styles = getAnchorStyles(overlay.anchor, {
           kind: overlay.kind,
           labels: overlay.labels,
@@ -147,9 +143,6 @@ export function VideoOverlayRenderer({ overlays }: VideoOverlayRendererProps) {
         let content: React.ReactNode;
 
         switch (overlay.kind) {
-          case "episode-number":
-            content = <EpisodeNumber labels={overlay.labels} monospace={overlay.monospace} isMobile={isMobile} />;
-            break;
           case "badge":
             content = <Badge labels={overlay.labels} isMobile={isMobile} />;
             break;
