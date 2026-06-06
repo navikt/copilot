@@ -27,7 +27,13 @@ func testVideoManifestJSON() []byte {
     "mp4_object": "videos/intro-cli/video.mp4",
     "captions_object": "videos/intro-cli/captions.vtt",
     "is_published": true,
-    "sort_order": 1
+    "sort_order": 1,
+    "metadata": {
+      "series": "kost-optimalisering",
+      "season": 1,
+      "episode": 1,
+      "tags": ["prompting", "cost"]
+    }
   },
   {
     "id": "draft-video",
@@ -169,6 +175,9 @@ func TestVideoFeedEndpoint(t *testing.T) {
 	}
 	if !strings.Contains(body, `"captions_url":"https://storage.googleapis.com/copilot-videos-public/videos/intro-cli/captions.vtt"`) {
 		t.Fatalf("expected captions_url in feed, got %s", body)
+	}
+	if !strings.Contains(body, `"metadata":{"series":"kost-optimalisering","season":1,"episode":1,"tags":["prompting","cost"]}`) {
+		t.Fatalf("expected metadata in feed, got %s", body)
 	}
 	if strings.Contains(body, `"id":"draft-video"`) {
 		t.Fatalf("did not expect unpublished video in feed, got %s", body)
@@ -347,5 +356,36 @@ func TestLoadVideoManifestFromSourceRejectsInvalidPayload(t *testing.T) {
 
 	if _, err := loadVideoManifestFromSource(context.Background(), server.URL); err == nil {
 		t.Fatal("expected error for invalid manifest payload")
+	}
+}
+
+func TestLoadVideoManifestFromSourceRejectsInvalidMetadata(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+      {
+        "id": "intro-cli",
+        "title": "Intro",
+        "description": "",
+        "category": "copilot",
+        "published_at": "2026-06-01T10:00:00Z",
+        "duration_sec": 42,
+        "aspect_ratio": "9:16",
+        "language": "nb",
+        "poster_object": "videos/intro-cli/poster.jpg",
+        "hls_master_object": "videos/intro-cli/master.m3u8",
+        "captions_object": "",
+        "is_published": true,
+        "sort_order": 1,
+        "metadata": {
+          "season": 1
+        }
+      }
+    ]`))
+	}))
+	t.Cleanup(server.Close)
+
+	if _, err := loadVideoManifestFromSource(context.Background(), server.URL); err == nil {
+		t.Fatal("expected error for invalid metadata payload")
 	}
 }

@@ -77,7 +77,11 @@ mise run video:prepare -- \
   --input ./videos/nav-pilot.s01e01.prompt.mp4 \
   --id nav-pilot-s01e01-prompt \
   --title "Nav-pilot S01E01: Prompt" \
-  --category nav-pilot
+  --category nav-pilot \
+  --series "video-demoer-kost-token-optimalisering" \
+  --season 1 \
+  --episode 1 \
+  --tags "prompting,cost"
 ```
 
 Dette lager `video-packages/<id>/` med:
@@ -110,7 +114,11 @@ VIDEO_BUCKET_PUBLIC=copilot-videos-public-dev mise run video:publish:dev -- \
   --poster-file /path/poster.jpg \
   --hls-file /path/master.m3u8 \
   --mp4-file /path/video.mp4 \
-  --captions-file /path/captions.vtt
+  --captions-file /path/captions.vtt \
+  --series "video-demoer-kost-token-optimalisering" \
+  --season 1 \
+  --episode 1 \
+  --tags "prompting,cost"
 ```
 
 ## Hvordan manifestet styrer feeden
@@ -134,9 +142,17 @@ Eksempel på én manifest-entry:
   "mp4_object": "videos/intro-cli/video.mp4",
   "captions_object": "videos/intro-cli/captions.vtt",
   "is_published": true,
-  "sort_order": 100
+  "sort_order": 100,
+  "metadata": {
+    "series": "video-demoer-kost-token-optimalisering",
+    "season": 1,
+    "episode": 1,
+    "tags": ["prompting", "cost"]
+  }
 }
 ```
+
+`metadata` er valgfritt. Det gjør modellen mer utvidbar uten å bryte eksisterende klienter.
 
 ## Verifisering etter publisering
 

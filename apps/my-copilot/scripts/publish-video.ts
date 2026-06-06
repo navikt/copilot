@@ -15,6 +15,14 @@ type ManifestItem = {
   captions_object: string;
   is_published: boolean;
   sort_order: number;
+  metadata?: VideoMetadata;
+};
+
+type VideoMetadata = {
+  series?: string;
+  season?: number;
+  episode?: number;
+  tags?: string[];
 };
 
 type PublishEnvironment = "dev" | "prod";
@@ -49,6 +57,15 @@ function parseNonNegativeInteger(name: string, value: string): number {
   return parsed;
 }
 
+function parseOptionalPositiveInteger(name: string, value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid value for --${name}; expected a positive integer`);
+  }
+  return parsed;
+}
+
 function resolvePublishEnvironment(): PublishEnvironment {
   const value = arg("environment") ?? process.env.VIDEO_PUBLISH_ENV ?? process.env.NAIS_CLUSTER_NAME ?? "";
   switch (value.toLowerCase()) {
@@ -76,11 +93,34 @@ function gsPath(bucket: string, objectPath: string): string {
 }
 
 const VALID_OBJECT_PATH_RE = /^[a-zA-Z0-9][a-zA-Z0-9/_\-.]*$/;
+const VALID_TAG_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 function validateObjectPath(objectPath: string, label: string) {
   if (!VALID_OBJECT_PATH_RE.test(objectPath) || objectPath.includes("..") || objectPath.includes("//")) {
     throw new Error(`Invalid ${label}; object path contains unsupported characters`);
   }
+}
+
+function parseTags(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const tags = raw
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  if (tags.length > 20) {
+    throw new Error("Invalid --tags; expected at most 20 tags");
+  }
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    if (!VALID_TAG_RE.test(tag)) {
+      throw new Error(`Invalid tag "${tag}"; use lowercase letters, numbers, and hyphens`);
+    }
+    if (seen.has(tag)) {
+      throw new Error(`Duplicate tag "${tag}"`);
+    }
+    seen.add(tag);
+  }
+  return tags;
 }
 
 function readManifest(manifestTarget: string): ManifestItem[] {
@@ -127,6 +167,16 @@ function main() {
   const durationSec = parsePositiveInteger("duration-sec", required("duration-sec"));
   const sortOrder = parseNonNegativeInteger("sort-order", arg("sort-order") ?? "100");
   const publishedAt = arg("published-at") ?? new Date().toISOString();
+  const series = (arg("series") ?? "").trim();
+  const season = parseOptionalPositiveInteger("season", arg("season"));
+  const episode = parseOptionalPositiveInteger("episode", arg("episode"));
+  const tags = parseTags(arg("tags"));
+  if ((season === undefined) !== (episode === undefined)) {
+    throw new Error("When using season/episode, both --season and --episode must be set");
+  }
+  if ((season !== undefined || episode !== undefined) && !series) {
+    throw new Error("--series is required when --season/--episode is set");
+  }
 
   const posterFile = required("poster-file");
   const hlsFile = required("hls-file");
@@ -154,6 +204,11 @@ function main() {
   }
 
   const manifest = readManifest(manifestTarget);
+  const metadata: VideoMetadata = {};
+  if (series) metadata.series = series;
+  if (season !== undefined) metadata.season = season;
+  if (episode !== undefined) metadata.episode = episode;
+  if (tags.length > 0) metadata.tags = tags;
   const entry: ManifestItem = {
     id,
     title,
@@ -169,6 +224,7 @@ function main() {
     captions_object: captionsObject,
     is_published: true,
     sort_order: sortOrder,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   };
 
   const existingIndex = manifest.findIndex((item) => item.id === id);

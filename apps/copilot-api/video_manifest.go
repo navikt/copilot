@@ -18,40 +18,50 @@ import (
 
 var (
 	validVideoID            = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
+	validVideoTag           = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 	validObjectPathRe       = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9/_\-.]*$`)
 	videoManifestHTTPClient = &http.Client{Timeout: 10 * time.Second}
 )
 
+type VideoMetadata struct {
+	Series  string   `json:"series,omitempty"`
+	Season  int      `json:"season,omitempty"`
+	Episode int      `json:"episode,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
+}
+
 type VideoManifestEntry struct {
-	ID              string    `json:"id"`
-	Title           string    `json:"title"`
-	Description     string    `json:"description"`
-	Category        string    `json:"category"`
-	PublishedAt     time.Time `json:"published_at"`
-	DurationSec     int       `json:"duration_sec"`
-	AspectRatio     string    `json:"aspect_ratio"`
-	Language        string    `json:"language"`
-	PosterObject    string    `json:"poster_object"`
-	HLSMasterObject string    `json:"hls_master_object"`
-	MP4Object       string    `json:"mp4_object"`
-	CaptionsObject  string    `json:"captions_object"`
-	IsPublished     bool      `json:"is_published"`
-	SortOrder       int       `json:"sort_order"`
+	ID              string         `json:"id"`
+	Title           string         `json:"title"`
+	Description     string         `json:"description"`
+	Category        string         `json:"category"`
+	PublishedAt     time.Time      `json:"published_at"`
+	DurationSec     int            `json:"duration_sec"`
+	AspectRatio     string         `json:"aspect_ratio"`
+	Language        string         `json:"language"`
+	PosterObject    string         `json:"poster_object"`
+	HLSMasterObject string         `json:"hls_master_object"`
+	MP4Object       string         `json:"mp4_object"`
+	CaptionsObject  string         `json:"captions_object"`
+	IsPublished     bool           `json:"is_published"`
+	SortOrder       int            `json:"sort_order"`
+	Metadata        *VideoMetadata `json:"metadata,omitempty"`
 }
 
 type VideoFeedItem struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Category    string    `json:"category"`
-	PublishedAt time.Time `json:"published_at"`
-	DurationSec int       `json:"duration_sec"`
-	AspectRatio string    `json:"aspect_ratio"`
-	Language    string    `json:"language"`
-	PosterURL   string    `json:"poster_url"`
-	PlayURL     string    `json:"play_url"`
-	MP4URL      string    `json:"mp4_url,omitempty"`
-	CaptionsURL string    `json:"captions_url,omitempty"`
+	ID          string         `json:"id"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Category    string         `json:"category"`
+	PublishedAt time.Time      `json:"published_at"`
+	DurationSec int            `json:"duration_sec"`
+	AspectRatio string         `json:"aspect_ratio"`
+	Language    string         `json:"language"`
+	PosterURL   string         `json:"poster_url"`
+	PlayURL     string         `json:"play_url"`
+	MP4URL      string         `json:"mp4_url,omitempty"`
+	CaptionsURL string         `json:"captions_url,omitempty"`
+	Metadata    *VideoMetadata `json:"metadata,omitempty"`
 }
 
 type VideoFeedResponse struct {
@@ -120,6 +130,44 @@ func validateVideoEntry(e VideoManifestEntry) error {
 		if err := validateObjectPath(e.CaptionsObject); err != nil {
 			return fmt.Errorf("captions_object: %w", err)
 		}
+	}
+	if e.Metadata != nil {
+		if err := validateVideoMetadata(e.Metadata); err != nil {
+			return fmt.Errorf("metadata: %w", err)
+		}
+	}
+	return nil
+}
+
+func validateVideoMetadata(metadata *VideoMetadata) error {
+	series := strings.TrimSpace(metadata.Series)
+	if len(series) > 80 {
+		return fmt.Errorf("series must be <= 80 characters")
+	}
+	if metadata.Season < 0 {
+		return fmt.Errorf("season must be >= 0")
+	}
+	if metadata.Episode < 0 {
+		return fmt.Errorf("episode must be >= 0")
+	}
+	if (metadata.Season > 0 && metadata.Episode == 0) || (metadata.Season == 0 && metadata.Episode > 0) {
+		return fmt.Errorf("season and episode must be set together")
+	}
+	if (metadata.Season > 0 || metadata.Episode > 0) && series == "" {
+		return fmt.Errorf("series is required when season/episode is set")
+	}
+	if len(metadata.Tags) > 20 {
+		return fmt.Errorf("tags must be <= 20 items")
+	}
+	seen := make(map[string]struct{}, len(metadata.Tags))
+	for _, tag := range metadata.Tags {
+		if !validVideoTag.MatchString(tag) {
+			return fmt.Errorf("invalid tag %q", tag)
+		}
+		if _, exists := seen[tag]; exists {
+			return fmt.Errorf("duplicate tag %q", tag)
+		}
+		seen[tag] = struct{}{}
 	}
 	return nil
 }

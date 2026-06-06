@@ -200,6 +200,7 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 			PlayURL:     playURL,
 			MP4URL:      mp4URL,
 			CaptionsURL: captionsURL,
+			Metadata:    e.Metadata,
 		})
 	}
 

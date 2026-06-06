@@ -14,6 +14,12 @@ export type PublicVideoFeedItem = {
   play_url: string;
   mp4_url?: string;
   captions_url?: string;
+  metadata?: {
+    series?: string;
+    season?: number;
+    episode?: number;
+    tags?: string[];
+  };
 };
 
 type VideoFeedResponse = {
@@ -32,6 +38,12 @@ export type HomepageVideo = {
   playUrl: string;
   mp4Url?: string;
   captionsUrl?: string;
+  metadata?: {
+    series?: string;
+    season?: number;
+    episode?: number;
+    tags?: string[];
+  };
 };
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -74,6 +86,7 @@ export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVid
       playUrl: item.play_url,
       mp4Url: item.mp4_url,
       captionsUrl: item.captions_url,
+      metadata: item.metadata,
     }));
   } catch (error) {
     console.error("Failed to fetch public video feed:", error);

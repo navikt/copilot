@@ -42,8 +42,42 @@ function optionalInteger(name: string, defaultValue: number): number {
   return parsed;
 }
 
+function optionalPositiveInteger(name: string): number | undefined {
+  const value = arg(name);
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid value for --${name}; expected a positive integer`);
+  }
+  return parsed;
+}
+
 function optionalString(name: string, defaultValue: string): string {
   return arg(name) ?? defaultValue;
+}
+
+const VALID_TAG_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
+
+function parseTags(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const tags = raw
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  if (tags.length > 20) {
+    throw new Error("Invalid --tags; expected at most 20 tags");
+  }
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    if (!VALID_TAG_RE.test(tag)) {
+      throw new Error(`Invalid tag "${tag}"; use lowercase letters, numbers, and hyphens`);
+    }
+    if (seen.has(tag)) {
+      throw new Error(`Duplicate tag "${tag}"`);
+    }
+    seen.add(tag);
+  }
+  return tags;
 }
 
 function requireTool(tool: string) {
@@ -142,6 +176,16 @@ function main() {
   const publishedAt = optionalString("published-at", new Date().toISOString());
   const durationOverride = optionalNumber("duration-sec");
   const posterTimeOverride = optionalNumber("poster-time");
+  const series = (arg("series") ?? "").trim();
+  const season = optionalPositiveInteger("season");
+  const episode = optionalPositiveInteger("episode");
+  const tags = parseTags(arg("tags"));
+  if ((season === undefined) !== (episode === undefined)) {
+    throw new Error("When using season/episode, both --season and --episode must be set");
+  }
+  if ((season !== undefined || episode !== undefined) && !series) {
+    throw new Error("--series is required when --season/--episode is set");
+  }
 
   const probe = probeVideo(inputFile);
   const durationSec = durationOverride !== undefined ? Math.max(1, Math.round(durationOverride)) : probe.durationSec;
@@ -217,6 +261,17 @@ function main() {
     { stdio: "inherit" }
   );
 
+  const publishMetadata: {
+    series?: string;
+    season?: number;
+    episode?: number;
+    tags?: string[];
+  } = {};
+  if (series) publishMetadata.series = series;
+  if (season !== undefined) publishMetadata.season = season;
+  if (episode !== undefined) publishMetadata.episode = episode;
+  if (tags.length > 0) publishMetadata.tags = tags;
+
   const metadata = {
     id,
     title,
@@ -233,10 +288,32 @@ function main() {
     mp4_file: mp4File,
     aspect_ratio: "9:16",
     dimensions: { width: probe.width, height: probe.height },
+    publish_metadata: publishMetadata,
   };
   writeFile(metadataFile, `${JSON.stringify(metadata, null, 2)}\n`);
 
   const appRoot = path.resolve(import.meta.dirname, "..");
+  const publishArgs = [
+    `--id ${quote(id)}`,
+    `--title ${quote(title)}`,
+    `--category ${quote(category)}`,
+    `--duration-sec ${quote(String(durationSec))}`,
+    '--poster-file "${OUT_DIR}/poster.jpg"',
+    '--hls-file "${OUT_DIR}/hls/master.m3u8"',
+    '--mp4-file "${OUT_DIR}/video.mp4"',
+    `--language ${quote(language)}`,
+    `--sort-order ${quote(String(sortOrder))}`,
+    `--published-at ${quote(publishedAt)}`,
+  ];
+  if (description) publishArgs.push(`--description ${quote(description)}`);
+  if (series) publishArgs.push(`--series ${quote(series)}`);
+  if (season !== undefined) publishArgs.push(`--season ${quote(String(season))}`);
+  if (episode !== undefined) publishArgs.push(`--episode ${quote(String(episode))}`);
+  if (tags.length > 0) publishArgs.push(`--tags ${quote(tags.join(","))}`);
+  const publishArgsLines = publishArgs.map(
+    (entry, index) => `  ${entry}${index < publishArgs.length - 1 ? " \\" : ""}`
+  );
+
   const publishScriptLines = [
     "#!/usr/bin/env bash",
     "set -euo pipefail",
@@ -254,20 +331,8 @@ function main() {
     'gsutil -m cp -r "${OUT_DIR}/hls/." "gs://${VIDEO_BUCKET_PUBLIC}/videos/${ID}/"',
     'cd "${APP_ROOT}"',
     'VIDEO_BUCKET_PUBLIC="${VIDEO_BUCKET_PUBLIC}" VIDEO_PUBLISH_ENV=dev node --experimental-strip-types scripts/publish-video.ts \\',
-    `  --id ${quote(id)} \\`,
-    `  --title ${quote(title)} \\`,
-    `  --category ${quote(category)} \\`,
-    `  --duration-sec ${quote(String(durationSec))} \\`,
-    '  --poster-file "${OUT_DIR}/poster.jpg" \\',
-    '  --hls-file "${OUT_DIR}/hls/master.m3u8" \\',
-    '  --mp4-file "${OUT_DIR}/video.mp4" \\',
-    `  --language ${quote(language)} \\`,
-    `  --sort-order ${quote(String(sortOrder))} \\`,
-    `  --published-at ${quote(publishedAt)}${description ? " \\" : ""}`,
+    ...publishArgsLines,
   ];
-  if (description) {
-    publishScriptLines.push(`  --description ${quote(description)}`);
-  }
   const publishScriptContent = `${publishScriptLines.join("\n")}\n`;
   writeFile(publishScript, publishScriptContent);
   fs.chmodSync(publishScript, 0o755);
