@@ -100,6 +100,8 @@ cd video-packages/nav-pilot-s01e01-prompt
 VIDEO_BUCKET_PUBLIC=copilot-videos-public-dev ./publish.sh
 ```
 
+`publish.sh` prøver `gcloud storage` først og faller tilbake til `gsutil` hvis nødvendig.
+
 ### Spor B: Du har allerede ferdige filer
 
 Publiser direkte:
@@ -176,6 +178,7 @@ curl "http://localhost:8080/public/v1/videos/<id>/play"
 - **503 fra API:** manifest kunne ikke leses, og det finnes ingen cachet kopi.
 - **Avspilling feiler:** HLS-master peker på segmenter som ikke finnes i samme bucket/prefix.
 - **Valideringsfeil ved publisering:** `id` eller objektstier inneholder ugyldige tegn.
+- **`gsutil` feiler med Python 3.14:** bruk `gcloud storage` (scriptet gjør dette automatisk før eventuell `gsutil`-fallback).
 
 ## Relevante filer i repoet
 

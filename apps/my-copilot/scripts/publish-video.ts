@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 
 type ManifestItem = {
   id: string;
@@ -124,31 +125,77 @@ function parseTags(raw: string | undefined): string[] {
 }
 
 function readManifest(manifestTarget: string): ManifestItem[] {
+  const readWithGcloud = () => execFileSync("gcloud", ["storage", "cat", manifestTarget], { encoding: "utf8" }).trim();
+  const readWithGsutil = () => execFileSync("gsutil", ["cat", manifestTarget], { encoding: "utf8" }).trim();
   try {
-    const output = execFileSync("gsutil", ["cat", manifestTarget], { encoding: "utf8" }).trim();
+    const output = readWithGcloud();
     if (!output) {
       return [];
     }
     return JSON.parse(output) as ManifestItem[];
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("No URLs matched") || message.includes("matched no objects")) {
+    if (
+      message.includes("No URLs matched") ||
+      message.includes("matched no objects") ||
+      message.includes("No such object")
+    ) {
       return [];
     }
-    throw error;
+    try {
+      const output = readWithGsutil();
+      if (!output) {
+        return [];
+      }
+      return JSON.parse(output) as ManifestItem[];
+    } catch (fallbackError) {
+      const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      if (
+        fallbackMessage.includes("No URLs matched") ||
+        fallbackMessage.includes("matched no objects") ||
+        fallbackMessage.includes("No such object")
+      ) {
+        return [];
+      }
+      throw fallbackError;
+    }
   }
 }
 
 function writeManifest(manifestTarget: string, manifest: ManifestItem[]) {
   const payload = `${JSON.stringify(manifest, null, 2)}\n`;
-  execFileSync("gsutil", ["-h", "Content-Type:application/json", "cp", "-", manifestTarget], {
-    input: payload,
-    stdio: ["pipe", "inherit", "inherit"],
-  });
+  try {
+    execFileSync("gcloud", ["storage", "cp", "--content-type=application/json", "-", manifestTarget], {
+      input: payload,
+      stdio: ["pipe", "inherit", "inherit"],
+    });
+  } catch {
+    execFileSync("gsutil", ["-h", "Content-Type:application/json", "cp", "-", manifestTarget], {
+      input: payload,
+      stdio: ["pipe", "inherit", "inherit"],
+    });
+  }
 }
 
 function upload(localFile: string, gsTarget: string) {
-  execFileSync("gsutil", ["cp", localFile, gsTarget], { stdio: "inherit" });
+  try {
+    execFileSync("gcloud", ["storage", "cp", localFile, gsTarget], { stdio: "inherit" });
+  } catch {
+    execFileSync("gsutil", ["cp", localFile, gsTarget], { stdio: "inherit" });
+  }
+}
+
+function uploadRecursive(localDir: string, gsTargetPrefix: string) {
+  if (!fs.existsSync(localDir) || !fs.statSync(localDir).isDirectory()) {
+    throw new Error(`--hls-segments-dir does not exist or is not a directory: ${localDir}`);
+  }
+  try {
+    execFileSync("gcloud", ["storage", "cp", "--recursive", `${localDir}/`, `${gsTargetPrefix}/`], {
+      stdio: "inherit",
+    });
+  } catch {
+    execFileSync("gsutil", ["-m", "cp", "-r", `${localDir}/.`, `${gsTargetPrefix}/`], { stdio: "inherit" });
+  }
 }
 
 function main() {
@@ -182,6 +229,7 @@ function main() {
   const hlsFile = required("hls-file");
   const mp4File = arg("mp4-file");
   const captionsFile = arg("captions-file");
+  const hlsSegmentsDir = arg("hls-segments-dir");
 
   const targetPrefix = `videos/${id}`;
   const posterObject = `${targetPrefix}/${posterFile.split("/").pop() ?? "poster.jpg"}`;
@@ -201,6 +249,9 @@ function main() {
   }
   if (captionsFile) {
     upload(captionsFile, gsPath(bucketPublic, captionsObject));
+  }
+  if (hlsSegmentsDir) {
+    uploadRecursive(hlsSegmentsDir, gsPath(bucketPublic, `${targetPrefix}/segments`));
   }
 
   const manifest = readManifest(manifestTarget);

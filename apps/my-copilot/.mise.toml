@@ -60,7 +60,7 @@ description = "Find unused files, dependencies and exports"
 
 [tasks."video:publish"]
 run = "node --experimental-strip-types scripts/publish-video.ts"
-description = "Upload video assets with gsutil and update the GCS video manifest (set VIDEO_PUBLISH_ENV)"
+description = "Upload video assets (gcloud storage first, gsutil fallback) and update the GCS video manifest (set VIDEO_PUBLISH_ENV)"
 
 [tasks."video:publish:dev"]
 env = { VIDEO_PUBLISH_ENV = "dev" }
