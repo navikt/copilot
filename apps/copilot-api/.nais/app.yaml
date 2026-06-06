@@ -26,9 +26,9 @@ spec:
 
   env:
     - name: "LOG_LEVEL"
-      value: "INFO"
+      value: "{{log_level}}"
     - name: "LOGGED_ENDPOINTS"
-      value: "/api/v1/"
+      value: "{{logged_endpoints}}"
     - name: "GITHUB_ORG"
       value: "navikt"
     - name: "COPILOT_METRICS_DATASET"
@@ -38,7 +38,9 @@ spec:
     - name: "COPILOT_ADOPTION_DATASET"
       value: "copilot_adoption"
     - name: "VIDEO_FEED_CACHE_SECONDS"
-      value: "60"
+      value: "{{video_feed_cache_seconds}}"
+    - name: "VIDEO_BUCKET_PUBLIC"
+      value: "{{video_bucket_public}}"
 
   liveness:
     path: "/health"
@@ -73,6 +75,8 @@ spec:
       memory: "128Mi"
 
   gcp:
+    buckets:
+      - name: "{{video_bucket_public}}"
     bigQueryDatasets:
       - name: copilot_metrics
         permission: READ

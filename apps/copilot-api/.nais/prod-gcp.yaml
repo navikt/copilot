@@ -1,9 +1,4 @@
-env:
-  - name: "VIDEO_BUCKET_PUBLIC_PROD"
-    value: "copilot-videos-public-prod"
-  - name: "VIDEO_FEED_CACHE_SECONDS"
-    value: "60"
-
-gcp:
-  buckets:
-    - name: "copilot-videos-public-prod"
+log_level: "INFO"
+logged_endpoints: "/api/v1/"
+video_bucket_public: "copilot-videos-public-prod"
+video_feed_cache_seconds: "60"
