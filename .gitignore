@@ -59,6 +59,7 @@ apps/copilot-adoption/bin/copilot-adoption
 apps/mcp-registry/mcp-registry
 nvim.log
 cli/nav-pilot/cover.out
+/videos/
 
 # Screenshots
 Screenshot*.png
