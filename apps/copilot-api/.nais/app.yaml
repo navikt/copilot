@@ -39,6 +39,8 @@ spec:
       value: "copilot_adoption"
     - name: "VIDEO_FEED_CACHE_SECONDS"
       value: "{{video_feed_cache_seconds}}"
+    - name: "VIDEO_MANIFEST_URL"
+      value: "gs://{{video_bucket_public}}/video_manifest.json"
     - name: "VIDEO_BUCKET_PUBLIC"
       value: "{{video_bucket_public}}"
 

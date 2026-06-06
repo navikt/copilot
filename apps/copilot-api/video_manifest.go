@@ -1,15 +1,13 @@
 package main
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
-	"os/exec"
-	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -272,11 +270,7 @@ func loadVideoManifestFromSource(ctx context.Context, source string) ([]VideoMan
 func readManifestSource(ctx context.Context, source string) ([]byte, error) {
 	switch {
 	case strings.HasPrefix(source, "gs://"):
-		raw, err := readManifestGCS(ctx, source)
-		if err == nil {
-			return raw, nil
-		}
-		return readManifestURL(ctx, gcsManifestURL(source))
+		return readManifestGCS(ctx, source)
 	case strings.HasPrefix(source, "http://"), strings.HasPrefix(source, "https://"):
 		return readManifestURL(ctx, source)
 	default:
@@ -313,45 +307,36 @@ func readManifestURL(ctx context.Context, manifestURL string) ([]byte, error) {
 	return raw, nil
 }
 
-func readManifestGCS(ctx context.Context, source string) ([]byte, error) {
-	commands := [][]string{
-		{"gcloud", "storage", "cat", source},
-		{"gsutil", "cat", source},
-	}
-
-	var errors []string
-	for _, command := range commands {
-		if _, err := exec.LookPath(command[0]); err != nil {
-			errors = append(errors, fmt.Sprintf("%s unavailable", command[0]))
-			continue
-		}
-		cmd := exec.CommandContext(ctx, command[0], command[1:]...)
-		raw, err := cmd.Output()
-		if err == nil {
-			return raw, nil
-		}
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			stderr := strings.TrimSpace(string(exitErr.Stderr))
-			if stderr != "" {
-				errors = append(errors, fmt.Sprintf("%s failed: %s", command[0], stderr))
-				continue
-			}
-		}
-		errors = append(errors, fmt.Sprintf("%s failed: %v", command[0], err))
-	}
-
-	return nil, fmt.Errorf("failed reading manifest from %s: %s", source, strings.Join(errors, "; "))
-}
-
-func gcsManifestURL(source string) string {
+func readManifestGCS(ctx context.Context, source string) (raw []byte, err error) {
 	source = strings.TrimPrefix(source, "gs://")
 	bucket, object, found := strings.Cut(source, "/")
 	if !found || bucket == "" || object == "" {
-		return source
+		return nil, fmt.Errorf("invalid gs:// manifest source: %s", source)
 	}
-	return (&url.URL{
-		Scheme: "https",
-		Host:   "storage.googleapis.com",
-		Path:   path.Join(bucket, object),
-	}).String()
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("creating GCS client: %w", err)
+	}
+	defer func() {
+		if cerr := client.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("closing GCS client: %w", cerr)
+		}
+	}()
+
+	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("opening manifest object gs://%s/%s: %w", bucket, object, err)
+	}
+	defer func() {
+		if cerr := rc.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("closing manifest reader gs://%s/%s: %w", bucket, object, cerr)
+		}
+	}()
+
+	raw, err = io.ReadAll(rc)
+	if err != nil {
+		return nil, fmt.Errorf("reading manifest object gs://%s/%s: %w", bucket, object, err)
+	}
+	return raw, nil
 }

@@ -45,7 +45,7 @@ Viktige variabler:
 | Variabel | Bruk |
 |---|---|
 | `VIDEO_BUCKET_PUBLIC` | Bucket for alle videoobjekter og manifest |
-| `VIDEO_MANIFEST_URL` | URL til manifest i GCS |
+| `VIDEO_MANIFEST_URL` | Manifest-URL i GCS (bruk `gs://...` for å lese direkte via GCS) |
 | `VIDEO_PUBLIC_BASE_URL` | Base URL for offentlige assets (normalt `https://storage.googleapis.com/<bucket>`) |
 | `VIDEO_FEED_CACHE_SECONDS` | Cache-TTL for manifest/feed |
 | `VIDEO_MANIFEST_PATH` | Lokal fallback-fil når URL ikke er satt |

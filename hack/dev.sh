@@ -97,7 +97,7 @@ export DEV_USER_EMAIL="${DEV_USER_EMAIL:-hans.kristian.flaatten@nav.no}"
 if [[ -n "${VIDEO_BUCKET_PUBLIC_DEV:-}" ]]; then
     export VIDEO_BUCKET_PUBLIC="${VIDEO_BUCKET_PUBLIC:-$VIDEO_BUCKET_PUBLIC_DEV}"
     export VIDEO_PUBLIC_BASE_URL="${VIDEO_PUBLIC_BASE_URL:-https://storage.googleapis.com/${VIDEO_BUCKET_PUBLIC_DEV}}"
-    export VIDEO_MANIFEST_URL="${VIDEO_MANIFEST_URL:-https://storage.googleapis.com/${VIDEO_BUCKET_PUBLIC_DEV}/video_manifest.json}"
+    export VIDEO_MANIFEST_URL="${VIDEO_MANIFEST_URL:-gs://${VIDEO_BUCKET_PUBLIC_DEV}/video_manifest.json}"
 fi
 export VIDEO_MANIFEST_PATH="${VIDEO_MANIFEST_PATH:-video_manifest.json}"
 export VIDEO_FEED_CACHE_SECONDS="${VIDEO_FEED_CACHE_SECONDS:-60}"
