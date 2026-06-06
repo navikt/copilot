@@ -91,3 +91,8 @@ run = "docker run --rm -p 8080:8080 ghcr.io/navikt/copilot-api:latest"
 [env]
 GO111MODULE = "on"
 CGO_ENABLED = "0"
+VIDEO_BUCKET_PUBLIC_DEV = "copilot-videos-public-dev"
+VIDEO_BUCKET_PUBLIC_PROD = "copilot-videos-public-prod"
+VIDEO_BUCKET_PUBLIC = "copilot-videos-public-dev"
+VIDEO_MANIFEST_URL = "https://storage.googleapis.com/copilot-videos-public-dev/video_manifest.json"
+VIDEO_PUBLIC_BASE_URL = "https://storage.googleapis.com/copilot-videos-public-dev"

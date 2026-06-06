@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"sort"
@@ -270,10 +271,14 @@ func loadVideoManifestFromSource(ctx context.Context, source string) ([]VideoMan
 
 func readManifestSource(ctx context.Context, source string) ([]byte, error) {
 	switch {
+	case strings.HasPrefix(source, "gs://"):
+		raw, err := readManifestGCS(ctx, source)
+		if err == nil {
+			return raw, nil
+		}
+		return readManifestURL(ctx, gcsManifestURL(source))
 	case strings.HasPrefix(source, "http://"), strings.HasPrefix(source, "https://"):
 		return readManifestURL(ctx, source)
-	case strings.HasPrefix(source, "gs://"):
-		return readManifestURL(ctx, gcsManifestURL(source))
 	default:
 		raw, err := os.ReadFile(source)
 		if err != nil {
@@ -288,6 +293,8 @@ func readManifestURL(ctx context.Context, manifestURL string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating manifest request: %w", err)
 	}
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Pragma", "no-cache")
 
 	resp, err := videoManifestHTTPClient.Do(req)
 	if err != nil {
@@ -304,6 +311,36 @@ func readManifestURL(ctx context.Context, manifestURL string) ([]byte, error) {
 		return nil, fmt.Errorf("reading manifest response: %w", err)
 	}
 	return raw, nil
+}
+
+func readManifestGCS(ctx context.Context, source string) ([]byte, error) {
+	commands := [][]string{
+		{"gcloud", "storage", "cat", source},
+		{"gsutil", "cat", source},
+	}
+
+	var errors []string
+	for _, command := range commands {
+		if _, err := exec.LookPath(command[0]); err != nil {
+			errors = append(errors, fmt.Sprintf("%s unavailable", command[0]))
+			continue
+		}
+		cmd := exec.CommandContext(ctx, command[0], command[1:]...)
+		raw, err := cmd.Output()
+		if err == nil {
+			return raw, nil
+		}
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr := strings.TrimSpace(string(exitErr.Stderr))
+			if stderr != "" {
+				errors = append(errors, fmt.Sprintf("%s failed: %s", command[0], stderr))
+				continue
+			}
+		}
+		errors = append(errors, fmt.Sprintf("%s failed: %v", command[0], err))
+	}
+
+	return nil, fmt.Errorf("failed reading manifest from %s: %s", source, strings.Join(errors, "; "))
 }
 
 func gcsManifestURL(source string) string {

@@ -8,17 +8,20 @@ Målet er enkelt: publiser ferdige videoobjekter til én GCS-bucket per miljø, 
 
 | Del | Ansvar |
 |---|---|
-| GCS-bucket (`VIDEO_BUCKET_PUBLIC`) | Lagrer videofiler, poster, HLS-filer, teksting og `video_manifest.json` |
-| `copilot-api` | Leser manifestet, validerer innhold, og eksponerer offentlige video-endepunkter |
-| `my-copilot` | Henter feed fra `copilot-api` og viser shorts på forsiden |
+| GCS-bucket (`VIDEO_BUCKET_PUBLIC`) | Lagrer videofiler, poster, HLS-filer, teksting og `video_manifest.json`. Bucketen må være offentlig lesbar. |
+| `copilot-api` | Leser manifestet, validerer innhold, og returnerer offentlige asset-URL-er |
+| `my-copilot` | Henter feed fra `copilot-api` og renderer videoer direkte fra GCS |
 | Publiseringsscript | Laster opp objekter til bucket og skriver manifestet til slutt |
+
+Publiseringsscriptet setter bucket-IAM `allUsers:roles/storage.objectViewer` før opplasting.
 
 ## Dataflyt
 
 1. Videofiler ligger i bucket under `videos/<id>/...`.
 2. `video_manifest.json` inneholder metadata + objektstier for hver video.
-3. `copilot-api` leser manifestet med cache og bygger offentlige URL-er.
-4. `my-copilot` henter feeden og renderer videoene.
+3. `copilot-api` leser manifestet og bygger URL-er mot `https://storage.googleapis.com/<bucket>/...`.
+4. `my-copilot` henter feeden og sender URL-ene videre til frontend.
+5. Nettleseren henter video, poster og HLS-segmenter direkte fra GCS.
 
 Publiseringsrekkefølgen er alltid: **upload av filer -> oppdater manifest -> visning i feed**.
 
@@ -43,7 +46,7 @@ Viktige variabler:
 |---|---|
 | `VIDEO_BUCKET_PUBLIC` | Bucket for alle videoobjekter og manifest |
 | `VIDEO_MANIFEST_URL` | URL til manifest i GCS |
-| `VIDEO_PUBLIC_BASE_URL` | Base-URL som brukes til å bygge offentlige objekt-URL-er |
+| `VIDEO_PUBLIC_BASE_URL` | Base URL for offentlige assets (normalt `https://storage.googleapis.com/<bucket>`) |
 | `VIDEO_FEED_CACHE_SECONDS` | Cache-TTL for manifest/feed |
 | `VIDEO_MANIFEST_PATH` | Lokal fallback-fil når URL ikke er satt |
 
@@ -59,9 +62,20 @@ mise dev
 `hack/dev.sh` gjør dette for video:
 
 - bruker `VIDEO_BUCKET_PUBLIC_DEV` når den er satt
-- setter `VIDEO_BUCKET_PUBLIC`, `VIDEO_PUBLIC_BASE_URL` og `VIDEO_MANIFEST_URL`
+- setter `VIDEO_BUCKET_PUBLIC`, `VIDEO_MANIFEST_URL` og `VIDEO_PUBLIC_BASE_URL`
 - faller tilbake til lokal `video_manifest.json` når bucket-variabler mangler
 - setter kort cache-TTL lokalt (`VIDEO_FEED_CACHE_SECONDS=60` som standard)
+
+## Hurtigkommandoer (mise)
+
+Fra `apps/my-copilot`:
+
+```bash
+mise run video:episode1:prepare
+mise run video:episode1:publish:dev
+mise run video:episode1:regen:dev
+mise run video:dev:reset-and-republish
+```
 
 ## Publisere en ny video i dev
 
@@ -100,7 +114,7 @@ cd video-packages/nav-pilot-s01e01-prompt
 VIDEO_BUCKET_PUBLIC=copilot-videos-public-dev ./publish.sh
 ```
 
-`publish.sh` prøver `gcloud storage` først og faller tilbake til `gsutil` hvis nødvendig.
+`publish.sh` verifiserer først at du er autentisert og har tilgang til bucketen (`gcloud storage ls`/`gsutil ls`), setter så offentlig bucket-lesetilgang (`allUsers:objectViewer`), og publiserer deretter med `gcloud storage` (fallback `gsutil`).
 
 ### Spor B: Du har allerede ferdige filer
 
@@ -170,12 +184,19 @@ curl "http://localhost:8080/public/v1/videos?limit=5"
 curl "http://localhost:8080/public/v1/videos/<id>/play"
 ```
 
-3. Åpne `http://localhost:3000` og bekreft at videoen vises i shorts-seksjonen.
+3. Sjekk at et asset er offentlig tilgjengelig:
+
+```bash
+curl -I "https://storage.googleapis.com/<bucket>/videos/<id>/master.m3u8"
+```
+
+4. Åpne `http://localhost:3000` og bekreft at videoen vises i shorts-seksjonen.
 
 ## Vanlige feil
 
 - **Tom feed:** manifestet finnes ikke, eller `VIDEO_MANIFEST_URL` peker feil.
 - **503 fra API:** manifest kunne ikke leses, og det finnes ingen cachet kopi.
+- **`AccessDenied` på video i nettleseren:** bucket mangler offentlig lesetilgang. Kjør publiseringsscriptet på nytt, eller sett `allUsers:roles/storage.objectViewer` manuelt.
 - **Avspilling feiler:** HLS-master peker på segmenter som ikke finnes i samme bucket/prefix.
 - **Valideringsfeil ved publisering:** `id` eller objektstier inneholder ugyldige tegn.
 - **`gsutil` feiler med Python 3.14:** bruk `gcloud storage` (scriptet gjør dette automatisk før eventuell `gsutil`-fallback).
@@ -184,6 +205,8 @@ curl "http://localhost:8080/public/v1/videos/<id>/play"
 
 - `apps/copilot-api/video_handlers.go`
 - `apps/copilot-api/video_manifest.go`
+- `apps/my-copilot/src/lib/public-videos.ts`
+- `apps/my-copilot/src/components/shorts-feed.tsx`
 - `apps/my-copilot/scripts/prepare-video-package.ts`
 - `apps/my-copilot/scripts/publish-video.ts`
 - `hack/dev.sh`

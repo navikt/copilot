@@ -8,6 +8,9 @@ GITHUB_ORG = "navikt"
 GCP_TEAM_PROJECT_ID = "copilot-dev-e17a"
 NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL = "https://telemetry.ekstern.dev.nav.no/collect"
 DEV_USER_GROUPS = "48120347-8582-4329-8673-7beb3ed6ca06"
+VIDEO_BUCKET_PUBLIC_DEV = "copilot-videos-public-dev"
+VIDEO_BUCKET_PUBLIC_PROD = "copilot-videos-public-prod"
+VIDEO_BUCKET_PUBLIC = "copilot-videos-public-dev"
 
 [tasks.version]
 run = 'echo "$(date +%Y%m%d)-$(git rev-parse --short HEAD)"'
@@ -75,3 +78,21 @@ description = "Publish video assets to the prod bucket and update the prod GCS m
 [tasks."video:prepare"]
 run = "node --experimental-strip-types scripts/prepare-video-package.ts"
 description = "Convert an MP4 into a publish-ready video package with poster, HLS, and a helper script"
+
+[tasks."video:episode1:prepare"]
+run = 'node --experimental-strip-types scripts/prepare-video-package.ts --input "/Users/hans/go/src/github.com/navikt/copilot/videos/nav-pilot.s01e01.prompt.mp4" --id "nav-pilot-s01e01-prompt" --title "Presis prompt på første forsøk" --description "Viser hvordan en presis første prompt gir færre runder og lavere tokenkost." --category "copilot" --language "nb" --duration-sec 165 --sort-order 10 --published-at "2026-06-06T14:15:29.298Z" --series "video-demoer-kost-token-optimalisering" --season 1 --episode 1 --tags "prompting,cost,copilot-cli" --output-dir "video-packages/nav-pilot-s01e01-prompt"'
+description = "Regenerate episode 1 package with canonical metadata"
+
+[tasks."video:episode1:publish:dev"]
+env = { VIDEO_BUCKET_PUBLIC = "copilot-videos-public-dev", VIDEO_BUCKET_PUBLIC_DEV = "copilot-videos-public-dev" }
+run = "bash video-packages/nav-pilot-s01e01-prompt/publish.sh"
+description = "Publish episode 1 package to dev bucket"
+
+[tasks."video:episode1:regen:dev"]
+depends = ["video:episode1:prepare", "video:episode1:publish:dev"]
+description = "Regenerate and publish episode 1 to dev"
+
+[tasks."video:dev:reset-and-republish"]
+env = { VIDEO_BUCKET_PUBLIC = "copilot-videos-public-dev", VIDEO_BUCKET_PUBLIC_DEV = "copilot-videos-public-dev" }
+run = "bash -lc 'set -euo pipefail; gcloud storage rm --recursive \"gs://${VIDEO_BUCKET_PUBLIC_DEV}/**\" || true; for p in video-packages/*/publish.sh; do echo \"Publishing $p\"; bash \"$p\"; done'"
+description = "Delete all dev bucket uploads and republish all prepared packages"

@@ -164,16 +164,25 @@ function readManifest(manifestTarget: string): ManifestItem[] {
 
 function writeManifest(manifestTarget: string, manifest: ManifestItem[]) {
   const payload = `${JSON.stringify(manifest, null, 2)}\n`;
+  const cacheControl = "no-cache, max-age=0, must-revalidate";
   try {
-    execFileSync("gcloud", ["storage", "cp", "--content-type=application/json", "-", manifestTarget], {
-      input: payload,
-      stdio: ["pipe", "inherit", "inherit"],
-    });
+    execFileSync(
+      "gcloud",
+      ["storage", "cp", "--content-type=application/json", `--cache-control=${cacheControl}`, "-", manifestTarget],
+      {
+        input: payload,
+        stdio: ["pipe", "inherit", "inherit"],
+      }
+    );
   } catch {
-    execFileSync("gsutil", ["-h", "Content-Type:application/json", "cp", "-", manifestTarget], {
-      input: payload,
-      stdio: ["pipe", "inherit", "inherit"],
-    });
+    execFileSync(
+      "gsutil",
+      ["-h", "Content-Type:application/json", "-h", `Cache-Control:${cacheControl}`, "cp", "-", manifestTarget],
+      {
+        input: payload,
+        stdio: ["pipe", "inherit", "inherit"],
+      }
+    );
   }
 }
 
@@ -185,16 +194,51 @@ function upload(localFile: string, gsTarget: string) {
   }
 }
 
-function uploadRecursive(localDir: string, gsTargetPrefix: string) {
+function collectFiles(dir: string): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const fullPath = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      files.push(...collectFiles(fullPath));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+function uploadDirectoryContents(localDir: string, bucket: string, gsTargetPrefix: string) {
   if (!fs.existsSync(localDir) || !fs.statSync(localDir).isDirectory()) {
     throw new Error(`--hls-segments-dir does not exist or is not a directory: ${localDir}`);
   }
+  const files = collectFiles(localDir);
+  for (const filePath of files) {
+    const relativePath = filePath.slice(localDir.length + 1).replaceAll("\\", "/");
+    validateObjectPath(`${gsTargetPrefix}/${relativePath}`, "hls-segment");
+    upload(filePath, gsPath(bucket, `${gsTargetPrefix}/${relativePath}`));
+  }
+}
+
+function ensurePublicRead(bucket: string) {
+  const bucketTarget = `gs://${bucket}`;
   try {
-    execFileSync("gcloud", ["storage", "cp", "--recursive", `${localDir}/`, `${gsTargetPrefix}/`], {
-      stdio: "inherit",
-    });
+    execFileSync(
+      "gcloud",
+      [
+        "storage",
+        "buckets",
+        "add-iam-policy-binding",
+        bucketTarget,
+        "--member=allUsers",
+        "--role=roles/storage.objectViewer",
+      ],
+      { stdio: "inherit" }
+    );
   } catch {
-    execFileSync("gsutil", ["-m", "cp", "-r", `${localDir}/.`, `${gsTargetPrefix}/`], { stdio: "inherit" });
+    execFileSync("gsutil", ["iam", "ch", "allUsers:objectViewer", bucketTarget], { stdio: "inherit" });
   }
 }
 
@@ -202,6 +246,7 @@ function main() {
   const environment = resolvePublishEnvironment();
   const bucketPublic = resolveEnvValue("VIDEO_BUCKET_PUBLIC", environment);
   const manifestTarget = gsPath(bucketPublic, "video_manifest.json");
+  ensurePublicRead(bucketPublic);
 
   const id = required("id");
   if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(id)) {
@@ -251,7 +296,8 @@ function main() {
     upload(captionsFile, gsPath(bucketPublic, captionsObject));
   }
   if (hlsSegmentsDir) {
-    uploadRecursive(hlsSegmentsDir, gsPath(bucketPublic, `${targetPrefix}/segments`));
+    // Upload segments to the same prefix as master.m3u8 references.
+    uploadDirectoryContents(hlsSegmentsDir, bucketPublic, targetPrefix);
   }
 
   const manifest = readManifest(manifestTarget);

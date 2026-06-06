@@ -25,7 +25,7 @@ func newVideoHandlers(config *Config) *VideoHandlers {
 		manifestSource = strings.TrimSpace(config.VideoManifestPath)
 	}
 	if manifestSource == "" && config.VideoBucketPublic != "" {
-		manifestSource = fmt.Sprintf("https://storage.googleapis.com/%s/video_manifest.json", config.VideoBucketPublic)
+		manifestSource = fmt.Sprintf("gs://%s/video_manifest.json", config.VideoBucketPublic)
 	}
 	if manifestSource == "" {
 		manifestSource = "video_manifest.json"
