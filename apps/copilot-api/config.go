@@ -30,7 +30,6 @@ type Config struct {
 	VideoManifestURL       string
 	VideoManifestPath      string
 	VideoBucketPublic      string
-	VideoBucketRaw         string
 	VideoPublicBaseURL     string
 	VideoFeedCacheSeconds  int
 }
@@ -60,7 +59,6 @@ func loadConfig() *Config {
 		VideoManifestURL:       getEnv("VIDEO_MANIFEST_URL", ""),
 		VideoManifestPath:      getEnv("VIDEO_MANIFEST_PATH", ""),
 		VideoBucketPublic:      selectVideoValue(environment, os.Getenv("VIDEO_BUCKET_PUBLIC_DEV"), os.Getenv("VIDEO_BUCKET_PUBLIC_PROD"), os.Getenv("VIDEO_BUCKET_PUBLIC")),
-		VideoBucketRaw:         selectVideoValue(environment, os.Getenv("VIDEO_BUCKET_RAW_DEV"), os.Getenv("VIDEO_BUCKET_RAW_PROD"), os.Getenv("VIDEO_BUCKET_RAW")),
 		VideoPublicBaseURL:     getEnv("VIDEO_PUBLIC_BASE_URL", ""),
 		VideoFeedCacheSeconds:  getEnvInt("VIDEO_FEED_CACHE_SECONDS", 60),
 	}

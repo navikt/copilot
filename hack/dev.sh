@@ -55,6 +55,17 @@ eval "$(cd apps/my-copilot  && fnox export -f env 2>/dev/null)" || true
 #   pollutes `mise check`/CI test runs, which expect the default dev@nav.no.
 export DEV_USER_EMAIL="${DEV_USER_EMAIL:-hans.kristian.flaatten@nav.no}"
 
+# Video defaults for local development:
+# - Prefer the injected dev bucket variables if they exist.
+# - Fall back to the local manifest file so the app still boots without GCS access.
+if [[ -n "${VIDEO_BUCKET_PUBLIC_DEV:-}" ]]; then
+    export VIDEO_BUCKET_PUBLIC="${VIDEO_BUCKET_PUBLIC:-$VIDEO_BUCKET_PUBLIC_DEV}"
+    export VIDEO_PUBLIC_BASE_URL="${VIDEO_PUBLIC_BASE_URL:-https://storage.googleapis.com/${VIDEO_BUCKET_PUBLIC_DEV}}"
+    export VIDEO_MANIFEST_URL="${VIDEO_MANIFEST_URL:-https://storage.googleapis.com/${VIDEO_BUCKET_PUBLIC_DEV}/video_manifest.json}"
+fi
+export VIDEO_MANIFEST_PATH="${VIDEO_MANIFEST_PATH:-video_manifest.json}"
+export VIDEO_FEED_CACHE_SECONDS="${VIDEO_FEED_CACHE_SECONDS:-60}"
+
 (cd apps/copilot-api && LOG_LEVEL=DEBUG GCP_TEAM_PROJECT_ID=copilot-dev-e17a LOGGED_ENDPOINTS="/api/v1/,/health,/ready" mise exec -- air 2>&1 | prefix_output "api" "$CYAN") &
 API_PID=$!
 

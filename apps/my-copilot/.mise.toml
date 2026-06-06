@@ -59,15 +59,19 @@ run = "pnpm knip"
 description = "Find unused files, dependencies and exports"
 
 [tasks."video:publish"]
-run = "pnpm tsx scripts/publish-video.ts"
+run = "node --experimental-strip-types scripts/publish-video.ts"
 description = "Upload video assets with gsutil and update the GCS video manifest (set VIDEO_PUBLISH_ENV)"
 
 [tasks."video:publish:dev"]
 env = { VIDEO_PUBLISH_ENV = "dev" }
-run = "pnpm tsx scripts/publish-video.ts"
+run = "node --experimental-strip-types scripts/publish-video.ts"
 description = "Publish video assets to the dev bucket and update the dev GCS manifest"
 
 [tasks."video:publish:prod"]
 env = { VIDEO_PUBLISH_ENV = "prod" }
-run = "pnpm tsx scripts/publish-video.ts"
+run = "node --experimental-strip-types scripts/publish-video.ts"
 description = "Publish video assets to the prod bucket and update the prod GCS manifest"
+
+[tasks."video:prepare"]
+run = "node --experimental-strip-types scripts/prepare-video-package.ts"
+description = "Convert an MP4 into a publish-ready video package with poster, HLS, and a helper script"

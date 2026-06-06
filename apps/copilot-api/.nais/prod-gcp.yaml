@@ -1,12 +1,9 @@
 env:
   - name: "VIDEO_BUCKET_PUBLIC_PROD"
-    value: "{{video_bucket_public_prod}}"
-  - name: "VIDEO_BUCKET_RAW_PROD"
-    value: "{{video_bucket_raw_prod}}"
+    value: "copilot-videos-public-prod"
   - name: "VIDEO_FEED_CACHE_SECONDS"
     value: "60"
 
 gcp:
   buckets:
-    - name: "{{video_bucket_public_prod}}"
-    - name: "{{video_bucket_raw_prod}}"
+    - name: "copilot-videos-public-prod"
