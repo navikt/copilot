@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-06-05
+ * Last updated: 2026-06-06
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -31,24 +31,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     input: 0.25,
     cachedInput: 0.025,
     output: 2,
-  },
-  {
-    model: "GPT-5.2",
-    provider: "OpenAI",
-    category: "Versatile",
-    status: "GA",
-    input: 1.75,
-    cachedInput: 0.175,
-    output: 14,
-  },
-  {
-    model: "GPT-5.2-Codex",
-    provider: "OpenAI",
-    category: "Powerful",
-    status: "GA",
-    input: 1.75,
-    cachedInput: 0.175,
-    output: 14,
   },
   {
     model: "GPT-5.3-Codex",
@@ -253,4 +235,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-06-05";
+export const PRICING_LAST_UPDATED = "2026-06-06";

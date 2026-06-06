@@ -36,9 +36,9 @@ export default async function Home() {
               </BodyShort>
             </VStack>
             <div className="flex flex-wrap gap-2 hero-animate-d2">
-              {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => (
+              {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }, index) => (
                 <NavPill
-                  key={href}
+                  key={`${href}-${index}`}
                   href={href}
                   icon={<Icon aria-hidden fontSize="1rem" />}
                   label={label}
@@ -64,27 +64,23 @@ export default async function Home() {
               <SidebarCompact />
               <div className="flex gap-8 lg:gap-10">
                 <div className="flex-1 min-w-0">
-                  <NewsFeed items={news} compact />
+                  <NewsFeed
+                    items={news}
+                    compact
+                    afterFeatured={
+                      videos.length > 0 ? (
+                        <Box className="reveal-section">
+                          <ShortsFeed videos={videos} />
+                        </Box>
+                      ) : undefined
+                    }
+                  />
                 </div>
                 <div className="hidden lg:block w-64 shrink-0">
                   <Sidebar />
                 </div>
               </div>
             </Box>
-
-            {videos.length > 0 ? (
-              <Box className="reveal-section">
-                <VStack gap="space-8">
-                  <Heading size="small" level="2">
-                    Korte videoer
-                  </Heading>
-                  <BodyShort className="text-text-subtle">
-                    Praktiske demoer i kortformat. Feeden er redaksjonell og oppdateres fortløpende.
-                  </BodyShort>
-                  <ShortsFeed videos={videos} />
-                </VStack>
-              </Box>
-            ) : null}
 
             <Box className="reveal-section">
               <Heading size="small" level="2" className="mb-4">

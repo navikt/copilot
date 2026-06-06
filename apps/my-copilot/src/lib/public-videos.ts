@@ -75,7 +75,13 @@ async function fetchJSON<T>(path: string): Promise<T> {
 export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVideo[]> {
   try {
     const feed = await fetchJSON<VideoFeedResponse>(`/public/v1/videos?limit=${limit}`);
-    return feed.items.map((item) => ({
+    const seen = new Set<string>();
+    const uniqueItems = feed.items.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+    return uniqueItems.map((item) => ({
       id: item.id,
       title: item.title,
       description: item.description,

@@ -1,6 +1,7 @@
 "use client";
 
-import { BodyShort, Box, Button, Heading, VStack } from "@navikt/ds-react";
+import { PlayIcon } from "@navikt/aksel-icons";
+import { BodyShort, Box, Heading, HStack, VStack } from "@navikt/ds-react";
 import { useEffect, useRef, useState } from "react";
 import type { HomepageVideo } from "@/lib/public-videos";
 import { emitVideoKPIEvent } from "@/lib/video-kpi-events";
@@ -11,9 +12,10 @@ type ShortsFeedProps = {
 
 export function ShortsFeed({ videos }: ShortsFeedProps) {
   const [activeId, setActiveId] = useState<string>(videos[0]?.id ?? "");
-  const [muted, setMuted] = useState(true);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const pendingPlayId = useRef<string | null>(null);
   const feedImpressionSent = useRef(false);
   const startedIds = useRef<Set<string>>(new Set());
   const rebufferCountById = useRef<Map<string, number>>(new Map());
@@ -28,43 +30,27 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
   }, []);
 
   useEffect(() => {
-    if (!videos.length) return;
-    if (!feedImpressionSent.current) {
+    if (!videos.length || !feedImpressionSent.current) {
       feedImpressionSent.current = true;
-      emitVideoKPIEvent("video_feed_impression", {
-        videoCount: videos.length,
-      });
+      emitVideoKPIEvent("video_feed_impression", { videoCount: videos.length });
     }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const best = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (best?.target instanceof HTMLVideoElement) {
-          const id = best.target.dataset.videoId;
-          if (id) setActiveId(id);
-        }
-      },
-      { threshold: [0.55, 0.7, 0.9] }
-    );
-
-    for (const video of videoRefs.current.values()) observer.observe(video);
-    return () => observer.disconnect();
   }, [videos]);
 
   useEffect(() => {
+    if (!isViewerOpen) return;
     for (const [id, video] of videoRefs.current.entries()) {
-      video.muted = muted;
       if (id !== activeId || reducedMotion) {
         video.pause();
         continue;
       }
-      void video.play().catch(() => {
-        // Browser autoplay policies may block; controls remain available.
-      });
+      if (pendingPlayId.current === id) {
+        pendingPlayId.current = null;
+        void video.play().catch(() => {
+          // If autoplay is blocked, native controls let the user start playback.
+        });
+      }
     }
-  }, [activeId, muted, reducedMotion]);
+  }, [activeId, reducedMotion, isViewerOpen]);
 
   const handlePlay = (videoId: string) => {
     if (startedIds.current.has(videoId)) return;
@@ -95,28 +81,32 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
     });
   };
 
+  const openViewer = (videoId: string) => {
+    pendingPlayId.current = videoId;
+    setActiveId(videoId);
+    setIsViewerOpen(true);
+  };
+
+  const formatDuration = (durationSec: number): string => {
+    const min = Math.floor(durationSec / 60);
+    const sec = durationSec % 60;
+    return `${min}:${String(sec).padStart(2, "0")}`;
+  };
+
   return (
     <VStack gap="space-12">
-      <Box>
-        <Button size="small" variant="secondary-neutral" onClick={() => setMuted((prev) => !prev)}>
-          {muted ? "Skru på lyd" : "Skru av lyd"}
-        </Button>
-      </Box>
-
-      <div className="max-h-[70vh] overflow-y-auto snap-y snap-mandatory">
-        <VStack gap="space-16">
-          {videos.map((video) => (
-            <Box
-              key={video.id}
-              borderColor="neutral"
-              borderWidth="1"
-              borderRadius="12"
-              padding="space-12"
-              className="snap-start bg-bg-default"
-            >
-              <VStack gap="space-8">
-                <div className="flex justify-center">
-                  <div className="relative w-full max-w-[340px] overflow-hidden rounded-xl border border-gray-200 aspect-[9/16]">
+      <div className="overflow-x-auto overscroll-x-contain snap-x snap-mandatory">
+        <HStack gap="space-16" wrap={false} align="start">
+          {videos.map((video, index) => {
+            const episodeLabel =
+              video.metadata?.season && video.metadata?.episode
+                ? `S${video.metadata.season}E${video.metadata.episode}`
+                : undefined;
+            const isActive = isViewerOpen && activeId === video.id;
+            return (
+              <div key={`${video.id}-${index}`} className="snap-start shrink-0 w-[240px] sm:w-[260px]">
+                {isActive ? (
+                  <div className="relative w-full overflow-hidden rounded-xl aspect-[9/16] bg-black">
                     <video
                       ref={(node) => {
                         if (!node) {
@@ -127,11 +117,10 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
                         videoRefs.current.set(video.id, node);
                       }}
                       controls
-                      muted={muted}
                       playsInline
                       preload="metadata"
                       poster={video.posterUrl}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       onPlay={() => handlePlay(video.id)}
                       onError={() => handleError(video.id)}
                       onWaiting={() => handleWaiting(video.id)}
@@ -148,18 +137,43 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
                       ) : null}
                     </video>
                   </div>
-                </div>
-
-                <Heading size="xsmall" level="3">
-                  {video.title}
-                </Heading>
-                <BodyShort size="small" className="text-text-subtle">
-                  {video.description}
-                </BodyShort>
-              </VStack>
-            </Box>
-          ))}
-        </VStack>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openViewer(video.id)}
+                    className="relative w-full overflow-hidden rounded-xl aspect-[9/16] text-left"
+                    aria-label={`Åpne video: ${video.title}`}
+                  >
+                    <img src={video.posterUrl} alt="" className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="inline-flex items-center justify-center rounded-full bg-black/60 text-white p-3">
+                        <PlayIcon aria-hidden fontSize="1.5rem" />
+                      </span>
+                    </div>
+                    <Box
+                      as="span"
+                      borderRadius="8"
+                      paddingInline="space-8"
+                      paddingBlock="space-4"
+                      className="absolute top-2 right-2 bg-black/70 text-xs text-white"
+                    >
+                      {formatDuration(video.durationSec)}
+                    </Box>
+                    <div className="absolute inset-x-0 bottom-0 p-3 text-white">
+                      <Heading size="xsmall" level="3" className="text-white">
+                        {video.title}
+                      </Heading>
+                      <BodyShort size="small" className="text-white/80">
+                        {episodeLabel ?? video.category}
+                      </BodyShort>
+                    </div>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </HStack>
       </div>
     </VStack>
   );
