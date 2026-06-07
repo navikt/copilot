@@ -15,6 +15,8 @@ import type {
   EnterpriseMetrics,
   LanguageAdoption,
   MonthlyBillingUsage,
+  BillingModelDailyCost,
+  BillingModelForecast,
   MonthlyModelUsage,
   MonthlyTrend,
   StalenessSummary,
@@ -181,4 +183,32 @@ export async function getAdoptionCohorts(token: string): Promise<{
     backendRequest<AdoptionCohortDay[]>("/api/v1/copilot/adoption/cohorts", token)
   );
   return { cohorts: result.data, error: result.error };
+}
+
+export async function getBillingModelDaily(
+  token: string,
+  month?: string
+): Promise<{
+  usage: BillingModelDailyCost[];
+  error: string | null;
+}> {
+  const query = month ? `?month=${encodeURIComponent(month)}` : "";
+  const result = await fetchNullable("getBillingModelDaily", () =>
+    backendRequest<BillingModelDailyCost[] | null>(`/api/v1/copilot/billing/model-daily${query}`, token)
+  );
+  return { usage: Array.isArray(result.data) ? result.data : [], error: result.error };
+}
+
+export async function getBillingModelForecast(
+  token: string,
+  month?: string
+): Promise<{
+  forecast: BillingModelForecast | null;
+  error: string | null;
+}> {
+  const query = month ? `?month=${encodeURIComponent(month)}` : "";
+  const result = await fetchNullable("getBillingModelForecast", () =>
+    backendRequest<BillingModelForecast>(`/api/v1/copilot/billing/model-forecast${query}`, token)
+  );
+  return { forecast: result.data, error: result.error };
 }

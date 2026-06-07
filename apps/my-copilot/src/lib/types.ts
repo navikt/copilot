@@ -435,6 +435,35 @@ export interface MonthlyBillingUsage {
   net_amount: number;
 }
 
+export interface BillingModelDailyCost {
+  day: string;
+  model: string;
+  gross_requests: number;
+  net_requests: number;
+  gross_amount: number;
+  net_amount: number;
+}
+
+export interface BillingModelForecastPoint {
+  day: string;
+  actual_cumulative?: number;
+  projected_cumulative: number;
+  is_actual: boolean;
+}
+
+export interface BillingModelForecast {
+  month: string;
+  days_in_month: number;
+  days_elapsed: number;
+  last_actual_day?: string;
+  actual_mtd_net_amount: number;
+  projected_daily_run_rate: number;
+  projected_eom_net_amount: number;
+  lower_eom_net_amount: number;
+  upper_eom_net_amount: number;
+  points: BillingModelForecastPoint[];
+}
+
 export interface WeeklyTrend {
   week: string;
   interactions: number;

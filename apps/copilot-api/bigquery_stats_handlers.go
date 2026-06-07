@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxValue int) (int, bool) {
@@ -21,6 +22,17 @@ func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxV
 
 func isValidUsageUsername(username string) bool {
 	return username != "" && len(username) <= 39 && !strings.Contains(username, "/") && isValidGitHubUsername(username)
+}
+
+func optionalMonthParam(r *http.Request, name string) (string, bool) {
+	value := r.URL.Query().Get(name)
+	if value == "" {
+		return time.Now().UTC().Format("2006-01"), true
+	}
+	if !isValidYearMonth(value) {
+		return "", false
+	}
+	return value, true
 }
 
 func (h *BigQueryHandlers) handleTeamUsageSummary(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +133,45 @@ func (h *BigQueryHandlers) handleMonthlyBillingUsage(w http.ResponseWriter, r *h
 
 	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleBillingModelDaily(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+
+	usage, err := h.bqClient.GetBillingModelDailyCosts(r.Context(), month)
+	if err != nil {
+		slog.Error("Failed to fetch billing model daily costs", "error", err)
+		respondError(w, "internal_error", "Failed to fetch billing model daily costs", http.StatusInternalServerError)
+		return
+	}
+	if usage == nil {
+		usage = []BillingModelDailyCost{}
+	}
+
+	cacheControl(w, 900, false)
+	respondJSON(w, usage, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleBillingModelForecast(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+
+	forecast, err := h.bqClient.GetBillingModelForecast(r.Context(), month)
+	if err != nil {
+		slog.Error("Failed to fetch billing model forecast", "error", err)
+		respondError(w, "internal_error", "Failed to fetch billing model forecast", http.StatusInternalServerError)
+		return
+	}
+
+	cacheControl(w, 900, false)
+	respondJSON(w, forecast, http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleUserWeeklyTrends(w http.ResponseWriter, r *http.Request) {

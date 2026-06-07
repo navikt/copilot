@@ -23,16 +23,48 @@ GitHub Usage Metrics API → copilot-metrics (Naisjob) → BigQuery
 - **Historical backfill**: CLI flag to load historical data from Oct 10, 2025
 - **Idempotent**: Re-runs delete and re-insert data for the same day
 - **Raw JSON storage**: Schema changes in GitHub API don't break the pipeline
+- **Billing usage report ingestion**: Daily organization billing usage rows with one-off backfill support
 - **Slack alerts**: Notifies on ingestion failures when `SLACK_WEBHOOK_URL` is configured
 
 ## Usage
+
+### Mise backfill tasks (recommended)
+
+Explicit tasks so "backfill" is unambiguous:
+
+```bash
+# Usage metrics only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:usage'
+
+# Monthly billing only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-monthly'
+
+# Daily billing usage reports only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report'
+
+# Daily model billing usage only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily'
+
+# Everything
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all'
+```
+
+Prod variants:
+
+```bash
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:usage:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-monthly:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all:prod'
+```
 
 ### Nightly job (default)
 
 Runs as a Kubernetes CronJob via NAIS. Automatically detects missing days in BigQuery and fills gaps:
 
 ```bash
-copilot-metrics --run-once
+rtk copilot-metrics --run-once
 ```
 
 ### Historical backfill
@@ -40,8 +72,8 @@ copilot-metrics --run-once
 One-time operation to load historical data:
 
 ```bash
-copilot-metrics --backfill
-copilot-metrics --backfill --backfill-from=2025-10-10
+rtk copilot-metrics --backfill
+rtk copilot-metrics --backfill --backfill-from=2025-10-10
 ```
 
 ### Billing usage backfill
@@ -49,9 +81,29 @@ copilot-metrics --backfill --backfill-from=2025-10-10
 One-time operation to load premium request billing data per model (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-copilot-metrics --billing-backfill
-copilot-metrics --billing-backfill --billing-from=2025-01
-copilot-metrics --billing-backfill --billing-from=2025-01 --force
+rtk copilot-metrics --billing-monthly-backfill
+rtk copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01
+rtk copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01 --force
+```
+
+### Billing usage report backfill (daily rows)
+
+One-time operation to load daily organization billing usage report rows (requires `GITHUB_BILLING_TOKEN`):
+
+```bash
+rtk copilot-metrics --billing-daily-report-backfill
+rtk copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10
+rtk copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10 --force
+```
+
+### Billing daily model backfill
+
+One-time operation to load daily model-level premium request billing data (requires `GITHUB_BILLING_TOKEN`):
+
+```bash
+rtk copilot-metrics --billing-model-daily-backfill
+rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10
+rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10 --force
 ```
 
 ### Local development
@@ -63,7 +115,7 @@ export GITHUB_APP_INSTALLATION_ID=789
 export GCP_TEAM_PROJECT_ID=my-project
 export LOG_LEVEL=DEBUG
 
-go run . --run-once
+rtk go run . --run-once
 ```
 
 ## Configuration
@@ -121,6 +173,52 @@ Per-model premium request billing data from the Enhanced Billing API.
 
 Table is partitioned by month and clustered by `scope_id`, `model`.
 
+### `billing_usage_reports` table
+
+Daily organization billing usage report rows from GitHub's billing usage API.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `report_day` | DATE | Day covered by the report row |
+| `organization` | STRING | Organization login |
+| `repository_name` | STRING | Repository when row is repository-scoped |
+| `product` | STRING | Product name |
+| `sku` | STRING | SKU name |
+| `quantity` | FLOAT | Quantity for the line item |
+| `unit_type` | STRING | Unit type |
+| `price_per_unit` | FLOAT | Price per unit in USD |
+| `gross_amount` | FLOAT | Gross amount in USD |
+| `discount_amount` | FLOAT | Discount amount in USD |
+| `net_amount` | FLOAT | Net amount in USD |
+| `raw_record` | JSON | Full API row as JSON |
+| `loaded_at` | TIMESTAMP | Insert timestamp |
+
+Table is partitioned by month (`report_day`) and clustered by `organization`, `product`, `sku`.
+
+### `billing_usage_daily_model` table
+
+Daily model-level premium request usage from the enhanced billing endpoint.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `day` | DATE | Day for the usage line |
+| `scope_id` | STRING | Enterprise slug |
+| `product` | STRING | Product name |
+| `sku` | STRING | SKU name |
+| `model` | STRING | Model name |
+| `unit_type` | STRING | Unit type |
+| `price_per_unit` | FLOAT | Price per unit in USD |
+| `gross_quantity` | FLOAT | Quantity before discounts |
+| `discount_quantity` | FLOAT | Discounted quantity |
+| `net_quantity` | FLOAT | Billed quantity |
+| `gross_amount` | FLOAT | Gross amount in USD |
+| `discount_amount` | FLOAT | Discount amount in USD |
+| `net_amount` | FLOAT | Net amount in USD |
+| `raw_record` | JSON | Full API row as JSON |
+| `loaded_at` | TIMESTAMP | Insert timestamp |
+
+Table is partitioned by day (`day`) and clustered by `scope_id`, `model`.
+
 ## GitHub App Permissions
 
 The GitHub App requires:
@@ -142,13 +240,13 @@ Set `GITHUB_BILLING_TOKEN` in the `copilot-metrics` secret to enable billing ing
 Deployed as a NAIS Job in the `copilot` namespace:
 
 ```bash
-kubectl apply -f .nais/naisjob.yaml -f .nais/dev.yaml
+rtk kubectl apply -f .nais/naisjob.yaml -f .nais/dev.yaml
 ```
 
 Manual trigger:
 
 ```bash
-kubectl create job --from=cronjob/copilot-metrics copilot-metrics-manual -n copilot
+rtk kubectl create job --from=cronjob/copilot-metrics copilot-metrics-manual -n copilot
 ```
 
 ## Related

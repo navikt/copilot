@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
@@ -42,19 +44,16 @@ func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify auth header
 		if r.Header.Get("Authorization") != "Bearer test-token" {
 			t.Errorf("expected Bearer test-token, got %s", r.Header.Get("Authorization"))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		// Verify API version header
 		if r.Header.Get("X-GitHub-Api-Version") != "2026-03-10" {
 			t.Errorf("expected API version 2026-03-10, got %s", r.Header.Get("X-GitHub-Api-Version"))
 		}
 
-		// Verify query params
 		query := r.URL.Query()
 		if query.Get("year") != "2026" {
 			t.Errorf("expected year=2026, got %s", query.Get("year"))
@@ -70,7 +69,6 @@ func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Create client pointing at test server
 	client := &BillingClient{
 		httpClient: server.Client(),
 		enterprise: "nav",
@@ -80,13 +78,11 @@ func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
 		t.Errorf("expected token 'test-token', got %s", client.token)
 	}
 
-	// Test NewBillingClient with empty token returns nil
 	nilClient := NewBillingClient("", "nav")
 	if nilClient != nil {
 		t.Error("expected nil client with empty token")
 	}
 
-	// Test NewBillingClient with token returns non-nil
 	validClient := NewBillingClient("some-token", "nav")
 	if validClient == nil {
 		t.Fatal("expected non-nil client with valid token")
@@ -125,4 +121,68 @@ func TestBillingUsageItem_Marshaling(t *testing.T) {
 	if decoded.GrossQuantity != 163672.33 {
 		t.Errorf("expected gross quantity 163672.33, got %f", decoded.GrossQuantity)
 	}
+}
+
+func TestBillingClient_FetchOrganizationUsage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got, want := r.URL.Path, "/orgs/navikt/settings/billing/usage"; got != want {
+			t.Fatalf("unexpected path: got %s want %s", got, want)
+		}
+		query := r.URL.Query()
+		if query.Get("year") != "2026" || query.Get("month") != "6" || query.Get("day") != "7" {
+			t.Fatalf("unexpected query: %s", r.URL.RawQuery)
+		}
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Fatalf("missing auth header")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(OrganizationBillingUsageResponse{
+			UsageItems: []OrganizationBillingUsageItem{
+				{
+					Date:             "2026-06-07",
+					Product:          "Copilot",
+					SKU:              "Copilot Premium Request",
+					Quantity:         10,
+					UnitType:         "requests",
+					PricePerUnit:     0.04,
+					GrossAmount:      0.4,
+					DiscountAmount:   0,
+					NetAmount:        0.4,
+					OrganizationName: "navikt",
+					RepositoryName:   "navikt/copilot",
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := &BillingClient{
+		httpClient: server.Client(),
+		token:      "test-token",
+	}
+	day := time.Date(2026, 6, 7, 0, 0, 0, 0, time.UTC)
+
+	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		req.URL.Scheme = "http"
+		req.URL.Host = server.Listener.Addr().String()
+		return http.DefaultTransport.RoundTrip(req)
+	})
+
+	resp, err := client.FetchOrganizationUsage(context.Background(), "navikt", day)
+	if err != nil {
+		t.Fatalf("FetchOrganizationUsage error: %v", err)
+	}
+	if len(resp.UsageItems) != 1 {
+		t.Fatalf("expected 1 usage item, got %d", len(resp.UsageItems))
+	}
+	if resp.UsageItems[0].RepositoryName != "navikt/copilot" {
+		t.Fatalf("unexpected repository_name: %s", resp.UsageItems[0].RepositoryName)
+	}
+}
+
+type roundTripFunc func(req *http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
