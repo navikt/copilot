@@ -90,9 +90,10 @@ function resolvePublishEnvironment(): PublishEnvironment {
 }
 
 function resolveEnvValue(baseName: string, environment: PublishEnvironment): string {
-  const value = process.env[`${baseName}_${environment.toUpperCase()}`] ?? process.env[baseName];
+  // Explicit env value should always win to make one-off overrides predictable.
+  const value = process.env[baseName] ?? process.env[`${baseName}_${environment.toUpperCase()}`];
   if (!value) {
-    throw new Error(`Missing required environment variable ${baseName}_${environment.toUpperCase()}`);
+    throw new Error(`Missing required environment variable ${baseName} or ${baseName}_${environment.toUpperCase()}`);
   }
   return value;
 }
