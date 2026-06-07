@@ -98,7 +98,13 @@ export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVid
       seen.add(item.id);
       return true;
     });
-    return uniqueItems.map((item) => ({
+    const newestFirst = [...uniqueItems].sort((a, b) => {
+      const aTime = Date.parse(a.published_at);
+      const bTime = Date.parse(b.published_at);
+      if (!Number.isFinite(aTime) || !Number.isFinite(bTime)) return 0;
+      return bTime - aTime;
+    });
+    return newestFirst.map((item) => ({
       id: item.id,
       title: item.title,
       description: item.description,
