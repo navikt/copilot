@@ -169,20 +169,16 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
   const modelChartData = buildModelChartData(usage);
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
-  // Fetch monthly trends and model usage for the dashboard
+  // Fetch monthly datasets first
   const [
     { trends: monthlyTrends, error: monthlyError },
     { usage: monthlyModelUsage, error: modelUsageError },
     { usage: billingUsage, error: billingError },
-    { usage: billingModelDaily, error: billingModelDailyError },
-    { forecast: billingModelForecast, error: billingModelForecastError },
     { cohorts: adoptionCohorts, error: cohortsError },
   ] = await Promise.all([
     getMonthlyTrends(token),
     getMonthlyModelUsage(token),
     getMonthlyBillingUsage(token),
-    getBillingModelDaily(token),
-    getBillingModelForecast(token),
     getAdoptionCohorts(token),
   ]);
   if (monthlyError) {
@@ -197,12 +193,41 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
   if (cohortsError) {
     console.error("[statistikk] Adoption cohorts failed:", cohortsError);
   }
-  if (billingModelDailyError) {
-    console.error("[statistikk] Billing model daily failed:", billingModelDailyError);
+  // Latest complete billing month summary
+  const latestBillingMonth = (() => {
+    if (!billingUsage || billingUsage.length === 0) return null;
+    const months = [...new Set(billingUsage.map((r) => r.month))].sort();
+    const latest = months[months.length - 1];
+    const rows = billingUsage.filter((r) => r.month === latest);
+    const netAmount = rows.reduce((sum, r) => sum + r.net_amount, 0);
+    const grossAmount = rows.reduce((sum, r) => sum + r.gross_amount, 0);
+    const label = new Date(latest + "-01").toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
+    return { month: latest, label, netAmount, grossAmount };
+  })();
+
+  // Prefer current month for "Måned hittil"; fall back to latest complete month if needed.
+  const currentBillingMonth = new Date().toISOString().slice(0, 7);
+  let { usage: billingModelDaily, error: billingModelDailyError } = await getBillingModelDaily(
+    token,
+    currentBillingMonth
+  );
+  let { forecast: billingModelForecast, error: billingModelForecastError } = await getBillingModelForecast(
+    token,
+    currentBillingMonth
+  );
+
+  if (billingModelDaily.length === 0 && latestBillingMonth?.month && latestBillingMonth.month !== currentBillingMonth) {
+    const fallbackDaily = await getBillingModelDaily(token, latestBillingMonth.month);
+    const fallbackForecast = await getBillingModelForecast(token, latestBillingMonth.month);
+    billingModelDaily = fallbackDaily.usage;
+    billingModelForecast = fallbackForecast.forecast;
+    billingModelDailyError = billingModelDailyError ?? fallbackDaily.error;
+    billingModelForecastError = billingModelForecastError ?? fallbackForecast.error;
   }
-  if (billingModelForecastError) {
+
+  if (billingModelDailyError) console.error("[statistikk] Billing model daily failed:", billingModelDailyError);
+  if (billingModelForecastError)
     console.error("[statistikk] Billing model forecast failed:", billingModelForecastError);
-  }
 
   // Find the last COMPLETE month (not the current partial month)
   // A month is "complete" if it has 28+ days of data or isn't the current calendar month
@@ -245,18 +270,6 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
   const heroMonthLabel = latestComplete
     ? new Date(latestComplete.month + "-01").toLocaleDateString("nb-NO", { month: "long", year: "numeric" })
     : undefined;
-
-  // Latest complete billing month summary
-  const latestBillingMonth = (() => {
-    if (!billingUsage || billingUsage.length === 0) return null;
-    const months = [...new Set(billingUsage.map((r) => r.month))].sort();
-    const latest = months[months.length - 1];
-    const rows = billingUsage.filter((r) => r.month === latest);
-    const netAmount = rows.reduce((sum, r) => sum + r.net_amount, 0);
-    const grossAmount = rows.reduce((sum, r) => sum + r.gross_amount, 0);
-    const label = new Date(latest + "-01").toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
-    return { month: latest, label, netAmount, grossAmount };
-  })();
 
   // ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
   const dashboardContent = (

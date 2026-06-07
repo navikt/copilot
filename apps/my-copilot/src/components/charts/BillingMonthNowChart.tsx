@@ -12,22 +12,50 @@ interface BillingMonthNowChartProps {
   forecast: BillingModelForecast | null;
 }
 
+function tail(values: number[], n: number): number[] {
+  if (n <= 0 || values.length === 0) return [];
+  return values.length <= n ? values : values.slice(values.length - n);
+}
+
+function weightedRunRate(series: number[], window = 7): number {
+  const values = tail(series, window);
+  if (values.length === 0) return 0;
+  let weightedSum = 0;
+  let weightTotal = 0;
+  values.forEach((value, index) => {
+    const weight = index + 1;
+    weightedSum += value * weight;
+    weightTotal += weight;
+  });
+  return weightTotal > 0 ? weightedSum / weightTotal : 0;
+}
+
+function sampleStdDev(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1);
+  return Math.sqrt(variance);
+}
+
 const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, forecast }) => {
   if (!dailyData || dailyData.length === 0 || !forecast) {
     return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
+  const monthLabel = new Date(`${forecast.month}-01`).toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
 
   const normalizeModel = (model: string) => model.replace(/^Auto: /, "");
   const labels = [...new Set(dailyData.map((d) => d.day))].sort();
   const modelTotals = new Map<string, number>();
   const byModelByDay = new Map<string, Map<string, number>>();
+  const grossByDay = new Map<string, number>();
 
   for (const row of dailyData) {
     const model = normalizeModel(row.model);
-    modelTotals.set(model, (modelTotals.get(model) || 0) + row.net_amount);
+    modelTotals.set(model, (modelTotals.get(model) || 0) + row.gross_amount);
     if (!byModelByDay.has(model)) byModelByDay.set(model, new Map());
     const dayMap = byModelByDay.get(model)!;
-    dayMap.set(row.day, (dayMap.get(row.day) || 0) + row.net_amount);
+    dayMap.set(row.day, (dayMap.get(row.day) || 0) + row.gross_amount);
+    grossByDay.set(row.day, (grossByDay.get(row.day) || 0) + row.gross_amount);
   }
 
   const topModels = [...modelTotals.entries()]
@@ -41,46 +69,65 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
     backgroundColor: getBackgroundColor(chartColors[index % chartColors.length], 0.7),
     borderColor: chartColors[index % chartColors.length],
     borderWidth: 1,
-    stack: "net",
+    stack: "gross",
   }));
 
-  const points = forecast.points ?? [];
-  const cumulativeLabels = points.map((p) => p.day.slice(8));
-  const actual = points.map((p) => p.actual_cumulative ?? null);
-  const projected = points.map((p) => Number(p.projected_cumulative.toFixed(2)));
+  const dayNumbers = labels.map((label) => Number(label.slice(8))).filter((d) => Number.isFinite(d));
+  const daysElapsed = dayNumbers.length > 0 ? Math.max(...dayNumbers) : 0;
+  const daysInMonth = forecast.days_in_month;
+  const cumulativeLabels = Array.from({ length: daysInMonth }, (_, index) => String(index + 1).padStart(2, "0"));
 
-  const bandUpper = points.map((p) => {
-    if (p.is_actual) return p.projected_cumulative;
-    const step = Math.max(0, Number(p.day.slice(8)) - forecast.days_elapsed);
-    const spread =
-      forecast.days_in_month > forecast.days_elapsed
-        ? ((forecast.upper_eom_net_amount - forecast.projected_eom_net_amount) /
-            (forecast.days_in_month - forecast.days_elapsed)) *
-          step
-        : 0;
-    return Number((p.projected_cumulative + spread).toFixed(2));
+  const dailyGrossSeries = Array.from({ length: Math.max(daysElapsed, 0) }, (_, index) => {
+    const day = String(index + 1).padStart(2, "0");
+    const date = `${forecast.month}-${day}`;
+    return grossByDay.get(date) || 0;
   });
-  const bandLower = points.map((p) => {
-    if (p.is_actual) return p.projected_cumulative;
-    const step = Math.max(0, Number(p.day.slice(8)) - forecast.days_elapsed);
-    const spread =
-      forecast.days_in_month > forecast.days_elapsed
-        ? ((forecast.projected_eom_net_amount - forecast.lower_eom_net_amount) /
-            (forecast.days_in_month - forecast.days_elapsed)) *
-          step
-        : 0;
-    return Number((p.projected_cumulative - spread).toFixed(2));
-  });
+  const actualMTDGross = dailyGrossSeries.reduce((sum, value) => sum + value, 0);
+  let runRate = weightedRunRate(dailyGrossSeries, 7);
+  if (runRate <= 0 && daysElapsed > 0) {
+    runRate = actualMTDGross / daysElapsed;
+  }
+  const projectedEOMGross = actualMTDGross + runRate * (daysInMonth - daysElapsed);
+  const dailyVolatility = sampleStdDev(tail(dailyGrossSeries, 14));
+
+  const actual: Array<number | null> = [];
+  const projected: number[] = [];
+  const bandUpper: number[] = [];
+  const bandLower: number[] = [];
+  let cumulative = 0;
+  for (let day = 1; day <= daysInMonth; day++) {
+    if (day <= daysElapsed) {
+      const dayValue = dailyGrossSeries[day - 1] || 0;
+      cumulative += dayValue;
+      actual.push(Number(cumulative.toFixed(2)));
+      projected.push(Number(cumulative.toFixed(2)));
+      bandUpper.push(Number(cumulative.toFixed(2)));
+      bandLower.push(Number(cumulative.toFixed(2)));
+      continue;
+    }
+    const projectedValue = cumulative + runRate * (day - daysElapsed);
+    const spread = dailyVolatility * (day - daysElapsed);
+    actual.push(null);
+    projected.push(Number(projectedValue.toFixed(2)));
+    bandUpper.push(Number((projectedValue + spread).toFixed(2)));
+    bandLower.push(Number(Math.max(actualMTDGross, projectedValue - spread).toFixed(2)));
+  }
 
   return (
     <VStack gap="space-16">
       <Heading size="small" level="3">
         Måned hittil: modeller og kostnad
       </Heading>
+      <BodyShort size="small" className="text-gray-500">
+        Viser {monthLabel}
+      </BodyShort>
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-8">
-            <BodyShort weight="semibold">Daglig netto kostnad per modell (USD)</BodyShort>
+            <BodyShort weight="semibold">Daglig brutto kostnad per modell (USD)</BodyShort>
+            <BodyShort size="small" className="text-gray-500">
+              Brutto kostnad (før credits/rabatt)
+            </BodyShort>
             <div className="aspect-[2/1]">
               <Bar
                 data={{ labels: labels.map((d) => d.slice(8)), datasets: stackedDatasets }}
@@ -101,10 +148,11 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
           <VStack gap="space-8">
             <BodyShort weight="semibold">Prognose månedsslutt (USD)</BodyShort>
             <BodyShort size="small" className="text-gray-500">
-              MTD {formatNumber(Math.round(forecast.actual_mtd_net_amount))} • Prognose{" "}
-              {formatNumber(Math.round(forecast.projected_eom_net_amount))} (
-              {formatNumber(Math.round(forecast.lower_eom_net_amount))} –{" "}
-              {formatNumber(Math.round(forecast.upper_eom_net_amount))})
+              MTD {formatNumber(Math.round(actualMTDGross))} • Prognose {formatNumber(Math.round(projectedEOMGross))} (
+              {formatNumber(
+                Math.round(Math.max(actualMTDGross, projectedEOMGross - dailyVolatility * (daysInMonth - daysElapsed)))
+              )}{" "}
+              – {formatNumber(Math.round(projectedEOMGross + dailyVolatility * (daysInMonth - daysElapsed)))})
             </BodyShort>
             <div className="aspect-[2/1]">
               <Line
@@ -112,7 +160,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                   labels: cumulativeLabels,
                   datasets: [
                     {
-                      label: "Faktisk kumulativ",
+                      label: "Faktisk kumulativ (brutto)",
                       data: actual,
                       borderColor: "#2563eb",
                       backgroundColor: "transparent",
@@ -121,7 +169,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                       spanGaps: false,
                     },
                     {
-                      label: "Prognose kumulativ",
+                      label: "Prognose kumulativ (brutto)",
                       data: projected,
                       borderColor: "#16a34a",
                       borderDash: [5, 5],

@@ -494,7 +494,7 @@ func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month s
         SUM(net_amount) AS net_amount
       FROM %s
       WHERE FORMAT_DATE('%%Y-%%m', day) = @month
-        AND scope_id = 'nav'
+        AND LOWER(scope_id) = 'nav'
         AND gross_quantity > 0
       GROUP BY day, model
       ORDER BY day ASC, gross_amount DESC
@@ -527,7 +527,7 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
         SUM(net_amount) AS net_amount
       FROM %s
       WHERE FORMAT_DATE('%%Y-%%m', day) = @month
-        AND scope_id = 'nav'
+        AND LOWER(scope_id) = 'nav'
       GROUP BY day
       ORDER BY day ASC
     `, billingRef)
