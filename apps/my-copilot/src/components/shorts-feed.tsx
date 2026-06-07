@@ -193,10 +193,11 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
                       onError={() => handleError(video.id)}
                       onWaiting={() => handleWaiting(video.id)}
                     >
-                      <source src={video.playUrl} type="application/x-mpegURL" />
-                      {video.mp4Url ? <source src={video.mp4Url} type="video/mp4" /> : null}
+                      <source key={`${video.id}-hls`} src={video.playUrl} type="application/x-mpegURL" />
+                      {video.mp4Url ? <source key={`${video.id}-mp4`} src={video.mp4Url} type="video/mp4" /> : null}
                       {video.captionsUrl ? (
                         <track
+                          key={`${video.id}-captions`}
                           src={video.captionsUrl}
                           kind="captions"
                           srcLang={video.language || "nb"}
