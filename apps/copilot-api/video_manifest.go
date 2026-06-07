@@ -267,10 +267,13 @@ func loadVideoManifestFromSource(ctx context.Context, source string) ([]VideoMan
 	}
 
 	sort.SliceStable(entries, func(i, j int) bool {
-		if entries[i].SortOrder == entries[j].SortOrder {
+		if !entries[i].PublishedAt.Equal(entries[j].PublishedAt) {
 			return entries[i].PublishedAt.After(entries[j].PublishedAt)
 		}
-		return entries[i].SortOrder < entries[j].SortOrder
+		if entries[i].SortOrder != entries[j].SortOrder {
+			return entries[i].SortOrder < entries[j].SortOrder
+		}
+		return entries[i].ID < entries[j].ID
 	})
 
 	return entries, nil

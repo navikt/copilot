@@ -98,6 +98,12 @@ mise run video:prepare -- \
   --tags "prompting,cost"
 ```
 
+Valgfritt kan du sende overlay-metadata inn ved pakking:
+
+```bash
+--overlay-file ./video-packages/nav-pilot-s01e01-prompt/overlay.json
+```
+
 Dette lager `video-packages/<id>/` med:
 
 - `poster.jpg`
@@ -106,6 +112,8 @@ Dette lager `video-packages/<id>/` med:
 - `hls/segments/*.ts`
 - `video-package.json`
 - `publish.sh`
+
+`publish.sh` sender nå `video-package.json` videre til `publish-video.ts` via `--package-file`, slik at metadata (inkludert `publish_metadata` og eventuell `overlay`) automatisk blir med i manifestet.
 
 Kjør så:
 

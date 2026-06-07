@@ -40,6 +40,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 1. Bonus episode A: Tre dyre anti-mønstre
 2. Bonus episode B: Mål effekt i statistikk
 3. Bonus episode C: Chronicle — innsikt på tvers av agentsesjoner
+4. Bonus episode D: Cplt sandbox — kom i gang på 3 minutter
 
 ## Krav: hver innspilling skal gi reell verdi i repoet
 
@@ -325,6 +326,51 @@ components:
     anchor: bottom-right
     monospace: true
     labels: ["/context", "/instructions"]
+```
+
+### Bonus D: Cplt sandbox — kom i gang på 3 minutter
+
+```yaml
+id: "bonus-d"
+title: "Cplt sandbox — kom i gang på 3 minutter"
+accent: emerald
+secondaryAccent: cyan
+motif: "bootstrap flow + init command"
+poster: "/posters/bonus-d.jpg"
+components:
+  - kind: episode-number
+    anchor: top-left
+    labels: ["D"]
+  - kind: pipeline
+    anchor: center-left
+    labels: ["clone", "init", "test", "publish"]
+    highlightIndex: 1
+    monospace: true
+  - kind: chip
+    anchor: top-right
+    monospace: true
+    labels: ["nav-copilot-cplt-init.mp4", "cplt sandbox"]
+  - kind: rule-pill
+    anchor: bottom-full
+    labels: ["fra null til første commit i sandbox"]
+```
+
+**Foreslått publiserings-ID:** `nav-copilot-cplt-bonus-d-cplt-sandbox`
+
+**Publiseringskommando (Spor A, fra `.mp4`):**
+
+```bash
+cd apps/my-copilot
+mise run video:prepare -- \
+  --input /ABSOLUTT/STI/nav-copilot-cplt-init.mp4 \
+  --id nav-copilot-cplt-bonus-d-cplt-sandbox \
+  --title "Bonus D: Cplt sandbox — kom i gang på 3 minutter" \
+  --category cplt \
+  --series "video-demoer-kost-token-optimalisering" \
+  --tags "cplt,sandbox,init,bonus"
+
+cd video-packages/nav-copilot-cplt-bonus-d-cplt-sandbox
+VIDEO_BUCKET_PUBLIC=copilot-videos-public-dev ./publish.sh
 ```
 
 ## Frontend-lag

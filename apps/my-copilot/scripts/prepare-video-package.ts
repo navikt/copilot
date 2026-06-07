@@ -9,6 +9,14 @@ type ProbeResult = {
   height: number;
 };
 
+type VideoOverlayComponent = {
+  kind: string;
+  anchor: string;
+  labels: string[];
+  highlight_index?: number;
+  monospace?: boolean;
+};
+
 function optionalNumber(name: string): number | undefined {
   const value = arg(name);
   if (value === undefined) return undefined;
@@ -116,6 +124,60 @@ function writeFile(filePath: string, content: string) {
   fs.writeFileSync(filePath, content);
 }
 
+function parseOverlayFile(filePath: string): VideoOverlayComponent[] {
+  const absolutePath = toAbsolutePath(filePath);
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+    throw new Error(`Overlay file does not exist or is not a file: ${absolutePath}`);
+  }
+  const raw = fs.readFileSync(absolutePath, "utf8");
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error("Overlay file must contain a JSON array of overlay components");
+  }
+  return parsed.map((entry, index) => {
+    if (!entry || typeof entry !== "object") {
+      throw new Error(`Invalid overlay component at index ${index}`);
+    }
+    const component = entry as {
+      kind?: unknown;
+      anchor?: unknown;
+      labels?: unknown;
+      highlight_index?: unknown;
+      highlightIndex?: unknown;
+      monospace?: unknown;
+    };
+    if (typeof component.kind !== "string" || component.kind.trim() === "") {
+      throw new Error(`Invalid overlay kind at index ${index}`);
+    }
+    if (typeof component.anchor !== "string" || component.anchor.trim() === "") {
+      throw new Error(`Invalid overlay anchor at index ${index}`);
+    }
+    if (!Array.isArray(component.labels) || component.labels.some((label) => typeof label !== "string")) {
+      throw new Error(`Invalid overlay labels at index ${index}`);
+    }
+    const normalized: VideoOverlayComponent = {
+      kind: component.kind,
+      anchor: component.anchor,
+      labels: component.labels as string[],
+    };
+    const highlight = component.highlight_index ?? component.highlightIndex;
+    if (highlight !== undefined) {
+      const numeric = Number(highlight);
+      if (!Number.isInteger(numeric) || numeric < 0) {
+        throw new Error(`Invalid overlay highlight index at ${index}`);
+      }
+      normalized.highlight_index = numeric;
+    }
+    if (component.monospace !== undefined) {
+      if (typeof component.monospace !== "boolean") {
+        throw new Error(`Invalid overlay monospace value at ${index}`);
+      }
+      normalized.monospace = component.monospace;
+    }
+    return normalized;
+  });
+}
+
 function main() {
   requireTool("ffmpeg");
   requireTool("ffprobe");
@@ -143,6 +205,8 @@ function main() {
   const season = optionalPositiveInteger("season");
   const episode = optionalPositiveInteger("episode");
   const tags = parseTags(arg("tags"));
+  const overlayFile = arg("overlay-file");
+  const overlay = overlayFile ? parseOverlayFile(overlayFile) : undefined;
   if ((season === undefined) !== (episode === undefined)) {
     throw new Error("When using season/episode, both --season and --episode must be set");
   }
@@ -248,15 +312,18 @@ function main() {
     output_dir: outputDir,
     poster_file: posterFile,
     hls_file: hlsMasterFile,
+    hls_segments_dir: path.join(hlsDir, "segments"),
     mp4_file: mp4File,
     aspect_ratio: "9:16",
     dimensions: { width: probe.width, height: probe.height },
     publish_metadata: publishMetadata,
+    overlay,
   };
   writeFile(metadataFile, `${JSON.stringify(metadata, null, 2)}\n`);
 
   const appRoot = path.resolve(import.meta.dirname, "..");
   const publishArgs = [
+    '--package-file "${OUT_DIR}/video-package.json"',
     `--id ${quote(id)}`,
     `--title ${quote(title)}`,
     `--category ${quote(category)}`,
@@ -318,7 +385,7 @@ function main() {
     'check_bucket_access "${VIDEO_BUCKET_PUBLIC}"',
     "",
     'cd "${APP_ROOT}"',
-    'VIDEO_BUCKET_PUBLIC="${VIDEO_BUCKET_PUBLIC}" VIDEO_PUBLISH_ENV=dev node --experimental-strip-types scripts/publish-video.ts \\',
+    'VIDEO_BUCKET_PUBLIC="${VIDEO_BUCKET_PUBLIC}" VIDEO_PUBLISH_ENV="${VIDEO_PUBLISH_ENV:-dev}" node --experimental-strip-types scripts/publish-video.ts \\',
     ...publishArgsLines,
   ];
   const publishScriptContent = `${publishScriptLines.join("\n")}\n`;

@@ -106,8 +106,59 @@ func TestLoadVideoManifestFromHTTP(t *testing.T) {
 	if len(entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(entries))
 	}
-	if entries[0].ID != "intro-cli" {
-		t.Fatalf("expected published item first after sort, got %q", entries[0].ID)
+	if entries[0].ID != "draft-video" {
+		t.Fatalf("expected newest item first after sort, got %q", entries[0].ID)
+	}
+}
+
+func TestLoadVideoManifestSortsNewestFirst(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+  {
+    "id": "older",
+    "title": "Older video",
+    "description": "",
+    "category": "copilot",
+    "published_at": "2026-06-01T10:00:00Z",
+    "duration_sec": 42,
+    "aspect_ratio": "9:16",
+    "language": "nb",
+    "poster_object": "videos/older/poster.jpg",
+    "hls_master_object": "videos/older/master.m3u8",
+    "is_published": true,
+    "sort_order": 1
+  },
+  {
+    "id": "newer",
+    "title": "Newer video",
+    "description": "",
+    "category": "copilot",
+    "published_at": "2026-06-03T10:00:00Z",
+    "duration_sec": 42,
+    "aspect_ratio": "9:16",
+    "language": "nb",
+    "poster_object": "videos/newer/poster.jpg",
+    "hls_master_object": "videos/newer/master.m3u8",
+    "is_published": true,
+    "sort_order": 999
+  }
+]`))
+	}))
+	t.Cleanup(server.Close)
+
+	entries, err := loadVideoManifestFromSource(context.Background(), server.URL)
+	if err != nil {
+		t.Fatalf("loadVideoManifestFromSource returned error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	if entries[0].ID != "newer" {
+		t.Fatalf("expected newest item first, got %q", entries[0].ID)
+	}
+	if entries[1].ID != "older" {
+		t.Fatalf("expected older item second, got %q", entries[1].ID)
 	}
 }
 

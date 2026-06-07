@@ -32,6 +32,45 @@ type VideoMetadata = {
   season?: number;
   episode?: number;
   tags?: string[];
+  overlay?: VideoOverlayComponent[];
+};
+
+type VideoOverlayComponent = {
+  kind: string;
+  anchor: string;
+  labels: string[];
+  highlight_index?: number;
+  monospace?: boolean;
+};
+
+type VideoPackage = {
+  id?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  language?: string;
+  duration_sec?: number;
+  sort_order?: number;
+  published_at?: string;
+  poster_file?: string;
+  hls_file?: string;
+  mp4_file?: string;
+  captions_file?: string;
+  hls_segments_dir?: string;
+  publish_metadata?: {
+    series?: string;
+    season?: number;
+    episode?: number;
+    tags?: string[];
+  };
+  overlay?: Array<{
+    kind: string;
+    anchor: string;
+    labels: string[];
+    highlight_index?: number;
+    highlightIndex?: number;
+    monospace?: boolean;
+  }>;
 };
 
 type PublishEnvironment = "dev" | "prod";
@@ -68,6 +107,53 @@ function validateObjectPath(objectPath: string, label: string) {
   if (!VALID_OBJECT_PATH_RE.test(objectPath) || objectPath.includes("..") || objectPath.includes("//")) {
     throw new Error(`Invalid ${label}; object path contains unsupported characters`);
   }
+}
+
+function parseVideoPackage(filePath: string): VideoPackage {
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`--package-file does not exist or is not a file: ${filePath}`);
+  }
+  const raw = fs.readFileSync(filePath, "utf8");
+  return JSON.parse(raw) as VideoPackage;
+}
+
+function toOptionalInteger(name: string, value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`Invalid value for ${name}; expected an integer`);
+  }
+  return parsed;
+}
+
+function normalizeOverlay(raw: VideoPackage["overlay"]): VideoOverlayComponent[] {
+  if (!raw || raw.length === 0) return [];
+  return raw.map((component, index) => {
+    if (!component || typeof component !== "object") {
+      throw new Error(`Invalid overlay component at index ${index}`);
+    }
+    if (typeof component.kind !== "string" || component.kind.trim() === "") {
+      throw new Error(`Invalid overlay kind at index ${index}`);
+    }
+    if (typeof component.anchor !== "string" || component.anchor.trim() === "") {
+      throw new Error(`Invalid overlay anchor at index ${index}`);
+    }
+    if (!Array.isArray(component.labels) || component.labels.some((label) => typeof label !== "string")) {
+      throw new Error(`Invalid overlay labels at index ${index}`);
+    }
+    const highlightIndex =
+      component.highlight_index !== undefined ? component.highlight_index : component.highlightIndex;
+    const normalized: VideoOverlayComponent = {
+      kind: component.kind,
+      anchor: component.anchor,
+      labels: component.labels,
+      monospace: component.monospace,
+    };
+    if (highlightIndex !== undefined) {
+      normalized.highlight_index = toOptionalInteger(`overlay[${index}].highlight_index`, highlightIndex);
+    }
+    return normalized;
+  });
 }
 
 function readManifest(manifestTarget: string): ManifestItem[] {
@@ -194,21 +280,43 @@ function main() {
   const manifestTarget = gsPath(bucketPublic, "video_manifest.json");
   ensurePublicRead(bucketPublic);
 
-  const id = required("id");
+  const packageFile = arg("package-file");
+  const videoPackage = packageFile ? parseVideoPackage(packageFile) : undefined;
+
+  const id = arg("id") ?? videoPackage?.id ?? required("id");
   if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(id)) {
     throw new Error("Invalid --id; expected lowercase letters, numbers, and hyphens");
   }
-  const title = required("title");
-  const description = arg("description") ?? "";
-  const category = required("category");
-  const language = arg("language") ?? "nb";
-  const durationSec = parsePositiveInteger("duration-sec", required("duration-sec"));
-  const sortOrder = parseNonNegativeInteger("sort-order", arg("sort-order") ?? "100");
-  const publishedAt = arg("published-at") ?? new Date().toISOString();
-  const series = (arg("series") ?? "").trim();
-  const season = parseOptionalPositiveInteger("season", arg("season"));
-  const episode = parseOptionalPositiveInteger("episode", arg("episode"));
-  const tags = parseTags(arg("tags"));
+  const title = arg("title") ?? videoPackage?.title ?? required("title");
+  const description = arg("description") ?? videoPackage?.description ?? "";
+  const category = arg("category") ?? videoPackage?.category ?? required("category");
+  const language = arg("language") ?? videoPackage?.language ?? "nb";
+  const durationRaw =
+    arg("duration-sec") ?? (videoPackage?.duration_sec !== undefined ? String(videoPackage.duration_sec) : undefined);
+  if (!durationRaw) {
+    throw new Error("Missing required argument --duration-sec");
+  }
+  const durationSec = parsePositiveInteger("duration-sec", durationRaw);
+  const sortRaw =
+    arg("sort-order") ?? (videoPackage?.sort_order !== undefined ? String(videoPackage.sort_order) : "100");
+  const sortOrder = parseNonNegativeInteger("sort-order", sortRaw);
+  const publishedAt = arg("published-at") ?? videoPackage?.published_at ?? new Date().toISOString();
+
+  const pkgSeries = (videoPackage?.publish_metadata?.series ?? "").trim();
+  const series = (arg("series") ?? pkgSeries).trim();
+  const season = parseOptionalPositiveInteger(
+    "season",
+    arg("season") ??
+      (videoPackage?.publish_metadata?.season !== undefined ? String(videoPackage.publish_metadata.season) : undefined)
+  );
+  const episode = parseOptionalPositiveInteger(
+    "episode",
+    arg("episode") ??
+      (videoPackage?.publish_metadata?.episode !== undefined
+        ? String(videoPackage.publish_metadata.episode)
+        : undefined)
+  );
+  const tags = parseTags(arg("tags") ?? videoPackage?.publish_metadata?.tags?.join(","));
   if ((season === undefined) !== (episode === undefined)) {
     throw new Error("When using season/episode, both --season and --episode must be set");
   }
@@ -216,11 +324,11 @@ function main() {
     throw new Error("--series is required when --season/--episode is set");
   }
 
-  const posterFile = required("poster-file");
-  const hlsFile = required("hls-file");
-  const mp4File = arg("mp4-file");
-  const captionsFile = arg("captions-file");
-  const hlsSegmentsDir = arg("hls-segments-dir");
+  const posterFile = arg("poster-file") ?? videoPackage?.poster_file ?? required("poster-file");
+  const hlsFile = arg("hls-file") ?? videoPackage?.hls_file ?? required("hls-file");
+  const mp4File = arg("mp4-file") ?? videoPackage?.mp4_file;
+  const captionsFile = arg("captions-file") ?? videoPackage?.captions_file;
+  const hlsSegmentsDir = arg("hls-segments-dir") ?? videoPackage?.hls_segments_dir;
 
   const targetPrefix = `videos/${id}`;
   const posterObject = `${targetPrefix}/${posterFile.split("/").pop() ?? "poster.jpg"}`;
@@ -252,6 +360,8 @@ function main() {
   if (season !== undefined) metadata.season = season;
   if (episode !== undefined) metadata.episode = episode;
   if (tags.length > 0) metadata.tags = tags;
+  const overlay = normalizeOverlay(videoPackage?.overlay);
+  if (overlay.length > 0) metadata.overlay = overlay;
   const entry: ManifestItem = {
     id,
     title,
