@@ -281,7 +281,8 @@ export function VideoOverlayRenderer({ overlays }: VideoOverlayRendererProps) {
             position: "absolute",
             left: "0.5rem",
             right: "0.5rem",
-            bottom: "3.75rem",
+            // Reserve extra space for 2-line titles + subtitle in card footer.
+            bottom: "5.25rem",
             background: SCRIM,
             backdropFilter: "blur(6px)",
             WebkitBackdropFilter: "blur(6px)",

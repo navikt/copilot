@@ -160,10 +160,14 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
       <div className="overflow-x-auto overscroll-x-contain snap-x snap-mandatory">
         <HStack gap="space-16" wrap={false} align="start">
           {orderedVideos.map((video) => {
+            const overlayEpisodeMarker = video.metadata?.overlay?.find((overlay) => overlay.kind === "episode-number")
+              ?.labels?.[0];
             const episodeLabel =
-              video.metadata?.season && video.metadata?.episode
-                ? `S${video.metadata.season}E${video.metadata.episode}`
-                : undefined;
+              video.category === "cplt" && overlayEpisodeMarker
+                ? `Bonus ${overlayEpisodeMarker}`
+                : video.metadata?.season && video.metadata?.episode
+                  ? `S${video.metadata.season}E${video.metadata.episode}`
+                  : undefined;
             const isActive = isViewerOpen && resolvedActiveId === video.id;
             return (
               <div key={video.id} className="snap-start shrink-0 w-[240px] sm:w-[260px]">
