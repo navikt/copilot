@@ -125,7 +125,7 @@ func TestBillingUsageItem_Marshaling(t *testing.T) {
 
 func TestBillingClient_FetchOrganizationUsage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got, want := r.URL.Path, "/organizations/navikt/settings/billing/usage"; got != want {
+		if got, want := r.URL.Path, "/orgs/navikt/settings/billing/usage"; got != want {
 			t.Fatalf("unexpected path: got %s want %s", got, want)
 		}
 		query := r.URL.Query()

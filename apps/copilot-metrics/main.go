@@ -103,7 +103,7 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing usage and budget snapshot ingestion disabled")
+		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing ingestion and budget snapshot ingestion disabled")
 	}
 
 	if *billingUsageBackfill {

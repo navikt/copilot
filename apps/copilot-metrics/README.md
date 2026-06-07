@@ -33,7 +33,7 @@ GitHub Usage Metrics API → copilot-metrics (Naisjob) → BigQuery
 Runs as a Kubernetes CronJob via NAIS. Automatically detects missing days in BigQuery and fills gaps:
 
 ```bash
-copilot-metrics --run-once
+rtk copilot-metrics --run-once
 ```
 
 ### Historical backfill
@@ -41,8 +41,8 @@ copilot-metrics --run-once
 One-time operation to load historical data:
 
 ```bash
-copilot-metrics --backfill
-copilot-metrics --backfill --backfill-from=2025-10-10
+rtk copilot-metrics --backfill
+rtk copilot-metrics --backfill --backfill-from=2025-10-10
 ```
 
 ### Billing usage backfill
@@ -50,9 +50,9 @@ copilot-metrics --backfill --backfill-from=2025-10-10
 One-time operation to load premium request billing data per model (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-copilot-metrics --billing-backfill
-copilot-metrics --billing-backfill --billing-from=2025-01
-copilot-metrics --billing-backfill --billing-from=2025-01 --force
+rtk copilot-metrics --billing-backfill
+rtk copilot-metrics --billing-backfill --billing-from=2025-01
+rtk copilot-metrics --billing-backfill --billing-from=2025-01 --force
 ```
 
 ### Billing usage report backfill (daily rows)
@@ -60,9 +60,9 @@ copilot-metrics --billing-backfill --billing-from=2025-01 --force
 One-time operation to load daily organization billing usage report rows (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-copilot-metrics --billing-usage-backfill
-copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10
-copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10 --force
+rtk copilot-metrics --billing-usage-backfill
+rtk copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10
+rtk copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10 --force
 ```
 
 ### Local development
@@ -74,7 +74,7 @@ export GITHUB_APP_INSTALLATION_ID=789
 export GCP_TEAM_PROJECT_ID=my-project
 export LOG_LEVEL=DEBUG
 
-go run . --run-once
+rtk go run . --run-once
 ```
 
 ## Configuration
@@ -175,13 +175,13 @@ Set `GITHUB_BILLING_TOKEN` in the `copilot-metrics` secret to enable billing ing
 Deployed as a NAIS Job in the `copilot` namespace:
 
 ```bash
-kubectl apply -f .nais/naisjob.yaml -f .nais/dev.yaml
+rtk kubectl apply -f .nais/naisjob.yaml -f .nais/dev.yaml
 ```
 
 Manual trigger:
 
 ```bash
-kubectl create job --from=cronjob/copilot-metrics copilot-metrics-manual -n copilot
+rtk kubectl create job --from=cronjob/copilot-metrics copilot-metrics-manual -n copilot
 ```
 
 ## Related

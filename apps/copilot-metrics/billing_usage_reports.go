@@ -16,7 +16,6 @@ type UsageReportFetcher interface {
 
 // UsageReportStore stores organization billing usage report data.
 type UsageReportStore interface {
-	BillingUsageReportDayExists(ctx context.Context, day time.Time, org string) (bool, error)
 	DeleteBillingUsageReportDay(ctx context.Context, day time.Time, org string) error
 	InsertBillingUsageReportDay(ctx context.Context, day time.Time, org string, items []OrganizationBillingUsageItem) error
 	GetLatestBillingUsageReportDay(ctx context.Context, org string) (time.Time, error)
@@ -33,17 +32,6 @@ func ingestBillingUsageReportDay(
 	day = day.UTC().Truncate(24 * time.Hour)
 	dayStr := day.Format("2006-01-02")
 	org := cfg.OrganizationSlug
-
-	if !force {
-		exists, err := store.BillingUsageReportDayExists(ctx, day, org)
-		if err != nil {
-			return fmt.Errorf("check billing usage report day exists: %w", err)
-		}
-		if exists {
-			slog.Debug("Billing usage report day already ingested, skipping", "day", dayStr, "org", org)
-			return nil
-		}
-	}
 
 	resp, err := fetcher.FetchOrganizationUsage(ctx, org, day)
 	if err != nil {

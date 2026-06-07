@@ -20,18 +20,12 @@ func (m *mockUsageReportFetcher) FetchOrganizationUsage(_ context.Context, _ str
 }
 
 type mockUsageReportStore struct {
-	exists      bool
-	existsErr   error
 	deleteErr   error
 	insertErr   error
 	latestDay   time.Time
 	latestErr   error
 	deletedDays []time.Time
 	inserted    int
-}
-
-func (m *mockUsageReportStore) BillingUsageReportDayExists(_ context.Context, _ time.Time, _ string) (bool, error) {
-	return m.exists, m.existsErr
 }
 
 func (m *mockUsageReportStore) DeleteBillingUsageReportDay(_ context.Context, day time.Time, _ string) error {
@@ -48,8 +42,8 @@ func (m *mockUsageReportStore) GetLatestBillingUsageReportDay(_ context.Context,
 	return m.latestDay, m.latestErr
 }
 
-func TestIngestBillingUsageReportDay_SkipsWhenExists(t *testing.T) {
-	store := &mockUsageReportStore{exists: true}
+func TestIngestBillingUsageReportDay_AlwaysUpserts(t *testing.T) {
+	store := &mockUsageReportStore{}
 	fetcher := &mockUsageReportFetcher{
 		resp: &OrganizationBillingUsageResponse{
 			UsageItems: []OrganizationBillingUsageItem{{Product: "Copilot"}},
@@ -61,8 +55,11 @@ func TestIngestBillingUsageReportDay_SkipsWhenExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if store.inserted != 0 {
-		t.Fatalf("expected no insert when already exists")
+	if len(store.deletedDays) != 1 {
+		t.Fatalf("expected delete before insert")
+	}
+	if store.inserted != 1 {
+		t.Fatalf("expected one inserted row")
 	}
 }
 
@@ -141,5 +138,22 @@ func TestRunBillingUsageReportBackfill_FailsWhenAllDaysFail(t *testing.T) {
 	err := runBillingUsageReportBackfill(context.Background(), fetcher, store, cfg, start, true)
 	if err == nil {
 		t.Fatalf("expected error when all days fail")
+	}
+}
+
+func TestNullableRepositoryName_EmptyIsNull(t *testing.T) {
+	got := nullableRepositoryName("")
+	if got.Valid {
+		t.Fatalf("expected invalid null string for empty repository name")
+	}
+}
+
+func TestNullableRepositoryName_ValueIsSet(t *testing.T) {
+	got := nullableRepositoryName("navikt/copilot")
+	if !got.Valid {
+		t.Fatalf("expected valid null string for repository name")
+	}
+	if got.StringVal != "navikt/copilot" {
+		t.Fatalf("unexpected repository name: %s", got.StringVal)
 	}
 }

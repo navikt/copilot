@@ -15,19 +15,19 @@ const billingUsageReportsTable = "billing_usage_reports"
 
 // BillingUsageReportRow represents one row in the billing_usage_reports table.
 type BillingUsageReportRow struct {
-	ReportDay      civil.Date `bigquery:"report_day"`
-	Organization   string     `bigquery:"organization"`
-	RepositoryName string     `bigquery:"repository_name"`
-	Product        string     `bigquery:"product"`
-	SKU            string     `bigquery:"sku"`
-	Quantity       float64    `bigquery:"quantity"`
-	UnitType       string     `bigquery:"unit_type"`
-	PricePerUnit   float64    `bigquery:"price_per_unit"`
-	GrossAmount    float64    `bigquery:"gross_amount"`
-	DiscountAmount float64    `bigquery:"discount_amount"`
-	NetAmount      float64    `bigquery:"net_amount"`
-	RawRecord      string     `bigquery:"raw_record"`
-	LoadedAt       time.Time  `bigquery:"loaded_at"`
+	ReportDay      civil.Date          `bigquery:"report_day"`
+	Organization   string              `bigquery:"organization"`
+	RepositoryName bigquery.NullString `bigquery:"repository_name"`
+	Product        string              `bigquery:"product"`
+	SKU            string              `bigquery:"sku"`
+	Quantity       float64             `bigquery:"quantity"`
+	UnitType       string              `bigquery:"unit_type"`
+	PricePerUnit   float64             `bigquery:"price_per_unit"`
+	GrossAmount    float64             `bigquery:"gross_amount"`
+	DiscountAmount float64             `bigquery:"discount_amount"`
+	NetAmount      float64             `bigquery:"net_amount"`
+	RawRecord      string              `bigquery:"raw_record"`
+	LoadedAt       time.Time           `bigquery:"loaded_at"`
 }
 
 // EnsureBillingUsageReportsTableExists creates the billing_usage_reports table if needed.
@@ -79,32 +79,6 @@ func (c *BigQueryClient) EnsureBillingUsageReportsTableExists(ctx context.Contex
 	return nil
 }
 
-// BillingUsageReportDayExists checks whether data for the given day and org already exists.
-func (c *BigQueryClient) BillingUsageReportDayExists(ctx context.Context, day time.Time, org string) (bool, error) {
-	query := c.client.Query(`
-		SELECT COUNT(*) as cnt
-		FROM ` + "`" + c.projectID + "." + c.dataset + "." + billingUsageReportsTable + "`" + `
-		WHERE report_day = @day AND organization = @org
-	`)
-	query.Parameters = []bigquery.QueryParameter{
-		{Name: "day", Value: civil.DateOf(day)},
-		{Name: "org", Value: org},
-	}
-
-	it, err := query.Read(ctx)
-	if err != nil {
-		return false, fmt.Errorf("check billing usage report day: %w", err)
-	}
-
-	var row struct {
-		Cnt int64 `bigquery:"cnt"`
-	}
-	if err := it.Next(&row); err != nil {
-		return false, fmt.Errorf("read billing usage report day check: %w", err)
-	}
-	return row.Cnt > 0, nil
-}
-
 // DeleteBillingUsageReportDay removes existing rows for day+org so re-runs are idempotent.
 func (c *BigQueryClient) DeleteBillingUsageReportDay(ctx context.Context, day time.Time, org string) error {
 	query := c.client.Query(`
@@ -151,7 +125,7 @@ func (c *BigQueryClient) InsertBillingUsageReportDay(ctx context.Context, day ti
 		rows = append(rows, &BillingUsageReportRow{
 			ReportDay:      reportDay,
 			Organization:   org,
-			RepositoryName: item.RepositoryName,
+			RepositoryName: nullableRepositoryName(item.RepositoryName),
 			Product:        item.Product,
 			SKU:            item.SKU,
 			Quantity:       item.Quantity,
@@ -171,6 +145,13 @@ func (c *BigQueryClient) InsertBillingUsageReportDay(ctx context.Context, day ti
 
 	slog.Info("Inserted billing usage report rows", "day", day.Format("2006-01-02"), "org", org, "rows", len(rows))
 	return nil
+}
+
+func nullableRepositoryName(name string) bigquery.NullString {
+	if name == "" {
+		return bigquery.NullString{}
+	}
+	return bigquery.NullString{StringVal: name, Valid: true}
 }
 
 // GetLatestBillingUsageReportDay returns latest ingested day for the org.

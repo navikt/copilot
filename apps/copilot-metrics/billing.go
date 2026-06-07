@@ -167,7 +167,7 @@ func (c *BillingClient) FetchDailyUsage(ctx context.Context, day time.Time) (*Bi
 // FetchOrganizationUsage fetches billing usage report data for an organization for a specific day.
 func (c *BillingClient) FetchOrganizationUsage(ctx context.Context, org string, day time.Time) (*OrganizationBillingUsageResponse, error) {
 	url := fmt.Sprintf(
-		"https://api.github.com/organizations/%s/settings/billing/usage?year=%d&month=%d&day=%d",
+		"https://api.github.com/orgs/%s/settings/billing/usage?year=%d&month=%d&day=%d",
 		org, day.Year(), int(day.Month()), day.Day(),
 	)
 
