@@ -1,0 +1,55 @@
+{
+  "items": [
+    {
+      "id": "video-ordered-2",
+      "title": "Second in API order",
+      "description": "kept as-is from API ordering",
+      "category": "copilot",
+      "published_at": "2026-02-01T10:00:00Z",
+      "duration_sec": 65,
+      "aspect_ratio": "9:16",
+      "language": "nb",
+      "poster_url": "/poster-2.jpg",
+      "play_url": "/play-2.m3u8",
+      "mp4_url": "/play-2.mp4",
+      "captions_url": "/play-2.vtt",
+      "metadata": {
+        "series": "nav-pilot",
+        "season": 1,
+        "episode": 2,
+        "tags": ["copilot", "session"],
+        "overlay": [
+          {
+            "kind": "ladder",
+            "anchor": "center-left",
+            "labels": ["ask/execute", "plan (Shift+Tab)", "/autopilot"],
+            "highlight_index": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "video-ordered-1",
+      "title": "First in API order",
+      "description": "kept as-is from API ordering",
+      "category": "copilot",
+      "published_at": "2026-01-01T10:00:00Z",
+      "duration_sec": 55,
+      "aspect_ratio": "9:16",
+      "language": "nb",
+      "poster_url": "/poster-1.jpg",
+      "play_url": "/play-1.m3u8",
+      "metadata": {
+        "overlay": [
+          {
+            "kind": "chip",
+            "anchor": "top-left",
+            "labels": ["/resume"],
+            "monospace": true
+          }
+        ]
+      }
+    }
+  ],
+  "next_cursor": "2"
+}

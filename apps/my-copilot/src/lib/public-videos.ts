@@ -19,6 +19,21 @@ export type PublicVideoFeedItem = {
     season?: number;
     episode?: number;
     tags?: string[];
+    overlay?: Array<{
+      kind: string;
+      anchor:
+        | "top-left"
+        | "top-right"
+        | "center-left"
+        | "center-right"
+        | "center"
+        | "bottom-left"
+        | "bottom-right"
+        | "bottom-full";
+      labels: string[];
+      highlight_index?: number;
+      monospace?: boolean;
+    }>;
   };
 };
 
@@ -63,6 +78,42 @@ export type HomepageVideo = {
   };
 };
 
+function normalizeOverlay(item: PublicVideoFeedItem): OverlayComponent[] | undefined {
+  const overlays = item.metadata?.overlay;
+  if (!overlays || overlays.length === 0) return undefined;
+  return overlays.map((overlay) => ({
+    kind: overlay.kind,
+    anchor: overlay.anchor,
+    labels: overlay.labels,
+    highlightIndex: overlay.highlight_index,
+    monospace: overlay.monospace,
+  }));
+}
+
+function mapVideoItem(item: PublicVideoFeedItem): HomepageVideo {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    category: item.category,
+    durationSec: item.duration_sec,
+    language: item.language,
+    posterUrl: item.poster_url,
+    playUrl: item.play_url,
+    mp4Url: item.mp4_url,
+    captionsUrl: item.captions_url,
+    metadata: item.metadata
+      ? {
+          series: item.metadata.series,
+          season: item.metadata.season,
+          episode: item.metadata.episode,
+          tags: item.metadata.tags,
+          overlay: normalizeOverlay(item),
+        }
+      : undefined,
+  };
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -92,32 +143,7 @@ async function fetchJSON<T>(path: string): Promise<T> {
 export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVideo[]> {
   try {
     const feed = await fetchJSON<VideoFeedResponse>(`/public/v1/videos?limit=${limit}`);
-    const seen = new Set<string>();
-    const uniqueItems = feed.items.filter((item) => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-    const newestFirst = [...uniqueItems].sort((a, b) => {
-      const aTime = Date.parse(a.published_at);
-      const bTime = Date.parse(b.published_at);
-      const aSort = Number.isFinite(aTime) ? aTime : Number.NEGATIVE_INFINITY;
-      const bSort = Number.isFinite(bTime) ? bTime : Number.NEGATIVE_INFINITY;
-      return bSort - aSort;
-    });
-    return newestFirst.map((item) => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      category: item.category,
-      durationSec: item.duration_sec,
-      language: item.language,
-      posterUrl: item.poster_url,
-      playUrl: item.play_url,
-      mp4Url: item.mp4_url,
-      captionsUrl: item.captions_url,
-      metadata: item.metadata,
-    }));
+    return feed.items.map(mapVideoItem);
   } catch (error) {
     console.error("Failed to fetch public video feed:", error);
     return [];

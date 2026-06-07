@@ -1,26 +1,13 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { arg, parseTags, required } from "./video-cli-common.ts";
 
 type ProbeResult = {
   durationSec: number;
   width: number;
   height: number;
 };
-
-function arg(name: string): string | undefined {
-  const index = process.argv.indexOf(`--${name}`);
-  if (index < 0) return undefined;
-  return process.argv[index + 1];
-}
-
-function required(name: string): string {
-  const value = arg(name);
-  if (!value) {
-    throw new Error(`Missing required argument --${name}`);
-  }
-  return value;
-}
 
 function optionalNumber(name: string): number | undefined {
   const value = arg(name);
@@ -54,30 +41,6 @@ function optionalPositiveInteger(name: string): number | undefined {
 
 function optionalString(name: string, defaultValue: string): string {
   return arg(name) ?? defaultValue;
-}
-
-const VALID_TAG_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
-
-function parseTags(raw: string | undefined): string[] {
-  if (!raw) return [];
-  const tags = raw
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-  if (tags.length > 20) {
-    throw new Error("Invalid --tags; expected at most 20 tags");
-  }
-  const seen = new Set<string>();
-  for (const tag of tags) {
-    if (!VALID_TAG_RE.test(tag)) {
-      throw new Error(`Invalid tag "${tag}"; use lowercase letters, numbers, and hyphens`);
-    }
-    if (seen.has(tag)) {
-      throw new Error(`Duplicate tag "${tag}"`);
-    }
-    seen.add(tag);
-  }
-  return tags;
 }
 
 function requireTool(tool: string) {
