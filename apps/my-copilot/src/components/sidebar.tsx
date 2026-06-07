@@ -44,7 +44,7 @@ function RecentUpdates() {
             const Icon = TYPE_ICONS[item.type];
             return (
               <NextLink
-                key={item.id}
+                key={`${item.type}-${item.id}`}
                 href={`/verktoy?type=${item.type}&item=mcp-${item.id}`}
                 className="no-underline hover:underline"
               >
@@ -84,7 +84,7 @@ function RecentUpdates() {
           const Icon = TYPE_ICONS[item.type];
           return (
             <NextLink
-              key={item.id}
+              key={`${item.type}-${item.id}-${date}-${commitMessage}`}
               href={`/verktoy?type=${item.type}&item=mcp-${item.id}`}
               className="no-underline hover:underline"
             >

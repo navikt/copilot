@@ -24,6 +24,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "dist/**",
     "next-env.d.ts",
+    // Generated local video artifacts:
+    "video-packages/**",
   ]),
 ]);
 

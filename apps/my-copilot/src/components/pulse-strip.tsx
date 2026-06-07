@@ -11,17 +11,29 @@ function HighlightCard({
   href,
   title,
   prefetch,
+  compact = false,
   children,
 }: {
   href: string;
   title: string;
   prefetch?: boolean;
+  compact?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Box background="neutral-soft" borderRadius="8" padding="space-16" asChild>
-      <NextLink href={href} prefetch={prefetch} className="no-underline hover:shadow-md transition-shadow group">
-        <VStack gap="space-8">
+    <Box
+      background="neutral-soft"
+      borderRadius="8"
+      padding="space-12"
+      className={compact ? "self-start" : "h-full"}
+      asChild
+    >
+      <NextLink
+        href={href}
+        prefetch={prefetch}
+        className={`no-underline hover:shadow-md transition-shadow group ${compact ? "" : "h-full"}`}
+      >
+        <VStack gap="space-4" className={compact ? "" : "h-full"}>
           <HStack gap="space-4" align="center" justify="space-between">
             <BodyShort size="small" weight="semibold">
               {title}
@@ -41,9 +53,9 @@ function HighlightCard({
 
 function HighlightSkeleton() {
   return (
-    <Box background="neutral-soft" borderRadius="8" padding="space-16">
+    <Box background="neutral-soft" borderRadius="8" padding="space-12">
       <Skeleton variant="text" width={100} height={20} />
-      <Skeleton variant="rectangle" width="100%" height={40} className="mt-2" />
+      <Skeleton variant="rectangle" width="100%" height={40} className="mt-1" />
     </Box>
   );
 }
@@ -60,7 +72,7 @@ function CustomizationBreakdownCard() {
   const maxCount = Math.max(...types.map((t) => t.count));
 
   return (
-    <HighlightCard href="/verktoy" title={`${customizations.length} tilpasninger`}>
+    <HighlightCard compact href="/verktoy" title={`${customizations.length} tilpasninger`}>
       <VStack gap="space-4">
         {types.map((t) => (
           <div key={t.label} className="flex items-center gap-2">
@@ -106,9 +118,9 @@ async function UsageCard() {
 
   return (
     <HighlightCard href="/statistikk" prefetch={false} title="Bruksmønster">
-      <HStack gap="space-8" className="w-full" justify="center">
+      <HStack gap="space-4" className="w-full" justify="space-between">
         {items.map((item) => (
-          <VStack key={item.label} align="center" gap="space-4" className="flex-1">
+          <VStack key={item.label} align="center" gap="space-2" className="flex-1">
             <Heading size="medium" level="3">
               {item.pct} %
             </Heading>
@@ -144,9 +156,9 @@ async function StatsCard() {
       : 15;
 
   return (
-    <HighlightCard href="/statistikk" prefetch={false} title="Nøkkeltall">
-      <VStack gap="space-8">
-        <div>
+    <HighlightCard compact href="/statistikk" prefetch={false} title="Nøkkeltall">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="min-w-0">
           <Heading size="medium" level="3">
             {acceptanceRate} %
           </Heading>
@@ -154,7 +166,7 @@ async function StatsCard() {
             akseptrate for kodeforslag
           </BodyShort>
         </div>
-        <div>
+        <div className="min-w-0">
           <Heading size="medium" level="3">
             {adoptionRate} %
           </Heading>
@@ -162,7 +174,7 @@ async function StatsCard() {
             av repoer har tilpasninger
           </BodyShort>
         </div>
-      </VStack>
+      </div>
     </HighlightCard>
   );
 }

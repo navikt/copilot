@@ -6,12 +6,14 @@ import NextLink from "next/link";
 import { NewsFeed } from "@/components/news-feed";
 import { HighlightCards } from "@/components/pulse-strip";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
+import { ShortsFeed } from "@/components/shorts-feed";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
+import { getPublicVideoFeed } from "@/lib/public-videos";
 
 export default async function Home() {
-  const user = await getUser(false);
+  const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
   const news = getNewsItems();
 
   return (
@@ -61,7 +63,17 @@ export default async function Home() {
               <SidebarCompact />
               <div className="flex gap-8 lg:gap-10">
                 <div className="flex-1 min-w-0">
-                  <NewsFeed items={news} compact />
+                  <NewsFeed
+                    items={news}
+                    compact
+                    afterFeatured={
+                      videos.length > 0 ? (
+                        <Box className="reveal-section">
+                          <ShortsFeed videos={videos} />
+                        </Box>
+                      ) : undefined
+                    }
+                  />
                 </div>
                 <div className="hidden lg:block w-64 shrink-0">
                   <Sidebar />

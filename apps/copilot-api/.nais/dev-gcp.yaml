@@ -1,8 +1,8 @@
-env:
-  - name: "LOG_LEVEL"
-    value: "DEBUG"
-  - name: "LOGGED_ENDPOINTS"
-    value: "/api/v1/,/health,/ready"
-  # NOTE: AZURE_APP_PRE_AUTHORIZED_APPS must be set via NAIS secret with my-copilot's client ID
-  # Format: [{"clientId": "my-copilot-client-id"}]
-  # This allows my-copilot to call this API with delegated user credentials
+log_level: "DEBUG"
+logged_endpoints: "/api/v1/,/health,/ready"
+video_bucket_public: "copilot-videos-public-dev"
+video_feed_cache_seconds: "60"
+
+# NOTE: AZURE_APP_PRE_AUTHORIZED_APPS must be set via NAIS secret with my-copilot's client ID
+# Format: [{"clientId": "my-copilot-client-id"}]
+# This allows my-copilot to call this API with delegated user credentials

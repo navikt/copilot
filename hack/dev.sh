@@ -30,11 +30,47 @@ prefix_output() {
 }
 
 cleanup() {
+    if [[ "${CLEANUP_DONE:-0}" -eq 1 ]]; then
+        return
+    fi
+    CLEANUP_DONE=1
     echo -e "\n${YELLOW}Stopping dev servers...${RESET}"
-    kill "$API_PID" "$WEB_PID" 2>/dev/null || true
-    wait "$API_PID" "$WEB_PID" 2>/dev/null || true
+    kill_process_tree "${API_PID:-}" TERM
+    kill_process_tree "${WEB_PID:-}" TERM
+    sleep 1
+    kill_process_tree "${API_PID:-}" KILL
+    kill_process_tree "${WEB_PID:-}" KILL
+
+    local pids=()
+    [[ -n "${API_PID:-}" ]] && pids+=("${API_PID}")
+    [[ -n "${WEB_PID:-}" ]] && pids+=("${WEB_PID}")
+    if [[ "${#pids[@]}" -gt 0 ]]; then
+        wait "${pids[@]}" 2>/dev/null || true
+    fi
 }
 trap cleanup SIGINT SIGTERM EXIT
+
+kill_process_tree() {
+    local root_pid="$1"
+    local signal="$2"
+
+    [[ -z "${root_pid}" ]] && return 0
+    if ! kill -0 "${root_pid}" 2>/dev/null; then
+        return 0
+    fi
+
+    local child
+    local children=()
+    while IFS= read -r child; do
+        [[ -n "${child}" ]] && children+=("${child}")
+    done < <(ps -axo pid=,ppid= | awk -v p="${root_pid}" '$2==p {print $1}')
+
+    for child in "${children[@]}"; do
+        kill_process_tree "${child}" "${signal}"
+    done
+
+    kill "-${signal}" "${root_pid}" 2>/dev/null || true
+}
 
 echo -e "${BOLD}🚀 Starting local development environment${RESET}"
 echo -e "   ${CYAN}copilot-api${RESET}  →  http://localhost:8080"
@@ -54,6 +90,19 @@ eval "$(cd apps/my-copilot  && fnox export -f env 2>/dev/null)" || true
 #   resolves this email -> GitHub username). Kept here (not in mise [env]) so it never
 #   pollutes `mise check`/CI test runs, which expect the default dev@nav.no.
 export DEV_USER_EMAIL="${DEV_USER_EMAIL:-hans.kristian.flaatten@nav.no}"
+
+# Video defaults for local development:
+# - Prefer the injected dev bucket variables if they exist.
+# - Buckets are expected to be publicly readable for video asset delivery.
+if [[ -n "${VIDEO_BUCKET_PUBLIC_DEV:-}" || -n "${VIDEO_BUCKET_PUBLIC:-}" ]]; then
+    export VIDEO_BUCKET_PUBLIC="${VIDEO_BUCKET_PUBLIC:-$VIDEO_BUCKET_PUBLIC_DEV}"
+    if [[ -n "${VIDEO_BUCKET_PUBLIC:-}" ]]; then
+        export VIDEO_PUBLIC_BASE_URL="${VIDEO_PUBLIC_BASE_URL:-https://storage.googleapis.com/${VIDEO_BUCKET_PUBLIC}}"
+        export VIDEO_MANIFEST_URL="${VIDEO_MANIFEST_URL:-gs://${VIDEO_BUCKET_PUBLIC}/video_manifest.json}"
+    fi
+fi
+export VIDEO_MANIFEST_PATH="${VIDEO_MANIFEST_PATH:-video_manifest.json}"
+export VIDEO_FEED_CACHE_SECONDS="${VIDEO_FEED_CACHE_SECONDS:-60}"
 
 (cd apps/copilot-api && LOG_LEVEL=DEBUG GCP_TEAM_PROJECT_ID=copilot-dev-e17a LOGGED_ENDPOINTS="/api/v1/,/health,/ready" mise exec -- air 2>&1 | prefix_output "api" "$CYAN") &
 API_PID=$!

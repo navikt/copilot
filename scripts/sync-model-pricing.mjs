@@ -35,33 +35,14 @@ function parsePricingTables(html) {
 
   // Extract provider sections by matching h3 headers followed by tables
   const sections = [
-    { provider: "OpenAI", hasCacheWrite: false },
-    { provider: "Anthropic", hasCacheWrite: true },
-    { provider: "Google", hasCacheWrite: false },
-    { provider: "GitHub", hasCacheWrite: false },
+    { provider: "OpenAI", anchorId: "openai" },
+    { provider: "Anthropic", anchorId: "anthropic" },
+    { provider: "Google", anchorId: "google" },
+    { provider: "GitHub", anchorId: "fine-tuned-github" },
   ];
 
   for (const section of sections) {
-    // Find the section anchor and its table
-    const anchorId = section.provider.toLowerCase().replace(/[^a-z]/g, "-");
-    // Try multiple anchor patterns
-    const patterns = [
-      `id="${anchorId}"`,
-      `id="fine-tuned-github"`, // GitHub section has different anchor
-    ];
-
-    let sectionStart = -1;
-    for (const pattern of patterns) {
-      const idx = html.indexOf(pattern);
-      if (idx !== -1 && (section.provider !== "GitHub" || pattern.includes("fine-tuned"))) {
-        sectionStart = idx;
-        break;
-      } else if (idx !== -1 && section.provider !== "GitHub") {
-        sectionStart = idx;
-        break;
-      }
-    }
-
+    const sectionStart = html.indexOf(`id="${section.anchorId}"`);
     if (sectionStart === -1) {
       console.warn(`Warning: Could not find section for ${section.provider}`);
       continue;
@@ -74,54 +55,92 @@ function parsePricingTables(html) {
     if (tableEnd === -1) continue;
     const tableHtml = html.substring(tableStart, tableEnd + 8);
 
-    // Parse rows
     const rows = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)];
-    // Skip header row
+    const headerCells =
+      rows.length > 0
+        ? [...rows[0][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) => stripHtml(m[1]).trim())
+        : [];
+    const headerIndices = buildHeaderIndexMap(headerCells);
+
+    const requiredColumns = {
+      model: findHeaderIndex(headerIndices, ["model"]),
+      input: findHeaderIndex(headerIndices, ["input"]),
+      cachedInput: findHeaderIndex(headerIndices, ["cached input"]),
+      output: findHeaderIndex(headerIndices, ["output"]),
+    };
+
+    if (Object.values(requiredColumns).some((index) => index < 0)) {
+      console.warn(`Warning: Missing required columns in ${section.provider} table, skipping section`);
+      continue;
+    }
+
     for (let i = 1; i < rows.length; i++) {
       const cells = [...rows[i][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map(
-        (m) => stripHtml(m[1]).trim(),
+       (m) => stripHtml(m[1]).trim()
       );
+      const model = getCell(cells, requiredColumns.model);
+      if (!model) continue;
 
-      if (cells.length < 5) continue;
+      const status = getCell(cells, findHeaderIndex(headerIndices, ["release status", "status"]));
+      const category = getCell(cells, findHeaderIndex(headerIndices, ["category"]));
+      const tier = getCell(cells, findHeaderIndex(headerIndices, ["tier"]));
+      const threshold = getCell(cells, findHeaderIndex(headerIndices, ["threshold (input tokens)", "threshold"]));
+      const input = parsePrice(getCell(cells, requiredColumns.input));
+      const cachedInput = parsePrice(getCell(cells, requiredColumns.cachedInput));
+      const output = parsePrice(getCell(cells, requiredColumns.output));
+      const cacheWrite = parsePrice(getCell(cells, findHeaderIndex(headerIndices, ["cache write"])));
 
-      let model, status, category, input, cachedInput, cacheWrite, output;
-
-      if (section.hasCacheWrite) {
-        // Anthropic: Model, Status, Category, Input, Cached, CacheWrite, Output
-        [model, status, category, input, cachedInput, cacheWrite, output] = cells;
-      } else {
-        // Others: Model, Status, Category, Input, Cached, Output
-        [model, status, category, input, cachedInput, output] = cells;
+      if (input === undefined || cachedInput === undefined || output === undefined) {
+        continue;
       }
 
       const entry = {
-        model: cleanModelName(model),
+        model: formatModelName(cleanModelName(model), tier, threshold),
         provider: section.provider,
         category: normalizeCategory(category),
         status: normalizeStatus(status),
-        input: parsePrice(input),
-        cachedInput: parsePrice(cachedInput),
-        output: parsePrice(output),
+        input,
+        cachedInput,
+        output,
       };
 
-      if (section.hasCacheWrite && cacheWrite) {
-        entry.cacheWrite = parsePrice(cacheWrite);
+      if (cacheWrite !== undefined) {
+        entry.cacheWrite = cacheWrite;
       }
 
-      // Detect notes from footnotes
-      if (model.includes("[1]") || model.includes("1")) {
-        if (entry.model.includes("GPT-4.1") || entry.model.includes("GPT-5 mini")) {
-          entry.note = "Included model";
-        }
-      }
-
-      if (!isNaN(entry.input) && !isNaN(entry.output)) {
-        models.push(entry);
-      }
+      models.push(entry);
     }
   }
 
   return models;
+}
+
+function normalizeHeaderName(name) {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildHeaderIndexMap(headerCells) {
+  const map = new Map();
+  for (const [index, header] of headerCells.entries()) {
+    map.set(normalizeHeaderName(header), index);
+  }
+  return map;
+}
+
+function findHeaderIndex(headerMap, names) {
+  for (const name of names) {
+    const index = headerMap.get(normalizeHeaderName(name));
+    if (index !== undefined) return index;
+  }
+  return -1;
+}
+
+function getCell(cells, index) {
+  if (index < 0 || index >= cells.length) return undefined;
+  return cells[index];
 }
 
 function stripHtml(html) {
@@ -140,6 +159,21 @@ function cleanModelName(name) {
     .trim();
 }
 
+function formatModelName(model, tier, threshold) {
+  const cleanTier = tier?.trim();
+  const cleanThreshold = threshold?.trim();
+
+  const hasTier = Boolean(cleanTier);
+  const hasThreshold = Boolean(cleanThreshold) && !/^not applicable$/i.test(cleanThreshold);
+
+  if (!hasTier && !hasThreshold) return model;
+
+  const variant = [];
+  if (hasTier) variant.push(cleanTier);
+  if (hasThreshold) variant.push(cleanThreshold);
+  return `${model} (${variant.join(", ")})`;
+}
+
 function normalizeCategory(cat) {
   const lower = cat?.toLowerCase() || "";
   if (lower.includes("light")) return "Lightweight";
@@ -155,9 +189,11 @@ function normalizeStatus(status) {
 }
 
 function parsePrice(str) {
-  if (!str) return NaN;
+  if (!str) return undefined;
   const cleaned = str.replace(/[$,]/g, "").trim();
-  return parseFloat(cleaned);
+  if (!cleaned) return undefined;
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 // --- Generate TypeScript ---

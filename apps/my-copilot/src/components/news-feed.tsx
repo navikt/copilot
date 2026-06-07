@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { Chips, HStack, VStack, BodyShort, Heading } from "@navikt/ds-react";
 import type { NewsItem, NewsCategory } from "@/lib/news-types";
 import { CATEGORY_CONFIG } from "@/lib/news-types";
@@ -9,6 +9,7 @@ import { NewsCard, FeaturedNewsCard } from "./news-card";
 interface NewsFeedProps {
   items: NewsItem[];
   compact?: boolean;
+  afterFeatured?: ReactNode;
 }
 
 const COLS = 3;
@@ -41,7 +42,7 @@ function computeGridSpans(items: NewsItem[], cols: number = COLS): number[] {
   return spans;
 }
 
-export function NewsFeed({ items, compact = false }: NewsFeedProps) {
+export function NewsFeed({ items, compact = false, afterFeatured }: NewsFeedProps) {
   const [selected, setSelected] = useState<NewsCategory | null>(null);
 
   const availableCategories = useMemo(() => {
@@ -64,7 +65,7 @@ export function NewsFeed({ items, compact = false }: NewsFeedProps) {
           Siste nytt
         </Heading>
         <Chips>
-          <Chips.Toggle selected={selected === null} onClick={() => setSelected(null)}>
+          <Chips.Toggle key="all" selected={selected === null} onClick={() => setSelected(null)}>
             Alle
           </Chips.Toggle>
           {availableCategories.map((cat) => (
@@ -81,6 +82,7 @@ export function NewsFeed({ items, compact = false }: NewsFeedProps) {
 
       {filtered.length === 0 && <BodyShort className="text-text-subtle">Ingen nyheter i denne kategorien.</BodyShort>}
       {featured && <FeaturedNewsCard item={featured} />}
+      {featured && afterFeatured}
       {rest.length > 0 && (
         <div className={`grid ${gridCols} gap-3`}>
           {rest.map((item, i) => (
