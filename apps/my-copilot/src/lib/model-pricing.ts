@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-06-06
+ * Last updated: 2026-06-07
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -24,7 +24,7 @@ export interface ModelPrice {
 export const MODEL_PRICING: ModelPrice[] = [
   // OpenAI
   {
-    model: "GPT-5 mini",
+    model: "GPT-5 mini (Default)",
     provider: "OpenAI",
     category: "Lightweight",
     status: "GA",
@@ -33,7 +33,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 2,
   },
   {
-    model: "GPT-5.3-Codex",
+    model: "GPT-5.3-Codex (Default)",
     provider: "OpenAI",
     category: "Powerful",
     status: "GA",
@@ -42,7 +42,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 14,
   },
   {
-    model: "GPT-5.4",
+    model: "GPT-5.4 (Default, ≤ 272K)",
     provider: "OpenAI",
     category: "Versatile",
     status: "GA",
@@ -51,7 +51,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 15,
   },
   {
-    model: "GPT-5.4",
+    model: "GPT-5.4 (Long context, > 272K)",
     provider: "OpenAI",
     category: "Versatile",
     status: "GA",
@@ -60,7 +60,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 22.5,
   },
   {
-    model: "GPT-5.4 mini",
+    model: "GPT-5.4 mini (Default)",
     provider: "OpenAI",
     category: "Lightweight",
     status: "GA",
@@ -69,7 +69,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 4.5,
   },
   {
-    model: "GPT-5.4 nano",
+    model: "GPT-5.4 nano (Default)",
     provider: "OpenAI",
     category: "Lightweight",
     status: "GA",
@@ -78,7 +78,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 1.25,
   },
   {
-    model: "GPT-5.5",
+    model: "GPT-5.5 (Default, ≤ 272K)",
     provider: "OpenAI",
     category: "Powerful",
     status: "GA",
@@ -87,7 +87,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 30,
   },
   {
-    model: "GPT-5.5",
+    model: "GPT-5.5 (Long context, > 272K)",
     provider: "OpenAI",
     category: "Powerful",
     status: "GA",
@@ -178,7 +178,7 @@ export const MODEL_PRICING: ModelPrice[] = [
   },
   // Google
   {
-    model: "Gemini 2.5 Pro",
+    model: "Gemini 2.5 Pro (Default)",
     provider: "Google",
     category: "Powerful",
     status: "GA",
@@ -187,7 +187,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 10,
   },
   {
-    model: "Gemini 3 Flash",
+    model: "Gemini 3 Flash (Default)",
     provider: "Google",
     category: "Lightweight",
     status: "Public preview",
@@ -196,7 +196,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 3,
   },
   {
-    model: "Gemini 3.1 Pro",
+    model: "Gemini 3.1 Pro (Default, ≤ 200K)",
     provider: "Google",
     category: "Powerful",
     status: "Public preview",
@@ -205,7 +205,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 12,
   },
   {
-    model: "Gemini 3.1 Pro",
+    model: "Gemini 3.1 Pro (Long context, > 200K)",
     provider: "Google",
     category: "Powerful",
     status: "Public preview",
@@ -214,7 +214,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 18,
   },
   {
-    model: "Gemini 3.5 Flash",
+    model: "Gemini 3.5 Flash (Default)",
     provider: "Google",
     category: "Lightweight",
     status: "GA",
@@ -235,4 +235,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-06-06";
+export const PRICING_LAST_UPDATED = "2026-06-07";

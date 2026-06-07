@@ -80,7 +80,7 @@ run = "node --experimental-strip-types scripts/prepare-video-package.ts"
 description = "Convert an MP4 into a publish-ready video package with poster, HLS, and a helper script"
 
 [tasks."video:episode1:prepare"]
-run = 'node --experimental-strip-types scripts/prepare-video-package.ts --input "/Users/hans/go/src/github.com/navikt/copilot/videos/nav-pilot.s01e01.prompt.mp4" --id "nav-pilot-s01e01-prompt" --title "Presis prompt på første forsøk" --description "Viser hvordan en presis første prompt gir færre runder og lavere tokenkost." --category "copilot" --language "nb" --duration-sec 165 --sort-order 10 --published-at "2026-06-06T14:15:29.298Z" --series "video-demoer-kost-token-optimalisering" --season 1 --episode 1 --tags "prompting,cost,copilot-cli" --output-dir "video-packages/nav-pilot-s01e01-prompt"'
+run = 'node --experimental-strip-types scripts/prepare-video-package.ts --input "videos/nav-pilot.s01e01.prompt.mp4" --id "nav-pilot-s01e01-prompt" --title "Presis prompt på første forsøk" --description "Viser hvordan en presis første prompt gir færre runder og lavere tokenkost." --category "copilot" --language "nb" --duration-sec 165 --sort-order 10 --published-at "2026-06-06T14:15:29.298Z" --series "video-demoer-kost-token-optimalisering" --season 1 --episode 1 --tags "prompting,cost,copilot-cli" --output-dir "video-packages/nav-pilot-s01e01-prompt"'
 description = "Regenerate episode 1 package with canonical metadata"
 
 [tasks."video:episode1:publish:dev"]

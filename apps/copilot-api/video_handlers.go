@@ -50,17 +50,20 @@ type videoPlayRateState struct {
 }
 
 type videoPlayRateLimiter struct {
-	mu      sync.Mutex
-	limit   int
-	window  time.Duration
-	clients map[string]videoPlayRateState
+	mu         sync.Mutex
+	limit      int
+	window     time.Duration
+	clients    map[string]videoPlayRateState
+	calls      uint64
+	pruneEvery uint64
 }
 
 func newVideoPlayRateLimiter(limit int, window time.Duration) *videoPlayRateLimiter {
 	return &videoPlayRateLimiter{
-		limit:   limit,
-		window:  window,
-		clients: make(map[string]videoPlayRateState),
+		limit:      limit,
+		window:     window,
+		clients:    make(map[string]videoPlayRateState),
+		pruneEvery: 64,
 	}
 }
 
@@ -72,6 +75,14 @@ func (l *videoPlayRateLimiter) allow(clientKey string) bool {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.calls++
+	if l.pruneEvery > 0 && l.calls%l.pruneEvery == 0 {
+		for key, state := range l.clients {
+			if !now.Before(state.resetAt) {
+				delete(l.clients, key)
+			}
+		}
+	}
 
 	state, ok := l.clients[clientKey]
 	if !ok || !now.Before(state.resetAt) {
@@ -92,6 +103,13 @@ func (l *videoPlayRateLimiter) allow(clientKey string) bool {
 }
 
 func videoPlayClientKey(r *http.Request) string {
+	if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
+		first, _, _ := strings.Cut(xff, ",")
+		if first = strings.TrimSpace(first); first != "" {
+			return first
+		}
+	}
+
 	remoteAddr := strings.TrimSpace(r.RemoteAddr)
 	if remoteAddr == "" {
 		return "unknown"

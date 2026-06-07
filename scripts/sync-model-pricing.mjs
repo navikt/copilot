@@ -56,63 +56,91 @@ function parsePricingTables(html) {
     const tableHtml = html.substring(tableStart, tableEnd + 8);
 
     const rows = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)];
-    // Skip header row
     const headerCells =
       rows.length > 0
-       ? [...rows[0][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) => stripHtml(m[1]).trim())
-       : [];
-    const headerIndex = (name) => headerCells.findIndex((cell) => cell.toLowerCase() === name.toLowerCase());
+        ? [...rows[0][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) => stripHtml(m[1]).trim())
+        : [];
+    const headerIndices = buildHeaderIndexMap(headerCells);
+
+    const requiredColumns = {
+      model: findHeaderIndex(headerIndices, ["model"]),
+      input: findHeaderIndex(headerIndices, ["input"]),
+      cachedInput: findHeaderIndex(headerIndices, ["cached input"]),
+      output: findHeaderIndex(headerIndices, ["output"]),
+    };
+
+    if (Object.values(requiredColumns).some((index) => index < 0)) {
+      console.warn(`Warning: Missing required columns in ${section.provider} table, skipping section`);
+      continue;
+    }
 
     for (let i = 1; i < rows.length; i++) {
       const cells = [...rows[i][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map(
-       (m) => stripHtml(m[1]).trim(),
+       (m) => stripHtml(m[1]).trim()
       );
-
-      if (cells.length < 5) continue;
-
-      const getCell = (name) => {
-       const idx = headerIndex(name);
-       return idx >= 0 ? cells[idx] : undefined;
-      };
-
-      const model = getCell("Model");
+      const model = getCell(cells, requiredColumns.model);
       if (!model) continue;
-      const status = getCell("Release status");
-      const category = getCell("Category");
-      const input = getCell("Input");
-      const cachedInput = getCell("Cached input");
-      const cacheWriteIdx = headerIndex("Cache write");
-      const output = getCell("Output");
-      const cacheWrite = cacheWriteIdx >= 0 ? cells[cacheWriteIdx] : undefined;
+
+      const status = getCell(cells, findHeaderIndex(headerIndices, ["release status", "status"]));
+      const category = getCell(cells, findHeaderIndex(headerIndices, ["category"]));
+      const tier = getCell(cells, findHeaderIndex(headerIndices, ["tier"]));
+      const threshold = getCell(cells, findHeaderIndex(headerIndices, ["threshold (input tokens)", "threshold"]));
+      const input = parsePrice(getCell(cells, requiredColumns.input));
+      const cachedInput = parsePrice(getCell(cells, requiredColumns.cachedInput));
+      const output = parsePrice(getCell(cells, requiredColumns.output));
+      const cacheWrite = parsePrice(getCell(cells, findHeaderIndex(headerIndices, ["cache write"])));
+
+      if (input === undefined || cachedInput === undefined || output === undefined) {
+        continue;
+      }
 
       const entry = {
-       model: cleanModelName(model),
-       provider: section.provider,
-       category: normalizeCategory(category),
-       status: normalizeStatus(status),
-       input: parsePrice(input),
-       cachedInput: parsePrice(cachedInput),
-       output: parsePrice(output),
+        model: formatModelName(cleanModelName(model), tier, threshold),
+        provider: section.provider,
+        category: normalizeCategory(category),
+        status: normalizeStatus(status),
+        input,
+        cachedInput,
+        output,
       };
 
-      if (cacheWrite) {
-       entry.cacheWrite = parsePrice(cacheWrite);
+      if (cacheWrite !== undefined) {
+        entry.cacheWrite = cacheWrite;
       }
 
-      // Detect notes from footnotes
-      if (model.includes("[1]") || model.includes("1")) {
-        if (entry.model.includes("GPT-4.1") || entry.model.includes("GPT-5 mini")) {
-          entry.note = "Included model";
-        }
-      }
-
-      if (!isNaN(entry.input) && !isNaN(entry.output)) {
-        models.push(entry);
-      }
+      models.push(entry);
     }
   }
 
   return models;
+}
+
+function normalizeHeaderName(name) {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildHeaderIndexMap(headerCells) {
+  const map = new Map();
+  for (const [index, header] of headerCells.entries()) {
+    map.set(normalizeHeaderName(header), index);
+  }
+  return map;
+}
+
+function findHeaderIndex(headerMap, names) {
+  for (const name of names) {
+    const index = headerMap.get(normalizeHeaderName(name));
+    if (index !== undefined) return index;
+  }
+  return -1;
+}
+
+function getCell(cells, index) {
+  if (index < 0 || index >= cells.length) return undefined;
+  return cells[index];
 }
 
 function stripHtml(html) {
@@ -131,6 +159,21 @@ function cleanModelName(name) {
     .trim();
 }
 
+function formatModelName(model, tier, threshold) {
+  const cleanTier = tier?.trim();
+  const cleanThreshold = threshold?.trim();
+
+  const hasTier = Boolean(cleanTier);
+  const hasThreshold = Boolean(cleanThreshold) && !/^not applicable$/i.test(cleanThreshold);
+
+  if (!hasTier && !hasThreshold) return model;
+
+  const variant = [];
+  if (hasTier) variant.push(cleanTier);
+  if (hasThreshold) variant.push(cleanThreshold);
+  return `${model} (${variant.join(", ")})`;
+}
+
 function normalizeCategory(cat) {
   const lower = cat?.toLowerCase() || "";
   if (lower.includes("light")) return "Lightweight";
@@ -146,9 +189,11 @@ function normalizeStatus(status) {
 }
 
 function parsePrice(str) {
-  if (!str) return NaN;
+  if (!str) return undefined;
   const cleaned = str.replace(/[$,]/g, "").trim();
-  return parseFloat(cleaned);
+  if (!cleaned) return undefined;
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 // --- Generate TypeScript ---

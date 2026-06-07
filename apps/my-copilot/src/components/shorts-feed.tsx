@@ -208,13 +208,18 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
                     className="relative w-full overflow-hidden rounded-xl aspect-[9/16] text-left"
                     aria-label={`Åpne video: ${video.title}`}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={video.posterUrl} alt="" className="h-full w-full object-cover" />
                     <VideoOverlayRenderer overlays={video.metadata?.overlay} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="inline-flex items-center justify-center rounded-full bg-black/60 text-white p-3">
+                      <Box
+                        as="span"
+                        padding="space-12"
+                        className="inline-flex items-center justify-center rounded-full bg-black/60 text-white"
+                      >
                         <PlayIcon aria-hidden fontSize="1.5rem" />
-                      </span>
+                      </Box>
                     </div>
                     <Box
                       as="span"
@@ -225,14 +230,14 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
                     >
                       {formatDuration(video.durationSec)}
                     </Box>
-                    <div className="absolute inset-x-0 bottom-0 p-3 text-white">
+                    <Box as="div" padding="space-12" className="absolute inset-x-0 bottom-0 text-white">
                       <Heading size="xsmall" level="3" className="text-white">
                         {video.title}
                       </Heading>
                       <BodyShort size="small" className="text-white/80">
                         {episodeLabel ?? video.category}
                       </BodyShort>
-                    </div>
+                    </Box>
                   </button>
                 )}
               </div>

@@ -22,6 +22,8 @@ var (
 	videoManifestHTTPClient = &http.Client{Timeout: 10 * time.Second}
 )
 
+const videoManifestMaxReadBytes = 5 * 1024 * 1024
+
 type VideoMetadata struct {
 	Series  string                  `json:"series,omitempty"`
 	Season  int                     `json:"season,omitempty"`
@@ -215,13 +217,18 @@ func newVideoManifestCache(source string, ttl time.Duration) *videoManifestCache
 
 func (c *videoManifestCache) get(ctx context.Context) ([]VideoManifestEntry, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.loaded && c.now().Before(c.expiresAt) {
-		return cloneVideoManifestEntries(c.cachedEntries), nil
+		entries := cloneVideoManifestEntries(c.cachedEntries)
+		c.mu.Unlock()
+		return entries, nil
 	}
+	source := c.source
+	c.mu.Unlock()
 
-	entries, err := c.loader(ctx, c.source)
+	entries, err := c.loader(ctx, source)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if err != nil {
 		if c.loaded {
 			return cloneVideoManifestEntries(c.cachedEntries), fmt.Errorf("refreshing manifest: %w", err)
@@ -312,9 +319,12 @@ func readManifestURL(ctx context.Context, manifestURL string) ([]byte, error) {
 		return nil, fmt.Errorf("fetching manifest: unexpected status %s", resp.Status)
 	}
 
-	raw, err := io.ReadAll(resp.Body)
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, videoManifestMaxReadBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("reading manifest response: %w", err)
+	}
+	if len(raw) > videoManifestMaxReadBytes {
+		return nil, fmt.Errorf("reading manifest response: payload too large (max %d bytes)", videoManifestMaxReadBytes)
 	}
 	return raw, nil
 }
@@ -346,9 +356,12 @@ func readManifestGCS(ctx context.Context, source string) (raw []byte, err error)
 		}
 	}()
 
-	raw, err = io.ReadAll(rc)
+	raw, err = io.ReadAll(io.LimitReader(rc, videoManifestMaxReadBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("reading manifest object gs://%s/%s: %w", bucket, object, err)
+	}
+	if len(raw) > videoManifestMaxReadBytes {
+		return nil, fmt.Errorf("reading manifest object gs://%s/%s: payload too large (max %d bytes)", bucket, object, videoManifestMaxReadBytes)
 	}
 	return raw, nil
 }

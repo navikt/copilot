@@ -15,6 +15,8 @@ Målet er enkelt: publiser ferdige videoobjekter til én GCS-bucket per miljø, 
 
 Publiseringsscriptet setter bucket-IAM `allUsers:roles/storage.objectViewer` før opplasting.
 
+⚠️ Legg kun inn ikke-sensitive, offentlige videoassets i denne bucketen. Ikke legg inn personopplysninger, hemmeligheter eller annet skjermingsverdig innhold.
+
 ## Dataflyt
 
 1. Videofiler ligger i bucket under `videos/<id>/...`.
@@ -55,7 +57,7 @@ Viktige variabler:
 Start begge apper fra repo-roten:
 
 ```bash
-cd /Users/hans/go/src/github.com/navikt/copilot
+cd <repo-rot>
 mise dev
 ```
 

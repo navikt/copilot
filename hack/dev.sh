@@ -94,10 +94,12 @@ export DEV_USER_EMAIL="${DEV_USER_EMAIL:-hans.kristian.flaatten@nav.no}"
 # Video defaults for local development:
 # - Prefer the injected dev bucket variables if they exist.
 # - Buckets are expected to be publicly readable for video asset delivery.
-if [[ -n "${VIDEO_BUCKET_PUBLIC_DEV:-}" ]]; then
+if [[ -n "${VIDEO_BUCKET_PUBLIC_DEV:-}" || -n "${VIDEO_BUCKET_PUBLIC:-}" ]]; then
     export VIDEO_BUCKET_PUBLIC="${VIDEO_BUCKET_PUBLIC:-$VIDEO_BUCKET_PUBLIC_DEV}"
-    export VIDEO_PUBLIC_BASE_URL="${VIDEO_PUBLIC_BASE_URL:-https://storage.googleapis.com/${VIDEO_BUCKET_PUBLIC_DEV}}"
-    export VIDEO_MANIFEST_URL="${VIDEO_MANIFEST_URL:-gs://${VIDEO_BUCKET_PUBLIC_DEV}/video_manifest.json}"
+    if [[ -n "${VIDEO_BUCKET_PUBLIC:-}" ]]; then
+        export VIDEO_PUBLIC_BASE_URL="${VIDEO_PUBLIC_BASE_URL:-https://storage.googleapis.com/${VIDEO_BUCKET_PUBLIC}}"
+        export VIDEO_MANIFEST_URL="${VIDEO_MANIFEST_URL:-gs://${VIDEO_BUCKET_PUBLIC}/video_manifest.json}"
+    fi
 fi
 export VIDEO_MANIFEST_PATH="${VIDEO_MANIFEST_PATH:-video_manifest.json}"
 export VIDEO_FEED_CACHE_SECONDS="${VIDEO_FEED_CACHE_SECONDS:-60}"

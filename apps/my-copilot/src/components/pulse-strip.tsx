@@ -74,8 +74,8 @@ function CustomizationBreakdownCard() {
   return (
     <HighlightCard compact href="/verktoy" title={`${customizations.length} tilpasninger`}>
       <VStack gap="space-4">
-        {types.map((t, index) => (
-          <div key={`${t.label}-${index}`} className="flex items-center gap-2">
+        {types.map((t) => (
+          <div key={t.label} className="flex items-center gap-2">
             <BodyShort size="small" className="w-24 shrink-0">
               {t.label}
             </BodyShort>
@@ -119,8 +119,8 @@ async function UsageCard() {
   return (
     <HighlightCard href="/statistikk" prefetch={false} title="Bruksmønster">
       <HStack gap="space-4" className="w-full" justify="space-between">
-        {items.map((item, index) => (
-          <VStack key={`${item.label}-${index}`} align="center" gap="space-2" className="flex-1">
+        {items.map((item) => (
+          <VStack key={item.label} align="center" gap="space-2" className="flex-1">
             <Heading size="medium" level="3">
               {item.pct} %
             </Heading>

@@ -68,9 +68,9 @@ export function NewsFeed({ items, compact = false, afterFeatured }: NewsFeedProp
           <Chips.Toggle key="all" selected={selected === null} onClick={() => setSelected(null)}>
             Alle
           </Chips.Toggle>
-          {availableCategories.map((cat, index) => (
+          {availableCategories.map((cat) => (
             <Chips.Toggle
-              key={`${cat}-${index}`}
+              key={cat}
               selected={selected === cat}
               onClick={() => setSelected(selected === cat ? null : cat)}
             >
@@ -86,7 +86,7 @@ export function NewsFeed({ items, compact = false, afterFeatured }: NewsFeedProp
       {rest.length > 0 && (
         <div className={`grid ${gridCols} gap-3`}>
           {rest.map((item, i) => (
-            <NewsCard key={`${item.slug}-${i}`} item={item} span={spans[i]} />
+            <NewsCard key={item.slug} item={item} span={spans[i]} />
           ))}
         </div>
       )}

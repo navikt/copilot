@@ -40,11 +40,11 @@ function RecentUpdates() {
           </BodyShort>
         </HStack>
         <VStack gap="space-8">
-          {items.map((item, index) => {
+          {items.map((item) => {
             const Icon = TYPE_ICONS[item.type];
             return (
               <NextLink
-                key={`${item.type}-${item.id}-${index}`}
+                key={`${item.type}-${item.id}`}
                 href={`/verktoy?type=${item.type}&item=mcp-${item.id}`}
                 className="no-underline hover:underline"
               >
@@ -80,11 +80,11 @@ function RecentUpdates() {
         </BodyShort>
       </HStack>
       <VStack gap="space-8">
-        {updates.map(({ item, commitMessage, date }, index) => {
+        {updates.map(({ item, commitMessage, date }) => {
           const Icon = TYPE_ICONS[item.type];
           return (
             <NextLink
-              key={`${item.type}-${item.id}-${date}-${index}`}
+              key={`${item.type}-${item.id}-${date}-${commitMessage}`}
               href={`/verktoy?type=${item.type}&item=mcp-${item.id}`}
               className="no-underline hover:underline"
             >
@@ -128,8 +128,8 @@ function QuickNav() {
       <nav aria-label="Hurtignavigasjon">
         <VStack gap="space-4" asChild>
           <ul className="list-none">
-            {links.map(({ href, icon: Icon, label, requiresAuth }, index) => (
-              <li key={`${href}-${index}`}>
+            {links.map(({ href, icon: Icon, label, requiresAuth }) => (
+              <li key={href}>
                 <NextLink
                   href={href}
                   prefetch={requiresAuth ? false : undefined}

@@ -126,10 +126,20 @@ function writeFile(filePath: string, content: string) {
 
 function parseOverlayFile(filePath: string): VideoOverlayComponent[] {
   const absolutePath = toAbsolutePath(filePath);
-  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
-    throw new Error(`Overlay file does not exist or is not a file: ${absolutePath}`);
+  let raw: string;
+  try {
+    raw = fs.readFileSync(absolutePath, "utf8");
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "EISDIR" || error.code === "ENOTDIR")
+    ) {
+      throw new Error(`Overlay file does not exist or is not a file: ${absolutePath}`);
+    }
+    throw error;
   }
-  const raw = fs.readFileSync(absolutePath, "utf8");
   const parsed = JSON.parse(raw) as unknown;
   if (!Array.isArray(parsed)) {
     throw new Error("Overlay file must contain a JSON array of overlay components");

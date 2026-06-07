@@ -440,3 +440,109 @@ func TestLoadVideoManifestFromSourceRejectsInvalidMetadata(t *testing.T) {
 		t.Fatal("expected error for invalid metadata payload")
 	}
 }
+
+func TestVideoPlayClientKeyPrefersForwardedFor(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos/intro-cli/play", nil)
+	req.RemoteAddr = "203.0.113.10:1234"
+	req.Header.Set("X-Forwarded-For", "198.51.100.20, 203.0.113.10")
+
+	got := videoPlayClientKey(req)
+	if got != "198.51.100.20" {
+		t.Fatalf("expected first X-Forwarded-For IP, got %q", got)
+	}
+}
+
+func TestVideoPlayRateLimiterPrunesExpiredClients(t *testing.T) {
+	limiter := newVideoPlayRateLimiter(1, time.Minute)
+	limiter.pruneEvery = 1
+	now := time.Now()
+	limiter.clients["expired"] = videoPlayRateState{count: 1, resetAt: now.Add(-time.Second)}
+	limiter.clients["active"] = videoPlayRateState{count: 1, resetAt: now.Add(time.Second)}
+
+	_ = limiter.allow("new-client")
+
+	if _, ok := limiter.clients["expired"]; ok {
+		t.Fatal("expected expired client entry to be pruned")
+	}
+	if _, ok := limiter.clients["active"]; !ok {
+		t.Fatal("expected active client entry to be kept")
+	}
+}
+
+func TestReadManifestURLRejectsTooLargePayload(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(strings.Repeat("a", videoManifestMaxReadBytes+1)))
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := readManifestURL(context.Background(), server.URL)
+	if err == nil {
+		t.Fatal("expected error for oversized manifest response")
+	}
+	if !strings.Contains(err.Error(), "payload too large") {
+		t.Fatalf("expected payload too large error, got %v", err)
+	}
+}
+
+func TestVideoManifestCacheReleasesLockDuringRefresh(t *testing.T) {
+	cache := newVideoManifestCache("manifest-source", 1*time.Second)
+	cache.loaded = true
+	cache.cachedEntries = []VideoManifestEntry{{
+		ID:              "stale",
+		Title:           "Stale",
+		DurationSec:     42,
+		AspectRatio:     "9:16",
+		PublishedAt:     time.Now(),
+		PosterObject:    "videos/stale/poster.jpg",
+		HLSMasterObject: "videos/stale/master.m3u8",
+	}}
+	cache.expiresAt = time.Unix(0, 0)
+
+	loaderStarted := make(chan struct{})
+	releaseLoader := make(chan struct{})
+	cache.loader = func(context.Context, string) ([]VideoManifestEntry, error) {
+		close(loaderStarted)
+		<-releaseLoader
+		return []VideoManifestEntry{{
+			ID:              "fresh",
+			Title:           "Fresh",
+			DurationSec:     42,
+			AspectRatio:     "9:16",
+			PublishedAt:     time.Now(),
+			PosterObject:    "videos/fresh/poster.jpg",
+			HLSMasterObject: "videos/fresh/master.m3u8",
+		}}, nil
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := cache.get(context.Background())
+		done <- err
+	}()
+
+	<-loaderStarted
+	locked := make(chan struct{})
+	var acquired atomic.Bool
+	go func() {
+		cache.mu.Lock()
+		acquired.Store(true)
+		cache.mu.Unlock()
+		close(locked)
+	}()
+
+	select {
+	case <-locked:
+		if !acquired.Load() {
+			t.Fatal("expected to acquire cache mutex while loader is running")
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected cache mutex to be available while loader is running")
+	}
+
+	close(releaseLoader)
+	if err := <-done; err != nil {
+		t.Fatalf("expected successful refresh, got %v", err)
+	}
+}

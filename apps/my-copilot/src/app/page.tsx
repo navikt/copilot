@@ -13,9 +13,8 @@ import { getUser } from "@/lib/auth";
 import { getPublicVideoFeed } from "@/lib/public-videos";
 
 export default async function Home() {
-  const user = await getUser(false);
+  const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
   const news = getNewsItems();
-  const videos = await getPublicVideoFeed(5);
 
   return (
     <main>
@@ -36,9 +35,9 @@ export default async function Home() {
               </BodyShort>
             </VStack>
             <div className="flex flex-wrap gap-2 hero-animate-d2">
-              {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }, index) => (
+              {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => (
                 <NavPill
-                  key={`${href}-${index}`}
+                  key={href}
                   href={href}
                   icon={<Icon aria-hidden fontSize="1rem" />}
                   label={label}

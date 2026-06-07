@@ -110,15 +110,25 @@ function validateObjectPath(objectPath: string, label: string) {
 }
 
 function parseVideoPackage(filePath: string): VideoPackage {
-  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-    throw new Error(`--package-file does not exist or is not a file: ${filePath}`);
+  let raw: string;
+  try {
+    raw = fs.readFileSync(filePath, "utf8");
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "EISDIR" || error.code === "ENOTDIR")
+    ) {
+      throw new Error(`--package-file does not exist or is not a file: ${filePath}`);
+    }
+    throw error;
   }
-  const raw = fs.readFileSync(filePath, "utf8");
   return JSON.parse(raw) as VideoPackage;
 }
 
 function toOptionalInteger(name: string, value: unknown): number | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
+  if (value === null || value === "") return undefined;
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) {
     throw new Error(`Invalid value for ${name}; expected an integer`);
