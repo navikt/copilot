@@ -9,7 +9,17 @@ import (
 
 const billingDailyModelRateLimitDelay = 500 * time.Millisecond
 
-func runBillingDailyModelBackfill(ctx context.Context, billingClient *BillingClient, bqClient *BigQueryClient, config *Config, startDay time.Time, force bool) error {
+type BillingDailyModelFetcher interface {
+	FetchDailyUsage(ctx context.Context, day time.Time) (*BillingUsageResponse, error)
+}
+
+type BillingDailyModelStore interface {
+	DeleteBillingUsageDailyModelDay(ctx context.Context, day time.Time, scopeID string) error
+	InsertBillingUsageDailyModelDay(ctx context.Context, day time.Time, scopeID string, items []BillingUsageItem) error
+	GetLatestBillingUsageDailyModelDay(ctx context.Context, scopeID string) (time.Time, error)
+}
+
+func runBillingDailyModelBackfill(ctx context.Context, billingClient BillingDailyModelFetcher, bqClient BillingDailyModelStore, config *Config, startDay time.Time, force bool) error {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	endDay := today.AddDate(0, 0, -1)
 	if endDay.Before(startDay) {
@@ -47,7 +57,7 @@ func runBillingDailyModelBackfill(ctx context.Context, billingClient *BillingCli
 	return nil
 }
 
-func ingestRecentBillingModelDaily(ctx context.Context, billingClient *BillingClient, bqClient *BigQueryClient, config *Config) error {
+func ingestRecentBillingModelDaily(ctx context.Context, billingClient BillingDailyModelFetcher, bqClient BillingDailyModelStore, config *Config) error {
 	now := time.Now().UTC()
 	today := now.Truncate(24 * time.Hour)
 	yesterday := today.AddDate(0, 0, -1)
@@ -81,14 +91,10 @@ func ingestRecentBillingModelDaily(ctx context.Context, billingClient *BillingCl
 	return nil
 }
 
-func ingestBillingModelDay(ctx context.Context, billingClient *BillingClient, bqClient *BigQueryClient, config *Config, day time.Time) error {
+func ingestBillingModelDay(ctx context.Context, billingClient BillingDailyModelFetcher, bqClient BillingDailyModelStore, config *Config, day time.Time) error {
 	resp, err := billingClient.FetchDailyUsage(ctx, day)
 	if err != nil {
 		return fmt.Errorf("fetch daily billing usage: %w", err)
-	}
-
-	if err := bqClient.DeleteBillingUsageDailyModelDay(ctx, day, config.EnterpriseSlug); err != nil {
-		return fmt.Errorf("delete existing daily model rows: %w", err)
 	}
 
 	items := make([]BillingUsageItem, 0, len(resp.UsageItems))
@@ -97,6 +103,18 @@ func ingestBillingModelDay(ctx context.Context, billingClient *BillingClient, bq
 			continue
 		}
 		items = append(items, item)
+	}
+
+	if len(items) == 0 {
+		slog.Warn("Skipping billing daily model overwrite due to empty response",
+			"day", day.Format("2006-01-02"),
+			"api_rows", len(resp.UsageItems),
+		)
+		return nil
+	}
+
+	if err := bqClient.DeleteBillingUsageDailyModelDay(ctx, day, config.EnterpriseSlug); err != nil {
+		return fmt.Errorf("delete existing daily model rows: %w", err)
 	}
 
 	if err := bqClient.InsertBillingUsageDailyModelDay(ctx, day, config.EnterpriseSlug, items); err != nil {

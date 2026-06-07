@@ -3,7 +3,6 @@ package main
 import (
 	"log/slog"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -25,14 +24,12 @@ func isValidUsageUsername(username string) bool {
 	return username != "" && len(username) <= 39 && !strings.Contains(username, "/") && isValidGitHubUsername(username)
 }
 
-var yearMonthPattern = regexp.MustCompile(`^\d{4}-\d{2}$`)
-
 func optionalMonthParam(r *http.Request, name string) (string, bool) {
 	value := r.URL.Query().Get(name)
 	if value == "" {
 		return time.Now().UTC().Format("2006-01"), true
 	}
-	if !yearMonthPattern.MatchString(value) {
+	if !isValidYearMonth(value) {
 		return "", false
 	}
 	return value, true

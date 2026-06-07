@@ -467,6 +467,13 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:       "billing model daily invalid calendar month",
+			mock:       &mockBigQueryClient{},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-daily?month=2026-13", nil),
+			handle:     (*BigQueryHandlers).handleBillingModelDaily,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:       "billing model forecast success",
 			mock:       &mockBigQueryClient{billingForecast: &BillingModelForecast{Month: "2026-06", ProjectedEOMNetAmount: 120}},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-06", nil),
@@ -479,6 +486,13 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-06", nil),
 			handle:     (*BigQueryHandlers).handleBillingModelForecast,
 			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "billing model forecast invalid calendar month",
+			mock:       &mockBigQueryClient{},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-13", nil),
+			handle:     (*BigQueryHandlers).handleBillingModelForecast,
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "weekly trends success",

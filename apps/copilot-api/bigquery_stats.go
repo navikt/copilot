@@ -4,15 +4,12 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"regexp"
 	"slices"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
 )
-
-var yearMonthRegex = regexp.MustCompile(`^\d{4}-\d{2}$`)
 
 type ModelInteractions struct {
 	Model        string `bigquery:"model" json:"model"`
@@ -681,7 +678,11 @@ func tail(values []float64, n int) []float64 {
 }
 
 func isValidYearMonth(v string) bool {
-	return yearMonthRegex.MatchString(v)
+	parsed, err := time.Parse("2006-01", v)
+	if err != nil {
+		return false
+	}
+	return parsed.Format("2006-01") == v
 }
 
 func (bq *BigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error) {

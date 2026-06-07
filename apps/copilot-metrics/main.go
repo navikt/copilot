@@ -217,7 +217,11 @@ func main() {
 				slog.Warn("Billing usage report ingestion failed", "error", err)
 			}
 			if err := ingestRecentBillingModelDaily(ctx, billingClient, bqClient, config); err != nil {
-				slog.Warn("Billing daily model ingestion failed", "error", err)
+				if slack != nil {
+					slack.NotifyError(ctx, fmt.Sprintf("Billing daily model ingestion failed: %v", err))
+				}
+				slog.Error("Billing daily model ingestion failed", "error", err)
+				os.Exit(1)
 			}
 		}
 		// Ingest today's budget snapshot (always re-ingests since consumption is live)
