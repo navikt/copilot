@@ -94,6 +94,16 @@ description = "Backfill billing usage data from 2026-03 (prod)"
 env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
 run = "fnox exec -- go run . --billing-backfill --billing-from=${BILLING_FROM:-2026-03} --force"
 
+[tasks."run:billing-usage-backfill"]
+description = "Backfill daily organization billing usage report data (dev)"
+env = { LOG_LEVEL = "DEBUG", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }
+run = "fnox exec -- go run . --billing-usage-backfill --billing-usage-from=${BILLING_USAGE_FROM:-2025-10-10} --force"
+
+[tasks."run:billing-usage-backfill:prod"]
+description = "Backfill daily organization billing usage report data (prod)"
+env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
+run = "fnox exec -- go run . --billing-usage-backfill --billing-usage-from=${BILLING_USAGE_FROM:-2025-10-10} --force"
+
 [tasks."run:backfill"]
 description = "Run historical backfill (dev, from 2025-10-10)"
 env = { LOG_LEVEL = "DEBUG", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }

@@ -23,6 +23,7 @@ GitHub Usage Metrics API → copilot-metrics (Naisjob) → BigQuery
 - **Historical backfill**: CLI flag to load historical data from Oct 10, 2025
 - **Idempotent**: Re-runs delete and re-insert data for the same day
 - **Raw JSON storage**: Schema changes in GitHub API don't break the pipeline
+- **Billing usage report ingestion**: Daily organization billing usage rows with one-off backfill support
 - **Slack alerts**: Notifies on ingestion failures when `SLACK_WEBHOOK_URL` is configured
 
 ## Usage
@@ -52,6 +53,16 @@ One-time operation to load premium request billing data per model (requires `GIT
 copilot-metrics --billing-backfill
 copilot-metrics --billing-backfill --billing-from=2025-01
 copilot-metrics --billing-backfill --billing-from=2025-01 --force
+```
+
+### Billing usage report backfill (daily rows)
+
+One-time operation to load daily organization billing usage report rows (requires `GITHUB_BILLING_TOKEN`):
+
+```bash
+copilot-metrics --billing-usage-backfill
+copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10
+copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10 --force
 ```
 
 ### Local development
@@ -120,6 +131,28 @@ Per-model premium request billing data from the Enhanced Billing API.
 | `loaded_at`    | TIMESTAMP | When the row was inserted             |
 
 Table is partitioned by month and clustered by `scope_id`, `model`.
+
+### `billing_usage_reports` table
+
+Daily organization billing usage report rows from GitHub's billing usage API.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `report_day` | DATE | Day covered by the report row |
+| `organization` | STRING | Organization login |
+| `repository_name` | STRING | Repository when row is repository-scoped |
+| `product` | STRING | Product name |
+| `sku` | STRING | SKU name |
+| `quantity` | FLOAT | Quantity for the line item |
+| `unit_type` | STRING | Unit type |
+| `price_per_unit` | FLOAT | Price per unit in USD |
+| `gross_amount` | FLOAT | Gross amount in USD |
+| `discount_amount` | FLOAT | Discount amount in USD |
+| `net_amount` | FLOAT | Net amount in USD |
+| `raw_record` | JSON | Full API row as JSON |
+| `loaded_at` | TIMESTAMP | Insert timestamp |
+
+Table is partitioned by month (`report_day`) and clustered by `organization`, `product`, `sku`.
 
 ## GitHub App Permissions
 

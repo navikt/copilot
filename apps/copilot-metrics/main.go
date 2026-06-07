@@ -20,6 +20,8 @@ func main() {
 	backfillForce := flag.Bool("force", false, "Force re-ingestion even if data already exists")
 	billingBackfill := flag.Bool("billing-backfill", false, "Backfill billing data from billing-from month to current month")
 	billingFrom := flag.String("billing-from", "2025-01", "Start month for billing backfill (YYYY-MM)")
+	billingUsageBackfill := flag.Bool("billing-usage-backfill", false, "Backfill daily organization billing usage report data")
+	billingUsageFrom := flag.String("billing-usage-from", "2025-10-10", "Start day for billing usage report backfill (YYYY-MM-DD)")
 	runOnce := flag.Bool("run-once", false, "Run single ingestion for yesterday and exit")
 	flag.Parse()
 
@@ -96,8 +98,29 @@ func main() {
 			slog.Error("Failed to ensure user_budget_snapshots table exists", "error", err)
 			os.Exit(1)
 		}
+		if err := bqClient.EnsureBillingUsageReportsTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure billing_usage_reports table exists", "error", err)
+			os.Exit(1)
+		}
 	} else {
 		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing usage and budget snapshot ingestion disabled")
+	}
+
+	if *billingUsageBackfill {
+		if billingClient == nil {
+			slog.Error("Billing usage report backfill requires GITHUB_BILLING_TOKEN")
+			os.Exit(1)
+		}
+		startDay, err := time.Parse("2006-01-02", *billingUsageFrom)
+		if err != nil {
+			slog.Error("Invalid billing-usage-from day", "error", err)
+			os.Exit(1)
+		}
+		if err := runBillingUsageReportBackfill(ctx, billingClient, bqClient, config, startDay, *backfillForce); err != nil {
+			slog.Error("Billing usage report backfill failed", "error", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	if *billingBackfill {
@@ -142,6 +165,9 @@ func main() {
 		// Ingest current month's billing data (always re-ingests since it's cumulative)
 		if billingClient != nil {
 			ingestCurrentMonthBilling(ctx, billingClient, bqClient, config)
+			if err := ingestMissingBillingUsageReports(ctx, billingClient, bqClient, config); err != nil {
+				slog.Warn("Billing usage report ingestion failed", "error", err)
+			}
 		}
 		// Ingest today's budget snapshot (always re-ingests since consumption is live)
 		if budgetClient != nil {
