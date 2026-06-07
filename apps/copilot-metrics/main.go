@@ -18,10 +18,16 @@ func main() {
 	backfill := flag.Bool("backfill", false, "Run historical backfill from Oct 10, 2025 to today")
 	backfillFrom := flag.String("backfill-from", "2025-10-10", "Start date for backfill (YYYY-MM-DD)")
 	backfillForce := flag.Bool("force", false, "Force re-ingestion even if data already exists")
-	billingBackfill := flag.Bool("billing-backfill", false, "Backfill billing data from billing-from month to current month")
-	billingFrom := flag.String("billing-from", "2025-01", "Start month for billing backfill (YYYY-MM)")
-	billingUsageBackfill := flag.Bool("billing-usage-backfill", false, "Backfill daily organization billing usage report data")
-	billingUsageFrom := flag.String("billing-usage-from", "2025-10-10", "Start day for billing usage report backfill (YYYY-MM-DD)")
+	billingMonthlyBackfill := flag.Bool("billing-monthly-backfill", false, "Backfill monthly billing data from billing-monthly-from month to current month")
+	billingMonthlyFrom := flag.String("billing-monthly-from", "2025-01", "Start month for monthly billing backfill (YYYY-MM)")
+	billingDailyReportBackfill := flag.Bool("billing-daily-report-backfill", false, "Backfill daily organization billing usage report data")
+	billingDailyReportFrom := flag.String("billing-daily-report-from", "2025-10-10", "Start day for daily billing usage report backfill (YYYY-MM-DD)")
+	billingModelDailyBackfill := flag.Bool("billing-model-daily-backfill", false, "Backfill daily model billing data")
+	billingModelDailyFrom := flag.String("billing-model-daily-from", "2025-10-10", "Start day for daily model billing backfill (YYYY-MM-DD)")
+	legacyBillingBackfill := flag.Bool("billing-backfill", false, "Deprecated: use --billing-monthly-backfill")
+	legacyBillingFrom := flag.String("billing-from", "", "Deprecated: use --billing-monthly-from")
+	legacyBillingUsageBackfill := flag.Bool("billing-usage-backfill", false, "Deprecated: use --billing-daily-report-backfill")
+	legacyBillingUsageFrom := flag.String("billing-usage-from", "", "Deprecated: use --billing-daily-report-from")
 	runOnce := flag.Bool("run-once", false, "Run single ingestion for yesterday and exit")
 	flag.Parse()
 
@@ -102,39 +108,81 @@ func main() {
 			slog.Error("Failed to ensure billing_usage_reports table exists", "error", err)
 			os.Exit(1)
 		}
+		if err := bqClient.EnsureBillingUsageDailyModelTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure billing_usage_daily_model table exists", "error", err)
+			os.Exit(1)
+		}
 	} else {
 		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing ingestion and budget snapshot ingestion disabled")
 	}
 
-	if *billingUsageBackfill {
+	runBillingMonthlyBackfill := *billingMonthlyBackfill || *legacyBillingBackfill
+	runBillingDailyReportBackfill := *billingDailyReportBackfill || *legacyBillingUsageBackfill
+
+	effectiveBillingMonthlyFrom := *billingMonthlyFrom
+	if *legacyBillingFrom != "" {
+		slog.Warn("Flag --billing-from is deprecated, use --billing-monthly-from")
+		effectiveBillingMonthlyFrom = *legacyBillingFrom
+	}
+	if *legacyBillingBackfill {
+		slog.Warn("Flag --billing-backfill is deprecated, use --billing-monthly-backfill")
+	}
+
+	effectiveBillingDailyReportFrom := *billingDailyReportFrom
+	if *legacyBillingUsageFrom != "" {
+		slog.Warn("Flag --billing-usage-from is deprecated, use --billing-daily-report-from")
+		effectiveBillingDailyReportFrom = *legacyBillingUsageFrom
+	}
+	if *legacyBillingUsageBackfill {
+		slog.Warn("Flag --billing-usage-backfill is deprecated, use --billing-daily-report-backfill")
+	}
+
+	if runBillingDailyReportBackfill {
 		if billingClient == nil {
-			slog.Error("Billing usage report backfill requires GITHUB_BILLING_TOKEN")
+			slog.Error("Billing daily report backfill requires GITHUB_BILLING_TOKEN")
 			os.Exit(1)
 		}
-		startDay, err := time.Parse("2006-01-02", *billingUsageFrom)
+		startDay, err := time.Parse("2006-01-02", effectiveBillingDailyReportFrom)
 		if err != nil {
-			slog.Error("Invalid billing-usage-from day", "error", err)
+			slog.Error("Invalid billing-daily-report-from day", "error", err)
 			os.Exit(1)
 		}
 		if err := runBillingUsageReportBackfill(ctx, billingClient, bqClient, config, startDay, *backfillForce); err != nil {
-			slog.Error("Billing usage report backfill failed", "error", err)
+			slog.Error("Billing daily report backfill failed", "error", err)
 			os.Exit(1)
 		}
 		return
 	}
 
-	if *billingBackfill {
+	if *billingModelDailyBackfill {
 		if billingClient == nil {
-			slog.Error("Billing backfill requires GITHUB_BILLING_TOKEN")
+			slog.Error("Billing model daily backfill requires GITHUB_BILLING_TOKEN")
 			os.Exit(1)
 		}
-		startMonth, err := time.Parse("2006-01", *billingFrom)
+		startDay, err := time.Parse("2006-01-02", *billingModelDailyFrom)
 		if err != nil {
-			slog.Error("Invalid billing-from month", "error", err)
+			slog.Error("Invalid billing-model-daily-from day", "error", err)
+			os.Exit(1)
+		}
+		if err := runBillingDailyModelBackfill(ctx, billingClient, bqClient, config, startDay, *backfillForce); err != nil {
+			slog.Error("Billing model daily backfill failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if runBillingMonthlyBackfill {
+		if billingClient == nil {
+			slog.Error("Billing monthly backfill requires GITHUB_BILLING_TOKEN")
+			os.Exit(1)
+		}
+		startMonth, err := time.Parse("2006-01", effectiveBillingMonthlyFrom)
+		if err != nil {
+			slog.Error("Invalid billing-monthly-from month", "error", err)
 			os.Exit(1)
 		}
 		if err := runBillingBackfill(ctx, billingClient, bqClient, config, startMonth, *backfillForce); err != nil {
-			slog.Error("Billing backfill failed", "error", err)
+			slog.Error("Billing monthly backfill failed", "error", err)
 			os.Exit(1)
 		}
 		return
@@ -167,6 +215,9 @@ func main() {
 			ingestCurrentMonthBilling(ctx, billingClient, bqClient, config)
 			if err := ingestMissingBillingUsageReports(ctx, billingClient, bqClient, config); err != nil {
 				slog.Warn("Billing usage report ingestion failed", "error", err)
+			}
+			if err := ingestRecentBillingModelDaily(ctx, billingClient, bqClient, config); err != nil {
+				slog.Warn("Billing daily model ingestion failed", "error", err)
 			}
 		}
 		// Ingest today's budget snapshot (always re-ingests since consumption is live)
@@ -415,8 +466,8 @@ func metricsHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprint(w, "copilot_metrics_up 1\n")
 }
 
-// ingestCurrentMonthBilling fetches and stores billing data for the current month.
-// Always re-ingests since monthly data is cumulative and updates throughout the month.
+// ingestCurrentMonthBilling fetches and stores billing data for the current and previous month.
+// Always re-ingests to handle cumulative updates and post-month adjustments.
 func ingestCurrentMonthBilling(ctx context.Context, billing *BillingClient, bq *BigQueryClient, cfg *Config) {
 	now := time.Now().UTC()
 	year, month := now.Year(), int(now.Month())
@@ -425,12 +476,9 @@ func ingestCurrentMonthBilling(ctx context.Context, billing *BillingClient, bq *
 		slog.Warn("Failed to ingest current month billing", "year", year, "month", month, "error", err)
 	}
 
-	// Also re-ingest previous month if we're in the first few days (data may still be finalizing)
-	if now.Day() <= 5 {
-		prevMonth := now.AddDate(0, -1, 0)
-		if err := ingestBillingMonth(ctx, billing, bq, cfg, prevMonth.Year(), int(prevMonth.Month()), true); err != nil {
-			slog.Warn("Failed to ingest previous month billing", "error", err)
-		}
+	prevMonth := now.AddDate(0, -1, 0)
+	if err := ingestBillingMonth(ctx, billing, bq, cfg, prevMonth.Year(), int(prevMonth.Month()), true); err != nil {
+		slog.Warn("Failed to ingest previous month billing", "year", prevMonth.Year(), "month", int(prevMonth.Month()), "error", err)
 	}
 }
 
@@ -468,7 +516,7 @@ func ingestBillingMonth(ctx context.Context, billing *BillingClient, bq *BigQuer
 
 	// Delete existing data before re-inserting (idempotent)
 	if err := bq.DeleteBillingMonth(ctx, year, month, cfg.EnterpriseSlug); err != nil {
-		slog.Warn("Failed to delete existing billing data (continuing)", "error", err)
+		return fmt.Errorf("delete existing billing data: %w", err)
 	}
 
 	if err := bq.InsertBillingUsage(ctx, year, month, cfg.EnterpriseSlug, items); err != nil {

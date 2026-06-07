@@ -6,6 +6,8 @@ import {
   getMonthlyTrends,
   getMonthlyModelUsage,
   getMonthlyBillingUsage,
+  getBillingModelDaily,
+  getBillingModelForecast,
   getUserWeeklyTrends,
   getAdoptionCohorts,
 } from "@/lib/cached-bigquery";
@@ -18,6 +20,7 @@ import ModelUsageChart from "@/components/charts/ModelUsageChart";
 import GenerationModeChart from "@/components/charts/GenerationModeChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import MonthlyModelChart from "@/components/charts/MonthlyModelChart";
+import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
@@ -171,11 +174,15 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     { trends: monthlyTrends, error: monthlyError },
     { usage: monthlyModelUsage, error: modelUsageError },
     { usage: billingUsage, error: billingError },
+    { usage: billingModelDaily, error: billingModelDailyError },
+    { forecast: billingModelForecast, error: billingModelForecastError },
     { cohorts: adoptionCohorts, error: cohortsError },
   ] = await Promise.all([
     getMonthlyTrends(token),
     getMonthlyModelUsage(token),
     getMonthlyBillingUsage(token),
+    getBillingModelDaily(token),
+    getBillingModelForecast(token),
     getAdoptionCohorts(token),
   ]);
   if (monthlyError) {
@@ -189,6 +196,12 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
   }
   if (cohortsError) {
     console.error("[statistikk] Adoption cohorts failed:", cohortsError);
+  }
+  if (billingModelDailyError) {
+    console.error("[statistikk] Billing model daily failed:", billingModelDailyError);
+  }
+  if (billingModelForecastError) {
+    console.error("[statistikk] Billing model forecast failed:", billingModelForecastError);
   }
 
   // Find the last COMPLETE month (not the current partial month)
@@ -320,7 +333,20 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       {/* Monthly trends — THE story */}
       {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
 
-      {/* Monthly model/token usage */}
+      {/* Current month model cost + forecast */}
+      {Array.isArray(billingModelDaily) && billingModelDaily.length > 0 && billingModelForecast ? (
+        <BillingMonthNowChart dailyData={billingModelDaily} forecast={billingModelForecast} />
+      ) : (
+        <Box background="neutral-soft" padding="space-16" borderRadius="8">
+          <BodyShort size="small" className="text-gray-600">
+            Måned hittil-grafene er ikke tilgjengelige ennå.
+            {billingModelDailyError || billingModelForecastError
+              ? " Nye API-endepunkter eller data er ikke tilgjengelige i dette miljøet ennå."
+              : " Daglige modellkost-data for inneværende måned er ikke ingestert ennå."}
+          </BodyShort>
+        </Box>
+      )}
+
       {monthlyModelUsage.length > 0 && <MonthlyModelChart data={monthlyModelUsage} billingData={billingUsage} />}
 
       {/* Generation mode: user-initiated vs agent-initiated */}

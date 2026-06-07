@@ -3,10 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
+	"regexp"
+	"slices"
+	"time"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
 )
+
+var yearMonthRegex = regexp.MustCompile(`^\d{4}-\d{2}$`)
 
 type ModelInteractions struct {
 	Model        string `bigquery:"model" json:"model"`
@@ -88,6 +94,35 @@ type MonthlyBillingUsage struct {
 	NetRequests   int64   `bigquery:"net_requests" json:"net_requests"`
 	GrossAmount   float64 `bigquery:"gross_amount" json:"gross_amount"`
 	NetAmount     float64 `bigquery:"net_amount" json:"net_amount"`
+}
+
+type BillingModelDailyCost struct {
+	Day           string  `bigquery:"day" json:"day"`
+	Model         string  `bigquery:"model" json:"model"`
+	GrossRequests int64   `bigquery:"gross_requests" json:"gross_requests"`
+	NetRequests   int64   `bigquery:"net_requests" json:"net_requests"`
+	GrossAmount   float64 `bigquery:"gross_amount" json:"gross_amount"`
+	NetAmount     float64 `bigquery:"net_amount" json:"net_amount"`
+}
+
+type BillingModelForecastPoint struct {
+	Day                 string   `json:"day"`
+	ActualCumulative    *float64 `json:"actual_cumulative,omitempty"`
+	ProjectedCumulative float64  `json:"projected_cumulative"`
+	IsActual            bool     `json:"is_actual"`
+}
+
+type BillingModelForecast struct {
+	Month                 string                      `json:"month"`
+	DaysInMonth           int                         `json:"days_in_month"`
+	DaysElapsed           int                         `json:"days_elapsed"`
+	LastActualDay         string                      `json:"last_actual_day,omitempty"`
+	ActualMTDNetAmount    float64                     `json:"actual_mtd_net_amount"`
+	ProjectedDailyRunRate float64                     `json:"projected_daily_run_rate"`
+	ProjectedEOMNetAmount float64                     `json:"projected_eom_net_amount"`
+	LowerEOMNetAmount     float64                     `json:"lower_eom_net_amount"`
+	UpperEOMNetAmount     float64                     `json:"upper_eom_net_amount"`
+	Points                []BillingModelForecastPoint `json:"points"`
 }
 
 type WeeklyTrend struct {
@@ -441,6 +476,212 @@ func (bq *BigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 	return readAllRows[MonthlyBillingUsage](it)
+}
+
+func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error) {
+	if !isValidYearMonth(month) {
+		return nil, fmt.Errorf("invalid month format %q (expected YYYY-MM)", month)
+	}
+
+	billingRef := bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")
+	queryStr := fmt.Sprintf(`
+      SELECT
+        FORMAT_DATE('%%Y-%%m-%%d', day) AS day,
+        model,
+        CAST(SUM(gross_quantity) AS INT64) AS gross_requests,
+        CAST(SUM(net_quantity) AS INT64) AS net_requests,
+        SUM(gross_amount) AS gross_amount,
+        SUM(net_amount) AS net_amount
+      FROM %s
+      WHERE FORMAT_DATE('%%Y-%%m', day) = @month
+        AND scope_id = 'nav'
+        AND gross_quantity > 0
+      GROUP BY day, model
+      ORDER BY day ASC, gross_amount DESC
+    `, billingRef)
+
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[BillingModelDailyCost](it)
+}
+
+func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error) {
+	if !isValidYearMonth(month) {
+		return nil, fmt.Errorf("invalid month format %q (expected YYYY-MM)", month)
+	}
+
+	monthStart, err := time.Parse("2006-01", month)
+	if err != nil {
+		return nil, fmt.Errorf("parse month: %w", err)
+	}
+	daysInMonth := time.Date(monthStart.Year(), monthStart.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
+
+	billingRef := bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")
+	queryStr := fmt.Sprintf(`
+      SELECT
+        FORMAT_DATE('%%Y-%%m-%%d', day) AS day,
+        SUM(net_amount) AS net_amount
+      FROM %s
+      WHERE FORMAT_DATE('%%Y-%%m', day) = @month
+        AND scope_id = 'nav'
+      GROUP BY day
+      ORDER BY day ASC
+    `, billingRef)
+
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+
+	type dayAmountRow struct {
+		Day       string  `bigquery:"day"`
+		NetAmount float64 `bigquery:"net_amount"`
+	}
+
+	rows, err := readAllRows[dayAmountRow](it)
+	if err != nil {
+		return nil, err
+	}
+
+	dailyAmounts := make(map[int]float64, len(rows))
+	dayIndices := make([]int, 0, len(rows))
+	for _, row := range rows {
+		dayTime, parseErr := time.Parse("2006-01-02", row.Day)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse day %q: %w", row.Day, parseErr)
+		}
+		day := dayTime.Day()
+		dailyAmounts[day] = row.NetAmount
+		dayIndices = append(dayIndices, day)
+	}
+	slices.Sort(dayIndices)
+
+	forecast := &BillingModelForecast{
+		Month:       month,
+		DaysInMonth: daysInMonth,
+	}
+	if len(dayIndices) == 0 {
+		return forecast, nil
+	}
+
+	lastActualDay := dayIndices[len(dayIndices)-1]
+	forecast.LastActualDay = fmt.Sprintf("%s-%02d", month, lastActualDay)
+	forecast.DaysElapsed = lastActualDay
+
+	actualMTD := 0.0
+	dailySeries := make([]float64, 0, lastActualDay)
+	for day := 1; day <= lastActualDay; day++ {
+		value := dailyAmounts[day]
+		dailySeries = append(dailySeries, value)
+		actualMTD += value
+	}
+	forecast.ActualMTDNetAmount = actualMTD
+
+	runRate := weightedRunRate(dailySeries, 7)
+	if runRate <= 0 && lastActualDay > 0 {
+		runRate = actualMTD / float64(lastActualDay)
+	}
+	forecast.ProjectedDailyRunRate = runRate
+
+	remainingDays := daysInMonth - lastActualDay
+	projectedEOM := actualMTD + (runRate * float64(remainingDays))
+	forecast.ProjectedEOMNetAmount = projectedEOM
+
+	volatility := sampleStdDev(tail(dailySeries, 14))
+	lower := projectedEOM - (volatility * float64(remainingDays))
+	if lower < actualMTD {
+		lower = actualMTD
+	}
+	forecast.LowerEOMNetAmount = lower
+	forecast.UpperEOMNetAmount = projectedEOM + (volatility * float64(remainingDays))
+
+	points := make([]BillingModelForecastPoint, 0, daysInMonth)
+	actualCumulative := 0.0
+	for day := 1; day <= daysInMonth; day++ {
+		date := fmt.Sprintf("%s-%02d", month, day)
+		if day <= lastActualDay {
+			actualCumulative += dailyAmounts[day]
+			actualCopy := actualCumulative
+			points = append(points, BillingModelForecastPoint{
+				Day:                 date,
+				ActualCumulative:    &actualCopy,
+				ProjectedCumulative: actualCumulative,
+				IsActual:            true,
+			})
+			continue
+		}
+
+		projected := actualCumulative + (runRate * float64(day-lastActualDay))
+		points = append(points, BillingModelForecastPoint{
+			Day:                 date,
+			ProjectedCumulative: projected,
+			IsActual:            false,
+		})
+	}
+
+	forecast.Points = points
+	return forecast, nil
+}
+
+func weightedRunRate(series []float64, window int) float64 {
+	values := tail(series, window)
+	if len(values) == 0 {
+		return 0
+	}
+	weightedSum := 0.0
+	weightTotal := 0.0
+	for i, value := range values {
+		weight := float64(i + 1)
+		weightedSum += value * weight
+		weightTotal += weight
+	}
+	if weightTotal == 0 {
+		return 0
+	}
+	return weightedSum / weightTotal
+}
+
+func sampleStdDev(values []float64) float64 {
+	if len(values) < 2 {
+		return 0
+	}
+	mean := 0.0
+	for _, value := range values {
+		mean += value
+	}
+	mean /= float64(len(values))
+
+	variance := 0.0
+	for _, value := range values {
+		diff := value - mean
+		variance += diff * diff
+	}
+	variance /= float64(len(values) - 1)
+	return math.Sqrt(variance)
+}
+
+func tail(values []float64, n int) []float64 {
+	if n <= 0 || len(values) == 0 {
+		return nil
+	}
+	if len(values) <= n {
+		out := make([]float64, len(values))
+		copy(out, values)
+		return out
+	}
+	out := make([]float64, n)
+	copy(out, values[len(values)-n:])
+	return out
+}
+
+func isValidYearMonth(v string) bool {
+	return yearMonthRegex.MatchString(v)
 }
 
 func (bq *BigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error) {

@@ -37,6 +37,10 @@ type mockBigQueryClient struct {
 	monthlyModelsErr   error
 	monthlyBilling     []MonthlyBillingUsage
 	monthlyBillingErr  error
+	billingModelDaily  []BillingModelDailyCost
+	billingModelErr    error
+	billingForecast    *BillingModelForecast
+	billingForecastErr error
 	weeklyTrends       []WeeklyTrend
 	weeklyTrendsErr    error
 	cohorts            []AdoptionCohortDay
@@ -89,6 +93,14 @@ func (m *mockBigQueryClient) GetMonthlyModelUsage(_ context.Context, _ int) ([]M
 
 func (m *mockBigQueryClient) GetMonthlyBillingUsage(_ context.Context, _ int) ([]MonthlyBillingUsage, error) {
 	return m.monthlyBilling, m.monthlyBillingErr
+}
+
+func (m *mockBigQueryClient) GetBillingModelDailyCosts(_ context.Context, _ string) ([]BillingModelDailyCost, error) {
+	return m.billingModelDaily, m.billingModelErr
+}
+
+func (m *mockBigQueryClient) GetBillingModelForecast(_ context.Context, _ string) (*BillingModelForecast, error) {
+	return m.billingForecast, m.billingForecastErr
 }
 
 func (m *mockBigQueryClient) GetUserWeeklyTrends(_ context.Context, _ string, _ int) ([]WeeklyTrend, error) {
@@ -438,6 +450,34 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			mock:       &mockBigQueryClient{monthlyBillingErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/monthly", nil),
 			handle:     (*BigQueryHandlers).handleMonthlyBillingUsage,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "billing model daily success",
+			mock:       &mockBigQueryClient{billingModelDaily: []BillingModelDailyCost{{Day: "2026-06-01", Model: "gpt-5", NetAmount: 10.2}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-daily?month=2026-06", nil),
+			handle:     (*BigQueryHandlers).handleBillingModelDaily,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "billing model daily invalid month",
+			mock:       &mockBigQueryClient{},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-daily?month=2026/06", nil),
+			handle:     (*BigQueryHandlers).handleBillingModelDaily,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "billing model forecast success",
+			mock:       &mockBigQueryClient{billingForecast: &BillingModelForecast{Month: "2026-06", ProjectedEOMNetAmount: 120}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-06", nil),
+			handle:     (*BigQueryHandlers).handleBillingModelForecast,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "billing model forecast error",
+			mock:       &mockBigQueryClient{billingForecastErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/model-forecast?month=2026-06", nil),
+			handle:     (*BigQueryHandlers).handleBillingModelForecast,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{

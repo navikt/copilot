@@ -369,6 +369,8 @@ type BigQueryQuerier interface {
 	GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error)
 	GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error)
 	GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error)
+	GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error)
+	GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error)
 	GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error)
 	GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error)
 }
@@ -485,6 +487,20 @@ func (c *CachedBigQueryClient) GetMonthlyBillingUsage(ctx context.Context, month
 	cacheKey := fmt.Sprintf("monthly_billing_usage_%d", months)
 	return getCachedValue(c.cache, cacheKey, func() ([]MonthlyBillingUsage, error) {
 		return c.client.GetMonthlyBillingUsage(ctx, months)
+	})
+}
+
+func (c *CachedBigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error) {
+	cacheKey := fmt.Sprintf("billing_model_daily_costs_%s", month)
+	return getCachedValue(c.cache, cacheKey, func() ([]BillingModelDailyCost, error) {
+		return c.client.GetBillingModelDailyCosts(ctx, month)
+	})
+}
+
+func (c *CachedBigQueryClient) GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error) {
+	cacheKey := fmt.Sprintf("billing_model_forecast_%s", month)
+	return getCachedValue(c.cache, cacheKey, func() (*BillingModelForecast, error) {
+		return c.client.GetBillingModelForecast(ctx, month)
 	})
 }
 

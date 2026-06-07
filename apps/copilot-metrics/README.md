@@ -28,6 +28,37 @@ GitHub Usage Metrics API → copilot-metrics (Naisjob) → BigQuery
 
 ## Usage
 
+### Mise backfill tasks (recommended)
+
+Explicit tasks so "backfill" is unambiguous:
+
+```bash
+# Usage metrics only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:usage'
+
+# Monthly billing only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-monthly'
+
+# Daily billing usage reports only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report'
+
+# Daily model billing usage only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily'
+
+# Everything
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all'
+```
+
+Prod variants:
+
+```bash
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:usage:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-monthly:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all:prod'
+```
+
 ### Nightly job (default)
 
 Runs as a Kubernetes CronJob via NAIS. Automatically detects missing days in BigQuery and fills gaps:
@@ -50,9 +81,9 @@ rtk copilot-metrics --backfill --backfill-from=2025-10-10
 One-time operation to load premium request billing data per model (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-rtk copilot-metrics --billing-backfill
-rtk copilot-metrics --billing-backfill --billing-from=2025-01
-rtk copilot-metrics --billing-backfill --billing-from=2025-01 --force
+rtk copilot-metrics --billing-monthly-backfill
+rtk copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01
+rtk copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01 --force
 ```
 
 ### Billing usage report backfill (daily rows)
@@ -60,9 +91,19 @@ rtk copilot-metrics --billing-backfill --billing-from=2025-01 --force
 One-time operation to load daily organization billing usage report rows (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-rtk copilot-metrics --billing-usage-backfill
-rtk copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10
-rtk copilot-metrics --billing-usage-backfill --billing-usage-from=2025-10-10 --force
+rtk copilot-metrics --billing-daily-report-backfill
+rtk copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10
+rtk copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10 --force
+```
+
+### Billing daily model backfill
+
+One-time operation to load daily model-level premium request billing data (requires `GITHUB_BILLING_TOKEN`):
+
+```bash
+rtk copilot-metrics --billing-model-daily-backfill
+rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10
+rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10 --force
 ```
 
 ### Local development
@@ -153,6 +194,30 @@ Daily organization billing usage report rows from GitHub's billing usage API.
 | `loaded_at` | TIMESTAMP | Insert timestamp |
 
 Table is partitioned by month (`report_day`) and clustered by `organization`, `product`, `sku`.
+
+### `billing_usage_daily_model` table
+
+Daily model-level premium request usage from the enhanced billing endpoint.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `day` | DATE | Day for the usage line |
+| `scope_id` | STRING | Enterprise slug |
+| `product` | STRING | Product name |
+| `sku` | STRING | SKU name |
+| `model` | STRING | Model name |
+| `unit_type` | STRING | Unit type |
+| `price_per_unit` | FLOAT | Price per unit in USD |
+| `gross_quantity` | FLOAT | Quantity before discounts |
+| `discount_quantity` | FLOAT | Discounted quantity |
+| `net_quantity` | FLOAT | Billed quantity |
+| `gross_amount` | FLOAT | Gross amount in USD |
+| `discount_amount` | FLOAT | Discount amount in USD |
+| `net_amount` | FLOAT | Net amount in USD |
+| `raw_record` | JSON | Full API row as JSON |
+| `loaded_at` | TIMESTAMP | Insert timestamp |
+
+Table is partitioned by day (`day`) and clustered by `scope_id`, `model`.
 
 ## GitHub App Permissions
 
