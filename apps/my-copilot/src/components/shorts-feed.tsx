@@ -2,8 +2,16 @@
 
 import { PlayIcon } from "@navikt/aksel-icons";
 import { BodyShort, Box, Heading, HStack, VStack } from "@navikt/ds-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { HomepageVideo } from "@/lib/public-videos";
+import {
+  loadWatchState,
+  markWatched,
+  orderVideosByWatchStatus,
+  saveWatchState,
+  upsertProgress,
+  type WatchStateV1,
+} from "@/lib/video-watch-state";
 import { emitVideoKPIEvent } from "@/lib/video-kpi-events";
 import { VideoOverlayRenderer } from "./video-overlay-renderer";
 
@@ -15,12 +23,22 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
   const [activeId, setActiveId] = useState<string>(videos[0]?.id ?? "");
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [watchState, setWatchState] = useState<WatchStateV1>(() => loadWatchState());
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const persistedProgressSecondById = useRef<Map<string, number>>(new Map());
   const pendingPlayId = useRef<string | null>(null);
   const feedImpressionSent = useRef(false);
   const startedIds = useRef<Set<string>>(new Set());
   const rebufferCountById = useRef<Map<string, number>>(new Map());
   const playErrorKeys = useRef<Set<string>>(new Set());
+  const orderedVideos = useMemo(
+    () => orderVideosByWatchStatus(videos, watchState, "deprioritize"),
+    [videos, watchState]
+  );
+  const resolvedActiveId =
+    orderedVideos.length > 0 && orderedVideos.some((video) => video.id === activeId)
+      ? activeId
+      : (orderedVideos[0]?.id ?? "");
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -40,7 +58,7 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
   useEffect(() => {
     if (!isViewerOpen) return;
     for (const [id, video] of videoRefs.current.entries()) {
-      if (id !== activeId || reducedMotion) {
+      if (id !== resolvedActiveId || reducedMotion) {
         video.pause();
         continue;
       }
@@ -51,7 +69,7 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
         });
       }
     }
-  }, [activeId, reducedMotion, isViewerOpen]);
+  }, [reducedMotion, resolvedActiveId, isViewerOpen]);
 
   const handlePlay = (videoId: string) => {
     if (startedIds.current.has(videoId)) return;
@@ -82,6 +100,49 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
     });
   };
 
+  const handleTimeUpdate = (videoId: string) => {
+    const video = videoRefs.current.get(videoId);
+    if (!video) return;
+
+    const currentSecond = Math.floor(video.currentTime);
+    if (currentSecond <= 0 || currentSecond % 5 !== 0) return;
+
+    const lastPersistedSecond = persistedProgressSecondById.current.get(videoId) ?? -1;
+    if (lastPersistedSecond === currentSecond) return;
+    persistedProgressSecondById.current.set(videoId, currentSecond);
+
+    const duration = Number.isFinite(video.duration) ? video.duration : undefined;
+    setWatchState((prev) => {
+      const next = upsertProgress({
+        state: prev,
+        videoId,
+        currentTimeSec: currentSecond,
+        durationSec: duration,
+      });
+      if (next !== prev) {
+        saveWatchState(next);
+      }
+      return next;
+    });
+  };
+
+  const handleEnded = (videoId: string) => {
+    const video = videoRefs.current.get(videoId);
+    const duration = video && Number.isFinite(video.duration) ? video.duration : undefined;
+
+    setWatchState((prev) => {
+      const next = markWatched({
+        state: prev,
+        videoId,
+        durationSec: duration,
+      });
+      if (next !== prev) {
+        saveWatchState(next);
+      }
+      return next;
+    });
+  };
+
   const openViewer = (videoId: string) => {
     pendingPlayId.current = videoId;
     setActiveId(videoId);
@@ -98,12 +159,12 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
     <VStack gap="space-12">
       <div className="overflow-x-auto overscroll-x-contain snap-x snap-mandatory">
         <HStack gap="space-16" wrap={false} align="start">
-          {videos.map((video, index) => {
+          {orderedVideos.map((video, index) => {
             const episodeLabel =
               video.metadata?.season && video.metadata?.episode
                 ? `S${video.metadata.season}E${video.metadata.episode}`
                 : undefined;
-            const isActive = isViewerOpen && activeId === video.id;
+            const isActive = isViewerOpen && resolvedActiveId === video.id;
             return (
               <div key={`${video.id}-${index}`} className="snap-start shrink-0 w-[240px] sm:w-[260px]">
                 {isActive ? (
@@ -123,6 +184,8 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
                       poster={video.posterUrl}
                       className="h-full w-full object-contain"
                       onPlay={() => handlePlay(video.id)}
+                      onTimeUpdate={() => handleTimeUpdate(video.id)}
+                      onEnded={() => handleEnded(video.id)}
                       onError={() => handleError(video.id)}
                       onWaiting={() => handleWaiting(video.id)}
                     >
