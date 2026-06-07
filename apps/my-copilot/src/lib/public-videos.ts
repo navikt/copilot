@@ -101,8 +101,9 @@ export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVid
     const newestFirst = [...uniqueItems].sort((a, b) => {
       const aTime = Date.parse(a.published_at);
       const bTime = Date.parse(b.published_at);
-      if (!Number.isFinite(aTime) || !Number.isFinite(bTime)) return 0;
-      return bTime - aTime;
+      const aSort = Number.isFinite(aTime) ? aTime : Number.NEGATIVE_INFINITY;
+      const bSort = Number.isFinite(bTime) ? bTime : Number.NEGATIVE_INFINITY;
+      return bSort - aSort;
     });
     return newestFirst.map((item) => ({
       id: item.id,

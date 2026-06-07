@@ -43,6 +43,21 @@ describe("video-watch-state", () => {
     expect(status?.watchedAt).toBe("2026-06-07T10:01:00.000Z");
   });
 
+  it("does not mark watched below 80 percent raw progress", () => {
+    const start = loadWatchState(new Date("2026-06-07T10:00:00.000Z"));
+    const updated = upsertProgress({
+      state: start,
+      videoId: "video-threshold",
+      currentTimeSec: 159,
+      durationSec: 200,
+      now: new Date("2026-06-07T10:01:00.000Z"),
+    });
+
+    const status = getWatchStatus(updated, "video-threshold");
+    expect(status?.progressPct).toBe(80);
+    expect(status?.watched).toBe(false);
+  });
+
   it("marks watched when ended", () => {
     const start = loadWatchState(new Date("2026-06-07T10:00:00.000Z"));
     const progressed = upsertProgress({

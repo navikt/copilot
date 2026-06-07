@@ -175,11 +175,10 @@ export function upsertProgress(params: UpsertProgressParams): WatchStateV1 {
   const previous = getWatchStatus(params.state, params.videoId);
   const durationSec = toSeconds(params.durationSec);
   const currentSec = Math.max(0, Math.floor(params.currentTimeSec));
-  const progressPct =
-    durationSec && durationSec > 0
-      ? clampPercent((currentSec / durationSec) * 100)
-      : clampPercent(previous?.progressPct ?? 0);
-  const watched = Boolean(previous?.watched) || progressPct >= WATCHED_THRESHOLD_PCT;
+  const rawProgressPct =
+    durationSec && durationSec > 0 ? (currentSec / durationSec) * 100 : (previous?.progressPct ?? 0);
+  const progressPct = clampPercent(rawProgressPct);
+  const watched = Boolean(previous?.watched) || rawProgressPct >= WATCHED_THRESHOLD_PCT;
 
   const nextStatus: WatchStatus = {
     watched,

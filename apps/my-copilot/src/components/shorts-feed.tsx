@@ -49,7 +49,7 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
   }, []);
 
   useEffect(() => {
-    if (!videos.length || !feedImpressionSent.current) {
+    if (videos.length > 0 && !feedImpressionSent.current) {
       feedImpressionSent.current = true;
       emitVideoKPIEvent("video_feed_impression", { videoCount: videos.length });
     }
@@ -159,14 +159,14 @@ export function ShortsFeed({ videos }: ShortsFeedProps) {
     <VStack gap="space-12">
       <div className="overflow-x-auto overscroll-x-contain snap-x snap-mandatory">
         <HStack gap="space-16" wrap={false} align="start">
-          {orderedVideos.map((video, index) => {
+          {orderedVideos.map((video) => {
             const episodeLabel =
               video.metadata?.season && video.metadata?.episode
                 ? `S${video.metadata.season}E${video.metadata.episode}`
                 : undefined;
             const isActive = isViewerOpen && resolvedActiveId === video.id;
             return (
-              <div key={`${video.id}-${index}`} className="snap-start shrink-0 w-[240px] sm:w-[260px]">
+              <div key={video.id} className="snap-start shrink-0 w-[240px] sm:w-[260px]">
                 {isActive ? (
                   <div className="relative w-full overflow-hidden rounded-xl aspect-[9/16] bg-black">
                     <video
