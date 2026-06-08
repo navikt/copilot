@@ -1,17 +1,19 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useEffect, useMemo, useState, useTransition } from "react";
 import { Skeleton, Box, HGrid } from "@navikt/ds-react";
 
 interface Tab {
   id: string;
   label: string;
   content: React.ReactNode;
+  hashIds?: string[];
 }
 
 interface TabsProps {
   tabs: Tab[];
   defaultTab?: string;
+  enableHashNavigation?: boolean;
 }
 
 const TabContentSkeleton = () => (
@@ -41,14 +43,50 @@ const TabContentSkeleton = () => (
   </div>
 );
 
-const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab }) => {
+const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, enableHashNavigation = false }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id);
   const [isPending, startTransition] = useTransition();
+  const tabByHash = useMemo(() => {
+    const map = new Map<string, string>();
+    tabs.forEach((tab) => {
+      map.set(tab.id, tab.id);
+      tab.hashIds?.forEach((hashId) => map.set(hashId, tab.id));
+    });
+    return map;
+  }, [tabs]);
+
+  useEffect(() => {
+    if (!enableHashNavigation) return;
+
+    const updateTabFromHash = () => {
+      const rawHash = window.location.hash.slice(1);
+      if (!rawHash) return;
+
+      let hash = rawHash;
+      try {
+        hash = decodeURIComponent(rawHash);
+      } catch {
+        // Keep raw hash if fragment is malformed.
+      }
+
+      const tabForHash = tabByHash.get(hash);
+      if (tabForHash && tabForHash !== activeTab) {
+        setActiveTab(tabForHash);
+      }
+    };
+
+    updateTabFromHash();
+    window.addEventListener("hashchange", updateTabFromHash);
+    return () => window.removeEventListener("hashchange", updateTabFromHash);
+  }, [activeTab, enableHashNavigation, tabByHash]);
 
   const handleTabChange = (tabId: string) => {
     startTransition(() => {
       setActiveTab(tabId);
     });
+    if (enableHashNavigation) {
+      window.history.replaceState(null, "", `#${tabId}`);
+    }
   };
 
   return (
@@ -60,6 +98,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab }) => {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                id={`tab-${tab.id}`}
                 onClick={() => handleTabChange(tab.id)}
                 role="tab"
                 aria-selected={activeTab === tab.id}

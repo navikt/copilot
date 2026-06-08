@@ -24,7 +24,7 @@ import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
+import { Table, BodyShort, Heading, HGrid, Box, Link, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import {
@@ -273,7 +273,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
 
   // ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
   const dashboardContent = (
-    <VStack gap="space-24">
+    <VStack id="dashboard" gap="space-24">
       {/* Hero metrics — the 4 numbers that matter */}
       {heroMonthLabel && (
         <BodyShort size="small" className="text-gray-500">
@@ -281,7 +281,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
           {currentMonth && ` • Hittil i ${currentMonth.month}: ${formatNumber(currentMonth.unique_users)} brukere`}
         </BodyShort>
       )}
-      <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
+      <HGrid id="nokkeltall" columns={{ xs: 1, sm: 2, md: 4 }} gap="space-16">
         <MetricCard
           value={formatNumber(latestComplete?.unique_users ?? aggregatedMetrics.monthlyActiveUsers)}
           label="Aktive brukere"
@@ -344,7 +344,11 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       )}
 
       {/* Monthly trends — THE story */}
-      {monthlyTrends.length > 0 && <MonthlyTrendsChart data={monthlyTrends} />}
+      {monthlyTrends.length > 0 && (
+        <div id="manedlige-trender">
+          <MonthlyTrendsChart data={monthlyTrends} />
+        </div>
+      )}
 
       {/* Current month model cost + forecast */}
       {Array.isArray(billingModelDaily) && billingModelDaily.length > 0 && billingModelForecast ? (
@@ -600,12 +604,14 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
 
   // ─── TAB 2: DETALJER (Deep dives) ───
   const detailsContent = (
-    <VStack gap="space-24">
+    <VStack id="details" gap="space-24">
       {/* Daily Activity Trend */}
-      <TrendChart data={trendData} />
+      <div id="daglig-aktivitet">
+        <TrendChart data={trendData} />
+      </div>
 
       {/* Code Suggestions */}
-      <Box background="neutral-soft" padding="space-24" borderRadius="12">
+      <Box id="kodeforslag" background="neutral-soft" padding="space-24" borderRadius="12">
         <VStack gap="space-16">
           <Heading size="small" level="3">
             Kodeforslag
@@ -640,7 +646,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       </Box>
 
       {/* Languages & Editors */}
-      <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
+      <HGrid id="sprak-og-verktoy" columns={{ xs: 1, md: 2 }} gap="space-24">
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-12">
             <Heading size="small" level="3">
@@ -695,7 +701,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
 
       {/* Model Usage */}
       {modelUsageMetrics && modelUsageMetrics.length > 0 && (
-        <Box background="neutral-soft" padding="space-24" borderRadius="12">
+        <Box id="ai-modeller-i-bruk" background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
             <Heading size="small" level="3">
               AI-modeller i bruk
@@ -734,17 +740,30 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
   );
 
   const tabs = [
-    { id: "dashboard", label: "Oversikt", content: dashboardContent },
+    {
+      id: "dashboard",
+      label: "Oversikt",
+      content: dashboardContent,
+      hashIds: ["dashboard", "nokkeltall", "manedlige-trender"],
+    },
     {
       id: "team",
       label: "Meg og team",
       content: (
-        <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-          <TeamUsageContent token={token} />
-        </Suspense>
+        <div id="meg-og-team">
+          <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
+            <TeamUsageContent token={token} />
+          </Suspense>
+        </div>
       ),
+      hashIds: ["team", "meg-og-team"],
     },
-    { id: "details", label: "Utforsking", content: detailsContent },
+    {
+      id: "details",
+      label: "Utforsking",
+      content: detailsContent,
+      hashIds: ["details", "daglig-aktivitet", "kodeforslag", "sprak-og-verktoy", "ai-modeller-i-bruk"],
+    },
   ];
 
   return (
@@ -753,7 +772,29 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         <BodyShort className="text-gray-600">
           Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager)
         </BodyShort>
-        <Tabs tabs={tabs} defaultTab="dashboard" />
+        <Box background="neutral-soft" padding="space-12" borderRadius="8">
+          <HStack gap="space-8" wrap>
+            <BodyShort size="small" weight="semibold" className="text-gray-700">
+              Hopp til:
+            </BodyShort>
+            <Link href="#nokkeltall" className="text-sm">
+              Nøkkeltall
+            </Link>
+            <Link href="#manedlige-trender" className="text-sm">
+              Trender
+            </Link>
+            <Link href="#meg-og-team" className="text-sm">
+              Meg og team
+            </Link>
+            <Link href="#daglig-aktivitet" className="text-sm">
+              Daglig aktivitet
+            </Link>
+            <Link href="#ai-modeller-i-bruk" className="text-sm">
+              AI-modeller
+            </Link>
+          </HStack>
+        </Box>
+        <Tabs tabs={tabs} defaultTab="dashboard" enableHashNavigation />
       </VStack>
     </>
   );
