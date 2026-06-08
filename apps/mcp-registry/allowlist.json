@@ -75,7 +75,7 @@
         "url": "https://github.com/navikt/aksel/tree/main/mcp-server",
         "source": "github"
       },
-      "tools": ["aksel_find_docs","aksel_get_doc","aksel_get_token_details","aksel_find_icons","aksel_get_component_info"],
+      "tools": ["aksel_find_docs", "aksel_get_doc", "aksel_get_token_details", "aksel_find_icons", "aksel_get_component_info"],
       "tags": ["aksel", "designsystem", "ui", "frontend", "developer-tools"],
       "examples": [
         {
