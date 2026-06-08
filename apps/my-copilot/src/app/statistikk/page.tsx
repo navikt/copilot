@@ -24,9 +24,10 @@ import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Table, BodyShort, Heading, HGrid, Box, Link, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
+import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
+import { LinkableHeading } from "@/components/linkable-heading";
 import {
   getTopLanguages,
   getEditorStats,
@@ -371,9 +372,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
             <div className="flex items-center gap-2">
-              <Heading size="small" level="3">
+              <LinkableHeading size="small" level="3">
                 Bruker vs. agent
-              </Heading>
+              </LinkableHeading>
               <HelpText title="Genereringsmodus" placement="top">
                 Fordeling mellom kode generert av brukeren (forslag, inline chat) og kode generert autonomt av agenten.
                 Høyere agent-andel betyr mer autonomt AI-arbeid.
@@ -415,9 +416,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
             <div className="flex items-center gap-2">
-              <Heading size="small" level="3">
+              <LinkableHeading size="small" level="3">
                 AI-adopsjonsfaser
-              </Heading>
+              </LinkableHeading>
               <HelpText title="Om adopsjonsfasene" placement="top">
                 GitHub klassifiserer brukere i faser basert på AI-aktivitet de siste 28 dagene. Grafen viser utviklingen
                 over tid.
@@ -451,9 +452,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
             <div className="flex items-center gap-2">
-              <Heading size="small" level="3">
+              <LinkableHeading size="small" level="3">
                 Pull requests og code review
-              </Heading>
+              </LinkableHeading>
               <HelpText title="Pull requests" placement="top">
                 PR-er der Copilot var involvert som forfatter (coding agent) eller reviewer (code review). Basert på
                 siste {usage.length} dager med data.
@@ -613,9 +614,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       {/* Code Suggestions */}
       <Box id="kodeforslag" background="neutral-soft" padding="space-24" borderRadius="12">
         <VStack gap="space-16">
-          <Heading size="small" level="3">
+          <LinkableHeading size="small" level="3">
             Kodeforslag
-          </Heading>
+          </LinkableHeading>
           <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
             <Box background="info-soft" padding="space-16" borderRadius="8">
               <div className="text-center">
@@ -649,9 +650,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       <HGrid id="sprak-og-verktoy" columns={{ xs: 1, md: 2 }} gap="space-24">
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-12">
-            <Heading size="small" level="3">
+            <LinkableHeading size="small" level="3">
               Topp-språk
-            </Heading>
+            </LinkableHeading>
             <Table size="small">
               <TableBody>
                 {topLanguages.slice(0, 8).map((lang: LanguageData, i: number) => (
@@ -675,9 +676,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         </Box>
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-12">
-            <Heading size="small" level="3">
+            <LinkableHeading size="small" level="3">
               Verktøy
-            </Heading>
+            </LinkableHeading>
             <Table size="small">
               <TableBody>
                 {editorStats.map((editor: EditorData, i: number) => (
@@ -703,9 +704,9 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       {modelUsageMetrics && modelUsageMetrics.length > 0 && (
         <Box id="ai-modeller-i-bruk" background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
-            <Heading size="small" level="3">
+            <LinkableHeading size="small" level="3">
               AI-modeller i bruk
-            </Heading>
+            </LinkableHeading>
             <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
               <div className="overflow-hidden">
                 <Table size="small">
@@ -744,16 +745,27 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       id: "dashboard",
       label: "Oversikt",
       content: dashboardContent,
-      hashIds: ["dashboard", "nokkeltall", "manedlige-trender"],
+      hashIds: [
+        "dashboard",
+        "nokkeltall",
+        "månedlige-trender",
+        "måned-hittil-modeller-og-kostnad",
+        "ai-modeller-over-tid",
+        "bruker-vs-agent",
+        "ai-adopsjonsfaser",
+        "pull-requests-og-code-review",
+      ],
     },
     {
       id: "team",
       label: "Meg og team",
       content: (
-        <div id="meg-og-team">
-          <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-            <TeamUsageContent token={token} />
-          </Suspense>
+        <div id="team">
+          <div id="meg-og-team">
+            <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
+              <TeamUsageContent token={token} />
+            </Suspense>
+          </div>
         </div>
       ),
       hashIds: ["team", "meg-og-team"],
@@ -762,7 +774,15 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       id: "details",
       label: "Utforsking",
       content: detailsContent,
-      hashIds: ["details", "daglig-aktivitet", "kodeforslag", "sprak-og-verktoy", "ai-modeller-i-bruk"],
+      hashIds: [
+        "details",
+        "daglig-aktivitet",
+        "kodeforslag",
+        "sprak-og-verktoy",
+        "ai-modeller-i-bruk",
+        "topp-språk",
+        "verktøy",
+      ],
     },
   ];
 
@@ -772,28 +792,6 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         <BodyShort className="text-gray-600">
           Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager)
         </BodyShort>
-        <Box background="neutral-soft" padding="space-12" borderRadius="8">
-          <HStack gap="space-8" wrap>
-            <BodyShort size="small" weight="semibold" className="text-gray-700">
-              Hopp til:
-            </BodyShort>
-            <Link href="#nokkeltall" className="text-sm">
-              Nøkkeltall
-            </Link>
-            <Link href="#manedlige-trender" className="text-sm">
-              Trender
-            </Link>
-            <Link href="#meg-og-team" className="text-sm">
-              Meg og team
-            </Link>
-            <Link href="#daglig-aktivitet" className="text-sm">
-              Daglig aktivitet
-            </Link>
-            <Link href="#ai-modeller-i-bruk" className="text-sm">
-              AI-modeller
-            </Link>
-          </HStack>
-        </Box>
         <Tabs tabs={tabs} defaultTab="dashboard" enableHashNavigation />
       </VStack>
     </>

@@ -3,9 +3,10 @@
 import type { BillingModelDailyCost, BillingModelForecast } from "@/lib/types";
 import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { formatNumber } from "@/lib/format";
-import { BodyShort, Box, HGrid, Heading, VStack } from "@navikt/ds-react";
+import { BodyShort, Box, HGrid, VStack } from "@navikt/ds-react";
 import React from "react";
 import { Bar, Line } from "react-chartjs-2";
+import { LinkableHeading } from "@/components/linkable-heading";
 
 interface BillingMonthNowChartProps {
   dailyData: BillingModelDailyCost[];
@@ -115,9 +116,9 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
 
   return (
     <VStack gap="space-16">
-      <Heading size="small" level="3">
+      <LinkableHeading size="small" level="3">
         Måned hittil: modeller og kostnad
-      </Heading>
+      </LinkableHeading>
       <BodyShort size="small" className="text-gray-500">
         Viser {monthLabel}
       </BodyShort>

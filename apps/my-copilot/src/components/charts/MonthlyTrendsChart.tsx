@@ -4,8 +4,9 @@ import type { MonthlyTrend } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { VStack, Heading, HGrid, BodyShort, Box } from "@navikt/ds-react";
+import { VStack, HGrid, BodyShort, Box } from "@navikt/ds-react";
 import { formatNumber } from "@/lib/format";
+import { LinkableHeading } from "@/components/linkable-heading";
 
 interface MonthlyTrendsChartProps {
   data: MonthlyTrend[];
@@ -114,9 +115,9 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
 
   return (
     <VStack gap="space-16">
-      <Heading size="small" level="3">
+      <LinkableHeading size="small" level="3">
         Månedlige trender
-      </Heading>
+      </LinkableHeading>
 
       {/* Summary cards for latest month */}
       <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">

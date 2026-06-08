@@ -4,8 +4,9 @@ import type { MonthlyModelUsage, MonthlyBillingUsage } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { VStack, BodyShort, Box, Heading, HGrid } from "@navikt/ds-react";
+import { VStack, BodyShort, Box, HGrid } from "@navikt/ds-react";
 import { formatNumber } from "@/lib/format";
+import { LinkableHeading } from "@/components/linkable-heading";
 
 interface MonthlyModelChartProps {
   data: MonthlyModelUsage[];
@@ -153,9 +154,9 @@ const MonthlyModelChart: React.FC<MonthlyModelChartProps> = ({ data, billingData
 
   return (
     <VStack gap="space-16">
-      <Heading size="small" level="3">
+      <LinkableHeading size="small" level="3">
         AI-modeller over tid
-      </Heading>
+      </LinkableHeading>
 
       {/* Billing data: premium requests per model (authoritative) */}
       {hasBillingData && (

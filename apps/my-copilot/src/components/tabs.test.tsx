@@ -1,3 +1,4 @@
+import { afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Tabs from "./tabs";
 
@@ -8,6 +9,10 @@ const testTabs = [
 ];
 
 describe("Tabs", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
   it("renders all tab buttons", () => {
     render(<Tabs tabs={testTabs} />);
 
@@ -28,6 +33,15 @@ describe("Tabs", () => {
 
     expect(screen.getByText("Adoption content")).toBeInTheDocument();
     expect(screen.queryByText("Usage content")).not.toBeInTheDocument();
+  });
+
+  it("activates tab from hash on initial load", () => {
+    window.history.replaceState(null, "", "#adoption");
+
+    render(<Tabs tabs={testTabs} enableHashNavigation />);
+
+    expect(screen.getByRole("tab", { name: "Adopsjon" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Adoption content")).toBeInTheDocument();
   });
 
   it("switches tab on click", () => {

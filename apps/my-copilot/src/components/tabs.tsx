@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useTransition } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useState, useTransition } from "react";
 import { Skeleton, Box, HGrid } from "@navikt/ds-react";
 
 interface Tab {
@@ -46,6 +46,7 @@ const TabContentSkeleton = () => (
 const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, enableHashNavigation = false }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id);
   const [isPending, startTransition] = useTransition();
+  const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   const tabByHash = useMemo(() => {
     const map = new Map<string, string>();
     tabs.forEach((tab) => {
@@ -55,7 +56,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, enableHashNavigation = fa
     return map;
   }, [tabs]);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!enableHashNavigation) return;
 
     const updateTabFromHash = () => {
@@ -68,17 +69,15 @@ const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, enableHashNavigation = fa
       } catch {
         // Keep raw hash if fragment is malformed.
       }
-
       const tabForHash = tabByHash.get(hash);
-      if (tabForHash && tabForHash !== activeTab) {
-        setActiveTab(tabForHash);
-      }
+      if (!tabForHash) return;
+      setActiveTab((current) => (current === tabForHash ? current : tabForHash));
     };
 
     updateTabFromHash();
     window.addEventListener("hashchange", updateTabFromHash);
     return () => window.removeEventListener("hashchange", updateTabFromHash);
-  }, [activeTab, enableHashNavigation, tabByHash]);
+  }, [enableHashNavigation, tabByHash]);
 
   const handleTabChange = (tabId: string) => {
     startTransition(() => {
