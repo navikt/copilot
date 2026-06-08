@@ -129,10 +129,10 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       name: ${{ steps.name.outputs.name }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # ratchet:jdx/mise-action@v4.0.1
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # ratchet:jdx/mise-action@v4.1.0
         with:
           experimental: true
       - id: version
@@ -162,7 +162,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5.0.5
         with:
           path: |
@@ -185,7 +185,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # ratchet:jdx/mise-action@v4.0.1
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # ratchet:jdx/mise-action@v4.1.0
         with:
           experimental: true
       - name: Run setup tasks
@@ -212,7 +212,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5.0.5
         with:
           path: |
@@ -235,7 +235,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # ratchet:jdx/mise-action@v4.0.1
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # ratchet:jdx/mise-action@v4.1.0
         with:
           experimental: true
       - name: Run setup tasks
@@ -263,7 +263,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5.0.5
         with:
           path: |
@@ -286,7 +286,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # ratchet:jdx/mise-action@v4.0.1
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # ratchet:jdx/mise-action@v4.1.0
         with:
           experimental: true
       - name: Run setup tasks
@@ -314,8 +314,8 @@ jobs:
       image: ${{ steps.docker-push.outputs.image }}
       telemetry: ${{ steps.docker-push.outputs.telemetry }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
-      - uses: nais/docker-build-push@751a312f0803eb96a05a41fadf51be19b7be362c # ratchet:nais/docker-build-push@v0
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
+      - uses: nais/docker-build-push@05dbb6091b30bd84279c6d64a45ef8782fd410a5 # ratchet:nais/docker-build-push@v0
         id: docker-push
         with:
           team: ${{ inputs.nais-team }}
@@ -340,7 +340,7 @@ jobs:
       matrix:
         cluster: ${{ fromJson(inputs.nais-clusters) }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
       - name: Resolve paths
         id: paths
         env:
@@ -359,7 +359,7 @@ jobs:
           VARS_PATH="${VARS_PATTERN//\{cluster\}/$CLUSTER}"
           echo "resource=$RESOURCE_PATH" >> $GITHUB_OUTPUT
           echo "vars=$VARS_PATH" >> $GITHUB_OUTPUT
-      - uses: nais/deploy/actions/deploy@e90640a98702d2554350fb35c4d5d242dd8e4346 # ratchet:nais/deploy/actions/deploy@v2
+      - uses: nais/deploy/actions/deploy@ab841e4d99cbb00edd996d3ae39bd4cea6b8e2c2 # ratchet:nais/deploy/actions/deploy@v2
         env:
           CLUSTER: ${{ matrix.cluster }}
           TEAM: ${{ inputs.nais-team }}
@@ -377,7 +377,7 @@ jobs:
       contents: read
     needs: [meta, docker]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
       - name: Resolve paths
         id: paths
         env:
@@ -393,7 +393,7 @@ jobs:
           fi
           echo "resource=$RESOURCE_PATH" >> $GITHUB_OUTPUT
           echo "vars=$VARS_PATH" >> $GITHUB_OUTPUT
-      - uses: nais/deploy/actions/deploy@e90640a98702d2554350fb35c4d5d242dd8e4346 # ratchet:nais/deploy/actions/deploy@v2
+      - uses: nais/deploy/actions/deploy@ab841e4d99cbb00edd996d3ae39bd4cea6b8e2c2 # ratchet:nais/deploy/actions/deploy@v2
         env:
           CLUSTER: dev-gcp
           TEAM: ${{ inputs.nais-team }}
@@ -410,7 +410,7 @@ jobs:
       contents: write
     needs: meta
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6.0.3
       - env:
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
