@@ -76,7 +76,8 @@ Fra `apps/my-copilot`:
 mise run video:episode1:prepare
 mise run video:episode1:publish:dev
 mise run video:episode1:regen:dev
-mise run video:dev:reset-and-republish
+mise run video:reset-and-republish
+mise run video:prod:reset-and-republish
 ```
 
 ## Publisere en ny video i dev
@@ -180,6 +181,35 @@ Eksempel på én manifest-entry:
 
 `metadata` er valgfritt. Det gjør modellen mer utvidbar uten å bryte eksisterende klienter.
 
+## HLS-kontrakt og trygg publisering
+
+For å unngå segment-404 på Safari og andre spillere, skal playlisten bruke én kanonisk struktur:
+
+- `videos/<id>/master.m3u8`
+- `videos/<id>/segments/segment_###.ts`
+
+`publish-video.ts` laster opp segmenter basert på URI-ene i `master.m3u8`, ikke bare katalogtreet lokalt.
+
+Nyttige flagg:
+
+- `--strict-hls true`: feiler publisering hvis URI-er i playlist ikke følger kanonisk `segments/segment_###.ts`.
+- `--clean-prefix true`: aktiverer cleanup av stale objekter i `videos/<id>/` **etter** vellykket opplasting og manifest-oppdatering.
+- `--clean-prefix-apply true`: utfører faktisk sletting. Uten denne kjører cleanup i dry-run.
+- `--clean-prefix-max-deletes <n>`: sikkerhetsgrense for antall objekter som kan slettes i én kjøring (default `50`).
+
+Eksempel:
+
+```bash
+VIDEO_PUBLISH_ENV=prod VIDEO_BUCKET_PUBLIC=copilot-videos-public-prod \
+node --experimental-strip-types scripts/publish-video.ts \
+  --id intro-cli \
+  ... \
+  --strict-hls true \
+  --clean-prefix true \
+  --clean-prefix-apply true \
+  --clean-prefix-max-deletes 20
+```
+
 ## Verifisering etter publisering
 
 1. Sjekk feed:
@@ -208,6 +238,7 @@ curl -I "https://storage.googleapis.com/<bucket>/videos/<id>/master.m3u8"
 - **503 fra API:** manifest kunne ikke leses, og det finnes ingen cachet kopi.
 - **`AccessDenied` på video i nettleseren:** bucket mangler offentlig lesetilgang. Kjør publiseringsscriptet på nytt, eller sett `allUsers:roles/storage.objectViewer` manuelt.
 - **Avspilling feiler:** HLS-master peker på segmenter som ikke finnes i samme bucket/prefix.
+- **Duplikater i prefix (`segment_*.ts` og `segments/segment_*.ts`):** kjør republisering med `--clean-prefix true` etter at playlist-URI-er er kanoniske.
 - **Valideringsfeil ved publisering:** `id` eller objektstier inneholder ugyldige tegn.
 - **`gsutil` feiler med Python 3.14:** bruk `gcloud storage` (scriptet gjør dette automatisk før eventuell `gsutil`-fallback).
 

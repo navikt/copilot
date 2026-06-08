@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
 import {
   arg,
   parseNonNegativeInteger,
@@ -100,6 +101,15 @@ function resolveEnvValue(baseName: string, environment: PublishEnvironment): str
 
 function gsPath(bucket: string, objectPath: string): string {
   return `gs://${bucket}/${objectPath}`;
+}
+
+function parseBooleanFlag(name: string, defaultValue: boolean): boolean {
+  const value = arg(name);
+  if (value === undefined) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes") return true;
+  if (normalized === "false" || normalized === "0" || normalized === "no") return false;
+  throw new Error(`Invalid value for --${name}; expected true or false`);
 }
 
 const VALID_OBJECT_PATH_RE = /^[a-zA-Z0-9][a-zA-Z0-9/_\-.]*$/;
@@ -237,31 +247,81 @@ function upload(localFile: string, gsTarget: string) {
   }
 }
 
-function collectFiles(dir: string): string[] {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const fullPath = `${dir}/${entry.name}`;
-    if (entry.isDirectory()) {
-      files.push(...collectFiles(fullPath));
-      continue;
+function parsePlaylistUris(playlistFile: string): string[] {
+  const content = fs.readFileSync(playlistFile, "utf8");
+  const uris = new Set<string>();
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const withoutQuery = line.split("?")[0]?.split("#")[0]?.trim();
+    if (!withoutQuery) continue;
+    if (withoutQuery.startsWith("/") || withoutQuery.includes("://")) {
+      throw new Error(`Unsupported absolute URI in HLS playlist: ${withoutQuery}`);
     }
-    if (entry.isFile()) {
-      files.push(fullPath);
+    if (withoutQuery.includes("..")) {
+      throw new Error(`Unsupported parent path in HLS playlist URI: ${withoutQuery}`);
     }
+    uris.add(withoutQuery.replaceAll("\\", "/"));
   }
-  return files;
+  return [...uris];
 }
 
-function uploadDirectoryContents(localDir: string, bucket: string, gsTargetPrefix: string) {
-  if (!fs.existsSync(localDir) || !fs.statSync(localDir).isDirectory()) {
-    throw new Error(`--hls-segments-dir does not exist or is not a directory: ${localDir}`);
+function normalizePlaylistUriPath(uriPath: string): string {
+  return uriPath.replace(/^\.\/+/, "").replaceAll("\\", "/");
+}
+
+function isCanonicalHlsSegmentUri(uriPath: string): boolean {
+  return /^segments\/[^/]+\.ts$/i.test(uriPath);
+}
+
+function validateCanonicalHlsPlaylist(playlistFile: string, playlistUris: string[], strict: boolean) {
+  const nonCanonical = playlistUris.filter((uri) => !isCanonicalHlsSegmentUri(uri));
+  if (nonCanonical.length === 0) return;
+  const message = `Non-canonical HLS URIs in ${playlistFile}: ${nonCanonical.join(", ")}. Expected segments/*.ts`;
+  if (strict) {
+    throw new Error(message);
   }
-  const files = collectFiles(localDir);
-  for (const filePath of files) {
-    const relativePath = filePath.slice(localDir.length + 1).replaceAll("\\", "/");
-    validateObjectPath(`${gsTargetPrefix}/${relativePath}`, "hls-segment");
-    upload(filePath, gsPath(bucket, `${gsTargetPrefix}/${relativePath}`));
+  process.stderr.write(`WARN: ${message}\n`);
+}
+
+function isHlsPlaylistUri(uriPath: string): boolean {
+  return uriPath.toLowerCase().endsWith(".m3u8");
+}
+
+function isMediaSegmentUri(uriPath: string): boolean {
+  return /\.(ts|m4s|mp4)$/i.test(uriPath);
+}
+
+function resolveLocalSegmentPath(playlistFile: string, segmentsDir: string, uriPath: string): string {
+  const playlistDir = path.dirname(playlistFile);
+  const uriBasename = path.posix.basename(uriPath);
+  const candidates = [
+    path.resolve(playlistDir, uriPath),
+    path.resolve(segmentsDir, uriPath),
+    path.resolve(segmentsDir, uriBasename),
+    path.resolve(segmentsDir, "segments", uriBasename),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      return candidate;
+    }
+  }
+  throw new Error(`Could not find local HLS segment for playlist URI "${uriPath}". Checked: ${candidates.join(", ")}`);
+}
+
+function uploadHlsPlaylistAssets(playlistFile: string, segmentsDir: string, bucket: string, gsTargetPrefix: string) {
+  if (!fs.existsSync(segmentsDir) || !fs.statSync(segmentsDir).isDirectory()) {
+    throw new Error(`--hls-segments-dir does not exist or is not a directory: ${segmentsDir}`);
+  }
+  const uris = parsePlaylistUris(playlistFile);
+  if (uris.length === 0) {
+    throw new Error(`No media URIs found in HLS playlist: ${playlistFile}`);
+  }
+  for (const uriPath of uris) {
+    const normalizedUriPath = uriPath.replace(/^\.\/+/, "");
+    validateObjectPath(`${gsTargetPrefix}/${normalizedUriPath}`, "hls-segment");
+    const localPath = resolveLocalSegmentPath(playlistFile, segmentsDir, normalizedUriPath);
+    upload(localPath, gsPath(bucket, `${gsTargetPrefix}/${normalizedUriPath}`));
   }
 }
 
@@ -285,10 +345,59 @@ function ensurePublicRead(bucket: string) {
   }
 }
 
+function listObjectsInPrefix(bucket: string, objectPrefix: string): string[] {
+  const target = gsPath(bucket, `${objectPrefix}/**`);
+  const parseListOutput = (output: string): string[] =>
+    output
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith(`gs://${bucket}/`) && !line.endsWith("/"))
+      .map((line) => line.slice(`gs://${bucket}/`.length));
+
+  try {
+    const output = execFileSync("gcloud", ["storage", "ls", "--recursive", target], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    return parseListOutput(output);
+  } catch {
+    const output = execFileSync("gsutil", ["ls", "-r", target], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    return parseListOutput(output);
+  }
+}
+
+function deleteObject(bucket: string, objectPath: string) {
+  const target = gsPath(bucket, objectPath);
+  try {
+    execFileSync("gcloud", ["storage", "rm", target], { stdio: "inherit" });
+  } catch {
+    execFileSync("gsutil", ["rm", target], { stdio: "inherit" });
+  }
+}
+
+function cleanupPrefix(bucket: string, objectPrefix: string, keepObjectPaths: Set<string>) {
+  const existing = listObjectsInPrefix(bucket, objectPrefix);
+  const stale = existing.filter((objectPath) => !keepObjectPaths.has(objectPath));
+  for (const objectPath of stale) {
+    deleteObject(bucket, objectPath);
+  }
+  if (stale.length > 0) {
+    process.stdout.write(`Removed ${stale.length} stale object(s) in ${gsPath(bucket, objectPrefix)}\n`);
+  }
+}
+
 function main() {
   const environment = resolvePublishEnvironment();
   const bucketPublic = resolveEnvValue("VIDEO_BUCKET_PUBLIC", environment);
   const manifestTarget = gsPath(bucketPublic, "video_manifest.json");
+  const strictHls = parseBooleanFlag("strict-hls", false);
+  const cleanPrefixAfterPublish = parseBooleanFlag("clean-prefix", false);
+  const cleanPrefixApply = parseBooleanFlag("clean-prefix-apply", false);
+  const cleanPrefixMaxDeletesRaw = arg("clean-prefix-max-deletes") ?? "50";
+  const cleanPrefixMaxDeletes = parseNonNegativeInteger("clean-prefix-max-deletes", cleanPrefixMaxDeletesRaw);
   ensurePublicRead(bucketPublic);
 
   const packageFile = arg("package-file");
@@ -340,6 +449,18 @@ function main() {
   const mp4File = arg("mp4-file") ?? videoPackage?.mp4_file;
   const captionsFile = arg("captions-file") ?? videoPackage?.captions_file;
   const hlsSegmentsDir = arg("hls-segments-dir") ?? videoPackage?.hls_segments_dir;
+  const playlistUris = parsePlaylistUris(hlsFile).map(normalizePlaylistUriPath);
+  validateCanonicalHlsPlaylist(hlsFile, playlistUris, strictHls);
+  const mediaSegmentUris = playlistUris.filter((uri) => isMediaSegmentUri(uri));
+  const nestedPlaylistUris = playlistUris.filter((uri) => isHlsPlaylistUri(uri));
+  if (mediaSegmentUris.length > 0 && !hlsSegmentsDir) {
+    throw new Error("HLS playlist references media URIs but --hls-segments-dir is missing");
+  }
+  if (cleanPrefixAfterPublish && nestedPlaylistUris.length > 0) {
+    throw new Error(
+      `--clean-prefix is not supported when playlist contains nested .m3u8 URIs: ${nestedPlaylistUris.join(", ")}`
+    );
+  }
 
   const targetPrefix = `videos/${id}`;
   const posterObject = `${targetPrefix}/${posterFile.split("/").pop() ?? "poster.jpg"}`;
@@ -351,6 +472,14 @@ function main() {
   validateObjectPath(hlsObject, "hls-file");
   if (mp4Object) validateObjectPath(mp4Object, "mp4-file");
   if (captionsObject) validateObjectPath(captionsObject, "captions-file");
+  const expectedObjectPaths = new Set<string>([posterObject, hlsObject]);
+  if (mp4Object) expectedObjectPaths.add(mp4Object);
+  if (captionsObject) expectedObjectPaths.add(captionsObject);
+  for (const uriPath of playlistUris) {
+    const objectPath = `${targetPrefix}/${uriPath}`;
+    validateObjectPath(objectPath, "hls-segment");
+    expectedObjectPaths.add(objectPath);
+  }
 
   upload(posterFile, gsPath(bucketPublic, posterObject));
   upload(hlsFile, gsPath(bucketPublic, hlsObject));
@@ -361,8 +490,9 @@ function main() {
     upload(captionsFile, gsPath(bucketPublic, captionsObject));
   }
   if (hlsSegmentsDir) {
-    // Upload segments to the same prefix as master.m3u8 references.
-    uploadDirectoryContents(hlsSegmentsDir, bucketPublic, targetPrefix);
+    // Upload referenced HLS media URIs exactly as they appear in the playlist.
+    // This avoids Safari 404s when segment directory structures differ.
+    uploadHlsPlaylistAssets(hlsFile, hlsSegmentsDir, bucketPublic, targetPrefix);
   }
 
   const manifest = readManifest(manifestTarget);
@@ -399,6 +529,24 @@ function main() {
   }
 
   writeManifest(manifestTarget, manifest);
+  if (cleanPrefixAfterPublish) {
+    const staleObjects = listObjectsInPrefix(bucketPublic, targetPrefix).filter(
+      (objectPath) => !expectedObjectPaths.has(objectPath)
+    );
+    if (staleObjects.length > cleanPrefixMaxDeletes) {
+      throw new Error(
+        `Refusing cleanup: ${staleObjects.length} stale objects exceeds --clean-prefix-max-deletes (${cleanPrefixMaxDeletes})`
+      );
+    }
+    if (!cleanPrefixApply) {
+      process.stdout.write(
+        `DRY RUN: would remove ${staleObjects.length} stale object(s) in ${gsPath(bucketPublic, targetPrefix)}. ` +
+          "Set --clean-prefix-apply true to execute deletion.\n"
+      );
+    } else {
+      cleanupPrefix(bucketPublic, targetPrefix, expectedObjectPaths);
+    }
+  }
   process.stdout.write(`Published video ${id} to ${bucketPublic} and updated manifest: ${manifestTarget}\n`);
 }
 
