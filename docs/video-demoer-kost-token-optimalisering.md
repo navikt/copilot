@@ -39,8 +39,25 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 **Bonusepisoder (rolle/spesialisert):**
 1. Bonus episode A: Tre dyre anti-mønstre
 2. Bonus episode B: Mål effekt i statistikk
-3. Bonus episode C: Chronicle — innsikt på tvers av agentsesjoner
+3. Bonus episode C: Chronicle — forstå og optimaliser context
 4. Bonus episode D: Cplt sandbox — kom i gang på 3 minutter
+
+## Produksjonsstatus
+
+| Episode | Status | Kommentar |
+| --- | --- | --- |
+| Episode 1 | Spilt inn | Lås manus, metadata og overlay. |
+| Episode 2 | Spilt inn | Lås manus, metadata og overlay. |
+| Episode 3 | Spilt inn | Lås manus, metadata og overlay. |
+| Episode 4 | Planlagt | Kan fortsatt justeres. |
+| Episode 5 | Planlagt | Kan fortsatt justeres. |
+| Episode 6 | Planlagt | Kan fortsatt justeres. |
+| Bonus A | Planlagt | Kan fortsatt justeres. |
+| Bonus B | Planlagt | Kan fortsatt justeres. |
+| Bonus C | Planlagt | Fokus: `/context`, `tips`, `cost-tips`, `improve`. |
+| Bonus D | Spilt inn | Lås manus, metadata og overlay. |
+
+**Regel:** Ikke endre innholdet i episoder merket **Spilt inn**. Juster bare status, beskrivelser eller produksjonsnotater ved behov.
 
 ## Krav: hver innspilling skal gi reell verdi i repoet
 
@@ -105,273 +122,9 @@ interface EpisodeOverlayMeta {
 }
 ```
 
-### Episode 1: Presis prompt på første forsøk
+### Episode notes
 
-```yaml
-id: "1"
-title: "Presis prompt på første forsøk"
-accent: amber
-motif: "crosshair + prompt card"
-poster: "/posters/ep-01.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["01"]
-  - kind: chip
-    anchor: center-left
-    monospace: true
-    labels: ["Mål", "Fil", "Begrensning", "Output"]
-  - kind: chip
-    anchor: center-right
-    monospace: true
-    labels: ["cost-optimization.tsx"]
-  - kind: counter
-    anchor: bottom-left
-    labels: ["3 → 1"]
-  - kind: badge
-    anchor: bottom-right
-    labels: ["patch + 2 linjer"]
-  - kind: badge
-    anchor: top-right
-    labels: ["✓"]
-```
-
-### Episode 2: En oppgave per tråd
-
-```yaml
-id: "2"
-title: "En oppgave per tråd"
-accent: teal
-motif: "split threads + scissors node"
-poster: "/posters/ep-02.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["02"]
-  - kind: chip
-    anchor: center-left
-    monospace: true
-    labels: ["/resume", "/compact", "/clear"]
-  - kind: chip
-    anchor: top-right
-    labels: ["chronicle search"]
-  - kind: chip
-    anchor: center-right
-    monospace: true
-    labels: [".../adoption/summary"]
-  - kind: rule-pill
-    anchor: bottom-full
-    labels: ["nytt mål = ny tråd"]
-```
-
-### Episode 3: Riktig agentvalg
-
-```yaml
-id: "3"
-title: "Riktig modus til riktig jobb"
-accent: indigo
-secondaryAccent: orange
-motif: "autonomy ladder + agent stack"
-poster: "/posters/ep-03.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["03"]
-  - kind: ladder
-    anchor: center-left
-    labels: ["ask/execute", "plan (Shift+Tab)", "/autopilot"]
-    highlightIndex: 1
-  - kind: chip
-    anchor: center-right
-    monospace: true
-    labels: ["@research-agent", "@nav-pilot", "@nav-pilot-opus"]
-  - kind: chip
-    anchor: bottom-left
-    monospace: true
-    labels: ["DATE/string-mismatch"]
-```
-
-### Episode 4: Tool-first workflow
-
-```yaml
-id: "4"
-title: "Tool-first workflow"
-accent: cyan
-motif: "tool pipeline -> AI node"
-poster: "/posters/ep-04.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["04"]
-  - kind: pipeline
-    anchor: bottom-full
-    labels: ["gh pr view 275", "git diff --name-only", "rg"]
-    highlightIndex: 2
-    monospace: true
-  - kind: rule-pill
-    anchor: center-right
-    labels: ["verktøy først, modell etterpå"]
-  - kind: badge
-    anchor: top-right
-    labels: ["PR #275"]
-```
-
-### Episode 5: Kort output uten kvalitetstap
-
-```yaml
-id: "5"
-title: "Kort output uten kvalitetstap"
-accent: lime
-motif: "before/after density bars"
-poster: "/posters/ep-05.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["05"]
-  - kind: badge
-    anchor: top-right
-    labels: ["@terse-mode"]
-  - kind: compare-bars
-    anchor: center
-    labels: ["full", "kort"]
-  - kind: rule-pill
-    anchor: bottom-full
-    labels: ["maks 5 punkter · 1 linje"]
-```
-
-### Episode 6: Kosteffektiv PR-flyt
-
-```yaml
-id: "6"
-title: "Kosteffektiv PR-flyt"
-accent: green
-motif: "PR pipeline"
-poster: "/posters/ep-06.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["06"]
-  - kind: pipeline
-    anchor: bottom-full
-    labels: ["commit", "PR", "review", "fix"]
-    highlightIndex: 2
-  - kind: badge
-    anchor: top-right
-    labels: ["PR #275"]
-  - kind: rule-pill
-    anchor: center-right
-    labels: ["1 nå / 2 senere / 3 avvist"]
-  - kind: rule-pill
-    anchor: center-left
-    labels: ["små PR-er, tydelig scope"]
-```
-
-### Bonus A: Tre dyre anti-mønstre
-
-```yaml
-id: "bonus-a"
-title: "Tre dyre anti-mønstre"
-accent: red
-motif: "warning cards"
-poster: "/posters/bonus-a.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["A"]
-  - kind: warning-cards
-    anchor: center
-    labels: ["full log-dump", "for bred prompt", "feil modellvalg"]
-  - kind: badge
-    anchor: bottom-right
-    labels: ["rg først"]
-```
-
-### Bonus B: Mål effekt i statistikk
-
-```yaml
-id: "bonus-b"
-title: "Mål effekt i statistikk"
-accent: blue-teal
-motif: "dashboard"
-poster: "/posters/bonus-b.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["B"]
-  - kind: kpi-grid
-    anchor: center
-    labels: ["kost/uke", "andel eskalerte", "runder per oppgave"]
-  - kind: rule-pill
-    anchor: bottom-full
-    labels: ["ukentlig 15-min"]
-```
-
-### Bonus C: Chronicle — innsikt på tvers av agentsesjoner
-
-```yaml
-id: "bonus-c"
-title: "Chronicle — innsikt på tvers av agentsesjoner"
-accent: violet
-secondaryAccent: indigo
-motif: "searchable session index"
-poster: "/posters/bonus-c.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["C"]
-  - kind: index-list
-    anchor: center-left
-    labels: ["search", "standup", "tips", "cost-tips", "improve", "reindex"]
-  - kind: chip
-    anchor: bottom-right
-    monospace: true
-    labels: ["/context", "/instructions"]
-```
-
-### Bonus D: Cplt sandbox — kom i gang på 3 minutter
-
-```yaml
-id: "bonus-d"
-title: "Cplt sandbox — kom i gang på 3 minutter"
-accent: emerald
-secondaryAccent: cyan
-motif: "bootstrap flow + init command"
-poster: "/posters/bonus-d.jpg"
-components:
-  - kind: episode-number
-    anchor: top-left
-    labels: ["D"]
-  - kind: pipeline
-    anchor: center-left
-    labels: ["clone", "init", "test", "publish"]
-    highlightIndex: 1
-    monospace: true
-  - kind: chip
-    anchor: top-right
-    monospace: true
-    labels: ["nav-copilot-cplt-init.mp4", "cplt sandbox"]
-  - kind: rule-pill
-    anchor: bottom-full
-    labels: ["fra null til første commit i sandbox"]
-```
-
-**Foreslått publiserings-ID:** `nav-copilot-cplt-bonus-d-cplt-sandbox`
-
-**Publiseringskommando (Spor A, fra `.mp4`):**
-
-```bash
-cd apps/my-copilot
-mise run video:prepare -- \
-  --input /ABSOLUTT/STI/nav-copilot-cplt-init.mp4 \
-  --id nav-copilot-cplt-bonus-d-cplt-sandbox \
-  --title "Bonus D: Cplt sandbox — kom i gang på 3 minutter" \
-  --category cplt \
-  --series "video-demoer-kost-token-optimalisering" \
-  --tags "cplt,sandbox,init,bonus"
-
-cd video-packages/nav-copilot-cplt-bonus-d-cplt-sandbox
-VIDEO_BUCKET_PUBLIC=copilot-videos-public-dev ./publish.sh
-```
+Episode-spesifikk overlay metadata, manus, oppsummering og outro ligger under hver episodeheading lenger nede i dokumentet.
 
 ## Frontend-lag
 
@@ -389,6 +142,10 @@ VIDEO_BUCKET_PUBLIC=copilot-videos-public-dev ./publish.sh
 4. Valider at hver episode har minst ett unikt motiv og en unik primæraaccent.
 
 ## Episode 1: Presis prompt på første forsøk
+
+**Status:** Spilt inn
+
+**Overlay:** 01 · amber · crosshair + prompt card · Mål / Fil / Begrensning / Output · cost-optimization.tsx · ✓
 
 **Mål:** Vise hvordan presis første melding kutter antall runder.
 
@@ -437,6 +194,10 @@ Output: Vis kun patch + 2 linjer forklaring.
 
 ## Episode 2: En oppgave per tråd (`/clear` og `/compact`)
 
+**Status:** Spilt inn
+
+**Overlay:** 02 · teal · split threads + scissors node · /resume /compact /clear · chronicle search · .../adoption/summary · nytt mål = ny tråd
+
 **Mål:** Lære når man skal starte ny tråd for å unngå dyr kontekst.
 
 **Kan sees alene fordi:** Vi forklarer `/resume`, `/clear` og `/compact` i starten før vi viser feil vs riktig flyt.
@@ -484,7 +245,7 @@ Output: 1) hvilken fil, 2) hva som ble endret, 3) hva som blir neste naturlige o
 Hvis du trenger historikk:
 
 ```text
-copilot chronicle search "adoption summary"
+/chronicle search "adoption summary"
 ```
 
 Ny tråd:
@@ -501,6 +262,10 @@ Output: 1) sannsynlig rotårsak, 2) berørte filer, 3) konkret fix-forslag.
 ---
 
 ## Episode 3: Riktig modus og agentnivå (default ask/execute -> plan -> evt. autopilot)
+
+**Status:** Spilt inn
+
+**Overlay:** 03 · indigo/orange · autonomy ladder + agent stack · ask/execute / plan /autopilot · @research-agent / @nav-pilot / @nav-pilot-opus · DATE/string-mismatch
 
 **Mål:** Vise hvordan du velger modus først (default ask/execute, plan mode, autopilot), og agentnivå etterpå.
 
@@ -585,6 +350,10 @@ Output: endringsplan i 5 punkter + risiko per punkt.
 
 ## Episode 4: Tool-first workflow (deterministisk først, LLM etterpå)
 
+**Status:** Planlagt
+
+**Overlay:** 04 · cyan · tool pipeline -> AI node · gh pr view 275 / git diff / rg · verktøy først, modell etterpå
+
 **Mål:** Vise hvordan CLI-funn før LLM reduserer tokenforbruk og feil.
 
 **Kan sees alene fordi:** Vi forklarer "tool-first" i én setning og viser full flyt fra null.
@@ -612,6 +381,10 @@ Output: endringsplan i 5 punkter + risiko per punkt.
 
 **Ta med deg videre:** Kjør verktøy først, be LLM om syntese etterpå.
 
+**Oppsummering:** Tool-first betyr at du samler fakta med verktøy før du spør modellen. Det gir kortere svar og færre gjetninger.
+
+**Outro:** Neste gang du står fast, start med `rg`, `git diff` eller `gh` før du skriver en stor prompt.
+
 **Steg-for-steg manus (CLI):**
 
 1. Kjør verktøy først:
@@ -637,6 +410,10 @@ Se på hele repoet og finn hva som er galt i PR-en.
 ---
 
 ## Tilleggsepisode (v2): Debugging i rød sone
+
+**Status:** Planlagt
+
+**Overlay:** rød sone · symptom → hypoteser → test → minste sikre endring
 
 **Mål:** Lære når du skal kode og feilsøke selv først, og bruke AI målrettet etterpå.
 
@@ -673,9 +450,17 @@ Output: konkret patch-plan + verifiseringssjekkliste i 4 punkter.
 
 **Forventet respons-signal:** Assistenten foreslår hypoteser først, ikke bred "fiks alt"-løsning.
 
+**Oppsummering:** Når feilen er uklar, start med hypoteser og tester før du ber modellen om en løsning.
+
+**Outro:** Feilsøking blir billigere når du avgrenser tidlig og bare sender relevant kontekst videre.
+
 ---
 
 ## Bonus episode A: Tre dyre anti-mønstre
+
+**Status:** Planlagt
+
+**Overlay:** A · red · warning cards · full log-dump / for bred prompt / feil modellvalg · rg først
 
 **Mål:** Gjøre vanlige kostfeil konkrete og lette å unngå.
 
@@ -699,6 +484,10 @@ Output: konkret patch-plan + verifiseringssjekkliste i 4 punkter.
 
 **Ta med deg videre:** Unngå disse tre anti-mønstrene før du ber om mer avansert optimalisering.
 
+**Oppsummering:** De dyreste feilene er ofte de enkleste å unngå: for bred scope, for mye støy og feil modellvalg.
+
+**Outro:** Start smalt, bruk `rg` først, og be om mer bare når det faktisk trengs.
+
 **Prompt-manus (inkluder grep-instruksjon):**
 
 ```text
@@ -720,6 +509,10 @@ Deretter: foreslå én konkret forbedring med patch-format.
 ---
 
 ## Episode 5: Kort output uten kvalitetstap (`terse-mode`)
+
+**Status:** Planlagt
+
+**Overlay:** 05 · lime · before/after density bars · @terse-mode · full/kort · maks 5 punkter · 1 linje
 
 **Mål:** Lære når kort output gir bedre flyt.
 
@@ -744,6 +537,10 @@ Deretter: foreslå én konkret forbedring med patch-format.
 
 **Ta med deg videre:** Kort output som standard, utvid bare når risikoen krever det.
 
+**Oppsummering:** `terse-mode` er nyttig når oppgaven er liten og tydelig. Da får du det viktigste raskere.
+
+**Outro:** Bruk kort format som standard, og be først om mer detalj når du faktisk trenger det.
+
 **Prompt-manus (copy/paste):**
 
 ```text
@@ -762,6 +559,10 @@ Output: maks 5 konkrete forbedringer, én linje per punkt.
 ---
 
 ## Bonus episode B: Mål effekt i statistikk (ikke bare "følelse")
+
+**Status:** Planlagt
+
+**Overlay:** B · blue-teal · dashboard · kost/uke · andel eskalerte · runder per oppgave
 
 **Mål:** Knytte arbeidsmåte til målbar kostutvikling.
 
@@ -786,6 +587,10 @@ Output: maks 5 konkrete forbedringer, én linje per punkt.
 
 **Ta med deg videre:** Mål ukentlig, juster én vane av gangen.
 
+**Oppsummering:** Målene gjør at teamet ser om små grep faktisk virker. Da blir kostoptimalisering konkret, ikke bare følelse.
+
+**Outro:** Ta én KPI og én vane inn i neste uke, og juster på nytt etterpå.
+
 **Prompt-manus (copy/paste):**
 
 ```text
@@ -805,6 +610,10 @@ Output: nummerert liste med maks 1 linje per steg.
 ---
 
 ## Episode 6: Kosteffektiv PR-flyt
+
+**Status:** Planlagt
+
+**Overlay:** 06 · green · PR pipeline · commit / PR / review / fix · 1 nå / 2 senere / 3 avvist · små PR-er, tydelig scope
 
 **Mål:** Vise hvordan små, tydelige PR-er senker review-kost.
 
@@ -830,6 +639,10 @@ Output: nummerert liste med maks 1 linje per steg.
 
 **Ta med deg videre:** Små PR-er + tydelig scope gir lavere kost og raskere review.
 
+**Oppsummering:** En liten PR med tydelig scope er lettere å reviewe, lettere å fikse og billigere å jobbe med.
+
+**Outro:** Del opp endringer, skriv kort scope og fiks bare det review faktisk peker på.
+
 **Prompt-manus (copy/paste):**
 
 ```text
@@ -851,35 +664,119 @@ Output: tabell med kolonnene Kommentar | Klasse | Begrunnelse | Foreslått handl
 
 ---
 
-## Bonus episode C: Chronicle — innsikt på tvers av agentsesjoner
+## Bonus episode C: Chronicle — forstå og optimaliser context
 
-**Mål:** Vise hvordan `chronicle` gir deg søkbar sesjonshistorikk, standup-oppsummeringer og personlige tips, og hvordan du bruker `/context` og `/instructions` for å forstå og trimme tung kontekst.
+**Status:** Planlagt
 
-**Kan sees alene fordi:** Vi forklarer hva Chronicle er og viser én konkret flyt fra blank start.
+**Overlay:** C · violet/indigo · searchable session index · /context · tips · cost-tips · improve
+
+**Mål:** Vise hvordan du bruker `/context` og Chronicle til å forstå hva som bruker budsjettet, og hvordan du optimaliserer Copilot-bruken over tid.
+
+**Kan sees alene fordi:** Vi forklarer context-budsjett, Chronicle-tipsene og én konkret forbedringsflyt før demoen starter.
+
+**Narrativ tråd fra episode 1 og 2:** Episode 1 viser presis prompt. Episode 2 viser når du skal starte ny tråd. Bonus C viser hvordan du holder resten av budsjettet nede med `/context`, tips og cost-tips.
 
 **Script-outline (one-take):**
-1. "Hei og velkommen! I dag viser jeg hvordan Chronicle gjør agentsesjoner søkbare, og hvordan `/context` og `/instructions` hjelper deg å holde konteksten slank."
-2. Vis `copilot chronicle` og de tilgjengelige subcommandene.
-3. Kjør `copilot chronicle standup` for å hente en kort oppsummering av siste døgn.
-4. Vis `/context` og forklar at system prompt, system tools, MCP tools og meldinger alle spiser av samme budsjett.
-5. Kjør `copilot chronicle search` og `copilot chronicle tips` eller `cost-tips` for å finne tidligere arbeid og forbedringsforslag.
-6. Avslutt med når du bruker Chronicle i stedet for å lete manuelt i gamle sesjoner, og når du bruker `/instructions` for å trimme tunge repo-instrukser.
+1. "Hvis Copilot føles tungt, er det ofte context-budsjettet som er problemet. Her ser vi hva som bruker plass, og hvordan Chronicle hjelper oss å bruke mindre."
+2. Kjør `/context` og forklar kort hvilke deler som deler samme budsjett.
+3. Kjør `/chronicle tips` og vis et konkret tips som forbedrer arbeidsflyten.
+4. Kjør `/chronicle cost-tips` og vis ett råd som kan senke tokenbruk.
+5. Kjør `/chronicle improve` og vis hvordan repo-instruksjoner kan bli bedre.
+6. Pek kort på `/chronicle search` og `/chronicle standup` som støttefunksjoner, ikke hovedpoeng.
 
 **Innhold (3–5 min):**
-1. Finn et tidligere agentspor med `copilot chronicle search`.
-2. Oppsummer siste dag med `copilot chronicle standup`.
-3. Vis `copilot /context` og pek på hvordan system prompt og tool-definisjoner tar plass.
-4. Vis `copilot /instructions` for å se hvilke instrukser som lastes inn, og fjern eller juster tunge eller irrelevante filer.
-5. Vis personlige tips med `copilot chronicle tips` og kostforslag med `cost-tips`.
-6. Vis `copilot chronicle improve` for forslag til forbedringer i `copilot-instructions.md`.
-7. Vis `copilot chronicle reindex` når indeksen må bygges opp på nytt.
+1. Vis hvordan `/context` gjør deg bevisst på hva som faktisk ligger i budsjettet.
+2. Vis `/chronicle tips` som en måte å få konkrete forbedringer på arbeidsflyten.
+3. Vis `/chronicle cost-tips` for å finne et lite, konkret sted å spare tokens.
+4. Vis `/chronicle improve` for forslag til bedre repo-instrukser.
+5. Avslutt med regelen: mindre context gir bedre svar, og Chronicle hjelper deg å holde kursen over tid.
 
-**Demo-kontekst (referanserepo):** Bruk en nylig Copilot CLI-sesjon i dette repoet og gjenfinn en konkret beslutning eller forbedring derfra.
+**Demo-kontekst (referanserepo):** Bruk en nylig sesjon i dette repoet der du faktisk kan peke på et konkret context-problem eller et valg som kan forbedres med Chronicle-tips.
 
-**Ta med deg videre:** Chronicle er best når du trenger historikk, standup eller tips, mens `/context` og `/instructions` hjelper deg å holde resten av budsjettet under kontroll.
+**Ta med deg videre:** `/context` viser hva som bruker budsjettet. Chronicle viser hva du kan gjøre bedre.
+
+**Oppsummering:** `/context` viser hva som tar plass, mens `tips`, `cost-tips` og `improve` viser hva du kan forbedre.
+
+**Outro:** Bruk mindre context, og la Chronicle hjelpe deg å finne ett konkret neste grep.
+
+**Prompt-manus (copy/paste):**
+
+Vis context:
+```text
+/context
+```
+
+Tips:
+```text
+/chronicle tips
+```
+
+Kosttips:
+```text
+/chronicle cost-tips
+```
+
+Forbedringsforslag:
+```text
+/chronicle improve
+```
+
+Valgfri støtte:
+```text
+/chronicle search "cost optimization"
+```
+
+Bygg indeks på nytt:
+```text
+/chronicle reindex
+```
+
+**Forventet respons-signal:** `/context` viser hva som tar plass, `tips` gir et konkret arbeidsflytråd, og `cost-tips` gir ett råd du faktisk kan bruke.
 
 **Kilder:**
-- GitHub Docs: [Chronicle — pick a subcommand](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/chronicle)
+- GitHub Changelog: [Gain insights across your agent sessions with /chronicle](https://github.blog/changelog/2026-06-02-gain-insights-across-your-agent-sessions-with-chronicle/)
+- GitHub Docs: [About GitHub Copilot CLI session data](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/chronicle)
+
+## Bonus D: Cplt sandbox — kom i gang på 3 minutter
+
+**Status:** Spilt inn
+
+**Overlay:** D · emerald/cyan · bootstrap flow + init command · clone / init / test / publish · nav-copilot-cplt-init.mp4
+
+**Mål:** Vise hvordan du setter opp og tester en cplt-sandbox raskt fra null.
+
+**Kan sees alene fordi:** Vi viser hele oppstartsflyten i én kort demo.
+
+**Script-outline (one-take):**
+1. "Hei og velkommen! I dag setter vi opp cplt-sandbox fra null og får en første kjørbar flyt på plass."
+2. Klon eller åpne sandboxen og vis startpunktet.
+3. Kjør init/sett opp nødvendige filer.
+4. Verifiser med en kort testkjøring.
+5. Avslutt med hva som må til for å dele eller publisere videre.
+
+**Innhold (3–5 min):**
+1. Vis startpunktet og hva som mangler.
+2. Sett opp sandboxen steg for steg.
+3. Verifiser at initiell flyt virker.
+4. Vis hva som er klart til neste steg.
+
+**Demo-kontekst (referanserepo):** `cplt`-sandbox og init-flyten.
+
+**Ta med deg videre:** En liten, repeterbar bootstrap-flyt er nok for å komme i gang raskt.
+
+**Oppsummering:** Sandboxen skal gjøre første steg enkelt, ikke perfekt.
+
+**Outro:** Neste gang starter du fra samme oppskrift og bygger videre derfra.
+
+**Prompt-manus (copy/paste):**
+
+```text
+Lag en kort sjekkliste for å komme i gang med cplt-sandbox.
+Krav: 5 steg, maks 1 linje per steg.
+Output: nummerert liste.
+```
+
+**Forventet respons-signal:** En enkel, kjørbar oppstartssekvens med tydelig første steg.
 
 ## Felles mal for hver video
 
@@ -888,13 +785,27 @@ Output: tabell med kolonnene Kommentar | Klasse | Begrunnelse | Foreslått handl
 - **Sammenligning (45 sek):** "dyr måte" vs "billig måte".
 - **Avslutning (30 sek):** 1 regel + 1 handling til neste gang.
 
-## Fast "stå alene"-intro per episode (15–20 sek)
+## Fast vignettintro per episode (10–15 sek)
 
-Bruk samme introformat i alle episoder:
+Bruk samme velkomst i alle episoder:
 
-1. Problem: "Dette koster unødvendig tid/tokens."
-2. Mål: "På 3–5 minutter lærer du én konkret teknikk."
-3. Effekt: "Etterpå kan du bruke dette direkte i egen repo."
+> Hei, og velkommen til Copilot-tipsene. På noen få minutter ser vi på ett konkret grep som gir bedre svar, ryddigere context og lavere tokenkost. La oss sette i gang.
+
+Kort variant:
+
+> Hei, og velkommen tilbake. I dag tar vi ett konkret grep for bedre Copilot-bruk og lavere kost.
+
+Mal med plassholdere:
+
+> Hei, og velkommen til Copilot-tipsene. I dag ser vi på {tema} – {nytteverdi} på under {varighet} minutter.
+
+## Fast oppsummering per episode (10–15 sek)
+
+> Kort oppsummert: {hva vi lærte}. Det viktige er {én regel eller ett grep}. Bruk dette neste gang du jobber i Copilot.
+
+## Fast outro per episode (10–15 sek)
+
+> Det var dagens tips. Prøv dette i neste økt, og ta med deg regelen: {én kort regel}. Vi sees i neste episode.
 
 ## Produksjonsnotater
 

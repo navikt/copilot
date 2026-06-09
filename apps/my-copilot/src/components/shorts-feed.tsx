@@ -1,251 +1,268 @@
 "use client";
 
-import { PlayIcon } from "@navikt/aksel-icons";
-import { BodyShort, Box, Heading, HStack, VStack } from "@navikt/ds-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { HStack, VStack } from "@navikt/ds-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { HomepageVideo } from "@/lib/public-videos";
+import { isCompleted, type PlaybackState } from "@/lib/video-playback-machine";
+import { accentForEpisode } from "./video-overlay-components";
+import { CompletedOverlay, CornerFullscreenButton, IdleCaption } from "./video-card-chrome";
+import { UnifiedVideoHUD } from "./unified-video-hud";
 import {
-  loadWatchState,
-  markWatched,
-  orderVideosByWatchStatus,
-  saveWatchState,
-  upsertProgress,
-  type WatchStateV1,
-} from "@/lib/video-watch-state";
-import { emitVideoKPIEvent } from "@/lib/video-kpi-events";
-import { VideoOverlayRenderer } from "./video-overlay-renderer";
+  type ShortsFeedController,
+  type ShortsFeedMediaHandlers,
+  useShortsFeedController,
+} from "./use-shorts-feed-controller";
 
 type ShortsFeedProps = {
   videos: HomepageVideo[];
+  initialVideoId?: string;
 };
 
-export function ShortsFeed({ videos }: ShortsFeedProps) {
-  const [activeId, setActiveId] = useState<string>(videos[0]?.id ?? "");
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
-  const [watchState, setWatchState] = useState<WatchStateV1>(() => loadWatchState());
-  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
-  const persistedProgressSecondById = useRef<Map<string, number>>(new Map());
-  const pendingPlayId = useRef<string | null>(null);
-  const feedImpressionSent = useRef(false);
-  const startedIds = useRef<Set<string>>(new Set());
-  const rebufferCountById = useRef<Map<string, number>>(new Map());
-  const playErrorKeys = useRef<Set<string>>(new Set());
-  const orderedVideos = useMemo(
-    () => orderVideosByWatchStatus(videos, watchState, "deprioritize"),
-    [videos, watchState]
-  );
-  const resolvedActiveId =
-    orderedVideos.length > 0 && orderedVideos.some((video) => video.id === activeId)
-      ? activeId
-      : (orderedVideos[0]?.id ?? "");
+function formatDuration(durationSec: number): string {
+  const min = Math.floor(durationSec / 60);
+  const sec = durationSec % 60;
+  return `${min}:${String(sec).padStart(2, "0")}`;
+}
 
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => setReducedMotion(media.matches);
-    apply();
-    media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
+function episodeMarkerFor(video: HomepageVideo): string | undefined {
+  return video.metadata?.overlay?.find((overlay) => overlay.kind === "episode-number")?.labels?.[0];
+}
+
+function episodeLabelFor(video: HomepageVideo): string | undefined {
+  if (video.category === "cplt") {
+    return "Bonus";
+  }
+  if (video.metadata?.season && video.metadata?.episode) {
+    return `S${video.metadata.season}E${video.metadata.episode}`;
+  }
+  return undefined;
+}
+
+// Presentational card. All interaction is delegated to the controller; this
+// component only maps the resolved playback state onto chrome.
+function ShortsFeedCard({
+  video,
+  isActive,
+  playbackState,
+  mediaHandlers,
+  setVideoNode,
+  setCardNode,
+  onOpen,
+  onKeyDown,
+  onCenterAction,
+  onSeekBackward,
+  onSeekForward,
+  onReplay,
+  onFullscreen,
+}: {
+  video: HomepageVideo;
+  isActive: boolean;
+  playbackState: PlaybackState;
+  mediaHandlers: ShortsFeedMediaHandlers;
+  setVideoNode: ShortsFeedController["setVideoNode"];
+  setCardNode: ShortsFeedController["setCardNode"];
+  onOpen: () => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+  onCenterAction: () => void;
+  onSeekBackward: () => void;
+  onSeekForward: () => void;
+  onReplay: () => void;
+  onFullscreen: () => void;
+}) {
+  const marker = episodeMarkerFor(video);
+  const accent = accentForEpisode(marker);
+  const episodeLabel = episodeLabelFor(video);
+
+  // A non-active card always renders in its idle browsing state.
+  const playing = isActive && playbackState === "playing";
+  const paused = isActive && playbackState === "paused";
+  const completed = isActive && isCompleted(playbackState);
+  const showIdleCaption = !isActive || playbackState === "idle";
+  const showPlaybackSurface = playing || paused;
+
+  const shareHref = `${typeof window !== "undefined" ? window.location.origin : ""}/?video=${encodeURIComponent(video.id)}`;
+  const headerEpisodeLabel = episodeLabel ?? video.category;
+
+  const [hudVisible, setHudVisible] = useState(true);
+  const hudHideTimerRef = useRef<number | null>(null);
+
+  const clearHudTimer = useCallback(() => {
+    if (hudHideTimerRef.current !== null) {
+      window.clearTimeout(hudHideTimerRef.current);
+      hudHideTimerRef.current = null;
+    }
   }, []);
 
-  useEffect(() => {
-    if (videos.length > 0 && !feedImpressionSent.current) {
-      feedImpressionSent.current = true;
-      emitVideoKPIEvent("video_feed_impression", { videoCount: videos.length });
+  const hideHud = useCallback(() => {
+    if (!playing) return;
+    setHudVisible(false);
+    clearHudTimer();
+  }, [playing, clearHudTimer]);
+
+  const revealHud = useCallback(() => {
+    setHudVisible(true);
+    clearHudTimer();
+    if (playing) {
+      hudHideTimerRef.current = window.setTimeout(() => {
+        setHudVisible(false);
+      }, 1800);
     }
-  }, [videos]);
+  }, [playing, clearHudTimer]);
 
   useEffect(() => {
-    if (!isViewerOpen) return;
-    for (const [id, video] of videoRefs.current.entries()) {
-      if (id !== resolvedActiveId || reducedMotion) {
-        video.pause();
-        continue;
-      }
-      if (pendingPlayId.current === id) {
-        pendingPlayId.current = null;
-        void video.play().catch(() => {
-          // If autoplay is blocked, native controls let the user start playback.
-        });
-      }
+    clearHudTimer();
+    if (!playing) {
+      const frame = window.requestAnimationFrame(() => {
+        setHudVisible(true);
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
-  }, [reducedMotion, resolvedActiveId, isViewerOpen]);
-
-  const handlePlay = (videoId: string) => {
-    if (startedIds.current.has(videoId)) return;
-    startedIds.current.add(videoId);
-    emitVideoKPIEvent("video_play_started", { videoId });
-  };
-
-  const handleError = (videoId: string) => {
-    const video = videoRefs.current.get(videoId);
-    const errorCode = video?.error?.code;
-    const key = `${videoId}:${errorCode ?? "unknown"}`;
-    if (playErrorKeys.current.has(key)) return;
-    playErrorKeys.current.add(key);
-    emitVideoKPIEvent("video_play_error", {
-      videoId,
-      errorCode: errorCode ?? "unknown",
+    const frame = window.requestAnimationFrame(() => {
+      setHudVisible(true);
+      hudHideTimerRef.current = window.setTimeout(() => {
+        setHudVisible(false);
+      }, 1800);
     });
-  };
+    return () => {
+      window.cancelAnimationFrame(frame);
+      clearHudTimer();
+    };
+  }, [playing, clearHudTimer]);
 
-  const handleWaiting = (videoId: string) => {
-    if (!startedIds.current.has(videoId)) return;
-    const current = rebufferCountById.current.get(videoId) ?? 0;
-    const next = current + 1;
-    rebufferCountById.current.set(videoId, next);
-    emitVideoKPIEvent("video_rebuffer_count", {
-      videoId,
-      rebufferCount: next,
-    });
-  };
+  const showHud = !playing || hudVisible;
 
-  const handleTimeUpdate = (videoId: string) => {
-    const video = videoRefs.current.get(videoId);
-    if (!video) return;
+  return (
+    <div ref={(node) => setCardNode(video.id, node)} className="group snap-start shrink-0 w-[240px] sm:w-[260px]">
+      <div
+        role={isActive ? undefined : "button"}
+        tabIndex={isActive ? -1 : 0}
+        aria-label={isActive ? undefined : `Åpne video: ${video.title}`}
+        onClick={isActive ? undefined : onOpen}
+        onKeyDown={isActive ? undefined : onKeyDown}
+        onMouseMove={isActive ? revealHud : undefined}
+        onMouseLeave={isActive ? hideHud : undefined}
+        onTouchStart={isActive ? revealHud : undefined}
+        className={`relative w-full overflow-hidden rounded-xl aspect-[9/16] ${
+          isActive ? "bg-black" : "text-left outline-none focus:ring-2 focus:ring-blue-500"
+        }`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={video.posterUrl}
+          alt=""
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
+            showPlaybackSurface ? "opacity-0" : "opacity-100"
+          }`}
+        />
+        <video
+          ref={(node) => setVideoNode(video.id, node)}
+          controls={isActive}
+          playsInline
+          preload="metadata"
+          poster={video.posterUrl}
+          className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-200 ${
+            showPlaybackSurface ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          onPlay={mediaHandlers.onPlay}
+          onPause={mediaHandlers.onPause}
+          onTimeUpdate={mediaHandlers.onTimeUpdate}
+          onEnded={mediaHandlers.onEnded}
+          onError={mediaHandlers.onError}
+          onWaiting={mediaHandlers.onWaiting}
+        >
+          <source key={`${video.id}-hls`} src={video.playUrl} type="application/x-mpegURL" />
+          {video.mp4Url ? <source key={`${video.id}-mp4`} src={video.mp4Url} type="video/mp4" /> : null}
+          {video.captionsUrl ? (
+            <track
+              key={`${video.id}-captions`}
+              src={video.captionsUrl}
+              kind="captions"
+              srcLang={video.language || "nb"}
+              label="Teksting"
+            />
+          ) : null}
+        </video>
 
-    const currentSecond = Math.floor(video.currentTime);
-    if (currentSecond <= 0 || currentSecond % 5 !== 0) return;
+        {paused && <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />}
+        {showIdleCaption && (
+          <div className="absolute inset-x-0 bottom-0 z-10 h-32 pointer-events-none bg-gradient-to-t from-black/75 via-black/35 to-transparent" />
+        )}
 
-    const lastPersistedSecond = persistedProgressSecondById.current.get(videoId) ?? -1;
-    if (lastPersistedSecond === currentSecond) return;
-    persistedProgressSecondById.current.set(videoId, currentSecond);
+        {/* Unified HUD: episode pill, badges, duration, share, content panel, playback controls */}
+        {/* Wrap HUD in inert div to prevent keyboard focus when hidden (a11y) */}
+        <div inert={!showHud}>
+          <UnifiedVideoHUD
+            overlays={video.metadata?.overlay}
+            episodeLabel={headerEpisodeLabel}
+            accent={accent}
+            durationLabel={formatDuration(video.durationSec)}
+            shareHref={shareHref}
+            shareTitle={video.title}
+            playing={playing}
+            isActive={isActive}
+            completed={completed}
+            showHud={showHud}
+            playbackState={playbackState}
+            onTogglePlayback={onCenterAction}
+            onSeekBackward={onSeekBackward}
+            onSeekForward={onSeekForward}
+            title={video.title}
+          />
+        </div>
 
-    const duration = Number.isFinite(video.duration) ? video.duration : undefined;
-    setWatchState((prev) => {
-      const next = upsertProgress({
-        state: prev,
-        videoId,
-        currentTimeSec: currentSecond,
-        durationSec: duration,
-      });
-      if (next !== prev) {
-        saveWatchState(next);
-      }
-      return next;
-    });
-  };
+        {isActive ? <CornerFullscreenButton title={video.title} onClick={onFullscreen} /> : null}
 
-  const handleEnded = (videoId: string) => {
-    const video = videoRefs.current.get(videoId);
-    const duration = video && Number.isFinite(video.duration) ? video.duration : undefined;
+        {showIdleCaption && <IdleCaption title={video.title} />}
 
-    setWatchState((prev) => {
-      const next = markWatched({
-        state: prev,
-        videoId,
-        durationSec: duration,
-      });
-      if (next !== prev) {
-        saveWatchState(next);
-      }
-      return next;
-    });
-  };
+        {completed && <CompletedOverlay title={video.title} shareHref={shareHref} onReplay={onReplay} />}
+      </div>
+    </div>
+  );
+}
 
-  const openViewer = (videoId: string) => {
-    pendingPlayId.current = videoId;
-    setActiveId(videoId);
-    setIsViewerOpen(true);
-  };
-
-  const formatDuration = (durationSec: number): string => {
-    const min = Math.floor(durationSec / 60);
-    const sec = durationSec % 60;
-    return `${min}:${String(sec).padStart(2, "0")}`;
-  };
+export function ShortsFeed({ videos, initialVideoId }: ShortsFeedProps) {
+  const controller = useShortsFeedController({ videos, initialVideoId });
+  const {
+    orderedVideos,
+    resolvedActiveId,
+    isViewerOpen,
+    playbackState,
+    scrollContainerRef,
+    setVideoNode,
+    setCardNode,
+    mediaHandlers,
+    openViewer,
+    onPrimaryAction,
+    replayPlayback,
+    seekPlayback,
+    toggleFullscreen,
+    handleCardKeyDown,
+  } = controller;
 
   return (
     <VStack gap="space-12">
-      <div className="overflow-x-auto overscroll-x-contain snap-x snap-mandatory">
+      <div ref={scrollContainerRef} className="overflow-x-auto overscroll-x-contain snap-x snap-mandatory">
         <HStack gap="space-16" wrap={false} align="start">
           {orderedVideos.map((video) => {
-            const overlayEpisodeMarker = video.metadata?.overlay?.find((overlay) => overlay.kind === "episode-number")
-              ?.labels?.[0];
-            const episodeLabel =
-              video.category === "cplt" && overlayEpisodeMarker
-                ? `Bonus ${overlayEpisodeMarker}`
-                : video.metadata?.season && video.metadata?.episode
-                  ? `S${video.metadata.season}E${video.metadata.episode}`
-                  : undefined;
             const isActive = isViewerOpen && resolvedActiveId === video.id;
+
             return (
-              <div key={video.id} className="snap-start shrink-0 w-[240px] sm:w-[260px]">
-                {isActive ? (
-                  <div className="relative w-full overflow-hidden rounded-xl aspect-[9/16] bg-black">
-                    <video
-                      ref={(node) => {
-                        if (!node) {
-                          videoRefs.current.delete(video.id);
-                          return;
-                        }
-                        node.dataset.videoId = video.id;
-                        videoRefs.current.set(video.id, node);
-                      }}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      poster={video.posterUrl}
-                      className="h-full w-full object-contain"
-                      onPlay={() => handlePlay(video.id)}
-                      onTimeUpdate={() => handleTimeUpdate(video.id)}
-                      onEnded={() => handleEnded(video.id)}
-                      onError={() => handleError(video.id)}
-                      onWaiting={() => handleWaiting(video.id)}
-                    >
-                      <source key={`${video.id}-hls`} src={video.playUrl} type="application/x-mpegURL" />
-                      {video.mp4Url ? <source key={`${video.id}-mp4`} src={video.mp4Url} type="video/mp4" /> : null}
-                      {video.captionsUrl ? (
-                        <track
-                          key={`${video.id}-captions`}
-                          src={video.captionsUrl}
-                          kind="captions"
-                          srcLang={video.language || "nb"}
-                          label="Teksting"
-                        />
-                      ) : null}
-                    </video>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => openViewer(video.id)}
-                    className="relative w-full overflow-hidden rounded-xl aspect-[9/16] text-left"
-                    aria-label={`Åpne video: ${video.title}`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={video.posterUrl} alt="" className="h-full w-full object-cover" />
-                    <VideoOverlayRenderer overlays={video.metadata?.overlay} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Box
-                        as="span"
-                        padding="space-12"
-                        className="inline-flex items-center justify-center rounded-full bg-black/60 text-white"
-                      >
-                        <PlayIcon aria-hidden fontSize="1.5rem" />
-                      </Box>
-                    </div>
-                    <Box
-                      as="span"
-                      borderRadius="8"
-                      paddingInline="space-8"
-                      paddingBlock="space-4"
-                      className="absolute top-2 right-2 bg-black/70 text-xs text-white"
-                    >
-                      {formatDuration(video.durationSec)}
-                    </Box>
-                    <Box as="div" padding="space-12" className="absolute inset-x-0 bottom-0 text-white">
-                      <Heading size="xsmall" level="3" className="text-white">
-                        {video.title}
-                      </Heading>
-                      <BodyShort size="small" className="text-white/80">
-                        {episodeLabel ?? video.category}
-                      </BodyShort>
-                    </Box>
-                  </button>
-                )}
-              </div>
+              <ShortsFeedCard
+                key={video.id}
+                video={video}
+                isActive={isActive}
+                playbackState={playbackState}
+                mediaHandlers={mediaHandlers(video.id)}
+                setVideoNode={setVideoNode}
+                setCardNode={setCardNode}
+                onOpen={() => openViewer(video.id)}
+                onKeyDown={(event) => handleCardKeyDown(event, video.id)}
+                onCenterAction={() => onPrimaryAction(video.id)}
+                onSeekBackward={() => seekPlayback(video.id, -5)}
+                onSeekForward={() => seekPlayback(video.id, 5)}
+                onReplay={() => replayPlayback(video.id)}
+                onFullscreen={() => toggleFullscreen(video.id)}
+              />
             );
           })}
         </HStack>

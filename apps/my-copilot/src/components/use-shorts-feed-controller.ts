@@ -1,0 +1,245 @@
+"use client";
+
+// Controller hook for the homepage shorts feed.
+//
+// Owns every imperative concern so the presentation layer can stay declarative:
+//   - DOM refs (video + card elements, scroll container)
+//   - URL <-> active-video synchronisation (?video=...)
+//   - media side-effects (play/pause/scroll-into-view, reduced-motion)
+//   - playback state transitions (via the pure playback machine)
+//   - watch-state persistence and KPI telemetry
+//
+// It returns a small, explicit API. The component renders that API; it never
+// reaches into refs or the media element directly.
+
+import { useCallback, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { HomepageVideo } from "@/lib/public-videos";
+import {
+  canPause,
+  isCompleted,
+  INITIAL_PLAYBACK_STATE,
+  type PlaybackEvent,
+  type PlaybackState,
+  playbackTransition,
+} from "@/lib/video-playback-machine";
+import { orderVideosByWatchStatus } from "@/lib/video-watch-state";
+import { useUrlSyncAdapter } from "./use-shorts-feed-url-sync-adapter";
+import { useStorageAdapter } from "./use-shorts-feed-storage-adapter";
+import { useTelemetryAdapter } from "./use-shorts-feed-telemetry-adapter";
+import { useMediaAdapter, type ShortsFeedMediaHandlers } from "./use-shorts-feed-media-adapter";
+
+type UseShortsFeedControllerArgs = {
+  videos: HomepageVideo[];
+  initialVideoId?: string;
+};
+
+export type { ShortsFeedMediaHandlers };
+
+export type ShortsFeedController = {
+  orderedVideos: HomepageVideo[];
+  resolvedActiveId: string;
+  isViewerOpen: boolean;
+  playbackState: PlaybackState;
+  reducedMotion: boolean;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  setVideoNode: (videoId: string, node: HTMLVideoElement | null) => void;
+  setCardNode: (videoId: string, node: HTMLDivElement | null) => void;
+  mediaHandlers: (videoId: string) => ShortsFeedMediaHandlers;
+  openViewer: (videoId: string) => void;
+  closeViewer: () => void;
+  onPrimaryAction: (videoId: string) => void;
+  resumePlayback: (videoId: string) => void;
+  pausePlayback: (videoId: string) => void;
+  replayPlayback: (videoId: string) => void;
+  seekPlayback: (videoId: string, deltaSeconds: number) => void;
+  toggleFullscreen: (videoId: string) => void;
+  handleCardKeyDown: (event: KeyboardEvent<HTMLDivElement>, videoId: string) => void;
+};
+
+export function useShortsFeedController({ videos, initialVideoId }: UseShortsFeedControllerArgs): ShortsFeedController {
+  const initialActiveId = useMemo(() => {
+    if (initialVideoId && videos.some((video) => video.id === initialVideoId)) {
+      return initialVideoId;
+    }
+    return videos[0]?.id ?? "";
+  }, [initialVideoId, videos]);
+
+  const initiallyOpen = Boolean(initialVideoId && videos.some((video) => video.id === initialVideoId));
+
+  const [activeId, setActiveId] = useState<string>(initialActiveId);
+  const [isViewerOpen, setIsViewerOpen] = useState(initiallyOpen);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [playbackState, setPlaybackState] = useState<PlaybackState>(
+    initiallyOpen ? playbackTransition(INITIAL_PLAYBACK_STATE, { type: "OPEN" }) : INITIAL_PLAYBACK_STATE
+  );
+  const [forceReorder, setForceReorder] = useState(0);
+
+  const { watchState, updateProgress, markComplete, flushProgress } = useStorageAdapter();
+  const telemetry = useTelemetryAdapter({ videos });
+  const pendingPlayId = useRef<string | null>(initialVideoId ?? null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const orderedVideos = useMemo(() => {
+    // Don't reorder while video is actively playing (confusing UX if active video moves)
+    if (playbackState !== "idle") {
+      return videos;
+    }
+    return orderVideosByWatchStatus(videos, watchState, "deprioritize");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videos, watchState, playbackState, forceReorder]);
+
+  const resolvedActiveId =
+    orderedVideos.length > 0 && orderedVideos.some((video) => video.id === activeId)
+      ? activeId
+      : (orderedVideos[0]?.id ?? "");
+
+  // Single funnel for every state change. Keeps transitions legal and centralised
+  // so the component can describe intent ("open", "pause") rather than spell out
+  // which concrete state should result.
+  const dispatch = useCallback((event: PlaybackEvent) => {
+    setPlaybackState((current) => playbackTransition(current, event));
+  }, []);
+
+  // Initialize media adapter with guard for active events
+  const isActiveEvent = useCallback(
+    (videoId: string) => isViewerOpen && videoId === resolvedActiveId,
+    [isViewerOpen, resolvedActiveId]
+  );
+
+  const media = useMediaAdapter({
+    dispatch,
+    isActiveEvent,
+    telemetry,
+    updateProgress,
+    markComplete,
+    flushProgress,
+  });
+
+  // --- reduced motion -------------------------------------------------------
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReducedMotion(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  // --- URL <-> active video sync (delegated to adapter) --------------------
+  useUrlSyncAdapter({
+    videos,
+    initialActiveId,
+    isViewerOpen,
+    dispatch,
+    setActiveId,
+    setIsViewerOpen,
+    onOpenViewer: (videoId) => {
+      pendingPlayId.current = videoId;
+    },
+  });
+
+  // --- autoplay / single-active enforcement --------------------------------
+  useEffect(() => {
+    if (!isViewerOpen) return;
+    for (const [id, video] of media.videoRefs.current.entries()) {
+      if (id !== resolvedActiveId || reducedMotion) {
+        video.pause();
+        continue;
+      }
+      if (pendingPlayId.current === id) {
+        pendingPlayId.current = null;
+        void video.play().catch(() => {
+          // If autoplay is blocked, native controls let the user start playback.
+        });
+      }
+    }
+  }, [reducedMotion, resolvedActiveId, isViewerOpen, media.videoRefs]);
+
+  // --- scroll the active card into view ------------------------------------
+  useEffect(() => {
+    if (!isViewerOpen || !resolvedActiveId) return;
+    const card = media.cardRefs.current.get(resolvedActiveId);
+    if (!card) return;
+
+    card.scrollIntoView({
+      block: "nearest",
+      inline: "center",
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  }, [isViewerOpen, resolvedActiveId, reducedMotion, media.cardRefs]);
+
+  // --- imperative controls delegated to adapter ----------------------------
+  const openViewer = useCallback(
+    (videoId: string) => {
+      pendingPlayId.current = videoId;
+      setActiveId(videoId);
+      setIsViewerOpen(true);
+      dispatch({ type: "OPEN" });
+      media.resumePlayback(videoId);
+    },
+    [dispatch, media]
+  );
+
+  const closeViewer = useCallback(() => {
+    dispatch({ type: "CLOSE" });
+
+    // Delay list reordering to complete close animation (300ms matches CSS animation duration)
+    const timeoutId = setTimeout(() => {
+      // Trigger layout recalculation after animation by toggling forceReorder
+      setForceReorder((prev) => prev + 1);
+    }, 300);
+
+    // Store timeout ID for potential cleanup if needed
+    return timeoutId;
+  }, [dispatch]);
+
+  const handleCardKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>, videoId: string) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openViewer(videoId);
+      }
+    },
+    [openViewer]
+  );
+
+  const onPrimaryAction = useCallback(
+    (videoId: string) => {
+      if (videoId !== resolvedActiveId || !isViewerOpen) {
+        openViewer(videoId);
+        return;
+      }
+      if (canPause(playbackState)) {
+        media.pausePlayback(videoId);
+        return;
+      }
+      if (isCompleted(playbackState)) {
+        media.replayPlayback(videoId);
+        return;
+      }
+      media.resumePlayback(videoId);
+    },
+    [resolvedActiveId, isViewerOpen, playbackState, openViewer, media]
+  );
+
+  return {
+    orderedVideos,
+    resolvedActiveId,
+    isViewerOpen,
+    playbackState,
+    reducedMotion,
+    scrollContainerRef,
+    setVideoNode: media.setVideoNode,
+    setCardNode: media.setCardNode,
+    mediaHandlers: media.mediaHandlers,
+    openViewer,
+    closeViewer,
+    onPrimaryAction,
+    resumePlayback: media.resumePlayback,
+    pausePlayback: media.pausePlayback,
+    replayPlayback: media.replayPlayback,
+    seekPlayback: media.seekPlayback,
+    toggleFullscreen: media.toggleFullscreen,
+    handleCardKeyDown,
+  };
+}

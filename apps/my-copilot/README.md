@@ -8,6 +8,26 @@ My Copilot is a self-service tool for managing your GitHub Copilot subscription.
 - **Subscription Details**: Users can view details about their current subscription, including plan type, status, last activity, and more.
 - **User Information**: Displays user information such as name, email, and groups.
 
+## Video HUD System
+
+The homepage features a production-ready **video HUD system** for playing short educational videos in a dedicated player interface. This system includes:
+
+- **Playback Control**: Play, pause, skip forward/backward, fullscreen, and repeat functionality
+- **Progress Tracking**: Persistent watch state tracking via localStorage with debounced saves
+- **KPI Telemetry**: Event emission for analytics (play started, errors, rebuffers)
+- **URL Synchronization**: Video state synced with URL query parameters for deep linking
+- **Accessibility**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
+- **Overlay System**: Metadata overlays (episode badges, progress indicators, content metadata)
+
+**For complete documentation**, see [`docs/VIDEO_HUD_ARCHITECTURE.md`](./docs/VIDEO_HUD_ARCHITECTURE.md). This includes:
+
+- Architecture overview with adapter pattern (media, storage, URL-sync, telemetry)
+- Event guard pattern preventing background video corruption
+- State machine for legal playback transitions
+- KPI deduplication strategies
+- Component library reference (episode pills, badges, content panels, etc.)
+- Testing patterns and performance tips
+
 ## Integrations
 
 - **BigQuery**: Usage analytics are read from BigQuery (`copilot_metrics.usage_metrics`), populated by the [copilot-metrics](../copilot-metrics/) naisjob. This replaced the deprecated GitHub Copilot Metrics API.
