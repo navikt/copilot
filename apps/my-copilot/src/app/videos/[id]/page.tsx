@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Box } from "@navikt/ds-react";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
-import { fetchVideoById } from "@/lib/public-videos";
-import { ResponsiveVideoPlayer } from "@/components/responsive-video-player";
+import { fetchVideoById, getPublicVideoFeed, type HomepageVideo } from "@/lib/public-videos";
+import { DetailVideoPlayer } from "@/components/detail-video-player";
 import { VideoMetadata } from "@/components/video-metadata";
 import { VerticalVideoContainer } from "@/components/vertical-video-container";
+import { RelatedVideos } from "@/components/related-videos";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -13,15 +14,27 @@ type Props = {
 
 export default async function VideoPage({ params }: Props) {
   const { id } = await params;
-  const video = await fetchVideoById(id);
+
+  const [video, allVideos] = await Promise.all([fetchVideoById(id), getPublicVideoFeed(20)]);
 
   if (!video) {
     notFound();
   }
 
+  // Related: same series first, then same category, exclude current
+  const related = allVideos
+    .filter((v) => v.id !== id)
+    .sort((a, b) => {
+      const score = (v: HomepageVideo) =>
+        (video.metadata?.series && v.metadata?.series === video.metadata.series ? 2 : 0) +
+        (v.category === video.category ? 1 : 0);
+      return score(b) - score(a);
+    })
+    .slice(0, 6);
+
   return (
     <main className="min-h-screen bg-black">
-      {/* Top navigation bar */}
+      {/* Back navigation */}
       <Box
         paddingBlock="space-12"
         paddingInline={{ xs: "space-16", md: "space-32" }}
@@ -36,19 +49,22 @@ export default async function VideoPage({ params }: Props) {
         </Link>
       </Box>
 
-      {/* Video + metadata — two columns on desktop, stacked on mobile */}
+      {/* Video + right panel */}
       <VerticalVideoContainer>
-        {/* Video column: black, centered, preserves 9:16 */}
+        {/* Video column — narrow, tall, black */}
         <div className="md:w-[400px] md:flex-shrink-0 bg-black flex items-start justify-center md:items-center md:min-h-[calc(100vh-52px)]">
           <Box paddingBlock={{ xs: "space-16", md: "space-0" }}>
-            <ResponsiveVideoPlayer video={video} autoplay={false} />
+            <DetailVideoPlayer video={video} />
           </Box>
         </div>
 
-        {/* Metadata panel: dark surface, scrollable on desktop */}
+        {/* Right panel — metadata top, related bottom */}
         <div className="flex-1 bg-[#111111] md:overflow-y-auto">
           <Box paddingBlock={{ xs: "space-16", md: "space-32" }} paddingInline={{ xs: "space-16", md: "space-32" }}>
             <VideoMetadata video={video} />
+            <Box paddingBlock="space-32">
+              <RelatedVideos videos={related} />
+            </Box>
           </Box>
         </div>
       </VerticalVideoContainer>
