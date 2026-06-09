@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { HomepageVideo } from "@/lib/public-videos";
 import { playbackTransition, INITIAL_PLAYBACK_STATE } from "@/lib/video-playback-machine";
 import { useShortsFeedController } from "./use-shorts-feed-controller";
+import { useMediaAdapter } from "./use-shorts-feed-media-adapter";
 
 // Mock all adapters
 vi.mock("./use-shorts-feed-url-sync-adapter", () => ({
@@ -657,6 +658,147 @@ describe("useShortsFeedController", () => {
       // Test passes if no error thrown
       expect(true).toBe(true);
 
+      vi.useRealTimers();
+    });
+  });
+
+  // ============================================================================
+  // 11. State Machine Coordination (Phase 6c) — single play + single pendingPlayId writer
+  // ============================================================================
+  // These tests drive the autoplay effect with fake <video> elements injected
+  // into the media adapter's videoRefs map, so we can observe that:
+  //   - opening a viewer plays the active video exactly once (no double play)
+  //   - the redundant imperative resumePlayback call was removed from openViewer
+  //   - pendingPlayId is cleared after the first play (no replay on re-render)
+  //   - rapid open/close/open keeps the latest selection (no race)
+
+  describe("State machine coordination (Phase 6c)", () => {
+    type FakeVideo = HTMLVideoElement & {
+      play: ReturnType<typeof vi.fn>;
+      pause: ReturnType<typeof vi.fn>;
+    };
+
+    function createFakeVideo(): FakeVideo {
+      return {
+        play: vi.fn(() => Promise.resolve()),
+        pause: vi.fn(),
+        currentTime: 0,
+        duration: 60,
+      } as unknown as FakeVideo;
+    }
+
+    function createMediaReturn(videoRefs: { current: Map<string, HTMLVideoElement> }, resumePlayback = vi.fn()) {
+      return {
+        videoRefs,
+        cardRefs: { current: new Map<string, HTMLDivElement>() },
+        setVideoNode: vi.fn(),
+        setCardNode: vi.fn(),
+        resumePlayback,
+        pausePlayback: vi.fn(),
+        replayPlayback: vi.fn(),
+        seekPlayback: vi.fn(),
+        toggleFullscreen: vi.fn(),
+        mediaHandlers: vi.fn(() => ({
+          onPlay: vi.fn(),
+          onPause: vi.fn(),
+          onTimeUpdate: vi.fn(),
+          onEnded: vi.fn(),
+          onError: vi.fn(),
+          onWaiting: vi.fn(),
+        })),
+      } as unknown as ReturnType<typeof useMediaAdapter>;
+    }
+
+    function installMediaMock(videoIds: string[]) {
+      const videoRefs = { current: new Map<string, HTMLVideoElement>() };
+      const fakes = new Map<string, FakeVideo>();
+      for (const id of videoIds) {
+        const fake = createFakeVideo();
+        fakes.set(id, fake);
+        videoRefs.current.set(id, fake);
+      }
+      const resumePlayback = vi.fn();
+      vi.mocked(useMediaAdapter).mockReturnValue(createMediaReturn(videoRefs, resumePlayback));
+      return { fakes, resumePlayback };
+    }
+
+    afterEach(() => {
+      // Restore the default empty-map media adapter so this override does not
+      // leak into other suites.
+      vi.mocked(useMediaAdapter).mockReset();
+      vi.mocked(useMediaAdapter).mockImplementation(() =>
+        createMediaReturn({ current: new Map<string, HTMLVideoElement>() })
+      );
+    });
+
+    it("plays the opened video exactly once and never calls resumePlayback directly (no double play)", () => {
+      const { fakes, resumePlayback } = installMediaMock(["a", "b"]);
+      const videos = [createTestVideo("a"), createTestVideo("b")];
+      const { result } = renderHook(() => useShortsFeedController({ videos }));
+
+      act(() => {
+        result.current.openViewer("a");
+      });
+
+      // The autoplay effect flushes within act(); the active video plays once.
+      expect(fakes.get("a")!.play).toHaveBeenCalledTimes(1);
+
+      // The autoplay effect owns playback; openViewer must not imperatively play.
+      expect(resumePlayback).not.toHaveBeenCalled();
+    });
+
+    it("clears pendingPlayId after autoplay so the video is not replayed on re-render", () => {
+      const { fakes } = installMediaMock(["a"]);
+      const videos = [createTestVideo("a")];
+      const { result } = renderHook(() => useShortsFeedController({ videos }));
+
+      act(() => {
+        result.current.openViewer("a");
+      });
+
+      expect(fakes.get("a")!.play).toHaveBeenCalledTimes(1);
+
+      // Grab the reduced-motion change handler so we can force the autoplay
+      // effect to re-run without re-opening the viewer.
+      const applyReducedMotion = matchMediaMock.addEventListener.mock.calls[0][1] as () => void;
+
+      act(() => {
+        matchMediaMock.matches = true;
+        applyReducedMotion();
+      });
+      act(() => {
+        matchMediaMock.matches = false;
+        applyReducedMotion();
+      });
+
+      // Still exactly once: pendingPlayId was cleared after the first play, so the
+      // effect re-running does not retrigger playback.
+      expect(fakes.get("a")!.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("handles rapid open/close/open without losing the latest selection", () => {
+      vi.useFakeTimers();
+      installMediaMock(["a", "b"]);
+      const videos = [createTestVideo("a"), createTestVideo("b")];
+      const { result } = renderHook(() => useShortsFeedController({ videos }));
+
+      act(() => {
+        result.current.openViewer("a");
+      });
+      act(() => {
+        result.current.closeViewer();
+      });
+      act(() => {
+        result.current.openViewer("b");
+      });
+
+      // Latest open wins; no stale "a" selection sticks around.
+      expect(result.current.isViewerOpen).toBe(true);
+      expect(result.current.resolvedActiveId).toBe("b");
+
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
       vi.useRealTimers();
     });
   });

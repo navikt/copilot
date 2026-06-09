@@ -101,6 +101,15 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
     setPlaybackState((current) => playbackTransition(current, event));
   }, []);
 
+  // Single coordination point for autoplay intent ("play this video once its
+  // element is mounted and active"). This is the *only* writer that sets
+  // pendingPlayId; the autoplay effect below is the only reader/clearer. Routing
+  // every open path (openViewer + url-sync) through here keeps the play handoff
+  // in one place instead of scattering raw ref assignments.
+  const requestAutoplay = useCallback((videoId: string) => {
+    pendingPlayId.current = videoId;
+  }, []);
+
   // Initialize media adapter with guard for active events
   const isActiveEvent = useCallback(
     (videoId: string) => isViewerOpen && videoId === resolvedActiveId,
@@ -133,9 +142,7 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
     dispatch,
     setActiveId,
     setIsViewerOpen,
-    onOpenViewer: (videoId) => {
-      pendingPlayId.current = videoId;
-    },
+    onOpenViewer: requestAutoplay,
   });
 
   // --- autoplay / single-active enforcement --------------------------------
@@ -171,13 +178,15 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
   // --- imperative controls delegated to adapter ----------------------------
   const openViewer = useCallback(
     (videoId: string) => {
-      pendingPlayId.current = videoId;
+      requestAutoplay(videoId);
       setActiveId(videoId);
       setIsViewerOpen(true);
       dispatch({ type: "OPEN" });
-      media.resumePlayback(videoId);
+      // No direct resumePlayback here: opening flips isViewerOpen/resolvedActiveId,
+      // which re-runs the autoplay effect and plays the video exactly once. A direct
+      // play() call here would double-trigger playback.
     },
-    [dispatch, media]
+    [dispatch, requestAutoplay]
   );
 
   const closeViewer = useCallback(() => {
