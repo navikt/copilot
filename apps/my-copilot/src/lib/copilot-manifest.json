@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-04T22:25:04.094Z",
+  "generatedAt": "2026-06-09T14:26:06.370Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1289,6 +1289,37 @@
         }
       ],
       "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+    },
+    {
+      "id": "nav-dekoratoren",
+      "name": "nav-dekoratoren",
+      "description": "Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.",
+      "type": "skill",
+      "domain": "frontend",
+      "filePath": ".github/skills/nav-dekoratoren/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/SKILL.md",
+      "contentHash": "aa85d1a436d77c3ca4e451554f2a79b07fe26722103fda6e500836922ea8eaea",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],
+      "references": [
+        {
+          "path": "references/params.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/params.md"
+        },
+        {
+          "path": "references/ssr-functions.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/ssr-functions.md"
+        },
+        {
+          "path": "references/client-functions.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/client-functions.md"
+        },
+        {
+          "path": "references/consent.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/consent.md"
+        }
+      ]
     },
     {
       "id": "nav-plan",

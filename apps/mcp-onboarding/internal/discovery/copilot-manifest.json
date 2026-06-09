@@ -794,6 +794,34 @@
     },
     {
       "type": "skill",
+      "name": "nav-dekoratoren",
+      "displayName": "nav-dekoratoren",
+      "description": "Integrer, konfigurer og bidra til Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
+      "filePath": ".github/skills/nav-dekoratoren/SKILL.md",
+      "contentHash": "aa85d1a436d77c3ca4e451554f2a79b07fe26722103fda6e500836922ea8eaea",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/SKILL.md",
+      "references": [
+        {
+          "path": "references/params.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/params.md"
+        },
+        {
+          "path": "references/ssr-functions.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/ssr-functions.md"
+        },
+        {
+          "path": "references/client-functions.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/client-functions.md"
+        },
+        {
+          "path": "references/consent.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/consent.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "nav-plan",
       "displayName": "nav-plan",
       "description": "Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database, Nais-konfigurasjon og moderniseringsmønstre",

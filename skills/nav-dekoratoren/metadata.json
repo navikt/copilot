@@ -1,0 +1,11 @@
+{
+  "description": "Integrer, konfigurer og bidra til Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
+  "domain": "frontend",
+  "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],
+  "references": [
+    "references/params.md",
+    "references/ssr-functions.md",
+    "references/client-functions.md",
+    "references/consent.md"
+  ]
+}
