@@ -149,3 +149,22 @@ export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVid
     return [];
   }
 }
+
+export async function fetchVideoById(id: string): Promise<HomepageVideo | null> {
+  try {
+    if (!id || typeof id !== "string") {
+      console.error("Invalid video ID:", id);
+      return null;
+    }
+
+    const item = await fetchJSON<PublicVideoFeedItem>(`/public/v1/videos/${encodeURIComponent(id)}`);
+    return mapVideoItem(item);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("404")) {
+      console.info("Video not found:", id);
+      return null;
+    }
+    console.error("Failed to fetch video:", id, error);
+    throw error;
+  }
+}

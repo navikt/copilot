@@ -235,6 +235,98 @@ func (h *VideoHandlers) handleVideoFeed(w http.ResponseWriter, r *http.Request) 
 	respondJSON(w, resp, http.StatusOK)
 }
 
+// handleVideoDetail returns a single video by ID with full metadata
+func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+
+	videoID := r.PathValue("id")
+	if videoID == "" {
+		respondError(w, "invalid_parameter", "video id is required", http.StatusBadRequest)
+		return
+	}
+
+	entries, err := h.manifestCache.get(r.Context())
+	if err != nil {
+		if len(entries) == 0 {
+			slog.Error("Failed to load video manifest", "error", err)
+			respondError(w, "service_unavailable", "Video service is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("Serving stale video manifest after refresh error", "error", err)
+	}
+
+	// Find the requested video
+	var videoEntry *VideoManifestEntry
+	for i := range entries {
+		if entries[i].ID == videoID && entries[i].IsPublished {
+			videoEntry = &entries[i]
+			break
+		}
+	}
+
+	if videoEntry == nil {
+		respondError(w, "not_found", "video not found", http.StatusNotFound)
+		return
+	}
+
+	// Build the response same way as feed items
+	posterURL, err := objectURL(h.publicBaseURL, videoEntry.PosterObject)
+	if err != nil {
+		slog.Error("Invalid poster object in manifest", "id", videoEntry.ID, "error", err)
+		respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+		return
+	}
+	playURL, err := objectURL(h.publicBaseURL, videoEntry.HLSMasterObject)
+	if err != nil {
+		slog.Error("Invalid HLS object in manifest", "id", videoEntry.ID, "error", err)
+		respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+		return
+	}
+	var mp4URL string
+	if videoEntry.MP4Object != "" {
+		mp4URL, err = objectURL(h.publicBaseURL, videoEntry.MP4Object)
+		if err != nil {
+			slog.Error("Invalid MP4 object in manifest", "id", videoEntry.ID, "error", err)
+			respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+			return
+		}
+	}
+	var captionsURL string
+	if videoEntry.CaptionsObject != "" {
+		captionsURL, err = objectURL(h.publicBaseURL, videoEntry.CaptionsObject)
+		if err != nil {
+			slog.Error("Invalid captions object in manifest", "id", videoEntry.ID, "error", err)
+			respondError(w, "internal_error", "Invalid video manifest configuration", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	item := VideoFeedItem{
+		ID:          videoEntry.ID,
+		Title:       videoEntry.Title,
+		Description: videoEntry.Description,
+		Category:    videoEntry.Category,
+		PublishedAt: videoEntry.PublishedAt,
+		DurationSec: videoEntry.DurationSec,
+		AspectRatio: videoEntry.AspectRatio,
+		Language:    videoEntry.Language,
+		PosterURL:   posterURL,
+		PlayURL:     playURL,
+		MP4URL:      mp4URL,
+		CaptionsURL: captionsURL,
+		Metadata:    videoEntry.Metadata,
+	}
+
+	cacheSeconds := h.feedCacheSeconds
+	if cacheSeconds <= 0 {
+		cacheSeconds = 60
+	}
+	cacheControl(w, cacheSeconds, true)
+	respondJSON(w, item, http.StatusOK)
+}
+
 func (h *VideoHandlers) handleVideoPlay(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodGet) {
 		return

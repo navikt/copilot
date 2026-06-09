@@ -124,6 +124,7 @@ func makePublicRouter(config *Config, videoHandlers *VideoHandlers) http.Handler
 	}
 
 	mux.HandleFunc("GET /public/v1/videos", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoFeed })))
+	mux.HandleFunc("GET /public/v1/videos/{id}", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoDetail })))
 	mux.HandleFunc("GET /public/v1/videos/{id}/play", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoPlay })))
 	mux.HandleFunc("GET /public/v1/videos/{id}/captions", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoCaptions })))
 
