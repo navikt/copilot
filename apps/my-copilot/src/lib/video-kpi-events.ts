@@ -17,6 +17,11 @@ type VideoKPIEvent = {
 };
 
 export function emitVideoKPIEvent(event: VideoKPIEventName, payload: VideoKPIEventPayload) {
-  const entry: VideoKPIEvent = { event, payload };
-  window.dispatchEvent(new CustomEvent<VideoKPIEvent>("video-kpi", { detail: entry }));
+  try {
+    const entry: VideoKPIEvent = { event, payload };
+    window.dispatchEvent(new CustomEvent<VideoKPIEvent>("video-kpi", { detail: entry }));
+  } catch (error) {
+    console.error("[KPI Event Error] Failed to emit video KPI event:", error, { event });
+    // Intentionally don't re-throw; KPI telemetry failure should not crash playback
+  }
 }
