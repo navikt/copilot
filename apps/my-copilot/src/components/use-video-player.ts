@@ -101,6 +101,7 @@ export function useVideoPlayer({ video, autoplay = false, onPlaybackStateChange 
     videoRef,
     playbackState,
     isFullscreen,
+    setIsFullscreen,
     play,
     pause,
     toggleFullscreen,

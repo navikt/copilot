@@ -34,50 +34,70 @@ export default async function VideoPage({ params }: Props) {
         paddingInline={{ xs: "space-16", md: "space-40" }}
         className="max-w-7xl mx-auto"
       >
-        <h1 className="text-4xl font-bold mb-4">{video.title}</h1>
-        <p className="text-lg text-gray-600 mb-8 leading-relaxed">{video.description}</p>
+        <Box paddingBlock="space-8">
+          <h1 className="text-4xl font-bold">{video.title}</h1>
+        </Box>
+        <Box paddingBlock="space-16">
+          <p className="text-lg text-gray-600 leading-relaxed">{video.description}</p>
+        </Box>
 
         {/* Metadata grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-          <div>
-            <p className="text-sm text-gray-500 font-semibold mb-1">Duration</p>
-            <p className="text-lg font-semibold">
-              {Math.floor(video.durationSec / 60)}m {video.durationSec % 60}s
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 font-semibold mb-1">Language</p>
-            <p className="text-lg font-semibold capitalize">{video.language}</p>
-          </div>
-          {video.metadata?.series && (
+        <Box paddingBlock="space-24">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <p className="text-sm text-gray-500 font-semibold mb-1">Series</p>
-              <p className="text-lg font-semibold">{video.metadata.series}</p>
-            </div>
-          )}
-          {video.metadata?.episode && (
-            <div>
-              <p className="text-sm text-gray-500 font-semibold mb-1">Episode</p>
+              <Box paddingBlock="space-2">
+                <p className="text-sm text-gray-500 font-semibold">Duration</p>
+              </Box>
               <p className="text-lg font-semibold">
-                {video.metadata.season && `S${video.metadata.season}E`}
-                {video.metadata.episode}
+                {Math.floor(video.durationSec / 60)}m {video.durationSec % 60}s
               </p>
             </div>
-          )}
-        </div>
+            <div>
+              <Box paddingBlock="space-2">
+                <p className="text-sm text-gray-500 font-semibold">Language</p>
+              </Box>
+              <p className="text-lg font-semibold capitalize">{video.language}</p>
+            </div>
+            {video.metadata?.series && (
+              <div>
+                <Box paddingBlock="space-2">
+                  <p className="text-sm text-gray-500 font-semibold">Series</p>
+                </Box>
+                <p className="text-lg font-semibold">{video.metadata.series}</p>
+              </div>
+            )}
+            {video.metadata?.episode && (
+              <div>
+                <Box paddingBlock="space-2">
+                  <p className="text-sm text-gray-500 font-semibold">Episode</p>
+                </Box>
+                <p className="text-lg font-semibold">
+                  {video.metadata.season && `S${video.metadata.season}E`}
+                  {video.metadata.episode}
+                </p>
+              </div>
+            )}
+          </div>
+        </Box>
 
         {/* Tags */}
         {video.metadata?.tags && video.metadata.tags.length > 0 && (
-          <div>
-            <p className="text-sm text-gray-500 font-semibold mb-3">Tags</p>
+          <Box paddingBlock="space-16">
+            <Box paddingBlock="space-6">
+              <p className="text-sm text-gray-500 font-semibold">Tags</p>
+            </Box>
             <div className="flex flex-wrap gap-2">
               {video.metadata.tags.map((tag) => (
-                <span key={tag} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                <span
+                  key={tag}
+                  className="bg-gray-100 text-gray-800 rounded-full text-sm"
+                  style={{ padding: "var(--ax-space-4) var(--ax-space-8)" }}
+                >
                   {tag}
                 </span>
               ))}
             </div>
-          </div>
+          </Box>
         )}
       </Box>
 
@@ -86,17 +106,22 @@ export default async function VideoPage({ params }: Props) {
         as="section"
         paddingBlock={{ xs: "space-16", md: "space-24" }}
         paddingInline={{ xs: "space-16", md: "space-40" }}
-        className="max-w-7xl mx-auto border-t pt-12"
+        className="max-w-7xl mx-auto border-t"
+        style={{ paddingTop: "var(--ax-space-24)" }}
       >
-        <h2 className="text-2xl font-bold mb-8">Related Videos</h2>
+        <Box paddingBlock="space-16">
+          <h2 className="text-2xl font-bold">Related Videos</h2>
+        </Box>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-gray-100 rounded-lg overflow-hidden">
               <div className="aspect-video bg-gray-200" />
-              <div className="p-4">
-                <div className="h-4 bg-gray-300 rounded mb-2" />
+              <Box paddingInline="space-8" paddingBlock="space-8">
+                <Box paddingBlock="space-4">
+                  <div className="h-4 bg-gray-300 rounded" />
+                </Box>
                 <div className="h-3 bg-gray-300 rounded w-3/4" />
-              </div>
+              </Box>
             </div>
           ))}
         </div>

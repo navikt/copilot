@@ -82,6 +82,16 @@ describe("fetchVideoById", () => {
     expect(result).toBeNull();
   });
 
+  it("should throw error for server error (500)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response("Internal Server Error", {
+        status: 500,
+      })
+    );
+
+    await expect(fetchVideoById("test-video")).rejects.toThrow();
+  });
+
   it("should encode special characters in video ID", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
       new Response(JSON.stringify({}), {

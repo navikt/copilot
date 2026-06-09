@@ -247,6 +247,16 @@ func (h *VideoHandlers) handleVideoDetail(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if !isValidVideoID(videoID) {
+		respondError(w, "invalid_parameter", "Invalid video id", http.StatusBadRequest)
+		return
+	}
+
+	if !h.playRateLimiter.allow(videoPlayClientKey(r)) {
+		respondError(w, "rate_limit_exceeded", "Too many requests", http.StatusTooManyRequests)
+		return
+	}
+
 	entries, err := h.manifestCache.get(r.Context())
 	if err != nil {
 		if len(entries) == 0 {

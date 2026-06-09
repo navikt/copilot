@@ -1,6 +1,16 @@
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 const VIDEO_FETCH_TIMEOUT_MS = 8000;
 
+class VideoError extends Error {
+  constructor(
+    public status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "VideoError";
+  }
+}
+
 export type PublicVideoFeedItem = {
   id: string;
   title: string;
@@ -135,7 +145,7 @@ async function fetchJSON<T>(path: string): Promise<T> {
     VIDEO_FETCH_TIMEOUT_MS
   );
   if (!response.ok) {
-    throw new Error(`Video API request failed (${response.status})`);
+    throw new VideoError(response.status, `Video API request failed`);
   }
   return response.json() as Promise<T>;
 }
@@ -160,7 +170,7 @@ export async function fetchVideoById(id: string): Promise<HomepageVideo | null> 
     const item = await fetchJSON<PublicVideoFeedItem>(`/public/v1/videos/${encodeURIComponent(id)}`);
     return mapVideoItem(item);
   } catch (error) {
-    if (error instanceof Error && error.message.includes("404")) {
+    if (error instanceof VideoError && error.status === 404) {
       console.info("Video not found:", id);
       return null;
     }

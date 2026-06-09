@@ -11,7 +11,7 @@ interface VideoPlayerProps {
 }
 
 export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
-  const { videoRef, playbackState, isFullscreen, play, pause, toggleFullscreen } = useVideoPlayer({
+  const { videoRef, playbackState, isFullscreen, setIsFullscreen, play, pause, toggleFullscreen } = useVideoPlayer({
     video,
     autoplay,
   });
@@ -20,14 +20,17 @@ export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
 
   // Handle fullscreen state changes
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement && containerRef.current) {
-        containerRef.current.classList.remove("fullscreen");
+      if (document.fullscreenElement === null) {
+        setIsFullscreen(false);
       }
     };
 
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    container.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => container.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
   return (
@@ -54,31 +57,41 @@ export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
       </video>
 
       {/* Custom playback controls */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4 opacity-0 hover:opacity-100 transition-opacity">
+      <Box
+        as="div"
+        className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent opacity-0 hover:opacity-100 transition-opacity"
+        paddingInline="space-8"
+        paddingBlock="space-8"
+      >
         <div className="flex items-center gap-2">
           <button
             onClick={() => (playbackState === "playing" ? pause() : play())}
-            className="px-3 py-2 bg-white/20 hover:bg-white/30 rounded text-white text-sm font-semibold"
+            className="bg-white/20 hover:bg-white/30 rounded text-white text-sm font-semibold"
+            style={{ padding: "var(--ax-space-6) var(--ax-space-8)" }}
             aria-label={playbackState === "playing" ? "Pause" : "Play"}
           >
             {playbackState === "playing" ? "Pause" : "Play"}
           </button>
 
           {video.captionsUrl && (
-            <button className="px-3 py-2 bg-white/20 hover:bg-white/30 rounded text-white text-sm font-semibold">
+            <button
+              className="bg-white/20 hover:bg-white/30 rounded text-white text-sm font-semibold"
+              style={{ padding: "var(--ax-space-6) var(--ax-space-8)" }}
+            >
               CC
             </button>
           )}
 
           <button
             onClick={() => toggleFullscreen()}
-            className="ml-auto px-3 py-2 bg-white/20 hover:bg-white/30 rounded text-white text-sm font-semibold"
+            className="flex-1 bg-white/20 hover:bg-white/30 rounded text-white text-sm font-semibold text-right"
+            style={{ padding: "var(--ax-space-6) var(--ax-space-8)" }}
             aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
             {isFullscreen ? "Exit FS" : "Fullscreen"}
           </button>
         </div>
-      </div>
+      </Box>
     </Box>
   );
 }
