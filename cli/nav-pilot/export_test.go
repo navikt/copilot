@@ -220,10 +220,12 @@ func TestExportInstructions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 3 { // global + accessibility + database
-		t.Fatalf("merged %d sections, want 3", n)
+	// 1 global (copilot-instructions.md) + 2 scoped (accessibility + database)
+	if n != 3 {
+		t.Fatalf("exported %d items, want 3", n)
 	}
 
+	// AGENTS.md should have global content + lazy-load references, not inline scoped sections.
 	agentsMD := filepath.Join(outputDir, "AGENTS.md")
 	data, err := os.ReadFile(agentsMD)
 	if err != nil {
@@ -237,25 +239,44 @@ func TestExportInstructions(t *testing.T) {
 	if !strings.Contains(content, "## Global Instructions") {
 		t.Error("AGENTS.md missing global instructions section")
 	}
-	if !strings.Contains(content, "## Accessibility") {
-		t.Error("AGENTS.md missing accessibility section")
+	if !strings.Contains(content, "## Context Loading") {
+		t.Error("AGENTS.md missing context loading section")
 	}
-	if !strings.Contains(content, "## Database") {
-		t.Error("AGENTS.md missing database section")
+	if !strings.Contains(content, "accessibility.md") {
+		t.Error("AGENTS.md missing lazy-load reference to accessibility.md")
+	}
+	if !strings.Contains(content, "database.md") {
+		t.Error("AGENTS.md missing lazy-load reference to database.md")
+	}
+	// Scoped content must NOT be inlined.
+	if strings.Contains(content, "## Accessibility") {
+		t.Error("AGENTS.md should not inline accessibility section")
+	}
+	if strings.Contains(content, "## Database") {
+		t.Error("AGENTS.md should not inline database section")
 	}
 	if strings.Contains(content, "applyTo:") {
 		t.Error("AGENTS.md should not contain applyTo frontmatter")
 	}
 
-	// Verify order: global first, then alphabetical
-	globalIdx := strings.Index(content, "## Global Instructions")
-	accIdx := strings.Index(content, "## Accessibility")
-	dbIdx := strings.Index(content, "## Database")
-	if globalIdx > accIdx {
-		t.Error("global instructions should come before accessibility")
+	// Scoped instruction files must be exported individually.
+	accData, err := os.ReadFile(filepath.Join(outputDir, "instructions", "accessibility.md"))
+	if err != nil {
+		t.Fatalf("instructions/accessibility.md not found: %v", err)
 	}
-	if accIdx > dbIdx {
-		t.Error("sections not in alphabetical order: accessibility should come before database")
+	if !strings.Contains(string(accData), "Always use semantic HTML") {
+		t.Error("accessibility.md missing content")
+	}
+	if strings.Contains(string(accData), "applyTo:") {
+		t.Error("accessibility.md should not contain applyTo frontmatter")
+	}
+
+	dbData, err := os.ReadFile(filepath.Join(outputDir, "instructions", "database.md"))
+	if err != nil {
+		t.Fatalf("instructions/database.md not found: %v", err)
+	}
+	if !strings.Contains(string(dbData), "Follow Flyway naming convention") {
+		t.Error("database.md missing content")
 	}
 }
 
@@ -406,9 +427,9 @@ func TestExportBlocksWithoutForce(t *testing.T) {
 
 func TestExportSummary(t *testing.T) {
 	tests := []struct {
-		name                                       string
-		skills, commands, agents, instructions      int
-		want                                       string
+		name                                   string
+		skills, commands, agents, instructions int
+		want                                   string
 	}{
 		{"all types", 3, 2, 4, 2, "3 skill(s), 2 command(s), 4 agent(s), AGENTS.md"},
 		{"skills only", 1, 0, 0, 0, "1 skill(s)"},

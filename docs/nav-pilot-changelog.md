@@ -2,6 +2,18 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-06-09
+
+### nav-pilot CLI — `export opencode` token-optimalisering
+
+`export opencode` genererte tidligere én AGENTS.md med alle instruksjoner (~4 600 linjer) som ble lastet inn av OpenCode på hvert prompt.
+
+Ny oppførsel: instruksjoner med spesifikk `applyTo`-pattern (`.go`, `.kt`, `.tsx`, osv.) eksporteres som individuelle filer til `.opencode/instructions/<name>.md` og refereres lazily fra AGENTS.md. Globale instruksjoner (uten pattern eller `applyTo: "**"`) forblir inline i AGENTS.md.
+
+Resultat: AGENTS.md er nå ~300 linjer i stedet for ~4 600 — ca. 85 % tokenreduksjon per prompt. Språk- og rammeverk-spesifikk kontekst lastes kun når relevant.
+
+---
+
 ## 2026-06-05
 
 ### nav-pilot og my-copilot — sync, launch og hash-anchor
