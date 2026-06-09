@@ -43,6 +43,8 @@ Focus on:
 3. Multi-service dependency plans with high blast radius
 4. Critical review before major implementation starts
 
+Canonical design doc: `docs/nav-pilot-design.md`.
+
 Do not own full end-to-end delivery conversations. `@nav-pilot` owns orchestration and final synthesis.
 
 ## Output contract
