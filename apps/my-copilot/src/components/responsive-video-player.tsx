@@ -21,9 +21,8 @@ interface ResponsiveVideoPlayerProps {
  * Desktop (lg+): Flex grow to fill available space
  */
 export function ResponsiveVideoPlayer({ video, autoplay = false }: ResponsiveVideoPlayerProps) {
-  // Default to 16:9 for all videos (backwards compatible)
-  // In future, can extend HomepageVideo type to include aspectRatio field
-  const aspectRatio = "16 / 9";
+  // Use video's aspect ratio from API, fallback to 16:9
+  const aspectRatio = video.aspectRatio || "16 / 9";
 
   return (
     <Box

@@ -79,6 +79,7 @@ export type HomepageVideo = {
   playUrl: string;
   mp4Url?: string;
   captionsUrl?: string;
+  aspectRatio: string;
   metadata?: {
     series?: string;
     season?: number;
@@ -112,6 +113,7 @@ function mapVideoItem(item: PublicVideoFeedItem): HomepageVideo {
     playUrl: item.play_url,
     mp4Url: item.mp4_url,
     captionsUrl: item.captions_url,
+    aspectRatio: item.aspect_ratio || "16 / 9",
     metadata: item.metadata
       ? {
           series: item.metadata.series,
