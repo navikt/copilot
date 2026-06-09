@@ -80,7 +80,7 @@ function ShortsFeedCard({
   const showIdleCaption = !isActive || playbackState === "idle";
   const showPlaybackSurface = playing || paused;
 
-  const shareHref = `${typeof window !== "undefined" ? window.location.origin : ""}/?video=${encodeURIComponent(video.id)}`;
+  const shareHref = `${typeof window !== "undefined" ? window.location.origin : ""}/videos/${encodeURIComponent(video.id)}`;
   const headerEpisodeLabel = episodeLabel ?? video.category;
 
   const [hudVisible, setHudVisible] = useState(true);

@@ -11,7 +11,7 @@ interface VideoPlayerProps {
 }
 
 export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
-  const { videoRef, playbackState, isFullscreen, error, play, pause, toggleFullscreen } = useVideoPlayer({
+  const { videoRef, playbackState, isFullscreen, play, pause, toggleFullscreen } = useVideoPlayer({
     video,
     autoplay,
   });
@@ -52,12 +52,6 @@ export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
         {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} label="Norwegian" />}
         Your browser does not support the video tag.
       </video>
-
-      {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <p className="text-white text-center">{error}</p>
-        </div>
-      )}
 
       {/* Custom playback controls */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4 opacity-0 hover:opacity-100 transition-opacity">
