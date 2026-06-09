@@ -127,7 +127,7 @@ export default async function RootLayout({
     });
 
     return (
-        <html lang="no">
+        <html lang="nb">
             <head>
                 <Decorator.HeadAssets />
             </head>
@@ -183,7 +183,7 @@ class MyDocument extends Document<MyDocumentProps> {
     render() {
         const { Decorator } = this.props;
         return (
-            <Html lang="no">
+            <Html lang="nb">
                 <Head>
                     <Decorator.HeadAssets />
                 </Head>
