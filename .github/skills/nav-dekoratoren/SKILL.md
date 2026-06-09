@@ -3,16 +3,8 @@ name: nav-dekoratoren
 description: Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
 license: MIT
 metadata:
-    domain: frontend
-    tags:
-        - nav
-        - dekoratoren
-        - header
-        - footer
-        - integration
-        - ssr
-        - analytics
-        - consent
+  domain: frontend
+  tags: nav dekoratoren header footer integration ssr analytics consent
 ---
 
 # Nav Dekoratøren – integrasjon
@@ -376,7 +368,7 @@ res.setHeader("Content-Security-Policy", csp);
 | Dekoratøren vises ikke                   | Mangler access policy     | Legg til `nav-dekoratoren` i `accessPolicy.outbound.rules` |
 | Layout shift                             | CSR brukes                | Bytt til SSR via `fetchDecoratorReact`                     |
 | Cookie ikke satt                         | Samtykke ikke innhentet   | Bruk `awaitDecoratorData()` + `setNavCookie`               |
-| `getAmplitudeInstance is not a function` | Gammel versjon av moduler | Oppgrader til v4+ og bytt til `getAnalyticsInstance`       |
+| `getAmplitudeInstance is not a function` | Moduler v4+ (API endret)   | Oppgrader til v4+ og bytt til `getAnalyticsInstance`       |
 | `availableLanguages`-URL feil            | URL utenfor nav.no        | Kun `nav.no` og underdomener er tillatt                    |
 
 ---
