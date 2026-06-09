@@ -36,7 +36,8 @@ https://www.nav.no/dekoratoren/?context=arbeidsgiver
 https://www.nav.no/dekoratoren/?availableLanguages=[{"locale":"nb","url":"https://www.nav.no/nb"},{"locale":"en","url":"https://www.nav.no/en"}]
 
 # Brødsmuler
-https://www.nav.no/dekoratoren/?breadcrumbs=[{"url":"https://www.nav.no/person/dittnav","title":"Ditt NAV"},{"url":"https://www.nav.no/person/kontakt-oss","title":"Kontakt oss"}]
+https://www.nav.no/dekoratoren/?breadcrumbs=[{"url":"https://www.nav.no/person/dittnav","title":"Ditt Nav"},
+{"url":"https://www.nav.no/person/kontakt-oss","title":"Kontakt oss"}]
 ```
 
 ## TypeScript-type (full)
