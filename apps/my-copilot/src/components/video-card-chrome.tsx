@@ -14,7 +14,7 @@ import { Box, Heading } from "@navikt/ds-react";
 import { useCopyToClipboard } from "./use-copy-to-clipboard";
 
 export const HEADER_TOKEN_BASE =
-  "inline-flex h-7 items-center rounded-[0.4rem] px-2 text-[11px] font-medium shadow-sm backdrop-blur-sm";
+  "inline-flex h-7 items-center rounded-[0.4rem] px-[var(--ax-space-8)] text-[11px] font-medium shadow-sm backdrop-blur-sm";
 const HEADER_TOKEN_NEUTRAL = "bg-black/70 text-white";
 const HEADER_TOKEN_ACTION =
   "transition-colors hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70";

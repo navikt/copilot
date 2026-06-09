@@ -156,7 +156,7 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
       if (pendingPlayId.current === id) {
         pendingPlayId.current = null;
         void video.play().catch(() => {
-          // If autoplay is blocked, native controls let the user start playback.
+          // If autoplay is blocked, the unified HUD play control lets the user start playback.
         });
       }
     }

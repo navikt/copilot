@@ -156,7 +156,6 @@ function ShortsFeedCard({
         />
         <video
           ref={(node) => setVideoNode(video.id, node)}
-          controls={isActive}
           playsInline
           preload="metadata"
           poster={video.posterUrl}
