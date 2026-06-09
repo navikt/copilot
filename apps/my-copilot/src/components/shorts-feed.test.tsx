@@ -169,7 +169,7 @@ describe("ShortsFeed", () => {
 
     expect(screen.getByRole("link", { name: "Del video: Video A" })).toHaveAttribute(
       "href",
-      expect.stringMatching(/\/\?video=video-a$/)
+      expect.stringMatching(/\/videos\/video-a$/)
     );
   });
 
@@ -185,7 +185,7 @@ describe("ShortsFeed", () => {
     fireEvent.click(screen.getByRole("link", { name: "Del video: Video A" }));
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/\?video=video-a$/));
+      expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/videos\/video-a$/));
     });
   });
 
