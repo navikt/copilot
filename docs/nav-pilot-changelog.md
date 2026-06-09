@@ -4,6 +4,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-06-09
 
+### nav-pilot design — canonical spec og delegasjonsklarhet
+
+- La til `docs/nav-pilot-design.md` som canonical design/spec for nav-pilot
+- Festet at `@nav-pilot` er koordinator, mens spesialistagenter er leaf-only
+- La inn matrise som skiller Copilot-CLI-tips fra nav-pilot-praksis
+- Oppdaterte referanser fra README og agentprompt til å peke på design-docen
+
 ### nav-pilot CLI — `export opencode` token-optimalisering
 
 `export opencode` genererte tidligere én AGENTS.md med alle instruksjoner (~4 600 linjer) som ble lastet inn av OpenCode på hvert prompt.

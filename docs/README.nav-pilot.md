@@ -35,6 +35,7 @@ eval "$(nav-pilot env)"
 ## For bidragsytere
 
 - Agent: `.github/agents/nav-pilot.agent.md`
+- Design: `docs/nav-pilot-design.md`
 - Skills: `.github/skills/<name>/`
 - Instruksjoner: `.github/instructions/`
 

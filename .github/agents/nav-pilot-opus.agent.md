@@ -81,3 +81,7 @@ Then return:
 - Pretend confidence when assumptions are missing
 - Delegate the whole task back; handle the deep subproblem directly
 - Produce broad implementation output when only critical review was requested
+
+## Leaf-only rule
+
+This agent must not delegate further to other agents or tools for orchestration. Solve the narrow subproblem directly, then hand the result back to `@nav-pilot` for synthesis.
