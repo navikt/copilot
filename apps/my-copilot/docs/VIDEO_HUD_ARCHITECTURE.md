@@ -144,6 +144,75 @@ Pure, deterministic state machine enforces legal transitions:
 - Only PLAYING → PAUSED/ENDED/IDLE
 - COMPLETED is terminal
 
+### 4. Video Sorting & Watch-State Freeze
+
+The feed reorders videos by watch status so users always land on something they have not seen yet, but it **freezes that order while the viewer is open** so the active video never jumps mid-playback.
+
+#### Sort algorithm: watch status ordering
+
+`orderVideosByWatchStatus(videos, watchState, "deprioritize")` produces the order:
+
+1. **Unwatched first** — videos where `isWatched(...)` is `false`
+2. **Watched last** — videos marked watched move to the back
+3. **Stable within each group** — original order is preserved inside both partitions
+
+A video counts as watched once its progress crosses `WATCHED_THRESHOLD_PCT` (80%), which sets the `watched` boolean on its `WatchStatus`. The sort reads that flag via `isWatched(getWatchStatus(state, video.id))` — there is no separate `isCompleted` field.
+
+```typescript
+// src/lib/video-watch-state.ts
+export function orderVideosByWatchStatus<T extends { id: string }>(
+  videos: T[],
+  state: WatchStateV1,
+  mode: WatchOrderingMode
+): T[] {
+  if (mode === "hide") {
+    return videos.filter((video) => !isWatched(getWatchStatus(state, video.id)));
+  }
+  const unwatched = videos.filter((video) => !isWatched(getWatchStatus(state, video.id)));
+  const watched = videos.filter((video) => isWatched(getWatchStatus(state, video.id)));
+  return [...unwatched, ...watched];
+}
+```
+
+The `"deprioritize"` mode keeps watched videos in the list at the back; the alternative `"hide"` mode drops them entirely. The feed uses `"deprioritize"`.
+
+#### Freezing the order during playback
+
+The controller computes the sort with `useMemo`, but the **visible** order lives in separate state (`orderedVideos`) that only re-syncs when playback returns to `idle`:
+
+```typescript
+// src/components/use-shorts-feed-controller.ts
+const watchOrder = useMemo(() => orderVideosByWatchStatus(videos, watchState, "deprioritize"), [videos, watchState]);
+const [orderedVideos, setOrderedVideos] = useState<HomepageVideo[]>(watchOrder);
+const [prevPlaybackState, setPrevPlaybackState] = useState<PlaybackState>(playbackState);
+
+// Re-sync only on the transition back to idle (e.g. when the viewer closes).
+if (playbackState !== prevPlaybackState) {
+  setPrevPlaybackState(playbackState);
+  if (playbackState === "idle") {
+    setOrderedVideos(watchOrder);
+  }
+}
+```
+
+**Why freeze.** Without it the experience is jarring:
+
+1. User opens video #3 (position 3)
+2. Playback starts and progress crosses 80%
+3. `watchState` updates, so `watchOrder` recomputes
+4. The active video shifts to the back while the user is watching it
+5. The card reflows and content jumps
+
+By keeping `orderedVideos` frozen across every non-idle state, the active video stays put. While the viewer is open the user is only watching, so they never see the deprioritised order until they close it. On the idle transition `orderedVideos` re-syncs, and the just-watched video moves to the back for the next browse.
+
+This freeze (commit `4985876`) replaced an earlier 300 ms `setTimeout` reorder-on-close (Phase 6d, see below): the timer approach still reordered against the raw `videos` list mid-playback, so freezing the order outright is both simpler and correct.
+
+**Code map:**
+
+- `src/lib/video-watch-state.ts` — `orderVideosByWatchStatus`, `isWatched`, `getWatchStatus`
+- `src/components/use-shorts-feed-controller.ts` — `watchOrder` memo + `orderedVideos` freeze
+- `src/components/shorts-feed.tsx` — renders `orderedVideos.map(...)`
+
 ---
 
 ## Data Flows
@@ -466,43 +535,96 @@ describe("Full Flow", () => {
 
 ## Known Limitations
 
-### 1. Three Writers to pendingPlayId
+### 1. Reflow on video close
 
-Written by:
+Closing the viewer sets `display: none` on non-active cards → DOM reflow.
 
-1. Controller initialization
-2. URL-sync adapter (onOpenViewer callback)
-3. Autoplay effect (clears on play)
+**Impact:** Visual jank on low-end devices.
+**Future:** Use `visibility: hidden` or CSS containment.
 
-**Status:** Works reliably; implicit coordination is safe (sequential writes).
-**Future:** Could formalize with state machine.
-
-### 2. Reflow on Video Close
-
-Closing viewer sets `display: none` on non-active cards → DOM reflow.
-
-**Impact:** Visual jank on low-end devices
-**Future:** Use `visibility: hidden` or CSS containment
-
-### 3. KPI Events Unprotected
-
-`emitVideoKPIEvent` has no try-catch. If telemetry fails, adapter may crash.
-
-**Mitigation:** Wrap in try-catch
-**Status:** Monitored; no production issues
+> The three earlier limitations — implicit `pendingPlayId` writers, unprotected KPI events, and order jumping on first play — were resolved in Phase 6 (see below).
 
 ---
 
-## Future Improvements
+## Phase 6: Final polish & stability
 
-### Phase 6 Plan
+Phase 6 closed the open stability gaps from the original "Known Limitations" list. All four parts are merged and covered by tests.
 
-1. Formalize `pendingPlayId` coordination
-2. Optimize DOM lifecycle (CSS containment)
-3. Protect KPI emission (try-catch)
-4. Resilient URL sync (history.pushState)
+### Phase 6a: Unified control surface
 
-### Long-term Roadmap
+Removed the native HTML5 `<video controls>` UI so the custom HUD is the single control surface, and swapped remaining Tailwind spacing for Aksel tokens.
+
+- `src/components/shorts-feed.tsx` — the `<video>` element no longer sets `controls`
+- `src/components/video-card-chrome.tsx` — Aksel spacing tokens instead of Tailwind `px-*/gap-*`
+- `src/components/unified-video-hud.tsx` — one surface for play/pause/seek/fullscreen
+
+**Why:** avoids duplicate (native + custom) controls and keeps styling consistent with Nav DS.
+**Commit:** `6533981`
+
+### Phase 6b: Error resilience for KPI events
+
+`emitVideoKPIEvent` now wraps `window.dispatchEvent` in try/catch, logs the failure, and does not re-throw. Telemetry failure can no longer crash playback.
+
+```typescript
+// src/lib/video-kpi-events.ts
+export function emitVideoKPIEvent(event: VideoKPIEventName, payload: VideoKPIEventPayload) {
+  try {
+    const entry: VideoKPIEvent = { event, payload };
+    window.dispatchEvent(new CustomEvent<VideoKPIEvent>("video-kpi", { detail: entry }));
+  } catch (error) {
+    console.error("[KPI Event Error] Failed to emit video KPI event:", error, { event });
+    // Intentionally don't re-throw; KPI telemetry failure should not crash playback.
+  }
+}
+```
+
+**Why:** telemetry should degrade gracefully, never break the media experience.
+**Tests:** `src/lib/video-kpi-events.test.ts`.
+**Commit:** `924426e`
+
+### Phase 6c: State machine coordination
+
+Centralised autoplay intent so play happens exactly once.
+
+- Removed the redundant `resumePlayback()` call from `openViewer()` — opening flips `isViewerOpen`/`resolvedActiveId`, which re-runs the autoplay effect and plays the video once.
+- Added `requestAutoplay`, the single writer of `pendingPlayId`. Both `openViewer` and the URL-sync adapter route through it.
+- The autoplay effect stays the only reader/clearer of `pendingPlayId`.
+
+```typescript
+// src/components/use-shorts-feed-controller.ts
+const requestAutoplay = useCallback((videoId: string) => {
+  pendingPlayId.current = videoId;
+}, []);
+```
+
+`pendingPlayId` is a `useRef`, not React state, so setting it never triggers a render — the autoplay effect simply reads `.current` on its next run and clears it.
+
+**Why:** one writer + one clearer removes double-play and makes the handoff easy to reason about.
+**Tests:** race-condition tests in `use-shorts-feed-controller.test.ts` (plays once, clears after autoplay, last-wins on rapid open/close).
+**Commit:** `10994e7`
+
+### Phase 6d: Smooth reordering on close
+
+Phase 6d first added a 300 ms `setTimeout` in `closeViewer` (plus a `forceReorder` toggle) to defer the re-sort until the close animation finished.
+
+That delay was **superseded** by the watch-state freeze (commit `4985876`, see [Video Sorting & Watch-State Freeze](#4-video-sorting--watch-state-freeze)). The current `closeViewer` carries no timer: the `CLOSE` event returns playback to `idle`, and `orderedVideos` re-syncs to the latest watch order on that transition. Same smooth result, no timer to clean up.
+
+```typescript
+// src/components/use-shorts-feed-controller.ts
+const closeViewer = useCallback(() => {
+  dispatch({ type: "CLOSE" });
+  // Returning to idle re-syncs `orderedVideos` to the latest watch-status
+  // order during the next render, so a just-watched video is deprioritized.
+}, [dispatch]);
+```
+
+**Commit:** `64623dc` (initial delay), refined by `4985876` (freeze).
+
+---
+
+## Future improvements
+
+### Long-term roadmap
 
 1. Generalize adapter pattern (podcasts, live streams)
 2. Server-side watch state (cross-device resume)

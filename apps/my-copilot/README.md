@@ -19,6 +19,14 @@ The homepage features a production-ready **video HUD system** for playing short 
 - **Accessibility**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
 - **Overlay System**: Metadata overlays (episode badges, progress indicators, content metadata)
 
+### Video sorting & watch state
+
+Videos are sorted by watch status: unwatched videos appear first, and watched videos (progress ≥ 80%) are deprioritised to the back of the feed.
+
+The order is **frozen while the viewer is open** so the active video never jumps when it crosses the watched threshold mid-playback. The list re-syncs to the latest watch order only when playback returns to idle (i.e. when you close the viewer).
+
+See [`docs/VIDEO_HUD_ARCHITECTURE.md`](./docs/VIDEO_HUD_ARCHITECTURE.md#4-video-sorting--watch-state-freeze) for the algorithm and the freeze mechanism.
+
 **For complete documentation**, see [`docs/VIDEO_HUD_ARCHITECTURE.md`](./docs/VIDEO_HUD_ARCHITECTURE.md). This includes:
 
 - Architecture overview with adapter pattern (media, storage, URL-sync, telemetry)

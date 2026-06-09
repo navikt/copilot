@@ -15,13 +15,13 @@ Complete documentation suite for the video playback system.
 
 ### Architecture & Design
 
-- **[VIDEO_HUD_ARCHITECTURE.md](VIDEO_HUD_ARCHITECTURE.md)** (598 lines)
+- **[VIDEO_HUD_ARCHITECTURE.md](VIDEO_HUD_ARCHITECTURE.md)**
   - Complete system overview with diagrams
-  - Core concepts: event guard, adapter pattern, state machine
+  - Core concepts: event guard, adapter pattern, state machine, video sorting & watch-state freeze
   - Data flows and implementation patterns
   - KPI dedup strategy
   - Testing strategy with code examples
-  - Known limitations and future improvements
+  - Phase 6 changes, known limitations and future improvements
 
 ### Implementation Reference
 
@@ -118,16 +118,17 @@ apps/my-copilot/
 
 ### I need to...
 
-| Task                            | Read                    | Key Section                                                                    |
-| ------------------------------- | ----------------------- | ------------------------------------------------------------------------------ |
-| Understand how the system works | ARCHITECTURE            | [System Overview](VIDEO_HUD_ARCHITECTURE.md#system-overview)                   |
-| Add a new KPI event             | README_VIDEO_HUD        | [KPI Events](../src/components/README_VIDEO_HUD.md#kpi-events-emitted)         |
-| Fix a bug in progress tracking  | ARCHITECTURE            | [Progress Tracking Flow](VIDEO_HUD_ARCHITECTURE.md#progress-tracking-flow)     |
-| Design a new UI overlay         | HUD_DESIGN_GUIDE        | [Component Library](../HUD_DESIGN_GUIDE.md#component-library)                  |
-| Write tests for guards          | README_VIDEO_HUD        | [Event Guard Tests](../src/components/README_VIDEO_HUD.md#media-adapter-tests) |
-| Investigate duplicate KPI       | ARCHITECTURE            | [Deduplication Strategy](VIDEO_HUD_ARCHITECTURE.md#deduplication-strategy)     |
-| Migrate old component           | HUD_COMPONENT_REFERENCE | [Migration Guide](../HUD_COMPONENT_REFERENCE.md#migration-guide)               |
-| Understand accessibility        | ARCHITECTURE            | [Accessibility](VIDEO_HUD_ARCHITECTURE.md#accessibility-wcag-21-aa)            |
+| Task                            | Read                    | Key Section                                                                                         |
+| ------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------- |
+| Understand how the system works | ARCHITECTURE            | [System Overview](VIDEO_HUD_ARCHITECTURE.md#system-overview)                                        |
+| Understand video sorting/order  | ARCHITECTURE            | [Video Sorting & Watch-State Freeze](VIDEO_HUD_ARCHITECTURE.md#4-video-sorting--watch-state-freeze) |
+| Add a new KPI event             | README_VIDEO_HUD        | [KPI Events](../src/components/README_VIDEO_HUD.md#kpi-events-emitted)                              |
+| Fix a bug in progress tracking  | ARCHITECTURE            | [Progress Tracking Flow](VIDEO_HUD_ARCHITECTURE.md#progress-tracking-flow)                          |
+| Design a new UI overlay         | HUD_DESIGN_GUIDE        | [Component Library](../HUD_DESIGN_GUIDE.md#component-library)                                       |
+| Write tests for guards          | README_VIDEO_HUD        | [Event Guard Tests](../src/components/README_VIDEO_HUD.md#media-adapter-tests)                      |
+| Investigate duplicate KPI       | ARCHITECTURE            | [Deduplication Strategy](VIDEO_HUD_ARCHITECTURE.md#deduplication-strategy)                          |
+| Migrate old component           | HUD_COMPONENT_REFERENCE | [Migration Guide](../HUD_COMPONENT_REFERENCE.md#migration-guide)                                    |
+| Understand accessibility        | ARCHITECTURE            | [Accessibility](VIDEO_HUD_ARCHITECTURE.md#accessibility-wcag-21-aa)                                 |
 
 ---
 
