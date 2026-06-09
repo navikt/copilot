@@ -1,6 +1,3 @@
-"use client";
-
-import { Box } from "@navikt/ds-react";
 import type { ReactNode } from "react";
 
 interface VerticalVideoContainerProps {
@@ -8,24 +5,14 @@ interface VerticalVideoContainerProps {
 }
 
 /**
- * Responsive vertical video container
+ * Cinematic two-column layout for the video detail page.
  *
- * Mobile-first layout:
- * - xs-md (0-1024px): Vertical stack with video taking ~70% of viewport height
- * - lg+ (1024px+): Side-by-side with video on left (~55%), metadata on right (~45%)
+ * Mobile (< 768px): stacked — video on top, metadata below.
+ * Desktop (≥ 768px): side-by-side — narrow video column on left, metadata panel on right.
  *
- * Handles both 9:16 (vertical) and 16:9 (horizontal) aspect ratios
+ * The container itself is fully dark (black) so the entire page feels like a video
+ * experience, not a document. Column backgrounds are set by the children.
  */
 export function VerticalVideoContainer({ children }: VerticalVideoContainerProps) {
-  return (
-    <Box
-      as="section"
-      className="min-h-screen bg-white flex flex-col lg:flex-row lg:gap-0 w-full"
-      paddingBlock={{ xs: "space-16", md: "space-24" }}
-      paddingInline={{ xs: "space-16", md: "space-40" }}
-    >
-      {/* This Box wraps the children which includes video + metadata */}
-      <Box className="flex flex-col lg:flex-row lg:gap-12 w-full">{children}</Box>
-    </Box>
-  );
+  return <section className="flex flex-col md:flex-row w-full bg-black min-h-[calc(100vh-52px)]">{children}</section>;
 }

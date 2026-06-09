@@ -65,6 +65,7 @@ function createTestVideo(id: string, title: string = `Video ${id}`): HomepageVid
     category: "copilot",
     durationSec: 60,
     language: "nb",
+    aspectRatio: "9:16",
     posterUrl: `/poster-${id}.jpg`,
     playUrl: `/play-${id}.m3u8`,
     metadata: { overlay: [] },

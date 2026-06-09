@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "ignoreExportsUsedInFile": true,
-  "ignore": ["scripts/**"]
+  "ignore": ["scripts/**"],
+  "ignoreFiles": ["src/components/video-player.tsx", "src/components/use-video-player.ts"]
 }

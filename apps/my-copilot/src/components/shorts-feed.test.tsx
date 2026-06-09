@@ -39,6 +39,7 @@ function createVideo(id: string, title: string): HomepageVideo {
     category: "copilot",
     durationSec: 60,
     language: "nb",
+    aspectRatio: "9:16",
     posterUrl: `/poster-${id}.jpg`,
     playUrl: `/play-${id}.m3u8`,
     metadata: {
