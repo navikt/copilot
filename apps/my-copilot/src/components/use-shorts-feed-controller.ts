@@ -73,21 +73,30 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
   const [playbackState, setPlaybackState] = useState<PlaybackState>(
     initiallyOpen ? playbackTransition(INITIAL_PLAYBACK_STATE, { type: "OPEN" }) : INITIAL_PLAYBACK_STATE
   );
-  const [forceReorder, setForceReorder] = useState(0);
 
   const { watchState, updateProgress, markComplete, flushProgress } = useStorageAdapter();
   const telemetry = useTelemetryAdapter({ videos });
   const pendingPlayId = useRef<string | null>(initialVideoId ?? null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const orderedVideos = useMemo(() => {
-    // Don't reorder while video is actively playing (confusing UX if active video moves)
-    if (playbackState !== "idle") {
-      return videos;
+  // Watch-status order (unwatched first). Recomputed only when inputs change.
+  const watchOrder = useMemo(() => orderVideosByWatchStatus(videos, watchState, "deprioritize"), [videos, watchState]);
+  const [orderedVideos, setOrderedVideos] = useState<HomepageVideo[]>(watchOrder);
+  const [prevPlaybackState, setPrevPlaybackState] = useState<PlaybackState>(playbackState);
+
+  // Re-sync the visible order only when playback returns to idle (e.g. on
+  // close). Freezing the list across every non-idle state keeps the active
+  // video from jumping the instant playback starts — previously the order
+  // reverted to the raw `videos` order, which visibly reordered already-watched
+  // (deprioritized) videos on first play. While idle the user is only browsing,
+  // so the watch state cannot change until the viewer reopens; syncing on the
+  // idle transition is sufficient and avoids re-render loops.
+  if (playbackState !== prevPlaybackState) {
+    setPrevPlaybackState(playbackState);
+    if (playbackState === "idle") {
+      setOrderedVideos(watchOrder);
     }
-    return orderVideosByWatchStatus(videos, watchState, "deprioritize");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videos, watchState, playbackState, forceReorder]);
+  }
 
   const resolvedActiveId =
     orderedVideos.length > 0 && orderedVideos.some((video) => video.id === activeId)
@@ -191,15 +200,8 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
 
   const closeViewer = useCallback(() => {
     dispatch({ type: "CLOSE" });
-
-    // Delay list reordering to complete close animation (300ms matches CSS animation duration)
-    const timeoutId = setTimeout(() => {
-      // Trigger layout recalculation after animation by toggling forceReorder
-      setForceReorder((prev) => prev + 1);
-    }, 300);
-
-    // Store timeout ID for potential cleanup if needed
-    return timeoutId;
+    // Returning to idle re-syncs `orderedVideos` to the latest watch-status
+    // order during the next render, so a just-watched video is deprioritized.
   }, [dispatch]);
 
   const handleCardKeyDown = useCallback(

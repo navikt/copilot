@@ -436,6 +436,53 @@ describe("useShortsFeedController", () => {
       expect(result.current.orderedVideos).toEqual([]);
     });
 
+    it("does not reorder when starting playback of the first video (regression)", async () => {
+      const { useStorageAdapter } = await import("./use-shorts-feed-storage-adapter");
+      const mockUseStorageAdapter = vi.mocked(useStorageAdapter);
+      const originalImpl = mockUseStorageAdapter.getMockImplementation();
+
+      // Video "a" is already watched, so the idle list deprioritizes it to the end.
+      mockUseStorageAdapter.mockReturnValue({
+        watchState: {
+          version: 1,
+          updatedAt: new Date().toISOString(),
+          videos: {
+            a: {
+              watched: true,
+              watchedAt: new Date().toISOString(),
+              progressPct: 100,
+              lastPositionSec: 60,
+              durationSec: 60,
+              lastSeenAt: new Date().toISOString(),
+            },
+          },
+        },
+        updateProgress: vi.fn(),
+        markComplete: vi.fn(),
+        flushProgress: vi.fn(),
+      });
+
+      try {
+        const videos = [createTestVideo("a"), createTestVideo("b"), createTestVideo("c")];
+        const { result } = renderHook(() => useShortsFeedController({ videos }));
+
+        // Idle order deprioritizes the watched video "a" to the end.
+        expect(result.current.orderedVideos.map((v) => v.id)).toEqual(["b", "c", "a"]);
+
+        // Starting playback (leaving idle) must NOT revert to the raw [a, b, c] order.
+        act(() => {
+          result.current.openViewer("b");
+        });
+
+        expect(result.current.playbackState).not.toBe("idle");
+        expect(result.current.orderedVideos.map((v) => v.id)).toEqual(["b", "c", "a"]);
+      } finally {
+        if (originalImpl) {
+          mockUseStorageAdapter.mockImplementation(originalImpl);
+        }
+      }
+    });
+
     it("resolvedActiveId defaults to first video when activeId is invalid", () => {
       const videos = [createTestVideo("a", "Video A"), createTestVideo("b", "Video B")];
 
@@ -593,14 +640,13 @@ describe("useShortsFeedController", () => {
   });
 
   // ============================================================================
-  // 10. Reordering Delay Tests — Smooth close animation with delayed reorder
+  // 10. Reordering on close — re-sync order once the viewer returns to idle
   // ============================================================================
 
-  describe("Reordering delay on close", () => {
-    it("delays list reordering after close to prevent visual jank", () => {
-      vi.useFakeTimers();
+  describe("Reordering on close", () => {
+    it("transitions to idle immediately and re-syncs the order on close", () => {
       const videos = [createTestVideo("a"), createTestVideo("b")];
-      const { result, rerender } = renderHook(() => useShortsFeedController({ videos }));
+      const { result } = renderHook(() => useShortsFeedController({ videos }));
 
       // Open viewer
       act(() => {
@@ -610,35 +656,19 @@ describe("useShortsFeedController", () => {
       expect(result.current.isViewerOpen).toBe(true);
       expect(result.current.playbackState).toBe("paused");
 
-      // Close viewer should transition state immediately
+      // Close viewer transitions state back to idle immediately.
       act(() => {
         result.current.closeViewer();
       });
 
       expect(result.current.playbackState).toBe("idle");
-
-      // Video list should not have changed yet (reorder happens after delay)
-      expect(result.current.orderedVideos).toBeDefined();
-
-      // Advance time by 300ms to trigger reordering
-      act(() => {
-        vi.advanceTimersByTime(300);
-      });
-
-      // After 300ms, the memo should have recalculated
-      // We verify by checking the forceReorder state caused a re-render
-      rerender();
-      expect(result.current.orderedVideos).toBeDefined();
-
-      vi.useRealTimers();
+      expect(result.current.orderedVideos.map((v) => v.id)).toEqual(["a", "b"]);
     });
 
-    it("cleans up timeout on unmount when closeViewer is called", () => {
-      vi.useFakeTimers();
+    it("does not throw when closing then unmounting", () => {
       const videos = [createTestVideo("a"), createTestVideo("b")];
       const { result, unmount } = renderHook(() => useShortsFeedController({ videos }));
 
-      // Open and close viewer
       act(() => {
         result.current.openViewer("a");
       });
@@ -647,18 +677,9 @@ describe("useShortsFeedController", () => {
         result.current.closeViewer();
       });
 
-      // Unmount before timeout completes
       unmount();
 
-      // Advance timers - should not cause errors
-      act(() => {
-        vi.advanceTimersByTime(300);
-      });
-
-      // Test passes if no error thrown
       expect(true).toBe(true);
-
-      vi.useRealTimers();
     });
   });
 
