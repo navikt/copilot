@@ -1,6 +1,6 @@
 {
     "description": "Integrer, konfigurer og bidra til Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
-    "domain": "nav",
+    "domain": "frontend",
     "tags": [
         "nav",
         "dekoratoren",
