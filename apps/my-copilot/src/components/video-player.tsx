@@ -8,9 +8,10 @@ import { useVideoPlayer } from "./use-video-player";
 interface VideoPlayerProps {
   video: HomepageVideo;
   autoplay?: boolean;
+  poster?: string;
 }
 
-export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
+export function VideoPlayer({ video, autoplay = false, poster }: VideoPlayerProps) {
   const { videoRef, playbackState, isFullscreen, setIsFullscreen, play, pause, toggleFullscreen } = useVideoPlayer({
     video,
     autoplay,
@@ -31,7 +32,7 @@ export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
 
     container.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => container.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
+  }, [setIsFullscreen]);
 
   return (
     <Box
@@ -49,6 +50,9 @@ export function VideoPlayer({ video, autoplay = false }: VideoPlayerProps) {
         onPlay={() => play()}
         onPause={() => pause()}
         crossOrigin="anonymous"
+        poster={poster || video.posterUrl}
+        preload="metadata"
+        muted={autoplay}
       >
         <source src={video.playUrl} type="application/x-mpegURL" />
         {video.mp4Url && <source src={video.mp4Url} type="video/mp4" />}

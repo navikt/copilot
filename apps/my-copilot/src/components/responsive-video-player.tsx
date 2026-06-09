@@ -29,9 +29,8 @@ export function ResponsiveVideoPlayer({ video, autoplay = false }: ResponsiveVid
     <Box
       className="w-full flex flex-col flex-shrink-0 lg:flex-1"
       style={{
-        // Mobile: constrain height to 75% of viewport
-        maxHeight: "calc(var(--ax-spacing-base) * 75vh / 4px)",
-        // Desktop (lg+): let it grow
+        // Mobile: constrain to max viewport height for proper layout
+        maxHeight: "75vh",
       }}
     >
       <div
@@ -43,7 +42,7 @@ export function ResponsiveVideoPlayer({ video, autoplay = false }: ResponsiveVid
           justifyContent: "center",
         }}
       >
-        <VideoPlayer video={video} autoplay={autoplay} />
+        <VideoPlayer video={video} autoplay={autoplay} poster={video.posterUrl} />
       </div>
     </Box>
   );
