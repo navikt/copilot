@@ -22,7 +22,7 @@ const meta = {
     ),
   ],
   args: {
-    label: "S1E2",
+    label: "02",
     accent: "#9af0a8",
   },
 } satisfies Meta<typeof EpisodePill>;

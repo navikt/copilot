@@ -15,12 +15,12 @@ export const demoVideo: HomepageVideo = {
     "https://storage.googleapis.com/copilot-videos-public-dev/videos/nav-pilot-s01e02-context-and-session/video.mp4",
   aspectRatio: "9 / 16",
   metadata: {
-    series: "Nav Pilot",
+    series: "video-demoer-kost-token-optimalisering",
     season: 1,
     episode: 2,
-    tags: ["context", "sessions", "workflow"],
+    tags: ["context", "resume", "copilot-cli"],
     overlay: [
-      { kind: "episode-number", anchor: "top-left", labels: ["S1E2"] },
+      { kind: "episode-number", anchor: "top-left", labels: ["02"] },
       { kind: "badge", anchor: "top-right", labels: ["✓"] },
       { kind: "chip", anchor: "bottom-full", labels: ["context", "session", "flow"] },
     ],
@@ -40,7 +40,7 @@ export const relatedVideos: HomepageVideo[] = [
     metadata: {
       ...demoVideo.metadata,
       episode: 1,
-      overlay: [{ kind: "episode-number", anchor: "top-left", labels: ["S1E1"] }],
+      overlay: [{ kind: "episode-number", anchor: "top-left", labels: ["01"] }],
     },
   },
   {
@@ -54,7 +54,7 @@ export const relatedVideos: HomepageVideo[] = [
     metadata: {
       ...demoVideo.metadata,
       episode: 3,
-      overlay: [{ kind: "episode-number", anchor: "top-left", labels: ["S1E3"] }],
+      overlay: [{ kind: "episode-number", anchor: "top-left", labels: ["03"] }],
     },
   },
   {

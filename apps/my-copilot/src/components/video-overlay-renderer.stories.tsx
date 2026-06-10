@@ -47,7 +47,7 @@ export const EpisodeOnly: Story = {
     },
   },
   args: {
-    overlays: [{ kind: "episode-number", anchor: "top-left", labels: ["S1E2"] }],
+    overlays: [{ kind: "episode-number", anchor: "top-left", labels: ["02"] }],
   },
 };
 
