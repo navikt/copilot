@@ -61,6 +61,14 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 
 **Regel:** Ikke endre innholdet i episoder merket **Spilt inn**. Juster bare status, beskrivelser eller produksjonsnotater ved behov.
 
+## Videobeskrivelser for detaljsider
+
+Se [`docs/video-articles.md`](video-articles.md) (eller `docs/video-articles.json` for API-bruk) for korte, actionable artikkelsammendrag for hver episode. Disse vises på video-detaljsidene for å hjelpe seere med å velge hvilke videoer de skal se.
+
+- **Format:** 2-3 avsnitt per episode, ~150-200 ord
+- **Tone:** Konkret problem først, spesifik gevinst, actionable ending
+- **Mål:** Hjelp seeren bestemme seg og gi en forhåndsvisning av hva de lærer
+
 ## Krav: hver innspilling skal gi reell verdi i repoet
 
 For hver episode skal vi velge en konkret oppgave fra backlog før opptak, og output skal ende i én av disse:

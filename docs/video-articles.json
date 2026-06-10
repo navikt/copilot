@@ -1,0 +1,59 @@
+{
+  "episodes": [
+    {
+      "id": "ep1",
+      "title": "Presis prompt på første forsøk",
+      "summary": "Hver gang du skriver en dårlig prompt, må du stille oppfølgingsspørsmål for å fikse den. Det dobler eller tredobler tokenbruken for det samme resultatet. I denne videoen lærer du tre enkle triks som gjør prompts dine presise fra start: legg til kontekst om kodebasen, spesifiser eksakt hva du vil ha, og gi ett eksempel på riktig format.\n\nDisse tre elementene tar 30 sekunder ekstra å skrive, men sparer deg for 5-10 runder med oppklaringer. Det betyr færre tokens, raskere svar, og færre misforståelser. Etter denne videoen skal du kunne skrive en prompt som fungerer første gang—og du sjekker selv at den er klar før du sender den."
+    },
+    {
+      "id": "ep2",
+      "title": "En oppgave per tråd",
+      "summary": "Hvis du hopper mellom mange ulike oppgaver i samme Copilot-sessjon, blir konteksten rotete. LLM-en må huske alle detaljer fra oppgave A mens du spør om oppgave B—og det varer lenge og koster mye. I denne videoen viser jeg to enkle knapper som fikser det: `/clear` starter en ny, ren sessjon, og `/compact` klemmer sammen gamle meldinger når en session blir lang.\n\nResultatet: Bedre fokus, raskere svar, og 30-40% færre tokens per oppgave. Du lærer når du skal bruke hver av dem, og hvordan du merker at konteksten begynner å bli for tung. Prøv `/clear` neste gang du bytter fra en task til en helt annen."
+    },
+    {
+      "id": "ep3",
+      "title": "Riktig modus og agentnivå",
+      "summary": "Du har flere måter å bruke Copilot på: rask spørsmål-svar, planlegging, eller delegering til spesialister. De koster veldig forskjellig—men de fleste velger alltid den dyreste alternativet. I denne videoen lærer du en enkel regel: bruk Ask for småspørsmål, Plan for arkitekturbeslutninger, og spesialistagenter for dypt arbeid. Da betaler du bare for det du trenger.\n\nNår du matcher riktig tool til oppgaven, sparer du 80% tokens på rutinejobber—uten å miste noen kvalitet. Vi viser konkrete eksempler: et designspørsmål (Ask), en API-arkitektur (Plan), og en sikkerhetskontroll (spesialist). Etter denne videoen sjekker du automatisk hvilket modusvalg som passer før du starter."
+    },
+    {
+      "id": "ep4",
+      "title": "Tool-first workflow",
+      "summary": "Når du spør en LLM \"hva inneholder denne filen?\", bruker du 200+ tokens for noe som git/grep gjør på 2 millisekund. Det er som å bruke en luftkisser for å hamre inn en spiker. I denne videoen lærer du å tenke verktøy først: bruk grep, git, gh CLI og andre deterministiske verktøy for å hente fakta, og bruk LLM-en bare for å resonnere over dem.\n\nResultatet: 10x raskere svar, 90% færre tokens, og færre feil—fordi du gir LLM-en faktisk korrekt data i stedet for å be den gjette. Vi viser eksempler med git-historikk, filsøk, og GitHub-API-kall. Test denne regelen på din neste \"søkoppgave\" og merk hvor mye raskere du blir."
+    },
+    {
+      "id": "ep5",
+      "title": "Kort output uten kvalitetstap",
+      "summary": "LLM-er gir deg lange, detaljerte svar som regel. Det er fint når du trenger full forklaring, men når du bare vil ha koden eller punktene, er halvparten av outputen bortkastet. I denne videoen introduserer vi `/terse`-modus: den samme svarene, men uten fyllord, unødvendige forklaringer og repetisjon. Du får 40-50% færre tokens—og eksakt samme informasjon.\n\n/terse er perfekt når du allerede skjønner domenet og bare vil ha resultatet raskt. Vi viser før/etter-eksempler med kodegenering, planlægning og debugging. Etter denne videoen bruker du `/terse` som standard, og velger full-mode bare når du trenger læring, ikke speed."
+    },
+    {
+      "id": "ep6",
+      "title": "Kosteffektiv PR-flyt",
+      "summary": "Når du reviewer mange PRs, kjører du gjerne kodegjennomgang som separate Copilot-sesjoner. Det betyr hver review starter fra topp—full kontekst-overhead for hver PR. I denne videoen lærer du å samle reviews: batch 5-6 PRs i én sessjon, bruk `/diff` for å laste inn filendringer uten å paste dem manuelt, og la Copilot samenligne på tvers av filene.\n\nResultatet: 70% færre tokens per review, raskere feedback, og færre misforståelser mellom reviewerne. Vi viser konkret workflow: last diff, angi fokusregler («les for sikkerhet»), få kommentarer alle PR-er samtidig. Når du har 10+ PRs i backlog, er denne teknikken en game-changer."
+    },
+    {
+      "id": "bonus-a",
+      "title": "Tre dyre anti-mønstre",
+      "summary": "Det finnes tre skjulte måter utviklere bruker 200-300% ekstra tokens uten å vite det. De er så vanlige at du sannsynligvis gjør minst en hver dag. I denne videoen avslører vi dem: gjenta samme kontekst mange ganger, bruk LLM for søk i stedet for grep, og fortsett lange sesjoner når du burde startet på nytt.\n\nHver anti-mønster har en enlinjenregel som fikser det. Etter denne videoen kjenner du igjen anti-mønstre før de sliter ressursene dine, og du vet nøyaktig hva du skal gjøre i stedet. Dette er gjenkjenning som blir til forebyggelse."
+    },
+    {
+      "id": "bonus-b",
+      "title": "Mål effekt i statistikk",
+      "summary": "Du merker at du sparer tokens når du bruker disse trikksene, men hvor mye egentlig? I stedet for å gjette, kan du måle det. I denne videoen lærer du å spore Copilot-bruk fra statistikk-dashbordet, sammenligne før/etter workflow-endringer, og finne hvilken teknikk som gir best return on time.\n\nData slår \"følelse\". Vi viser hvordan du setter opp måling, hva du skal se etter (tokens per oppgave, gjennomsnittlig sessionslengde, modellbruk), og hvordan du deler resultater med teamet. Etter denne videoen baserer du optimiseringer på data, ikke antagelser."
+    },
+    {
+      "id": "bonus-c",
+      "title": "Chronicle — forstå og optimaliser context",
+      "summary": "Context er skjult inne i LLM-en—du kan ikke se hva som blir sendt, og derfor er det vanskelig å optimalisere. Chronicle-verktøyet viser eksakt hvilke filer, meldinger og avhengigheter som er lastet inn, hvor mange tokens hver del bruker, og hvor bottleneckene er. Det er som röntgen for Copilot-sesjoner dine.\n\nMed Chronicle kan du måle hvor mye hver fil/agent/instruksjon koster, og målrette optimiseringen der det faktisk gjør nytte. Vi viser eksempler med monorepo-kontekst, agent-delegering og instruksjonsdrift. Etter denne videoen bruker du Chronicle før store sesjonssett for å finne hidden waste."
+    },
+    {
+      "id": "bonus-d",
+      "title": "Cplt sandbox — kom i gang på 3 minutter",
+      "summary": "Å sette opp Copilot lokalt kan virke komplisert: installation, konfiguration, testing. I denne videoen viser vi Cplt sandbox—en pre-konfigurert testmiljø som gir deg en arbeidsende Copilot-setup på 3 minutter, med alt fra integrasjoner til eksempler allerede på plass.\n\nBruk sandboxen til å eksperimentere med nye workflows, teste optimiseringsteknikker, eller lære agentdelegeringen uten å påvirke din normale setup. Det er som en sikker øvingsgrund for Copilot-bruken din. Etter denne videoen kan du starte experimenter med det samme."
+    },
+    {
+      "id": "bonus-e",
+      "title": "rtk — CLI-output-komprimering (60-90% token-besparelse)",
+      "summary": "Hver gang du kjører `go test -v` fra terminalen, scrolles du gjennom hundrevis av linjer. Mye støy, lite signal. Med `rtk` foran kommandoen får du det samme resultatet på én linje—og 95% færre tokens. rtk er en filter som sitter foran alle dine CLI-kommandoer og klipper vekk støyen automatisk.\n\nIngen oppsetting, ingen læringskurve. Bare legg `rtk` foran hver kommando og se resultatene med `rtk gain`. Vi viser fem konkrete eksempler: git log, go test, git diff, docker ps, og gh CLI—hver med 60-90% besparelse. Prøv rtk foran din neste kommando. Du merker resultatet med en gang."
+    }
+  ]
+}

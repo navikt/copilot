@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "knip": "NODE_OPTIONS='--experimental-require-module' knip",
-    "generate": "node --experimental-strip-types scripts/generate-manifest.ts"
+    "generate": "node --experimental-strip-types scripts/generate-manifest.ts",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@grafana/faro-web-sdk": "^2.7.0",
@@ -38,6 +40,9 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^10.4.3",
+    "@storybook/addon-docs": "^10.4.3",
+    "@storybook/nextjs": "^10.4.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -52,6 +57,7 @@
     "postcss": "^8.5.15",
     "postcss-load-config": "^6.0.1",
     "prettier": "^3.8.3",
+    "storybook": "^10.4.3",
     "tailwindcss": "^4.3.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",

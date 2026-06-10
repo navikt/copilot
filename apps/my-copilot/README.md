@@ -114,6 +114,33 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+### Storybook
+
+Storybook is configured for component-level development and visual testing.
+
+Start Storybook locally:
+
+```bash
+pnpm storybook
+# or
+mise run storybook
+```
+
+Build static Storybook:
+
+```bash
+pnpm build-storybook
+# or
+mise run storybook:build
+```
+
+Storybook runs on [http://localhost:6006](http://localhost:6006).
+
+`mise run dev` starts only the Next.js app. Storybook is started separately with the commands above.
+
+Video stories use real media URLs from the dev bucket (`copilot-videos-public-dev`) via fixtures in `src/components/storybook-video-fixtures.ts`.
+Story structure and documentation conventions are documented in Storybook under `Video/Dokumentasjon/Storybook Guidelines`.
+
 ### Building and Testing
 
 To build the project:
