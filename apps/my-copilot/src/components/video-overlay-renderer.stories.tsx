@@ -11,7 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Plasserer overlay-data fra video-metadata som et absolutt posisjonert lag over spillerflaten: episode-pill og status-glyfer i topp-raden, og innholdspanel over tittelen. Komponenten returnerer `null` når det ikke finnes overlays.",
+          "Plasserer overlaydata fra videometadata som et absolutt posisjonert lag over spilleren: episodebrikke og statusmerker i toppfeltet, og innholdspanel over tittelen. Komponenten returnerer `null` når det ikke finnes overlays.",
       },
     },
   },

@@ -11,7 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Komponert HUD for video-flaten: topp-rad med metadata/deling, overlay-innhold og avspillingslag. Egnet for visuell regresjon av HUD-tilstander.",
+          "Samlet HUD for video-flaten: toppfelt med metadata og deling, overlayinnhold og avspillingslag. Egnet for visuell regresjon av HUD-tilstander.",
       },
     },
   },
@@ -56,7 +56,7 @@ export const Playing: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Avspillingsmodus uten innholdspanel, med fokus på kontroll-lag og synlighet.",
+        story: "Avspillingsmodus uten innholdspanel, med fokus på kontrollaget og synlighet.",
       },
     },
   },

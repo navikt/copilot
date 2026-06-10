@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Små visuelle byggesteiner i video-HUD: episode-pill og status-badges. Brukes for konsekvent metadata-visning på tvers av videokomponenter.",
+          "Små visuelle byggesteiner i video-HUD: episodebrikke og statusmerker. Brukes for konsekvent metadata-visning på tvers av videokomponenter.",
       },
     },
   },
@@ -36,7 +36,7 @@ export const StatusBadges: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Statusindikatorer for korte signaler (f.eks. fullført/check eller advarsel).",
+        story: "Statusindikatorer for korte signaler, for eksempel fullført-sjekk eller advarsel.",
       },
     },
   },

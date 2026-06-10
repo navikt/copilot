@@ -29,7 +29,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Scrim-basen for rik overlay-tekst i video-HUD. Denne storyen dekker de mest komplekse radtypene: regel-header, ladder, counter, monospace chips og status-badge.",
+          "Mørk scrim-bakgrunn for rik overlaytekst i video-HUD. Denne storyen dekker de mest komplekse radtypene: regeloverskrift, ladder, counter, monospace-chips og statusmerke.",
       },
     },
   },
