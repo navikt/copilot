@@ -31,7 +31,7 @@ vi.mock("./use-shorts-feed-telemetry-adapter", () => ({
 }));
 
 vi.mock("./use-shorts-feed-media-adapter", () => ({
-  useMediaAdapter: vi.fn((_callbacks) => ({
+  useMediaAdapter: vi.fn(() => ({
     videoRefs: { current: new Map() },
     cardRefs: { current: new Map() },
     setVideoNode: vi.fn(),
