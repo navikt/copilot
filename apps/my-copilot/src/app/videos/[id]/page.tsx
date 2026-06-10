@@ -5,7 +5,6 @@ import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { fetchVideoById, getPublicVideoFeed, type HomepageVideo } from "@/lib/public-videos";
 import { DetailVideoPlayer } from "@/components/detail-video-player";
 import { VideoMetadata } from "@/components/video-metadata";
-import { VideoPageTheme } from "@/components/video-page-theme";
 import { VerticalVideoContainer } from "@/components/vertical-video-container";
 import { RelatedVideos } from "@/components/related-videos";
 
@@ -34,8 +33,7 @@ export default async function VideoPage({ params }: Props) {
     .slice(0, 6);
 
   return (
-    <main className="video-detail-page bg-black flex-1 h-full min-h-full md:flex md:min-h-0 md:flex-col">
-      <VideoPageTheme />
+    <main className="bg-black flex-1 h-full min-h-full md:flex md:min-h-0 md:flex-col">
       {/* Back navigation */}
       <Box className="bg-black border-b border-white/10">
         <Box

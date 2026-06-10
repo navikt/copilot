@@ -6,14 +6,6 @@
   --color-foreground: var(--foreground);
 }
 
-/* Keep the global content wrapper black on the video detail route. */
-.bg-gray-100:has(.video-detail-page) {
-  background: #000;
-}
-body.video-detail-active > div.bg-gray-100 {
-  background: #000;
-}
-
 /* Hero gradient — deep, immersive dark */
 .hero-gradient {
   background: linear-gradient(170deg, #0c1222 0%, #111b2e 50%, #162036 100%);
