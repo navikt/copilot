@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { Box } from "@navikt/ds-react";
 import type { HomepageVideo } from "@/lib/public-videos";
-import { accentForEpisode } from "./video-overlay-components";
+
+const ACCENTS = ["#66d4cf", "#9af0a8", "#ffd485", "#c6a8ff", "#7cc7ff", "#ff9db1"] as const;
+
+function accentForEpisode(episode: string | undefined): string {
+  const n = Number.parseInt(episode ?? "", 10);
+  if (Number.isFinite(n) && n > 0) {
+    return ACCENTS[(n - 1) % ACCENTS.length];
+  }
+  return ACCENTS[0];
+}
 
 interface RelatedVideosProps {
   videos: HomepageVideo[];
