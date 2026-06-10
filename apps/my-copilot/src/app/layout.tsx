@@ -37,7 +37,7 @@ export default async function RootLayout({
 
   return (
     <html lang="nb">
-      <body className={`${inter.className} bg-gray-800`}>
+      <body className={`${inter.className} bg-gray-800 min-h-dvh flex flex-col`}>
         <Suspense fallback={null}>
           <HashAnchorScroll />
         </Suspense>
@@ -78,7 +78,7 @@ export default async function RootLayout({
             </HStack>
           </Box>
         </header>
-        <div className="bg-gray-100">{children}</div>
+        <div className="bg-gray-100 flex-1 min-h-0">{children}</div>
         <footer className="text-white">
           <Box
             paddingBlock="space-12"
