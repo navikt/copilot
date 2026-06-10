@@ -5,8 +5,8 @@ import { ExternalLinkIcon, PadlockLockedIcon, PlayIcon, BookIcon } from "@navikt
 import NextLink from "next/link";
 import { NewsFeed } from "@/components/news-feed";
 import { HighlightCards } from "@/components/pulse-strip";
+import { HomeShortsFeed } from "@/components/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
-import { ShortsFeed } from "@/components/shorts-feed";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
@@ -68,8 +68,8 @@ export default async function Home() {
                     compact
                     afterFeatured={
                       videos.length > 0 ? (
-                        <Box className="reveal-section">
-                          <ShortsFeed videos={videos} />
+                        <Box key="after-featured-shorts" className="reveal-section">
+                          <HomeShortsFeed videos={videos} />
                         </Box>
                       ) : undefined
                     }
