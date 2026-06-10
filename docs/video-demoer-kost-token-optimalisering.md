@@ -26,7 +26,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 - Rød tråd beholdes, men alle nøkkelbegreper forklares kort på nytt i hver video.
 - Hver episode avsluttes med en selvstendig sjekkliste du kan bruke med en gang.
 
-## Publiseringsplan (6+3)
+## Publiseringsplan (6+4)
 
 **Kjerneepisoder (for alle):**
 1. Episode 1: Presis prompt på første forsøk
@@ -41,6 +41,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 2. Bonus episode B: Mål effekt i statistikk
 3. Bonus episode C: Chronicle — forstå og optimaliser context
 4. Bonus episode D: Cplt sandbox — kom i gang på 3 minutter
+5. Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
 
 ## Produksjonsstatus
 
@@ -56,6 +57,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 | Bonus B | Planlagt | Kan fortsatt justeres. |
 | Bonus C | Planlagt | Fokus: `/context`, `tips`, `cost-tips`, `improve`. |
 | Bonus D | Spilt inn | Lås manus, metadata og overlay. |
+| Bonus E | Planlagt | Fokus: rtk gain/discover, git/go test, side-by-side output. |
 
 **Regel:** Ikke endre innholdet i episoder merket **Spilt inn**. Juster bare status, beskrivelser eller produksjonsnotater ved behov.
 
@@ -778,7 +780,152 @@ Output: nummerert liste.
 
 **Forventet respons-signal:** En enkel, kjørbar oppstartssekvens med tydelig første steg.
 
-## Felles mal for hver video
+---
+
+## Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
+
+**Status:** Planlagt
+
+**Overlay:** E · orange/amber · before/after compression meter · rtk gain · git log / go test / gh pr · 60-90% ↓
+
+**Mål:** Vise hvordan `rtk`-prefiksen på CLI-kommandoer automatisk senker tokenbruk på alle kommandoer — med visuell før/etter-sammenligning av output.
+
+**Kan sees alene fordi:** Vi forklarer `rtk`-prinsippet i 30 sek og viser fem konkrete kommandoer der effekten er tydelig.
+
+**Script-outline (one-take):**
+1. "Hei og velkommen! I dag lærer du ett enkelt grep som senker tokens på alt du kjører fra terminalen."
+2. Vis samme kommando to ganger: uten og med `rtk` foran.
+3. Demonstrer effekten med fem kommandoer (git, go test, docker, etc).
+4. Kjør `rtk gain` for å vise total sparing i denne økten.
+5. Avslutt med: "Add `rtk` to the start of any command."
+
+**Innhold (3–5 min):**
+1. Vis hva `rtk` gjør i 20 sek (filter + compress).
+2. **Demo 1 (45 sek):** `git log --oneline --decorate --all` uten vs med rtk.
+   - Uten: ~80 linjer med mye padding og dekor
+   - Med rtk: ~20 linjer, signal-only
+3. **Demo 2 (45 sek):** `go test ./...` med verbose flag.
+   - Uten: 200+ linjer av buildkraft
+   - Med rtk: 30 linjer, pass/fail aggregert
+4. **Demo 3 (30 sek):** `rtk gain` visuell resultat — total tokens sparet denne økten.
+5. **Demo 4 (20 sek):** `rtk gain --history` per-kommando oversikt.
+6. **Avslutt (30 sek):** Kort sjekkliste: add rtk to all commands.
+
+**Demo-kontekst (referanserepo):** Monorepo med go, git, docker — gir flere virkelige eksempler.
+
+**Reell oppgave i repo (velg én før opptak):**
+- Optimaliser fem kommandoer du kjører regelmessig ved å legge `rtk` foran — vis sparing i `rtk gain`.
+
+**Ta med deg videre:** Prefix alle CLI-kommandoer med `rtk`. En vane som sparer gjentakende.
+
+**Oppsummering:** `rtk` er en enveisventil som klipper støy fra alle kommandoer. Null læringskurve, umiddelbar effekt.
+
+**Outro:** Bruk `rtk` på alt fra terminalen, og sjekk `rtk gain` hver uke for å se den kumulative sparingen.
+
+**Prompt-manus (copy/paste):**
+
+```bash
+# Vis hvordan rtk virker (talk-through, ikke prompt)
+git log --oneline --decorate --all | head -20
+
+rtk git log --oneline --decorate --all
+
+# Go test
+go test -v ./... | head -30
+
+rtk go test -v ./...
+
+# Samlet sparing denne økten
+rtk gain
+
+# Per-kommando historikk
+rtk gain --history
+
+# Finn kommandoer du kjørte uten rtk
+rtk discover
+
+# Benchmarking-modus
+rtk proxy git status
+```
+
+**Demo-senario for videoen:**
+
+Sekvens 1 (0:00-1:00): Introduksjon
+- "Logs og output fra CLI er ofte fulle av støy."
+- "rtk er en filter som sitter foran alle kommandoer."
+- "Bare legg `rtk` foran — og bespar 60–90 % tokens."
+
+Sekvens 2 (1:00-2:15): Før/etter-demo (split screen hvis mulig)
+- **Venstre (uten rtk):** `git log --oneline --decorate --all`
+  - Vis 20–30 linjer av output med mye dekor
+  - Teller tokens mentalt eller med overlay
+- **Høyre (med rtk):** `rtk git log --oneline --decorate --all`
+  - Vis samme kommando, 8–10 linjer, ren output
+  - Overlay viser "60% fewer tokens"
+
+Sekvens 3 (2:15-2:45): Go-test eksempel
+- `go test -v ./...` (verbose, mye noise)
+- `rtk go test -v ./...` (aggregert)
+
+Sekvens 4 (2:45-3:15): Måling og impact
+- Kjør `rtk gain` for å vise sesjonssparing
+- Overlay animerer token-meter oppover
+
+Sekvens 5 (3:15-3:45): Avslutting og sjekkliste
+- "Her er hva du gjør neste gang:"
+  - Prefix all CLI med `rtk`
+  - Kjør `rtk gain` hver dag
+  - Sjekk `rtk gain --history` ukentlig
+
+**Forventet respons-signal:** Tydelig før/etter-kontrast. Mesurable token-sparing. Enkelt regel.
+
+**Overlay metadata (OverlayComponent format):**
+
+```ts
+{
+  id: "bonus-e-rtk",
+  title: "rtk — CLI Output Compression",
+  accent: "#ff8c42", // orange
+  secondaryAccent: "#ffc857", // amber
+  motif: "compression-wave", // visual representation of filtering
+  poster: "bonus-e-rtk-poster.png",
+  components: [
+    {
+      kind: "episode-number",
+      anchor: "top-left",
+      labels: ["E"]
+    },
+    {
+      kind: "compare-bars",
+      anchor: "bottom-full",
+      labels: ["Without rtk (200 lines)", "With rtk (30 lines)"],
+      highlightIndex: 1
+    },
+    {
+      kind: "chip",
+      anchor: "top-right",
+      labels: ["60-90% saved"],
+      monospace: true
+    },
+    {
+      kind: "counter",
+      anchor: "center-left",
+      labels: ["git log", "go test", "docker ps"],
+      highlightIndex: 0
+    }
+  ]
+}
+```
+
+**Frontend rendering hints:**
+- Compression wave motif: show concentric lines squeezing inward, suggesting "filtering"
+- Compare bars: stacked or side-by-side bar chart showing lines reduced
+- Token counter chip: small monospace text in top-right showing percentage
+- Command list: vertical stack of 3 commands with checkmarks
+
+---
+
+
 
 - **Start (20 sek):** Hva du lærer og hvorfor det sparer kost.
 - **Demo (2–3 min):** Ett konkret repo-scenario.
