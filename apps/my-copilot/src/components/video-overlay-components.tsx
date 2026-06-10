@@ -99,8 +99,9 @@ function iconForLabels(labels: string[], monospace?: boolean) {
 export function EpisodePill({ label, accent, className = "" }: { label: string; accent: string; className?: string }) {
   return (
     <span
-      className={`inline-flex h-7 items-center justify-center rounded-[0.4rem] px-2 text-[11px] font-medium shadow-sm backdrop-blur-sm ${className}`.trim()}
+      className={`inline-flex h-7 items-center justify-center rounded-[0.4rem] text-[11px] font-medium shadow-sm backdrop-blur-sm ${className}`.trim()}
       style={{
+        paddingInline: "var(--ax-space-8)",
         background: accent,
         color: "#10141a",
       }}

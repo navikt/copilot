@@ -13,6 +13,13 @@ import { ArrowCirclepathIcon, LinkIcon, PlayIcon } from "@navikt/aksel-icons";
 import { Box, Heading } from "@navikt/ds-react";
 import { useCopyToClipboard } from "./use-copy-to-clipboard";
 
+function resolveShareHref(href: string): string {
+  if (typeof window === "undefined" || !href.startsWith("/")) {
+    return href;
+  }
+  return new URL(href, window.location.origin).toString();
+}
+
 export const HEADER_TOKEN_BASE =
   "inline-flex h-7 items-center rounded-[0.4rem] px-[var(--ax-space-8)] text-[11px] font-medium shadow-sm backdrop-blur-sm";
 const HEADER_TOKEN_NEUTRAL = "bg-black/70 text-white";
@@ -47,8 +54,7 @@ export function HeaderLinkToken({
   className?: string;
 }) {
   const { copied, copy } = useCopyToClipboard(1200);
-  const resolvedShareHref =
-    typeof window !== "undefined" && href.startsWith("/") ? new URL(href, window.location.origin).toString() : href;
+  const resolvedShareHref = resolveShareHref(href);
 
   return (
     <button
@@ -212,6 +218,7 @@ export function CompletedOverlay({
   onReplay: () => void;
 }) {
   const { copied, copy } = useCopyToClipboard(1400);
+  const resolvedShareHref = resolveShareHref(shareHref);
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-auto text-white gap-8">
@@ -234,7 +241,7 @@ export function CompletedOverlay({
         type="button"
         onClick={(event) => {
           event.stopPropagation();
-          void copy(shareHref);
+          void copy(resolvedShareHref);
         }}
         className={`${HEADER_TOKEN_BASE} bg-white text-black transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70`.trim()}
         aria-label={`Kopier lenke for ${title}`}

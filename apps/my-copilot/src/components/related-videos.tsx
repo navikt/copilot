@@ -1,16 +1,7 @@
 import Link from "next/link";
 import { Box } from "@navikt/ds-react";
 import type { HomepageVideo } from "@/lib/public-videos";
-
-const ACCENTS = ["#66d4cf", "#9af0a8", "#ffd485", "#c6a8ff", "#7cc7ff", "#ff9db1"] as const;
-
-function accentForEpisode(episode: string | undefined): string {
-  const n = Number.parseInt(episode ?? "", 10);
-  if (Number.isFinite(n) && n > 0) {
-    return ACCENTS[(n - 1) % ACCENTS.length];
-  }
-  return ACCENTS[0];
-}
+import { accentForEpisode } from "./video-overlay-components";
 
 interface RelatedVideosProps {
   videos: HomepageVideo[];
@@ -31,7 +22,9 @@ export function RelatedVideos({ videos }: RelatedVideosProps) {
 
   return (
     <Box className="w-fit">
-      <p className="text-white/60 text-[11px] uppercase tracking-wide mb-2">Flere videoer</p>
+      <Box as="div" style={{ marginBlockEnd: "var(--ax-space-8)" }}>
+        <p className="text-white/60 text-[11px] uppercase tracking-wide">Flere videoer</p>
+      </Box>
       <div className="grid grid-cols-3 gap-2 md:gap-3">
         {videos.map((video) => {
           const marker = episodeMarkerFor(video);
@@ -56,15 +49,23 @@ export function RelatedVideos({ videos }: RelatedVideosProps) {
                 />
 
                 {/* Duration badge */}
-                <span className="absolute bottom-1 right-1 inline-flex h-5 items-center rounded px-1.5 text-[9px] font-medium bg-black/70 text-white/80 backdrop-blur-sm">
+                <span
+                  className="absolute bottom-1 right-1 inline-flex h-5 items-center rounded text-[9px] font-medium bg-black/70 text-white/80 backdrop-blur-sm"
+                  style={{ paddingInline: "var(--ax-space-8)" }}
+                >
                   {formatDuration(video.durationSec)}
                 </span>
 
                 {/* Episode pill */}
                 {marker && (
                   <span
-                    className="absolute top-1 left-1 inline-flex h-5 items-center rounded px-1.5 text-[9px] font-semibold backdrop-blur-sm"
-                    style={{ background: `${accent}22`, color: accent, border: `1px solid ${accent}55` }}
+                    className="absolute top-1 left-1 inline-flex h-5 items-center rounded text-[9px] font-semibold backdrop-blur-sm"
+                    style={{
+                      paddingInline: "var(--ax-space-8)",
+                      background: `${accent}22`,
+                      color: accent,
+                      border: `1px solid ${accent}55`,
+                    }}
                   >
                     {marker}
                   </span>
