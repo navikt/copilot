@@ -1,1 +1,293 @@
-[]
+[
+  {
+    "id": "nav-copilot-cplt-bonus-d-cplt-sandbox",
+    "title": "Bonus D: Cplt sandbox — kom i gang på 3 minutter",
+    "description": "Fra null til første commit i cplt sandbox med init-flyt og rask validering.",
+    "category": "cplt",
+    "published_at": "2026-06-07T09:56:51.698Z",
+    "duration_sec": 122,
+    "aspect_ratio": "9:16",
+    "language": "nb",
+    "poster_object": "videos/nav-copilot-cplt-bonus-d-cplt-sandbox/poster.jpg",
+    "hls_master_object": "videos/nav-copilot-cplt-bonus-d-cplt-sandbox/master.m3u8",
+    "mp4_object": "videos/nav-copilot-cplt-bonus-d-cplt-sandbox/video.mp4",
+    "captions_object": "",
+    "is_published": true,
+    "sort_order": 100,
+    "metadata": {
+      "series": "video-demoer-kost-token-optimalisering",
+      "season": 1,
+      "episode": 4,
+      "tags": [
+        "cplt",
+        "sandbox",
+        "init",
+        "bonus"
+      ],
+      "overlay": [
+        {
+          "kind": "episode-number",
+          "anchor": "top-left",
+          "labels": [
+            "D"
+          ]
+        },
+        {
+          "kind": "pipeline",
+          "anchor": "center-left",
+          "labels": [
+            "clone",
+            "init",
+            "test",
+            "publish"
+          ],
+          "monospace": true,
+          "highlight_index": 1
+        },
+        {
+          "kind": "chip",
+          "anchor": "top-right",
+          "labels": [
+            "nav-copilot-cplt-init.mp4",
+            "cplt sandbox"
+          ],
+          "monospace": true
+        },
+        {
+          "kind": "rule-pill",
+          "anchor": "bottom-full",
+          "labels": [
+            "fra null til første commit i sandbox"
+          ]
+        },
+        {
+          "kind": "badge",
+          "anchor": "top-right",
+          "labels": [
+            "✓"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nav-pilot-s01e01-prompt",
+    "title": "Presis prompt på første forsøk",
+    "description": "Viser hvordan en presis første prompt gir færre runder og lavere tokenkost.",
+    "category": "copilot",
+    "published_at": "2026-06-06T14:15:29.298Z",
+    "duration_sec": 165,
+    "aspect_ratio": "9:16",
+    "language": "nb",
+    "poster_object": "videos/nav-pilot-s01e01-prompt/poster.jpg",
+    "hls_master_object": "videos/nav-pilot-s01e01-prompt/master.m3u8",
+    "mp4_object": "videos/nav-pilot-s01e01-prompt/video.mp4",
+    "captions_object": "",
+    "is_published": true,
+    "sort_order": 10,
+    "metadata": {
+      "series": "video-demoer-kost-token-optimalisering",
+      "season": 1,
+      "episode": 1,
+      "tags": [
+        "prompting",
+        "cost",
+        "copilot-cli"
+      ],
+      "overlay": [
+        {
+          "kind": "episode-number",
+          "anchor": "top-left",
+          "labels": [
+            "01"
+          ]
+        },
+        {
+          "kind": "chip",
+          "anchor": "center-left",
+          "labels": [
+            "Mål",
+            "Fil",
+            "Begrensning",
+            "Output"
+          ],
+          "monospace": true
+        },
+        {
+          "kind": "chip",
+          "anchor": "center-right",
+          "labels": [
+            "cost-optimization.tsx"
+          ],
+          "monospace": true
+        },
+        {
+          "kind": "counter",
+          "anchor": "bottom-left",
+          "labels": [
+            "3 → 1"
+          ]
+        },
+        {
+          "kind": "badge",
+          "anchor": "bottom-right",
+          "labels": [
+            "patch + 2 linjer"
+          ]
+        },
+        {
+          "kind": "badge",
+          "anchor": "top-right",
+          "labels": [
+            "✓"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nav-pilot-s01e02-context-and-session",
+    "title": "Kontekst og session-flyt",
+    "description": "Viser hvordan /resume og tydelig kontekst gir bedre flyt og lavere kost.",
+    "category": "copilot",
+    "published_at": "2026-06-06T21:12:07.637Z",
+    "duration_sec": 228,
+    "aspect_ratio": "9:16",
+    "language": "nb",
+    "poster_object": "videos/nav-pilot-s01e02-context-and-session/poster.jpg",
+    "hls_master_object": "videos/nav-pilot-s01e02-context-and-session/master.m3u8",
+    "mp4_object": "videos/nav-pilot-s01e02-context-and-session/video.mp4",
+    "captions_object": "",
+    "is_published": true,
+    "sort_order": 20,
+    "metadata": {
+      "series": "video-demoer-kost-token-optimalisering",
+      "season": 1,
+      "episode": 2,
+      "tags": [
+        "context",
+        "resume",
+        "copilot-cli"
+      ],
+      "overlay": [
+        {
+          "kind": "episode-number",
+          "anchor": "top-left",
+          "labels": [
+            "02"
+          ]
+        },
+        {
+          "kind": "chip",
+          "anchor": "center-left",
+          "labels": [
+            "/resume",
+            "/compact",
+            "/clear"
+          ],
+          "monospace": true
+        },
+        {
+          "kind": "chip",
+          "anchor": "top-right",
+          "labels": [
+            "chronicle search"
+          ]
+        },
+        {
+          "kind": "chip",
+          "anchor": "center-right",
+          "labels": [
+            ".../adoption/summary"
+          ],
+          "monospace": true
+        },
+        {
+          "kind": "rule-pill",
+          "anchor": "bottom-full",
+          "labels": [
+            "nytt mål = ny tråd"
+          ]
+        },
+        {
+          "kind": "badge",
+          "anchor": "top-right",
+          "labels": [
+            "✓"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nav-pilot-s01e03-modes",
+    "title": "Riktig modus til riktig jobb",
+    "description": "Viser når du bør bruke Chat, Agent og CLI.",
+    "category": "copilot",
+    "published_at": "2026-06-06T22:00:00.993Z",
+    "duration_sec": 291,
+    "aspect_ratio": "9:16",
+    "language": "nb",
+    "poster_object": "videos/nav-pilot-s01e03-modes/poster.jpg",
+    "hls_master_object": "videos/nav-pilot-s01e03-modes/master.m3u8",
+    "mp4_object": "videos/nav-pilot-s01e03-modes/video.mp4",
+    "captions_object": "",
+    "is_published": true,
+    "sort_order": 30,
+    "metadata": {
+      "series": "video-demoer-kost-token-optimalisering",
+      "season": 1,
+      "episode": 3,
+      "tags": [
+        "chat",
+        "agent",
+        "cli",
+        "moduser"
+      ],
+      "overlay": [
+        {
+          "kind": "episode-number",
+          "anchor": "top-left",
+          "labels": [
+            "03"
+          ]
+        },
+        {
+          "kind": "ladder",
+          "anchor": "center-left",
+          "labels": [
+            "ask/execute",
+            "plan (Shift+Tab)",
+            "/autopilot"
+          ],
+          "highlight_index": 1
+        },
+        {
+          "kind": "chip",
+          "anchor": "center-right",
+          "labels": [
+            "@research-agent",
+            "@nav-pilot",
+            "@nav-pilot-opus"
+          ],
+          "monospace": true
+        },
+        {
+          "kind": "chip",
+          "anchor": "bottom-left",
+          "labels": [
+            "DATE/string-mismatch"
+          ],
+          "monospace": true
+        },
+        {
+          "kind": "badge",
+          "anchor": "top-right",
+          "labels": [
+            "✓"
+          ]
+        }
+      ]
+    }
+  }
+]
