@@ -30,9 +30,9 @@ export function RelatedVideos({ videos }: RelatedVideosProps) {
   if (videos.length === 0) return null;
 
   return (
-    <Box className="max-w-[280px]">
+    <Box className="w-fit">
       <p className="text-white/60 text-[11px] uppercase tracking-wide mb-2">Flere videoer</p>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
         {videos.map((video) => {
           const marker = episodeMarkerFor(video);
           const accent = accentForEpisode(marker);
@@ -41,7 +41,7 @@ export function RelatedVideos({ videos }: RelatedVideosProps) {
             <Link
               key={video.id}
               href={`/videos/${encodeURIComponent(video.id)}`}
-              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
+              className="group block w-[80px] md:w-[92px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
             >
               {/* Poster thumbnail — 9:16 aspect ratio */}
               <div

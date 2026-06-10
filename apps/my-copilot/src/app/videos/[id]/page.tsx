@@ -60,9 +60,13 @@ export default async function VideoPage({ params }: Props) {
 
         {/* Right panel — metadata top, related bottom */}
         <div className="flex-1 bg-[#111111] md:overflow-y-auto">
-          <Box paddingBlock={{ xs: "space-16", md: "space-32" }} paddingInline={{ xs: "space-16", md: "space-32" }}>
+          <Box
+            paddingBlock={{ xs: "space-16", md: "space-32" }}
+            paddingInline={{ xs: "space-16", md: "space-32" }}
+            className="flex flex-col h-full md:min-h-[calc(100vh-52px)] md:justify-between"
+          >
             <VideoMetadata video={video} />
-            <Box paddingBlock="space-32">
+            <Box paddingBlock={{ xs: "space-24", md: "space-16" }}>
               <RelatedVideos videos={related} />
             </Box>
           </Box>
