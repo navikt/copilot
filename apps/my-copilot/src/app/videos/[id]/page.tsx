@@ -33,7 +33,7 @@ export default async function VideoPage({ params }: Props) {
     .slice(0, 6);
 
   return (
-    <main className="min-h-screen bg-black">
+    <main className="bg-black">
       {/* Back navigation */}
       <Box className="bg-black border-b border-white/10">
         <Box
@@ -54,18 +54,18 @@ export default async function VideoPage({ params }: Props) {
       {/* Video + right panel */}
       <VerticalVideoContainer>
         {/* Video column — narrow, tall, black */}
-        <div className="md:w-[400px] md:flex-shrink-0 bg-black flex items-start justify-center md:items-center md:min-h-[calc(100vh-52px)]">
+        <div className="flex items-start justify-center bg-black md:w-[400px] md:flex-shrink-0 md:items-center">
           <Box paddingBlock={{ xs: "space-16", md: "space-0" }}>
             <DetailVideoPlayer video={video} />
           </Box>
         </div>
 
         {/* Right panel — metadata top, related bottom */}
-        <div className="flex-1 bg-[#111111] md:overflow-y-auto">
+        <div className="flex-1 bg-[#111111] md:min-h-0 md:overflow-y-auto">
           <Box
             paddingBlock={{ xs: "space-16", md: "space-32" }}
             paddingInline={{ xs: "space-16", md: "space-32" }}
-            className="flex flex-col h-full md:min-h-[calc(100vh-52px)] md:justify-between"
+            className="flex h-full flex-col md:justify-between"
           >
             <VideoMetadata video={video} />
             <Box paddingBlock={{ xs: "space-24", md: "space-16" }}>
