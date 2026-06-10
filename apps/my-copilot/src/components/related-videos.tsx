@@ -41,7 +41,7 @@ export function RelatedVideos({ videos }: RelatedVideosProps) {
             <Link
               key={video.id}
               href={`/videos/${encodeURIComponent(video.id)}`}
-              className="group block w-[80px] md:w-[92px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
+              className="group block w-[104px] md:w-[120px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
             >
               {/* Poster thumbnail — 9:16 aspect ratio */}
               <div
