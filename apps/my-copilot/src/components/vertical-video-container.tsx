@@ -14,5 +14,5 @@ interface VerticalVideoContainerProps {
  * experience, not a document. Column backgrounds are set by the children.
  */
 export function VerticalVideoContainer({ children }: VerticalVideoContainerProps) {
-  return <section className="flex w-full flex-col bg-black md:h-[calc(100dvh-52px)] md:flex-row">{children}</section>;
+  return <section className="flex w-full flex-col bg-black md:min-h-0 md:flex-1 md:flex-row">{children}</section>;
 }
