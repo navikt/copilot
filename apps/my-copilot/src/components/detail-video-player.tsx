@@ -83,10 +83,7 @@ export function DetailVideoPlayer({ video }: DetailVideoPlayerProps) {
   const marker = episodeMarkerFor(video);
   const accent = accentForEpisode(marker);
   const episodeLabel = episodeLabelFor(video);
-  const shareHref =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/videos/${encodeURIComponent(video.id)}`
-      : `/videos/${encodeURIComponent(video.id)}`;
+  const shareHref = `/videos/${encodeURIComponent(video.id)}`;
 
   return (
     <div
