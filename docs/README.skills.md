@@ -17,7 +17,7 @@ nav-pilot install <skill-name>
 <!-- BEGIN GENERATED TABLE -->
 | Name | Description | Location |
 | ---- | ----------- | -------- |
-<!-- | **ai-news-research** | Skriv månedlige oppsummeringer av AI-nyheter for utviklere på norsk med fungerende kildelenker. Bruk for å skrive nyheter, oppsummere AI-trender, lage månedlig oppdatering, eller undersøke hva som er nytt i GitHub Copilot, coding agents, AGENTS.md, skills, memory, agentic workflows eller developer experience. | [`.github/skills/ai-news-research/`](../.github/skills/ai-news-research/SKILL.md) | -->
+| **ai-news-research** | Skriv månedlige oppsummeringer av AI-nyheter for utviklere på norsk med fungerende kildelenker. Bruk for å skrive nyheter, oppsummere AI-trender, lage månedlig oppdatering. | [`.github/skills/ai-news-research/`](../.github/skills/ai-news-research/SKILL.md) |
 | **aksel-spacing** | Lag responsive layouts med Aksel Design System (v8+) - spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed) og ResponsiveProp | [`.github/skills/aksel-spacing/`](../.github/skills/aksel-spacing/SKILL.md) |
 | **api-design** | REST API-designmønstre, versjonering, feilhåndtering (RFC 7807) og OpenAPI-konvensjoner for Nav-tjenester | [`.github/skills/api-design/`](../.github/skills/api-design/SKILL.md) |
 | **conventional-commit** | Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format | [`.github/skills/conventional-commit/`](../.github/skills/conventional-commit/SKILL.md) |
@@ -30,7 +30,7 @@ nav-pilot install <skill-name>
 | **nav-architecture-review** | Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav | [`.github/skills/nav-architecture-review/`](../.github/skills/nav-architecture-review/SKILL.md) |
 | **nav-auth** | Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-applikasjoner | [`.github/skills/nav-auth/`](../.github/skills/nav-auth/SKILL.md) |
 | **nav-deep-interview** | Strukturert intervju som avdekker blindsoner i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet | [`.github/skills/nav-deep-interview/`](../.github/skills/nav-deep-interview/SKILL.md) |
-| **nav-dekoratoren** | Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren. | [`.github/skills/nav-dekoratoren/`](../.github/skills/nav-dekoratoren/SKILL.md) |
+| **nav-dekoratoren** | Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til lenker eller feilsøke rendering. | [`.github/skills/nav-dekoratoren/`](../.github/skills/nav-dekoratoren/SKILL.md) |
 | **nav-plan** | Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database og Nais-konfigurasjon | [`.github/skills/nav-plan/`](../.github/skills/nav-plan/SKILL.md) |
 | **nav-troubleshoot** | Strukturerte diagnostiske trær for vanlige Nav-plattformproblemer — pod-krasj, auth-feil, Kafka-lag og databaseproblemer | [`.github/skills/nav-troubleshoot/`](../.github/skills/nav-troubleshoot/SKILL.md) |
 | **observability-debugging** | Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces — strukturerte debugging-workflows for Nav-utviklere | [`.github/skills/observability-debugging/`](../.github/skills/observability-debugging/SKILL.md) |
@@ -45,7 +45,7 @@ nav-pilot install <skill-name>
 | **terse-mode** | Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet. | [`.github/skills/terse-mode/`](../.github/skills/terse-mode/SKILL.md) |
 | **threat-model** | STRIDE-A trusselmodellering for Nais-mikrotjenester — dataflyt, tillitsgrenser og risikovurdering | [`.github/skills/threat-model/`](../.github/skills/threat-model/SKILL.md) |
 | **tokenx-auth** | Tjeneste-til-tjeneste-autentisering med TokenX token exchange i Nais | [`.github/skills/tokenx-auth/`](../.github/skills/tokenx-auth/SKILL.md) |
-| **web-design-reviewer** | Visuell inspeksjon av nettsider for å identifisere og fikse designproblemer. Trigges av forespørsler som "sjekk designet", "gå gjennom UI-en", "fiks layouten", "finn designfeil". Finner problemer med responsivt design, tilgjengelighet, visuell konsistens og layout, og fikser dem i kildekoden. | [`.github/skills/web-design-reviewer/`](../.github/skills/web-design-reviewer/SKILL.md) |
+| **web-design-reviewer** | Visuell inspeksjon av nettsider for å identifisere og fikse designproblemer. Trigges av forespørsler som "sjekk designet", "gå gjennom UI-en", "fiks layouten" og lignende. | [`.github/skills/web-design-reviewer/`](../.github/skills/web-design-reviewer/SKILL.md) |
 | **workstation-security** | Sikkerhetssjekk for macOS-utviklermaskiner — brannmur, SSH, Git, hemmeligheter, nettverk og Nav-plattformverktøy | [`.github/skills/workstation-security/`](../.github/skills/workstation-security/SKILL.md) |
 <!-- END GENERATED TABLE -->
 
