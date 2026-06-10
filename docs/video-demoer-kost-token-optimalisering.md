@@ -813,6 +813,8 @@ Output: nummerert liste.
 
 **Demo-kontekst (referanserepo):** Monorepo med go, git, docker — gir flere virkelige eksempler.
 
+**📄 Referanse:** Se [`docs/rtk-video-examples.md`](rtk-video-examples.md) for konkrete før/etter-eksempler fra monorepo, copy-paste-klare kommandoer, og opptak-sjekkliste.
+
 **Reell oppgave i repo (velg én før opptak):**
 - Optimaliser fem kommandoer du kjører regelmessig ved å legge `rtk` foran — vis sparing i `rtk gain`.
 
