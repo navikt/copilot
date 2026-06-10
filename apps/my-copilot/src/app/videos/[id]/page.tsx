@@ -33,7 +33,7 @@ export default async function VideoPage({ params }: Props) {
     .slice(0, 6);
 
   return (
-    <main className="bg-black h-full min-h-full md:flex md:min-h-0 md:flex-col">
+    <main className="video-detail-page bg-black h-full min-h-full md:flex md:min-h-0 md:flex-col">
       {/* Back navigation */}
       <Box className="bg-black border-b border-white/10">
         <Box
@@ -61,7 +61,7 @@ export default async function VideoPage({ params }: Props) {
         </div>
 
         {/* Right panel — metadata top, related bottom */}
-        <div className="flex-1 bg-[#111111] md:min-h-0 md:overflow-y-auto">
+        <div className="flex-1 bg-black border-t border-white/10 md:min-h-0 md:overflow-y-auto md:border-t-0 md:border-l">
           <Box
             paddingBlock={{ xs: "space-16", md: "space-32" }}
             paddingInline={{ xs: "space-16", md: "space-32" }}
