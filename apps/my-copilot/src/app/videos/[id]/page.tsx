@@ -33,7 +33,7 @@ export default async function VideoPage({ params }: Props) {
     .slice(0, 6);
 
   return (
-    <main className="bg-black min-h-full md:flex md:h-full md:min-h-0 md:flex-col">
+    <main className="bg-black h-full min-h-full md:flex md:min-h-0 md:flex-col">
       {/* Back navigation */}
       <Box className="bg-black border-b border-white/10">
         <Box
