@@ -55,7 +55,11 @@ export default async function VideoPage({ params }: Props) {
       <VerticalVideoContainer>
         {/* Video column — narrow, tall, black */}
         <div className="flex items-start justify-center bg-black md:w-[400px] md:flex-shrink-0 md:items-center">
-          <Box paddingBlock={{ xs: "space-16", md: "space-16" }} paddingInline={{ xs: "space-12", md: "space-16" }}>
+          <Box
+            paddingBlock={{ xs: "space-16", md: "space-16" }}
+            paddingInline={{ xs: "space-12", md: "space-16" }}
+            className="w-full max-w-[360px]"
+          >
             <DetailVideoPlayer video={video} />
           </Box>
         </div>
