@@ -33,7 +33,7 @@ export default async function VideoPage({ params }: Props) {
     .slice(0, 6);
 
   return (
-    <main className="bg-black md:flex md:h-full md:min-h-0 md:flex-col">
+    <main className="bg-black min-h-full md:flex md:h-full md:min-h-0 md:flex-col">
       {/* Back navigation */}
       <Box className="bg-black border-b border-white/10">
         <Box
@@ -55,7 +55,7 @@ export default async function VideoPage({ params }: Props) {
       <VerticalVideoContainer>
         {/* Video column — narrow, tall, black */}
         <div className="flex items-start justify-center bg-black md:w-[400px] md:flex-shrink-0 md:items-center">
-          <Box paddingBlock={{ xs: "space-16", md: "space-0" }}>
+          <Box paddingBlock={{ xs: "space-16", md: "space-16" }} paddingInline={{ xs: "space-12", md: "space-16" }}>
             <DetailVideoPlayer video={video} />
           </Box>
         </div>
