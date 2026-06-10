@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { Box, HStack, BodyShort, Link } from "@navikt/ds-react";
 import { getUser } from "@/lib/auth";
@@ -36,8 +37,10 @@ export default async function RootLayout({
 
   return (
     <html lang="nb">
-      <body className={`${inter.className} bg-gray-800`}>
-        <HashAnchorScroll />
+      <body className={`${inter.className} bg-gray-800 min-h-dvh flex flex-col`}>
+        <Suspense fallback={null}>
+          <HashAnchorScroll />
+        </Suspense>
         <header style={{ background: "#0f1825" }}>
           <Box
             paddingBlock="space-8"
@@ -75,7 +78,7 @@ export default async function RootLayout({
             </HStack>
           </Box>
         </header>
-        <div className="bg-gray-100">{children}</div>
+        <div className="bg-gray-100 flex-1 min-h-0">{children}</div>
         <footer className="text-white">
           <Box
             paddingBlock="space-12"

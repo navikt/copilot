@@ -298,6 +298,52 @@ func TestVideoFeedEndpointServesStaleManifestOnRefreshError(t *testing.T) {
 	}
 }
 
+func TestVideoDetailEndpoint(t *testing.T) {
+	router := newTestVideoRouter(t)
+	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos/intro-cli", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"id":"intro-cli"`) {
+		t.Fatalf("expected requested video in response, got %s", body)
+	}
+	if !strings.Contains(body, `"play_url":"https://storage.googleapis.com/copilot-videos-public/videos/intro-cli/master.m3u8"`) {
+		t.Fatalf("expected play_url in detail response, got %s", body)
+	}
+	if !strings.Contains(body, `"metadata":{"series":"kost-optimalisering","season":1,"episode":1,"tags":["prompting","cost"]}`) {
+		t.Fatalf("expected metadata in detail response, got %s", body)
+	}
+}
+
+func TestVideoDetailInvalidID(t *testing.T) {
+	router := newTestVideoRouter(t)
+	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos/INVALID", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestVideoDetailNotFound(t *testing.T) {
+	router := newTestVideoRouter(t)
+	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos/unknown-video", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", rec.Code)
+	}
+}
+
 func TestVideoPlayEndpoint(t *testing.T) {
 	router := newTestVideoRouter(t)
 	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos/intro-cli/play", nil)

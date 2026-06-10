@@ -82,7 +82,7 @@ export function NewsFeed({ items, compact = false, afterFeatured }: NewsFeedProp
 
       {filtered.length === 0 && <BodyShort className="text-text-subtle">Ingen nyheter i denne kategorien.</BodyShort>}
       {featured && <FeaturedNewsCard item={featured} />}
-      {featured && afterFeatured}
+      {featured && afterFeatured ? <div key="after-featured-slot">{afterFeatured}</div> : null}
       {rest.length > 0 && (
         <div className={`grid ${gridCols} gap-3`}>
           {rest.map((item, i) => (

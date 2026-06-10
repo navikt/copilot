@@ -1,6 +1,16 @@
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 const VIDEO_FETCH_TIMEOUT_MS = 8000;
 
+class VideoError extends Error {
+  constructor(
+    public status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "VideoError";
+  }
+}
+
 export type PublicVideoFeedItem = {
   id: string;
   title: string;
@@ -69,6 +79,7 @@ export type HomepageVideo = {
   playUrl: string;
   mp4Url?: string;
   captionsUrl?: string;
+  aspectRatio: string;
   metadata?: {
     series?: string;
     season?: number;
@@ -90,6 +101,17 @@ function normalizeOverlay(item: PublicVideoFeedItem): OverlayComponent[] | undef
   }));
 }
 
+function normalizeAspectRatio(aspectRatio: string | undefined): string {
+  if (!aspectRatio) return "16 / 9";
+  if (aspectRatio.includes(":")) {
+    const [width, height] = aspectRatio.split(":").map((part) => part.trim());
+    if (width && height) {
+      return `${width} / ${height}`;
+    }
+  }
+  return aspectRatio;
+}
+
 function mapVideoItem(item: PublicVideoFeedItem): HomepageVideo {
   return {
     id: item.id,
@@ -102,6 +124,7 @@ function mapVideoItem(item: PublicVideoFeedItem): HomepageVideo {
     playUrl: item.play_url,
     mp4Url: item.mp4_url,
     captionsUrl: item.captions_url,
+    aspectRatio: normalizeAspectRatio(item.aspect_ratio),
     metadata: item.metadata
       ? {
           series: item.metadata.series,
@@ -135,7 +158,7 @@ async function fetchJSON<T>(path: string): Promise<T> {
     VIDEO_FETCH_TIMEOUT_MS
   );
   if (!response.ok) {
-    throw new Error(`Video API request failed (${response.status})`);
+    throw new VideoError(response.status, `Video API request failed`);
   }
   return response.json() as Promise<T>;
 }
@@ -147,5 +170,24 @@ export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVid
   } catch (error) {
     console.error("Failed to fetch public video feed:", error);
     return [];
+  }
+}
+
+export async function fetchVideoById(id: string): Promise<HomepageVideo | null> {
+  try {
+    if (!id || typeof id !== "string") {
+      console.error("Invalid video ID:", id);
+      return null;
+    }
+
+    const item = await fetchJSON<PublicVideoFeedItem>(`/public/v1/videos/${encodeURIComponent(id)}`);
+    return mapVideoItem(item);
+  } catch (error) {
+    if (error instanceof VideoError && error.status === 404) {
+      console.info("Video not found:", id);
+      return null;
+    }
+    console.error("Failed to fetch video:", id, error);
+    throw error;
   }
 }
