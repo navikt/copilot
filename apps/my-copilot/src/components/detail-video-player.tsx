@@ -30,6 +30,17 @@ function episodeLabelFor(video: HomepageVideo): string | undefined {
   return undefined;
 }
 
+function toCssAspectRatio(aspectRatio: string | undefined): string {
+  if (!aspectRatio) return "9 / 16";
+  if (aspectRatio.includes(":")) {
+    return aspectRatio
+      .split(":")
+      .map((part) => part.trim())
+      .join(" / ");
+  }
+  return aspectRatio;
+}
+
 export function DetailVideoPlayer({ video }: DetailVideoPlayerProps) {
   const {
     playbackState,
@@ -87,11 +98,12 @@ export function DetailVideoPlayer({ video }: DetailVideoPlayerProps) {
 
   return (
     <div
-      style={{ aspectRatio: "9 / 16" }}
+      style={{ aspectRatio: toCssAspectRatio(video.aspectRatio) }}
       className="relative w-full bg-black overflow-hidden rounded-xl"
       onMouseMove={revealHud}
       onMouseLeave={hideHud}
       onTouchStart={revealHud}
+      onFocusCapture={revealHud}
     >
       {/* Poster — shown before playback starts */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -127,26 +139,23 @@ export function DetailVideoPlayer({ video }: DetailVideoPlayerProps) {
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 pointer-events-none" />
       )}
 
-      {/* HUD — inert when hidden */}
-      <div {...(showHud ? {} : { inert: "" as unknown as boolean })}>
-        <UnifiedVideoHUD
-          overlays={video.metadata?.overlay}
-          episodeLabel={episodeLabel ?? video.category}
-          accent={accent}
-          durationLabel={formatDuration(video.durationSec)}
-          shareHref={shareHref}
-          shareTitle={video.title}
-          playing={playbackState === "playing"}
-          isActive={true}
-          completed={isCompleted(playbackState)}
-          showHud={showHud}
-          playbackState={playbackState}
-          onTogglePlayback={onTogglePlayback}
-          onSeekBackward={onSeekBackward}
-          onSeekForward={onSeekForward}
-          title={video.title}
-        />
-      </div>
+      <UnifiedVideoHUD
+        overlays={video.metadata?.overlay}
+        episodeLabel={episodeLabel}
+        accent={accent}
+        durationLabel={formatDuration(video.durationSec)}
+        shareHref={shareHref}
+        shareTitle={video.title}
+        playing={playbackState === "playing"}
+        isActive={true}
+        completed={isCompleted(playbackState)}
+        showHud={showHud}
+        playbackState={playbackState}
+        onTogglePlayback={onTogglePlayback}
+        onSeekBackward={onSeekBackward}
+        onSeekForward={onSeekForward}
+        title={video.title}
+      />
 
       <CornerFullscreenButton title={video.title} onClick={onFullscreen} />
 

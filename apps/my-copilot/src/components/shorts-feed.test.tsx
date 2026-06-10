@@ -168,10 +168,7 @@ describe("ShortsFeed", () => {
   it("shows a share link for the active card", () => {
     render(<ShortsFeed videos={[createVideo("video-a", "Video A")]} />);
 
-    expect(screen.getByRole("link", { name: "Del video: Video A" })).toHaveAttribute(
-      "href",
-      expect.stringMatching(/\/videos\/video-a$/)
-    );
+    expect(screen.getByRole("button", { name: "Del video: Video A" })).toBeVisible();
   });
 
   it("copies share link when pressing Del", async () => {
@@ -183,7 +180,7 @@ describe("ShortsFeed", () => {
 
     render(<ShortsFeed videos={[createVideo("video-a", "Video A")]} />);
 
-    fireEvent.click(screen.getByRole("link", { name: "Del video: Video A" }));
+    fireEvent.click(screen.getByRole("button", { name: "Del video: Video A" }));
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/videos\/video-a$/));

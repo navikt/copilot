@@ -101,6 +101,17 @@ function normalizeOverlay(item: PublicVideoFeedItem): OverlayComponent[] | undef
   }));
 }
 
+function normalizeAspectRatio(aspectRatio: string | undefined): string {
+  if (!aspectRatio) return "16 / 9";
+  if (aspectRatio.includes(":")) {
+    const [width, height] = aspectRatio.split(":").map((part) => part.trim());
+    if (width && height) {
+      return `${width} / ${height}`;
+    }
+  }
+  return aspectRatio;
+}
+
 function mapVideoItem(item: PublicVideoFeedItem): HomepageVideo {
   return {
     id: item.id,
@@ -113,7 +124,7 @@ function mapVideoItem(item: PublicVideoFeedItem): HomepageVideo {
     playUrl: item.play_url,
     mp4Url: item.mp4_url,
     captionsUrl: item.captions_url,
-    aspectRatio: item.aspect_ratio || "16 / 9",
+    aspectRatio: normalizeAspectRatio(item.aspect_ratio),
     metadata: item.metadata
       ? {
           series: item.metadata.series,

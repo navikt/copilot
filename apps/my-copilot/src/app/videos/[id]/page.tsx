@@ -9,11 +9,11 @@ import { VerticalVideoContainer } from "@/components/vertical-video-container";
 import { RelatedVideos } from "@/components/related-videos";
 
 type Props = {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 };
 
 export default async function VideoPage({ params }: Props) {
-  const { id } = await params;
+  const { id } = params;
 
   const [video, allVideos] = await Promise.all([fetchVideoById(id), getPublicVideoFeed(20)]);
 

@@ -3,6 +3,7 @@
 import { LinkIcon } from "@navikt/aksel-icons";
 import { HStack } from "@navikt/ds-react";
 import type { OverlayComponent } from "@/lib/public-videos";
+import type { PlaybackState } from "@/lib/video-playback-machine";
 import { ContentPanel, EpisodePill, GlyphBadge } from "./video-overlay-components";
 import { HeaderLinkToken, HeaderToken, PlaybackControls } from "./video-card-chrome";
 
@@ -24,7 +25,7 @@ export function UnifiedVideoHUD({
   title,
 }: {
   overlays?: OverlayComponent[];
-  episodeLabel: string;
+  episodeLabel?: string;
   accent: string;
   durationLabel: string;
   shareHref: string;
@@ -33,7 +34,7 @@ export function UnifiedVideoHUD({
   isActive: boolean;
   completed: boolean;
   showHud: boolean;
-  playbackState: string;
+  playbackState: PlaybackState;
   onTogglePlayback: () => void;
   onSeekBackward: () => void;
   onSeekForward: () => void;
@@ -44,7 +45,7 @@ export function UnifiedVideoHUD({
     if (playbackState === "playing") {
       return `Video spilles av: ${title}`;
     } else if (playbackState === "paused") {
-      return `Video pause: ${title}`;
+      return `Video pauset: ${title}`;
     } else if (playbackState === "completed") {
       return `Video ferdig. Trykk replay for å se igjen.`;
     }

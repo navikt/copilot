@@ -19,6 +19,7 @@ vi.mock("./use-shorts-feed-storage-adapter", () => ({
     },
     updateProgress: vi.fn(),
     markComplete: vi.fn(),
+    flushProgress: vi.fn(),
   })),
 }));
 

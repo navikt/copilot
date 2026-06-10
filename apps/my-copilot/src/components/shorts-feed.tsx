@@ -80,8 +80,7 @@ function ShortsFeedCard({
   const showIdleCaption = !isActive || playbackState === "idle";
   const showPlaybackSurface = playing || paused;
 
-  const shareHref = `${typeof window !== "undefined" ? window.location.origin : ""}/videos/${encodeURIComponent(video.id)}`;
-  const headerEpisodeLabel = episodeLabel ?? video.category;
+  const shareHref = `/videos/${encodeURIComponent(video.id)}`;
 
   const [hudVisible, setHudVisible] = useState(true);
   const hudHideTimerRef = useRef<number | null>(null);
@@ -142,6 +141,7 @@ function ShortsFeedCard({
         onMouseMove={isActive ? revealHud : undefined}
         onMouseLeave={isActive ? hideHud : undefined}
         onTouchStart={isActive ? revealHud : undefined}
+        onFocusCapture={isActive ? revealHud : undefined}
         className={`relative w-full overflow-hidden rounded-xl aspect-[9/16] ${
           isActive ? "bg-black" : "text-left outline-none focus:ring-2 focus:ring-blue-500"
         }`}
@@ -188,26 +188,23 @@ function ShortsFeedCard({
         )}
 
         {/* Unified HUD: episode pill, badges, duration, share, content panel, playback controls */}
-        {/* Wrap HUD in inert div to prevent keyboard focus when hidden (a11y) */}
-        <div inert={!showHud}>
-          <UnifiedVideoHUD
-            overlays={video.metadata?.overlay}
-            episodeLabel={headerEpisodeLabel}
-            accent={accent}
-            durationLabel={formatDuration(video.durationSec)}
-            shareHref={shareHref}
-            shareTitle={video.title}
-            playing={playing}
-            isActive={isActive}
-            completed={completed}
-            showHud={showHud}
-            playbackState={playbackState}
-            onTogglePlayback={onCenterAction}
-            onSeekBackward={onSeekBackward}
-            onSeekForward={onSeekForward}
-            title={video.title}
-          />
-        </div>
+        <UnifiedVideoHUD
+          overlays={video.metadata?.overlay}
+          episodeLabel={episodeLabel}
+          accent={accent}
+          durationLabel={formatDuration(video.durationSec)}
+          shareHref={shareHref}
+          shareTitle={video.title}
+          playing={playing}
+          isActive={isActive}
+          completed={completed}
+          showHud={showHud}
+          playbackState={playbackState}
+          onTogglePlayback={onCenterAction}
+          onSeekBackward={onSeekBackward}
+          onSeekForward={onSeekForward}
+          title={video.title}
+        />
 
         {isActive ? <CornerFullscreenButton title={video.title} onClick={onFullscreen} /> : null}
 

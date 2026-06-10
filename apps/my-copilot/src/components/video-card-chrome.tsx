@@ -47,21 +47,15 @@ export function HeaderLinkToken({
   className?: string;
 }) {
   const { copied, copy } = useCopyToClipboard(1200);
+  const resolvedShareHref =
+    typeof window !== "undefined" && href.startsWith("/") ? new URL(href, window.location.origin).toString() : href;
 
   return (
-    <a
-      href={href}
+    <button
+      type="button"
       onClick={(event) => {
-        event.preventDefault();
         event.stopPropagation();
-        void copy(href);
-      }}
-      onKeyDown={(event) => {
-        event.stopPropagation();
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          void copy(href);
-        }
+        void copy(resolvedShareHref);
       }}
       className={`${HEADER_TOKEN_BASE} ${HEADER_TOKEN_NEUTRAL} ${HEADER_TOKEN_ACTION} cursor-pointer gap-1 ${className}`.trim()}
       aria-label={copied ? "Delt" : ariaLabel}
@@ -75,7 +69,7 @@ export function HeaderLinkToken({
       ) : (
         children
       )}
-    </a>
+    </button>
   );
 }
 

@@ -82,21 +82,6 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
   // Watch-status order (unwatched first). Recomputed only when inputs change.
   const watchOrder = useMemo(() => orderVideosByWatchStatus(videos, watchState, "deprioritize"), [videos, watchState]);
   const [orderedVideos, setOrderedVideos] = useState<HomepageVideo[]>(watchOrder);
-  const [prevPlaybackState, setPrevPlaybackState] = useState<PlaybackState>(playbackState);
-
-  // Re-sync the visible order only when playback returns to idle (e.g. on
-  // close). Freezing the list across every non-idle state keeps the active
-  // video from jumping the instant playback starts — previously the order
-  // reverted to the raw `videos` order, which visibly reordered already-watched
-  // (deprioritized) videos on first play. While idle the user is only browsing,
-  // so the watch state cannot change until the viewer reopens; syncing on the
-  // idle transition is sufficient and avoids re-render loops.
-  if (playbackState !== prevPlaybackState) {
-    setPrevPlaybackState(playbackState);
-    if (playbackState === "idle") {
-      setOrderedVideos(watchOrder);
-    }
-  }
 
   const resolvedActiveId =
     orderedVideos.length > 0 && orderedVideos.some((video) => video.id === activeId)
@@ -199,10 +184,14 @@ export function useShortsFeedController({ videos, initialVideoId }: UseShortsFee
   );
 
   const closeViewer = useCallback(() => {
+    const activeVideo = media.videoRefs.current.get(resolvedActiveId);
+    activeVideo?.pause();
+    setIsViewerOpen(false);
     dispatch({ type: "CLOSE" });
+    setOrderedVideos(watchOrder);
     // Returning to idle re-syncs `orderedVideos` to the latest watch-status
     // order during the next render, so a just-watched video is deprioritized.
-  }, [dispatch]);
+  }, [dispatch, media.videoRefs, resolvedActiveId, watchOrder]);
 
   const handleCardKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>, videoId: string) => {

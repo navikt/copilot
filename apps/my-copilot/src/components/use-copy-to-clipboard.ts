@@ -23,10 +23,13 @@ export function useCopyToClipboard(resetAfterMs = 1200) {
       input.value = text;
       document.body.appendChild(input);
       input.select();
-      document.execCommand("copy");
+      const copiedWithFallback = document.execCommand("copy");
       document.body.removeChild(input);
-      setCopied(true);
-      return true;
+      if (copiedWithFallback) {
+        setCopied(true);
+        return true;
+      }
+      return false;
     }
   }, []);
 
