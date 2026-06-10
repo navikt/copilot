@@ -35,18 +35,20 @@ export default async function VideoPage({ params }: Props) {
   return (
     <main className="min-h-screen bg-black">
       {/* Back navigation */}
-      <Box
-        paddingBlock="space-12"
-        paddingInline={{ xs: "space-16", md: "space-32" }}
-        className="bg-black border-b border-white/10"
-      >
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-white/60 hover:text-white text-sm transition-colors"
+      <Box className="bg-black border-b border-white/10">
+        <Box
+          paddingBlock="space-8"
+          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+          className="max-w-7xl mx-auto"
         >
-          <ArrowLeftIcon aria-hidden fontSize="1rem" />
-          Tilbake
-        </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-white/60 hover:text-white text-sm transition-colors"
+          >
+            <ArrowLeftIcon aria-hidden fontSize="1rem" />
+            Tilbake
+          </Link>
+        </Box>
       </Box>
 
       {/* Video + right panel */}
