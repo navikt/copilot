@@ -1,5 +1,5 @@
 allowBuilds:
-  core-js-pure: set this to true or false
+  core-js-pure: false
   esbuild: true
   sharp: true
   unrs-resolver: true
