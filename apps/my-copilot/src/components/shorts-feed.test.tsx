@@ -134,8 +134,18 @@ describe("ShortsFeed", () => {
     );
 
     expect(document.querySelector('video[data-video-id="video-b"]')).toBeInTheDocument();
-    // Body overlay content should be hidden once viewer is opened.
-    expect(screen.queryByTestId("overlay-renderer")).not.toBeInTheDocument();
+    // Inactive cards should still expose body overlay content while one viewer is open.
+    expect(screen.getAllByTestId("overlay-renderer").length).toBeGreaterThan(0);
+  });
+
+  it("keeps body overlay content visible on inactive cards while active video plays", () => {
+    render(<ShortsFeed videos={[createVideo("video-a", "Video A"), createVideo("video-b", "Video B")]} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Åpne video: Video A" })[0]);
+    const activeVideo = document.querySelector('video[data-video-id="video-a"]') as HTMLVideoElement;
+    fireEvent.play(activeVideo);
+
+    expect(screen.getAllByTestId("overlay-renderer").length).toBeGreaterThan(0);
   });
 
   it("hides body overlay state once the active viewer is opened", () => {

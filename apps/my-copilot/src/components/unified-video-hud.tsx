@@ -94,7 +94,7 @@ export function UnifiedVideoHUD({
       </div>
 
       {/* Lower metadata layer: content pane above title area */}
-      {isBodyContentVisible(playbackState) && overlays && overlays.length > 0 && (
+      {(!isActive || isBodyContentVisible(playbackState)) && overlays && overlays.length > 0 && (
         <div
           style={{
             position: "absolute",
