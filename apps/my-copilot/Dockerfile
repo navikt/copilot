@@ -5,7 +5,7 @@ RUN corepack enable
 FROM base AS deps
 WORKDIR /app
 
-COPY apps/my-copilot/package.json apps/my-copilot/pnpm-lock.yaml apps/my-copilot/.npmrc ./
+COPY apps/my-copilot/package.json apps/my-copilot/pnpm-lock.yaml apps/my-copilot/pnpm-workspace.yaml apps/my-copilot/.npmrc ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
