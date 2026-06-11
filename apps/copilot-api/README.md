@@ -108,7 +108,7 @@ API uses **Azure AD On-Behalf-Of (OBO)** tokens obtained via Texas sidecar. The 
 | `VIDEO_BUCKET_PUBLIC_DEV` | Dev public video bucket | `copilot-videos-public-dev` |
 | `VIDEO_BUCKET_PUBLIC_PROD` | Prod public video bucket | `copilot-videos-public-prod` |
 | `VIDEO_MANIFEST_URL` | Manifest URL (prefer `gs://...` to bypass object cache) | `gs://<bucket>/video_manifest.json` |
-| `VIDEO_MANIFEST_PATH` | Local manifest path for tests/dev | `video_manifest.json` |
+| `VIDEO_MANIFEST_PATH` | Local fallback manifest path for tests/dev (not primary runtime source) | `video_manifest.local-fallback.json` |
 | `VIDEO_PUBLIC_BASE_URL` | Optional override for public GCS base URL | `https://storage.googleapis.com/<bucket>` |
 | `VIDEO_FEED_CACHE_SECONDS` | Feed response and manifest cache TTL | `60` |
 

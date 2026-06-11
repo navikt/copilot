@@ -3,17 +3,17 @@ import { notFound } from "next/navigation";
 import { Box } from "@navikt/ds-react";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { fetchVideoById, getPublicVideoFeed, type HomepageVideo } from "@/lib/public-videos";
-import { DetailVideoPlayer } from "@/components/detail-video-player";
-import { VideoMetadata } from "@/components/video-metadata";
-import { VerticalVideoContainer } from "@/components/vertical-video-container";
-import { RelatedVideos } from "@/components/related-videos";
+import { DetailVideoPlayer } from "@/components/video/detail-video-player";
+import { VideoMetadata } from "@/components/video/video-metadata";
+import { VerticalVideoContainer } from "@/components/video/vertical-video-container";
+import { RelatedVideos } from "@/components/video/related-videos";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export default async function VideoPage({ params }: Props) {
-  const { id } = params;
+  const { id } = await params;
 
   const [video, allVideos] = await Promise.all([fetchVideoById(id), getPublicVideoFeed(20)]);
 
@@ -55,7 +55,11 @@ export default async function VideoPage({ params }: Props) {
       <VerticalVideoContainer>
         {/* Video column — narrow, tall, black */}
         <div className="flex items-start justify-center bg-black md:w-[400px] md:flex-shrink-0 md:items-center">
-          <Box paddingBlock={{ xs: "space-16", md: "space-16" }} paddingInline={{ xs: "space-12", md: "space-16" }}>
+          <Box
+            paddingBlock={{ xs: "space-16", md: "space-16" }}
+            paddingInline={{ xs: "space-12", md: "space-16" }}
+            className="w-full max-w-[360px]"
+          >
             <DetailVideoPlayer video={video} />
           </Box>
         </div>

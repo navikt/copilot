@@ -14,8 +14,9 @@ export function HomeShortsFeed({ videos }: HomeShortsFeedProps) {
     () => true,
     () => false
   );
-
-  if (!isClient) return null;
+  if (!isClient) {
+    return null;
+  }
 
   return <ShortsFeed videos={videos} />;
 }

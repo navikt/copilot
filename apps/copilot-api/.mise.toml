@@ -94,5 +94,9 @@ CGO_ENABLED = "0"
 VIDEO_BUCKET_PUBLIC_DEV = "copilot-videos-public-dev"
 VIDEO_BUCKET_PUBLIC_PROD = "copilot-videos-public-prod"
 VIDEO_BUCKET_PUBLIC = "copilot-videos-public-dev"
-VIDEO_MANIFEST_URL = "gs://copilot-videos-public-dev/video_manifest.json"
+# Local dev can use a committed fallback manifest so the overlay data matches
+# canonical video-packages (and Storybook fixtures) without depending on GCS.
+# This file is a fallback input only; runtime source is dynamic via VIDEO_MANIFEST_URL
+# in production. Do not hand-edit fallback data; publish video updates via scripts.
+VIDEO_MANIFEST_PATH = "video_manifest.local-fallback.json"
 VIDEO_PUBLIC_BASE_URL = "https://storage.googleapis.com/copilot-videos-public-dev"

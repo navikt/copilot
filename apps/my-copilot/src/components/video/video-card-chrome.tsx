@@ -11,7 +11,7 @@
 
 import { ArrowCirclepathIcon, LinkIcon, PlayIcon } from "@navikt/aksel-icons";
 import { Box, Heading } from "@navikt/ds-react";
-import { useCopyToClipboard } from "./use-copy-to-clipboard";
+import { useCopyToClipboard } from "./hooks/use-copy-to-clipboard";
 
 function resolveShareHref(href: string): string {
   if (typeof window === "undefined" || !href.startsWith("/")) {
@@ -63,9 +63,9 @@ export function HeaderLinkToken({
         event.stopPropagation();
         void copy(resolvedShareHref);
       }}
-      className={`${HEADER_TOKEN_BASE} ${HEADER_TOKEN_NEUTRAL} ${HEADER_TOKEN_ACTION} cursor-pointer gap-1 ${className}`.trim()}
+      className={`${HEADER_TOKEN_BASE} ${HEADER_TOKEN_NEUTRAL} ${HEADER_TOKEN_ACTION} cursor-pointer gap-1 text-[10px] ${className}`.trim()}
       aria-label={copied ? "Delt" : ariaLabel}
-      title={copied ? "Lenke kopiert" : "Del"}
+      title={copied ? "Lenke kopiert" : "Link"}
     >
       {copied ? (
         <>

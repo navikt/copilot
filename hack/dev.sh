@@ -101,7 +101,7 @@ if [[ -n "${VIDEO_BUCKET_PUBLIC_DEV:-}" || -n "${VIDEO_BUCKET_PUBLIC:-}" ]]; the
         export VIDEO_MANIFEST_URL="${VIDEO_MANIFEST_URL:-gs://${VIDEO_BUCKET_PUBLIC}/video_manifest.json}"
     fi
 fi
-export VIDEO_MANIFEST_PATH="${VIDEO_MANIFEST_PATH:-video_manifest.json}"
+export VIDEO_MANIFEST_PATH="${VIDEO_MANIFEST_PATH:-video_manifest.local-fallback.json}"
 export VIDEO_FEED_CACHE_SECONDS="${VIDEO_FEED_CACHE_SECONDS:-60}"
 
 (cd apps/copilot-api && LOG_LEVEL=DEBUG GCP_TEAM_PROJECT_ID=copilot-dev-e17a LOGGED_ENDPOINTS="/api/v1/,/health,/ready" mise exec -- air 2>&1 | prefix_output "api" "$CYAN") &

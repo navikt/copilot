@@ -45,6 +45,14 @@ description = "Build Next.js production bundle"
 run = "fnox exec -- pnpm dev"
 description = "Start Next.js development server (secrets from Keychain)"
 
+[tasks.storybook]
+run = "pnpm storybook"
+description = "Start Storybook on http://localhost:6006"
+
+[tasks."storybook:build"]
+run = "pnpm build-storybook"
+description = "Build static Storybook output"
+
 [tasks."dev:auth"]
 run = "pnpm tsx scripts/mock-texas.ts & sleep 1 && NAIS_TOKEN_INTROSPECTION_ENDPOINT=http://localhost:6969/introspect fnox exec -- pnpm dev"
 description = "Start dev server with mock Texas (tests auth flows locally)"

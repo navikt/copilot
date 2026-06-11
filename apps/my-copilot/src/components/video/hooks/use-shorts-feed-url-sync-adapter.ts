@@ -26,12 +26,17 @@ export function useUrlSyncAdapter({
 }: UseUrlSyncAdapterArgs) {
   const searchParams = useSearchParams();
   const urlControlledViewer = useRef(false);
+  const lastProcessedVideoId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!searchParams) return;
     const videoId = searchParams.get("video");
 
+    // Guard: if we already processed this videoId, don't process again
+    if (videoId === lastProcessedVideoId.current) return;
+
     if (videoId && videos.some((video) => video.id === videoId)) {
+      lastProcessedVideoId.current = videoId;
       urlControlledViewer.current = true;
       const frame = window.requestAnimationFrame(() => {
         setActiveId(videoId);
@@ -42,7 +47,8 @@ export function useUrlSyncAdapter({
       return () => window.cancelAnimationFrame(frame);
     }
 
-    if (urlControlledViewer.current && isViewerOpen) {
+    if (urlControlledViewer.current && isViewerOpen && !videoId) {
+      lastProcessedVideoId.current = null;
       const frame = window.requestAnimationFrame(() => {
         setIsViewerOpen(false);
         dispatch({ type: "CLOSE" });

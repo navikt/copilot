@@ -3,8 +3,7 @@
 /**
  * Polished video overlay components for episode pills, badges, chips, and tags.
  *
- * Extracted from the original VideoOverlayRenderer to support reuse in both
- * the legacy overlay system and the new UnifiedVideoHUD.
+ * Shared primitives for the unified video HUD.
  *
  * Design philosophy:
  * - Accent colors give each episode visual identity
@@ -25,25 +24,13 @@ import {
 } from "@navikt/aksel-icons";
 import { Detail, HStack, VStack } from "@navikt/ds-react";
 import type { OverlayComponent } from "@/lib/public-videos";
+import { accentForEpisode } from "./video-accent";
 
 // ============================================================================
 // Accent Colors: Each episode gets a unique accent for visual identity
 // ============================================================================
 
-/** Cyclic accent colors for episodes. Provides visual differentiation. */
-const ACCENTS = ["#66d4cf", "#9af0a8", "#ffd485", "#c6a8ff", "#7cc7ff", "#ff9db1"] as const;
-
-/**
- * Get the accent color for an episode number.
- * Cycles through ACCENTS array; unknown/non-numeric episodes get first color.
- */
-export function accentForEpisode(episode: string | undefined): string {
-  const n = Number.parseInt(episode ?? "", 10);
-  if (Number.isFinite(n) && n > 0) {
-    return ACCENTS[(n - 1) % ACCENTS.length];
-  }
-  return ACCENTS[0];
-}
+export { accentForEpisode };
 
 // ============================================================================
 // Visual Constants: Color tokens for overlay rendering
@@ -68,6 +55,10 @@ const MAX_CONTENT_ROWS = 4;
 function isGlyph(labels: string[]): boolean {
   const label = labels[0] ?? "";
   return label.length <= 2;
+}
+
+export function isTopRailGlyph(overlay: OverlayComponent): boolean {
+  return (overlay.kind === "badge" || overlay.kind === "glyph") && isGlyph(overlay.labels);
 }
 
 /**
@@ -385,7 +376,7 @@ function contentOrder(kind: string): number {
 export function ContentPanel({ overlays, accent }: { overlays: OverlayComponent[]; accent: string }) {
   // Filter content overlays (excluding episode numbers and glyph badges rendered separately)
   const contentOverlays = overlays
-    .filter((o) => o.kind !== "episode-number" && !(o.kind === "badge" && isGlyph(o.labels)))
+    .filter((o) => o.kind !== "episode-number" && !isTopRailGlyph(o))
     .sort((a, b) => contentOrder(a.kind) - contentOrder(b.kind))
     .slice(0, MAX_CONTENT_ROWS);
 
@@ -413,6 +404,7 @@ export function ContentPanel({ overlays, accent }: { overlays: OverlayComponent[
             case "counter":
               return <CounterRow key={i} overlay={overlay} accent={accent} />;
             case "badge":
+            case "glyph":
               return <ResultRow key={i} overlay={overlay} accent={accent} />;
             case "chip":
             default:

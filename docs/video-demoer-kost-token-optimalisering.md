@@ -26,7 +26,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 - Rød tråd beholdes, men alle nøkkelbegreper forklares kort på nytt i hver video.
 - Hver episode avsluttes med en selvstendig sjekkliste du kan bruke med en gang.
 
-## Publiseringsplan (6+3)
+## Publiseringsplan (6+4)
 
 **Kjerneepisoder (for alle):**
 1. Episode 1: Presis prompt på første forsøk
@@ -41,6 +41,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 2. Bonus episode B: Mål effekt i statistikk
 3. Bonus episode C: Chronicle — forstå og optimaliser context
 4. Bonus episode D: Cplt sandbox — kom i gang på 3 minutter
+5. Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
 
 ## Produksjonsstatus
 
@@ -56,8 +57,17 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 | Bonus B | Planlagt | Kan fortsatt justeres. |
 | Bonus C | Planlagt | Fokus: `/context`, `tips`, `cost-tips`, `improve`. |
 | Bonus D | Spilt inn | Lås manus, metadata og overlay. |
+| Bonus E | Planlagt | Fokus: rtk gain/discover, git/go test, side-by-side output. |
 
 **Regel:** Ikke endre innholdet i episoder merket **Spilt inn**. Juster bare status, beskrivelser eller produksjonsnotater ved behov.
+
+## Videobeskrivelser for detaljsider
+
+Korte, actionable artikkelsammendrag for hver episode ligger nederst i denne samme fila, slik at video-plan og detaljtekster holdes samlet og synkronisert.
+
+- **Format:** 2-3 avsnitt per episode, ~150-200 ord
+- **Tone:** Konkret problem først, spesifik gevinst, actionable ending
+- **Mål:** Hjelp seeren bestemme seg og gi en forhåndsvisning av hva de lærer
 
 ## Krav: hver innspilling skal gi reell verdi i repoet
 
@@ -778,7 +788,178 @@ Output: nummerert liste.
 
 **Forventet respons-signal:** En enkel, kjørbar oppstartssekvens med tydelig første steg.
 
-## Felles mal for hver video
+---
+
+## Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
+
+**Status:** Planlagt
+
+**Overlay:** E · orange/amber · before/after compression meter · git log / git status / go test / git diff · 60-90% ↓
+
+**Mål:** Vise hvordan `rtk`-prefiksen på CLI-kommandoer automatisk senker tokenbruk på kommandoer med tydelig output — med visuell før/etter-sammenligning av output.
+
+**Kan sees alene fordi:** Vi forklarer `rtk`-prinsippet i 30 sek og viser fem konkrete kommandoer der effekten er tydelig.
+
+**Oppsett før demo:** Installer og initialiser `rtk` for Copilot først:
+
+```bash
+brew install rtk
+rtk init -g --copilot
+```
+
+**Script-outline (one-take):**
+1. "Hei og velkommen! I dag lærer du ett enkelt grep som senker tokens på alt du kjører fra terminalen."
+2. Vis installasjon og init: `brew install rtk` og `rtk init -g --copilot`.
+3. Vis samme kommando to ganger: uten og med `rtk` foran.
+4. Demonstrer effekten med fire kommandoer som gir tydelig forskjell (git log, git status, go test med cache av, git diff).
+5. Kjør `rtk gain` bare som bonus hvis tracking-databasen er tilgjengelig; ellers bruk `rtk discover` som status-sjekk.
+6. Avslutt med: "Add `rtk` to the start of any command."
+
+**Innhold (3–5 min):**
+1. Vis hva `rtk` gjør i 20 sek (filter + compress).
+2. **Setup (20 sek):** `brew install rtk` og `rtk init -g --copilot`.
+3. **Demo 1 (45 sek):** `git log --oneline --decorate --all` uten vs med rtk.
+   - Uten: ~80 linjer med mye padding og dekor
+   - Med rtk: ~20 linjer, signal-only
+4. **Demo 2 (45 sek):** `git status` uten vs med rtk.
+   - Uten: verbose forklaringer og lange blokker
+   - Med rtk: kompakt liste som er lett å lese på skjerm
+5. **Demo 3 (45 sek):** `go test -count=1 -v ./...` uten vs med rtk.
+   - Uten: test-for-test output og pakkevis støy
+   - Med rtk: aggregert resultat som fortsatt viser om noe feiler
+6. **Demo 4 (30 sek):** `git diff` på en ekte, større endring uten vs med rtk.
+   - Uten: mange hunk-linjer og kontekst
+   - Med rtk: kort oppsummering av hva som faktisk endret seg
+7. **Demo 5 (20 sek, valgfri):** `rtk gain` eller `rtk discover` hvis tracking er tilgjengelig.
+   - Brukes som bonus, ikke som hovedbevis
+8. **Avslutt (30 sek):** Kort sjekkliste: add rtk til kommandoer som faktisk produserer mye output.
+
+**Demo-kontekst (referanserepo):** Monorepo med go, git, docker — gir flere virkelige eksempler.
+**Viktig:** Ikke bruk `go build` som hoveddemo; cache kan gjøre at forskjellen blir usynlig. Bruk heller `go test -count=1 -v` eller kommandoer som alltid er støynete.
+
+**📄 Referanse:** Se eksempelseksjonen nederst i denne fila for konkrete før/etter-eksempler, copy-paste-klare kommandoer, og opptak-sjekkliste.
+
+**Reell oppgave i repo (velg én før opptak):**
+- Optimaliser fire kommandoer du kjører regelmessig ved å legge `rtk` foran — vis tydelig forskjell i output.
+
+**Ta med deg videre:** Prefix alle CLI-kommandoer med `rtk` når output faktisk blir kortere og klarere. En vane som sparer gjentakende.
+
+**Oppsummering:** `rtk` er en enveisventil som klipper støy fra alle kommandoer. Null læringskurve, umiddelbar effekt.
+
+**Outro:** Bruk `rtk` på kommandoene som produserer mye støy, og sjekk `rtk gain` når tracking er satt opp for å se den kumulative sparingen.
+
+**Prompt-manus (copy/paste):**
+
+```bash
+# Vis hvordan rtk virker (talk-through, ikke prompt)
+brew install rtk
+rtk init -g --copilot
+
+git log --oneline --decorate --all | head -20
+
+rtk git log --oneline --decorate --all
+
+# Go test (disable cache so the difference is visible)
+go test -count=1 -v ./... | head -30
+
+rtk go test -count=1 -v ./...
+
+# Samlet sparing denne økten (valgfri, hvis tracking er tilgjengelig)
+rtk gain
+
+# Per-kommando historikk (valgfri)
+rtk gain --history
+
+# Finn kommandoer du kjørte uten rtk
+rtk discover
+
+# Rå kommando uten filtering (benchmark/feilsøking)
+rtk proxy git status
+```
+
+**Demo-senario for videoen:**
+
+Sekvens 1 (0:00-1:00): Introduksjon
+- "Logs og output fra CLI er ofte fulle av støy."
+- "rtk er en filter som sitter foran alle kommandoer."
+- "Bare legg `rtk` foran — og bespar 60–90 % tokens."
+
+Sekvens 2 (1:00-2:15): Før/etter-demo (split screen hvis mulig)
+- **Venstre (uten rtk):** `git log --oneline --decorate --all`
+  - Vis 20–30 linjer av output med mye dekor
+  - Teller tokens mentalt eller med overlay
+- **Høyre (med rtk):** `rtk git log --oneline --decorate --all`
+  - Vis samme kommando, 8–10 linjer, ren output
+  - Overlay viser "60% fewer tokens"
+
+Sekvens 3 (2:15-3:00): Go-test eksempel
+- `go test -count=1 -v ./...` (cache av, verbose, mye noise)
+- `rtk go test -count=1 -v ./...` (aggregert)
+
+Sekvens 4 (3:00-3:30): Git status / diff
+- `git status` og `git diff` på ekte endring
+- `rtk git status` og `rtk git diff` viser renere, kortere output
+
+Sekvens 5 (3:30-4:00): Måling og impact (valgfri)
+- Kjør `rtk gain` hvis tracking-databasen finnes
+- Ellers vis `rtk discover` som status-sjekk
+- Overlay animerer token-meter oppover
+
+Sekvens 6 (4:00-4:20): Avslutting og sjekkliste
+- "Her er hva du gjør neste gang:"
+  - Prefix all CLI med `rtk`
+  - Kjør `rtk gain` når tracking er satt opp
+  - Sjekk `rtk gain --history` ukentlig hvis den er tilgjengelig
+
+**Forventet respons-signal:** Tydelig før/etter-kontrast. Målbar token-sparing. Enkelt regel.
+
+**Overlay metadata (OverlayComponent format):**
+
+```ts
+{
+  id: "bonus-e-rtk",
+  title: "rtk — CLI Output Compression",
+  accent: "#ff8c42", // orange
+  secondaryAccent: "#ffc857", // amber
+  motif: "compression-wave", // visual representation of filtering
+  poster: "bonus-e-rtk-poster.png",
+  components: [
+    {
+      kind: "episode-number",
+      anchor: "top-left",
+      labels: ["E"]
+    },
+    {
+      kind: "compare-bars",
+      anchor: "bottom-full",
+      labels: ["Without rtk (200 lines)", "With rtk (30 lines)"],
+      highlightIndex: 1
+    },
+    {
+      kind: "chip",
+      anchor: "top-right",
+      labels: ["60-90% saved"],
+      monospace: true
+    },
+    {
+      kind: "counter",
+      anchor: "center-left",
+      labels: ["git log", "git status", "go test", "git diff"],
+      highlightIndex: 0
+    }
+  ]
+}
+```
+
+**Frontend rendering hints:**
+- Compression wave motif: show concentric lines squeezing inward, suggesting "filtering"
+- Compare bars: stacked or side-by-side bar chart showing lines reduced
+- Token counter chip: small monospace text in top-right showing percentage
+- Command list: vertical stack of 3 commands with checkmarks
+
+---
+
+
 
 - **Start (20 sek):** Hva du lærer og hvorfor det sparer kost.
 - **Demo (2–3 min):** Ett konkret repo-scenario.
@@ -819,3 +1000,132 @@ Mal med plassholdere:
 - Unngå lange forklaringer; vis handling og resultat.
 - Ha en fast åpningsreplikk per episode som setter kontekst raskt i one-take.
 - Legg inn 1–2 sek stille pause mellom segmenter i samme opptak for enklere undertekster.
+
+## Videobeskrivelser for detaljsider
+
+### Episode 1: Presis prompt på første forsøk
+
+Hver gang du skriver en dårlig prompt, må du stille oppfølgingsspørsmål for å fikse den. Det dobler eller tredobler tokenbruken for det samme resultatet. I denne videoen lærer du tre enkle triks som gjør prompts dine presise fra start: legg til kontekst om kodebasen, spesifiser eksakt hva du vil ha, og gi ett eksempel på riktig format.
+
+Disse tre elementene tar 30 sekunder ekstra å skrive, men sparer deg for 5-10 runder med oppklaringer. Det betyr færre tokens, raskere svar, og færre misforståelser. Etter denne videoen skal du kunne skrive en prompt som fungerer første gang—og du sjekker selv at den er klar før du sender den.
+
+### Episode 2: En oppgave per tråd
+
+Hvis du hopper mellom mange ulike oppgaver i samme Copilot-sessjon, blir konteksten rotete. LLM-en må huske alle detaljer fra oppgave A mens du spør om oppgave B—og det varer lenge og koster mye. I denne videoen viser jeg to enkle knapper som fikser det: `/clear` starter en ny, ren sessjon, og `/compact` klemmer sammen gamle meldinger når en session blir lang.
+
+Resultatet: Bedre fokus, raskere svar, og 30-40% færre tokens per oppgave. Du lærer når du skal bruke hver av dem, og hvordan du merker at konteksten begynner å bli for tung. Prøv `/clear` neste gang du bytter fra en task til en helt annen.
+
+### Episode 3: Riktig modus og agentnivå
+
+Du har flere måter å bruke Copilot på: rask spørsmål-svar, planlegging, eller delegering til spesialister. De koster veldig forskjellig—men de fleste velger alltid det dyreste alternativet. I denne videoen lærer du en enkel regel: bruk Ask for småspørsmål, Plan for arkitekturbeslutninger, og spesialistagenter for dypt arbeid. Da betaler du bare for det du trenger.
+
+Når du matcher riktig tool til oppgaven, sparer du 80% tokens på rutinejobber—uten å miste noen kvalitet. Vi viser konkrete eksempler: et designspørsmål (Ask), en API-arkitektur (Plan), og en sikkerhetskontroll (spesialist). Etter denne videoen sjekker du automatisk hvilket modusvalg som passer før du starter.
+
+### Episode 4: Tool-first workflow
+
+Når du spør en LLM "hva inneholder denne filen?", bruker du 200+ tokens for noe som git/grep gjør på 2 millisekund. Det er som å bruke en luftkisser for å hamre inn en spiker. I denne videoen lærer du å tenke verktøy først: bruk grep, git, gh CLI og andre deterministiske verktøy for å hente fakta, og bruk LLM-en bare for å resonnere over dem.
+
+Resultatet: 10x raskere svar, 90% færre tokens, og færre feil—fordi du gir LLM-en faktisk korrekt data i stedet for å be den gjette. Vi viser eksempler med git-historikk, filsøk, og GitHub-API-kall. Test denne regelen på din neste "søkoppgave" og merk hvor mye raskere du blir.
+
+### Episode 5: Kort output uten kvalitetstap
+
+LLM-er gir deg lange, detaljerte svar som regel. Det er fint når du trenger full forklaring, men når du bare vil ha koden eller punktene, er halvparten av outputen bortkastet. I denne videoen introduserer vi `/terse`-modus: den samme svarene, men uten fyllord, unødvendige forklaringer og repetisjon. Du får 40-50% færre tokens—og eksakt samme informasjon.
+
+/terse er perfekt når du allerede skjønner domenet og bare vil ha resultatet raskt. Vi viser før/etter-eksempler med kodegenering, planlegging og debugging. Etter denne videoen bruker du `/terse` som standard, og velger full-mode bare når du trenger læring, ikke speed.
+
+### Episode 6: Kosteffektiv PR-flyt
+
+Når du reviewer mange PRs, kjører du gjerne kodegjennomgang som separate Copilot-sesjoner. Det betyr hver review starter fra topp—full kontekst-overhead for hver PR. I denne videoen lærer du å samle reviews: batch 5-6 PRs i én sessjon, bruk `/diff` for å laste inn filendringer uten å paste dem manuelt, og la Copilot sammenligne på tvers av filene.
+
+Resultatet: 70% færre tokens per review, raskere feedback, og færre misforståelser mellom reviewerne. Vi viser konkret workflow: last diff, angi fokusregler ("les for sikkerhet"), få kommentarer på alle PR-er samtidig. Når du har 10+ PRs i backlog, er denne teknikken en game-changer.
+
+### Bonus episode A: Tre dyre anti-mønstre
+
+Det finnes tre skjulte måter utviklere bruker 200-300% ekstra tokens uten å vite det. De er så vanlige at du sannsynligvis gjør minst en hver dag. I denne videoen avslører vi dem: gjenta samme kontekst mange ganger, bruk LLM for søk i stedet for grep, og fortsett lange sesjoner når du burde startet på nytt.
+
+Hver anti-mønster har en enlinjenregel som fikser det. Etter denne videoen kjenner du igjen anti-mønstre før de sliter ressursene dine, og du vet nøyaktig hva du skal gjøre i stedet. Dette er gjenkjenning som blir til forebyggelse.
+
+### Bonus episode B: Mål effekt i statistikk
+
+Du merker at du sparer tokens når du bruker disse trikksene, men hvor mye egentlig? I stedet for å gjette, kan du måle det. I denne videoen lærer du å spore Copilot-bruk fra statistikk-dashbordet, sammenligne før/etter workflow-endringer, og finne hvilken teknikk som gir best return on time.
+
+Data slår "følelse". Vi viser hvordan du setter opp måling, hva du skal se etter (tokens per oppgave, gjennomsnittlig sessionslengde, modellbruk), og hvordan du deler resultater med teamet. Etter denne videoen baserer du optimiseringer på data, ikke antagelser.
+
+### Bonus episode C: Chronicle — forstå og optimaliser context
+
+Context er skjult inne i LLM-en—du kan ikke se hva som blir sendt, og derfor er det vanskelig å optimalisere. Chronicle-verktøyet viser eksakt hvilke filer, meldinger og avhengigheter som er lastet inn, hvor mange tokens hver del bruker, og hvor bottleneckene er. Det er som røntgen for Copilot-sesjoner dine.
+
+Med Chronicle kan du måle hvor mye hver fil/agent/instruksjon koster, og målrette optimiseringen der det faktisk gjør nytte. Vi viser eksempler med monorepo-kontekst, agent-delegering og instruksjonsdrift. Etter denne videoen bruker du Chronicle før store sesjonssett for å finne hidden waste.
+
+### Bonus episode D: Cplt sandbox — kom i gang på 3 minutter
+
+Å sette opp Copilot lokalt kan virke komplisert: installation, konfiguration, testing. I denne videoen viser vi Cplt sandbox—et pre-konfigurert testmiljø som gir deg en arbeidende Copilot-setup på 3 minutter, med alt fra integrasjoner til eksempler allerede på plass.
+
+Bruk sandboxen til å eksperimentere med nye workflows, teste optimaliseringsteknikker, eller lære agentdelegeringen uten å påvirke din normale setup. Det er som en sikker øvingsgrunn for Copilot-bruken din. Etter denne videoen kan du starte eksperimenter med det samme.
+
+### Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
+
+Hver gang du kjører `go test -count=1 -v` fra terminalen, scrolles du gjennom hundrevis av linjer. Mye støy, lite signal. Med `rtk` foran kommandoen får du det samme resultatet på én linje—og 95% færre tokens. Videoen viser også hvordan du installerer og initialiserer verktøyet for Copilot med `brew install rtk` og `rtk init -g --copilot`.
+
+Ingen oppsetting, ingen læringskurve. Bare legg `rtk` foran kommandoer som faktisk produserer mye output, og se resultatene med `rtk discover` eller `rtk gain` når tracking er satt opp. Vi viser fire konkrete eksempler: git log, git status, go test med cache av, og git diff—hver med 60-90% besparelse. Prøv `rtk` foran din neste kommando. Du merker resultatet med en gang.
+
+### rtk — konkrete demoer og opptaksnotater
+
+#### Setup: installer og initialiser
+
+```bash
+brew install rtk
+rtk init -g --copilot
+```
+
+Bruk dette før opptak så seeren ser hele løypa fra null til bruksklar Copilot-integrasjon.
+
+#### Demo 1: git log
+
+Uten `rtk` får du lang og dekorert historikk. Med `rtk git log --oneline --decorate --all` blir output kortere, renere og lettere å lese på skjerm. Dette er den enkleste måten å vise at verktøyet kutter støy uten å kutte signal.
+
+#### Demo 2: git status
+
+`git status` gir ofte både forklaringer og lange blokker med endringer. `rtk git status` gjør resultatet kompakt nok til at seeren faktisk ser hva som er endret uten å scrolle. Dette er en tydelig før/etter-demo fordi samme informasjon blir mye lettere å konsumere.
+
+#### Demo 3: go test
+
+Bruk `go test -count=1 -v ./...` for å unngå cache og få en synlig forskjell. Kjør deretter `rtk go test -count=1 -v ./...` for en aggregert og mer lesbar output. Dette er den sterkeste demoen når du vil vise hvor mye støy som vanligvis ligger i testkjøring.
+
+#### Demo 4: git diff
+
+På en større endring er `git diff` perfekt for å vise forskjellen mellom rå og filtrert output. Uten `rtk` blir hunkene lange og tunge. Med `rtk git diff` får du kortere oppsummering av selve endringen, som gjør poenget umiddelbart synlig.
+
+#### Demo 5: måling og status
+
+`rtk gain` er valgfri bonus hvis tracking-databasen er tilgjengelig. Hvis ikke, bruk `rtk discover` for å vise status og eventuelle savnede besparelser. Poenget er at måling ikke skal være en blokkering for selve demoen.
+
+#### Opptaksregel
+
+- Vis installasjon først: `brew install rtk` og `rtk init -g --copilot`
+- Velg bare kommandoer med tydelig output-forskjell
+- Ikke bruk `go build` som hoveddemo når cache kan skjule effekten
+- Hold `rtk gain` som bonus, ikke som hovedbevis
+- Vis alltid same kommando med og uten `rtk` før du går videre
+
+#### Kopiérbare kommandoer
+
+```bash
+brew install rtk
+rtk init -g --copilot
+
+git log --oneline --decorate --all | head -20
+rtk git log --oneline --decorate --all
+
+git status
+rtk git status
+
+go test -count=1 -v ./... | head -30
+rtk go test -count=1 -v ./...
+
+git diff HEAD~1..HEAD -- docs/large-file.md
+rtk git diff HEAD~1..HEAD -- docs/large-file.md
+
+rtk discover
+rtk gain
+```

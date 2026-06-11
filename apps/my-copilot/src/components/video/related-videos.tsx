@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Box } from "@navikt/ds-react";
 import type { HomepageVideo } from "@/lib/public-videos";
-import { accentForEpisode } from "./video-overlay-components";
+import { accentForEpisode } from "./video-accent";
 
 interface RelatedVideosProps {
   videos: HomepageVideo[];

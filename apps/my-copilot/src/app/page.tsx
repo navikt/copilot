@@ -5,7 +5,7 @@ import { ExternalLinkIcon, PadlockLockedIcon, PlayIcon, BookIcon } from "@navikt
 import NextLink from "next/link";
 import { NewsFeed } from "@/components/news-feed";
 import { HighlightCards } from "@/components/pulse-strip";
-import { HomeShortsFeed } from "@/components/home-shorts-feed";
+import { HomeShortsFeed } from "@/components/video/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
