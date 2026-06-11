@@ -548,7 +548,7 @@ func TestServerVersionHandler_PackageServer(t *testing.T) {
 					"registryType": "npm",
 					"identifier": "@test/mcp-server",
 					"version": "1.2.3",
-					"runtimeHint": "pnx",
+					"runtimeHint": "pnpm dlx",
 					"transport": {"type": "stdio"},
 					"environmentVariables": [
 						{"name": "API_KEY", "description": "API key", "isRequired": true, "isSecret": true}
@@ -607,8 +607,8 @@ func TestServerVersionHandler_PackageServer(t *testing.T) {
 	if pkg.Version != "1.2.3" {
 		t.Errorf("expected version '1.2.3', got '%s'", pkg.Version)
 	}
-	if pkg.RuntimeHint != "pnx" {
-		t.Errorf("expected runtimeHint 'pnx', got '%s'", pkg.RuntimeHint)
+	if pkg.RuntimeHint != "pnpm dlx" {
+		t.Errorf("expected runtimeHint 'pnpm dlx', got '%s'", pkg.RuntimeHint)
 	}
 	if pkg.Transport.Type != "stdio" {
 		t.Errorf("expected transport type 'stdio', got '%s'", pkg.Transport.Type)
