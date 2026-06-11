@@ -3,14 +3,14 @@ import { BodyLong, Box, Heading, List } from "@navikt/ds-react";
 
 function StorybookGuidelinesDoc() {
   return (
-    <Box className="rounded-xl bg-white" padding="space-24">
-      <Heading level="2" size="medium" spacing>
-        Storybook-guidelines for videokomponenter
-      </Heading>
-      <BodyLong spacing>Denne siden beskriver anbefalt struktur og kultur for stories i my-copilot.</BodyLong>
+    <Box className="max-w-4xl rounded-xl bg-white" padding="space-24">
+      <BodyLong spacing>
+        Retningslinjene beskriver hvordan videokomponenter i my-copilot dokumenteres i Storybook, slik at vi holder én
+        felles standard for spiller, HUD og overlays.
+      </BodyLong>
 
       <Heading level="3" size="small" spacing>
-        Formål med videosystemet
+        Formål
       </Heading>
       <BodyLong spacing>
         Videosystemet skal gi en konsekvent og robust videoopplevelse på tvers av forsiden, detaljsider og Storybook.
@@ -19,14 +19,14 @@ function StorybookGuidelinesDoc() {
       </BodyLong>
 
       <Heading level="3" size="small" spacing>
-        Scope for videokomponenter
+        Scope
       </Heading>
       <List as="ul">
         <List.Item>Inkluderer avspilling, HUD, overlays, metadata-paneler og sidekomposisjon for video.</List.Item>
         <List.Item>Inkluderer ikke backend-publisering av videofiler eller innholdsproduksjon.</List.Item>
         <List.Item>
-          Stories skal dokumentere UI-atferd og states for komponentene, ikke erstatte ende-til-ende-validering av video
-          i produksjonsmiljø.
+          Stories skal dokumentere UI-atferd og states for komponentene, ikke erstatte ende-til-ende-validering i
+          produksjonsmiljø.
         </List.Item>
       </List>
 
@@ -92,7 +92,7 @@ function StorybookGuidelinesDoc() {
 }
 
 const meta = {
-  title: "Video/Dokumentasjon/Storybook Guidelines",
+  title: "Video/Dokumentasjon/Videosystem: formål og scope",
   component: StorybookGuidelinesDoc,
   tags: ["autodocs"],
 } satisfies Meta<typeof StorybookGuidelinesDoc>;
@@ -100,4 +100,4 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Guidelines: Story = {};
+export const Oversikt: Story = {};
