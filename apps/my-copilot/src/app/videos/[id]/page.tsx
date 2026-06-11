@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { Box } from "@navikt/ds-react";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { fetchVideoById, getPublicVideoFeed, type HomepageVideo } from "@/lib/public-videos";
-import { DetailVideoPlayer } from "@/components/detail-video-player";
-import { VideoMetadata } from "@/components/video-metadata";
-import { VerticalVideoContainer } from "@/components/vertical-video-container";
-import { RelatedVideos } from "@/components/related-videos";
+import { DetailVideoPlayer } from "@/components/video/detail-video-player";
+import { VideoMetadata } from "@/components/video/video-metadata";
+import { VerticalVideoContainer } from "@/components/video/vertical-video-container";
+import { RelatedVideos } from "@/components/video/related-videos";
 
 type Props = {
   params: Promise<{ id: string }>;

@@ -1,32 +1,31 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
 import { relatedVideos } from "./storybook-video-fixtures";
-import { ShortsFeed } from "./shorts-feed";
+import { RelatedVideos } from "../related-videos";
 
 const meta = {
-  title: "Video/Pages/Home Shorts Feed",
-  component: ShortsFeed,
+  title: "Video/Panels/Related Videos",
+  component: RelatedVideos,
   tags: ["autodocs"],
   parameters: {
     docs: {
       description: {
         component:
-          "Dette er hjemmesidens faktiske videospiller-feed. Samme player-surface brukes også på detaljsiden gjennom delt komponent.",
+          "Panel med relaterte videoer i 9:16-format. Historiene bruker faktiske media-URL-er fra dev-bucket for realistisk layout- og innholdsvalidering.",
       },
     },
   },
   decorators: [
     (Story) => (
-      <Box className="max-w-[720px] rounded-xl bg-black" padding="space-16">
+      <Box padding="space-16" className="rounded-xl bg-black">
         <Story />
       </Box>
     ),
   ],
   args: {
     videos: relatedVideos,
-    initialVideoId: relatedVideos[1]?.id,
   },
-} satisfies Meta<typeof ShortsFeed>;
+} satisfies Meta<typeof RelatedVideos>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

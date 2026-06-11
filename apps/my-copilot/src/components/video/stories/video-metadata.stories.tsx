@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
 import { demoVideo } from "./storybook-video-fixtures";
-import { VideoMetadata } from "./video-metadata";
+import { VideoMetadata } from "../video-metadata";
 
 const meta = {
   title: "Video/Panels/Metadata",

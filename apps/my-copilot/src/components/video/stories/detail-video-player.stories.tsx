@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
-import { DetailVideoPlayer } from "./detail-video-player";
+import { DetailVideoPlayer } from "../detail-video-player";
 import { demoVideo } from "./storybook-video-fixtures";
 
 const meta = {

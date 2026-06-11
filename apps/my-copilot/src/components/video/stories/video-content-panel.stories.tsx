@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
 import type { OverlayComponent } from "@/lib/public-videos";
-import { ContentPanel } from "./video-overlay-components";
+import { ContentPanel } from "../video-overlay-components";
 
 const richOverlays: OverlayComponent[] = [
   { kind: "rule-pill", anchor: "bottom-full", labels: ["nytt mål = ny tråd"] },

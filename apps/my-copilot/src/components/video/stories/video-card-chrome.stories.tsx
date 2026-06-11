@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
-import { PlaybackControls } from "./video-card-chrome";
+import { PlaybackControls } from "../video-card-chrome";
 
 const meta = {
   title: "Video/Controls/Playback Controls",

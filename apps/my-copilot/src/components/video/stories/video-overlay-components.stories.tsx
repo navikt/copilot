@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box, HStack } from "@navikt/ds-react";
-import { EpisodePill, GlyphBadge } from "./video-overlay-components";
+import { EpisodePill, GlyphBadge } from "../video-overlay-components";
 
 const meta = {
   title: "Video/Primitives/Overlay Components",

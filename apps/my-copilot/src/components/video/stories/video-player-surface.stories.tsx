@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
 import { demoVideo } from "./storybook-video-fixtures";
-import type { ShortsFeedMediaHandlers } from "./use-shorts-feed-media-adapter";
-import { VideoPlayerSurface } from "./video-player-surface";
+import type { ShortsFeedMediaHandlers } from "../hooks/use-shorts-feed-media-adapter";
+import { VideoPlayerSurface } from "../video-player-surface";
 
 const noopMediaHandlers: ShortsFeedMediaHandlers = {
   onPlay: () => undefined,

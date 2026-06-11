@@ -1,7 +1,7 @@
 "use client";
 
 import type { HomepageVideo } from "@/lib/public-videos";
-import { useDetailPageController } from "./use-detail-page-controller";
+import { useDetailPageController } from "./hooks/use-detail-page-controller";
 import { VideoPlayerSurface } from "./video-player-surface";
 
 interface DetailVideoPlayerProps {

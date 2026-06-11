@@ -7,7 +7,7 @@ import {
   type ShortsFeedController,
   type ShortsFeedMediaHandlers,
   useShortsFeedController,
-} from "./use-shorts-feed-controller";
+} from "./hooks/use-shorts-feed-controller";
 import { VideoPlayerSurface } from "./video-player-surface";
 
 type ShortsFeedProps = {

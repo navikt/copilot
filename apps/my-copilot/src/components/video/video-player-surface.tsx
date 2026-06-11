@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { HomepageVideo } from "@/lib/public-videos";
 import { isCompleted, type PlaybackState } from "@/lib/video-playback-machine";
-import type { ShortsFeedMediaHandlers } from "./use-shorts-feed-media-adapter";
+import type { ShortsFeedMediaHandlers } from "./hooks/use-shorts-feed-media-adapter";
 import { accentForEpisode } from "./video-accent";
 import { CompletedOverlay, CornerFullscreenButton, IdleCaption } from "./video-card-chrome";
 import { UnifiedVideoHUD } from "./unified-video-hud";

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
-import { VerticalVideoContainer } from "./vertical-video-container";
+import { VerticalVideoContainer } from "../vertical-video-container";
 
 const meta = {
   title: "Video/Pages/Vertical Container",

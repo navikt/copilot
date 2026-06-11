@@ -11,7 +11,7 @@
 
 import { ArrowCirclepathIcon, LinkIcon, PlayIcon } from "@navikt/aksel-icons";
 import { Box, Heading } from "@navikt/ds-react";
-import { useCopyToClipboard } from "./use-copy-to-clipboard";
+import { useCopyToClipboard } from "./hooks/use-copy-to-clipboard";
 
 function resolveShareHref(href: string): string {
   if (typeof window === "undefined" || !href.startsWith("/")) {

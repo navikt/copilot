@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Box } from "@navikt/ds-react";
 import { demoVideo } from "./storybook-video-fixtures";
-import { UnifiedVideoHUD } from "./unified-video-hud";
+import { UnifiedVideoHUD } from "../unified-video-hud";
 
 const meta = {
   title: "Video/HUD/Unified HUD",
