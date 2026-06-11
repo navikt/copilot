@@ -12,6 +12,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ var (
 
 // timeNow is a variable so tests can override it.
 var timeNow = time.Now
+var telemetry telemetryRecorder = noopTelemetry{}
 
 // ─── CLI ────────────────────────────────────────────────────────────────────
 
@@ -113,7 +115,9 @@ func run(args []string) error {
 
 	// Handle --sync flag: non-interactive sync-all + launch
 	if args[0] == "--sync" {
-		if err := cmdSyncAuto(".", "", "", true, false); err != nil && err != errUpdatesAvailable {
+		if err := runWithCommandTelemetry("sync", "non_interactive", "auto", func() error {
+			return cmdSyncAuto(".", "", "", true, false)
+		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
 		}
 		launchCopilotWithAgent("nav-pilot")
@@ -234,20 +238,22 @@ func run(args []string) error {
 
 	switch command {
 	case "install":
-		if userScope && (len(positional) == 0 || installAll) {
-			return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
-		}
-		if len(positional) == 0 {
-			// No args: launch interactive flow if in a terminal
-			if isInteractive() && !jsonOutput {
-				return cmdInstallInteractive(targetDir, ref, sourceRepo)
+		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
+			if userScope && (len(positional) == 0 || installAll) {
+				return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
 			}
-			return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
-		}
-		if len(positional) > 1 {
-			return fmt.Errorf("install takes one name. Did you mean: nav-pilot install %s --type %s", positional[1], positional[0])
-		}
-		return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
+			if len(positional) == 0 {
+				// No args: launch interactive flow if in a terminal
+				if isInteractive() && !jsonOutput {
+					return cmdInstallInteractive(targetDir, ref, sourceRepo)
+				}
+				return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
+			}
+			if len(positional) > 1 {
+				return fmt.Errorf("install takes one name. Did you mean: nav-pilot install %s --type %s", positional[1], positional[0])
+			}
+			return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		})
 	case "init":
 		return cmdInit(targetDir, dryRun, force)
 	case "export":
@@ -276,18 +282,30 @@ func run(args []string) error {
 		}
 		return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
 	case "sync":
+		syncScope := "auto"
 		if userScope || targetProvided {
-			return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
+			syncScope = scope.Name
 		}
-		return cmdSyncAuto(targetDir, ref, sourceRepo, apply, jsonOutput)
-	case "list":
-		if listInstalled {
+		return runWithCommandTelemetry("sync", telemetryMode(), syncScope, func() error {
 			if userScope || targetProvided {
-				return cmdStatusScoped(scope, false, jsonOutput)
+				return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
 			}
-			return cmdStatusAuto(targetDir, jsonOutput)
+			return cmdSyncAuto(targetDir, ref, sourceRepo, apply, jsonOutput)
+		})
+	case "list":
+		listScope := "none"
+		if userScope || targetProvided {
+			listScope = scope.Name
 		}
-		return cmdList(ref, sourceRepo, listItems, jsonOutput)
+		return runWithCommandTelemetry("list", telemetryMode(), listScope, func() error {
+			if listInstalled {
+				if userScope || targetProvided {
+					return cmdStatusScoped(scope, false, jsonOutput)
+				}
+				return cmdStatusAuto(targetDir, jsonOutput)
+			}
+			return cmdList(ref, sourceRepo, listItems, jsonOutput)
+		})
 	case "status":
 		// Deprecated: hidden alias for backward compatibility
 		if !jsonOutput {
@@ -301,7 +319,7 @@ func run(args []string) error {
 	case "uninstall":
 		return cmdUninstall(scope, dryRun)
 	case "upgrade":
-		return cmdUpdate()
+		return runWithCommandTelemetry("upgrade", telemetryMode(), "none", cmdUpdate)
 	case "update":
 		// Deprecated: hidden alias for backward compatibility
 		if !jsonOutput {
@@ -325,6 +343,17 @@ func run(args []string) error {
 }
 
 func main() {
+	tel, err := initTelemetry(context.Background(), version)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s telemetry disabled: %v\n", yellow("⚠"), err)
+	}
+	telemetry = tel
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = telemetry.Shutdown(ctx)
+	}()
+
 	if err := run(os.Args[1:]); err != nil {
 		if err == errUpdatesAvailable {
 			os.Exit(1)

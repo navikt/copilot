@@ -61,6 +61,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 
 	if len(files) == 0 {
 		if len(conflictPaths) > 0 && !apply {
+			telemetry.RecordSyncConflicts(scope.Name, telemetryMode(), int64(len(conflictPaths)))
 			result := syncResult{
 				UpToDate:  false,
 				Source:    src.SHA,
@@ -164,6 +165,8 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		Ignored:   ignoredPaths,
 		Conflicts: conflictPaths,
 	}
+	telemetry.RecordSyncUpdates(scope.Name, telemetryMode(), int64(len(result.Updates)))
+	telemetry.RecordSyncConflicts(scope.Name, telemetryMode(), int64(len(result.Conflicts)))
 
 	if jsonOutput {
 		if err := outputJSON(result); err != nil {

@@ -532,7 +532,7 @@ cmd := exec.Command(cliPath, args...)
 
 Brukere som vil sende andre flagg (f.eks. `--model`, egne prompts, eller en annen agent) må kjøre `copilot`/`cplt` direkte etter at nav-pilot har satt opp miljøet.
 
-**Mulig fremtidig løsning:** Se GitHub-issue for tracking.
+**Status:** Opt-in OTel-metrics er tilgjengelig via `NAV_PILOT_TELEMETRY_ENABLED=1` og OTLP-endepunkt.
 
 ---
 

@@ -232,6 +232,9 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	if err != nil {
 		return err
 	}
+	if !dryRun {
+		telemetry.RecordInstallItems(scope.Name, telemetryMode(), int64(result.Installed))
+	}
 
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
@@ -321,6 +324,9 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, d
 	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr
+	}
+	if !dryRun {
+		telemetry.RecordInstallItems(scope.Name, telemetryMode(), int64(result.Installed))
 	}
 
 	if jsonOutput {
@@ -579,6 +585,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	result, err := installItems(src.Dir, scope, manifest, dryRun, force)
 	if err != nil {
 		return err
+	}
+	if !dryRun {
+		telemetry.RecordInstallItems(scope.Name, telemetryMode(), int64(result.Installed))
 	}
 
 	if !jsonOutput && result.Conflicts > 0 {
