@@ -26,6 +26,8 @@ vi.mock("./video-overlay-components", () => ({
   GlyphBadge: ({ label }: { label: string }) => <span>{label}</span>,
   ContentPanel: ({ overlays }: { overlays?: unknown[] }) =>
     overlays && overlays.length > 0 ? <div data-testid="overlay-renderer" /> : null,
+  isTopRailGlyph: ({ kind, labels }: { kind: string; labels: string[] }) =>
+    (kind === "badge" || kind === "glyph") && (labels[0] ?? "").length <= 2,
   ChipRow: () => null,
   LadderRow: () => null,
   CounterRow: () => null,
@@ -132,26 +134,26 @@ describe("ShortsFeed", () => {
     );
 
     expect(document.querySelector('video[data-video-id="video-b"]')).toBeInTheDocument();
-    // Overlay renderer should be visible (there are multiple videos, so use getAllByTestId)
-    expect(screen.getAllByTestId("overlay-renderer").length).toBeGreaterThan(0);
+    // Body overlay content should be hidden once viewer is opened.
+    expect(screen.queryByTestId("overlay-renderer")).not.toBeInTheDocument();
   });
 
-  it("toggles overlay state when the active video plays and pauses", () => {
+  it("hides body overlay state once the active viewer is opened", () => {
     render(<ShortsFeed videos={[createVideo("video-a", "Video A")]} />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Åpne video: Video A" })[0]);
     const video = document.querySelector('video[data-video-id="video-a"]') as HTMLVideoElement;
     expect(video).toBeInTheDocument();
-    // Old HUD should be visible when paused
-    expect(screen.getByTestId("overlay-renderer")).toBeInTheDocument();
+    // Body overlay content should be hidden for open viewer states.
+    expect(screen.queryByTestId("overlay-renderer")).not.toBeInTheDocument();
 
     fireEvent.play(video);
-    // Old HUD should NOT be visible when playing
+    // Body overlay content should remain hidden when playing.
     expect(screen.queryByTestId("overlay-renderer")).not.toBeInTheDocument();
 
     fireEvent.pause(video);
-    // Old HUD should be visible again when paused
-    expect(screen.getByTestId("overlay-renderer")).toBeInTheDocument();
+    // Body overlay content should remain hidden when paused.
+    expect(screen.queryByTestId("overlay-renderer")).not.toBeInTheDocument();
   });
 
   it("keeps viewer state when opening without url video param", () => {
@@ -200,8 +202,8 @@ describe("ShortsFeed", () => {
     fireEvent.click(pauseButton);
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled();
     fireEvent.pause(video);
-    // After pausing, content panel should be rendered
-    expect(screen.getByTestId("overlay-renderer")).toBeInTheDocument();
+    // After pausing, body overlay content should remain hidden.
+    expect(screen.queryByTestId("overlay-renderer")).not.toBeInTheDocument();
   });
 
   it("does not pause active playback when inactive videos are paused internally", () => {

@@ -3,8 +3,8 @@
 import { LinkIcon } from "@navikt/aksel-icons";
 import { HStack } from "@navikt/ds-react";
 import type { OverlayComponent } from "@/lib/public-videos";
-import type { PlaybackState } from "@/lib/video-playback-machine";
-import { ContentPanel, EpisodePill, GlyphBadge } from "./video-overlay-components";
+import { isBodyContentVisible, type PlaybackState } from "@/lib/video-playback-machine";
+import { ContentPanel, EpisodePill, GlyphBadge, isTopRailGlyph } from "./video-overlay-components";
 import { HeaderLinkToken, HeaderToken, PlaybackControls } from "./video-card-chrome";
 
 export function UnifiedVideoHUD({
@@ -53,8 +53,7 @@ export function UnifiedVideoHUD({
   };
 
   // Extract glyph badges for top rail
-  const glyphBadges =
-    overlays?.filter((o) => (o.kind === "badge" || o.kind === "glyph") && (o.labels?.[0] ?? "").length <= 2) ?? [];
+  const glyphBadges = overlays?.filter(isTopRailGlyph) ?? [];
 
   // Determine if we should show playback controls
   const showPlaybackControls = !completed;
@@ -95,7 +94,7 @@ export function UnifiedVideoHUD({
       </div>
 
       {/* Lower metadata layer: content pane above title area */}
-      {!playing && overlays && overlays.length > 0 && (
+      {isBodyContentVisible(playbackState) && overlays && overlays.length > 0 && (
         <div
           style={{
             position: "absolute",
