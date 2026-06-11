@@ -81,9 +81,9 @@ export function UnifiedVideoHUD({
           <HStack gap="space-2" align="center" className="pointer-events-auto">
             {episodeLabel && <EpisodePill label={episodeLabel} accent={accent} />}
             <HeaderToken className="bg-black/70 text-white">{durationLabel}</HeaderToken>
-            <HeaderLinkToken href={shareHref} ariaLabel={`Del video: ${shareTitle}`}>
+            <HeaderLinkToken href={shareHref} ariaLabel={`Link video: ${shareTitle}`}>
               <LinkIcon aria-hidden fontSize="0.9rem" />
-              <span>Del</span>
+              <span>Link</span>
             </HeaderLinkToken>
           </HStack>
           <HStack gap="space-2" align="center">

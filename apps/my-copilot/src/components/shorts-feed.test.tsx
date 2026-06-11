@@ -165,13 +165,13 @@ describe("ShortsFeed", () => {
     expect(screen.getByText("1:00")).toBeInTheDocument();
   });
 
-  it("shows a share link for the active card", () => {
+  it("shows a link button for the active card", () => {
     render(<ShortsFeed videos={[createVideo("video-a", "Video A")]} />);
 
-    expect(screen.getByRole("button", { name: "Del video: Video A" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Link video: Video A" })).toBeVisible();
   });
 
-  it("copies share link when pressing Del", async () => {
+  it("copies share link when pressing Link", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -180,7 +180,7 @@ describe("ShortsFeed", () => {
 
     render(<ShortsFeed videos={[createVideo("video-a", "Video A")]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Del video: Video A" }));
+    fireEvent.click(screen.getByRole("button", { name: "Link video: Video A" }));
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/videos\/video-a$/));
