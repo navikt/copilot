@@ -16,7 +16,7 @@
         "ui"
       ],
       "filePath": ".github/agents/accessibility.agent.md",
-      "contentHash": "f76d4cd4ec121c139e67c69381948de3b351fe6a1481ed71d001030338c8faeb",
+      "contentHash": "c35b6db4d15e6f9fd0134667d83a1084cbc596cca40560715503c47d50f962df",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -38,7 +38,7 @@
         "ui"
       ],
       "filePath": ".github/agents/aksel.agent.md",
-      "contentHash": "65e8683113919255fa4b51172ae3b70dfcf31c4e0b8766eeef64c6354242b5b5",
+      "contentHash": "5619d05aa37ec8f9d74020d52a39607b2b55e89b72f78bf77a1eeb399865226f",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -658,7 +658,7 @@
       "displayName": "aksel-spacing",
       "description": "Lag responsive layouts med Aksel Design System v8: spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed, Show/Hide) og ResponsiveProp-mønsteret",
       "filePath": ".github/skills/aksel-spacing/SKILL.md",
-      "contentHash": "d4e08ca183b2cde791ed54b401f642bea83485123d3e2f37815fe61832c67bf9",
+      "contentHash": "9f0fc46fef61440bd9b9eb11c475b94cc5a554e2cc360282b78557eec2bf4ae2",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md"
     },
@@ -906,7 +906,7 @@
       "displayName": "playwright-testing",
       "description": "Generer og kjør Playwright E2E-tester for webapplikasjoner med page objects, auth fixtures og tilgjengelighetstester",
       "filePath": ".github/skills/playwright-testing/SKILL.md",
-      "contentHash": "1d7f13809c2955a870b56a4d49fd83b2913ee8fbf2145402eb934787c94e345c",
+      "contentHash": "2f5bb75962fafb02b22d9da56271e8de8e3eb1b28617ada88f8763b5cc962843",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/playwright-testing/SKILL.md"
     },
