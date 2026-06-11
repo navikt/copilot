@@ -10,6 +10,27 @@ function StorybookGuidelinesDoc() {
       <BodyLong spacing>Denne siden beskriver anbefalt struktur og kultur for stories i my-copilot.</BodyLong>
 
       <Heading level="3" size="small" spacing>
+        Formål med videosystemet
+      </Heading>
+      <BodyLong spacing>
+        Videosystemet skal gi en konsekvent og robust videoopplevelse på tvers av forsiden, detaljsider og Storybook.
+        Systemet skal gjøre det enkelt å utvikle én felles spillerflate med forutsigbar HUD, overlay-data og
+        avspillingsatferd.
+      </BodyLong>
+
+      <Heading level="3" size="small" spacing>
+        Scope for videokomponenter
+      </Heading>
+      <List as="ul">
+        <List.Item>Inkluderer avspilling, HUD, overlays, metadata-paneler og sidekomposisjon for video.</List.Item>
+        <List.Item>Inkluderer ikke backend-publisering av videofiler eller innholdsproduksjon.</List.Item>
+        <List.Item>
+          Stories skal dokumentere UI-atferd og states for komponentene, ikke erstatte ende-til-ende-validering av video
+          i produksjonsmiljø.
+        </List.Item>
+      </List>
+
+      <Heading level="3" size="small" spacing>
         Struktur
       </Heading>
       <List as="ul">
