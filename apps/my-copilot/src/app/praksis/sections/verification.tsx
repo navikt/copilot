@@ -71,7 +71,7 @@ Sjekk for:
               Installer og kjør
             </BodyShort>
             <Box background="default" padding="space-8" borderRadius="4" className="mt-1">
-              <code className="text-xs block font-mono">npx knip</code>
+              <code className="text-xs block font-mono">pnx knip</code>
             </Box>
           </div>
           <div>

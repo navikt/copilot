@@ -119,7 +119,7 @@ function buildPackageArgs(pkg: NonNullable<Extract<AnyCustomization, { type: "mc
   runtime: string;
   args: string[];
 } | null {
-  const runtime = pkg.registryType === "npm" ? "npx" : pkg.registryType === "pypi" ? "uvx" : null;
+  const runtime = pkg.registryType === "npm" ? "pnx" : pkg.registryType === "pypi" ? "uvx" : null;
   if (!runtime) return null;
   const args: string[] = pkg.registryType === "npm" ? ["-y", pkg.identifier] : [pkg.identifier];
   if (pkg.packageArguments) {

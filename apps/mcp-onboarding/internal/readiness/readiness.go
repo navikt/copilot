@@ -154,7 +154,7 @@ func recommend(c *RepoContents) []string {
 	if !c.AgentsMD {
 		rec := "Create AGENTS.md at the repo root — this is the most impactful first step. Works across Copilot, Claude, Codex, and other agents. Include build commands, testing patterns, project structure, code style, and git workflow."
 		if isNextJS(c) {
-			rec += " For Next.js projects, include `<!-- BEGIN:nextjs-agent-rules -->` markers and point agents to bundled docs at `node_modules/next/dist/docs/`. Run `npx @next/codemod@canary agents-md` to auto-generate."
+			rec += " For Next.js projects, include `<!-- BEGIN:nextjs-agent-rules -->` markers and point agents to bundled docs at `node_modules/next/dist/docs/`. Run `pnx @next/codemod@canary agents-md` to auto-generate."
 		}
 		if isSpringBoot(c) {
 			rec += " For Spring Boot, document layered architecture (Controllers → Services → Repositories), testing patterns (@WebMvcTest, @DataJpaTest), and bean configuration conventions."
