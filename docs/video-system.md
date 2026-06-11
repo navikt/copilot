@@ -8,7 +8,7 @@ Målet er enkelt: publiser ferdige videoobjekter til én GCS-bucket per miljø, 
 
 | Del | Ansvar |
 |---|---|
-| GCS-bucket (`VIDEO_BUCKET_PUBLIC`) | Lagrer videofiler, poster, HLS-filer, teksting og `video_manifest.json`. Bucketen må være offentlig lesbar. |
+| GCS-bucket (`VIDEO_BUCKET_PUBLIC`) | Lagrer videofiler, poster, HLS-filer, teksting og publisert `video_manifest.json`. Bucketen må være offentlig lesbar. |
 | `copilot-api` | Leser manifestet, validerer innhold, og returnerer offentlige asset-URL-er |
 | `my-copilot` | Henter feed fra `copilot-api` og renderer videoer direkte fra GCS |
 | Publiseringsscript | Laster opp objekter til bucket og skriver manifestet til slutt |
@@ -20,7 +20,7 @@ Publiseringsscriptet setter bucket-IAM `allUsers:roles/storage.objectViewer` fø
 ## Dataflyt
 
 1. Videofiler ligger i bucket under `videos/<id>/...`.
-2. `video_manifest.json` inneholder metadata + objektstier for hver video.
+2. `video_manifest.json` i bucket inneholder metadata + objektstier for hver video.
 3. `copilot-api` leser manifestet og bygger URL-er mot `https://storage.googleapis.com/<bucket>/...`.
 4. `my-copilot` henter feeden og sender URL-ene videre til frontend.
 5. Nettleseren henter video, poster og HLS-segmenter direkte fra GCS.
@@ -65,7 +65,8 @@ mise dev
 
 - bruker `VIDEO_BUCKET_PUBLIC_DEV` når den er satt
 - setter `VIDEO_BUCKET_PUBLIC`, `VIDEO_MANIFEST_URL` og `VIDEO_PUBLIC_BASE_URL`
-- faller tilbake til lokal `video_manifest.json` når bucket-variabler mangler
+- faller tilbake til lokal `video_manifest.local-fallback.json` når bucket-variabler mangler
+- lokal fallback-fil er kun for dev/test og skal ikke oppdateres manuelt
 - setter kort cache-TTL lokalt (`VIDEO_FEED_CACHE_SECONDS=60` som standard)
 
 ## Hurtigkommandoer (mise)

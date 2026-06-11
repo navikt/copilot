@@ -28,7 +28,7 @@ func newVideoHandlers(config *Config) *VideoHandlers {
 		manifestSource = fmt.Sprintf("gs://%s/video_manifest.json", config.VideoBucketPublic)
 	}
 	if manifestSource == "" {
-		manifestSource = "video_manifest.json"
+		manifestSource = "video_manifest.local-fallback.json"
 	}
 
 	baseURL := strings.TrimSpace(config.VideoPublicBaseURL)
