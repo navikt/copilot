@@ -20,6 +20,16 @@ export const terms: Term[] = [
       "En AI-drevet assistent som kan utføre flertrinnsoppgaver autonomt – planlegge, bruke verktøy og ta beslutninger for å nå et mål uten at du trenger å styre hvert steg.",
   },
   {
+    term: "Agentisk KI",
+    definition:
+      "Samlebegrep for KI-systemer som handler på egen hånd mot et mål, i stedet for å svare på ett og ett spørsmål. Brukes som adjektiv, for eksempel «agentisk arbeidsflyt».",
+  },
+  {
+    term: "Agency",
+    definition:
+      "Hvor stor handlefrihet agenten har — hvilke verktøy den får bruke og hvilke beslutninger den tar selv. Vi beholder som regel termen på engelsk i fagkontekst.",
+  },
+  {
     term: "Agent mode",
     definition:
       "Copilots modus der AI-en jobber autonomt i editoren. Agenten kan redigere filer, kjøre kommandoer og bruke verktøy for å løse oppgaver i flere steg.",
@@ -51,6 +61,11 @@ export const terms: Term[] = [
     term: "Ask mode",
     definition:
       "Copilots spørremodus der du kan stille spørsmål og få svar og forklaringer uten at Copilot gjør endringer i kodebasen.",
+  },
+  {
+    term: "Autonomi",
+    definition:
+      "Hvor selvstendig agenten kjører uten at et menneske godkjenner hvert steg. Høy autonomi betyr færre stopp for bekreftelse underveis.",
   },
   {
     term: "Chat",
@@ -117,6 +132,11 @@ export const terms: Term[] = [
     term: "Edit mode",
     definition:
       "Copilots redigeringsmodus der du beskriver en endring og Copilot redigerer relevante filer direkte, uten å utføre kommandoer eller bruke verktøy.",
+  },
+  {
+    term: "Excessive agency",
+    definition:
+      "Sikkerhetsbegrep: agenten har fått mer handlefrihet, tilgang eller autonomi enn oppgaven krever, og kan derfor gjøre utilsiktet skade.",
   },
   {
     term: "Hallusinasjon",

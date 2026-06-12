@@ -25,6 +25,19 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 | org policy        | Organisasjonsnivå-regler i GitHub                  |
 | inference context | Data sendt til AI-modellen for behandling          |
 
+## Agent-begreper
+
+Begrepsavklaringer for agentisk KI. Disse termene beholder vi på engelsk der det er etablert fagspråk, men de trenger en tydelig definisjon. Skriv «agent» og «agentisk» med liten forbokstav.
+
+| Begrep           | Forklaring                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| agent            | KI som selv planlegger og utfører flere steg for å løse en oppgave — den kaller verktøy, leser resultatet og bestemmer neste steg. Mer enn ren chat.                |
+| agentisk KI      | Samlebegrep for KI-systemer som handler på egen hånd mot et mål, i stedet for å svare på ett og ett spørsmål. Brukes som adjektiv: «en agentisk arbeidsflyt».       |
+| agency           | Hvor stor handlefrihet agenten har — hvilke verktøy den får bruke og hvilke beslutninger den tar selv. Vi oversetter ikke ordet; bruk «handlefrihet» i norsk tekst. |
+| autonomi         | Hvor selvstendig agenten kjører uten at et menneske godkjenner hvert steg. Høy autonomi betyr færre stopp for bekreftelse.                                          |
+| harness          | Rammeverket rundt modellen som styrer verktøy, kontekst og sikkerhet — for eksempel sandboxen og reglene agenten kjører innenfor. Ikke oversett.                    |
+| excessive agency | Sikkerhetsbegrep: agenten har fått mer handlefrihet, tilgang eller autonomi enn oppgaven krever, og kan gjøre skade. Behold engelsk; forklar ved første bruk.       |
+
 ## Norske oversettelser
 
 | Engelsk              | Norsk               | Eksempel i UI                        |

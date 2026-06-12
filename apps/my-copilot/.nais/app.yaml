@@ -49,6 +49,8 @@ spec:
       - /verktoy/**
       - /ordliste
       - /ordliste/**
+      - /ordbok
+      - /ordbok/**
       - /nav-pilot
       - /nav-pilot/**
       - /cplt

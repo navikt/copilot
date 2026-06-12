@@ -53,6 +53,7 @@ describe("isPrivatePath", () => {
     ["/praksis/sections/foo", false],
     ["/verktoy", false],
     ["/ordliste", false],
+    ["/ordbok", false],
     ["/nav-pilot", false],
     ["/nav-pilot/docs", false],
     ["/install", false],
