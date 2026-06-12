@@ -14,7 +14,7 @@ import { getPublicVideoFeed } from "@/lib/public-videos";
 
 export default async function Home() {
   const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
-  const news = getNewsItems();
+  const news = getNewsItems({ frontPage: true });
 
   return (
     <main>

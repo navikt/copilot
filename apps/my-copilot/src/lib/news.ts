@@ -8,6 +8,20 @@ export { CATEGORY_CONFIG } from "./news-types";
 import type { NewsCategory, NewsItem } from "./news-types";
 
 const VALID_CATEGORIES: Set<string> = new Set<string>(["copilot", "nav", "nav-pilot", "praksis", "oppsummering"]);
+const OSLO_TIME_ZONE = "Europe/Oslo";
+const EXTERNAL_FRESHNESS_DAYS = 5;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const osloDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: OSLO_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+export interface GetNewsItemsOptions {
+  frontPage?: boolean;
+  now?: Date;
+}
 
 function isValidCategory(value: unknown): value is NewsCategory {
   return typeof value === "string" && VALID_CATEGORIES.has(value);
@@ -19,6 +33,61 @@ function parseCategory(value: unknown, slug: string): NewsCategory {
     console.warn(`Unknown news category "${value}" in ${slug}.md, falling back to "copilot"`);
   }
   return "copilot";
+}
+
+function toDateOnly(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  return typeof value === "string" ? value : "";
+}
+
+function toUtcDayTimestamp(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const timestamp = Date.UTC(year, month - 1, day);
+  const parsed = new Date(timestamp);
+
+  if (
+    Number.isNaN(timestamp) ||
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return timestamp;
+}
+
+export function getCurrentOsloDate(now: Date = new Date()): string {
+  const parts = osloDateFormatter.formatToParts(now);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
+}
+
+export function isExternalExcerptFresh(item: NewsItem, now: Date = new Date()): boolean {
+  if (item.type !== "link") return true;
+
+  const nowTimestamp = toUtcDayTimestamp(getCurrentOsloDate(now));
+  const publishedTimestamp = toUtcDayTimestamp(item.date);
+  if (nowTimestamp === null || publishedTimestamp === null) {
+    console.warn(`Invalid news date "${item.date}" for external excerpt "${item.slug}". Hiding from front page.`);
+    return false;
+  }
+
+  const ageInDays = Math.floor((nowTimestamp - publishedTimestamp) / DAY_IN_MS);
+  return ageInDays <= EXTERNAL_FRESHNESS_DAYS;
+}
+
+export function selectNewsItems(items: NewsItem[], options: GetNewsItemsOptions = {}): NewsItem[] {
+  const visibleItems = options.frontPage ? items.filter((item) => isExternalExcerptFresh(item, options.now)) : items;
+  return visibleItems.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 function resolveArticlesDir(): string {
@@ -41,7 +110,7 @@ function parseNewsFile(fileName: string): NewsItem {
   return {
     slug,
     title: data.title,
-    date: data.date instanceof Date ? data.date.toISOString().split("T")[0] : data.date,
+    date: toDateOnly(data.date),
     draft: data.draft === true,
     category: parseCategory(data.category, slug),
     excerpt: data.excerpt ?? "",
@@ -52,14 +121,14 @@ function parseNewsFile(fileName: string): NewsItem {
   };
 }
 
-export function getNewsItems(): NewsItem[] {
+export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
   if (!fs.existsSync(articlesDir)) return [];
 
   const files = fs.readdirSync(articlesDir).filter((f) => f.endsWith(".md"));
-  return files
-    .map(parseNewsFile)
-    .filter((item) => !item.draft)
-    .sort((a, b) => b.date.localeCompare(a.date));
+  return selectNewsItems(
+    files.map(parseNewsFile).filter((item) => !item.draft),
+    options
+  );
 }
 
 export function getArticle(slug: string): (NewsItem & { content: string }) | null {
@@ -74,7 +143,7 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
   return {
     slug,
     title: data.title,
-    date: data.date instanceof Date ? data.date.toISOString().split("T")[0] : data.date,
+    date: toDateOnly(data.date),
     draft: data.draft === true,
     category: parseCategory(data.category, slug),
     excerpt: data.excerpt ?? "",
