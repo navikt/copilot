@@ -2,6 +2,7 @@
 name: nav-dekoratoren
 description: Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
 license: MIT
+compatibility: Web applications on nav.no (Next.js, Remix, Vite, Express/Node)
 metadata:
   domain: frontend
   tags: nav dekoratoren header footer integration ssr analytics consent
