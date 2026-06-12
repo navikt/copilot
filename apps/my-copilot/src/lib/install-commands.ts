@@ -91,13 +91,27 @@ export function getGhSkillInstallCommand(item: AnyCustomization): string {
 
 /**
  * Generate `nav-pilot install` command for a static customization.
- * Uses `item.id` which matches the stem name nav-pilot expects
- * (e.g., "github-actions" resolves to "github-actions.instructions.md").
+ * Uses artifact file stem when available, matching nav-pilot resolver semantics
+ * (e.g., ".github/agents/security-champion.agent.md" => "security-champion"),
+ * and includes explicit --type to avoid cross-type name ambiguity.
  */
 export function getNavPilotAddCommand(item: AnyCustomization): { repo: string; user: string } | null {
   if (item.type === "mcp") return null;
-  const cmd = `nav-pilot install ${item.id}`;
+  const cmd = `nav-pilot install ${getNavPilotInstallName(item)} --type ${item.type}`;
   return { repo: cmd, user: `${cmd} --user` };
+}
+
+function stemFromPath(path: string | undefined, suffix: string): string | null {
+  const fileName = path?.split("/").pop();
+  if (!fileName || !fileName.endsWith(suffix)) return null;
+  return fileName.slice(0, -suffix.length);
+}
+
+function getNavPilotInstallName(item: Exclude<AnyCustomization, { type: "mcp" }>): string {
+  if (item.type === "skill") return item.name;
+
+  const suffix = item.type === "agent" ? ".agent.md" : item.type === "instruction" ? ".instructions.md" : ".prompt.md";
+  return stemFromPath(item.filePath, suffix) ?? stemFromPath(item.rawGitHubUrl, suffix) ?? item.id;
 }
 
 /**

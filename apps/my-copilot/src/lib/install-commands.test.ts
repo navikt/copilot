@@ -18,7 +18,7 @@ const base = {
   id: "1",
   description: "desc",
   domain: "platform" as const,
-  filePath: "path",
+  filePath: ".github/agents/nais.agent.md",
   rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md",
   installUrl: null,
   insidersInstallUrl: null,
@@ -38,6 +38,7 @@ const authAgent: Agent = {
   type: "agent",
   name: "auth-agent",
   id: "auth-agent",
+  filePath: ".github/agents/auth-agent.agent.md",
   rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/auth.agent.md",
   tools: [],
 };
@@ -55,9 +56,19 @@ const instruction: Instruction = {
   type: "instruction",
   id: "nextjs-aksel",
   name: "Next.js/Aksel Development",
+  filePath: ".github/instructions/nextjs-aksel.instructions.md",
+  rawGitHubUrl:
+    "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
   applyTo: "src/**/*.tsx",
 };
-const prompt: Prompt = { ...base, type: "prompt", name: "code-review.prompt.md", invocation: "/code-review" };
+const prompt: Prompt = {
+  ...base,
+  type: "prompt",
+  filePath: ".github/prompts/code-review.prompt.md",
+  rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/code-review.prompt.md",
+  name: "code-review.prompt.md",
+  invocation: "/code-review",
+};
 const skill: Skill = {
   ...base,
   type: "skill",
@@ -303,36 +314,72 @@ describe("getGhSkillInstallCommand", () => {
 describe("getNavPilotAddCommand", () => {
   it("generates nav-pilot install command for agent", () => {
     const result = getNavPilotAddCommand(agent)!;
-    expect(result.repo).toBe("nav-pilot install 1");
-    expect(result.user).toBe("nav-pilot install 1 --user");
+    expect(result.repo).toBe("nav-pilot install nais --type agent");
+    expect(result.user).toBe("nav-pilot install nais --type agent --user");
   });
 
   it("generates nav-pilot install command for agent with explicit id", () => {
     const result = getNavPilotAddCommand(authAgent)!;
-    expect(result.repo).toBe("nav-pilot install auth-agent");
-    expect(result.user).toBe("nav-pilot install auth-agent --user");
+    expect(result.repo).toBe("nav-pilot install auth-agent --type agent");
+    expect(result.user).toBe("nav-pilot install auth-agent --type agent --user");
+  });
+
+  it("uses file stem for agents ending with -agent", () => {
+    const securityChampionAgent: Agent = {
+      ...base,
+      type: "agent",
+      id: "security-champion-agent",
+      name: "security-champion-agent",
+      filePath: ".github/agents/security-champion.agent.md",
+      rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/security-champion.agent.md",
+      tools: [],
+    };
+    const result = getNavPilotAddCommand(securityChampionAgent)!;
+    expect(result.repo).toBe("nav-pilot install security-champion --type agent");
+    expect(result.user).toBe("nav-pilot install security-champion --type agent --user");
   });
 
   it("generates nav-pilot install command for instruction using id, not display name", () => {
     const result = getNavPilotAddCommand(instruction)!;
-    expect(result.repo).toBe("nav-pilot install nextjs-aksel");
-    expect(result.user).toBe("nav-pilot install nextjs-aksel --user");
+    expect(result.repo).toBe("nav-pilot install nextjs-aksel --type instruction");
+    expect(result.user).toBe("nav-pilot install nextjs-aksel --type instruction --user");
   });
 
   it("generates nav-pilot install command for prompt", () => {
     const result = getNavPilotAddCommand(prompt)!;
-    expect(result.repo).toBe("nav-pilot install 1");
-    expect(result.user).toBe("nav-pilot install 1 --user");
+    expect(result.repo).toBe("nav-pilot install code-review --type prompt");
+    expect(result.user).toBe("nav-pilot install code-review --type prompt --user");
   });
 
   it("generates nav-pilot install command for skill", () => {
     const result = getNavPilotAddCommand(skill)!;
-    expect(result.repo).toBe("nav-pilot install 1");
-    expect(result.user).toBe("nav-pilot install 1 --user");
+    expect(result.repo).toBe("nav-pilot install aksel-spacing --type skill");
+    expect(result.user).toBe("nav-pilot install aksel-spacing --type skill --user");
   });
 
   it("returns null for mcp", () => {
     expect(getNavPilotAddCommand(remoteMcp)).toBeNull();
+  });
+
+  it("falls back to rawGitHubUrl stem when filePath is unexpected", () => {
+    const result = getNavPilotAddCommand({ ...authAgent, filePath: "invalid-path" })!;
+    expect(result.repo).toBe("nav-pilot install auth --type agent");
+    expect(result.user).toBe("nav-pilot install auth --type agent --user");
+  });
+
+  it("includes --type to avoid ambiguity when names overlap across types", () => {
+    const kafkaAgent: Agent = {
+      ...base,
+      type: "agent",
+      id: "kafka-agent",
+      name: "kafka-agent",
+      filePath: ".github/agents/kafka.agent.md",
+      rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/kafka.agent.md",
+      tools: [],
+    };
+    const result = getNavPilotAddCommand(kafkaAgent)!;
+    expect(result.repo).toBe("nav-pilot install kafka --type agent");
+    expect(result.user).toBe("nav-pilot install kafka --type agent --user");
   });
 });
 
