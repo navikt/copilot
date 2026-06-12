@@ -24,12 +24,12 @@ nav-pilot sender **anonyme bruks- og ytelses-metrikker** via OpenTelemetry (OTLP
 **Hva sendes IKKE:**
 - ✗ Filstier, reponavn, eller prosjektkontekst
 - ✗ Innhold fra Copilot-instruksjoner eller agenter
-- ✗ Bruker-ID eller maskinidentifikator (aldri NAVident, email, username)
+- ✗ Bruker-ID (aldri NAVident, e-post, GitHub-brukernavn)
 - ✗ Git-commit-info eller miljøvariabler
 
 **Device UUID:**
 - `device_id` = Stabil, deterministisk identifikator per maskin
-  - Generes fra: hostname + CLI-installasjonspath + MAC-adresse (SHA256)
+  - Genereres fra: hostname + CLI-installasjonssti + MAC-adresse (SHA256)
   - Lagret lokalt i `~/.nav-pilot/device-id` (persistent)
   - Samme maskin = alltid samme UUID (reproducible)
   - **Inneholder INGEN persondata** (kun hardware/path)
@@ -148,7 +148,7 @@ increase(nav_pilot_command_total[24h]) by (version)
 
 ### Personvern-garantier
 - ✅ Ingen IP-adresser eller User-Agent
-- ✅ Ingen maskinidentifikator eller hostname
+- ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (hash)
 - ✅ Kun aggregerte tall, aldri per-bruker
 - ✅ Telemetri er helt frivillig (deaktivert by default)
 - ✅ Ikke delt med tredjeparter

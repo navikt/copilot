@@ -62,8 +62,9 @@ func TestDeviceIDFormatValid(t *testing.T) {
 	}
 }
 
-// TestDeviceIDPersistence verifies that device ID is saved to disk.
 func TestDeviceIDPersistence(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
 	// Get or create
 	id1, err := getOrCreateDeviceID()
 	if err != nil {

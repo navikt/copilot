@@ -86,7 +86,7 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		attribute.String("os", runtime.GOOS),
 		attribute.String("arch", runtime.GOARCH),
 		attribute.String("device_id", deviceID),
-	))
+		attribute.Int("telemetry_retention_days", retention.DaysRetained),
 	if err != nil {
 		return noopTelemetry{}, fmt.Errorf("create telemetry resource: %w", err)
 	}
