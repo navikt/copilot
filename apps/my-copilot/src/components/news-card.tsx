@@ -35,7 +35,8 @@ export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) 
   const linkProps = isExternal ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
   const isWide = span >= 2;
 
-  const spanClass = isWide ? "sm:col-span-2 md:col-span-2" : undefined;
+  // Static Tailwind classes so they survive purge; map span -> column span.
+  const spanClass = span >= 3 ? "sm:col-span-2 md:col-span-3" : isWide ? "sm:col-span-2 md:col-span-2" : undefined;
 
   return (
     <Box

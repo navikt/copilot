@@ -72,7 +72,7 @@ export function getCurrentOsloDate(now: Date = new Date()): string {
 }
 
 export function isExternalExcerptFresh(item: NewsItem, now: Date = new Date()): boolean {
-  if (item.type !== "link") return true;
+  if (!item.url) return true;
 
   const nowTimestamp = toUtcDayTimestamp(getCurrentOsloDate(now));
   const publishedTimestamp = toUtcDayTimestamp(item.date);

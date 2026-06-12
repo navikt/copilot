@@ -39,7 +39,7 @@ describe("CATEGORY_CONFIG", () => {
     });
 
     it("hides external excerpts older than five days", () => {
-      const stale = createItem({ date: "2026-06-06" });
+      const stale = createItem({ date: "2026-06-06", url: "https://example.com/stale" });
       expect(isExternalExcerptFresh(stale, now)).toBe(false);
     });
 
@@ -48,8 +48,13 @@ describe("CATEGORY_CONFIG", () => {
       expect(isExternalExcerptFresh(article, now)).toBe(true);
     });
 
+    it("hides authored articles with external source urls when stale", () => {
+      const article = createItem({ type: "article", date: "2026-01-01", url: "https://example.com/source" });
+      expect(isExternalExcerptFresh(article, now)).toBe(false);
+    });
+
     it("hides external excerpts with invalid date", () => {
-      const invalid = createItem({ date: "" });
+      const invalid = createItem({ date: "", url: "https://example.com/invalid" });
       expect(isExternalExcerptFresh(invalid, now)).toBe(false);
     });
 

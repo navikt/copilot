@@ -16,27 +16,55 @@ const COLS = 3;
 const COLS_COMPACT = 2;
 
 /**
- * Greedy row-packing: articles prefer span-2, links span-1.
- * When an article doesn't fit in the remaining columns, it
- * downgrades to span-1 so the row fills without gaps.
+ * Deterministic bento row-packing.
+ *
+ * The span pattern is derived from the *grid position*, not the item
+ * type, so the layout stays visually varied no matter how the feed
+ * filter changes the article/link mix over time.
+ *
+ * For a 3-column grid each row is a wide (span-2) + narrow (span-1)
+ * pair, and the wide cell alternates side per row: [2,1] then [1,2]…
+ * This guarantees no run of identical spans and a stable bento rhythm.
+ *
+ * For narrower grids (e.g. the compact 2-column variant) the wide span
+ * is clamped so it always leaves room for a neighbour, which gracefully
+ * degrades to a simple uniform grid on small layouts.
  */
-function computeGridSpans(items: NewsItem[], cols: number = COLS): number[] {
+export function computeGridSpans(count: number, cols: number = COLS): number[] {
+  // Wide cell never fills the whole row, so every row keeps >=2 cards.
+  const wide = Math.max(1, Math.min(2, cols - 1));
+
   const spans: number[] = [];
   let col = 0;
+  let row = 0;
 
-  for (const item of items) {
-    const preferred = item.type === "article" ? 2 : 1;
+  for (let i = 0; i < count; i++) {
     const remaining = cols - col;
+    let span: number;
 
-    if (preferred <= remaining) {
-      spans.push(preferred);
-      col += preferred;
+    if (col === 0) {
+      // Start of a row: a lone trailing card becomes a full-width closer
+      // (clean bento finish, no dangling gap); otherwise alternate the
+      // wide cell between left and right per row.
+      if (i === count - 1) {
+        span = cols;
+      } else {
+        span = row % 2 === 0 ? wide : 1;
+      }
     } else {
-      spans.push(1);
-      col += 1;
+      // Fill the rest of the current row in one go.
+      span = remaining;
     }
 
-    if (col >= cols) col = 0;
+    if (span > remaining) span = remaining;
+
+    spans.push(span);
+    col += span;
+
+    if (col >= cols) {
+      col = 0;
+      row++;
+    }
   }
 
   return spans;
@@ -54,7 +82,7 @@ export function NewsFeed({ items, compact = false, afterFeatured }: NewsFeedProp
   const featured = filtered[0];
   const rest = filtered.slice(1);
   const cols = compact ? COLS_COMPACT : COLS;
-  const spans = useMemo(() => computeGridSpans(rest, cols), [rest, cols]);
+  const spans = useMemo(() => computeGridSpans(rest.length, cols), [rest.length, cols]);
 
   const gridCols = compact ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3";
 
