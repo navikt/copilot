@@ -32,6 +32,26 @@ nav-pilot install --user --all
 eval "$(nav-pilot env)"
 ```
 
+## Telemetry (pilot, opt-in)
+
+nav-pilot sender ikke produkttelemetri som standard. I pilot kan du aktivere OTel-metrikker eksplisitt:
+
+```bash
+export NAV_PILOT_TELEMETRY_ENABLED=1
+export NAV_PILOT_TELEMETRY_ENDPOINT="https://<otel-endepunkt>"
+```
+
+Støttede MVP-metrikker:
+
+- `nav_pilot_command_total`
+- `nav_pilot_command_duration_ms`
+- `nav_pilot_command_error_total`
+- `nav_pilot_install_items_total`
+- `nav_pilot_sync_updates_total`
+- `nav_pilot_sync_conflicts_total`
+
+`NAV_PILOT_TELEMETRY_ENABLED=0` (eller unset) deaktiverer telemetry.
+
 ## For bidragsytere
 
 - Agent: `.github/agents/nav-pilot.agent.md`
