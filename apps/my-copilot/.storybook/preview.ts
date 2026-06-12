@@ -7,7 +7,15 @@ const preview: Preview = {
     layout: "centered",
     options: {
       storySort: {
-        order: ["Storybook", "Video", ["Dokumentasjon", "Primitives", "Controls", "Panels", "HUD", "Pages"]],
+        order: [
+          "Storybook",
+          "Foundations",
+          "News",
+          "Customization",
+          "Statistikk",
+          "Video",
+          ["Dokumentasjon", "Primitives", "Patterns", "Pages"],
+        ],
       },
     },
     controls: {

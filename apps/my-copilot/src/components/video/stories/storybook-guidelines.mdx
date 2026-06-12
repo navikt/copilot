@@ -1,0 +1,53 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Video/Dokumentasjon/Videosystem: formål og scope" />
+
+# Videosystem: formål og scope
+
+Retningslinjene beskriver hvordan videokomponenter i my-copilot dokumenteres i Storybook, slik at vi holder én felles
+standard for spiller, HUD og overlays.
+
+## Formål
+
+Videosystemet skal gi en konsekvent og robust videoopplevelse på tvers av forsiden, detaljsider og Storybook. Systemet
+skal gjøre det enkelt å utvikle én felles spillerflate med forutsigbar HUD, overlay-data og avspillingsatferd.
+
+## Scope
+
+- Inkluderer avspilling, HUD, overlays, metadata-paneler og sidekomposisjon for video.
+- Inkluderer ikke backend-publisering av videofiler eller innholdsproduksjon.
+- Stories skal dokumentere UI-atferd og states for komponentene, ikke erstatte ende-til-ende-validering i
+  produksjonsmiljø.
+
+## Struktur
+
+- `Video/Primitives/*` for små byggesteiner
+- `Video/Controls/*` for interaktive kontroller
+- `Video/Panels/*` for informasjonsflater
+- `Video/HUD/*` for sammensatt overlay-lag
+- `Video/Pages/*` for full side-/feature-komposisjon
+
+## Navngivning
+
+- Story-titler skal være konkrete (Paused, Playing, Completed)
+- `docs.description.component` skal forklare hva komponenten brukes til
+- Story-beskrivelse skal forklare hvilken tilstand som demonstreres
+
+## Datagrunnlag
+
+- Bruk realistiske fixtures fra dev-bucket når mulig
+- Hold fallback-fixtures stabile for deterministisk UI-testing
+- Unngå skjøre stories som krever live backend for å rendre
+
+## Tilgjengelighet og designkvalitet
+
+- Verifiser tastaturfokus i alle interaktive stories
+- Bruk mørk bakgrunn for videokomponenter for korrekt kontrastvurdering
+- Bruk Aksel spacing-tokens via Box/designsystem der spacing må styres
+
+## Kultur for review
+
+1. Legg til minst én story for normaltilstand
+2. Legg til minst én story for edge state (tom, lang tekst, completed, etc.)
+3. Legg inn kort doc-beskrivelse av forventet bruk
+4. Kjør pnpm build-storybook før PR

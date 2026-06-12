@@ -1,0 +1,44 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="News/Dokumentasjon/News system: formål og scope" />
+
+# News system: formål og scope
+
+News stories dokumenterer nyhetsbyggeklossene i my-copilot, slik at vi holder én felles standard for kort, feed og
+relaterte visninger.
+
+## Formål
+
+News-kategorien skal vise hvordan nyhetssaker og eksterne lenker rendres konsistent på forsiden og i Storybook. Den
+skal være en stabil referanse for layout, badge-styling, metadata og bento-flyt.
+
+## Scope
+
+- Inkluderer NewsCard, FeaturedNewsCard og NewsFeed.
+- Inkluderer delte fixtures for realistiske og stabile story-data.
+- Inkluderer ikke backend-henting av nyheter eller publiseringslogikk.
+
+## Struktur
+
+- `News/Primitives/NewsCard` for enkeltkort
+- `News/Primitives/FeaturedNewsCard` for fremhevet førsteoppslag
+- `News/Patterns/NewsFeed` for samlet feed og bento-layout
+- `News/Dokumentasjon/*` for overordnede retningslinjer
+
+## Datagrunnlag
+
+- Bruk story-fixtures som speiler article- og link-innhold.
+- Hold fixture-data deterministisk så feeden ikke endrer uttrykk mellom oppdateringer.
+- Unngå live URL-er eller sanntidskilder i Storybook.
+
+## Tilgjengelighet og designkvalitet
+
+- Verifiser badge, metadata og ikon for ekstern lenke i begge korttyper.
+- Verifiser at bento-rutenettet fortsatt leses godt på smale og brede skjermer.
+- Bruk Aksel spacing-tokens via Box/designsystem der spacing må styres.
+
+## Kultur for review
+
+1. Legg til minst én story for normaltilstand.
+2. Legg til minst én story for wide/compact eller annen tydelig edge state.
+3. Oppdater docs-siden når forside-struktur eller feed-regler endres.

@@ -1,0 +1,44 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Dokumentasjon/Shared UI: formål og scope" />
+
+# Shared UI: formål og scope
+
+Foundations samler gjenbrukbare komponenter som brukes på tvers av domener, ruter og visninger.
+
+## Formål
+
+Denne kategorien skal holde delte byggeklosser samlet, slik at de ikke havner som løse rotkomponenter i Storybook. Den
+skal være første stopp for komponenter som brukes i flere domener.
+
+## Scope
+
+- Inkluderer presentasjonskomponenter brukt på tvers av News, Frontpage og øvrige sider.
+- Inkluderer ikke domene-spesifikke feature-komponenter.
+- Inkluderer ikke routing-, data- eller auth-logikk.
+
+## Struktur
+
+- `Foundations/Primitives/*` for små, gjenbrukbare byggesteiner
+- `Foundations/Patterns/*` for sammensatte, men fortsatt delte blokker
+- `Foundations/Dokumentasjon/*` for konvensjoner og bruksmønstre
+
+## Typiske komponenter
+
+- NavPill
+- NavCard
+- PageHero
+- Tabs
+- CodeBlock
+- BackToTop
+
+## Datagrunnlag
+
+- Bruk små, deterministiske fixtures eller statiske args
+- Unngå at delte komponenter trenger backend- eller routing-mock for å vises
+
+## Kultur for review
+
+1. Legg til nye stories her når en komponent brukes i mer enn ett domene.
+2. Flytt komponenter ut av rot-mappen når de er tydelig delte.
+3. Hold story-navn korte og konkrete.

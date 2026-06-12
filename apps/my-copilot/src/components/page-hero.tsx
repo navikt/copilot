@@ -1,21 +1,24 @@
 "use client";
 
 import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
-import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { NAV_ITEMS } from "@/lib/nav-items";
+import { NavPill } from "./navigation/nav-pill";
 
 interface PageHeroProps {
   title: string;
   description: string;
   actions?: ReactNode;
   badge?: ReactNode;
+  pathname?: string;
 }
 
-export function PageHero({ title, description, actions, badge }: PageHeroProps) {
-  const pathname = usePathname();
+interface PageHeroBaseProps extends Omit<PageHeroProps, "pathname"> {
+  pathname: string;
+}
 
+export function PageHeroBase({ title, description, actions, badge, pathname }: PageHeroBaseProps) {
   return (
     <section className="hero-gradient-subtle text-white">
       <Box
@@ -40,18 +43,16 @@ export function PageHero({ title, description, actions, badge }: PageHeroProps) 
             {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => {
               const isActive = pathname === href || pathname.startsWith(href + "/");
               return (
-                <NextLink
+                <NavPill
                   key={href}
                   href={href}
+                  icon={<Icon aria-hidden fontSize="1rem" />}
+                  label={label}
+                  active={isActive}
+                  locked={requiresAuth}
+                  muted
                   prefetch={requiresAuth ? false : undefined}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm no-underline transition-colors ${
-                    isActive ? "bg-white/25 text-white" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
-                  }`}
-                >
-                  <Icon aria-hidden fontSize="1rem" />
-                  {label}
-                </NextLink>
+                />
               );
             })}
           </nav>
@@ -59,4 +60,10 @@ export function PageHero({ title, description, actions, badge }: PageHeroProps) 
       </Box>
     </section>
   );
+}
+
+export function PageHero(props: PageHeroProps) {
+  const currentPathname = usePathname();
+
+  return <PageHeroBase {...props} pathname={props.pathname ?? currentPathname} />;
 }
