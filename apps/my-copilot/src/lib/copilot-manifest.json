@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-11T12:22:20.514Z",
+  "generatedAt": "2026-06-12T11:33:58.975Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1298,10 +1298,17 @@
       "domain": "frontend",
       "filePath": ".github/skills/nav-dekoratoren/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "aa85d1a436d77c3ca4e451554f2a79b07fe26722103fda6e500836922ea8eaea",
+      "contentHash": "ed183555a49d4e2dfe2ec867a1e844183231f5de62e7614928477f96f08ee720",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],
+      "examples": [
+        "Integrer Nav Dekoratøren i en Next.js App Router-app med SSR i app/layout.tsx",
+        "Sett opp breadcrumbs og språkvelger med handleInApp i en React/Remix-app",
+        "Konfigurer samtykkevennlig lagring med awaitDecoratorData og navLocalStorage",
+        "Bygg CSP-header med buildCspHeader for prod-miljø på Nais",
+        "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy"
+      ],
       "references": [
         {
           "path": "references/params.md",
@@ -1319,7 +1326,8 @@
           "path": "references/consent.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/nav-dekoratoren/references/consent.md"
         }
-      ]
+      ],
+      "collections": ["frontend", "fullstack", "nextjs-frontend"]
     },
     {
       "id": "nav-plan",
