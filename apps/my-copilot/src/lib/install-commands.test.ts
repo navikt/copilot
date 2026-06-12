@@ -348,8 +348,8 @@ describe("getMcpServerConfig", () => {
 
   it("generates stdio config for npm package", () => {
     const config = JSON.parse(getMcpServerConfig(npmMcp));
-    expect(config["figma-mcp"].command).toBe("npx");
-    expect(config["figma-mcp"].args).toContain("-y");
+    expect(config["figma-mcp"].command).toBe("pnpm");
+    expect(config["figma-mcp"].args).toContain("dlx");
     expect(config["figma-mcp"].args).toContain("@anthropic/figma-mcp");
     expect(config["figma-mcp"].args).toContain("--port");
     expect(config["figma-mcp"].args).toContain("3333");
@@ -386,7 +386,8 @@ describe("getVsCodeAddMcpCommand", () => {
     const cmd = getVsCodeAddMcpCommand(npmMcp);
     const json = JSON.parse(cmd.replace("code --add-mcp '", "").replace(/'$/, ""));
     expect(json.name).toBe("figma-mcp");
-    expect(json.command).toBe("npx");
+    expect(json.command).toBe("pnpm");
+    expect(json.args).toContain("dlx");
     expect(json.env.FIGMA_TOKEN).toBe("${input:FIGMA_TOKEN}");
     expect(json.env.DEBUG).toBe("Enable debug logging");
   });
@@ -410,7 +411,7 @@ describe("getMcpAddFields", () => {
     const fields = getMcpAddFields(npmMcp)!;
     expect(fields.name).toBe("figma-mcp");
     expect(fields.type).toBe("STDIO");
-    expect(fields.command).toContain("npx");
+    expect(fields.command).toContain("pnpm dlx");
     expect(fields.command).toContain("@anthropic/figma-mcp");
     expect(fields.env).toContain("FIGMA_TOKEN=...");
     expect(fields.env).toContain("DEBUG=Enable debug logging");

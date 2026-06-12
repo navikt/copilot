@@ -79,7 +79,7 @@ pnpm add @navikt/aksel-icons
 pnpm add -D @navikt/aksel
 
 # Run codemods (e.g. v7 → v8 migration)
-npx @navikt/aksel codemod v8-spacing-tokens ./src
+pnpm exec aksel codemod v8-spacing-tokens ./src
 ```
 
 ## Packages & setup

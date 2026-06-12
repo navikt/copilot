@@ -152,7 +152,7 @@ For MCP servers accessible over the network via Streamable HTTP or SSE:
 
 ### Local Servers (stdio via packages)
 
-For MCP servers that run locally as processes (e.g. via `npx`), use the `packages` field instead of `remotes`. This follows the [MCP Registry Package Types](https://modelcontextprotocol.io/specification/draft/basic/transports#stdio) specification.
+For MCP servers that run locally as processes (e.g. via `pnpm dlx`), use the `packages` field instead of `remotes`. This follows the [MCP Registry Package Types](https://modelcontextprotocol.io/specification/draft/basic/transports#stdio) specification.
 
 ```json
 {
@@ -176,7 +176,7 @@ For MCP servers that run locally as processes (e.g. via `npx`), use the `package
 | `registryType`         | Yes      | Package registry: `npm`, `pypi`, `oci`, `nuget`, or `mcpb`                |
 | `identifier`           | Yes      | Package name (e.g. `@playwright/mcp`, `mcp-server-fetch`)                 |
 | `version`              | No       | Specific version to pin                                                   |
-| `runtimeHint`          | No       | Runtime command hint (e.g. `npx`, `uvx`)                                  |
+| `runtimeHint`          | No       | Runtime command hint (e.g. `pnpm dlx`, `uvx`)                             |
 | `transport.type`       | Yes      | Transport type: `stdio` for local, `streamable-http` or `sse` for network |
 | `environmentVariables` | No       | Array of env vars the server needs (API keys, config)                     |
 

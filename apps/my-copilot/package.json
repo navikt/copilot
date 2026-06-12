@@ -2,7 +2,7 @@
   "name": "my-copilot",
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@10.24.0",
+  "packageManager": "pnpm@11.5.1",
   "scripts": {
     "dev": "next dev",
     "build": "next build --experimental-build-mode compile",
