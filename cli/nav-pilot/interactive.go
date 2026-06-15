@@ -683,9 +683,15 @@ func copilotAgentArgs(agent string) []string {
 const copilotAgentPersona = "nav-pilot"
 
 // buildCopilotArgs constructs the CLI arguments for launching copilot.
-// For cplt, launch flags are forwarded after "--" separator.
-// Note: always emits --agent nav-pilot (the persona); resolved.Agent selects
-// the launcher and is consumed by launchAgent before reaching this function.
+//
+// cplt is the sandbox wrapper: its own --agent selects WHICH agent to sandbox
+// and otherwise auto-detects from PATH (per `cplt --help`). Because nav-pilot is
+// on the copilot launch path here, we pin `cplt --agent copilot` so a different
+// agent on PATH (e.g. opencode) is never picked, then forward the copilot
+// persona + flags after the "--" separator.
+//
+// Note: the forwarded --agent is always the nav-pilot persona; resolved.Agent
+// selects the launcher and is consumed by launchAgent before reaching here.
 func buildCopilotArgs(cliName string, resolved ResolvedConfig) []string {
 	var args []string
 	args = append(args, "--agent", copilotAgentPersona)
@@ -711,8 +717,8 @@ func buildCopilotArgs(cliName string, resolved ResolvedConfig) []string {
 	if resolved.LogLevel != "" {
 		args = append(args, "--log-level", resolved.LogLevel)
 	}
-	if cliName == "cplt" && len(args) > 0 {
-		return append([]string{"--"}, args...)
+	if cliName == "cplt" {
+		return append([]string{"--agent", "copilot", "--"}, args...)
 	}
 	return args
 }

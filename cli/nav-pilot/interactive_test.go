@@ -520,10 +520,10 @@ func TestBuildCopilotArgs(t *testing.T) {
 		want     []string
 	}{
 		{
-			name:     "cplt always emits nav-pilot persona",
+			name:     "cplt pins copilot sandbox agent and emits nav-pilot persona",
 			cliName:  "cplt",
 			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--", "--agent", "nav-pilot"},
+			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "copilot always emits nav-pilot persona",
@@ -556,7 +556,7 @@ func TestBuildCopilotArgs(t *testing.T) {
 				AskUser:         false,
 				LogLevel:        "debug",
 			},
-			want: []string{"--", "--agent", "nav-pilot", "--model", "gpt-4o",
+			want: []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-4o",
 				"--mode", "plan", "--effort", "high", "--context", "long_context",
 				"--allow-all-tools", "--no-ask-user", "--log-level", "debug"},
 		},

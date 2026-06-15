@@ -92,6 +92,18 @@ model` lists the common ids.
 - `opencode` → `launchOpenCode` in `opencode_launch.go`
 - `pi` → error stub (not yet implemented)
 
+nav-pilot curates a deliberately small `agent` allowlist (`copilot`, `opencode`,
+`pi`). The `cplt` sandbox wrapper itself supports a broader set
+(`copilot, opencode, gemini, antigravity, pi, shell`), but nav-pilot only
+exposes agents it has a verified launch path for. `gemini`/`antigravity`/`shell`
+are intentionally not wired yet.
+
+**cplt agent pinning:** `cplt`'s own `--agent` selects which agent to sandbox,
+falling back to auto-detect from PATH when omitted. Since the copilot path always
+wants copilot, `buildCopilotArgs` pins `cplt --agent copilot` (so a different
+agent on PATH is never auto-picked) and forwards the `nav-pilot` persona + flags
+after the `--` separator: `cplt --agent copilot -- --agent nav-pilot …`.
+
 ### OpenCode option mapping
 
 `openCodeArgs` maps the resolved config to `opencode run` flags. opencode's flag
