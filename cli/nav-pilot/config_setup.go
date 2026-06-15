@@ -120,16 +120,58 @@ func runConfigSetup() error {
 		return nil
 	}
 
-	err = huh.NewInput().
-		Title("Model (leave blank for agent default)").
-		Description("Any model name accepted — validated by the downstream CLI.").
-		Placeholder("e.g. gpt-4o, auto").
-		Value(&answers.Model).
-		WithTheme(navTheme()).
-		Run()
-	if err != nil {
-		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return nil
+	if answers.Agent == "copilot" {
+		const customModelSentinel = "\x00custom"
+		modelOpts := []huh.Option[string]{
+			huh.NewOption("Unset (agent default)", ""),
+		}
+		for _, m := range knownCopilotModels {
+			modelOpts = append(modelOpts, huh.NewOption(m.Label, m.ID))
+		}
+		modelOpts = append(modelOpts, huh.NewOption("Custom (type manually)…", customModelSentinel))
+
+		var modelChoiceVal string
+		err = huh.NewSelect[string]().
+			Title("Model").
+			Description("Pick a model, or leave unset to use the agent default.").
+			Options(modelOpts...).
+			Value(&modelChoiceVal).
+			WithTheme(navTheme()).
+			Run()
+		if err != nil {
+			fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
+			return nil
+		}
+		if modelChoiceVal == customModelSentinel {
+			err = huh.NewInput().
+				Title("Custom model id").
+				Description("e.g. gpt-5.2 — leave blank for the agent default.").
+				Value(&answers.Model).
+				Validate(validateOptionalModel).
+				WithTheme(navTheme()).
+				Run()
+			if err != nil {
+				fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
+				return nil
+			}
+			answers.Model = strings.TrimSpace(answers.Model)
+		} else {
+			answers.Model = modelChoiceVal
+		}
+	} else {
+		err = huh.NewInput().
+			Title("Model (leave blank for agent default)").
+			Description("For opencode use provider/model, e.g. anthropic/claude-3-5-sonnet.").
+			Placeholder("provider/model").
+			Value(&answers.Model).
+			Validate(validateOptionalModel).
+			WithTheme(navTheme()).
+			Run()
+		if err != nil {
+			fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
+			return nil
+		}
+		answers.Model = strings.TrimSpace(answers.Model)
 	}
 
 	err = huh.NewSelect[string]().

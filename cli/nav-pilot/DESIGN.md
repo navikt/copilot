@@ -71,12 +71,45 @@ nav-pilot --no-ask-user             # Non-interactive mode
 nav-pilot --log-level debug         # Set log level
 ```
 
+### Model selection & validation
+
+`model` is **format-validated** locally, not allowlist-validated: the Copilot CLI
+validates `--model` against its live server-side catalog, so a hard list would
+reject newly released models. Validation (`validateModelValue`) requires a
+non-empty identifier with no surrounding/inner whitespace, matching
+`^[A-Za-z0-9][A-Za-z0-9._/-]*$` — this covers Copilot ids (`claude-opus-4.8`,
+`gpt-5.5`) and opencode `provider/model` ids (`anthropic/claude-3-5-sonnet`).
+
+The first-run wizard offers a **picker** of common Copilot models
+(`knownCopilotModels`) plus an "Unset" and a "Custom…" option; for non-copilot
+agents it falls back to a validated free-text input. `nav-pilot config explain
+model` lists the common ids.
+
 ### Agent dispatch
 
 `launchAgent(resolved ResolvedConfig)` dispatches by `resolved.Agent`:
 - `copilot` (default) → `launchCopilotResolved` using `cplt`/`copilot` CLI
 - `opencode` → `launchOpenCode` in `opencode_launch.go`
 - `pi` → error stub (not yet implemented)
+
+### OpenCode option mapping
+
+`openCodeArgs` maps the resolved config to `opencode run` flags. opencode's flag
+surface differs from Copilot's, so several fields are translated or dropped:
+
+| nav-pilot config | opencode flag | Notes |
+|---|---|---|
+| `model` | `--model` | Expects `provider/model` (e.g. `anthropic/claude-3-5-sonnet`) |
+| `mode = plan` | `--agent plan` | opencode has no `--mode`; `autopilot` has no opencode equivalent |
+| `reasoning_effort` | `--variant` | Provider-specific reasoning (e.g. `high`, `max`) |
+| `allow_all_tools` | `--dangerously-skip-permissions` | |
+| `log_level` | `--log-level` | Translated to opencode's set: `DEBUG`/`INFO`/`WARN`/`ERROR` (see below) |
+| `context_tier` | — | No opencode equivalent; ignored |
+| `ask_user` | — | No opencode equivalent; ignored |
+
+Log-level translation (`openCodeLogLevel`): `debug`/`all` → `DEBUG`, `info` →
+`INFO`, `warning` → `WARN`, `error` → `ERROR`; `none`/`default`/unset omit the
+flag (opencode uses its own default). opencode only accepts the UPPERCASE set.
 
 ### OpenCode OTel
 

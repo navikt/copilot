@@ -271,12 +271,22 @@ func TestValidateConfig_UnknownLogLevel(t *testing.T) {
 	}
 }
 
-func TestValidateConfig_ModelNoAllowlist(t *testing.T) {
-	// model accepts any non-empty string; validateConfig does not reject it.
-	s := "some-custom-model-name"
-	cfg := &Config{Version: 1, Model: &s}
-	if err := validateConfig(cfg); err != nil {
-		t.Errorf("expected nil error for any model name, got: %v", err)
+func TestValidateConfig_ModelFormatValidation(t *testing.T) {
+	good := []string{"auto", "gpt-5.5", "claude-opus-4.8", "anthropic/claude-3-5-sonnet", "some_model"}
+	for _, m := range good {
+		m := m
+		cfg := &Config{Version: 1, Model: &m}
+		if err := validateConfig(cfg); err != nil {
+			t.Errorf("expected nil error for model %q, got: %v", m, err)
+		}
+	}
+	bad := []string{"", " gpt-4o", "gpt-4o ", "gpt 4o", "gpt@4o", "-bad"}
+	for _, m := range bad {
+		m := m
+		cfg := &Config{Version: 1, Model: &m}
+		if err := validateConfig(cfg); err == nil {
+			t.Errorf("expected error for invalid model %q, got nil", m)
+		}
 	}
 }
 
@@ -865,8 +875,15 @@ func TestValidateKeyValue(t *testing.T) {
 		{"version", "1", false},
 		{"version", "2", true},
 		{"version", "abc", true},
-		{"model", "any-model-name", false},      // no allowlist
-		{"model", "gpt-4-turbo-preview", false}, // no allowlist
+		{"model", "any-model-name", false},              // well-formed
+		{"model", "gpt-4-turbo-preview", false},         // well-formed
+		{"model", "claude-opus-4.8", false},             // dots allowed
+		{"model", "anthropic/claude-3-5-sonnet", false}, // provider/model
+		{"model", "", true},                             // empty rejected
+		{"model", "gpt 4o", true},                       // space rejected
+		{"model", " gpt-4o", true},                      // leading space rejected
+		{"model", "gpt-4o ", true},                      // trailing space rejected
+		{"model", "gpt@4o", true},                       // illegal char rejected
 	}
 	for _, tt := range tests {
 		t.Run(tt.key+"="+tt.value, func(t *testing.T) {

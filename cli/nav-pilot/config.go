@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -57,6 +58,55 @@ var (
 	validContextTiers    = []string{"default", "long_context"}
 	validLogLevels       = []string{"none", "error", "warning", "info", "debug", "all", "default"}
 )
+
+// modelChoice pairs a model id (the --model value) with a human-readable label.
+type modelChoice struct {
+	ID    string
+	Label string
+}
+
+// knownCopilotModels lists the models the Copilot CLI commonly offers. It is
+// used to populate the first-run wizard picker. The Copilot CLI validates
+// --model server-side against the live catalog, so this is a convenience list,
+// NOT an exhaustive allowlist — unrecognized-but-well-formed ids remain accepted
+// (see validateModelValue) so newly released models keep working.
+var knownCopilotModels = []modelChoice{
+	{"auto", "Auto (let Copilot pick)"},
+	{"claude-sonnet-4.6", "Claude Sonnet 4.6 (default)"},
+	{"claude-haiku-4.5", "Claude Haiku 4.5"},
+	{"claude-opus-4.8", "Claude Opus 4.8"},
+	{"claude-opus-4.6", "Claude Opus 4.6"},
+	{"gpt-5.5", "GPT-5.5"},
+	{"gpt-5.4", "GPT-5.4"},
+	{"gpt-5.3-codex", "GPT-5.3-Codex"},
+	{"gpt-5.4-mini", "GPT-5.4 mini"},
+	{"gpt-5-mini", "GPT-5 mini"},
+	{"gemini-3.1-pro-preview", "Gemini 3.1 Pro (Preview)"},
+	{"gemini-3.5-flash", "Gemini 3.5 Flash"},
+}
+
+// modelValuePattern restricts model identifiers to a sane character set that
+// covers Copilot ids (e.g. "claude-opus-4.8", "gpt-5.5") and opencode
+// provider/model ids (e.g. "anthropic/claude-3-5-sonnet").
+var modelValuePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
+
+// validateModelValue applies strong format validation to a model identifier.
+// The model catalog is dynamic (Copilot validates server-side), so this checks
+// shape rather than membership: non-empty, no surrounding/inner whitespace, and
+// a restricted character set. This rejects typos and garbage while remaining
+// correct as the model catalog evolves.
+func validateModelValue(model string) error {
+	if strings.TrimSpace(model) != model {
+		return fmt.Errorf("model %q must not have leading or trailing whitespace", model)
+	}
+	if model == "" {
+		return errors.New("model must not be empty (omit the key to use the agent default)")
+	}
+	if !modelValuePattern.MatchString(model) {
+		return fmt.Errorf("model %q is not a valid identifier (allowed characters: letters, digits, '.', '_', '-', '/')", model)
+	}
+	return nil
+}
 
 // configPath returns the path to the user config file.
 // Honors NAV_PILOT_CONFIG env var if set.
@@ -122,6 +172,11 @@ func validateConfigProblems(cfg *Config) []string {
 	if cfg.Agent != nil && !containsStr(validAgents, *cfg.Agent) {
 		problems = append(problems, fmt.Sprintf("agent %q is not valid (allowed: %s)",
 			*cfg.Agent, strings.Join(validAgents, ", ")))
+	}
+	if cfg.Model != nil {
+		if err := validateModelValue(*cfg.Model); err != nil {
+			problems = append(problems, err.Error())
+		}
 	}
 	if cfg.Mode != nil && !containsStr(validModes, *cfg.Mode) {
 		problems = append(problems, fmt.Sprintf("mode %q is not valid (allowed: %s)",
@@ -216,6 +271,16 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		r.LogLevel = cli.LogLevel
 	}
 	return r
+}
+
+// validateOptionalModel is a huh form validator: it accepts a blank value
+// (meaning "unset / agent default") and otherwise applies validateModelValue.
+func validateOptionalModel(s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	return validateModelValue(s)
 }
 
 func containsStr(list []string, s string) bool {

@@ -23,6 +23,16 @@ func openCodeConfigPath() string {
 
 // openCodeArgs builds the CLI arguments for launching opencode non-interactively.
 // Maps resolved config fields to opencode flags; omits unset/default fields.
+//
+// Mapping (nav-pilot config -> opencode flag):
+//
+//	model            -> --model (expects provider/model, e.g. anthropic/claude-3-5-sonnet)
+//	mode=plan        -> --agent plan (opencode has no --mode; autopilot has no opencode flag)
+//	reasoning_effort -> --variant (provider-specific reasoning, e.g. high/max)
+//	allow_all_tools  -> --dangerously-skip-permissions
+//	log_level        -> --log-level (translated to opencode's UPPERCASE set)
+//	context_tier     -> (no opencode equivalent; ignored)
+//	ask_user         -> (no opencode equivalent; ignored)
 func openCodeArgs(resolved ResolvedConfig) []string {
 	var args []string
 	if resolved.Model != "" {
@@ -37,10 +47,29 @@ func openCodeArgs(resolved ResolvedConfig) []string {
 	if resolved.AllowAllTools {
 		args = append(args, "--dangerously-skip-permissions")
 	}
-	if resolved.LogLevel != "" {
-		args = append(args, "--log-level", resolved.LogLevel)
+	if lvl := openCodeLogLevel(resolved.LogLevel); lvl != "" {
+		args = append(args, "--log-level", lvl)
 	}
 	return args
+}
+
+// openCodeLogLevel translates a nav-pilot log level to opencode's accepted set
+// (DEBUG, INFO, WARN, ERROR). Returns "" for levels with no opencode equivalent
+// (none/default/unset), in which case the flag is omitted and opencode uses its
+// own default.
+func openCodeLogLevel(level string) string {
+	switch level {
+	case "debug", "all":
+		return "DEBUG"
+	case "info":
+		return "INFO"
+	case "warning":
+		return "WARN"
+	case "error":
+		return "ERROR"
+	default: // none, default, "" — let opencode decide
+		return ""
+	}
 }
 
 // applyOpenCodeOTelEnv injects OTel env vars for opencode, reusing the same

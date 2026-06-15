@@ -46,7 +46,7 @@ func TestOpenCodeArgs(t *testing.T) {
 		{
 			name:     "log level",
 			resolved: ResolvedConfig{Mode: "default", LogLevel: "debug", AskUser: true},
-			want:     []string{"--log-level", "debug"},
+			want:     []string{"--log-level", "DEBUG"},
 		},
 		{
 			name: "all fields",
@@ -58,7 +58,7 @@ func TestOpenCodeArgs(t *testing.T) {
 				LogLevel:        "info",
 			},
 			want: []string{"--model", "openai/gpt-4o", "--agent", "plan",
-				"--variant", "max", "--dangerously-skip-permissions", "--log-level", "info"},
+				"--variant", "max", "--dangerously-skip-permissions", "--log-level", "INFO"},
 		},
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",
@@ -78,6 +78,24 @@ func TestOpenCodeArgs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestOpenCodeLogLevel(t *testing.T) {
+	cases := map[string]string{
+		"debug":   "DEBUG",
+		"all":     "DEBUG",
+		"info":    "INFO",
+		"warning": "WARN",
+		"error":   "ERROR",
+		"none":    "",
+		"default": "",
+		"":        "",
+	}
+	for in, want := range cases {
+		if got := openCodeLogLevel(in); got != want {
+			t.Errorf("openCodeLogLevel(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

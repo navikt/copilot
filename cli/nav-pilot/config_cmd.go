@@ -50,7 +50,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "model",
 		kind:        keyKindString,
-		description: "Model name. Any non-empty string accepted; validated downstream.",
+		description: "Model id (e.g. auto, claude-opus-4.8, gpt-5.5). Format-validated; the catalog is checked downstream.",
 		allowed:     nil,
 		defaultVal:  "",
 		flag:        "--model",
@@ -137,7 +137,11 @@ version = 1
 # Corresponds to Copilot CLI flag: --agent
 # agent = "copilot"
 
-# Model name. Any non-empty string accepted; validated downstream.
+# Model id. Common Copilot models: auto, claude-sonnet-4.6, claude-haiku-4.5,
+# claude-opus-4.8, claude-opus-4.6, gpt-5.5, gpt-5.4, gpt-5.3-codex,
+# gpt-5.4-mini, gpt-5-mini, gemini-3.1-pro-preview, gemini-3.5-flash.
+# For opencode use provider/model (e.g. anthropic/claude-3-5-sonnet).
+# Format-validated locally; the model catalog is checked by the downstream CLI.
 # Default: agent-specific default
 # Corresponds to Copilot CLI flag: --model
 # model = "auto"
@@ -469,6 +473,12 @@ func validateKeyValue(kd *configKeyDef, value string) error {
 			return fmt.Errorf("key %q requires a boolean value (true/false), got: %q", kd.name, value)
 		}
 	}
+	// Key-specific validation beyond the generic kind/allowlist checks.
+	if kd.name == "model" {
+		if err := validateModelValue(value); err != nil {
+			return err
+		}
+	}
 	// Allowlist check for string and int keys that have one.
 	if len(kd.allowed) > 0 && kd.kind != keyKindBool {
 		if !containsStr(kd.allowed, value) {
@@ -584,6 +594,13 @@ func printKeyExplain(kd *configKeyDef, resolved ResolvedConfig) {
 		fmt.Printf("    Allowed:  %s\n", strings.Join(kd.allowed, ", "))
 	} else if kd.kind == keyKindBool {
 		fmt.Printf("    Allowed:  true, false\n")
+	} else if kd.name == "model" {
+		ids := make([]string, len(knownCopilotModels))
+		for i, m := range knownCopilotModels {
+			ids[i] = m.ID
+		}
+		fmt.Printf("    Common:   %s\n", strings.Join(ids, ", "))
+		fmt.Printf("    Allowed:  any well-formed id ([A-Za-z0-9._/-], e.g. provider/model for opencode)\n")
 	} else {
 		fmt.Printf("    Allowed:  any non-empty string\n")
 	}
