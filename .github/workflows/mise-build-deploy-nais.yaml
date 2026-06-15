@@ -359,7 +359,7 @@ jobs:
           VARS_PATH="${VARS_PATTERN//\{cluster\}/$CLUSTER}"
           echo "resource=$RESOURCE_PATH" >> $GITHUB_OUTPUT
           echo "vars=$VARS_PATH" >> $GITHUB_OUTPUT
-      - uses: nais/deploy/actions/deploy@ab841e4d99cbb00edd996d3ae39bd4cea6b8e2c2 # ratchet:nais/deploy/actions/deploy@v2
+      - uses: nais/deploy/actions/deploy@5fdd91aaf69bb0d6dd5e5118cdacb639f487b93b # ratchet:nais/deploy/actions/deploy@v2
         env:
           CLUSTER: ${{ matrix.cluster }}
           TEAM: ${{ inputs.nais-team }}
@@ -393,7 +393,7 @@ jobs:
           fi
           echo "resource=$RESOURCE_PATH" >> $GITHUB_OUTPUT
           echo "vars=$VARS_PATH" >> $GITHUB_OUTPUT
-      - uses: nais/deploy/actions/deploy@ab841e4d99cbb00edd996d3ae39bd4cea6b8e2c2 # ratchet:nais/deploy/actions/deploy@v2
+      - uses: nais/deploy/actions/deploy@5fdd91aaf69bb0d6dd5e5118cdacb639f487b93b # ratchet:nais/deploy/actions/deploy@v2
         env:
           CLUSTER: dev-gcp
           TEAM: ${{ inputs.nais-team }}
