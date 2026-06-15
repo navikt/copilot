@@ -23,6 +23,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "dist/**",
+    "storybook-static/**",
     "next-env.d.ts",
     // Generated local video artifacts:
     "video-packages/**",

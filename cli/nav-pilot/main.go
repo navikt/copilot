@@ -12,6 +12,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ var (
 
 // timeNow is a variable so tests can override it.
 var timeNow = time.Now
+var telemetry telemetryRecorder = noopTelemetry{}
 
 // ─── CLI ────────────────────────────────────────────────────────────────────
 
@@ -96,16 +98,18 @@ After installing, use @nav-pilot in GitHub Copilot Chat.
 // It returns an error instead of calling os.Exit, making it testable.
 func run(args []string) error {
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
-	if version != "dev" {
-		if latest := checkStaleness(version); latest != "" {
-			fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
-				yellow("⚠"), latest, version, bold("nav-pilot upgrade"))
-		}
+	assessment := assessStaleness(version)
+	recordFreshness("cli", "none", assessment)
+	if version != "dev" && assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, version) {
+		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
+			yellow("⚠"), assessment.LatestVersion, version, bold("nav-pilot upgrade"))
 	}
 
 	if len(args) < 1 {
 		if isInteractive() {
-			return cmdInteractive()
+			return runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
+				return cmdInteractive()
+			})
 		}
 		usage()
 		return nil
@@ -113,10 +117,14 @@ func run(args []string) error {
 
 	// Handle --sync flag: non-interactive sync-all + launch
 	if args[0] == "--sync" {
-		if err := cmdSyncAuto(".", "", "", true, false); err != nil && err != errUpdatesAvailable {
+		if err := runWithCommandTelemetry("sync", "non_interactive", "auto", func() error {
+			return cmdSyncAuto(".", "", "", true, false)
+		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
 		}
-		launchCopilotWithAgent("nav-pilot")
+		_ = runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
+			return launchCopilotWithAgent("nav-pilot")
+		})
 		return nil
 	}
 
@@ -234,20 +242,22 @@ func run(args []string) error {
 
 	switch command {
 	case "install":
-		if userScope && (len(positional) == 0 || installAll) {
-			return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
-		}
-		if len(positional) == 0 {
-			// No args: launch interactive flow if in a terminal
-			if isInteractive() && !jsonOutput {
-				return cmdInstallInteractive(targetDir, ref, sourceRepo)
+		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
+			if userScope && (len(positional) == 0 || installAll) {
+				return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
 			}
-			return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
-		}
-		if len(positional) > 1 {
-			return fmt.Errorf("install takes one name. Did you mean: nav-pilot install %s --type %s", positional[1], positional[0])
-		}
-		return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
+			if len(positional) == 0 {
+				// No args: launch interactive flow if in a terminal
+				if isInteractive() && !jsonOutput {
+					return cmdInstallInteractive(targetDir, ref, sourceRepo)
+				}
+				return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
+			}
+			if len(positional) > 1 {
+				return fmt.Errorf("install takes one name. Did you mean: nav-pilot install %s --type %s", positional[1], positional[0])
+			}
+			return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		})
 	case "init":
 		return cmdInit(targetDir, dryRun, force)
 	case "export":
@@ -276,18 +286,30 @@ func run(args []string) error {
 		}
 		return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
 	case "sync":
+		syncScope := "auto"
 		if userScope || targetProvided {
-			return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
+			syncScope = scope.Name
 		}
-		return cmdSyncAuto(targetDir, ref, sourceRepo, apply, jsonOutput)
-	case "list":
-		if listInstalled {
+		return runWithCommandTelemetry("sync", telemetryMode(), syncScope, func() error {
 			if userScope || targetProvided {
-				return cmdStatusScoped(scope, false, jsonOutput)
+				return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
 			}
-			return cmdStatusAuto(targetDir, jsonOutput)
+			return cmdSyncAuto(targetDir, ref, sourceRepo, apply, jsonOutput)
+		})
+	case "list":
+		listScope := "none"
+		if userScope || targetProvided {
+			listScope = scope.Name
 		}
-		return cmdList(ref, sourceRepo, listItems, jsonOutput)
+		return runWithCommandTelemetry("list", telemetryMode(), listScope, func() error {
+			if listInstalled {
+				if userScope || targetProvided {
+					return cmdStatusScoped(scope, false, jsonOutput)
+				}
+				return cmdStatusAuto(targetDir, jsonOutput)
+			}
+			return cmdList(ref, sourceRepo, listItems, jsonOutput)
+		})
 	case "status":
 		// Deprecated: hidden alias for backward compatibility
 		if !jsonOutput {
@@ -301,7 +323,7 @@ func run(args []string) error {
 	case "uninstall":
 		return cmdUninstall(scope, dryRun)
 	case "upgrade":
-		return cmdUpdate()
+		return runWithCommandTelemetry("upgrade", telemetryMode(), "none", cmdUpdate)
 	case "update":
 		// Deprecated: hidden alias for backward compatibility
 		if !jsonOutput {
@@ -325,14 +347,28 @@ func run(args []string) error {
 }
 
 func main() {
+	tel, err := initTelemetry(context.Background(), version)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s telemetry disabled: %v\n", yellow("⚠"), err)
+	}
+	telemetry = tel
+
+	exitCode := 0
 	if err := run(os.Args[1:]); err != nil {
 		if err == errUpdatesAvailable {
-			os.Exit(1)
+			exitCode = 1
+		} else if err == errSyncFailed {
+			exitCode = 2
+		} else {
+			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
+			exitCode = 1
 		}
-		if err == errSyncFailed {
-			os.Exit(2)
-		}
-		fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
-		os.Exit(1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = telemetry.Shutdown(ctx)
+	if exitCode != 0 {
+		os.Exit(exitCode)
 	}
 }

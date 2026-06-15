@@ -32,6 +32,33 @@ nav-pilot install --user --all
 eval "$(nav-pilot env)"
 ```
 
+## Telemetry (pilot, default on)
+
+nav-pilot sender OTel-metrikker som standard i pilot.
+
+Standard endpoint er `https://collector-internet.nav.cloud.nais.io/v1/metrics`.
+Du kan overstyre med `NAV_PILOT_TELEMETRY_ENDPOINT` ved behov.
+
+Støttede MVP-metrikker:
+
+- `nav_pilot_command_total`
+- `nav_pilot_command_duration_ms`
+- `nav_pilot_command_error_total`
+- `nav_pilot_install_items_total`
+- `nav_pilot_sync_updates_total`
+- `nav_pilot_sync_conflicts_total`
+- `nav_pilot_info`
+- `nav_pilot_install_present`
+- `nav_pilot_installed_items`
+- `nav_pilot_staleness_check_total`
+- `nav_pilot_up_to_date`
+- `nav_pilot_version_skew_days`
+
+Metrikkene inkluderer også `execution_context` for å skille organisk bruk fra CI
+(`organic`, `ci_github_actions`, `ci_other`, `unknown`).
+
+`NAV_PILOT_TELEMETRY_ENABLED=0` (eller `off`) deaktiverer telemetry.
+
 ## For bidragsytere
 
 - Agent: `.github/agents/nav-pilot.agent.md`

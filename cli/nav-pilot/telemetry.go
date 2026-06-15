@@ -1,0 +1,450 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+)
+
+const defaultTelemetryEndpoint = "https://collector-internet.nav.cloud.nais.io/v1/metrics"
+
+type telemetryRecorder interface {
+	RecordCommand(command, mode, scope, result string, duration time.Duration)
+	RecordInstallItems(scope, mode string, count int64)
+	RecordSyncUpdates(scope, mode string, count int64)
+	RecordSyncConflicts(scope, mode string, count int64)
+	RecordInstallPresent(scope, collection string, present bool)
+	RecordInstalledItems(scope, itemType, status string, count int64)
+	RecordStalenessCheck(component, scope, result string)
+	RecordUpToDate(component, scope string, upToDate bool)
+	RecordVersionSkewDays(component, scope string, days int64)
+	Shutdown(ctx context.Context) error
+}
+
+type noopTelemetry struct{}
+
+func (noopTelemetry) RecordCommand(string, string, string, string, time.Duration) {}
+func (noopTelemetry) RecordInstallItems(string, string, int64)                    {}
+func (noopTelemetry) RecordSyncUpdates(string, string, int64)                     {}
+func (noopTelemetry) RecordSyncConflicts(string, string, int64)                   {}
+func (noopTelemetry) RecordInstallPresent(string, string, bool)                   {}
+func (noopTelemetry) RecordInstalledItems(string, string, string, int64)          {}
+func (noopTelemetry) RecordStalenessCheck(string, string, string)                 {}
+func (noopTelemetry) RecordUpToDate(string, string, bool)                         {}
+func (noopTelemetry) RecordVersionSkewDays(string, string, int64)                 {}
+func (noopTelemetry) Shutdown(context.Context) error                              { return nil }
+
+type otelTelemetry struct {
+	provider *sdkmetric.MeterProvider
+
+	commandTotal       metric.Int64Counter
+	commandDurationMS  metric.Int64Histogram
+	commandErrorTotal  metric.Int64Counter
+	installItemsTotal  metric.Int64Counter
+	syncUpdatesTotal   metric.Int64Counter
+	syncConflictsTotal metric.Int64Counter
+	infoGauge          metric.Int64Gauge
+	installPresent     metric.Int64Gauge
+	installedItems     metric.Int64Gauge
+	stalenessCheck     metric.Int64Counter
+	upToDate           metric.Int64Gauge
+	versionSkewDays    metric.Int64Histogram
+
+	version          string
+	device           string
+	executionContext string
+	os               string
+	arch             string
+}
+
+func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, error) {
+	if !telemetryEnabled() {
+		return noopTelemetry{}, nil
+	}
+
+	// Load or generate stable device ID
+	deviceID, err := getOrCreateDeviceID()
+	if err != nil {
+		debugLog("failed to get device ID: %v; continuing without it", err)
+		deviceID = "unknown"
+	}
+	executionContext := detectExecutionContext()
+	version := normalizeTelemetryDimension(cliVersion, "dev")
+	device := normalizeTelemetryDimension(deviceID, "unknown")
+	osName := normalizeTelemetryDimension(runtime.GOOS, "unknown")
+	arch := normalizeTelemetryDimension(runtime.GOARCH, "unknown")
+	execCtx := normalizeTelemetryDimension(executionContext, "unknown")
+
+	endpoint := strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENDPOINT"))
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	}
+	if endpoint == "" {
+		endpoint = defaultTelemetryEndpoint
+	}
+
+	opts := []otlpmetrichttp.Option{}
+	if endpoint != "" {
+		opts = append(opts, otlpmetrichttp.WithEndpointURL(endpoint))
+	}
+
+	exporter, err := otlpmetrichttp.New(ctx, opts...)
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create OTLP metrics exporter: %w", err)
+	}
+
+	res, err := resource.New(ctx, resource.WithAttributes(
+		attribute.String("service.name", "nav-pilot"),
+		attribute.String("service.version", version),
+		attribute.String("os", osName),
+		attribute.String("arch", arch),
+		attribute.String("device_id", device),
+		attribute.String("execution_context", execCtx),
+	))
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create telemetry resource: %w", err)
+	}
+
+	reader := sdkmetric.NewPeriodicReader(exporter,
+		sdkmetric.WithInterval(10*time.Second),
+		sdkmetric.WithTimeout(2*time.Second),
+	)
+	provider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(reader),
+		sdkmetric.WithResource(res),
+	)
+
+	meter := provider.Meter("github.com/navikt/copilot/cli/nav-pilot")
+	commandTotal, err := meter.Int64Counter("nav_pilot_command_total")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create command total counter: %w", err)
+	}
+	commandDurationMS, err := meter.Int64Histogram("nav_pilot_command_duration_ms")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create command duration histogram: %w", err)
+	}
+	commandErrorTotal, err := meter.Int64Counter("nav_pilot_command_error_total")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create command error counter: %w", err)
+	}
+	installItemsTotal, err := meter.Int64Counter("nav_pilot_install_items_total")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create install items counter: %w", err)
+	}
+	syncUpdatesTotal, err := meter.Int64Counter("nav_pilot_sync_updates_total")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create sync updates counter: %w", err)
+	}
+	syncConflictsTotal, err := meter.Int64Counter("nav_pilot_sync_conflicts_total")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create sync conflicts counter: %w", err)
+	}
+	infoGauge, err := meter.Int64Gauge("nav_pilot_info")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create info gauge: %w", err)
+	}
+	installPresent, err := meter.Int64Gauge("nav_pilot_install_present")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create install present gauge: %w", err)
+	}
+	installedItems, err := meter.Int64Gauge("nav_pilot_installed_items")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create installed items gauge: %w", err)
+	}
+	stalenessCheck, err := meter.Int64Counter("nav_pilot_staleness_check_total")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create staleness check counter: %w", err)
+	}
+	upToDate, err := meter.Int64Gauge("nav_pilot_up_to_date")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create up to date gauge: %w", err)
+	}
+	versionSkewDays, err := meter.Int64Histogram("nav_pilot_version_skew_days")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create version skew days histogram: %w", err)
+	}
+
+	tel := &otelTelemetry{
+		provider:           provider,
+		commandTotal:       commandTotal,
+		commandDurationMS:  commandDurationMS,
+		commandErrorTotal:  commandErrorTotal,
+		installItemsTotal:  installItemsTotal,
+		syncUpdatesTotal:   syncUpdatesTotal,
+		syncConflictsTotal: syncConflictsTotal,
+		infoGauge:          infoGauge,
+		installPresent:     installPresent,
+		installedItems:     installedItems,
+		stalenessCheck:     stalenessCheck,
+		upToDate:           upToDate,
+		versionSkewDays:    versionSkewDays,
+		version:            version,
+		device:             device,
+		executionContext:   execCtx,
+		os:                 osName,
+		arch:               arch,
+	}
+	tel.recordInfo()
+
+	return tel, nil
+}
+
+func telemetryEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENABLED"))) {
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return true
+	}
+}
+
+func telemetryMode() string {
+	if isInteractive() {
+		return "interactive"
+	}
+	return "non_interactive"
+}
+
+func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
+	start := time.Now()
+	err := fn()
+	telemetry.RecordCommand(command, mode, scope, telemetryResult(err), time.Since(start))
+	return err
+}
+
+func telemetryResult(err error) string {
+	switch {
+	case err == nil:
+		return "success"
+	case errors.Is(err, errUpdatesAvailable):
+		return "updates_available"
+	default:
+		return "error"
+	}
+}
+
+func detectExecutionContext() string {
+	if override := normalizeExecutionContextOverride(os.Getenv("NAV_PILOT_EXECUTION_CONTEXT")); override != "" {
+		return override
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("GITHUB_ACTIONS")), "true") {
+		return "ci_github_actions"
+	}
+	if isGenericCI() {
+		return "ci_other"
+	}
+	return "organic"
+}
+
+func normalizeExecutionContextOverride(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "organic", "ci_github_actions", "ci_other", "unknown":
+		return strings.ToLower(strings.TrimSpace(v))
+	default:
+		return ""
+	}
+}
+
+func isGenericCI() bool {
+	if envTruthy("CI") {
+		return true
+	}
+	for _, key := range []string{"GITLAB_CI", "JENKINS_URL", "BUILDKITE", "CIRCLECI", "TF_BUILD", "BUILD_ID"} {
+		if strings.TrimSpace(os.Getenv(key)) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func envTruthy(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func (t *otelTelemetry) recordInfo() {
+	t.infoGauge.Record(context.Background(), 1, metric.WithAttributes(
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+		attribute.String("os", t.os),
+		attribute.String("arch", t.arch),
+	))
+}
+
+func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, duration time.Duration) {
+	attrs := []attribute.KeyValue{
+		attribute.String("command", normalizeTelemetryDimension(command, "unknown")),
+		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("result", normalizeTelemetryDimension(result, "error")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	}
+
+	t.commandTotal.Add(context.Background(), 1, metric.WithAttributes(attrs...))
+	t.commandDurationMS.Record(context.Background(), maxInt64(0, duration.Milliseconds()), metric.WithAttributes(attrs...))
+
+	if result == "error" {
+		t.commandErrorTotal.Add(context.Background(), 1, metric.WithAttributes(
+			attribute.String("command", normalizeTelemetryDimension(command, "unknown")),
+			attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
+			attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+			attribute.String("version", t.version),
+			attribute.String("execution_context", t.executionContext),
+		))
+	}
+}
+
+func (t *otelTelemetry) RecordInstallItems(scope, mode string, count int64) {
+	if count <= 0 {
+		return
+	}
+	t.installItemsTotal.Add(context.Background(), count, metric.WithAttributes(
+		attribute.String("command", "install"),
+		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) RecordSyncUpdates(scope, mode string, count int64) {
+	if count <= 0 {
+		return
+	}
+	t.syncUpdatesTotal.Add(context.Background(), count, metric.WithAttributes(
+		attribute.String("command", "sync"),
+		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) RecordSyncConflicts(scope, mode string, count int64) {
+	if count <= 0 {
+		return
+	}
+	t.syncConflictsTotal.Add(context.Background(), count, metric.WithAttributes(
+		attribute.String("command", "sync"),
+		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) RecordInstallPresent(scope, collection string, present bool) {
+	value := int64(0)
+	if present {
+		value = 1
+	}
+	t.installPresent.Record(context.Background(), value, metric.WithAttributes(
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("collection", normalizeTelemetryDimension(collection, "other")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) RecordInstalledItems(scope, itemType, status string, count int64) {
+	if count < 0 {
+		return
+	}
+	t.installedItems.Record(context.Background(), count, metric.WithAttributes(
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("type", normalizeTelemetryDimension(itemType, "unknown")),
+		attribute.String("status", normalizeTelemetryDimension(status, "active")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) RecordStalenessCheck(component, scope, result string) {
+	t.stalenessCheck.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("result", normalizeTelemetryDimension(result, "error")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) RecordUpToDate(component, scope string, upToDate bool) {
+	value := int64(0)
+	if upToDate {
+		value = 1
+	}
+	t.upToDate.Record(context.Background(), value, metric.WithAttributes(
+		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) RecordVersionSkewDays(component, scope string, days int64) {
+	if days < 0 {
+		days = 0
+	}
+	t.versionSkewDays.Record(context.Background(), days, metric.WithAttributes(
+		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+func (t *otelTelemetry) Shutdown(ctx context.Context) error {
+	return t.provider.Shutdown(ctx)
+}
+
+func normalizeTelemetryDimension(v, fallback string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return fallback
+	}
+	switch v {
+	case "install", "sync", "upgrade", "list", "startup", "launch",
+		"interactive", "non_interactive",
+		"repo", "user", "auto", "none", "unknown",
+		"success", "error", "updates_available", "dev",
+		"all", "other",
+		"fullstack", "kotlin-backend", "frontend", "nextjs-frontend", "platform",
+		"agent", "skill", "instruction", "prompt",
+		"active", "ignored", "conflict",
+		"collection", "cli",
+		"up_to_date", "stale", "lookup_failed", "cooldown", "no_install", "corrupted",
+		"organic", "ci_github_actions", "ci_other",
+		"darwin", "linux", "windows",
+		"amd64", "arm64", "arm", "386":
+		return v
+	default:
+		if strings.Count(v, ".") >= 1 || strings.Count(v, "-") >= 1 {
+			return v
+		}
+		return fallback
+	}
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
