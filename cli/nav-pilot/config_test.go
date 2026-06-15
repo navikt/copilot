@@ -649,6 +649,32 @@ func TestCmdConfigSet_CreatesFile(t *testing.T) {
 	}
 }
 
+// TestCmdConfigSet_NewFileSeedsVersion is a regression test: a config created by
+// `config set` (without a prior `config init`) must include version = 1 so the
+// on-launch validation (validateConfig / loadConfigForLaunch) does not refuse to
+// start with "version must be 1 (got 0)".
+func TestCmdConfigSet_NewFileSeedsVersion(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
+
+	if err := cmdConfigSet("mode", "plan"); err != nil {
+		t.Fatalf("cmdConfigSet() error: %v", err)
+	}
+
+	data, err := os.ReadFile(configPath())
+	if err != nil {
+		t.Fatalf("config file not created: %v", err)
+	}
+	if !strings.Contains(string(data), "version = 1") {
+		t.Errorf("new config missing seeded version, got:\n%s", string(data))
+	}
+
+	// The freshly written config must pass launch validation.
+	if _, err := loadConfigForLaunch(CLIOverrides{}); err != nil {
+		t.Errorf("loadConfigForLaunch() rejected config-set output: %v", err)
+	}
+}
+
 func TestCmdConfigSet_UpdatesExistingKey(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")

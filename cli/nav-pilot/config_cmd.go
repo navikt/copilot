@@ -411,6 +411,9 @@ func cmdConfigSet(key, value string) error {
 		if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("reading config: %w", err)
 		}
+		// New file: seed the required schema version so the resulting config
+		// passes on-launch validation (validateConfig requires version = 1).
+		lines = []string{"version = 1"}
 	} else {
 		lines = strings.Split(string(data), "\n")
 		// Remove trailing empty element from trailing newline.
