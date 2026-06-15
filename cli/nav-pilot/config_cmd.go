@@ -231,10 +231,10 @@ func cmdConfigInit() error {
 		return fmt.Errorf("checking config path: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(configInitTemplate), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(configInitTemplate), 0o600); err != nil {
 		return fmt.Errorf("writing config: %w", err)
 	}
 
@@ -435,11 +435,11 @@ func cmdConfigSet(key, value string) error {
 		lines = append(lines, newLine)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
 	content := strings.Join(lines, "\n") + "\n"
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("writing config: %w", err)
 	}
 
