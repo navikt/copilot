@@ -208,6 +208,73 @@ func validateConfig(cfg *Config) error {
 	return fmt.Errorf("config validation failed:\n  - %s", strings.Join(problems, "\n  - "))
 }
 
+// isKnownCopilotModel reports whether id matches one of the curated Copilot
+// model ids (case-insensitive). Used to surface a soft warning for likely typos
+// such as "sonnet" (the real id is "claude-sonnet-4.6").
+func isKnownCopilotModel(id string) bool {
+	for _, m := range knownCopilotModels {
+		if strings.EqualFold(m.ID, id) {
+			return true
+		}
+	}
+	return false
+}
+
+// knownCopilotModelIDs returns the curated Copilot model ids as a
+// comma-separated string for use in warning/help messages.
+func knownCopilotModelIDs() string {
+	ids := make([]string, len(knownCopilotModels))
+	for i, m := range knownCopilotModels {
+		ids[i] = m.ID
+	}
+	return strings.Join(ids, ", ")
+}
+
+// configAdvisories returns non-fatal warnings for a parsed config: unknown TOML
+// keys (likely typos that are silently ignored) and Copilot model ids that are
+// well-formed but not in the curated catalog (likely typos like "sonnet").
+// These do not block launch — they are printed so the user can fix them.
+func configAdvisories(cfg *Config, meta toml.MetaData) []string {
+	if cfg == nil {
+		return nil
+	}
+	var warnings []string
+	for _, key := range meta.Undecoded() {
+		warnings = append(warnings, fmt.Sprintf("unknown config key %q (ignored)", strings.Join(key, ".")))
+	}
+	if cfg.Model != nil {
+		agent := "copilot"
+		if cfg.Agent != nil {
+			agent = *cfg.Agent
+		}
+		if agent == "copilot" && validateModelValue(*cfg.Model) == nil && !isKnownCopilotModel(*cfg.Model) {
+			warnings = append(warnings, fmt.Sprintf(
+				"model %q is not a recognized Copilot model id; it will be sent as-is and may be rejected by the server (known ids: %s)",
+				*cfg.Model, knownCopilotModelIDs()))
+		}
+	}
+	return warnings
+}
+
+// loadConfigForLaunch reads, validates, and resolves the user config ahead of a
+// launch. Hard validation errors (invalid enum values, wrong version, malformed
+// model) cause it to refuse with an error so nav-pilot does not start with a
+// broken config. Non-fatal advisories (unknown keys, unrecognized model ids)
+// are printed to stderr but do not block the launch.
+func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
+	file, meta, err := readConfigWithMeta()
+	if err != nil {
+		return ResolvedConfig{}, err
+	}
+	if err := validateConfig(file); err != nil {
+		return ResolvedConfig{}, fmt.Errorf("%w\n\nFix %s or run `nav-pilot config setup`", err, configPath())
+	}
+	for _, w := range configAdvisories(file, meta) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
+	}
+	return resolve(file, cli), nil
+}
+
 // resolve builds a ResolvedConfig from file config and CLI overrides.
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {

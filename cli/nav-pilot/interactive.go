@@ -56,9 +56,13 @@ func cmdInteractive(overrides CLIOverrides) error {
 		fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
 	}
 
-	// Resolve config once for the entire interactive session.
-	file, _ := readConfig()
-	resolved := resolve(file, overrides)
+	// Resolve config once for the entire interactive session. Refuses to start
+	// on a hard-invalid config; warns (non-fatal) on unknown keys / unrecognized
+	// model ids.
+	resolved, cfgErr := loadConfigForLaunch(overrides)
+	if cfgErr != nil {
+		return cfgErr
+	}
 
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope

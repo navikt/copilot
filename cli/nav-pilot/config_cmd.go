@@ -225,7 +225,7 @@ func cmdConfigInit() error {
 	path := configPath()
 
 	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("config file already exists: %s\n\nUse %s to see current values, or edit the file directly.",
+		return fmt.Errorf("config file already exists: %s\n\nUse %s to see current values, or edit the file directly",
 			path, bold("nav-pilot config show"))
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("checking config path: %w", err)
@@ -542,10 +542,8 @@ func cmdConfigValidate() error {
 		problems = append(problems, fmt.Sprintf("unknown key: %s", strings.Join(key, ".")))
 	}
 
-	// Semantic validation — consume the []string slice directly (no string-splitting).
-	for _, p := range validateConfigProblems(&cfg) {
-		problems = append(problems, p)
-	}
+	// Semantic validation — append the []string slice directly.
+	problems = append(problems, validateConfigProblems(&cfg)...)
 
 	if len(problems) == 0 {
 		fmt.Printf("%s Config is valid (%s)\n", green("✓"), path)

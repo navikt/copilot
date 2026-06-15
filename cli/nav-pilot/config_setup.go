@@ -229,13 +229,13 @@ func maybeRunFirstRunSetup() error {
 // Refuses to clobber an existing config and directs the user to 'config set'.
 func cmdConfigSetup() error {
 	if _, err := os.Stat(configPath()); err == nil {
-		return fmt.Errorf("config file already exists: %s\n\nTo update individual settings:  %s\nTo see current settings:        %s\nTo replace entirely: delete the file and re-run 'nav-pilot config setup'.",
+		return fmt.Errorf("config file already exists: %s\n\nTo update individual settings:  %s\nTo see current settings:        %s\nTo replace entirely: delete the file and re-run 'nav-pilot config setup'",
 			configPath(),
 			bold("nav-pilot config set <key> <value>"),
 			bold("nav-pilot config show"))
 	}
 	if !isInteractive() {
-		return fmt.Errorf("config setup requires an interactive terminal.\n\nUse 'nav-pilot config init' to create a template, then edit it directly.")
+		return fmt.Errorf("config setup requires an interactive terminal.\n\nUse 'nav-pilot config init' to create a template, then edit it directly")
 	}
 	return runConfigSetup()
 }

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 // ─── configPath ───────────────────────────────────────────────────────────────
@@ -933,5 +935,165 @@ func assertBoolPtr(t *testing.T, field string, got *bool, want bool) {
 	}
 	if *got != want {
 		t.Errorf("%s = %v, want %v", field, *got, want)
+	}
+}
+
+// ─── isKnownCopilotModel / knownCopilotModelIDs ──────────────────────────────
+
+func TestIsKnownCopilotModel(t *testing.T) {
+	cases := []struct {
+		id   string
+		want bool
+	}{
+		{"claude-sonnet-4.6", true},
+		{"Claude-Sonnet-4.6", true}, // case-insensitive
+		{"auto", true},
+		{"gpt-5.5", true},
+		{"sonnet", false}, // alias, not a real id
+		{"opus", false},
+		{"", false},
+		{"anthropic/claude-3-5-sonnet", false},
+	}
+	for _, c := range cases {
+		if got := isKnownCopilotModel(c.id); got != c.want {
+			t.Errorf("isKnownCopilotModel(%q) = %v, want %v", c.id, got, c.want)
+		}
+	}
+}
+
+func TestKnownCopilotModelIDs(t *testing.T) {
+	got := knownCopilotModelIDs()
+	for _, want := range []string{"auto", "claude-sonnet-4.6", "gpt-5.5", "gemini-3.5-flash"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("knownCopilotModelIDs() = %q, missing %q", got, want)
+		}
+	}
+}
+
+// ─── configAdvisories ────────────────────────────────────────────────────────
+
+func TestConfigAdvisories_Nil(t *testing.T) {
+	if w := configAdvisories(nil, tomlMetaForTest(t, "")); len(w) != 0 {
+		t.Errorf("configAdvisories(nil) = %v, want empty", w)
+	}
+}
+
+func TestConfigAdvisories_UnknownKey(t *testing.T) {
+	cfg, meta := decodeConfigForTest(t, "version = 1\nmode = \"plan\"\nmdoel = \"x\"\n")
+	w := configAdvisories(cfg, meta)
+	if len(w) != 1 || !strings.Contains(w[0], "mdoel") {
+		t.Errorf("configAdvisories() = %v, want one warning mentioning 'mdoel'", w)
+	}
+}
+
+func TestConfigAdvisories_UnrecognizedCopilotModel(t *testing.T) {
+	cfg, meta := decodeConfigForTest(t, "version = 1\nagent = \"copilot\"\nmodel = \"sonnet\"\n")
+	w := configAdvisories(cfg, meta)
+	if len(w) != 1 || !strings.Contains(w[0], "sonnet") || !strings.Contains(w[0], "not a recognized") {
+		t.Errorf("configAdvisories() = %v, want one warning about unrecognized model", w)
+	}
+}
+
+func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
+	cfg, meta := decodeConfigForTest(t, "version = 1\nagent = \"copilot\"\nmodel = \"claude-opus-4.8\"\n")
+	if w := configAdvisories(cfg, meta); len(w) != 0 {
+		t.Errorf("configAdvisories() = %v, want no warnings for known model", w)
+	}
+}
+
+func TestConfigAdvisories_NonCopilotModel_NoWarning(t *testing.T) {
+	// For non-copilot agents the curated Copilot list does not apply.
+	cfg, meta := decodeConfigForTest(t, "version = 1\nagent = \"opencode\"\nmodel = \"anthropic/claude-3-5-sonnet\"\n")
+	if w := configAdvisories(cfg, meta); len(w) != 0 {
+		t.Errorf("configAdvisories() = %v, want no warnings for opencode model", w)
+	}
+}
+
+// ─── loadConfigForLaunch ─────────────────────────────────────────────────────
+
+func TestLoadConfigForLaunch_NoFile(t *testing.T) {
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "missing.toml"))
+	resolved, err := loadConfigForLaunch(CLIOverrides{})
+	if err != nil {
+		t.Fatalf("loadConfigForLaunch() error = %v, want nil", err)
+	}
+	if resolved.Agent != "copilot" || resolved.Mode != "default" {
+		t.Errorf("loadConfigForLaunch() defaults = %+v", resolved)
+	}
+}
+
+func TestLoadConfigForLaunch_ValidConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFileForTest(t, path, "version = 1\nagent = \"copilot\"\nmode = \"autopilot\"\nmodel = \"claude-opus-4.8\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	resolved, err := loadConfigForLaunch(CLIOverrides{})
+	if err != nil {
+		t.Fatalf("loadConfigForLaunch() error = %v, want nil", err)
+	}
+	if resolved.Mode != "autopilot" || resolved.Model != "claude-opus-4.8" {
+		t.Errorf("loadConfigForLaunch() = %+v", resolved)
+	}
+}
+
+func TestLoadConfigForLaunch_RefusesInvalidMode(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFileForTest(t, path, "version = 1\nmode = \"auto\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	_, err := loadConfigForLaunch(CLIOverrides{})
+	if err == nil {
+		t.Fatal("loadConfigForLaunch() error = nil, want refusal for invalid mode")
+	}
+	if !strings.Contains(err.Error(), "mode") {
+		t.Errorf("loadConfigForLaunch() error = %v, want mention of mode", err)
+	}
+}
+
+func TestLoadConfigForLaunch_RefusesInvalidVersion(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFileForTest(t, path, "version = 2\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	if _, err := loadConfigForLaunch(CLIOverrides{}); err == nil {
+		t.Fatal("loadConfigForLaunch() error = nil, want refusal for version 2")
+	}
+}
+
+func TestLoadConfigForLaunch_WarnsButLaunchesUnrecognizedModel(t *testing.T) {
+	// "sonnet" is format-valid but not a known id: warn, do not refuse.
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFileForTest(t, path, "version = 1\nagent = \"copilot\"\nmodel = \"sonnet\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	resolved, err := loadConfigForLaunch(CLIOverrides{})
+	if err != nil {
+		t.Fatalf("loadConfigForLaunch() error = %v, want nil (warn-not-refuse)", err)
+	}
+	if resolved.Model != "sonnet" {
+		t.Errorf("loadConfigForLaunch() Model = %q, want sonnet", resolved.Model)
+	}
+}
+
+// ─── test helpers ────────────────────────────────────────────────────────────
+
+func decodeConfigForTest(t *testing.T, body string) (*Config, toml.MetaData) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFileForTest(t, path, body)
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	cfg, meta, err := readConfigWithMeta()
+	if err != nil {
+		t.Fatalf("readConfigWithMeta() error = %v", err)
+	}
+	return cfg, meta
+}
+
+func tomlMetaForTest(t *testing.T, body string) toml.MetaData {
+	t.Helper()
+	_, meta := decodeConfigForTest(t, body)
+	return meta
+}
+
+func writeFileForTest(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }

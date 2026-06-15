@@ -224,8 +224,10 @@ func run(args []string) error {
 		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
 		}
-		file, _ := readConfig()
-		resolved := resolve(file, cliOverrides)
+		resolved, cfgErr := loadConfigForLaunch(cliOverrides)
+		if cfgErr != nil {
+			return cfgErr
+		}
 		_ = runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
 			return launchAgent(resolved)
 		})
