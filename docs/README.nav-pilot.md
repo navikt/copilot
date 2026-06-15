@@ -38,6 +38,12 @@ nav-pilot sender OTel-metrikker som standard i pilot.
 
 Standard endpoint er `https://collector-internet.nav.cloud.nais.io/v1/metrics`.
 Du kan overstyre med `NAV_PILOT_TELEMETRY_ENDPOINT` ved behov.
+Når nav-pilot launcher `cplt`/`copilot`, settes `OTEL_EXPORTER_OTLP_ENDPOINT` for Copilot CLI
+til samme collector-base (`https://collector-internet.nav.cloud.nais.io`, uten `/v1/metrics`)
+slik at Copilot kan sende både metrics og traces. Overstyr med
+`NAV_PILOT_COPILOT_OTEL_ENDPOINT` ved behov (den prioriteres over generell
+`OTEL_EXPORTER_OTLP_ENDPOINT`). nav-pilot setter også `COPILOT_OTEL_ENABLED=true`
+hvis den ikke allerede er satt.
 
 Støttede MVP-metrikker:
 

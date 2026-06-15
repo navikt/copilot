@@ -779,36 +779,65 @@ func offerLaunchCopilotWithAgents(agents []string) {
 // (instructions and/or agents).
 func copilotEnv() []string {
 	copilotDir := userCopilotDir()
-	if copilotDir == "" {
-		return nil // nil inherits parent env
-	}
-
 	env := os.Environ()
+	changed := false
 	key := "COPILOT_CUSTOM_INSTRUCTIONS_DIRS"
-	existing := os.Getenv(key)
-	if existing != "" {
-		// Don't duplicate if already present
-		for _, p := range strings.Split(existing, ",") {
-			if strings.TrimSpace(p) == copilotDir {
-				return nil // already set correctly, inherit parent env
+	if copilotDir != "" {
+		existing := lookupEnvValue(env, key)
+		if existing != "" {
+			// Don't duplicate if already present
+			alreadyPresent := false
+			for _, p := range strings.Split(existing, ",") {
+				if strings.TrimSpace(p) == copilotDir {
+					alreadyPresent = true
+					break
+				}
+			}
+			if !alreadyPresent {
+				copilotDir = existing + "," + copilotDir
+			} else {
+				copilotDir = existing
 			}
 		}
-		copilotDir = existing + "," + copilotDir
+
+		var updated bool
+		env, updated = setEnvValue(env, key, copilotDir)
+		changed = changed || updated
 	}
 
-	// Replace or append the env var
-	found := false
-	for i, e := range env {
-		if strings.HasPrefix(e, key+"=") {
-			env[i] = key + "=" + copilotDir
-			found = true
-			break
-		}
-	}
-	if !found {
-		env = append(env, key+"="+copilotDir)
+	var otelUpdated bool
+	env, otelUpdated = applyCopilotOTelEnv(env)
+	changed = changed || otelUpdated
+
+	if !changed {
+		return nil // nil inherits parent env
 	}
 	return env
+}
+
+func lookupEnvValue(env []string, key string) string {
+	prefix := key + "="
+	for _, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			return strings.TrimPrefix(e, prefix)
+		}
+	}
+	return ""
+}
+
+func setEnvValue(env []string, key, value string) ([]string, bool) {
+	prefix := key + "="
+	for i, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			newValue := key + "=" + value
+			if env[i] == newValue {
+				return env, false
+			}
+			env[i] = newValue
+			return env, true
+		}
+	}
+	return append(env, key+"="+value), true
 }
 
 // userCopilotDir returns ~/.copilot if it contains user-scope customizations

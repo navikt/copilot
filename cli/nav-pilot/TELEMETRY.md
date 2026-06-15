@@ -103,6 +103,12 @@ Standard endpoint er:
 Du kan overstyre endpoint ved behov med `NAV_PILOT_TELEMETRY_ENDPOINT` eller
 `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
+Ved launch av `cplt`/`copilot` setter nav-pilot også `OTEL_EXPORTER_OTLP_ENDPOINT`
+for Copilot CLI til collector-base uten `/v1/metrics`, slik at Copilot kan sende
+både metrics og traces. Egen override for Copilot er `NAV_PILOT_COPILOT_OTEL_ENDPOINT`
+(den har høyere prioritet enn en generell `OTEL_EXPORTER_OTLP_ENDPOINT`).
+nav-pilot setter også `COPILOT_OTEL_ENABLED=true` hvis den ikke allerede er satt.
+
 For å eksplisitt tvinge på i `~/.bashrc` / `~/.zshrc`:
 
 ```bash

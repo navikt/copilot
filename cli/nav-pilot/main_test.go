@@ -1901,12 +1901,13 @@ func TestDetectNewItems_Instructions(t *testing.T) {
 // ─── copilotEnv tests ───────────────────────────────────────────────────────
 
 func TestCopilotEnv_NoInstructions(t *testing.T) {
-	// When no instructions exist, copilotEnv should return nil (inherit parent env)
+	// Even without instructions, copilotEnv injects OTel defaults for launched copilot/cplt.
 	env := copilotEnv()
-	if env != nil {
-		// This can be non-nil if the developer's own ~/.copilot has instructions.
-		// Just check the key is present if non-nil.
-		t.Log("copilotEnv returned non-nil (may have user instructions installed)")
+	if env == nil {
+		t.Fatal("expected non-nil env from copilotEnv")
+	}
+	if got := lookupEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT"); got == "" {
+		t.Fatal("expected OTEL_EXPORTER_OTLP_ENDPOINT to be set")
 	}
 }
 
