@@ -62,6 +62,7 @@ Commands:
   upgrade (up)            Update nav-pilot CLI to the latest version
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
+  config <subcommand>     Manage user-specific nav-pilot configuration
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
@@ -331,6 +332,8 @@ func run(args []string) error {
 				yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
 		}
 		return cmdUpdate()
+	case "config":
+		return cmdConfig(positional, jsonOutput)
 	case "env":
 		return cmdEnv()
 	case "feedback":

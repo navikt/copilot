@@ -3,6 +3,7 @@ module github.com/navikt/copilot/cli/nav-pilot
 go 1.26
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	go.opentelemetry.io/otel v1.44.0
