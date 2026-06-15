@@ -141,34 +141,44 @@ $ nav-pilot list
 
 ### Dashboard-eksempler (Grafana / Prometheus)
 
+> **Viktig — delta-tellere fra efemere prosesser:** `nav_pilot_*`-tellerne skrives av
+> kortlevde CLI-prosesser som hver eksporterer sin egen verdi én gang. Prøvene lander på
+> samme serie (lik etikett-kombinasjon), så `rate()`/`increase()` ser en flat kurve og
+> returnerer **0**. Bruk `sum_over_time(<metric>[<range>])` for å summere hver kjøring
+> korrekt, og `count_over_time(...)` for å telle antall kjøringer. Histogrammer aggregeres
+> med `sum_over_time(<metric>_bucket[<range>])` før `histogram_quantile`.
+
 **Daglige installs per scope:**
 ```promql
-increase(nav_pilot_install_items_total[1d]) by (scope)
+sum by (scope) (sum_over_time(nav_pilot_install_items_total[1d]))
 ```
 
-**Gjennomsnittlig kommando-varighet per kommando:**
+**Kommando-varighet p95 per kommando:**
 ```promql
-histogram_quantile(0.95, sum by (command, le) (rate(nav_pilot_command_duration_ms_bucket[5m])))
+histogram_quantile(0.95, sum by (command, le) (sum_over_time(nav_pilot_command_duration_ms_bucket[$__range])))
 ```
 
 **Feiltakt (% feil av alle kommandoer):**
 ```promql
-(
-  increase(nav_pilot_command_error_total[1h])
-  /
-  increase(nav_pilot_command_total[1h])
-) * 100
+100 * sum(sum_over_time(nav_pilot_command_error_total[$__range]))
+    / clamp_min(sum(sum_over_time(nav_pilot_command_total[$__range])), 1)
 ```
 
-**Sync-konflikter per dag:**
+**Sync-konflikter (totalt) per scope:**
 ```promql
-increase(nav_pilot_sync_conflicts_total[1d]) by (scope, mode)
+sum by (scope) (sum_over_time(nav_pilot_sync_conflicts_total[$__range]))
 ```
 
-**Versjon-fordeling av aktive brukere:**
+**Antall kommandokjøringer per versjon:**
 ```promql
-increase(nav_pilot_command_total[24h]) by (version)
+sum by (version) (sum_over_time(nav_pilot_command_total[$__range]))
 ```
+
+> En ferdig Grafana-dashboard ligger i [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
+> (uid `nav-pilot-cli`). Spørringene er robuste mot manglende data under utrulling
+> (`or vector(0)`, `clamp_min(...)`-vakter). Eksakte Prometheus-serienavn (suffiks som
+> `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
+> bør verifiseres mot den faktiske datakilden og justeres ved behov.
 
 ### Alarmer (foreslåtte)
 
