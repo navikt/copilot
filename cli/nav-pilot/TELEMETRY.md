@@ -21,7 +21,6 @@ nav-pilot sender **anonyme bruks- og ytelses-metrikker** via OpenTelemetry (OTLP
 - `os` = `"darwin"`, `"linux"`, `"windows"`
 - `arch` = `"amd64"`, `"arm64"` etc.
 - `device_id` = pseudonymisert maskin-ID (se under)
-- `telemetry_retention_days` = verdien av `NAV_PILOT_TELEMETRY_RETENTION_DAYS` (kun en etikett, se «Dataoppbevaring»)
 
 I tillegg bærer `command`-, `install`- og `sync`-metrikkene en `version`-dimensjon
 på selve datapunktet (samme verdi som `service.version`). Den brukes i PromQL-spørringene
@@ -41,15 +40,8 @@ under (`by (version)`).
   - **Inneholder INGEN persondata** (kun hardware/path)
 
 **Dataoppbevaring:**
-- `NAV_PILOT_TELEMETRY_RETENTION_DAYS` (default: 30, klampes til 1–365) leses **kun klient-side**
-  og sendes med som resource-attributten `telemetry_retention_days`.
-  - **Viktig:** Denne variabelen sletter eller utløper *ingen* data av seg selv. CLI-en har
-    ingen kontroll over hvor lenge backend lagrer metrikker. Den fungerer kun som en
-    etikett/forventning som backend-konfigurasjonen (Prometheus/OTLP-collector) kan bruke.
-  - Faktisk oppbevaringstid styres av backend (se «Privacy & Security → Oppbevaringtid»),
-    ikke av denne CLI-en.
-- Foreslåtte konvensjoner for etiketten (ikke håndhevet av CLI):
-  - Dev: 7 dager · Prod: 30 dager · Arkiv: 90 dager
+- Oppbevaringstid styres av backend (Prometheus/OTLP-collector), ikke av CLI-en.
+- nav-pilot sender ikke en klientstyrt retention-innstilling.
 
 ---
 

@@ -17,8 +17,7 @@ nav-pilot CLI emitterer **kun** disse seks metrikkene i dag (se `cli/nav-pilot/t
 | `nav_pilot_sync_updates_total` | Counter | `command`, `mode`, `scope`, `version` |
 | `nav_pilot_sync_conflicts_total` | Counter | `command`, `mode`, `scope`, `version` |
 
-Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `device_id`,
-`telemetry_retention_days`.
+Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `device_id`.
 
 **Konsekvens for runbookene under:**
 - **Avledede** alarmer (kan bygges i dag fra metrikkene over): Runbook 1 (install-suksessrate)
