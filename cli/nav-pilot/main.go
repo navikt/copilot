@@ -62,7 +62,7 @@ Commands:
   upgrade (up)            Update nav-pilot CLI to the latest version
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
-  config <subcommand>     Manage user-specific nav-pilot configuration
+  config <subcommand>     Manage user-specific nav-pilot configuration (init, setup, show, get, set, validate)
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
@@ -118,6 +118,11 @@ func run(args []string) error {
 
 	// Handle --sync flag: non-interactive sync-all + launch
 	if args[0] == "--sync" {
+		if isInteractive() {
+			if err := maybeRunFirstRunSetup(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
+			}
+		}
 		if err := runWithCommandTelemetry("sync", "non_interactive", "auto", func() error {
 			return cmdSyncAuto(".", "", "", true, false)
 		}); err != nil && err != errUpdatesAvailable {

@@ -51,6 +51,11 @@ func isGitRepo(dir string) bool {
 // which makes prompt-guarded functions (offerLaunchCopilot, etc.) return early.
 // The run() entry point also gates cmdInteractive behind isInteractive().
 func cmdInteractive() error {
+	// On first interactive run without a config, offer the setup wizard.
+	if err := maybeRunFirstRunSetup(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
+	}
+
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope
 	var userState *StateFile
