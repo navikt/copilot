@@ -38,7 +38,7 @@ User-specific config lives in `~/.nav-pilot/config.toml` (override via `NAV_PILO
 See `config.go`, `config_cmd.go`, `config_setup.go`.
 
 Files:
-- `config.go` — `Config` struct, `readConfig()`, `validateConfig()`, `resolve()`, `CLIOverrides`, `ResolvedConfig`
+- `config.go` — `Config` struct, `readConfig()`, `validateConfig()`, `loadConfigForLaunch()` (validate + warn/refuse at launch), `resolve()`, `CLIOverrides`, `ResolvedConfig`
 - `config_cmd.go` — `nav-pilot config` subcommands: `init`, `setup`, `show`, `path`, `get`, `set`, `validate`, `explain`
 - `config_setup.go` — Interactive first-run wizard (`maybeRunFirstRunSetup`, `runConfigSetup`, `writeSetupConfig`)
 
@@ -84,6 +84,26 @@ The first-run wizard offers a **picker** of common Copilot models
 (`knownCopilotModels`) plus an "Unset" and a "Custom…" option; for non-copilot
 agents it falls back to a validated free-text input. `nav-pilot config explain
 model` lists the common ids.
+
+### Validation on launch
+
+`loadConfigForLaunch` reads, validates, and resolves the config before every
+launch (both the interactive flow and `--sync`):
+
+- **Refuses to start** on hard-invalid config — an unknown `version`, an invalid
+  enum value (`agent`, `mode`, `reasoning_effort`, `context_tier`, `log_level`),
+  or a malformed `model` identifier. It prints every problem via `validateConfig`
+  and points the user at `nav-pilot config setup`.
+- **Warns (non-fatal)** on advisory issues via `configAdvisories`, printed to
+  stderr without blocking the launch:
+  - unknown TOML keys (likely typos the parser silently ignores)
+  - Copilot `model` ids that are well-formed but not in the curated
+    `knownCopilotModels` catalog (e.g. `model = "sonnet"` → suggests
+    `claude-sonnet-4.6`). These do not block launch because the model is
+    validated server-side.
+
+The standalone `nav-pilot config validate` command performs the same checks
+(including unknown-key detection) on demand without launching.
 
 ### Agent dispatch
 
