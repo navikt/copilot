@@ -288,6 +288,12 @@ const CLI_COMMANDS = [
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
   { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
+  { command: "nav-pilot config init", description: "Opprett ~/.nav-pilot/config.toml med alle valg kommentert ut" },
+  { command: "nav-pilot config setup", description: "Interaktiv konfigurasjonsveileder (agent, modell, modus)" },
+  { command: "nav-pilot config show", description: "Vis effektiv konfigurasjon (fil + standardverdier)" },
+  { command: "nav-pilot config get <key>", description: "Hent én konfigurasjonsverdi" },
+  { command: "nav-pilot config set <key> <value>", description: "Sett én konfigurasjonsverdi" },
+  { command: "nav-pilot config validate", description: "Valider konfigurasjonsfilen" },
   { command: "nav-pilot export opencode --dry-run", description: "Forhåndsvis hva som eksporteres" },
   { command: "nav-pilot version", description: "Vis versjonsinformasjon" },
 ];

@@ -418,7 +418,7 @@ func TestCmdInteractive_InstalledUpToDate(t *testing.T) {
 	setupTestCache(t)
 
 	// Should not error — will try to launch cplt (which may not exist, that's ok)
-	err := cmdInteractive()
+	err := cmdInteractive(CLIOverrides{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -514,51 +514,80 @@ func TestIsCplt(t *testing.T) {
 
 func TestBuildCopilotArgs(t *testing.T) {
 	tests := []struct {
-		name    string
-		cliName string
-		agent   string
-		want    []string
+		name     string
+		cliName  string
+		resolved ResolvedConfig
+		want     []string
 	}{
 		{
-			name:    "cplt with agent",
+			name:     "cplt always emits nav-pilot persona",
+			cliName:  "cplt",
+			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			want:     []string{"--", "--agent", "nav-pilot"},
+		},
+		{
+			name:     "copilot always emits nav-pilot persona",
+			cliName:  "copilot",
+			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			want:     []string{"--agent", "nav-pilot"},
+		},
+		{
+			name:     "resolved.Agent=copilot still emits --agent nav-pilot (not --agent copilot)",
+			cliName:  "copilot",
+			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			want:     []string{"--agent", "nav-pilot"},
+		},
+		{
+			name:     "copilot with model and mode",
+			cliName:  "copilot",
+			resolved: ResolvedConfig{Agent: "copilot", Model: "gpt-4o", Mode: "plan", AskUser: true},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-4o", "--mode", "plan"},
+		},
+		{
+			name:    "cplt with all flags",
 			cliName: "cplt",
-			agent:   "nav-pilot",
-			want:    []string{"--", "--agent", "nav-pilot"},
+			resolved: ResolvedConfig{
+				Agent:           "copilot",
+				Model:           "gpt-4o",
+				Mode:            "plan",
+				ReasoningEffort: "high",
+				ContextTier:     "long_context",
+				AllowAllTools:   true,
+				AskUser:         false,
+				LogLevel:        "debug",
+			},
+			want: []string{"--", "--agent", "nav-pilot", "--model", "gpt-4o",
+				"--mode", "plan", "--effort", "high", "--context", "long_context",
+				"--allow-all-tools", "--no-ask-user", "--log-level", "debug"},
 		},
 		{
-			name:    "copilot with agent",
-			cliName: "copilot",
-			agent:   "nav-pilot",
-			want:    []string{"--agent", "nav-pilot"},
+			name:     "copilot with allow-all-tools and no-ask-user",
+			cliName:  "copilot",
+			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AllowAllTools: true, AskUser: false},
+			want:     []string{"--agent", "nav-pilot", "--allow-all-tools", "--no-ask-user"},
 		},
 		{
-			name:    "cplt without agent",
-			cliName: "cplt",
-			agent:   "",
-			want:    []string{},
+			name:     "default mode not emitted",
+			cliName:  "copilot",
+			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			want:     []string{"--agent", "nav-pilot"},
 		},
 		{
-			name:    "copilot with non-nav-pilot agent",
-			cliName: "copilot",
-			agent:   "auth",
-			want:    []string{"--agent", "auth"},
-		},
-		{
-			name:    "cplt with non-nav-pilot agent",
-			cliName: "cplt",
-			agent:   "auth",
-			want:    []string{"--", "--agent", "auth"},
+			name:     "default context not emitted",
+			cliName:  "copilot",
+			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", ContextTier: "default", AskUser: true},
+			want:     []string{"--agent", "nav-pilot"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildCopilotArgs(tt.cliName, tt.agent)
+			got := buildCopilotArgs(tt.cliName, tt.resolved)
 			if len(got) != len(tt.want) {
-				t.Fatalf("buildCopilotArgs(%q, %q) = %v, want %v", tt.cliName, tt.agent, got, tt.want)
+				t.Fatalf("buildCopilotArgs(%q, ...) = %v, want %v", tt.cliName, got, tt.want)
 			}
 			for i := range got {
 				if got[i] != tt.want[i] {
-					t.Errorf("buildCopilotArgs(%q, %q)[%d] = %q, want %q", tt.cliName, tt.agent, i, got[i], tt.want[i])
+					t.Errorf("buildCopilotArgs(%q, ...)[%d] = %q, want %q", tt.cliName, i, got[i], tt.want[i])
 				}
 			}
 		})

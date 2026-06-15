@@ -50,11 +50,15 @@ func isGitRepo(dir string) bool {
 // In tests, forceNonInteractive=true causes isInteractive() to return false,
 // which makes prompt-guarded functions (offerLaunchCopilot, etc.) return early.
 // The run() entry point also gates cmdInteractive behind isInteractive().
-func cmdInteractive() error {
+func cmdInteractive(overrides CLIOverrides) error {
 	// On first interactive run without a config, offer the setup wizard.
 	if err := maybeRunFirstRunSetup(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
 	}
+
+	// Resolve config once for the entire interactive session.
+	file, _ := readConfig()
+	resolved := resolve(file, overrides)
 
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope
@@ -88,21 +92,21 @@ func cmdInteractive() error {
 	hasUser := userState != nil
 
 	if hasRepo || hasUser {
-		return interactiveSyncAndLaunch(repoScope, repoState, userScope, userState)
+		return interactiveSyncAndLaunch(repoScope, repoState, userScope, userState, resolved)
 	}
 
 	// Fresh install — git repo determines available scopes
 	if targetDir != "" {
-		return interactiveFreshInstall(targetDir)
+		return interactiveFreshInstall(targetDir, resolved)
 	}
 
 	// Not in a git repo — only user-home scope is possible
-	return interactiveUserOnlyInstall()
+	return interactiveUserOnlyInstall(resolved)
 }
 
 // interactiveSyncAndLaunch handles the case where at least one scope has an install.
 // Checks for staleness in all scopes and offers to sync, then launches Copilot.
-func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, userScope *InstallScope, userState *StateFile) error {
+func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, userScope *InstallScope, userState *StateFile, resolved ResolvedConfig) error {
 	// Single-line greeting with discovered scopes
 	var scopeParts []string
 	if repoState != nil {
@@ -181,13 +185,13 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 		}
 	}
 
-	offerLaunchCopilotWithAgents(allAgents)
+	offerLaunchCopilotWithAgents(allAgents, resolved)
 	return nil
 }
 
 // interactiveFreshInstall handles the case where no install exists and we're in a git repo.
 // Prompts for scope first, then collection (repo) or installs everything (user).
-func interactiveFreshInstall(targetDir string) error {
+func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
 	fmt.Println()
 	fmt.Println(dim("Resolving source..."))
@@ -209,20 +213,20 @@ func interactiveFreshInstall(targetDir string) error {
 	}
 
 	if scope.IsUser() {
-		return interactiveUserInstall(src)
+		return interactiveUserInstall(src, resolved)
 	}
 
 	// Repo scope: pick a collection
 	if err := interactiveRepoInstall(src, scope); err != nil {
 		return err
 	}
-	offerLaunchCopilot()
+	offerLaunchCopilot(resolved)
 	return nil
 }
 
 // interactiveUserOnlyInstall handles fresh install when not in a git repo.
 // Skips the scope picker and goes straight to user-home install.
-func interactiveUserOnlyInstall() error {
+func interactiveUserOnlyInstall(resolved ResolvedConfig) error {
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
 	fmt.Println()
 	fmt.Println(dim("Not in a git repository — installing to user home."))
@@ -234,13 +238,13 @@ func interactiveUserOnlyInstall() error {
 	}
 	defer src.Cleanup()
 
-	return interactiveUserInstall(src)
+	return interactiveUserInstall(src, resolved)
 }
 
 // interactiveUserInstall installs agents, skills & instructions to user home.
 // Offers a two-step flow: install everything or customize selection.
 // Called from interactiveFreshInstall and interactiveUserOnlyInstall (root command only).
-func interactiveUserInstall(src *Source) error {
+func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 	scope, err := ScopeUser()
 	if err != nil {
 		return err
@@ -248,7 +252,7 @@ func interactiveUserInstall(src *Source) error {
 	if err := interactiveUserInstallFromSource(scope, src); err != nil {
 		return err
 	}
-	offerLaunchCopilot()
+	offerLaunchCopilot(resolved)
 	return nil
 }
 
@@ -673,43 +677,57 @@ func copilotAgentArgs(agent string) []string {
 	return nil
 }
 
-// buildCopilotArgs constructs the CLI arguments for launching copilot.
-// For cplt, agent flags are forwarded after "--" separator.
-func buildCopilotArgs(cliName, agent string) []string {
-	agentArgs := []string{}
-	if agent != "" {
-		agentArgs = append(agentArgs, "--agent", agent)
-		agentArgs = append(agentArgs, copilotAgentArgs(agent)...)
-	}
+// copilotAgentPersona is the Copilot CLI custom-agent persona that loads
+// Nav's instructions and context. This is distinct from resolved.Agent,
+// which selects the launcher (copilot vs opencode vs pi).
+const copilotAgentPersona = "nav-pilot"
 
-	args := []string{}
-	if len(agentArgs) > 0 {
-		if cliName == "cplt" {
-			// cplt requires "--" to forward flags to the underlying Copilot CLI
-			args = append(args, "--")
-		}
-		args = append(args, agentArgs...)
+// buildCopilotArgs constructs the CLI arguments for launching copilot.
+// For cplt, launch flags are forwarded after "--" separator.
+// Note: always emits --agent nav-pilot (the persona); resolved.Agent selects
+// the launcher and is consumed by launchAgent before reaching this function.
+func buildCopilotArgs(cliName string, resolved ResolvedConfig) []string {
+	var args []string
+	args = append(args, "--agent", copilotAgentPersona)
+	args = append(args, copilotAgentArgs(copilotAgentPersona)...)
+	if resolved.Model != "" {
+		args = append(args, "--model", resolved.Model)
+	}
+	if resolved.Mode != "" && resolved.Mode != "default" {
+		args = append(args, "--mode", resolved.Mode)
+	}
+	if resolved.ReasoningEffort != "" {
+		args = append(args, "--effort", resolved.ReasoningEffort)
+	}
+	if resolved.ContextTier != "" && resolved.ContextTier != "default" {
+		args = append(args, "--context", resolved.ContextTier)
+	}
+	if resolved.AllowAllTools {
+		args = append(args, "--allow-all-tools")
+	}
+	if !resolved.AskUser {
+		args = append(args, "--no-ask-user")
+	}
+	if resolved.LogLevel != "" {
+		args = append(args, "--log-level", resolved.LogLevel)
+	}
+	if cliName == "cplt" && len(args) > 0 {
+		return append([]string{"--"}, args...)
 	}
 	return args
 }
 
-// launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
+// launchCopilotResolved launches the Copilot CLI with the resolved launch config.
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
-func launchCopilotWithAgent(agent string) error {
+func launchCopilotResolved(resolved ResolvedConfig) error {
 	cliPath, cliName := findCopilotCLI()
 	if cliPath == "" {
 		return fmt.Errorf("copilot cli not found")
 	}
-
-	args := buildCopilotArgs(cliName, agent)
-
+	args := buildCopilotArgs(cliName, resolved)
 	displayName := cliDisplayName(cliName)
-	if agent != "" {
-		fmt.Printf("Launching %s with agent %s...\n\n", bold(displayName), bold(agent))
-	} else {
-		fmt.Printf("Launching %s...\n\n", bold(displayName))
-	}
+	fmt.Printf("Launching %s with agent %s...\n\n", bold(displayName), bold(copilotAgentPersona))
 	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -722,17 +740,39 @@ func launchCopilotWithAgent(agent string) error {
 	return nil
 }
 
-// offerLaunchCopilot prompts the user to launch the Copilot CLI after install.
-func offerLaunchCopilot() {
+func launchAgent(resolved ResolvedConfig) error {
+	switch resolved.Agent {
+	case "opencode":
+		return launchOpenCode(resolved)
+	case "pi":
+		return launchPi()
+	default:
+		return launchCopilotResolved(resolved)
+	}
+}
+
+// offerLaunchCopilot prompts the user to launch the configured agent after install.
+func offerLaunchCopilot(resolved ResolvedConfig) {
 	cliPath, cliName := findCopilotCLI()
-	if cliPath == "" || !isInteractive() {
+	if resolved.Agent == "copilot" && cliPath == "" {
 		return
+	}
+	if !isInteractive() {
+		return
+	}
+
+	displayName := cliDisplayName(cliName)
+	if resolved.Agent == "opencode" {
+		displayName = "opencode"
+	}
+	if resolved.Agent == "pi" {
+		displayName = "pi"
 	}
 
 	fmt.Println()
 	var choice string
 	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", cliDisplayName(cliName))).
+		Title(fmt.Sprintf("Launch %s now?", displayName)).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),
@@ -745,23 +785,34 @@ func offerLaunchCopilot() {
 	}
 	fmt.Println()
 	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchCopilotWithAgent("nav-pilot")
+		return launchAgent(resolved)
 	})
 }
 
 // offerLaunchCopilotWithAgents prompts the user to launch the Copilot CLI
-// with the nav-pilot agent. Always passes --agent nav-pilot since the
-// interactive flow's purpose is to launch copilot with nav-pilot context.
-func offerLaunchCopilotWithAgents(agents []string) {
+// using the resolved launch config.
+func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
+	_ = agents
 	cliPath, cliName := findCopilotCLI()
-	if cliPath == "" || !isInteractive() {
+	if resolved.Agent == "copilot" && cliPath == "" {
 		return
+	}
+	if !isInteractive() {
+		return
+	}
+
+	displayName := cliDisplayName(cliName)
+	if resolved.Agent == "opencode" {
+		displayName = "opencode"
+	}
+	if resolved.Agent == "pi" {
+		displayName = "pi"
 	}
 
 	fmt.Println()
 	var choice string
 	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", cliDisplayName(cliName))).
+		Title(fmt.Sprintf("Launch %s now?", displayName)).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),
@@ -775,7 +826,7 @@ func offerLaunchCopilotWithAgents(agents []string) {
 
 	fmt.Println()
 	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchCopilotWithAgent("nav-pilot")
+		return launchAgent(resolved)
 	})
 }
 

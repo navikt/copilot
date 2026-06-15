@@ -43,6 +43,20 @@ var commandAliases = map[string]string{
 	"rm": "uninstall",
 }
 
+func isKnownCommand(arg string) bool {
+	if _, ok := commandAliases[arg]; ok {
+		return true
+	}
+	switch arg {
+	case "install", "init", "export", "add", "ignore", "sync", "list", "status",
+		"uninstall", "upgrade", "update", "config", "env", "feedback", "version",
+		"--version", "-v", "-h", "--help", "help":
+		return true
+	default:
+		return false
+	}
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, `nav-pilot — Nav's Copilot toolkit
 
@@ -106,10 +120,92 @@ func run(args []string) error {
 			yellow("⚠"), assessment.LatestVersion, version, bold("nav-pilot upgrade"))
 	}
 
+	// Pre-scan: extract launch-override flags before command dispatch.
+	// These apply to the interactive flow and --sync launch, not to subcommands.
+	var cliOverrides CLIOverrides
+	if len(args) == 0 || args[0] == "--sync" || !isKnownCommand(args[0]) {
+		var cleanArgs []string
+		for i := 0; i < len(args); i++ {
+			switch args[i] {
+			case "--agent":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--agent requires a value")
+				}
+				i++
+				cliOverrides.Agent = args[i]
+			case "--model":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--model requires a value")
+				}
+				i++
+				cliOverrides.Model = args[i]
+			case "--mode":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--mode requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validModes, v) {
+					return fmt.Errorf("--mode %q is not valid (allowed: %s)", v, strings.Join(validModes, ", "))
+				}
+				cliOverrides.Mode = v
+			case "--effort":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--effort requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validReasoningEffort, v) {
+					return fmt.Errorf("--effort %q is not valid (allowed: %s)", v, strings.Join(validReasoningEffort, ", "))
+				}
+				cliOverrides.ReasoningEffort = v
+			case "--context":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--context requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validContextTiers, v) {
+					return fmt.Errorf("--context %q is not valid (allowed: %s)", v, strings.Join(validContextTiers, ", "))
+				}
+				cliOverrides.ContextTier = v
+			case "--log-level":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--log-level requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validLogLevels, v) {
+					return fmt.Errorf("--log-level %q is not valid (allowed: %s)", v, strings.Join(validLogLevels, ", "))
+				}
+				cliOverrides.LogLevel = v
+			case "--allow-all-tools":
+				t := true
+				cliOverrides.AllowAllTools = &t
+			case "--no-allow-all-tools":
+				f := false
+				cliOverrides.AllowAllTools = &f
+			case "--ask-user":
+				t := true
+				cliOverrides.AskUser = &t
+			case "--no-ask-user":
+				f := false
+				cliOverrides.AskUser = &f
+			default:
+				cleanArgs = append(cleanArgs, args[i])
+			}
+		}
+		args = cleanArgs
+	}
+
+	if cliOverrides.Agent != "" && !containsStr(validAgents, cliOverrides.Agent) {
+		return fmt.Errorf("--agent %q is not valid (allowed: copilot, opencode, pi)", cliOverrides.Agent)
+	}
+
 	if len(args) < 1 {
 		if isInteractive() {
 			return runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
-				return cmdInteractive()
+				return cmdInteractive(cliOverrides)
 			})
 		}
 		usage()
@@ -128,8 +224,10 @@ func run(args []string) error {
 		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
 		}
+		file, _ := readConfig()
+		resolved := resolve(file, cliOverrides)
 		_ = runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
-			return launchCopilotWithAgent("nav-pilot")
+			return launchAgent(resolved)
 		})
 		return nil
 	}

@@ -32,6 +32,60 @@ syncconfig.go    copilot-sync.json per repo
 version.go       versjonsstrengslogikk
 ```
 
+## Config-system
+
+User-specific config lives in `~/.nav-pilot/config.toml` (override via `NAV_PILOT_CONFIG`).
+See `config.go`, `config_cmd.go`, `config_setup.go`.
+
+Files:
+- `config.go` — `Config` struct, `readConfig()`, `validateConfig()`, `resolve()`, `CLIOverrides`, `ResolvedConfig`
+- `config_cmd.go` — `nav-pilot config` subcommands: `init`, `setup`, `show`, `path`, `get`, `set`, `validate`, `explain`
+- `config_setup.go` — Interactive first-run wizard (`maybeRunFirstRunSetup`, `runConfigSetup`, `writeSetupConfig`)
+
+### Config fields
+
+| TOML key | Type | Default | CLI flag |
+|---|---|---|---|
+| `version` | int | (required) | — |
+| `agent` | string | `copilot` | `--agent` |
+| `model` | string | unset | `--model` |
+| `mode` | string | `default` | `--mode` |
+| `reasoning_effort` | string | unset | `--effort` |
+| `context_tier` | string | unset | `--context` |
+| `allow_all_tools` | bool | `false` | `--allow-all-tools` |
+| `ask_user` | bool | `true` | `--no-ask-user` |
+| `log_level` | string | unset | `--log-level` |
+
+### Per-run CLI override flags
+
+All launch-override flags are global and processed BEFORE command dispatch. They apply only to the interactive flow and `--sync` launch:
+
+```bash
+nav-pilot --agent opencode          # Use opencode for this run
+nav-pilot --model gpt-4o            # Override model
+nav-pilot --mode plan               # Run in plan mode
+nav-pilot --effort high             # Set reasoning effort
+nav-pilot --context long_context    # Use extended context
+nav-pilot --allow-all-tools         # Allow all tools
+nav-pilot --no-ask-user             # Non-interactive mode
+nav-pilot --log-level debug         # Set log level
+```
+
+### Agent dispatch
+
+`launchAgent(resolved ResolvedConfig)` dispatches by `resolved.Agent`:
+- `copilot` (default) → `launchCopilotResolved` using `cplt`/`copilot` CLI
+- `opencode` → `launchOpenCode` in `opencode_launch.go`
+- `pi` → error stub (not yet implemented)
+
+### OpenCode OTel
+
+When an OTel endpoint is configured (via `OTEL_EXPORTER_OTLP_ENDPOINT` or `NAV_PILOT_COPILOT_OTEL_ENDPOINT`), nav-pilot:
+1. Calls `ensureOpenCodeOTelConfig()` to set `experimental.openTelemetry = true` in `~/.config/opencode/opencode.json`
+2. Injects `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, and `OPENCODE_CLIENT=nav-pilot` into opencode's env
+
+The OTel config merge is deep (preserves existing `experimental.*` keys) and idempotent.
+
 ## Avhengigheter
 
 Kun `charmbracelet/huh` (TUI-prompts) som direkte avhengighet. Alt annet er standardbiblioteket. Hold det slik — ikke legg til nye avhengigheter uten god grunn.
