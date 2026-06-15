@@ -122,6 +122,46 @@ nav-pilot. Eksisterende nøkler beholdes (append-merge, ingen overskriving):
 `nav.pilot.device_id` injiseres kun når nav-pilot-telemetri er aktiv; med
 `NAV_PILOT_TELEMETRY_ENABLED=false` utelates den (launcher/version beholdes).
 
+#### Per-device-spørringer på Copilot-data («vis brukeren egne data»)
+
+Dette er hovednytten for en bruker som vil se **sin egen Copilot-bruk** (modell,
+tokens, kostnad — Copilots egne `gen_ai.*`-signaler). nav-pilot kan ikke legge
+`device_id` på selve datapunktene i Copilots metrikker (Copilot CLI er en
+tredjeparts-binær vi ikke instrumenterer) — vi injiserer den som
+**resource-attributt**. Det gir to ulike spørrestier:
+
+- **Tempo (traces):** resource-attributter er direkte søkbare. Fungerer i dag:
+  ```traceql
+  { resource.nav.pilot.device_id = "nav-pilot-abc123" }
+  ```
+  Filtrer gjerne videre på Copilot-attributter, f.eks. `gen_ai.request.model`,
+  `gen_ai.usage.output_tokens`, `github.copilot.cost`.
+
+- **Mimir (metrics):** OTLP-resource-attributter havner på `target_info`, ikke
+  som etikett på `gen_ai.*`-seriene. To alternativer:
+  1. **Anbefalt — promotér attributten til etikett.** Konfigurer Mimir
+     `promote_resource_attributes` (eller en `transform`/`groupbyattrs`-prosessor
+     i OTel-collectoren) slik at `nav.pilot.device_id` blir en metrikk-etikett
+     (`nav_pilot_device_id`). Da blir spørringen triviell og robust også for de
+     kortlevde Copilot-prosessene:
+     ```promql
+     sum by (gen_ai_request_model) (
+       sum_over_time(gen_ai_client_token_usage_sum{nav_pilot_device_id="nav-pilot-abc123"}[$__range])
+     )
+     ```
+  2. **Uten promotering — join mot `target_info`.** Mulig, men skjørt for efemere
+     prosesser (samme staleness-problem som for nav-pilots egne tellere):
+     ```promql
+     sum_over_time(gen_ai_client_token_usage_sum[$__range])
+       * on (job, instance) group_left(nav_pilot_device_id) target_info
+     ```
+
+> Eksakte Copilot-metrikk-/etikettnavn (`gen_ai.*`, suffikser, hvordan punktum og
+> bindestrek normaliseres til Prometheus-navn) bør verifiseres mot faktisk data i
+> Mimir og justeres. Copilots egen pseudonyme `enduser.pseudo.id` finnes som
+> span-attributt, men har ingen dokumentert kobling til GitHub-brukernavn —
+> `nav.pilot.device_id` er derfor det stabile håndtaket for egen-data.
+
 For å eksplisitt tvinge på i `~/.bashrc` / `~/.zshrc`:
 
 ```bash
