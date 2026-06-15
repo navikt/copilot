@@ -175,7 +175,7 @@ sum by (version) (sum_over_time(nav_pilot_command_total[$__range]))
 ```
 
 > En ferdig Grafana-dashboard ligger i [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
-> (uid `nav-pilot-cli`). Spørringene er robuste mot manglende data under utrulling
+> (uid tildeles ved import). Spørringene er robuste mot manglende data under utrulling
 > (`or vector(0)`, `clamp_min(...)`-vakter). Eksakte Prometheus-serienavn (suffiks som
 > `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
 > bør verifiseres mot den faktiske datakilden og justeres ved behov.

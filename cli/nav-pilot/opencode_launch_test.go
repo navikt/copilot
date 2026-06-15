@@ -204,7 +204,7 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 	})
 }
 
-func TestApplyOpenCodeOTelEnvRespectsTelemetryOptOut(t *testing.T) {
+func TestApplyOpenCodeOTelEnvInjectsClientWhenEndpointSet(t *testing.T) {
 	forceNonInteractive = true
 	defer func() { forceNonInteractive = false }()
 
@@ -227,7 +227,7 @@ func TestApplyOpenCodeOTelEnvRespectsTelemetryOptOut(t *testing.T) {
 	}
 }
 
-func TestApplyOpenCodeOTelEnvDoesNotOverwriteHeaders(t *testing.T) {
+func TestApplyOpenCodeOTelEnvDoesNotOverwriteExistingClient(t *testing.T) {
 	forceNonInteractive = true
 	defer func() { forceNonInteractive = false }()
 
