@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNormalizeCopilotOTelEndpoint(t *testing.T) {
 	tests := []struct {
@@ -90,4 +93,128 @@ func TestApplyCopilotOTelEnv(t *testing.T) {
 			t.Fatalf("COPILOT_OTEL_ENABLED = %q, want false", got)
 		}
 	})
+
+	t.Run("injects nav-pilot resource attributes", func(t *testing.T) {
+		envOut, _ := applyCopilotOTelEnv([]string{})
+		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.pilot.launcher=nav-pilot", got)
+		}
+		if !strings.Contains(got, "nav.pilot.version=") {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.pilot.version", got)
+		}
+		if !strings.Contains(got, "nav.pilot.device_id=") {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.pilot.device_id", got)
+		}
+	})
+
+	t.Run("omits device_id when telemetry is opted out", func(t *testing.T) {
+		t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
+		envOut, _ := applyCopilotOTelEnv([]string{})
+		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if strings.Contains(got, "nav.pilot.device_id=") {
+			t.Fatalf("device_id should be omitted when opted out: %q", got)
+		}
+		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
+			t.Fatalf("launcher should still be present: %q", got)
+		}
+	})
+}
+
+func TestApplyCopilotResourceAttributes(t *testing.T) {
+	t.Run("appends to existing attributes without clobbering", func(t *testing.T) {
+		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=team=foo,nav.pilot.version=9.9.9"}
+		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123")
+		if !changed {
+			t.Fatal("expected env to be changed")
+		}
+		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if !strings.HasPrefix(got, "team=foo,nav.pilot.version=9.9.9,") {
+			t.Fatalf("existing attributes not preserved: %q", got)
+		}
+		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
+			t.Fatalf("missing launcher attribute: %q", got)
+		}
+		if !strings.Contains(got, "nav.pilot.device_id=nav-pilot-abc123") {
+			t.Fatalf("missing device_id attribute: %q", got)
+		}
+		if strings.Count(got, "nav.pilot.version=") != 1 {
+			t.Fatalf("user-set nav.pilot.version was overwritten: %q", got)
+		}
+	})
+
+	t.Run("skips empty values", func(t *testing.T) {
+		envOut, changed := applyCopilotResourceAttributes([]string{}, "", "")
+		if !changed {
+			t.Fatal("expected launcher attribute to be added")
+		}
+		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if got != "nav.pilot.launcher=nav-pilot" {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want only launcher", got)
+		}
+	})
+
+	t.Run("percent-encodes unsafe characters", func(t *testing.T) {
+		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.0 beta,rc=1", "id")
+		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if !strings.Contains(got, "nav.pilot.version=1.0%20beta%2Crc%3D1") {
+			t.Fatalf("value not percent-encoded: %q", got)
+		}
+	})
+
+	t.Run("is idempotent across relaunch", func(t *testing.T) {
+		env1, changed1 := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123")
+		if !changed1 {
+			t.Fatal("expected first call to change env")
+		}
+		env2, changed2 := applyCopilotResourceAttributes(env1, "1.2.3", "nav-pilot-abc123")
+		if changed2 {
+			t.Fatal("expected second call to be a no-op")
+		}
+		if lookupEnvValue(env1, "OTEL_RESOURCE_ATTRIBUTES") != lookupEnvValue(env2, "OTEL_RESOURCE_ATTRIBUTES") {
+			t.Fatal("relaunch changed the resource attributes")
+		}
+	})
+
+	t.Run("recognises a bare existing key without value", func(t *testing.T) {
+		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=nav.pilot.launcher"}
+		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123")
+		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
+			t.Fatalf("bare existing key should not be re-added with a value: %q", got)
+		}
+	})
+
+	t.Run("tolerates whitespace and trailing commas in existing value", func(t *testing.T) {
+		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES= team = foo ,"}
+		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123")
+		if !changed {
+			t.Fatal("expected env to be changed")
+		}
+		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if strings.Contains(got, ",,") || strings.HasSuffix(got, ",") {
+			t.Fatalf("malformed merged value: %q", got)
+		}
+		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
+			t.Fatalf("missing launcher attribute: %q", got)
+		}
+	})
+}
+
+func TestEncodeResourceAttrValue(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "nav-pilot", want: "nav-pilot"},
+		{in: "1.0.62-2", want: "1.0.62-2"},
+		{in: "a,b", want: "a%2Cb"},
+		{in: "a=b", want: "a%3Db"},
+		{in: "a b", want: "a%20b"},
+	}
+	for _, tt := range tests {
+		if got := encodeResourceAttrValue(tt.in); got != tt.want {
+			t.Fatalf("encodeResourceAttrValue(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
 }

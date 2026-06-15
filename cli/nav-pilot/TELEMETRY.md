@@ -109,6 +109,19 @@ både metrics og traces. Egen override for Copilot er `NAV_PILOT_COPILOT_OTEL_EN
 (den har høyere prioritet enn en generell `OTEL_EXPORTER_OTLP_ENDPOINT`).
 nav-pilot setter også `COPILOT_OTEL_ENABLED=true` hvis den ikke allerede er satt.
 
+I tillegg injiserer nav-pilot egne resource-attributter i Copilots
+`OTEL_RESOURCE_ATTRIBUTES`, slik at Copilot-traces kan attribueres tilbake til
+nav-pilot. Eksisterende nøkler beholdes (append-merge, ingen overskriving):
+
+| Attributt | Verdi | Hensikt |
+| --- | --- | --- |
+| `nav.pilot.launcher` | `nav-pilot` | Isolere Copilot-sessions startet via nav-pilot |
+| `nav.pilot.version` | nav-pilot-versjon | Adopsjon/versjon av launcheren |
+| `nav.pilot.device_id` | pseudonymt `nav-pilot-<hash>` | Join (på verdi) mot nav-pilots egen `device_id`-attributt |
+
+`nav.pilot.device_id` injiseres kun når nav-pilot-telemetri er aktiv; med
+`NAV_PILOT_TELEMETRY_ENABLED=false` utelates den (launcher/version beholdes).
+
 For å eksplisitt tvinge på i `~/.bashrc` / `~/.zshrc`:
 
 ```bash

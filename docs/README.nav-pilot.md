@@ -43,7 +43,10 @@ til samme collector-base (`https://collector-internet.nav.cloud.nais.io`, uten `
 slik at Copilot kan sende både metrics og traces. Overstyr med
 `NAV_PILOT_COPILOT_OTEL_ENDPOINT` ved behov (den prioriteres over generell
 `OTEL_EXPORTER_OTLP_ENDPOINT`). nav-pilot setter også `COPILOT_OTEL_ENABLED=true`
-hvis den ikke allerede er satt.
+hvis den ikke allerede er satt. nav-pilot injiserer i tillegg resource-attributtene
+`nav.pilot.launcher`, `nav.pilot.version` og `nav.pilot.device_id` i Copilots
+`OTEL_RESOURCE_ATTRIBUTES` (append-merge, eksisterende nøkler beholdes) for
+attribusjon av Copilot-traces tilbake til nav-pilot.
 
 Støttede MVP-metrikker:
 
