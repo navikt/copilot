@@ -98,16 +98,18 @@ After installing, use @nav-pilot in GitHub Copilot Chat.
 // It returns an error instead of calling os.Exit, making it testable.
 func run(args []string) error {
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
-	if version != "dev" {
-		if latest := checkStaleness(version); latest != "" {
-			fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
-				yellow("⚠"), latest, version, bold("nav-pilot upgrade"))
-		}
+	assessment := assessStaleness(version)
+	recordFreshness("cli", "none", assessment)
+	if version != "dev" && assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, version) {
+		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
+			yellow("⚠"), assessment.LatestVersion, version, bold("nav-pilot upgrade"))
 	}
 
 	if len(args) < 1 {
 		if isInteractive() {
-			return cmdInteractive()
+			return runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
+				return cmdInteractive()
+			})
 		}
 		usage()
 		return nil
@@ -120,7 +122,9 @@ func run(args []string) error {
 		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
 		}
-		launchCopilotWithAgent("nav-pilot")
+		_ = runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
+			return launchCopilotWithAgent("nav-pilot")
+		})
 		return nil
 	}
 

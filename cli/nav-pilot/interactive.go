@@ -61,6 +61,7 @@ func cmdInteractive() error {
 		if readErr != nil {
 			fmt.Fprintf(os.Stderr, "⚠  Warning: user-scope state may be corrupted: %v\n", readErr)
 		}
+		recordInstallState(userScope.Name, userState, readErr)
 	}
 
 	// Check repo-scope state (only if in a git repo)
@@ -72,8 +73,10 @@ func cmdInteractive() error {
 		var err error
 		repoState, err = readScopedState(repoScope)
 		if err != nil {
+			recordInstallState(repoScope.Name, nil, err)
 			return fmt.Errorf("reading repo state: %w", err)
 		}
+		recordInstallState(repoScope.Name, repoState, nil)
 	}
 
 	hasRepo := repoState != nil
@@ -118,14 +121,18 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 	var allAgents []string
 
 	if repoState != nil {
-		if latest := checkStaleness(repoState.Version); latest != "" {
-			stale = append(stale, staleScope{repoScope, repoState, latest})
+		assessment := assessStaleness(repoState.Version)
+		recordFreshness("collection", repoScope.Name, assessment)
+		if assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, repoState.Version) {
+			stale = append(stale, staleScope{repoScope, repoState, assessment.LatestVersion})
 		}
 		allAgents = append(allAgents, installedAgents(repoState)...)
 	}
 	if userState != nil {
-		if latest := checkStaleness(userState.Version); latest != "" {
-			stale = append(stale, staleScope{userScope, userState, latest})
+		assessment := assessStaleness(userState.Version)
+		recordFreshness("collection", userScope.Name, assessment)
+		if assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, userState.Version) {
+			stale = append(stale, staleScope{userScope, userState, assessment.LatestVersion})
 		}
 		allAgents = append(allAgents, installedAgents(userState)...)
 	}
@@ -161,7 +168,9 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 			fmt.Println()
 			fmt.Printf("%s Syncing %s scope...\n", dim("→"), s.scope.Name)
 			ref := "nav-pilot/" + s.latest
-			if err := cmdSync(s.scope, ref, "", true, false); err != nil {
+			if err := runWithCommandTelemetry("sync", "interactive", s.scope.Name, func() error {
+				return cmdSync(s.scope, ref, "", true, false)
+			}); err != nil {
 				fmt.Fprintf(os.Stderr, "%s Sync failed for %s scope: %v\n", yellow("⚠"), s.scope.Name, err)
 			}
 		}
@@ -682,10 +691,10 @@ func buildCopilotArgs(cliName, agent string) []string {
 // launchCopilotWithAgent launches the Copilot CLI with an optional --agent flag.
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
-func launchCopilotWithAgent(agent string) {
+func launchCopilotWithAgent(agent string) error {
 	cliPath, cliName := findCopilotCLI()
 	if cliPath == "" {
-		return
+		return fmt.Errorf("copilot cli not found")
 	}
 
 	args := buildCopilotArgs(cliName, agent)
@@ -703,7 +712,9 @@ func launchCopilotWithAgent(agent string) {
 	cmd.Env = copilotEnv()
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), displayName, err)
+		return err
 	}
+	return nil
 }
 
 // offerLaunchCopilot prompts the user to launch the Copilot CLI after install.
@@ -728,7 +739,9 @@ func offerLaunchCopilot() {
 		return
 	}
 	fmt.Println()
-	launchCopilotWithAgent("nav-pilot")
+	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
+		return launchCopilotWithAgent("nav-pilot")
+	})
 }
 
 // offerLaunchCopilotWithAgents prompts the user to launch the Copilot CLI
@@ -756,7 +769,9 @@ func offerLaunchCopilotWithAgents(agents []string) {
 	}
 
 	fmt.Println()
-	launchCopilotWithAgent("nav-pilot")
+	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
+		return launchCopilotWithAgent("nav-pilot")
+	})
 }
 
 // copilotEnv returns the environment for launching cplt, injecting

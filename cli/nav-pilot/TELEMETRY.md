@@ -4,16 +4,25 @@
 
 ## 1. Hva samles inn?
 
-nav-pilot sender **anonyme bruks- og ytelses-metrikker** via OpenTelemetry (OTLP/HTTP). Ingenting personlig eller kodesensitivt blir logget.
+nav-pilot sender **anonyme bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/HTTP). Ingenting personlig eller kodesensitivt blir logget.
 
 | Metrikk | Type | Beskrivelse | Eksempler på dimensjoner |
 |---------|------|-------------|--------------------------|
 | `nav_pilot_command_total` | Counter | Antall kommandoer kjørt | `command=install`, `mode=interactive`, `scope=repo`, `result=success` |
 | `nav_pilot_command_duration_ms` | Histogram | Kjøringstid per kommando (ms) | Samme som over |
 | `nav_pilot_command_error_total` | Counter | Antall kommandoer som feilet | `command=sync`, `scope=user` |
-| `nav_pilot_install_items_total` | Counter | Antall items installert | `command=install`, `scope=repo`, `mode=interactive` |
-| `nav_pilot_sync_updates_total` | Counter | Antall updates funnet ved sync | `command=sync`, `scope=user` |
+| `nav_pilot_install_items_total` | Counter | Antall elementer installert | `command=install`, `scope=repo`, `mode=interactive` |
+| `nav_pilot_sync_updates_total` | Counter | Antall oppdateringer funnet ved sync | `command=sync`, `scope=user` |
 | `nav_pilot_sync_conflicts_total` | Counter | Antall konflikter ved sync | `command=sync`, `scope=repo` |
+| `nav_pilot_install_present` | Gauge | Om scope har installert state (1/0) | `scope=user`, `collection=all` |
+| `nav_pilot_installed_items` | Gauge | Antall installerte items per type/status | `scope=repo`, `type=skill`, `status=active` |
+| `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
+| `nav_pilot_up_to_date` | Gauge | Om komponent er tilstrekkelig oppdatert (1/0) | `component=cli`, `scope=none` |
+| `nav_pilot_version_skew_days` | Histogram | Dager mellom installert og siste tilgjengelig versjon | `component=collection`, `scope=repo` |
+
+`command`-dimensjonen inkluderer også livssyklus-eventer:
+- `startup` når brukeren kjører `nav-pilot` uten args (interaktiv flyt)
+- `launch` når nav-pilot forsøker å starte `cplt`/`copilot`
 
 **Alle metrikker inkluderer også (resource-attributter):**
 - `service.name` = `"nav-pilot"`
@@ -22,9 +31,9 @@ nav-pilot sender **anonyme bruks- og ytelses-metrikker** via OpenTelemetry (OTLP
 - `arch` = `"amd64"`, `"arm64"` etc.
 - `device_id` = pseudonymisert maskin-ID (se under)
 
-I tillegg bærer `command`-, `install`- og `sync`-metrikkene en `version`-dimensjon
-på selve datapunktet (samme verdi som `service.version`). Den brukes i PromQL-spørringene
-under (`by (version)`).
+I tillegg bærer **alle metrikker** en `version`-dimensjon på selve datapunktet
+(samme verdi som `service.version`). Det betyr at både `device_id` (resource-attributt)
+og versjon er tilgjengelig på all telemetri.
 
 **Hva sendes IKKE:**
 - ✗ Filstier, reponavn, eller prosjektkontekst
@@ -68,20 +77,24 @@ under (`by (version)`).
 
 ### Aktivering (pilot-fase)
 
-Telemetri er **deaktivert by default**. For å aktivere i pilot-fase:
+Telemetri er **aktivert som standard** i pilot-fase.
 
 ```bash
-export NAV_PILOT_TELEMETRY_ENABLED=1
-export NAV_PILOT_TELEMETRY_ENDPOINT=https://telemetry-collector.nav.no/v1/metrics
 nav-pilot install @nav-pilot
 ```
 
-Eller sett miljøvariabler i `~/.bashrc` / `~/.zshrc`:
+Standard endpoint er:
+
+`https://collector-internet.nav.cloud.nais.io/v1/metrics`
+
+Du kan overstyre endpoint ved behov med `NAV_PILOT_TELEMETRY_ENDPOINT` eller
+`OTEL_EXPORTER_OTLP_ENDPOINT`.
+
+For å eksplisitt tvinge på i `~/.bashrc` / `~/.zshrc`:
 
 ```bash
 # ~/.zshrc
 export NAV_PILOT_TELEMETRY_ENABLED=1
-export NAV_PILOT_TELEMETRY_ENDPOINT=https://telemetry-collector.nav.no/v1/metrics
 ```
 
 ### Verifisering
@@ -90,8 +103,8 @@ Kjør kommando med `--verbose` eller debug-logging for å se telemetri-status:
 
 ```bash
 # Telemetri sendes stille. Hvis den feiler, ser du advarsel:
-$ NAV_PILOT_TELEMETRY_ENABLED=1 nav-pilot list
-⚠ telemetry disabled: telemetry enabled, but no OTLP endpoint configured
+$ nav-pilot list
+# ingen endpoint kreves; standard endpoint brukes automatisk
 ```
 
 ### Dashboard-eksempler (Grafana / Prometheus)
@@ -142,9 +155,9 @@ increase(nav_pilot_command_total[24h]) by (version)
 - **Telemetry-operator**: Vedlikehold av OTLP-collector
 - **Ingen**: Innholdet av filer, instruksjoner eller persondata
 
-### Oppbevaringtid
+### Oppbevaringstid
 - **Råmetrikker (Prometheus)**: 15 dager (default retention)
-- **Aggregerte metrikker (Grafana dashboards)**: Lagret i repo; historikk beholdt indefinitely
+- **Aggregerte metrikker (Grafana dashboards)**: Lagret i repo; historikk beholdes på ubestemt tid
 - **Sletting**: Brukere kan slette ved å deaktivere telemetri (se under)
 
 ### Personvern-garantier
@@ -155,7 +168,7 @@ increase(nav_pilot_command_total[24h]) by (version)
 - ⚠️ Kardinalitet: `device_id` (og `version`) er høy-kardinalitets-etiketter. I en stor pilot kan
   antall tidsserier vokse raskt i Prometheus — vurder å droppe/aggregere `device_id` i collector
   hvis kostnad/kardinalitet blir et problem.
-- ✅ Telemetri er helt frivillig (deaktivert by default)
+- ✅ Telemetri kan deaktiveres eksplisitt (`NAV_PILOT_TELEMETRY_ENABLED=0`)
 - ✅ Ikke delt med tredjeparter
 
 ### Deaktivering
@@ -163,24 +176,21 @@ increase(nav_pilot_command_total[24h]) by (version)
 For å **deaktivere telemetri**:
 
 ```bash
-# Unset for denne sesjonen
-unset NAV_PILOT_TELEMETRY_ENABLED
-
-# Eller eksplisitt av
+# Eksplisitt av
 export NAV_PILOT_TELEMETRY_ENABLED=0
 ```
 
-For å **permanentlig deaktivere** (foreslått for CI/automatisering):
+For å **permanent deaktivere** (foreslått for CI/automatisering):
 
 ```bash
-# Add to ~/.zshrc or equivalent
+# Legg i ~/.zshrc eller tilsvarende
 export NAV_PILOT_TELEMETRY_ENABLED=0
 ```
 
 **Effekt av deaktivering:**
 - Ingen data sendes til collector
 - nav-pilot kjører identisk ellers
-- Ingen overhead eller perforanse-tap
+- Ingen overhead eller ytelsestap
 
 ---
 
@@ -189,18 +199,14 @@ export NAV_PILOT_TELEMETRY_ENABLED=0
 ### A. Enkel aktivering (anbefalt for demo)
 
 ```bash
-# 1. Sett miljøvariabler
-export NAV_PILOT_TELEMETRY_ENABLED=1
-export NAV_PILOT_TELEMETRY_ENDPOINT=https://telemetry-collector.nav.no/v1/metrics
-
-# 2. Kjør nav-pilot som vanlig
+# 1. Kjør nav-pilot som vanlig (telemetri er på som standard)
 nav-pilot install @nav-pilot
 
-# 3. Data sendes automatisk til backend
+# 2. Data sendes automatisk til backend
 # (ingen output, veldig stille)
 ```
 
-### B. Permanent aktivering (developer-maskin)
+### B. Permanent eksplisitt aktivering (utviklermaskin, valgfritt)
 
 ```bash
 # 1. Åpne shell-konfigfil
@@ -208,9 +214,8 @@ vim ~/.zshrc  # eller ~/.bashrc, ~/.config/fish/config.fish osv.
 
 # 2. Legg til på slutten:
 export NAV_PILOT_TELEMETRY_ENABLED=1
-export NAV_PILOT_TELEMETRY_ENDPOINT=https://telemetry-collector.nav.no/v1/metrics
 
-# 3. Reload shell
+# 3. Last inn shell på nytt
 source ~/.zshrc
 
 # 4. Verifiser
@@ -221,26 +226,25 @@ nav-pilot list
 ### C. Deaktivering (hvis du ombestemmer deg)
 
 ```bash
-# Slett (eller kommenter ut) linjer fra ~/.zshrc:
-# export NAV_PILOT_TELEMETRY_ENABLED=1
-# export NAV_PILOT_TELEMETRY_ENDPOINT=...
+# Legg til i ~/.zshrc:
+export NAV_PILOT_TELEMETRY_ENABLED=0
 
 # Reload
 source ~/.zshrc
 
-# Verifiser (skal være tomt)
-echo $NAV_PILOT_TELEMETRY_ENABLED  # → (blank)
+# Verifiser
+echo $NAV_PILOT_TELEMETRY_ENABLED  # → 0
 ```
 
 ### D. Sjekke status
 
 ```bash
-# Er telemetri aktivert?
-if [ "$NAV_PILOT_TELEMETRY_ENABLED" = "1" ]; then
-  echo "✓ Telemetri aktivert"
-  echo "  Endpoint: $NAV_PILOT_TELEMETRY_ENDPOINT"
-else
+# Er telemetri aktivert? (default er aktivert)
+if [ "${NAV_PILOT_TELEMETRY_ENABLED:-1}" = "0" ] || [ "${NAV_PILOT_TELEMETRY_ENABLED:-1}" = "off" ]; then
   echo "✗ Telemetri deaktivert"
+else
+  echo "✓ Telemetri aktivert"
+  echo "  Endpoint: ${NAV_PILOT_TELEMETRY_ENDPOINT:-https://collector-internet.nav.cloud.nais.io/v1/metrics}"
 fi
 ```
 
@@ -249,9 +253,9 @@ fi
 ## FAQ
 
 **Sender nav-pilot data når telemetri er deaktivert?**  
-Nei. Hvis `NAV_PILOT_TELEMETRY_ENABLED != 1`, kjører en no-op telemetry recorder. Null overhead.
+Nei. Hvis `NAV_PILOT_TELEMETRY_ENABLED` settes til `0`/`off`, kjører en no-op telemetry recorder. Null overhead.
 
-**Hva om `NAV_PILOT_TELEMETRY_ENDPOINT` ikke er nåbar?**  
+**Hva om standard-endpoint ikke er nåbar?**  
 Telemetri logger en advarsel og feiler gracefully. Kommandoer kjører fortsatt normalt.
 
 **Kan jeg se hva som blir sendt?**  
@@ -275,13 +279,13 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 
 ## Teknisk referanse
 
-- **Eksporter**: OpenTelemetry (OTLP/HTTP) til NAV sin Prometheus/Grafana-stack
-- **Sendingshyppighet**: Hver 10. sekund (batch)
+- **Eksport**: OpenTelemetry (OTLP/HTTP) til NAV sin Prometheus/Grafana-stack
+- **Sendefrekvens**: Hver 10. sekund (batch)
 - **Timeout**: 2 sekunder per batch
 - **Språk**: Go 1.21+
 - **Avhengigheter**: `go.opentelemetry.io/otel/*` (se `go.mod`)
 
 For implementeringsdetaljer, se:
 - `cli/nav-pilot/telemetry.go` — initialisering og recording
-- `cli/nav-pilot/main.go` — integration med kommandoer
-- `cli/nav-pilot/telemetry_test.go` — unit tests
+- `cli/nav-pilot/main.go` — integrasjon med kommandoer
+- `cli/nav-pilot/telemetry_test.go` — enhetstester

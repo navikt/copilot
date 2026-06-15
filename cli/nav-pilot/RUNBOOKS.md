@@ -1,12 +1,12 @@
 # Runbooks — nav-pilot Telemetry Incident Response
 
-Operative guidelines for responding to nav-pilot telemetry alerts. Each runbook: Problem → Quick Diagnosis → Actions → Success Metrics.
+Operative retningslinjer for håndtering av nav-pilot-telemetrialarmer. Hver runbook: Problem → Rask diagnose → Tiltak → Suksesskriterier.
 
 ---
 
 ## ⚠️ Metrikk-tilgjengelighet (les først)
 
-nav-pilot CLI emitterer **kun** disse seks metrikkene i dag (se `cli/nav-pilot/telemetry.go`):
+nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/telemetry.go`):
 
 | Metrikk | Type | Datapunkt-dimensjoner |
 |---------|------|-----------------------|
@@ -16,6 +16,11 @@ nav-pilot CLI emitterer **kun** disse seks metrikkene i dag (se `cli/nav-pilot/t
 | `nav_pilot_install_items_total` | Counter | `command`, `mode`, `scope`, `version` |
 | `nav_pilot_sync_updates_total` | Counter | `command`, `mode`, `scope`, `version` |
 | `nav_pilot_sync_conflicts_total` | Counter | `command`, `mode`, `scope`, `version` |
+| `nav_pilot_install_present` | Gauge | `scope`, `collection`, `version` |
+| `nav_pilot_installed_items` | Gauge | `scope`, `type`, `status`, `version` |
+| `nav_pilot_staleness_check_total` | Counter | `component`, `scope`, `result`, `version` |
+| `nav_pilot_up_to_date` | Gauge | `component`, `scope`, `version` |
+| `nav_pilot_version_skew_days` | Histogram | `component`, `scope`, `version` |
 
 Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `device_id`.
 
@@ -43,12 +48,12 @@ Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `de
 > )
 > ```
 
-**What it means**:
+**Dette betyr**:
 - Installation success rate has dropped below 85%
 - Likely indicates a regression in the `install` command
 - Could be new bug, configuration issue, or external dependency
 
-### Quick Diagnosis (< 5 min)
+### Rask diagnose (< 5 min)
 
 1. **Is this sustained or transient?**
    ```bash
@@ -67,7 +72,7 @@ Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `de
    - Check Grafana "Command Health" dashboard
    - Look for: conflict (high), permission (high), network (transient)
 
-### Root Cause Tree
+### Årsakstre
 
 ```
 Install success < 85%
@@ -78,7 +83,7 @@ Install success < 85%
 └─ All error types up? → Broader platform issue
 ```
 
-### Actions
+### Tiltak
 
 **If recent code change (within 2h):**
 1. Review diff in `install.go`, `manifest.go`, `resolver.go`
@@ -106,13 +111,13 @@ Install success < 85%
 - No obvious cause? → Page on-call engineer
 - Taking > 30 min to diagnose? → Escalate to team lead
 
-### Success Metrics
+### Suksesskriterier
 
 - Success rate back to ≥ 85% within **2 hours**
 - Root cause documented
 - If rollback: deployment procedure logged
 
-### Escalation
+### Eskalering
 
 ```
 Success rate < 85% sustained 1h
@@ -133,12 +138,12 @@ On-call determines: fix in place, or revert to stable version
 > **⚠️ Ikke implementert.** CLI-en instrumenterer ikke dry-run → faktisk kjøring. Denne runbooken
 > er en design-skisse; alarmen kan ikke aktiveres før metrikk for dry-run-konvertering legges til.
 
-**What it means**:
-- Users are testing with `--dry-run` but not proceeding to real execution
+**Dette betyr**:
+- Brukere tester med `--dry-run`, men går ikke videre til reell kjøring
 - Indicates low confidence or unmet expectations
 - Could be unclear output, safety concerns, or UX friction
 
-### Quick Diagnosis (< 10 min)
+### Rask diagnose (< 10 min)
 
 1. **Is this a new regression?**
    - Check last 7 days trend
@@ -155,7 +160,7 @@ On-call determines: fix in place, or revert to stable version
    - Are conflicts shown clearly?
    - Is success message convincing?
 
-### Root Cause Tree
+### Årsakstre
 
 ```
 Dry-run conversion < 40%
@@ -166,7 +171,7 @@ Dry-run conversion < 40%
 └─ Documentation unclear? → Education needed
 ```
 
-### Actions
+### Tiltak
 
 **If recent change to error messaging:**
 1. Review diff in `output.go` or `interactive.go`
@@ -192,13 +197,13 @@ Dry-run conversion < 40%
 3. Post in #nav-pilot Slack: "Tip: Use --dry-run to test safely"
 4. Measure: conversion rate next week
 
-### Success Metrics
+### Suksesskriterier
 
 - Conversion rate back to ≥ 50% within **3 days**
 - Root cause identified (UX, docs, or code)
 - Action item created if structural fix needed
 
-### Escalation
+### Eskalering
 
 ```
 Dry-run conversion < 40% sustained 2h
@@ -220,13 +225,13 @@ Check rate next day
 
 > **⚠️ Ikke implementert.** Det finnes ingen `nav_pilot_error_category_total`-metrikk og ingen
 > feilkategori-dimensjon. `nav_pilot_command_error_total` har kun `command`, `mode`, `scope`,
-> `version`. Permisjons-/feilkategorisering må legges til før denne alarmen kan brukes.
+> `version`. Tillatelses-/feilkategorisering må legges til før denne alarmen kan brukes.
 
-**What it means**:
+**Dette betyr**:
 - Users encountering permission/scope issues
 - Could indicate: scope confusion, documentation gap, or new bug
 
-### Quick Diagnosis (< 10 min)
+### Rask diagnose (< 10 min)
 
 1. **Error spike recent or ongoing pattern?**
    - Check 7d trend
@@ -242,7 +247,7 @@ Check rate next day
    - Check dashboard for error text snippets
    - Is it actionable? Clear?
 
-### Root Cause Tree
+### Årsakstre
 
 ```
 Permission errors > 100/day
@@ -253,7 +258,7 @@ Permission errors > 100/day
 └─ Bug in permission checking? → Code issue
 ```
 
-### Actions
+### Tiltak
 
 **If documentation gap:**
 1. Review TELEMETRY.md scope section
@@ -262,7 +267,7 @@ Permission errors > 100/day
 4. Post in #nav-pilot with clear example
 
 **If specific user cohort affected:**
-1. Identify which teams (`device_id` er en enveis-hash og kan **ikke** mappes til team uten en ekstern, frivillig opt-in-mapping — bruk heller `scope`/`version`/`os`-fordeling for å se mønstre)
+1. Identifiser hvilke team (`device_id` er en enveis-hash og kan **ikke** mappes til team uten en ekstern, frivillig opt-in-mapping — bruk heller `scope`/`version`/`os`-fordeling for å se mønstre)
 2. Reach out: "We noticed permission issues; here's the fix"
 3. Offer 1:1 help
 
@@ -277,13 +282,13 @@ Permission errors > 100/day
 2. Post in #nav-pilot: "If you see permission errors, check: `git config --list`"
 3. Create support guide
 
-### Success Metrics
+### Suksesskriterier
 
 - Permission error count back to < 50/day within **5 days**
 - Error message improved if unclear
 - Documentation updated if gap
 
-### Escalation
+### Eskalering
 
 ```
 Permission errors > 100/day
@@ -294,7 +299,7 @@ If docs/education → Update + announce same day
 If error message unclear → Improve + deploy within 24h
 If code bug → Create ticket, investigate next sprint
   ↓
-Monitor next week
+Følg med neste uke
 ```
 
 ---
@@ -306,11 +311,11 @@ Monitor next week
 > **⚠️ Ikke implementert.** CLI-en instrumenterer ikke bekreftelses-prompt/abort. Denne runbooken
 > er en design-skisse; alarmen kan ikke aktiveres før metrikk for bekreftelser legges til.
 
-**What it means**:
+**Dette betyr**:
 - Users are declining confirmation prompts at high rate (> 25%)
 - Indicates: prompt fatigue, unclear risk, or unnecessary barriers
 
-### Quick Diagnosis (< 5 min)
+### Rask diagnose (< 5 min)
 
 1. **When did this spike start?**
    - Recent change to prompts?
@@ -327,7 +332,7 @@ Monitor next week
    - Review in `interactive.go`
    - Is risk/consequence obvious?
 
-### Root Cause Tree
+### Årsakstre
 
 ```
 Confirmation abort > 25%
@@ -338,7 +343,7 @@ Confirmation abort > 25%
 └─ Users just learning → New user cohort (expected)
 ```
 
-### Actions
+### Tiltak
 
 **If new confirmation added:**
 1. Evaluate: is this really necessary?
@@ -362,13 +367,13 @@ Confirmation abort > 25%
 3. Remove unnecessary confirmation
 4. Deploy
 
-### Success Metrics
+### Suksesskriterier
 
 - Abort rate back to < 15% within **1 day**
 - Prompt wording evaluated
 - `--yes` flag added if needed
 
-### Escalation
+### Eskalering
 
 ```
 Confirmation abort > 25% sustained 2h
@@ -379,7 +384,7 @@ Unnecessary → Remove + deploy same day
 Poor wording → Improve + deploy same day
 Too many → Batch or add --yes flag
   ↓
-Monitor next shift
+Følg med neste vakt
 ```
 
 ---
@@ -388,12 +393,12 @@ Monitor next shift
 
 **Alert**: `nav_pilot_sync_conflicts_total > 50` in 1h window
 
-**What it means**:
+**Dette betyr**:
 - High rate of merge conflicts being detected
 - Could indicate: complex manifest changes, or merge logic issues
 - Users may be aborting due to complexity
 
-### Quick Diagnosis (< 10 min)
+### Rask diagnose (< 10 min)
 
 1. **Is this a spike or new pattern?**
    - Check 24h trend
@@ -409,7 +414,7 @@ Monitor next shift
    - Check error recovery metrics
    - High conflict abort rate?
 
-### Root Cause Tree
+### Årsakstre
 
 ```
 Sync conflicts > 50/hour
@@ -420,7 +425,7 @@ Sync conflicts > 50/hour
 └─ Manifest schema ambiguity? → Clarify specs
 ```
 
-### Actions
+### Tiltak
 
 **If merge algorithm too strict:**
 1. Review `sync.go` conflict detection
@@ -444,13 +449,13 @@ Sync conflicts > 50/hour
 2. Baseline: what's normal for our user base?
 3. Adjust threshold if necessary (discuss with team)
 
-### Success Metrics
+### Suksesskriterier
 
 - Conflict detection rate < 30/hour OR abort rate < 40%
 - Merge UX improved if necessary
 - Documentation updated
 
-### Escalation
+### Eskalering
 
 ```
 Sync conflicts > 50/hour
@@ -460,12 +465,12 @@ Is this expected growth, or regression? (< 10 min diagnosis)
 Expected → Improve UX, create guide
 Regression → Investigate recent changes, rollback if necessary
   ↓
-Monitor next week for trends
+Følg med neste uke for trender
 ```
 
 ---
 
-## General Escalation Matrix
+## Generell eskaleringsmatrise
 
 | Severity | Duration | Action |
 |----------|----------|--------|
@@ -479,7 +484,7 @@ Monitor next week for trends
 ## FAQ
 
 **Q: I see an alert but don't understand it. What do I do?**  
-A: 1. Read the relevant runbook above. 2. Follow "Quick Diagnosis" section (< 10 min). 3. If still unclear, page on-call lead.
+A: 1. Les relevant runbook over. 2. Følg seksjonen "Rask diagnose" (< 10 min). 3. Hvis det fortsatt er uklart, varsle on-call-lead.
 
 **Q: When should I wake someone up?**  
 A: Page on-call if: Success rate < 80% OR can't diagnose within 15 minutes.
@@ -492,6 +497,6 @@ A: Check: Are other commands working? Is it specific to one team or global? If g
 
 ---
 
-**Last Updated**: 2026-06-15  
-**Runbook Owner**: @nav-pilot-team  
+**Sist oppdatert**: 2026-06-15  
+**Runbook-ansvarlig**: @nav-pilot-team  
 **Questions?**: Post in #nav-pilot or create issue in navikt/copilot

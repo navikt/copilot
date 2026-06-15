@@ -16,11 +16,18 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
+const defaultTelemetryEndpoint = "https://collector-internet.nav.cloud.nais.io/v1/metrics"
+
 type telemetryRecorder interface {
 	RecordCommand(command, mode, scope, result string, duration time.Duration)
 	RecordInstallItems(scope, mode string, count int64)
 	RecordSyncUpdates(scope, mode string, count int64)
 	RecordSyncConflicts(scope, mode string, count int64)
+	RecordInstallPresent(scope, collection string, present bool)
+	RecordInstalledItems(scope, itemType, status string, count int64)
+	RecordStalenessCheck(component, scope, result string)
+	RecordUpToDate(component, scope string, upToDate bool)
+	RecordVersionSkewDays(component, scope string, days int64)
 	Shutdown(ctx context.Context) error
 }
 
@@ -30,6 +37,11 @@ func (noopTelemetry) RecordCommand(string, string, string, string, time.Duration
 func (noopTelemetry) RecordInstallItems(string, string, int64)                    {}
 func (noopTelemetry) RecordSyncUpdates(string, string, int64)                     {}
 func (noopTelemetry) RecordSyncConflicts(string, string, int64)                   {}
+func (noopTelemetry) RecordInstallPresent(string, string, bool)                   {}
+func (noopTelemetry) RecordInstalledItems(string, string, string, int64)          {}
+func (noopTelemetry) RecordStalenessCheck(string, string, string)                 {}
+func (noopTelemetry) RecordUpToDate(string, string, bool)                         {}
+func (noopTelemetry) RecordVersionSkewDays(string, string, int64)                 {}
 func (noopTelemetry) Shutdown(context.Context) error                              { return nil }
 
 type otelTelemetry struct {
@@ -41,6 +53,11 @@ type otelTelemetry struct {
 	installItemsTotal  metric.Int64Counter
 	syncUpdatesTotal   metric.Int64Counter
 	syncConflictsTotal metric.Int64Counter
+	installPresent     metric.Int64Gauge
+	installedItems     metric.Int64Gauge
+	stalenessCheck     metric.Int64Counter
+	upToDate           metric.Int64Gauge
+	versionSkewDays    metric.Int64Histogram
 
 	version string
 }
@@ -61,9 +78,8 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 	if endpoint == "" {
 		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
 	}
-
 	if endpoint == "" {
-		return noopTelemetry{}, fmt.Errorf("telemetry enabled, but no OTLP endpoint configured (set NAV_PILOT_TELEMETRY_ENDPOINT or OTEL_EXPORTER_OTLP_ENDPOINT)")
+		endpoint = defaultTelemetryEndpoint
 	}
 
 	opts := []otlpmetrichttp.Option{}
@@ -121,6 +137,26 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 	if err != nil {
 		return noopTelemetry{}, fmt.Errorf("create sync conflicts counter: %w", err)
 	}
+	installPresent, err := meter.Int64Gauge("nav_pilot_install_present")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create install present gauge: %w", err)
+	}
+	installedItems, err := meter.Int64Gauge("nav_pilot_installed_items")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create installed items gauge: %w", err)
+	}
+	stalenessCheck, err := meter.Int64Counter("nav_pilot_staleness_check_total")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create staleness check counter: %w", err)
+	}
+	upToDate, err := meter.Int64Gauge("nav_pilot_up_to_date")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create up to date gauge: %w", err)
+	}
+	versionSkewDays, err := meter.Int64Histogram("nav_pilot_version_skew_days")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create version skew days histogram: %w", err)
+	}
 
 	return &otelTelemetry{
 		provider:           provider,
@@ -130,16 +166,21 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		installItemsTotal:  installItemsTotal,
 		syncUpdatesTotal:   syncUpdatesTotal,
 		syncConflictsTotal: syncConflictsTotal,
+		installPresent:     installPresent,
+		installedItems:     installedItems,
+		stalenessCheck:     stalenessCheck,
+		upToDate:           upToDate,
+		versionSkewDays:    versionSkewDays,
 		version:            normalizeTelemetryDimension(cliVersion, "dev"),
 	}, nil
 }
 
 func telemetryEnabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENABLED"))) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
+	case "0", "false", "no", "off":
 		return false
+	default:
+		return true
 	}
 }
 
@@ -226,6 +267,62 @@ func (t *otelTelemetry) RecordSyncConflicts(scope, mode string, count int64) {
 	))
 }
 
+func (t *otelTelemetry) RecordInstallPresent(scope, collection string, present bool) {
+	value := int64(0)
+	if present {
+		value = 1
+	}
+	t.installPresent.Record(context.Background(), value, metric.WithAttributes(
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("collection", normalizeTelemetryDimension(collection, "other")),
+		attribute.String("version", t.version),
+	))
+}
+
+func (t *otelTelemetry) RecordInstalledItems(scope, itemType, status string, count int64) {
+	if count < 0 {
+		return
+	}
+	t.installedItems.Record(context.Background(), count, metric.WithAttributes(
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("type", normalizeTelemetryDimension(itemType, "unknown")),
+		attribute.String("status", normalizeTelemetryDimension(status, "active")),
+		attribute.String("version", t.version),
+	))
+}
+
+func (t *otelTelemetry) RecordStalenessCheck(component, scope, result string) {
+	t.stalenessCheck.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("result", normalizeTelemetryDimension(result, "error")),
+		attribute.String("version", t.version),
+	))
+}
+
+func (t *otelTelemetry) RecordUpToDate(component, scope string, upToDate bool) {
+	value := int64(0)
+	if upToDate {
+		value = 1
+	}
+	t.upToDate.Record(context.Background(), value, metric.WithAttributes(
+		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("version", t.version),
+	))
+}
+
+func (t *otelTelemetry) RecordVersionSkewDays(component, scope string, days int64) {
+	if days < 0 {
+		days = 0
+	}
+	t.versionSkewDays.Record(context.Background(), days, metric.WithAttributes(
+		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
+		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+		attribute.String("version", t.version),
+	))
+}
+
 func (t *otelTelemetry) Shutdown(ctx context.Context) error {
 	return t.provider.Shutdown(ctx)
 }
@@ -236,10 +333,16 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		return fallback
 	}
 	switch v {
-	case "install", "sync", "upgrade", "list",
+	case "install", "sync", "upgrade", "list", "startup", "launch",
 		"interactive", "non_interactive",
 		"repo", "user", "auto", "none", "unknown",
-		"success", "error", "updates_available", "dev":
+		"success", "error", "updates_available", "dev",
+		"all", "other",
+		"fullstack", "kotlin-backend", "frontend", "nextjs-frontend", "platform",
+		"agent", "skill", "instruction", "prompt",
+		"active", "ignored", "conflict",
+		"collection", "cli",
+		"up_to_date", "stale", "lookup_failed", "cooldown", "no_install", "corrupted":
 		return v
 	default:
 		if strings.Count(v, ".") >= 1 || strings.Count(v, "-") >= 1 {

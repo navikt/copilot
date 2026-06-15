@@ -27,6 +27,11 @@ func TestTelemetryResult(t *testing.T) {
 }
 
 func TestTelemetryEnabled(t *testing.T) {
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+	if !telemetryEnabled() {
+		t.Fatal("expected telemetryEnabled to return true by default")
+	}
+
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "1")
 	if !telemetryEnabled() {
 		t.Fatal("expected telemetryEnabled to return true for 1")
@@ -35,5 +40,19 @@ func TestTelemetryEnabled(t *testing.T) {
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "0")
 	if telemetryEnabled() {
 		t.Fatal("expected telemetryEnabled to return false for 0")
+	}
+
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "off")
+	if telemetryEnabled() {
+		t.Fatal("expected telemetryEnabled to return false for off")
+	}
+}
+
+func TestNormalizeTelemetryDimension_AllowsStartupAndLaunch(t *testing.T) {
+	if got := normalizeTelemetryDimension("startup", "unknown"); got != "startup" {
+		t.Fatalf("normalizeTelemetryDimension(startup) = %q, want startup", got)
+	}
+	if got := normalizeTelemetryDimension("launch", "unknown"); got != "launch" {
+		t.Fatalf("normalizeTelemetryDimension(launch) = %q, want launch", got)
 	}
 }

@@ -32,14 +32,12 @@ nav-pilot install --user --all
 eval "$(nav-pilot env)"
 ```
 
-## Telemetry (pilot, opt-in)
+## Telemetry (pilot, default on)
 
-nav-pilot sender ikke produkttelemetri som standard. I pilot kan du aktivere OTel-metrikker eksplisitt:
+nav-pilot sender OTel-metrikker som standard i pilot.
 
-```bash
-export NAV_PILOT_TELEMETRY_ENABLED=1
-export NAV_PILOT_TELEMETRY_ENDPOINT="https://<otel-endepunkt>"
-```
+Standard endpoint er `https://collector-internet.nav.cloud.nais.io/v1/metrics`.
+Du kan overstyre med `NAV_PILOT_TELEMETRY_ENDPOINT` ved behov.
 
 Støttede MVP-metrikker:
 
@@ -49,8 +47,13 @@ Støttede MVP-metrikker:
 - `nav_pilot_install_items_total`
 - `nav_pilot_sync_updates_total`
 - `nav_pilot_sync_conflicts_total`
+- `nav_pilot_install_present`
+- `nav_pilot_installed_items`
+- `nav_pilot_staleness_check_total`
+- `nav_pilot_up_to_date`
+- `nav_pilot_version_skew_days`
 
-`NAV_PILOT_TELEMETRY_ENABLED=0` (eller unset) deaktiverer telemetry.
+`NAV_PILOT_TELEMETRY_ENABLED=0` (eller `off`) deaktiverer telemetry.
 
 ## For bidragsytere
 
