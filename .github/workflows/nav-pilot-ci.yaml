@@ -48,8 +48,20 @@ jobs:
       - name: Build
         run: cd cli/nav-pilot && go build -o nav-pilot .
 
-      - name: Test
-        run: cd cli/nav-pilot && go test -race -v ./...
+      - name: Test and Coverage
+        run: |
+          cd cli/nav-pilot && go test -race -v -coverprofile=cover.out ./...
+          go tool cover -func=cover.out
+          total=$(go tool cover -func=cover.out | awk '/^total:/ {gsub(/%/, "", $NF); print $NF}')
+          floor=65
+          awk -v t="$total" -v f="$floor" 'BEGIN {
+            if (t + 0 < f + 0) {
+              print "ERROR: coverage " t "% is below floor " f "%"
+              exit 1
+            }
+            print "Coverage " t "% meets floor " f "%"
+          }'
+          rm -f cover.out
 
       - name: Vet
         run: cd cli/nav-pilot && go vet ./...
