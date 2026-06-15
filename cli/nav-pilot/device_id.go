@@ -15,7 +15,7 @@ import (
 // This UUID is:
 // - Stable: Same machine always produces the same UUID
 // - Deterministic: Not random, based on hardware + install path
-// - Private: Never contains username, email, or identifiable data
+// - Private: Raw hostname/path/MAC are never stored or exported; only a truncated SHA256 hash is used
 func getOrCreateDeviceID() (string, error) {
 	configDir, err := getConfigDir()
 	if err != nil {

@@ -54,11 +54,11 @@ Klassifisering prioriterer:
 - ✗ Bruker-ID (aldri NAVident, e-post, GitHub-brukernavn)
 - ✗ Git-commit-info eller miljøvariabler
 
-**Device UUID:**
+**Device ID (pseudonym):**
 - `device_id` = Stabil, deterministisk identifikator per maskin
   - Genereres fra: hostname + CLI-installasjonssti + MAC-adresse (SHA256)
   - Lagret lokalt i `~/.nav-pilot/device-id` (persistent)
-  - Samme maskin = alltid samme UUID (reproducible)
+  - Samme maskin = alltid samme ID (reproducible)
   - **Inneholder INGEN persondata** (kun hardware/path)
 
 **Dataoppbevaring:**
@@ -174,7 +174,7 @@ increase(nav_pilot_command_total[24h]) by (version)
 - **Sletting**: Brukere kan slette ved å deaktivere telemetri (se under)
 
 ### Personvern-garantier
-- ✅ Ingen IP-adresser eller User-Agent
+- ✅ Ingen IP-adresser eller User-Agent som OTel-attributter i metrikksdata (merk: transport/ingress kan likevel se og evt. logge IP).
 - ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (SHA256-hash, 12 hex-tegn)
 - ⚠️ `device_id` gir likevel oppløsning per maskin via `nav_pilot_info` (pseudonymt), ikke kun som globale aggregater.
   Den kan ikke knyttes til person/team uten en ekstern mapping.
