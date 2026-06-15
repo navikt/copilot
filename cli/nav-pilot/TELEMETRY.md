@@ -15,11 +15,17 @@ nav-pilot sender **anonyme bruks- og ytelses-metrikker** via OpenTelemetry (OTLP
 | `nav_pilot_sync_updates_total` | Counter | Antall updates funnet ved sync | `command=sync`, `scope=user` |
 | `nav_pilot_sync_conflicts_total` | Counter | Antall konflikter ved sync | `command=sync`, `scope=repo` |
 
-**Alle metrikker inkluderer også:**
+**Alle metrikker inkluderer også (resource-attributter):**
 - `service.name` = `"nav-pilot"`
 - `service.version` = CLI-versjon (f.eks. `"0.12.3"`, `"dev"`)
 - `os` = `"darwin"`, `"linux"`, `"windows"`
 - `arch` = `"amd64"`, `"arm64"` etc.
+- `device_id` = pseudonymisert maskin-ID (se under)
+- `telemetry_retention_days` = verdien av `NAV_PILOT_TELEMETRY_RETENTION_DAYS` (kun en etikett, se «Dataoppbevaring»)
+
+I tillegg bærer `command`-, `install`- og `sync`-metrikkene en `version`-dimensjon
+på selve datapunktet (samme verdi som `service.version`). Den brukes i PromQL-spørringene
+under (`by (version)`).
 
 **Hva sendes IKKE:**
 - ✗ Filstier, reponavn, eller prosjektkontekst
@@ -35,12 +41,15 @@ nav-pilot sender **anonyme bruks- og ytelses-metrikker** via OpenTelemetry (OTLP
   - **Inneholder INGEN persondata** (kun hardware/path)
 
 **Dataoppbevaring:**
-- Retention: `NAV_PILOT_TELEMETRY_RETENTION_DAYS` (default: 30 dager)
-  - Dev cluster: 7 dager (lav overhead)
-  - Prod cluster: 30 dager (standard)
-  - Arkiv: 90 dager (long-tail analyse)
-- Auto-delete etter retention periode
-- Kan settes globalt for hele Nav-infrastrukturen
+- `NAV_PILOT_TELEMETRY_RETENTION_DAYS` (default: 30, klampes til 1–365) leses **kun klient-side**
+  og sendes med som resource-attributten `telemetry_retention_days`.
+  - **Viktig:** Denne variabelen sletter eller utløper *ingen* data av seg selv. CLI-en har
+    ingen kontroll over hvor lenge backend lagrer metrikker. Den fungerer kun som en
+    etikett/forventning som backend-konfigurasjonen (Prometheus/OTLP-collector) kan bruke.
+  - Faktisk oppbevaringstid styres av backend (se «Privacy & Security → Oppbevaringtid»),
+    ikke av denne CLI-en.
+- Foreslåtte konvensjoner for etiketten (ikke håndhevet av CLI):
+  - Dev: 7 dager · Prod: 30 dager · Arkiv: 90 dager
 
 ---
 
@@ -102,7 +111,7 @@ increase(nav_pilot_install_items_total[1d]) by (scope)
 
 **Gjennomsnittlig kommando-varighet per kommando:**
 ```promql
-histogram_quantile(0.95, rate(nav_pilot_command_duration_ms_bucket[5m])) by (command)
+histogram_quantile(0.95, sum by (command, le) (rate(nav_pilot_command_duration_ms_bucket[5m])))
 ```
 
 **Feiltakt (% feil av alle kommandoer):**
@@ -148,8 +157,12 @@ increase(nav_pilot_command_total[24h]) by (version)
 
 ### Personvern-garantier
 - ✅ Ingen IP-adresser eller User-Agent
-- ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (hash)
-- ✅ Kun aggregerte tall, aldri per-bruker
+- ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (SHA256-hash, 12 hex-tegn)
+- ⚠️ `device_id` gir likevel oppløsning per maskin: metrikker kan brytes ned per enhet (pseudonymt),
+  ikke kun som globale aggregater. Den kan ikke knyttes til person/team uten en ekstern mapping.
+- ⚠️ Kardinalitet: `device_id` (og `version`) er høy-kardinalitets-etiketter. I en stor pilot kan
+  antall tidsserier vokse raskt i Prometheus — vurder å droppe/aggregere `device_id` i collector
+  hvis kostnad/kardinalitet blir et problem.
 - ✅ Telemetri er helt frivillig (deaktivert by default)
 - ✅ Ikke delt med tredjeparter
 

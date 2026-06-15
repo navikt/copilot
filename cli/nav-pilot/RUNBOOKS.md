@@ -4,9 +4,45 @@ Operative guidelines for responding to nav-pilot telemetry alerts. Each runbook:
 
 ---
 
+## ⚠️ Metrikk-tilgjengelighet (les først)
+
+nav-pilot CLI emitterer **kun** disse seks metrikkene i dag (se `cli/nav-pilot/telemetry.go`):
+
+| Metrikk | Type | Datapunkt-dimensjoner |
+|---------|------|-----------------------|
+| `nav_pilot_command_total` | Counter | `command`, `mode`, `scope`, `result`, `version` |
+| `nav_pilot_command_duration_ms` | Histogram | `command`, `mode`, `scope`, `result`, `version` |
+| `nav_pilot_command_error_total` | Counter | `command`, `mode`, `scope`, `version` |
+| `nav_pilot_install_items_total` | Counter | `command`, `mode`, `scope`, `version` |
+| `nav_pilot_sync_updates_total` | Counter | `command`, `mode`, `scope`, `version` |
+| `nav_pilot_sync_conflicts_total` | Counter | `command`, `mode`, `scope`, `version` |
+
+Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `device_id`,
+`telemetry_retention_days`.
+
+**Konsekvens for runbookene under:**
+- **Avledede** alarmer (kan bygges i dag fra metrikkene over): Runbook 1 (install-suksessrate)
+  og Runbook 5 (sync-konflikter).
+- **Ikke implementert ennå** (krever ny instrumentering før alarmene kan eksistere):
+  Runbook 2 (`nav_pilot_dryrun_conversion_rate`), Runbook 3
+  (`nav_pilot_error_category_total{category=...}` — det finnes ingen feilkategori-dimensjon),
+  og Runbook 4 (`nav_pilot_confirmation_abort_rate`). Disse er bevart som
+  *design-/fremtidige* runbooks og må ikke konfigureres som live-alarmer mot dagens metrikker.
+
+---
+
 ## Runbook 1: Install Success Rate < 85%
 
 **Alert**: `nav_pilot_install_success_rate < 0.85` (sustained 1h)
+
+> **Avledet metrikk** — `install_success_rate` emitteres ikke direkte. Bygg den fra dagens metrikker, f.eks.:
+> ```promql
+> 1 - (
+>   sum(increase(nav_pilot_command_error_total{command="install"}[1h]))
+>   /
+>   sum(increase(nav_pilot_command_total{command="install"}[1h]))
+> )
+> ```
 
 **What it means**:
 - Installation success rate has dropped below 85%
@@ -95,6 +131,9 @@ On-call determines: fix in place, or revert to stable version
 
 **Alert**: `nav_pilot_dryrun_conversion_rate < 0.40` (sustained 2h)
 
+> **⚠️ Ikke implementert.** CLI-en instrumenterer ikke dry-run → faktisk kjøring. Denne runbooken
+> er en design-skisse; alarmen kan ikke aktiveres før metrikk for dry-run-konvertering legges til.
+
 **What it means**:
 - Users are testing with `--dry-run` but not proceeding to real execution
 - Indicates low confidence or unmet expectations
@@ -180,6 +219,10 @@ Check rate next day
 
 **Alert**: `nav_pilot_error_category_total{category="permission"} > 100` in 24h
 
+> **⚠️ Ikke implementert.** Det finnes ingen `nav_pilot_error_category_total`-metrikk og ingen
+> feilkategori-dimensjon. `nav_pilot_command_error_total` har kun `command`, `mode`, `scope`,
+> `version`. Permisjons-/feilkategorisering må legges til før denne alarmen kan brukes.
+
 **What it means**:
 - Users encountering permission/scope issues
 - Could indicate: scope confusion, documentation gap, or new bug
@@ -220,7 +263,7 @@ Permission errors > 100/day
 4. Post in #nav-pilot with clear example
 
 **If specific user cohort affected:**
-1. Identify which teams (check device IDs in metrics)
+1. Identify which teams (`device_id` er en enveis-hash og kan **ikke** mappes til team uten en ekstern, frivillig opt-in-mapping — bruk heller `scope`/`version`/`os`-fordeling for å se mønstre)
 2. Reach out: "We noticed permission issues; here's the fix"
 3. Offer 1:1 help
 
@@ -260,6 +303,9 @@ Monitor next week
 ## Runbook 4: Confirmation Abort Rate > 25%
 
 **Alert**: `nav_pilot_confirmation_abort_rate > 0.25` (sustained 2h)
+
+> **⚠️ Ikke implementert.** CLI-en instrumenterer ikke bekreftelses-prompt/abort. Denne runbooken
+> er en design-skisse; alarmen kan ikke aktiveres før metrikk for bekreftelser legges til.
 
 **What it means**:
 - Users are declining confirmation prompts at high rate (> 25%)
@@ -447,6 +493,6 @@ A: Check: Are other commands working? Is it specific to one team or global? If g
 
 ---
 
-**Last Updated**: 2026-06-11  
+**Last Updated**: 2026-06-15  
 **Runbook Owner**: @nav-pilot-team  
 **Questions?**: Post in #nav-pilot or create issue in navikt/copilot
