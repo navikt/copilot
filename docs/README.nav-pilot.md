@@ -47,11 +47,15 @@ Støttede MVP-metrikker:
 - `nav_pilot_install_items_total`
 - `nav_pilot_sync_updates_total`
 - `nav_pilot_sync_conflicts_total`
+- `nav_pilot_info`
 - `nav_pilot_install_present`
 - `nav_pilot_installed_items`
 - `nav_pilot_staleness_check_total`
 - `nav_pilot_up_to_date`
 - `nav_pilot_version_skew_days`
+
+Metrikkene inkluderer også `execution_context` for å skille organisk bruk fra CI
+(`organic`, `ci_github_actions`, `ci_other`, `unknown`).
 
 `NAV_PILOT_TELEMETRY_ENABLED=0` (eller `off`) deaktiverer telemetry.
 

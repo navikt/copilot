@@ -53,13 +53,18 @@ type otelTelemetry struct {
 	installItemsTotal  metric.Int64Counter
 	syncUpdatesTotal   metric.Int64Counter
 	syncConflictsTotal metric.Int64Counter
+	infoGauge          metric.Int64Gauge
 	installPresent     metric.Int64Gauge
 	installedItems     metric.Int64Gauge
 	stalenessCheck     metric.Int64Counter
 	upToDate           metric.Int64Gauge
 	versionSkewDays    metric.Int64Histogram
 
-	version string
+	version          string
+	device           string
+	executionContext string
+	os               string
+	arch             string
 }
 
 func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, error) {
@@ -73,6 +78,12 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		debugLog("failed to get device ID: %v; continuing without it", err)
 		deviceID = "unknown"
 	}
+	executionContext := detectExecutionContext()
+	version := normalizeTelemetryDimension(cliVersion, "dev")
+	device := normalizeTelemetryDimension(deviceID, "unknown")
+	osName := normalizeTelemetryDimension(runtime.GOOS, "unknown")
+	arch := normalizeTelemetryDimension(runtime.GOARCH, "unknown")
+	execCtx := normalizeTelemetryDimension(executionContext, "unknown")
 
 	endpoint := strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENDPOINT"))
 	if endpoint == "" {
@@ -94,10 +105,11 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 
 	res, err := resource.New(ctx, resource.WithAttributes(
 		attribute.String("service.name", "nav-pilot"),
-		attribute.String("service.version", normalizeTelemetryDimension(cliVersion, "dev")),
-		attribute.String("os", runtime.GOOS),
-		attribute.String("arch", runtime.GOARCH),
-		attribute.String("device_id", deviceID),
+		attribute.String("service.version", version),
+		attribute.String("os", osName),
+		attribute.String("arch", arch),
+		attribute.String("device_id", device),
+		attribute.String("execution_context", execCtx),
 	))
 	if err != nil {
 		return noopTelemetry{}, fmt.Errorf("create telemetry resource: %w", err)
@@ -137,6 +149,10 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 	if err != nil {
 		return noopTelemetry{}, fmt.Errorf("create sync conflicts counter: %w", err)
 	}
+	infoGauge, err := meter.Int64Gauge("nav_pilot_info")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create info gauge: %w", err)
+	}
 	installPresent, err := meter.Int64Gauge("nav_pilot_install_present")
 	if err != nil {
 		return noopTelemetry{}, fmt.Errorf("create install present gauge: %w", err)
@@ -158,7 +174,7 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		return noopTelemetry{}, fmt.Errorf("create version skew days histogram: %w", err)
 	}
 
-	return &otelTelemetry{
+	tel := &otelTelemetry{
 		provider:           provider,
 		commandTotal:       commandTotal,
 		commandDurationMS:  commandDurationMS,
@@ -166,13 +182,21 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		installItemsTotal:  installItemsTotal,
 		syncUpdatesTotal:   syncUpdatesTotal,
 		syncConflictsTotal: syncConflictsTotal,
+		infoGauge:          infoGauge,
 		installPresent:     installPresent,
 		installedItems:     installedItems,
 		stalenessCheck:     stalenessCheck,
 		upToDate:           upToDate,
 		versionSkewDays:    versionSkewDays,
-		version:            normalizeTelemetryDimension(cliVersion, "dev"),
-	}, nil
+		version:            version,
+		device:             device,
+		executionContext:   execCtx,
+		os:                 osName,
+		arch:               arch,
+	}
+	tel.recordInfo()
+
+	return tel, nil
 }
 
 func telemetryEnabled() bool {
@@ -209,6 +233,59 @@ func telemetryResult(err error) string {
 	}
 }
 
+func detectExecutionContext() string {
+	if override := normalizeExecutionContextOverride(os.Getenv("NAV_PILOT_EXECUTION_CONTEXT")); override != "" {
+		return override
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("GITHUB_ACTIONS")), "true") {
+		return "ci_github_actions"
+	}
+	if isGenericCI() {
+		return "ci_other"
+	}
+	return "organic"
+}
+
+func normalizeExecutionContextOverride(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "organic", "ci_github_actions", "ci_other", "unknown":
+		return strings.ToLower(strings.TrimSpace(v))
+	default:
+		return ""
+	}
+}
+
+func isGenericCI() bool {
+	if envTruthy("CI") {
+		return true
+	}
+	for _, key := range []string{"GITLAB_CI", "JENKINS_URL", "BUILDKITE", "CIRCLECI", "TF_BUILD", "BUILD_ID"} {
+		if strings.TrimSpace(os.Getenv(key)) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func envTruthy(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func (t *otelTelemetry) recordInfo() {
+	t.infoGauge.Record(context.Background(), 1, metric.WithAttributes(
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+		attribute.String("os", t.os),
+		attribute.String("arch", t.arch),
+	))
+}
+
 func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, duration time.Duration) {
 	attrs := []attribute.KeyValue{
 		attribute.String("command", normalizeTelemetryDimension(command, "unknown")),
@@ -216,6 +293,7 @@ func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, durat
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("result", normalizeTelemetryDimension(result, "error")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	}
 
 	t.commandTotal.Add(context.Background(), 1, metric.WithAttributes(attrs...))
@@ -227,6 +305,7 @@ func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, durat
 			attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 			attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 			attribute.String("version", t.version),
+			attribute.String("execution_context", t.executionContext),
 		))
 	}
 }
@@ -240,6 +319,7 @@ func (t *otelTelemetry) RecordInstallItems(scope, mode string, count int64) {
 		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -252,6 +332,7 @@ func (t *otelTelemetry) RecordSyncUpdates(scope, mode string, count int64) {
 		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -264,6 +345,7 @@ func (t *otelTelemetry) RecordSyncConflicts(scope, mode string, count int64) {
 		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -276,6 +358,7 @@ func (t *otelTelemetry) RecordInstallPresent(scope, collection string, present b
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("collection", normalizeTelemetryDimension(collection, "other")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -288,6 +371,7 @@ func (t *otelTelemetry) RecordInstalledItems(scope, itemType, status string, cou
 		attribute.String("type", normalizeTelemetryDimension(itemType, "unknown")),
 		attribute.String("status", normalizeTelemetryDimension(status, "active")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -297,6 +381,7 @@ func (t *otelTelemetry) RecordStalenessCheck(component, scope, result string) {
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("result", normalizeTelemetryDimension(result, "error")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -309,6 +394,7 @@ func (t *otelTelemetry) RecordUpToDate(component, scope string, upToDate bool) {
 		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -320,6 +406,7 @@ func (t *otelTelemetry) RecordVersionSkewDays(component, scope string, days int6
 		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
 	))
 }
 
@@ -342,7 +429,10 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"agent", "skill", "instruction", "prompt",
 		"active", "ignored", "conflict",
 		"collection", "cli",
-		"up_to_date", "stale", "lookup_failed", "cooldown", "no_install", "corrupted":
+		"up_to_date", "stale", "lookup_failed", "cooldown", "no_install", "corrupted",
+		"organic", "ci_github_actions", "ci_other",
+		"darwin", "linux", "windows",
+		"amd64", "arm64", "arm", "386":
 		return v
 	default:
 		if strings.Count(v, ".") >= 1 || strings.Count(v, "-") >= 1 {

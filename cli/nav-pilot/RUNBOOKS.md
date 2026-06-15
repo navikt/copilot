@@ -10,17 +10,18 @@ nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/telemetry.go`)
 
 | Metrikk | Type | Datapunkt-dimensjoner |
 |---------|------|-----------------------|
-| `nav_pilot_command_total` | Counter | `command`, `mode`, `scope`, `result`, `version` |
-| `nav_pilot_command_duration_ms` | Histogram | `command`, `mode`, `scope`, `result`, `version` |
-| `nav_pilot_command_error_total` | Counter | `command`, `mode`, `scope`, `version` |
-| `nav_pilot_install_items_total` | Counter | `command`, `mode`, `scope`, `version` |
-| `nav_pilot_sync_updates_total` | Counter | `command`, `mode`, `scope`, `version` |
-| `nav_pilot_sync_conflicts_total` | Counter | `command`, `mode`, `scope`, `version` |
-| `nav_pilot_install_present` | Gauge | `scope`, `collection`, `version` |
-| `nav_pilot_installed_items` | Gauge | `scope`, `type`, `status`, `version` |
-| `nav_pilot_staleness_check_total` | Counter | `component`, `scope`, `result`, `version` |
-| `nav_pilot_up_to_date` | Gauge | `component`, `scope`, `version` |
-| `nav_pilot_version_skew_days` | Histogram | `component`, `scope`, `version` |
+| `nav_pilot_command_total` | Counter | `command`, `mode`, `scope`, `result`, `version`, `execution_context` |
+| `nav_pilot_command_duration_ms` | Histogram | `command`, `mode`, `scope`, `result`, `version`, `execution_context` |
+| `nav_pilot_command_error_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
+| `nav_pilot_install_items_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
+| `nav_pilot_sync_updates_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
+| `nav_pilot_sync_conflicts_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
+| `nav_pilot_info` | Gauge | `version`, `device_id`, `execution_context`, `os`, `arch` |
+| `nav_pilot_install_present` | Gauge | `scope`, `collection`, `version`, `execution_context` |
+| `nav_pilot_installed_items` | Gauge | `scope`, `type`, `status`, `version`, `execution_context` |
+| `nav_pilot_staleness_check_total` | Counter | `component`, `scope`, `result`, `version`, `execution_context` |
+| `nav_pilot_up_to_date` | Gauge | `component`, `scope`, `version`, `execution_context` |
+| `nav_pilot_version_skew_days` | Histogram | `component`, `scope`, `version`, `execution_context` |
 
 Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `device_id`.
 

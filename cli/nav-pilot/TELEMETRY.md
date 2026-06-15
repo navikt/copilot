@@ -4,7 +4,7 @@
 
 ## 1. Hva samles inn?
 
-nav-pilot sender **anonyme bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/HTTP). Ingenting personlig eller kodesensitivt blir logget.
+nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/HTTP). Ingenting personlig eller kodesensitivt blir logget.
 
 | Metrikk | Type | Beskrivelse | Eksempler på dimensjoner |
 |---------|------|-------------|--------------------------|
@@ -14,6 +14,7 @@ nav-pilot sender **anonyme bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/
 | `nav_pilot_install_items_total` | Counter | Antall elementer installert | `command=install`, `scope=repo`, `mode=interactive` |
 | `nav_pilot_sync_updates_total` | Counter | Antall oppdateringer funnet ved sync | `command=sync`, `scope=user` |
 | `nav_pilot_sync_conflicts_total` | Counter | Antall konflikter ved sync | `command=sync`, `scope=repo` |
+| `nav_pilot_info` | Gauge | Prosess-start informasjon (alltid verdi 1) | `version=0.12.3`, `device_id=nav-pilot-abc123`, `execution_context=ci_github_actions`, `os=linux`, `arch=amd64` |
 | `nav_pilot_install_present` | Gauge | Om scope har installert state (1/0) | `scope=user`, `collection=all` |
 | `nav_pilot_installed_items` | Gauge | Antall installerte items per type/status | `scope=repo`, `type=skill`, `status=active` |
 | `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
@@ -31,9 +32,21 @@ nav-pilot sender **anonyme bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/
 - `arch` = `"amd64"`, `"arm64"` etc.
 - `device_id` = pseudonymisert maskin-ID (se under)
 
-I tillegg bærer **alle metrikker** en `version`-dimensjon på selve datapunktet
-(samme verdi som `service.version`). Det betyr at både `device_id` (resource-attributt)
-og versjon er tilgjengelig på all telemetri.
+`execution_context` følger alle løpende metrikker som datapunkt-dimensjon.
+`device_id` ligger på `nav_pilot_info` og som resource-attributt.
+Det betyr at både resource-attributter og datapunkt-dimensjoner kan brukes i spørringer.
+
+**`execution_context`-verdier:**
+- `organic` = vanlig CLI-bruk
+- `ci_github_actions` = kjøring i GitHub Actions
+- `ci_other` = annen CI
+- `unknown` = ikke klassifisert
+
+Klassifisering prioriterer:
+1. `NAV_PILOT_EXECUTION_CONTEXT` (eksplisitt override)
+2. `GITHUB_ACTIONS=true`
+3. generiske CI-signaler (`CI`, `GITLAB_CI`, `JENKINS_URL`, `BUILDKITE`, `CIRCLECI`, `TF_BUILD`, `BUILD_ID`)
+4. fallback `organic`
 
 **Hva sendes IKKE:**
 - ✗ Filstier, reponavn, eller prosjektkontekst
@@ -163,8 +176,8 @@ increase(nav_pilot_command_total[24h]) by (version)
 ### Personvern-garantier
 - ✅ Ingen IP-adresser eller User-Agent
 - ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (SHA256-hash, 12 hex-tegn)
-- ⚠️ `device_id` gir likevel oppløsning per maskin: metrikker kan brytes ned per enhet (pseudonymt),
-  ikke kun som globale aggregater. Den kan ikke knyttes til person/team uten en ekstern mapping.
+- ⚠️ `device_id` gir likevel oppløsning per maskin via `nav_pilot_info` (pseudonymt), ikke kun som globale aggregater.
+  Den kan ikke knyttes til person/team uten en ekstern mapping.
 - ⚠️ Kardinalitet: `device_id` (og `version`) er høy-kardinalitets-etiketter. I en stor pilot kan
   antall tidsserier vokse raskt i Prometheus — vurder å droppe/aggregere `device_id` i collector
   hvis kostnad/kardinalitet blir et problem.
@@ -265,7 +278,7 @@ Ja — se `telemetry.go` i `cli/nav-pilot/` for full liste over metrikker og dim
 Kontakt `@nav-pilot-team` eller lag issue i `navikt/copilot#issues` med tag `telemetry`.
 
 **Brukes telemetri fra CI/CD?**  
-Nei — telemetri er kun interessant for menneskelige brukere. CI-pipelines bør deaktivere det:
+Ja. CI-kjøringer klassifiseres med `execution_context` (for eksempel `ci_github_actions`) slik at dashboards kan skille dem fra organisk CLI-bruk. Du kan fortsatt deaktivere telemetri i pipelines:
 ```yaml
 # .github/workflows/ci.yml
 env:
