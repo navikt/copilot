@@ -226,7 +226,7 @@ Check rate next day
 
 > **⚠️ Ikke implementert.** Det finnes ingen `nav_pilot_error_category_total`-metrikk og ingen
 > feilkategori-dimensjon. `nav_pilot_command_error_total` har kun `command`, `mode`, `scope`,
-> `version`. Tillatelses-/feilkategorisering må legges til før denne alarmen kan brukes.
+> `version`, `execution_context`. Tillatelses-/feilkategorisering må legges til før denne alarmen kan brukes.
 
 **Dette betyr**:
 - Users encountering permission/scope issues

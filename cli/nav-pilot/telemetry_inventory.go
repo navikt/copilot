@@ -94,6 +94,9 @@ func recordFreshness(component, scope string, assessment stalenessAssessment) {
 	case "lookup_failed", "dev", "no_install", "corrupted":
 		return
 	}
+	if assessment.LatestVersion == "" {
+		return
+	}
 
 	telemetry.RecordUpToDate(component, scope, assessment.UpToDate)
 	if assessment.HasSkew {

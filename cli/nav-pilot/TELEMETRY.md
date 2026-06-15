@@ -171,7 +171,8 @@ increase(nav_pilot_command_total[24h]) by (version)
 ### Oppbevaringstid
 - **Råmetrikker (Prometheus)**: 15 dager (default retention)
 - **Aggregerte metrikker (Grafana dashboards)**: Lagret i repo; historikk beholdes på ubestemt tid
-- **Sletting**: Brukere kan slette ved å deaktivere telemetri (se under)
+- **Stopp av innsamling**: Brukere kan stoppe videre innsamling ved å deaktivere telemetri (se under).
+  Allerede sendte data styres av backend-retention.
 
 ### Personvern-garantier
 - ✅ Ingen IP-adresser eller User-Agent som OTel-attributter i metrikksdata (merk: transport/ingress kan likevel se og evt. logge IP).

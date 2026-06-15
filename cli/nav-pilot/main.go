@@ -352,20 +352,23 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s telemetry disabled: %v\n", yellow("⚠"), err)
 	}
 	telemetry = tel
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		_ = telemetry.Shutdown(ctx)
-	}()
 
+	exitCode := 0
 	if err := run(os.Args[1:]); err != nil {
 		if err == errUpdatesAvailable {
-			os.Exit(1)
+			exitCode = 1
+		} else if err == errSyncFailed {
+			exitCode = 2
+		} else {
+			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
+			exitCode = 1
 		}
-		if err == errSyncFailed {
-			os.Exit(2)
-		}
-		fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
-		os.Exit(1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = telemetry.Shutdown(ctx)
+	if exitCode != 0 {
+		os.Exit(exitCode)
 	}
 }
