@@ -2,6 +2,13 @@
   "description": "Integrer, konfigurer og bidra til Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
   "domain": "frontend",
   "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],
+  "examples": [
+    "Integrer Nav Dekoratøren i en Next.js App Router-app med SSR i app/layout.tsx",
+    "Sett opp breadcrumbs og språkvelger med handleInApp i en React/Remix-app",
+    "Konfigurer samtykkevennlig lagring med awaitDecoratorData og navLocalStorage",
+    "Bygg CSP-header med buildCspHeader for prod-miljø på Nais",
+    "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy"
+  ],
   "references": [
     "references/params.md",
     "references/ssr-functions.md",
