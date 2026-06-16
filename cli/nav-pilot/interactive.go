@@ -683,7 +683,7 @@ func copilotAgentArgs(agent string) []string {
 }
 
 // copilotAgentPersona is the Copilot CLI custom-agent persona that loads
-// Nav's instructions and context. This is distinct from resolved.Agent,
+// Nav's instructions and context. This is distinct from resolved.Client,
 // which selects the launcher (copilot vs opencode vs pi).
 const copilotAgentPersona = "nav-pilot"
 
@@ -695,8 +695,8 @@ const copilotAgentPersona = "nav-pilot"
 // agent on PATH (e.g. opencode) is never picked, then forward the copilot
 // persona + flags after the "--" separator.
 //
-// Note: the forwarded --agent is always the nav-pilot persona; resolved.Agent
-// selects the launcher and is consumed by launchAgent before reaching here.
+// Note: the forwarded --agent is always the nav-pilot persona; resolved.Client
+// selects the launcher and is consumed by launchClient before reaching here.
 func buildCopilotArgs(cliName string, resolved ResolvedConfig) []string {
 	var args []string
 	args = append(args, "--agent", copilotAgentPersona)
@@ -754,8 +754,8 @@ func launchCopilotResolved(resolved ResolvedConfig) error {
 	return nil
 }
 
-func launchAgent(resolved ResolvedConfig) error {
-	switch resolved.Agent {
+func launchClient(resolved ResolvedConfig) error {
+	switch resolved.Client {
 	case "opencode":
 		return launchOpenCode(resolved)
 	case "pi":
@@ -768,7 +768,7 @@ func launchAgent(resolved ResolvedConfig) error {
 // offerLaunchCopilot prompts the user to launch the configured agent after install.
 func offerLaunchCopilot(resolved ResolvedConfig) {
 	cliPath, cliName := findCopilotCLI()
-	if resolved.Agent == "copilot" && cliPath == "" {
+	if resolved.Client == "copilot" && cliPath == "" {
 		return
 	}
 	if !isInteractive() {
@@ -776,10 +776,10 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	}
 
 	displayName := cliDisplayName(cliName)
-	if resolved.Agent == "opencode" {
+	if resolved.Client == "opencode" {
 		displayName = "opencode"
 	}
-	if resolved.Agent == "pi" {
+	if resolved.Client == "pi" {
 		displayName = "pi"
 	}
 
@@ -799,7 +799,7 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	}
 	fmt.Println()
 	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchAgent(resolved)
+		return launchClient(resolved)
 	})
 }
 
@@ -808,7 +808,7 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	_ = agents
 	cliPath, cliName := findCopilotCLI()
-	if resolved.Agent == "copilot" && cliPath == "" {
+	if resolved.Client == "copilot" && cliPath == "" {
 		return
 	}
 	if !isInteractive() {
@@ -816,10 +816,10 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	}
 
 	displayName := cliDisplayName(cliName)
-	if resolved.Agent == "opencode" {
+	if resolved.Client == "opencode" {
 		displayName = "opencode"
 	}
-	if resolved.Agent == "pi" {
+	if resolved.Client == "pi" {
 		displayName = "pi"
 	}
 
@@ -840,7 +840,7 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 
 	fmt.Println()
 	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchAgent(resolved)
+		return launchClient(resolved)
 	})
 }
 

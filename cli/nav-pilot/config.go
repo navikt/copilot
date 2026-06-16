@@ -16,7 +16,7 @@ import (
 // enabling correct per-field precedence in resolve().
 type Config struct {
 	Version         int     `toml:"version"`
-	Agent           *string `toml:"agent"`
+	Client          *string `toml:"client"`
 	Model           *string `toml:"model"`
 	Mode            *string `toml:"mode"`
 	ReasoningEffort *string `toml:"reasoning_effort"`
@@ -30,7 +30,7 @@ type Config struct {
 // ResolvedConfig holds the final configuration after applying precedence:
 // CLI flag > file value > built-in default.
 type ResolvedConfig struct {
-	Agent           string
+	Client          string
 	Model           string // empty = use agent default
 	Mode            string
 	ReasoningEffort string // empty = unset
@@ -43,7 +43,7 @@ type ResolvedConfig struct {
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
 type CLIOverrides struct {
-	Agent           string
+	Client          string
 	Model           string
 	Mode            string
 	ReasoningEffort string
@@ -55,7 +55,7 @@ type CLIOverrides struct {
 }
 
 var (
-	validAgents          = []string{"copilot", "opencode", "pi"}
+	validClients         = []string{"copilot", "opencode", "pi"}
 	validModes           = []string{"default", "plan", "autopilot"}
 	validReasoningEffort = []string{"none", "low", "medium", "high", "xhigh", "max"}
 	validContextTiers    = []string{"default", "long_context"}
@@ -142,7 +142,7 @@ func readConfig() (*Config, error) {
 }
 
 // readConfigWithMeta reads and parses the config file, returning TOML metadata.
-// MetaData.Undecoded() is used by cmdConfigValidate to detect unknown keys.
+// MetaData.Undecoded() is used to detect unknown keys (hard error on launch).
 // Returns (nil, zero-meta, nil) if the file does not exist.
 func readConfigWithMeta() (*Config, toml.MetaData, error) {
 	path := configPath()
@@ -173,9 +173,9 @@ func validateConfigProblems(cfg *Config) []string {
 	if cfg.Version != 1 {
 		problems = append(problems, fmt.Sprintf("version must be 1 (got %d)", cfg.Version))
 	}
-	if cfg.Agent != nil && !containsStr(validAgents, *cfg.Agent) {
-		problems = append(problems, fmt.Sprintf("agent %q is not valid (allowed: %s)",
-			*cfg.Agent, strings.Join(validAgents, ", ")))
+	if cfg.Client != nil && !containsStr(validClients, *cfg.Client) {
+		problems = append(problems, fmt.Sprintf("client %q is not valid (allowed: %s)",
+			*cfg.Client, strings.Join(validClients, ", ")))
 	}
 	if cfg.Model != nil {
 		if err := validateModelValue(*cfg.Model); err != nil {
@@ -238,24 +238,21 @@ func knownCopilotModelIDs() string {
 	return strings.Join(ids, ", ")
 }
 
-// configAdvisories returns non-fatal warnings for a parsed config: unknown TOML
-// keys (likely typos that are silently ignored) and Copilot model ids that are
-// well-formed but not in the curated catalog (likely typos like "sonnet").
-// These do not block launch — they are printed so the user can fix them.
+// configAdvisories returns non-fatal warnings for a parsed config.
+// Currently only flags Copilot model ids that are well-formed but not in the
+// curated catalog (e.g. "sonnet" when the user likely meant "claude-sonnet-4.6").
+// Unknown TOML keys are handled as hard errors in loadConfigForLaunch, not here.
 func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 	if cfg == nil {
 		return nil
 	}
 	var warnings []string
-	for _, key := range meta.Undecoded() {
-		warnings = append(warnings, fmt.Sprintf("unknown config key %q (ignored)", strings.Join(key, ".")))
-	}
 	if cfg.Model != nil {
-		agent := "copilot"
-		if cfg.Agent != nil {
-			agent = *cfg.Agent
+		client := "copilot"
+		if cfg.Client != nil {
+			client = *cfg.Client
 		}
-		if agent == "copilot" && validateModelValue(*cfg.Model) == nil && !isKnownCopilotModel(*cfg.Model) {
+		if client == "copilot" && validateModelValue(*cfg.Model) == nil && !isKnownCopilotModel(*cfg.Model) {
 			warnings = append(warnings, fmt.Sprintf(
 				"model %q is not a recognized Copilot model id; it will be sent as-is and may be rejected by the server (known ids: %s)",
 				*cfg.Model, knownCopilotModelIDs()))
@@ -265,10 +262,10 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 }
 
 // loadConfigForLaunch reads, validates, and resolves the user config ahead of a
-// launch. Hard validation errors (invalid enum values, wrong version, malformed
-// model) cause it to refuse with an error so nav-pilot does not start with a
-// broken config. Non-fatal advisories (unknown keys, unrecognized model ids)
-// are printed to stderr but do not block the launch.
+// launch. Hard validation errors (unknown keys, invalid enum values, wrong version,
+// malformed model) cause it to refuse with an error so nav-pilot does not start
+// with a broken config. Non-fatal advisories (unrecognized model ids) are printed
+// to stderr but do not block the launch.
 func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 	file, meta, err := readConfigWithMeta()
 	if err != nil {
@@ -276,6 +273,16 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 	}
 	if err := validateConfig(file); err != nil {
 		return ResolvedConfig{}, fmt.Errorf("%w\n\nFix %s or run `nav-pilot config setup`", err, configPath())
+	}
+	// Unknown keys are a hard error: a stray key (e.g. `agent = "..."`) would
+	// otherwise be silently ignored, masking intent.
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		var keys []string
+		for _, k := range undecoded {
+			keys = append(keys, strings.Join(k, "."))
+		}
+		return ResolvedConfig{}, fmt.Errorf("config has unknown key(s): %s\n\nFix %s or run `nav-pilot config setup`",
+			strings.Join(keys, ", "), configPath())
 	}
 	for _, w := range configAdvisories(file, meta) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
@@ -287,7 +294,7 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	r := ResolvedConfig{
-		Agent:        "copilot",
+		Client:       "copilot",
 		Mode:         "default",
 		AskUser:      true,
 		OtelLogLevel: "none",
@@ -295,8 +302,8 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 
 	// Apply file values.
 	if file != nil {
-		if file.Agent != nil {
-			r.Agent = *file.Agent
+		if file.Client != nil {
+			r.Client = *file.Client
 		}
 		if file.Model != nil {
 			r.Model = *file.Model
@@ -325,8 +332,8 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 
 	// Apply CLI overrides (higher precedence than file).
-	if cli.Agent != "" {
-		r.Agent = cli.Agent
+	if cli.Client != "" {
+		r.Client = cli.Client
 	}
 	if cli.Model != "" {
 		r.Model = cli.Model

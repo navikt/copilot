@@ -129,12 +129,14 @@ func run(args []string) error {
 		var cleanArgs []string
 		for i := 0; i < len(args); i++ {
 			switch args[i] {
-			case "--agent":
+			case "--client":
 				if i+1 >= len(args) {
-					return fmt.Errorf("--agent requires a value")
+					return fmt.Errorf("--client requires a value")
 				}
 				i++
-				cliOverrides.Agent = args[i]
+				cliOverrides.Client = args[i]
+			case "--agent":
+				return fmt.Errorf("--agent is no longer a nav-pilot flag; use --client to choose the coding-agent CLI (copilot, opencode, pi) — the downstream copilot --agent persona is unaffected")
 			case "--model":
 				if i+1 >= len(args) {
 					return fmt.Errorf("--model requires a value")
@@ -213,8 +215,8 @@ func run(args []string) error {
 		args = cleanArgs
 	}
 
-	if cliOverrides.Agent != "" && !containsStr(validAgents, cliOverrides.Agent) {
-		return fmt.Errorf("--agent %q is not valid (allowed: copilot, opencode, pi)", cliOverrides.Agent)
+	if cliOverrides.Client != "" && !containsStr(validClients, cliOverrides.Client) {
+		return fmt.Errorf("--client %q is not valid (allowed: copilot, opencode, pi)", cliOverrides.Client)
 	}
 
 	if len(args) < 1 {
@@ -244,7 +246,7 @@ func run(args []string) error {
 			return cfgErr
 		}
 		launchErr := runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
-			return launchAgent(resolved)
+			return launchClient(resolved)
 		})
 		return launchErr
 	}

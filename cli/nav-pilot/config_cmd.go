@@ -40,12 +40,12 @@ var configKeyDefs = []configKeyDef{
 		flag:        "",
 	},
 	{
-		name:        "agent",
+		name:        "client",
 		kind:        keyKindString,
-		description: "AI agent for Copilot Chat dispatch.",
-		allowed:     validAgents,
+		description: "Coding-agent CLI to launch (copilot, opencode, pi).",
+		allowed:     validClients,
 		defaultVal:  "copilot",
-		flag:        "--agent",
+		flag:        "--client",
 	},
 	{
 		name:        "model",
@@ -140,10 +140,9 @@ const configInitTemplate = `# nav-pilot configuration
 # Configuration schema version. Must be 1.
 version = 1
 
-# AI agent for Copilot Chat dispatch.
+# Coding-agent CLI nav-pilot launches.
 # Allowed: copilot, opencode, pi — Default: copilot
-# Corresponds to Copilot CLI flag: --agent
-# agent = "copilot"
+# client = "copilot"
 
 # Model id. Common Copilot models: auto, claude-sonnet-4.6, claude-haiku-4.5,
 # claude-opus-4.8, claude-opus-4.6, gpt-5.5, gpt-5.4, gpt-5.3-codex,
@@ -269,7 +268,7 @@ func cmdConfigShow(jsonOutput bool) error {
 
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
-			"agent":            resolved.Agent,
+			"client":           resolved.Client,
 			"model":            resolved.Model,
 			"mode":             resolved.Mode,
 			"reasoning_effort": resolved.ReasoningEffort,
@@ -299,11 +298,11 @@ func cmdConfigShow(jsonOutput bool) error {
 		fmt.Printf("  %-20s = %-20s (%s)\n", key, strconv.FormatBool(val), src)
 	}
 
-	agentSrc := "default"
-	if cfg != nil && cfg.Agent != nil {
-		agentSrc = "file"
+	clientSrc := "default"
+	if cfg != nil && cfg.Client != nil {
+		clientSrc = "file"
 	}
-	printField("agent", resolved.Agent, agentSrc)
+	printField("client", resolved.Client, clientSrc)
 
 	modelSrc := "unset"
 	if cfg != nil && cfg.Model != nil {
@@ -387,8 +386,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 	switch key {
 	case "version":
 		return "1" // version is always 1 when valid
-	case "agent":
-		return r.Agent
+	case "client":
+		return r.Client
 	case "model":
 		return r.Model
 	case "mode":

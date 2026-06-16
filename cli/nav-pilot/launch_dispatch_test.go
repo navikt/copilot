@@ -22,22 +22,22 @@ func TestLaunchPi_ErrorMentionsPi(t *testing.T) {
 	}
 }
 
-// ─── launchAgent ──────────────────────────────────────────────────────────────
+// ─── launchClient ─────────────────────────────────────────────────────────────
 
-func TestLaunchAgent_Pi(t *testing.T) {
-	err := launchAgent(ResolvedConfig{Agent: "pi"})
+func TestLaunchClient_Pi(t *testing.T) {
+	err := launchClient(ResolvedConfig{Client: "pi"})
 	if err == nil {
-		t.Fatal("launchAgent({Agent:\"pi\"}) must return a non-nil error")
+		t.Fatal("launchClient({Client:\"pi\"}) must return a non-nil error")
 	}
 }
 
-func TestLaunchAgent_OpenCodeNotInPath(t *testing.T) {
+func TestLaunchClient_OpenCodeNotInPath(t *testing.T) {
 	// Point PATH to an empty temp dir so exec.LookPath("opencode") fails.
 	t.Setenv("PATH", t.TempDir())
 
-	err := launchAgent(ResolvedConfig{Agent: "opencode", Mode: "default"})
+	err := launchClient(ResolvedConfig{Client: "opencode", Mode: "default"})
 	if err == nil {
-		t.Fatal("launchAgent(opencode) must return error when opencode is not in PATH")
+		t.Fatal("launchClient(opencode) must return error when opencode is not in PATH")
 	}
 	if !strings.Contains(err.Error(), "opencode") {
 		t.Errorf("expected 'opencode' in error message, got: %v", err)

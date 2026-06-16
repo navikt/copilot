@@ -14,7 +14,7 @@ import (
 // setupAnswers holds the answers collected by the first-run config wizard.
 // Model and ReasoningEffort are empty string when the user chose to leave them unset.
 type setupAnswers struct {
-	Agent           string
+	Client          string
 	Model           string // empty = don't write the key
 	Mode            string
 	ReasoningEffort string // empty = don't write the key
@@ -25,8 +25,8 @@ type setupAnswers struct {
 // with what 'config set' would produce.
 // The config is validated before writing; an error is returned if it is invalid.
 func writeSetupConfig(answers setupAnswers) error {
-	if answers.Agent == "" {
-		answers.Agent = "copilot"
+	if answers.Client == "" {
+		answers.Client = "copilot"
 	}
 	if answers.Mode == "" {
 		answers.Mode = "default"
@@ -43,8 +43,8 @@ func writeSetupConfig(answers setupAnswers) error {
 		"",
 	)
 
-	agentVal, _ := formatTOMLValue(findKeyDef("agent"), answers.Agent)
-	lines = append(lines, "agent = "+agentVal)
+	clientVal, _ := formatTOMLValue(findKeyDef("client"), answers.Client)
+	lines = append(lines, "client = "+clientVal)
 
 	modeVal, _ := formatTOMLValue(findKeyDef("mode"), answers.Mode)
 	lines = append(lines, "mode = "+modeVal)
@@ -89,8 +89,8 @@ func runConfigSetup() error {
 	fmt.Println()
 
 	answers := setupAnswers{
-		Agent: "copilot",
-		Mode:  "default",
+		Client: "copilot",
+		Mode:   "default",
 	}
 
 	err := huh.NewSelect[string]().
@@ -100,7 +100,7 @@ func runConfigSetup() error {
 			huh.NewOption("OpenCode", "opencode"),
 			huh.NewOption("π (pi)", "pi"),
 		).
-		Value(&answers.Agent).
+		Value(&answers.Client).
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
@@ -123,7 +123,7 @@ func runConfigSetup() error {
 		return nil
 	}
 
-	if answers.Agent == "copilot" {
+	if answers.Client == "copilot" {
 		const customModelSentinel = "\x00custom"
 		modelOpts := []huh.Option[string]{
 			huh.NewOption("Unset (agent default)", ""),
@@ -207,7 +207,7 @@ func runConfigSetup() error {
 	fmt.Println("  Change settings anytime:")
 	fmt.Printf("    %s\n", dim("nav-pilot config set <key> <value>"))
 	fmt.Printf("    %s\n", dim("edit "+path+" directly"))
-	fmt.Printf("    %s\n", dim("pass CLI flags per run (e.g. --agent opencode)"))
+	fmt.Printf("    %s\n", dim("pass CLI flags per run (e.g. --client opencode)"))
 	fmt.Println()
 
 	return nil

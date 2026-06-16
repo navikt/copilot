@@ -14,7 +14,7 @@ func TestWriteSetupConfig_AllFields(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
 	answers := setupAnswers{
-		Agent:           "opencode",
+		Client:          "opencode",
 		Mode:            "plan",
 		Model:           "gpt-4o",
 		ReasoningEffort: "high",
@@ -31,7 +31,7 @@ func TestWriteSetupConfig_AllFields(t *testing.T) {
 
 	for _, want := range []string{
 		"version = 1",
-		`agent = "opencode"`,
+		`client = "opencode"`,
 		`mode = "plan"`,
 		`model = "gpt-4o"`,
 		`reasoning_effort = "high"`,
@@ -47,8 +47,8 @@ func TestWriteSetupConfig_MinimalFields(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
 	answers := setupAnswers{
-		Agent: "pi",
-		Mode:  "autopilot",
+		Client: "pi",
+		Mode:   "autopilot",
 		// Model and ReasoningEffort intentionally empty
 	}
 	if err := writeSetupConfig(answers); err != nil {
@@ -60,7 +60,7 @@ func TestWriteSetupConfig_MinimalFields(t *testing.T) {
 
 	for _, want := range []string{
 		"version = 1",
-		`agent = "pi"`,
+		`client = "pi"`,
 		`mode = "autopilot"`,
 	} {
 		if !strings.Contains(content, want) {
@@ -73,7 +73,7 @@ func TestWriteSetupConfig_EmptyModelSkipped(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	answers := setupAnswers{Agent: "copilot", Mode: "default", Model: ""}
+	answers := setupAnswers{Client: "copilot", Mode: "default", Model: ""}
 	if err := writeSetupConfig(answers); err != nil {
 		t.Fatalf("writeSetupConfig() error: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestWriteSetupConfig_EmptyEffortSkipped(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	answers := setupAnswers{Agent: "copilot", Mode: "default", ReasoningEffort: ""}
+	answers := setupAnswers{Client: "copilot", Mode: "default", ReasoningEffort: ""}
 	if err := writeSetupConfig(answers); err != nil {
 		t.Fatalf("writeSetupConfig() error: %v", err)
 	}
@@ -113,8 +113,8 @@ func TestWriteSetupConfig_DefaultsApplied(t *testing.T) {
 
 	data, _ := os.ReadFile(configPath())
 	content := string(data)
-	if !strings.Contains(content, `agent = "copilot"`) {
-		t.Errorf("expected default agent=copilot, got:\n%s", content)
+	if !strings.Contains(content, `client = "copilot"`) {
+		t.Errorf("expected default client=copilot, got:\n%s", content)
 	}
 	if !strings.Contains(content, `mode = "default"`) {
 		t.Errorf("expected default mode=default, got:\n%s", content)
@@ -126,9 +126,9 @@ func TestWriteSetupConfig_ProducesValidConfig(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
 	for _, answers := range []setupAnswers{
-		{Agent: "copilot", Mode: "default"},
-		{Agent: "opencode", Mode: "plan", Model: "gpt-4o", ReasoningEffort: "high"},
-		{Agent: "pi", Mode: "autopilot", ReasoningEffort: "max"},
+		{Client: "copilot", Mode: "default"},
+		{Client: "opencode", Mode: "plan", Model: "gpt-4o", ReasoningEffort: "high"},
+		{Client: "pi", Mode: "autopilot", ReasoningEffort: "max"},
 	} {
 		// Remove config from previous iteration.
 		os.Remove(configPath())
@@ -150,15 +150,15 @@ func TestWriteSetupConfig_ProducesValidConfig(t *testing.T) {
 	}
 }
 
-func TestWriteSetupConfig_AllValidAgents(t *testing.T) {
-	for _, agent := range validAgents {
+func TestWriteSetupConfig_AllValidClients(t *testing.T) {
+	for _, agent := range validClients {
 		t.Run(agent, func(t *testing.T) {
 			dir := t.TempDir()
 			t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-			err := writeSetupConfig(setupAnswers{Agent: agent, Mode: "default"})
+			err := writeSetupConfig(setupAnswers{Client: agent, Mode: "default"})
 			if err != nil {
-				t.Errorf("writeSetupConfig(agent=%q) error: %v", agent, err)
+				t.Errorf("writeSetupConfig(client=%q) error: %v", agent, err)
 			}
 		})
 	}
@@ -171,7 +171,7 @@ func TestWriteSetupConfig_AllValidEfforts(t *testing.T) {
 			t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
 			err := writeSetupConfig(setupAnswers{
-				Agent:           "copilot",
+				Client:          "copilot",
 				Mode:            "default",
 				ReasoningEffort: effort,
 			})

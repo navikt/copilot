@@ -104,7 +104,7 @@ func TestCmdConfig_SetNoArgs(t *testing.T) {
 func TestCmdConfig_SetOneArg(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
-	if err := cmdConfig([]string{"set", "agent"}, false); err == nil {
+	if err := cmdConfig([]string{"set", "client"}, false); err == nil {
 		t.Error("expected error for 'set' with only one argument (missing value)")
 	}
 }
@@ -127,13 +127,13 @@ func TestCmdConfigShow_NoFile(t *testing.T) {
 	if !strings.Contains(out, "not found") {
 		t.Errorf("expected 'not found' in output when config file absent, got: %q", out)
 	}
-	if !strings.Contains(out, "agent") {
-		t.Errorf("expected 'agent' key listed in output, got: %q", out)
+	if !strings.Contains(out, "client") {
+		t.Errorf("expected 'client' key listed in output, got: %q", out)
 	}
 }
 
 func TestCmdConfigShow_WithFile(t *testing.T) {
-	path := writeTempConfig(t, "version = 1\nagent = \"opencode\"\n")
+	path := writeTempConfig(t, "version = 1\nclient = \"opencode\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
 	var out string
@@ -154,7 +154,7 @@ func TestCmdConfigShow_WithFile(t *testing.T) {
 }
 
 func TestCmdConfigShow_JSON(t *testing.T) {
-	path := writeTempConfig(t, "version = 1\nagent = \"opencode\"\nmode = \"plan\"\n")
+	path := writeTempConfig(t, "version = 1\nclient = \"opencode\"\nmode = \"plan\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
 	var out string
@@ -166,7 +166,7 @@ func TestCmdConfigShow_JSON(t *testing.T) {
 	if showErr != nil {
 		t.Fatalf("cmdConfigShow(true) returned unexpected error: %v", showErr)
 	}
-	for _, want := range []string{`"agent"`, `"model"`, `"mode"`, "opencode", "plan"} {
+	for _, want := range []string{`"client"`, `"model"`, `"mode"`, "opencode", "plan"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in JSON output, got: %q", want, out)
 		}
@@ -225,7 +225,7 @@ func TestCmdConfigExplain_AllKeys(t *testing.T) {
 	if explainErr != nil {
 		t.Fatalf("cmdConfigExplain(\"\") returned error: %v", explainErr)
 	}
-	for _, key := range []string{"agent", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level", "otel_log_level", "version"} {
+	for _, key := range []string{"client", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level", "otel_log_level", "version"} {
 		if !strings.Contains(out, key) {
 			t.Errorf("expected key %q in all-keys explain output", key)
 		}
@@ -252,21 +252,21 @@ func TestCmdConfigExplain_SingleKeyModel(t *testing.T) {
 	}
 }
 
-func TestCmdConfigExplain_SingleKeyAgent(t *testing.T) {
+func TestCmdConfigExplain_SingleKeyClient(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
 	var out string
 	var explainErr error
 	out = captureStdout(func() {
-		explainErr = cmdConfigExplain("agent")
+		explainErr = cmdConfigExplain("client")
 	})
 
 	if explainErr != nil {
-		t.Fatalf("cmdConfigExplain(\"agent\") returned error: %v", explainErr)
+		t.Fatalf("cmdConfigExplain(\"client\") returned error: %v", explainErr)
 	}
 	if !strings.Contains(out, "copilot") {
-		t.Errorf("expected 'copilot' in agent explain output, got: %q", out)
+		t.Errorf("expected 'copilot' in client explain output, got: %q", out)
 	}
 }
 
@@ -315,8 +315,7 @@ func TestCmdConfigShow_JSON_OtelLogLevel_DefaultNone(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	var out string
-	out = captureStdout(func() {
+	out := captureStdout(func() {
 		if err := cmdConfigShow(true); err != nil {
 			t.Fatalf("cmdConfigShow(true) returned unexpected error: %v", err)
 		}
@@ -354,7 +353,7 @@ func TestCmdConfigSet_PermsTightenedOnPreExistingFile(t *testing.T) {
 		t.Fatalf("chmod: %v", err)
 	}
 
-	if err := cmdConfigSet("agent", "opencode"); err != nil {
+	if err := cmdConfigSet("client", "opencode"); err != nil {
 		t.Fatalf("cmdConfigSet: %v", err)
 	}
 

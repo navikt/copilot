@@ -47,7 +47,7 @@ Files:
 | TOML key | Type | Default | CLI flag |
 |---|---|---|---|
 | `version` | int | (required) | — |
-| `agent` | string | `copilot` | `--agent` |
+| `client` | string | `copilot` | `--client` |
 | `model` | string | unset | `--model` |
 | `mode` | string | `default` | `--mode` |
 | `reasoning_effort` | string | unset | `--effort` |
@@ -62,7 +62,7 @@ Files:
 All launch-override flags are global and processed BEFORE command dispatch. They apply only to the interactive flow and `--sync` launch:
 
 ```bash
-nav-pilot --agent opencode          # Use opencode for this run
+nav-pilot --client opencode         # Use opencode for this run
 nav-pilot --model gpt-4o            # Override model
 nav-pilot --mode plan               # Run in plan mode
 nav-pilot --effort high             # Set reasoning effort
@@ -92,7 +92,7 @@ model` lists the common ids.
 launch (both the interactive flow and `--sync`):
 
 - **Refuses to start** on hard-invalid config — an unknown `version`, an invalid
-  enum value (`agent`, `mode`, `reasoning_effort`, `context_tier`, `log_level`),
+  enum value (`client`, `mode`, `reasoning_effort`, `context_tier`, `log_level`),
   or a malformed `model` identifier. It prints every problem via `validateConfig`
   and points the user at `nav-pilot config setup`.
 - **Warns (non-fatal)** on advisory issues via `configAdvisories`, printed to
@@ -108,16 +108,20 @@ The standalone `nav-pilot config validate` command performs the same checks
 
 ### Agent dispatch
 
-`launchAgent(resolved ResolvedConfig)` dispatches by `resolved.Agent`:
+`launchClient(resolved ResolvedConfig)` dispatches by `resolved.Client`:
 - `copilot` (default) → `launchCopilotResolved` using `cplt`/`copilot` CLI
 - `opencode` → `launchOpenCode` in `opencode_launch.go`
 - `pi` → error stub (not yet implemented)
 
-nav-pilot curates a deliberately small `agent` allowlist (`copilot`, `opencode`,
+nav-pilot curates a deliberately small `client` allowlist (`copilot`, `opencode`,
 `pi`). The `cplt` sandbox wrapper itself supports a broader set
 (`copilot, opencode, gemini, antigravity, pi, shell`), but nav-pilot only
-exposes agents it has a verified launch path for. `gemini`/`antigravity`/`shell`
+exposes clients it has a verified launch path for. `gemini`/`antigravity`/`shell`
 are intentionally not wired yet.
+
+> **Legacy compatibility:** Existing config files using `agent = "..."` are still
+> accepted and silently mapped to the `client` field. A deprecation advisory is
+> printed at launch; rename the key to `client` to suppress it.
 
 **cplt agent pinning:** `cplt`'s own `--agent` selects which agent to sandbox,
 falling back to auto-detect from PATH when omitted. Since the copilot path always

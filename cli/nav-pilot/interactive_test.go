@@ -522,32 +522,32 @@ func TestBuildCopilotArgs(t *testing.T) {
 		{
 			name:     "cplt pins copilot sandbox agent and emits nav-pilot persona",
 			cliName:  "cplt",
-			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			resolved: ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
 			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "copilot always emits nav-pilot persona",
 			cliName:  "copilot",
-			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			resolved: ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
 			want:     []string{"--agent", "nav-pilot"},
 		},
 		{
-			name:     "resolved.Agent=copilot still emits --agent nav-pilot (not --agent copilot)",
+			name:     "resolved.Client=copilot still emits --agent nav-pilot (not --agent copilot)",
 			cliName:  "copilot",
-			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			resolved: ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
 			want:     []string{"--agent", "nav-pilot"},
 		},
 		{
 			name:     "copilot with model and mode",
 			cliName:  "copilot",
-			resolved: ResolvedConfig{Agent: "copilot", Model: "gpt-4o", Mode: "plan", AskUser: true},
+			resolved: ResolvedConfig{Client: "copilot", Model: "gpt-4o", Mode: "plan", AskUser: true},
 			want:     []string{"--agent", "nav-pilot", "--model", "gpt-4o", "--mode", "plan"},
 		},
 		{
 			name:    "cplt with all flags",
 			cliName: "cplt",
 			resolved: ResolvedConfig{
-				Agent:           "copilot",
+				Client:          "copilot",
 				Model:           "gpt-4o",
 				Mode:            "plan",
 				ReasoningEffort: "high",
@@ -563,19 +563,19 @@ func TestBuildCopilotArgs(t *testing.T) {
 		{
 			name:     "copilot with allow-all-tools and no-ask-user",
 			cliName:  "copilot",
-			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AllowAllTools: true, AskUser: false},
+			resolved: ResolvedConfig{Client: "copilot", Mode: "default", AllowAllTools: true, AskUser: false},
 			want:     []string{"--agent", "nav-pilot", "--allow-all-tools", "--no-ask-user"},
 		},
 		{
 			name:     "default mode not emitted",
 			cliName:  "copilot",
-			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", AskUser: true},
+			resolved: ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
 			want:     []string{"--agent", "nav-pilot"},
 		},
 		{
 			name:     "default context not emitted",
 			cliName:  "copilot",
-			resolved: ResolvedConfig{Agent: "copilot", Mode: "default", ContextTier: "default", AskUser: true},
+			resolved: ResolvedConfig{Client: "copilot", Mode: "default", ContextTier: "default", AskUser: true},
 			want:     []string{"--agent", "nav-pilot"},
 		},
 	}

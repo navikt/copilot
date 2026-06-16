@@ -73,7 +73,7 @@ func TestReadConfig_ValidMinimal(t *testing.T) {
 func TestReadConfig_AllFields(t *testing.T) {
 	path := writeTempConfig(t, `
 version = 1
-agent = "opencode"
+client = "opencode"
 model = "gpt-4"
 mode = "plan"
 reasoning_effort = "high"
@@ -92,7 +92,7 @@ log_level = "debug"
 		t.Fatal("expected non-nil config")
 	}
 
-	assertStrPtr(t, "agent", cfg.Agent, "opencode")
+	assertStrPtr(t, "client", cfg.Client, "opencode")
 	assertStrPtr(t, "model", cfg.Model, "gpt-4")
 	assertStrPtr(t, "mode", cfg.Mode, "plan")
 	assertStrPtr(t, "reasoning_effort", cfg.ReasoningEffort, "high")
@@ -136,7 +136,7 @@ func TestValidateConfig_ValidVersion(t *testing.T) {
 	}
 }
 
-func TestValidateConfig_UnknownAgent(t *testing.T) {
+func TestValidateConfig_UnknownClient(t *testing.T) {
 	tests := []struct {
 		agent string
 		valid bool
@@ -151,13 +151,13 @@ func TestValidateConfig_UnknownAgent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.agent, func(t *testing.T) {
 			s := tt.agent
-			cfg := &Config{Version: 1, Agent: &s}
+			cfg := &Config{Version: 1, Client: &s}
 			err := validateConfig(cfg)
 			if tt.valid && err != nil {
-				t.Errorf("expected valid agent %q, got error: %v", tt.agent, err)
+				t.Errorf("expected valid client %q, got error: %v", tt.agent, err)
 			}
 			if !tt.valid && err == nil {
-				t.Errorf("expected error for agent %q, got nil", tt.agent)
+				t.Errorf("expected error for client %q, got nil", tt.agent)
 			}
 		})
 	}
@@ -293,9 +293,9 @@ func TestValidateConfig_ModelFormatValidation(t *testing.T) {
 }
 
 func TestValidateConfig_MultipleErrors(t *testing.T) {
-	badAgent := "cursor"
+	badClient := "cursor"
 	badMode := "interactive"
-	cfg := &Config{Version: 2, Agent: &badAgent, Mode: &badMode}
+	cfg := &Config{Version: 2, Client: &badClient, Mode: &badMode}
 	err := validateConfig(cfg)
 	if err == nil {
 		t.Fatal("expected error")
@@ -304,8 +304,8 @@ func TestValidateConfig_MultipleErrors(t *testing.T) {
 	if !strings.Contains(msg, "version") {
 		t.Errorf("error should mention version, got: %s", msg)
 	}
-	if !strings.Contains(msg, "agent") {
-		t.Errorf("error should mention agent, got: %s", msg)
+	if !strings.Contains(msg, "client") {
+		t.Errorf("error should mention client, got: %s", msg)
 	}
 	if !strings.Contains(msg, "mode") {
 		t.Errorf("error should mention mode, got: %s", msg)
@@ -321,12 +321,12 @@ func TestValidateConfigProblems_NilConfig(t *testing.T) {
 }
 
 func TestValidateConfigProblems_MultipleProblems(t *testing.T) {
-	badAgent := "cursor"
+	badClient := "cursor"
 	badMode := "interactive"
-	cfg := &Config{Version: 2, Agent: &badAgent, Mode: &badMode}
+	cfg := &Config{Version: 2, Client: &badClient, Mode: &badMode}
 	problems := validateConfigProblems(cfg)
 	if len(problems) != 3 {
-		t.Fatalf("expected 3 problems (version, agent, mode), got %d: %v", len(problems), problems)
+		t.Fatalf("expected 3 problems (version, client, mode), got %d: %v", len(problems), problems)
 	}
 	// Each problem must be a plain string, not starting with "- ".
 	for _, p := range problems {
@@ -391,7 +391,7 @@ func TestCmdConfigInit_HasActiveVersion(t *testing.T) {
 func TestReadConfigWithMeta_UnknownKeys(t *testing.T) {
 	path := writeTempConfig(t, `
 version = 1
-agent = "copilot"
+client = "copilot"
 unknown_key = "oops"
 another_bad = 42
 `)
@@ -411,7 +411,7 @@ another_bad = 42
 func TestReadConfigWithMeta_NoUnknownKeys(t *testing.T) {
 	path := writeTempConfig(t, `
 version = 1
-agent = "copilot"
+client = "copilot"
 mode = "default"
 `)
 	t.Setenv("NAV_PILOT_CONFIG", path)
@@ -431,8 +431,8 @@ mode = "default"
 
 func TestResolve_Defaults(t *testing.T) {
 	r := resolve(nil, CLIOverrides{})
-	if r.Agent != "copilot" {
-		t.Errorf("Agent = %q, want copilot", r.Agent)
+	if r.Client != "copilot" {
+		t.Errorf("Client = %q, want copilot", r.Client)
 	}
 	if r.Mode != "default" {
 		t.Errorf("Mode = %q, want default", r.Mode)
@@ -472,7 +472,7 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 
 	cfg := &Config{
 		Version:         1,
-		Agent:           &agent,
+		Client:          &agent,
 		Mode:            &mode,
 		Model:           &model,
 		ReasoningEffort: &effort,
@@ -483,8 +483,8 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 	}
 
 	r := resolve(cfg, CLIOverrides{})
-	if r.Agent != "opencode" {
-		t.Errorf("Agent = %q, want opencode", r.Agent)
+	if r.Client != "opencode" {
+		t.Errorf("Client = %q, want opencode", r.Client)
 	}
 	if r.Mode != "plan" {
 		t.Errorf("Mode = %q, want plan", r.Mode)
@@ -514,19 +514,19 @@ func TestResolve_CLIOverridesFile(t *testing.T) {
 	fileMode := "plan"
 	cfg := &Config{
 		Version: 1,
-		Agent:   &fileAgent,
+		Client:  &fileAgent,
 		Mode:    &fileMode,
 	}
 
 	trueVal := true
 	r := resolve(cfg, CLIOverrides{
-		Agent:         "pi",
+		Client:        "pi",
 		Mode:          "autopilot",
 		AllowAllTools: &trueVal,
 	})
 
-	if r.Agent != "pi" {
-		t.Errorf("Agent = %q, want pi (CLI overrides file)", r.Agent)
+	if r.Client != "pi" {
+		t.Errorf("Client = %q, want pi (CLI overrides file)", r.Client)
 	}
 	if r.Mode != "autopilot" {
 		t.Errorf("Mode = %q, want autopilot (CLI overrides file)", r.Mode)
@@ -539,11 +539,11 @@ func TestResolve_CLIOverridesFile(t *testing.T) {
 func TestResolve_CLIOverridesDefaults(t *testing.T) {
 	falseVal := false
 	r := resolve(nil, CLIOverrides{
-		Agent:   "opencode",
+		Client:  "opencode",
 		AskUser: &falseVal,
 	})
-	if r.Agent != "opencode" {
-		t.Errorf("Agent = %q, want opencode", r.Agent)
+	if r.Client != "opencode" {
+		t.Errorf("Client = %q, want opencode", r.Client)
 	}
 	if r.AskUser {
 		t.Error("AskUser = true, want false (CLI override)")
@@ -555,19 +555,83 @@ func TestResolve_CLIOverridesDefaults(t *testing.T) {
 }
 
 func TestResolve_FileNilFieldsKeepDefaults(t *testing.T) {
-	// File sets agent but leaves mode/ask_user unset.
+	// File sets client but leaves mode/ask_user unset.
 	agent := "pi"
-	cfg := &Config{Version: 1, Agent: &agent}
+	cfg := &Config{Version: 1, Client: &agent}
 	r := resolve(cfg, CLIOverrides{})
 
-	if r.Agent != "pi" {
-		t.Errorf("Agent = %q, want pi", r.Agent)
+	if r.Client != "pi" {
+		t.Errorf("Client = %q, want pi", r.Client)
 	}
 	if r.Mode != "default" {
 		t.Errorf("Mode = %q, want default (unset in file → default)", r.Mode)
 	}
 	if !r.AskUser {
 		t.Error("AskUser = false, want true (unset in file → default)")
+	}
+}
+
+// ─── unknown key rejection ────────────────────────────────────────────────────
+
+func TestLoadConfigForLaunch_UnknownKeyRejected(t *testing.T) {
+	// A config file with the old `agent = "..."` key must now be REJECTED as an
+	// unknown key (no backward compat, no silent ignore).
+	path := writeTempConfig(t, "version = 1\nagent = \"opencode\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+
+	_, err := loadConfigForLaunch(CLIOverrides{})
+	if err == nil {
+		t.Fatal("expected error for config with old 'agent' key")
+	}
+	if !strings.Contains(err.Error(), "agent") {
+		t.Errorf("expected 'agent' in error message, got: %v", err)
+	}
+}
+
+func TestLoadConfigForLaunch_AnyBogusKeyRejected(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nclient = \"copilot\"\nnosuchkey = \"x\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+
+	_, err := loadConfigForLaunch(CLIOverrides{})
+	if err == nil {
+		t.Fatal("expected error for config with unknown key")
+	}
+	if !strings.Contains(err.Error(), "nosuchkey") {
+		t.Errorf("expected 'nosuchkey' in error message, got: %v", err)
+	}
+}
+
+func TestCLIClientOverride(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nclient = \"copilot\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	resolved, err := loadConfigForLaunch(CLIOverrides{Client: "opencode"})
+	if err != nil {
+		t.Fatalf("loadConfigForLaunch() error: %v", err)
+	}
+	if resolved.Client != "opencode" {
+		t.Errorf("Client = %q, want opencode (--client override)", resolved.Client)
+	}
+}
+
+func TestCLIClientOverride_InvalidRejected(t *testing.T) {
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "missing.toml"))
+	err := run([]string{"--client", "bogus"})
+	if err == nil {
+		t.Fatal("expected error for --client bogus")
+	}
+	if !strings.Contains(err.Error(), "bogus") {
+		t.Errorf("expected 'bogus' in error message, got: %v", err)
+	}
+}
+
+func TestCLIAgentDeprecatedFlag_ReturnsError(t *testing.T) {
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "missing.toml"))
+	err := run([]string{"--agent", "opencode"})
+	if err == nil {
+		t.Fatal("expected error for deprecated --agent flag")
+	}
+	if !strings.Contains(err.Error(), "--client") {
+		t.Errorf("expected error to mention --client, got: %v", err)
 	}
 }
 
@@ -638,7 +702,7 @@ func TestCmdConfigSet_CreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	if err := cmdConfigSet("agent", "opencode"); err != nil {
+	if err := cmdConfigSet("client", "opencode"); err != nil {
 		t.Fatalf("cmdConfigSet() error: %v", err)
 	}
 
@@ -647,7 +711,7 @@ func TestCmdConfigSet_CreatesFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config file not created: %v", err)
 	}
-	if !strings.Contains(string(data), `agent = "opencode"`) {
+	if !strings.Contains(string(data), `client = "opencode"`) {
 		t.Errorf("config file missing expected line, got:\n%s", string(data))
 	}
 }
@@ -683,18 +747,18 @@ func TestCmdConfigSet_UpdatesExistingKey(t *testing.T) {
 	path := filepath.Join(dir, "config.toml")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	_ = os.WriteFile(path, []byte("version = 1\nagent = \"copilot\"\n"), 0o644)
+	_ = os.WriteFile(path, []byte("version = 1\nclient = \"copilot\"\n"), 0o644)
 
-	if err := cmdConfigSet("agent", "opencode"); err != nil {
+	if err := cmdConfigSet("client", "opencode"); err != nil {
 		t.Fatalf("cmdConfigSet() error: %v", err)
 	}
 
 	data, _ := os.ReadFile(path)
-	if !strings.Contains(string(data), `agent = "opencode"`) {
-		t.Errorf("agent not updated, got:\n%s", string(data))
+	if !strings.Contains(string(data), `client = "opencode"`) {
+		t.Errorf("client not updated, got:\n%s", string(data))
 	}
-	if strings.Contains(string(data), `agent = "copilot"`) {
-		t.Errorf("old agent value should be gone, got:\n%s", string(data))
+	if strings.Contains(string(data), `client = "copilot"`) {
+		t.Errorf("old client value should be gone, got:\n%s", string(data))
 	}
 }
 
@@ -703,15 +767,15 @@ func TestCmdConfigSet_UncommentsCommentedKey(t *testing.T) {
 	path := filepath.Join(dir, "config.toml")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	_ = os.WriteFile(path, []byte("version = 1\n# agent = \"copilot\"\n"), 0o644)
+	_ = os.WriteFile(path, []byte("version = 1\n# client = \"copilot\"\n"), 0o644)
 
-	if err := cmdConfigSet("agent", "pi"); err != nil {
+	if err := cmdConfigSet("client", "pi"); err != nil {
 		t.Fatalf("cmdConfigSet() error: %v", err)
 	}
 
 	data, _ := os.ReadFile(path)
-	if !strings.Contains(string(data), `agent = "pi"`) {
-		t.Errorf("expected uncommented agent = pi, got:\n%s", string(data))
+	if !strings.Contains(string(data), `client = "pi"`) {
+		t.Errorf("expected uncommented client = pi, got:\n%s", string(data))
 	}
 }
 
@@ -729,7 +793,7 @@ func TestCmdConfigSet_InvalidValue(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	err := cmdConfigSet("agent", "cursor") // not in allowed list
+	err := cmdConfigSet("client", "cursor") // not in allowed list
 	if err == nil {
 		t.Fatal("expected error for invalid value")
 	}
@@ -832,7 +896,7 @@ func TestCmdConfigValidate_InvalidVersion(t *testing.T) {
 func TestCmdConfigValidate_Valid(t *testing.T) {
 	path := writeTempConfig(t, `
 version = 1
-agent = "copilot"
+client = "copilot"
 mode = "default"
 allow_all_tools = false
 ask_user = true
@@ -852,13 +916,13 @@ func TestIsConfigKeyLine(t *testing.T) {
 		key  string
 		want bool
 	}{
-		{`agent = "copilot"`, "agent", true},
-		{`# agent = "copilot"`, "agent", true},
-		{`  # agent = "copilot"`, "agent", true},
-		{`## agent = "copilot"`, "agent", true},
-		{`agent="copilot"`, "agent", true},
-		{`# This is a general comment`, "agent", false},
-		{`# model = "gpt-4"`, "agent", false},
+		{`client = "copilot"`, "client", true},
+		{`# client = "copilot"`, "client", true},
+		{`  # client = "copilot"`, "client", true},
+		{`## client = "copilot"`, "client", true},
+		{`client="copilot"`, "client", true},
+		{`# This is a general comment`, "client", false},
+		{`# model = "gpt-4"`, "client", false},
 		{`allow_all_tools = false`, "allow_all_tools", true},
 		{`# allow_all_tools = false`, "allow_all_tools", true},
 		// Key must not match a longer key name.
@@ -884,10 +948,10 @@ func TestValidateKeyValue(t *testing.T) {
 		value   string
 		wantErr bool
 	}{
-		{"agent", "copilot", false},
-		{"agent", "opencode", false},
-		{"agent", "pi", false},
-		{"agent", "cursor", true},
+		{"client", "copilot", false},
+		{"client", "opencode", false},
+		{"client", "pi", false},
+		{"client", "cursor", true},
 		{"mode", "default", false},
 		{"mode", "autopilot", false},
 		{"mode", "bad", true},
@@ -1011,16 +1075,20 @@ func TestConfigAdvisories_Nil(t *testing.T) {
 	}
 }
 
-func TestConfigAdvisories_UnknownKey(t *testing.T) {
+func TestConfigAdvisories_UnknownKey_NotAWarning(t *testing.T) {
+	// Unknown keys are now hard errors (in loadConfigForLaunch), not advisories.
+	// configAdvisories itself must not emit any warning for them.
 	cfg, meta := decodeConfigForTest(t, "version = 1\nmode = \"plan\"\nmdoel = \"x\"\n")
 	w := configAdvisories(cfg, meta)
-	if len(w) != 1 || !strings.Contains(w[0], "mdoel") {
-		t.Errorf("configAdvisories() = %v, want one warning mentioning 'mdoel'", w)
+	for _, warning := range w {
+		if strings.Contains(warning, "mdoel") {
+			t.Errorf("configAdvisories() emitted unknown-key warning (should be hard error): %s", warning)
+		}
 	}
 }
 
 func TestConfigAdvisories_UnrecognizedCopilotModel(t *testing.T) {
-	cfg, meta := decodeConfigForTest(t, "version = 1\nagent = \"copilot\"\nmodel = \"sonnet\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"copilot\"\nmodel = \"sonnet\"\n")
 	w := configAdvisories(cfg, meta)
 	if len(w) != 1 || !strings.Contains(w[0], "sonnet") || !strings.Contains(w[0], "not a recognized") {
 		t.Errorf("configAdvisories() = %v, want one warning about unrecognized model", w)
@@ -1028,7 +1096,7 @@ func TestConfigAdvisories_UnrecognizedCopilotModel(t *testing.T) {
 }
 
 func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
-	cfg, meta := decodeConfigForTest(t, "version = 1\nagent = \"copilot\"\nmodel = \"claude-opus-4.8\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"copilot\"\nmodel = \"claude-opus-4.8\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
 		t.Errorf("configAdvisories() = %v, want no warnings for known model", w)
 	}
@@ -1036,7 +1104,7 @@ func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
 
 func TestConfigAdvisories_NonCopilotModel_NoWarning(t *testing.T) {
 	// For non-copilot agents the curated Copilot list does not apply.
-	cfg, meta := decodeConfigForTest(t, "version = 1\nagent = \"opencode\"\nmodel = \"anthropic/claude-3-5-sonnet\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"anthropic/claude-3-5-sonnet\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
 		t.Errorf("configAdvisories() = %v, want no warnings for opencode model", w)
 	}
@@ -1050,14 +1118,14 @@ func TestLoadConfigForLaunch_NoFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadConfigForLaunch() error = %v, want nil", err)
 	}
-	if resolved.Agent != "copilot" || resolved.Mode != "default" {
+	if resolved.Client != "copilot" || resolved.Mode != "default" {
 		t.Errorf("loadConfigForLaunch() defaults = %+v", resolved)
 	}
 }
 
 func TestLoadConfigForLaunch_ValidConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
-	writeFileForTest(t, path, "version = 1\nagent = \"copilot\"\nmode = \"autopilot\"\nmodel = \"claude-opus-4.8\"\n")
+	writeFileForTest(t, path, "version = 1\nclient = \"copilot\"\nmode = \"autopilot\"\nmodel = \"claude-opus-4.8\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 	resolved, err := loadConfigForLaunch(CLIOverrides{})
 	if err != nil {
@@ -1093,7 +1161,7 @@ func TestLoadConfigForLaunch_RefusesInvalidVersion(t *testing.T) {
 func TestLoadConfigForLaunch_WarnsButLaunchesUnrecognizedModel(t *testing.T) {
 	// "sonnet" is format-valid but not a known id: warn, do not refuse.
 	path := filepath.Join(t.TempDir(), "config.toml")
-	writeFileForTest(t, path, "version = 1\nagent = \"copilot\"\nmodel = \"sonnet\"\n")
+	writeFileForTest(t, path, "version = 1\nclient = \"copilot\"\nmodel = \"sonnet\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 	resolved, err := loadConfigForLaunch(CLIOverrides{})
 	if err != nil {
@@ -1161,7 +1229,7 @@ func TestResolve_OtelLogLevel_CLIOverridesFile(t *testing.T) {
 func TestResolve_OtelLogLevel_UnsetFileKeepsDefault(t *testing.T) {
 	// File exists but does not set otel_log_level — default "none" should hold.
 	agent := "copilot"
-	cfg := &Config{Version: 1, Agent: &agent}
+	cfg := &Config{Version: 1, Client: &agent}
 	r := resolve(cfg, CLIOverrides{})
 	if r.OtelLogLevel != "none" {
 		t.Errorf("OtelLogLevel = %q, want none (unset in file → default)", r.OtelLogLevel)
