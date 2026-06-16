@@ -12,6 +12,9 @@ import (
 // openCodeConfigPathOverride can be set in tests to redirect the opencode config.
 var openCodeConfigPathOverride string
 
+// openCodeNavContextDirOverride can be set in tests to redirect Nav context materialization.
+var openCodeNavContextDirOverride string
+
 // openCodeConfigPath returns the path to opencode's global config.
 // Honors openCodeConfigPathOverride (test seam).
 func openCodeConfigPath() string {
@@ -20,6 +23,44 @@ func openCodeConfigPath() string {
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "opencode", "opencode.json")
+}
+
+// openCodeNavContextDir returns the directory for Nav context materialization.
+// Always uses the user-global opencode config dir (~/.config/opencode/) so Nav
+// context is available across all repos regardless of whether the developer
+// is inside a git repo or has run `nav-pilot export opencode` manually before.
+// Honors openCodeNavContextDirOverride (test seam).
+func openCodeNavContextDir() string {
+	if openCodeNavContextDirOverride != "" {
+		return openCodeNavContextDirOverride
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "opencode")
+}
+
+// ensureOpenCodeNavContext resolves the Nav artifact source and materializes
+// AGENTS.md, skills, agents, and commands into opencode's user config directory.
+// Returns a short summary string (e.g. "AGENTS.md + 3 skill(s)") suitable for
+// the launch message, or an empty string if nothing was produced.
+// Non-fatal: callers should warn and continue on error.
+func ensureOpenCodeNavContext() (string, error) {
+	src, err := resolveSource("", "")
+	if err != nil {
+		return "", fmt.Errorf("resolving source: %w", err)
+	}
+	defer src.Cleanup()
+
+	outputDir := openCodeNavContextDir()
+	skills, commands, agents, instrCount, err := materializeOpenCode(src.Dir, outputDir)
+	if err != nil {
+		return "", err
+	}
+
+	summary := exportSummary(skills, commands, agents, instrCount)
+	if summary == "nothing to export" {
+		return "", nil
+	}
+	return summary, nil
 }
 
 // openCodeArgs builds the CLI arguments for launching opencode non-interactively.
@@ -154,6 +195,8 @@ func ensureOpenCodeOTelConfig() error {
 }
 
 // launchOpenCode launches the opencode CLI with the resolved config.
+// Before launching, it materializes Nav context (AGENTS.md, skills, agents, commands)
+// into opencode's user config directory so the developer always gets Nav context.
 func launchOpenCode(resolved ResolvedConfig) error {
 	opencodePath, err := exec.LookPath("opencode")
 	if err != nil {
@@ -167,9 +210,21 @@ func launchOpenCode(resolved ResolvedConfig) error {
 		}
 	}
 
+	// Materialize Nav context (AGENTS.md, skills, agents, commands) into opencode's
+	// user config dir before every launch. Non-fatal: if source is unavailable we
+	// warn and still launch so the user isn't blocked.
+	navSummary, ctxErr := ensureOpenCodeNavContext()
+	if ctxErr != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not materialize Nav context for opencode: %v\n", yellow("⚠"), ctxErr)
+	}
+
 	args := openCodeArgs(resolved)
 
-	fmt.Printf("Launching %s...\n\n", bold("opencode"))
+	if navSummary != "" {
+		fmt.Printf("Launching %s with Nav context (%s)...\n\n", bold("opencode"), navSummary)
+	} else {
+		fmt.Printf("Launching %s...\n\n", bold("opencode"))
+	}
 	cmd := exec.Command(opencodePath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

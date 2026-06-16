@@ -287,10 +287,12 @@ type instructionRef struct {
 	body    []byte
 }
 
-func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
+// collectInstructionData reads instruction files from sourceDir and separates them
+// into global sections (to be inlined in AGENTS.md) and scoped refs (individual files).
+// This is the pure data-collection step shared by exportInstructions and materializeOpenCode.
+func collectInstructionData(sourceDir string) ([]instructionSection, []instructionRef, error) {
 	instrEntries := NewSourceResolver(sourceDir).List(KindInstruction)
 
-	// copilot-instructions.md is always global.
 	var globalSections []instructionSection
 	globalInstr := filepath.Join(sourceDir, ".github", "copilot-instructions.md")
 	if data, err := os.ReadFile(globalInstr); err == nil {
@@ -304,12 +306,11 @@ func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
 		})
 	}
 
-	// Separate scoped instructions (specific applyTo) from global ones (no applyTo or applyTo: "**").
 	var scopedRefs []instructionRef
 	for _, entry := range instrEntries {
 		data, err := os.ReadFile(entry.AbsPath)
 		if err != nil {
-			return 0, fmt.Errorf("reading instruction %s: %w", entry.Name, err)
+			return nil, nil, fmt.Errorf("reading instruction %s: %w", entry.Name, err)
 		}
 
 		fm, body, hasFM := splitFrontmatter(data)
@@ -323,20 +324,27 @@ func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
 		}
 
 		if applyTo == "" || applyTo == "**" {
-			// Global instruction: inline into AGENTS.md.
 			sectionName := titleCase(strings.ReplaceAll(entry.Name, "-", " "))
 			globalSections = append(globalSections, instructionSection{
 				name: sectionName,
 				body: body,
 			})
 		} else {
-			// Scoped instruction: export as individual file, reference lazily.
 			scopedRefs = append(scopedRefs, instructionRef{
 				name:    entry.Name,
 				applyTo: applyTo,
 				body:    body,
 			})
 		}
+	}
+
+	return globalSections, scopedRefs, nil
+}
+
+func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
+	globalSections, scopedRefs, err := collectInstructionData(sourceDir)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(globalSections) == 0 && len(scopedRefs) == 0 {
@@ -413,6 +421,79 @@ func buildLeanAGENTSmd(globalSections []instructionSection, refs []instructionRe
 	}
 
 	return []byte(buf.String())
+}
+
+// ─── Silent materialization (used by launch-time auto-export) ───────────────
+
+// materializeOpenCode writes all Nav OpenCode artifacts to outputDir silently (no console output).
+// Unlike exportOpenCode it never checks for --force and never prints per-file lines —
+// it just ensures the files exist and are current. Idempotent: os.WriteFile overwrites
+// files with the same content on repeated calls, so running on every launch is safe.
+// Returns the count of each artifact type written.
+func materializeOpenCode(sourceDir, outputDir string) (skills, commands, agents, instructions int, err error) {
+	resolver := NewSourceResolver(sourceDir)
+
+	// Skills (1:1 directory copy)
+	for _, skill := range resolver.List(KindSkill) {
+		dstDir := filepath.Join(outputDir, "skills", skill.Name)
+		if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
+			return skills, commands, agents, instructions, mkErr
+		}
+		if cpErr := copyDirSimple(skill.AbsPath, dstDir); cpErr != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("skill %s: %w", skill.Name, cpErr)
+		}
+		skills++
+	}
+
+	// Prompts → Commands
+	for _, entry := range resolver.List(KindPrompt) {
+		if entry.IsDir {
+			continue
+		}
+		data, readErr := os.ReadFile(entry.AbsPath)
+		if readErr != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("prompt %s: %w", entry.Name, readErr)
+		}
+		dstPath := filepath.Join(outputDir, "commands", entry.Name+".md")
+		if wErr := writeFile(dstPath, transformPrompt(data)); wErr != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("command %s: %w", entry.Name, wErr)
+		}
+		commands++
+	}
+
+	// Agents
+	for _, entry := range resolver.List(KindAgent) {
+		data, readErr := os.ReadFile(entry.AbsPath)
+		if readErr != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, readErr)
+		}
+		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
+		if wErr := writeFile(dstPath, transformAgent(data)); wErr != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, wErr)
+		}
+		agents++
+	}
+
+	// Instructions → AGENTS.md + individual scoped files
+	globalSections, scopedRefs, collErr := collectInstructionData(sourceDir)
+	if collErr != nil {
+		return skills, commands, agents, instructions, collErr
+	}
+	if len(globalSections) > 0 || len(scopedRefs) > 0 {
+		for _, ref := range scopedRefs {
+			dstPath := filepath.Join(outputDir, "instructions", ref.name+".md")
+			if wErr := writeFile(dstPath, ref.body); wErr != nil {
+				return skills, commands, agents, instructions, fmt.Errorf("instruction %s: %w", ref.name, wErr)
+			}
+		}
+		agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs)
+		if wErr := writeFile(filepath.Join(outputDir, "AGENTS.md"), agentsMD); wErr != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("AGENTS.md: %w", wErr)
+		}
+		instructions = len(globalSections) + len(scopedRefs)
+	}
+
+	return skills, commands, agents, instructions, nil
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

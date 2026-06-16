@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -241,5 +242,96 @@ func TestApplyOpenCodeOTelEnvDoesNotOverwriteExistingClient(t *testing.T) {
 		if e == "OPENCODE_CLIENT=nav-pilot" {
 			t.Error("OPENCODE_CLIENT was overwritten by nav-pilot")
 		}
+	}
+}
+
+func TestOpenCodeNavContextDir_Override(t *testing.T) {
+	old := openCodeNavContextDirOverride
+	dir := t.TempDir()
+	openCodeNavContextDirOverride = dir
+	defer func() { openCodeNavContextDirOverride = old }()
+
+	got := openCodeNavContextDir()
+	if got != dir {
+		t.Errorf("openCodeNavContextDir() = %q, want %q", got, dir)
+	}
+}
+
+func TestOpenCodeNavContextDir_DefaultSuffix(t *testing.T) {
+	old := openCodeNavContextDirOverride
+	openCodeNavContextDirOverride = ""
+	defer func() { openCodeNavContextDirOverride = old }()
+
+	got := openCodeNavContextDir()
+	want := filepath.Join(".config", "opencode")
+	if !strings.HasSuffix(got, want) {
+		t.Errorf("openCodeNavContextDir() = %q, want suffix %q", got, want)
+	}
+}
+
+func TestEnsureOpenCodeNavContext(t *testing.T) {
+	// Override the output dir so we don't touch ~/.config/opencode
+	outputDir := t.TempDir()
+	old := openCodeNavContextDirOverride
+	openCodeNavContextDirOverride = outputDir
+	defer func() { openCodeNavContextDirOverride = old }()
+
+	// Override cloneRemoteFn to return a local fixture source
+	origClone := cloneRemoteFn
+	defer func() { cloneRemoteFn = origClone }()
+	sourceDir := setupTestSource(t)
+	cloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
+		return &Source{Dir: sourceDir, SHA: "test"}, nil
+	}
+
+	summary, err := ensureOpenCodeNavContext()
+	if err != nil {
+		t.Fatalf("ensureOpenCodeNavContext() error: %v", err)
+	}
+	if summary == "" {
+		t.Error("expected non-empty summary")
+	}
+	if !strings.Contains(summary, "skill") && !strings.Contains(summary, "AGENTS") {
+		t.Errorf("summary should mention artifacts, got: %q", summary)
+	}
+
+	// Verify AGENTS.md was written
+	if _, err := os.Stat(filepath.Join(outputDir, "AGENTS.md")); err != nil {
+		t.Errorf("AGENTS.md not found after ensureOpenCodeNavContext: %v", err)
+	}
+}
+
+func TestEnsureOpenCodeNavContextIdempotent(t *testing.T) {
+	outputDir := t.TempDir()
+	old := openCodeNavContextDirOverride
+	openCodeNavContextDirOverride = outputDir
+	defer func() { openCodeNavContextDirOverride = old }()
+
+	origClone := cloneRemoteFn
+	defer func() { cloneRemoteFn = origClone }()
+	sourceDir := setupTestSource(t)
+	cloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
+		return &Source{Dir: sourceDir, SHA: "test"}, nil
+	}
+
+	// First call
+	s1, err := ensureOpenCodeNavContext()
+	if err != nil {
+		t.Fatalf("first call error: %v", err)
+	}
+	first, _ := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+
+	// Second call — must succeed and produce identical AGENTS.md
+	s2, err := ensureOpenCodeNavContext()
+	if err != nil {
+		t.Fatalf("second call error: %v", err)
+	}
+	second, _ := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+
+	if s1 != s2 {
+		t.Errorf("summary changed between calls: %q vs %q", s1, s2)
+	}
+	if string(first) != string(second) {
+		t.Errorf("AGENTS.md not idempotent")
 	}
 }
