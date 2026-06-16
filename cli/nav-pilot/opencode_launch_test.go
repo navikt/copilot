@@ -9,45 +9,46 @@ import (
 )
 
 func TestOpenCodeArgs(t *testing.T) {
+	def := openCodeDefaultModel
 	tests := []struct {
 		name     string
 		resolved ResolvedConfig
 		want     []string
 	}{
 		{
-			name:     "empty resolved",
+			name:     "empty resolved applies Nav default model",
 			resolved: ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{},
+			want:     []string{"--model", def},
 		},
 		{
-			name:     "model only",
+			name:     "explicit model overrides default",
 			resolved: ResolvedConfig{Model: "anthropic/claude-3-5-sonnet", Mode: "default", AskUser: true},
 			want:     []string{"--model", "anthropic/claude-3-5-sonnet"},
 		},
 		{
-			name:     "plan mode maps to --agent plan",
+			name:     "plan mode maps to --agent plan (default model still emitted)",
 			resolved: ResolvedConfig{Mode: "plan", AskUser: true},
-			want:     []string{"--agent", "plan"},
+			want:     []string{"--model", def, "--agent", "plan"},
 		},
 		{
-			name:     "default mode not emitted",
+			name:     "default mode not emitted (only default model)",
 			resolved: ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{},
+			want:     []string{"--model", def},
 		},
 		{
 			name:     "reasoning effort maps to --variant",
 			resolved: ResolvedConfig{Mode: "default", ReasoningEffort: "high", AskUser: true},
-			want:     []string{"--variant", "high"},
+			want:     []string{"--model", def, "--variant", "high"},
 		},
 		{
 			name:     "allow_all_tools maps to --dangerously-skip-permissions",
 			resolved: ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
-			want:     []string{"--dangerously-skip-permissions"},
+			want:     []string{"--model", def, "--dangerously-skip-permissions"},
 		},
 		{
 			name:     "log level",
 			resolved: ResolvedConfig{Mode: "default", LogLevel: "debug", AskUser: true},
-			want:     []string{"--log-level", "DEBUG"},
+			want:     []string{"--model", def, "--log-level", "DEBUG"},
 		},
 		{
 			name: "all fields",
@@ -64,7 +65,7 @@ func TestOpenCodeArgs(t *testing.T) {
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",
 			resolved: ResolvedConfig{Mode: "default", AskUser: false},
-			want:     []string{},
+			want:     []string{"--model", def},
 		},
 	}
 	for _, tt := range tests {
@@ -76,6 +77,72 @@ func TestOpenCodeArgs(t *testing.T) {
 			for i := range got {
 				if got[i] != tt.want[i] {
 					t.Errorf("openCodeArgs()[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestOpenCodeUnsupportedConfigWarnings(t *testing.T) {
+	tests := []struct {
+		name     string
+		resolved ResolvedConfig
+		wantMsgs []string // substrings that must appear in warnings
+		wantNone bool     // true if no warnings expected
+	}{
+		{
+			name:     "default config — no warnings",
+			resolved: ResolvedConfig{Mode: "default", AskUser: true},
+			wantNone: true,
+		},
+		{
+			name:     "autopilot mode warns",
+			resolved: ResolvedConfig{Mode: "autopilot", AskUser: true},
+			wantMsgs: []string{"autopilot", "no opencode equivalent"},
+		},
+		{
+			name:     "context_tier set warns",
+			resolved: ResolvedConfig{Mode: "default", ContextTier: "long_context", AskUser: true},
+			wantMsgs: []string{"context_tier", "no opencode equivalent"},
+		},
+		{
+			name:     "ask_user false warns",
+			resolved: ResolvedConfig{Mode: "default", AskUser: false},
+			wantMsgs: []string{"ask_user", "no opencode equivalent"},
+		},
+		{
+			name: "all three unmapped fields warn",
+			resolved: ResolvedConfig{
+				Mode:        "autopilot",
+				ContextTier: "long_context",
+				AskUser:     false,
+			},
+			wantMsgs: []string{"autopilot", "context_tier", "ask_user"},
+		},
+		{
+			name:     "plan mode — no warning (has opencode equivalent)",
+			resolved: ResolvedConfig{Mode: "plan", AskUser: true},
+			wantNone: true,
+		},
+		{
+			name:     "allow_all_tools — no warning (has opencode equivalent)",
+			resolved: ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
+			wantNone: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := openCodeUnsupportedConfigWarnings(tt.resolved)
+			if tt.wantNone {
+				if len(got) != 0 {
+					t.Errorf("expected no warnings, got: %v", got)
+				}
+				return
+			}
+			joined := strings.Join(got, " ")
+			for _, sub := range tt.wantMsgs {
+				if !strings.Contains(joined, sub) {
+					t.Errorf("warnings %v missing substring %q", got, sub)
 				}
 			}
 		})

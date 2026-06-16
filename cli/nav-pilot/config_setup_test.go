@@ -16,7 +16,7 @@ func TestWriteSetupConfig_AllFields(t *testing.T) {
 	answers := setupAnswers{
 		Client:          "opencode",
 		Mode:            "plan",
-		Model:           "gpt-4o",
+		Model:           "openai/gpt-4o",
 		ReasoningEffort: "high",
 	}
 	if err := writeSetupConfig(answers); err != nil {
@@ -33,7 +33,7 @@ func TestWriteSetupConfig_AllFields(t *testing.T) {
 		"version = 1",
 		`client = "opencode"`,
 		`mode = "plan"`,
-		`model = "gpt-4o"`,
+		`model = "openai/gpt-4o"`,
 		`reasoning_effort = "high"`,
 	} {
 		if !strings.Contains(content, want) {
@@ -127,7 +127,7 @@ func TestWriteSetupConfig_ProducesValidConfig(t *testing.T) {
 
 	for _, answers := range []setupAnswers{
 		{Client: "copilot", Mode: "default"},
-		{Client: "opencode", Mode: "plan", Model: "gpt-4o", ReasoningEffort: "high"},
+		{Client: "opencode", Mode: "plan", Model: "openai/gpt-4o", ReasoningEffort: "high"},
 		{Client: "pi", Mode: "autopilot", ReasoningEffort: "max"},
 	} {
 		// Remove config from previous iteration.

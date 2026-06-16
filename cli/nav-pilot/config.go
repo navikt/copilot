@@ -89,6 +89,26 @@ var knownCopilotModels = []modelChoice{
 	{"gemini-3.5-flash", "Gemini 3.5 Flash"},
 }
 
+// openCodeDefaultModel is the Nav-curated default opencode model applied when the
+// user launches opencode without an explicit model set. Using a concrete default
+// ensures Nav's Anthropic API credentials are always exercised rather than letting
+// opencode fall back to whatever its own built-in default happens to be.
+// Source: https://opencode.ai/docs/models — current Claude Sonnet 4.5 via the
+// Anthropic provider (anthropic/claude-sonnet-4-5).
+const openCodeDefaultModel = "anthropic/claude-sonnet-4-5"
+
+// knownOpenCodeModels lists Nav-blessed opencode provider/model ids for the
+// first-run wizard picker. Like knownCopilotModels this is a convenience list —
+// valid but unlisted ids still work via the "Custom" free-text option.
+// Sources: https://opencode.ai/docs/models, https://deepwiki.com/sst/opencode/4.4-supported-providers
+var knownOpenCodeModels = []modelChoice{
+	{openCodeDefaultModel, "Claude Sonnet 4.5 (Nav default)"},
+	{"anthropic/claude-opus-4-5", "Claude Opus 4.5"},
+	{"anthropic/claude-haiku-4-5", "Claude Haiku 4.5"},
+	{"openai/gpt-4o", "GPT-4o"},
+	{"google/gemini-2-0-flash", "Gemini 2.0 Flash"},
+}
+
 // modelValuePattern restricts model identifiers to a sane character set that
 // covers Copilot ids (e.g. "claude-opus-4.8", "gpt-5.5") and opencode
 // provider/model ids (e.g. "anthropic/claude-3-5-sonnet").
@@ -108,6 +128,20 @@ func validateModelValue(model string) error {
 	}
 	if !modelValuePattern.MatchString(model) {
 		return fmt.Errorf("model %q is not a valid identifier (allowed characters: letters, digits, '.', '_', '-', '/')", model)
+	}
+	return nil
+}
+
+// validateModelForClient validates a model identifier for a specific client.
+// For opencode the model must be in provider/model format (exactly one '/'),
+// e.g. "anthropic/claude-sonnet-4-5". For other clients (copilot, pi) only
+// the generic shape check from validateModelValue is applied.
+func validateModelForClient(model, client string) error {
+	if err := validateModelValue(model); err != nil {
+		return err
+	}
+	if client == "opencode" && (strings.Count(model, "/") != 1 || strings.HasSuffix(model, "/")) {
+		return fmt.Errorf("model %q must be in provider/model format for opencode (e.g. %q)", model, openCodeDefaultModel)
 	}
 	return nil
 }
@@ -178,7 +212,11 @@ func validateConfigProblems(cfg *Config) []string {
 			*cfg.Client, strings.Join(validClients, ", ")))
 	}
 	if cfg.Model != nil {
-		if err := validateModelValue(*cfg.Model); err != nil {
+		client := ""
+		if cfg.Client != nil {
+			client = *cfg.Client
+		}
+		if err := validateModelForClient(*cfg.Model, client); err != nil {
 			problems = append(problems, err.Error())
 		}
 	}
@@ -238,9 +276,41 @@ func knownCopilotModelIDs() string {
 	return strings.Join(ids, ", ")
 }
 
+// isKnownOpenCodeModel reports whether id matches one of the curated opencode
+// provider/model ids (case-insensitive).
+func isKnownOpenCodeModel(id string) bool {
+	for _, m := range knownOpenCodeModels {
+		if strings.EqualFold(m.ID, id) {
+			return true
+		}
+	}
+	return false
+}
+
+// knownOpenCodeModelIDs returns the curated opencode model ids as a
+// comma-separated string for use in warning/help messages.
+func knownOpenCodeModelIDs() string {
+	ids := make([]string, len(knownOpenCodeModels))
+	for i, m := range knownOpenCodeModels {
+		ids[i] = m.ID
+	}
+	return strings.Join(ids, ", ")
+}
+
+// validateOptionalOpenCodeModel is a huh form validator for an opencode model
+// text input. Accepts blank (Nav default will be used) or a provider/model id.
+func validateOptionalOpenCodeModel(s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	return validateModelForClient(s, "opencode")
+}
+
 // configAdvisories returns non-fatal warnings for a parsed config.
-// Currently only flags Copilot model ids that are well-formed but not in the
-// curated catalog (e.g. "sonnet" when the user likely meant "claude-sonnet-4.6").
+// Flags Copilot model ids that are well-formed but not in the curated catalog,
+// and opencode model ids that are valid provider/model shape but not in the
+// Nav-curated list (might still work — opencode supports many providers).
 // Unknown TOML keys are handled as hard errors in loadConfigForLaunch, not here.
 func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 	if cfg == nil {
@@ -256,6 +326,11 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 			warnings = append(warnings, fmt.Sprintf(
 				"model %q is not a recognized Copilot model id; it will be sent as-is and may be rejected by the server (known ids: %s)",
 				*cfg.Model, knownCopilotModelIDs()))
+		}
+		if client == "opencode" && validateModelForClient(*cfg.Model, "opencode") == nil && !isKnownOpenCodeModel(*cfg.Model) {
+			warnings = append(warnings, fmt.Sprintf(
+				"model %q is not a Nav-curated opencode model id; it will be passed as-is (Nav default: %s, known ids: %s)",
+				*cfg.Model, openCodeDefaultModel, knownOpenCodeModelIDs()))
 		}
 	}
 	return warnings

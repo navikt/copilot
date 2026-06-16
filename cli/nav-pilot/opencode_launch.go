@@ -80,18 +80,23 @@ func ensureOpenCodeNavContext() (string, error) {
 //
 // Mapping (nav-pilot config -> opencode flag):
 //
-//	model            -> --model (expects provider/model, e.g. anthropic/claude-3-5-sonnet)
+//	model            -> --model (expects provider/model, e.g. anthropic/claude-sonnet-4-5)
+//	                    defaults to openCodeDefaultModel when unset
 //	mode=plan        -> --agent plan (opencode has no --mode; autopilot has no opencode flag)
 //	reasoning_effort -> --variant (provider-specific reasoning, e.g. high/max)
 //	allow_all_tools  -> --dangerously-skip-permissions
 //	log_level        -> --log-level (translated to opencode's UPPERCASE set)
-//	context_tier     -> (no opencode equivalent; ignored)
-//	ask_user         -> (no opencode equivalent; ignored)
+//	context_tier     -> (no opencode equivalent; ignored — warns via openCodeUnsupportedConfigWarnings)
+//	ask_user         -> (no opencode equivalent; ignored — warns when explicitly set to false)
 func openCodeArgs(resolved ResolvedConfig) []string {
 	var args []string
-	if resolved.Model != "" {
-		args = append(args, "--model", resolved.Model)
+	// Always pass --model so opencode uses Nav's Anthropic API credentials rather
+	// than its own built-in default, which may not be configured in Nav's setup.
+	model := resolved.Model
+	if model == "" {
+		model = openCodeDefaultModel
 	}
+	args = append(args, "--model", model)
 	if resolved.Mode == "plan" {
 		args = append(args, "--agent", "plan")
 	}
@@ -105,6 +110,30 @@ func openCodeArgs(resolved ResolvedConfig) []string {
 		args = append(args, "--log-level", lvl)
 	}
 	return args
+}
+
+// openCodeUnsupportedConfigWarnings returns informational warning strings for
+// config fields that are explicitly set to a non-default value but have no
+// opencode equivalent. Only called when launching opencode; only non-default
+// values produce warnings to keep output quiet for typical configs.
+//
+// Callers should print each warning to stderr with a yellow ⚠ prefix.
+func openCodeUnsupportedConfigWarnings(r ResolvedConfig) []string {
+	var w []string
+	// mode=autopilot: opencode has no autonomous non-interactive mode;
+	// --dangerously-skip-permissions (from allow_all_tools) is the closest alternative.
+	if r.Mode == "autopilot" {
+		w = append(w, `mode "autopilot" has no opencode equivalent — running with opencode defaults (use allow_all_tools = true to skip confirmations)`)
+	}
+	// context_tier: opencode does not expose a context-window tier flag.
+	if r.ContextTier != "" {
+		w = append(w, fmt.Sprintf("context_tier %q has no opencode equivalent — ignored", r.ContextTier))
+	}
+	// ask_user defaults to true; warn only when explicitly set to false.
+	if !r.AskUser {
+		w = append(w, "ask_user = false has no opencode equivalent — ignored")
+	}
+	return w
 }
 
 // openCodeLogLevel translates a nav-pilot log level to opencode's accepted set
@@ -228,6 +257,11 @@ func launchOpenCode(resolved ResolvedConfig) error {
 	navSummary, ctxErr := ensureOpenCodeNavContext()
 	if ctxErr != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not materialize Nav context for opencode: %v\n", yellow("⚠"), ctxErr)
+	}
+
+	// Warn about config fields that are explicitly set but have no opencode equivalent.
+	for _, msg := range openCodeUnsupportedConfigWarnings(resolved) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), msg)
 	}
 
 	args := openCodeArgs(resolved)

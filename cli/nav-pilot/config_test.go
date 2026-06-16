@@ -1103,10 +1103,122 @@ func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
 }
 
 func TestConfigAdvisories_NonCopilotModel_NoWarning(t *testing.T) {
-	// For non-copilot agents the curated Copilot list does not apply.
-	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"anthropic/claude-3-5-sonnet\"\n")
+	// Known Nav-curated opencode model must not generate any warning.
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"anthropic/claude-sonnet-4-5\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
-		t.Errorf("configAdvisories() = %v, want no warnings for opencode model", w)
+		t.Errorf("configAdvisories() = %v, want no warnings for known opencode model", w)
+	}
+}
+
+func TestConfigAdvisories_UnrecognizedOpenCodeModel(t *testing.T) {
+	// Valid shape but not in the Nav-curated list → soft advisory.
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"anthropic/claude-3-5-sonnet\"\n")
+	w := configAdvisories(cfg, meta)
+	if len(w) == 0 || !strings.Contains(w[0], "anthropic/claude-3-5-sonnet") {
+		t.Errorf("configAdvisories() = %v, want advisory for unrecognized opencode model", w)
+	}
+}
+
+// ─── validateModelForClient ──────────────────────────────────────────────────
+
+func TestValidateModelForClient(t *testing.T) {
+	tests := []struct {
+		model   string
+		client  string
+		wantErr bool
+		errSnip string // substring expected in error
+	}{
+		// opencode: valid provider/model format
+		{"anthropic/claude-sonnet-4-5", "opencode", false, ""},
+		{"openai/gpt-4o", "opencode", false, ""},
+		{"google/gemini-2-0-flash", "opencode", false, ""},
+		// opencode: bare id (no slash) — must error
+		{"claude-opus-4.8", "opencode", true, "provider/model"},
+		{"gpt-5.5", "opencode", true, "provider/model"},
+		// opencode: double-slash — must error
+		{"a/b/c", "opencode", true, "provider/model"},
+		// opencode: trailing slash (empty model part) — must error
+		{"anthropic/", "opencode", true, "provider/model"},
+		// copilot: bare id is fine
+		{"claude-opus-4.8", "copilot", false, ""},
+		{"gpt-5.5", "copilot", false, ""},
+		// copilot: provider/model is also fine (allowed by validateModelValue)
+		{"anthropic/claude-sonnet-4-5", "copilot", false, ""},
+		// empty client: acts like base validation only
+		{"claude-opus-4.8", "", false, ""},
+		// always-invalid (base validateModelValue failures)
+		{"", "copilot", true, ""},
+		{" bad", "opencode", true, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.model+"@"+tt.client, func(t *testing.T) {
+			err := validateModelForClient(tt.model, tt.client)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("validateModelForClient(%q, %q) = nil, want error", tt.model, tt.client)
+				}
+				if tt.errSnip != "" && !strings.Contains(err.Error(), tt.errSnip) {
+					t.Errorf("error = %q, want substring %q", err.Error(), tt.errSnip)
+				}
+			} else if err != nil {
+				t.Fatalf("validateModelForClient(%q, %q) = %v, want nil", tt.model, tt.client, err)
+			}
+		})
+	}
+}
+
+// ─── isKnownOpenCodeModel / knownOpenCodeModelIDs ────────────────────────────
+
+func TestIsKnownOpenCodeModel(t *testing.T) {
+	cases := []struct {
+		id   string
+		want bool
+	}{
+		{openCodeDefaultModel, true},
+		{"anthropic/claude-opus-4-5", true},
+		{strings.ToUpper(openCodeDefaultModel), true}, // case-insensitive
+		{"anthropic/claude-3-5-sonnet", false},        // older, not in list
+		{"claude-sonnet-4.6", false},                  // copilot id, not opencode
+		{"", false},
+	}
+	for _, c := range cases {
+		if got := isKnownOpenCodeModel(c.id); got != c.want {
+			t.Errorf("isKnownOpenCodeModel(%q) = %v, want %v", c.id, got, c.want)
+		}
+	}
+}
+
+func TestKnownOpenCodeModelIDs(t *testing.T) {
+	got := knownOpenCodeModelIDs()
+	for _, want := range []string{openCodeDefaultModel, "anthropic/claude-opus-4-5"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("knownOpenCodeModelIDs() = %q, missing %q", got, want)
+		}
+	}
+}
+
+// TestValidateConfigProblems_OpenCodeBareModel ensures that an opencode config
+// with a bare (non-provider/model) id is a hard validation error.
+func TestValidateConfigProblems_OpenCodeBareModel(t *testing.T) {
+	client := "opencode"
+	model := "claude-opus-4.8"
+	cfg := &Config{Version: 1, Client: &client, Model: &model}
+	problems := validateConfigProblems(cfg)
+	if len(problems) == 0 {
+		t.Fatal("expected validation error for opencode bare model id, got none")
+	}
+	if !strings.Contains(problems[0], "provider/model") {
+		t.Errorf("problem = %q, want mention of provider/model format", problems[0])
+	}
+}
+
+// TestValidateConfigProblems_OpenCodeValidModel ensures valid opencode models pass.
+func TestValidateConfigProblems_OpenCodeValidModel(t *testing.T) {
+	client := "opencode"
+	model := "anthropic/claude-sonnet-4-5"
+	cfg := &Config{Version: 1, Client: &client, Model: &model}
+	if p := validateConfigProblems(cfg); len(p) != 0 {
+		t.Errorf("expected no problems for valid opencode model, got: %v", p)
 	}
 }
 

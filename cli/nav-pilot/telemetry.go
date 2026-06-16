@@ -372,12 +372,14 @@ func (t *otelTelemetry) recordClientAvailability() {
 }
 
 // configModelLabel collapses an arbitrary model id to a low-cardinality label:
-// a known Copilot model id, "custom" for anything else, or "unset" when blank.
+// a known Copilot or opencode model id, "custom" for anything else, or "unset"
+// when blank. Both curated lists are tracked by name; all other ids collapse to
+// "custom" so cardinality stays bounded regardless of user-specified models.
 func configModelLabel(model string) string {
 	if strings.TrimSpace(model) == "" {
 		return "unset"
 	}
-	if isKnownCopilotModel(model) {
+	if isKnownCopilotModel(model) || isKnownOpenCodeModel(model) {
 		return model
 	}
 	return "custom"

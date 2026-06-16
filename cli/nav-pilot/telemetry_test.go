@@ -157,6 +157,11 @@ func TestConfigModelLabel(t *testing.T) {
 		{"claude-opus-4.8", "claude-opus-4.8"},
 		{"some/local-model", "custom"},
 		{"gpt-bogus", "custom"},
+		// known opencode models are tracked by name
+		{"anthropic/claude-sonnet-4-5", "anthropic/claude-sonnet-4-5"},
+		{"anthropic/claude-opus-4-5", "anthropic/claude-opus-4-5"},
+		// valid opencode shape but not curated → custom
+		{"anthropic/claude-3-5-sonnet", "custom"},
 	}
 	for _, tt := range tests {
 		if got := configModelLabel(tt.in); got != tt.want {
