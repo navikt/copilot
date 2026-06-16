@@ -30,8 +30,9 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 **Merk om `nav_pilot_config_info`:**
 - `config_mode` er konfig-modus (`default`/`plan`/`autopilot`) — ikke å forveksle
   med `mode` på `nav_pilot_command_total` som er kjøremodus (`interactive`/`non_interactive`).
-- `model` kollapses til kjent Copilot-modell-id, `custom` (ukjent/egendefinert,
-  f.eks. opencode provider/model) eller `unset` for å holde kardinaliteten lav.
+- `model` kollapses til kjent klient-modell-id (Copilot-modeller som `claude-sonnet-4.6`,
+  eller opencode-modeller som `anthropic/claude-sonnet-4-5`), `custom` (ukjent/egendefinert)
+  eller `unset` for å holde kardinaliteten lav.
 - Tomme valg (`reasoning_effort`, `context_tier`, `model`) rapporteres som `unset`.
 - `nav_pilot_client_available` PATH-sjekker `copilot` (cplt/copilot), `opencode` og `pi`
   ved oppstart, så vi ser hvilke klienter brukere faktisk har installert.

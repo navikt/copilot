@@ -186,8 +186,8 @@ func runConfigSetup() error {
 	} else {
 		err = huh.NewInput().
 			Title("Model (leave blank for agent default)").
-			Description("For opencode use provider/model, e.g. anthropic/claude-3-5-sonnet.").
-			Placeholder("provider/model").
+			Description("Enter the model id for this client.").
+			Placeholder("model-id").
 			Value(&answers.Model).
 			Validate(validateOptionalModel).
 			WithTheme(navTheme()).
@@ -221,6 +221,19 @@ func runConfigSetup() error {
 
 	if err := writeSetupConfig(answers); err != nil {
 		return fmt.Errorf("saving config: %w", err)
+	}
+
+	// Bootstrap opencode on first run: write OTel config and seed Nav context
+	// so the user is immediately ready without a separate 'export' step.
+	if answers.Client == "opencode" {
+		if err := ensureOpenCodeOTelConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not configure opencode OTel: %v\n", yellow("⚠"), err)
+		}
+		if summary, ctxErr := ensureOpenCodeNavContext(); ctxErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for opencode: %v\n", yellow("⚠"), ctxErr)
+		} else if summary != "" {
+			fmt.Printf("  %s Nav context seeded: %s\n", green("✓"), summary)
+		}
 	}
 
 	path := configPath()

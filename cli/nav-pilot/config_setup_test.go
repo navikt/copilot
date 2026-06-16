@@ -233,3 +233,78 @@ func TestMaybeRunFirstRunSetup_NonInteractiveNoFile(t *testing.T) {
 		t.Error("no file should exist")
 	}
 }
+
+// ─── opencode setup bootstrap ─────────────────────────────────────────────────
+
+// TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext verifies that when the
+// opencode client is chosen in first-run setup, OTel config and Nav context are
+// seeded into the overridden output dirs — hermetic, no network required.
+func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
+	cfgDir := t.TempDir()
+	ocConfigDir := t.TempDir()
+	ocNavContextDir := t.TempDir()
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(cfgDir, "config.toml"))
+
+	// Redirect opencode config and Nav context dirs.
+	oldCfgOverride := openCodeConfigPathOverride
+	oldNavOverride := openCodeNavContextDirOverride
+	openCodeConfigPathOverride = filepath.Join(ocConfigDir, "opencode.json")
+	openCodeNavContextDirOverride = ocNavContextDir
+	defer func() {
+		openCodeConfigPathOverride = oldCfgOverride
+		openCodeNavContextDirOverride = oldNavOverride
+	}()
+
+	// Redirect cloneRemoteFn so ensureOpenCodeNavContext uses a local fixture.
+	origClone := cloneRemoteFn
+	defer func() { cloneRemoteFn = origClone }()
+	sourceDir := setupTestSource(t)
+	cloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
+		return &Source{Dir: sourceDir, SHA: "test-bootstrap"}, nil
+	}
+
+	// Bootstrap is triggered inside runConfigSetup after writeSetupConfig; call
+	// the helpers directly to stay hermetic (no huh TUI in tests).
+	answers := setupAnswers{Client: "opencode", Mode: "default"}
+	if err := writeSetupConfig(answers); err != nil {
+		t.Fatalf("writeSetupConfig: %v", err)
+	}
+	// Simulate the opencode bootstrap block from runConfigSetup.
+	if err := ensureOpenCodeOTelConfig(); err != nil {
+		t.Fatalf("ensureOpenCodeOTelConfig: %v", err)
+	}
+	summary, err := ensureOpenCodeNavContext()
+	if err != nil {
+		t.Fatalf("ensureOpenCodeNavContext: %v", err)
+	}
+
+	// OTel config must have been created.
+	if _, err := os.Stat(openCodeConfigPath()); err != nil {
+		t.Errorf("opencode OTel config not created: %v", err)
+	}
+
+	// AGENTS.md must exist in the Nav context dir.
+	agentsPath := filepath.Join(ocNavContextDir, "AGENTS.md")
+	if _, err := os.Stat(agentsPath); err != nil {
+		t.Errorf("AGENTS.md not created in context dir: %v", err)
+	}
+
+	// Summary must mention artifacts.
+	if summary == "" {
+		t.Error("expected non-empty context summary after bootstrap")
+	}
+
+	// Second run must be idempotent — no error, same AGENTS.md content.
+	first, _ := os.ReadFile(agentsPath)
+	summary2, err2 := ensureOpenCodeNavContext()
+	if err2 != nil {
+		t.Fatalf("second ensureOpenCodeNavContext: %v", err2)
+	}
+	second, _ := os.ReadFile(agentsPath)
+	if string(first) != string(second) {
+		t.Error("AGENTS.md changed between runs — not idempotent")
+	}
+	if summary != summary2 {
+		t.Errorf("summary changed: %q → %q", summary, summary2)
+	}
+}
