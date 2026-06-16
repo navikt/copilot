@@ -55,6 +55,16 @@ const DOC_SECTIONS: TocItem[] = [
     ],
   },
   {
+    id: "klienter-og-konfig",
+    label: "Klienter og konfigurasjon",
+    children: [
+      { id: "stotte-klienter", label: "Støttede klienter" },
+      { id: "opencode", label: "OpenCode" },
+      { id: "konfigurasjon", label: "Konfigurasjon" },
+      { id: "konfig-nokler", label: "Konfigurasjonsnøkler" },
+    ],
+  },
+  {
     id: "collections",
     label: "Collections",
     children: [
@@ -256,6 +266,7 @@ const PLANNING_SKILLS = [
 
 const CLI_COMMANDS = [
   { command: "nav-pilot", description: "Interaktivt: installer, oppgrader eller start Copilot-sandkassen (cplt)" },
+  { command: "nav-pilot --client opencode", description: "Start OpenCode-sesjonen med Nav-kontekst levert automatisk" },
   { command: "nav-pilot install <collection>", description: "Installer en collection i repoet ditt" },
   {
     command: "nav-pilot install --user",
@@ -289,7 +300,7 @@ const CLI_COMMANDS = [
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
   { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
   { command: "nav-pilot config init", description: "Opprett ~/.nav-pilot/config.toml med alle valg kommentert ut" },
-  { command: "nav-pilot config setup", description: "Interaktiv konfigurasjonsveileder (agent, modell, modus)" },
+  { command: "nav-pilot config setup", description: "Interaktiv konfigurasjonsveileder (klient, modell, modus)" },
   { command: "nav-pilot config show", description: "Vis effektiv konfigurasjon (fil + standardverdier)" },
   { command: "nav-pilot config get <key>", description: "Hent én konfigurasjonsverdi" },
   { command: "nav-pilot config set <key> <value>", description: "Sett én konfigurasjonsverdi" },
@@ -332,6 +343,7 @@ export default function NavPilotDocs() {
               <VStack gap={{ xs: "space-32", md: "space-40" }}>
                 <IntroductionSection />
                 <QuickStartSection />
+                <KlienterOgKonfigurasjonSection />
                 <CollectionsSection />
                 <PipelineSection />
                 <CompetenceSection />
@@ -688,9 +700,13 @@ nav-pilot`}
           </div>
           <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
             Filene installeres til <code className="font-mono text-xs">~/.copilot/</code>. Agenter og skills plukkes opp
-            automatisk av alle Copilot-klienter. Instruksjoner krever{" "}
+            automatisk av GitHub Copilot. Instruksjoner krever{" "}
             <code className="font-mono text-xs">COPILOT_CUSTOM_INSTRUCTIONS_DIRS</code> og fungerer kun med Copilot CLI
-            — nav-pilot setter denne automatisk i interaktiv modus.
+            — nav-pilot setter denne automatisk i interaktiv modus. OpenCode mottar Nav-kontekst på en annen måte — se{" "}
+            <a href="#opencode" className="text-blue-600 hover:underline">
+              OpenCode
+            </a>
+            .
           </BodyLong>
           <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>
             Når nye komponenter dukker opp i kilden, varsler nav-pilot om det ved oppstart. Vil du ikke installere en
@@ -1511,6 +1527,371 @@ function CustomizationSection() {
             trenger.
           </BodyLong>
         </Box>
+      </VStack>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Section 2b: Klienter og konfigurasjon
+   ═══════════════════════════════════════════════════════════════ */
+
+const CONFIG_KEYS = [
+  {
+    key: "client",
+    flag: "--client",
+    values: "copilot · opencode · pi",
+    desc: "Klient å starte. copilot er standard; pi er reservert og støttes ikke ennå.",
+  },
+  {
+    key: "model",
+    flag: "--model",
+    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); anthropic/claude-sonnet-4-5 (opencode)",
+    desc: "Modell å bruke. Format avhenger av klient.",
+  },
+  {
+    key: "mode",
+    flag: "--mode",
+    values: "default · plan · autopilot",
+    desc: "Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot og øvrige er kun Copilot.",
+  },
+  {
+    key: "reasoning_effort",
+    flag: "--effort",
+    values: "none · low · medium · high · xhigh · max",
+    desc: "Resonneringsinnsats. Kun Copilot — nav-pilot advarer om feltet er satt for opencode.",
+  },
+  {
+    key: "context_tier",
+    flag: "--context",
+    values: "default · long_context",
+    desc: "Kontekstnivå. Kun Copilot — nav-pilot advarer om feltet er satt for opencode.",
+  },
+  {
+    key: "allow_all_tools",
+    flag: "--allow-all-tools / --no-allow-all-tools",
+    values: "bool",
+    desc: "Gi agenten tilgang til alle tilgjengelige verktøy.",
+  },
+  {
+    key: "ask_user",
+    flag: "--ask-user / --no-ask-user",
+    values: "bool",
+    desc: "Be om bekreftelse på beslutninger. Kun Copilot — nav-pilot advarer om feltet er satt for opencode.",
+  },
+  {
+    key: "log_level",
+    flag: "--log-level",
+    values: "none · error · warning · info · debug",
+    desc: "Loggnivå for nav-pilot CLI.",
+  },
+  {
+    key: "otel_log_level",
+    flag: "--otel-log-level",
+    values: "none · error · warning · info · debug",
+    desc: "Loggnivå for OpenTelemetry-eksport.",
+  },
+];
+
+function KlienterOgKonfigurasjonSection() {
+  return (
+    <section id="klienter-og-konfig">
+      <VStack gap="space-16">
+        <div>
+          <LinkableHeading size="medium" level="2">
+            Klienter og konfigurasjon
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            nav-pilot kan starte ulike kodingsagent-klienter. Du velger klient via flagg eller konfigurasjonsfil, og
+            tilpasser oppførsel med én felles fil: <code className="font-mono text-xs">~/.nav-pilot/config.toml</code>.
+          </BodyLong>
+        </div>
+
+        {/* Supported clients */}
+        <div id="stotte-klienter">
+          <LinkableHeading size="small" level="3">
+            Støttede klienter
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Velg klient med <code className="font-mono text-xs">--client</code>-flagget eller{" "}
+            <code className="font-mono text-xs">client</code>-nøkkelen i konfigurasjonsfilen.
+          </BodyShort>
+
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+            {[
+              {
+                name: "copilot",
+                badge: "Standard",
+                badgeColor: "#3b82f6",
+                badgeBg: "#dbeafe",
+                desc: "GitHub Copilot / cplt-sandkassen. Fungerer med VS Code, JetBrains og GitHub.com.",
+                color: "#3b82f6",
+              },
+              {
+                name: "opencode",
+                badge: "Første klasse",
+                badgeColor: "#059669",
+                badgeBg: "#d1fae5",
+                desc: "OpenCode terminal-klient. Nav-kontekst leveres og holdes oppdatert automatisk.",
+                color: "#059669",
+              },
+              {
+                name: "pi",
+                badge: "Reservert",
+                badgeColor: "#94a3b8",
+                badgeBg: "#f1f5f9",
+                desc: "Ikke støttet ennå — nav-pilot returnerer feilmelding om du velger denne.",
+                color: "#94a3b8",
+              },
+            ].map((c) => (
+              <div
+                key={c.name}
+                className="rounded-lg overflow-hidden"
+                style={{ background: "white", border: "1px solid #e2e8f0" }}
+              >
+                <div style={{ height: "3px", background: c.color }} />
+                <div style={{ padding: "0.75rem 1rem" }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <code className="text-sm font-mono font-semibold" style={{ color: c.color }}>
+                      {c.name}
+                    </code>
+                    <span
+                      className="text-xs font-medium rounded-full"
+                      style={{
+                        background: c.badgeBg,
+                        color: c.badgeColor,
+                        padding: "1px 8px",
+                      }}
+                    >
+                      {c.badge}
+                    </span>
+                  </div>
+                  <BodyShort size="small" style={{ color: "#475569" }}>
+                    {c.desc}
+                  </BodyShort>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <div>
+              <Label size="small" style={{ color: "#64748b" }}>
+                Start med OpenCode (flagg)
+              </Label>
+              <div className="mt-1">
+                <CodeBlock compact>{`nav-pilot --client opencode`}</CodeBlock>
+              </div>
+            </div>
+            <div>
+              <Label size="small" style={{ color: "#64748b" }}>
+                Sett OpenCode som standard (config.toml)
+              </Label>
+              <div className="mt-1">
+                <CodeBlock compact>{`client = "opencode"`}</CodeBlock>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* OpenCode */}
+        <div id="opencode">
+          <div className="flex items-center gap-2 mb-2">
+            <TerminalIcon fontSize="1.125rem" style={{ color: "#059669" }} aria-hidden />
+            <LinkableHeading size="small" level="3">
+              OpenCode
+            </LinkableHeading>
+          </div>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            OpenCode er en <strong>første klasse</strong>-klient i nav-pilot. Når du starter med{" "}
+            <code className="font-mono text-xs">--client opencode</code>, leverer nav-pilot Nav-kontekst (AGENTS.md,
+            skills, kommandoer og agenter) direkte til <code className="font-mono text-xs">~/.config/opencode/</code> og
+            holder det oppdatert ved hver kjøring.
+          </BodyLong>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {[
+              {
+                title: "Automatisk kontekstlevering",
+                desc: (
+                  <>
+                    Nav-kontekst materialiseres til <code className="font-mono text-xs">~/.config/opencode/</code> og
+                    holdes fersk med konfliktsdeteksjon — dine egne redigeringer overskrives ikke.
+                  </>
+                ),
+                color: "#059669",
+                bg: "#ecfdf5",
+              },
+              {
+                title: "Kuratert standardmodell",
+                desc: (
+                  <>
+                    Når ingen modell er konfigurert, settes{" "}
+                    <code className="font-mono text-xs">anthropic/claude-sonnet-4-5</code> som Nav-standard for
+                    opencode.
+                  </>
+                ),
+                color: "#3b82f6",
+                bg: "#eff6ff",
+              },
+              {
+                title: "OTel-telemetri",
+                desc: "OpenTelemetry-konfigurasjon settes opp automatisk — ingen manuell konfigurasjon nødvendig.",
+                color: "#7c3aed",
+                bg: "#f5f3ff",
+              },
+              {
+                title: "Tilstandsfil",
+                desc: (
+                  <>
+                    <code className="font-mono text-xs">~/.config/opencode/.nav-pilot-state.json</code> sporer
+                    installerte filer og versjon, slik at sync vet hva som er endret.
+                  </>
+                ),
+                color: "#ea580c",
+                bg: "#fff7ed",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-lg"
+                style={{ padding: "0.875rem 1rem", background: item.bg, border: `1px solid ${item.color}22` }}
+              >
+                <Label size="small" className="mb-1" style={{ color: item.color }}>
+                  {item.title}
+                </Label>
+                <BodyShort size="small" style={{ color: "#475569" }}>
+                  {item.desc}
+                </BodyShort>
+              </div>
+            ))}
+          </div>
+
+          <Box background="neutral-soft" padding="space-12" borderRadius="8" className="mt-4">
+            <BodyShort size="small" style={{ color: "#475569" }}>
+              <code className="font-mono text-xs">nav-pilot export opencode</code> finnes fortsatt for manuell
+              engangseksport, men trengs <strong>ikke</strong> i den normale flyten — nav-pilot håndterer dette
+              automatisk når du bruker <code className="font-mono text-xs">--client opencode</code>.
+            </BodyShort>
+          </Box>
+
+          <BodyShort size="small" className="mt-3" style={{ color: "#94a3b8", fontStyle: "italic" }}>
+            Merk: Noen konfigurasjonsnøkler (mode=autopilot, context_tier, ask_user) gjelder kun GitHub Copilot.
+            nav-pilot skriver én advarsel hvis disse er eksplisitt satt og du bruker opencode.
+          </BodyShort>
+        </div>
+
+        {/* Konfigurasjon */}
+        <div id="konfigurasjon">
+          <div className="flex items-center gap-2 mb-2">
+            <WrenchIcon fontSize="1.125rem" style={{ color: "#64748b" }} aria-hidden />
+            <LinkableHeading size="small" level="3">
+              Konfigurasjon
+            </LinkableHeading>
+          </div>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            nav-pilot leser brukerens konfigurasjon fra{" "}
+            <code className="font-mono text-xs">~/.nav-pilot/config.toml</code>. Det finnes ingen repo-lokal
+            konfigurasjon. Prioritetsrekkefølge: <strong>CLI-flagg › config.toml › innebygd standard</strong>.
+          </BodyLong>
+
+          <div className="mt-4 space-y-3">
+            <div>
+              <Label size="small" style={{ color: "#64748b" }}>
+                Opprett konfigurasjonsfil (alle nøkler kommentert ut)
+              </Label>
+              <div className="mt-1">
+                <CodeBlock compact>{`nav-pilot config init`}</CodeBlock>
+              </div>
+            </div>
+            <div>
+              <Label size="small" style={{ color: "#64748b" }}>
+                Interaktiv veiviser — velg klient, modell og modus
+              </Label>
+              <div className="mt-1">
+                <CodeBlock compact>{`nav-pilot config setup`}</CodeBlock>
+              </div>
+            </div>
+            <div>
+              <Label size="small" style={{ color: "#64748b" }}>
+                Vis effektiv konfigurasjon (fil + standardverdier)
+              </Label>
+              <div className="mt-1">
+                <CodeBlock compact>{`nav-pilot config show`}</CodeBlock>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
+              Eksempel: ~/.nav-pilot/config.toml
+            </Label>
+            <CodeBlock compact>
+              {`# Klient (copilot er standard)
+client = "opencode"
+
+# Modell (format avhenger av klient)
+model = "anthropic/claude-sonnet-4-5"
+
+# Modus (default | plan | autopilot) — kun Copilot
+# mode = "default"
+
+# Resonneringsinnsats (none|low|medium|high|xhigh|max)
+reasoning_effort = "high"
+
+# Loggnivå
+# log_level = "info"`}
+            </CodeBlock>
+          </div>
+        </div>
+
+        {/* Config keys table */}
+        <div id="konfig-nokler">
+          <LinkableHeading size="small" level="3">
+            Konfigurasjonsnøkler
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Alle nøkler kan overstyres med tilsvarende CLI-flagg. Flagg har alltid høyest prioritet.
+          </BodyShort>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  {["Nøkkel", "CLI-flagg", "Tillatte verdier", "Beskrivelse"].map((h) => (
+                    <th key={h} className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {CONFIG_KEYS.map((row) => (
+                  <tr key={row.key} style={{ borderBottom: "1px solid #e2e8f0", verticalAlign: "top" }}>
+                    <td className="py-2.5 pr-4" style={{ whiteSpace: "nowrap" }}>
+                      <code
+                        className="text-xs font-mono rounded px-1.5 py-0.5"
+                        style={{ background: "#f1f5f9", color: "#3b82f6" }}
+                      >
+                        {row.key}
+                      </code>
+                    </td>
+                    <td className="py-2.5 pr-4" style={{ whiteSpace: "nowrap" }}>
+                      <code className="text-xs font-mono" style={{ color: "#475569" }}>
+                        {row.flag}
+                      </code>
+                    </td>
+                    <td className="py-2.5 pr-4" style={{ color: "#64748b", fontSize: "0.75rem" }}>
+                      {row.values}
+                    </td>
+                    <td className="py-2.5" style={{ color: "#475569" }}>
+                      {row.desc}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </VStack>
     </section>
   );
