@@ -109,3 +109,66 @@ func TestDeviceIDNoUserInfo(t *testing.T) {
 		}
 	}
 }
+
+// ─── device-id format validation ────────────────────────────────────────────
+
+func TestGetOrCreateDeviceID_ValidStoredIDReturned(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	idFile := dir + "/.nav-pilot/device-id"
+	if err := os.MkdirAll(dir+"/.nav-pilot", 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	want := "nav-pilot-aabbccddeeff"
+	if err := os.WriteFile(idFile, []byte(want+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := getOrCreateDeviceID()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestGetOrCreateDeviceID_InvalidStoredIDRegenerates(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{"garbage", "garbage-value"},
+		{"uppercase-hex", "nav-pilot-AABBCCDDEEFF"},
+		{"too-short", "nav-pilot-aabbcc"},
+		{"empty", ""},
+		{"spaces-only", "   \n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("HOME", dir)
+
+			idFile := dir + "/.nav-pilot/device-id"
+			if err := os.MkdirAll(dir+"/.nav-pilot", 0o700); err != nil {
+				t.Fatalf("mkdir: %v", err)
+			}
+			if err := os.WriteFile(idFile, []byte(tt.content), 0o600); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+
+			got, err := getOrCreateDeviceID()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !deviceIDPattern.MatchString(got) {
+				t.Errorf("regenerated id %q does not match expected pattern", got)
+			}
+			// Must NOT be the invalid stored value.
+			if got == strings.TrimSpace(tt.content) {
+				t.Errorf("returned the invalid stored value %q unchanged", got)
+			}
+		})
+	}
+}

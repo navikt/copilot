@@ -73,7 +73,10 @@ func writeSetupConfig(answers setupAnswers) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
-	return os.WriteFile(path, []byte(content), 0o600)
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o600)
 }
 
 // runConfigSetup runs the interactive first-run wizard.

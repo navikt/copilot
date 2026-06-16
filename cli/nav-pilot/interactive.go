@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -744,7 +745,10 @@ func launchCopilotResolved(resolved ResolvedConfig) error {
 	cmd.Stderr = os.Stderr
 	cmd.Env = copilotEnv(resolved.OtelLogLevel)
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), displayName, err)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), displayName, err)
+		}
 		return err
 	}
 	return nil

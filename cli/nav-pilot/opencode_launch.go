@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -146,6 +147,9 @@ func ensureOpenCodeOTelConfig() error {
 	if err := os.WriteFile(path, out, 0o600); err != nil {
 		return fmt.Errorf("writing opencode config: %w", err)
 	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("setting opencode config permissions: %w", err)
+	}
 	return nil
 }
 
@@ -178,7 +182,10 @@ func launchOpenCode(resolved ResolvedConfig) error {
 	}
 
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not launch opencode: %v\n", yellow("⚠"), err)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			fmt.Fprintf(os.Stderr, "%s Could not launch opencode: %v\n", yellow("⚠"), err)
+		}
 		return err
 	}
 	return nil

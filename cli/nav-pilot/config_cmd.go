@@ -466,6 +466,9 @@ func cmdConfigSet(key, value string) error {
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("writing config: %w", err)
 	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("setting config permissions: %w", err)
+	}
 
 	fmt.Printf("%s %s = %s\n", green("✓"), key, tomlVal)
 	return nil

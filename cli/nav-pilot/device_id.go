@@ -6,8 +6,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+// deviceIDPattern matches the canonical device-id format produced by generateDeterministicDeviceID.
+var deviceIDPattern = regexp.MustCompile(`^nav-pilot-[0-9a-f]{12}$`)
 
 // getOrCreateDeviceID returns a stable, deterministic device identifier.
 // It generates a SHA256 hash of hostname + CLI executable path + MAC address.
@@ -24,12 +28,13 @@ func getOrCreateDeviceID() (string, error) {
 
 	idFile := filepath.Join(configDir, "device-id")
 
-	// If file exists, read and return it
+	// If file exists, read and validate the stored id.
 	if data, err := os.ReadFile(idFile); err == nil {
 		id := strings.TrimSpace(string(data))
-		if id != "" {
+		if deviceIDPattern.MatchString(id) {
 			return id, nil
 		}
+		debugLog("stored device-id %q does not match expected format; regenerating", id)
 	}
 
 	// Otherwise: generate deterministic ID from hardware
@@ -42,6 +47,8 @@ func getOrCreateDeviceID() (string, error) {
 	if err := os.WriteFile(idFile, []byte(deviceID+"\n"), 0600); err != nil {
 		// Non-fatal: we can still use the in-memory ID
 		debugLog("failed to persist device ID to %s: %v", idFile, err)
+	} else if err := os.Chmod(idFile, 0600); err != nil {
+		debugLog("failed to chmod device-id file %s: %v", idFile, err)
 	}
 
 	return deviceID, nil

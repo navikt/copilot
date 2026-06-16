@@ -13,8 +13,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -139,6 +141,9 @@ func run(args []string) error {
 				}
 				i++
 				cliOverrides.Model = args[i]
+				if err := validateModelValue(cliOverrides.Model); err != nil {
+					return err
+				}
 			case "--mode":
 				if i+1 >= len(args) {
 					return fmt.Errorf("--mode requires a value")
@@ -238,10 +243,10 @@ func run(args []string) error {
 		if cfgErr != nil {
 			return cfgErr
 		}
-		_ = runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
+		launchErr := runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
 			return launchAgent(resolved)
 		})
-		return nil
+		return launchErr
 	}
 
 	command := args[0]
@@ -473,14 +478,7 @@ func main() {
 
 	exitCode := 0
 	if err := run(os.Args[1:]); err != nil {
-		if err == errUpdatesAvailable {
-			exitCode = 1
-		} else if err == errSyncFailed {
-			exitCode = 2
-		} else {
-			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
-			exitCode = 1
-		}
+		exitCode = exitCodeFor(err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -489,4 +487,25 @@ func main() {
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+}
+
+// exitCodeFor maps a run error to an exit code.
+// ExitErrors from child processes are propagated transparently (no extra printing).
+// Known sentinel errors use fixed codes. Everything else prints a red error line.
+func exitCodeFor(err error) int {
+	if err == nil {
+		return 0
+	}
+	if err == errUpdatesAvailable {
+		return 1
+	}
+	if err == errSyncFailed {
+		return 2
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+	fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
+	return 1
 }

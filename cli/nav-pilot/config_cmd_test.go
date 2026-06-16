@@ -342,3 +342,27 @@ func TestCmdConfigGet_OtelLogLevel_DefaultNone(t *testing.T) {
 		t.Errorf("config get otel_log_level = %q, want none", strings.TrimSpace(out))
 	}
 }
+
+// ─── config set / setup permissions ──────────────────────────────────────────
+
+func TestCmdConfigSet_PermsTightenedOnPreExistingFile(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nagent = \"copilot\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+
+	// Widen permissions so WriteFile's mode arg alone wouldn't fix it.
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+
+	if err := cmdConfigSet("agent", "opencode"); err != nil {
+		t.Fatalf("cmdConfigSet: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("mode = %o, want 0600", info.Mode().Perm())
+	}
+}
