@@ -1559,7 +1559,7 @@ const CONFIG_KEYS = [
     key: "reasoning_effort",
     flag: "--effort",
     values: "none · low · medium · high · xhigh · max",
-    desc: "Resonneringsinnsats. Kun Copilot — nav-pilot advarer om feltet er satt for opencode.",
+    desc: "Resonneringsinnsats. Fungerer for begge klienter: Copilot bruker --effort, opencode bruker --variant.",
   },
   {
     key: "context_tier",
