@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -360,27 +359,28 @@ func (t *otelTelemetry) RecordClientAvailable(client string, available bool) {
 	))
 }
 
-// recordClientAvailability probes PATH for each supported client and records
+// recordClientAvailability probes PATH for each registered client and records
 // its availability, giving visibility into which tools users have installed.
 func (t *otelTelemetry) recordClientAvailability() {
-	copilotPath, _ := findCopilotCLI()
-	t.RecordClientAvailable("copilot", copilotPath != "")
-	_, openErr := exec.LookPath("opencode")
-	t.RecordClientAvailable("opencode", openErr == nil)
-	_, piErr := exec.LookPath("pi")
-	t.RecordClientAvailable("pi", piErr == nil)
+	for _, cl := range allClients() {
+		t.RecordClientAvailable(cl.ID(), cl.Available())
+	}
 }
 
 // configModelLabel collapses an arbitrary model id to a low-cardinality label:
-// a known Copilot or opencode model id, "custom" for anything else, or "unset"
-// when blank. Both curated lists are tracked by name; all other ids collapse to
-// "custom" so cardinality stays bounded regardless of user-specified models.
+// a model id known to any registered client, "custom" for anything else, or
+// "unset" when blank. Known model lists are owned by the client implementations
+// in clients.go; cardinality is bounded by the curated list sizes.
 func configModelLabel(model string) string {
 	if strings.TrimSpace(model) == "" {
 		return "unset"
 	}
-	if isKnownCopilotModel(model) || isKnownOpenCodeModel(model) {
-		return model
+	for _, cl := range allClients() {
+		for _, m := range cl.KnownModels() {
+			if strings.EqualFold(m.ID, model) {
+				return model
+			}
+		}
 	}
 	return "custom"
 }

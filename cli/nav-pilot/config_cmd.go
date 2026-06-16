@@ -622,9 +622,11 @@ func printKeyExplain(kd *configKeyDef, resolved ResolvedConfig) {
 	} else if kd.kind == keyKindBool {
 		fmt.Printf("    Allowed:  true, false\n")
 	} else if kd.name == "model" {
-		ids := make([]string, len(knownCopilotModels))
-		for i, m := range knownCopilotModels {
-			ids[i] = m.ID
+		var ids []string
+		for _, cl := range allClients() {
+			for _, m := range cl.KnownModels() {
+				ids = append(ids, m.ID)
+			}
 		}
 		fmt.Printf("    Common:   %s\n", strings.Join(ids, ", "))
 		fmt.Printf("    Allowed:  any well-formed id ([A-Za-z0-9._/-], e.g. provider/model for opencode)\n")

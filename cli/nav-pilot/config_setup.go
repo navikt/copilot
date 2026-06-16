@@ -123,20 +123,31 @@ func runConfigSetup() error {
 		return nil
 	}
 
-	if answers.Client == "copilot" {
+	// Model picker: clients with a curated model list get a select widget;
+	// others (pi, unknown future clients) get a free-text input.
+	cl, _ := clientFor(answers.Client)
+	if cl != nil && len(cl.KnownModels()) > 0 {
 		const customModelSentinel = "\x00custom"
-		modelOpts := []huh.Option[string]{
-			huh.NewOption("Unset (agent default)", ""),
+		defLabel := "Unset (agent default)"
+		if def := cl.DefaultModel(); def != "" {
+			defLabel = "Unset (Nav default: " + def + ")"
 		}
-		for _, m := range knownCopilotModels {
+		modelOpts := []huh.Option[string]{
+			huh.NewOption(defLabel, ""),
+		}
+		for _, m := range cl.KnownModels() {
 			modelOpts = append(modelOpts, huh.NewOption(m.Label, m.ID))
 		}
 		modelOpts = append(modelOpts, huh.NewOption("Custom (type manually)…", customModelSentinel))
 
 		var modelChoiceVal string
+		desc := "Pick a model, or leave unset to use the agent default."
+		if cl.DefaultModel() != "" {
+			desc = "Pick a model (provider/model format), or leave unset to use the Nav default."
+		}
 		err = huh.NewSelect[string]().
 			Title("Model").
-			Description("Pick a model, or leave unset to use the agent default.").
+			Description(desc).
 			Options(modelOpts...).
 			Value(&modelChoiceVal).
 			WithTheme(navTheme()).
@@ -146,50 +157,22 @@ func runConfigSetup() error {
 			return nil
 		}
 		if modelChoiceVal == customModelSentinel {
-			err = huh.NewInput().
-				Title("Custom model id").
-				Description("e.g. gpt-5.2 — leave blank for the agent default.").
-				Value(&answers.Model).
-				Validate(validateOptionalModel).
-				WithTheme(navTheme()).
-				Run()
-			if err != nil {
-				fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-				return nil
+			customValidator := validateOptionalModel
+			if cl.DefaultModel() != "" {
+				// Use client-specific validator so opencode gets provider/model shape check.
+				customValidator = func(s string) error {
+					s = strings.TrimSpace(s)
+					if s == "" {
+						return nil
+					}
+					return cl.ValidateModel(s)
+				}
 			}
-			answers.Model = strings.TrimSpace(answers.Model)
-		} else {
-			answers.Model = modelChoiceVal
-		}
-	} else if answers.Client == "opencode" {
-		const customModelSentinel = "\x00custom"
-		modelOpts := []huh.Option[string]{
-			huh.NewOption("Unset (Nav default: "+openCodeDefaultModel+")", ""),
-		}
-		for _, m := range knownOpenCodeModels {
-			modelOpts = append(modelOpts, huh.NewOption(m.Label, m.ID))
-		}
-		modelOpts = append(modelOpts, huh.NewOption("Custom (type manually)…", customModelSentinel))
-
-		var modelChoiceVal string
-		err = huh.NewSelect[string]().
-			Title("Model").
-			Description("Pick a model (provider/model format), or leave unset to use the Nav default.").
-			Options(modelOpts...).
-			Value(&modelChoiceVal).
-			WithTheme(navTheme()).
-			Run()
-		if err != nil {
-			fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-			return nil
-		}
-		if modelChoiceVal == customModelSentinel {
 			err = huh.NewInput().
 				Title("Custom model id").
-				Description("e.g. anthropic/claude-3-5-sonnet — leave blank for the Nav default.").
-				Placeholder("provider/model").
+				Description("Leave blank for the agent default.").
 				Value(&answers.Model).
-				Validate(validateOptionalOpenCodeModel).
+				Validate(customValidator).
 				WithTheme(navTheme()).
 				Run()
 			if err != nil {

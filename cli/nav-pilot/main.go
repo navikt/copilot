@@ -216,7 +216,7 @@ func run(args []string) error {
 	}
 
 	if cliOverrides.Client != "" && !containsStr(validClients, cliOverrides.Client) {
-		return fmt.Errorf("--client %q is not valid (allowed: copilot, opencode, pi)", cliOverrides.Client)
+		return fmt.Errorf("--client %q is not valid (allowed: %s)", cliOverrides.Client, strings.Join(validClients, ", "))
 	}
 
 	if len(args) < 1 {

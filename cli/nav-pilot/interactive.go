@@ -755,38 +755,28 @@ func launchCopilotResolved(resolved ResolvedConfig) error {
 }
 
 func launchClient(resolved ResolvedConfig) error {
-	switch resolved.Client {
-	case "opencode":
-		return launchOpenCode(resolved)
-	case "pi":
-		return launchPi()
-	default:
-		return launchCopilotResolved(resolved)
+	cl, err := clientFor(resolved.Client)
+	if err != nil {
+		return err
 	}
+	return cl.Launch(resolved)
 }
 
 // offerLaunchCopilot prompts the user to launch the configured agent after install.
+// If the client binary is not found in PATH, the prompt is skipped.
 func offerLaunchCopilot(resolved ResolvedConfig) {
-	cliPath, cliName := findCopilotCLI()
-	if resolved.Client == "copilot" && cliPath == "" {
+	cl, err := clientFor(resolved.Client)
+	if err != nil || !cl.Available() {
 		return
 	}
 	if !isInteractive() {
 		return
 	}
 
-	displayName := cliDisplayName(cliName)
-	if resolved.Client == "opencode" {
-		displayName = "opencode"
-	}
-	if resolved.Client == "pi" {
-		displayName = "pi"
-	}
-
 	fmt.Println()
 	var choice string
-	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", displayName)).
+	err = huh.NewSelect[string]().
+		Title(fmt.Sprintf("Launch %s now?", cl.DisplayName())).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),
@@ -803,30 +793,22 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	})
 }
 
-// offerLaunchCopilotWithAgents prompts the user to launch the Copilot CLI
-// using the resolved launch config.
+// offerLaunchCopilotWithAgents prompts the user to launch the configured agent
+// using the resolved launch config. If the client binary is not found, skipped.
 func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	_ = agents
-	cliPath, cliName := findCopilotCLI()
-	if resolved.Client == "copilot" && cliPath == "" {
+	cl, err := clientFor(resolved.Client)
+	if err != nil || !cl.Available() {
 		return
 	}
 	if !isInteractive() {
 		return
 	}
 
-	displayName := cliDisplayName(cliName)
-	if resolved.Client == "opencode" {
-		displayName = "opencode"
-	}
-	if resolved.Client == "pi" {
-		displayName = "pi"
-	}
-
 	fmt.Println()
 	var choice string
-	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", displayName)).
+	err = huh.NewSelect[string]().
+		Title(fmt.Sprintf("Launch %s now?", cl.DisplayName())).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),
