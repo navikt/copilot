@@ -40,6 +40,7 @@ func openCodeNavContextDir() string {
 
 // ensureOpenCodeNavContext resolves the Nav artifact source and materializes
 // AGENTS.md, skills, agents, and commands into opencode's user config directory.
+// Uses syncOpenCodeArtifacts for conflict detection and state tracking.
 // Returns a short summary string (e.g. "AGENTS.md + 3 skill(s)") suitable for
 // the launch message, or an empty string if nothing was produced.
 // Non-fatal: callers should warn and continue on error.
@@ -51,9 +52,20 @@ func ensureOpenCodeNavContext() (string, error) {
 	defer src.Cleanup()
 
 	outputDir := openCodeNavContextDir()
-	skills, commands, agents, instrCount, err := materializeOpenCode(src.Dir, outputDir)
+
+	// Read pre-sync state for staleness telemetry before updating it.
+	if prevState, _ := readOpenCodeState(outputDir); prevState != nil {
+		assessment := assessStaleness(prevState.Version)
+		recordFreshness("opencode", openCodeScopeName, assessment)
+	}
+
+	skills, commands, agents, instrCount, conflicts, err := syncOpenCodeArtifacts(src.Dir, outputDir, src.Version, src.SHA)
 	if err != nil {
 		return "", err
+	}
+
+	for _, c := range conflicts {
+		fmt.Fprintf(os.Stderr, "%s Nav context file modified locally, not overwriting: %s\n", yellow("⚠"), c)
 	}
 
 	summary := exportSummary(skills, commands, agents, instrCount)

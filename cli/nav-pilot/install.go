@@ -703,6 +703,16 @@ func cmdStatusAuto(repoDir string, jsonOutput bool) error {
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
 			})
 		}
+		ocOutputDir := openCodeNavContextDir()
+		if ocState, _ := readOpenCodeState(ocOutputDir); ocState != nil {
+			ok, modified, missing, _, _ := countFileIntegrity(ocOutputDir, ocState)
+			scopes = append(scopes, map[string]interface{}{
+				"scope": openCodeScopeName, "collection": ocState.Collection,
+				"version": ocState.Version, "source_sha": ocState.SourceSHA,
+				"installed_at": ocState.InstalledAt, "files": len(ocState.Files),
+				"ok": ok, "modified": modified, "missing": missing,
+			})
+		}
 		return outputJSON(map[string]interface{}{"installed": true, "scopes": scopes})
 	}
 
@@ -715,6 +725,16 @@ func cmdStatusAuto(repoDir string, jsonOutput bool) error {
 		}
 		printStatusBlock(userScope, userState)
 	}
+
+	// Show opencode status if nav-pilot has previously materialized artifacts.
+	ocOutputDir := openCodeNavContextDir()
+	if ocState, _ := readOpenCodeState(ocOutputDir); ocState != nil {
+		if repoState != nil || userState != nil {
+			fmt.Println()
+		}
+		printOpenCodeStatusBlock(ocOutputDir, ocState)
+	}
+
 	return nil
 }
 
