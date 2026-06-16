@@ -24,6 +24,7 @@ type Config struct {
 	AllowAllTools   *bool   `toml:"allow_all_tools"`
 	AskUser         *bool   `toml:"ask_user"`
 	LogLevel        *string `toml:"log_level"`
+	OtelLogLevel    *string `toml:"otel_log_level"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -37,6 +38,7 @@ type ResolvedConfig struct {
 	AllowAllTools   bool
 	AskUser         bool
 	LogLevel        string // empty = unset
+	OtelLogLevel    string // always set; defaults to "none"
 }
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
@@ -49,6 +51,7 @@ type CLIOverrides struct {
 	AllowAllTools   *bool
 	AskUser         *bool
 	LogLevel        string
+	OtelLogLevel    string
 }
 
 var (
@@ -57,6 +60,7 @@ var (
 	validReasoningEffort = []string{"none", "low", "medium", "high", "xhigh", "max"}
 	validContextTiers    = []string{"default", "long_context"}
 	validLogLevels       = []string{"none", "error", "warning", "info", "debug", "all", "default"}
+	validOtelLogLevels   = []string{"none", "error", "warning", "warn", "info", "debug", "verbose", "all"}
 )
 
 // modelChoice pairs a model id (the --model value) with a human-readable label.
@@ -194,6 +198,10 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf("log_level %q is not valid (allowed: %s)",
 			*cfg.LogLevel, strings.Join(validLogLevels, ", ")))
 	}
+	if cfg.OtelLogLevel != nil && !containsStr(validOtelLogLevels, *cfg.OtelLogLevel) {
+		problems = append(problems, fmt.Sprintf("otel_log_level %q is not valid (allowed: %s)",
+			*cfg.OtelLogLevel, strings.Join(validOtelLogLevels, ", ")))
+	}
 	return problems
 }
 
@@ -279,9 +287,10 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	r := ResolvedConfig{
-		Agent:   "copilot",
-		Mode:    "default",
-		AskUser: true,
+		Agent:        "copilot",
+		Mode:         "default",
+		AskUser:      true,
+		OtelLogLevel: "none",
 	}
 
 	// Apply file values.
@@ -310,6 +319,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.LogLevel != nil {
 			r.LogLevel = *file.LogLevel
 		}
+		if file.OtelLogLevel != nil {
+			r.OtelLogLevel = *file.OtelLogLevel
+		}
 	}
 
 	// Apply CLI overrides (higher precedence than file).
@@ -336,6 +348,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 	if cli.LogLevel != "" {
 		r.LogLevel = cli.LogLevel
+	}
+	if cli.OtelLogLevel != "" {
+		r.OtelLogLevel = cli.OtelLogLevel
 	}
 	return r
 }

@@ -103,6 +103,14 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "",
 		flag:        "--log-level",
 	},
+	{
+		name:        "otel_log_level",
+		kind:        keyKindString,
+		description: "OpenTelemetry diagnostic log level for the Copilot CLI (OTEL_LOG_LEVEL). Defaults to none to suppress telemetry connection-error spam.",
+		allowed:     validOtelLogLevels,
+		defaultVal:  "none",
+		flag:        "--otel-log-level",
+	},
 }
 
 func findKeyDef(name string) *configKeyDef {
@@ -175,6 +183,13 @@ version = 1
 # Allowed: none, error, warning, info, debug, all, default — Default: unset
 # Corresponds to Copilot CLI flag: --log-level
 # log_level = "info"
+
+# OpenTelemetry diagnostic log level for the Copilot CLI (sets OTEL_LOG_LEVEL).
+# Allowed: none, error, warning, warn, info, debug, verbose, all — Default: none
+# Keep this at "none" to suppress Copilot telemetry connection-error spam when
+# the OTLP endpoint is unreachable. A pre-existing OTEL_LOG_LEVEL in your shell
+# environment takes precedence.
+# otel_log_level = "none"
 `
 
 // ─── Subcommand dispatch ──────────────────────────────────────────────────────
@@ -262,6 +277,7 @@ func cmdConfigShow(jsonOutput bool) error {
 			"allow_all_tools":  resolved.AllowAllTools,
 			"ask_user":         resolved.AskUser,
 			"log_level":        resolved.LogLevel,
+			"otel_log_level":   resolved.OtelLogLevel,
 		})
 	}
 
@@ -331,6 +347,12 @@ func cmdConfigShow(jsonOutput bool) error {
 	}
 	printField("log_level", resolved.LogLevel, logSrc)
 
+	otelSrc := "default"
+	if cfg != nil && cfg.OtelLogLevel != nil {
+		otelSrc = "file"
+	}
+	printField("otel_log_level", resolved.OtelLogLevel, otelSrc)
+
 	return nil
 }
 
@@ -381,6 +403,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AskUser)
 	case "log_level":
 		return r.LogLevel
+	case "otel_log_level":
+		return r.OtelLogLevel
 	}
 	return ""
 }

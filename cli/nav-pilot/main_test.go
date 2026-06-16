@@ -1902,12 +1902,52 @@ func TestDetectNewItems_Instructions(t *testing.T) {
 
 func TestCopilotEnv_NoInstructions(t *testing.T) {
 	// Even without instructions, copilotEnv injects OTel defaults for launched copilot/cplt.
-	env := copilotEnv()
+	env := copilotEnv("none")
 	if env == nil {
 		t.Fatal("expected non-nil env from copilotEnv")
 	}
 	if got := lookupEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT"); got == "" {
 		t.Fatal("expected OTEL_EXPORTER_OTLP_ENDPOINT to be set")
+	}
+}
+
+func TestCopilotEnv_InjectsOtelLogLevel(t *testing.T) {
+	// Unset OTEL_LOG_LEVEL so copilotEnv can inject it.
+	prev, wasSet := os.LookupEnv("OTEL_LOG_LEVEL")
+	os.Unsetenv("OTEL_LOG_LEVEL")
+	if wasSet {
+		t.Cleanup(func() { os.Setenv("OTEL_LOG_LEVEL", prev) })
+	} else {
+		t.Cleanup(func() { os.Unsetenv("OTEL_LOG_LEVEL") })
+	}
+
+	env := copilotEnv("none")
+	if got := lookupEnvValue(env, "OTEL_LOG_LEVEL"); got != "none" {
+		t.Errorf("OTEL_LOG_LEVEL = %q, want none", got)
+	}
+}
+
+func TestCopilotEnv_OtelLogLevelNotOverwrittenByExisting(t *testing.T) {
+	// If OTEL_LOG_LEVEL is already set in the environment, copilotEnv must not overwrite it.
+	t.Setenv("OTEL_LOG_LEVEL", "debug")
+	env := copilotEnv("none")
+	if got := lookupEnvValue(env, "OTEL_LOG_LEVEL"); got != "debug" {
+		t.Errorf("OTEL_LOG_LEVEL = %q, want debug (pre-existing value must win)", got)
+	}
+}
+
+func TestCopilotEnv_OtelLogLevelDebug(t *testing.T) {
+	prev, wasSet := os.LookupEnv("OTEL_LOG_LEVEL")
+	os.Unsetenv("OTEL_LOG_LEVEL")
+	if wasSet {
+		t.Cleanup(func() { os.Setenv("OTEL_LOG_LEVEL", prev) })
+	} else {
+		t.Cleanup(func() { os.Unsetenv("OTEL_LOG_LEVEL") })
+	}
+
+	env := copilotEnv("debug")
+	if got := lookupEnvValue(env, "OTEL_LOG_LEVEL"); got != "debug" {
+		t.Errorf("OTEL_LOG_LEVEL = %q, want debug", got)
 	}
 }
 

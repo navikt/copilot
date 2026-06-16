@@ -179,6 +179,16 @@ func run(args []string) error {
 					return fmt.Errorf("--log-level %q is not valid (allowed: %s)", v, strings.Join(validLogLevels, ", "))
 				}
 				cliOverrides.LogLevel = v
+			case "--otel-log-level":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--otel-log-level requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validOtelLogLevels, v) {
+					return fmt.Errorf("--otel-log-level %q is not valid (allowed: %s)", v, strings.Join(validOtelLogLevels, ", "))
+				}
+				cliOverrides.OtelLogLevel = v
 			case "--allow-all-tools":
 				t := true
 				cliOverrides.AllowAllTools = &t
@@ -457,7 +467,7 @@ func run(args []string) error {
 func main() {
 	tel, err := initTelemetry(context.Background(), version)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s telemetry disabled: %v\n", yellow("⚠"), err)
+		debugLog("telemetry disabled: %v", err)
 	}
 	telemetry = tel
 

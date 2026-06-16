@@ -55,6 +55,7 @@ Files:
 | `allow_all_tools` | bool | `false` | `--allow-all-tools` |
 | `ask_user` | bool | `true` | `--no-ask-user` |
 | `log_level` | string | unset | `--log-level` |
+| `otel_log_level` | string | `none` | `--otel-log-level` (sets `OTEL_LOG_LEVEL`) |
 
 ### Per-run CLI override flags
 

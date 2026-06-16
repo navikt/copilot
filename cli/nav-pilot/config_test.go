@@ -455,6 +455,9 @@ func TestResolve_Defaults(t *testing.T) {
 	if r.LogLevel != "" {
 		t.Errorf("LogLevel = %q, want empty", r.LogLevel)
 	}
+	if r.OtelLogLevel != "none" {
+		t.Errorf("OtelLogLevel = %q, want none", r.OtelLogLevel)
+	}
 }
 
 func TestResolve_FileOverridesDefaults(t *testing.T) {
@@ -894,6 +897,10 @@ func TestValidateKeyValue(t *testing.T) {
 		{"context_tier", "extended", true},
 		{"log_level", "debug", false},
 		{"log_level", "verbose", true},
+		{"otel_log_level", "none", false},
+		{"otel_log_level", "verbose", false},
+		{"otel_log_level", "warn", false},
+		{"otel_log_level", "loud", true},
 		{"allow_all_tools", "true", false},
 		{"allow_all_tools", "false", false},
 		{"allow_all_tools", "yes", false},
@@ -1121,5 +1128,74 @@ func writeFileForTest(t *testing.T, path, body string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+// ─── otel_log_level ───────────────────────────────────────────────────────────
+
+func TestResolve_OtelLogLevel_DefaultIsNone(t *testing.T) {
+	r := resolve(nil, CLIOverrides{})
+	if r.OtelLogLevel != "none" {
+		t.Errorf("OtelLogLevel = %q, want none (default)", r.OtelLogLevel)
+	}
+}
+
+func TestResolve_OtelLogLevel_FileOverridesDefault(t *testing.T) {
+	level := "debug"
+	cfg := &Config{Version: 1, OtelLogLevel: &level}
+	r := resolve(cfg, CLIOverrides{})
+	if r.OtelLogLevel != "debug" {
+		t.Errorf("OtelLogLevel = %q, want debug (file override)", r.OtelLogLevel)
+	}
+}
+
+func TestResolve_OtelLogLevel_CLIOverridesFile(t *testing.T) {
+	level := "info"
+	cfg := &Config{Version: 1, OtelLogLevel: &level}
+	r := resolve(cfg, CLIOverrides{OtelLogLevel: "verbose"})
+	if r.OtelLogLevel != "verbose" {
+		t.Errorf("OtelLogLevel = %q, want verbose (CLI beats file)", r.OtelLogLevel)
+	}
+}
+
+func TestResolve_OtelLogLevel_UnsetFileKeepsDefault(t *testing.T) {
+	// File exists but does not set otel_log_level — default "none" should hold.
+	agent := "copilot"
+	cfg := &Config{Version: 1, Agent: &agent}
+	r := resolve(cfg, CLIOverrides{})
+	if r.OtelLogLevel != "none" {
+		t.Errorf("OtelLogLevel = %q, want none (unset in file → default)", r.OtelLogLevel)
+	}
+}
+
+func TestValidateConfig_OtelLogLevel(t *testing.T) {
+	tests := []struct {
+		level   string
+		wantErr bool
+	}{
+		{"none", false},
+		{"error", false},
+		{"warning", false},
+		{"warn", false},
+		{"info", false},
+		{"debug", false},
+		{"verbose", false},
+		{"all", false},
+		{"loud", true},
+		{"trace", true},
+		{"default", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.level, func(t *testing.T) {
+			s := tt.level
+			cfg := &Config{Version: 1, OtelLogLevel: &s}
+			err := validateConfig(cfg)
+			if tt.wantErr && err == nil {
+				t.Errorf("expected error for otel_log_level %q, got nil", tt.level)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("expected valid otel_log_level %q, got error: %v", tt.level, err)
+			}
+		})
 	}
 }

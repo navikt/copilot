@@ -742,7 +742,7 @@ func launchCopilotResolved(resolved ResolvedConfig) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = copilotEnv()
+	cmd.Env = copilotEnv(resolved.OtelLogLevel)
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), displayName, err)
 		return err
@@ -842,8 +842,8 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 
 // copilotEnv returns the environment for launching cplt, injecting
 // COPILOT_CUSTOM_INSTRUCTIONS_DIRS if user-scope customizations exist
-// (instructions and/or agents).
-func copilotEnv() []string {
+// (instructions and/or agents), and OTEL_LOG_LEVEL if otelLogLevel is set.
+func copilotEnv(otelLogLevel string) []string {
 	copilotDir := userCopilotDir()
 	env := os.Environ()
 	changed := false
@@ -874,6 +874,12 @@ func copilotEnv() []string {
 	var otelUpdated bool
 	env, otelUpdated = applyCopilotOTelEnv(env)
 	changed = changed || otelUpdated
+
+	if strings.TrimSpace(otelLogLevel) != "" {
+		var levelUpdated bool
+		env, levelUpdated = setEnvIfAbsent(env, "OTEL_LOG_LEVEL", strings.TrimSpace(otelLogLevel))
+		changed = changed || levelUpdated
+	}
 
 	if !changed {
 		return nil // nil inherits parent env

@@ -225,7 +225,7 @@ func TestCmdConfigExplain_AllKeys(t *testing.T) {
 	if explainErr != nil {
 		t.Fatalf("cmdConfigExplain(\"\") returned error: %v", explainErr)
 	}
-	for _, key := range []string{"agent", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level", "version"} {
+	for _, key := range []string{"agent", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level", "otel_log_level", "version"} {
 		if !strings.Contains(out, key) {
 			t.Errorf("expected key %q in all-keys explain output", key)
 		}
@@ -306,5 +306,39 @@ func TestCmdConfigSetup_NonInteractiveNoFile(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "config init") {
 		t.Errorf("expected 'config init' in error message, got: %v", err)
+	}
+}
+
+// ─── otel_log_level in config show / get ─────────────────────────────────────
+
+func TestCmdConfigShow_JSON_OtelLogLevel_DefaultNone(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
+
+	var out string
+	out = captureStdout(func() {
+		if err := cmdConfigShow(true); err != nil {
+			t.Fatalf("cmdConfigShow(true) returned unexpected error: %v", err)
+		}
+	})
+	if !strings.Contains(out, `"otel_log_level"`) {
+		t.Errorf("expected otel_log_level in JSON output, got: %q", out)
+	}
+	if !strings.Contains(out, `"none"`) {
+		t.Errorf("expected otel_log_level default value 'none' in JSON output, got: %q", out)
+	}
+}
+
+func TestCmdConfigGet_OtelLogLevel_DefaultNone(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
+
+	out := captureStdout(func() {
+		if err := cmdConfigGet("otel_log_level"); err != nil {
+			t.Fatalf("cmdConfigGet(otel_log_level) returned unexpected error: %v", err)
+		}
+	})
+	if strings.TrimSpace(out) != "none" {
+		t.Errorf("config get otel_log_level = %q, want none", strings.TrimSpace(out))
 	}
 }
