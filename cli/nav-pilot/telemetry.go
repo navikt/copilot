@@ -7,14 +7,33 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/go-logr/logr/funcr"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
+
+var otelDiagnosticsOnce sync.Once
+
+// configureOTelDiagnostics installs global OTel error handler and logger so
+// that export failures are routed through debugLog (visible only when DEBUG is
+// set) and never written directly to stderr. Safe to call multiple times.
+func configureOTelDiagnostics() {
+	otelDiagnosticsOnce.Do(func() {
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+			debugLog("otel telemetry error: %v", err)
+		}))
+		otel.SetLogger(funcr.New(func(prefix, args string) {
+			debugLog("otel %s %s", prefix, args)
+		}, funcr.Options{Verbosity: 0}))
+	})
+}
 
 const defaultTelemetryEndpoint = "https://collector-internet.nav.cloud.nais.io/v1/metrics"
 
@@ -68,6 +87,8 @@ type otelTelemetry struct {
 }
 
 func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, error) {
+	configureOTelDiagnostics()
+
 	if !telemetryEnabled() {
 		return noopTelemetry{}, nil
 	}

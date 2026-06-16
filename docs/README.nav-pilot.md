@@ -68,6 +68,36 @@ Metrikkene inkluderer også `execution_context` for å skille organisk bruk fra 
 
 `NAV_PILOT_TELEMETRY_ENABLED=0` (eller `off`) deaktiverer telemetry.
 
+## Konfigurasjon
+
+Du kan lagre standardvalg i `~/.nav-pilot/config.toml`.
+
+```bash
+nav-pilot config init
+nav-pilot config setup
+nav-pilot config show
+```
+
+Støttede felt er `agent`, `model`, `mode`, `reasoning_effort`, `context_tier`,
+`allow_all_tools`, `ask_user` og `log_level`. Du kan også overstyre dem per kjøring
+med globale flagg som `--agent`, `--model`, `--mode`, `--effort`, `--context`,
+`--allow-all-tools`, `--no-ask-user` og `--log-level`. Disse brukes av interaktiv
+start og `nav-pilot --sync`.
+
+`model` formatvalideres lokalt (katalogen sjekkes av den underliggende CLI-en).
+Vanlige Copilot-modeller: `auto`, `claude-sonnet-4.6`, `claude-haiku-4.5`,
+`claude-opus-4.8`, `claude-opus-4.6`, `gpt-5.5`, `gpt-5.4`, `gpt-5.3-codex`,
+`gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`. For
+`opencode` bruk `provider/model` (f.eks. `anthropic/claude-3-5-sonnet`).
+Førstegangs-veiviseren (`nav-pilot config setup`) gir en modellvelger, og
+`nav-pilot config explain model` lister opp de vanlige id-ene.
+
+Når `agent = "opencode"`, mappes konfigurasjonen til `opencode run`-flagg:
+`mode = plan` → `--agent plan`, `reasoning_effort` → `--variant`,
+`allow_all_tools` → `--dangerously-skip-permissions`, og `log_level` oversettes
+til opencode sitt sett (`DEBUG`/`INFO`/`WARN`/`ERROR`). `context_tier` og
+`ask_user` har ingen opencode-ekvivalent og ignoreres.
+
 ## For bidragsytere
 
 - Agent: `.github/agents/nav-pilot.agent.md`

@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1902,12 +1904,52 @@ func TestDetectNewItems_Instructions(t *testing.T) {
 
 func TestCopilotEnv_NoInstructions(t *testing.T) {
 	// Even without instructions, copilotEnv injects OTel defaults for launched copilot/cplt.
-	env := copilotEnv()
+	env := copilotEnv("none")
 	if env == nil {
 		t.Fatal("expected non-nil env from copilotEnv")
 	}
 	if got := lookupEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT"); got == "" {
 		t.Fatal("expected OTEL_EXPORTER_OTLP_ENDPOINT to be set")
+	}
+}
+
+func TestCopilotEnv_InjectsOtelLogLevel(t *testing.T) {
+	// Unset OTEL_LOG_LEVEL so copilotEnv can inject it.
+	prev, wasSet := os.LookupEnv("OTEL_LOG_LEVEL")
+	os.Unsetenv("OTEL_LOG_LEVEL")
+	if wasSet {
+		t.Cleanup(func() { os.Setenv("OTEL_LOG_LEVEL", prev) })
+	} else {
+		t.Cleanup(func() { os.Unsetenv("OTEL_LOG_LEVEL") })
+	}
+
+	env := copilotEnv("none")
+	if got := lookupEnvValue(env, "OTEL_LOG_LEVEL"); got != "none" {
+		t.Errorf("OTEL_LOG_LEVEL = %q, want none", got)
+	}
+}
+
+func TestCopilotEnv_OtelLogLevelNotOverwrittenByExisting(t *testing.T) {
+	// If OTEL_LOG_LEVEL is already set in the environment, copilotEnv must not overwrite it.
+	t.Setenv("OTEL_LOG_LEVEL", "debug")
+	env := copilotEnv("none")
+	if got := lookupEnvValue(env, "OTEL_LOG_LEVEL"); got != "debug" {
+		t.Errorf("OTEL_LOG_LEVEL = %q, want debug (pre-existing value must win)", got)
+	}
+}
+
+func TestCopilotEnv_OtelLogLevelDebug(t *testing.T) {
+	prev, wasSet := os.LookupEnv("OTEL_LOG_LEVEL")
+	os.Unsetenv("OTEL_LOG_LEVEL")
+	if wasSet {
+		t.Cleanup(func() { os.Setenv("OTEL_LOG_LEVEL", prev) })
+	} else {
+		t.Cleanup(func() { os.Unsetenv("OTEL_LOG_LEVEL") })
+	}
+
+	env := copilotEnv("debug")
+	if got := lookupEnvValue(env, "OTEL_LOG_LEVEL"); got != "debug" {
+		t.Errorf("OTEL_LOG_LEVEL = %q, want debug", got)
 	}
 }
 
@@ -2246,5 +2288,111 @@ func TestDetectNewItems_IgnoredItemNotReported(t *testing.T) {
 	}
 	if len(newItems) != 0 {
 		t.Errorf("expected no new items, got %v", newItems)
+	}
+}
+
+// ─── --model CLI validation ─────────────────────────────────────────────────
+
+func TestRun_ModelFlag_InvalidRejected(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
+	tests := []struct {
+		model   string
+		wantErr bool
+	}{
+		{"claude-opus-4.8", false},
+		{"gpt-5.5", false},
+		{"anthropic/claude-3-5-sonnet", false},
+		{"auto", false},
+		{"", true},
+		{"gpt 4o", true},
+		{" gpt-4o", true},
+		{"gpt@4o", true},
+	}
+	for _, tt := range tests {
+		t.Run("model="+tt.model, func(t *testing.T) {
+			err := run([]string{"--model", tt.model})
+			if tt.wantErr && err == nil {
+				t.Errorf("expected error for --model %q, got nil", tt.model)
+			}
+			if !tt.wantErr && err != nil {
+				// A non-model error (e.g. no agent binary) is acceptable; only
+				// model-format errors are rejected before launch.
+				if strings.Contains(err.Error(), "model") {
+					t.Errorf("unexpected model error for --model %q: %v", tt.model, err)
+				}
+			}
+		})
+	}
+}
+
+// ─── exitCodeFor ─────────────────────────────────────────────────────────────
+
+func TestExitCodeFor(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		wantCode  int
+		wantPrint bool
+	}{
+		{"nil", nil, 0, false},
+		{"updates available", errUpdatesAvailable, 1, false},
+		{"sync failed", errSyncFailed, 2, false},
+		{"generic error", errors.New("boom"), 1, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origStderr := os.Stderr
+			r, w, pipeErr := os.Pipe()
+			if pipeErr != nil {
+				t.Fatalf("os.Pipe: %v", pipeErr)
+			}
+			os.Stderr = w
+
+			code := exitCodeFor(tt.err)
+
+			w.Close()
+			os.Stderr = origStderr
+			var buf strings.Builder
+			io.Copy(&buf, r)
+
+			if code != tt.wantCode {
+				t.Errorf("exitCodeFor(%v) = %d, want %d", tt.err, code, tt.wantCode)
+			}
+			printed := strings.Contains(buf.String(), "Error:")
+			if printed != tt.wantPrint {
+				t.Errorf("stderr printed=%v, want %v (got: %q)", printed, tt.wantPrint, buf.String())
+			}
+		})
+	}
+}
+
+func TestExitCodeFor_ExitError(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "exit 42")
+	runErr := cmd.Run()
+	if runErr == nil {
+		t.Fatal("expected non-nil error from exit 42")
+	}
+
+	origStderr := os.Stderr
+	r, w, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		t.Fatalf("os.Pipe: %v", pipeErr)
+	}
+	os.Stderr = w
+
+	code := exitCodeFor(runErr)
+
+	w.Close()
+	os.Stderr = origStderr
+	var buf strings.Builder
+	io.Copy(&buf, r)
+
+	if code != 42 {
+		t.Errorf("exitCodeFor(exit 42) = %d, want 42", code)
+	}
+	if strings.Contains(buf.String(), "Error:") {
+		t.Errorf("exitCodeFor(ExitError) printed 'Error:' to stderr, want silent")
 	}
 }

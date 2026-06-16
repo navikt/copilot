@@ -13,8 +13,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -43,6 +45,20 @@ var commandAliases = map[string]string{
 	"rm": "uninstall",
 }
 
+func isKnownCommand(arg string) bool {
+	if _, ok := commandAliases[arg]; ok {
+		return true
+	}
+	switch arg {
+	case "install", "init", "export", "add", "ignore", "sync", "list", "status",
+		"uninstall", "upgrade", "update", "config", "env", "feedback", "version",
+		"--version", "-v", "-h", "--help", "help":
+		return true
+	default:
+		return false
+	}
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, `nav-pilot — Nav's Copilot toolkit
 
@@ -62,6 +78,7 @@ Commands:
   upgrade (up)            Update nav-pilot CLI to the latest version
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
+  config <subcommand>     Manage user-specific nav-pilot configuration (init, setup, show, get, set, validate)
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
@@ -105,10 +122,107 @@ func run(args []string) error {
 			yellow("⚠"), assessment.LatestVersion, version, bold("nav-pilot upgrade"))
 	}
 
+	// Pre-scan: extract launch-override flags before command dispatch.
+	// These apply to the interactive flow and --sync launch, not to subcommands.
+	var cliOverrides CLIOverrides
+	if len(args) == 0 || args[0] == "--sync" || !isKnownCommand(args[0]) {
+		var cleanArgs []string
+		for i := 0; i < len(args); i++ {
+			switch args[i] {
+			case "--client":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--client requires a value")
+				}
+				i++
+				cliOverrides.Client = args[i]
+			case "--agent":
+				return fmt.Errorf("--agent is no longer a nav-pilot flag; use --client to choose the coding-agent CLI (copilot, opencode, pi) — the downstream copilot --agent persona is unaffected")
+			case "--model":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--model requires a value")
+				}
+				i++
+				cliOverrides.Model = args[i]
+				if err := validateModelValue(cliOverrides.Model); err != nil {
+					return err
+				}
+			case "--mode":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--mode requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validModes, v) {
+					return fmt.Errorf("--mode %q is not valid (allowed: %s)", v, strings.Join(validModes, ", "))
+				}
+				cliOverrides.Mode = v
+			case "--effort":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--effort requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validReasoningEffort, v) {
+					return fmt.Errorf("--effort %q is not valid (allowed: %s)", v, strings.Join(validReasoningEffort, ", "))
+				}
+				cliOverrides.ReasoningEffort = v
+			case "--context":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--context requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validContextTiers, v) {
+					return fmt.Errorf("--context %q is not valid (allowed: %s)", v, strings.Join(validContextTiers, ", "))
+				}
+				cliOverrides.ContextTier = v
+			case "--log-level":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--log-level requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validLogLevels, v) {
+					return fmt.Errorf("--log-level %q is not valid (allowed: %s)", v, strings.Join(validLogLevels, ", "))
+				}
+				cliOverrides.LogLevel = v
+			case "--otel-log-level":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--otel-log-level requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validOtelLogLevels, v) {
+					return fmt.Errorf("--otel-log-level %q is not valid (allowed: %s)", v, strings.Join(validOtelLogLevels, ", "))
+				}
+				cliOverrides.OtelLogLevel = v
+			case "--allow-all-tools":
+				t := true
+				cliOverrides.AllowAllTools = &t
+			case "--no-allow-all-tools":
+				f := false
+				cliOverrides.AllowAllTools = &f
+			case "--ask-user":
+				t := true
+				cliOverrides.AskUser = &t
+			case "--no-ask-user":
+				f := false
+				cliOverrides.AskUser = &f
+			default:
+				cleanArgs = append(cleanArgs, args[i])
+			}
+		}
+		args = cleanArgs
+	}
+
+	if cliOverrides.Client != "" && !containsStr(validClients, cliOverrides.Client) {
+		return fmt.Errorf("--client %q is not valid (allowed: copilot, opencode, pi)", cliOverrides.Client)
+	}
+
 	if len(args) < 1 {
 		if isInteractive() {
 			return runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
-				return cmdInteractive()
+				return cmdInteractive(cliOverrides)
 			})
 		}
 		usage()
@@ -117,15 +231,24 @@ func run(args []string) error {
 
 	// Handle --sync flag: non-interactive sync-all + launch
 	if args[0] == "--sync" {
+		if isInteractive() {
+			if err := maybeRunFirstRunSetup(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
+			}
+		}
 		if err := runWithCommandTelemetry("sync", "non_interactive", "auto", func() error {
 			return cmdSyncAuto(".", "", "", true, false)
 		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
 		}
-		_ = runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
-			return launchCopilotWithAgent("nav-pilot")
+		resolved, cfgErr := loadConfigForLaunch(cliOverrides)
+		if cfgErr != nil {
+			return cfgErr
+		}
+		launchErr := runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
+			return launchClient(resolved)
 		})
-		return nil
+		return launchErr
 	}
 
 	command := args[0]
@@ -331,6 +454,8 @@ func run(args []string) error {
 				yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
 		}
 		return cmdUpdate()
+	case "config":
+		return cmdConfig(positional, jsonOutput)
 	case "env":
 		return cmdEnv()
 	case "feedback":
@@ -349,20 +474,13 @@ func run(args []string) error {
 func main() {
 	tel, err := initTelemetry(context.Background(), version)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s telemetry disabled: %v\n", yellow("⚠"), err)
+		debugLog("telemetry disabled: %v", err)
 	}
 	telemetry = tel
 
 	exitCode := 0
 	if err := run(os.Args[1:]); err != nil {
-		if err == errUpdatesAvailable {
-			exitCode = 1
-		} else if err == errSyncFailed {
-			exitCode = 2
-		} else {
-			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
-			exitCode = 1
-		}
+		exitCode = exitCodeFor(err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -371,4 +489,25 @@ func main() {
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+}
+
+// exitCodeFor maps a run error to an exit code.
+// ExitErrors from child processes are propagated transparently (no extra printing).
+// Known sentinel errors use fixed codes. Everything else prints a red error line.
+func exitCodeFor(err error) int {
+	if err == nil {
+		return 0
+	}
+	if err == errUpdatesAvailable {
+		return 1
+	}
+	if err == errSyncFailed {
+		return 2
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+	fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
+	return 1
 }

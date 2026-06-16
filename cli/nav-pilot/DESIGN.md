@@ -32,6 +32,130 @@ syncconfig.go    copilot-sync.json per repo
 version.go       versjonsstrengslogikk
 ```
 
+## Config-system
+
+User-specific config lives in `~/.nav-pilot/config.toml` (override via `NAV_PILOT_CONFIG`).
+See `config.go`, `config_cmd.go`, `config_setup.go`.
+
+Files:
+- `config.go` — `Config` struct, `readConfig()`, `validateConfig()`, `loadConfigForLaunch()` (validate + warn/refuse at launch), `resolve()`, `CLIOverrides`, `ResolvedConfig`
+- `config_cmd.go` — `nav-pilot config` subcommands: `init`, `setup`, `show`, `path`, `get`, `set`, `validate`, `explain`
+- `config_setup.go` — Interactive first-run wizard (`maybeRunFirstRunSetup`, `runConfigSetup`, `writeSetupConfig`)
+
+### Config fields
+
+| TOML key | Type | Default | CLI flag |
+|---|---|---|---|
+| `version` | int | (required) | — |
+| `client` | string | `copilot` | `--client` |
+| `model` | string | unset | `--model` |
+| `mode` | string | `default` | `--mode` |
+| `reasoning_effort` | string | unset | `--effort` |
+| `context_tier` | string | unset | `--context` |
+| `allow_all_tools` | bool | `false` | `--allow-all-tools` |
+| `ask_user` | bool | `true` | `--no-ask-user` |
+| `log_level` | string | unset | `--log-level` |
+| `otel_log_level` | string | `none` | `--otel-log-level` (sets `OTEL_LOG_LEVEL`) |
+
+### Per-run CLI override flags
+
+All launch-override flags are global and processed BEFORE command dispatch. They apply only to the interactive flow and `--sync` launch:
+
+```bash
+nav-pilot --client opencode         # Use opencode for this run
+nav-pilot --model gpt-4o            # Override model
+nav-pilot --mode plan               # Run in plan mode
+nav-pilot --effort high             # Set reasoning effort
+nav-pilot --context long_context    # Use extended context
+nav-pilot --allow-all-tools         # Allow all tools
+nav-pilot --no-ask-user             # Non-interactive mode
+nav-pilot --log-level debug         # Set log level
+```
+
+### Model selection & validation
+
+`model` is **format-validated** locally, not allowlist-validated: the Copilot CLI
+validates `--model` against its live server-side catalog, so a hard list would
+reject newly released models. Validation (`validateModelValue`) requires a
+non-empty identifier with no surrounding/inner whitespace, matching
+`^[A-Za-z0-9][A-Za-z0-9._/-]*$` — this covers Copilot ids (`claude-opus-4.8`,
+`gpt-5.5`) and opencode `provider/model` ids (`anthropic/claude-3-5-sonnet`).
+
+The first-run wizard offers a **picker** of common Copilot models
+(`knownCopilotModels`) plus an "Unset" and a "Custom…" option; for non-copilot
+agents it falls back to a validated free-text input. `nav-pilot config explain
+model` lists the common ids.
+
+### Validation on launch
+
+`loadConfigForLaunch` reads, validates, and resolves the config before every
+launch (both the interactive flow and `--sync`):
+
+- **Refuses to start** on hard-invalid config — an unknown `version`, an invalid
+  enum value (`client`, `mode`, `reasoning_effort`, `context_tier`, `log_level`),
+  or a malformed `model` identifier. It prints every problem via `validateConfig`
+  and points the user at `nav-pilot config setup`.
+- **Warns (non-fatal)** on advisory issues via `configAdvisories`, printed to
+  stderr without blocking the launch:
+  - unknown TOML keys (likely typos the parser silently ignores)
+  - Copilot `model` ids that are well-formed but not in the curated
+    `knownCopilotModels` catalog (e.g. `model = "sonnet"` → suggests
+    `claude-sonnet-4.6`). These do not block launch because the model is
+    validated server-side.
+
+The standalone `nav-pilot config validate` command performs the same checks
+(including unknown-key detection) on demand without launching.
+
+### Agent dispatch
+
+`launchClient(resolved ResolvedConfig)` dispatches by `resolved.Client`:
+- `copilot` (default) → `launchCopilotResolved` using `cplt`/`copilot` CLI
+- `opencode` → `launchOpenCode` in `opencode_launch.go`
+- `pi` → error stub (not yet implemented)
+
+nav-pilot curates a deliberately small `client` allowlist (`copilot`, `opencode`,
+`pi`). The `cplt` sandbox wrapper itself supports a broader set
+(`copilot, opencode, gemini, antigravity, pi, shell`), but nav-pilot only
+exposes clients it has a verified launch path for. `gemini`/`antigravity`/`shell`
+are intentionally not wired yet.
+
+> **Legacy compatibility:** Existing config files using `agent = "..."` are still
+> accepted and silently mapped to the `client` field. A deprecation advisory is
+> printed at launch; rename the key to `client` to suppress it.
+
+**cplt agent pinning:** `cplt`'s own `--agent` selects which agent to sandbox,
+falling back to auto-detect from PATH when omitted. Since the copilot path always
+wants copilot, `buildCopilotArgs` pins `cplt --agent copilot` (so a different
+agent on PATH is never auto-picked) and forwards the `nav-pilot` persona + flags
+after the `--` separator: `cplt --agent copilot -- --agent nav-pilot …`.
+
+### OpenCode option mapping
+
+`openCodeArgs` maps the resolved config to `opencode run` flags. opencode's flag
+surface differs from Copilot's, so several fields are translated or dropped:
+
+| nav-pilot config | opencode flag | Notes |
+|---|---|---|
+| `model` | `--model` | Expects `provider/model` (e.g. `anthropic/claude-3-5-sonnet`) |
+| `mode = plan` | `--agent plan` | opencode has no `--mode`; `autopilot` has no opencode equivalent |
+| `reasoning_effort` | `--variant` | Provider-specific reasoning (e.g. `high`, `max`) |
+| `allow_all_tools` | `--dangerously-skip-permissions` | |
+| `log_level` | `--log-level` | Translated to opencode's set: `DEBUG`/`INFO`/`WARN`/`ERROR` (see below) |
+| `context_tier` | — | No opencode equivalent; ignored |
+| `ask_user` | — | No opencode equivalent; ignored |
+
+Log-level translation (`openCodeLogLevel`): `debug`/`all` → `DEBUG`, `info` →
+`INFO`, `warning` → `WARN`, `error` → `ERROR`; `none`/`default`/unset omit the
+flag (opencode uses its own default). opencode only accepts the UPPERCASE set.
+
+### OpenCode OTel
+
+When an OTel endpoint is configured (via `OTEL_EXPORTER_OTLP_ENDPOINT` or `NAV_PILOT_COPILOT_OTEL_ENDPOINT`), nav-pilot:
+1. Calls `ensureOpenCodeOTelConfig()` to set `experimental.openTelemetry = true` in `~/.config/opencode/opencode.json`
+2. Injects `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, and `OPENCODE_CLIENT=nav-pilot` into opencode's env
+
+The OTel config merge is deep (preserves existing `experimental.*` keys) and idempotent.
+
 ## Avhengigheter
 
 Kun `charmbracelet/huh` (TUI-prompts) som direkte avhengighet. Alt annet er standardbiblioteket. Hold det slik — ikke legg til nye avhengigheter uten god grunn.
