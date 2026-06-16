@@ -287,7 +287,18 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 	for _, w := range configAdvisories(file, meta) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
 	}
-	return resolve(file, cli), nil
+	resolved := resolve(file, cli)
+	telemetry.RecordConfig(
+		resolved.Client,
+		resolved.Mode,
+		resolved.Model,
+		resolved.ReasoningEffort,
+		resolved.ContextTier,
+		resolved.OtelLogLevel,
+		resolved.AllowAllTools,
+		resolved.AskUser,
+	)
+	return resolved, nil
 }
 
 // resolve builds a ResolvedConfig from file config and CLI overrides.

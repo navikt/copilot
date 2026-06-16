@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -47,6 +49,8 @@ type telemetryRecorder interface {
 	RecordStalenessCheck(component, scope, result string)
 	RecordUpToDate(component, scope string, upToDate bool)
 	RecordVersionSkewDays(component, scope string, days int64)
+	RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
+	RecordClientAvailable(client string, available bool)
 	Shutdown(ctx context.Context) error
 }
 
@@ -61,7 +65,10 @@ func (noopTelemetry) RecordInstalledItems(string, string, string, int64)        
 func (noopTelemetry) RecordStalenessCheck(string, string, string)                 {}
 func (noopTelemetry) RecordUpToDate(string, string, bool)                         {}
 func (noopTelemetry) RecordVersionSkewDays(string, string, int64)                 {}
-func (noopTelemetry) Shutdown(context.Context) error                              { return nil }
+func (noopTelemetry) RecordConfig(string, string, string, string, string, string, bool, bool) {
+}
+func (noopTelemetry) RecordClientAvailable(string, bool) {}
+func (noopTelemetry) Shutdown(context.Context) error     { return nil }
 
 type otelTelemetry struct {
 	provider *sdkmetric.MeterProvider
@@ -75,6 +82,8 @@ type otelTelemetry struct {
 	infoGauge          metric.Int64Gauge
 	installPresent     metric.Int64Gauge
 	installedItems     metric.Int64Gauge
+	configInfo         metric.Int64Gauge
+	clientAvailable    metric.Int64Gauge
 	stalenessCheck     metric.Int64Counter
 	upToDate           metric.Int64Gauge
 	versionSkewDays    metric.Int64Histogram
@@ -182,6 +191,14 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 	if err != nil {
 		return noopTelemetry{}, fmt.Errorf("create installed items gauge: %w", err)
 	}
+	configInfo, err := meter.Int64Gauge("nav_pilot_config_info")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create config info gauge: %w", err)
+	}
+	clientAvailable, err := meter.Int64Gauge("nav_pilot_client_available")
+	if err != nil {
+		return noopTelemetry{}, fmt.Errorf("create client available gauge: %w", err)
+	}
 	stalenessCheck, err := meter.Int64Counter("nav_pilot_staleness_check_total")
 	if err != nil {
 		return noopTelemetry{}, fmt.Errorf("create staleness check counter: %w", err)
@@ -206,6 +223,8 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		infoGauge:          infoGauge,
 		installPresent:     installPresent,
 		installedItems:     installedItems,
+		configInfo:         configInfo,
+		clientAvailable:    clientAvailable,
 		stalenessCheck:     stalenessCheck,
 		upToDate:           upToDate,
 		versionSkewDays:    versionSkewDays,
@@ -216,6 +235,7 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		arch:               arch,
 	}
 	tel.recordInfo()
+	tel.recordClientAvailability()
 
 	return tel, nil
 }
@@ -305,6 +325,69 @@ func (t *otelTelemetry) recordInfo() {
 		attribute.String("os", t.os),
 		attribute.String("arch", t.arch),
 	))
+}
+
+// RecordConfig emits the resolved per-launch configuration preferences as a
+// gauge so we can see which clients, modes and models users actually run with.
+// All labels are bounded enums (validated upstream), a clamped model id, or
+// booleans, so cardinality stays low and no PII is recorded.
+func (t *otelTelemetry) RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool) {
+	t.configInfo.Record(context.Background(), 1, metric.WithAttributes(
+		attribute.String("client", orUnset(client)),
+		attribute.String("config_mode", orUnset(configMode)),
+		attribute.String("model", configModelLabel(model)),
+		attribute.String("reasoning_effort", orUnset(reasoningEffort)),
+		attribute.String("context_tier", orUnset(contextTier)),
+		attribute.String("otel_log_level", orUnset(otelLogLevel)),
+		attribute.String("allow_all_tools", strconv.FormatBool(allowAllTools)),
+		attribute.String("ask_user", strconv.FormatBool(askUser)),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// RecordClientAvailable emits whether a coding-agent client is on PATH.
+func (t *otelTelemetry) RecordClientAvailable(client string, available bool) {
+	v := int64(0)
+	if available {
+		v = 1
+	}
+	t.clientAvailable.Record(context.Background(), v, metric.WithAttributes(
+		attribute.String("client", client),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// recordClientAvailability probes PATH for each supported client and records
+// its availability, giving visibility into which tools users have installed.
+func (t *otelTelemetry) recordClientAvailability() {
+	copilotPath, _ := findCopilotCLI()
+	t.RecordClientAvailable("copilot", copilotPath != "")
+	_, openErr := exec.LookPath("opencode")
+	t.RecordClientAvailable("opencode", openErr == nil)
+	_, piErr := exec.LookPath("pi")
+	t.RecordClientAvailable("pi", piErr == nil)
+}
+
+// configModelLabel collapses an arbitrary model id to a low-cardinality label:
+// a known Copilot model id, "custom" for anything else, or "unset" when blank.
+func configModelLabel(model string) string {
+	if strings.TrimSpace(model) == "" {
+		return "unset"
+	}
+	if isKnownCopilotModel(model) {
+		return model
+	}
+	return "custom"
+}
+
+func orUnset(v string) string {
+	if strings.TrimSpace(v) == "" {
+		return "unset"
+	}
+	return v
 }
 
 func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, duration time.Duration) {
