@@ -44,6 +44,22 @@ nav-pilot config set client opencode  # sett permanent
 
 `nav-pilot status` og `nav-pilot list --installed` viser opencode-artefaktene og om de er oppdaterte.
 
+#### `export opencode` vs. automatisk materialisering
+
+| Kommando | Mål | Tilstandssporing | Når |
+|---|---|---|---|
+| `nav-pilot --client opencode` (oppstart) | `~/.config/opencode/` | ✅ konflikt + ferskhet | Personlig kontekst — skjer automatisk |
+| `nav-pilot sync` | `~/.config/opencode/` | ✅ oppdaterer sporet tilstand | Frisk opp personlig kontekst |
+| `nav-pilot export opencode` (repo-scope) | `<repo>/.opencode/` | — | Sjekk Nav-kontekst inn i et **prosjektrepo** for hele teamet |
+
+For ditt **personlige** oppsett trenger du ikke `export` i det hele tatt — bare kjør
+`nav-pilot --client opencode` (materialiserer automatisk) eller `nav-pilot sync` for å friske opp.
+Bruk `nav-pilot export opencode` (repo-scope) kun for å versjonskontrollere Nav-konteksten i et prosjektrepo.
+
+> **Avviklet:** `nav-pilot export opencode --user` er erstattet av den automatiske
+> materialiseringen ved oppstart + `nav-pilot sync`, som i tillegg gir tilstandssporing
+> og konflikt-deteksjon. Repo-scope `export opencode` består.
+
 ## Vanlige kommandoer
 
 ```bash

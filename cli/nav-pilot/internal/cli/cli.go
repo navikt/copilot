@@ -381,6 +381,11 @@ func run(args []string) error {
 		if len(positional) == 0 {
 			return fmt.Errorf("export requires a format.\n\nUsage: nav-pilot export <format>\n\nFormats: opencode")
 		}
+		if positional[0] == "opencode" && userScope && !jsonOutput {
+			fmt.Fprintf(os.Stderr, "%s %s is deprecated. Personal opencode context is materialized automatically on launch and refreshed by %s.\n  Use %s to start opencode with Nav context, or %s to refresh it.\n  Use %s only to commit Nav context into a project repo.\n\n",
+				yellow("⚠"), bold("export opencode --user"), bold("nav-pilot sync"),
+				bold("nav-pilot --client opencode"), bold("nav-pilot sync"), bold("export opencode"))
+		}
 		return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	case "add":
 		// Deprecated: hidden alias for backward compatibility
