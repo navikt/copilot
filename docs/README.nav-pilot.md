@@ -23,8 +23,13 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 | Klient | Binær | Nav-kontekst | Standard modell |
 |---|---|---|---|
 | `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
-| `opencode` | `opencode` | Materialiseres automatisk i `~/.config/opencode/` | `anthropic/claude-sonnet-4-5` |
+| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i `~/.config/opencode/` | `anthropic/claude-sonnet-4-5` |
 | `pi` *(eksperimentell — ikke funksjonell)* | `pi` | — | — |
+
+> **Alle klienter startes i cplt-sandboxen.** nav-pilot kjører klienten via
+> `cplt --agent <klient>` slik at agenten er kjerne-nivå-sandboxet (kan lese/skrive
+> prosjektfiler, men når ikke SSH-nøkler, sky-credentials eller andre hemmeligheter).
+> `cplt` må derfor være installert for å starte `opencode` (i tillegg til `opencode`-binæren selv).
 
 ### opencode — Nav-kontekst automatisk
 
@@ -34,6 +39,7 @@ nav-pilot følgende ved hver oppstart:
 1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner)
 2. Skriver dem til `~/.config/opencode/` som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
 3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
+4. Starter opencode i cplt-sandboxen (`cplt --agent opencode`)
 
 Du trenger ikke kjøre `nav-pilot export opencode` manuelt — Nav-konteksten er alltid oppdatert.
 

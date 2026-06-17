@@ -2,7 +2,6 @@ package provider
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -199,11 +198,11 @@ func EnsureOpenCodeOTelConfig() error {
 	return nil
 }
 
-// LaunchOpenCode launches the opencode CLI with the resolved config.
+// LaunchOpenCode launches opencode inside the cplt sandbox with the resolved config.
 // Before launching, it materializes Nav context into opencode's user config directory.
+// cplt sandboxes the opencode binary, so opencode must also be installed on PATH.
 func LaunchOpenCode(resolved domain.ResolvedConfig) error {
-	opencodePath, err := exec.LookPath("opencode")
-	if err != nil {
+	if _, err := exec.LookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found in PATH — install it first: https://opencode.ai")
 	}
 
@@ -223,32 +222,20 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
 	}
 
-	args := OpenCodeArgs(resolved)
+	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 
+	suffix := ""
 	if navSummary != "" {
-		fmt.Printf("Launching %s with Nav context (%s)...\n\n", domain.Bold("opencode"), navSummary)
-	} else {
-		fmt.Printf("Launching %s...\n\n", domain.Bold("opencode"))
-	}
-	cmd := exec.Command(opencodePath, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	var otelUpdated bool
-	cmd.Env, otelUpdated = telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
-	if !otelUpdated {
-		cmd.Env = nil
+		suffix = fmt.Sprintf(" with Nav context (%s)", navSummary)
 	}
 
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			fmt.Fprintf(os.Stderr, "%s Could not launch opencode: %v\n", domain.Yellow("⚠"), err)
-		}
-		return err
-	}
-	return nil
+	return launchViaCplt(cpltLaunch{
+		agent:         "opencode",
+		agentArgs:     OpenCodeArgs(resolved),
+		env:           launchEnv,
+		displayName:   "opencode",
+		messageSuffix: suffix,
+	})
 }
 
 // LaunchPi returns a clear error explaining that pi is not yet supported.

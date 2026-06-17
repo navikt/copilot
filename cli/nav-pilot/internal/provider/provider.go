@@ -163,9 +163,14 @@ type openCodeProvider struct{}
 func (openCodeProvider) ID() string          { return "opencode" }
 func (openCodeProvider) DisplayName() string { return "opencode" }
 
+// Available reports whether opencode can be launched: both the opencode binary
+// and cplt (the sandbox launcher) must be present on PATH.
 func (openCodeProvider) Available() bool {
-	_, err := exec.LookPath("opencode")
-	return err == nil
+	if _, err := exec.LookPath("opencode"); err != nil {
+		return false
+	}
+	_, name := FindCopilotCLI()
+	return name == "cplt"
 }
 
 func (openCodeProvider) Launch(r domain.ResolvedConfig) error { return LaunchOpenCode(r) }
