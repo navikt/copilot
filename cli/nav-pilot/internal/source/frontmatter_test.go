@@ -216,31 +216,65 @@ func TestBuildAgentFrontmatter(t *testing.T) {
 	tests := []struct {
 		name        string
 		description string
+		mode        string
 		want        string
 	}{
 		{
-			name:        "simple description",
+			name:        "simple description subagent",
 			description: "Plan and build Nav apps",
+			mode:        "subagent",
+			want:        "description: Plan and build Nav apps\nmode: subagent\n",
+		},
+		{
+			name:        "primary mode",
+			description: "Plan and build Nav apps",
+			mode:        "primary",
+			want:        "description: Plan and build Nav apps\nmode: primary\n",
+		},
+		{
+			name:        "empty mode defaults to subagent",
+			description: "Plan and build Nav apps",
+			mode:        "",
 			want:        "description: Plan and build Nav apps\nmode: subagent\n",
 		},
 		{
 			name:        "description with colon",
 			description: "Norsk teknisk redaktør: klarspråk og fagtermer",
+			mode:        "subagent",
 			want:        "description: \"Norsk teknisk redaktør: klarspråk og fagtermer\"\nmode: subagent\n",
 		},
 		{
 			name:        "description with hash",
 			description: "Review code # quality",
+			mode:        "subagent",
 			want:        "description: \"Review code # quality\"\nmode: subagent\n",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildAgentFrontmatter(tt.description)
+			got := BuildAgentFrontmatter(tt.description, tt.mode)
 			if string(got) != tt.want {
 				t.Errorf("buildAgentFrontmatter:\ngot:  %q\nwant: %q", string(got), tt.want)
 			}
 		})
+	}
+}
+
+func TestOpenCodeAgentMode(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{"nav-pilot", "primary"},
+		{"nav-pilot-opus", "primary"},
+		{"auth", "subagent"},
+		{"research", "subagent"},
+		{"", "subagent"},
+	}
+	for _, tt := range tests {
+		if got := OpenCodeAgentMode(tt.name); got != tt.want {
+			t.Errorf("OpenCodeAgentMode(%q) = %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }
 

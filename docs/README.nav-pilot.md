@@ -39,7 +39,11 @@ nav-pilot følgende ved hver oppstart:
 1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner)
 2. Skriver dem til `~/.config/opencode/` som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
 3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
-4. Starter opencode i cplt-sandboxen (`cplt --agent opencode`)
+4. Starter opencode i cplt-sandboxen med Nav-agenten (`cplt --agent opencode -- --agent nav-pilot --model …`)
+
+Den materialiserte `nav-pilot`-agenten er en **primær** opencode-agent, så den dukker
+opp i agentvelgeren (Tab) og startes automatisk. De øvrige Nav-agentene
+(auth, kafka, aksel, …) materialiseres som **subagenter** du kaller med `@navn`.
 
 Du trenger ikke kjøre `nav-pilot export opencode` manuelt — Nav-konteksten er alltid oppdatert.
 
@@ -136,15 +140,18 @@ globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 **Modell per klient:**
 - Copilot: `auto`, `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.8`,
   `gpt-5.5`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini`, `gemini-3.1-pro-preview`
-- opencode: `provider/model`-format, f.eks. `anthropic/claude-sonnet-4-5` (Nav-standard),
-  `anthropic/claude-opus-4-5`, `openai/gpt-4o`, `google/gemini-2-0-flash`
+- opencode (startes via cplt → GitHub Copilot-provider): bruk `github-copilot/<id>`,
+  f.eks. `github-copilot/claude-sonnet-4.5` (Nav-standard), `github-copilot/claude-opus-4.8`,
+  `github-copilot/gpt-5.5`. Bare Copilot-id-er (uten `/`) mappes automatisk under
+  `github-copilot/` ved oppstart.
 
 Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient.
 `nav-pilot config explain model` lister opp de kurerte id-ene.
 
 **opencode-mapping:**
-`client = "opencode"` mappes til `opencode run`-flagg:
-`mode = plan` → `--agent plan`, `reasoning_effort` → `--variant`,
+`client = "opencode"` mappes til opencode-flagg:
+`mode = plan` → `--agent plan` (ellers `--agent nav-pilot`), `model` → `--model`
+(prefikses med `github-copilot/` for bare id-er), `reasoning_effort` → `--variant`,
 `allow_all_tools` → `--dangerously-skip-permissions`, `log_level` oversettes
 til opencodes sett (`DEBUG`/`INFO`/`WARN`/`ERROR`). Felt uten opencode-ekvivalent
 (`mode = autopilot` (verdi av `mode`-feltet), `context_tier`, `ask_user = false`) gir en ⚠-advarsel ved oppstart.

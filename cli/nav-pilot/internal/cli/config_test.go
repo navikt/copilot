@@ -1104,7 +1104,7 @@ func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
 
 func TestConfigAdvisories_NonCopilotModel_NoWarning(t *testing.T) {
 	// Known Nav-curated opencode model must not generate any warning.
-	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"anthropic/claude-sonnet-4-5\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/claude-sonnet-4.5\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
 		t.Errorf("configAdvisories() = %v, want no warnings for known opencode model", w)
 	}
@@ -1175,10 +1175,10 @@ func TestIsKnownOpenCodeModel(t *testing.T) {
 		want bool
 	}{
 		{openCodeDefaultModel, true},
-		{"anthropic/claude-opus-4-5", true},
+		{"github-copilot/claude-opus-4.8", true},
 		{strings.ToUpper(openCodeDefaultModel), true}, // case-insensitive
-		{"anthropic/claude-3-5-sonnet", false},        // older, not in list
-		{"claude-sonnet-4.6", false},                  // copilot id, not opencode
+		{"anthropic/claude-3-5-sonnet", false},        // direct provider, not in list
+		{"claude-sonnet-4.6", false},                  // bare copilot id, not opencode
 		{"", false},
 	}
 	for _, c := range cases {
@@ -1190,7 +1190,7 @@ func TestIsKnownOpenCodeModel(t *testing.T) {
 
 func TestKnownOpenCodeModelIDs(t *testing.T) {
 	got := knownOpenCodeModelIDs()
-	for _, want := range []string{openCodeDefaultModel, "anthropic/claude-opus-4-5"} {
+	for _, want := range []string{openCodeDefaultModel, "github-copilot/claude-opus-4.8"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("knownOpenCodeModelIDs() = %q, missing %q", got, want)
 		}

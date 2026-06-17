@@ -226,7 +226,7 @@ func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
 			return count, fmt.Errorf("reading agent %s: %w", entry.Name, err)
 		}
 
-		transformed := transformAgent(data)
+		transformed := transformAgent(data, entry.Name)
 
 		if dryRun {
 			fmt.Printf("  %s %s.agent.md → agents/%s.md\n", domain.Dim("→"), entry.Name, entry.Name)
@@ -241,7 +241,7 @@ func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
 	return count, nil
 }
 
-func transformAgent(data []byte) []byte {
+func transformAgent(data []byte, name string) []byte {
 	fm, body, hasFM := source.SplitFrontmatter(data)
 	if !hasFM {
 		return data
@@ -252,7 +252,7 @@ func transformAgent(data []byte) []byte {
 		description = "Nav agent"
 	}
 
-	newFM := source.BuildAgentFrontmatter(description)
+	newFM := source.BuildAgentFrontmatter(description, source.OpenCodeAgentMode(name))
 	return source.Reassemble(newFM, body)
 }
 
@@ -447,7 +447,7 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, err)
 		}
-		if wErr := writeFile(dstPath, transformAgent(data)); wErr != nil {
+		if wErr := writeFile(dstPath, transformAgent(data, entry.Name)); wErr != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, wErr)
 		}
 		agents++

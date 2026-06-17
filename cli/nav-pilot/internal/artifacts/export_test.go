@@ -196,8 +196,8 @@ func TestExportAgents(t *testing.T) {
 	if !strings.Contains(content, "description: Plan and build Nav applications") {
 		t.Error("agent file missing description")
 	}
-	if !strings.Contains(content, "mode: subagent") {
-		t.Error("agent file missing mode: subagent")
+	if !strings.Contains(content, "mode: primary") {
+		t.Error("nav-pilot agent file should be a primary agent")
 	}
 	if strings.Contains(content, "tools:") {
 		t.Error("agent file should not contain tools: field")
@@ -354,14 +354,14 @@ tools:
 
 You are nav-pilot, an expert on Nav's platform.
 `
-	got := transformAgent([]byte(input))
+	got := transformAgent([]byte(input), "nav-pilot")
 	content := string(got)
 
 	if !strings.Contains(content, "description: Plan and build Nav applications") {
 		t.Error("missing description")
 	}
-	if !strings.Contains(content, "mode: subagent") {
-		t.Error("missing mode: subagent")
+	if !strings.Contains(content, "mode: primary") {
+		t.Error("nav-pilot should be exported as a primary agent")
 	}
 	if strings.Contains(content, "name:") {
 		t.Error("should not contain name:")
@@ -439,7 +439,7 @@ func TestExportSummary(t *testing.T) {
 
 func TestTransformAgentNoFrontmatter(t *testing.T) {
 	input := "You are an agent without frontmatter.\n"
-	got := transformAgent([]byte(input))
+	got := transformAgent([]byte(input), "auth")
 	if string(got) != input {
 		t.Errorf("transformAgent with no frontmatter should return input unchanged\ngot:  %q\nwant: %q", string(got), input)
 	}
@@ -447,7 +447,7 @@ func TestTransformAgentNoFrontmatter(t *testing.T) {
 
 func TestTransformAgentNoDescription(t *testing.T) {
 	input := "---\nname: bare-agent\ntools:\n  - read\n---\n\nAgent body.\n"
-	got := string(transformAgent([]byte(input)))
+	got := string(transformAgent([]byte(input), "auth"))
 	if !strings.Contains(got, "description: Nav agent") {
 		t.Error("expected fallback description 'Nav agent'")
 	}
@@ -652,8 +652,8 @@ func TestMaterializeOpenCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("agent file missing: %v", err)
 	}
-	if !strings.Contains(string(agentData), "mode: subagent") {
-		t.Error("agent missing mode: subagent")
+	if !strings.Contains(string(agentData), "mode: primary") {
+		t.Error("nav-pilot agent should be a primary agent")
 	}
 }
 

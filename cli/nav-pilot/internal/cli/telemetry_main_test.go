@@ -40,10 +40,10 @@ func TestConfigModelLabel(t *testing.T) {
 		{"Claude-Opus-4.8", "claude-opus-4.8"},
 		{"some/local-model", "custom"},
 		{"gpt-bogus", "custom"},
-		{"anthropic/claude-sonnet-4-5", "anthropic/claude-sonnet-4-5"},
+		{"github-copilot/claude-sonnet-4.5", "github-copilot/claude-sonnet-4.5"},
 		// mixed-case → canonical opencode model id
-		{"ANTHROPIC/CLAUDE-SONNET-4-5", "anthropic/claude-sonnet-4-5"},
-		{"anthropic/claude-opus-4-5", "anthropic/claude-opus-4-5"},
+		{"GITHUB-COPILOT/CLAUDE-SONNET-4.5", "github-copilot/claude-sonnet-4.5"},
+		{"github-copilot/claude-opus-4.8", "github-copilot/claude-opus-4.8"},
 		{"anthropic/claude-3-5-sonnet", "custom"},
 	}
 	for _, tt := range tests {

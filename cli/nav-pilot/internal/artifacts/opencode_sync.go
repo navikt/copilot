@@ -164,7 +164,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, err)
 		}
-		if wErr := writeFile(dstPath, transformAgent(data)); wErr != nil {
+		if wErr := writeFile(dstPath, transformAgent(data, entry.Name)); wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, wErr)
 		}
 		h, _ := source.RawArtifactHash(dstPath, false)

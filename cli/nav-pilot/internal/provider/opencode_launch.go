@@ -92,13 +92,15 @@ func EnsureOpenCodeNavContext() (string, error) {
 // Maps resolved config fields to opencode flags; omits unset/default fields.
 func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	var args []string
-	model := resolved.Model
-	if model == "" {
-		model = OpenCodeDefaultModel
-	}
-	args = append(args, "--model", model)
+	args = append(args, "--model", ToOpenCodeModel(resolved.Model))
 	if resolved.Mode == "plan" {
+		// opencode's built-in read-only planning agent. Nav context still loads
+		// via AGENTS.md regardless of the active agent.
 		args = append(args, "--agent", "plan")
+	} else {
+		// Launch the materialized Nav primary agent so the session starts with
+		// Nav's persona and context (parity with the copilot client persona).
+		args = append(args, "--agent", OpenCodeAgentPersona)
 	}
 	if resolved.ReasoningEffort != "" {
 		args = append(args, "--variant", resolved.ReasoningEffort)

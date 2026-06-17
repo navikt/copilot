@@ -147,7 +147,8 @@ version = 1
 # Model id. Common Copilot models: auto, claude-sonnet-4.6, claude-haiku-4.5,
 # claude-opus-4.8, claude-opus-4.6, gpt-5.5, gpt-5.4, gpt-5.3-codex,
 # gpt-5.4-mini, gpt-5-mini, gemini-3.1-pro-preview, gemini-3.5-flash.
-# For opencode use provider/model (e.g. anthropic/claude-3-5-sonnet).
+# For opencode (launched via cplt → GitHub Copilot provider): a bare Copilot id
+# is mapped to github-copilot/<id>, or set a full provider/model id directly.
 # Format-validated locally; the model catalog is checked by the downstream CLI.
 # Default: agent-specific default
 # Corresponds to Copilot CLI flag: --model

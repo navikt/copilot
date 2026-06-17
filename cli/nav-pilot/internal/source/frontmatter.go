@@ -165,11 +165,35 @@ func ExtractFrontmatterValue(fm []byte, key string) (string, bool) {
 	return "", false
 }
 
+// openCodePrimaryAgents are the materialized agent names that opencode should
+// treat as primary agents — i.e. selectable in the Tab/switch_agent picker and
+// launchable via `opencode --agent <name>`. Every other Nav agent is exported
+// as a subagent (invoked via @mention or delegated to by a primary agent),
+// matching the @agent usage in their metadata examples.
+var openCodePrimaryAgents = map[string]bool{
+	"nav-pilot":      true,
+	"nav-pilot-opus": true,
+}
+
+// OpenCodeAgentMode returns the opencode agent mode ("primary" or "subagent")
+// for a materialized agent of the given name. Primary agents appear in the
+// opencode agent selector and can be launched with `--agent <name>`.
+func OpenCodeAgentMode(name string) string {
+	if openCodePrimaryAgents[name] {
+		return "primary"
+	}
+	return "subagent"
+}
+
 // BuildAgentFrontmatter generates OpenCode-compatible agent frontmatter.
-func BuildAgentFrontmatter(description string) []byte {
+// mode must be a valid opencode agent mode ("primary" or "subagent").
+func BuildAgentFrontmatter(description, mode string) []byte {
+	if mode == "" {
+		mode = "subagent"
+	}
 	var buf bytes.Buffer
 	buf.WriteString("description: " + yamlQuoteIfNeeded(description) + "\n")
-	buf.WriteString("mode: subagent\n")
+	buf.WriteString("mode: " + mode + "\n")
 	return buf.Bytes()
 }
 

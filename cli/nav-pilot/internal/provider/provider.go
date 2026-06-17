@@ -50,8 +50,18 @@ type Provider interface {
 	PrintContextStatus()
 }
 
-// OpenCodeDefaultModel is the Nav-curated default model for opencode.
-const OpenCodeDefaultModel = "anthropic/claude-sonnet-4-5"
+// OpenCodeDefaultModel is the Nav-curated default model for opencode. opencode
+// is always launched inside cplt, which connects it to the GitHub Copilot
+// provider, so the model id uses the github-copilot/<id> form (see models.dev).
+const OpenCodeDefaultModel = "github-copilot/claude-sonnet-4.5"
+
+// OpenCodeAgentPersona is the materialized opencode primary agent that loads
+// Nav's context and persona. Mirrors CopilotAgentPersona for the copilot client.
+const OpenCodeAgentPersona = "nav-pilot"
+
+// openCodeProviderPrefix is the opencode provider that cplt authenticates
+// opencode against. Bare Copilot-style model ids are mapped under it.
+const openCodeProviderPrefix = "github-copilot/"
 
 var knownCopilotModels = []domain.ModelChoice{
 	{ID: "auto", Label: "Auto (let Copilot pick)"},
@@ -70,10 +80,26 @@ var knownCopilotModels = []domain.ModelChoice{
 
 var knownOpenCodeModels = []domain.ModelChoice{
 	{ID: OpenCodeDefaultModel, Label: "Claude Sonnet 4.5 (Nav default)"},
-	{ID: "anthropic/claude-opus-4-5", Label: "Claude Opus 4.5"},
-	{ID: "anthropic/claude-haiku-4-5", Label: "Claude Haiku 4.5"},
-	{ID: "openai/gpt-4o", Label: "GPT-4o"},
-	{ID: "google/gemini-2-0-flash", Label: "Gemini 2.0 Flash"},
+	{ID: "github-copilot/claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
+	{ID: "github-copilot/claude-opus-4.8", Label: "Claude Opus 4.8"},
+	{ID: "github-copilot/claude-haiku-4.5", Label: "Claude Haiku 4.5"},
+	{ID: "github-copilot/gpt-5.5", Label: "GPT-5.5"},
+	{ID: "github-copilot/gpt-5.4", Label: "GPT-5.4"},
+}
+
+// ToOpenCodeModel maps a configured model id to an opencode model id for the
+// github-copilot provider that cplt connects opencode to. Empty or "auto" use
+// the Nav default; ids that already carry a provider ("/") pass through; bare
+// Copilot-style ids (e.g. "claude-sonnet-4.6") gain the github-copilot prefix.
+func ToOpenCodeModel(model string) string {
+	model = strings.TrimSpace(model)
+	if model == "" || model == "auto" {
+		return OpenCodeDefaultModel
+	}
+	if strings.Contains(model, "/") {
+		return model
+	}
+	return openCodeProviderPrefix + model
 }
 
 func isKnownCopilotModel(id string) bool {
