@@ -1,4 +1,4 @@
-package main
+package telemetry
 
 import (
 	"crypto/sha256"
@@ -13,15 +13,15 @@ import (
 // deviceIDPattern matches the canonical device-id format produced by generateDeterministicDeviceID.
 var deviceIDPattern = regexp.MustCompile(`^nav-pilot-[0-9a-f]{12}$`)
 
-// getOrCreateDeviceID returns a stable, deterministic device identifier.
+// GetOrCreateDeviceID returns a stable, deterministic device identifier.
 // It generates a SHA256 hash of hostname + CLI executable path + MAC address.
 // The result is stored in ~/.nav-pilot/device-id for persistence.
 // This UUID is:
 // - Stable: Same machine always produces the same UUID
 // - Deterministic: Not random, based on hardware + install path
 // - Private: Raw hostname/path/MAC are never stored or exported; only a truncated SHA256 hash is used
-func getOrCreateDeviceID() (string, error) {
-	configDir, err := getConfigDir()
+func GetOrCreateDeviceID() (string, error) {
+	configDir, err := GetConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get config dir: %w", err)
 	}
@@ -34,7 +34,7 @@ func getOrCreateDeviceID() (string, error) {
 		if deviceIDPattern.MatchString(id) {
 			return id, nil
 		}
-		debugLog("stored device-id %q does not match expected format; regenerating", id)
+		DebugLog("stored device-id %q does not match expected format; regenerating", id)
 	}
 
 	// Otherwise: generate deterministic ID from hardware
@@ -44,11 +44,11 @@ func getOrCreateDeviceID() (string, error) {
 	}
 
 	// Write to disk for future use (with restrictive permissions)
-	if err := os.WriteFile(idFile, []byte(deviceID+"\n"), 0600); err != nil {
+	if err := os.WriteFile(idFile, []byte(deviceID+"\n"), 0o600); err != nil {
 		// Non-fatal: we can still use the in-memory ID
-		debugLog("failed to persist device ID to %s: %v", idFile, err)
-	} else if err := os.Chmod(idFile, 0600); err != nil {
-		debugLog("failed to chmod device-id file %s: %v", idFile, err)
+		DebugLog("failed to persist device ID to %s: %v", idFile, err)
+	} else if err := os.Chmod(idFile, 0o600); err != nil {
+		DebugLog("failed to chmod device-id file %s: %v", idFile, err)
 	}
 
 	return deviceID, nil
@@ -120,9 +120,9 @@ func getMACAddress() (string, error) {
 	return "unknown", nil
 }
 
-// getConfigDir returns the nav-pilot config directory, creating it if needed.
+// GetConfigDir returns the nav-pilot config directory, creating it if needed.
 // Uses: ~/.nav-pilot/
-func getConfigDir() (string, error) {
+func GetConfigDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
@@ -131,15 +131,15 @@ func getConfigDir() (string, error) {
 	configDir := filepath.Join(home, ".nav-pilot")
 
 	// Create if doesn't exist
-	if err := os.MkdirAll(configDir, 0700); err != nil {
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		return "", fmt.Errorf("failed to create config dir %s: %w", configDir, err)
 	}
 
 	return configDir, nil
 }
 
-// debugLog logs a message if DEBUG is set. Used for non-critical issues.
-func debugLog(format string, args ...interface{}) {
+// DebugLog logs a message if DEBUG is set. Used for non-critical issues.
+func DebugLog(format string, args ...interface{}) {
 	if os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(os.Stderr, "[debug] "+format+"\n", args...)
 	}

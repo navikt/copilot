@@ -1,8 +1,7 @@
-package main
+package telemetry
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -11,46 +10,25 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
-func TestTelemetryResult(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-		want string
-	}{
-		{name: "success", err: nil, want: "success"},
-		{name: "updates available", err: errUpdatesAvailable, want: "updates_available"},
-		{name: "wrapped updates available", err: errors.Join(errUpdatesAvailable, errors.New("other")), want: "updates_available"},
-		{name: "error", err: errors.New("boom"), want: "error"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := telemetryResult(tt.err); got != tt.want {
-				t.Fatalf("telemetryResult() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestTelemetryEnabled(t *testing.T) {
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
-	if !telemetryEnabled() {
-		t.Fatal("expected telemetryEnabled to return true by default")
+	if !TelemetryEnabled() {
+		t.Fatal("expected TelemetryEnabled to return true by default")
 	}
 
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "1")
-	if !telemetryEnabled() {
-		t.Fatal("expected telemetryEnabled to return true for 1")
+	if !TelemetryEnabled() {
+		t.Fatal("expected TelemetryEnabled to return true for 1")
 	}
 
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "0")
-	if telemetryEnabled() {
-		t.Fatal("expected telemetryEnabled to return false for 0")
+	if TelemetryEnabled() {
+		t.Fatal("expected TelemetryEnabled to return false for 0")
 	}
 
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "off")
-	if telemetryEnabled() {
-		t.Fatal("expected telemetryEnabled to return false for off")
+	if TelemetryEnabled() {
+		t.Fatal("expected TelemetryEnabled to return false for off")
 	}
 }
 
@@ -144,29 +122,6 @@ func TestDetectExecutionContext(t *testing.T) {
 				t.Fatalf("detectExecutionContext() = %q, want %q", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestConfigModelLabel(t *testing.T) {
-	tests := []struct {
-		in   string
-		want string
-	}{
-		{"", "unset"},
-		{"   ", "unset"},
-		{"claude-opus-4.8", "claude-opus-4.8"},
-		{"some/local-model", "custom"},
-		{"gpt-bogus", "custom"},
-		// known opencode models are tracked by name
-		{"anthropic/claude-sonnet-4-5", "anthropic/claude-sonnet-4-5"},
-		{"anthropic/claude-opus-4-5", "anthropic/claude-opus-4-5"},
-		// valid opencode shape but not curated → custom
-		{"anthropic/claude-3-5-sonnet", "custom"},
-	}
-	for _, tt := range tests {
-		if got := configModelLabel(tt.in); got != tt.want {
-			t.Errorf("configModelLabel(%q) = %q, want %q", tt.in, got, tt.want)
-		}
 	}
 }
 
@@ -282,7 +237,7 @@ func TestRecordClientAvailable_EmitsValue(t *testing.T) {
 }
 
 func TestNoopRecordConfigAndClientAvailable(t *testing.T) {
-	var rec telemetryRecorder = noopTelemetry{}
+	var rec Recorder = NoopRecorder{}
 	rec.RecordConfig("copilot", "default", "", "", "", "none", false, true)
 	rec.RecordClientAvailable("copilot", true)
 }

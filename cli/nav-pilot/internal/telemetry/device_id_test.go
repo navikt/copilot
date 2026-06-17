@@ -1,4 +1,4 @@
-package main
+package telemetry
 
 import (
 	"os"
@@ -66,13 +66,13 @@ func TestDeviceIDPersistence(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	// Get or create
-	id1, err := getOrCreateDeviceID()
+	id1, err := GetOrCreateDeviceID()
 	if err != nil {
 		t.Fatalf("first call failed: %v", err)
 	}
 
 	// Get again (should read from disk)
-	id2, err := getOrCreateDeviceID()
+	id2, err := GetOrCreateDeviceID()
 	if err != nil {
 		t.Fatalf("second call failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestGetOrCreateDeviceID_ValidStoredIDReturned(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	got, err := getOrCreateDeviceID()
+	got, err := GetOrCreateDeviceID()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestGetOrCreateDeviceID_InvalidStoredIDRegenerates(t *testing.T) {
 				t.Fatalf("write: %v", err)
 			}
 
-			got, err := getOrCreateDeviceID()
+			got, err := GetOrCreateDeviceID()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

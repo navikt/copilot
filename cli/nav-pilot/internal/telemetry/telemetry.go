@@ -1,8 +1,7 @@
-package main
+package telemetry
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -23,22 +22,22 @@ import (
 var otelDiagnosticsOnce sync.Once
 
 // configureOTelDiagnostics installs global OTel error handler and logger so
-// that export failures are routed through debugLog (visible only when DEBUG is
+// that export failures are routed through DebugLog (visible only when DEBUG is
 // set) and never written directly to stderr. Safe to call multiple times.
 func configureOTelDiagnostics() {
 	otelDiagnosticsOnce.Do(func() {
 		otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
-			debugLog("otel telemetry error: %v", err)
+			DebugLog("otel telemetry error: %v", err)
 		}))
 		otel.SetLogger(funcr.New(func(prefix, args string) {
-			debugLog("otel %s %s", prefix, args)
+			DebugLog("otel %s %s", prefix, args)
 		}, funcr.Options{Verbosity: 0}))
 	})
 }
 
 const defaultTelemetryEndpoint = "https://collector-internet.nav.cloud.nais.io/v1/metrics"
 
-type telemetryRecorder interface {
+type Recorder interface {
 	RecordCommand(command, mode, scope, result string, duration time.Duration)
 	RecordInstallItems(scope, mode string, count int64)
 	RecordSyncUpdates(scope, mode string, count int64)
@@ -53,21 +52,21 @@ type telemetryRecorder interface {
 	Shutdown(ctx context.Context) error
 }
 
-type noopTelemetry struct{}
+type NoopRecorder struct{}
 
-func (noopTelemetry) RecordCommand(string, string, string, string, time.Duration) {}
-func (noopTelemetry) RecordInstallItems(string, string, int64)                    {}
-func (noopTelemetry) RecordSyncUpdates(string, string, int64)                     {}
-func (noopTelemetry) RecordSyncConflicts(string, string, int64)                   {}
-func (noopTelemetry) RecordInstallPresent(string, string, bool)                   {}
-func (noopTelemetry) RecordInstalledItems(string, string, string, int64)          {}
-func (noopTelemetry) RecordStalenessCheck(string, string, string)                 {}
-func (noopTelemetry) RecordUpToDate(string, string, bool)                         {}
-func (noopTelemetry) RecordVersionSkewDays(string, string, int64)                 {}
-func (noopTelemetry) RecordConfig(string, string, string, string, string, string, bool, bool) {
+func (NoopRecorder) RecordCommand(string, string, string, string, time.Duration) {}
+func (NoopRecorder) RecordInstallItems(string, string, int64)                    {}
+func (NoopRecorder) RecordSyncUpdates(string, string, int64)                     {}
+func (NoopRecorder) RecordSyncConflicts(string, string, int64)                   {}
+func (NoopRecorder) RecordInstallPresent(string, string, bool)                   {}
+func (NoopRecorder) RecordInstalledItems(string, string, string, int64)          {}
+func (NoopRecorder) RecordStalenessCheck(string, string, string)                 {}
+func (NoopRecorder) RecordUpToDate(string, string, bool)                         {}
+func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                 {}
+func (NoopRecorder) RecordConfig(string, string, string, string, string, string, bool, bool) {
 }
-func (noopTelemetry) RecordClientAvailable(string, bool) {}
-func (noopTelemetry) Shutdown(context.Context) error     { return nil }
+func (NoopRecorder) RecordClientAvailable(string, bool) {}
+func (NoopRecorder) Shutdown(context.Context) error     { return nil }
 
 type otelTelemetry struct {
 	provider *sdkmetric.MeterProvider
@@ -94,17 +93,16 @@ type otelTelemetry struct {
 	arch             string
 }
 
-func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, error) {
+func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 	configureOTelDiagnostics()
 
-	if !telemetryEnabled() {
-		return noopTelemetry{}, nil
+	if !TelemetryEnabled() {
+		return NoopRecorder{}, nil
 	}
 
-	// Load or generate stable device ID
-	deviceID, err := getOrCreateDeviceID()
+	deviceID, err := GetOrCreateDeviceID()
 	if err != nil {
-		debugLog("failed to get device ID: %v; continuing without it", err)
+		DebugLog("failed to get device ID: %v; continuing without it", err)
 		deviceID = "unknown"
 	}
 	executionContext := detectExecutionContext()
@@ -129,7 +127,7 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 
 	exporter, err := otlpmetrichttp.New(ctx, opts...)
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create OTLP metrics exporter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create OTLP metrics exporter: %w", err)
 	}
 
 	res, err := resource.New(ctx, resource.WithAttributes(
@@ -141,7 +139,7 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		attribute.String("execution_context", execCtx),
 	))
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create telemetry resource: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create telemetry resource: %w", err)
 	}
 
 	reader := sdkmetric.NewPeriodicReader(exporter,
@@ -156,59 +154,59 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 	meter := provider.Meter("github.com/navikt/copilot/cli/nav-pilot")
 	commandTotal, err := meter.Int64Counter("nav_pilot_command_total")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create command total counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create command total counter: %w", err)
 	}
 	commandDurationMS, err := meter.Int64Histogram("nav_pilot_command_duration_ms")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create command duration histogram: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create command duration histogram: %w", err)
 	}
 	commandErrorTotal, err := meter.Int64Counter("nav_pilot_command_error_total")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create command error counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create command error counter: %w", err)
 	}
 	installItemsTotal, err := meter.Int64Counter("nav_pilot_install_items_total")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create install items counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create install items counter: %w", err)
 	}
 	syncUpdatesTotal, err := meter.Int64Counter("nav_pilot_sync_updates_total")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create sync updates counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create sync updates counter: %w", err)
 	}
 	syncConflictsTotal, err := meter.Int64Counter("nav_pilot_sync_conflicts_total")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create sync conflicts counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create sync conflicts counter: %w", err)
 	}
 	infoGauge, err := meter.Int64Gauge("nav_pilot_info")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create info gauge: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create info gauge: %w", err)
 	}
 	installPresent, err := meter.Int64Gauge("nav_pilot_install_present")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create install present gauge: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create install present gauge: %w", err)
 	}
 	installedItems, err := meter.Int64Gauge("nav_pilot_installed_items")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create installed items gauge: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create installed items gauge: %w", err)
 	}
 	configInfo, err := meter.Int64Gauge("nav_pilot_config_info")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create config info gauge: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create config info gauge: %w", err)
 	}
 	clientAvailable, err := meter.Int64Gauge("nav_pilot_client_available")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create client available gauge: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create client available gauge: %w", err)
 	}
 	stalenessCheck, err := meter.Int64Counter("nav_pilot_staleness_check_total")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create staleness check counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create staleness check counter: %w", err)
 	}
 	upToDate, err := meter.Int64Gauge("nav_pilot_up_to_date")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create up to date gauge: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create up to date gauge: %w", err)
 	}
 	versionSkewDays, err := meter.Int64Histogram("nav_pilot_version_skew_days")
 	if err != nil {
-		return noopTelemetry{}, fmt.Errorf("create version skew days histogram: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create version skew days histogram: %w", err)
 	}
 
 	tel := &otelTelemetry{
@@ -234,42 +232,16 @@ func initTelemetry(ctx context.Context, cliVersion string) (telemetryRecorder, e
 		arch:               arch,
 	}
 	tel.recordInfo()
-	tel.recordClientAvailability()
 
 	return tel, nil
 }
 
-func telemetryEnabled() bool {
+func TelemetryEnabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENABLED"))) {
 	case "0", "false", "no", "off":
 		return false
 	default:
 		return true
-	}
-}
-
-func telemetryMode() string {
-	if isInteractive() {
-		return "interactive"
-	}
-	return "non_interactive"
-}
-
-func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
-	start := time.Now()
-	err := fn()
-	telemetry.RecordCommand(command, mode, scope, telemetryResult(err), time.Since(start))
-	return err
-}
-
-func telemetryResult(err error) string {
-	switch {
-	case err == nil:
-		return "success"
-	case errors.Is(err, errUpdatesAvailable):
-		return "updates_available"
-	default:
-		return "error"
 	}
 }
 
@@ -334,7 +306,7 @@ func (t *otelTelemetry) RecordConfig(client, configMode, model, reasoningEffort,
 	t.configInfo.Record(context.Background(), 1, metric.WithAttributes(
 		attribute.String("client", orUnset(client)),
 		attribute.String("config_mode", orUnset(configMode)),
-		attribute.String("model", configModelLabel(model)),
+		attribute.String("model", orUnset(model)),
 		attribute.String("reasoning_effort", orUnset(reasoningEffort)),
 		attribute.String("context_tier", orUnset(contextTier)),
 		attribute.String("otel_log_level", orUnset(otelLogLevel)),
@@ -357,39 +329,6 @@ func (t *otelTelemetry) RecordClientAvailable(client string, available bool) {
 		attribute.String("version", t.version),
 		attribute.String("execution_context", t.executionContext),
 	))
-}
-
-// recordClientAvailability probes PATH for each registered provider and records
-// its availability, giving visibility into which tools users have installed.
-func (t *otelTelemetry) recordClientAvailability() {
-	for _, p := range allProviders() {
-		t.RecordClientAvailable(p.ID(), p.Available())
-	}
-}
-
-// configModelLabel collapses an arbitrary model id to a low-cardinality label:
-// a model id known to any registered provider, "custom" for anything else, or
-// "unset" when blank. Known model lists are owned by the provider implementations
-// in provider.go; cardinality is bounded by the curated list sizes.
-func configModelLabel(model string) string {
-	if strings.TrimSpace(model) == "" {
-		return "unset"
-	}
-	for _, p := range allProviders() {
-		for _, m := range p.KnownModels() {
-			if strings.EqualFold(m.ID, model) {
-				return model
-			}
-		}
-	}
-	return "custom"
-}
-
-func orUnset(v string) string {
-	if strings.TrimSpace(v) == "" {
-		return "unset"
-	}
-	return v
 }
 
 func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, duration time.Duration) {
@@ -546,6 +485,13 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		}
 		return fallback
 	}
+}
+
+func orUnset(v string) string {
+	if strings.TrimSpace(v) == "" {
+		return "unset"
+	}
+	return v
 }
 
 func maxInt64(a, b int64) int64 {

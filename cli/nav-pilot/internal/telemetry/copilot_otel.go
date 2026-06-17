@@ -1,12 +1,10 @@
-package main
+package telemetry
 
-import (
-	"strings"
-)
+import "strings"
 
 const copilotOTelEndpointOverride = "NAV_PILOT_COPILOT_OTEL_ENDPOINT"
 
-func applyCopilotOTelEnv(env []string) ([]string, bool) {
+func ApplyCopilotOTelEnv(env []string, cliVersion string) ([]string, bool) {
 	changed := false
 	endpoint := copilotOTelEndpoint(env)
 	if endpoint == "" {
@@ -14,10 +12,10 @@ func applyCopilotOTelEnv(env []string) ([]string, bool) {
 	}
 
 	var updated bool
-	env, updated = setEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
+	env, updated = SetEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
 	changed = changed || updated
 
-	env, updated = setEnvIfAbsent(env, "COPILOT_OTEL_ENABLED", "true")
+	env, updated = SetEnvIfAbsent(env, "COPILOT_OTEL_ENABLED", "true")
 	changed = changed || updated
 
 	// device_id is the only pseudonymous identifier we inject; honour the
@@ -25,20 +23,50 @@ func applyCopilotOTelEnv(env []string) ([]string, bool) {
 	// through Copilot's telemetry. launcher/version are non-identifying and
 	// are always included.
 	deviceID := ""
-	if telemetryEnabled() {
-		deviceID = copilotDeviceID()
+	if TelemetryEnabled() {
+		deviceID = CopilotDeviceID()
 	}
-	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(version, "dev"), deviceID)
+	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(cliVersion, "dev"), deviceID)
 	changed = changed || updated
 
 	return env, changed
 }
 
-// copilotDeviceID resolves the pseudonymous nav-pilot device identifier for
+// ApplyOpenCodeOTelEnv injects OTel env vars for opencode, reusing the same
+// approach as ApplyCopilotOTelEnv. Also sets OPENCODE_CLIENT=nav-pilot.
+func ApplyOpenCodeOTelEnv(env []string, cliVersion string) ([]string, bool) {
+	changed := false
+	endpoint := copilotOTelEndpoint(env)
+	if endpoint == "" {
+		return env, false
+	}
+
+	var updated bool
+	env, updated = SetEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
+	changed = changed || updated
+
+	deviceID := ""
+	if TelemetryEnabled() {
+		deviceID = CopilotDeviceID()
+	}
+	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(cliVersion, "dev"), deviceID)
+	changed = changed || updated
+
+	env, updated = SetEnvIfAbsent(env, "OPENCODE_CLIENT", "nav-pilot")
+	changed = changed || updated
+
+	return env, changed
+}
+
+func CopilotOTelEndpointConfigured(env []string) bool {
+	return copilotOTelEndpoint(env) != ""
+}
+
+// CopilotDeviceID resolves the pseudonymous nav-pilot device identifier for
 // use as a Copilot resource attribute, falling back to "unknown" when it
 // cannot be computed (mirrors the nav-pilot telemetry fallback).
-func copilotDeviceID() string {
-	id, err := getOrCreateDeviceID()
+func CopilotDeviceID() string {
+	id, err := GetOrCreateDeviceID()
 	if err != nil || strings.TrimSpace(id) == "" {
 		return "unknown"
 	}
@@ -56,7 +84,7 @@ func applyCopilotResourceAttributes(env []string, version, deviceID string) ([]s
 		{"nav.pilot.device_id", strings.TrimSpace(deviceID)},
 	}
 
-	existing := lookupEnvValue(env, "OTEL_RESOURCE_ATTRIBUTES")
+	existing := LookupEnvValue(env, "OTEL_RESOURCE_ATTRIBUTES")
 	present := resourceAttributeKeys(existing)
 
 	additions := make([]string, 0, len(pairs))
@@ -78,7 +106,7 @@ func applyCopilotResourceAttributes(env []string, version, deviceID string) ([]s
 		merged = trimmed + "," + merged
 	}
 
-	env, _ = setEnvValue(env, "OTEL_RESOURCE_ATTRIBUTES", merged)
+	env, _ = SetEnvValue(env, "OTEL_RESOURCE_ATTRIBUTES", merged)
 	return env, true
 }
 
@@ -123,13 +151,13 @@ func encodeResourceAttrValue(value string) string {
 }
 
 func copilotOTelEndpoint(env []string) string {
-	if endpoint := normalizeCopilotOTelEndpoint(lookupEnvValue(env, copilotOTelEndpointOverride)); endpoint != "" {
+	if endpoint := normalizeCopilotOTelEndpoint(LookupEnvValue(env, copilotOTelEndpointOverride)); endpoint != "" {
 		return endpoint
 	}
-	if endpoint := normalizeCopilotOTelEndpoint(lookupEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT")); endpoint != "" {
+	if endpoint := normalizeCopilotOTelEndpoint(LookupEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT")); endpoint != "" {
 		return endpoint
 	}
-	if endpoint := normalizeCopilotOTelEndpoint(lookupEnvValue(env, "NAV_PILOT_TELEMETRY_ENDPOINT")); endpoint != "" {
+	if endpoint := normalizeCopilotOTelEndpoint(LookupEnvValue(env, "NAV_PILOT_TELEMETRY_ENDPOINT")); endpoint != "" {
 		return endpoint
 	}
 	return normalizeCopilotOTelEndpoint(defaultTelemetryEndpoint)
@@ -148,8 +176,33 @@ func normalizeCopilotOTelEndpoint(endpoint string) string {
 	return endpoint
 }
 
-func setEnvIfAbsent(env []string, key, value string) ([]string, bool) {
-	if lookupEnvValue(env, key) != "" {
+func LookupEnvValue(env []string, key string) string {
+	prefix := key + "="
+	for _, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			return strings.TrimPrefix(e, prefix)
+		}
+	}
+	return ""
+}
+
+func SetEnvValue(env []string, key, value string) ([]string, bool) {
+	prefix := key + "="
+	for i, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			newValue := key + "=" + value
+			if env[i] == newValue {
+				return env, false
+			}
+			env[i] = newValue
+			return env, true
+		}
+	}
+	return append(env, key+"="+value), true
+}
+
+func SetEnvIfAbsent(env []string, key, value string) ([]string, bool) {
+	if LookupEnvValue(env, key) != "" {
 		return env, false
 	}
 	return append(env, key+"="+value), true

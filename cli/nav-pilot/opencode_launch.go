@@ -155,32 +155,6 @@ func openCodeLogLevel(level string) string {
 	}
 }
 
-// applyOpenCodeOTelEnv injects OTel env vars for opencode, reusing the same
-// approach as applyCopilotOTelEnv. Also sets OPENCODE_CLIENT=nav-pilot.
-func applyOpenCodeOTelEnv(env []string) ([]string, bool) {
-	changed := false
-	endpoint := copilotOTelEndpoint(env)
-	if endpoint == "" {
-		return env, false
-	}
-
-	var updated bool
-	env, updated = setEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
-	changed = changed || updated
-
-	deviceID := ""
-	if telemetryEnabled() {
-		deviceID = copilotDeviceID()
-	}
-	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(version, "dev"), deviceID)
-	changed = changed || updated
-
-	env, updated = setEnvIfAbsent(env, "OPENCODE_CLIENT", "nav-pilot")
-	changed = changed || updated
-
-	return env, changed
-}
-
 // ensureOpenCodeOTelConfig reads ~/.config/opencode/opencode.json (or creates it),
 // sets experimental.openTelemetry=true without clobbering other keys, and writes back.
 // When creating for the first time, seeds recommended defaults.
@@ -245,7 +219,7 @@ func launchOpenCode(resolved ResolvedConfig) error {
 	}
 
 	env := os.Environ()
-	if copilotOTelEndpoint(env) != "" {
+	if copilotOTelEndpointActive(env) {
 		if err := ensureOpenCodeOTelConfig(); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Warning: could not configure opencode OTel: %v\n", yellow("⚠"), err)
 		}

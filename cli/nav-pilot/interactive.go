@@ -873,31 +873,6 @@ func copilotEnv(otelLogLevel string) []string {
 	return env
 }
 
-func lookupEnvValue(env []string, key string) string {
-	prefix := key + "="
-	for _, e := range env {
-		if strings.HasPrefix(e, prefix) {
-			return strings.TrimPrefix(e, prefix)
-		}
-	}
-	return ""
-}
-
-func setEnvValue(env []string, key, value string) ([]string, bool) {
-	prefix := key + "="
-	for i, e := range env {
-		if strings.HasPrefix(e, prefix) {
-			newValue := key + "=" + value
-			if env[i] == newValue {
-				return env, false
-			}
-			env[i] = newValue
-			return env, true
-		}
-	}
-	return append(env, key+"="+value), true
-}
-
 // userCopilotDir returns ~/.copilot if it contains user-scope customizations
 // (instructions or agents), or "" otherwise.
 func userCopilotDir() string {

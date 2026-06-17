@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // ─── domain aliases ──────────────────────────────────────────────────────────
@@ -109,4 +110,33 @@ var (
 	loadManifest       = source.LoadManifest
 	listCollectionDirs = source.ListCollectionDirs
 	collectAllItems    = source.CollectAllItems
+)
+
+// ─── telemetry aliases ───────────────────────────────────────────────────────
+
+// Type aliases
+type (
+	telemetryRecorder = telemetrypkg.Recorder
+	noopTelemetry     = telemetrypkg.NoopRecorder
+)
+
+// Function aliases
+var (
+	initTelemetry             = telemetrypkg.InitTelemetry
+	telemetryEnabled          = telemetrypkg.TelemetryEnabled
+	lookupEnvValue            = telemetrypkg.LookupEnvValue
+	setEnvValue               = telemetrypkg.SetEnvValue
+	setEnvIfAbsent            = telemetrypkg.SetEnvIfAbsent
+	applyCopilotOTelEnv       = func(env []string) ([]string, bool) { return telemetrypkg.ApplyCopilotOTelEnv(env, version) }
+	applyOpenCodeOTelEnv      = func(env []string) ([]string, bool) { return telemetrypkg.ApplyOpenCodeOTelEnv(env, version) }
+	copilotOTelEndpointActive = telemetrypkg.CopilotOTelEndpointConfigured
+	copilotDeviceID           = telemetrypkg.CopilotDeviceID
+	getOrCreateDeviceID       = telemetrypkg.GetOrCreateDeviceID
+	debugLog                  = telemetrypkg.DebugLog
+	getConfigDir              = telemetrypkg.GetConfigDir
+
+	_ = telemetryEnabled
+	_ = copilotDeviceID
+	_ = getOrCreateDeviceID
+	_ = getConfigDir
 )

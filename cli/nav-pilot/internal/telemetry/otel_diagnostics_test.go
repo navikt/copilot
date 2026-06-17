@@ -1,4 +1,4 @@
-package main
+package telemetry
 
 import (
 	"bytes"
@@ -67,7 +67,7 @@ func TestConfigureOTelDiagnostics_SilentByDefault(t *testing.T) {
 }
 
 // TestConfigureOTelDiagnostics_VerboseUnderDebug asserts that when DEBUG is set,
-// calling otel.Handle routes the error message through debugLog (stderr) and
+// calling otel.Handle routes the error message through DebugLog (stderr) and
 // contains the error text.
 func TestConfigureOTelDiagnostics_VerboseUnderDebug(t *testing.T) {
 	configureOTelDiagnostics()

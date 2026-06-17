@@ -1,4 +1,4 @@
-package main
+package telemetry
 
 import (
 	"strings"
@@ -60,43 +60,43 @@ func TestCopilotOTelEndpointPrecedence(t *testing.T) {
 
 func TestApplyCopilotOTelEnv(t *testing.T) {
 	t.Run("sets endpoint and enabled when absent", func(t *testing.T) {
-		env, changed := applyCopilotOTelEnv([]string{})
+		env, changed := ApplyCopilotOTelEnv([]string{}, "dev")
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
-		if got := lookupEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT"); got != "https://collector-internet.nav.cloud.nais.io" {
+		if got := LookupEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT"); got != "https://collector-internet.nav.cloud.nais.io" {
 			t.Fatalf("OTEL_EXPORTER_OTLP_ENDPOINT = %q, want https://collector-internet.nav.cloud.nais.io", got)
 		}
-		if got := lookupEnvValue(env, "COPILOT_OTEL_ENABLED"); got != "true" {
+		if got := LookupEnvValue(env, "COPILOT_OTEL_ENABLED"); got != "true" {
 			t.Fatalf("COPILOT_OTEL_ENABLED = %q, want true", got)
 		}
 	})
 
 	t.Run("preserves existing otel endpoint", func(t *testing.T) {
 		envIn := []string{"OTEL_EXPORTER_OTLP_ENDPOINT=https://already.example/v1/metrics"}
-		envOut, changed := applyCopilotOTelEnv(envIn)
+		envOut, changed := ApplyCopilotOTelEnv(envIn, "dev")
 		if !changed {
 			t.Fatal("expected env to be changed because endpoint is normalized and COPILOT_OTEL_ENABLED is added")
 		}
-		if got := lookupEnvValue(envOut, "OTEL_EXPORTER_OTLP_ENDPOINT"); got != "https://already.example" {
+		if got := LookupEnvValue(envOut, "OTEL_EXPORTER_OTLP_ENDPOINT"); got != "https://already.example" {
 			t.Fatalf("OTEL_EXPORTER_OTLP_ENDPOINT = %q, want https://already.example", got)
 		}
 	})
 
 	t.Run("respects existing copilot otel enabled setting", func(t *testing.T) {
 		envIn := []string{"COPILOT_OTEL_ENABLED=false"}
-		envOut, changed := applyCopilotOTelEnv(envIn)
+		envOut, changed := ApplyCopilotOTelEnv(envIn, "dev")
 		if !changed {
 			t.Fatal("expected env to be changed because endpoint is added")
 		}
-		if got := lookupEnvValue(envOut, "COPILOT_OTEL_ENABLED"); got != "false" {
+		if got := LookupEnvValue(envOut, "COPILOT_OTEL_ENABLED"); got != "false" {
 			t.Fatalf("COPILOT_OTEL_ENABLED = %q, want false", got)
 		}
 	})
 
 	t.Run("injects nav-pilot resource attributes", func(t *testing.T) {
-		envOut, _ := applyCopilotOTelEnv([]string{})
-		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		envOut, _ := ApplyCopilotOTelEnv([]string{}, "dev")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
 			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.pilot.launcher=nav-pilot", got)
 		}
@@ -110,8 +110,8 @@ func TestApplyCopilotOTelEnv(t *testing.T) {
 
 	t.Run("omits device_id when telemetry is opted out", func(t *testing.T) {
 		t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
-		envOut, _ := applyCopilotOTelEnv([]string{})
-		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		envOut, _ := ApplyCopilotOTelEnv([]string{}, "dev")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if strings.Contains(got, "nav.pilot.device_id=") {
 			t.Fatalf("device_id should be omitted when opted out: %q", got)
 		}
@@ -128,7 +128,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
-		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if !strings.HasPrefix(got, "team=foo,nav.pilot.version=9.9.9,") {
 			t.Fatalf("existing attributes not preserved: %q", got)
 		}
@@ -148,7 +148,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 		if !changed {
 			t.Fatal("expected launcher attribute to be added")
 		}
-		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if got != "nav.pilot.launcher=nav-pilot" {
 			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want only launcher", got)
 		}
@@ -156,7 +156,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 
 	t.Run("percent-encodes unsafe characters", func(t *testing.T) {
 		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.0 beta,rc=1", "id")
-		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if !strings.Contains(got, "nav.pilot.version=1.0%20beta%2Crc%3D1") {
 			t.Fatalf("value not percent-encoded: %q", got)
 		}
@@ -171,7 +171,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 		if changed2 {
 			t.Fatal("expected second call to be a no-op")
 		}
-		if lookupEnvValue(env1, "OTEL_RESOURCE_ATTRIBUTES") != lookupEnvValue(env2, "OTEL_RESOURCE_ATTRIBUTES") {
+		if LookupEnvValue(env1, "OTEL_RESOURCE_ATTRIBUTES") != LookupEnvValue(env2, "OTEL_RESOURCE_ATTRIBUTES") {
 			t.Fatal("relaunch changed the resource attributes")
 		}
 	})
@@ -179,7 +179,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	t.Run("recognises a bare existing key without value", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=nav.pilot.launcher"}
 		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123")
-		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
 			t.Fatalf("bare existing key should not be re-added with a value: %q", got)
 		}
@@ -191,7 +191,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
-		got := lookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if strings.Contains(got, ",,") || strings.HasSuffix(got, ",") {
 			t.Fatalf("malformed merged value: %q", got)
 		}

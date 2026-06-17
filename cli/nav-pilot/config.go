@@ -184,7 +184,7 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 	telemetry.RecordConfig(
 		resolved.Client,
 		resolved.Mode,
-		resolved.Model,
+		configModelLabel(resolved.Model),
 		resolved.ReasoningEffort,
 		resolved.ContextTier,
 		resolved.OtelLogLevel,

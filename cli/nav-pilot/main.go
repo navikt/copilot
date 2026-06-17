@@ -477,6 +477,9 @@ func main() {
 		debugLog("telemetry disabled: %v", err)
 	}
 	telemetry = tel
+	for _, p := range allProviders() {
+		telemetry.RecordClientAvailable(p.ID(), p.Available())
+	}
 
 	exitCode := 0
 	if err := run(os.Args[1:]); err != nil {
