@@ -1,8 +1,7 @@
-package main
+package artifacts
 
 import (
 	"encoding/json"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,18 +10,17 @@ import (
 )
 
 const (
-	checkInterval    = 24 * time.Hour
-	stalenessTimeout = 2 * time.Second
-	staleThreshold   = 14
+	checkInterval  = 24 * time.Hour
+	staleThreshold = 14
 )
 
-// stalenessCache persists the last update check result outside the repo.
-type stalenessCache struct {
+// StalenessCache persists the last update check result outside the repo.
+type StalenessCache struct {
 	LastChecked   string `json:"last_checked"`
 	LatestVersion string `json:"latest_version"`
 }
 
-type stalenessAssessment struct {
+type StalenessAssessment struct {
 	LatestVersion string
 	Result        string
 	UpToDate      bool
@@ -30,12 +28,12 @@ type stalenessAssessment struct {
 	HasSkew       bool
 }
 
-// cacheHome can be overridden in tests.
-var cacheHome = ""
+// CacheHome can be overridden in tests.
+var CacheHome string
 
-func cacheFilePath() string {
-	if cacheHome != "" {
-		return filepath.Join(cacheHome, "cache.json")
+func CacheFilePath() string {
+	if CacheHome != "" {
+		return filepath.Join(CacheHome, "cache.json")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -44,8 +42,8 @@ func cacheFilePath() string {
 	return filepath.Join(home, ".nav-pilot", "cache.json")
 }
 
-func readCache() *stalenessCache {
-	path := cacheFilePath()
+func ReadCache() *StalenessCache {
+	path := CacheFilePath()
 	if path == "" {
 		return nil
 	}
@@ -53,15 +51,15 @@ func readCache() *stalenessCache {
 	if err != nil {
 		return nil
 	}
-	var c stalenessCache
+	var c StalenessCache
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil
 	}
 	return &c
 }
 
-func writeCache(c *stalenessCache) {
-	path := cacheFilePath()
+func WriteCache(c *StalenessCache) {
+	path := CacheFilePath()
 	if path == "" {
 		return
 	}
@@ -70,70 +68,60 @@ func writeCache(c *stalenessCache) {
 	}
 	data, _ := json.MarshalIndent(c, "", "  ")
 	data = append(data, '\n')
-	os.WriteFile(path, data, 0o644)
+	_ = os.WriteFile(path, data, 0o644)
 }
 
-// checkStaleness returns the latest available version if the installed
+// CheckStaleness returns the latest available version if the installed
 // collection is outdated. Returns "" if up-to-date, check was skipped
 // (within cooldown), or any error occurred (network, API, etc).
-// Designed to be fast and never block — uses a 2s HTTP timeout.
-func checkStaleness(installedVersion string) string {
-	assessment := assessStaleness(installedVersion)
-	if assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, installedVersion) {
+func CheckStaleness(installedVersion string, fetchFn func() (string, string, error)) string {
+	assessment := AssessStaleness(installedVersion, fetchFn)
+	if assessment.LatestVersion != "" && VersionNewer(assessment.LatestVersion, installedVersion) {
 		return assessment.LatestVersion
 	}
 	return ""
 }
 
-func assessStaleness(installedVersion string) stalenessAssessment {
+func AssessStaleness(installedVersion string, fetchFn func() (string, string, error)) StalenessAssessment {
 	if installedVersion == "" || installedVersion == "dev" {
-		return stalenessAssessment{Result: "dev"}
+		return StalenessAssessment{Result: "dev"}
 	}
 
-	// Check cooldown
-	cache := readCache()
+	cache := ReadCache()
 	if cache != nil && cache.LastChecked != "" {
 		if t, err := time.Parse(time.RFC3339, cache.LastChecked); err == nil {
 			if time.Since(t) < checkInterval {
-				// Within cooldown — use cached result
-				return assessFromLatest(installedVersion, cache.LatestVersion, "cooldown")
+				return AssessFromLatest(installedVersion, cache.LatestVersion, "cooldown")
 			}
 		}
 	}
 
-	// Use a short timeout client for staleness checks
-	client := &http.Client{Timeout: stalenessTimeout}
-	origClient := httpClient
-	httpClient = client
-	defer func() { httpClient = origClient }()
-
-	latest, _, err := fetchLatestVersion()
+	latest, _, err := fetchFn()
 	if err != nil {
-		return stalenessAssessment{Result: "lookup_failed"}
+		return StalenessAssessment{Result: "lookup_failed"}
 	}
 
-	// Only write cache on successful check
-	writeCache(&stalenessCache{
+	WriteCache(&StalenessCache{
 		LastChecked:   time.Now().UTC().Format(time.RFC3339),
 		LatestVersion: latest,
 	})
 
-	return assessFromLatest(installedVersion, latest, "")
+	return AssessFromLatest(installedVersion, latest, "")
 }
 
-func assessFromLatest(installedVersion, latestVersion, fallbackResult string) stalenessAssessment {
+func AssessFromLatest(installedVersion, latestVersion, fallbackResult string) StalenessAssessment {
 	result := "up_to_date"
 	upToDate := true
 	if latestVersion == "" {
 		if fallbackResult != "" {
-			return stalenessAssessment{Result: fallbackResult}
+			return StalenessAssessment{Result: fallbackResult}
 		}
-		return stalenessAssessment{Result: "lookup_failed"}
+		return StalenessAssessment{Result: "lookup_failed"}
 	}
 
-	skewDays, skewOk := versionSkewDays(latestVersion, installedVersion)
-	if versionNewer(latestVersion, installedVersion) {
-		upToDate = skewOk && skewDays <= staleThreshold
+	skewDays, skewOK := VersionSkewDays(latestVersion, installedVersion)
+	if VersionNewer(latestVersion, installedVersion) {
+		upToDate = skewOK && skewDays <= staleThreshold
 		if !upToDate {
 			result = "stale"
 		}
@@ -141,21 +129,21 @@ func assessFromLatest(installedVersion, latestVersion, fallbackResult string) st
 	if fallbackResult != "" {
 		result = fallbackResult
 	}
-	return stalenessAssessment{
+	return StalenessAssessment{
 		LatestVersion: latestVersion,
 		Result:        result,
 		UpToDate:      upToDate,
 		SkewDays:      skewDays,
-		HasSkew:       skewOk,
+		HasSkew:       skewOK,
 	}
 }
 
-func versionSkewDays(latestVersion, installedVersion string) (int64, bool) {
-	latestTime, ok := parseVersionTimestamp(versionTimestamp(latestVersion))
+func VersionSkewDays(latestVersion, installedVersion string) (int64, bool) {
+	latestTime, ok := ParseVersionTimestamp(VersionTimestamp(latestVersion))
 	if !ok {
 		return 0, false
 	}
-	installedTime, ok := parseVersionTimestamp(versionTimestamp(installedVersion))
+	installedTime, ok := ParseVersionTimestamp(VersionTimestamp(installedVersion))
 	if !ok {
 		return 0, false
 	}
@@ -166,7 +154,7 @@ func versionSkewDays(latestVersion, installedVersion string) (int64, bool) {
 	return int64(diff.Hours() / 24), true
 }
 
-func parseVersionTimestamp(ts string) (time.Time, bool) {
+func ParseVersionTimestamp(ts string) (time.Time, bool) {
 	parts := strings.SplitN(ts, "-", 2)
 	if len(parts) != 2 {
 		return time.Time{}, false

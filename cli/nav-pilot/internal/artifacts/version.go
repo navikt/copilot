@@ -1,10 +1,10 @@
-package main
+package artifacts
 
 import "strings"
 
-// versionTimestamp extracts the sortable date-time prefix from a version string.
+// VersionTimestamp extracts the sortable date-time prefix from a version string.
 // Version format: "2026.04.14-202800-a25f6c3" → "2026.04.14-202800"
-func versionTimestamp(v string) string {
+func VersionTimestamp(v string) string {
 	parts := strings.SplitN(v, "-", 3)
 	if len(parts) >= 2 {
 		return parts[0] + "-" + parts[1]
@@ -12,13 +12,13 @@ func versionTimestamp(v string) string {
 	return v
 }
 
-// versionNewer returns true if candidate is a newer version than current.
+// VersionNewer returns true if candidate is a newer version than current.
 // Compares the date-time prefix (YYYY.MM.DD-HHMMSS) lexicographically,
 // which works because the format is zero-padded and fixed-width.
 // Returns false if either version is malformed (e.g. "dev", "").
-func versionNewer(candidate, current string) bool {
-	ct := versionTimestamp(candidate)
-	cu := versionTimestamp(current)
+func VersionNewer(candidate, current string) bool {
+	ct := VersionTimestamp(candidate)
+	cu := VersionTimestamp(current)
 	if len(ct) == 0 || ct[0] < '0' || ct[0] > '9' {
 		return false
 	}

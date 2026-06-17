@@ -1,4 +1,4 @@
-package main
+package artifacts
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const syncConfigPath = ".github/copilot-sync.json"
+const SyncConfigPath = ".github/copilot-sync.json"
 
 // SyncConfig holds optional per-repo sync configuration.
 // Teams create .github/copilot-sync.json to customize sync behavior.
@@ -17,10 +17,10 @@ type SyncConfig struct {
 	Overrides []string `json:"overrides,omitempty"`
 }
 
-// readSyncConfig reads .github/copilot-sync.json from the given directory.
+// ReadSyncConfig reads .github/copilot-sync.json from the given directory.
 // Returns nil (no error) if the file does not exist.
-func readSyncConfig(dir string) (*SyncConfig, error) {
-	path := filepath.Join(dir, syncConfigPath)
+func ReadSyncConfig(dir string) (*SyncConfig, error) {
+	path := filepath.Join(dir, SyncConfigPath)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -35,10 +35,10 @@ func readSyncConfig(dir string) (*SyncConfig, error) {
 	return &cfg, nil
 }
 
-// overrideSet builds a lookup set from the config's overrides list.
+// OverrideSet builds a lookup set from the config's overrides list.
 // Paths are canonicalized with filepath.Clean and forward slashes for
 // consistent matching against syncFile.localPath.
-func overrideSet(cfg *SyncConfig) map[string]bool {
+func OverrideSet(cfg *SyncConfig) map[string]bool {
 	if cfg == nil || len(cfg.Overrides) == 0 {
 		return nil
 	}
@@ -46,7 +46,6 @@ func overrideSet(cfg *SyncConfig) map[string]bool {
 	for _, p := range cfg.Overrides {
 		clean := filepath.ToSlash(filepath.Clean(p))
 		m[clean] = true
-		// Also match with trailing slash for directory overrides
 		if !strings.HasSuffix(clean, "/") {
 			m[clean+"/"] = true
 		}

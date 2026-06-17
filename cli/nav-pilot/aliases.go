@@ -1,6 +1,10 @@
 package main
 
 import (
+	"net/http"
+	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
@@ -97,19 +101,69 @@ var (
 	comparableArtifactHash = source.ComparableArtifactHash
 	checkConflict          = source.CheckConflict
 
-	// frontmatter.go
-	splitFrontmatter           = source.SplitFrontmatter
-	buildAgentFrontmatter      = source.BuildAgentFrontmatter
-	transformPromptFrontmatter = source.TransformPromptFrontmatter
-	reassemble                 = source.Reassemble
-	extractFrontmatterValue    = source.ExtractFrontmatterValue
-
 	// manifest.go
 	validateName       = source.ValidateName
 	validateManifest   = source.ValidateManifest
 	loadManifest       = source.LoadManifest
 	listCollectionDirs = source.ListCollectionDirs
 	collectAllItems    = source.CollectAllItems
+)
+
+// ─── artifacts aliases ───────────────────────────────────────────────────────
+
+type (
+	stalenessAssessment = artifacts.StalenessAssessment
+	SyncConfig          = artifacts.SyncConfig
+)
+
+var (
+	versionNewer     = artifacts.VersionNewer
+	versionTimestamp = artifacts.VersionTimestamp
+)
+
+const (
+	stateFilePath      = artifacts.StateFilePath
+	syncConfigPath     = artifacts.SyncConfigPath
+	openCodeCollection = artifacts.OpenCodeCollection
+	openCodeScopeName  = artifacts.OpenCodeScopeName
+)
+
+var (
+	readState        = artifacts.ReadState
+	readScopedState  = artifacts.ReadScopedState
+	writeState       = artifacts.WriteState
+	writeScopedState = artifacts.WriteScopedState
+)
+
+var (
+	assessStaleness = func(installedVersion string) artifacts.StalenessAssessment {
+		fetchFn := func() (string, string, error) {
+			client := &http.Client{Timeout: 2 * time.Second}
+			origClient := httpClient
+			httpClient = client
+			defer func() { httpClient = origClient }()
+			return fetchLatestVersion()
+		}
+		return artifacts.AssessStaleness(installedVersion, fetchFn)
+	}
+)
+
+var (
+	readSyncConfig = artifacts.ReadSyncConfig
+	overrideSet    = artifacts.OverrideSet
+)
+
+var cmdExport = func(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
+	return artifacts.CmdExport(format, scope, ref, sourceRepo, version, dryRun, force, jsonOutput)
+}
+
+var exportSummary = artifacts.ExportSummary
+
+var (
+	syncOpenCodeArtifacts    = artifacts.SyncOpenCodeArtifacts
+	readOpenCodeState        = artifacts.ReadOpenCodeState
+	writeOpenCodeState       = artifacts.WriteOpenCodeState
+	printOpenCodeStatusBlock = artifacts.PrintOpenCodeStatusBlock
 )
 
 // ─── telemetry aliases ───────────────────────────────────────────────────────

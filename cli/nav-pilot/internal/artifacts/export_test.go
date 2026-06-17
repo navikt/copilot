@@ -1,10 +1,13 @@
-package main
+package artifacts
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // setupTestSource creates a temporary source tree mimicking .github/ structure.
@@ -12,7 +15,6 @@ func setupTestSource(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 
-	// Skills
 	skillDir := filepath.Join(dir, ".github", "skills", "security-review")
 	mustMkdir(t, skillDir)
 	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), `---
@@ -32,7 +34,6 @@ Run security checks on your code.
 `)
 	mustWrite(t, filepath.Join(skillDir, "checklist.md"), "## Checklist\n\n- [ ] Check for secrets\n")
 
-	// Agents
 	agentDir := filepath.Join(dir, ".github", "agents")
 	mustMkdir(t, agentDir)
 	mustWrite(t, filepath.Join(agentDir, "nav-pilot.agent.md"), `---
@@ -58,7 +59,6 @@ tools:
 You handle auth flows for Nav apps.
 `)
 
-	// Prompts
 	promptDir := filepath.Join(dir, ".github", "prompts")
 	mustMkdir(t, promptDir)
 	mustWrite(t, filepath.Join(promptDir, "aksel-component.prompt.md"), `---
@@ -69,7 +69,6 @@ description: Generate Aksel components
 Create a responsive React component using Aksel Design System.
 `)
 
-	// Instructions
 	instrDir := filepath.Join(dir, ".github", "instructions")
 	mustMkdir(t, instrDir)
 	mustWrite(t, filepath.Join(instrDir, "accessibility.instructions.md"), `---
@@ -89,7 +88,6 @@ applyTo: "**/db/migration/**/*.sql"
 Follow Flyway naming convention.
 `)
 
-	// Global instructions
 	mustWrite(t, filepath.Join(dir, ".github", "copilot-instructions.md"), `---
 applyTo: "**"
 ---
@@ -131,7 +129,6 @@ func TestExportSkills(t *testing.T) {
 		t.Fatalf("exported %d skills, want 1", n)
 	}
 
-	// Check SKILL.md was copied
 	skillMD := filepath.Join(outputDir, "skills", "security-review", "SKILL.md")
 	data, err := os.ReadFile(skillMD)
 	if err != nil {
@@ -141,7 +138,6 @@ func TestExportSkills(t *testing.T) {
 		t.Error("SKILL.md missing name field")
 	}
 
-	// Check reference file was copied
 	checklist := filepath.Join(outputDir, "skills", "security-review", "checklist.md")
 	if _, err := os.Stat(checklist); os.IsNotExist(err) {
 		t.Error("reference file checklist.md not copied")
@@ -190,7 +186,6 @@ func TestExportAgents(t *testing.T) {
 		t.Fatalf("exported %d agents, want 2", n)
 	}
 
-	// Check nav-pilot agent
 	agentMD := filepath.Join(outputDir, "agents", "nav-pilot.md")
 	data, err := os.ReadFile(agentMD)
 	if err != nil {
@@ -220,12 +215,10 @@ func TestExportInstructions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 1 global (copilot-instructions.md) + 2 scoped (accessibility + database)
 	if n != 3 {
 		t.Fatalf("exported %d items, want 3", n)
 	}
 
-	// AGENTS.md should have global content + lazy-load references, not inline scoped sections.
 	agentsMD := filepath.Join(outputDir, "AGENTS.md")
 	data, err := os.ReadFile(agentsMD)
 	if err != nil {
@@ -248,7 +241,6 @@ func TestExportInstructions(t *testing.T) {
 	if !strings.Contains(content, "database.md") {
 		t.Error("AGENTS.md missing lazy-load reference to database.md")
 	}
-	// Scoped content must NOT be inlined.
 	if strings.Contains(content, "## Accessibility") {
 		t.Error("AGENTS.md should not inline accessibility section")
 	}
@@ -259,7 +251,6 @@ func TestExportInstructions(t *testing.T) {
 		t.Error("AGENTS.md should not contain applyTo frontmatter")
 	}
 
-	// Scoped instruction files must be exported individually.
 	accData, err := os.ReadFile(filepath.Join(outputDir, "instructions", "accessibility.md"))
 	if err != nil {
 		t.Fatalf("instructions/accessibility.md not found: %v", err)
@@ -314,7 +305,6 @@ func TestExportDryRun(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	// Run all exports in dry-run mode
 	for _, fn := range []func(string, string, bool) (int, error){
 		exportSkills, exportPrompts, exportAgents, exportInstructions,
 	} {
@@ -323,7 +313,6 @@ func TestExportDryRun(t *testing.T) {
 		}
 	}
 
-	// Verify nothing was written
 	entries, _ := os.ReadDir(outputDir)
 	if len(entries) > 0 {
 		t.Errorf("dry run created %d entries, want 0", len(entries))
@@ -413,10 +402,11 @@ func TestExportBlocksWithoutForce(t *testing.T) {
 	mustMkdir(t, openCodeDir)
 	mustWrite(t, filepath.Join(openCodeDir, "existing.md"), "existing content")
 
-	scope := ScopeRepo(outputDir)
+	scope := domain.ScopeRepo(outputDir)
+	origClone := source.CloneRemoteFn
+	t.Cleanup(func() { source.CloneRemoteFn = origClone })
 
-	// Without --force, should error
-	err := exportOpenCode(scope, "", "", false, false, false)
+	err := ExportOpenCode(scope, "", "", "dev", false, false, false)
 	if err == nil {
 		t.Fatal("expected error without --force, got nil")
 	}
@@ -439,9 +429,9 @@ func TestExportSummary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := exportSummary(tt.skills, tt.commands, tt.agents, tt.instructions)
+			got := ExportSummary(tt.skills, tt.commands, tt.agents, tt.instructions)
 			if got != tt.want {
-				t.Errorf("exportSummary() = %q, want %q", got, tt.want)
+				t.Errorf("ExportSummary() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -492,8 +482,8 @@ func TestCopyDirSimpleRejectsSymlinks(t *testing.T) {
 }
 
 func TestCmdExportUnknownFormat(t *testing.T) {
-	scope := ScopeRepo(t.TempDir())
-	err := cmdExport("zed", scope, "", "", false, false, false)
+	scope := domain.ScopeRepo(t.TempDir())
+	err := CmdExport("zed", scope, "", "", "dev", false, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown format")
 	}
@@ -505,8 +495,8 @@ func TestCmdExportUnknownFormat(t *testing.T) {
 func TestOpenCodeOutputDir(t *testing.T) {
 	t.Run("repo scope", func(t *testing.T) {
 		dir := t.TempDir()
-		scope := ScopeRepo(dir)
-		got := openCodeOutputDir(scope)
+		scope := domain.ScopeRepo(dir)
+		got := OpenCodeOutputDir(scope)
 		want := filepath.Join(dir, ".opencode")
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
@@ -518,11 +508,11 @@ func TestOpenCodeOutputDir(t *testing.T) {
 		if err != nil {
 			t.Skip("cannot determine home dir")
 		}
-		scope, err := ScopeUser()
+		scope, err := domain.ScopeUser()
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := openCodeOutputDir(scope)
+		got := OpenCodeOutputDir(scope)
 		want := filepath.Join(home, ".config", "opencode")
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
@@ -552,7 +542,6 @@ func TestExportSkills_RootLevel(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 
-	// Root-level skill
 	skillDir := filepath.Join(sourceDir, "skills", "my-skill")
 	mustMkdir(t, skillDir)
 	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), "# My Skill\n")
@@ -566,7 +555,6 @@ func TestExportSkills_RootLevel(t *testing.T) {
 		t.Fatalf("exported %d skills, want 1", n)
 	}
 
-	// Verify output
 	got, err := os.ReadFile(filepath.Join(outputDir, "skills", "my-skill", "SKILL.md"))
 	if err != nil {
 		t.Fatalf("SKILL.md not found: %v", err)
@@ -580,11 +568,9 @@ func TestExportSkills_MergesBothDirs(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 
-	// Root-level skill
 	mustMkdir(t, filepath.Join(sourceDir, "skills", "alpha"))
 	mustWrite(t, filepath.Join(sourceDir, "skills", "alpha", "SKILL.md"), "# Alpha root\n")
 
-	// Legacy skill
 	mustMkdir(t, filepath.Join(sourceDir, ".github", "skills", "beta"))
 	mustWrite(t, filepath.Join(sourceDir, ".github", "skills", "beta", "SKILL.md"), "# Beta legacy\n")
 
@@ -601,10 +587,8 @@ func TestExportSkills_InvalidRootFallsBack(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 
-	// Root dir exists but no SKILL.md — invalid
 	mustMkdir(t, filepath.Join(sourceDir, "skills", "broken"))
 
-	// Legacy has valid SKILL.md
 	mustMkdir(t, filepath.Join(sourceDir, ".github", "skills", "broken"))
 	mustWrite(t, filepath.Join(sourceDir, ".github", "skills", "broken", "SKILL.md"), "# Legacy\n")
 
@@ -626,9 +610,9 @@ func TestMaterializeOpenCode(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := materializeOpenCode(sourceDir, outputDir)
+	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir)
 	if err != nil {
-		t.Fatalf("materializeOpenCode() error: %v", err)
+		t.Fatalf("MaterializeOpenCode() error: %v", err)
 	}
 	if skills != 1 {
 		t.Errorf("skills = %d, want 1", skills)
@@ -639,12 +623,10 @@ func TestMaterializeOpenCode(t *testing.T) {
 	if agents != 2 {
 		t.Errorf("agents = %d, want 2", agents)
 	}
-	// 1 global (copilot-instructions.md) + 2 scoped = 3
 	if instructions != 3 {
 		t.Errorf("instructions = %d, want 3", instructions)
 	}
 
-	// Verify AGENTS.md was written
 	agentsMD := filepath.Join(outputDir, "AGENTS.md")
 	data, err := os.ReadFile(agentsMD)
 	if err != nil {
@@ -654,12 +636,10 @@ func TestMaterializeOpenCode(t *testing.T) {
 		t.Error("AGENTS.md missing auto-generated header")
 	}
 
-	// Verify skill was copied
 	if _, err := os.Stat(filepath.Join(outputDir, "skills", "security-review", "SKILL.md")); err != nil {
 		t.Errorf("skill SKILL.md missing: %v", err)
 	}
 
-	// Verify command was written (name field stripped)
 	cmdData, err := os.ReadFile(filepath.Join(outputDir, "commands", "aksel-component.md"))
 	if err != nil {
 		t.Fatalf("command file missing: %v", err)
@@ -668,7 +648,6 @@ func TestMaterializeOpenCode(t *testing.T) {
 		t.Error("command file should not contain name: field")
 	}
 
-	// Verify agent was written with mode: subagent
 	agentData, err := os.ReadFile(filepath.Join(outputDir, "agents", "nav-pilot.md"))
 	if err != nil {
 		t.Fatalf("agent file missing: %v", err)
@@ -682,20 +661,17 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	// First run
-	s1, c1, a1, i1, err := materializeOpenCode(sourceDir, outputDir)
+	s1, c1, a1, i1, err := MaterializeOpenCode(sourceDir, outputDir)
 	if err != nil {
 		t.Fatalf("first run error: %v", err)
 	}
 
-	// Capture AGENTS.md content after first run
 	first, err := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Second run
-	s2, c2, a2, i2, err := materializeOpenCode(sourceDir, outputDir)
+	s2, c2, a2, i2, err := MaterializeOpenCode(sourceDir, outputDir)
 	if err != nil {
 		t.Fatalf("second run error: %v", err)
 	}
@@ -705,7 +681,6 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 			s1, c1, a1, i1, s2, c2, a2, i2)
 	}
 
-	// AGENTS.md must be identical
 	second, _ := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
 	if string(first) != string(second) {
 		t.Errorf("AGENTS.md not idempotent:\nfirst:  %s\nsecond: %s", first, second)
@@ -716,7 +691,7 @@ func TestMaterializeOpenCodeEmpty(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := materializeOpenCode(sourceDir, outputDir)
+	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir)
 	if err != nil {
 		t.Fatalf("unexpected error on empty source: %v", err)
 	}

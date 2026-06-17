@@ -1,29 +1,31 @@
-package main
+package artifacts
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
-const stateFilePath = ".github/.nav-pilot-state.json"
+const StateFilePath = ".github/.nav-pilot-state.json"
 
-// readState reads state for the given repo directory (legacy convenience wrapper).
-func readState(targetDir string) (*StateFile, error) {
-	return readScopedState(ScopeRepo(targetDir))
+// ReadState reads state for the given repo directory (legacy convenience wrapper).
+func ReadState(targetDir string) (*domain.StateFile, error) {
+	return ReadScopedState(domain.ScopeRepo(targetDir))
 }
 
-// readScopedState reads state from the scope's state file location.
+// ReadScopedState reads state from the scope's state file location.
 // Validates that the persisted scope matches the expected scope and that
 // all file paths are safe. This is the single entry point for state validation.
-func readScopedState(scope *InstallScope) (*StateFile, error) {
-	s, err := readStateRaw(scope.StatePath())
+func ReadScopedState(scope *domain.InstallScope) (*domain.StateFile, error) {
+	s, err := ReadStateRaw(scope.StatePath())
 	if err != nil || s == nil {
 		return s, err
 	}
 
-	// Reject scope mismatch (empty defaults to "repo" for backwards compat)
 	fileScope := s.Scope
 	if fileScope == "" {
 		fileScope = "repo"
@@ -32,7 +34,6 @@ func readScopedState(scope *InstallScope) (*StateFile, error) {
 		return nil, fmt.Errorf("state file scope mismatch: expected %q, got %q", scope.Name, fileScope)
 	}
 
-	// B1: Validate all file paths using the scope's single validation implementation
 	for _, f := range s.Files {
 		if err := scope.ValidateStatePath(f.Path); err != nil {
 			return nil, fmt.Errorf("unsafe state file: %w", err)
@@ -41,8 +42,8 @@ func readScopedState(scope *InstallScope) (*StateFile, error) {
 	return s, nil
 }
 
-// readStateRaw parses a state file without validation. Used internally.
-func readStateRaw(path string) (*StateFile, error) {
+// ReadStateRaw parses a state file without validation. Used internally.
+func ReadStateRaw(path string) (*domain.StateFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -50,25 +51,24 @@ func readStateRaw(path string) (*StateFile, error) {
 		}
 		return nil, err
 	}
-	var s StateFile
+	var s domain.StateFile
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, fmt.Errorf("parsing state file: %w", err)
 	}
 	return &s, nil
 }
 
-func writeState(targetDir string, state *StateFile) error {
-	return writeStateAt(filepath.Join(targetDir, stateFilePath), targetDir, state)
+func WriteState(targetDir string, state *domain.StateFile) error {
+	return WriteStateAt(filepath.Join(targetDir, StateFilePath), targetDir, state)
 }
 
-// writeScopedState writes state to the scope's state file location.
-func writeScopedState(scope *InstallScope, state *StateFile) error {
-	return writeStateAt(scope.StatePath(), scope.RootDir, state)
+// WriteScopedState writes state to the scope's state file location.
+func WriteScopedState(scope *domain.InstallScope, state *domain.StateFile) error {
+	return WriteStateAt(scope.StatePath(), scope.RootDir, state)
 }
 
-func writeStateAt(path, boundary string, state *StateFile) error {
-	// B2: Check BEFORE MkdirAll to prevent creating directories through symlinks.
-	if err := checkSymlink(path, boundary); err != nil {
+func WriteStateAt(path, boundary string, state *domain.StateFile) error {
+	if err := source.CheckSymlink(path, boundary); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -79,7 +79,6 @@ func writeStateAt(path, boundary string, state *StateFile) error {
 		return err
 	}
 	data = append(data, '\n')
-	// I4: Atomic write via temp file + rename
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".nav-pilot-state-*")
 	if err != nil {
 		return err

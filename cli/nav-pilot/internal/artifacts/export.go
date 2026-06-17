@@ -1,86 +1,83 @@
-package main
+package artifacts
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
-// cmdExport dispatches to the appropriate export format.
-func cmdExport(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
+// CmdExport dispatches to the appropriate export format.
+func CmdExport(format string, scope *domain.InstallScope, ref, sourceRepo, cliVersion string, dryRun, force, jsonOutput bool) error {
 	switch format {
 	case "opencode":
-		return exportOpenCode(scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		return ExportOpenCode(scope, ref, sourceRepo, cliVersion, dryRun, force, jsonOutput)
 	default:
 		return fmt.Errorf("unknown export format: %q\n\nSupported formats: opencode", format)
 	}
 }
 
-// exportOpenCode transforms Nav's .github/ artifacts into OpenCode-compatible .opencode/ format.
-func exportOpenCode(scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
-	src, err := resolveSource(ref, sourceRepo)
+// ExportOpenCode transforms Nav's .github/ artifacts into OpenCode-compatible .opencode/ format.
+func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion string, dryRun, force, jsonOutput bool) error {
+	src, err := source.ResolveSource(ref, sourceRepo, cliVersion)
 	if err != nil {
 		return err
 	}
 	defer src.Cleanup()
 
-	// Determine output directory
-	outputDir := openCodeOutputDir(scope)
+	outputDir := OpenCodeOutputDir(scope)
 
-	// Check if output already exists
 	if info, err := os.Stat(outputDir); err == nil && info.IsDir() {
 		entries, _ := os.ReadDir(outputDir)
 		if len(entries) > 0 && !force {
 			return fmt.Errorf("%s already exists and is not empty — use %s to overwrite",
-				outputDir, bold("--force"))
+				outputDir, domain.Bold("--force"))
 		}
 	}
 
 	if !jsonOutput {
 		if dryRun {
-			fmt.Printf("%s Export to %s\n\n", dim("→"), dim(outputDir))
+			fmt.Printf("%s Export to %s\n\n", domain.Dim("→"), domain.Dim(outputDir))
 		} else {
-			fmt.Printf("Exporting to %s\n\n", bold(outputDir))
+			fmt.Printf("Exporting to %s\n\n", domain.Bold(outputDir))
 		}
 	}
 
 	sourceDir := src.Dir
 	var totalSkills, totalCommands, totalAgents, totalInstructions int
 
-	// Skills (1:1 copy)
 	n, err := exportSkills(sourceDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting skills: %w", err)
 	}
 	totalSkills = n
 
-	// Prompts → Commands
 	n, err = exportPrompts(sourceDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting prompts: %w", err)
 	}
 	totalCommands = n
 
-	// Agents
 	n, err = exportAgents(sourceDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting agents: %w", err)
 	}
 	totalAgents = n
 
-	// Instructions → AGENTS.md
 	n, err = exportInstructions(sourceDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting instructions: %w", err)
 	}
 	totalInstructions = n
 
-	// Summary
 	total := totalSkills + totalCommands + totalAgents
 	if totalInstructions > 0 {
-		total++ // AGENTS.md counts as 1
+		total++
 	}
 
 	if jsonOutput {
@@ -102,16 +99,16 @@ func exportOpenCode(scope *InstallScope, ref, sourceRepo string, dryRun, force b
 		action = "Would export"
 	}
 	fmt.Printf("\n%s %s %d artifact(s): %s\n",
-		green("✓"), action, total,
-		exportSummary(totalSkills, totalCommands, totalAgents, totalInstructions))
+		domain.Green("✓"), action, total,
+		ExportSummary(totalSkills, totalCommands, totalAgents, totalInstructions))
 
 	return nil
 }
 
-// openCodeOutputDir returns the base output directory for OpenCode export.
+// OpenCodeOutputDir returns the base output directory for OpenCode export.
 // For user scope: ~/.config/opencode/ (OpenCode's native global path)
 // For repo scope: <targetDir>/.opencode/
-func openCodeOutputDir(scope *InstallScope) string {
+func OpenCodeOutputDir(scope *domain.InstallScope) string {
 	if scope.IsUser() {
 		home, _ := os.UserHomeDir()
 		return filepath.Join(home, ".config", "opencode")
@@ -119,7 +116,7 @@ func openCodeOutputDir(scope *InstallScope) string {
 	return filepath.Join(scope.RootDir, ".opencode")
 }
 
-func exportSummary(skills, commands, agents, instructions int) string {
+func ExportSummary(skills, commands, agents, instructions int) string {
 	var parts []string
 	if skills > 0 {
 		parts = append(parts, fmt.Sprintf("%d skill(s)", skills))
@@ -139,10 +136,8 @@ func exportSummary(skills, commands, agents, instructions int) string {
 	return strings.Join(parts, ", ")
 }
 
-// ─── Skills (1:1 copy) ──────────────────────────────────────────────────────
-
 func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
-	skills := NewSourceResolver(sourceDir).List(KindSkill)
+	skills := source.NewSourceResolver(sourceDir).List(source.KindSkill)
 	if len(skills) == 0 {
 		return 0, nil
 	}
@@ -152,9 +147,9 @@ func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
 
 		if dryRun {
-			files := countDirFiles(skill.AbsPath)
+			files := source.CountDirFiles(skill.AbsPath)
 			fmt.Printf("  %s %s → skills/%s/ (%d file(s))\n",
-				dim("→"), skill.Name, skill.Name, files)
+				domain.Dim("→"), skill.Name, skill.Name, files)
 		} else {
 			if err := os.MkdirAll(filepath.Dir(dstDir), 0o755); err != nil {
 				return count, err
@@ -162,23 +157,19 @@ func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
 			if err := copyDirSimple(skill.AbsPath, dstDir); err != nil {
 				return count, fmt.Errorf("copying skill %s: %w", skill.Name, err)
 			}
-			fmt.Printf("  %s %s\n", green("✓"), skill.Name)
+			fmt.Printf("  %s %s\n", domain.Green("✓"), skill.Name)
 		}
 		count++
 	}
 
-	if count > 0 {
-		if dryRun {
-			fmt.Fprintf(os.Stderr, "")
-		}
+	if count > 0 && dryRun {
+		fmt.Fprintf(os.Stderr, "")
 	}
 	return count, nil
 }
 
-// ─── Prompts → Commands ─────────────────────────────────────────────────────
-
 func exportPrompts(sourceDir, outputDir string, dryRun bool) (int, error) {
-	entries := NewSourceResolver(sourceDir).List(KindPrompt)
+	entries := source.NewSourceResolver(sourceDir).List(source.KindPrompt)
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -186,7 +177,6 @@ func exportPrompts(sourceDir, outputDir string, dryRun bool) (int, error) {
 	count := 0
 	for _, entry := range entries {
 		if entry.IsDir {
-			// Prompt directories are not yet supported for export
 			continue
 		}
 
@@ -200,32 +190,29 @@ func exportPrompts(sourceDir, outputDir string, dryRun bool) (int, error) {
 		transformed := transformPrompt(data)
 
 		if dryRun {
-			fmt.Printf("  %s %s.prompt.md → commands/%s.md\n", dim("→"), entry.Name, entry.Name)
+			fmt.Printf("  %s %s.prompt.md → commands/%s.md\n", domain.Dim("→"), entry.Name, entry.Name)
 		} else {
 			if err := writeFile(dstPath, transformed); err != nil {
 				return count, fmt.Errorf("writing command %s: %w", entry.Name, err)
 			}
-			fmt.Printf("  %s %s\n", green("✓"), entry.Name)
+			fmt.Printf("  %s %s\n", domain.Green("✓"), entry.Name)
 		}
 		count++
 	}
 	return count, nil
 }
 
-// transformPrompt strips `name` from frontmatter (OpenCode derives it from filename).
 func transformPrompt(data []byte) []byte {
-	fm, body, hasFM := splitFrontmatter(data)
+	fm, body, hasFM := source.SplitFrontmatter(data)
 	if !hasFM {
 		return data
 	}
-	fm = transformPromptFrontmatter(fm)
-	return reassemble(fm, body)
+	fm = source.TransformPromptFrontmatter(fm)
+	return source.Reassemble(fm, body)
 }
 
-// ─── Agents ─────────────────────────────────────────────────────────────────
-
 func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
-	agents := NewSourceResolver(sourceDir).List(KindAgent)
+	agents := source.NewSourceResolver(sourceDir).List(source.KindAgent)
 	if len(agents) == 0 {
 		return 0, nil
 	}
@@ -242,98 +229,91 @@ func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
 		transformed := transformAgent(data)
 
 		if dryRun {
-			fmt.Printf("  %s %s.agent.md → agents/%s.md\n", dim("→"), entry.Name, entry.Name)
+			fmt.Printf("  %s %s.agent.md → agents/%s.md\n", domain.Dim("→"), entry.Name, entry.Name)
 		} else {
 			if err := writeFile(dstPath, transformed); err != nil {
 				return count, fmt.Errorf("writing agent %s: %w", entry.Name, err)
 			}
-			fmt.Printf("  %s %s\n", green("✓"), entry.Name)
+			fmt.Printf("  %s %s\n", domain.Green("✓"), entry.Name)
 		}
 		count++
 	}
 	return count, nil
 }
 
-// transformAgent replaces Nav agent frontmatter with OpenCode-compatible frontmatter.
-// Extracts description, sets mode: subagent, drops VS Code tool IDs.
 func transformAgent(data []byte) []byte {
-	fm, body, hasFM := splitFrontmatter(data)
+	fm, body, hasFM := source.SplitFrontmatter(data)
 	if !hasFM {
 		return data
 	}
 
-	description, _ := extractFrontmatterValue(fm, "description")
+	description, _ := source.ExtractFrontmatterValue(fm, "description")
 	if description == "" {
 		description = "Nav agent"
 	}
 
-	newFM := buildAgentFrontmatter(description)
-	return reassemble(newFM, body)
+	newFM := source.BuildAgentFrontmatter(description)
+	return source.Reassemble(newFM, body)
 }
 
-// ─── Instructions → AGENTS.md ───────────────────────────────────────────────
-
-// instructionSection holds global instruction content to be inlined into AGENTS.md.
-type instructionSection struct {
-	name string
-	body []byte
+// InstructionSection holds global instruction content to be inlined into AGENTS.md.
+type InstructionSection struct {
+	Name string
+	Body []byte
 }
 
-// instructionRef holds a scoped instruction file to be exported individually
+// InstructionRef holds a scoped instruction file to be exported individually
 // and referenced lazily from AGENTS.md.
-type instructionRef struct {
-	name    string
-	applyTo string
-	body    []byte
+type InstructionRef struct {
+	Name    string
+	ApplyTo string
+	Body    []byte
 }
 
-// collectInstructionData reads instruction files from sourceDir and separates them
-// into global sections (to be inlined in AGENTS.md) and scoped refs (individual files).
-// This is the pure data-collection step shared by exportInstructions and materializeOpenCode.
-func collectInstructionData(sourceDir string) ([]instructionSection, []instructionRef, error) {
-	instrEntries := NewSourceResolver(sourceDir).List(KindInstruction)
+func collectInstructionData(sourceDir string) ([]InstructionSection, []InstructionRef, error) {
+	instrEntries := source.NewSourceResolver(sourceDir).List(source.KindInstruction)
 
-	var globalSections []instructionSection
+	var globalSections []InstructionSection
 	globalInstr := filepath.Join(sourceDir, ".github", "copilot-instructions.md")
 	if data, err := os.ReadFile(globalInstr); err == nil {
-		_, body, hasFM := splitFrontmatter(data)
+		_, body, hasFM := source.SplitFrontmatter(data)
 		if !hasFM {
 			body = data
 		}
-		globalSections = append(globalSections, instructionSection{
-			name: "Global Instructions",
-			body: body,
+		globalSections = append(globalSections, InstructionSection{
+			Name: "Global Instructions",
+			Body: body,
 		})
 	}
 
-	var scopedRefs []instructionRef
+	var scopedRefs []InstructionRef
 	for _, entry := range instrEntries {
 		data, err := os.ReadFile(entry.AbsPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("reading instruction %s: %w", entry.Name, err)
 		}
 
-		fm, body, hasFM := splitFrontmatter(data)
+		fm, body, hasFM := source.SplitFrontmatter(data)
 		if !hasFM {
 			body = data
 		}
 
 		applyTo := ""
 		if hasFM {
-			applyTo, _ = extractFrontmatterValue(fm, "applyTo")
+			applyTo, _ = source.ExtractFrontmatterValue(fm, "applyTo")
 		}
 
 		if applyTo == "" || applyTo == "**" {
 			sectionName := titleCase(strings.ReplaceAll(entry.Name, "-", " "))
-			globalSections = append(globalSections, instructionSection{
-				name: sectionName,
-				body: body,
+			globalSections = append(globalSections, InstructionSection{
+				Name: sectionName,
+				Body: body,
 			})
 		} else {
-			scopedRefs = append(scopedRefs, instructionRef{
-				name:    entry.Name,
-				applyTo: applyTo,
-				body:    body,
+			scopedRefs = append(scopedRefs, InstructionRef{
+				Name:    entry.Name,
+				ApplyTo: applyTo,
+				Body:    body,
 			})
 		}
 	}
@@ -351,19 +331,17 @@ func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
 		return 0, nil
 	}
 
-	// Export each scoped instruction as an individual file.
 	for _, ref := range scopedRefs {
-		dstPath := filepath.Join(outputDir, "instructions", ref.name+".md")
+		dstPath := filepath.Join(outputDir, "instructions", ref.Name+".md")
 		if dryRun {
-			fmt.Printf("  %s %s.instructions.md → instructions/%s.md\n", dim("→"), ref.name, ref.name)
+			fmt.Printf("  %s %s.instructions.md → instructions/%s.md\n", domain.Dim("→"), ref.Name, ref.Name)
 		} else {
-			if err := writeFile(dstPath, ref.body); err != nil {
-				return 0, fmt.Errorf("writing instruction %s: %w", ref.name, err)
+			if err := writeFile(dstPath, ref.Body); err != nil {
+				return 0, fmt.Errorf("writing instruction %s: %w", ref.Name, err)
 			}
 		}
 	}
 
-	// Build and write lean AGENTS.md.
 	agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs)
 	dstPath := filepath.Join(outputDir, "AGENTS.md")
 	total := len(globalSections) + len(scopedRefs)
@@ -371,9 +349,9 @@ func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
 	if dryRun {
 		if len(scopedRefs) > 0 {
 			fmt.Printf("  %s %d global section(s) → AGENTS.md + %d scoped file(s) → instructions/\n",
-				dim("→"), len(globalSections), len(scopedRefs))
+				domain.Dim("→"), len(globalSections), len(scopedRefs))
 		} else {
-			fmt.Printf("  %s %d section(s) → AGENTS.md\n", dim("→"), len(globalSections))
+			fmt.Printf("  %s %d section(s) → AGENTS.md\n", domain.Dim("→"), len(globalSections))
 		}
 	} else {
 		if err := writeFile(dstPath, agentsMD); err != nil {
@@ -381,19 +359,16 @@ func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
 		}
 		if len(scopedRefs) > 0 {
 			fmt.Printf("  %s AGENTS.md (%d global) + %d instruction file(s)\n",
-				green("✓"), len(globalSections), len(scopedRefs))
+				domain.Green("✓"), len(globalSections), len(scopedRefs))
 		} else {
-			fmt.Printf("  %s AGENTS.md (%d section(s))\n", green("✓"), len(globalSections))
+			fmt.Printf("  %s AGENTS.md (%d section(s))\n", domain.Green("✓"), len(globalSections))
 		}
 	}
 
 	return total, nil
 }
 
-// buildLeanAGENTSmd generates a lean AGENTS.md. Global instructions are inlined;
-// scoped instructions are listed as lazy-load references to avoid loading unused
-// language/framework context on every prompt.
-func buildLeanAGENTSmd(globalSections []instructionSection, refs []instructionRef) []byte {
+func buildLeanAGENTSmd(globalSections []InstructionSection, refs []InstructionRef) []byte {
 	var buf strings.Builder
 	buf.WriteString("<!-- Auto-generated by nav-pilot export opencode — do not edit manually -->\n\n")
 
@@ -401,8 +376,8 @@ func buildLeanAGENTSmd(globalSections []instructionSection, refs []instructionRe
 		if i > 0 {
 			buf.WriteString("\n---\n\n")
 		}
-		buf.WriteString("## " + s.name + "\n\n")
-		body := strings.TrimSpace(string(s.body))
+		buf.WriteString("## " + s.Name + "\n\n")
+		body := strings.TrimSpace(string(s.Body))
 		buf.WriteString(body)
 		buf.WriteByte('\n')
 	}
@@ -415,7 +390,7 @@ func buildLeanAGENTSmd(globalSections []instructionSection, refs []instructionRe
 		buf.WriteString("Load instruction files on a **need-to-know basis** only — do not preemptively load all references.\n")
 		buf.WriteString("Use the Read tool to load the relevant file when about to write or review matching code:\n\n")
 		for _, ref := range refs {
-			buf.WriteString(fmt.Sprintf("- `%s` → @.opencode/instructions/%s.md\n", ref.applyTo, ref.name))
+			buf.WriteString(fmt.Sprintf("- `%s` → @.opencode/instructions/%s.md\n", ref.ApplyTo, ref.Name))
 		}
 		buf.WriteString("\n**CRITICAL**: Only load a file when it matches the current task. Do not load files for languages or frameworks not in use.\n")
 	}
@@ -423,18 +398,15 @@ func buildLeanAGENTSmd(globalSections []instructionSection, refs []instructionRe
 	return []byte(buf.String())
 }
 
-// ─── Silent materialization (used by launch-time auto-export) ───────────────
-
-// materializeOpenCode writes all Nav OpenCode artifacts to outputDir silently (no console output).
-// Unlike exportOpenCode it never checks for --force and never prints per-file lines —
+// MaterializeOpenCode writes all Nav OpenCode artifacts to outputDir silently (no console output).
+// Unlike ExportOpenCode it never checks for --force and never prints per-file lines —
 // it just ensures the files exist and are current. Idempotent: os.WriteFile overwrites
 // files with the same content on repeated calls, so running on every launch is safe.
 // Returns the count of each artifact type written.
-func materializeOpenCode(sourceDir, outputDir string) (skills, commands, agents, instructions int, err error) {
-	resolver := NewSourceResolver(sourceDir)
+func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents, instructions int, err error) {
+	resolver := source.NewSourceResolver(sourceDir)
 
-	// Skills (1:1 directory copy)
-	for _, skill := range resolver.List(KindSkill) {
+	for _, skill := range resolver.List(source.KindSkill) {
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
 		if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
 			return skills, commands, agents, instructions, mkErr
@@ -445,8 +417,7 @@ func materializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		skills++
 	}
 
-	// Prompts → Commands
-	for _, entry := range resolver.List(KindPrompt) {
+	for _, entry := range resolver.List(source.KindPrompt) {
 		if entry.IsDir {
 			continue
 		}
@@ -461,8 +432,7 @@ func materializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		commands++
 	}
 
-	// Agents
-	for _, entry := range resolver.List(KindAgent) {
+	for _, entry := range resolver.List(source.KindAgent) {
 		data, readErr := os.ReadFile(entry.AbsPath)
 		if readErr != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, readErr)
@@ -474,16 +444,15 @@ func materializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		agents++
 	}
 
-	// Instructions → AGENTS.md + individual scoped files
 	globalSections, scopedRefs, collErr := collectInstructionData(sourceDir)
 	if collErr != nil {
 		return skills, commands, agents, instructions, collErr
 	}
 	if len(globalSections) > 0 || len(scopedRefs) > 0 {
 		for _, ref := range scopedRefs {
-			dstPath := filepath.Join(outputDir, "instructions", ref.name+".md")
-			if wErr := writeFile(dstPath, ref.body); wErr != nil {
-				return skills, commands, agents, instructions, fmt.Errorf("instruction %s: %w", ref.name, wErr)
+			dstPath := filepath.Join(outputDir, "instructions", ref.Name+".md")
+			if wErr := writeFile(dstPath, ref.Body); wErr != nil {
+				return skills, commands, agents, instructions, fmt.Errorf("instruction %s: %w", ref.Name, wErr)
 			}
 		}
 		agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs)
@@ -496,9 +465,6 @@ func materializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 	return skills, commands, agents, instructions, nil
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-// writeFile writes data to path, creating parent directories.
 func writeFile(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -506,15 +472,12 @@ func writeFile(path string, data []byte) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
-// copyDirSimple copies a directory recursively, rejecting symlinks.
-// Used for export where source symlinks could leak unexpected content.
 func copyDirSimple(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Reject symlinks in source
 		if d.Type()&os.ModeSymlink != 0 {
 			return fmt.Errorf("refusing to follow symlink: %s", path)
 		}
@@ -537,7 +500,6 @@ func copyDirSimple(src, dst string) error {
 	})
 }
 
-// titleCase converts "hello world" to "Hello World".
 func titleCase(s string) string {
 	words := strings.Fields(s)
 	for i, w := range words {
@@ -546,4 +508,10 @@ func titleCase(s string) string {
 		}
 	}
 	return strings.Join(words, " ")
+}
+
+func outputJSON(v interface{}) error {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
 }

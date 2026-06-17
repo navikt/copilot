@@ -1,4 +1,4 @@
-package main
+package artifacts
 
 import (
 	"os"
@@ -8,15 +8,15 @@ import (
 
 func TestReadSyncConfig_Valid(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
-	os.WriteFile(filepath.Join(dir, syncConfigPath), []byte(`{
+	_ = os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, SyncConfigPath), []byte(`{
 		"overrides": [
 			".github/agents/nais.agent.md",
 			".github/instructions/security.instructions.md"
 		]
 	}`), 0o644)
 
-	cfg, err := readSyncConfig(dir)
+	cfg, err := ReadSyncConfig(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestReadSyncConfig_Valid(t *testing.T) {
 
 func TestReadSyncConfig_MissingFile(t *testing.T) {
 	dir := t.TempDir()
-	cfg, err := readSyncConfig(dir)
+	cfg, err := ReadSyncConfig(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,10 +44,10 @@ func TestReadSyncConfig_MissingFile(t *testing.T) {
 
 func TestReadSyncConfig_EmptyOverrides(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
-	os.WriteFile(filepath.Join(dir, syncConfigPath), []byte(`{"overrides": []}`), 0o644)
+	_ = os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, SyncConfigPath), []byte(`{"overrides": []}`), 0o644)
 
-	cfg, err := readSyncConfig(dir)
+	cfg, err := ReadSyncConfig(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,17 +61,16 @@ func TestReadSyncConfig_EmptyOverrides(t *testing.T) {
 
 func TestReadSyncConfig_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
-	os.WriteFile(filepath.Join(dir, syncConfigPath), []byte(`{invalid`), 0o644)
+	_ = os.MkdirAll(filepath.Join(dir, ".github"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, SyncConfigPath), []byte(`{invalid`), 0o644)
 
-	_, err := readSyncConfig(dir)
-	if err == nil {
+	if _, err := ReadSyncConfig(dir); err == nil {
 		t.Error("expected error for invalid JSON")
 	}
 }
 
 func TestOverrideSet_Nil(t *testing.T) {
-	m := overrideSet(nil)
+	m := OverrideSet(nil)
 	if m != nil {
 		t.Error("expected nil for nil config")
 	}
@@ -81,7 +80,7 @@ func TestOverrideSet_WithEntries(t *testing.T) {
 	cfg := &SyncConfig{
 		Overrides: []string{".github/agents/a.agent.md", ".github/skills/s/"},
 	}
-	m := overrideSet(cfg)
+	m := OverrideSet(cfg)
 	if !m[".github/agents/a.agent.md"] {
 		t.Error("expected agent in set")
 	}
@@ -100,7 +99,7 @@ func TestOverrideSet_CanonicalizesPath(t *testing.T) {
 	cfg := &SyncConfig{
 		Overrides: []string{"./.github/agents/a.agent.md"},
 	}
-	m := overrideSet(cfg)
+	m := OverrideSet(cfg)
 	if !m[".github/agents/a.agent.md"] {
 		t.Error("expected canonicalized path in set (without ./)")
 	}
