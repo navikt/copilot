@@ -311,13 +311,13 @@ type piProvider struct{}
 
 func (piProvider) ID() string                           { return "pi" }
 func (piProvider) DisplayName() string                  { return "pi" }
-func (piProvider) Launch(_ domain.ResolvedConfig) error { return LaunchPi() }
+func (piProvider) Launch(r domain.ResolvedConfig) error { return LaunchPi(r) }
 func (piProvider) DefaultModel() string                 { return "" }
 func (piProvider) KnownModels() []domain.ModelChoice    { return nil }
 func (piProvider) ValidateModel(model string) error     { return domain.ValidateModelValue(model) }
 func (piProvider) ModelAdvisory(_ string) string        { return "" }
-func (piProvider) UnsupportedConfigWarnings(_ domain.ResolvedConfig) []string {
-	return nil
+func (piProvider) UnsupportedConfigWarnings(r domain.ResolvedConfig) []string {
+	return PiUnsupportedConfigWarnings(r)
 }
 func (piProvider) Bootstrap() (string, error)                            { return "", nil }
 func (piProvider) SyncContext(_, _ string, _, _ bool) ProviderSyncResult { return ProviderSyncResult{} }

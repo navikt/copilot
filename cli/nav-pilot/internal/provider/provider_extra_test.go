@@ -118,9 +118,14 @@ func TestPiProvider_ValidateModel(t *testing.T) {
 
 func TestPiProvider_UnsupportedConfigWarnings(t *testing.T) {
 	var p Provider = piProvider{}
+	// Mode "autopilot" is not forwarded to pi yet, so it warns.
 	r := domain.ResolvedConfig{Mode: "autopilot", ContextTier: "long_context"}
-	if w := p.UnsupportedConfigWarnings(r); len(w) != 0 {
-		t.Errorf("piProvider.UnsupportedConfigWarnings() = %v, want empty", w)
+	if w := p.UnsupportedConfigWarnings(r); len(w) != 1 {
+		t.Errorf("piProvider.UnsupportedConfigWarnings() = %v, want 1 warning about mode", w)
+	}
+	// No model and default mode → no warnings.
+	if w := p.UnsupportedConfigWarnings(domain.ResolvedConfig{Mode: "default"}); len(w) != 0 {
+		t.Errorf("piProvider.UnsupportedConfigWarnings(default) = %v, want empty", w)
 	}
 }
 

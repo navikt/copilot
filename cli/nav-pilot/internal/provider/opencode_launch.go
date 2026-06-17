@@ -240,7 +240,35 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	})
 }
 
-// LaunchPi returns a clear error explaining that pi is not yet supported.
-func LaunchPi() error {
-	return fmt.Errorf("client \"pi\" is not yet supported for launch — set a different client with: nav-pilot config set client copilot")
+// LaunchPi launches pi inside the cplt sandbox. pi must also be installed on
+// PATH (cplt sandboxes the pi binary). Model and mode are not forwarded — pi
+// uses its own defaults — but Nav context is available via AGENTS.md in the
+// project root. cplt is required; if it is absent, launchViaCplt fails with
+// guidance.
+func LaunchPi(resolved domain.ResolvedConfig) error {
+	if _, err := exec.LookPath("pi"); err != nil {
+		return fmt.Errorf("pi not found in PATH — install it first, or set a different client with: nav-pilot config set client copilot")
+	}
+
+	for _, msg := range PiUnsupportedConfigWarnings(resolved) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
+	}
+
+	return launchViaCplt(cpltLaunch{
+		agent:       "pi",
+		displayName: "pi",
+	})
+}
+
+// PiUnsupportedConfigWarnings reports nav-pilot config that pi launch does not
+// forward yet (model and mode), so users understand pi will use its own defaults.
+func PiUnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string {
+	var warnings []string
+	if resolved.Model != "" {
+		warnings = append(warnings, fmt.Sprintf("model %q is not forwarded to pi yet — pi will use its own default model", resolved.Model))
+	}
+	if resolved.Mode != "" && resolved.Mode != "default" {
+		warnings = append(warnings, fmt.Sprintf("mode %q is not forwarded to pi yet — pi will use its own default mode", resolved.Mode))
+	}
+	return warnings
 }

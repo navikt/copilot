@@ -7,15 +7,21 @@ import (
 
 // ─── launchPi ─────────────────────────────────────────────────────────────────
 
-func TestLaunchPi_ReturnsError(t *testing.T) {
-	err := launchPi()
+func TestLaunchPi_ReturnsErrorWhenPiNotInPath(t *testing.T) {
+	// Empty PATH so exec.LookPath("pi") fails.
+	t.Setenv("PATH", t.TempDir())
+	err := launchPi(ResolvedConfig{Client: "pi"})
 	if err == nil {
-		t.Fatal("launchPi() must return a non-nil error")
+		t.Fatal("launchPi() must return a non-nil error when pi is not in PATH")
 	}
 }
 
 func TestLaunchPi_ErrorMentionsPi(t *testing.T) {
-	err := launchPi()
+	t.Setenv("PATH", t.TempDir())
+	err := launchPi(ResolvedConfig{Client: "pi"})
+	if err == nil {
+		t.Fatal("launchPi() must return a non-nil error when pi is not in PATH")
+	}
 	if !strings.Contains(err.Error(), "pi") {
 		t.Errorf("launchPi() error should mention 'pi', got: %v", err)
 	}
@@ -24,9 +30,11 @@ func TestLaunchPi_ErrorMentionsPi(t *testing.T) {
 // ─── launchClient ─────────────────────────────────────────────────────────────
 
 func TestLaunchClient_Pi(t *testing.T) {
+	// Empty PATH so pi is not resolvable and launch fails deterministically.
+	t.Setenv("PATH", t.TempDir())
 	err := launchClient(ResolvedConfig{Client: "pi"})
 	if err == nil {
-		t.Fatal("launchClient({Client:\"pi\"}) must return a non-nil error")
+		t.Fatal("launchClient({Client:\"pi\"}) must return a non-nil error when pi is not in PATH")
 	}
 }
 

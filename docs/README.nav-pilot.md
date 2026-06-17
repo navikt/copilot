@@ -23,13 +23,13 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 | Klient | Binær | Nav-kontekst | Standard modell |
 |---|---|---|---|
 | `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
-| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i `~/.config/opencode/` | `anthropic/claude-sonnet-4-5` |
-| `pi` *(eksperimentell — ikke funksjonell)* | `pi` | — | — |
+| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i `~/.config/opencode/` | `github-copilot/claude-sonnet-4.5` |
+| `pi` *(eksperimentell)* | `cplt` + `pi` | Via `AGENTS.md` i prosjektroten | Pis eget valg (`model`/`mode` videresendes ikke ennå) |
 
 > **Alle klienter startes i cplt-sandboxen.** nav-pilot kjører klienten via
 > `cplt --agent <klient>` slik at agenten er kjerne-nivå-sandboxet (kan lese/skrive
 > prosjektfiler, men når ikke SSH-nøkler, sky-credentials eller andre hemmeligheter).
-> `cplt` må derfor være installert for å starte `opencode` (i tillegg til `opencode`-binæren selv).
+> `cplt` må derfor være installert for å starte `opencode` og `pi` (i tillegg til selve klient-binæren).
 
 ### opencode — Nav-kontekst automatisk
 

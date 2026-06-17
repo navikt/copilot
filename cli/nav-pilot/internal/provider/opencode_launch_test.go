@@ -441,3 +441,61 @@ func TestEnsureOpenCodeNavContextIdempotent(t *testing.T) {
 		t.Errorf("AGENTS.md not idempotent")
 	}
 }
+
+func TestPiUnsupportedConfigWarnings(t *testing.T) {
+	cases := []struct {
+		name    string
+		cfg     domain.ResolvedConfig
+		wantLen int
+		wantSub []string
+	}{
+		{name: "no model or mode", cfg: domain.ResolvedConfig{}, wantLen: 0},
+		{name: "default mode only", cfg: domain.ResolvedConfig{Mode: "default"}, wantLen: 0},
+		{name: "model set", cfg: domain.ResolvedConfig{Model: "claude-sonnet-4.6"}, wantLen: 1, wantSub: []string{"claude-sonnet-4.6", "not forwarded to pi"}},
+		{name: "model and mode", cfg: domain.ResolvedConfig{Model: "x", Mode: "plan"}, wantLen: 2, wantSub: []string{"model", "mode", "pi"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PiUnsupportedConfigWarnings(tc.cfg)
+			if len(got) != tc.wantLen {
+				t.Fatalf("got %d warnings %v, want %d", len(got), got, tc.wantLen)
+			}
+			joined := strings.Join(got, " | ")
+			for _, sub := range tc.wantSub {
+				if !strings.Contains(joined, sub) {
+					t.Errorf("warnings %q missing %q", joined, sub)
+				}
+			}
+		})
+	}
+}
+
+func TestLaunchPi_ErrorsWhenPiMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	err := LaunchPi(domain.ResolvedConfig{Client: "pi"})
+	if err == nil {
+		t.Fatal("LaunchPi must error when pi is not on PATH")
+	}
+	if !strings.Contains(err.Error(), "pi") {
+		t.Errorf("error should mention pi, got: %v", err)
+	}
+}
+
+func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "argv.txt")
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte("#!/bin/sh\nprintf 'cplt %s' \"$*\" > "+out+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pi"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	if err := LaunchPi(domain.ResolvedConfig{Client: "pi", Model: "claude-sonnet-4.6"}); err != nil {
+		t.Fatalf("LaunchPi error: %v", err)
+	}
+	got, _ := os.ReadFile(out)
+	if string(got) != "cplt --agent pi --" {
+		t.Errorf("cplt argv = %q, want %q", string(got), "cplt --agent pi --")
+	}
+}
