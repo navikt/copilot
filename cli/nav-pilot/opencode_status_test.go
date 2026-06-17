@@ -4,13 +4,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 func TestCmdStatusAutoIncludesOpenCode(t *testing.T) {
-	old := openCodeNavContextDirOverride
+	old := providerpkg.NavContextDirOverride
 	ocDir := t.TempDir()
-	openCodeNavContextDirOverride = ocDir
-	defer func() { openCodeNavContextDirOverride = old }()
+	providerpkg.NavContextDirOverride = ocDir
+	defer func() { providerpkg.NavContextDirOverride = old }()
 
 	state := &StateFile{
 		Collection: openCodeCollection,

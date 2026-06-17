@@ -86,20 +86,3 @@ func normalizeCollectionLabel(collection string) string {
 		return "other"
 	}
 }
-
-func recordFreshness(component, scope string, assessment stalenessAssessment) {
-	telemetry.RecordStalenessCheck(component, scope, assessment.Result)
-
-	switch assessment.Result {
-	case "lookup_failed", "dev", "no_install", "corrupted":
-		return
-	}
-	if assessment.LatestVersion == "" {
-		return
-	}
-
-	telemetry.RecordUpToDate(component, scope, assessment.UpToDate)
-	if assessment.HasSkew {
-		telemetry.RecordVersionSkewDays(component, scope, assessment.SkewDays)
-	}
-}

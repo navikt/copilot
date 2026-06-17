@@ -1,4 +1,4 @@
-package main
+package provider
 
 import (
 	"encoding/json"
@@ -7,54 +7,56 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 func TestOpenCodeArgs(t *testing.T) {
-	def := openCodeDefaultModel
+	def := OpenCodeDefaultModel
 	tests := []struct {
 		name     string
-		resolved ResolvedConfig
+		resolved domain.ResolvedConfig
 		want     []string
 	}{
 		{
 			name:     "empty resolved applies Nav default model",
-			resolved: ResolvedConfig{Mode: "default", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
 			want:     []string{"--model", def},
 		},
 		{
 			name:     "explicit model overrides default",
-			resolved: ResolvedConfig{Model: "anthropic/claude-3-5-sonnet", Mode: "default", AskUser: true},
+			resolved: domain.ResolvedConfig{Model: "anthropic/claude-3-5-sonnet", Mode: "default", AskUser: true},
 			want:     []string{"--model", "anthropic/claude-3-5-sonnet"},
 		},
 		{
 			name:     "plan mode maps to --agent plan (default model still emitted)",
-			resolved: ResolvedConfig{Mode: "plan", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "plan", AskUser: true},
 			want:     []string{"--model", def, "--agent", "plan"},
 		},
 		{
 			name:     "default mode not emitted (only default model)",
-			resolved: ResolvedConfig{Mode: "default", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
 			want:     []string{"--model", def},
 		},
 		{
 			name:     "reasoning effort maps to --variant",
-			resolved: ResolvedConfig{Mode: "default", ReasoningEffort: "high", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", ReasoningEffort: "high", AskUser: true},
 			want:     []string{"--model", def, "--variant", "high"},
 		},
 		{
 			name:     "allow_all_tools maps to --dangerously-skip-permissions",
-			resolved: ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
 			want:     []string{"--model", def, "--dangerously-skip-permissions"},
 		},
 		{
 			name:     "log level",
-			resolved: ResolvedConfig{Mode: "default", LogLevel: "debug", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", LogLevel: "debug", AskUser: true},
 			want:     []string{"--model", def, "--log-level", "DEBUG"},
 		},
 		{
 			name: "all fields",
-			resolved: ResolvedConfig{
+			resolved: domain.ResolvedConfig{
 				Model:           "openai/gpt-4o",
 				Mode:            "plan",
 				ReasoningEffort: "max",
@@ -66,19 +68,19 @@ func TestOpenCodeArgs(t *testing.T) {
 		},
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",
-			resolved: ResolvedConfig{Mode: "default", AskUser: false},
+			resolved: domain.ResolvedConfig{Mode: "default", AskUser: false},
 			want:     []string{"--model", def},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := openCodeArgs(tt.resolved)
+			got := OpenCodeArgs(tt.resolved)
 			if len(got) != len(tt.want) {
-				t.Fatalf("openCodeArgs() = %v, want %v", got, tt.want)
+				t.Fatalf("OpenCodeArgs() = %v, want %v", got, tt.want)
 			}
 			for i := range got {
 				if got[i] != tt.want[i] {
-					t.Errorf("openCodeArgs()[%d] = %q, want %q", i, got[i], tt.want[i])
+					t.Errorf("OpenCodeArgs()[%d] = %q, want %q", i, got[i], tt.want[i])
 				}
 			}
 		})
@@ -88,33 +90,33 @@ func TestOpenCodeArgs(t *testing.T) {
 func TestOpenCodeUnsupportedConfigWarnings(t *testing.T) {
 	tests := []struct {
 		name     string
-		resolved ResolvedConfig
-		wantMsgs []string // substrings that must appear in warnings
-		wantNone bool     // true if no warnings expected
+		resolved domain.ResolvedConfig
+		wantMsgs []string
+		wantNone bool
 	}{
 		{
 			name:     "default config — no warnings",
-			resolved: ResolvedConfig{Mode: "default", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
 			wantNone: true,
 		},
 		{
 			name:     "autopilot mode warns",
-			resolved: ResolvedConfig{Mode: "autopilot", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "autopilot", AskUser: true},
 			wantMsgs: []string{"autopilot", "no opencode equivalent"},
 		},
 		{
 			name:     "context_tier set warns",
-			resolved: ResolvedConfig{Mode: "default", ContextTier: "long_context", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", ContextTier: "long_context", AskUser: true},
 			wantMsgs: []string{"context_tier", "no opencode equivalent"},
 		},
 		{
 			name:     "ask_user false warns",
-			resolved: ResolvedConfig{Mode: "default", AskUser: false},
+			resolved: domain.ResolvedConfig{Mode: "default", AskUser: false},
 			wantMsgs: []string{"ask_user", "no opencode equivalent"},
 		},
 		{
 			name: "all three unmapped fields warn",
-			resolved: ResolvedConfig{
+			resolved: domain.ResolvedConfig{
 				Mode:        "autopilot",
 				ContextTier: "long_context",
 				AskUser:     false,
@@ -123,18 +125,18 @@ func TestOpenCodeUnsupportedConfigWarnings(t *testing.T) {
 		},
 		{
 			name:     "plan mode — no warning (has opencode equivalent)",
-			resolved: ResolvedConfig{Mode: "plan", AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "plan", AskUser: true},
 			wantNone: true,
 		},
 		{
 			name:     "allow_all_tools — no warning (has opencode equivalent)",
-			resolved: ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
+			resolved: domain.ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
 			wantNone: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := openCodeUnsupportedConfigWarnings(tt.resolved)
+			got := OpenCodeUnsupportedConfigWarnings(tt.resolved)
 			if tt.wantNone {
 				if len(got) != 0 {
 					t.Errorf("expected no warnings, got: %v", got)
@@ -173,10 +175,10 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 	t.Run("creates file with defaults when absent", func(t *testing.T) {
 		dir := t.TempDir()
 		configFile := filepath.Join(dir, "opencode.json")
-		openCodeConfigPathOverride = configFile
-		defer func() { openCodeConfigPathOverride = "" }()
+		ConfigPathOverride = configFile
+		defer func() { ConfigPathOverride = "" }()
 
-		if err := ensureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeOTelConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -200,8 +202,8 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 	t.Run("merges into existing file preserving other keys", func(t *testing.T) {
 		dir := t.TempDir()
 		configFile := filepath.Join(dir, "opencode.json")
-		openCodeConfigPathOverride = configFile
-		defer func() { openCodeConfigPathOverride = "" }()
+		ConfigPathOverride = configFile
+		defer func() { ConfigPathOverride = "" }()
 
 		existing := map[string]any{
 			"theme":      "dark",
@@ -213,7 +215,7 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 		data, _ := json.MarshalIndent(existing, "", "  ")
 		_ = os.WriteFile(configFile, data, 0o600)
 
-		if err := ensureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeOTelConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -242,15 +244,15 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 	t.Run("idempotent — second call produces identical output", func(t *testing.T) {
 		dir := t.TempDir()
 		configFile := filepath.Join(dir, "opencode.json")
-		openCodeConfigPathOverride = configFile
-		defer func() { openCodeConfigPathOverride = "" }()
+		ConfigPathOverride = configFile
+		defer func() { ConfigPathOverride = "" }()
 
-		if err := ensureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeOTelConfig(); err != nil {
 			t.Fatalf("first call failed: %v", err)
 		}
 		first, _ := os.ReadFile(configFile)
 
-		if err := ensureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeOTelConfig(); err != nil {
 			t.Fatalf("second call failed: %v", err)
 		}
 		second, _ := os.ReadFile(configFile)
@@ -263,24 +265,20 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 	t.Run("fails on invalid JSON", func(t *testing.T) {
 		dir := t.TempDir()
 		configFile := filepath.Join(dir, "opencode.json")
-		openCodeConfigPathOverride = configFile
-		defer func() { openCodeConfigPathOverride = "" }()
+		ConfigPathOverride = configFile
+		defer func() { ConfigPathOverride = "" }()
 
 		_ = os.WriteFile(configFile, []byte("{not valid json"), 0o600)
 
-		if err := ensureOpenCodeOTelConfig(); err == nil {
+		if err := EnsureOpenCodeOTelConfig(); err == nil {
 			t.Error("expected error on invalid JSON, got nil")
 		}
 	})
 }
 
 func TestApplyOpenCodeOTelEnvInjectsClientWhenEndpointSet(t *testing.T) {
-	forceNonInteractive = true
-	defer func() { forceNonInteractive = false }()
-
 	env := []string{"OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318"}
-
-	result, changed := applyOpenCodeOTelEnv(env)
+	result, changed := telemetrypkg.ApplyOpenCodeOTelEnv(env, cliVersion)
 	if !changed {
 		t.Error("expected changes when OTel endpoint is set")
 	}
@@ -298,14 +296,11 @@ func TestApplyOpenCodeOTelEnvInjectsClientWhenEndpointSet(t *testing.T) {
 }
 
 func TestApplyOpenCodeOTelEnvDoesNotOverwriteExistingClient(t *testing.T) {
-	forceNonInteractive = true
-	defer func() { forceNonInteractive = false }()
-
 	env := []string{
 		"OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318",
 		"OPENCODE_CLIENT=my-custom-client",
 	}
-	result, _ := applyOpenCodeOTelEnv(env)
+	result, _ := telemetrypkg.ApplyOpenCodeOTelEnv(env, cliVersion)
 
 	for _, e := range result {
 		if e == "OPENCODE_CLIENT=nav-pilot" {
@@ -315,10 +310,10 @@ func TestApplyOpenCodeOTelEnvDoesNotOverwriteExistingClient(t *testing.T) {
 }
 
 func TestOpenCodeNavContextDir_Override(t *testing.T) {
-	old := openCodeNavContextDirOverride
+	old := NavContextDirOverride
 	dir := t.TempDir()
-	openCodeNavContextDirOverride = dir
-	defer func() { openCodeNavContextDirOverride = old }()
+	NavContextDirOverride = dir
+	defer func() { NavContextDirOverride = old }()
 
 	got := openCodeNavContextDir()
 	if got != dir {
@@ -327,9 +322,9 @@ func TestOpenCodeNavContextDir_Override(t *testing.T) {
 }
 
 func TestOpenCodeNavContextDir_DefaultSuffix(t *testing.T) {
-	old := openCodeNavContextDirOverride
-	openCodeNavContextDirOverride = ""
-	defer func() { openCodeNavContextDirOverride = old }()
+	old := NavContextDirOverride
+	NavContextDirOverride = ""
+	defer func() { NavContextDirOverride = old }()
 
 	got := openCodeNavContextDir()
 	want := filepath.Join(".config", "opencode")
@@ -339,23 +334,21 @@ func TestOpenCodeNavContextDir_DefaultSuffix(t *testing.T) {
 }
 
 func TestEnsureOpenCodeNavContext(t *testing.T) {
-	// Override the output dir so we don't touch ~/.config/opencode
 	outputDir := t.TempDir()
-	old := openCodeNavContextDirOverride
-	openCodeNavContextDirOverride = outputDir
-	defer func() { openCodeNavContextDirOverride = old }()
+	old := NavContextDirOverride
+	NavContextDirOverride = outputDir
+	defer func() { NavContextDirOverride = old }()
 
-	// Override source.CloneRemoteFn to return a local fixture source
 	origClone := source.CloneRemoteFn
 	defer func() { source.CloneRemoteFn = origClone }()
 	sourceDir := setupTestSource(t)
-	source.CloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
-		return &Source{Dir: sourceDir, SHA: "test"}, nil
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*source.Source, error) {
+		return &source.Source{Dir: sourceDir, SHA: "test"}, nil
 	}
 
-	summary, err := ensureOpenCodeNavContext()
+	summary, err := EnsureOpenCodeNavContext()
 	if err != nil {
-		t.Fatalf("ensureOpenCodeNavContext() error: %v", err)
+		t.Fatalf("EnsureOpenCodeNavContext() error: %v", err)
 	}
 	if summary == "" {
 		t.Error("expected non-empty summary")
@@ -364,34 +357,31 @@ func TestEnsureOpenCodeNavContext(t *testing.T) {
 		t.Errorf("summary should mention artifacts, got: %q", summary)
 	}
 
-	// Verify AGENTS.md was written
 	if _, err := os.Stat(filepath.Join(outputDir, "AGENTS.md")); err != nil {
-		t.Errorf("AGENTS.md not found after ensureOpenCodeNavContext: %v", err)
+		t.Errorf("AGENTS.md not found after EnsureOpenCodeNavContext: %v", err)
 	}
 }
 
 func TestEnsureOpenCodeNavContextIdempotent(t *testing.T) {
 	outputDir := t.TempDir()
-	old := openCodeNavContextDirOverride
-	openCodeNavContextDirOverride = outputDir
-	defer func() { openCodeNavContextDirOverride = old }()
+	old := NavContextDirOverride
+	NavContextDirOverride = outputDir
+	defer func() { NavContextDirOverride = old }()
 
 	origClone := source.CloneRemoteFn
 	defer func() { source.CloneRemoteFn = origClone }()
 	sourceDir := setupTestSource(t)
-	source.CloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
-		return &Source{Dir: sourceDir, SHA: "test"}, nil
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*source.Source, error) {
+		return &source.Source{Dir: sourceDir, SHA: "test"}, nil
 	}
 
-	// First call
-	s1, err := ensureOpenCodeNavContext()
+	s1, err := EnsureOpenCodeNavContext()
 	if err != nil {
 		t.Fatalf("first call error: %v", err)
 	}
 	first, _ := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
 
-	// Second call — must succeed and produce identical AGENTS.md
-	s2, err := ensureOpenCodeNavContext()
+	s2, err := EnsureOpenCodeNavContext()
 	if err != nil {
 		t.Fatalf("second call error: %v", err)
 	}

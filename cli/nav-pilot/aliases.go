@@ -6,6 +6,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -17,13 +18,9 @@ type (
 	Config         = domain.Config
 	ResolvedConfig = domain.ResolvedConfig
 	CLIOverrides   = domain.CLIOverrides
-	modelChoice    = struct {
-		ID    string
-		Label string
-	}
-	InstallScope  = domain.InstallScope
-	StateFile     = domain.StateFile
-	InstalledFile = domain.InstalledFile
+	InstallScope   = domain.InstallScope
+	StateFile      = domain.StateFile
+	InstalledFile  = domain.InstalledFile
 )
 
 // Constant aliases
@@ -52,6 +49,31 @@ var (
 
 	ScopeRepo = domain.ScopeRepo
 	ScopeUser = domain.ScopeUser
+)
+
+// ─── provider aliases ────────────────────────────────────────────────────────
+
+type (
+	Provider              = providerpkg.Provider
+	ProviderSyncResult    = providerpkg.ProviderSyncResult
+	ProviderContextStatus = providerpkg.ProviderContextStatus
+)
+
+var (
+	providerFor      = providerpkg.ProviderFor
+	allProviders     = providerpkg.AllProviders
+	validProviderIDs = providerpkg.ValidProviderIDs
+
+	recordFreshness = providerpkg.RecordFreshness
+
+	copilotEnv = providerpkg.CopilotEnv
+	launchPi   = providerpkg.LaunchPi
+
+	openCodeDefaultModel  = providerpkg.OpenCodeDefaultModel
+	isKnownCopilotModel   = providerpkg.IsKnownCopilotModel
+	knownCopilotModelIDs  = providerpkg.KnownCopilotModelIDs
+	isKnownOpenCodeModel  = providerpkg.IsKnownOpenCodeModel
+	knownOpenCodeModelIDs = providerpkg.KnownOpenCodeModelIDs
 )
 
 // ─── source aliases ──────────────────────────────────────────────────────────
@@ -112,8 +134,7 @@ var (
 // ─── artifacts aliases ───────────────────────────────────────────────────────
 
 type (
-	stalenessAssessment = artifacts.StalenessAssessment
-	SyncConfig          = artifacts.SyncConfig
+	SyncConfig = artifacts.SyncConfig
 )
 
 var (
@@ -157,14 +178,7 @@ var cmdExport = func(format string, scope *InstallScope, ref, sourceRepo string,
 	return artifacts.CmdExport(format, scope, ref, sourceRepo, version, dryRun, force, jsonOutput)
 }
 
-var exportSummary = artifacts.ExportSummary
-
-var (
-	syncOpenCodeArtifacts    = artifacts.SyncOpenCodeArtifacts
-	readOpenCodeState        = artifacts.ReadOpenCodeState
-	writeOpenCodeState       = artifacts.WriteOpenCodeState
-	printOpenCodeStatusBlock = artifacts.PrintOpenCodeStatusBlock
-)
+var writeOpenCodeState = artifacts.WriteOpenCodeState
 
 // ─── telemetry aliases ───────────────────────────────────────────────────────
 
@@ -176,18 +190,13 @@ type (
 
 // Function aliases
 var (
-	initTelemetry             = telemetrypkg.InitTelemetry
-	telemetryEnabled          = telemetrypkg.TelemetryEnabled
-	lookupEnvValue            = telemetrypkg.LookupEnvValue
-	setEnvValue               = telemetrypkg.SetEnvValue
-	setEnvIfAbsent            = telemetrypkg.SetEnvIfAbsent
-	applyCopilotOTelEnv       = func(env []string) ([]string, bool) { return telemetrypkg.ApplyCopilotOTelEnv(env, version) }
-	applyOpenCodeOTelEnv      = func(env []string) ([]string, bool) { return telemetrypkg.ApplyOpenCodeOTelEnv(env, version) }
-	copilotOTelEndpointActive = telemetrypkg.CopilotOTelEndpointConfigured
-	copilotDeviceID           = telemetrypkg.CopilotDeviceID
-	getOrCreateDeviceID       = telemetrypkg.GetOrCreateDeviceID
-	debugLog                  = telemetrypkg.DebugLog
-	getConfigDir              = telemetrypkg.GetConfigDir
+	initTelemetry       = telemetrypkg.InitTelemetry
+	telemetryEnabled    = telemetrypkg.TelemetryEnabled
+	lookupEnvValue      = telemetrypkg.LookupEnvValue
+	copilotDeviceID     = telemetrypkg.CopilotDeviceID
+	getOrCreateDeviceID = telemetrypkg.GetOrCreateDeviceID
+	debugLog            = telemetrypkg.DebugLog
+	getConfigDir        = telemetrypkg.GetConfigDir
 
 	_ = telemetryEnabled
 	_ = copilotDeviceID

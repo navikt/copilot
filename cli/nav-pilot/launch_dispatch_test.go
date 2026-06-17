@@ -1,7 +1,6 @@
 package main
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -41,31 +40,5 @@ func TestLaunchClient_OpenCodeNotInPath(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "opencode") {
 		t.Errorf("expected 'opencode' in error message, got: %v", err)
-	}
-}
-
-// ─── openCodeConfigPath ───────────────────────────────────────────────────────
-
-func TestOpenCodeConfigPath_DefaultSuffix(t *testing.T) {
-	old := openCodeConfigPathOverride
-	openCodeConfigPathOverride = ""
-	defer func() { openCodeConfigPathOverride = old }()
-
-	got := openCodeConfigPath()
-	want := filepath.Join(".config", "opencode", "opencode.json")
-	if !strings.HasSuffix(got, want) {
-		t.Errorf("openCodeConfigPath() = %q, want suffix %q", got, want)
-	}
-}
-
-func TestOpenCodeConfigPath_Override(t *testing.T) {
-	old := openCodeConfigPathOverride
-	overridePath := filepath.Join(t.TempDir(), "custom.json")
-	openCodeConfigPathOverride = overridePath
-	defer func() { openCodeConfigPathOverride = old }()
-
-	got := openCodeConfigPath()
-	if got != overridePath {
-		t.Errorf("openCodeConfigPath() = %q, want %q", got, overridePath)
 	}
 }

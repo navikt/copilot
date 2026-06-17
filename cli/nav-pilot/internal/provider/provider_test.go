@@ -1,41 +1,39 @@
-package main
+package provider
 
 import (
 	"strings"
 	"testing"
-)
 
-// ─── providerFor ──────────────────────────────────────────────────────────────
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+)
 
 func TestProviderFor_KnownIDs(t *testing.T) {
 	for _, id := range []string{"copilot", "opencode", "pi"} {
-		p, err := providerFor(id)
+		p, err := ProviderFor(id)
 		if err != nil {
-			t.Errorf("providerFor(%q) error = %v, want nil", id, err)
+			t.Errorf("ProviderFor(%q) error = %v, want nil", id, err)
 			continue
 		}
 		if p.ID() != id {
-			t.Errorf("providerFor(%q).ID() = %q, want %q", id, p.ID(), id)
+			t.Errorf("ProviderFor(%q).ID() = %q, want %q", id, p.ID(), id)
 		}
 	}
 }
 
 func TestProviderFor_Unknown(t *testing.T) {
-	_, err := providerFor("cursor")
+	_, err := ProviderFor("cursor")
 	if err == nil {
-		t.Fatal("providerFor(unknown) = nil error, want error")
+		t.Fatal("ProviderFor(unknown) = nil error, want error")
 	}
 	if !strings.Contains(err.Error(), "cursor") {
 		t.Errorf("error = %q, want mention of \"cursor\"", err.Error())
 	}
 }
 
-// ─── allProviders / validProviderIDs ─────────────────────────────────────────
-
 func TestAllProviders_Coverage(t *testing.T) {
-	all := allProviders()
+	all := AllProviders()
 	if len(all) == 0 {
-		t.Fatal("allProviders() returned empty list")
+		t.Fatal("AllProviders() returned empty list")
 	}
 	for _, id := range []string{"copilot", "opencode", "pi"} {
 		found := false
@@ -46,25 +44,22 @@ func TestAllProviders_Coverage(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("allProviders() missing provider %q", id)
+			t.Errorf("AllProviders() missing provider %q", id)
 		}
 	}
 }
 
 func TestValidProviderIDsDerivesFromRegistry(t *testing.T) {
-	// validProviderIDs must equal allProviders() IDs in the same order.
-	all := allProviders()
-	if len(validProviderIDs) != len(all) {
-		t.Fatalf("len(validProviderIDs) = %d, len(allProviders()) = %d", len(validProviderIDs), len(all))
+	all := AllProviders()
+	if len(ValidProviderIDs) != len(all) {
+		t.Fatalf("len(ValidProviderIDs) = %d, len(AllProviders()) = %d", len(ValidProviderIDs), len(all))
 	}
 	for i, p := range all {
-		if validProviderIDs[i] != p.ID() {
-			t.Errorf("validProviderIDs[%d] = %q, allProviders()[%d].ID() = %q", i, validProviderIDs[i], i, p.ID())
+		if ValidProviderIDs[i] != p.ID() {
+			t.Errorf("ValidProviderIDs[%d] = %q, AllProviders()[%d].ID() = %q", i, ValidProviderIDs[i], i, p.ID())
 		}
 	}
 }
-
-// ─── copilotProvider ──────────────────────────────────────────────────────────
 
 func TestCopilotProvider_Metadata(t *testing.T) {
 	var p Provider = copilotProvider{}
@@ -86,6 +81,21 @@ func TestCopilotProvider_Metadata(t *testing.T) {
 	}
 	if !hasAuto {
 		t.Error("KnownModels() missing \"auto\"")
+	}
+}
+
+func TestKnownModelHelpers(t *testing.T) {
+	if !IsKnownCopilotModel("auto") {
+		t.Error("IsKnownCopilotModel(auto) = false")
+	}
+	if KnownCopilotModelIDs() == "" {
+		t.Error("KnownCopilotModelIDs() = empty")
+	}
+	if !IsKnownOpenCodeModel(OpenCodeDefaultModel) {
+		t.Error("IsKnownOpenCodeModel(default) = false")
+	}
+	if KnownOpenCodeModelIDs() == "" {
+		t.Error("KnownOpenCodeModelIDs() = empty")
 	}
 }
 
@@ -111,7 +121,7 @@ func TestCopilotProvider_ModelAdvisory(t *testing.T) {
 
 func TestCopilotProvider_UnsupportedConfigWarnings(t *testing.T) {
 	var p Provider = copilotProvider{}
-	r := ResolvedConfig{Mode: "autopilot", AskUser: false}
+	r := domain.ResolvedConfig{Mode: "autopilot", AskUser: false}
 	if w := p.UnsupportedConfigWarnings(r); len(w) != 0 {
 		t.Errorf("copilotProvider.UnsupportedConfigWarnings() = %v, want empty", w)
 	}
@@ -132,15 +142,13 @@ func TestCopilotProvider_ContextLifecycle(t *testing.T) {
 	}
 }
 
-// ─── openCodeProvider ─────────────────────────────────────────────────────────
-
 func TestOpenCodeProvider_Metadata(t *testing.T) {
 	var p Provider = openCodeProvider{}
 	if p.ID() != "opencode" {
 		t.Errorf("ID() = %q, want opencode", p.ID())
 	}
-	if p.DefaultModel() != openCodeDefaultModel {
-		t.Errorf("DefaultModel() = %q, want %q", p.DefaultModel(), openCodeDefaultModel)
+	if p.DefaultModel() != OpenCodeDefaultModel {
+		t.Errorf("DefaultModel() = %q, want %q", p.DefaultModel(), OpenCodeDefaultModel)
 	}
 }
 
@@ -152,10 +160,10 @@ func TestOpenCodeProvider_ValidateModel(t *testing.T) {
 	}{
 		{"anthropic/claude-sonnet-4-5", false},
 		{"openai/gpt-4o", false},
-		{"claude-opus-4.8", true}, // bare id invalid for opencode
-		{"gpt-5.5", true},         // bare id invalid for opencode
-		{"anthropic/", true},      // trailing slash
-		{"a/b/c", true},           // double slash
+		{"claude-opus-4.8", true},
+		{"gpt-5.5", true},
+		{"anthropic/", true},
+		{"a/b/c", true},
 		{"", true},
 	}
 	for _, tt := range tests {
@@ -171,13 +179,12 @@ func TestOpenCodeProvider_ValidateModel(t *testing.T) {
 
 func TestOpenCodeProvider_ModelAdvisory(t *testing.T) {
 	var p Provider = openCodeProvider{}
-	if msg := p.ModelAdvisory(openCodeDefaultModel); msg != "" {
+	if msg := p.ModelAdvisory(OpenCodeDefaultModel); msg != "" {
 		t.Errorf("ModelAdvisory(known) = %q, want empty", msg)
 	}
 	if msg := p.ModelAdvisory("anthropic/claude-3-5-sonnet"); msg == "" {
 		t.Error("ModelAdvisory(uncurated valid shape) = empty, want advisory")
 	}
-	// invalid shape → no advisory (the shape check itself provides the error)
 	if msg := p.ModelAdvisory("claude-opus-4.8"); msg != "" {
 		t.Errorf("ModelAdvisory(invalid shape) = %q, want empty", msg)
 	}
@@ -185,7 +192,7 @@ func TestOpenCodeProvider_ModelAdvisory(t *testing.T) {
 
 func TestOpenCodeProvider_UnsupportedConfigWarnings(t *testing.T) {
 	var p Provider = openCodeProvider{}
-	r := ResolvedConfig{Mode: "autopilot", ContextTier: "long_context", AskUser: false}
+	r := domain.ResolvedConfig{Mode: "autopilot", ContextTier: "long_context", AskUser: false}
 	w := p.UnsupportedConfigWarnings(r)
 	if len(w) != 3 {
 		t.Errorf("UnsupportedConfigWarnings() len = %d, want 3: %v", len(w), w)
@@ -193,10 +200,9 @@ func TestOpenCodeProvider_UnsupportedConfigWarnings(t *testing.T) {
 }
 
 func TestOpenCodeProvider_ContextStatusNoState(t *testing.T) {
-	// With no state on disk, ContextStatus must return nil.
-	old := openCodeNavContextDirOverride
-	openCodeNavContextDirOverride = t.TempDir()
-	defer func() { openCodeNavContextDirOverride = old }()
+	old := NavContextDirOverride
+	NavContextDirOverride = t.TempDir()
+	defer func() { NavContextDirOverride = old }()
 
 	var p Provider = openCodeProvider{}
 	if cs := p.ContextStatus(); cs != nil {
@@ -207,8 +213,6 @@ func TestOpenCodeProvider_ContextStatusNoState(t *testing.T) {
 		t.Error("SyncContext().Managed = true, want false (no state file)")
 	}
 }
-
-// ─── piProvider ───────────────────────────────────────────────────────────────
 
 func TestPiProvider_Metadata(t *testing.T) {
 	var p Provider = piProvider{}

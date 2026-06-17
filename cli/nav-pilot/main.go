@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // ─── Version (injected at build time) ───────────────────────────────────────
@@ -472,11 +474,15 @@ func run(args []string) error {
 }
 
 func main() {
+	providerpkg.SetVersion(version)
+	providerpkg.FetchLatestVersion = fetchLatestVersion
+
 	tel, err := initTelemetry(context.Background(), version)
 	if err != nil {
 		debugLog("telemetry disabled: %v", err)
 	}
 	telemetry = tel
+	providerpkg.SetTelemetry(tel)
 	for _, p := range allProviders() {
 		telemetry.RecordClientAvailable(p.ID(), p.Available())
 	}

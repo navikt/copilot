@@ -1,10 +1,8 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -639,121 +637,6 @@ func installedAgents(state *StateFile) []string {
 	return agents
 }
 
-// findCopilotCLI returns the path to cplt or copilot CLI.
-// Prefers cplt (unambiguous GitHub Copilot CLI).
-// If the "copilot" binary is actually cplt (aliased), it's treated as cplt.
-func findCopilotCLI() (path, name string) {
-	if p, err := exec.LookPath("cplt"); err == nil {
-		return p, "cplt"
-	}
-	if p, err := exec.LookPath("copilot"); err == nil {
-		if isCplt(p) {
-			return p, "cplt"
-		}
-		return p, "copilot"
-	}
-	return "", ""
-}
-
-// isCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
-// its version output. Returns true if the binary identifies as cplt/sandbox.
-func isCplt(binPath string) bool {
-	out, err := exec.Command(binPath, "--version").CombinedOutput()
-	if err != nil {
-		return false
-	}
-	s := strings.ToLower(string(out))
-	return strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox")
-}
-
-// cliDisplayName returns a user-friendly name for the CLI binary.
-func cliDisplayName(name string) string {
-	if name == "cplt" {
-		return "Copilot Sandbox (cplt)"
-	}
-	return name
-}
-
-// copilotAgentArgs returns extra CLI flags for a given agent.
-// Keep this empty by default so model/effort selection follows agent defaults
-// (or explicit user overrides in the CLI), not hardcoded launch arguments.
-func copilotAgentArgs(agent string) []string {
-	_ = agent
-	return nil
-}
-
-// copilotAgentPersona is the Copilot CLI custom-agent persona that loads
-// Nav's instructions and context. This is distinct from resolved.Client,
-// which selects the launcher (copilot vs opencode vs pi).
-const copilotAgentPersona = "nav-pilot"
-
-// buildCopilotArgs constructs the CLI arguments for launching copilot.
-//
-// cplt is the sandbox wrapper: its own --agent selects WHICH agent to sandbox
-// and otherwise auto-detects from PATH (per `cplt --help`). Because nav-pilot is
-// on the copilot launch path here, we pin `cplt --agent copilot` so a different
-// agent on PATH (e.g. opencode) is never picked, then forward the copilot
-// persona + flags after the "--" separator.
-//
-// Note: the forwarded --agent is always the nav-pilot persona; resolved.Client
-// selects the launcher and is consumed by launchClient before reaching here.
-func buildCopilotArgs(cliName string, resolved ResolvedConfig) []string {
-	var args []string
-	args = append(args, "--agent", copilotAgentPersona)
-	args = append(args, copilotAgentArgs(copilotAgentPersona)...)
-	if resolved.Model != "" {
-		args = append(args, "--model", resolved.Model)
-	}
-	if resolved.Mode != "" && resolved.Mode != "default" {
-		args = append(args, "--mode", resolved.Mode)
-	}
-	if resolved.ReasoningEffort != "" {
-		args = append(args, "--effort", resolved.ReasoningEffort)
-	}
-	if resolved.ContextTier != "" && resolved.ContextTier != "default" {
-		args = append(args, "--context", resolved.ContextTier)
-	}
-	if resolved.AllowAllTools {
-		args = append(args, "--allow-all-tools")
-	}
-	if !resolved.AskUser {
-		args = append(args, "--no-ask-user")
-	}
-	if resolved.LogLevel != "" {
-		args = append(args, "--log-level", resolved.LogLevel)
-	}
-	if cliName == "cplt" {
-		return append([]string{"--agent", "copilot", "--"}, args...)
-	}
-	return args
-}
-
-// launchCopilotResolved launches the Copilot CLI with the resolved launch config.
-// If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
-// so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
-func launchCopilotResolved(resolved ResolvedConfig) error {
-	cliPath, cliName := findCopilotCLI()
-	if cliPath == "" {
-		return fmt.Errorf("copilot cli not found")
-	}
-	args := buildCopilotArgs(cliName, resolved)
-	displayName := cliDisplayName(cliName)
-	fmt.Printf("Launching %s with agent %s...\n\n", bold(displayName), bold(copilotAgentPersona))
-	cmd := exec.Command(cliPath, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = copilotEnv(resolved.OtelLogLevel)
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", yellow("⚠"), displayName, err)
-		}
-		return err
-	}
-	return nil
-}
-
 func launchClient(resolved ResolvedConfig) error {
 	p, err := providerFor(resolved.Client)
 	if err != nil {
@@ -824,75 +707,4 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClient(resolved)
 	})
-}
-
-// copilotEnv returns the environment for launching cplt, injecting
-// COPILOT_CUSTOM_INSTRUCTIONS_DIRS if user-scope customizations exist
-// (instructions and/or agents), and OTEL_LOG_LEVEL if otelLogLevel is set.
-func copilotEnv(otelLogLevel string) []string {
-	copilotDir := userCopilotDir()
-	env := os.Environ()
-	changed := false
-	key := "COPILOT_CUSTOM_INSTRUCTIONS_DIRS"
-	if copilotDir != "" {
-		existing := lookupEnvValue(env, key)
-		if existing != "" {
-			// Don't duplicate if already present
-			alreadyPresent := false
-			for _, p := range strings.Split(existing, ",") {
-				if strings.TrimSpace(p) == copilotDir {
-					alreadyPresent = true
-					break
-				}
-			}
-			if !alreadyPresent {
-				copilotDir = existing + "," + copilotDir
-			} else {
-				copilotDir = existing
-			}
-		}
-
-		var updated bool
-		env, updated = setEnvValue(env, key, copilotDir)
-		changed = changed || updated
-	}
-
-	var otelUpdated bool
-	env, otelUpdated = applyCopilotOTelEnv(env)
-	changed = changed || otelUpdated
-
-	if strings.TrimSpace(otelLogLevel) != "" {
-		var levelUpdated bool
-		env, levelUpdated = setEnvIfAbsent(env, "OTEL_LOG_LEVEL", strings.TrimSpace(otelLogLevel))
-		changed = changed || levelUpdated
-	}
-
-	if !changed {
-		return nil // nil inherits parent env
-	}
-	return env
-}
-
-// userCopilotDir returns ~/.copilot if it contains user-scope customizations
-// (instructions or agents), or "" otherwise.
-func userCopilotDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	base := filepath.Join(home, ".copilot")
-
-	// Check for instructions
-	instructions, _ := filepath.Glob(filepath.Join(base, ".github", "instructions", "*.instructions.md"))
-	if len(instructions) > 0 {
-		return base
-	}
-
-	// Check for agents
-	agents, _ := filepath.Glob(filepath.Join(base, ".github", "agents", "*.agent.md"))
-	if len(agents) > 0 {
-		return base
-	}
-
-	return ""
 }

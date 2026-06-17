@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -248,21 +249,21 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(cfgDir, "config.toml"))
 
 	// Redirect opencode config and Nav context dirs.
-	oldCfgOverride := openCodeConfigPathOverride
-	oldNavOverride := openCodeNavContextDirOverride
-	openCodeConfigPathOverride = filepath.Join(ocConfigDir, "opencode.json")
-	openCodeNavContextDirOverride = ocNavContextDir
+	oldCfgOverride := providerpkg.ConfigPathOverride
+	oldNavOverride := providerpkg.NavContextDirOverride
+	providerpkg.ConfigPathOverride = filepath.Join(ocConfigDir, "opencode.json")
+	providerpkg.NavContextDirOverride = ocNavContextDir
 	defer func() {
-		openCodeConfigPathOverride = oldCfgOverride
-		openCodeNavContextDirOverride = oldNavOverride
+		providerpkg.ConfigPathOverride = oldCfgOverride
+		providerpkg.NavContextDirOverride = oldNavOverride
 	}()
 
 	// Redirect source.CloneRemoteFn so ensureOpenCodeNavContext uses a local fixture.
 	origClone := source.CloneRemoteFn
 	defer func() { source.CloneRemoteFn = origClone }()
 	sourceDir := setupTestSource(t)
-	source.CloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
-		return &Source{Dir: sourceDir, SHA: "test-bootstrap"}, nil
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*source.Source, error) {
+		return &source.Source{Dir: sourceDir, SHA: "test-bootstrap"}, nil
 	}
 
 	// Bootstrap is triggered inside runConfigSetup after writeSetupConfig; call
@@ -272,16 +273,16 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 		t.Fatalf("writeSetupConfig: %v", err)
 	}
 	// Simulate the opencode bootstrap block from runConfigSetup.
-	if err := ensureOpenCodeOTelConfig(); err != nil {
+	if err := providerpkg.EnsureOpenCodeOTelConfig(); err != nil {
 		t.Fatalf("ensureOpenCodeOTelConfig: %v", err)
 	}
-	summary, err := ensureOpenCodeNavContext()
+	summary, err := providerpkg.EnsureOpenCodeNavContext()
 	if err != nil {
 		t.Fatalf("ensureOpenCodeNavContext: %v", err)
 	}
 
 	// OTel config must have been created.
-	if _, err := os.Stat(openCodeConfigPath()); err != nil {
+	if _, err := os.Stat(providerpkg.ConfigPathOverride); err != nil {
 		t.Errorf("opencode OTel config not created: %v", err)
 	}
 
@@ -298,7 +299,7 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 
 	// Second run must be idempotent — no error, same AGENTS.md content.
 	first, _ := os.ReadFile(agentsPath)
-	summary2, err2 := ensureOpenCodeNavContext()
+	summary2, err2 := providerpkg.EnsureOpenCodeNavContext()
 	if err2 != nil {
 		t.Fatalf("second ensureOpenCodeNavContext: %v", err2)
 	}
