@@ -202,6 +202,12 @@ func run(args []string) error {
 			case "--no-ask-user":
 				f := false
 				cliOverrides.AskUser = &f
+			case "--auto-launch":
+				t := true
+				cliOverrides.AutoLaunch = &t
+			case "--no-auto-launch":
+				f := false
+				cliOverrides.AutoLaunch = &f
 			default:
 				cleanArgs = append(cleanArgs, args[i])
 			}

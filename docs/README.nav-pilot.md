@@ -133,9 +133,12 @@ nav-pilot config show
 ```
 
 Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
-`allow_all_tools`, `ask_user` og `log_level`. Du kan overstyre dem per kjøring med
+`allow_all_tools`, `ask_user`, `auto_launch` og `log_level`. Du kan overstyre dem per kjøring med
 globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
-`--allow-all-tools`, `--no-ask-user` og `--log-level`.
+`--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
+
+> **Tips:** Sett `auto_launch = true` (eller bruk `--auto-launch`) for å starte
+> cplt/copilot/opencode automatisk uten «Launch X now?»-bekreftelsen.
 
 **Modell per klient:**
 - Copilot: `auto`, `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.8`,

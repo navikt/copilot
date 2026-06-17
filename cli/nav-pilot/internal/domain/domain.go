@@ -21,6 +21,7 @@ type Config struct {
 	ContextTier     *string `toml:"context_tier"`
 	AllowAllTools   *bool   `toml:"allow_all_tools"`
 	AskUser         *bool   `toml:"ask_user"`
+	AutoLaunch      *bool   `toml:"auto_launch"`
 	LogLevel        *string `toml:"log_level"`
 	OtelLogLevel    *string `toml:"otel_log_level"`
 }
@@ -35,6 +36,7 @@ type ResolvedConfig struct {
 	ContextTier     string // empty = unset
 	AllowAllTools   bool
 	AskUser         bool
+	AutoLaunch      bool   // skip the interactive "Launch X now?" confirmation
 	LogLevel        string // empty = unset
 	OtelLogLevel    string // always set; defaults to "none"
 }
@@ -48,6 +50,7 @@ type CLIOverrides struct {
 	ContextTier     string
 	AllowAllTools   *bool
 	AskUser         *bool
+	AutoLaunch      *bool
 	LogLevel        string
 	OtelLogLevel    string
 }

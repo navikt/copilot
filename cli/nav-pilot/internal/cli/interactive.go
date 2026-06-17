@@ -652,6 +652,16 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	if err != nil || !p.Available() {
 		return
 	}
+
+	if resolved.AutoLaunch {
+		fmt.Println()
+		fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
+		_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
+			return launchClient(resolved)
+		})
+		return
+	}
+
 	if !isInteractive() {
 		return
 	}
@@ -684,6 +694,16 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	if err != nil || !p.Available() {
 		return
 	}
+
+	if resolved.AutoLaunch {
+		fmt.Println()
+		fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
+		_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
+			return launchClient(resolved)
+		})
+		return
+	}
+
 	if !isInteractive() {
 		return
 	}

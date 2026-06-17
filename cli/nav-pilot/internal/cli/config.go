@@ -227,6 +227,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.AskUser != nil {
 			r.AskUser = *file.AskUser
 		}
+		if file.AutoLaunch != nil {
+			r.AutoLaunch = *file.AutoLaunch
+		}
 		if file.LogLevel != nil {
 			r.LogLevel = *file.LogLevel
 		}
@@ -256,6 +259,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 	if cli.AskUser != nil {
 		r.AskUser = *cli.AskUser
+	}
+	if cli.AutoLaunch != nil {
+		r.AutoLaunch = *cli.AutoLaunch
 	}
 	if cli.LogLevel != "" {
 		r.LogLevel = cli.LogLevel

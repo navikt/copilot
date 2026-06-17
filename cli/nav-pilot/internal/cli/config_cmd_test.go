@@ -225,7 +225,7 @@ func TestCmdConfigExplain_AllKeys(t *testing.T) {
 	if explainErr != nil {
 		t.Fatalf("cmdConfigExplain(\"\") returned error: %v", explainErr)
 	}
-	for _, key := range []string{"client", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level", "otel_log_level", "version"} {
+	for _, key := range []string{"client", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "auto_launch", "log_level", "otel_log_level", "version"} {
 		if !strings.Contains(out, key) {
 			t.Errorf("expected key %q in all-keys explain output", key)
 		}

@@ -96,6 +96,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "--no-ask-user (when false)",
 	},
 	{
+		name:        "auto_launch",
+		kind:        keyKindBool,
+		description: "Launch the coding-agent CLI immediately, skipping the \"Launch X now?\" confirmation.",
+		allowed:     nil,
+		defaultVal:  "false",
+		flag:        "--auto-launch / --no-auto-launch",
+	},
+	{
 		name:        "log_level",
 		kind:        keyKindString,
 		description: "Log level for Copilot CLI output.",
@@ -178,6 +186,12 @@ version = 1
 # Default: true
 # Corresponds to Copilot CLI flag: --no-ask-user (when false)
 # ask_user = true
+
+# Launch the coding-agent CLI immediately after sync/install, skipping the
+# interactive "Launch <client> now?" confirmation prompt.
+# Default: false
+# Corresponds to nav-pilot flag: --auto-launch / --no-auto-launch
+# auto_launch = false
 
 # Log level for Copilot CLI output.
 # Allowed: none, error, warning, info, debug, all, default — Default: unset
@@ -276,6 +290,7 @@ func cmdConfigShow(jsonOutput bool) error {
 			"context_tier":     resolved.ContextTier,
 			"allow_all_tools":  resolved.AllowAllTools,
 			"ask_user":         resolved.AskUser,
+			"auto_launch":      resolved.AutoLaunch,
 			"log_level":        resolved.LogLevel,
 			"otel_log_level":   resolved.OtelLogLevel,
 		})
@@ -341,6 +356,12 @@ func cmdConfigShow(jsonOutput bool) error {
 	}
 	printBoolField("ask_user", resolved.AskUser, askSrc)
 
+	autoLaunchSrc := "default"
+	if cfg != nil && cfg.AutoLaunch != nil {
+		autoLaunchSrc = "file"
+	}
+	printBoolField("auto_launch", resolved.AutoLaunch, autoLaunchSrc)
+
 	logSrc := "unset"
 	if cfg != nil && cfg.LogLevel != nil {
 		logSrc = "file"
@@ -401,6 +422,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AllowAllTools)
 	case "ask_user":
 		return strconv.FormatBool(r.AskUser)
+	case "auto_launch":
+		return strconv.FormatBool(r.AutoLaunch)
 	case "log_level":
 		return r.LogLevel
 	case "otel_log_level":
