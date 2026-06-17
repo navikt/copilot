@@ -9,31 +9,6 @@ import (
 
 const stateFilePath = ".github/.nav-pilot-state.json"
 
-// StateFile tracks what was installed, for safe updates and uninstall.
-type StateFile struct {
-	Collection  string          `json:"collection"`
-	Version     string          `json:"version"`
-	Scope       string          `json:"scope,omitempty"` // "repo" or "user"; empty means "repo" (backwards compat)
-	SourceSHA   string          `json:"source_sha"`
-	InstalledAt string          `json:"installed_at"`
-	Files       []InstalledFile `json:"files"`
-}
-
-// InstalledFile records a single installed file with its content hash.
-type InstalledFile struct {
-	Path   string `json:"path"`
-	Hash   string `json:"hash"`
-	Status string `json:"status,omitempty"` // "" = active, fileStatusIgnored = intentionally excluded, fileStatusConflict = exists with local modifications
-}
-
-// fileStatusIgnored marks a file as intentionally excluded by the user.
-// Sync and status skip files with this status.
-const fileStatusIgnored = "ignored"
-
-// fileStatusConflict marks a file that existed with local modifications at install time.
-// The user declined to overwrite it, so sync should not touch it until resolved.
-const fileStatusConflict = "conflict"
-
 // readState reads state for the given repo directory (legacy convenience wrapper).
 func readState(targetDir string) (*StateFile, error) {
 	return readScopedState(ScopeRepo(targetDir))

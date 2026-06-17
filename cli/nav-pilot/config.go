@@ -5,92 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 )
-
-// Config holds user-specific nav-pilot configuration read from ~/.nav-pilot/config.toml.
-// Pointer types are used for optional fields to distinguish "unset" from zero-value,
-// enabling correct per-field precedence in resolve().
-type Config struct {
-	Version         int     `toml:"version"`
-	Client          *string `toml:"client"`
-	Model           *string `toml:"model"`
-	Mode            *string `toml:"mode"`
-	ReasoningEffort *string `toml:"reasoning_effort"`
-	ContextTier     *string `toml:"context_tier"`
-	AllowAllTools   *bool   `toml:"allow_all_tools"`
-	AskUser         *bool   `toml:"ask_user"`
-	LogLevel        *string `toml:"log_level"`
-	OtelLogLevel    *string `toml:"otel_log_level"`
-}
-
-// ResolvedConfig holds the final configuration after applying precedence:
-// CLI flag > file value > built-in default.
-type ResolvedConfig struct {
-	Client          string
-	Model           string // empty = use agent default
-	Mode            string
-	ReasoningEffort string // empty = unset
-	ContextTier     string // empty = unset
-	AllowAllTools   bool
-	AskUser         bool
-	LogLevel        string // empty = unset
-	OtelLogLevel    string // always set; defaults to "none"
-}
-
-// CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
-type CLIOverrides struct {
-	Client          string
-	Model           string
-	Mode            string
-	ReasoningEffort string
-	ContextTier     string
-	AllowAllTools   *bool
-	AskUser         *bool
-	LogLevel        string
-	OtelLogLevel    string
-}
-
-var (
-	validModes           = []string{"default", "plan", "autopilot"}
-	validReasoningEffort = []string{"none", "low", "medium", "high", "xhigh", "max"}
-	validContextTiers    = []string{"default", "long_context"}
-	validLogLevels       = []string{"none", "error", "warning", "info", "debug", "all", "default"}
-	validOtelLogLevels   = []string{"none", "error", "warning", "warn", "info", "debug", "verbose", "all"}
-)
-
-// modelChoice pairs a model id (the --model value) with a human-readable label.
-// The concrete lists (knownCopilotModels, knownOpenCodeModels) live in clients.go.
-type modelChoice struct {
-	ID    string
-	Label string
-}
-
-// modelValuePattern restricts model identifiers to a sane character set that
-// covers Copilot ids (e.g. "claude-opus-4.8", "gpt-5.5") and opencode
-// provider/model ids (e.g. "anthropic/claude-3-5-sonnet").
-var modelValuePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
-
-// validateModelValue applies strong format validation to a model identifier.
-// The model catalog is dynamic (Copilot validates server-side), so this checks
-// shape rather than membership: non-empty, no surrounding/inner whitespace, and
-// a restricted character set. This rejects typos and garbage while remaining
-// correct as the model catalog evolves.
-func validateModelValue(model string) error {
-	if strings.TrimSpace(model) != model {
-		return fmt.Errorf("model %q must not have leading or trailing whitespace", model)
-	}
-	if model == "" {
-		return errors.New("model must not be empty (omit the key to use the agent default)")
-	}
-	if !modelValuePattern.MatchString(model) {
-		return fmt.Errorf("model %q is not a valid identifier (allowed characters: letters, digits, '.', '_', '-', '/')", model)
-	}
-	return nil
-}
 
 // validateModelForClient validates a model identifier by delegating to the
 // Provider implementation for the given client id. Kept as a free function for
@@ -346,23 +264,4 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		r.OtelLogLevel = cli.OtelLogLevel
 	}
 	return r
-}
-
-// validateOptionalModel is a huh form validator: it accepts a blank value
-// (meaning "unset / agent default") and otherwise applies validateModelValue.
-func validateOptionalModel(s string) error {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-	return validateModelValue(s)
-}
-
-func containsStr(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
