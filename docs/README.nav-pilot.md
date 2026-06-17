@@ -24,7 +24,7 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 |---|---|---|---|
 | `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
 | `opencode` | `opencode` | Materialiseres automatisk i `~/.config/opencode/` | `anthropic/claude-sonnet-4-5` |
-| `pi` | `pi` | — | — |
+| `pi` *(eksperimentell — ikke funksjonell)* | `pi` | — | — |
 
 ### opencode — Nav-kontekst automatisk
 
@@ -32,7 +32,7 @@ Når du bruker `--client opencode` (eller `client = "opencode"` i konfig), gjør
 nav-pilot følgende ved hver oppstart:
 
 1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner)
-2. Skriver dem til `~/.config/opencode/` som `AGENTS.md`, `skills/`, `commands/` og `agents/`
+2. Skriver dem til `~/.config/opencode/` som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
 3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
 
 Du trenger ikke kjøre `nav-pilot export opencode` manuelt — Nav-konteksten er alltid oppdatert.
@@ -42,7 +42,7 @@ nav-pilot --client opencode           # én gangs override
 nav-pilot config set client opencode  # sett permanent
 ```
 
-`nav-pilot status` og `nav-pilot list` viser opencode-artefaktene og om de er oppdaterte.
+`nav-pilot status` og `nav-pilot list --installed` viser opencode-artefaktene og om de er oppdaterte.
 
 ## Vanlige kommandoer
 
@@ -125,7 +125,7 @@ Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klie
 `mode = plan` → `--agent plan`, `reasoning_effort` → `--variant`,
 `allow_all_tools` → `--dangerously-skip-permissions`, `log_level` oversettes
 til opencodes sett (`DEBUG`/`INFO`/`WARN`/`ERROR`). Felt uten opencode-ekvivalent
-(`autopilot`, `context_tier`, `ask_user = false`) gir en ⚠-advarsel ved oppstart.
+(`mode = autopilot` (verdi av `mode`-feltet), `context_tier`, `ask_user = false`) gir en ⚠-advarsel ved oppstart.
 
 ## For bidragsytere
 

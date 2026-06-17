@@ -61,7 +61,7 @@ var (
 )
 
 // ModelChoice pairs a model id (the --model value) with a human-readable label.
-// The concrete lists (knownCopilotModels, knownOpenCodeModels) live in clients.go.
+// The concrete lists (knownCopilotModels, knownOpenCodeModels) live in provider.go.
 type ModelChoice struct {
 	ID    string
 	Label string

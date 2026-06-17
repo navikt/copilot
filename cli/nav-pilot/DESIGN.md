@@ -80,17 +80,17 @@ nav-pilot --log-level debug         # Set log level
 `^[A-Za-z0-9][A-Za-z0-9._/-]*$` — dekker Copilot-ids (`claude-opus-4.8`,
 `gpt-5.5`) og opencode-ids (`anthropic/claude-sonnet-4-5`).
 
-**Per-klient-validering:** `openCodeClient.ValidateModel` krever i tillegg at id-en
+**Per-klient-validering:** `openCodeProvider.ValidateModel` krever i tillegg at id-en
 er på `provider/model`-format (nøyaktig én `/`, ikke-tom på begge sider). En bare
-Copilot-id som `claude-opus-4.8` gir hard feil for opencode-klienten.
+Copilot-id som `claude-opus-4.8` gir hard feil for opencode-provideren.
 
-Veiviseren viser en **velger** med Nav-kurerte modeller per klient
-(`KnownModels()` fra `Client`-grensesnittet):
+Veiviseren viser en **velger** med Nav-kurerte modeller per provider
+(`KnownModels()` fra `Provider`-grensesnittet):
 - Copilot: `knownCopilotModels` — inkluderer `auto`, Claude Sonnet/Haiku/Opus, GPT-5.x, Gemini
 - opencode: `knownOpenCodeModels` — Nav-anbefalt `anthropic/claude-sonnet-4-5` som standard
 
 En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
-`nav-pilot config explain model` lister opp de kjente id-ene per klient.
+`nav-pilot config explain model` lister opp de kjente id-ene per provider.
 
 ### Validation on launch
 
@@ -111,32 +111,32 @@ launch (both the interactive flow and `--sync`):
 The standalone `nav-pilot config validate` command performs the same checks
 (including unknown-key detection) on demand without launching.
 
-### Klient-abstraksjon (Client interface)
+### Provider-abstraksjon (Provider interface)
 
-`launchClient(resolved ResolvedConfig)` delegerer til `clientFor(resolved.Client).Launch(resolved)`.
-Alle klient-spesifikke valg er samlet i `clients.go`:
+`launchProvider(resolved ResolvedConfig)` delegerer til `providerFor(resolved.Client).Launch(resolved)`.
+Alle provider-spesifikke valg er samlet i `provider.go`:
 
 ```go
-type Client interface {
+type Provider interface {
     ID() string                                       // "copilot" | "opencode" | "pi"
     DisplayName() string                              // brukervendt navn
     Available() bool                                  // PATH-sjekk
     Launch(resolved ResolvedConfig) error             // start klienten
     DefaultModel() string                             // Nav-standard (tom = klient velger selv)
-    KnownModels() []modelChoice                       // kurert modell-liste for veiviseren
-    ValidateModel(model string) error                 // klient-spesifikk validering
+    KnownModels() []ModelChoice                       // kurert modell-liste for veiviseren
+    ValidateModel(model string) error                 // provider-spesifikk validering
     ModelAdvisory(model string) string                // advarsel for ukurerte men gyldige ids
     UnsupportedConfigWarnings(ResolvedConfig) []string // advarsel for felt uten ekvivalent
 }
 ```
 
-`clientRegistry` holder de tre implementasjonene i rekkefølge:
-1. `copilotClient` — starter via `cplt`/`copilot` CLI
-2. `openCodeClient` — starter via `opencode run` i `opencode_launch.go`
-3. `piClient` — returnerer "not supported"-feil (stub)
+`providerRegistry` holder de tre implementasjonene i rekkefølge:
+1. `copilotProvider` — starter via `cplt`/`copilot` CLI
+2. `openCodeProvider` — starter via `opencode run` i `opencode_launch.go`
+3. `piProvider` — returnerer "not supported"-feil (stub)
 
-`validClients` er avledet fra registeret — ingen separat hardkodet liste.
-Å legge til en fjerde klient krever én struct + ett registre-element, ingen
+`ValidProviderIDs` er avledet fra registeret — ingen separat hardkodet liste.
+Å legge til en fjerde provider krever én struct + ett registre-element, ingen
 if/else-grening i andre filer.
 
 nav-pilot bruker et lite, kontrollert sett av klienter (`copilot`, `opencode`,
