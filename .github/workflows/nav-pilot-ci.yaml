@@ -50,7 +50,7 @@ jobs:
 
       - name: Test and Coverage
         run: |
-          cd cli/nav-pilot && go test -race -v -coverprofile=cover.out ./...
+          cd cli/nav-pilot && go test -race -v -coverpkg=./... -coverprofile=cover.out ./...
           go tool cover -func=cover.out
           total=$(go tool cover -func=cover.out | awk '/^total:/ {gsub(/%/, "", $NF); print $NF}')
           floor=65
