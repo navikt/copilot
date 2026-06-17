@@ -215,8 +215,8 @@ func run(args []string) error {
 		args = cleanArgs
 	}
 
-	if cliOverrides.Client != "" && !containsStr(validClients, cliOverrides.Client) {
-		return fmt.Errorf("--client %q is not valid (allowed: %s)", cliOverrides.Client, strings.Join(validClients, ", "))
+	if cliOverrides.Client != "" && !containsStr(validProviderIDs, cliOverrides.Client) {
+		return fmt.Errorf("--client %q is not valid (allowed: %s)", cliOverrides.Client, strings.Join(validProviderIDs, ", "))
 	}
 
 	if len(args) < 1 {

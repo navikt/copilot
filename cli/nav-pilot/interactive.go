@@ -755,18 +755,18 @@ func launchCopilotResolved(resolved ResolvedConfig) error {
 }
 
 func launchClient(resolved ResolvedConfig) error {
-	cl, err := clientFor(resolved.Client)
+	p, err := providerFor(resolved.Client)
 	if err != nil {
 		return err
 	}
-	return cl.Launch(resolved)
+	return p.Launch(resolved)
 }
 
 // offerLaunchCopilot prompts the user to launch the configured agent after install.
-// If the client binary is not found in PATH, the prompt is skipped.
+// If the provider binary is not found in PATH, the prompt is skipped.
 func offerLaunchCopilot(resolved ResolvedConfig) {
-	cl, err := clientFor(resolved.Client)
-	if err != nil || !cl.Available() {
+	p, err := providerFor(resolved.Client)
+	if err != nil || !p.Available() {
 		return
 	}
 	if !isInteractive() {
@@ -776,7 +776,7 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	fmt.Println()
 	var choice string
 	err = huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", cl.DisplayName())).
+		Title(fmt.Sprintf("Launch %s now?", p.DisplayName())).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),
@@ -794,11 +794,11 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 }
 
 // offerLaunchCopilotWithAgents prompts the user to launch the configured agent
-// using the resolved launch config. If the client binary is not found, skipped.
+// using the resolved launch config. If the provider binary is not found, skipped.
 func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	_ = agents
-	cl, err := clientFor(resolved.Client)
-	if err != nil || !cl.Available() {
+	p, err := providerFor(resolved.Client)
+	if err != nil || !p.Available() {
 		return
 	}
 	if !isInteractive() {
@@ -808,7 +808,7 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	fmt.Println()
 	var choice string
 	err = huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", cl.DisplayName())).
+		Title(fmt.Sprintf("Launch %s now?", p.DisplayName())).
 		Options(
 			huh.NewOption("Yes", "yes"),
 			huh.NewOption("No", "no"),

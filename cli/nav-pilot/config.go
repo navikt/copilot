@@ -93,15 +93,15 @@ func validateModelValue(model string) error {
 }
 
 // validateModelForClient validates a model identifier by delegating to the
-// Client implementation for the given client id. Kept as a free function for
+// Provider implementation for the given client id. Kept as a free function for
 // use in validateConfigProblems and tests.
 func validateModelForClient(model, client string) error {
-	cl, err := clientFor(client)
+	p, err := providerFor(client)
 	if err != nil {
-		// Unknown client: fall back to base shape validation.
+		// Unknown provider: fall back to base shape validation.
 		return validateModelValue(model)
 	}
-	return cl.ValidateModel(model)
+	return p.ValidateModel(model)
 }
 
 // configPath returns the path to the user config file.
@@ -165,9 +165,9 @@ func validateConfigProblems(cfg *Config) []string {
 	if cfg.Version != 1 {
 		problems = append(problems, fmt.Sprintf("version must be 1 (got %d)", cfg.Version))
 	}
-	if cfg.Client != nil && !containsStr(validClients, *cfg.Client) {
+	if cfg.Client != nil && !containsStr(validProviderIDs, *cfg.Client) {
 		problems = append(problems, fmt.Sprintf("client %q is not valid (allowed: %s)",
-			*cfg.Client, strings.Join(validClients, ", ")))
+			*cfg.Client, strings.Join(validProviderIDs, ", ")))
 	}
 	if cfg.Model != nil {
 		client := ""
@@ -226,11 +226,11 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 	if cfg.Client != nil {
 		clientID = *cfg.Client
 	}
-	cl, err := clientFor(clientID)
+	p, err := providerFor(clientID)
 	if err != nil {
 		return nil
 	}
-	if msg := cl.ModelAdvisory(*cfg.Model); msg != "" {
+	if msg := p.ModelAdvisory(*cfg.Model); msg != "" {
 		return []string{msg}
 	}
 	return nil

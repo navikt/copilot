@@ -151,7 +151,7 @@ func TestWriteSetupConfig_ProducesValidConfig(t *testing.T) {
 }
 
 func TestWriteSetupConfig_AllValidClients(t *testing.T) {
-	for _, agent := range validClients {
+	for _, agent := range validProviderIDs {
 		t.Run(agent, func(t *testing.T) {
 			dir := t.TempDir()
 			t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))

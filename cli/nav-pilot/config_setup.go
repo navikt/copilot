@@ -123,26 +123,26 @@ func runConfigSetup() error {
 		return nil
 	}
 
-	// Model picker: clients with a curated model list get a select widget;
-	// others (pi, unknown future clients) get a free-text input.
-	cl, _ := clientFor(answers.Client)
-	if cl != nil && len(cl.KnownModels()) > 0 {
+	// Model picker: providers with a curated model list get a select widget;
+	// others (pi, unknown future providers) get a free-text input.
+	p, _ := providerFor(answers.Client)
+	if p != nil && len(p.KnownModels()) > 0 {
 		const customModelSentinel = "\x00custom"
 		defLabel := "Unset (agent default)"
-		if def := cl.DefaultModel(); def != "" {
+		if def := p.DefaultModel(); def != "" {
 			defLabel = "Unset (Nav default: " + def + ")"
 		}
 		modelOpts := []huh.Option[string]{
 			huh.NewOption(defLabel, ""),
 		}
-		for _, m := range cl.KnownModels() {
+		for _, m := range p.KnownModels() {
 			modelOpts = append(modelOpts, huh.NewOption(m.Label, m.ID))
 		}
 		modelOpts = append(modelOpts, huh.NewOption("Custom (type manually)…", customModelSentinel))
 
 		var modelChoiceVal string
 		desc := "Pick a model, or leave unset to use the agent default."
-		if cl.DefaultModel() != "" {
+		if p.DefaultModel() != "" {
 			desc = "Pick a model (provider/model format), or leave unset to use the Nav default."
 		}
 		err = huh.NewSelect[string]().
@@ -158,14 +158,14 @@ func runConfigSetup() error {
 		}
 		if modelChoiceVal == customModelSentinel {
 			customValidator := validateOptionalModel
-			if cl.DefaultModel() != "" {
-				// Use client-specific validator so opencode gets provider/model shape check.
+			if p.DefaultModel() != "" {
+				// Use provider-specific validator so opencode gets provider/model shape check.
 				customValidator = func(s string) error {
 					s = strings.TrimSpace(s)
 					if s == "" {
 						return nil
 					}
-					return cl.ValidateModel(s)
+					return p.ValidateModel(s)
 				}
 			}
 			err = huh.NewInput().
@@ -223,14 +223,11 @@ func runConfigSetup() error {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	// Bootstrap opencode on first run: write OTel config and seed Nav context
-	// so the user is immediately ready without a separate 'export' step.
-	if answers.Client == "opencode" {
-		if err := ensureOpenCodeOTelConfig(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s Could not configure opencode OTel: %v\n", yellow("⚠"), err)
-		}
-		if summary, ctxErr := ensureOpenCodeNavContext(); ctxErr != nil {
-			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for opencode: %v\n", yellow("⚠"), ctxErr)
+	// Bootstrap the selected provider on first run (e.g. opencode: write OTel config
+	// and seed Nav context so the user is immediately ready without a separate step).
+	if p != nil {
+		if summary, ctxErr := p.Bootstrap(); ctxErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for %s: %v\n", yellow("⚠"), p.DisplayName(), ctxErr)
 		} else if summary != "" {
 			fmt.Printf("  %s Nav context seeded: %s\n", green("✓"), summary)
 		}

@@ -339,47 +339,13 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 		}
 	}
 
-	// Sync opencode artifacts if nav-pilot has previously materialized them.
-	// Only runs when a state file exists (created at first opencode launch).
-	ocOutputDir := openCodeNavContextDir()
-	if ocState, _ := readOpenCodeState(ocOutputDir); ocState != nil {
-		if !jsonOutput {
-			if repoState != nil || userState != nil {
-				fmt.Println()
-			}
-			fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("opencode"))
-		}
-
-		// Report staleness of the existing opencode artifacts before we refresh them.
-		assessment := assessStaleness(ocState.Version)
-		recordFreshness("opencode", openCodeScopeName, assessment)
-
-		ocSrc, ocSrcErr := resolveSourceForSync(ref, sourceRepo)
-		if ocSrcErr != nil {
-			if !jsonOutput {
-				fmt.Fprintf(os.Stderr, "%s Opencode sync failed: could not resolve source: %v\n", yellow("⚠"), ocSrcErr)
-				fmt.Printf("%s Opencode scope sync failed.\n", yellow("⚠"))
-			}
-		} else {
-			defer ocSrc.Cleanup()
-			_, _, _, _, ocConflicts, ocErr := syncOpenCodeArtifacts(ocSrc.Dir, ocOutputDir, ocSrc.Version, ocSrc.SHA)
-			if ocErr != nil {
-				if !jsonOutput {
-					fmt.Fprintf(os.Stderr, "%s Opencode sync error: %v\n", yellow("⚠"), ocErr)
-					fmt.Printf("%s Opencode scope sync failed.\n", yellow("⚠"))
-				}
-			} else {
-				if !jsonOutput {
-					for _, c := range ocConflicts {
-						fmt.Printf("  %s %s (conflict — not overwritten)\n", yellow("⊘"), c)
-					}
-					if len(ocConflicts) > 0 {
-						fmt.Printf("%s Opencode scope synced (%d conflict(s)).\n", yellow("⚠"), len(ocConflicts))
-					} else {
-						fmt.Printf("%s Opencode scope synced.\n", green("✓"))
-					}
-				}
-			}
+	// Sync provider-specific context artifacts (e.g. opencode Nav context).
+	// Each provider checks its own state and skips silently if not managed.
+	hasPrevOutput := repoState != nil || userState != nil
+	for _, p := range allProviders() {
+		res := p.SyncContext(ref, sourceRepo, jsonOutput, hasPrevOutput)
+		if res.Managed {
+			hasPrevOutput = true
 		}
 	}
 

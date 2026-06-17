@@ -359,24 +359,24 @@ func (t *otelTelemetry) RecordClientAvailable(client string, available bool) {
 	))
 }
 
-// recordClientAvailability probes PATH for each registered client and records
+// recordClientAvailability probes PATH for each registered provider and records
 // its availability, giving visibility into which tools users have installed.
 func (t *otelTelemetry) recordClientAvailability() {
-	for _, cl := range allClients() {
-		t.RecordClientAvailable(cl.ID(), cl.Available())
+	for _, p := range allProviders() {
+		t.RecordClientAvailable(p.ID(), p.Available())
 	}
 }
 
 // configModelLabel collapses an arbitrary model id to a low-cardinality label:
-// a model id known to any registered client, "custom" for anything else, or
-// "unset" when blank. Known model lists are owned by the client implementations
-// in clients.go; cardinality is bounded by the curated list sizes.
+// a model id known to any registered provider, "custom" for anything else, or
+// "unset" when blank. Known model lists are owned by the provider implementations
+// in provider.go; cardinality is bounded by the curated list sizes.
 func configModelLabel(model string) string {
 	if strings.TrimSpace(model) == "" {
 		return "unset"
 	}
-	for _, cl := range allClients() {
-		for _, m := range cl.KnownModels() {
+	for _, p := range allProviders() {
+		for _, m := range p.KnownModels() {
 			if strings.EqualFold(m.ID, model) {
 				return model
 			}

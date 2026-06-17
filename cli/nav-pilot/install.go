@@ -703,13 +703,16 @@ func cmdStatusAuto(repoDir string, jsonOutput bool) error {
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
 			})
 		}
-		ocOutputDir := openCodeNavContextDir()
-		if ocState, _ := readOpenCodeState(ocOutputDir); ocState != nil {
-			ok, modified, missing, _, _ := countFileIntegrity(ocOutputDir, ocState)
+		for _, p := range allProviders() {
+			cs := p.ContextStatus()
+			if cs == nil {
+				continue
+			}
+			ok, modified, missing, _, _ := countFileIntegrity(cs.OutputDir, cs.State)
 			scopes = append(scopes, map[string]interface{}{
-				"scope": openCodeScopeName, "collection": ocState.Collection,
-				"version": ocState.Version, "source_sha": ocState.SourceSHA,
-				"installed_at": ocState.InstalledAt, "files": len(ocState.Files),
+				"scope": cs.ScopeName, "collection": cs.State.Collection,
+				"version": cs.State.Version, "source_sha": cs.State.SourceSHA,
+				"installed_at": cs.State.InstalledAt, "files": len(cs.State.Files),
 				"ok": ok, "modified": modified, "missing": missing,
 			})
 		}
@@ -726,13 +729,15 @@ func cmdStatusAuto(repoDir string, jsonOutput bool) error {
 		printStatusBlock(userScope, userState)
 	}
 
-	// Show opencode status if nav-pilot has previously materialized artifacts.
-	ocOutputDir := openCodeNavContextDir()
-	if ocState, _ := readOpenCodeState(ocOutputDir); ocState != nil {
+	// Show provider-specific context status (e.g. opencode Nav context).
+	for _, p := range allProviders() {
+		if p.ContextStatus() == nil {
+			continue
+		}
 		if repoState != nil || userState != nil {
 			fmt.Println()
 		}
-		printOpenCodeStatusBlock(ocOutputDir, ocState)
+		p.PrintContextStatus()
 	}
 
 	return nil

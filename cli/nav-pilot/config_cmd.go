@@ -43,7 +43,7 @@ var configKeyDefs = []configKeyDef{
 		name:        "client",
 		kind:        keyKindString,
 		description: "Coding-agent CLI to launch (copilot, opencode, pi).",
-		allowed:     validClients,
+		allowed:     validProviderIDs,
 		defaultVal:  "copilot",
 		flag:        "--client",
 	},
@@ -623,8 +623,8 @@ func printKeyExplain(kd *configKeyDef, resolved ResolvedConfig) {
 		fmt.Printf("    Allowed:  true, false\n")
 	} else if kd.name == "model" {
 		var ids []string
-		for _, cl := range allClients() {
-			for _, m := range cl.KnownModels() {
+		for _, p := range allProviders() {
+			for _, m := range p.KnownModels() {
 				ids = append(ids, m.ID)
 			}
 		}
