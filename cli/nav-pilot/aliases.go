@@ -1,6 +1,11 @@
 package main
 
-import "github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+import (
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+)
+
+// ─── domain aliases ──────────────────────────────────────────────────────────
 
 // Type aliases (zero-cost compile-time redirections)
 type (
@@ -42,4 +47,66 @@ var (
 
 	ScopeRepo = domain.ScopeRepo
 	ScopeUser = domain.ScopeUser
+)
+
+// ─── source aliases ──────────────────────────────────────────────────────────
+
+// Type aliases
+type (
+	Source         = source.Source
+	ArtifactKind   = source.ArtifactKind
+	Resolved       = source.Resolved
+	Manifest       = source.Manifest
+	SourceResolver = source.SourceResolver
+)
+
+// Var aliases for kind constants and maps
+var (
+	KindAgent       = source.KindAgent
+	KindSkill       = source.KindSkill
+	KindInstruction = source.KindInstruction
+	KindPrompt      = source.KindPrompt
+	AllKinds        = source.AllKinds
+	kindByName      = source.KindByName
+)
+
+// Const alias
+const CollectionAll = source.CollectionAll
+
+// Function aliases — closures capture the package-level `version` var at call time
+var (
+	resolveSource = func(ref, sourceRepo string) (*source.Source, error) {
+		return source.ResolveSource(ref, sourceRepo, version)
+	}
+	resolveSourceForSync = func(ref, sourceRepo string) (*source.Source, error) {
+		return source.ResolveSourceForSync(ref, sourceRepo, version)
+	}
+	findGitRoot       = source.FindGitRoot
+	NewSourceResolver = source.NewSourceResolver
+
+	// files.go
+	fileHash               = source.FileHash
+	dirHash                = source.DirHash
+	copyFile               = source.CopyFile
+	checkSymlink           = source.CheckSymlink
+	copyDir                = source.CopyDir
+	countDirFiles          = source.CountDirFiles
+	copyArtifact           = source.CopyArtifact
+	rawArtifactHash        = source.RawArtifactHash
+	comparableArtifactHash = source.ComparableArtifactHash
+	checkConflict          = source.CheckConflict
+
+	// frontmatter.go
+	splitFrontmatter           = source.SplitFrontmatter
+	buildAgentFrontmatter      = source.BuildAgentFrontmatter
+	transformPromptFrontmatter = source.TransformPromptFrontmatter
+	reassemble                 = source.Reassemble
+	extractFrontmatterValue    = source.ExtractFrontmatterValue
+
+	// manifest.go
+	validateName       = source.ValidateName
+	validateManifest   = source.ValidateManifest
+	loadManifest       = source.LoadManifest
+	listCollectionDirs = source.ListCollectionDirs
+	collectAllItems    = source.CollectAllItems
 )

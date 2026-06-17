@@ -1,4 +1,4 @@
-package main
+package source
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 func TestNormalizeMarkdown_CRLF(t *testing.T) {
 	input := []byte("line one\r\nline two\r\nline three\r\n")
 	want := "line one\nline two\nline three\n"
-	got := string(normalizeMarkdown(input))
+	got := string(NormalizeMarkdown(input))
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -18,7 +18,7 @@ func TestNormalizeMarkdown_CRLF(t *testing.T) {
 func TestNormalizeMarkdown_TrailingWhitespace(t *testing.T) {
 	input := []byte("hello   \nworld\t\t\n")
 	want := "hello\nworld\n"
-	got := string(normalizeMarkdown(input))
+	got := string(NormalizeMarkdown(input))
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -27,7 +27,7 @@ func TestNormalizeMarkdown_TrailingWhitespace(t *testing.T) {
 func TestNormalizeMarkdown_ConsecutiveBlankLines(t *testing.T) {
 	input := []byte("paragraph one\n\n\n\nparagraph two\n\n\nend\n")
 	want := "paragraph one\n\nparagraph two\n\nend\n"
-	got := string(normalizeMarkdown(input))
+	got := string(NormalizeMarkdown(input))
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -36,14 +36,14 @@ func TestNormalizeMarkdown_ConsecutiveBlankLines(t *testing.T) {
 func TestNormalizeMarkdown_CombinedNormalization(t *testing.T) {
 	input := []byte("# Title  \r\n\r\n\r\nSome text   \r\n\r\nEnd\r\n")
 	want := "# Title\n\nSome text\n\nEnd\n"
-	got := string(normalizeMarkdown(input))
+	got := string(NormalizeMarkdown(input))
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
 func TestNormalizeMarkdown_EmptyInput(t *testing.T) {
-	got := string(normalizeMarkdown([]byte("")))
+	got := string(NormalizeMarkdown([]byte("")))
 	if got != "" {
 		t.Errorf("got %q, want empty", got)
 	}
@@ -58,11 +58,11 @@ func TestNormalizedFileHash_MDFile(t *testing.T) {
 	os.WriteFile(f1, []byte("# Title\nContent\n"), 0o644)
 	os.WriteFile(f2, []byte("# Title  \r\nContent   \r\n"), 0o644)
 
-	h1, err := normalizedFileHash(f1)
+	h1, err := NormalizedFileHash(f1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h2, err := normalizedFileHash(f2)
+	h2, err := NormalizedFileHash(f2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,11 +77,11 @@ func TestNormalizedFileHash_NonMDFile(t *testing.T) {
 	os.WriteFile(f, []byte(`{"key": "value"}`), 0o644)
 
 	// Non-.md file should use raw hash
-	normalized, err := normalizedFileHash(f)
+	normalized, err := NormalizedFileHash(f)
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := fileHash(f)
+	raw, err := FileHash(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,11 +101,11 @@ func TestDirHash_NormalizesMarkdown(t *testing.T) {
 	os.WriteFile(filepath.Join(dir2, "SKILL.md"), []byte("# Skill  \r\nContent   \r\n"), 0o644)
 	os.WriteFile(filepath.Join(dir2, "metadata.json"), []byte(`{"v":1}`), 0o644)
 
-	h1, err := dirHash(dir1)
+	h1, err := DirHash(dir1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h2, err := dirHash(dir2)
+	h2, err := DirHash(dir2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,11 +125,11 @@ func TestDirHash_JsonDiffStillDetected(t *testing.T) {
 	os.WriteFile(filepath.Join(dir2, "SKILL.md"), []byte("# Same\n"), 0o644)
 	os.WriteFile(filepath.Join(dir2, "metadata.json"), []byte(`{"v":2}`), 0o644)
 
-	h1, err := dirHash(dir1)
+	h1, err := DirHash(dir1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h2, err := dirHash(dir2)
+	h2, err := DirHash(dir2)
 	if err != nil {
 		t.Fatal(err)
 	}

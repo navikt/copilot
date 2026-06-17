@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // ─── writeSetupConfig ─────────────────────────────────────────────────────────
@@ -255,11 +257,11 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 		openCodeNavContextDirOverride = oldNavOverride
 	}()
 
-	// Redirect cloneRemoteFn so ensureOpenCodeNavContext uses a local fixture.
-	origClone := cloneRemoteFn
-	defer func() { cloneRemoteFn = origClone }()
+	// Redirect source.CloneRemoteFn so ensureOpenCodeNavContext uses a local fixture.
+	origClone := source.CloneRemoteFn
+	defer func() { source.CloneRemoteFn = origClone }()
 	sourceDir := setupTestSource(t)
-	cloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
 		return &Source{Dir: sourceDir, SHA: "test-bootstrap"}, nil
 	}
 

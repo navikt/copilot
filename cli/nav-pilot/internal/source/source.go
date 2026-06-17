@@ -1,4 +1,4 @@
-package main
+package source
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // Source holds a resolved source directory and optional temp dir to clean up.
@@ -16,8 +18,8 @@ type Source struct {
 	Version string // release version (e.g. "2026.04.14-..."), empty for local dev
 }
 
-// cloneRemoteFn is overridable in tests.
-var cloneRemoteFn = cloneRemote
+// CloneRemoteFn is overridable in tests.
+var CloneRemoteFn = cloneRemote
 
 func (s *Source) Cleanup() {
 	if s.TempDir != "" {
@@ -25,18 +27,18 @@ func (s *Source) Cleanup() {
 	}
 }
 
-// resolveSource finds the navikt/copilot source. Priority:
+// ResolveSource finds the navikt/copilot source. Priority:
 //  1. Explicit --ref flag
 //  2. Local repo (walk up from CWD to git root — dev mode)
 //  3. Clone HEAD of main (always gets latest content)
-func resolveSource(ref, sourceRepo string) (*Source, error) {
+func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
-		return cloneRemoteFn(ref, sourceRepo)
+		return CloneRemoteFn(ref, sourceRepo)
 	}
 
 	if ref != "" {
-		src, err := cloneRemoteFn(ref, "")
+		src, err := CloneRemoteFn(ref, "")
 		if err != nil {
 			return nil, err
 		}
@@ -50,43 +52,43 @@ func resolveSource(ref, sourceRepo string) (*Source, error) {
 	// Try local: walk up from CWD to find the navikt/copilot repo.
 	// Stop at the git root to avoid matching unrelated repos.
 	if wd, err := os.Getwd(); err == nil {
-		gitRoot := findGitRoot(wd)
+		gitRoot := FindGitRoot(wd)
 		if gitRoot != "" {
 			candidate := filepath.Join(gitRoot, ".github", "collections")
 			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 				sha := getGitSHA(gitRoot)
-				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", dim("→"), dim(gitRoot))
-				return &Source{Dir: gitRoot, SHA: sha, Version: version}, nil
+				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", domain.Dim("→"), domain.Dim(gitRoot))
+				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion}, nil
 			}
 		}
 	}
 
 	// Always clone HEAD of main to get the latest content regardless of binary version
-	src, err := cloneRemoteFn("", "")
+	src, err := CloneRemoteFn("", "")
 	if err != nil {
 		return nil, err
 	}
-	src.Version = version
+	src.Version = cliVersion
 	return src, nil
 }
 
-// resolveSourceForSync resolves source for sync checks.
-// Unlike resolveSource, it skips local repo auto-detection when no ref/source
+// ResolveSourceForSync resolves source for sync checks.
+// Unlike ResolveSource, it skips local repo auto-detection when no ref/source
 // is provided, so sync compares against upstream content by default.
-func resolveSourceForSync(ref, sourceRepo string) (*Source, error) {
+func ResolveSourceForSync(ref, sourceRepo, cliVersion string) (*Source, error) {
 	if sourceRepo != "" || ref != "" {
-		return resolveSource(ref, sourceRepo)
+		return ResolveSource(ref, sourceRepo, cliVersion)
 	}
-	src, err := cloneRemoteFn("", "")
+	src, err := CloneRemoteFn("", "")
 	if err != nil {
 		return nil, err
 	}
-	src.Version = version
+	src.Version = cliVersion
 	return src, nil
 }
 
-// findGitRoot walks up from dir to find the nearest .git directory.
-func findGitRoot(dir string) string {
+// FindGitRoot walks up from dir to find the nearest .git directory.
+func FindGitRoot(dir string) string {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
 		return ""
@@ -117,9 +119,9 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		label = sourceRepo
 	}
 	if ref != "" {
-		fmt.Fprintf(os.Stderr, "%s Fetching %s@%s...\n", dim("→"), label, ref)
+		fmt.Fprintf(os.Stderr, "%s Fetching %s@%s...\n", domain.Dim("→"), label, ref)
 	} else {
-		fmt.Fprintf(os.Stderr, "%s Fetching %s...\n", dim("→"), label)
+		fmt.Fprintf(os.Stderr, "%s Fetching %s...\n", domain.Dim("→"), label)
 	}
 
 	args := []string{"-c", "advice.detachedHead=false", "clone", "--depth", "1", "--quiet"}

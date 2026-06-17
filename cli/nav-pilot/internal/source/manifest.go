@@ -1,4 +1,4 @@
-package main
+package source
 
 import (
 	"encoding/json"
@@ -20,8 +20,11 @@ type Manifest struct {
 	Prompts      []string `json:"prompts"`
 }
 
-// validateManifest checks that a loaded manifest has valid content.
-func validateManifest(m *Manifest) error {
+// CollectionAll is the collection name used in state files for "install everything".
+const CollectionAll = "(all)"
+
+// ValidateManifest checks that a loaded manifest has valid content.
+func ValidateManifest(m *Manifest) error {
 	if m.Name == "" {
 		return fmt.Errorf("manifest has empty name")
 	}
@@ -36,7 +39,7 @@ func validateManifest(m *Manifest) error {
 		{"prompt", m.Prompts},
 	} {
 		for _, name := range list.names {
-			if err := validateName(name); err != nil {
+			if err := ValidateName(name); err != nil {
 				return fmt.Errorf("invalid %s in manifest: %w", list.kind, err)
 			}
 			key := list.kind + ":" + name
@@ -49,7 +52,8 @@ func validateManifest(m *Manifest) error {
 	return nil
 }
 
-func loadManifest(sourceDir, collection string) (*Manifest, error) {
+// LoadManifest loads and validates a collection manifest from the source directory.
+func LoadManifest(sourceDir, collection string) (*Manifest, error) {
 	path := filepath.Join(sourceDir, ".github", "collections", collection, "manifest.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -59,13 +63,14 @@ func loadManifest(sourceDir, collection string) (*Manifest, error) {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return nil, fmt.Errorf("parsing manifest for %q: %w", collection, err)
 	}
-	if err := validateManifest(&m); err != nil {
+	if err := ValidateManifest(&m); err != nil {
 		return nil, fmt.Errorf("collection %q: %w", collection, err)
 	}
 	return &m, nil
 }
 
-func listCollectionDirs(sourceDir string) ([]string, error) {
+// ListCollectionDirs returns the names of all collections in the source directory.
+func ListCollectionDirs(sourceDir string) ([]string, error) {
 	collectionsDir := filepath.Join(sourceDir, ".github", "collections")
 	entries, err := os.ReadDir(collectionsDir)
 	if err != nil {
@@ -84,9 +89,9 @@ func listCollectionDirs(sourceDir string) ([]string, error) {
 	return names, nil
 }
 
-// collectAllItems scans the source directory for all agents, skills, and instructions,
+// CollectAllItems scans the source directory for all agents, skills, and instructions,
 // returning a synthetic manifest. Used for user-scope "install everything".
-func collectAllItems(sourceDir string) (*Manifest, error) {
+func CollectAllItems(sourceDir string) (*Manifest, error) {
 	resolver := NewSourceResolver(sourceDir)
 	m := &Manifest{
 		Name:        "(all)",
@@ -104,11 +109,8 @@ func collectAllItems(sourceDir string) (*Manifest, error) {
 	return m, nil
 }
 
-// CollectionAll is the collection name used in state files for "install everything".
-const CollectionAll = "(all)"
-
-// validateName checks that a manifest entry name is safe for use in file paths.
-func validateName(name string) error {
+// ValidateName checks that a manifest entry name is safe for use in file paths.
+func ValidateName(name string) error {
 	if name == "" {
 		return fmt.Errorf("empty name")
 	}

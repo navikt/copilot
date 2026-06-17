@@ -1,4 +1,4 @@
-package main
+package source
 
 import (
 	"os"
@@ -24,7 +24,7 @@ func TestResolveSource_UsesLocalRepoWhenCollectionsExist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	src, err := resolveSource("", "")
+	src, err := ResolveSource("", "", "dev")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,26 +56,26 @@ func TestResolveSourceForSync_SkipsLocalRepoAutoDetection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	origClone := cloneRemoteFn
-	t.Cleanup(func() { cloneRemoteFn = origClone })
+	origClone := CloneRemoteFn
+	t.Cleanup(func() { CloneRemoteFn = origClone })
 
 	calls := 0
-	cloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
+	CloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
 		calls++
 		if ref != "" || sourceRepo != "" {
-			t.Fatalf("cloneRemoteFn called with unexpected args ref=%q sourceRepo=%q", ref, sourceRepo)
+			t.Fatalf("CloneRemoteFn called with unexpected args ref=%q sourceRepo=%q", ref, sourceRepo)
 		}
 		return &Source{Dir: "/tmp/remote", SHA: "abc123"}, nil
 	}
 
-	src, err := resolveSourceForSync("", "")
+	src, err := ResolveSourceForSync("", "", "dev")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer src.Cleanup()
 
 	if calls != 1 {
-		t.Fatalf("cloneRemoteFn calls = %d, want 1", calls)
+		t.Fatalf("CloneRemoteFn calls = %d, want 1", calls)
 	}
 	if src.Dir != "/tmp/remote" {
 		t.Fatalf("resolveSourceForSync dir = %q, want %q", src.Dir, "/tmp/remote")

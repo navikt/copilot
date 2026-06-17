@@ -1,4 +1,4 @@
-package main
+package source
 
 import (
 	"testing"
@@ -86,7 +86,7 @@ func TestSplitFrontmatter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fm, body, ok := splitFrontmatter([]byte(tt.input))
+			fm, body, ok := SplitFrontmatter([]byte(tt.input))
 			if ok != tt.wantOK {
 				t.Fatalf("hasFrontmatter = %v, want %v", ok, tt.wantOK)
 			}
@@ -153,7 +153,7 @@ func TestStripFrontmatterKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := stripFrontmatterKeys([]byte(tt.fm), tt.keys)
+			got := StripFrontmatterKeys([]byte(tt.fm), tt.keys)
 			if string(got) != tt.want {
 				t.Errorf("stripFrontmatterKeys:\ngot:  %q\nwant: %q", string(got), tt.want)
 			}
@@ -163,11 +163,11 @@ func TestStripFrontmatterKeys(t *testing.T) {
 
 func TestExtractFrontmatterValue(t *testing.T) {
 	tests := []struct {
-		name    string
-		fm      string
-		key     string
-		want    string
-		wantOK  bool
+		name   string
+		fm     string
+		key    string
+		want   string
+		wantOK bool
 	}{
 		{
 			name:   "simple value",
@@ -201,7 +201,7 @@ func TestExtractFrontmatterValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := extractFrontmatterValue([]byte(tt.fm), tt.key)
+			got, ok := ExtractFrontmatterValue([]byte(tt.fm), tt.key)
 			if ok != tt.wantOK {
 				t.Fatalf("found = %v, want %v", ok, tt.wantOK)
 			}
@@ -236,7 +236,7 @@ func TestBuildAgentFrontmatter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildAgentFrontmatter(tt.description)
+			got := BuildAgentFrontmatter(tt.description)
 			if string(got) != tt.want {
 				t.Errorf("buildAgentFrontmatter:\ngot:  %q\nwant: %q", string(got), tt.want)
 			}
@@ -246,7 +246,7 @@ func TestBuildAgentFrontmatter(t *testing.T) {
 
 func TestTransformPromptFrontmatter(t *testing.T) {
 	fm := []byte("name: aksel-component\ndescription: Generate Aksel components\n")
-	got := transformPromptFrontmatter(fm)
+	got := TransformPromptFrontmatter(fm)
 	want := "description: Generate Aksel components\n"
 	if string(got) != want {
 		t.Errorf("transformPromptFrontmatter:\ngot:  %q\nwant: %q", string(got), want)
@@ -295,7 +295,7 @@ func TestReassemble(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := reassemble([]byte(tt.fm), []byte(tt.body))
+			got := Reassemble([]byte(tt.fm), []byte(tt.body))
 			if string(got) != tt.want {
 				t.Errorf("reassemble:\ngot:  %q\nwant: %q", string(got), tt.want)
 			}

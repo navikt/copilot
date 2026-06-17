@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 func TestOpenCodeArgs(t *testing.T) {
@@ -343,11 +345,11 @@ func TestEnsureOpenCodeNavContext(t *testing.T) {
 	openCodeNavContextDirOverride = outputDir
 	defer func() { openCodeNavContextDirOverride = old }()
 
-	// Override cloneRemoteFn to return a local fixture source
-	origClone := cloneRemoteFn
-	defer func() { cloneRemoteFn = origClone }()
+	// Override source.CloneRemoteFn to return a local fixture source
+	origClone := source.CloneRemoteFn
+	defer func() { source.CloneRemoteFn = origClone }()
 	sourceDir := setupTestSource(t)
-	cloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
 		return &Source{Dir: sourceDir, SHA: "test"}, nil
 	}
 
@@ -374,10 +376,10 @@ func TestEnsureOpenCodeNavContextIdempotent(t *testing.T) {
 	openCodeNavContextDirOverride = outputDir
 	defer func() { openCodeNavContextDirOverride = old }()
 
-	origClone := cloneRemoteFn
-	defer func() { cloneRemoteFn = origClone }()
+	origClone := source.CloneRemoteFn
+	defer func() { source.CloneRemoteFn = origClone }()
 	sourceDir := setupTestSource(t)
-	cloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*Source, error) {
 		return &Source{Dir: sourceDir, SHA: "test"}, nil
 	}
 

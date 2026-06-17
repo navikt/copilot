@@ -1,15 +1,15 @@
-package main
+package source
 
 import (
 	"bytes"
 	"strings"
 )
 
-// splitFrontmatter splits a markdown file into YAML frontmatter and body.
+// SplitFrontmatter splits a markdown file into YAML frontmatter and body.
 // Returns (frontmatter, body, hasFrontmatter).
 // Frontmatter is the content between the opening and closing "---" delimiters
 // (without the delimiters themselves). Body is everything after the closing "---".
-func splitFrontmatter(data []byte) ([]byte, []byte, bool) {
+func SplitFrontmatter(data []byte) ([]byte, []byte, bool) {
 	const delimiter = "---"
 
 	// Normalize CRLF → LF for consistent parsing
@@ -96,11 +96,9 @@ func findClosingDelimiter(data []byte) int {
 	return -1
 }
 
-// stripFrontmatterKeys removes the specified top-level YAML keys (and their
-// nested children) from frontmatter content. Keys are matched by prefix "key:"
-// at the start of a line. Nested lines (indented) following a matched key are
-// also removed.
-func stripFrontmatterKeys(fm []byte, keys []string) []byte {
+// StripFrontmatterKeys removes the specified top-level YAML keys (and their
+// nested children) from frontmatter content.
+func StripFrontmatterKeys(fm []byte, keys []string) []byte {
 	if len(keys) == 0 || len(fm) == 0 {
 		return fm
 	}
@@ -146,10 +144,10 @@ func stripFrontmatterKeys(fm []byte, keys []string) []byte {
 	return result
 }
 
-// extractFrontmatterValue extracts the value of a simple top-level key from
+// ExtractFrontmatterValue extracts the value of a simple top-level key from
 // frontmatter. Returns ("", false) if not found. Only works for simple
 // "key: value" pairs, not nested structures.
-func extractFrontmatterValue(fm []byte, key string) (string, bool) {
+func ExtractFrontmatterValue(fm []byte, key string) (string, bool) {
 	prefix := key + ":"
 	lines := bytes.Split(fm, []byte("\n"))
 	for _, line := range lines {
@@ -167,8 +165,8 @@ func extractFrontmatterValue(fm []byte, key string) (string, bool) {
 	return "", false
 }
 
-// buildAgentFrontmatter generates OpenCode-compatible agent frontmatter.
-func buildAgentFrontmatter(description string) []byte {
+// BuildAgentFrontmatter generates OpenCode-compatible agent frontmatter.
+func BuildAgentFrontmatter(description string) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("description: " + yamlQuoteIfNeeded(description) + "\n")
 	buf.WriteString("mode: subagent\n")
@@ -176,7 +174,7 @@ func buildAgentFrontmatter(description string) []byte {
 }
 
 // yamlQuoteIfNeeded wraps a string in double quotes if it contains characters
-// that are special in YAML (: # [ ] { } , & * ? | - < > = ! % @ ` ' ").
+// that are special in YAML.
 func yamlQuoteIfNeeded(s string) string {
 	if s == "" {
 		return `""`
@@ -196,15 +194,15 @@ func yamlQuoteIfNeeded(s string) string {
 	return s
 }
 
-// transformPromptFrontmatter strips the "name" key from prompt frontmatter
+// TransformPromptFrontmatter strips the "name" key from prompt frontmatter
 // since OpenCode derives the command name from the filename.
-func transformPromptFrontmatter(fm []byte) []byte {
-	return stripFrontmatterKeys(fm, []string{"name"})
+func TransformPromptFrontmatter(fm []byte) []byte {
+	return StripFrontmatterKeys(fm, []string{"name"})
 }
 
-// reassemble combines frontmatter and body back into a complete file.
+// Reassemble combines frontmatter and body back into a complete file.
 // If fm is nil or empty, returns just the body.
-func reassemble(fm, body []byte) []byte {
+func Reassemble(fm, body []byte) []byte {
 	if len(fm) == 0 {
 		return body
 	}
