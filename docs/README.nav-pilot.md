@@ -145,8 +145,8 @@ globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
   `gpt-5.5`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini`, `gemini-3.1-pro-preview`
 - opencode (startes via cplt → GitHub Copilot-provider): bruk `github-copilot/<id>`,
   f.eks. `github-copilot/claude-sonnet-4.5` (Nav-standard), `github-copilot/claude-opus-4.8`,
-  `github-copilot/gpt-5.5`. Bare Copilot-id-er (uten `/`) mappes automatisk under
-  `github-copilot/` ved oppstart.
+  `github-copilot/gpt-5.5`. Modellen må være på `provider/model`-format (med `/`);
+  `auto` eller tom verdi faller tilbake til Nav-standarden `github-copilot/claude-sonnet-4.5`.
 
 Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient.
 `nav-pilot config explain model` lister opp de kurerte id-ene.

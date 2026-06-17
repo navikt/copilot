@@ -17,7 +17,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_info` | Gauge | Prosess-start informasjon (alltid verdi 1) | `version=0.12.3`, `device_id=nav-pilot-abc123`, `execution_context=ci_github_actions`, `os=linux`, `arch=amd64` |
 | `nav_pilot_install_present` | Gauge | Om scope har installert state (1/0) | `scope=user`, `collection=all` |
 | `nav_pilot_installed_items` | Gauge | Antall installerte items per type/status | `scope=repo`, `type=skill`, `status=active` |
-| `nav_pilot_config_info` | Gauge | Resolvert konfigurasjon per oppstart (alltid verdi 1) | `client=opencode`, `config_mode=autopilot`, `model=anthropic/claude-sonnet-4-5`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
+| `nav_pilot_config_info` | Gauge | Resolvert konfigurasjon per oppstart (alltid verdi 1) | `client=opencode`, `config_mode=autopilot`, `model=github-copilot/claude-sonnet-4.5`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
 | `nav_pilot_client_available` | Gauge | Om en coding-agent-klient finnes på PATH (1/0) | `client=copilot` / `client=opencode` / `client=pi` |
 | `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
 | `nav_pilot_up_to_date` | Gauge | Om komponent er tilstrekkelig oppdatert (1/0) | `component=cli`, `scope=none` |
@@ -31,7 +31,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - `config_mode` er konfig-modus (`default`/`plan`/`autopilot`) — ikke å forveksle
   med `mode` på `nav_pilot_command_total` som er kjøremodus (`interactive`/`non_interactive`).
 - `model` kollapses til kjent klient-modell-id (Copilot-modeller som `claude-sonnet-4.6`,
-  eller opencode-modeller som `anthropic/claude-sonnet-4-5`), `custom` (ukjent/egendefinert)
+  eller opencode-modeller som `github-copilot/claude-sonnet-4.5`), `custom` (ukjent/egendefinert)
   eller `unset` for å holde kardinaliteten lav.
 - Tomme valg (`reasoning_effort`, `context_tier`, `model`) rapporteres som `unset`.
 - `nav_pilot_client_available` PATH-sjekker `copilot` (cplt/copilot), `opencode` og `pi`

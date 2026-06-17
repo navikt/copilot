@@ -187,7 +187,7 @@ func userCopilotDir() string {
 		return base
 	}
 
-	agents, _ := filepath.Glob(filepath.Join(base, ".github", "agents", "*.agent.md"))
+	agents, _ := filepath.Glob(filepath.Join(base, "agents", "*.agent.md"))
 	if len(agents) > 0 {
 		return base
 	}

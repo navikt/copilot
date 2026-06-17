@@ -159,7 +159,7 @@ func TestUserCopilotDir(t *testing.T) {
 		t.Errorf("expected empty for no customizations, got %q", got)
 	}
 
-	agentsDir := filepath.Join(home, ".copilot", ".github", "agents")
+	agentsDir := filepath.Join(home, ".copilot", "agents")
 	_ = os.MkdirAll(agentsDir, 0o755)
 	_ = os.WriteFile(filepath.Join(agentsDir, "nav-pilot.agent.md"), []byte("test"), 0o644)
 
@@ -168,7 +168,7 @@ func TestUserCopilotDir(t *testing.T) {
 		t.Errorf("expected %q for agents-only, got %q", expected, got)
 	}
 
-	_ = os.RemoveAll(filepath.Join(home, ".copilot", ".github", "agents"))
+	_ = os.RemoveAll(agentsDir)
 	instrDir := filepath.Join(home, ".copilot", ".github", "instructions")
 	_ = os.MkdirAll(instrDir, 0o755)
 	_ = os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("test"), 0o644)
