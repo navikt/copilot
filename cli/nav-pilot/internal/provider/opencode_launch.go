@@ -22,11 +22,16 @@ var NavContextDirOverride string
 
 // openCodeConfigPath returns the path to opencode's global config.
 // Honors ConfigPathOverride (test seam).
+// Falls back to os.TempDir() when the home directory cannot be resolved so the
+// returned path is always absolute.
 func openCodeConfigPath() string {
 	if ConfigPathOverride != "" {
 		return ConfigPathOverride
 	}
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode", "opencode.json")
+	}
 	return filepath.Join(home, ".config", "opencode", "opencode.json")
 }
 
@@ -35,11 +40,16 @@ func openCodeConfigPath() string {
 // context is available across all repos regardless of whether the developer
 // is inside a git repo or has run `nav-pilot export opencode` manually before.
 // Honors NavContextDirOverride (test seam).
+// Falls back to os.TempDir() when the home directory cannot be resolved so the
+// returned path is always absolute.
 func openCodeNavContextDir() string {
 	if NavContextDirOverride != "" {
 		return NavContextDirOverride
 	}
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode")
+	}
 	return filepath.Join(home, ".config", "opencode")
 }
 
@@ -243,5 +253,5 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 // LaunchPi returns a clear error explaining that pi is not yet supported.
 func LaunchPi() error {
-	return fmt.Errorf("agent \"pi\" is not yet supported for launch — set a different agent with: nav-pilot config set agent copilot")
+	return fmt.Errorf("client \"pi\" is not yet supported for launch — set a different client with: nav-pilot config set client copilot")
 }

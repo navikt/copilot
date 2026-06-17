@@ -347,6 +347,9 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 		if res.Managed {
 			hasPrevOutput = true
 		}
+		if res.Err != nil && firstErr == nil {
+			firstErr = errSyncFailed
+		}
 	}
 
 	return firstErr

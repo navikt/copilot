@@ -33,10 +33,16 @@ func TestConfigModelLabel(t *testing.T) {
 	}{
 		{"", "unset"},
 		{"   ", "unset"},
+		// exact canonical id — returned as-is
 		{"claude-opus-4.8", "claude-opus-4.8"},
+		// uppercase input → canonical curated id (canonicalization)
+		{"CLAUDE-OPUS-4.8", "claude-opus-4.8"},
+		{"Claude-Opus-4.8", "claude-opus-4.8"},
 		{"some/local-model", "custom"},
 		{"gpt-bogus", "custom"},
 		{"anthropic/claude-sonnet-4-5", "anthropic/claude-sonnet-4-5"},
+		// mixed-case → canonical opencode model id
+		{"ANTHROPIC/CLAUDE-SONNET-4-5", "anthropic/claude-sonnet-4-5"},
 		{"anthropic/claude-opus-4-5", "anthropic/claude-opus-4-5"},
 		{"anthropic/claude-3-5-sonnet", "custom"},
 	}

@@ -333,6 +333,32 @@ func TestOpenCodeNavContextDir_DefaultSuffix(t *testing.T) {
 	}
 }
 
+func TestOpenCodeConfigPath_EmptyHome_ReturnsAbsolute(t *testing.T) {
+	old := ConfigPathOverride
+	ConfigPathOverride = ""
+	defer func() { ConfigPathOverride = old }()
+
+	t.Setenv("HOME", "")
+
+	got := openCodeConfigPath()
+	if !filepath.IsAbs(got) {
+		t.Errorf("openCodeConfigPath() with empty HOME = %q, want absolute path", got)
+	}
+}
+
+func TestOpenCodeNavContextDir_EmptyHome_ReturnsAbsolute(t *testing.T) {
+	old := NavContextDirOverride
+	NavContextDirOverride = ""
+	defer func() { NavContextDirOverride = old }()
+
+	t.Setenv("HOME", "")
+
+	got := openCodeNavContextDir()
+	if !filepath.IsAbs(got) {
+		t.Errorf("openCodeNavContextDir() with empty HOME = %q, want absolute path", got)
+	}
+}
+
 func TestEnsureOpenCodeNavContext(t *testing.T) {
 	outputDir := t.TempDir()
 	old := NavContextDirOverride

@@ -107,6 +107,9 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string
 			conflicts = append(conflicts, relPath)
 			continue
 		}
+		if err := source.CheckSymlink(dstDir, outputDir); err != nil {
+			return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, err)
+		}
 		if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
 			return skills, commands, agents, instructions, conflicts, mkErr
 		}
@@ -134,6 +137,9 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string
 		if readErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("prompt %s: %w", entry.Name, readErr)
 		}
+		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+			return skills, commands, agents, instructions, conflicts, fmt.Errorf("command %s: %w", entry.Name, err)
+		}
 		if wErr := writeFile(dstPath, transformPrompt(data)); wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("command %s: %w", entry.Name, wErr)
 		}
@@ -154,6 +160,9 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string
 		data, readErr := os.ReadFile(entry.AbsPath)
 		if readErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, readErr)
+		}
+		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, err)
 		}
 		if wErr := writeFile(dstPath, transformAgent(data)); wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, wErr)
@@ -177,6 +186,9 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string
 				conflicts = append(conflicts, relPath)
 				continue
 			}
+			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+				return skills, commands, agents, instructions, conflicts, fmt.Errorf("instruction %s: %w", ref.Name, err)
+			}
 			if wErr := writeFile(dstPath, ref.Body); wErr != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("instruction %s: %w", ref.Name, wErr)
 			}
@@ -191,6 +203,9 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string
 			conflicts = append(conflicts, "AGENTS.md")
 		} else {
 			agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs)
+			if err := source.CheckSymlink(agentsMDPath, outputDir); err != nil {
+				return skills, commands, agents, instructions, conflicts, fmt.Errorf("AGENTS.md: %w", err)
+			}
 			if wErr := writeFile(agentsMDPath, agentsMD); wErr != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("AGENTS.md: %w", wErr)
 			}

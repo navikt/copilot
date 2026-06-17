@@ -1,9 +1,12 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
@@ -127,7 +130,41 @@ func TestPiProvider_PrintContextStatus(t *testing.T) {
 	p.PrintContextStatus()
 }
 
-// --- RecordFreshness (public wrapper) ---
+// --- openCodeProvider.SyncContext error propagation (G2) ---
+
+func TestOpenCodeProvider_SyncContext_PropagatesSourceError(t *testing.T) {
+	outputDir := t.TempDir()
+	old := NavContextDirOverride
+	NavContextDirOverride = outputDir
+	defer func() { NavContextDirOverride = old }()
+
+	// Write an opencode state file so SyncContext knows this scope is managed.
+	state := &domain.StateFile{
+		Collection: "opencode-export",
+		Version:    "2026.01.01",
+		Scope:      "opencode",
+		SourceSHA:  "abc123",
+	}
+	if err := artifacts.WriteOpenCodeState(outputDir, state); err != nil {
+		t.Fatalf("WriteOpenCodeState: %v", err)
+	}
+
+	origClone := source.CloneRemoteFn
+	defer func() { source.CloneRemoteFn = origClone }()
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*source.Source, error) {
+		return nil, fmt.Errorf("network unavailable")
+	}
+
+	var p Provider = openCodeProvider{}
+	res := p.SyncContext("", "", true, false)
+
+	if !res.Managed {
+		t.Error("SyncContext() Managed = false, want true")
+	}
+	if res.Err == nil {
+		t.Error("SyncContext() Err = nil, want non-nil when source resolution fails")
+	}
+}
 
 func TestRecordFreshness_Smoke(t *testing.T) {
 	orig := telemetryRecorder

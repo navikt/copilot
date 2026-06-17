@@ -280,3 +280,24 @@ func TestPrintOpenCodeStatusBlock_NoError(t *testing.T) {
 	}
 	PrintOpenCodeStatusBlock(outputDir, state)
 }
+
+func TestSyncOpenCodeArtifacts_RejectsSymlink(t *testing.T) {
+	sourceDir := setupTestSource(t)
+	outputDir := t.TempDir()
+	outside := t.TempDir()
+
+	// Create a symlink inside outputDir pointing outside the boundary.
+	agentsDir := filepath.Join(outputDir, "agents")
+	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	symlinkPath := filepath.Join(agentsDir, "nav-pilot.md")
+	if err := os.Symlink(filepath.Join(outside, "nav-pilot.md"), symlinkPath); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	_, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, outputDir, "2026.06.16-120000", "abc")
+	if err == nil {
+		t.Error("SyncOpenCodeArtifacts() = nil, want error when writing through symlink")
+	}
+}

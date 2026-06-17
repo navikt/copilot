@@ -42,7 +42,7 @@ func configModelLabel(model string) string {
 	for _, p := range allProviders() {
 		for _, m := range p.KnownModels() {
 			if strings.EqualFold(m.ID, model) {
-				return model
+				return m.ID
 			}
 		}
 	}

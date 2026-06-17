@@ -19,8 +19,10 @@ var telemetryRecorder telemetry.Recorder = telemetry.NoopRecorder{}
 
 // ProviderSyncResult captures the outcome of a provider-driven context sync.
 // Managed is true when the provider has existing managed context and ran the sync.
+// Err is non-nil when the sync ran but encountered an error.
 type ProviderSyncResult struct {
 	Managed bool
+	Err     error
 }
 
 // ProviderContextStatus holds the data needed to display provider context status.
@@ -227,7 +229,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 			fmt.Fprintf(os.Stderr, "%s Opencode sync failed: could not resolve source: %v\n", domain.Yellow("⚠"), ocSrcErr)
 			fmt.Printf("%s Opencode scope sync failed.\n", domain.Yellow("⚠"))
 		}
-		return ProviderSyncResult{Managed: true}
+		return ProviderSyncResult{Managed: true, Err: ocSrcErr}
 	}
 	defer ocSrc.Cleanup()
 
@@ -237,7 +239,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 			fmt.Fprintf(os.Stderr, "%s Opencode sync error: %v\n", domain.Yellow("⚠"), ocErr)
 			fmt.Printf("%s Opencode scope sync failed.\n", domain.Yellow("⚠"))
 		}
-		return ProviderSyncResult{Managed: true}
+		return ProviderSyncResult{Managed: true, Err: ocErr}
 	}
 
 	if !jsonOutput {

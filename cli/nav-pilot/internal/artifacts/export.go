@@ -408,6 +408,9 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 
 	for _, skill := range resolver.List(source.KindSkill) {
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
+		if err := source.CheckSymlink(dstDir, outputDir); err != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("skill %s: %w", skill.Name, err)
+		}
 		if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
 			return skills, commands, agents, instructions, mkErr
 		}
@@ -426,6 +429,9 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 			return skills, commands, agents, instructions, fmt.Errorf("prompt %s: %w", entry.Name, readErr)
 		}
 		dstPath := filepath.Join(outputDir, "commands", entry.Name+".md")
+		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("command %s: %w", entry.Name, err)
+		}
 		if wErr := writeFile(dstPath, transformPrompt(data)); wErr != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("command %s: %w", entry.Name, wErr)
 		}
@@ -438,6 +444,9 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, readErr)
 		}
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
+		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, err)
+		}
 		if wErr := writeFile(dstPath, transformAgent(data)); wErr != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, wErr)
 		}
@@ -451,12 +460,19 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 	if len(globalSections) > 0 || len(scopedRefs) > 0 {
 		for _, ref := range scopedRefs {
 			dstPath := filepath.Join(outputDir, "instructions", ref.Name+".md")
+			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+				return skills, commands, agents, instructions, fmt.Errorf("instruction %s: %w", ref.Name, err)
+			}
 			if wErr := writeFile(dstPath, ref.Body); wErr != nil {
 				return skills, commands, agents, instructions, fmt.Errorf("instruction %s: %w", ref.Name, wErr)
 			}
 		}
+		agentsMDPath := filepath.Join(outputDir, "AGENTS.md")
+		if err := source.CheckSymlink(agentsMDPath, outputDir); err != nil {
+			return skills, commands, agents, instructions, fmt.Errorf("AGENTS.md: %w", err)
+		}
 		agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs)
-		if wErr := writeFile(filepath.Join(outputDir, "AGENTS.md"), agentsMD); wErr != nil {
+		if wErr := writeFile(agentsMDPath, agentsMD); wErr != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("AGENTS.md: %w", wErr)
 		}
 		instructions = len(globalSections) + len(scopedRefs)

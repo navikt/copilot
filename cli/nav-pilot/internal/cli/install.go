@@ -708,12 +708,12 @@ func cmdStatusAuto(repoDir string, jsonOutput bool) error {
 			if cs == nil {
 				continue
 			}
-			ok, modified, missing, _, _ := countFileIntegrity(cs.OutputDir, cs.State)
+			ok, modified, missing, ignored, _ := countFileIntegrity(cs.OutputDir, cs.State)
 			scopes = append(scopes, map[string]interface{}{
 				"scope": cs.ScopeName, "collection": cs.State.Collection,
 				"version": cs.State.Version, "source_sha": cs.State.SourceSHA,
 				"installed_at": cs.State.InstalledAt, "files": len(cs.State.Files),
-				"ok": ok, "modified": modified, "missing": missing,
+				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
 			})
 		}
 		return outputJSON(map[string]interface{}{"installed": true, "scopes": scopes})
