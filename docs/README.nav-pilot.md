@@ -1,6 +1,6 @@
 # 🧭 nav-pilot
 
-nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot.
+nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot og opencode.
 
 📖 **Online docs (primær):** https://ki-utvikling.nav.no/nav-pilot  
 📝 **Endringslogg:** [docs/nav-pilot-changelog.md](nav-pilot-changelog.md)
@@ -15,6 +15,60 @@ brew install navikt/tap/nav-pilot
 nav-pilot
 nav-pilot install kotlin-backend
 ```
+
+## Klienter
+
+nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
+
+| Klient | Binær | Nav-kontekst | Standard modell |
+|---|---|---|---|
+| `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
+| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i `~/.config/opencode/` | `github-copilot/claude-sonnet-4.5` |
+| `pi` *(eksperimentell)* | `cplt` + `pi` | Via `AGENTS.md` i prosjektroten | Pis eget valg (`model`/`mode` videresendes ikke ennå) |
+
+> **Alle klienter startes i cplt-sandboxen.** nav-pilot kjører klienten via
+> `cplt --agent <klient>` slik at agenten er kjerne-nivå-sandboxet (kan lese/skrive
+> prosjektfiler, men når ikke SSH-nøkler, sky-credentials eller andre hemmeligheter).
+> `cplt` må derfor være installert for å starte `opencode` og `pi` (i tillegg til selve klient-binæren).
+
+### opencode — Nav-kontekst automatisk
+
+Når du bruker `--client opencode` (eller `client = "opencode"` i konfig), gjør
+nav-pilot følgende ved hver oppstart:
+
+1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner)
+2. Skriver dem til `~/.config/opencode/` som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
+3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
+4. Starter opencode i cplt-sandboxen med Nav-agenten (`cplt --agent opencode -- --agent nav-pilot --model …`)
+
+Den materialiserte `nav-pilot`-agenten er en **primær** opencode-agent, så den dukker
+opp i agentvelgeren (Tab) og startes automatisk. De øvrige Nav-agentene
+(auth, kafka, aksel, …) materialiseres som **subagenter** du kaller med `@navn`.
+
+Du trenger ikke kjøre `nav-pilot export opencode` manuelt — Nav-konteksten er alltid oppdatert.
+
+```bash
+nav-pilot --client opencode           # én gangs override
+nav-pilot config set client opencode  # sett permanent
+```
+
+`nav-pilot status` og `nav-pilot list --installed` viser opencode-artefaktene og om de er oppdaterte.
+
+#### `export opencode` vs. automatisk materialisering
+
+| Kommando | Mål | Tilstandssporing | Når |
+|---|---|---|---|
+| `nav-pilot --client opencode` (oppstart) | `~/.config/opencode/` | ✅ konflikt + ferskhet | Personlig kontekst — skjer automatisk |
+| `nav-pilot sync` | `~/.config/opencode/` | ✅ oppdaterer sporet tilstand | Frisk opp personlig kontekst |
+| `nav-pilot export opencode` (repo-scope) | `<repo>/.opencode/` | — | Sjekk Nav-kontekst inn i et **prosjektrepo** for hele teamet |
+
+For ditt **personlige** oppsett trenger du ikke `export` i det hele tatt — bare kjør
+`nav-pilot --client opencode` (materialiserer automatisk) eller `nav-pilot sync` for å friske opp.
+Bruk `nav-pilot export opencode` (repo-scope) kun for å versjonskontrollere Nav-konteksten i et prosjektrepo.
+
+> **Avviklet:** `nav-pilot export opencode --user` er erstattet av den automatiske
+> materialiseringen ved oppstart + `nav-pilot sync`, som i tillegg gir tilstandssporing
+> og konflikt-deteksjon. Repo-scope `export opencode` består.
 
 ## Vanlige kommandoer
 
@@ -38,7 +92,7 @@ nav-pilot sender OTel-metrikker som standard i pilot.
 
 Standard endpoint er `https://collector-internet.nav.cloud.nais.io/v1/metrics`.
 Du kan overstyre med `NAV_PILOT_TELEMETRY_ENDPOINT` ved behov.
-Når nav-pilot launcher `cplt`/`copilot`, settes `OTEL_EXPORTER_OTLP_ENDPOINT` for Copilot CLI
+Når nav-pilot starter `cplt`/`copilot`, settes `OTEL_EXPORTER_OTLP_ENDPOINT` for Copilot CLI
 til samme collector-base (`https://collector-internet.nav.cloud.nais.io`, uten `/v1/metrics`)
 slik at Copilot kan sende både metrics og traces. Overstyr med
 `NAV_PILOT_COPILOT_OTEL_ENDPOINT` ved behov (den prioriteres over generell
@@ -46,7 +100,7 @@ slik at Copilot kan sende både metrics og traces. Overstyr med
 hvis den ikke allerede er satt. nav-pilot injiserer i tillegg resource-attributtene
 `nav.pilot.launcher`, `nav.pilot.version` og `nav.pilot.device_id` i Copilots
 `OTEL_RESOURCE_ATTRIBUTES` (append-merge, eksisterende nøkler beholdes) for
-attribusjon av Copilot-traces tilbake til nav-pilot.
+sporing av Copilot-traces tilbake til nav-pilot.
 
 Støttede MVP-metrikker:
 
@@ -78,25 +132,32 @@ nav-pilot config setup
 nav-pilot config show
 ```
 
-Støttede felt er `agent`, `model`, `mode`, `reasoning_effort`, `context_tier`,
-`allow_all_tools`, `ask_user` og `log_level`. Du kan også overstyre dem per kjøring
-med globale flagg som `--agent`, `--model`, `--mode`, `--effort`, `--context`,
-`--allow-all-tools`, `--no-ask-user` og `--log-level`. Disse brukes av interaktiv
-start og `nav-pilot --sync`.
+Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
+`allow_all_tools`, `ask_user`, `auto_launch` og `log_level`. Du kan overstyre dem per kjøring med
+globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
+`--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
 
-`model` formatvalideres lokalt (katalogen sjekkes av den underliggende CLI-en).
-Vanlige Copilot-modeller: `auto`, `claude-sonnet-4.6`, `claude-haiku-4.5`,
-`claude-opus-4.8`, `claude-opus-4.6`, `gpt-5.5`, `gpt-5.4`, `gpt-5.3-codex`,
-`gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`. For
-`opencode` bruk `provider/model` (f.eks. `anthropic/claude-3-5-sonnet`).
-Førstegangs-veiviseren (`nav-pilot config setup`) gir en modellvelger, og
-`nav-pilot config explain model` lister opp de vanlige id-ene.
+> **Tips:** Sett `auto_launch = true` (eller bruk `--auto-launch`) for å starte
+> cplt/copilot/opencode automatisk uten «Launch X now?»-bekreftelsen.
 
-Når `agent = "opencode"`, mappes konfigurasjonen til `opencode run`-flagg:
-`mode = plan` → `--agent plan`, `reasoning_effort` → `--variant`,
-`allow_all_tools` → `--dangerously-skip-permissions`, og `log_level` oversettes
-til opencode sitt sett (`DEBUG`/`INFO`/`WARN`/`ERROR`). `context_tier` og
-`ask_user` har ingen opencode-ekvivalent og ignoreres.
+**Modell per klient:**
+- Copilot: `auto`, `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.8`,
+  `gpt-5.5`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini`, `gemini-3.1-pro-preview`
+- opencode (startes via cplt → GitHub Copilot-provider): bruk `github-copilot/<id>`,
+  f.eks. `github-copilot/claude-sonnet-4.5` (Nav-standard), `github-copilot/claude-opus-4.8`,
+  `github-copilot/gpt-5.5`. Modellen må være på `provider/model`-format (med `/`);
+  `auto` eller tom verdi faller tilbake til Nav-standarden `github-copilot/claude-sonnet-4.5`.
+
+Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient.
+`nav-pilot config explain model` lister opp de kurerte id-ene.
+
+**opencode-mapping:**
+`client = "opencode"` mappes til opencode-flagg:
+`mode = plan` → `--agent plan` (ellers `--agent nav-pilot`), `model` → `--model`
+(prefikses med `github-copilot/` for bare id-er), `reasoning_effort` → `--variant`,
+`allow_all_tools` → `--dangerously-skip-permissions`, `log_level` oversettes
+til opencodes sett (`DEBUG`/`INFO`/`WARN`/`ERROR`). Felt uten opencode-ekvivalent
+(`mode = autopilot` (verdi av `mode`-feltet), `context_tier`, `ask_user = false`) gir en ⚠-advarsel ved oppstart.
 
 ## For bidragsytere
 

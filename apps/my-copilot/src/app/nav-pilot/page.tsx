@@ -1155,6 +1155,50 @@ function GetStartedSection() {
             </VStack>
           </div>
 
+          <Box
+            background="info-soft"
+            borderColor="info-subtle"
+            borderWidth="1"
+            borderRadius="8"
+            paddingBlock="space-12"
+            paddingInline="space-16"
+          >
+            <p
+              className="font-semibold"
+              style={{ color: "var(--a-blue-800)", fontSize: "0.8125rem", margin: "0 0 0.25rem" }}
+            >
+              GitHub Copilot og OpenCode
+            </p>
+            <p style={{ color: "var(--a-text-subtle)", fontSize: "0.8125rem", margin: 0 }}>
+              nav-pilot fungerer med <strong>GitHub Copilot</strong> (standard) og <strong>OpenCode</strong> (første
+              klasse). Bytt klient med{" "}
+              <code
+                className="font-mono"
+                style={{
+                  fontSize: "0.75rem",
+                  background: "var(--a-surface-info)",
+                  borderRadius: "3px",
+                  padding: "1px 4px",
+                }}
+              >
+                nav-pilot --client opencode
+              </code>{" "}
+              eller sett standard permanent med{" "}
+              <code
+                className="font-mono"
+                style={{
+                  fontSize: "0.75rem",
+                  background: "var(--a-surface-info)",
+                  borderRadius: "3px",
+                  padding: "1px 4px",
+                }}
+              >
+                nav-pilot config setup
+              </code>
+              .
+            </p>
+          </Box>
+
           <div className="flex flex-wrap gap-3 justify-center">
             <NextLink
               href="/nav-pilot/docs"

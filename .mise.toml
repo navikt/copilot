@@ -137,7 +137,7 @@ echo "✓ Installed nav-pilot to $DEST/nav-pilot"
 description = "Run nav-pilot tests with coverage and print summary (cleans up cover.out)"
 run = """
 cd cli/nav-pilot && \
-go test -race -coverprofile=cover.out ./... && \
+go test -race -coverpkg=./... -coverprofile=cover.out ./... && \
 echo "" && \
 go tool cover -func=cover.out && \
 echo "" && \

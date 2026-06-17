@@ -72,19 +72,25 @@ nav-pilot --no-ask-user             # Non-interactive mode
 nav-pilot --log-level debug         # Set log level
 ```
 
-### Model selection & validation
+### Modellvalg og validering
 
-`model` is **format-validated** locally, not allowlist-validated: the Copilot CLI
-validates `--model` against its live server-side catalog, so a hard list would
-reject newly released models. Validation (`validateModelValue`) requires a
-non-empty identifier with no surrounding/inner whitespace, matching
-`^[A-Za-z0-9][A-Za-z0-9._/-]*$` — this covers Copilot ids (`claude-opus-4.8`,
-`gpt-5.5`) and opencode `provider/model` ids (`anthropic/claude-3-5-sonnet`).
+`model` formatvalideres lokalt, ikke mot en tillatt liste: Copilot CLI validerer
+`--model` server-side, og opencode aksepterer åpne `provider/model`-strenger.
+`validateModelValue` krever en ikke-tom id uten mellomrom, som matcher
+`^[A-Za-z0-9][A-Za-z0-9._/-]*$` — dekker Copilot-ids (`claude-opus-4.8`,
+`gpt-5.5`) og opencode-ids (`anthropic/claude-sonnet-4-5`).
 
-The first-run wizard offers a **picker** of common Copilot models
-(`knownCopilotModels`) plus an "Unset" and a "Custom…" option; for non-copilot
-agents it falls back to a validated free-text input. `nav-pilot config explain
-model` lists the common ids.
+**Per-klient-validering:** `openCodeProvider.ValidateModel` krever i tillegg at id-en
+er på `provider/model`-format (nøyaktig én `/`, ikke-tom på begge sider). En bare
+Copilot-id som `claude-opus-4.8` gir hard feil for opencode-provideren.
+
+Veiviseren viser en **velger** med Nav-kurerte modeller per provider
+(`KnownModels()` fra `Provider`-grensesnittet):
+- Copilot: `knownCopilotModels` — inkluderer `auto`, Claude Sonnet/Haiku/Opus, GPT-5.x, Gemini
+- opencode: `knownOpenCodeModels` — Nav-anbefalt `anthropic/claude-sonnet-4-5` som standard
+
+En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
+`nav-pilot config explain model` lister opp de kjente id-ene per provider.
 
 ### Validation on launch
 
@@ -98,63 +104,123 @@ launch (both the interactive flow and `--sync`):
 - **Warns (non-fatal)** on advisory issues via `configAdvisories`, printed to
   stderr without blocking the launch:
   - unknown TOML keys (likely typos the parser silently ignores)
-  - Copilot `model` ids that are well-formed but not in the curated
-    `knownCopilotModels` catalog (e.g. `model = "sonnet"` → suggests
-    `claude-sonnet-4.6`). These do not block launch because the model is
-    validated server-side.
+  - Model-ids som er velformet men ikke i den Nav-kurerte listen for den valgte
+    klienten (f.eks. `model = "sonnet"` for Copilot → foreslår `claude-sonnet-4.6`).
+    Blokkerer ikke oppstart fordi modeller valideres av den underliggende klienten.
 
 The standalone `nav-pilot config validate` command performs the same checks
 (including unknown-key detection) on demand without launching.
 
-### Agent dispatch
+### Provider-abstraksjon (Provider interface)
 
-`launchClient(resolved ResolvedConfig)` dispatches by `resolved.Client`:
-- `copilot` (default) → `launchCopilotResolved` using `cplt`/`copilot` CLI
-- `opencode` → `launchOpenCode` in `opencode_launch.go`
-- `pi` → error stub (not yet implemented)
+`launchProvider(resolved ResolvedConfig)` delegerer til `providerFor(resolved.Client).Launch(resolved)`.
+Alle provider-spesifikke valg er samlet i `provider.go`:
 
-nav-pilot curates a deliberately small `client` allowlist (`copilot`, `opencode`,
-`pi`). The `cplt` sandbox wrapper itself supports a broader set
-(`copilot, opencode, gemini, antigravity, pi, shell`), but nav-pilot only
-exposes clients it has a verified launch path for. `gemini`/`antigravity`/`shell`
-are intentionally not wired yet.
+```go
+type Provider interface {
+    ID() string                                       // "copilot" | "opencode" | "pi"
+    DisplayName() string                              // brukervendt navn
+    Available() bool                                  // PATH-sjekk
+    Launch(resolved ResolvedConfig) error             // start klienten
+    DefaultModel() string                             // Nav-standard (tom = klient velger selv)
+    KnownModels() []ModelChoice                       // kurert modell-liste for veiviseren
+    ValidateModel(model string) error                 // provider-spesifikk validering
+    ModelAdvisory(model string) string                // advarsel for ukurerte men gyldige ids
+    UnsupportedConfigWarnings(ResolvedConfig) []string // advarsel for felt uten ekvivalent
+}
+```
 
-> **Legacy compatibility:** Existing config files using `agent = "..."` are still
-> accepted and silently mapped to the `client` field. A deprecation advisory is
-> printed at launch; rename the key to `client` to suppress it.
+`providerRegistry` holder de tre implementasjonene i rekkefølge:
+1. `copilotProvider` — starter via `cplt`/`copilot` CLI
+2. `openCodeProvider` — starter via `opencode run` i `opencode_launch.go`
+3. `piProvider` — returnerer "not supported"-feil (stub)
 
-**cplt agent pinning:** `cplt`'s own `--agent` selects which agent to sandbox,
-falling back to auto-detect from PATH when omitted. Since the copilot path always
-wants copilot, `buildCopilotArgs` pins `cplt --agent copilot` (so a different
-agent on PATH is never auto-picked) and forwards the `nav-pilot` persona + flags
-after the `--` separator: `cplt --agent copilot -- --agent nav-pilot …`.
+`ValidProviderIDs` er avledet fra registeret — ingen separat hardkodet liste.
+Å legge til en fjerde provider krever én struct + ett registre-element, ingen
+if/else-grening i andre filer.
 
-### OpenCode option mapping
+nav-pilot bruker et lite, kontrollert sett av klienter (`copilot`, `opencode`,
+`pi`). `cplt`-sandkassen støtter flere (`gemini`, `antigravity`, `shell`), men
+nav-pilot eksponerer bare klienter med bekreftet launch-sti og Nav-kontekst.
 
-`openCodeArgs` maps the resolved config to `opencode run` flags. opencode's flag
-surface differs from Copilot's, so several fields are translated or dropped:
+> **Bakoverkompatibilitet:** Eksisterende konfig-filer med `agent = "..."` godtas
+> fortsatt og kartlegges til `client`-feltet. En advarsel skrives ut ved oppstart;
+> bytt til `client` for å fjerne den.
 
-| nav-pilot config | opencode flag | Notes |
+**cplt agent-pinning:** `buildCopilotArgs` setter alltid `cplt --agent copilot`
+slik at en annen agent på PATH ikke plukkes opp, og videreformidler `nav-pilot`-
+persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pilot …`.
+
+### OpenCode alternativ-mapping
+
+`openCodeArgs` mapper resolvert konfig til `opencode run`-flagg. opencode sitt
+flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dropper:
+
+| nav-pilot konfig | opencode-flagg | Merknad |
 |---|---|---|
-| `model` | `--model` | Expects `provider/model` (e.g. `anthropic/claude-3-5-sonnet`) |
-| `mode = plan` | `--agent plan` | opencode has no `--mode`; `autopilot` has no opencode equivalent |
-| `reasoning_effort` | `--variant` | Provider-specific reasoning (e.g. `high`, `max`) |
+| `model` | `--model` | Krever `provider/model` (f.eks. `anthropic/claude-sonnet-4-5`); Nav-standard er `anthropic/claude-sonnet-4-5` når unset |
+| `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
+| `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
 | `allow_all_tools` | `--dangerously-skip-permissions` | |
-| `log_level` | `--log-level` | Translated to opencode's set: `DEBUG`/`INFO`/`WARN`/`ERROR` (see below) |
-| `context_tier` | — | No opencode equivalent; ignored |
-| `ask_user` | — | No opencode equivalent; ignored |
+| `log_level` | `--log-level` | Oversettes til opencodes sett: `DEBUG`/`INFO`/`WARN`/`ERROR` (se under) |
+| `context_tier` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt |
+| `ask_user` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt til `false` |
 
-Log-level translation (`openCodeLogLevel`): `debug`/`all` → `DEBUG`, `info` →
-`INFO`, `warning` → `WARN`, `error` → `ERROR`; `none`/`default`/unset omit the
-flag (opencode uses its own default). opencode only accepts the UPPERCASE set.
+**Advarsler for umappede felt** (`openCodeUnsupportedConfigWarnings`):
+Nav-pilot skriver en gul ⚠-advarsel til stderr for felt som er eksplisitt satt
+men ikke støttes av opencode. Bare advarsel — oppstarten stopper ikke.
+
+Log-level-oversettelse (`openCodeLogLevel`): `debug`/`all` → `DEBUG`, `info` →
+`INFO`, `warning` → `WARN`, `error` → `ERROR`; `none`/`default`/unset utelater
+flagget (opencode bruker sin egen standard). opencode aksepterer bare store bokstaver.
 
 ### OpenCode OTel
 
-When an OTel endpoint is configured (via `OTEL_EXPORTER_OTLP_ENDPOINT` or `NAV_PILOT_COPILOT_OTEL_ENDPOINT`), nav-pilot:
-1. Calls `ensureOpenCodeOTelConfig()` to set `experimental.openTelemetry = true` in `~/.config/opencode/opencode.json`
-2. Injects `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, and `OPENCODE_CLIENT=nav-pilot` into opencode's env
+Når et OTel-endepunkt er konfigurert (via `OTEL_EXPORTER_OTLP_ENDPOINT` eller `NAV_PILOT_COPILOT_OTEL_ENDPOINT`), gjør nav-pilot:
+1. Kaller `ensureOpenCodeOTelConfig()` for å sette `experimental.openTelemetry = true` i `~/.config/opencode/opencode.json`
+2. Injiserer `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` og `OPENCODE_CLIENT=nav-pilot` i opencodes miljø
 
-The OTel config merge is deep (preserves existing `experimental.*` keys) and idempotent.
+OTel-konfigurasjonssammenslåingen er dyp (beholder eksisterende `experimental.*`-nøkler) og idempotent.
+
+### OpenCode livssyklus — Nav-kontekst
+
+opencode er en fullverdig klient med automatisk Nav-kontekst. Livssyklusen er:
+
+**Materialisering (P1):**  
+`ensureOpenCodeNavContext()` (kalt fra `launchOpenCode`) løser opp kildeartifaktene
+og skriver dem til `~/.config/opencode/` (bruker-globalt, ikke repo-spesifikt):
+
+| Mål | Innhold |
+|---|---|
+| `~/.config/opencode/AGENTS.md` | Sammenstilt instruksjonsfil fra alle Nav-instruksjoner |
+| `~/.config/opencode/skills/` | Nav-skills (katalogstruktur med `SKILL.md`) |
+| `~/.config/opencode/commands/` | Nav-prompts konvertert til opencode commands |
+| `~/.config/opencode/agents/` | Nav-agenter |
+
+Valget om bruker-globalt scope (ikke repo-lokalt `.opencode/`) er bevisst:
+opencode leser fra sin globale config-katalog, og Nav-konteksten skal virke
+på tvers av alle repoer uten at utvikleren må kjøre `export` manuelt.
+
+**Tilstandshåndtering (P2):**  
+`syncOpenCodeArtifacts()` er den tilstand-bevisste varianten av materialisering.
+Den skriver en tilstandsfil `~/.config/opencode/.nav-pilot-state.json` (samme
+`StateFile`-struktur som `.nav-pilot-state.json` for `.github/`) med:
+- Kilde-ref, versjon og SHA
+- Per-fil-hash av alle forvaltede filer
+
+**Konfliktdeteksjon:** Hvis en bruker har endret en nav-pilot-forvaltet fil lokalt
+(hash-avvik mot lagret tilstand), overskrives den ikke. I stedet rapporteres
+konflikten med ⚠-advarsel til stderr — speilet med `.github/`-semantikken.
+
+**Ferskhetssjekk og versjonsskjevhet:**  
+Sync sammenligner lagret kilde-SHA med gjeldende release og rapporterer
+`nav_pilot_staleness_check_total` og `nav_pilot_version_skew_days` for
+opencode-artefakter på samme måte som for `.github/`-artefakter.
+
+**List og status:**  
+`nav-pilot list` og `nav-pilot status` viser opencode-artefakter (via
+`printOpenCodeStatusBlock`) når en forvaltet `~/.config/opencode/.nav-pilot-state.json`
+finnes — inkludert ferskhetsindikator og eventuelle konflikter.
 
 ## Avhengigheter
 
