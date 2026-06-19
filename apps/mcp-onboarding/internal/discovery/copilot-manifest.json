@@ -658,7 +658,7 @@
       "displayName": "aksel-builder",
       "description": "Ekspertbygger for Aksel. React-komponenter, design-tokens, layout-primitiver, theming (lys/mørk), ikoner, CSS, Tailwind-preset og versjonsmigreringer.",
       "filePath": ".github/skills/aksel-builder/SKILL.md",
-      "contentHash": "cdc50ea10a01016fdd651e824b200111c98f755f215240073840c7e46f42b737",
+      "contentHash": "2dbe34def3d4f2e8dddd3c7f3567289a190a16fd39a2e0e63052039fab0ca4e1",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/SKILL.md",
       "references": [
