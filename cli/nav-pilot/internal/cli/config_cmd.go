@@ -598,16 +598,56 @@ func cmdConfigValidate() error {
 	// Semantic validation — append the []string slice directly.
 	problems = append(problems, validateConfigProblems(&cfg)...)
 
-	if len(problems) == 0 {
+	// Non-fatal hints about best practices.
+	hints := configHints(&cfg)
+
+	if len(problems) == 0 && len(hints) == 0 {
 		fmt.Printf("%s Config is valid (%s)\n", green("✓"), path)
 		return nil
 	}
 
-	fmt.Printf("%s Config has %d problem(s) (%s):\n", red("✗"), len(problems), path)
-	for _, p := range problems {
-		fmt.Printf("  - %s\n", p)
+	if len(problems) > 0 {
+		fmt.Printf("%s Config has %d problem(s) (%s):\n", red("✗"), len(problems), path)
+		for _, p := range problems {
+			fmt.Printf("  - %s\n", p)
+		}
 	}
-	return fmt.Errorf("config validation failed")
+	if len(hints) > 0 {
+		if len(problems) == 0 {
+			fmt.Printf("%s Config is valid (%s)\n", green("✓"), path)
+		}
+		fmt.Printf("%s Hints:\n", yellow("⚠"))
+		for _, h := range hints {
+			fmt.Printf("  - %s\n", h)
+		}
+	}
+	if len(problems) > 0 {
+		return fmt.Errorf("config validation failed")
+	}
+	return nil
+}
+
+// configHints returns non-fatal informational hints for a config.
+// Unlike validateConfigProblems, these do not cause validation to fail.
+func configHints(cfg *Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	var hints []string
+	if cfg.Model != nil {
+		m := *cfg.Model
+		if strings.Contains(m, "/") {
+			shortID := strings.SplitN(m, "/", 2)[1]
+			if shortID == "" {
+				shortID = m // malformed provider/ with no model — keep full string
+			}
+			hints = append(hints, fmt.Sprintf(
+				"model %q uses a provider-qualified format — nav-pilot translates automatically. Use the canonical short-id instead: run %s.",
+				m, bold("nav-pilot config set model "+shortID),
+			))
+		}
+	}
+	return hints
 }
 
 // ─── config explain ──────────────────────────────────────────────────────────

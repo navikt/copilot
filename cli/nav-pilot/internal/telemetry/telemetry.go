@@ -49,6 +49,7 @@ type Recorder interface {
 	RecordVersionSkewDays(component, scope string, days int64)
 	RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
 	RecordClientAvailable(client string, available bool)
+	RecordLaunchError(client, errorType string)
 	Shutdown(ctx context.Context) error
 }
 
@@ -66,6 +67,7 @@ func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                
 func (NoopRecorder) RecordConfig(string, string, string, string, string, string, bool, bool) {
 }
 func (NoopRecorder) RecordClientAvailable(string, bool) {}
+func (NoopRecorder) RecordLaunchError(string, string)   {}
 func (NoopRecorder) Shutdown(context.Context) error     { return nil }
 
 type otelTelemetry struct {
@@ -74,6 +76,7 @@ type otelTelemetry struct {
 	commandTotal       metric.Int64Counter
 	commandDurationMS  metric.Int64Histogram
 	commandErrorTotal  metric.Int64Counter
+	launchErrorTotal   metric.Int64Counter
 	installItemsTotal  metric.Int64Counter
 	syncUpdatesTotal   metric.Int64Counter
 	syncConflictsTotal metric.Int64Counter
@@ -164,6 +167,11 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create command error counter: %w", err)
 	}
+	launchErrorTotal, err := meter.Int64Counter("nav_pilot_launch_error_total",
+		metric.WithDescription("Counts client launch failures by client and error type."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create launch error counter: %w", err)
+	}
 	installItemsTotal, err := meter.Int64Counter("nav_pilot_install_items_total")
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create install items counter: %w", err)
@@ -214,6 +222,7 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 		commandTotal:       commandTotal,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
+		launchErrorTotal:   launchErrorTotal,
 		installItemsTotal:  installItemsTotal,
 		syncUpdatesTotal:   syncUpdatesTotal,
 		syncConflictsTotal: syncConflictsTotal,
@@ -459,6 +468,18 @@ func (t *otelTelemetry) Shutdown(ctx context.Context) error {
 	return t.provider.Shutdown(ctx)
 }
 
+// RecordLaunchError records a client launch failure with a normalized error type.
+// client: "copilot", "opencode", "pi"
+// errorType: "client_not_found", "launch_failed", "unknown"
+func (t *otelTelemetry) RecordLaunchError(client, errorType string) {
+	t.launchErrorTotal.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
+		attribute.String("error_type", normalizeTelemetryDimension(errorType, "unknown")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
 func normalizeTelemetryDimension(v, fallback string) string {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -477,7 +498,9 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"up_to_date", "stale", "lookup_failed", "cooldown", "no_install", "corrupted",
 		"organic", "ci_github_actions", "ci_other",
 		"darwin", "linux", "windows",
-		"amd64", "arm64", "arm", "386":
+		"amd64", "arm64", "arm", "386",
+		"copilot", "opencode", "pi",
+		"client_not_found", "launch_failed":
 		return v
 	default:
 		if strings.Count(v, ".") >= 1 || strings.Count(v, "-") >= 1 {

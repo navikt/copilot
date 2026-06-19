@@ -35,6 +35,7 @@ type cpltLaunch struct {
 func launchViaCplt(spec cpltLaunch) error {
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" || cliName != "cplt" {
+		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
 		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
 	}
 
@@ -54,7 +55,28 @@ func launchViaCplt(spec cpltLaunch) error {
 		if !errors.As(err, &exitErr) {
 			fmt.Fprintf(os.Stderr, "%s Could not launch %s via cplt: %v\n", domain.Yellow("⚠"), spec.displayName, err)
 		}
+		telemetryRecorder.RecordLaunchError(spec.agent, classifyLaunchError(err))
 		return err
 	}
 	return nil
+}
+
+// classifyLaunchError maps a launch error to a normalized error_type label
+// used in nav_pilot_launch_error_total telemetry. Keeps cardinality bounded.
+func classifyLaunchError(err error) string {
+	if err == nil {
+		return ""
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return "launch_failed"
+	}
+	if errors.Is(err, exec.ErrNotFound) {
+		return "client_not_found"
+	}
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		return "client_not_found"
+	}
+	return "unknown"
 }

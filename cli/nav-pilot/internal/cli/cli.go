@@ -45,8 +45,8 @@ func isKnownCommand(arg string) bool {
 	}
 	switch arg {
 	case "install", "init", "export", "add", "ignore", "sync", "list", "status",
-		"uninstall", "upgrade", "update", "config", "env", "feedback", "version",
-		"--version", "-v", "-h", "--help", "help":
+		"uninstall", "upgrade", "update", "config", "env", "feedback", "models",
+		"version", "--version", "-v", "-h", "--help", "help":
 		return true
 	default:
 		return false
@@ -465,6 +465,8 @@ func run(args []string) error {
 		return cmdEnv()
 	case "feedback":
 		return cmdFeedback(targetDir, featureRequest)
+	case "models":
+		return cmdModels(jsonOutput)
 	case "version", "--version", "-v":
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil

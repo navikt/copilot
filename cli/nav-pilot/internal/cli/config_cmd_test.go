@@ -365,3 +365,72 @@ func TestCmdConfigSet_PermsTightenedOnPreExistingFile(t *testing.T) {
 		t.Errorf("mode = %o, want 0600", info.Mode().Perm())
 	}
 }
+
+// ─── configHints tests ────────────────────────────────────────────────────────
+
+func TestConfigHints_ProviderQualifiedModelTriggersHint(t *testing.T) {
+	m := "anthropic/claude-3-5-sonnet"
+	cfg := &Config{Model: &m}
+	hints := configHints(cfg)
+	if len(hints) != 1 {
+		t.Fatalf("expected 1 hint, got %d: %v", len(hints), hints)
+	}
+	if !strings.Contains(hints[0], "claude-3-5-sonnet") {
+		t.Errorf("hint missing short-id: %s", hints[0])
+	}
+	if !strings.Contains(hints[0], "anthropic/claude-3-5-sonnet") {
+		t.Errorf("hint missing original model: %s", hints[0])
+	}
+}
+
+func TestConfigHints_GithubCopilotPrefixTriggersHint(t *testing.T) {
+	m := "github-copilot/claude-sonnet-4.6"
+	cfg := &Config{Model: &m}
+	hints := configHints(cfg)
+	if len(hints) != 1 {
+		t.Fatalf("expected 1 hint for github-copilot/ prefixed model, got %d: %v", len(hints), hints)
+	}
+	if !strings.Contains(hints[0], "claude-sonnet-4.6") {
+		t.Errorf("hint missing canonical short-id: %s", hints[0])
+	}
+	if !strings.Contains(hints[0], "github-copilot/claude-sonnet-4.6") {
+		t.Errorf("hint missing original model: %s", hints[0])
+	}
+}
+
+func TestConfigHints_CanonicalShortIdNoHint(t *testing.T) {
+	for _, m := range []string{"claude-sonnet-4.6", "gpt-5.5", "auto", "gemini-3.5-flash"} {
+		m := m
+		t.Run(m, func(t *testing.T) {
+			cfg := &Config{Model: &m}
+			if hints := configHints(cfg); len(hints) != 0 {
+				t.Errorf("unexpected hint for canonical model %q: %v", m, hints)
+			}
+		})
+	}
+}
+
+func TestConfigHints_NilConfigNoHint(t *testing.T) {
+	if hints := configHints(nil); len(hints) != 0 {
+		t.Errorf("expected nil hints for nil config, got: %v", hints)
+	}
+}
+
+func TestConfigHints_NilModelNoHint(t *testing.T) {
+	cfg := &Config{} // Model is nil
+	if hints := configHints(cfg); len(hints) != 0 {
+		t.Errorf("expected no hints when model is unset, got: %v", hints)
+	}
+}
+
+func TestConfigHints_EmptyShortIDFallsBack(t *testing.T) {
+	m := "anthropic/"
+	cfg := &Config{Model: &m}
+	hints := configHints(cfg)
+	if len(hints) != 1 {
+		t.Fatalf("expected 1 hint, got %d", len(hints))
+	}
+	if strings.Contains(hints[0], "model \"\"") {
+		t.Errorf("hint should not suggest empty model: %s", hints[0])
+	}
+}

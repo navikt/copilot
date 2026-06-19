@@ -107,8 +107,13 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" {
+		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
 		return fmt.Errorf("copilot cli not found")
 	}
+	if cliName == "cplt" {
+		PrintCpltSandboxHint()
+	}
+	PrintModelAvailabilityHint(resolved.Model)
 	args := BuildCopilotArgs(cliName, resolved)
 	displayName := CLIDisplayName(cliName)
 	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(CopilotAgentPersona))
@@ -122,9 +127,63 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		if !errors.As(err, &exitErr) {
 			fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", domain.Yellow("⚠"), displayName, err)
 		}
+		telemetryRecorder.RecordLaunchError("copilot", classifyLaunchError(err))
 		return err
 	}
 	return nil
+}
+
+// cpltSandboxHintShown tracks whether the cplt sandbox hint has been shown this session.
+var cpltSandboxHintShown bool
+
+// isTerminal returns true when stdin is a terminal (not piped/redirected).
+// Used to suppress informational hints in non-interactive contexts.
+func isTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+// PrintCpltSandboxHint prints a one-time tip about cplt sandbox configuration
+// for users who may not know how to configure cplt outside of nav-pilot.
+// Suppressed by NAV_PILOT_CPLT_HINT=0 or in non-interactive mode.
+func PrintCpltSandboxHint() {
+	if cpltSandboxHintShown || !isTerminal() {
+		return
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("NAV_PILOT_CPLT_HINT")), "0") {
+		return
+	}
+	cpltSandboxHintShown = true
+	fmt.Printf("%s Launching via cplt (Copilot Sandbox). Sandbox settings are managed by cplt, not nav-pilot.\n", domain.Dim("ℹ"))
+	fmt.Printf("  View current settings: %s\n", domain.Bold("cplt config list"))
+	fmt.Printf("  Change a setting:      %s\n", domain.Bold("cplt config set <key> <value>"))
+	fmt.Printf("  Suppress this hint:    set %s in your shell\n\n", domain.Bold("NAV_PILOT_CPLT_HINT=0"))
+}
+
+// PrintModelAvailabilityHint shows a note when a specific model is configured.
+// Warns on provider-qualified format (e.g. github-copilot/claude-sonnet-4.5)
+// and reminds users about org-level availability restrictions.
+func PrintModelAvailabilityHint(model string) {
+	if !isTerminal() {
+		return
+	}
+	if model == "" || model == "auto" {
+		return
+	}
+	if strings.Contains(model, "/") {
+		shortID := strings.SplitN(model, "/", 2)[1]
+		if shortID == "" {
+			shortID = model
+		}
+		fmt.Printf("%s Model %s is in provider-qualified format. nav-pilot translates it, but the canonical form is preferred: %s\n\n",
+			domain.Yellow("⚠"), domain.Bold(model), domain.Bold("nav-pilot config set model "+shortID))
+		return
+	}
+	fmt.Printf("%s Model: %s — if unavailable in your org, run: %s\n\n",
+		domain.Dim("ℹ"), domain.Bold(model), domain.Bold("nav-pilot config set model auto"))
 }
 
 // CopilotEnv returns the environment for launching cplt, injecting
