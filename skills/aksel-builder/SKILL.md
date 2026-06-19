@@ -143,7 +143,7 @@ time a task touches its domain — don't preload all of them.** All reference fi
 | Pick/build a component (form, modal, table, …)   | `components.md`        | `find_docs` → `get_component_info` → `get_doc` (usage) → build     |
 | Lay out / space / make responsive                | `primitives-layout.md` | build with primitives (`get_component_info` for a primitive's API) |
 | Color / token / spacing value / Tailwind styling | `tokens-styling.md`    | `get_token_details` (browse via `find_docs` `kind:"tokens"`)       |
-| Light/dark mode or base color                    | `theming.md`           | usually no call — `Theme` component                                |
+| Light/dark mode or base color                    | `theming.md`           | `find_docs` → `get_doc` (Theme) → build                            |
 | An icon                                          | `icons.md`             | `find_icons` → map `name` → `${name}Icon`                          |
 | Accessibility / labels / a11y review             | `accessibility.md`     | `get_component_info` to find the label/description props           |
 | Upgrade / codemod / “why is this deprecated?”    | `migrations.md`        | `find_docs` `kind:"migrations"`                                    |
