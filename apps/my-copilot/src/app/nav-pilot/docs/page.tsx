@@ -163,7 +163,7 @@ const COLLECTIONS = [
     details: {
       agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-spacing, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
+        "aksel-builder, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
         "code-review, deliberate-ai-use, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nais-manifest",
@@ -178,7 +178,7 @@ const COLLECTIONS = [
     details: {
       agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-spacing, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
+        "aksel-builder, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
         "code-review, deliberate-ai-use, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nextjs-api-route, nais-manifest",
@@ -193,7 +193,7 @@ const COLLECTIONS = [
     details: {
       agents: "accessibility, aksel, code-review, forfatter, research, security-champion, nav-pilot",
       skills:
-        "aksel-spacing, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, web-design-reviewer, nav-dekoratoren, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "aksel-builder, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, web-design-reviewer, nav-dekoratoren, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
         "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database, security-owasp",
       prompts:
