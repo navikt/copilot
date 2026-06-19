@@ -346,7 +346,7 @@ export default function Loading() {
 }
 
 // src/app/oversikt/error.tsx — shown on uncaught errors
-("use client");
+"use client";
 
 import { LocalAlert, Button, VStack } from "@navikt/ds-react";
 
