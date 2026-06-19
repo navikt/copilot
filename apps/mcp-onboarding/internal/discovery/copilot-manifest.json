@@ -656,7 +656,7 @@
       "type": "skill",
       "name": "aksel-builder",
       "displayName": "aksel-builder",
-      "description": "Lag responsive layouts med Aksel Design System v8: spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed, Show/Hide) og ResponsiveProp-mønsteret",
+      "description": "Ekspertbygger for Aksel. React-komponenter, design-tokens, layout-primitiver, theming (lys/mørk), ikoner, CSS, Tailwind-preset og versjonsmigreringer.",
       "filePath": ".github/skills/aksel-builder/SKILL.md",
       "contentHash": "cdc50ea10a01016fdd651e824b200111c98f755f215240073840c7e46f42b737",
       "installUrl": "",
