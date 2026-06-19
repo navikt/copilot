@@ -192,7 +192,6 @@ func PrintModelAvailabilityHint(model string) {
 func CopilotEnv(otelLogLevel string) []string {
 	copilotDir := userCopilotDir()
 	env := os.Environ()
-	changed := false
 	key := "COPILOT_CUSTOM_INSTRUCTIONS_DIRS"
 	if copilotDir != "" {
 		existing := telemetrypkg.LookupEnvValue(env, key)
@@ -211,24 +210,15 @@ func CopilotEnv(otelLogLevel string) []string {
 			}
 		}
 
-		var updated bool
-		env, updated = telemetrypkg.SetEnvValue(env, key, copilotDir)
-		changed = changed || updated
+		env, _ = telemetrypkg.SetEnvValue(env, key, copilotDir)
 	}
 
-	var otelUpdated bool
-	env, otelUpdated = telemetrypkg.ApplyCopilotOTelEnv(env, cliVersion)
-	changed = changed || otelUpdated
+	env, _ = telemetrypkg.ApplyCopilotOTelEnv(env, cliVersion)
 
 	if strings.TrimSpace(otelLogLevel) != "" {
-		var levelUpdated bool
-		env, levelUpdated = telemetrypkg.SetEnvIfAbsent(env, "OTEL_LOG_LEVEL", strings.TrimSpace(otelLogLevel))
-		changed = changed || levelUpdated
+		env, _ = telemetrypkg.SetEnvIfAbsent(env, "OTEL_LOG_LEVEL", strings.TrimSpace(otelLogLevel))
 	}
 
-	if !changed {
-		return nil
-	}
 	return env
 }
 
