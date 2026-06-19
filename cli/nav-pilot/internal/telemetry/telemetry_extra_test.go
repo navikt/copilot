@@ -226,4 +226,7 @@ func TestApplyOpenCodeOTelEnv(t *testing.T) {
 	if v := LookupEnvValue(env, "OPENCODE_CLIENT"); v != "nav-pilot" {
 		t.Errorf("OPENCODE_CLIENT = %q, want nav-pilot", v)
 	}
+	if got := LookupEnvValue(env, "OTEL_LOGS_EXPORTER"); got != "none" {
+		t.Errorf("OTEL_LOGS_EXPORTER = %q, want none", got)
+	}
 }

@@ -72,6 +72,21 @@ func TestApplyCopilotOTelEnv(t *testing.T) {
 		}
 	})
 
+	t.Run("disables log exporter", func(t *testing.T) {
+		env, _ := ApplyCopilotOTelEnv([]string{}, "dev")
+		if got := LookupEnvValue(env, "OTEL_LOGS_EXPORTER"); got != "none" {
+			t.Fatalf("OTEL_LOGS_EXPORTER = %q, want none", got)
+		}
+	})
+
+	t.Run("respects existing log exporter setting", func(t *testing.T) {
+		envIn := []string{"OTEL_LOGS_EXPORTER=otlp"}
+		envOut, _ := ApplyCopilotOTelEnv(envIn, "dev")
+		if got := LookupEnvValue(envOut, "OTEL_LOGS_EXPORTER"); got != "otlp" {
+			t.Fatalf("OTEL_LOGS_EXPORTER should not be overwritten: %q", got)
+		}
+	})
+
 	t.Run("preserves existing otel endpoint", func(t *testing.T) {
 		envIn := []string{"OTEL_EXPORTER_OTLP_ENDPOINT=https://already.example/v1/metrics"}
 		envOut, changed := ApplyCopilotOTelEnv(envIn, "dev")
