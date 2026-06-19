@@ -17,7 +17,7 @@ describe("getOfficialFileNames", () => {
     // Skills should be stored by directory name, not "SKILL.md"
     expect(names.has("SKILL.md")).toBe(false);
     expect(names.has("observability-setup")).toBe(true);
-    expect(names.has("aksel-spacing")).toBe(true);
+    expect(names.has("aksel-builder")).toBe(true);
   });
 
   it("includes instruction file basenames", () => {
