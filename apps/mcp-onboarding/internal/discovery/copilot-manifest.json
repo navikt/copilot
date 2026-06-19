@@ -447,7 +447,7 @@
         "ui"
       ],
       "filePath": ".github/instructions/nextjs-aksel.instructions.md",
-      "contentHash": "9283252e55829ca2a81fbd6965489cf8061c7fbcf2014c12f0691e0025b5983f",
+      "contentHash": "75e0932dfe465508ff386098b39ff0f6b4eeb8afedaea6e02c046d16eebcd823",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md"
     },
@@ -652,6 +652,54 @@
     }
   ],
   "skills": [
+    {
+      "type": "skill",
+      "name": "aksel-builder",
+      "displayName": "aksel-builder",
+      "description": "Lag responsive layouts med Aksel Design System v8: spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed, Show/Hide) og ResponsiveProp-mønsteret",
+      "filePath": ".github/skills/aksel-builder/SKILL.md",
+      "contentHash": "cdc50ea10a01016fdd651e824b200111c98f755f215240073840c7e46f42b737",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/SKILL.md",
+      "references": [
+        {
+          "path": "references/accessibility.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/accessibility.md"
+        },
+        {
+          "path": "references/components.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/components.md"
+        },
+        {
+          "path": "references/icons.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/icons.md"
+        },
+        {
+          "path": "references/mcp-workflow.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/mcp-workflow.md"
+        },
+        {
+          "path": "references/migrations.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/migrations.md"
+        },
+        {
+          "path": "references/primitives-layout.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/primitives-layout.md"
+        },
+        {
+          "path": "references/setup-and-imports.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/setup-and-imports.md"
+        },
+        {
+          "path": "references/theming.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/theming.md"
+        },
+        {
+          "path": "references/tokens-styling.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/tokens-styling.md"
+        }
+      ]
+    },
     {
       "type": "skill",
       "name": "aksel-spacing",

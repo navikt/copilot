@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-12T11:33:58.975Z",
+  "generatedAt": "2026-06-19T11:19:52.081Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -789,7 +789,7 @@
       "domain": "frontend",
       "filePath": ".github/instructions/nextjs-aksel.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
-      "contentHash": "9283252e55829ca2a81fbd6965489cf8061c7fbcf2014c12f0691e0025b5983f",
+      "contentHash": "75e0932dfe465508ff386098b39ff0f6b4eeb8afedaea6e02c046d16eebcd823",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "applyTo": "src/**/*.{tsx,ts}",
@@ -1014,6 +1014,78 @@
       "collections": ["fullstack", "kotlin-backend"]
     },
     {
+      "id": "aksel-builder",
+      "name": "aksel-builder",
+      "description": "Expert builder for the Aksel design system (Nav / @navikt) React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, and version migrations. Trigger on any frontend UI task that mentions Aksel, Nav/Navikt, \"designsystemet\", or @navikt ds-* / @navikt/aksel-* packages — or that asks to add, create, build, or refactor a component (button, input, modal, table, alert, card, form) or layout. Strong signals \"using/with aksel\", \"@navikt/ds-react\", \"design system\". If the work is frontend UI and there is any Aksel signal, invoke this skill unless the user explicitly opts out.",
+      "type": "skill",
+      "domain": "frontend",
+      "filePath": ".github/skills/aksel-builder/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/SKILL.md",
+      "contentHash": "cdc50ea10a01016fdd651e824b200111c98f755f215240073840c7e46f42b737",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": [
+        "aksel",
+        "design-system",
+        "nav",
+        "react",
+        "spacing",
+        "tokens",
+        "layout",
+        "responsive",
+        "primitives",
+        "icons",
+        "tailwind"
+      ],
+      "examples": [
+        "Sett opp et frontend-prosjekt med Aksel",
+        "Lag en responsiv to-kolonne layout med HGrid",
+        "Bygg en mobil-first sidelayout med Page.Block og VStack",
+        "Sett riktig padding med space-tokens - hva er space-16 i v8?",
+        "Migrer app fra aksel v7 til v8",
+        "Hvilket ikon skal jeg bruke for en 'tilbake-knapp'?"
+      ],
+      "references": [
+        {
+          "path": "references/accessibility.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/accessibility.md"
+        },
+        {
+          "path": "references/components.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/components.md"
+        },
+        {
+          "path": "references/icons.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/icons.md"
+        },
+        {
+          "path": "references/mcp-workflow.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/mcp-workflow.md"
+        },
+        {
+          "path": "references/migrations.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/migrations.md"
+        },
+        {
+          "path": "references/primitives-layout.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/primitives-layout.md"
+        },
+        {
+          "path": "references/setup-and-imports.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/setup-and-imports.md"
+        },
+        {
+          "path": "references/theming.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/theming.md"
+        },
+        {
+          "path": "references/tokens-styling.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/tokens-styling.md"
+        }
+      ],
+      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+    },
+    {
       "id": "aksel-spacing",
       "name": "aksel-spacing",
       "description": "Lag responsive layouts med Aksel Design System (v8+) - spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed) og ResponsiveProp",
@@ -1031,8 +1103,7 @@
         "Lag et kortgrid som går fra 1 til 3 kolonner på tvers av breakpoints",
         "Bruk Bleed til å la et banner strekke seg forbi container-padding",
         "Sett riktig padding med space-tokens - hva er space-16 i v8?"
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "api-design",

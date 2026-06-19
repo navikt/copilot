@@ -1,15 +1,10 @@
 ---
 name: aksel-builder
-description: >
-  Expert builder for the Aksel design system (Nav / @navikt): React components,
-  design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind
-  preset, and version migrations. Trigger on any frontend UI task that mentions
-  Aksel, Nav/Navikt, "designsystemet", or @navikt/ds-* / @navikt/aksel-* packages —
-  or that asks to add, create, build, or refactor a component (button, input, modal,
-  table, alert, card, form) or layout. Strong signals: "using/with aksel",
-  "@navikt/ds-react", "design system". If the work is frontend UI and there is any
-  Aksel signal, invoke this skill unless the user explicitly opts out.
+description: Expert builder for the Aksel design system (Nav / @navikt) React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, and version migrations. Trigger on any frontend UI task that mentions Aksel, Nav/Navikt, "designsystemet", or @navikt ds-* / @navikt/aksel-* packages — or that asks to add, create, build, or refactor a component (button, input, modal, table, alert, card, form) or layout. Strong signals "using/with aksel", "@navikt/ds-react", "design system". If the work is frontend UI and there is any Aksel signal, invoke this skill unless the user explicitly opts out.
 license: MIT
+metadata:
+  domain: frontend
+  tags: aksel design-system nav react spacing tokens layout responsive primitives icons tailwind
 ---
 
 # Aksel design system skill
