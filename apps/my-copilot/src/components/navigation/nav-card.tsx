@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, VStack, Heading } from "@navikt/ds-react";
+import { LinkCard } from "@navikt/ds-react";
+import { LinkCardAnchor, LinkCardDescription, LinkCardIcon, LinkCardTitle } from "@navikt/ds-react/LinkCard";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
 
@@ -16,18 +17,16 @@ export function NavCard({ href, icon, title, description, external = false }: Na
   const linkProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
 
   return (
-    <Box borderColor="neutral" borderWidth="1" borderRadius="8" padding="space-16" asChild>
-      <NextLink href={href} {...linkProps} className="no-underline hover:shadow-md transition-shadow">
-        <VStack gap="space-8">
-          <Heading size="xsmall" level="3">
-            <span className="flex items-center gap-2">
-              {icon}
-              {title}
-            </span>
-          </Heading>
-          <span className="text-text-subtle text-sm">{description}</span>
-        </VStack>
-      </NextLink>
-    </Box>
+    <LinkCard arrow={false} size="small">
+      <LinkCardIcon>{icon}</LinkCardIcon>
+      <LinkCardTitle>
+        <LinkCardAnchor asChild>
+          <NextLink href={href} {...linkProps}>
+            {title}
+          </NextLink>
+        </LinkCardAnchor>
+      </LinkCardTitle>
+      <LinkCardDescription>{description}</LinkCardDescription>
+    </LinkCard>
   );
 }
