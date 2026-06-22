@@ -130,15 +130,45 @@
   }
 }
 
+.news-card {
+  position: relative;
+  overflow: clip;
+
+  --news-card-border-color: ;
+
+  &:focus-visible {
+    outline: 3px solid var(--ax-border-focus);
+    outline-offset: 3px;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--news-card-border-color);
+
+    transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  &:hover::after {
+    width: 6px;
+  }
+}
+
 /* Category-colored left borders for news cards */
 .news-card-copilot {
-  border-left: 3px solid #2563eb;
+  --news-card-border-color: var(--ax-border-accent);
 }
+
 .news-card-nav {
-  border-left: 3px solid #15803d;
+  --news-card-border-color: var(--ax-border-success);
 }
+
 .news-card-praksis {
-  border-left: 3px solid #d97706;
+  --news-card-border-color: var(--ax-border-warning);
 }
 
 /* News card hover lift */

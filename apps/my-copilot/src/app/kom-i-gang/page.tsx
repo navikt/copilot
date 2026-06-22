@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
-import { Box, VStack, Heading, BodyShort, BodyLong, Link, HGrid } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
+import { BodyLong, BodyShort, Box, Heading, HGrid, Link, LinkCard, Process, ReadMore, VStack } from "@navikt/ds-react";
+import { LinkCardAnchor, LinkCardDescription, LinkCardTitle } from "@navikt/ds-react/LinkCard";
+import { ProcessEvent } from "@navikt/ds-react/Process";
+import type { Metadata } from "next";
 import NextLink from "next/link";
-import { ArrowRightIcon } from "@navikt/aksel-icons";
 
 export const metadata: Metadata = {
   title: "Kom i gang",
@@ -19,14 +20,20 @@ export default function KomIGangPage() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <div className="max-w-2xl mx-auto">
-            <VStack gap="space-32">
-              <Step number={1} title="Aktiver tilgang">
+            <Process data-color="accent">
+              <ProcessEvent status="completed" bullet={1} title="Aktiver tilgang">
                 <VStack gap="space-8">
                   <BodyLong>
                     Alle utviklere i navikt-organisasjonen kan gi seg selv tilgang til GitHub Copilot Business. Det tar
                     under ett minutt og krever ingen godkjenning.
                   </BodyLong>
-                  <Box background="info-soft" padding="space-12" borderRadius="8">
+                  <Box
+                    background="info-soft"
+                    borderWidth="1"
+                    borderColor="info-subtleA"
+                    padding="space-12"
+                    borderRadius="8"
+                  >
                     <VStack gap="space-4">
                       <BodyShort size="small" weight="semibold">
                         Slik aktiverer du:
@@ -79,9 +86,8 @@ export default function KomIGangPage() {
                     </VStack>
                   </Box>
                 </VStack>
-              </Step>
-
-              <Step number={2} title="Installer verktøyene">
+              </ProcessEvent>
+              <ProcessEvent status="completed" bullet={2} title="Installer verktøyene">
                 <VStack gap="space-12">
                   <Box background="neutral-soft" padding="space-16" borderRadius="8">
                     <VStack gap="space-8">
@@ -104,75 +110,75 @@ export default function KomIGangPage() {
                     </VStack>
                   </Box>
 
-                  <details className="group">
-                    <summary className="cursor-pointer text-sm text-blue-600 hover:underline list-none flex items-center gap-1">
-                      <span className="group-open:rotate-90 transition-transform">▶</span>
-                      Andre plattformer og editorer
-                    </summary>
-                    <div className="mt-4">
-                      <HGrid columns={{ xs: 1, md: 3 }} gap="space-12">
-                        <Box background="neutral-soft" padding="space-12" borderRadius="8">
-                          <VStack gap="space-4">
-                            <Heading size="xsmall" level="4">
-                              Linux
-                            </Heading>
-                            <BodyShort size="small">
-                              Se{" "}
-                              <Link
-                                href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                GitHub Copilot CLI install docs
-                              </Link>{" "}
-                              for Linux-instruksjoner. Installer deretter nav-pilot via Go eller nedlasting.
-                            </BodyShort>
-                          </VStack>
-                        </Box>
-                        <Box background="neutral-soft" padding="space-12" borderRadius="8">
-                          <VStack gap="space-4">
-                            <Heading size="xsmall" level="4">
-                              JetBrains
-                            </Heading>
-                            <BodyShort size="small">
-                              Installer &laquo;GitHub Copilot&raquo;-plugin fra Marketplace. Restart IDE-en og logg inn
-                              med GitHub.
-                            </BodyShort>
-                          </VStack>
-                        </Box>
-                        <Box background="neutral-soft" padding="space-12" borderRadius="8">
-                          <VStack gap="space-4">
-                            <Heading size="xsmall" level="4">
-                              Windows
-                            </Heading>
-                            <BodyShort size="small">
-                              Installer via{" "}
-                              <code className="bg-white/50 px-1 rounded">winget install GitHub.Copilot</code> eller se{" "}
-                              <Link
-                                href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                install docs
-                              </Link>
-                              .
-                            </BodyShort>
-                          </VStack>
-                        </Box>
-                      </HGrid>
-                    </div>
-                  </details>
+                  <ReadMore header="Andre plattformer og editorer" size="small" variant="ghost">
+                    <HGrid columns={{ xs: 1, md: 3 }} gap="space-12">
+                      <Box background="neutral-soft" padding="space-12" borderRadius="8">
+                        <VStack gap="space-4">
+                          <Heading size="xsmall" level="4">
+                            Linux
+                          </Heading>
+                          <BodyShort size="small">
+                            Se{" "}
+                            <Link
+                              href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              GitHub Copilot CLI install docs
+                            </Link>{" "}
+                            for Linux-instruksjoner. Installer deretter nav-pilot via Go eller nedlasting.
+                          </BodyShort>
+                        </VStack>
+                      </Box>
+                      <Box background="neutral-soft" padding="space-12" borderRadius="8">
+                        <VStack gap="space-4">
+                          <Heading size="xsmall" level="4">
+                            JetBrains
+                          </Heading>
+                          <BodyShort size="small">
+                            Installer &laquo;GitHub Copilot&raquo;-plugin fra Marketplace. Restart IDE-en og logg inn
+                            med GitHub.
+                          </BodyShort>
+                        </VStack>
+                      </Box>
+                      <Box background="neutral-soft" padding="space-12" borderRadius="8">
+                        <VStack gap="space-4">
+                          <Heading size="xsmall" level="4">
+                            Windows
+                          </Heading>
+                          <BodyShort size="small">
+                            Installer via{" "}
+                            <code className="bg-white/50 px-1 rounded">winget install GitHub.Copilot</code> eller se{" "}
+                            <Link
+                              href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              install docs
+                            </Link>
+                            .
+                          </BodyShort>
+                        </VStack>
+                      </Box>
+                    </HGrid>
+                  </ReadMore>
 
-                  <Box background="info-soft" padding="space-12" borderRadius="8">
+                  <Box
+                    background="info-soft"
+                    borderWidth="1"
+                    borderColor="info-subtleA"
+                    padding="space-12"
+                    borderRadius="8"
+                  >
                     <BodyShort size="small">
                       <strong>Verifiser:</strong> Åpne en fil og begynn å skrive. Ser du et grått forslag? Trykk{" "}
                       <code className="bg-white/50 px-1 rounded">Tab</code> for å godta — da fungerer Copilot.
                     </BodyShort>
                   </Box>
                 </VStack>
-              </Step>
+              </ProcessEvent>
 
-              <Step number={3} title="Sett opp nav-pilot i repoet">
+              <ProcessEvent status="completed" bullet={3} title="Sett opp nav-pilot i repoet">
                 <VStack gap="space-8">
                   <BodyLong>
                     nav-pilot er et <strong>CLI-verktøy</strong> og en <strong>AI-agent</strong>. CLI-et installerer
@@ -207,9 +213,9 @@ export default function KomIGangPage() {
                     </VStack>
                   </Box>
                 </VStack>
-              </Step>
+              </ProcessEvent>
 
-              <Step number={4} title="Din første samtale med @nav-pilot">
+              <ProcessEvent status="completed" bullet={4} title="Din første samtale med @nav-pilot">
                 <VStack gap="space-8">
                   <BodyLong>
                     Åpne Copilot Chat og start en samtale med{" "}
@@ -258,9 +264,9 @@ export default function KomIGangPage() {
                     og teamets mønstre.
                   </BodyShort>
                 </VStack>
-              </Step>
+              </ProcessEvent>
 
-              <Step number={5} title="Neste steg" isLast>
+              <ProcessEvent bullet={5} status="completed" title="Neste steg">
                 <VStack gap="space-12">
                   <BodyLong>Du er i gang! Her er veien videre:</BodyLong>
                   <HGrid columns={{ xs: 1, md: 2 }} gap="space-12">
@@ -287,43 +293,12 @@ export default function KomIGangPage() {
                     />
                   </HGrid>
                 </VStack>
-              </Step>
-            </VStack>
+              </ProcessEvent>
+            </Process>
           </div>
         </Box>
       </div>
     </main>
-  );
-}
-
-function Step({
-  number,
-  title,
-  children,
-  isLast = false,
-}: {
-  number: number;
-  title: string;
-  children: React.ReactNode;
-  isLast?: boolean;
-}) {
-  return (
-    <div className="relative flex gap-6">
-      {/* Vertical line + number badge */}
-      <div className="flex flex-col items-center">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold shrink-0">
-          {number}
-        </div>
-        {!isLast && <div className="w-0.5 flex-1 bg-blue-200 mt-2" />}
-      </div>
-      {/* Content */}
-      <div className="flex-1 pb-4">
-        <Heading size="small" level="2" className="mb-3">
-          {title}
-        </Heading>
-        {children}
-      </div>
-    </div>
   );
 }
 
@@ -338,38 +313,20 @@ function NextStepCard({
   description: string;
   external?: boolean;
 }) {
-  const isExternal = external;
+  const LinkComponent = external ? NextLink : Link;
 
-  const content = (
-    <Box
-      background="neutral-soft"
-      padding="space-12"
-      borderRadius="8"
-      className="h-full hover:bg-gray-200 transition-colors"
-    >
-      <VStack gap="space-4">
-        <div className="flex items-center gap-2">
-          <Heading size="xsmall" level="3">
-            {title}
-          </Heading>
-          <ArrowRightIcon aria-hidden fontSize="1rem" />
-        </div>
-        <BodyShort size="small">{description}</BodyShort>
-      </VStack>
-    </Box>
-  );
-
-  if (isExternal) {
-    return (
-      <Link href={href} target="_blank" rel="noopener noreferrer" className="no-underline">
-        {content}
-      </Link>
-    );
-  }
+  const props = external ? {} : { target: "_blank", rel: "noopener noreferrer" };
 
   return (
-    <NextLink href={href} className="no-underline">
-      {content}
-    </NextLink>
+    <LinkCard size="small">
+      <LinkCardTitle>
+        <LinkCardAnchor asChild>
+          <LinkComponent href={href} {...props}>
+            {title}
+          </LinkComponent>
+        </LinkCardAnchor>
+      </LinkCardTitle>
+      <LinkCardDescription>{description}</LinkCardDescription>
+    </LinkCard>
   );
 }

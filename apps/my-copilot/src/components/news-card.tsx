@@ -40,7 +40,7 @@ export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) 
 
   return (
     <Box
-      borderColor="neutral"
+      borderColor="neutral-subtleA"
       borderWidth="1"
       borderRadius={isWide ? "12" : "8"}
       padding={isWide ? { xs: "space-20", md: "space-24" } : "space-16"}
@@ -50,11 +50,11 @@ export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) 
       <NextLink
         href={href}
         {...linkProps}
-        className={`no-underline hover:shadow-md transition-shadow news-card-${item.category}`}
+        className={`no-underline hover:shadow-md transition-shadow news-card news-card-${item.category}`}
       >
         <div className="flex flex-col gap-3 h-full">
           <HStack gap="space-4" align="center" wrap>
-            <Tag size="small" variant={categoryConfig.variant}>
+            <Tag size="xsmall" data-color={categoryConfig.variant} variant="moderate">
               {categoryConfig.label}
             </Tag>
             <BodyShort size="small" className="text-text-subtle">
@@ -86,10 +86,14 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
 
   return (
     <Box background="neutral-soft" borderRadius="12" padding={{ xs: "space-20", md: "space-32" }} asChild>
-      <NextLink href={href} {...linkProps} className="no-underline hover:shadow-lg transition-shadow featured-card">
+      <NextLink
+        href={href}
+        {...linkProps}
+        className="no-underline hover:shadow-lg transition-shadow featured-card news-card"
+      >
         <div className="flex flex-col gap-5">
           <HStack gap="space-4" align="center" wrap>
-            <Tag size="small" variant={categoryConfig.variant}>
+            <Tag size="xsmall" data-color={categoryConfig.variant} variant="moderate">
               {categoryConfig.label}
             </Tag>
             <BodyShort size="small" className="text-text-subtle">
