@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-12T11:33:58.975Z",
+  "generatedAt": "2026-06-22T07:43:12.526Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -38,12 +38,12 @@
     {
       "id": "aksel-agent",
       "name": "aksel-agent",
-      "description": "Navs Aksel Design System (v8+) — komponenter, tokens, layout, theming og tilgjengelighet",
+      "description": "Ekspert på Navs Aksel designsystem (v8+) — bygger og refaktorerer UI med @navikt/ds-react, tokens, layout-primitives, theming, versjon/migrering og tilgjengelighet, og oversetter Figma-design til Aksel-kode. Drevet av aksel-builder-skillen og Aksel MCP som fasit.",
       "type": "agent",
       "domain": "frontend",
       "filePath": ".github/agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/aksel.agent.md",
-      "contentHash": "5619d05aa37ec8f9d74020d52a39607b2b55e89b72f78bf77a1eeb399865226f",
+      "contentHash": "d1902466428183871088be989986cc983451cb35ace8b716482f0d6260e491a7",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fagents%2Faksel.agent.md",
       "tools": [
@@ -54,12 +54,14 @@
         "web",
         "todo",
         "ms-vscode.vscode-websearchforcopilot/websearch",
+        "io.github.navikt/aksel-mcp/aksel_find_docs",
+        "io.github.navikt/aksel-mcp/aksel_get_doc",
+        "io.github.navikt/aksel-mcp/aksel_get_component_info",
+        "io.github.navikt/aksel-mcp/aksel_get_token_details",
+        "io.github.navikt/aksel-mcp/aksel_find_icons",
         "com.figma/figma-mcp/get_design_context",
-        "com.figma/figma-mcp/get_screenshot",
         "com.figma/figma-mcp/get_metadata",
         "com.figma/figma-mcp/get_variable_defs",
-        "com.figma/figma-mcp/get_code_connect_map",
-        "com.figma/figma-mcp/get_code_connect_suggestions",
         "io.github.navikt/github-mcp/get_file_contents",
         "io.github.navikt/github-mcp/search_code",
         "io.github.navikt/github-mcp/search_repositories",
@@ -84,7 +86,11 @@
         "layout",
         "responsive",
         "tilgjengelighet",
-        "tailwind"
+        "tailwind",
+        "theming",
+        "icons",
+        "migration",
+        "mcp"
       ],
       "examples": [
         {
@@ -100,8 +106,12 @@
           "scenario": "Varselhåndtering v8"
         },
         {
-          "prompt": "@aksel-agent Lag en ActionMenu for en tabellrad med rediger og slett",
-          "scenario": "ActionMenu i tabell"
+          "prompt": "@aksel-agent Hvilket token bruker jeg for bakgrunn, og hva er verdien?",
+          "scenario": "Token-oppslag via MCP"
+        },
+        {
+          "prompt": "@aksel-agent Oppgrader denne komponenten til v8 og kjør riktig codemod",
+          "scenario": "Migrering / codemod"
         }
       ]
     },
@@ -789,7 +799,7 @@
       "domain": "frontend",
       "filePath": ".github/instructions/nextjs-aksel.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
-      "contentHash": "9283252e55829ca2a81fbd6965489cf8061c7fbcf2014c12f0691e0025b5983f",
+      "contentHash": "75e0932dfe465508ff386098b39ff0f6b4eeb8afedaea6e02c046d16eebcd823",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Finstructions%2Fnextjs-aksel.instructions.md",
       "applyTo": "src/**/*.{tsx,ts}",
@@ -1014,6 +1024,83 @@
       "collections": ["fullstack", "kotlin-backend"]
     },
     {
+      "id": "aksel-builder",
+      "name": "aksel-builder",
+      "description": "Expert builder for the Aksel design system (Nav / @navikt) React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, version migrations, and Figma-to-code. Trigger on any frontend UI task that mentions Aksel, Nav/Navikt, \"designsystemet\", or @navikt/ds-* / @navikt/aksel-* packages — or that asks to add, create, build, or refactor a component (button, input, modal, table, alert, card, form) or layout, or to implement a design from Figma (a pasted figma.com/design/...?node-id link, \"implement this design\", \"build this from Figma\", design-to-code). Strong signals \"using/with aksel\", \"@navikt/ds-react\", \"design system\", a pasted figma.com link. If the work is frontend UI and there is any Aksel signal, invoke this skill unless the user explicitly opts out.",
+      "type": "skill",
+      "domain": "frontend",
+      "filePath": ".github/skills/aksel-builder/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/SKILL.md",
+      "contentHash": "1871996def98bd4c5a41c72291bdde3ade9c41d8ce2bbd8400a543c774acf5e3",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": [
+        "aksel",
+        "design-system",
+        "nav",
+        "react",
+        "spacing",
+        "tokens",
+        "layout",
+        "responsive",
+        "primitives",
+        "icons",
+        "tailwind"
+      ],
+      "examples": [
+        "Sett opp et frontend-prosjekt med Aksel",
+        "Lag en responsiv to-kolonne layout med HGrid",
+        "Bygg en mobil-first sidelayout med Page.Block og VStack",
+        "Sett riktig padding med space-tokens - hva er space-16 i v8?",
+        "Migrer app fra aksel v7 til v8",
+        "Hvilket ikon skal jeg bruke for en 'tilbake-knapp'?",
+        "Konverter denne figma-skissen til frontend-kode med Aksel-komponenter"
+      ],
+      "references": [
+        {
+          "path": "references/accessibility.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/accessibility.md"
+        },
+        {
+          "path": "references/components.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/components.md"
+        },
+        {
+          "path": "references/icons.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/icons.md"
+        },
+        {
+          "path": "references/mcp-workflow.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/mcp-workflow.md"
+        },
+        {
+          "path": "references/migrations.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/migrations.md"
+        },
+        {
+          "path": "references/primitives-layout.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/primitives-layout.md"
+        },
+        {
+          "path": "references/setup-and-imports.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/setup-and-imports.md"
+        },
+        {
+          "path": "references/theming.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/theming.md"
+        },
+        {
+          "path": "references/tokens-styling.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/tokens-styling.md"
+        },
+        {
+          "path": "references/figma-to-code.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/figma-to-code.md"
+        }
+      ],
+      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+    },
+    {
       "id": "aksel-spacing",
       "name": "aksel-spacing",
       "description": "Lag responsive layouts med Aksel Design System (v8+) - spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed) og ResponsiveProp",
@@ -1031,8 +1118,7 @@
         "Lag et kortgrid som går fra 1 til 3 kolonner på tvers av breakpoints",
         "Bruk Bleed til å la et banner strekke seg forbi container-padding",
         "Sett riktig padding med space-tokens - hva er space-16 i v8?"
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "api-design",

@@ -45,7 +45,7 @@
 | flyway-migration | Databasemigrasjoner med Flyway | Scaffolding |
 | api-design | REST API-mønstre, RFC 7807, OpenAPI | Scaffolding |
 | tokenx-auth | TokenX token exchange-implementasjon | Scaffolding |
-| aksel-spacing | Responsive layouts med spacing tokens | Frontend |
+| aksel-builder | Responsive layouts med spacing tokens | Frontend |
 | playwright-testing | E2E-tester med page objects og a11y | Testing |
 | conventional-commit | Commit-meldinger med Nav-scopes | Workflow |
 | ai-news-research | Månedlige AI-nyhetsoppsummeringer | Innhold |

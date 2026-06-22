@@ -82,7 +82,7 @@ Partitioned by `scan_date`, clustered on `(org, has_any_customization, primary_l
   },
   "skills": {
     "exists": true,
-    "files": ["aksel-spacing", "flyway-migration", "kotlin-app-config"]
+    "files": ["aksel-builder", "flyway-migration", "kotlin-app-config"]
   },
   "prompts": { "exists": false },
   "cursorrules": { "exists": false },

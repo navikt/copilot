@@ -103,7 +103,7 @@ const COLLECTIONS = [
     <Heading level="1" size="large">`,
     contents: {
       agents: ["accessibility", "aksel", "code-review", "forfatter", "nav-pilot"],
-      skills: ["aksel-spacing", "playwright-testing", "web-design-reviewer", "conventional-commit", "readme-review"],
+      skills: ["aksel-builder", "playwright-testing", "web-design-reviewer", "conventional-commit", "readme-review"],
     },
   },
   {
@@ -122,7 +122,7 @@ const COLLECTIONS = [
     contents: {
       agents: ["accessibility", "aksel", "code-review", "forfatter", "research", "security-champion", "nav-pilot"],
       skills: [
-        "aksel-spacing",
+        "aksel-builder",
         "api-design",
         "kafka",
         "ktor-scaffold",
