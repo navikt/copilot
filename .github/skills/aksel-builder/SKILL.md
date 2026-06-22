@@ -1,10 +1,10 @@
 ---
 name: aksel-builder
-description: Expert builder for the Aksel design system (Nav / @navikt) React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, and version migrations. Trigger on any frontend UI task that mentions Aksel, Nav/Navikt, "designsystemet", or @navikt ds-* / @navikt/aksel-* packages — or that asks to add, create, build, or refactor a component (button, input, modal, table, alert, card, form) or layout. Strong signals "using/with aksel", "@navikt/ds-react", "design system". If the work is frontend UI and there is any Aksel signal, invoke this skill unless the user explicitly opts out.
+description: Expert builder for the Aksel design system (Nav / @navikt) React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, version migrations, and Figma-to-code. Trigger on any frontend UI task that mentions Aksel, Nav/Navikt, "designsystemet", or @navikt/ds-* / @navikt/aksel-* packages — or that asks to add, create, build, or refactor a component (button, input, modal, table, alert, card, form) or layout, or to implement a design from Figma (a pasted figma.com/design/...?node-id link, "implement this design", "build this from Figma", design-to-code). Strong signals "using/with aksel", "@navikt/ds-react", "design system", a pasted figma.com link. If the work is frontend UI and there is any Aksel signal, invoke this skill unless the user explicitly opts out.
 license: MIT
 metadata:
   domain: frontend
-  tags: aksel design-system nav react spacing tokens layout responsive primitives icons tailwind
+  tags: aksel design-system nav react spacing tokens layout responsive primitives icons tailwind figma figma-to-code design-to-code
 ---
 
 # Aksel design system skill
@@ -53,7 +53,7 @@ reconstruct from memory.
 
 ```
 "io.github.navikt/aksel-mcp": {
-	"type": "http",
+	"type": "streamable-http",
 	"url": "https://aksel-mcp.nav.no/mcp",
 	"gallery": "https://mcp-registry.nav.no",
 	"version": "1.0.0"
@@ -138,17 +138,18 @@ time a task touches its domain — don't preload all of them.** All reference fi
 
 **Then branch by intent** (reference to load → tools to call):
 
-| If the task is…                                  | Load                   | Then call                                                          |
-| ------------------------------------------------ | ---------------------- | ------------------------------------------------------------------ |
-| Pick/build a component (form, modal, table, …)   | `components.md`        | `find_docs` → `get_component_info` → `get_doc` (usage) → build     |
-| Lay out / space / make responsive                | `primitives-layout.md` | build with primitives (`get_component_info` for a primitive's API) |
-| Color / token / spacing value / Tailwind styling | `tokens-styling.md`    | `get_token_details` (browse via `find_docs` `kind:"tokens"`)       |
-| Light/dark mode or base color                    | `theming.md`           | `find_docs` → `get_doc` (Theme) → build                            |
-| An icon                                          | `icons.md`             | `find_icons` → map `name` → `${name}Icon`                          |
-| Accessibility / labels / a11y review             | `accessibility.md`     | `get_component_info` to find the label/description props           |
-| Upgrade / codemod / “why is this deprecated?”    | `migrations.md`        | `find_docs` `kind:"migrations"`                                    |
-| Project setup / imports / packages / SSR         | `setup-and-imports.md` | `find_docs` `kind:"docs"` (`"kom i gang"`)                         |
-| A tool call misbehaves / returns nothing         | `mcp-workflow.md`      | re-route per its recovery tables                                   |
+| If the task is…                                  | Load                   | Then call                                                                                        |
+| ------------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------ |
+| Pick/build a component (form, modal, table, …)   | `components.md`        | `find_docs` → `get_component_info` → `get_doc` (usage) → build                                   |
+| Implement a **Figma design** → Aksel code        | `figma-to-code.md`     | Figma MCP (`get_design_context`/`get_screenshot`) → map to Aksel via the `aksel_*` tools → build |
+| Lay out / space / make responsive                | `primitives-layout.md` | build with primitives (`get_component_info` for a primitive's API)                               |
+| Color / token / spacing value / Tailwind styling | `tokens-styling.md`    | `get_token_details` (browse via `find_docs` `kind:"tokens"`)                                     |
+| Light/dark mode or base color                    | `theming.md`           | usually no call — `Theme` component                                                              |
+| An icon                                          | `icons.md`             | `find_icons` → map `name` → `${name}Icon`                                                        |
+| Accessibility / labels / a11y review             | `accessibility.md`     | `get_component_info` to find the label/description props                                         |
+| Upgrade / codemod / “why is this deprecated?”    | `migrations.md`        | `find_docs` `kind:"migrations"`                                                                  |
+| Project setup / imports / packages / SSR         | `setup-and-imports.md` | `find_docs` `kind:"docs"` (`"kom i gang"`)                                                       |
+| A tool call misbehaves / returns nothing         | `mcp-workflow.md`      | re-route per its recovery tables                                                                 |
 
 **Complex tasks chain branches.** “Dark-mode contact form with a trash icon” touches
 `components.md` + `tokens-styling.md` + `theming.md` + `icons.md` + `accessibility.md` —
@@ -168,6 +169,7 @@ contains_. Load on demand to keep context small.
 - [references/tokens-styling.md](references/tokens-styling.md) — token-props vs `--ax-` variables, color roles, styling discipline, Tailwind preset.
 - [references/theming.md](references/theming.md) — light/dark mode, the `Theme` component, `data-color`.
 - [references/components.md](references/components.md) — choosing the right component; form & composition patterns.
+- [references/figma-to-code.md](references/figma-to-code.md) — Figma → Aksel code: Code Connect, confidence matrix, HTML→primitive/token mapping, validation. Needs the Figma MCP.
 - [references/icons.md](references/icons.md) — finding icons, `name` → `${name}Icon`, sizing, a11y.
 - [references/accessibility.md](references/accessibility.md) — required a11y props, semantic structure, Norwegian content.
 - [references/migrations.md](references/migrations.md) — upgrading versions, codemods, v7→v8 highlights.

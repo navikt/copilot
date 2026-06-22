@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-22T07:40:44.138Z",
+  "generatedAt": "2026-06-22T07:43:12.526Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1026,12 +1026,12 @@
     {
       "id": "aksel-builder",
       "name": "aksel-builder",
-      "description": "Expert builder for the Aksel design system (Nav / @navikt) React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, and version migrations. Trigger on any frontend UI task that mentions Aksel, Nav/Navikt, \"designsystemet\", or @navikt ds-* / @navikt/aksel-* packages — or that asks to add, create, build, or refactor a component (button, input, modal, table, alert, card, form) or layout. Strong signals \"using/with aksel\", \"@navikt/ds-react\", \"design system\". If the work is frontend UI and there is any Aksel signal, invoke this skill unless the user explicitly opts out.",
+      "description": "Expert builder for the Aksel design system (Nav / @navikt) React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, version migrations, and Figma-to-code. Trigger on any frontend UI task that mentions Aksel, Nav/Navikt, \"designsystemet\", or @navikt/ds-* / @navikt/aksel-* packages — or that asks to add, create, build, or refactor a component (button, input, modal, table, alert, card, form) or layout, or to implement a design from Figma (a pasted figma.com/design/...?node-id link, \"implement this design\", \"build this from Figma\", design-to-code). Strong signals \"using/with aksel\", \"@navikt/ds-react\", \"design system\", a pasted figma.com link. If the work is frontend UI and there is any Aksel signal, invoke this skill unless the user explicitly opts out.",
       "type": "skill",
       "domain": "frontend",
       "filePath": ".github/skills/aksel-builder/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/SKILL.md",
-      "contentHash": "2dbe34def3d4f2e8dddd3c7f3567289a190a16fd39a2e0e63052039fab0ca4e1",
+      "contentHash": "1871996def98bd4c5a41c72291bdde3ade9c41d8ce2bbd8400a543c774acf5e3",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": [
@@ -1053,7 +1053,8 @@
         "Bygg en mobil-first sidelayout med Page.Block og VStack",
         "Sett riktig padding med space-tokens - hva er space-16 i v8?",
         "Migrer app fra aksel v7 til v8",
-        "Hvilket ikon skal jeg bruke for en 'tilbake-knapp'?"
+        "Hvilket ikon skal jeg bruke for en 'tilbake-knapp'?",
+        "Konverter denne figma-skissen til frontend-kode med Aksel-komponenter"
       ],
       "references": [
         {
@@ -1091,6 +1092,10 @@
         {
           "path": "references/tokens-styling.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/tokens-styling.md"
+        },
+        {
+          "path": "references/figma-to-code.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/figma-to-code.md"
         }
       ],
       "collections": ["frontend", "fullstack", "nextjs-frontend"]

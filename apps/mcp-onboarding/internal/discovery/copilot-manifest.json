@@ -656,9 +656,9 @@
       "type": "skill",
       "name": "aksel-builder",
       "displayName": "aksel-builder",
-      "description": "Ekspertbygger for Aksel. React-komponenter, design-tokens, layout-primitiver, theming (lys/mørk), ikoner, CSS, Tailwind-preset og versjonsmigreringer.",
+      "description": "Ekspertbygger for Aksel. React-komponenter, design-tokens, layout-primitiver, theming (lys/mørk), ikoner, CSS, Tailwind-preset, versjonsmigreringer og design til kode.",
       "filePath": ".github/skills/aksel-builder/SKILL.md",
-      "contentHash": "2dbe34def3d4f2e8dddd3c7f3567289a190a16fd39a2e0e63052039fab0ca4e1",
+      "contentHash": "1871996def98bd4c5a41c72291bdde3ade9c41d8ce2bbd8400a543c774acf5e3",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/SKILL.md",
       "references": [
@@ -697,6 +697,10 @@
         {
           "path": "references/tokens-styling.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/tokens-styling.md"
+        },
+        {
+          "path": "references/figma-to-code.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-builder/references/figma-to-code.md"
         }
       ]
     },

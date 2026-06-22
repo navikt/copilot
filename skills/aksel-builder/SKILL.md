@@ -53,7 +53,7 @@ reconstruct from memory.
 
 ```
 "io.github.navikt/aksel-mcp": {
-	"type": "http",
+	"type": "streamable-http",
 	"url": "https://aksel-mcp.nav.no/mcp",
 	"gallery": "https://mcp-registry.nav.no",
 	"version": "1.0.0"
