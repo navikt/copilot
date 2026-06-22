@@ -1,7 +1,7 @@
 ---
 name: aksel-component
 description: Scaffold en responsiv React-komponent med Aksel Design System, riktige tokens og props verifisert via Aksel MCP / aksel-builder-skillen
-model: Gemini 3.5 Flash (copilot)
+model: Gemini 3.5 Flash
 ---
 
 You scaffold a new React component using Nav's Aksel design system (`@navikt/ds-react`, v8+).

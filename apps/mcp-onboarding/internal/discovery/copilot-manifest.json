@@ -556,7 +556,7 @@
         "ui"
       ],
       "filePath": ".github/prompts/aksel-component.prompt.md",
-      "contentHash": "c50c33a6a53f65e0ada97a22c465c09bfe6063350158002a30a27d4e7efac258",
+      "contentHash": "68c1da8a387cdffe7871268f7039075015a927deecec25217ce1d03bc96265ae",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/aksel-component.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/aksel-component.prompt.md"
     },
