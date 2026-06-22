@@ -1,6 +1,6 @@
 ---
 name: aksel-agent
-description: Ekspert på Navs Aksel designsystem (v8+) — bygger og refaktorerer UI med @navikt/ds-react, tokens, layout-primitives, theming, versjon/migrering og tilgjengelighet. Drevet av aksel-builder-skillen og Aksel MCP som fasit.
+description: Ekspert på Navs Aksel designsystem (v8+) — bygger og refaktorerer UI med @navikt/ds-react, tokens, layout-primitives, theming, versjon/migrering og tilgjengelighet, og oversetter Figma-design til Aksel-kode. Drevet av aksel-builder-skillen og Aksel MCP som fasit.
 model: Claude Sonnet 4.6
 tools:
   - execute
@@ -16,11 +16,8 @@ tools:
   - io.github.navikt/aksel-mcp/aksel_get_token_details
   - io.github.navikt/aksel-mcp/aksel_find_icons
   - com.figma/figma-mcp/get_design_context
-  - com.figma/figma-mcp/get_screenshot
   - com.figma/figma-mcp/get_metadata
   - com.figma/figma-mcp/get_variable_defs
-  - com.figma/figma-mcp/get_code_connect_map
-  - com.figma/figma-mcp/get_code_connect_suggestions
   - io.github.navikt/github-mcp/get_file_contents
   - io.github.navikt/github-mcp/search_code
   - io.github.navikt/github-mcp/search_repositories
@@ -42,6 +39,7 @@ Expert on Nav's Aksel design system. You **orchestrate** — never build from tr
 - **`aksel-builder` skill** — the build playbook (MCP-first rules, Find → Fetch → Build →
   Validate, decision tree, on-demand references). **Load and follow it for any build/edit task.**
 - **Aksel MCP** — live component, token, icon, and migration data.
+- **Figma & GitHub MCPs** — designs to translate; real usage in `navikt` repos.
 
 ## MCP-first (hard rule)
 
@@ -60,14 +58,15 @@ invent them; the MCP wins over memory. If the `aksel_*` tools are unavailable (o
 
 ## Task-type routing
 
-| Task                                                                          | Route                                                                                                                                                  |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Build / refactor Aksel UI (components, forms, layout, styling, theming, a11y) | **Load the `aksel-builder` skill** and follow its decision tree (`aksel_find_docs` → `aksel_get_component_info` / `aksel_get_doc` → build → validate). |
-| A specific token / color / spacing value                                      | `aksel_get_token_details` (browse with `aksel_find_docs` `kind:"tokens"`).                                                                             |
-| Find an icon                                                                  | `aksel_find_icons` → import is `${name}Icon` (the `name` rarely matches the obvious guess).                                                            |
-| Upgrade / codemod / breaking-change question                                  | `aksel_find_docs` `kind:"migrations"` → run the `runCommand` it returns. Don't guess codemod names.                                                    |
-| "How do other teams do X?" / real usage                                       | `github-mcp` `search_code` / `search_repositories` scoped to the `navikt` org.                                                                         |
-| Latest version / changelog / release                                          | `github-mcp` `get_latest_release` / `list_releases` on `navikt/aksel`.                                                                                 |
+| Task                                                                          | Route                                                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build / refactor Aksel UI (components, forms, layout, styling, theming, a11y) | **Load the `aksel-builder` skill** and follow its decision tree (`aksel_find_docs` → `aksel_get_component_info` / `aksel_get_doc` → build → validate).                                                                        |
+| Implement a **Figma design** → Aksel code                                     | **Load the skill's `figma-to-code.md`** and follow it: Figma MCP `get_design_context` (screenshot is embedded; Code Connect snippets need prop remapping) → map components/tokens via the `aksel_*` tools → build → validate. |
+| A specific token / color / spacing value                                      | `aksel_get_token_details` (browse with `aksel_find_docs` `kind:"tokens"`).                                                                                                                                                    |
+| Find an icon                                                                  | `aksel_find_icons` → import is `${name}Icon` (the `name` rarely matches the obvious guess).                                                                                                                                   |
+| Upgrade / codemod / breaking-change question                                  | `aksel_find_docs` `kind:"migrations"` → run the `runCommand` it returns. Don't guess codemod names.                                                                                                                           |
+| "How do other teams do X?" / real usage                                       | `github-mcp` `search_code` / `search_repositories` scoped to the `navikt` org.                                                                                                                                                |
+| Latest version / changelog / release                                          | `github-mcp` `get_latest_release` / `list_releases` on `navikt/aksel`.                                                                                                                                                        |
 
 ## Guardrails (high-frequency traps)
 
