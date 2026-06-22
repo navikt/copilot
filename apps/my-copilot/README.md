@@ -294,7 +294,7 @@ Each customization in `.github/` has a sibling `metadata.json` file that provide
 | Agents       | `.github/agents/<name>.metadata.json`       | `aksel.metadata.json`         |
 | Instructions | `.github/instructions/<name>.metadata.json` | `nextjs-aksel.metadata.json`  |
 | Prompts      | `.github/prompts/<name>.metadata.json`      | `nais-manifest.metadata.json` |
-| Skills       | `.github/skills/<name>/metadata.json`       | `aksel-spacing/metadata.json` |
+| Skills       | `.github/skills/<name>/metadata.json`       | `aksel-builder/metadata.json` |
 | MCP servers  | `examples` field in `allowlist.json`        | See mcp-registry README       |
 
 ### Schema

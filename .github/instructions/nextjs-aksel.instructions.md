@@ -592,6 +592,6 @@ pnpm test
 | `@aksel-agent`             | Aksel Design System component patterns and spacing tokens        |
 | `@accessibility-agent`     | WCAG 2.1/2.2 compliance and accessibility testing                |
 | `performance` instruction  | Core Web Vitals and bundle optimization                          |
-| `aksel-spacing` skill      | Responsive spacing token reference                               |
+| `aksel-builder` skill      | Aksel designsystem and ui-library reference                      |
 | `playwright-testing` skill | E2E testing with Playwright and axe-core                         |
 | aksel.nav.no/llm.md        | Full Aksel documentation index (components, tokens, foundations) |

@@ -158,7 +158,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | Skill                | Folder                                 | JetBrains | CLI |
 | -------------------- | -------------------------------------- | --------- | --- |
 | ai-news-research     | `.github/skills/ai-news-research/`     | ⚠️ Preview | ✅   |
-| aksel-spacing        | `.github/skills/aksel-spacing/`        | ⚠️ Preview | ✅   |
+| aksel-builder        | `.github/skills/aksel-builder/`        | ⚠️ Preview | ✅   |
 | api-design           | `.github/skills/api-design/`           | ⚠️ Preview | ✅   |
 | conventional-commit  | `.github/skills/conventional-commit/`  | ⚠️ Preview | ✅   |
 | flyway-migration     | `.github/skills/flyway-migration/`     | ⚠️ Preview | ✅   |

@@ -90,7 +90,7 @@ func TestMatchFiles(t *testing.T) {
 		{
 			name:    "match all with wildcard",
 			pattern: "*",
-			files:   []string{"aksel-spacing", "security-review", "flyway-migration"},
+			files:   []string{"aksel-builder", "security-review", "flyway-migration"},
 			want:    3,
 		},
 		{

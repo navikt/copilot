@@ -240,7 +240,7 @@ This builds on the existing `README.collections.md` concept (currently "Coming S
 | Pack              | Agents                                          | Skills                                                        | Instructions                        |
 | ----------------- | ----------------------------------------------- | ------------------------------------------------------------- | ----------------------------------- |
 | **kotlin-backend**| auth, kafka, nais, security-champion            | api-design, flyway, kotlin-app-config, observability, security-review, tokenx | kotlin-ktor, kotlin-spring, testing |
-| **nextjs-frontend**| accessibility, aksel, forfatter                | aksel-spacing, playwright, web-design-reviewer                | nextjs-aksel, testing, accessibility |
+| **nextjs-frontend**| accessibility, aksel, forfatter                | aksel-builder, playwright, web-design-reviewer                | nextjs-aksel, testing, accessibility |
 | **fullstack**     | All of above + code-review, observability       | Union of above                                                | Union of above                       |
 | **platform**      | nais, observability, security-champion          | observability-setup, workstation-security                     | github-actions, dockerfile           |
 
