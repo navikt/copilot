@@ -15,6 +15,11 @@ func ApplyCopilotOTelEnv(env []string, cliVersion string) ([]string, bool) {
 	env, updated = SetEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
 	changed = changed || updated
 
+	// Nav collector only accepts metrics (/v1/metrics). Disable log exporter so
+	// the Copilot CLI doesn't spam connection errors to /v1/logs.
+	env, updated = SetEnvIfAbsent(env, "OTEL_LOGS_EXPORTER", "none")
+	changed = changed || updated
+
 	env, updated = SetEnvIfAbsent(env, "COPILOT_OTEL_ENABLED", "true")
 	changed = changed || updated
 
@@ -43,6 +48,11 @@ func ApplyOpenCodeOTelEnv(env []string, cliVersion string) ([]string, bool) {
 
 	var updated bool
 	env, updated = SetEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
+	changed = changed || updated
+
+	// Nav collector only accepts metrics. Disable log exporter so opencode
+	// doesn't attempt to push to /v1/logs.
+	env, updated = SetEnvIfAbsent(env, "OTEL_LOGS_EXPORTER", "none")
 	changed = changed || updated
 
 	deviceID := ""
