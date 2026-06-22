@@ -28,8 +28,8 @@
       "type": "agent",
       "name": "aksel-agent",
       "displayName": "@aksel-agent",
-      "description": "Navs Aksel Design System (v8+) — komponenter, tokens, layout, theming og tilgjengelighet",
-      "category": "frontend",
+      "description": "Ekspert på Navs Aksel designsystem (v8+) — bygger og refaktorerer UI med @navikt/ds-react, tokens, layout-primitives, theming, versjon/migrering og tilgjengelighet, og oversetter Figma-design til Aksel-kode. Drevet av aksel-builder-skillen og Aksel MCP som fasit.",
+      "category": "backend",
       "tags": [
         "aksel",
         "design-system",
@@ -38,7 +38,7 @@
         "ui"
       ],
       "filePath": ".github/agents/aksel.agent.md",
-      "contentHash": "5619d05aa37ec8f9d74020d52a39607b2b55e89b72f78bf77a1eeb399865226f",
+      "contentHash": "d1902466428183871088be989986cc983451cb35ace8b716482f0d6260e491a7",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
