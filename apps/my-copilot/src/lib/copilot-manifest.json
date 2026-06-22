@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-12T11:33:58.975Z",
+  "generatedAt": "2026-06-22T16:42:42.751Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -901,18 +901,33 @@
     {
       "id": "aksel-component",
       "name": "aksel-component",
-      "description": "Scaffold en responsiv React-komponent med Aksel Design System og riktige spacing-tokens",
+      "description": "Scaffold en responsiv React-komponent med Aksel Design System, riktige tokens og props verifisert via Aksel MCP / aksel-builder-skillen",
       "type": "prompt",
       "domain": "frontend",
       "filePath": ".github/prompts/aksel-component.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/aksel-component.prompt.md",
-      "contentHash": "8f6e07fff457bc3d3332f12c7990be3c2eec3c94eecd77ea46c9173f4dc15f11",
+      "contentHash": "c50c33a6a53f65e0ada97a22c465c09bfe6063350158002a30a27d4e7efac258",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2F.github%2Fprompts%2Faksel-component.prompt.md",
       "invocation": "#aksel-component",
-      "model": ["Claude Haiku 4.5"],
-      "tags": ["aksel", "design-system", "react", "component"],
-      "examples": ["#aksel-component Lag en varslingsbanner med ikon og lukkeknapp"],
+      "model": ["Gemini 3.5 Flash (copilot)"],
+      "tags": [
+        "aksel",
+        "design-system",
+        "react",
+        "component",
+        "spacing",
+        "tokens",
+        "layout",
+        "responsive",
+        "accessibility",
+        "mcp"
+      ],
+      "examples": [
+        "#aksel-component Lag en varslingsbanner med ikon og lukkeknapp",
+        "#aksel-component Lag et responsivt kort med tittel, ingress og knapp",
+        "#aksel-component Scaffold en skjemaseksjon med tekstfelt og lagre-knapp"
+      ],
       "collections": ["frontend", "fullstack", "nextjs-frontend"]
     },
     {

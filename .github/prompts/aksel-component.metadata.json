@@ -1,7 +1,20 @@
 {
   "domain": "frontend",
-  "tags": ["aksel", "design-system", "react", "component"],
+  "tags": [
+    "aksel",
+    "design-system",
+    "react",
+    "component",
+    "spacing",
+    "tokens",
+    "layout",
+    "responsive",
+    "accessibility",
+    "mcp"
+  ],
   "examples": [
-    "#aksel-component Lag en varslingsbanner med ikon og lukkeknapp"
+    "#aksel-component Lag en varslingsbanner med ikon og lukkeknapp",
+    "#aksel-component Lag et responsivt kort med tittel, ingress og knapp",
+    "#aksel-component Scaffold en skjemaseksjon med tekstfelt og lagre-knapp"
   ]
 }
