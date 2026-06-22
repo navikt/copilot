@@ -354,7 +354,11 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 		} else if exists {
 			slog.Info("Day already exists, deleting for re-ingestion", "day", dayStr, "scope_id", result.ScopeID)
 			if delErr := bq.DeleteDay(ctx, day, result.ScopeID); delErr != nil {
-				slog.Warn("Entity data already exists and cannot be replaced (skipping entity, continuing with supplementary)", "day", dayStr, "error", delErr)
+				if errors.Is(delErr, ErrStreamingBuffer) {
+					slog.Info("Skipping entity re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
+				} else {
+					slog.Warn("Entity data already exists and cannot be replaced (skipping entity, continuing with supplementary)", "day", dayStr, "error", delErr)
+				}
 			} else if insErr := bq.InsertMetrics(ctx, day, result.Scope, result.ScopeID, result.Records); insErr != nil {
 				entityErr = fmt.Errorf("failed to insert metrics: %w", insErr)
 			} else {
@@ -406,7 +410,11 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 	} else if len(teamsResult.Records) > 0 {
 		if err := upsertReport(ctx, bq.UserTeamsDayExists, bq.DeleteUserTeamsDay, bq.InsertUserTeams,
 			day, teamsResult); err != nil {
-			slog.Warn("Failed to store user-teams report", "day", dayStr, "error", err)
+			if errors.Is(err, ErrStreamingBuffer) {
+				slog.Info("Skipping user-teams re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
+			} else {
+				slog.Warn("Failed to store user-teams report", "day", dayStr, "error", err)
+			}
 		} else {
 			slog.Info("Ingested user-teams report", "day", dayStr, "records", len(teamsResult.Records))
 		}
@@ -422,7 +430,11 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 	} else if len(usersResult.Records) > 0 {
 		if err := upsertReport(ctx, bq.UserMetricsDayExists, bq.DeleteUserMetricsDay, bq.InsertUserMetrics,
 			day, usersResult); err != nil {
-			slog.Warn("Failed to store per-user metrics report", "day", dayStr, "error", err)
+			if errors.Is(err, ErrStreamingBuffer) {
+				slog.Info("Skipping user-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
+			} else {
+				slog.Warn("Failed to store per-user metrics report", "day", dayStr, "error", err)
+			}
 		} else {
 			slog.Info("Ingested per-user metrics report", "day", dayStr, "records", len(usersResult.Records))
 		}

@@ -164,14 +164,14 @@ func (c *BillingClient) FetchDailyUsage(ctx context.Context, day time.Time) (*Bi
 	return &result, nil
 }
 
-// FetchOrganizationUsage fetches billing usage report data for an organization for a specific day.
-func (c *BillingClient) FetchOrganizationUsage(ctx context.Context, org string, day time.Time) (*OrganizationBillingUsageResponse, error) {
+// FetchEnterpriseUsage fetches billing usage report data for an enterprise for a specific day.
+func (c *BillingClient) FetchEnterpriseUsage(ctx context.Context, day time.Time) (*OrganizationBillingUsageResponse, error) {
 	url := fmt.Sprintf(
-		"https://api.github.com/orgs/%s/settings/billing/usage?year=%d&month=%d&day=%d",
-		org, day.Year(), int(day.Month()), day.Day(),
+		"https://api.github.com/enterprises/%s/settings/billing/usage?year=%d&month=%d&day=%d",
+		c.enterprise, day.Year(), int(day.Month()), day.Day(),
 	)
 
-	slog.Debug("Fetching organization billing usage report", "org", org, "day", day.Format("2006-01-02"))
+	slog.Debug("Fetching enterprise billing usage report", "enterprise", c.enterprise, "day", day.Format("2006-01-02"))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

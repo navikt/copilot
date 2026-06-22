@@ -8,7 +8,8 @@ SELECT
   AVG(CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64)) AS avg_generations,
   AVG(CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)) AS avg_acceptances,
   AVG(CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)) AS avg_interactions,
-  AVG(CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)) AS avg_lines_added
+  AVG(CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)) AS avg_lines_added,
+  AVG(CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64)) AS avg_ai_credits_used
 FROM {{user_metrics}}
 WHERE JSON_VALUE(raw_record, '$.ai_adoption_phase.phase') IS NOT NULL
 GROUP BY day, scope_id, phase, phase_version

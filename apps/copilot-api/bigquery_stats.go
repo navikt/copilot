@@ -93,6 +93,22 @@ type MonthlyBillingUsage struct {
 	NetAmount     float64 `bigquery:"net_amount" json:"net_amount"`
 }
 
+type BillingMonthlyTrend struct {
+	YearMonth        string  `bigquery:"year_month" json:"year_month"`
+	TotalGrossAmount float64 `bigquery:"total_gross_amount" json:"total_gross_amount"`
+	TotalNetAmount   float64 `bigquery:"total_net_amount" json:"total_net_amount"`
+	DiscountRatePct  float64 `bigquery:"discount_rate_pct" json:"discount_rate_pct"`
+	DistinctModels   int64   `bigquery:"distinct_models" json:"distinct_models"`
+}
+
+type BillingModelBreakdown struct {
+	YearMonth       string  `bigquery:"year_month" json:"year_month"`
+	Model           string  `bigquery:"model" json:"model"`
+	GrossAmount     float64 `bigquery:"gross_amount" json:"gross_amount"`
+	NetAmount       float64 `bigquery:"net_amount" json:"net_amount"`
+	PctOfMonthlyNet float64 `bigquery:"pct_of_monthly_net" json:"pct_of_monthly_net"`
+}
+
 type BillingModelDailyCost struct {
 	Day           string  `bigquery:"day" json:"day"`
 	Model         string  `bigquery:"model" json:"model"`
@@ -359,6 +375,59 @@ func (bq *BigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, 
 		return nil, nil
 	}
 	return summaryPtr, nil
+}
+
+type DailyCredits struct {
+	Day          string  `bigquery:"day" json:"day"`
+	Credits      float64 `bigquery:"credits" json:"credits"`
+	Generations  int64   `bigquery:"generations" json:"generations"`
+	Acceptances  int64   `bigquery:"acceptances" json:"acceptances"`
+	Interactions int64   `bigquery:"interactions" json:"interactions"`
+	CLIRequests  int64   `bigquery:"cli_requests" json:"cli_requests"`
+}
+
+func (bq *BigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin string, days int) ([]DailyCredits, error) {
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	queryStr := fmt.Sprintf(`
+      WITH date_spine AS (
+        SELECT day
+        FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY), CURRENT_DATE())) AS day
+      ),
+      user_data AS (
+        SELECT
+          day,
+          COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0.0) AS credits,
+          COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0) AS generations,
+          COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64), 0) AS acceptances,
+          COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0) AS interactions,
+          COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.request_count') AS INT64), 0) AS cli_requests
+        FROM %s
+        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
+          AND scope = 'enterprise'
+          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+      )
+      SELECT
+        CAST(d.day AS STRING) AS day,
+        COALESCE(u.credits, 0.0) AS credits,
+        COALESCE(u.generations, 0) AS generations,
+        COALESCE(u.acceptances, 0) AS acceptances,
+        COALESCE(u.interactions, 0) AS interactions,
+        COALESCE(u.cli_requests, 0) AS cli_requests
+      FROM date_spine d
+      LEFT JOIN user_data u USING (day)
+      ORDER BY d.day ASC
+    `, metricsRef)
+
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{
+		{Name: "days", Value: days},
+		{Name: "userLogin", Value: userLogin},
+	}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[DailyCredits](it)
 }
 
 func (bq *BigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error) {
@@ -790,4 +859,84 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 	return readAllRows[AdoptionCohortDay](it)
+}
+
+func (bq *BigQueryClient) GetBillingMonthlyTrend(ctx context.Context, months int) ([]BillingMonthlyTrend, error) {
+	viewRef := bq.viewRef(bq.metricsDataset, "v_billing_monthly_trend")
+	queryStr := fmt.Sprintf(`
+      SELECT year_month, total_gross_amount, total_net_amount, discount_rate_pct, distinct_models
+      FROM %s
+      WHERE scope_id = 'nav'
+        AND PARSE_DATE('%%Y-%%m', year_month) >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
+      ORDER BY year_month ASC
+    `, viewRef)
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "months", Value: months}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[BillingMonthlyTrend](it)
+}
+
+type DailySummary struct {
+	Date                    string  `bigquery:"day" json:"date"`
+	DailyActiveUsers        int64   `bigquery:"daily_active_users" json:"daily_active_users"`
+	WeeklyActiveUsers       int64   `bigquery:"weekly_active_users" json:"weekly_active_users"`
+	MonthlyActiveUsers      int64   `bigquery:"monthly_active_users" json:"monthly_active_users"`
+	MonthlyActiveChatUsers  int64   `bigquery:"monthly_active_chat_users" json:"monthly_active_chat_users"`
+	MonthlyActiveAgentUsers int64   `bigquery:"monthly_active_agent_users" json:"monthly_active_agent_users"`
+	DailyActiveCliUsers     int64   `bigquery:"daily_active_cli_users" json:"daily_active_cli_users"`
+	PrReviewedByCopilot     int64   `bigquery:"pr_reviewed_by_copilot" json:"pr_reviewed_by_copilot"`
+	PrCreatedByCopilot      int64   `bigquery:"pr_created_by_copilot" json:"pr_created_by_copilot"`
+	PrMergedCopilotAuthored int64   `bigquery:"pr_merged_copilot_authored" json:"pr_merged_copilot_authored"`
+	CliSessionCount         int64   `bigquery:"cli_session_count" json:"cli_session_count"`
+	CliRequestCount         int64   `bigquery:"cli_request_count" json:"cli_request_count"`
+	PrMedianMinutesToMerge  float64 `bigquery:"pr_median_minutes_to_merge" json:"pr_median_minutes_to_merge"`
+}
+
+func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, error) {
+	viewRef := bq.viewRef(bq.metricsDataset, "v_daily_summary")
+	queryStr := fmt.Sprintf(`
+      SELECT
+        CAST(day AS STRING) AS day,
+        daily_active_users, weekly_active_users, monthly_active_users,
+        monthly_active_chat_users, monthly_active_agent_users, daily_active_cli_users,
+        pr_reviewed_by_copilot, pr_created_by_copilot, pr_merged_copilot_authored,
+        cli_session_count, cli_request_count, pr_median_minutes_to_merge
+      FROM %s
+      WHERE scope = 'organization' AND scope_id = 'navikt'
+      ORDER BY day DESC
+      LIMIT 1
+    `, viewRef)
+	it, err := bq.client.Query(queryStr).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	rows, err := readAllRows[DailySummary](it)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	return &rows[0], nil
+}
+
+func (bq *BigQueryClient) GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error) {
+	viewRef := bq.viewRef(bq.metricsDataset, "v_billing_model_breakdown")
+	queryStr := fmt.Sprintf(`
+      SELECT year_month, model, gross_amount, net_amount, pct_of_monthly_net
+      FROM %s
+      WHERE scope_id = 'nav'
+        AND PARSE_DATE('%%Y-%%m', year_month) >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
+      ORDER BY year_month ASC, net_amount DESC
+    `, viewRef)
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{{Name: "months", Value: months}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[BillingModelBreakdown](it)
 }

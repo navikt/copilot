@@ -17,7 +17,6 @@ import type {
   MonthlyBillingUsage,
   BillingModelDailyCost,
   BillingModelForecast,
-  MonthlyModelUsage,
   MonthlyTrend,
   StalenessSummary,
   TeamAdoption,
@@ -25,6 +24,9 @@ import type {
   UserMetricsSummary,
   WeeklyTrend,
   AdoptionCohortDay,
+  BillingMonthlyTrend,
+  BillingModelBreakdown,
+  DailySummary,
 } from "./types";
 
 function getErrorMessage(label: string, err: unknown): string {
@@ -155,16 +157,6 @@ export async function getMonthlyTrends(token: string): Promise<{
   return { trends: result.data, error: result.error };
 }
 
-export async function getMonthlyModelUsage(token: string): Promise<{
-  usage: MonthlyModelUsage[];
-  error: string | null;
-}> {
-  const result = await fetchWithFallback("getMonthlyModelUsage", [] as MonthlyModelUsage[], () =>
-    backendRequest<MonthlyModelUsage[]>("/api/v1/copilot/usage/models", token)
-  );
-  return { usage: result.data, error: result.error };
-}
-
 export async function getMonthlyBillingUsage(token: string): Promise<{
   usage: MonthlyBillingUsage[];
   error: string | null;
@@ -211,4 +203,34 @@ export async function getBillingModelForecast(
     backendRequest<BillingModelForecast>(`/api/v1/copilot/billing/model-forecast${query}`, token)
   );
   return { forecast: result.data, error: result.error };
+}
+
+export async function getBillingMonthlyTrend(token: string): Promise<{
+  trend: BillingMonthlyTrend[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getBillingMonthlyTrend", [] as BillingMonthlyTrend[], () =>
+    backendRequest<BillingMonthlyTrend[]>("/api/v1/copilot/billing/monthly-trend", token)
+  );
+  return { trend: result.data, error: result.error };
+}
+
+export async function getBillingModelBreakdown(token: string): Promise<{
+  breakdown: BillingModelBreakdown[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getBillingModelBreakdown", [] as BillingModelBreakdown[], () =>
+    backendRequest<BillingModelBreakdown[]>("/api/v1/copilot/billing/model-breakdown", token)
+  );
+  return { breakdown: result.data, error: result.error };
+}
+
+export async function getDailySummary(token: string): Promise<{
+  summary: DailySummary | null;
+  error: string | null;
+}> {
+  const result = await fetchNullable("getDailySummary", () =>
+    backendRequest<DailySummary>("/api/v1/copilot/usage/daily-summary", token)
+  );
+  return { summary: result.data, error: result.error };
 }

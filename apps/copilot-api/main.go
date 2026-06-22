@@ -63,11 +63,13 @@ func main() {
 	// Initialize BigQuery client (optional - endpoints will error if not configured)
 	var bqHandlers *BigQueryHandlers
 	var cachedBQClient *CachedBigQueryClient
+	var rawBQClient *BigQueryClient
 	if config.GCPProjectID != "" {
 		bqClient, err := newBigQueryClient(config)
 		if err != nil {
 			slog.Warn("BigQuery client initialization failed - data endpoints will be unavailable", "error", err)
 		} else {
+			rawBQClient = bqClient
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
 			cachedBQClient = newCachedBigQueryClient(bqClient, cacheTTL)
 			bqHandlers = newBigQueryHandlers(cachedBQClient)
@@ -101,6 +103,11 @@ func main() {
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/ready", readyHandler)
 	mux.Handle("/metrics", metricsHandler())
+
+	// Dev-only raw BigQuery query endpoint (no auth, local only)
+	if rawBQClient != nil && config.Environment == "local" {
+		mux.HandleFunc("/dev/query", rawBQClient.devQueryHandler)
+	}
 	mux.Handle("/public/v1/", otelhttp.NewHandler(
 		loggingMiddleware(config, makePublicRouter(config, videoHandlers)),
 		"public-api",

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -372,7 +374,11 @@ type BigQueryQuerier interface {
 	GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error)
 	GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error)
 	GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error)
+	GetUserDailyCredits(ctx context.Context, userLogin string, days int) ([]DailyCredits, error)
 	GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error)
+	GetBillingMonthlyTrend(ctx context.Context, months int) ([]BillingMonthlyTrend, error)
+	GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error)
+	GetDailySummary(ctx context.Context) (*DailySummary, error)
 }
 
 // Cache wrapper for BigQuery operations
@@ -511,6 +517,13 @@ func (c *CachedBigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogi
 	})
 }
 
+func (c *CachedBigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin string, days int) ([]DailyCredits, error) {
+	cacheKey := fmt.Sprintf("user_daily_credits_%s_%d", userLogin, days)
+	return getCachedValue(c.cache, cacheKey, func() ([]DailyCredits, error) {
+		return c.client.GetUserDailyCredits(ctx, userLogin, days)
+	})
+}
+
 func (c *CachedBigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error) {
 	cacheKey := fmt.Sprintf("adoption_cohorts_%d", days)
 	return getCachedValue(c.cache, cacheKey, func() ([]AdoptionCohortDay, error) {
@@ -518,6 +531,76 @@ func (c *CachedBigQueryClient) GetAdoptionCohorts(ctx context.Context, days int)
 	})
 }
 
+func (c *CachedBigQueryClient) GetBillingMonthlyTrend(ctx context.Context, months int) ([]BillingMonthlyTrend, error) {
+	cacheKey := fmt.Sprintf("billing_monthly_trend_%d", months)
+	return getCachedValue(c.cache, cacheKey, func() ([]BillingMonthlyTrend, error) {
+		return c.client.GetBillingMonthlyTrend(ctx, months)
+	})
+}
+
+func (c *CachedBigQueryClient) GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error) {
+	cacheKey := fmt.Sprintf("billing_model_breakdown_%d", months)
+	return getCachedValue(c.cache, cacheKey, func() ([]BillingModelBreakdown, error) {
+		return c.client.GetBillingModelBreakdown(ctx, months)
+	})
+}
+
+func (c *CachedBigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, error) {
+	return getCachedValue(c.cache, "daily_summary", func() (*DailySummary, error) {
+		return c.client.GetDailySummary(ctx)
+	})
+}
+
 func (c *CachedBigQueryClient) Close() {
 	c.cache.Stop()
+}
+
+// devQueryHandler handles POST /dev/query — accepts {"sql":"..."} and returns JSON rows.
+// Only registered in local dev mode (no auth middleware applied).
+func (c *BigQueryClient) devQueryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, "read body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		SQL string `json:"sql"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil || req.SQL == "" {
+		http.Error(w, `{"error":"body must be {\"sql\":\"...\"}"}`, http.StatusBadRequest)
+		return
+	}
+	slog.Info("Dev BQ query", "sql", req.SQL)
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+	it, err := c.client.Query(req.SQL).Read(ctx)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	var rows []map[string]bigquery.Value
+	for {
+		var row map[string]bigquery.Value
+		if err := it.Next(&row); err != nil {
+			if err == iterator.Done {
+				break
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		rows = append(rows, row)
+	}
+	if rows == nil {
+		rows = []map[string]bigquery.Value{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"count": len(rows), "rows": rows})
 }

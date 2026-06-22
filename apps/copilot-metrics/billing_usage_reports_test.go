@@ -12,7 +12,7 @@ type mockUsageReportFetcher struct {
 	err  error
 }
 
-func (m *mockUsageReportFetcher) FetchOrganizationUsage(_ context.Context, _ string, _ time.Time) (*OrganizationBillingUsageResponse, error) {
+func (m *mockUsageReportFetcher) FetchEnterpriseUsage(_ context.Context, _ time.Time) (*OrganizationBillingUsageResponse, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

@@ -3,12 +3,19 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 )
+
+// ErrStreamingBuffer is returned when BigQuery rejects a DELETE because rows are
+// still in the streaming buffer (typically within 30–90 min of being inserted).
+// Callers should skip the day and retry after the buffer has flushed.
+var ErrStreamingBuffer = errors.New("rows still in streaming buffer")
 
 type BigQueryClient struct {
 	client           *bigquery.Client
@@ -207,6 +214,12 @@ func (c *BigQueryClient) deleteDayFromTable(ctx context.Context, tableName strin
 		{Name: "scopeID", Value: scopeID},
 	}
 
+	return c.runDeleteQuery(ctx, query, tableName)
+}
+
+// runDeleteQuery runs a DELETE query and maps streaming buffer errors to ErrStreamingBuffer.
+// All delete functions should use this instead of calling query.Run + job.Wait directly.
+func (c *BigQueryClient) runDeleteQuery(ctx context.Context, query *bigquery.Query, table string) error {
 	job, err := query.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run delete query: %w", err)
@@ -214,13 +227,17 @@ func (c *BigQueryClient) deleteDayFromTable(ctx context.Context, tableName strin
 
 	status, err := job.Wait(ctx)
 	if err != nil {
+		if strings.Contains(err.Error(), "streaming buffer") {
+			return fmt.Errorf("%w: table=%s", ErrStreamingBuffer, table)
+		}
 		return fmt.Errorf("delete job failed: %w", err)
 	}
 	if status.Err() != nil {
+		if strings.Contains(status.Err().Error(), "streaming buffer") {
+			return fmt.Errorf("%w: table=%s", ErrStreamingBuffer, table)
+		}
 		return fmt.Errorf("delete query failed: %w", status.Err())
 	}
-
-	slog.Debug("Deleted existing data for day", "table", tableName, "day", dayStr, "scope_id", scopeID)
 	return nil
 }
 

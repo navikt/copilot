@@ -90,19 +90,9 @@ func (c *BigQueryClient) DeleteBillingUsageReportDay(ctx context.Context, day ti
 		{Name: "org", Value: org},
 	}
 
-	job, err := query.Run(ctx)
-	if err != nil {
-		return fmt.Errorf("run billing usage report delete: %w", err)
+	if err := c.runDeleteQuery(ctx, query, billingUsageReportsTable); err != nil {
+		return fmt.Errorf("delete billing usage report: %w", err)
 	}
-
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return fmt.Errorf("billing usage report delete job failed: %w", err)
-	}
-	if status.Err() != nil {
-		return fmt.Errorf("billing usage report delete query failed: %w", status.Err())
-	}
-
 	slog.Debug("Deleted existing billing usage report rows", "day", day.Format("2006-01-02"), "org", org)
 	return nil
 }

@@ -22,7 +22,8 @@ user_metrics AS (
     CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
     CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
     CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
-    CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted
+    CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
+    CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64) AS ai_credits_used
   FROM {{user_metrics}}
 )
 SELECT
@@ -37,7 +38,8 @@ SELECT
   SUM(COALESCE(um.acceptances, 0)) AS total_acceptances,
   SUM(COALESCE(um.interactions, 0)) AS total_interactions,
   SUM(COALESCE(um.lines_suggested, 0)) AS total_lines_suggested,
-  SUM(COALESCE(um.lines_accepted, 0)) AS total_lines_accepted
+  SUM(COALESCE(um.lines_accepted, 0)) AS total_lines_accepted,
+  SUM(COALESCE(um.ai_credits_used, 0)) AS total_ai_credits_used
 FROM user_teams ut
 LEFT JOIN user_metrics um
   ON ut.user_id = um.user_id

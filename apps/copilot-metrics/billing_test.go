@@ -123,9 +123,9 @@ func TestBillingUsageItem_Marshaling(t *testing.T) {
 	}
 }
 
-func TestBillingClient_FetchOrganizationUsage(t *testing.T) {
+func TestBillingClient_FetchEnterpriseUsage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got, want := r.URL.Path, "/orgs/navikt/settings/billing/usage"; got != want {
+		if got, want := r.URL.Path, "/enterprises/nav/settings/billing/usage"; got != want {
 			t.Fatalf("unexpected path: got %s want %s", got, want)
 		}
 		query := r.URL.Query()
@@ -160,6 +160,7 @@ func TestBillingClient_FetchOrganizationUsage(t *testing.T) {
 	client := &BillingClient{
 		httpClient: server.Client(),
 		token:      "test-token",
+		enterprise: "nav",
 	}
 	day := time.Date(2026, 6, 7, 0, 0, 0, 0, time.UTC)
 
@@ -169,9 +170,9 @@ func TestBillingClient_FetchOrganizationUsage(t *testing.T) {
 		return http.DefaultTransport.RoundTrip(req)
 	})
 
-	resp, err := client.FetchOrganizationUsage(context.Background(), "navikt", day)
+	resp, err := client.FetchEnterpriseUsage(context.Background(), day)
 	if err != nil {
-		t.Fatalf("FetchOrganizationUsage error: %v", err)
+		t.Fatalf("FetchEnterpriseUsage error: %v", err)
 	}
 	if len(resp.UsageItems) != 1 {
 		t.Fatalf("expected 1 usage item, got %d", len(resp.UsageItems))

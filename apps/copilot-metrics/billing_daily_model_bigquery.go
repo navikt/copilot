@@ -91,17 +91,8 @@ func (c *BigQueryClient) DeleteBillingUsageDailyModelDay(ctx context.Context, da
 		{Name: "scopeID", Value: scopeID},
 	}
 
-	job, err := query.Run(ctx)
-	if err != nil {
-		return fmt.Errorf("run billing daily model delete: %w", err)
-	}
-
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return fmt.Errorf("billing daily model delete job failed: %w", err)
-	}
-	if status.Err() != nil {
-		return fmt.Errorf("billing daily model delete query failed: %w", status.Err())
+	if err := c.runDeleteQuery(ctx, query, billingUsageDailyModelTable); err != nil {
+		return fmt.Errorf("delete billing daily model: %w", err)
 	}
 	return nil
 }

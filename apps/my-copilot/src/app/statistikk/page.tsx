@@ -1,15 +1,19 @@
+// Force dynamic rendering is no longer needed since cacheComponents (Dynamic IO) is enabled.
+
 import React, { Suspense } from "react";
 import {
   getCopilotUsageMetrics,
   getTeamUsage,
   getUserMetrics,
   getMonthlyTrends,
-  getMonthlyModelUsage,
   getMonthlyBillingUsage,
   getBillingModelDaily,
   getBillingModelForecast,
   getUserWeeklyTrends,
   getAdoptionCohorts,
+  getBillingMonthlyTrend,
+  getBillingModelBreakdown,
+  getDailySummary,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
@@ -19,9 +23,9 @@ import ModelUsageChart from "@/components/charts/ModelUsageChart";
 
 import GenerationModeChart from "@/components/charts/GenerationModeChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
-import MonthlyModelChart from "@/components/charts/MonthlyModelChart";
 import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
+import BillingModelBreakdownChart from "@/components/charts/BillingModelBreakdownChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
@@ -170,29 +174,46 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
   const modelChartData = buildModelChartData(usage);
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
-  // Fetch monthly datasets first
+  // Prefer current month for "Måned hittil"; fall back to latest complete month if needed.
+  const currentBillingMonth = new Date().toISOString().slice(0, 7);
+
+  // Fetch all datasets in parallel — daily/forecast for current month included upfront
   const [
     { trends: monthlyTrends, error: monthlyError },
-    { usage: monthlyModelUsage, error: modelUsageError },
     { usage: billingUsage, error: billingError },
     { cohorts: adoptionCohorts, error: cohortsError },
+    { trend: billingMonthlyTrend, error: billingTrendError },
+    { breakdown: billingModelBreakdown, error: billingBreakdownError },
+    { summary: dailySummary, error: dailySummaryError },
+    { usage: billingModelDailyInit, error: billingModelDailyInitError },
+    { forecast: billingModelForecastInit, error: billingModelForecastInitError },
   ] = await Promise.all([
     getMonthlyTrends(token),
-    getMonthlyModelUsage(token),
     getMonthlyBillingUsage(token),
     getAdoptionCohorts(token),
+    getBillingMonthlyTrend(token),
+    getBillingModelBreakdown(token),
+    getDailySummary(token),
+    getBillingModelDaily(token, currentBillingMonth),
+    getBillingModelForecast(token, currentBillingMonth),
   ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
-  }
-  if (modelUsageError) {
-    console.error("[statistikk] Monthly model usage failed:", modelUsageError);
   }
   if (billingError) {
     console.error("[statistikk] Monthly billing usage failed:", billingError);
   }
   if (cohortsError) {
     console.error("[statistikk] Adoption cohorts failed:", cohortsError);
+  }
+  if (billingTrendError) {
+    console.error("[statistikk] Billing monthly trend failed:", billingTrendError);
+  }
+  if (billingBreakdownError) {
+    console.error("[statistikk] Billing model breakdown failed:", billingBreakdownError);
+  }
+  if (dailySummaryError) {
+    console.error("[statistikk] Daily summary failed:", dailySummaryError);
   }
   // Latest complete billing month summary
   const latestBillingMonth = (() => {
@@ -206,20 +227,17 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     return { month: latest, label, netAmount, grossAmount };
   })();
 
-  // Prefer current month for "Måned hittil"; fall back to latest complete month if needed.
-  const currentBillingMonth = new Date().toISOString().slice(0, 7);
-  let { usage: billingModelDaily, error: billingModelDailyError } = await getBillingModelDaily(
-    token,
-    currentBillingMonth
-  );
-  let { forecast: billingModelForecast, error: billingModelForecastError } = await getBillingModelForecast(
-    token,
-    currentBillingMonth
-  );
+  // Daily/forecast already fetched in parallel above; fall back to latest complete month if current has no data
+  let billingModelDaily = billingModelDailyInit;
+  let billingModelForecast = billingModelForecastInit;
+  let billingModelDailyError = billingModelDailyInitError;
+  let billingModelForecastError = billingModelForecastInitError;
 
   if (billingModelDaily.length === 0 && latestBillingMonth?.month && latestBillingMonth.month !== currentBillingMonth) {
-    const fallbackDaily = await getBillingModelDaily(token, latestBillingMonth.month);
-    const fallbackForecast = await getBillingModelForecast(token, latestBillingMonth.month);
+    const [fallbackDaily, fallbackForecast] = await Promise.all([
+      getBillingModelDaily(token, latestBillingMonth.month),
+      getBillingModelForecast(token, latestBillingMonth.month),
+    ]);
     billingModelDaily = fallbackDaily.usage;
     billingModelForecast = fallbackForecast.forecast;
     billingModelDailyError = billingModelDailyError ?? fallbackDaily.error;
@@ -321,8 +339,81 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         />
       </HGrid>
 
-      {/* Latest billing month summary */}
-      {latestBillingMonth && (
+      {/* Daily snapshot from v_daily_summary — CLI and PR metrics */}
+      {dailySummary && (
+        <div id="daglig-oversikt">
+          <BodyShort size="small" className="text-gray-500 mb-2">
+            Daglig snapshot{" "}
+            {new Date(dailySummary.date).toLocaleDateString("nb-NO", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </BodyShort>
+          <HGrid columns={{ xs: 2, sm: 4 }} gap="space-16">
+            <MetricCard
+              value={formatNumber(dailySummary.daily_active_cli_users)}
+              label="CLI-brukere (i dag)"
+              helpTitle="CLI-brukere"
+              helpText="Unike brukere med Copilot CLI-aktivitet i dag. Kilde: v_daily_summary."
+            />
+            <MetricCard
+              value={formatNumber(dailySummary.pr_reviewed_by_copilot)}
+              label="PR-er gjennomgått av Copilot"
+              helpTitle="PR-er gjennomgått av Copilot"
+              helpText="Antall pull requests gjennomgått av GitHub Copilot i dag. Kilde: v_daily_summary."
+            />
+            <MetricCard
+              value={formatNumber(dailySummary.pr_created_by_copilot)}
+              label="PR-er opprettet av Copilot"
+              helpTitle="PR-er opprettet av Copilot"
+              helpText="Antall pull requests opprettet av GitHub Copilot i dag. Kilde: v_daily_summary."
+            />
+            <MetricCard
+              value={formatNumber(dailySummary.monthly_active_chat_users)}
+              label="Chat-brukere (måned)"
+              helpTitle="Chat-brukere"
+              helpText="Unike brukere som har brukt Copilot Chat i inneværende måned. Kilde: v_daily_summary."
+            />
+          </HGrid>
+        </div>
+      )}
+
+      {/* Latest billing month summary — replaced by richer view data when available */}
+      {billingMonthlyTrend.length > 0 ? (
+        (() => {
+          const latest = billingMonthlyTrend[billingMonthlyTrend.length - 1];
+          const label = new Date(latest.year_month + "-01").toLocaleDateString("nb-NO", {
+            month: "long",
+            year: "numeric",
+          });
+          return (
+            <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
+              <HStack gap="space-8" align="center" justify="space-between">
+                <HStack gap="space-8" align="center">
+                  <BodyShort className="text-gray-600 text-sm">Fakturert {label}</BodyShort>
+                  <HelpText title="Fakturert beløp">
+                    Faktisk fakturert beløp fra GitHub for premium AI-modellforespørsler (etter Nav-rabatt). Kilde:{" "}
+                    v_billing_monthly_trend.
+                  </HelpText>
+                </HStack>
+                <HStack gap="space-16" align="center">
+                  <BodyShort className="text-gray-500 text-sm">
+                    Brutto: {formatNumber(Math.round(latest.total_gross_amount))} USD
+                  </BodyShort>
+                  <BodyShort className="text-gray-500 text-sm">
+                    Rabatt: {Math.round(latest.discount_rate_pct)} %
+                  </BodyShort>
+                  <BodyShort className="text-gray-800 text-sm font-semibold">
+                    Netto: {formatNumber(Math.round(latest.total_net_amount))} USD
+                  </BodyShort>
+                  <BodyShort className="text-gray-500 text-sm">{latest.distinct_models} modeller</BodyShort>
+                </HStack>
+              </HStack>
+            </Box>
+          );
+        })()
+      ) : latestBillingMonth ? (
         <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
           <HStack gap="space-8" align="center" justify="space-between">
             <HStack gap="space-8" align="center">
@@ -342,7 +433,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
             </HStack>
           </HStack>
         </Box>
-      )}
+      ) : null}
 
       {/* Monthly trends — THE story */}
       {monthlyTrends.length > 0 && (
@@ -365,7 +456,14 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         </Box>
       )}
 
-      {monthlyModelUsage.length > 0 && <MonthlyModelChart data={monthlyModelUsage} billingData={billingUsage} />}
+      {billingModelBreakdown.length > 0 && (
+        <BillingModelBreakdownChart
+          breakdown={billingModelBreakdown}
+          trend={billingMonthlyTrend}
+          dailyData={billingModelDaily ?? undefined}
+          forecast={billingModelForecast}
+        />
+      )}
 
       {/* Generation mode: user-initiated vs agent-initiated */}
       {generationModeSummary && (

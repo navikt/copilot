@@ -181,7 +181,12 @@ func isClientError(err error) bool {
 
 // isReportNotAvailable checks if the error indicates the report hasn't been generated yet.
 func isReportNotAvailable(err error) bool {
-	return errors.Is(err, ErrReportNotAvailable) || strings.Contains(err.Error(), "No report available")
+	return errors.Is(err, ErrReportNotAvailable) ||
+		strings.Contains(err.Error(), "No report available") ||
+		strings.Contains(err.Error(), "status 204") ||
+		strings.Contains(err.Error(), "status 502") ||
+		strings.Contains(err.Error(), "status 503") ||
+		strings.Contains(err.Error(), "CANCEL")
 }
 
 // isDecodeError checks if the error is a non-retryable response decode failure.
@@ -340,7 +345,11 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 	slog.Info("Fetching user-teams report", "scope", "enterprise", "day", dayStr)
 	enterpriseRecords, enterpriseErr := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
 	if enterpriseErr != nil {
-		slog.Warn("Enterprise user-teams endpoint failed", "day", dayStr, "error", enterpriseErr)
+		if isReportNotAvailable(enterpriseErr) {
+			slog.Info("Enterprise user-teams endpoint not available", "day", dayStr)
+		} else {
+			slog.Warn("Enterprise user-teams endpoint failed", "day", dayStr, "error", enterpriseErr)
+		}
 	} else {
 		slog.Info("Enterprise user-teams fetched", "day", dayStr, "records", len(enterpriseRecords))
 	}
@@ -351,7 +360,11 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 	slog.Info("Fetching user-teams report", "scope", "organization", "org", c.org, "day", dayStr)
 	orgRecords, orgErr := c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
 	if orgErr != nil {
-		slog.Warn("Org user-teams endpoint failed", "day", dayStr, "org", c.org, "error", orgErr)
+		if isReportNotAvailable(orgErr) {
+			slog.Info("Org user-teams endpoint not available", "day", dayStr, "org", c.org)
+		} else {
+			slog.Warn("Org user-teams endpoint failed", "day", dayStr, "org", c.org, "error", orgErr)
+		}
 	} else {
 		slog.Info("Org user-teams fetched", "day", dayStr, "org", c.org, "records", len(orgRecords))
 	}

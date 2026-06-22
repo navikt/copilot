@@ -81,12 +81,16 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/usage/team-summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamUsageSummary })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserMetrics })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/weekly", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserWeeklyTrends })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/daily-credits", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserDailyCredits })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/trends", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyTrends })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/models", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyModelUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/monthly", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyBillingUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-daily", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelDaily })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-forecast", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelForecast })))
+	mux.HandleFunc("GET /api/v1/copilot/billing/monthly-trend", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingMonthlyTrend })))
+	mux.HandleFunc("GET /api/v1/copilot/billing/model-breakdown", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelBreakdown })))
 	mux.HandleFunc("GET /api/v1/copilot/adoption/cohorts", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdoptionCohorts })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/daily-summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleDailySummary })))
 
 	// GitHub API endpoints
 	mux.HandleFunc("GET /api/v1/copilot/billing", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleBilling })))

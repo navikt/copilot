@@ -167,19 +167,9 @@ func (c *BigQueryClient) DeleteBillingMonth(ctx context.Context, year, month int
 		{Name: "scopeID", Value: scopeID},
 	}
 
-	job, err := query.Run(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to run billing delete: %w", err)
+	if err := c.runDeleteQuery(ctx, query, billingUsageTable); err != nil {
+		return fmt.Errorf("delete billing month: %w", err)
 	}
-
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return fmt.Errorf("billing delete job failed: %w", err)
-	}
-	if status.Err() != nil {
-		return fmt.Errorf("billing delete query failed: %w", status.Err())
-	}
-
 	slog.Debug("Deleted existing billing data", "year", year, "month", month, "scope_id", scopeID)
 	return nil
 }

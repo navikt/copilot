@@ -198,6 +198,30 @@ func (h *BigQueryHandlers) handleUserWeeklyTrends(w http.ResponseWriter, r *http
 	respondJSON(w, trends, http.StatusOK)
 }
 
+func (h *BigQueryHandlers) handleUserDailyCredits(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+	if !isValidUsageUsername(username) {
+		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		return
+	}
+
+	days, ok := optionalIntParam(r, "days", 30, 1, 90)
+	if !ok {
+		respondError(w, "invalid_parameter", "days must be between 1 and 90", http.StatusBadRequest)
+		return
+	}
+
+	credits, err := h.bqClient.GetUserDailyCredits(r.Context(), username, days)
+	if err != nil {
+		slog.Error("Failed to fetch user daily credits", "error", err)
+		respondError(w, "internal_error", "Failed to fetch user daily credits", http.StatusInternalServerError)
+		return
+	}
+
+	cacheControl(w, 300, false)
+	respondJSON(w, credits, http.StatusOK)
+}
+
 func (h *BigQueryHandlers) handleAdoptionCohorts(w http.ResponseWriter, r *http.Request) {
 	days, ok := optionalIntParam(r, "days", 90, 1, 365)
 	if !ok {
@@ -214,4 +238,56 @@ func (h *BigQueryHandlers) handleAdoptionCohorts(w http.ResponseWriter, r *http.
 
 	cacheControl(w, 3600, false)
 	respondJSON(w, cohorts, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleBillingMonthlyTrend(w http.ResponseWriter, r *http.Request) {
+	months, ok := optionalIntParam(r, "months", 12, 1, 36)
+	if !ok {
+		respondError(w, "invalid_parameter", "months must be between 1 and 36", http.StatusBadRequest)
+		return
+	}
+
+	trend, err := h.bqClient.GetBillingMonthlyTrend(r.Context(), months)
+	if err != nil {
+		slog.Error("Failed to fetch billing monthly trend", "error", err)
+		respondError(w, "internal_error", "Failed to fetch billing monthly trend", http.StatusInternalServerError)
+		return
+	}
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, trend, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleBillingModelBreakdown(w http.ResponseWriter, r *http.Request) {
+	months, ok := optionalIntParam(r, "months", 12, 1, 36)
+	if !ok {
+		respondError(w, "invalid_parameter", "months must be between 1 and 36", http.StatusBadRequest)
+		return
+	}
+
+	breakdown, err := h.bqClient.GetBillingModelBreakdown(r.Context(), months)
+	if err != nil {
+		slog.Error("Failed to fetch billing model breakdown", "error", err)
+		respondError(w, "internal_error", "Failed to fetch billing model breakdown", http.StatusInternalServerError)
+		return
+	}
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, breakdown, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleDailySummary(w http.ResponseWriter, r *http.Request) {
+	summary, err := h.bqClient.GetDailySummary(r.Context())
+	if err != nil {
+		slog.Error("Failed to fetch daily summary", "error", err)
+		respondError(w, "internal_error", "Failed to fetch daily summary", http.StatusInternalServerError)
+		return
+	}
+	if summary == nil {
+		respondJSON(w, nil, http.StatusNoContent)
+		return
+	}
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, summary, http.StatusOK)
 }

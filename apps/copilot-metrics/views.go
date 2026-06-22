@@ -24,6 +24,7 @@ var views = []viewDefinition{
 	{name: "v_code_generation", filename: "views/v_code_generation.sql"},
 	{name: "v_team_daily_summary", filename: "views/v_team_daily_summary.sql"},
 	{name: "v_adoption_cohorts", filename: "views/v_adoption_cohorts.sql"},
+	{name: "v_user_credits_summary", filename: "views/v_user_credits_summary.sql"},
 	{name: "v_billing_monthly_trend", filename: "views/v_billing_monthly_trend.sql"},
 	{name: "v_billing_model_breakdown", filename: "views/v_billing_model_breakdown.sql"},
 	{name: "v_user_budget_trend", filename: "views/v_user_budget_trend.sql"},

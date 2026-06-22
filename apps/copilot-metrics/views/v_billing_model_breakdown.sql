@@ -1,15 +1,15 @@
 CREATE OR REPLACE VIEW `%s.%s.v_billing_model_breakdown` AS
 SELECT
-  EXTRACT(YEAR FROM usage_month) AS year,
-  EXTRACT(MONTH FROM usage_month) AS month,
-  FORMAT_DATE('%Y-%m', usage_month) AS year_month,
+  year,
+  month,
+  FORMAT('%04d-%02d', year, month) AS year_month,
   scope_id,
   model,
   SUM(gross_amount) AS gross_amount,
   SUM(net_amount) AS net_amount,
   ROUND(
     100.0 * SUM(net_amount) / NULLIF(
-      SUM(SUM(net_amount)) OVER (PARTITION BY usage_month, scope_id),
+      SUM(SUM(net_amount)) OVER (PARTITION BY year, month, scope_id),
       0
     ),
     2

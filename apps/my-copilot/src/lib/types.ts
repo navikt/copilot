@@ -369,6 +369,15 @@ export interface TeamUsageSummary {
   top_models?: Array<{ model: string; interactions: number }>;
 }
 
+export interface DailyCredits {
+  day: string;
+  credits: number;
+  generations: number;
+  acceptances: number;
+  interactions: number;
+  cli_requests: number;
+}
+
 export interface UserMetricsSummary {
   user_login: string;
   total_acceptances: number;
@@ -417,14 +426,6 @@ export interface MonthlyTrend {
   cli_users: number;
 }
 
-export interface MonthlyModelUsage {
-  month: string;
-  model: string;
-  interactions: number;
-  prompt_tokens: number;
-  output_tokens: number;
-}
-
 export interface MonthlyBillingUsage {
   month: string;
   model: string;
@@ -433,6 +434,38 @@ export interface MonthlyBillingUsage {
   net_requests: number;
   gross_amount: number;
   net_amount: number;
+}
+
+export interface BillingMonthlyTrend {
+  year_month: string;
+  total_gross_amount: number;
+  total_net_amount: number;
+  discount_rate_pct: number;
+  distinct_models: number;
+}
+
+export interface BillingModelBreakdown {
+  year_month: string;
+  model: string;
+  gross_amount: number;
+  net_amount: number;
+  pct_of_monthly_net: number;
+}
+
+export interface DailySummary {
+  date: string;
+  daily_active_users: number;
+  weekly_active_users: number;
+  monthly_active_users: number;
+  monthly_active_chat_users: number;
+  monthly_active_agent_users: number;
+  daily_active_cli_users: number;
+  pr_reviewed_by_copilot: number;
+  pr_created_by_copilot: number;
+  pr_merged_copilot_authored: number;
+  cli_session_count: number;
+  cli_request_count: number;
+  pr_median_minutes_to_merge: number;
 }
 
 export interface BillingModelDailyCost {

@@ -107,8 +107,24 @@ func (m *mockBigQueryClient) GetUserWeeklyTrends(_ context.Context, _ string, _ 
 	return m.weeklyTrends, m.weeklyTrendsErr
 }
 
+func (m *mockBigQueryClient) GetUserDailyCredits(_ context.Context, _ string, _ int) ([]DailyCredits, error) {
+	return nil, nil
+}
+
 func (m *mockBigQueryClient) GetAdoptionCohorts(_ context.Context, _ int) ([]AdoptionCohortDay, error) {
 	return m.cohorts, m.cohortsErr
+}
+
+func (m *mockBigQueryClient) GetBillingMonthlyTrend(_ context.Context, _ int) ([]BillingMonthlyTrend, error) {
+	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetBillingModelBreakdown(_ context.Context, _ int) ([]BillingModelBreakdown, error) {
+	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetDailySummary(_ context.Context) (*DailySummary, error) {
+	return nil, nil
 }
 
 func TestHandleDailyMetrics(t *testing.T) {

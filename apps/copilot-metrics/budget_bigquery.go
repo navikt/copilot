@@ -106,19 +106,9 @@ func (c *BigQueryClient) DeleteBudgetSnapshot(ctx context.Context, date time.Tim
 		{Name: "scopeID", Value: scopeID},
 	}
 
-	job, err := query.Run(ctx)
-	if err != nil {
-		return fmt.Errorf("run budget snapshot delete: %w", err)
+	if err := c.runDeleteQuery(ctx, query, budgetSnapshotsTable); err != nil {
+		return fmt.Errorf("delete budget snapshot: %w", err)
 	}
-
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return fmt.Errorf("budget snapshot delete job failed: %w", err)
-	}
-	if status.Err() != nil {
-		return fmt.Errorf("budget snapshot delete query failed: %w", status.Err())
-	}
-
 	slog.Debug("Deleted existing budget snapshot", "date", date.Format("2006-01-02"), "scope_id", scopeID)
 	return nil
 }
@@ -257,19 +247,9 @@ WHERE snapshot_date = @date AND scope_id = @scopeID
 		{Name: "scopeID", Value: scopeID},
 	}
 
-	job, err := query.Run(ctx)
-	if err != nil {
-		return fmt.Errorf("run user budget snapshot delete: %w", err)
+	if err := c.runDeleteQuery(ctx, query, userBudgetSnapshotsTable); err != nil {
+		return fmt.Errorf("delete user budget snapshot: %w", err)
 	}
-
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return fmt.Errorf("user budget snapshot delete job failed: %w", err)
-	}
-	if status.Err() != nil {
-		return fmt.Errorf("user budget snapshot delete query failed: %w", status.Err())
-	}
-
 	slog.Debug("Deleted user budget snapshot", "date", date.Format("2006-01-02"), "scope_id", scopeID)
 	return nil
 }

@@ -1,8 +1,8 @@
 CREATE OR REPLACE VIEW `%s.%s.v_billing_monthly_trend` AS
 SELECT
-  EXTRACT(YEAR FROM usage_month) AS year,
-  EXTRACT(MONTH FROM usage_month) AS month,
-  FORMAT_DATE('%Y-%m', usage_month) AS year_month,
+  year,
+  month,
+  FORMAT('%04d-%02d', year, month) AS year_month,
   scope_id,
   SUM(gross_amount) AS total_gross_amount,
   SUM(net_amount) AS total_net_amount,
