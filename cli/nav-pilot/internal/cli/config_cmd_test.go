@@ -66,13 +66,13 @@ func TestValidateOptionalModel_InvalidIDs(t *testing.T) {
 // ─── cmdConfig router ─────────────────────────────────────────────────────────
 
 func TestCmdConfig_NoArgs(t *testing.T) {
-	if err := cmdConfig(nil, false); err == nil {
+	if err := cmdConfig(nil, false, false); err == nil {
 		t.Error("expected error when no subcommand given")
 	}
 }
 
 func TestCmdConfig_EmptyArgs(t *testing.T) {
-	if err := cmdConfig([]string{}, false); err == nil {
+	if err := cmdConfig([]string{}, false, false); err == nil {
 		t.Error("expected error for empty args slice")
 	}
 }
@@ -80,7 +80,7 @@ func TestCmdConfig_EmptyArgs(t *testing.T) {
 func TestCmdConfig_UnknownSubcommand(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
-	if err := cmdConfig([]string{"bogussubcmd"}, false); err == nil {
+	if err := cmdConfig([]string{"bogussubcmd"}, false, false); err == nil {
 		t.Error("expected error for unknown subcommand")
 	}
 }
@@ -88,7 +88,7 @@ func TestCmdConfig_UnknownSubcommand(t *testing.T) {
 func TestCmdConfig_GetNoKey(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
-	if err := cmdConfig([]string{"get"}, false); err == nil {
+	if err := cmdConfig([]string{"get"}, false, false); err == nil {
 		t.Error("expected error for 'get' with no key argument")
 	}
 }
@@ -96,7 +96,7 @@ func TestCmdConfig_GetNoKey(t *testing.T) {
 func TestCmdConfig_SetNoArgs(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
-	if err := cmdConfig([]string{"set"}, false); err == nil {
+	if err := cmdConfig([]string{"set"}, false, false); err == nil {
 		t.Error("expected error for 'set' with no arguments")
 	}
 }
@@ -104,7 +104,7 @@ func TestCmdConfig_SetNoArgs(t *testing.T) {
 func TestCmdConfig_SetOneArg(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
-	if err := cmdConfig([]string{"set", "client"}, false); err == nil {
+	if err := cmdConfig([]string{"set", "client"}, false, false); err == nil {
 		t.Error("expected error for 'set' with only one argument (missing value)")
 	}
 }
@@ -285,7 +285,7 @@ func TestCmdConfigSetup_FileAlreadyExists(t *testing.T) {
 	path := writeTempConfig(t, "version = 1\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	err := cmdConfigSetup()
+	err := cmdConfigSetup(false)
 	if err == nil {
 		t.Fatal("expected error when config file already exists")
 	}
@@ -300,7 +300,7 @@ func TestCmdConfigSetup_NonInteractiveNoFile(t *testing.T) {
 	forceNonInteractive = true
 	defer func() { forceNonInteractive = false }()
 
-	err := cmdConfigSetup()
+	err := cmdConfigSetup(false)
 	if err == nil {
 		t.Fatal("expected error when non-interactive and no config file")
 	}

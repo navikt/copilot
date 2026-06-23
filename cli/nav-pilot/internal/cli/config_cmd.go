@@ -232,7 +232,7 @@ version = 1
 
 // ─── Subcommand dispatch ──────────────────────────────────────────────────────
 
-func cmdConfig(args []string, jsonOutput bool) error {
+func cmdConfig(args []string, force bool, jsonOutput bool) error {
 	if len(args) == 0 {
 		return fmt.Errorf("config requires a subcommand.\n\nUsage: nav-pilot config <subcommand> [options]\n\nSubcommands:\n  init      Create ~/.nav-pilot/config.toml with all options commented out\n  setup     Run the interactive first-run setup wizard\n  show      Print effective configuration (file values merged with defaults)\n  path      Print the config file path\n  get       Print one key value\n  set       Set a key value (creates file if missing)\n  validate  Validate config syntax, unknown keys, and values\n  explain   Describe configuration keys")
 	}
@@ -244,7 +244,7 @@ func cmdConfig(args []string, jsonOutput bool) error {
 	case "init":
 		return cmdConfigInit()
 	case "setup":
-		return cmdConfigSetup()
+		return cmdConfigSetup(force)
 	case "show":
 		return cmdConfigShow(jsonOutput)
 	case "path":

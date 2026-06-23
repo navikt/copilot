@@ -262,12 +262,19 @@ func maybeRunFirstRunSetup() error {
 
 // cmdConfigSetup implements the 'nav-pilot config setup' subcommand.
 // Refuses to clobber an existing config and directs the user to 'config set'.
-func cmdConfigSetup() error {
+func cmdConfigSetup(force bool) error {
 	if _, err := os.Stat(configPath()); err == nil {
-		return fmt.Errorf("config file already exists: %s\n\nTo update individual settings:  %s\nTo see current settings:        %s\nTo replace entirely: delete the file and re-run 'nav-pilot config setup'",
-			configPath(),
-			bold("nav-pilot config set <key> <value>"),
-			bold("nav-pilot config show"))
+		if force {
+			// Remove config to allow setup to overwrite cleanly
+			if rmErr := os.Remove(configPath()); rmErr != nil {
+				return fmt.Errorf("failed to remove existing config with --force: %w", rmErr)
+			}
+		} else {
+			return fmt.Errorf("config file already exists: %s\n\nTo update individual settings:  %s\nTo see current settings:        %s\nTo replace entirely: delete the file and re-run 'nav-pilot config setup', or use the --force flag",
+				configPath(),
+				bold("nav-pilot config set <key> <value>"),
+				bold("nav-pilot config show"))
+		}
 	}
 	if !isInteractive() {
 		return fmt.Errorf("config setup requires an interactive terminal.\n\nUse 'nav-pilot config init' to create a template, then edit it directly")
