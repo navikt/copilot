@@ -41,7 +41,7 @@ type ResolvedConfig struct {
 	AutoLaunch        bool   // skip the interactive "Launch X now?" confirmation
 	LogLevel          string // empty = unset
 	OtelLogLevel      string // always set; defaults to "none"
-	RtkPromptedClient string // the client (copilot/opencode) for which the user was last prompted about rtk
+	RtkPromptedClient string // comma-separated list of clients where the RTK setup was prompted
 	RtkPromptedAt     string // RFC3339 timestamp of when the user was last prompted
 }
 

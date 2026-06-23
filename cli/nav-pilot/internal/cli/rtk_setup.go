@@ -238,7 +238,7 @@ func patchOpenCodeConfig(opencodePath string) error {
 				return nil // already patched
 			}
 		} else {
-			return fmt.Errorf("'plugin' field is not a string or array")
+			return fmt.Errorf("in file %s: 'plugin' field has unexpected type %T, expected string or array", realPath, pluginsRaw)
 		}
 	}
 
@@ -251,6 +251,11 @@ func patchOpenCodeConfig(opencodePath string) error {
 	tmpPath := realPath + ".tmp"
 	if err := os.WriteFile(tmpPath, patchedData, info.Mode()); err != nil {
 		return fmt.Errorf("failed to write temporary config file: %w", err)
+	}
+	// Explicitly apply the original permissions, as os.WriteFile is affected by umask
+	if err := os.Chmod(tmpPath, info.Mode()); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to apply original permissions to temp file: %w", err)
 	}
 	if err := os.Rename(tmpPath, realPath); err != nil {
 		_ = os.Remove(tmpPath)

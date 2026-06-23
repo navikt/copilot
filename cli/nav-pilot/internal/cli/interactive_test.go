@@ -472,12 +472,17 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 
 	// 2. File exists but has no plugins
 	initialConfig := `{"share": "disabled"}`
-	os.WriteFile(configPath, []byte(initialConfig), 0644)
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+		t.Fatalf("failed to write initial config: %v", err)
+	}
 	err = patchOpenCodeConfig(configPath)
 	if err != nil {
 		t.Fatalf("failed to patch config: %v", err)
 	}
-	data, _ := os.ReadFile(configPath)
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read patched config: %v", err)
+	}
 	if !strings.Contains(string(data), `"plugin":`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
 		t.Fatalf("expected rtk plugin to be added, got: %s", string(data))
 	}
@@ -488,26 +493,36 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to patch config second time: %v", err)
 	}
-	data, _ = os.ReadFile(configPath)
+	data, err = os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config after second patch: %v", err)
+	}
 	if strings.Count(string(data), `"~/.config/opencode/plugins/rtk.ts"`) != 1 {
 		t.Fatalf("expected exactly one rtk plugin entry, got: %s", string(data))
 	}
 
 	// 4. File exists and has other plugins
 	initialConfig = `{"plugin": ["something-else.ts"]}`
-	os.WriteFile(configPath, []byte(initialConfig), 0644)
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+		t.Fatalf("failed to write existing plugins config: %v", err)
+	}
 	err = patchOpenCodeConfig(configPath)
 	if err != nil {
 		t.Fatalf("failed to patch config with existing plugins: %v", err)
 	}
-	data, _ = os.ReadFile(configPath)
+	data, err = os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config with existing plugins: %v", err)
+	}
 	if !strings.Contains(string(data), `"something-else.ts"`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
 		t.Fatalf("expected both plugins to be present, got: %s", string(data))
 	}
 
 	// 5. Invalid JSONC / JSON should error gracefully
 	initialConfig = `{"plugin": // comments not supported by stdlib json`
-	os.WriteFile(configPath, []byte(initialConfig), 0644)
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+		t.Fatalf("failed to write invalid json config: %v", err)
+	}
 	err = patchOpenCodeConfig(configPath)
 	if err == nil {
 		t.Fatalf("expected error for invalid json")

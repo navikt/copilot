@@ -122,7 +122,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "rtk_prompted_client",
 		kind:        keyKindString,
-		description: "Internal flag to track which client (e.g. copilot, opencode) the user was last prompted to set up rtk for.",
+		description: "Comma-separated list of clients where the RTK setup was prompted.",
 		allowed:     nil,
 		defaultVal:  "",
 		flag:        "",
@@ -452,6 +452,10 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.LogLevel
 	case "otel_log_level":
 		return r.OtelLogLevel
+	case "rtk_prompted_client":
+		return r.RtkPromptedClient
+	case "rtk_prompted_at":
+		return r.RtkPromptedAt
 	}
 	return ""
 }
