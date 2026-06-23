@@ -50,6 +50,7 @@ type Recorder interface {
 	RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
+	RecordRtkSetup(client, choice, result string)
 	Shutdown(ctx context.Context) error
 }
 
@@ -68,6 +69,7 @@ func (NoopRecorder) RecordConfig(string, string, string, string, string, string,
 }
 func (NoopRecorder) RecordClientAvailable(string, bool) {}
 func (NoopRecorder) RecordLaunchError(string, string)   {}
+func (NoopRecorder) RecordRtkSetup(string, string, string) {}
 func (NoopRecorder) Shutdown(context.Context) error     { return nil }
 
 type otelTelemetry struct {
@@ -88,6 +90,7 @@ type otelTelemetry struct {
 	stalenessCheck     metric.Int64Counter
 	upToDate           metric.Int64Gauge
 	versionSkewDays    metric.Int64Histogram
+	rtkSetupTotal      metric.Int64Counter
 
 	version          string
 	device           string
@@ -216,6 +219,11 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create version skew days histogram: %w", err)
 	}
+	rtkSetupTotal, err := meter.Int64Counter("nav_pilot_rtk_setup_total",
+		metric.WithDescription("Counts the result of the interactive RTK setup prompt."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create rtk setup counter: %w", err)
+	}
 
 	tel := &otelTelemetry{
 		provider:           provider,
@@ -234,6 +242,7 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 		stalenessCheck:     stalenessCheck,
 		upToDate:           upToDate,
 		versionSkewDays:    versionSkewDays,
+		rtkSetupTotal:      rtkSetupTotal,
 		version:            version,
 		device:             device,
 		executionContext:   execCtx,
@@ -480,6 +489,17 @@ func (t *otelTelemetry) RecordLaunchError(client, errorType string) {
 	))
 }
 
+// RecordRtkSetup records the interactive result for RTK token optimizer setup.
+func (t *otelTelemetry) RecordRtkSetup(client, choice, result string) {
+	t.rtkSetupTotal.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
+		attribute.String("choice", normalizeTelemetryDimension(choice, "unknown")),
+		attribute.String("result", normalizeTelemetryDimension(result, "unknown")),
+		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
 func normalizeTelemetryDimension(v, fallback string) string {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -500,7 +520,8 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"darwin", "linux", "windows",
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
-		"client_not_found", "launch_failed":
+		"client_not_found", "launch_failed",
+		"yes", "no", "aborted", "brew_failed", "curl_failed", "init_failed", "already_installed":
 		return v
 	default:
 		if strings.Count(v, ".") >= 1 || strings.Count(v, "-") >= 1 {

@@ -64,8 +64,13 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 		savePromptState(cfg)
 	}
 
-	if err != nil || choice != "yes" {
-		return nil // User aborted or said no
+	if err != nil {
+		telemetry.RecordRtkSetup(cfg.Client, "aborted", "success")
+		return nil // User aborted
+	}
+	if choice != "yes" {
+		telemetry.RecordRtkSetup(cfg.Client, "no", "success")
+		return nil // User said no
 	}
 
 	fmt.Println()
@@ -73,6 +78,7 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 	if !hasRtk {
 		p, installErr := installRtk()
 		if installErr != nil {
+			telemetry.RecordRtkSetup(cfg.Client, "yes", "error")
 			return fmt.Errorf("installation failed: %w", installErr)
 		}
 		rtkPath = p
@@ -81,7 +87,18 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 		rtkPath = p
 	}
 
-	return initRtkHooks(cfg.Client, rtkPath)
+	if initErr := initRtkHooks(cfg.Client, rtkPath); initErr != nil {
+		telemetry.RecordRtkSetup(cfg.Client, "yes", "init_failed")
+		return initErr
+	}
+
+	if hasRtk {
+		telemetry.RecordRtkSetup(cfg.Client, "yes", "already_installed")
+	} else {
+		telemetry.RecordRtkSetup(cfg.Client, "yes", "success")
+	}
+
+	return nil
 }
 
 func savePromptState(cfg ResolvedConfig) {
