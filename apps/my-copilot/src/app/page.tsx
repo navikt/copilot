@@ -88,19 +88,19 @@ export default async function Home() {
               <HGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="space-12">
                 <NavCard
                   href="/kom-i-gang"
-                  icon={<PlayIcon aria-hidden />}
+                  icon={<PlayIcon aria-hidden fontSize="1.75rem" />}
                   title="Kom i gang"
                   description="Alt du trenger for å starte med Copilot"
                 />
                 <NavCard
                   href="/praksis"
-                  icon={<BookIcon aria-hidden />}
+                  icon={<BookIcon aria-hidden fontSize="1.75rem" />}
                   title="God praksis"
                   description="Mønstre og tips for effektiv AI-bruk"
                 />
                 <NavCard
                   href="https://docs.github.com/en/copilot"
-                  icon={<ExternalLinkIcon aria-hidden />}
+                  icon={<ExternalLinkIcon aria-hidden fontSize="1.75rem" />}
                   title="Dokumentasjon"
                   description="Offisiell dokumentasjon fra GitHub"
                   external

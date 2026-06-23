@@ -1,14 +1,14 @@
+import Faro from "@/components/faro";
+import { FooterMessage } from "@/components/footer-message";
+import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
+import NavBudgetBar from "@/components/nav-budget-bar";
+import { getUser } from "@/lib/auth";
+import { BodyShort, Box, HStack, Link, Theme } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import NextLink from "next/link";
 import { Suspense } from "react";
 import "./globals.css";
-import { Box, HStack, BodyShort, Link } from "@navikt/ds-react";
-import { getUser } from "@/lib/auth";
-import Faro from "@/components/faro";
-import NextLink from "next/link";
-import { FooterMessage } from "@/components/footer-message";
-import NavBudgetBar from "@/components/nav-budget-bar";
-import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -79,28 +79,35 @@ export default async function RootLayout({
           </Box>
         </header>
         <div className="bg-gray-100 flex-1 min-h-0">{children}</div>
-        <footer className="text-white">
-          <Box
+        <Theme theme="dark" hasBackground>
+          <HStack
+            asChild
+            justify="space-between"
+            align="center"
+            wrap
+            gap="space-8"
             paddingBlock="space-12"
             paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
             className="max-w-7xl mx-auto"
           >
-            <HStack justify="space-between" align="center" wrap gap="space-8">
+            <footer>
               <FooterMessage />
-              <HStack gap="space-16">
-                <Link href="/personvern" className="text-white/90 hover:text-white text-sm">
-                  Personvern
-                </Link>
-                <Link href="/tilgjengelighet" className="text-white/90 hover:text-white text-sm">
-                  Tilgjengelighet
-                </Link>
-                <Link href="https://github.com/navikt/copilot" className="text-white/90 hover:text-white text-sm">
-                  GitHub
-                </Link>
+              <HStack gap="space-16" asChild>
+                <BodyShort size="small" as="div">
+                  <Link href="/personvern" data-color="neutral">
+                    Personvern
+                  </Link>
+                  <Link href="/tilgjengelighet" data-color="neutral">
+                    Tilgjengelighet
+                  </Link>
+                  <Link href="https://github.com/navikt/copilot" data-color="neutral">
+                    GitHub
+                  </Link>
+                </BodyShort>
               </HStack>
-            </HStack>
-          </Box>
-        </footer>
+            </footer>
+          </HStack>
+        </Theme>
         <Faro collectorUrl={process.env.NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL} />
       </body>
     </html>
