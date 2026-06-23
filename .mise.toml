@@ -17,6 +17,7 @@
 [tools]
 "go:github.com/sethvargo/ratchet" = "latest"
 lefthook = "2.1.9"
+node = "24"
 pnpm = "11"
 shellcheck = "latest"
 
