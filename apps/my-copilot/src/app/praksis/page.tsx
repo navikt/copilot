@@ -16,6 +16,7 @@ import ReviewCopilotWork from "./sections/review-copilot-work";
 import Verification from "./sections/verification";
 import AgentModePatterns from "./sections/agent-mode-patterns";
 import Resources from "./sections/resources";
+import { PraksisSelector } from "@/components/nav-pilot/praksis-selector";
 
 export default async function BestPractices() {
   return (
@@ -69,6 +70,7 @@ export default async function BestPractices() {
               </div>
             </aside>
             <div className="min-w-0 flex-1">
+              <PraksisSelector />
               <VStack gap={{ xs: "space-24", md: "space-32" }}>
                 {/* Grunnleggende */}
                 <LevelSection

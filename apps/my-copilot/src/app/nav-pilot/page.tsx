@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import React from "react";
 import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
 import NextLink from "next/link";
-import { AltInstall } from "@/components/alt-install";
+import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
+import { PraksisSelector } from "@/components/nav-pilot/praksis-selector";
 import {
   TerminalIcon,
   PaletteIcon,
@@ -53,7 +54,6 @@ export const metadata: Metadata = {
 
 /* ---------- Data ---------- */
 
-const INSTALL_COMMAND = "brew install navikt/tap/nav-pilot";
 const QUICKSTART_COMMAND = "brew install navikt/tap/nav-pilot && nav-pilot";
 
 const COLLECTIONS = [
@@ -1075,129 +1075,16 @@ function GetStartedSection() {
             <Heading size="medium" level="2" className="mb-3">
               Kom i gang
             </Heading>
-            <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
-              Installer en samling og start en AI-sesjon med én kommando.
+            <p className="max-w-2xl mx-auto mb-8" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
+              Velg ditt mål og konfigurer nav-pilot for ditt prosjekt.
             </p>
           </div>
 
-          <div
-            className="w-full rounded-xl p-6 md:p-8"
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-            }}
-          >
-            <VStack gap="space-16">
-              <div>
-                <Heading size="xsmall" level="3" className="mb-2">
-                  1. Installer nav-pilot
-                </Heading>
-                <div
-                  className="rounded-lg p-4 overflow-x-auto flex items-center gap-3"
-                  style={{ background: "#1e1e1e" }}
-                >
-                  <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
-                    {INSTALL_COMMAND}
-                  </code>
-                  <CopyButton copyText={INSTALL_COMMAND} size="xsmall" style={{ color: "white" }} />
-                </div>
-                <AltInstall />
-              </div>
+          <PraksisSelector />
 
-              <div>
-                <Heading size="xsmall" level="3" className="mb-2">
-                  2. Start en AI-sesjon
-                </Heading>
-                <div
-                  className="rounded-lg p-4 overflow-x-auto flex items-center gap-3"
-                  style={{ background: "#1e1e1e" }}
-                >
-                  <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
-                    nav-pilot --sync
-                  </code>
-                  <CopyButton copyText="nav-pilot --sync" size="xsmall" style={{ color: "white" }} />
-                </div>
-                <p className="mt-2" style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.5rem 0 0" }}>
-                  Sjekker oppdateringer og starter Copilot med @nav-pilot. nav-pilot varsler deg automatisk hver 24.
-                  time om nye oppdateringer er tilgjengelige.
-                </p>
-              </div>
-
-              <div>
-                <Heading size="xsmall" level="3" className="mb-2">
-                  3. Gi en presis oppgave
-                </Heading>
-                <p style={{ color: "#475569", margin: 0 }}>Beskriv oppgaven med språk, rammeverk og kontekst:</p>
-                <div
-                  className="rounded-lg p-4 overflow-x-auto flex items-center gap-3 mt-2"
-                  style={{ background: "#1e1e1e" }}
-                >
-                  <code className="font-mono whitespace-nowrap flex-1" style={{ fontSize: "0.8rem", color: "#d4d4d4" }}>
-                    Lag et Ktor REST-endepunkt /vedtak/&#123;id&#125; med TokenX. Postgres via kotliquery.
-                  </code>
-                </div>
-                <p className="mt-2" style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.5rem 0 0" }}>
-                  Vil du kortere svar? Skriv <code style={{ fontSize: "0.75rem" }}>terse-mode</code> i starten av
-                  sesjonen.
-                </p>
-              </div>
-
-              <div>
-                <Heading size="xsmall" level="3" className="mb-2">
-                  4. Følg de fire fasene
-                </Heading>
-                <p style={{ color: "#475569", margin: 0 }}>
-                  nav-pilot guider deg gjennom intervju, planlegging, review og levering — hvert steg venter på din
-                  bekreftelse.
-                </p>
-              </div>
-            </VStack>
+          <div className="w-full">
+            <InteractiveSetupWizard />
           </div>
-
-          <Box
-            background="info-soft"
-            borderColor="info-subtle"
-            borderWidth="1"
-            borderRadius="8"
-            paddingBlock="space-12"
-            paddingInline="space-16"
-          >
-            <p
-              className="font-semibold"
-              style={{ color: "var(--a-blue-800)", fontSize: "0.8125rem", margin: "0 0 0.25rem" }}
-            >
-              GitHub Copilot og OpenCode
-            </p>
-            <p style={{ color: "var(--a-text-subtle)", fontSize: "0.8125rem", margin: 0 }}>
-              nav-pilot fungerer med <strong>GitHub Copilot</strong> (standard) og <strong>OpenCode</strong> (første
-              klasse). Bytt klient med{" "}
-              <code
-                className="font-mono"
-                style={{
-                  fontSize: "0.75rem",
-                  background: "var(--a-surface-info)",
-                  borderRadius: "3px",
-                  padding: "1px 4px",
-                }}
-              >
-                nav-pilot --client opencode
-              </code>{" "}
-              eller sett standard permanent med{" "}
-              <code
-                className="font-mono"
-                style={{
-                  fontSize: "0.75rem",
-                  background: "var(--a-surface-info)",
-                  borderRadius: "3px",
-                  padding: "1px 4px",
-                }}
-              >
-                nav-pilot config setup
-              </code>
-              .
-            </p>
-          </Box>
 
           <div className="flex flex-wrap gap-3 justify-center">
             <NextLink
