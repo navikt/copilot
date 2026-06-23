@@ -1,18 +1,9 @@
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
-import { LinkableHeading } from "@/components/linkable-heading";
 import { TestFlaskIcon, MagnifyingGlassIcon, CogIcon, TasklistIcon } from "@navikt/aksel-icons";
 
 export default function Verification() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Verifisering – Nøkkelen til Kvalitet
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        &quot;Gi Copilot en måte å verifisere arbeidet sitt – dette 2-3x kvaliteten.&quot; En god plan er viktig, men
-        verifisering er det som sikrer at resultatet faktisk fungerer.
-      </BodyShort>
-
+    <div className="space-y-8">
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="mb-6">
         <Box background="success-soft" padding="space-16" borderRadius="8" className="border-l-4 border-green-600">
           <div className="flex items-center gap-2 mb-5">
@@ -37,13 +28,15 @@ før du anser oppgaven som ferdig.`}
           <div className="flex items-center gap-2 mb-5">
             <MagnifyingGlassIcon className="text-blue-700" aria-hidden />
             <Heading size="small" level="3" className="text-blue-700">
-              La Copilot reviewe seg selv
+              La Copilot vurdere seg selv
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">Etter implementering, be om selvreview:</BodyShort>
+          <BodyShort className="text-gray-600 text-sm mb-2">
+            Etter implementering, be om en egenvurdering (self-review):
+          </BodyShort>
           <Box background="default" padding="space-8" borderRadius="4">
             <code className="text-xs block whitespace-pre-wrap font-mono">
-              {`Review koden du nettopp skrev.
+              {`Gå gjennom koden du nettopp skrev.
 Sjekk for:
 - Bugs og edge cases
 - Sikkerhetsrisikoer
@@ -123,7 +116,7 @@ Sjekk for:
             <BodyShort weight="semibold" className="text-sm">
               3. Knip
             </BodyShort>
-            <BodyShort className="text-gray-600 text-xs">Fjern ubrukt kode og deps</BodyShort>
+            <BodyShort className="text-gray-600 text-xs">Fjern ubrukt kode og avhengigheter</BodyShort>
           </div>
           <div>
             <BodyShort weight="semibold" className="text-sm">
@@ -133,6 +126,6 @@ Sjekk for:
           </div>
         </HGrid>
       </Box>
-    </Box>
+    </div>
   );
 }

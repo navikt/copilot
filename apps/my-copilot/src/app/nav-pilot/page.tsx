@@ -3,7 +3,6 @@ import React from "react";
 import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
-import { PraksisSelector } from "@/components/nav-pilot/praksis-selector";
 import {
   TerminalIcon,
   PaletteIcon,
@@ -1079,8 +1078,6 @@ function GetStartedSection() {
               Velg ditt mål og konfigurer nav-pilot for ditt prosjekt.
             </p>
           </div>
-
-          <PraksisSelector />
 
           <div className="w-full">
             <InteractiveSetupWizard />

@@ -1,5 +1,4 @@
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
-import { LinkableHeading } from "@/components/linkable-heading";
 import {
   CheckmarkCircleIcon,
   XMarkOctagonIcon,
@@ -11,15 +10,7 @@ import {
 
 export default function OrchestrateAgents() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Orkestrer og Styr Agenter
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Med Copilot coding agent jobber du som en &quot;mission control&quot; – du styrer oppgaver, overvåker fremdrift
-        og griper inn ved behov.
-      </BodyShort>
-
+    <div className="space-y-8">
       {/* Mission Control Hero Image */}
       <div className="mb-6 rounded-lg overflow-hidden border border-gray-200 shadow-sm relative aspect-video">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -195,7 +186,62 @@ export default function OrchestrateAgents() {
             </div>
           </HGrid>
         </Box>
+
+        {/* Copilot App + Terminal-First - June 2026 */}
+        <Box background="neutral-soft" padding="space-16" borderRadius="8">
+          <Heading size="small" level="3" className="mb-3">
+            🆕 Copilot App og Terminal-First (juni 2026)
+          </Heading>
+          <BodyShort className="text-gray-700 text-sm mb-4">
+            GitHub lanserte en frittstående <strong>Copilot App</strong> (macOS/Windows/Linux) som lar deg kjøre agenter
+            på tvers av flere repoer og skydrift via «Canvases» – en toveiskommunikasjon der du kan justere oppgaven
+            underveis uten å starte på nytt.
+          </BodyShort>
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+            <Box background="default" padding="space-12" borderRadius="4">
+              <BodyShort weight="semibold" className="text-sm mb-2">
+                Terminal-First på Nav
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs mb-2">
+                Nav-utviklere er allerede i kjernen av «Terminal-First»-trenden med CLI-verktøy som <code>gh</code>,{" "}
+                <code>nais</code>, <code>mise</code> og <code>rtk</code>. Den naturlige neste steget er å la agenter
+                orkestrere disse verktøyene automatisk.
+              </BodyShort>
+              <pre className="text-xs font-mono bg-gray-900 text-green-400 p-3 rounded-md">{`# La agenten kjøre standardsjekkene
+rtk mise check        # Typesjekk + lint + test
+rtk gh pr create      # Opprett PR automatisk
+rtk go test ./...     # Verifiser endringer`}</pre>
+            </Box>
+            <Box background="default" padding="space-12" borderRadius="4">
+              <BodyShort weight="semibold" className="text-sm mb-2">
+                Din rolle som AI-orkestrator
+              </BodyShort>
+              <ul className="space-y-2 text-xs text-gray-600">
+                <li className="flex gap-2">
+                  <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
+                  <span>Definer oppgaven klart i et issue eller prompt</span>
+                </li>
+                <li className="flex gap-2">
+                  <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
+                  <span>Verifiser shell-kommandoer agenten ønsker å kjøre</span>
+                </li>
+                <li className="flex gap-2">
+                  <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
+                  <span>Gjennomgå diff og logg før PR merges</span>
+                </li>
+                <li className="flex gap-2">
+                  <ExclamationmarkTriangleIcon
+                    className="text-orange-600 shrink-0 mt-0.5"
+                    fontSize="1rem"
+                    aria-hidden
+                  />
+                  <span>Godkjenn aldri agent-kjøringer blindt – les session logs</span>
+                </li>
+              </ul>
+            </Box>
+          </HGrid>
+        </Box>
       </div>
-    </Box>
+    </div>
   );
 }

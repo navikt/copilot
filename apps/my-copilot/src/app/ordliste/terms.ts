@@ -33,7 +33,7 @@ export const terms: Term[] = [
     term: "Agent mode",
     definition:
       "Copilots modus der AI-en jobber autonomt i editoren. Agenten kan redigere filer, kjøre kommandoer og bruke verktøy for å løse oppgaver i flere steg.",
-    link: { href: "/praksis#vanlige-mønstre-for-agent-mode", label: "Mønstre for agent mode" },
+    link: { href: "/praksis/guide/orkestrere-agenter", label: "Mønstre for agent mode" },
   },
   {
     term: "Agent harness",
@@ -55,7 +55,7 @@ export const terms: Term[] = [
     term: "AGENTS.md",
     definition:
       "En konfigurasjonsfil i roten av et repository som gir AI-agenter kontekst om prosjektet – struktur, byggkommandoer, konvensjoner og grenser for hva agenten kan gjøre.",
-    link: { href: "/praksis#skriv-effektive-tilpasninger", label: "Skriv effektive tilpasninger" },
+    link: { href: "/praksis/guide/skreddersy-med-skills-og-rules", label: "Skriv effektive tilpasninger" },
   },
   {
     term: "Ask mode",
@@ -76,7 +76,7 @@ export const terms: Term[] = [
     term: "Coding agent",
     definition:
       "Copilots autonome agent på GitHub. Du tildeler en issue til Copilot, og agenten skriver kode, kjører tester og oppretter en pull request du kan gjennomgå.",
-    link: { href: "/praksis#wrap-metoden-for-coding-agent", label: "WRAP-metoden" },
+    link: { href: "/praksis/guide/wrap-metoden", label: "WRAP-metoden" },
   },
   {
     term: "Completion",
@@ -99,7 +99,7 @@ export const terms: Term[] = [
     term: "Copilot Edits",
     definition:
       "Copilots redigeringsverktøy for å gjøre endringer på tvers av flere filer fra én enkelt prompt. Finnes i to moduser: edit mode (du velger filene) og agent mode (Copilot velger selv).",
-    link: { href: "/praksis#verktøy-og-moduser", label: "Verktøy og moduser" },
+    link: { href: "/praksis/guide/velge-riktig-verktoy", label: "Verktøy og moduser" },
   },
   {
     term: "Copilot Memory",
@@ -142,7 +142,7 @@ export const terms: Term[] = [
     term: "Hallusinasjon",
     definition:
       "Når en AI-modell genererer informasjon som virker troverdig, men er feil eller oppdiktet. Copilot kan hallusinere API-navn, funksjoner eller biblioteker som ikke finnes.",
-    link: { href: "/praksis#verifisering-nøkkelen-til-kvalitet", label: "Verifisering" },
+    link: { href: "/praksis/guide/skrive-og-kjore-tester", label: "Verifisering" },
   },
   {
     term: "Hooks",
@@ -175,7 +175,7 @@ export const terms: Term[] = [
     term: "Kontekstvindu",
     definition:
       "Mengden tekst (målt i tokens) en AI-modell kan ta inn og huske på én gang. Innhold utenfor kontekstvinduet er ikke tilgjengelig for modellen i en gitt forespørsel.",
-    link: { href: "/praksis#forbered-for-suksess", label: "Forbered for suksess" },
+    link: { href: "/praksis/guide/forberede-prosjektet", label: "Forbered for suksess" },
   },
   {
     term: "Inference context",
@@ -224,7 +224,7 @@ export const terms: Term[] = [
     term: "Prompt",
     definition:
       "Instruksjonen, spørsmålet eller konteksten du gir til AI-modellen. Tydelig kontekst og presise instruksjoner gir bedre svar.",
-    link: { href: "/praksis#prompt-engineering", label: "Prompt engineering" },
+    link: { href: "/praksis/guide/skrive-presise-prompts", label: "Prompt engineering" },
   },
   {
     term: "RAG (Retrieval-Augmented Generation)",

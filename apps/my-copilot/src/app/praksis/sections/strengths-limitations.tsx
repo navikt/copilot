@@ -1,6 +1,5 @@
 import { Heading, BodyShort, Box, HGrid, VStack } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
-import { LinkableHeading } from "@/components/linkable-heading";
 import {
   CheckmarkCircleIcon,
   XMarkOctagonIcon,
@@ -10,14 +9,40 @@ import {
 
 export default function StrengthsLimitations() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Styrker, Begrensninger og Farer
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Copilot er kraftig, men ikke magisk. Forstå hva det gjør best, hvor det svikter, og hvilke farer du må være
-        oppmerksom på.
-      </BodyShort>
+    <div className="space-y-8">
+      <Box background="danger-soft" padding="space-16" borderRadius="8" className="border-2 border-red-600">
+        <Heading size="small" level="3" className="text-red-700 mb-2">
+          Trener Copilot på koden vår? NEI.
+        </Heading>
+        <BodyShort className="text-gray-800">
+          En av de største misforståelsene rundt GitHub Copilot Business/Enterprise er at Microsoft bruker koden din til
+          å trene opp sine offentlige AI-modeller. <strong>Dette stemmer ikke.</strong> Din kode, dine prompts, og din
+          chat-historikk blir verken brukt som treningsdata eller delt utenfor organisasjonen. Dataene sendes kryptert
+          til modellen for å generere svar, og kastes deretter.
+        </BodyShort>
+      </Box>
+
+      <Box background="neutral-soft" padding="space-16" borderRadius="8">
+        <Heading size="small" level="3" className="mb-2">
+          Skjerming av sensitiv kode (.copilotignore)
+        </Heading>
+        <BodyShort className="text-gray-700 mb-3">
+          Selv om koden ikke brukes til trening, vil du kanskje forhindre at Copilot i det hele tatt kan <em>lese</em>{" "}
+          visse filer (f.eks. lokalt test-passord eller spesifikke konfigurasjonsfiler) slik at de ikke ved et uhell
+          blir sendt som kontekst i en spørring.
+        </BodyShort>
+        <BodyShort className="text-gray-700">
+          Dette løses med filen <code>.copilotignore</code>. Den fungerer nøyaktig som <code>.gitignore</code>, bare for
+          Copilot. Plasser den i roten av repoet ditt:
+        </BodyShort>
+        <pre className="bg-gray-900 text-green-400 p-4 rounded-md mt-3 text-sm font-mono overflow-x-auto">
+          {`# .copilotignore
+config/application-dev.yml
+secrets/
+*.key
+test-data/passwords.txt`}
+        </pre>
+      </Box>
 
       <Carousel showIndicators={true} showSwipeHint={true} className="mb-6">
         <VStack gap="space-16" className="md:min-w-100">
@@ -227,6 +252,6 @@ export default function StrengthsLimitations() {
           </div>
         </HGrid>
       </Box>
-    </Box>
+    </div>
   );
 }
