@@ -1,5 +1,4 @@
 import { BodyShort, Box, Heading, HGrid, HStack, VStack } from "@navikt/ds-react";
-import { LinkableHeading } from "@/components/linkable-heading";
 import {
   CurrencyExchangeIcon,
   SparklesIcon,
@@ -12,10 +11,7 @@ import NextLink from "next/link";
 
 export default function CostOptimization() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2">
-        Kostnadsoptimalisering i praksis
-      </LinkableHeading>
+    <div className="space-y-8">
       <BodyShort size="small" className="text-gray-600">
         Seks tiltak med høy effekt: presise spørsmål, smale sesjoner, riktig agentvalg, kort output, minimale
         instruksjonsfiler og mindre verktøy-overhead.
@@ -26,7 +22,19 @@ export default function CostOptimization() {
           <Box background="accent-soft" borderRadius="8" padding="space-16">
             <BodyShort size="small" className="text-gray-700">
               Budsjettgrensen i my-copilot er et kostnadstak, ikke en kvote som må brukes opp. Hvis teamet bruker mindre
-              enn grensen, mister ikke Nav «tokens» som må tas igjen mot slutten av måneden.
+              enn grensen, mister ikke Nav «tokens» som tas igjen mot slutten av måneden.
+            </BodyShort>
+          </Box>
+
+          <Box background="info-soft" borderRadius="8" padding="space-16">
+            <BodyShort weight="semibold" size="small" className="text-blue-700 mb-1">
+              🆕 Spend Meter i VS Code (juni 2026)
+            </BodyShort>
+            <BodyShort size="small" className="text-gray-700">
+              VS Code 1.125 introduserte et innebygd «Spend Meter» som viser ditt eget AI Credits-forbruk i sanntid.
+              Finn det under <code>View → Status Bar → Copilot Usage</code>. Bruk det aktivt for å oppdage dyre mønstre
+              tidlig. Kombinert med <code>rtk</code>-proxyen (60–90 % token-besparelse) er dette de to viktigste
+              verktøyene for å holde kostnadene nede.
             </BodyShort>
           </Box>
 
@@ -169,6 +177,6 @@ export default function CostOptimization() {
           </Box>
         </VStack>
       </Box>
-    </Box>
+    </div>
   );
 }

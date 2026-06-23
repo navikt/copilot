@@ -1,17 +1,9 @@
-import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
-import { LinkableHeading } from "@/components/linkable-heading";
+import { Heading, Box, HGrid } from "@navikt/ds-react";
 import { BookIcon, StarIcon, CogIcon, ShieldLockIcon, BranchingIcon } from "@navikt/aksel-icons";
 
 export default function Resources() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Ressurser
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Offisielle kilder, fellesskapsressurser og Nav-spesifikk dokumentasjon.
-      </BodyShort>
-
+    <div className="space-y-8">
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         <Box background="info-soft" padding="space-16" borderRadius="8">
           <div className="flex items-center gap-2 mb-2">
@@ -248,6 +240,6 @@ export default function Resources() {
           </ul>
         </Box>
       </HGrid>
-    </Box>
+    </div>
   );
 }

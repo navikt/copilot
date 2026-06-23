@@ -1,20 +1,11 @@
 import { Heading, BodyShort, Box, HGrid, Label } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
-import { LinkableHeading } from "@/components/linkable-heading";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
 
 export default function ToolsAndModes() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Verktøy og Moduser
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        GitHub Copilot er ikke bare kodeforslag i editoren. Det er et økosystem av verktøy som spenner fra
-        sanntidsforslag til autonome agenter som jobber i bakgrunnen.
-      </BodyShort>
-
+    <div className="space-y-8">
       {/* Video showcase */}
       <Box background="default" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="mb-6">
         <video
@@ -49,26 +40,29 @@ export default function ToolsAndModes() {
           <div className="space-y-3">
             <div>
               <BodyShort weight="semibold" className="text-sm">
-                Kodeforslag (Completions)
+                1. Ghost Text (Inline Autocomplete)
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Sanntidsforslag mens du skriver. Tab for å godta, Esc for å avvise.
+                Den svake teksten som dukker opp mens du skriver. Trykk Tab for å godta, Esc for å avvise. Copilot
+                prøver å gjette din neste linje basert på filene du har åpne.
               </BodyShort>
             </div>
             <div>
               <BodyShort weight="semibold" className="text-sm">
-                Chat (⌘+I / Ctrl+I)
+                2. Copilot Chat (Cmd+I eller sidepanel)
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Still spørsmål, generér kode, få forklaringer. Bruk @workspace for prosjektkontekst.
+                Assisterende AI. Du kan stille spørsmål om koden din, be om forklaringer, eller generere nye funksjoner.
+                Vær obs på at den ikke alltid forstår hele prosjektet uten at du eksplisitt nevner filene.
               </BodyShort>
             </div>
             <div>
               <BodyShort weight="semibold" className="text-sm">
-                Agent Mode
+                3. Copilot Edits / Agent Mode (Cmd+Shift+I)
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Multifil-endringer, kjør kommandoer, iterér på feil. Mer autonomt enn chat.
+                Autonom AI. Dette er den nye "agent-modusen". Du gir et stort mål ("Bytt ut alle fetch-kall med axios"),
+                og Copilot åpner flere filer, endrer dem, og ber deg godkjenne diff-en til slutt.
               </BodyShort>
             </div>
             <div>
@@ -244,7 +238,7 @@ export default function ToolsAndModes() {
           </BodyShort>
         </Box>
         <BodyShort className="text-gray-600 text-sm mb-5">
-          Du har <strong>300 premium requests</strong> per måned. Inkluderte modeller (GPT-5 mini, GPT-4.1, GPT-4o)
+          Du har <strong>300 premium requests</strong> per måned. Inkluderte modeller (GPT-4.1, GPT-4o og lignende)
           bruker ingen premium requests. <strong>Auto</strong> gir 10 % rabatt og velger beste modell automatisk.
         </BodyShort>
         <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
@@ -253,7 +247,7 @@ export default function ToolsAndModes() {
               Inkluderte (0x)
             </Label>
             <BodyShort className="text-gray-600 text-xs">
-              GPT-5 mini, GPT-4.1, GPT-4o — ingen premium requests
+              GPT-4.1, GPT-4o og tilsvarende — ingen premium requests
             </BodyShort>
           </div>
           <div>
@@ -265,19 +259,19 @@ export default function ToolsAndModes() {
             </BodyShort>
           </div>
           <div>
-            <Label size="small">Claude Sonnet 4 / 4.5 / 4.6</Label>
+            <Label size="small">Claude Sonnet (siste)</Label>
             <BodyShort className="text-gray-600 text-xs">Balansert – god til de fleste oppgaver (1×)</BodyShort>
           </div>
           <div>
-            <Label size="small">GPT-5.2 / 5.4</Label>
+            <Label size="small">GPT-4o / nyeste OpenAI</Label>
             <BodyShort className="text-gray-600 text-xs">OpenAI premium – bred kunnskap (1×)</BodyShort>
           </div>
           <div>
-            <Label size="small">Claude Opus 4.5 / 4.6</Label>
+            <Label size="small">Claude Opus (siste)</Label>
             <BodyShort className="text-gray-600 text-xs">Kraftigst – komplekse oppgaver (3×)</BodyShort>
           </div>
           <div>
-            <Label size="small">Haiku 4.5 / GPT-5.4 mini</Label>
+            <Label size="small">Haiku / mini-modeller</Label>
             <BodyShort className="text-gray-600 text-xs">Raske – enklere oppgaver (0.33×)</BodyShort>
           </div>
         </HGrid>
@@ -294,6 +288,6 @@ export default function ToolsAndModes() {
           for detaljer.
         </BodyShort>
       </Box>
-    </Box>
+    </div>
   );
 }

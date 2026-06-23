@@ -1,5 +1,4 @@
 import { Heading, BodyShort, Box, HGrid, Label, VStack } from "@navikt/ds-react";
-import { LinkableHeading } from "@/components/linkable-heading";
 import {
   CheckmarkCircleIcon,
   XMarkOctagonIcon,
@@ -11,40 +10,7 @@ import {
 
 export default function EffectiveCustomizations() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Skriv Effektive Tilpasninger
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Nå som du vet hvilke tilpasningstyper som finnes, her er konkrete råd for å skrive dem godt. Kilde:{" "}
-        <a
-          href="https://code.visualstudio.com/docs/copilot/customization/overview"
-          className="text-blue-600 hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          VS Code Docs
-        </a>
-        ,{" "}
-        <a
-          href="https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/"
-          className="text-blue-600 hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub Blog (2500+ repos)
-        </a>
-        ,{" "}
-        <a
-          href="https://agentskills.io/specification"
-          className="text-blue-600 hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          agentskills.io
-        </a>
-      </BodyShort>
-
+    <div className="space-y-8">
       {/* Instructions */}
       <Box background="success-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="mb-6">
         <div className="flex items-center gap-2 mb-5">
@@ -317,12 +283,12 @@ export default function EffectiveCustomizations() {
                 <span>
                   Se{" "}
                   <a
-                    href="https://github.com/anthropics/skills"
+                    href="https://github.com/github/awesome-copilot"
                     className="text-blue-600 hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    anthropics/skills
+                    awesome-copilot
                   </a>{" "}
                   og{" "}
                   <a
@@ -385,6 +351,66 @@ export default function EffectiveCustomizations() {
           </Box>
         </HGrid>
       </Box>
-    </Box>
+
+      {/* Copilot Memories - new June 2026 */}
+      <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8">
+        <div className="flex items-center gap-2 mb-4">
+          <LightBulbIcon className="text-purple-700" aria-hidden />
+          <Heading size="small" level="3" className="text-purple-700">
+            🆕 Copilot Memories (juni 2026)
+          </Heading>
+        </div>
+        <BodyShort className="text-gray-600 text-sm mb-4">
+          Copilot har fått innebygd «Memories» – en vedvarende kunnskapsbase der agenten husker teamets spesifikke
+          preferanser og standarder på tvers av sesjoner. Dette er et kraftig komplement til <code>AGENTS.md</code> og
+          instructions-filer: mens instruksjonsfiler krever manuell vedlikehold, bygger Memories seg opp automatisk
+          etter hvert som dere jobber.
+        </BodyShort>
+        <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+          <Box background="default" padding="space-12" borderRadius="4">
+            <BodyShort weight="semibold" className="text-sm mb-2">
+              Hva bør Nav-team lagre i Memories?
+            </BodyShort>
+            <ul className="space-y-2 text-xs text-gray-600">
+              <li className="flex gap-2">
+                <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
+                <span>Aksel-designsystem: aldri Tailwind padding/margin, bruk space-tokens</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
+                <span>UU-krav: alltid aria-labels, riktig heading-hierarki, kontrastsjekk</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
+                <span>GDPR/PII: aldri logge personidentifiserbare data uten eksplisitt samtykke</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
+                <span>
+                  Bygg-verktøy: alltid bruke <code>rtk mise check</code> før commit
+                </span>
+              </li>
+            </ul>
+          </Box>
+          <Box background="default" padding="space-12" borderRadius="4">
+            <BodyShort weight="semibold" className="text-sm mb-2">
+              Memories vs. AGENTS.md
+            </BodyShort>
+            <BodyShort className="text-gray-600 text-xs mb-3">Bruk begge, men til forskjellige formål:</BodyShort>
+            <ul className="space-y-1 text-xs text-gray-600">
+              <li>
+                <strong>AGENTS.md:</strong> Faste, eksplisitte kjøreregler (versjonskontrollert)
+              </li>
+              <li>
+                <strong>Memories:</strong> Kontekstuell kunnskap bygget opp over tid (dynamisk)
+              </li>
+              <li>
+                <strong>Instructions:</strong> Kodestil og syntaksregler (per fil-type)
+              </li>
+            </ul>
+          </Box>
+        </HGrid>
+      </Box>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
 import { Heading, BodyShort, Box, HGrid, HelpText, VStack, Label } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { CodeBlock } from "@/components/code-block";
-import { LinkableHeading } from "@/components/linkable-heading";
 import {
   GlobeIcon,
   RocketIcon,
@@ -16,14 +15,7 @@ import {
 
 export default function PrepareForSuccess() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Forbered for Suksess
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Tilpass Copilot til ditt prosjekt med instruksjonsfiler. Jo bedre kontekst du gir, jo bedre resultater får du.
-      </BodyShort>
-
+    <div className="space-y-8">
       {/* Language guidance */}
       <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="mb-6">
         <div className="flex items-start gap-2">
@@ -99,18 +91,6 @@ export default function PrepareForSuccess() {
             Fire typer tilpasninger
           </Heading>
         </div>
-        <BodyShort size="small" className="text-gray-600 mb-6">
-          GitHub Copilot kan tilpasses på fire måter. Se{" "}
-          <a
-            href="https://github.com/github/awesome-copilot"
-            className="text-blue-600 hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            github/awesome-copilot
-          </a>{" "}
-          for fellesskapets kuraterte eksempler.
-        </BodyShort>
         <HGrid columns={{ xs: 1, md: 2, lg: 4 }} gap="space-20">
           <VStack gap="space-8">
             <Label size="small" className="text-blue-700">
@@ -252,7 +232,7 @@ Follow the structure used in popular open-source projects.`}</CodeBlock>
             >{`# Prosjektinstruksjoner for Copilot
 
 ## Teknisk stack
-- Next.js 16 med App Router
+- Next.js 15 med App Router
 - TypeScript strict mode
 - Nav Design System (@navikt/ds-react)
 - Tailwind CSS for utilities
@@ -341,7 +321,9 @@ jobs:
         with:
           node-version: 22
 
-      - run: npm install`}</CodeBlock>
+      - uses: pnpm/action-setup@v4
+
+      - run: pnpm install --frozen-lockfile`}</CodeBlock>
           </VStack>
 
           <VStack gap="space-16" className="w-100">
@@ -627,6 +609,6 @@ Return extracted data as structured JSON:
           </div>
         </HGrid>
       </Box>
-    </Box>
+    </div>
   );
 }

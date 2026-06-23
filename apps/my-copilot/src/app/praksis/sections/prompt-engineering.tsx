@@ -1,17 +1,60 @@
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
-import { LinkableHeading } from "@/components/linkable-heading";
 import { XMarkOctagonIcon, TasklistIcon, FileTextIcon } from "@navikt/aksel-icons";
 
 export default function PromptEngineering() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Prompt Engineering
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Hvordan du formulerer forespørselen påvirker kvaliteten på Copilots svar. Spesifisitet er nøkkelen.
-      </BodyShort>
+    <div className="space-y-8">
+      {/* WRAP Method Introduction */}
+      <Box background="info-soft" padding="space-16" borderRadius="8" className="border border-blue-600">
+        <Heading size="small" level="3" className="mb-3 text-blue-700">
+          Fundamentet: WRAP-metoden
+        </Heading>
+        <BodyShort className="text-gray-800 mb-4">
+          For å lykkes med Copilot, spesielt på komplekse oppgaver, anbefaler vi å bruke{" "}
+          <strong>WRAP-rammeverket</strong> utviklet av GitHub. Det hjelper deg med å tenke som en "manager" for AI-en i
+          stedet for bare en kode-skriver:
+        </BodyShort>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <BodyShort weight="semibold" className="text-blue-800">
+              W - Write
+            </BodyShort>
+            <BodyShort className="text-sm text-gray-700">
+              Skriv oppgaven som om du forklarer den til en ny, junior utvikler på teamet ditt. Vær spesifikk og
+              detaljert.
+            </BodyShort>
+          </div>
+          <div>
+            <BodyShort weight="semibold" className="text-blue-800">
+              R - Refine
+            </BodyShort>
+            <BodyShort className="text-sm text-gray-700">
+              Avgrens oppgaven med riktig kontekst (AGENTS.md, tech stack, lukkede filer som er irrelevante).
+            </BodyShort>
+          </div>
+          <div>
+            <BodyShort weight="semibold" className="text-blue-800">
+              A - Atomic
+            </BodyShort>
+            <BodyShort className="text-sm text-gray-700">
+              Bryt oppgaven ned i små, atomiske biter. "Lag login form", ikke "Lag hele auth-systemet".
+            </BodyShort>
+          </div>
+          <div>
+            <BodyShort weight="semibold" className="text-blue-800">
+              P - Pair
+            </BodyShort>
+            <BodyShort className="text-sm text-gray-700">
+              Pair-programmering. Evaluer koden, gi feedback på feil, og ta over styringen når AI-en står fast.
+            </BodyShort>
+          </div>
+        </div>
+      </Box>
+
+      <Heading size="medium" level="2" className="mt-8 mb-4">
+        Praktiske strategier
+      </Heading>
 
       <div className="space-y-6">
         {/* Strategy 1: Specific prompts */}
@@ -252,6 +295,6 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
           </HGrid>
         </Box>
       </div>
-    </Box>
+    </div>
   );
 }

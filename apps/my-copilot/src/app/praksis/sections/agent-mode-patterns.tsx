@@ -1,6 +1,5 @@
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
 import { CodeBlock } from "@/components/code-block";
-import { LinkableHeading } from "@/components/linkable-heading";
 import {
   BookIcon,
   TestFlaskIcon,
@@ -13,14 +12,7 @@ import {
 
 export default function AgentModePatterns() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Vanlige mønstre for Agent Mode
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Bygg spesialiserte agenter for repeterende oppgaver. Her er seks anbefalte agenter å starte med.
-      </BodyShort>
-
+    <div className="space-y-8">
       <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
         <Box background="info-soft" padding="space-16" borderRadius="8">
           <div className="flex items-center gap-2 mb-2">
@@ -48,7 +40,7 @@ export default function AgentModePatterns() {
           <ul className="space-y-1 text-xs">
             <li>• Skriv enhetstester for ny kode</li>
             <li>• Øk testdekning på moduler</li>
-            <li>• Fiks flaky tester</li>
+            <li>• Fiks ustabile tester (flaky)</li>
           </ul>
         </Box>
 
@@ -61,8 +53,8 @@ export default function AgentModePatterns() {
           </div>
           <BodyShort className="text-gray-600 text-sm mb-2">Kodeformatering</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Fiks linting-feil</li>
-            <li>• Migrer til ny ESLint-config</li>
+            <li>• Fiks lint-feil</li>
+            <li>• Migrer til ny ESLint-konfigurasjon</li>
             <li>• Fjern ubrukt kode</li>
           </ul>
         </Box>
@@ -77,7 +69,7 @@ export default function AgentModePatterns() {
           <BodyShort className="text-gray-600 text-sm mb-2">API-utvikling</BodyShort>
           <ul className="space-y-1 text-xs">
             <li>• Lag nye endepunkter</li>
-            <li>• Generer OpenAPI-spec</li>
+            <li>• Generer OpenAPI-spesifikasjon</li>
             <li>• Valider request/response</li>
           </ul>
         </Box>
@@ -91,9 +83,9 @@ export default function AgentModePatterns() {
           </div>
           <BodyShort className="text-gray-600 text-sm mb-2">Sikkerhetssjekk</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Audit avhengigheter</li>
+            <li>• Sjekk avhengigheter for sårbarheter</li>
             <li>• Finn sikkerhetshull</li>
-            <li>• Foreslå fixes</li>
+            <li>• Foreslå utbedringer</li>
           </ul>
         </Box>
 
@@ -107,7 +99,7 @@ export default function AgentModePatterns() {
           <BodyShort className="text-gray-600 text-sm mb-2">Dev/Deploy-hjelp</BodyShort>
           <ul className="space-y-1 text-xs">
             <li>• Oppdater Dockerfile</li>
-            <li>• Fiks CI-config</li>
+            <li>• Fiks CI-konfigurasjon</li>
             <li>• Miljøvariabler</li>
           </ul>
         </Box>
@@ -122,7 +114,7 @@ export default function AgentModePatterns() {
           </Heading>
         </div>
         <BodyShort className="text-gray-600 text-xs mb-2">
-          Følger GitHub sin anbefalte rekkefølge: Kommandoer → Testing → Prosjektstruktur → Kodestil → Git-workflow →
+          Følger GitHubs anbefalte rekkefølge: Kommandoer → Testing → Prosjektstruktur → Kodestil → Git-arbeidsflyt →
           Grenser
         </BodyShort>
         <CodeBlock filename=".github/agents/test-agent.agent.md">{`---
@@ -157,6 +149,6 @@ description: Skriver tester for dette prosjektet
 - ⚠️ Spør først: Endre eksisterende tester
 - 🚫 Aldri: Slett tester uten godkjenning`}</CodeBlock>
       </Box>
-    </Box>
+    </div>
   );
 }

@@ -1,17 +1,9 @@
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
-import { LinkableHeading } from "@/components/linkable-heading";
 import { ExclamationmarkTriangleIcon, LightBulbIcon } from "@navikt/aksel-icons";
 
 export default function ReviewCopilotWork() {
   return (
-    <Box background="neutral-soft" padding={{ xs: "space-12", sm: "space-16", md: "space-24" }} borderRadius="12">
-      <LinkableHeading size="medium" level="2" className="mb-3">
-        Gjennomgå Copilots Arbeid
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-600 mb-6">
-        Copilot coding agent lager PR-er som trenger grundig gjennomgang. Bruk en tre-trinns sjekkliste.
-      </BodyShort>
-
+    <div className="space-y-8">
       {/* Code Review Image */}
       <div className="mb-6 rounded-lg overflow-hidden border border-gray-200 shadow-sm relative aspect-video">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -133,6 +125,6 @@ export default function ReviewCopilotWork() {
           </div>
         </HGrid>
       </Box>
-    </Box>
+    </div>
   );
 }
