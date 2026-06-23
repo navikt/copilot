@@ -236,6 +236,12 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.OtelLogLevel != nil {
 			r.OtelLogLevel = *file.OtelLogLevel
 		}
+		if file.RtkPromptedClient != nil {
+			r.RtkPromptedClient = *file.RtkPromptedClient
+		}
+		if file.RtkPromptedAt != nil {
+			r.RtkPromptedAt = *file.RtkPromptedAt
+		}
 	}
 
 	// Apply CLI overrides (higher precedence than file).

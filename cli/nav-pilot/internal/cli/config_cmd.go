@@ -119,6 +119,22 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "none",
 		flag:        "--otel-log-level",
 	},
+	{
+		name:        "rtk_prompted_client",
+		kind:        keyKindString,
+		description: "Internal flag to track which client (e.g. copilot, opencode) the user was last prompted to set up rtk for.",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+	},
+	{
+		name:        "rtk_prompted_at",
+		kind:        keyKindString,
+		description: "Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+	},
 }
 
 func findKeyDef(name string) *configKeyDef {
@@ -204,6 +220,14 @@ version = 1
 # the OTLP endpoint is unreachable. A pre-existing OTEL_LOG_LEVEL in your shell
 # environment takes precedence.
 # otel_log_level = "none"
+
+# Internal flag to track which client the user was last prompted to set up rtk for.
+# Default: unset
+# rtk_prompted_client = ""
+
+# Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).
+# Default: unset
+# rtk_prompted_at = ""
 `
 
 // ─── Subcommand dispatch ──────────────────────────────────────────────────────

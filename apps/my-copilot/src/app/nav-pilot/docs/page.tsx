@@ -377,7 +377,7 @@ function IntroductionSection() {
           </LinkableHeading>
           <BodyLong className="mt-3 mb-6" style={{ color: "#475569" }}>
             nav-pilot er et <strong>CLI-verktøy</strong> og en <strong>AI-agent</strong>. CLI-et installerer agenter,
-            skills og instruksjoner i repoet ditt. Agenten (
+            skills og instruksjoner i repoet ditt, og vil i tillegg <strong>automatisk spørre om å sette opp Terminal Token Optimizer (rtk)</strong> for token-optimalisering. Agenten (
             <code
               className="text-sm font-mono rounded px-1.5 py-0.5"
               style={{ background: "#f1f5f9", color: "#3b82f6" }}

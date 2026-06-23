@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -62,6 +65,8 @@ func cmdInteractive(overrides CLIOverrides) error {
 	if cfgErr != nil {
 		return cfgErr
 	}
+
+	maybePromptRtkSetup(resolved)
 
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope
@@ -727,4 +732,194 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClient(resolved)
 	})
+}
+
+// patchOpenCodeConfig ensures the given opencode config file has the rtk plugin configured.
+func patchOpenCodeConfig(opencodePath string) error {
+	// Resolve symlinks to avoid overwriting the symlink itself with a regular file during atomic rename
+	realPath, err := filepath.EvalSymlinks(opencodePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // File doesn't exist, nothing to do
+		}
+		return fmt.Errorf("failed to evaluate symlink for opencode config: %w", err)
+	}
+
+	info, err := os.Stat(realPath)
+	if err != nil {
+		return fmt.Errorf("failed to stat opencode config: %w", err)
+	}
+
+	data, err := os.ReadFile(realPath)
+	if err != nil {
+		return fmt.Errorf("failed to read opencode config: %w", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(data, &config); err != nil {
+		// Might be JSONC or invalid JSON. We abort safely.
+		return fmt.Errorf("failed to unmarshal opencode config: %w", err)
+	}
+
+	pluginsRaw, exists := config["plugin"]
+	if !exists {
+		config["plugin"] = []string{"~/.config/opencode/plugins/rtk.ts"}
+	} else {
+		// Handle the case where 'plugin' is a string instead of an array
+		if singleStr, ok := pluginsRaw.(string); ok {
+			config["plugin"] = []string{singleStr, "~/.config/opencode/plugins/rtk.ts"}
+		} else if plugins, ok := pluginsRaw.([]interface{}); ok {
+			hasPlugin := false
+			for _, p := range plugins {
+				if str, ok := p.(string); ok && str == "~/.config/opencode/plugins/rtk.ts" {
+					hasPlugin = true
+					break
+				}
+			}
+
+			if !hasPlugin {
+				config["plugin"] = append(plugins, "~/.config/opencode/plugins/rtk.ts")
+			} else {
+				return nil // already patched
+			}
+		} else {
+			return fmt.Errorf("'plugin' field is not a string or array")
+		}
+	}
+
+	patchedData, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal patched config: %w", err)
+	}
+
+	// Atomic write: write to temp file then rename
+	tmpPath := realPath + ".tmp"
+	if err := os.WriteFile(tmpPath, patchedData, info.Mode()); err != nil {
+		return fmt.Errorf("failed to write temporary config file: %w", err)
+	}
+	if err := os.Rename(tmpPath, realPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to commit patched config file: %w", err)
+	}
+	return nil
+}
+
+// maybePromptRtkSetup asks the user if they want to install and set up rtk to save tokens.
+func maybePromptRtkSetup(cfg ResolvedConfig) {
+	// Split prompted clients and check if the current client is already prompted
+	promptedClients := strings.Split(cfg.RtkPromptedClient, ",")
+	for _, pc := range promptedClients {
+		if pc == cfg.Client {
+			return // already prompted for this client
+		}
+	}
+
+	if !isInteractive() {
+		return
+	}
+
+	hasRtk := false
+	rtkPath, err := exec.LookPath("rtk")
+	if err == nil {
+		hasRtk = true
+	}
+
+	hasBrew := false
+	if _, err := exec.LookPath("brew"); err == nil {
+		hasBrew = true
+	}
+
+	fmt.Println()
+	fmt.Printf("%s Terminal Token Optimizer (rtk)\n", bold("🚀"))
+	fmt.Println(dim("  We recommend installing the Terminal Token Optimizer (rtk) to save 60-90% on token costs for terminal commands."))
+	fmt.Println()
+
+	var choice string
+	err = huh.NewSelect[string]().
+		Title(fmt.Sprintf("Install and set up Terminal Token Optimizer (rtk) for %s now?", cfg.Client)).
+		Options(
+			huh.NewOption("Yes, set it up", "yes"),
+			huh.NewOption("No thanks", "no"),
+		).
+		Value(&choice).
+		WithTheme(navTheme()).
+		Run()
+
+	// Only mark as prompted if the user actually made a choice (didn't abort via Ctrl-C).
+	if err == nil && (choice == "yes" || choice == "no") {
+		newClients := cfg.Client
+		if cfg.RtkPromptedClient != "" {
+			newClients = cfg.RtkPromptedClient + "," + cfg.Client
+		}
+		if setErr := cmdConfigSet("rtk_prompted_client", newClients); setErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: Could not save rtk config: %v\n", yellow("⚠"), setErr)
+		}
+		if setErr := cmdConfigSet("rtk_prompted_at", time.Now().Format(time.RFC3339)); setErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: Could not save rtk timestamp: %v\n", yellow("⚠"), setErr)
+		}
+	}
+
+	if err != nil || choice != "yes" {
+		return
+	}
+
+	fmt.Println()
+	if !hasRtk {
+		if hasBrew {
+			fmt.Printf("%s Installing rtk via brew...\n", dim("→"))
+			cmd := exec.Command("brew", "install", "navikt/tap/rtk")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Failed to install rtk: %v\n", yellow("⚠"), err)
+				return
+			}
+
+			// Resolve correct path after install
+			if p, err := exec.LookPath("rtk"); err == nil {
+				rtkPath = p
+			} else {
+				// Fallback to brew prefix if LookPath fails
+				if out, err := exec.Command("brew", "--prefix").Output(); err == nil {
+					rtkPath = filepath.Join(strings.TrimSpace(string(out)), "bin", "rtk")
+				} else {
+					rtkPath = "rtk"
+				}
+			}
+		} else {
+			fmt.Printf("%s 'brew' not found and 'rtk' is not installed. Please install rtk manually for your platform, then run 'rtk init'.\n", yellow("⚠"))
+			return
+		}
+	}
+
+	fmt.Printf("%s Initializing rtk hooks...\n", dim("→"))
+	// Setup global hooks for the selected client.
+	args := []string{"init", "--global"}
+	if cfg.Client == "copilot" {
+		args = append(args, "--copilot")
+	} else if cfg.Client == "opencode" {
+		args = append(args, "--opencode")
+		home, homeErr := os.UserHomeDir()
+		if homeErr == nil {
+			opencodePath := filepath.Join(home, ".config", "opencode", "opencode.json")
+			if patchErr := patchOpenCodeConfig(opencodePath); patchErr != nil {
+				fmt.Fprintf(os.Stderr, "%s Warning: Could not auto-patch opencode.json: %v\n", yellow("⚠"), patchErr)
+			}
+		}
+	} else if cfg.Client == "pi" {
+		args = append(args, "--agent", "pi")
+	} else {
+		// Fallback for claude or others if added
+		args = append(args, "--agent", "claude")
+	}
+
+	cmd := exec.Command(rtkPath, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Failed to init rtk hooks: %v\n", yellow("⚠"), err)
+		return
+	}
+
+	fmt.Printf("%s rtk is now set up! Please restart your shell afterwards to apply hooks.\n\n", green("✓"))
 }
