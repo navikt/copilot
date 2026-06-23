@@ -547,7 +547,7 @@
       "type": "prompt",
       "name": "aksel-component",
       "displayName": "#aksel-component",
-      "description": "Scaffold en responsiv React-komponent med Aksel Design System og riktige spacing-tokens",
+      "description": "Scaffold en responsiv React-komponent med Aksel Design System, riktige tokens og props verifisert via Aksel MCP / aksel-builder-skillen",
       "tags": [
         "aksel",
         "design-system",
@@ -556,7 +556,7 @@
         "ui"
       ],
       "filePath": ".github/prompts/aksel-component.prompt.md",
-      "contentHash": "8f6e07fff457bc3d3332f12c7990be3c2eec3c94eecd77ea46c9173f4dc15f11",
+      "contentHash": "68c1da8a387cdffe7871268f7039075015a927deecec25217ce1d03bc96265ae",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/aksel-component.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/aksel-component.prompt.md"
     },
