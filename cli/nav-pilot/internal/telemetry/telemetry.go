@@ -50,7 +50,7 @@ type Recorder interface {
 	RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
-	RecordRtkSetup(client, choice, result string)
+	RecordRTKSetup(client, choice, result string)
 	RecordRTKLaunch(client, result string)
 	Shutdown(ctx context.Context) error
 }
@@ -68,11 +68,11 @@ func (NoopRecorder) RecordUpToDate(string, string, bool)                        
 func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                 {}
 func (NoopRecorder) RecordConfig(string, string, string, string, string, string, bool, bool) {
 }
-func (NoopRecorder) RecordClientAvailable(string, bool) {}
-func (NoopRecorder) RecordLaunchError(string, string)   {}
-func (NoopRecorder) RecordRtkSetup(string, string, string) {}
-func (NoopRecorder) RecordRTKLaunch(string, string)     {}
-func (NoopRecorder) Shutdown(context.Context) error     { return nil }
+func (NoopRecorder) RecordClientAvailable(string, bool)    {}
+func (NoopRecorder) RecordLaunchError(string, string)      {}
+func (NoopRecorder) RecordRTKSetup(string, string, string) {}
+func (NoopRecorder) RecordRTKLaunch(string, string)        {}
+func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
 	provider *sdkmetric.MeterProvider
@@ -498,13 +498,13 @@ func (t *otelTelemetry) RecordLaunchError(client, errorType string) {
 	))
 }
 
-// RecordRtkSetup records the interactive result for RTK token optimizer setup.
-func (t *otelTelemetry) RecordRtkSetup(client, choice, result string) {
+// RecordRTKSetup records the interactive result for RTK token optimizer setup.
+func (t *otelTelemetry) RecordRTKSetup(client, choice, result string) {
 	t.rtkSetupTotal.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
 		attribute.String("choice", normalizeTelemetryDimension(choice, "unknown")),
 		attribute.String("result", normalizeTelemetryDimension(result, "unknown")),
- 		attribute.String("version", t.version),
+		attribute.String("version", t.version),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
