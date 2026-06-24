@@ -108,7 +108,7 @@ Begrensninger:
 
 - Brukes kun i interaktive TTY-sesjoner.
 - Krever at `rtk` er installert og tilgjengelig på `PATH`.
-- Prosjektfiler i `.rtk/filters.toml` må trusted lokalt med `rtk trust` før
+- Prosjektfiler i `.rtk/filters.toml` må godkjennes lokalt med `rtk trust` før
   repoets filtre brukes på din maskin.
 - Brukes ikke for strict JSON / maskinparsede outputs som `--json`, `nav-pilot env`
   eller CI-flows som parser stdout.
