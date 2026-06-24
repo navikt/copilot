@@ -63,6 +63,8 @@ func cmdInteractive(overrides CLIOverrides) error {
 		return cfgErr
 	}
 
+	maybePromptRtkSetup(resolved)
+
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope
 	var userState *StateFile
@@ -728,3 +730,5 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 		return launchClient(resolved)
 	})
 }
+
+

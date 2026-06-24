@@ -119,6 +119,22 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "none",
 		flag:        "--otel-log-level",
 	},
+	{
+		name:        "rtk_prompted_client",
+		kind:        keyKindString,
+		description: "Comma-separated list of clients where the RTK setup was prompted.",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+	},
+	{
+		name:        "rtk_prompted_at",
+		kind:        keyKindString,
+		description: "Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+	},
 }
 
 func findKeyDef(name string) *configKeyDef {
@@ -204,11 +220,19 @@ version = 1
 # the OTLP endpoint is unreachable. A pre-existing OTEL_LOG_LEVEL in your shell
 # environment takes precedence.
 # otel_log_level = "none"
+
+# Internal flag to track which client the user was last prompted to set up rtk for.
+# Default: unset
+# rtk_prompted_client = ""
+
+# Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).
+# Default: unset
+# rtk_prompted_at = ""
 `
 
 // ─── Subcommand dispatch ──────────────────────────────────────────────────────
 
-func cmdConfig(args []string, jsonOutput bool) error {
+func cmdConfig(args []string, force bool, jsonOutput bool) error {
 	if len(args) == 0 {
 		return fmt.Errorf("config requires a subcommand.\n\nUsage: nav-pilot config <subcommand> [options]\n\nSubcommands:\n  init      Create ~/.nav-pilot/config.toml with all options commented out\n  setup     Run the interactive first-run setup wizard\n  show      Print effective configuration (file values merged with defaults)\n  path      Print the config file path\n  get       Print one key value\n  set       Set a key value (creates file if missing)\n  validate  Validate config syntax, unknown keys, and values\n  explain   Describe configuration keys")
 	}
@@ -220,7 +244,7 @@ func cmdConfig(args []string, jsonOutput bool) error {
 	case "init":
 		return cmdConfigInit()
 	case "setup":
-		return cmdConfigSetup()
+		return cmdConfigSetup(force)
 	case "show":
 		return cmdConfigShow(jsonOutput)
 	case "path":
@@ -428,6 +452,10 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.LogLevel
 	case "otel_log_level":
 		return r.OtelLogLevel
+	case "rtk_prompted_client":
+		return r.RtkPromptedClient
+	case "rtk_prompted_at":
+		return r.RtkPromptedAt
 	}
 	return ""
 }

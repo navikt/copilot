@@ -460,7 +460,7 @@ func run(args []string) error {
 		}
 		return cmdUpdate()
 	case "config":
-		return cmdConfig(positional, jsonOutput)
+		return cmdConfig(positional, force, jsonOutput)
 	case "env":
 		return cmdEnv()
 	case "feedback":

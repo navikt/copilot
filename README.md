@@ -33,7 +33,7 @@ Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/
 
 ### 🧭 nav-pilot — Nytt!
 
-**[nav-pilot](docs/README.nav-pilot.md)** er et CLI-verktøy og en AI-agent. CLI-et installerer agenter, skills og instruksjoner i repoet ditt. Agenten (`@nav-pilot`) guider deg gjennom fire faser (Intervju → Plan → Review → Lever) i Copilot Chat.
+**[nav-pilot](docs/README.nav-pilot.md)** er et CLI-verktøy og en AI-agent. CLI-et installerer agenter, skills og instruksjoner i repoet ditt, og vil automatisk spørre om du ønsker å sette opp **Terminal Token Optimizer (rtk)** for å optimalisere token-bruk. Agenten (`@nav-pilot`) guider deg gjennom fire faser (Intervju → Plan → Review → Lever) i Copilot Chat.
 
 ```bash
 # Installer nav-pilot CLI

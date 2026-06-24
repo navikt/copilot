@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -451,5 +452,79 @@ func TestUniqueStrings(t *testing.T) {
 				t.Errorf("uniqueStrings(%v)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
 			}
 		}
+	}
+}
+
+// ─── patchOpenCodeConfig tests ──────────────────────────────────────────────
+
+func TestPatchOpenCodeConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "opencode.json")
+
+	// 1. File doesn't exist -> should return nil and not create
+	err := patchOpenCodeConfig(configPath)
+	if err != nil {
+		t.Fatalf("expected nil for non-existent file, got: %v", err)
+	}
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		t.Fatalf("expected file to not be created")
+	}
+
+	// 2. File exists but has no plugins
+	initialConfig := `{"share": "disabled"}`
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+		t.Fatalf("failed to write initial config: %v", err)
+	}
+	err = patchOpenCodeConfig(configPath)
+	if err != nil {
+		t.Fatalf("failed to patch config: %v", err)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read patched config: %v", err)
+	}
+	if !strings.Contains(string(data), `"plugin":`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
+		t.Fatalf("expected rtk plugin to be added, got: %s", string(data))
+	}
+
+	// 3. File exists and already has rtk.ts
+	// The file now has it, patching again should succeed and not duplicate
+	err = patchOpenCodeConfig(configPath)
+	if err != nil {
+		t.Fatalf("failed to patch config second time: %v", err)
+	}
+	data, err = os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config after second patch: %v", err)
+	}
+	if strings.Count(string(data), `"~/.config/opencode/plugins/rtk.ts"`) != 1 {
+		t.Fatalf("expected exactly one rtk plugin entry, got: %s", string(data))
+	}
+
+	// 4. File exists and has other plugins
+	initialConfig = `{"plugin": ["something-else.ts"]}`
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+		t.Fatalf("failed to write existing plugins config: %v", err)
+	}
+	err = patchOpenCodeConfig(configPath)
+	if err != nil {
+		t.Fatalf("failed to patch config with existing plugins: %v", err)
+	}
+	data, err = os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config with existing plugins: %v", err)
+	}
+	if !strings.Contains(string(data), `"something-else.ts"`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
+		t.Fatalf("expected both plugins to be present, got: %s", string(data))
+	}
+
+	// 5. Invalid JSONC / JSON should error gracefully
+	initialConfig = `{"plugin": // comments not supported by stdlib json`
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+		t.Fatalf("failed to write invalid json config: %v", err)
+	}
+	err = patchOpenCodeConfig(configPath)
+	if err == nil {
+		t.Fatalf("expected error for invalid json")
 	}
 }
