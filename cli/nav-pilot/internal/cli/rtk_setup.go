@@ -45,14 +45,15 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 
 	fmt.Println()
 	fmt.Printf("%s Terminal Token Optimizer (rtk)\n", bold("🚀"))
-	fmt.Println(dim("  We recommend installing the Terminal Token Optimizer (rtk) to save 60-90% on token costs for terminal commands."))
+	fmt.Println(dim("  Safely filters terminal noise before it reaches the AI, saving 60-90% on token costs."))
+	fmt.Println(dim("  It runs entirely in the background and won't change how your commands work."))
 	fmt.Println()
 
 	var choice string
 	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Install and set up Terminal Token Optimizer (rtk) for %s now?", cfg.Client)).
+		Title(fmt.Sprintf("Install Terminal Token Optimizer for %s?", cfg.Client)).
 		Options(
-			huh.NewOption("Yes, set it up", "yes"),
+			huh.NewOption("Yes, set it up (Highly Recommended)", "yes"),
 			huh.NewOption("No thanks", "no"),
 		).
 		Value(&choice).
