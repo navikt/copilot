@@ -1,13 +1,33 @@
-# Project-local RTK filters — commit this file with your repo.
+# Project-local RTK filters for this repository.
 # Filters here override user-global and built-in filters.
+# Copy and adapt in other repos, but keep this file tuned for navikt/copilot.
 # Docs: https://github.com/rtk-ai/rtk#custom-filters
 schema_version = 1
 
-# Example: suppress build noise from a custom tool
-# [filters.my-tool]
-# description = "Compact my-tool output"
-# match_command = "^my-tool\\s+build"
-# strip_ansi = true
-# strip_lines_matching = ["^\\s*$", "^Downloading", "^Installing"]
-# max_lines = 30
-# on_empty = "my-tool: ok"
+# Balanced defaults for local, human-readable development workflows.
+# Do not use these filters for machine-parsed output or strict JSON flows.
+
+[filters.git-status]
+description = "Compact git status output"
+match_command = "^(rtk\\s+)?git\\s+status(\\s|$)"
+strip_ansi = true
+strip_lines_matching = ["^$", "^On branch", "^Your branch is up to date", "^nothing to commit"]
+max_lines = 40
+
+[filters.git-diff]
+description = "Keep git diff readable without hiding review context"
+match_command = "^(rtk\\s+)?git\\s+diff(\\s|$)"
+strip_ansi = true
+
+[filters.go-test]
+description = "Compact verbose go test output while keeping more failure context"
+match_command = "^(rtk\\s+)?go\\s+test(\\s|$)"
+strip_ansi = true
+strip_lines_matching = ["^=== RUN", "^--- PASS", "^PASS$"]
+max_lines = 120
+
+[filters.mise-nav-pilot]
+description = "Compact common nav-pilot mise task output"
+match_command = "^(rtk\\s+)?mise\\s+(run\\s+)?nav-pilot:(build|test|check)(\\s|$)"
+strip_ansi = true
+max_lines = 120

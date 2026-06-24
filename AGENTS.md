@@ -16,7 +16,10 @@ Security model and trust boundaries: see `SECURITY.md`.
 
 ## Efficiency rule (mandatory)
 
-Always prefix shell commands with `rtk`.
+Use `rtk` by default for human-readable shell commands.
+
+Use RTK for human-readable output reduction. Use raw commands for
+machine-parsed outputs (for example strict JSON consumed by CI scripts).
 
 ```bash
 rtk git status
@@ -57,3 +60,4 @@ Per app: run `rtk mise check` in the app directory after edits.
 - Start with the smallest safe change.
 - Validate with existing checks (`rtk mise check`, or `rtk mise all` for cross-repo impact).
 - Prefer deterministic tools first (`rtk rg`, `rtk git`, `rtk gh`), then LLM synthesis.
+- For the full token/cost rollout playbook, use `$token-saver`.

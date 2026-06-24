@@ -10,6 +10,8 @@ ACTIVE EVERY RESPONSE. No reset after many turns. No filler drift. Still active 
 
 Activate compact output style. All technical substance preserved. Only filler removed.
 
+For bredere token- og kostoptimalisering i agentflyt, RTK og tool-bruk, bruk også `$token-saver`.
+
 ## Rules
 
 - Drop: articles (en/et/den/det/a/an/the), filler words (bare/egentlig/faktisk/selvfølgelig/simpelthen/just/really/basically/actually), politeness phrases (gjerne/med glede/sure/certainly/happy to), hedging (kanskje/muligens/det kan hende/maybe/perhaps/might)
