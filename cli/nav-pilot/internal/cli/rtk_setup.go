@@ -202,7 +202,7 @@ func initRtkHooks(client string, rtkPath string) error {
 		return fmt.Errorf("failed to init hooks: %w", err)
 	}
 
-	fmt.Printf("%s rtk is now set up! Please restart your shell afterwards to apply hooks.\n\n", green("✓"))
+	fmt.Printf("%s rtk is now set up!\n\n", green("✓"))
 	return nil
 }
 
