@@ -1054,7 +1054,7 @@
       "displayName": "terse-mode",
       "description": "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet",
       "filePath": ".github/skills/terse-mode/SKILL.md",
-      "contentHash": "26ec6b397bdd2e9611c00be143354bc76997102bfa7eea18b5483e69c01f1865",
+      "contentHash": "a3d226a801a7bd0f6dad87bc3d235d5adda23dfe03c1f03bff8ef45ccfeb7696",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/terse-mode/SKILL.md"
     },
@@ -1073,6 +1073,16 @@
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/threat-model/references/nav-mitigations.md"
         }
       ]
+    },
+    {
+      "type": "skill",
+      "name": "token-saver",
+      "displayName": "token-saver",
+      "description": "Reduser token- og kostforbruk i agentøkter. Bruk når du vil komprimere shell-output, vurdere RTK, begrense tool-bruk eller stramme inn agent-workflows uten å bryte parsing eller CI.",
+      "filePath": ".github/skills/token-saver/SKILL.md",
+      "contentHash": "4a0c5bac622559d7cc36bc33909a32415f4b58aa6e48dedbe0f6753d26764958",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/token-saver/SKILL.md"
     },
     {
       "type": "skill",
