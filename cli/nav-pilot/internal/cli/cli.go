@@ -223,6 +223,9 @@ func run(args []string) error {
 	if cliOverrides.Client != "" && !containsStr(validProviderIDs, cliOverrides.Client) {
 		return fmt.Errorf("--client %q is not valid (allowed: %s)", cliOverrides.Client, strings.Join(validProviderIDs, ", "))
 	}
+	if cliOverrides.UseRTK && len(args) > 0 && args[0] != "--sync" {
+		return fmt.Errorf("--rtk is only supported for launch flows: startup (no command) or --sync")
+	}
 
 	if len(args) < 1 {
 		if isInteractive() {
