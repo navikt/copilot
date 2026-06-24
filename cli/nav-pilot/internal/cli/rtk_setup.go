@@ -66,11 +66,11 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 	}
 
 	if err != nil {
-		telemetry.RecordRtkSetup(cfg.Client, "aborted", "success")
+		telemetry.RecordRTKSetup(cfg.Client, "aborted", "success")
 		return nil // User aborted
 	}
 	if choice != "yes" {
-		telemetry.RecordRtkSetup(cfg.Client, "no", "success")
+		telemetry.RecordRTKSetup(cfg.Client, "no", "success")
 		return nil // User said no
 	}
 
@@ -79,7 +79,7 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 	if !hasRtk {
 		p, installErr := installRtk()
 		if installErr != nil {
-			telemetry.RecordRtkSetup(cfg.Client, "yes", "error")
+			telemetry.RecordRTKSetup(cfg.Client, "yes", "error")
 			return fmt.Errorf("installation failed: %w", installErr)
 		}
 		rtkPath = p
@@ -89,14 +89,14 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 	}
 
 	if initErr := initRtkHooks(cfg.Client, rtkPath); initErr != nil {
-		telemetry.RecordRtkSetup(cfg.Client, "yes", "init_failed")
+		telemetry.RecordRTKSetup(cfg.Client, "yes", "init_failed")
 		return initErr
 	}
 
 	if hasRtk {
-		telemetry.RecordRtkSetup(cfg.Client, "yes", "already_installed")
+		telemetry.RecordRTKSetup(cfg.Client, "yes", "already_installed")
 	} else {
-		telemetry.RecordRtkSetup(cfg.Client, "yes", "success")
+		telemetry.RecordRTKSetup(cfg.Client, "yes", "success")
 	}
 
 	return nil
@@ -140,12 +140,12 @@ func installRtkViaBrew() (string, error) {
 	if p, err := exec.LookPath("rtk"); err == nil {
 		return p, nil
 	}
-	
+
 	// Fallback to brew prefix if LookPath fails
 	if out, err := exec.Command("brew", "--prefix").Output(); err == nil {
 		return filepath.Join(strings.TrimSpace(string(out)), "bin", "rtk"), nil
 	}
-	
+
 	return "rtk", nil
 }
 
@@ -157,19 +157,19 @@ func installRtkViaCurl() (string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
-	
+
 	// The install script might drop it somewhere not immediately in PATH
 	if p, err := exec.LookPath("rtk"); err == nil {
 		return p, nil
 	}
-	
+
 	// Check common cargo bin if the script is rust-based or uses cargo
 	home, _ := os.UserHomeDir()
 	cargoBin := filepath.Join(home, ".cargo", "bin", "rtk")
 	if _, err := os.Stat(cargoBin); err == nil {
 		return cargoBin, nil
 	}
-	
+
 	// Just return "rtk" and let the exec fail if it still can't find it
 	return "rtk", nil
 }
@@ -177,7 +177,7 @@ func installRtkViaCurl() (string, error) {
 func initRtkHooks(client string, rtkPath string) error {
 	fmt.Printf("%s Initializing rtk hooks...\n", dim("→"))
 	args := []string{"init", "--global"}
-	
+
 	switch client {
 	case "copilot":
 		args = append(args, "--copilot")
