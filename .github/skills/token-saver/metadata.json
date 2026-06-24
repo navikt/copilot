@@ -1,0 +1,27 @@
+{
+  "description": "Reduser token- og kostforbruk i agentøkter. Bruk når du vil komprimere shell-output, vurdere RTK, begrense tool-bruk eller stramme inn agent-workflows uten å bryte parsing eller CI.",
+  "domain": "general",
+  "tags": [
+    "token-optimization",
+    "cost-optimization",
+    "rtk",
+    "shell-output",
+    "ci-safety",
+    "agent-workflow",
+    "nav-pilot"
+  ],
+  "examples": [
+    {
+      "scenario": "Trygg RTK-adopsjon",
+      "prompt": "Bruk $token-saver og lag en trygg plan for RTK uten å bryte JSON eller CI"
+    },
+    {
+      "scenario": "Mindre shell-støy",
+      "prompt": "Bruk $token-saver og foreslå hvordan vi kan komprimere shell-output trygt"
+    },
+    {
+      "scenario": "Lavere tool- og modellbruk",
+      "prompt": "Bruk $token-saver og stram inn tool-bruk og modellvalg for denne oppgaven"
+    }
+  ]
+}
