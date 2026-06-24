@@ -38,7 +38,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - `nav_pilot_client_available` PATH-sjekker `copilot` (cplt/copilot), `opencode` og `pi`
   ved oppstart, så vi ser hvilke klienter brukere faktisk har installert.
 - `nav_pilot_rtk_launch_total` bruker faste, lav-kardinalitetsverdier for `result`:
-  `applied`, `not_enabled`, `non_interactive`, `rtk_missing`.
+  `applied`, `not_enabled`, `non_interactive`, `rtk_missing`, `unknown`.
 
 **Alle metrikker inkluderer også (resource-attributter):**
 - `service.name` = `"nav-pilot"`
