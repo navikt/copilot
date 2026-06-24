@@ -160,10 +160,7 @@ var (
 	assessStaleness = func(installedVersion string) artifacts.StalenessAssessment {
 		fetchFn := func() (string, string, error) {
 			client := &http.Client{Timeout: 2 * time.Second}
-			origClient := httpClient
-			httpClient = client
-			defer func() { httpClient = origClient }()
-			return fetchLatestVersion()
+			return fetchLatestVersionWithClient(client)
 		}
 		return artifacts.AssessStaleness(installedVersion, fetchFn)
 	}

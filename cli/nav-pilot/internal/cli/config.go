@@ -248,6 +248,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	if cli.Client != "" {
 		r.Client = cli.Client
 	}
+	if cli.UseRTK {
+		r.UseRTK = true
+	}
 	if cli.Model != "" {
 		r.Model = cli.Model
 	}

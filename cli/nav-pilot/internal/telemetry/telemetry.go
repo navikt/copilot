@@ -51,6 +51,7 @@ type Recorder interface {
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
 	RecordRtkSetup(client, choice, result string)
+	RecordRTKLaunch(client, result string)
 	Shutdown(ctx context.Context) error
 }
 
@@ -70,6 +71,7 @@ func (NoopRecorder) RecordConfig(string, string, string, string, string, string,
 func (NoopRecorder) RecordClientAvailable(string, bool) {}
 func (NoopRecorder) RecordLaunchError(string, string)   {}
 func (NoopRecorder) RecordRtkSetup(string, string, string) {}
+func (NoopRecorder) RecordRTKLaunch(string, string)     {}
 func (NoopRecorder) Shutdown(context.Context) error     { return nil }
 
 type otelTelemetry struct {
@@ -79,6 +81,7 @@ type otelTelemetry struct {
 	commandDurationMS  metric.Int64Histogram
 	commandErrorTotal  metric.Int64Counter
 	launchErrorTotal   metric.Int64Counter
+	rtkLaunchTotal     metric.Int64Counter
 	installItemsTotal  metric.Int64Counter
 	syncUpdatesTotal   metric.Int64Counter
 	syncConflictsTotal metric.Int64Counter
@@ -175,6 +178,11 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create launch error counter: %w", err)
 	}
+	rtkLaunchTotal, err := meter.Int64Counter("nav_pilot_rtk_launch_total",
+		metric.WithDescription("Counts RTK launch decisions by client and result."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create RTK launch counter: %w", err)
+	}
 	installItemsTotal, err := meter.Int64Counter("nav_pilot_install_items_total")
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create install items counter: %w", err)
@@ -231,6 +239,7 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
 		launchErrorTotal:   launchErrorTotal,
+		rtkLaunchTotal:     rtkLaunchTotal,
 		installItemsTotal:  installItemsTotal,
 		syncUpdatesTotal:   syncUpdatesTotal,
 		syncConflictsTotal: syncConflictsTotal,
@@ -495,19 +504,39 @@ func (t *otelTelemetry) RecordRtkSetup(client, choice, result string) {
 		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
 		attribute.String("choice", normalizeTelemetryDimension(choice, "unknown")),
 		attribute.String("result", normalizeTelemetryDimension(result, "unknown")),
+ 		attribute.String("version", t.version),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// RecordRTKLaunch records RTK launch decisions.
+// result: "applied", "not_enabled", "non_interactive", "rtk_missing"
+func (t *otelTelemetry) RecordRTKLaunch(client, result string) {
+	t.rtkLaunchTotal.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
+		attribute.String("result", normalizeRTKLaunchResult(result)),
 		attribute.String("version", t.version),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
 
+func normalizeRTKLaunchResult(result string) string {
+	result = strings.ToLower(strings.TrimSpace(result))
+	switch result {
+	case "applied", "not_enabled", "non_interactive", "rtk_missing":
+		return result
+	default:
+		return "unknown"
+	}
+}
 func normalizeTelemetryDimension(v, fallback string) string {
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return fallback
 	}
 	switch v {
-	case "install", "sync", "upgrade", "list", "startup", "launch",
-		"interactive", "non_interactive",
+	case "install", "sync", "upgrade", "list", "stats", "startup", "launch",
+		"interactive",
 		"repo", "user", "auto", "none", "unknown",
 		"success", "error", "updates_available", "dev",
 		"all", "other",
@@ -521,6 +550,8 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
 		"client_not_found", "launch_failed",
+		"yes", "no", "aborted", "brew_failed", "curl_failed", "init_failed", "already_installed":
+		"applied", "not_enabled", "non_interactive", "rtk_missing",
 		"yes", "no", "aborted", "brew_failed", "curl_failed", "init_failed", "already_installed":
 		return v
 	default:

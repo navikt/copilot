@@ -31,16 +31,17 @@ type Config struct {
 // ResolvedConfig holds the final configuration after applying precedence:
 // CLI flag > file value > built-in default.
 type ResolvedConfig struct {
-	Client            string
-	Model             string // empty = use agent default
-	Mode              string
-	ReasoningEffort   string // empty = unset
-	ContextTier       string // empty = unset
-	AllowAllTools     bool
-	AskUser           bool
-	AutoLaunch        bool   // skip the interactive "Launch X now?" confirmation
-	LogLevel          string // empty = unset
-	OtelLogLevel      string // always set; defaults to "none"
+	Client          string
+	UseRTK          bool // force RTK on for this run regardless of env default
+	Model           string // empty = use agent default
+	Mode            string
+	ReasoningEffort string // empty = unset
+	ContextTier     string // empty = unset
+	AllowAllTools   bool
+	AskUser         bool
+	AutoLaunch      bool   // skip the interactive "Launch X now?" confirmation
+	LogLevel        string // empty = unset
+	OtelLogLevel    string // always set; defaults to "none"
 	RtkPromptedClient string // comma-separated list of clients where the RTK setup was prompted
 	RtkPromptedAt     string // RFC3339 timestamp of when the user was last prompted
 }
@@ -48,6 +49,7 @@ type ResolvedConfig struct {
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
 type CLIOverrides struct {
 	Client          string
+	UseRTK          bool
 	Model           string
 	Mode            string
 	ReasoningEffort string

@@ -19,8 +19,7 @@ var (
 	downloadURL = "https://github.com/navikt/copilot/releases/download"
 )
 
-// httpClient is the client used for all HTTP requests. Overridable in tests.
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var defaultHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 type ghRelease struct {
 	TagName string `json:"tag_name"`
@@ -117,7 +116,11 @@ func isBrewManaged() bool {
 // Returns the raw version (matching the build-injected format, e.g. "2026.04.13-170138-abc1234")
 // and the full tag (e.g. "nav-pilot/2026.04.13-170138-abc1234").
 func fetchLatestVersion() (ver string, tag string, err error) {
-	resp, err := httpClient.Get(releasesAPI + "?per_page=20")
+	return fetchLatestVersionWithClient(defaultHTTPClient)
+}
+
+func fetchLatestVersionWithClient(client *http.Client) (ver string, tag string, err error) {
+	resp, err := client.Get(releasesAPI + "?per_page=20")
 	if err != nil {
 		return "", "", err
 	}
@@ -144,7 +147,11 @@ func fetchLatestVersion() (ver string, tag string, err error) {
 }
 
 func httpGet(url string) ([]byte, error) {
-	resp, err := httpClient.Get(url)
+	return httpGetWithClient(defaultHTTPClient, url)
+}
+
+func httpGetWithClient(client *http.Client, url string) ([]byte, error) {
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +165,12 @@ func httpGet(url string) ([]byte, error) {
 // verifyChecksum downloads SHA256SUMS and verifies the binary checksum.
 // Fails hard if checksums cannot be fetched or the asset entry is missing.
 func verifyChecksum(data []byte, asset, checksumURL string) error {
+	return verifyChecksumWithClient(defaultHTTPClient, data, asset, checksumURL)
+}
+
+func verifyChecksumWithClient(client *http.Client, data []byte, asset, checksumURL string) error {
 	fmt.Print("→ Verifying checksum...")
-	sums, err := httpGet(checksumURL)
+	sums, err := httpGetWithClient(client, checksumURL)
 	if err != nil {
 		return fmt.Errorf(" failed to download checksums: %w", err)
 	}

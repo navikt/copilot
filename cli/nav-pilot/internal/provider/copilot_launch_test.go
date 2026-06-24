@@ -177,3 +177,67 @@ func TestUserCopilotDir(t *testing.T) {
 		t.Errorf("expected %q for instructions-only, got %q", expected, got)
 	}
 }
+
+func TestLaunchCopilotResolved_UsesRTKWhenOptedIn(t *testing.T) {
+	requirePOSIXShell(t)
+	dir := t.TempDir()
+	argvFile := filepath.Join(dir, "argv.txt")
+
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte("#!/bin/sh\nprintf '%s' \"$*\" > \""+argvFile+"\"\n"), 0o755); err != nil {
+		t.Fatalf("writing fake cplt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "rtk"), []byte("#!/bin/sh\nprintf '%s' \"$*\" > \""+argvFile+"\"\n"), 0o755); err != nil {
+		t.Fatalf("writing fake rtk: %v", err)
+	}
+	t.Setenv("PATH", dir)
+	rtk := rtkDeps{
+		getenv:        func(string) string { return "" },
+		lookPath:      func(string) (string, error) { return filepath.Join(dir, "rtk"), nil },
+		isInteractive: func() bool { return true },
+	}
+
+	err := launchCopilotResolvedWithDeps(domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true, UseRTK: true}, rtk)
+	if err != nil {
+		t.Fatalf("launchCopilotResolvedWithDeps() error: %v", err)
+	}
+	got, err := os.ReadFile(argvFile)
+	if err != nil {
+		t.Fatalf("reading argv file: %v", err)
+	}
+	want := filepath.Join(dir, "cplt") + " --agent copilot -- --agent nav-pilot"
+	if string(got) != want {
+		t.Errorf("rtk argv = %q, want %q", string(got), want)
+	}
+}
+
+func TestLaunchCopilotResolved_SkipsRTKWhenNotInteractive(t *testing.T) {
+	requirePOSIXShell(t)
+	dir := t.TempDir()
+	argvFile := filepath.Join(dir, "argv.txt")
+
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte("#!/bin/sh\nprintf '%s' \"$*\" > \""+argvFile+"\"\n"), 0o755); err != nil {
+		t.Fatalf("writing fake cplt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "rtk"), []byte("#!/bin/sh\nprintf '%s' \"$*\" > \""+argvFile+"\"\n"), 0o755); err != nil {
+		t.Fatalf("writing fake rtk: %v", err)
+	}
+	t.Setenv("PATH", dir)
+	rtk := rtkDeps{
+		getenv:        func(string) string { return "" },
+		lookPath:      func(string) (string, error) { return filepath.Join(dir, "rtk"), nil },
+		isInteractive: func() bool { return false },
+	}
+
+	err := launchCopilotResolvedWithDeps(domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true, UseRTK: true}, rtk)
+	if err != nil {
+		t.Fatalf("launchCopilotResolvedWithDeps() error: %v", err)
+	}
+	got, err := os.ReadFile(argvFile)
+	if err != nil {
+		t.Fatalf("reading argv file: %v", err)
+	}
+	want := "--agent copilot -- --agent nav-pilot"
+	if string(got) != want {
+		t.Errorf("cplt argv = %q, want %q", string(got), want)
+	}
+}

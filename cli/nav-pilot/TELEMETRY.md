@@ -19,6 +19,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_installed_items` | Gauge | Antall installerte items per type/status | `scope=repo`, `type=skill`, `status=active` |
 | `nav_pilot_config_info` | Gauge | Resolvert konfigurasjon per oppstart (alltid verdi 1) | `client=opencode`, `config_mode=autopilot`, `model=github-copilot/claude-sonnet-4.5`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
 | `nav_pilot_client_available` | Gauge | Om en coding-agent-klient finnes på PATH (1/0) | `client=copilot` / `client=opencode` / `client=pi` |
+| `nav_pilot_rtk_launch_total` | Counter | Antall launch-forsøk med RTK-beslutning per klient | `client=opencode`, `result=applied` |
 | `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
 | `nav_pilot_up_to_date` | Gauge | Om komponent er tilstrekkelig oppdatert (1/0) | `component=cli`, `scope=none` |
 | `nav_pilot_version_skew_days` | Histogram | Dager mellom installert og siste tilgjengelig versjon | `component=collection`, `scope=repo` |
@@ -36,6 +37,8 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - Tomme valg (`reasoning_effort`, `context_tier`, `model`) rapporteres som `unset`.
 - `nav_pilot_client_available` PATH-sjekker `copilot` (cplt/copilot), `opencode` og `pi`
   ved oppstart, så vi ser hvilke klienter brukere faktisk har installert.
+- `nav_pilot_rtk_launch_total` bruker faste, lav-kardinalitetsverdier for `result`:
+  `applied`, `not_enabled`, `non_interactive`, `rtk_missing`.
 
 **Alle metrikker inkluderer også (resource-attributter):**
 - `service.name` = `"nav-pilot"`

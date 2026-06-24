@@ -237,6 +237,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		env:           launchEnv,
 		displayName:   "opencode",
 		messageSuffix: suffix,
+		useRTK:        resolved.UseRTK,
 	})
 }
 
@@ -257,6 +258,7 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 	return launchViaCplt(cpltLaunch{
 		agent:       "pi",
 		displayName: "pi",
+		useRTK:      resolved.UseRTK,
 	})
 }
 

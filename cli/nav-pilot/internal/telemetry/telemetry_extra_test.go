@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // newFullTestTelemetry builds an otelTelemetry with ALL instruments so every
@@ -44,6 +46,7 @@ func newFullTestTelemetry(t *testing.T) (*otelTelemetry, *sdkmetric.ManualReader
 		commandTotal:       counter("nav_pilot_command_total"),
 		commandDurationMS:  hist("nav_pilot_command_duration_ms"),
 		commandErrorTotal:  counter("nav_pilot_command_error_total"),
+		rtkLaunchTotal:     counter("nav_pilot_rtk_launch_total"),
 		installItemsTotal:  counter("nav_pilot_install_items_total"),
 		syncUpdatesTotal:   counter("nav_pilot_sync_updates_total"),
 		syncConflictsTotal: counter("nav_pilot_sync_conflicts_total"),
@@ -62,6 +65,28 @@ func newFullTestTelemetry(t *testing.T) (*otelTelemetry, *sdkmetric.ManualReader
 		arch:               "amd64",
 	}
 	return tel, reader
+}
+
+func collectSum(t *testing.T, reader *sdkmetric.ManualReader, name string) []metricdata.DataPoint[int64] {
+	t.Helper()
+	var rm metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &rm); err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name != name {
+				continue
+			}
+			s, ok := m.Data.(metricdata.Sum[int64])
+			if !ok {
+				t.Fatalf("metric %s is not an int64 sum", name)
+			}
+			return s.DataPoints
+		}
+	}
+	t.Fatalf("metric %s not found", name)
+	return nil
 }
 
 func TestMaxInt64(t *testing.T) {
@@ -124,6 +149,7 @@ func TestNoopRecorder_AllMethods(t *testing.T) {
 	r.RecordVersionSkewDays("copilot", "repo", 0)
 	r.RecordConfig("opencode", "default", "auto", "", "", "none", false, false)
 	r.RecordClientAvailable("copilot", false)
+	r.RecordRTKLaunch("copilot", "applied")
 	if err := r.Shutdown(context.Background()); err != nil {
 		t.Errorf("NoopRecorder.Shutdown() = %v, want nil", err)
 	}
@@ -186,6 +212,100 @@ func TestOtelRecordVersionSkewDays(t *testing.T) {
 	tel, _ := newFullTestTelemetry(t)
 	tel.RecordVersionSkewDays("copilot", "repo", 7)
 	tel.RecordVersionSkewDays("copilot", "repo", -1) // clamped to 0
+}
+
+func TestOtelRecordRTKLaunch(t *testing.T) {
+	tel, reader := newFullTestTelemetry(t)
+	tel.RecordRTKLaunch("copilot", "applied")
+	tel.RecordRTKLaunch("copilot", "not_enabled")
+	tel.RecordRTKLaunch("opencode", "non_interactive")
+	tel.RecordRTKLaunch("pi", "rtk_missing")
+	tel.RecordRTKLaunch("pi", "unexpected")
+
+	dps := collectSum(t, reader, "nav_pilot_rtk_launch_total")
+	if len(dps) != 5 {
+		t.Fatalf("expected 5 datapoints, got %d", len(dps))
+	}
+
+	want := map[string]map[string]string{
+		"copilot/applied": {
+			"client":            "copilot",
+			"result":            "applied",
+			"version":           "test",
+			"execution_context": "organic",
+		},
+		"copilot/not_enabled": {
+			"client":            "copilot",
+			"result":            "not_enabled",
+			"version":           "test",
+			"execution_context": "organic",
+		},
+		"opencode/non_interactive": {
+			"client":            "opencode",
+			"result":            "non_interactive",
+			"version":           "test",
+			"execution_context": "organic",
+		},
+		"pi/rtk_missing": {
+			"client":            "pi",
+			"result":            "rtk_missing",
+			"version":           "test",
+			"execution_context": "organic",
+		},
+		"pi/unknown": {
+			"client":            "pi",
+			"result":            "unknown",
+			"version":           "test",
+			"execution_context": "organic",
+		},
+	}
+
+	for _, dp := range dps {
+		client, _ := dp.Attributes.Value("client")
+		result, _ := dp.Attributes.Value("result")
+		key := client.AsString() + "/" + result.AsString()
+		labels, ok := want[key]
+		if !ok {
+			t.Fatalf("unexpected datapoint labels: %s", key)
+		}
+		if dp.Value != 1 {
+			t.Fatalf("datapoint %s has value %d, want 1", key, dp.Value)
+		}
+		for labelKey, labelWant := range labels {
+			got, ok := dp.Attributes.Value(attribute.Key(labelKey))
+			if !ok {
+				t.Fatalf("datapoint %s missing label %q", key, labelKey)
+			}
+			if got.AsString() != labelWant {
+				t.Fatalf("datapoint %s label %q = %q, want %q", key, labelKey, got.AsString(), labelWant)
+			}
+		}
+		delete(want, key)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing datapoints: %v", want)
+	}
+}
+
+func TestNormalizeRTKLaunchResult(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "applied", want: "applied"},
+		{in: "not_enabled", want: "not_enabled"},
+		{in: "non_interactive", want: "non_interactive"},
+		{in: "rtk_missing", want: "rtk_missing"},
+		{in: " Applied ", want: "applied"},
+		{in: "bogus", want: "unknown"},
+		{in: "", want: "unknown"},
+	}
+
+	for _, tt := range tests {
+		if got := normalizeRTKLaunchResult(tt.in); got != tt.want {
+			t.Errorf("normalizeRTKLaunchResult(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
 }
 
 func TestOtelShutdown(t *testing.T) {

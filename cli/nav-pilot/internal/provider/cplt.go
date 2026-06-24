@@ -27,12 +27,18 @@ type cpltLaunch struct {
 	displayName string
 	// messageSuffix is appended to the "Launching …" line (e.g. nav-context summary).
 	messageSuffix string
+	// useRTK forces RTK on for this launch only.
+	useRTK bool
 }
 
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring
 // stdio to the current process. cplt is required: if it is not found on PATH the
 // launch fails with guidance instead of falling back to an unsandboxed binary.
 func launchViaCplt(spec cpltLaunch) error {
+	return launchViaCpltWithDeps(spec, defaultRTKDeps())
+}
+
+func launchViaCpltWithDeps(spec cpltLaunch, rtk rtkDeps) error {
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" || cliName != "cplt" {
 		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
@@ -44,11 +50,17 @@ func launchViaCplt(spec cpltLaunch) error {
 	fmt.Printf("Launching %s via %s%s...\n\n",
 		domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)
 
-	cmd := exec.Command(cliPath, args...)
+	cmdPath, cmdArgs, rtkResult := rtkWrappedCommandWithDeps(cliPath, args, spec.useRTK, rtk)
+	telemetryRecorder.RecordRTKLaunch(spec.agent, rtkResult)
+	cmd := exec.Command(cmdPath, cmdArgs...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = spec.env
+
+	if rtkResult == rtkResultApplied {
+		fmt.Printf("%s RTK output filtering enabled for this interactive session.\n\n", domain.Dim("ℹ"))
+	}
 
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError

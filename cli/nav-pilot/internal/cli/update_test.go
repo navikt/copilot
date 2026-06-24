@@ -3,10 +3,34 @@ package cli
 import (
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func newMockHTTPClient(fn roundTripFunc) *http.Client {
+	return &http.Client{Transport: fn}
+}
+
+func textResponse(req *http.Request, status int, body string) *http.Response {
+	contentLength := int64(len(body))
+	return &http.Response{
+		StatusCode: status,
+		Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
+		Header:     make(http.Header),
+		Request:    req,
+		ContentLength: contentLength,
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}
+}
 
 func TestIsBrewManaged(t *testing.T) {
 	// In dev/test, the binary is not in a Homebrew Cellar
@@ -26,13 +50,18 @@ func TestSha256sum(t *testing.T) {
 func TestVerifyChecksum_Valid(t *testing.T) {
 	data := []byte("binary-data")
 	checksum := sha256sum(data)
+	checksumURL := "https://example.test/SHA256SUMS"
+	client := newMockHTTPClient(func(req *http.Request) (*http.Response, error) {
+		if req.URL.String() != checksumURL {
+			t.Fatalf("unexpected URL: %s", req.URL.String())
+		}
+		body := fmt.Sprintf("%s  nav-pilot-linux-amd64\n", checksum)
+		resp := textResponse(req, http.StatusOK, body)
+		resp.Header.Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
+		return resp, nil
+	})
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "%s  nav-pilot-linux-amd64\n", checksum)
-	}))
-	defer srv.Close()
-
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksumWithClient(client, data, "nav-pilot-linux-amd64", checksumURL)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -40,13 +69,18 @@ func TestVerifyChecksum_Valid(t *testing.T) {
 
 func TestVerifyChecksum_Mismatch(t *testing.T) {
 	data := []byte("binary-data")
+	checksumURL := "https://example.test/SHA256SUMS"
+	client := newMockHTTPClient(func(req *http.Request) (*http.Response, error) {
+		if req.URL.String() != checksumURL {
+			t.Fatalf("unexpected URL: %s", req.URL.String())
+		}
+		body := "0000000000000000000000000000000000000000000000000000000000000000  nav-pilot-linux-amd64\n"
+		resp := textResponse(req, http.StatusOK, body)
+		resp.Header.Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
+		return resp, nil
+	})
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "0000000000000000000000000000000000000000000000000000000000000000  nav-pilot-linux-amd64\n")
-	}))
-	defer srv.Close()
-
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksumWithClient(client, data, "nav-pilot-linux-amd64", checksumURL)
 	if err == nil {
 		t.Fatal("expected checksum mismatch error")
 	}
@@ -54,14 +88,18 @@ func TestVerifyChecksum_Mismatch(t *testing.T) {
 
 func TestVerifyChecksum_NoSumsFile(t *testing.T) {
 	data := []byte("binary-data")
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
+	checksumURL := "https://example.test/SHA256SUMS"
+	client := newMockHTTPClient(func(req *http.Request) (*http.Response, error) {
+		if req.URL.String() != checksumURL {
+			t.Fatalf("unexpected URL: %s", req.URL.String())
+		}
+		resp := textResponse(req, http.StatusNotFound, "")
+		resp.Header.Set("Content-Length", "0")
+		return resp, nil
+	})
 
 	// Should error — checksum verification is mandatory
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksumWithClient(client, data, "nav-pilot-linux-amd64", checksumURL)
 	if err == nil {
 		t.Fatal("expected error when checksums unavailable")
 	}
@@ -69,37 +107,24 @@ func TestVerifyChecksum_NoSumsFile(t *testing.T) {
 
 func TestVerifyChecksum_NoEntry(t *testing.T) {
 	data := []byte("binary-data")
+	checksumURL := "https://example.test/SHA256SUMS"
+	client := newMockHTTPClient(func(req *http.Request) (*http.Response, error) {
+		if req.URL.String() != checksumURL {
+			t.Fatalf("unexpected URL: %s", req.URL.String())
+		}
+		body := "abcdef1234567890  nav-pilot-linux-arm64\n"
+		resp := textResponse(req, http.StatusOK, body)
+		resp.Header.Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
+		return resp, nil // different asset
+	})
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "abcdef1234567890  nav-pilot-linux-arm64\n") // different asset
-	}))
-	defer srv.Close()
-
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksumWithClient(client, data, "nav-pilot-linux-amd64", checksumURL)
 	if err == nil {
 		t.Fatal("expected error when asset entry is missing")
 	}
 }
 
 func TestFetchLatestVersion(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `[
-			{"tag_name": "nav-pilot/2026.04.13-170138-abc1234"},
-			{"tag_name": "nav-pilot/2026.04.12-093000-def5678"}
-		]`)
-	}))
-	defer srv.Close()
-
-	// Override the client and API URL for testing
-	origClient := httpClient
-	httpClient = srv.Client()
-	defer func() { httpClient = origClient }()
-
-	origAPI := releasesAPI
-	// releasesAPI is a const, so we test the parsing logic directly
-	_ = origAPI
-
 	// Test the tag parsing logic directly
 	tag := "nav-pilot/2026.04.13-170138-abc1234"
 	ver := tag[len("nav-pilot/"):]

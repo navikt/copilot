@@ -45,7 +45,7 @@ func isKnownCommand(arg string) bool {
 	}
 	switch arg {
 	case "install", "init", "export", "add", "ignore", "sync", "list", "status",
-		"uninstall", "upgrade", "update", "config", "env", "feedback", "models",
+		"uninstall", "upgrade", "update", "config", "env", "feedback", "models", "stats",
 		"version", "--version", "-v", "-h", "--help", "help":
 		return true
 	default:
@@ -73,6 +73,7 @@ Commands:
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
   config <subcommand>     Manage user-specific nav-pilot configuration (init, setup, show, get, set, validate)
+  stats                   Show RTK savings/helpful discovery info
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
@@ -89,6 +90,8 @@ Flags:
   --all                   Install everything (use with --user)
   --apply                 Apply available updates (sync only)
   --sync                  Sync all scopes and launch Copilot (non-interactive)
+  --rtk                   Enable RTK output filtering for this run's launch flow
+  --discover              Show RTK discovery output (stats only)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
 
@@ -129,6 +132,8 @@ func run(args []string) error {
 				}
 				i++
 				cliOverrides.Client = args[i]
+			case "--rtk":
+				cliOverrides.UseRTK = true
 			case "--agent":
 				return fmt.Errorf("--agent is no longer a nav-pilot flag; use --client to choose the coding-agent CLI (copilot, opencode, pi) — the downstream copilot --agent persona is unaffected")
 			case "--model":
@@ -259,7 +264,7 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided, installAll, listInstalled bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided, installAll, listInstalled, discover bool
 	var targetDir, ref, sourceRepo, installType string
 	var positional []string
 
@@ -275,6 +280,10 @@ func run(args []string) error {
 			apply = true
 		case "--json":
 			jsonOutput = true
+		case "--rtk":
+			return fmt.Errorf("--rtk is only supported for launch flows: startup (no command) or --sync")
+		case "--discover":
+			discover = true
 		case "--items":
 			listItems = true
 		case "--installed":
@@ -362,6 +371,9 @@ func run(args []string) error {
 	if installType != "" && command != "install" && command != "add" {
 		return fmt.Errorf("--type is only supported for the install command")
 	}
+	if discover && command != "stats" {
+		return fmt.Errorf("--discover is only supported for the stats command")
+	}
 
 	switch command {
 	case "install":
@@ -437,6 +449,13 @@ func run(args []string) error {
 				return cmdStatusAuto(targetDir, jsonOutput)
 			}
 			return cmdList(ref, sourceRepo, listItems, jsonOutput)
+		})
+	case "stats":
+		if len(positional) > 0 {
+			return fmt.Errorf("stats does not take positional arguments")
+		}
+		return runWithCommandTelemetry("stats", telemetryMode(), "none", func() error {
+			return cmdStats(discover, jsonOutput)
 		})
 	case "status":
 		// Deprecated: hidden alias for backward compatibility

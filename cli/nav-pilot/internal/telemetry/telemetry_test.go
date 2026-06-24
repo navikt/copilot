@@ -179,6 +179,7 @@ func collectGauge(t *testing.T, reader *sdkmetric.ManualReader, name string) []m
 			return g.DataPoints
 		}
 	}
+	t.Fatalf("metric %s not found", name)
 	return nil
 }
 

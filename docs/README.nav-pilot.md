@@ -79,6 +79,40 @@ nav-pilot upgrade
 nav-pilot feedback
 ```
 
+## Token-saver prototype (RTK opt-in)
+
+nav-pilot kan kjøres med RTK-filtrering for mer kompakt, menneskelesbar output i
+interaktive økter. Prototypen er **opt-in** og påvirker ikke machine-readable
+outputs.
+
+```bash
+nav-pilot --client opencode --rtk
+```
+
+For en hel shell-økt kan du fortsatt bruke miljøvariabelen:
+
+```bash
+export NAV_PILOT_USE_RTK=1
+nav-pilot --client opencode
+```
+
+For å se RTK-statistikk lokalt:
+
+```bash
+nav-pilot stats
+nav-pilot stats --discover
+nav-pilot stats --json
+```
+
+Begrensninger:
+
+- Brukes kun i interaktive TTY-sesjoner.
+- Krever at `rtk` er installert og tilgjengelig på `PATH`.
+- Prosjektfiler i `.rtk/filters.toml` må trusted lokalt med `rtk trust` før
+  repoets filtre brukes på din maskin.
+- Brukes ikke for strict JSON / maskinparsede outputs som `--json`, `nav-pilot env`
+  eller CI-flows som parser stdout.
+
 ## Personlig installasjon (valgfritt)
 
 ```bash
@@ -113,6 +147,7 @@ Støttede MVP-metrikker:
 - `nav_pilot_info`
 - `nav_pilot_install_present`
 - `nav_pilot_installed_items`
+- `nav_pilot_rtk_launch_total`
 - `nav_pilot_staleness_check_total`
 - `nav_pilot_up_to_date`
 - `nav_pilot_version_skew_days`

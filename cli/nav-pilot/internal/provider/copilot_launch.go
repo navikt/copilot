@@ -105,6 +105,10 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
+	return launchCopilotResolvedWithDeps(resolved, defaultRTKDeps())
+}
+
+func launchCopilotResolvedWithDeps(resolved domain.ResolvedConfig, rtk rtkDeps) error {
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
@@ -117,11 +121,16 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	args := BuildCopilotArgs(cliName, resolved)
 	displayName := CLIDisplayName(cliName)
 	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(CopilotAgentPersona))
-	cmd := exec.Command(cliPath, args...)
+	cmdPath, cmdArgs, rtkResult := rtkWrappedCommandWithDeps(cliPath, args, resolved.UseRTK, rtk)
+	telemetryRecorder.RecordRTKLaunch("copilot", rtkResult)
+	cmd := exec.Command(cmdPath, cmdArgs...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = CopilotEnv(resolved.OtelLogLevel)
+	if rtkResult == rtkResultApplied {
+		fmt.Printf("%s RTK output filtering enabled for this interactive session.\n\n", domain.Dim("ℹ"))
+	}
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) {
@@ -136,14 +145,10 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 // cpltSandboxHintShown tracks whether the cplt sandbox hint has been shown this session.
 var cpltSandboxHintShown bool
 
-// isTerminal returns true when stdin is a terminal (not piped/redirected).
+// isTerminal returns true when the current session is interactive.
 // Used to suppress informational hints in non-interactive contexts.
 func isTerminal() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
+	return isInteractiveSession()
 }
 
 // PrintCpltSandboxHint prints a one-time tip about cplt sandbox configuration
