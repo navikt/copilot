@@ -165,10 +165,12 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		Ignored:   ignoredPaths,
 		Conflicts: conflictPaths,
 	}
-	if apply {
-		telemetry.RecordSyncUpdates(scope.Name, telemetryMode(), int64(len(result.Updates)))
-		telemetry.RecordSyncConflicts(scope.Name, telemetryMode(), int64(len(result.Conflicts)))
+	tMode := telemetryMode()
+	if !apply {
+		tMode += "_dry_run"
 	}
+	telemetry.RecordSyncUpdates(scope.Name, tMode, int64(len(result.Updates)))
+	telemetry.RecordSyncConflicts(scope.Name, tMode, int64(len(result.Conflicts)))
 
 	if jsonOutput {
 		if err := outputJSON(result); err != nil {

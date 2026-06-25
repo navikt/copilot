@@ -42,7 +42,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le, gen_ai_request_model) (rate(gen_ai_client_operation_duration_seconds_bucket{nav_pilot_device_id=~\"$device_id\"}[$__interval])))",
+                      "expr": "histogram_quantile(0.95, sum by (le, gen_ai_request_model) (rate(gen_ai_client_operation_duration_seconds_bucket{nav_pilot_device_id=~\"$device_id\"}[$__rate_interval])))",
                       "legendFormat": "{{gen_ai_request_model}}"
                     },
                     "version": "v0"
@@ -160,7 +160,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (gen_ai_provider_name) (increase(gen_ai_client_operation_duration_seconds_count{nav_pilot_device_id=~\"$device_id\"}[$__interval]))",
+                      "expr": "sum by (gen_ai_provider_name) (increase(gen_ai_client_operation_duration_seconds_count{nav_pilot_device_id=~\"$device_id\"}[$__rate_interval]))",
                       "legendFormat": "{{gen_ai_provider_name}}"
                     },
                     "version": "v0"
@@ -270,7 +270,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (gen_ai_tool_name, success) (increase(github_copilot_tool_call_count_total{nav_pilot_device_id=~\"$device_id\"}[$__interval]))",
+                      "expr": "sum by (gen_ai_tool_name, success) (increase(github_copilot_tool_call_count_total{nav_pilot_device_id=~\"$device_id\"}[$__rate_interval]))",
                       "legendFormat": "{{gen_ai_tool_name}} (Success: {{success}})"
                     },
                     "version": "v0"
@@ -380,7 +380,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (outcome, transport) (increase(github_copilot_mcp_server_connection_count_total{nav_pilot_device_id=~\"$device_id\"}[$__interval]))",
+                      "expr": "sum by (outcome, transport) (increase(github_copilot_mcp_server_connection_count_total{nav_pilot_device_id=~\"$device_id\"}[$__rate_interval]))",
                       "legendFormat": "MCP {{outcome}} ({{transport}})"
                     },
                     "version": "v0"
@@ -490,7 +490,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (gen_ai_request_model, gen_ai_token_type) (increase(gen_ai_client_token_usage_sum{nav_pilot_device_id=~\"$device_id\"}[$__interval]))",
+                      "expr": "sum by (gen_ai_request_model, gen_ai_token_type) (increase(gen_ai_client_token_usage_sum{nav_pilot_device_id=~\"$device_id\"}[$__rate_interval]))",
                       "legendFormat": "{{gen_ai_request_model}} - {{gen_ai_token_type}}"
                     },
                     "version": "v0"
@@ -608,7 +608,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(increase(gen_ai_client_operation_duration_seconds_count{nav_pilot_device_id=~\"$device_id\"}[$__interval]))",
+                      "expr": "sum(increase(gen_ai_client_operation_duration_seconds_count{nav_pilot_device_id=~\"$device_id\"}[$__rate_interval]))",
                       "legendFormat": "Total Requests"
                     },
                     "version": "v0"
@@ -726,7 +726,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "topk(5, sum by (nav_pilot_device_id) (increase(gen_ai_client_token_usage_sum[$__interval])))",
+                      "expr": "topk(5, sum by (nav_pilot_device_id) (increase(gen_ai_client_token_usage_sum[$__rate_interval])))",
                       "legendFormat": "{{nav_pilot_device_id}}"
                     },
                     "version": "v0"

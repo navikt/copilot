@@ -274,7 +274,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (scope) (sum_over_time(nav_pilot_sync_conflicts_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__interval]))",
+                      "expr": "sum by (scope) (sum_over_time(nav_pilot_sync_conflicts_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\", mode!~\".*_dry_run\"}[$__interval]))",
                       "legendFormat": "{{scope}}"
                     },
                     "version": "v0"
@@ -487,7 +487,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(sum_over_time(nav_pilot_sync_updates_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range])) or vector(0)",
+                      "expr": "sum(sum_over_time(nav_pilot_sync_updates_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\", mode!~\".*_dry_run\"}[$__range])) or vector(0)",
                       "legendFormat": ""
                     },
                     "version": "v0"
@@ -1777,7 +1777,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(sum_over_time(nav_pilot_sync_conflicts_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range])) or vector(0)",
+                      "expr": "sum(sum_over_time(nav_pilot_sync_conflicts_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\", mode!~\".*_dry_run\"}[$__range])) or vector(0)",
                       "legendFormat": ""
                     },
                     "version": "v0"
