@@ -12,6 +12,7 @@ import AgentModePatterns from "./sections/agent-mode-patterns";
 import Resources from "./sections/resources";
 import GettingStarted from "./sections/getting-started";
 import UnderstandingCode from "./sections/understanding-code";
+import Troubleshooting from "./sections/troubleshooting";
 
 export type GuideMeta = {
   id: string;
@@ -93,6 +94,14 @@ export const categories: Category[] = [
         keywords: ["code review", "pr", "pull request", "kvalitetssikring"],
         iconName: "MagnifyingGlassIcon",
         components: [ReviewCopilotWork],
+      },
+      {
+        id: "feilsoking",
+        title: "Når Copilot stopper opp (Feilsøking)",
+        description: "Løsninger på de vanligste problemene med Copilot og Agenter.",
+        keywords: ["feil", "krasj", "stoppet", "hjelp", "support", "troubleshooting"],
+        iconName: "WrenchIcon",
+        components: [Troubleshooting],
       },
     ],
   },
