@@ -272,7 +272,7 @@ func run(args []string) error {
 				fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
 			}
 		}
-		if err := runWithCommandTelemetry("sync", "non_interactive", "auto", func() error {
+		if err := runWithCommandTelemetry("auto_sync", "non_interactive", "auto", func() error {
 			return cmdSyncAuto(".", "", "", true, false)
 		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
