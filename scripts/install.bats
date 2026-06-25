@@ -129,6 +129,7 @@ EOF
 if [[ "$1" == "-s" ]]; then echo "Darwin"; elif [[ "$1" == "-m" ]]; then echo "arm64"; fi
 exit 0
 EOF
+  chmod +x "${MOCK_BIN}/uname"
 
   run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest" --no-brew
   
@@ -144,6 +145,7 @@ EOF
 echo "badhash  filename"
 exit 0
 EOF
+  chmod +x "${MOCK_BIN}/sha256sum"
 
   run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
   

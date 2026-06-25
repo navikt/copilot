@@ -6,6 +6,7 @@ on:
     paths:
       - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
+      - 'scripts/install.bats'
       - '.github/skills/**'
       - '.github/agents/**'
       - '.github/collections/**'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
+      - 'scripts/install.bats'
       - '.github/skills/**'
       - '.github/agents/**'
       - '.github/collections/**'

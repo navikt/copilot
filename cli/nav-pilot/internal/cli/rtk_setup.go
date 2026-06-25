@@ -179,6 +179,19 @@ func installRtkViaCurl() (string, string, error) {
 	return rtkBinName, "success", nil
 }
 
+func getOpenCodeConfigDir() string {
+	if runtime.GOOS == "windows" {
+		if cfg, err := os.UserConfigDir(); err == nil {
+			return filepath.Join(cfg, "opencode")
+		}
+	}
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "opencode")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "opencode")
+}
+
 func initRtkHooks(client string, rtkPath string) error {
 	fmt.Printf("%s Initializing rtk hooks...\n", dim("→"))
 	args := []string{"init", "--global"}
@@ -188,12 +201,10 @@ func initRtkHooks(client string, rtkPath string) error {
 		args = append(args, "--copilot")
 	case "opencode":
 		args = append(args, "--opencode")
-		cfgDir, err := os.UserConfigDir()
-		if err == nil {
-			opencodePath := filepath.Join(cfgDir, "opencode", "opencode.json")
-			if patchErr := patchOpenCodeConfig(opencodePath, cfgDir); patchErr != nil {
-				fmt.Fprintf(os.Stderr, "%s Warning: Could not auto-patch opencode.json: %v\n", yellow("⚠"), patchErr)
-			}
+		ocDir := getOpenCodeConfigDir()
+		opencodePath := filepath.Join(ocDir, "opencode.json")
+		if patchErr := patchOpenCodeConfig(opencodePath, ocDir); patchErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: Could not auto-patch opencode.json: %v\n", yellow("⚠"), patchErr)
 		}
 	case "pi":
 		args = append(args, "--agent", "pi")
@@ -213,7 +224,7 @@ func initRtkHooks(client string, rtkPath string) error {
 }
 
 // patchOpenCodeConfig ensures the given opencode config file has the rtk plugin configured.
-func patchOpenCodeConfig(opencodePath string, cfgDir string) error {
+func patchOpenCodeConfig(opencodePath string, ocDir string) error {
 	// Resolve symlinks to avoid overwriting the symlink itself with a regular file during atomic rename
 	realPath, err := filepath.EvalSymlinks(opencodePath)
 	if err != nil {
@@ -239,10 +250,7 @@ func patchOpenCodeConfig(opencodePath string, cfgDir string) error {
 		return fmt.Errorf("failed to unmarshal opencode config: %w", err)
 	}
 
-	pluginStr := "~/.config/opencode/plugins/rtk.ts"
-	if runtime.GOOS == "windows" {
-		pluginStr = filepath.ToSlash(filepath.Join(cfgDir, "opencode", "plugins", "rtk.ts"))
-	}
+	pluginStr := filepath.ToSlash(filepath.Join(ocDir, "plugins", "rtk.ts"))
 
 	pluginsRaw, exists := config["plugin"]
 	if !exists {
