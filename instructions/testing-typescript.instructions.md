@@ -1,10 +1,12 @@
 ---
+name: TypeScript Testing
+description: "TypeScript-spesifikke testmønstre for Nav: Vitest, mocking, async og React-komponenttesting."
 applyTo: "**/*.test.{ts,tsx}"
 ---
 
 # TypeScript Testing (Vitest)
 
-TypeScript-spesifikke testmønstre for Nav: Vitest, mocking, async og React-komponenttesting.
+TypeScript-specific test patterns for Nav: Vitest, mocking, async, and React component testing.
 
 ## Test Structure
 

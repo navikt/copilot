@@ -89,45 +89,7 @@ Aksel-komponenter (`@navikt/ds-react`) håndterer mange a11y-krav automatisk:
 <div onClick={handleClick}>Klikk meg</div>
 ```
 
-## ARIA — kun når nødvendig
 
-```tsx
-// ✅ Live-regioner for dynamisk innhold
-<Alert variant="success" role="status">
-  Skjemaet ble sendt inn
-</Alert>
-
-// ✅ Loading-tilstand
-<div aria-busy={isLoading} aria-live="polite">
-  {isLoading ? <Loader title="Laster" /> : <DataTable data={data} />}
-</div>
-
-// ✅ Expanding/collapsing
-<Button aria-expanded={isOpen} aria-controls="panel-id">
-  Vis detaljer
-</Button>
-```
-
-## Fargekontrast
-
-- **Tekst**: 4.5:1 (AA), **stor tekst**: 3:1
-- **UI-komponenter**: 3:1
-- Bruk Aksel semantiske farger — de oppfyller kontrastkrav
-- **Aldri farge alene** for å formidle informasjon
-
-## Testing
-
-```tsx
-import { axe, toHaveNoViolations } from "vitest-axe";
-
-expect.extend(toHaveNoViolations);
-
-it("should have no accessibility violations", async () => {
-  const { container } = render(<MyComponent />);
-  const results = await axe(container);
-  expect(results).toHaveNoViolations();
-});
-```
 
 ## Boundaries
 

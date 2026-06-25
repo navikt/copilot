@@ -31,6 +31,16 @@ var (
 var timeNow = time.Now
 var telemetry telemetryRecorder = noopTelemetry{}
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+// Exit codes
+const (
+	ExitSuccess          = 0
+	ExitError            = 1
+	ExitUpdatesAvailable = 1 // Specific exit code for sync updates available
+	ExitSyncFailed       = 2
+)
+
 // ─── CLI ────────────────────────────────────────────────────────────────────
 
 // commandAliases maps short aliases to their canonical command names.
@@ -94,6 +104,11 @@ Flags:
   --sync                  Sync all scopes and launch Copilot (non-interactive)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
+
+Exit Codes:
+  0   Success
+  1   Error (or updates available for sync --json)
+  2   Sync failed
 
 Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch Copilot
@@ -350,7 +365,15 @@ func run(args []string) error {
 			usage()
 			return nil
 		default:
+			if rest[i] == "-" || rest[i] == "--" {
+				positional = append(positional, rest[i])
+				continue
+			}
 			if strings.HasPrefix(rest[i], "-") {
+				knownFlags := []string{"--dry-run", "-n", "--force", "-f", "--target", "-t", "--ref", "-r", "--source", "-s", "--user", "-u", "--type", "--all", "--apply", "--sync", "--json", "--feature", "-F", "--items", "--installed", "--help", "-h"}
+				if hint := suggest(rest[i], knownFlags); hint != "" {
+					return fmt.Errorf("unknown flag: %s. Did you mean %s?", rest[i], hint)
+				}
 				return fmt.Errorf("unknown flag: %s", rest[i])
 			}
 			positional = append(positional, rest[i])
@@ -510,6 +533,10 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "status", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "version"}
+		if hint := suggest(command, knownCmds); hint != "" {
+			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
+		}
 		return fmt.Errorf("unknown command: %s. Run with --help for usage", command)
 	}
 }
@@ -556,18 +583,18 @@ func Main(info BuildInfo) {
 // Known sentinel errors use fixed codes. Everything else prints a red error line.
 func exitCodeFor(err error) int {
 	if err == nil {
-		return 0
+		return ExitSuccess
 	}
 	if err == errUpdatesAvailable {
-		return 1
+		return ExitUpdatesAvailable
 	}
 	if err == errSyncFailed {
-		return 2
+		return ExitSyncFailed
 	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		return exitErr.ExitCode()
 	}
 	fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
-	return 1
+	return ExitError
 }
