@@ -4,8 +4,8 @@ import { Accordion, BodyShort, Box, CopyButton, HStack, Heading, Tag, VStack } f
 import { DownloadIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { normalizeExample } from "@/lib/manifest-types";
-import { getNavPilotAddCommand, getGhSkillInstallCommand, CLIENT_SUPPORT } from "@/lib/install-commands";
-import { COLLECTION_CONFIGS } from "@/lib/customization-types";
+import { getNavPilotAddCommand, getGhSkillInstallCommand, CLIENT_SUPPORT, INSTALL_DIRS } from "@/lib/install-commands";
+import { COLLECTION_CONFIGS, type CustomizationType } from "@/lib/customization-types";
 import { ToolList, ExclusiveAccordion } from "./shared";
 
 function AgentReferences({
@@ -265,6 +265,38 @@ export function StaticCustomizationDetails({
                   <BodyShort size="small" className="text-gray-500">
                     Oppdater med <code className="text-xs bg-gray-100 rounded px-1">gh skill update</code>.
                   </BodyShort>
+                </VStack>
+              </Accordion.Content>
+            </Accordion.Item>
+          )}
+          {CLIENT_SUPPORT[item.type].includes("github") && (
+            <Accordion.Item>
+              <Accordion.Header>GitHub.com</Accordion.Header>
+              <Accordion.Content>
+                <VStack gap="space-12">
+                  <VStack gap="space-4">
+                    <BodyShort size="small">
+                      For å bruke denne på GitHub.com (f.eks. i pull requests eller Copilot Chat på web), må filen ligge
+                      i kodearkivet ditt.
+                    </BodyShort>
+                    <BodyShort size="small">
+                      1. Last ned filen med manuell installasjon eller via <code>nav-pilot</code>.<br />
+                      {item.type !== "skill" && (
+                        <>
+                          2. Legg den i <code>{INSTALL_DIRS[item.type as Exclude<CustomizationType, "mcp">]}</code> i
+                          din default branch.
+                          <br />
+                        </>
+                      )}
+                      {item.type === "skill" && (
+                        <>
+                          2. Legg den i <code>.github/skills/{item.name}</code> i din default branch.
+                          <br />
+                        </>
+                      )}
+                      3. Neste gang du bruker Copilot Chat på web i dette repoet, vil denne være tilgjengelig.
+                    </BodyShort>
+                  </VStack>
                 </VStack>
               </Accordion.Content>
             </Accordion.Item>

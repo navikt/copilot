@@ -1,6 +1,6 @@
 "use client";
 
-import { Accordion, Alert, BodyShort, Box, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
+import { Accordion, BodyShort, Box, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
 import { DownloadIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { normalizeExample } from "@/lib/manifest-types";
@@ -215,12 +215,6 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                     <CopyButton size="xsmall" copyText={getMcpServerConfig(item)} />
                   </div>
                 </div>
-                {item.remotes.length > 0 && (
-                  <Alert variant="warning" size="small">
-                    IntelliJ støtter foreløpig ikke OAuth-autentisering for MCP-servere. Noen servere som krever
-                    innlogging vil derfor ikke fungere. Copilot-teamet i Nav følger med på dette.
-                  </Alert>
-                )}
               </VStack>
             </Accordion.Content>
           </Accordion.Item>
