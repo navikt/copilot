@@ -119,6 +119,8 @@ jobs:
         run: apk add --no-cache bash curl coreutils git
 
       - name: Run install.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash scripts/install.sh --dir /usr/local/bin
 
       - name: Verify installation
