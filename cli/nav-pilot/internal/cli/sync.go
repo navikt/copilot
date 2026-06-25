@@ -58,6 +58,13 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	}
 
 	conflictPaths := conflictStatePaths(scope)
+	if err := clearResolvedConflicts(scope, src.Dir, conflictPaths); err != nil {
+		if !jsonOutput {
+			fmt.Fprintf(os.Stderr, "%s Could not clear resolved conflicts: %v\n", yellow("⚠"), err)
+		}
+	}
+	// Re-fetch conflictPaths in case any were resolved
+	conflictPaths = conflictStatePaths(scope)
 
 	if len(files) == 0 {
 		if len(conflictPaths) > 0 && !apply {
@@ -246,11 +253,6 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	// Update state with new hashes
 	if err := updateScopedStateHashes(scope, appliedUpdates); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update state file: %v\n", yellow("⚠"), err)
-	}
-	if apply {
-		if err := clearResolvedConflicts(scope, src.Dir, files, conflictPaths); err != nil {
-			fmt.Fprintf(os.Stderr, "%s Could not clear resolved conflicts: %v\n", yellow("⚠"), err)
-		}
 	}
 
 	// Only bump source SHA and version if ALL updates were applied successfully
@@ -577,7 +579,7 @@ func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
 }
 
 // clearResolvedConflicts clears conflict status for files that currently match source.
-func clearResolvedConflicts(scope *InstallScope, sourceDir string, files []syncFile, conflictPaths []string) error {
+func clearResolvedConflicts(scope *InstallScope, sourceDir string, conflictPaths []string) error {
 	if len(conflictPaths) == 0 {
 		return nil
 	}
@@ -587,44 +589,44 @@ func clearResolvedConflicts(scope *InstallScope, sourceDir string, files []syncF
 		return nil
 	}
 
-	byLocalPath := make(map[string]syncFile, len(files))
-	for _, sf := range files {
-		byLocalPath[sf.localPath] = sf
-	}
 	conflictSet := make(map[string]bool, len(conflictPaths))
 	for _, p := range conflictPaths {
 		conflictSet[p] = true
 	}
 
+	resolver := NewSourceResolver(sourceDir)
 	changed := false
 	for i, f := range state.Files {
 		if !conflictSet[f.Path] {
 			continue
 		}
-		sf, ok := byLocalPath[f.Path]
-		if !ok {
-			continue
-		}
 
-		localFull := filepath.Join(scope.RootDir, sf.localPath)
-		sourceFull := filepath.Join(sourceDir, sf.sourcePath)
-		isDir := strings.HasSuffix(sf.localPath, "/")
+		localFull := filepath.Join(scope.RootDir, f.Path)
+		sourcePath := resolver.MapLocalPath(f.Path, scope.IsUser())
+		sourceFull := filepath.Join(sourceDir, sourcePath)
+		isDir := strings.HasSuffix(f.Path, "/")
 
-		localHash, localErr := rawArtifactHash(localFull, isDir)
-		sourceHash, sourceErr := rawArtifactHash(sourceFull, isDir)
+		localHash, localErr := comparableArtifactHash(localFull, isDir)
+		sourceHash, sourceErr := comparableArtifactHash(sourceFull, isDir)
 		if localErr != nil || sourceErr != nil {
 			continue
 		}
 		if localHash == sourceHash && state.Files[i].Status != "" {
 			state.Files[i].Status = ""
 			changed = true
+
+			// Update the stored raw hash so we have the correct baseline
+			rawHash, _ := rawArtifactHash(localFull, isDir)
+			if rawHash != "" {
+				state.Files[i].Hash = rawHash
+			}
 		}
 	}
 
-	if !changed {
-		return nil
+	if changed {
+		return writeScopedState(scope, state)
 	}
-	return writeScopedState(scope, state)
+	return nil
 }
 
 // updateStateHashes is a backward-compatible wrapper for repo scope.
