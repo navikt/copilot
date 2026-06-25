@@ -89,11 +89,26 @@ func (r *SourceResolver) Get(kind *ArtifactKind, name string) (Resolved, bool) {
 	return r.getSimpleFile(kind, name)
 }
 
+func (r *SourceResolver) checkSafePath(abs string) (os.FileInfo, error) {
+	rel, err := filepath.Rel(r.sourceDir, abs)
+	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+		return nil, os.ErrNotExist
+	}
+	info, err := os.Lstat(abs)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, os.ErrNotExist
+	}
+	return info, nil
+}
+
 func (r *SourceResolver) getSimpleFile(kind *ArtifactKind, name string) (Resolved, bool) {
 	fileName := name + kind.Suffix
 	rel := filepath.Join(kind.Dir, fileName)
 	abs := filepath.Join(r.sourceDir, rel)
-	if _, err := os.Stat(abs); err == nil {
+	if _, err := r.checkSafePath(abs); err == nil {
 		return Resolved{Kind: kind, Name: name, AbsPath: abs, RelPath: rel, IsDir: false}, true
 	}
 	return Resolved{}, false
@@ -102,12 +117,17 @@ func (r *SourceResolver) getSimpleFile(kind *ArtifactKind, name string) (Resolve
 func (r *SourceResolver) getDir(kind *ArtifactKind, name string) (Resolved, bool) {
 	rel := filepath.Join(kind.Dir, name)
 	abs := filepath.Join(r.sourceDir, rel)
+
+	if _, err := r.checkSafePath(abs); err != nil {
+		return Resolved{}, false
+	}
+
 	if kind.Marker != "" {
-		if _, err := os.Stat(filepath.Join(abs, kind.Marker)); err == nil {
+		if _, err := r.checkSafePath(filepath.Join(abs, kind.Marker)); err == nil {
 			return Resolved{Kind: kind, Name: name, AbsPath: abs, RelPath: rel, IsDir: true}, true
 		}
 	} else {
-		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+		if info, err := r.checkSafePath(abs); err == nil && info.IsDir() {
 			return Resolved{Kind: kind, Name: name, AbsPath: abs, RelPath: rel, IsDir: true}, true
 		}
 	}
@@ -117,12 +137,12 @@ func (r *SourceResolver) getDir(kind *ArtifactKind, name string) (Resolved, bool
 func (r *SourceResolver) getCanBeDir(kind *ArtifactKind, name string) (Resolved, bool) {
 	dirRel := filepath.Join(kind.Dir, name)
 	dirAbs := filepath.Join(r.sourceDir, dirRel)
-	if info, err := os.Stat(dirAbs); err == nil && info.IsDir() {
+	if info, err := r.checkSafePath(dirAbs); err == nil && info.IsDir() {
 		return Resolved{Kind: kind, Name: name, AbsPath: dirAbs, RelPath: dirRel, IsDir: true}, true
 	}
 	fileRel := filepath.Join(kind.Dir, name+kind.Suffix)
 	fileAbs := filepath.Join(r.sourceDir, fileRel)
-	if _, err := os.Stat(fileAbs); err == nil {
+	if _, err := r.checkSafePath(fileAbs); err == nil {
 		return Resolved{Kind: kind, Name: name, AbsPath: fileAbs, RelPath: fileRel, IsDir: false}, true
 	}
 	return Resolved{}, false
@@ -132,7 +152,7 @@ func (r *SourceResolver) getCanBeDir(kind *ArtifactKind, name string) (Resolved,
 func (r *SourceResolver) GetFile(typeDir, fileName string) (absPath, relPath string, ok bool) {
 	rel := filepath.Join(typeDir, fileName)
 	abs := filepath.Join(r.sourceDir, rel)
-	if _, err := os.Stat(abs); err == nil {
+	if _, err := r.checkSafePath(abs); err == nil {
 		return abs, rel, true
 	}
 	return "", "", false
