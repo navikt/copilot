@@ -105,6 +105,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Setup prerequisites (Ubuntu)
         if: contains(matrix.container, 'ubuntu')
@@ -112,7 +114,7 @@ jobs:
 
       - name: Setup prerequisites (Alpine)
         if: contains(matrix.container, 'alpine')
-        run: apk add --no-cache bash curl coreutils
+        run: apk add --no-cache bash curl coreutils git
 
       - name: Run install.sh
         run: bash scripts/install.sh --dir /usr/local/bin
