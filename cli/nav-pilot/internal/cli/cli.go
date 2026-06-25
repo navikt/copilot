@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/huh"
+
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -112,8 +114,26 @@ func run(args []string) error {
 	assessment := assessStaleness(Version)
 	recordFreshness("cli", "none", assessment)
 	if Version != "dev" && assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, Version) {
-		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
-			yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
+		if isInteractive() && assessment.SkewDays > 14 {
+			var upgradeChoice bool
+			err := huh.NewConfirm().
+				Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).
+				Value(&upgradeChoice).
+				WithTheme(navTheme()).
+				Run()
+
+			if err == nil && upgradeChoice {
+				if err := cmdUpdate(); err != nil {
+					fmt.Fprintf(os.Stderr, "%s Upgrade failed: %v\n", yellow("⚠"), err)
+				} else {
+					fmt.Println("Upgrade successful! Please re-run your command.")
+					os.Exit(0)
+				}
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
+				yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
+		}
 	}
 
 	// Pre-scan: extract launch-override flags before command dispatch.
