@@ -73,18 +73,18 @@ const skill: Skill = {
   ...base,
   type: "skill",
   name: "aksel-spacing",
-  rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md",
+  rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-spacing/SKILL.md",
 };
 const skillWithRefs: Skill = {
   ...base,
   type: "skill",
   name: "observability-setup",
-  rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
+  rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
   references: [
     {
       path: "references/grafana-queries.md",
       rawUrl:
-        "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md",
+        "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/references/grafana-queries.md",
     },
   ],
 };
@@ -253,7 +253,7 @@ describe("getManualInstallCommand", () => {
     expect(cmd).toContain('mkdir -p ".github/skills/aksel-spacing"');
     expect(cmd).toContain("curl -fsSL");
     expect(cmd).toContain(
-      'curl -fsSL -o ".github/skills/aksel-spacing/SKILL.md" "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md"'
+      'curl -fsSL -o ".github/skills/aksel-spacing/SKILL.md" "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-spacing/SKILL.md"'
     );
     expect(cmd).not.toContain("references");
   });

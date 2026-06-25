@@ -274,7 +274,7 @@ func collectInstructionData(sourceDir string) ([]InstructionSection, []Instructi
 	instrEntries := source.NewSourceResolver(sourceDir).List(source.KindInstruction)
 
 	var globalSections []InstructionSection
-	globalInstr := filepath.Join(sourceDir, ".github", "copilot-instructions.md")
+	globalInstr := filepath.Join(sourceDir, "copilot-instructions.md")
 	if data, err := os.ReadFile(globalInstr); err == nil {
 		_, body, hasFM := source.SplitFrontmatter(data)
 		if !hasFM {

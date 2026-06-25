@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/skills/**'
+      - 'skills/**'
       - 'skills/**'
       - 'scripts/next-skills-version.sh'
       - 'scripts/skills-cliff.toml'
@@ -111,7 +111,7 @@ jobs:
           args: >-
             --unreleased
             --tag ${{ steps.version.outputs.tag }}
-            --include-path ".github/skills/**"
+            --include-path "skills/**"
             --include-path "skills/**"
 
       - name: Publish skills

@@ -54,7 +54,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	if wd, err := os.Getwd(); err == nil {
 		gitRoot := FindGitRoot(wd)
 		if gitRoot != "" {
-			candidate := filepath.Join(gitRoot, ".github", "collections")
+			candidate := filepath.Join(gitRoot, "collections")
 			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 				sha := getGitSHA(gitRoot)
 				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", domain.Dim("→"), domain.Dim(gitRoot))

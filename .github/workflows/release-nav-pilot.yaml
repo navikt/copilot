@@ -128,7 +128,7 @@ jobs:
         uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         with:
           config: cli/nav-pilot/cliff.toml
-          args: --unreleased --tag ${{ needs.prepare.outputs.tag }} --include-path "cli/nav-pilot/*" --include-path ".github/skills/*" --include-path ".github/agents/*" --include-path ".github/collections/*" --include-path "scripts/install.sh"
+          args: --unreleased --tag ${{ needs.prepare.outputs.tag }} --include-path "cli/nav-pilot/*" --include-path "skills/*" --include-path "agents/*" --include-path "collections/*" --include-path "scripts/install.sh"
 
       - name: Build release body
         id: notes

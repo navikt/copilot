@@ -226,8 +226,8 @@ func TestSyncOpenCodeArtifacts_ConflictNotOverwritten(t *testing.T) {
 func TestSyncOpenCodeArtifacts_UpdatesStaleFile(t *testing.T) {
 	sourceV1 := setupTestSource(t)
 	sourceV2 := t.TempDir()
-	mustMkdir(t, filepath.Join(sourceV2, ".github", "agents"))
-	mustWrite(t, filepath.Join(sourceV2, ".github", "agents", "nav-pilot.agent.md"), `---
+	mustMkdir(t, filepath.Join(sourceV2, "agents"))
+	mustWrite(t, filepath.Join(sourceV2, "agents", "nav-pilot.agent.md"), `---
 name: nav-pilot
 description: Updated Nav-pilot agent
 tools:

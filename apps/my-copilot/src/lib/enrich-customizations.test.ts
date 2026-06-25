@@ -80,7 +80,7 @@ describe("enrichWithUsage", () => {
       makeItem({
         type: "agent" as never,
         name: "observability-setup",
-        filePath: ".github/skills/observability-setup/SKILL.md",
+        filePath: "skills/observability-setup/SKILL.md",
       }),
     ];
 

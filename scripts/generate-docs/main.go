@@ -309,7 +309,7 @@ func processSkills(root string) int {
 
 		fm := parseFrontmatter(skillPath)
 		desc := escapeTableCell(fm["description"])
-		location := fmt.Sprintf("[`.github/skills/%s/`](../.github/skills/%s/SKILL.md)", name, name)
+		location := fmt.Sprintf("[`skills/%s/`](../skills/%s/SKILL.md)", name, name)
 
 		row := fmt.Sprintf("| **%s** | %s | %s |", name, desc, location)
 

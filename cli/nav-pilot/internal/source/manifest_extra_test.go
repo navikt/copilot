@@ -72,7 +72,7 @@ func TestValidateManifest(t *testing.T) {
 
 func TestLoadManifest_Success(t *testing.T) {
 	tmp := t.TempDir()
-	collDir := filepath.Join(tmp, ".github", "collections", "all")
+	collDir := filepath.Join(tmp, "collections", "all")
 	if err := os.MkdirAll(collDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestLoadManifest_NotFound(t *testing.T) {
 func TestListCollectionDirs_WithCollections(t *testing.T) {
 	tmp := t.TempDir()
 	for _, name := range []string{"all", "kotlin-backend"} {
-		dir := filepath.Join(tmp, ".github", "collections", name)
+		dir := filepath.Join(tmp, "collections", name)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -113,7 +113,7 @@ func TestListCollectionDirs_WithCollections(t *testing.T) {
 		os.WriteFile(filepath.Join(dir, "manifest.json"), data, 0o644)
 	}
 	// A dir without manifest.json should be excluded
-	os.MkdirAll(filepath.Join(tmp, ".github", "collections", "noManifest"), 0o755)
+	os.MkdirAll(filepath.Join(tmp, "collections", "noManifest"), 0o755)
 
 	names, err := ListCollectionDirs(tmp)
 	if err != nil {
@@ -262,7 +262,7 @@ func TestRelPathForName_User(t *testing.T) {
 func setupSourceDir(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
-	agentsDir := filepath.Join(tmp, ".github", "agents")
+	agentsDir := filepath.Join(tmp, "agents")
 	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

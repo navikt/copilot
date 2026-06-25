@@ -326,7 +326,7 @@ function getSkills(): ManifestItem[] {
         description: (data.description as string) || "",
         type: "skill" as const,
         domain: meta.domain || "general",
-        filePath: `.github/skills/${folder}/SKILL.md`,
+        filePath: `skills/${folder}/SKILL.md`,
         rawGitHubUrl: `${RAW_BASE}/skills/${folder}/SKILL.md`,
         contentHash: contentHash(path.join(dir, folder, "SKILL.md")),
         installUrl: null,

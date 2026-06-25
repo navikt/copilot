@@ -98,7 +98,7 @@ func TestGenerateInstallationGuide_SkillWithoutReferences(t *testing.T) {
 			Name:        "aksel-spacing",
 			DisplayName: "aksel-spacing",
 			Description: "Responsive layout",
-			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md",
+			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-spacing/SKILL.md",
 		},
 	})
 
@@ -128,15 +128,15 @@ func TestGenerateInstallationGuide_SkillWithReferences(t *testing.T) {
 			Name:        "observability-setup",
 			DisplayName: "observability-setup",
 			Description: "Prometheus metrics and tracing",
-			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
+			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
 			References: []SkillReference{
 				{
 					Path:   "references/grafana-queries.md",
-					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md",
+					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/references/grafana-queries.md",
 				},
 				{
 					Path:   "references/production-patterns.md",
-					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/production-patterns.md",
+					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/references/production-patterns.md",
 				},
 			},
 		},

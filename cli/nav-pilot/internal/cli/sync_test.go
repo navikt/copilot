@@ -14,10 +14,10 @@ func TestResolveSyncFiles_WithState(t *testing.T) {
 	sourceDir := t.TempDir()
 
 	// Create source with legacy layout
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
 	state := &StateFile{
 		Collection: "kotlin-backend",
@@ -49,8 +49,8 @@ func TestResolveSyncFiles_ConflictHandling(t *testing.T) {
 	dir := t.TempDir()
 	sourceDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nav-pilot.agent.md"), []byte("# New"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nav-pilot.agent.md"), []byte("# New"), 0o644)
 
 	state := &StateFile{
 		Collection: "fullstack",
@@ -92,12 +92,12 @@ func TestResolveSyncFiles_AutoDetect(t *testing.T) {
 
 	// Setup source repo with matching files (nais exists, auth does not)
 	sourceDir := t.TempDir()
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais v2"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("# Nais v2"), 0o644)
 	// auth.agent.md intentionally missing in source
 
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
 	files, collection, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
 	if err != nil {
@@ -216,114 +216,6 @@ func TestApplySyncUpdate_RootLevelSource(t *testing.T) {
 	got, _ := os.ReadFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"))
 	if string(got) != "root content" {
 		t.Errorf("skill not updated from root source, got %q", string(got))
-	}
-}
-
-func TestCheckSyncFile_UpToDate(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	// Same content in both
-	os.MkdirAll(filepath.Join(targetDir, ".github", "agents"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(targetDir, ".github", "agents", "x.agent.md"), []byte("same"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "x.agent.md"), []byte("same"), 0o644)
-
-	sf := syncFile{localPath: filepath.Join(".github", "agents", "x.agent.md"), sourcePath: filepath.Join(".github", "agents", "x.agent.md")}
-	u, err := checkSyncFile(targetDir, sourceDir, sf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if u != nil {
-		t.Error("expected no update for identical files")
-	}
-}
-
-func TestCheckSyncFile_UpdateAvailable(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(targetDir, ".github", "agents"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(targetDir, ".github", "agents", "x.agent.md"), []byte("old"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "x.agent.md"), []byte("new"), 0o644)
-
-	sf := syncFile{localPath: filepath.Join(".github", "agents", "x.agent.md"), sourcePath: filepath.Join(".github", "agents", "x.agent.md")}
-	u, err := checkSyncFile(targetDir, sourceDir, sf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if u == nil {
-		t.Fatal("expected update for differing files")
-	}
-	if u.CurrentHash == u.SourceHash {
-		t.Error("hashes should differ")
-	}
-}
-
-func TestCheckSyncFile_Directory(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	// Different content in skill dirs
-	os.MkdirAll(filepath.Join(targetDir, ".github", "skills", "s"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "s"), 0o755)
-	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"), []byte("old"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "s", "SKILL.md"), []byte("new"), 0o644)
-
-	sf := syncFile{
-		localPath:  filepath.Join(".github", "skills", "s") + "/",
-		sourcePath: filepath.Join(".github", "skills", "s") + "/",
-		isDir:      true,
-	}
-	u, err := checkSyncFile(targetDir, sourceDir, sf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if u == nil {
-		t.Fatal("expected update for differing dirs")
-	}
-}
-
-func TestApplySyncUpdate_File(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	rel := filepath.Join(".github", "agents", "x.agent.md")
-	os.MkdirAll(filepath.Join(targetDir, ".github", "agents"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(targetDir, rel), []byte("old"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, rel), []byte("new"), 0o644)
-
-	u := syncUpdate{Path: rel, SourcePath: rel, CurrentHash: "a", SourceHash: "b"}
-	if err := applySyncUpdate(ScopeRepo(targetDir), sourceDir, u); err != nil {
-		t.Fatal(err)
-	}
-
-	got, _ := os.ReadFile(filepath.Join(targetDir, rel))
-	if string(got) != "new" {
-		t.Errorf("file not updated, got %q", string(got))
-	}
-}
-
-func TestApplySyncUpdate_Dir(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	rel := filepath.Join(".github", "skills", "s") + "/"
-	os.MkdirAll(filepath.Join(targetDir, ".github", "skills", "s"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "s"), 0o755)
-	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"), []byte("old"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "s", "SKILL.md"), []byte("new"), 0o644)
-
-	u := syncUpdate{Path: rel, SourcePath: rel, CurrentHash: "a", SourceHash: "b"}
-	if err := applySyncUpdate(ScopeRepo(targetDir), sourceDir, u); err != nil {
-		t.Fatal(err)
-	}
-
-	got, _ := os.ReadFile(filepath.Join(targetDir, ".github", "skills", "s", "SKILL.md"))
-	if string(got) != "new" {
-		t.Errorf("skill not updated, got %q", string(got))
 	}
 }
 
@@ -473,173 +365,6 @@ func TestSyncJSON_StdoutIsCleanJSON(t *testing.T) {
 
 // ─── User-scope sync tests ──────────────────────────────────────────────────
 
-func TestResolveSyncFiles_UserScope_PathRemapping(t *testing.T) {
-	// User-scope state stores paths as "agents/x" but source has ".github/agents/x"
-	homeDir := t.TempDir()
-	sourceDir := t.TempDir()
-	scope := &InstallScope{
-		Name:           "user",
-		RootDir:        homeDir,
-		StateFile:      ".nav-pilot-state.json",
-		SupportedTypes: []string{"agent", "skill", "instruction"},
-	}
-
-	// Create source with legacy layout
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
-
-	state := &StateFile{
-		Collection: "fullstack",
-		Version:    "dev",
-		Scope:      "user",
-		Files: []InstalledFile{
-			{Path: "agents/nais.agent.md", Hash: "abc"},
-			{Path: "skills/api-design/", Hash: "def"},
-		},
-	}
-	writeScopedState(scope, state)
-
-	files, collection, err := resolveSyncFiles(scope, sourceDir, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if collection != "fullstack" {
-		t.Errorf("collection = %q, want %q", collection, "fullstack")
-	}
-	if len(files) != 2 {
-		t.Fatalf("files count = %d, want 2", len(files))
-	}
-
-	// Local path stays as "agents/..." but source path should be ".github/agents/..."
-	agent := files[0]
-	if agent.localPath != "agents/nais.agent.md" {
-		t.Errorf("localPath = %q, want %q", agent.localPath, "agents/nais.agent.md")
-	}
-	expectedSource := filepath.Join(".github", "agents", "nais.agent.md")
-	if agent.sourcePath != expectedSource {
-		t.Errorf("sourcePath = %q, want %q", agent.sourcePath, expectedSource)
-	}
-
-	skill := files[1]
-	if skill.localPath != "skills/api-design/" {
-		t.Errorf("localPath = %q, want %q", skill.localPath, "skills/api-design/")
-	}
-	expectedSkillSource := filepath.Join(".github", "skills", "api-design") + "/"
-	if skill.sourcePath != expectedSkillSource {
-		t.Errorf("sourcePath = %q, want %q", skill.sourcePath, expectedSkillSource)
-	}
-}
-
-func TestResolveSyncFiles_UserScope_InstructionPathNotDoubled(t *testing.T) {
-	// Regression: instructions store paths as ".github/instructions/x.instructions.md"
-	// which already has .github/ prefix. resolveSyncFiles must NOT double it.
-	homeDir := t.TempDir()
-	sourceDir := t.TempDir()
-	scope := &InstallScope{
-		Name:           "user",
-		RootDir:        homeDir,
-		StateFile:      ".nav-pilot-state.json",
-		SupportedTypes: []string{"agent", "skill", "instruction"},
-	}
-
-	// Create source layout
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "go-nais.instructions.md"), []byte("# Go"), 0o644)
-
-	state := &StateFile{
-		Collection: CollectionAll,
-		Version:    "dev",
-		Scope:      "user",
-		Files: []InstalledFile{
-			{Path: "agents/nais.agent.md", Hash: "abc"},
-			{Path: ".github/instructions/go-nais.instructions.md", Hash: "def"},
-		},
-	}
-	writeScopedState(scope, state)
-
-	files, _, err := resolveSyncFiles(scope, sourceDir, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(files) != 2 {
-		t.Fatalf("files count = %d, want 2", len(files))
-	}
-
-	// Agent: local="agents/nais.agent.md" → source=".github/agents/nais.agent.md"
-	if files[0].sourcePath != filepath.Join(".github", "agents", "nais.agent.md") {
-		t.Errorf("agent sourcePath = %q, want .github/agents/nais.agent.md", files[0].sourcePath)
-	}
-
-	// Instruction: already has .github/ prefix — source should NOT be ".github/.github/..."
-	expectedInstrSource := filepath.Join(".github", "instructions", "go-nais.instructions.md")
-	if files[1].sourcePath != expectedInstrSource {
-		t.Errorf("instruction sourcePath = %q, want %q (was double-prefixed?)", files[1].sourcePath, expectedInstrSource)
-	}
-}
-
-func TestApplySyncUpdate_UserScope_PathRemapping(t *testing.T) {
-	homeDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	scope := &InstallScope{
-		Name:           "user",
-		RootDir:        homeDir,
-		SupportedTypes: []string{"agent", "skill", "instruction"},
-	}
-
-	// Source has the file at .github/agents/x.agent.md
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "x.agent.md"), []byte("new content"), 0o644)
-
-	// Target (user home) has the file at agents/x.agent.md
-	os.MkdirAll(filepath.Join(homeDir, "agents"), 0o755)
-	os.WriteFile(filepath.Join(homeDir, "agents", "x.agent.md"), []byte("old content"), 0o644)
-
-	u := syncUpdate{Path: "agents/x.agent.md", SourcePath: filepath.Join(".github", "agents", "x.agent.md"), CurrentHash: "a", SourceHash: "b"}
-	if err := applySyncUpdate(scope, sourceDir, u); err != nil {
-		t.Fatal(err)
-	}
-
-	got, _ := os.ReadFile(filepath.Join(homeDir, "agents", "x.agent.md"))
-	if string(got) != "new content" {
-		t.Errorf("file not updated, got %q", string(got))
-	}
-}
-
-func TestApplySyncUpdate_UserScope_InstructionNotDoubled(t *testing.T) {
-	homeDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	scope := &InstallScope{
-		Name:           "user",
-		RootDir:        homeDir,
-		SupportedTypes: []string{"agent", "skill", "instruction"},
-	}
-
-	// Source has instruction at .github/instructions/
-	instrRel := filepath.Join(".github", "instructions", "go-nais.instructions.md")
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, instrRel), []byte("new instruction"), 0o644)
-
-	// Target (user home) also has .github/instructions/ prefix
-	os.MkdirAll(filepath.Join(homeDir, ".github", "instructions"), 0o755)
-	os.WriteFile(filepath.Join(homeDir, instrRel), []byte("old instruction"), 0o644)
-
-	u := syncUpdate{Path: instrRel, SourcePath: instrRel, CurrentHash: "a", SourceHash: "b"}
-	if err := applySyncUpdate(scope, sourceDir, u); err != nil {
-		t.Fatalf("applySyncUpdate failed (double .github/ prefix?): %v", err)
-	}
-
-	got, _ := os.ReadFile(filepath.Join(homeDir, instrRel))
-	if string(got) != "new instruction" {
-		t.Errorf("instruction not updated, got %q", string(got))
-	}
-}
-
 func TestUpdateScopedStateHashes(t *testing.T) {
 	dir := t.TempDir()
 	scope := ScopeRepo(dir)
@@ -779,83 +504,17 @@ func TestSyncResultJSON_WithOverrides(t *testing.T) {
 
 // ─── Formatting-tolerant comparison tests ───────────────────────────────────
 
-func TestCheckSyncFile_FormattingTolerant_MD(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	rel := filepath.Join(".github", "agents", "x.agent.md")
-	os.MkdirAll(filepath.Join(targetDir, ".github", "agents"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-
-	// Same content but different formatting (trailing whitespace, CRLF)
-	os.WriteFile(filepath.Join(targetDir, rel), []byte("# Agent\nDo stuff\n"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, rel), []byte("# Agent  \r\nDo stuff   \r\n"), 0o644)
-
-	sf := syncFile{localPath: rel, sourcePath: rel}
-	u, err := checkSyncFile(targetDir, sourceDir, sf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if u != nil {
-		t.Error("expected no update for formatting-only difference in .md file")
-	}
-}
-
-func TestCheckSyncFile_RealDiff_MD(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	rel := filepath.Join(".github", "agents", "x.agent.md")
-	os.MkdirAll(filepath.Join(targetDir, ".github", "agents"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-
-	// Actual content difference
-	os.WriteFile(filepath.Join(targetDir, rel), []byte("# Agent v1\nOld content\n"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, rel), []byte("# Agent v2\nNew content\n"), 0o644)
-
-	sf := syncFile{localPath: rel, sourcePath: rel}
-	u, err := checkSyncFile(targetDir, sourceDir, sf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if u == nil {
-		t.Error("expected update for real content difference")
-	}
-}
-
-func TestCheckSyncFile_JSON_ByteExact(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	rel := filepath.Join(".github", "agents", "x.metadata.json")
-	os.MkdirAll(filepath.Join(targetDir, ".github", "agents"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-
-	// JSON with whitespace difference — should still trigger update (byte-exact)
-	os.WriteFile(filepath.Join(targetDir, rel), []byte(`{"key":"value"}`), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, rel), []byte(`{"key": "value"}`), 0o644)
-
-	sf := syncFile{localPath: rel, sourcePath: rel}
-	u, err := checkSyncFile(targetDir, sourceDir, sf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if u == nil {
-		t.Error("expected update for JSON whitespace difference (byte-exact)")
-	}
-}
-
 func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
 	dir := t.TempDir()
 	sourceDir := t.TempDir()
 
 	// Create source with legacy layout
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "nextjs-aksel.instructions.md"), []byte("# NJS"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "api-design"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "instructions"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "instructions", "nextjs-aksel.instructions.md"), []byte("# NJS"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
 	state := &StateFile{
 		Collection: "nextjs-frontend",
@@ -888,9 +547,9 @@ func TestResolveSyncFiles_SkipsConflictedFiles(t *testing.T) {
 	sourceDir := t.TempDir()
 
 	// Create source
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "auth.agent.md"), []byte("# Auth"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "auth.agent.md"), []byte("# Auth"), 0o644)
 
 	state := &StateFile{
 		Collection: "(all)",
@@ -1023,41 +682,6 @@ func TestCountFileIntegrity_IgnoredFiles(t *testing.T) {
 	}
 	if ignored != 1 {
 		t.Errorf("ignored = %d, want 1", ignored)
-	}
-}
-
-func TestResolveSyncFiles_AutoDetect_InvalidRootFallsBack(t *testing.T) {
-	targetDir := t.TempDir()
-	sourceDir := t.TempDir()
-
-	// Target has skill installed
-	os.MkdirAll(filepath.Join(targetDir, ".github", "skills", "my-skill"), 0o755)
-	os.WriteFile(filepath.Join(targetDir, ".github", "skills", "my-skill", "SKILL.md"), []byte("old"), 0o644)
-
-	// Source has root dir but NO SKILL.md (invalid)
-	os.MkdirAll(filepath.Join(sourceDir, "skills", "my-skill"), 0o755)
-
-	// Source has valid legacy location
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "my-skill"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "my-skill", "SKILL.md"), []byte("new-legacy"), 0o644)
-
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var found bool
-	for _, f := range files {
-		if strings.Contains(f.localPath, "my-skill") {
-			found = true
-			// Source path should point to legacy (invalid root must not win)
-			if !strings.Contains(f.sourcePath, ".github") {
-				t.Errorf("sourcePath = %q, should point to .github/ (invalid root)", f.sourcePath)
-			}
-		}
-	}
-	if !found {
-		t.Error("should find my-skill in sync files")
 	}
 }
 

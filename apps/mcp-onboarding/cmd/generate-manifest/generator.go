@@ -293,7 +293,7 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 		}
 
 		name := entry.Name()
-		relPath := path.Join(".github/skills", name, "SKILL.md")
+		relPath := path.Join("skills", name, "SKILL.md")
 
 		var fm SkillFrontmatter
 		if err := parseFrontmatter(string(content), &fm); err != nil {
@@ -320,7 +320,7 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 				for _, ref := range meta.References {
 					refs = append(refs, discovery.SkillReference{
 						Path:   ref,
-						RawURL: g.generateRawURL(path.Join(".github/skills", name, ref)),
+						RawURL: g.generateRawURL(path.Join("skills", name, ref)),
 					})
 				}
 			}
