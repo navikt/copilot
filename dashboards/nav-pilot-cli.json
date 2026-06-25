@@ -1840,7 +1840,7 @@
         "links": [],
         "title": "Aktive enheter per versjon",
         "vizConfig": {
-          "group": "bargauge",
+          "group": "state-timeline",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
@@ -1853,8 +1853,12 @@
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "transparent",
                       "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
                     }
                   ]
                 },
@@ -1863,28 +1867,9 @@
               "overrides": []
             },
             "options": {
-              "displayMode": "gradient",
-              "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "placement": "bottom",
-                "showLegend": false
-              },
-              "maxVizHeight": 300,
-              "minVizHeight": 16,
-              "minVizWidth": 8,
-              "namePlacement": "top",
-              "orientation": "horizontal",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
-              },
-              "showUnfilled": true,
-              "sizing": "auto",
-              "valueMode": "color"
+              "showValue": "never",
+              "rowHeight": 0.9,
+              "mergeValues": true
             }
           },
           "version": "13.0.1+security-01"
