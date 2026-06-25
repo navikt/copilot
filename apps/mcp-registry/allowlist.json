@@ -297,6 +297,33 @@
           "prompt": "Kjør IntelliJ-inspeksjoner på src/main/kotlin og vis feil og advarsler"
         }
       ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "no.nav.aksel/aksel-arcade",
+      "description": "Lokal MCP innebygd i appen Aksel Arcade for redigering av JSX/Hooks og Pages.",
+      "version": "1.0.0",
+      "status": "active",
+      "publishedAt": "2026-06-25T00:00:00Z",
+      "websiteUrl": "https://github.com/navikt/aksel-arcade",
+      "repository": {
+        "url": "https://github.com/navikt/aksel-arcade",
+        "source": "github"
+      },
+      "remotes": [
+        {
+          "type": "sse",
+          "url": "http://127.0.0.1:3846/mcp"
+        }
+      ],
+      "tools": [],
+      "tags": ["frontend", "aksel", "local", "developer-tools"],
+      "examples": [
+        {
+          "scenario": "Rediger JSX",
+          "prompt": "Oppdater komponenten via Aksel Arcade"
+        }
+      ]
     }
   ]
 }
