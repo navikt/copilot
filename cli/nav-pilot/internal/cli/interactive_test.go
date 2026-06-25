@@ -483,7 +483,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read patched config: %v", err)
 	}
-	if !strings.Contains(string(data), `"plugin":`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
+	if !strings.Contains(string(data), `"plugin":`) || !strings.Contains(string(data), `"/mock/config/dir/plugins/rtk.ts"`) {
 		t.Fatalf("expected rtk plugin to be added, got: %s", string(data))
 	}
 
@@ -497,7 +497,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config after second patch: %v", err)
 	}
-	if strings.Count(string(data), `"~/.config/opencode/plugins/rtk.ts"`) != 1 {
+	if strings.Count(string(data), `"/mock/config/dir/plugins/rtk.ts"`) != 1 {
 		t.Fatalf("expected exactly one rtk plugin entry, got: %s", string(data))
 	}
 
@@ -514,7 +514,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config with existing plugins: %v", err)
 	}
-	if !strings.Contains(string(data), `"something-else.ts"`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
+	if !strings.Contains(string(data), `"something-else.ts"`) || !strings.Contains(string(data), `"/mock/config/dir/plugins/rtk.ts"`) {
 		t.Fatalf("expected both plugins to be present, got: %s", string(data))
 	}
 

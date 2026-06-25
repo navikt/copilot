@@ -8,7 +8,10 @@ nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot
 ## Kom i gang
 
 ```bash
-# Installer CLI
+# Installer CLI og nødvendige avhengigheter (anbefalt)
+curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash
+
+# ... eller via Homebrew (installerer også rtk og cplt)
 brew install navikt/tap/nav-pilot
 
 # I et repo
@@ -23,7 +26,7 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 | Klient | Binær | Nav-kontekst | Standard modell |
 |---|---|---|---|
 | `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
-| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i `~/.config/opencode/` | `github-copilot/claude-sonnet-4.5` |
+| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | `github-copilot/claude-sonnet-4.5` |
 | `pi` *(eksperimentell)* | `cplt` + `pi` | Via `AGENTS.md` i prosjektroten | Pis eget valg (`model`/`mode` videresendes ikke ennå) |
 
 > **Alle klienter startes i cplt-sandboxen.** nav-pilot kjører klienten via
@@ -37,7 +40,7 @@ Når du bruker `--client opencode` (eller `client = "opencode"` i konfig), gjør
 nav-pilot følgende ved hver oppstart:
 
 1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner)
-2. Skriver dem til `~/.config/opencode/` som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
+2. Skriver dem til OpenCode-konfigurasjonsmappen (f.eks. `~/.config/opencode/` eller via `XDG_CONFIG_HOME`) som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
 3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
 4. Starter opencode i cplt-sandboxen med Nav-agenten (`cplt --agent opencode -- --agent nav-pilot --model …`)
 
