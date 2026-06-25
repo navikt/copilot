@@ -223,7 +223,7 @@ func runConfigSetup() error {
 		Run()
 	if err != nil {
 		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return nil
+		return errors.New("setup aborted by user")
 	}
 
 	err = huh.NewSelect[string]().
@@ -238,7 +238,7 @@ func runConfigSetup() error {
 		Run()
 	if err != nil {
 		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return nil
+		return errors.New("setup aborted by user")
 	}
 
 	if err := writeSetupConfig(answers); err != nil {

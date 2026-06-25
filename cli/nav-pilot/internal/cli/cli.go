@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -120,9 +121,11 @@ func run(args []string) error {
 		if autoUpdate {
 			fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
 			if err := cmdUpdate(); err != nil {
-				fmt.Fprintf(os.Stderr, "%s Auto-update failed: %v\n", yellow("⚠"), err)
+				return fmt.Errorf("auto-update failed: %w", err)
 			} else {
-				fmt.Println("Upgrade successful! Please re-run your command.")
+				fmt.Println("Upgrade successful! Re-executing command...")
+				exe, _ := os.Executable()
+				syscall.Exec(exe, os.Args, os.Environ())
 				os.Exit(0)
 			}
 		} else if isInteractive() && assessment.SkewDays > 7 {
@@ -135,9 +138,11 @@ func run(args []string) error {
 
 			if err == nil && upgradeChoice {
 				if err := cmdUpdate(); err != nil {
-					fmt.Fprintf(os.Stderr, "%s Upgrade failed: %v\n", yellow("⚠"), err)
+					return fmt.Errorf("interactive upgrade failed: %w", err)
 				} else {
-					fmt.Println("Upgrade successful! Please re-run your command.")
+					fmt.Println("Upgrade successful! Re-executing command...")
+					exe, _ := os.Executable()
+					syscall.Exec(exe, os.Args, os.Environ())
 					os.Exit(0)
 				}
 			}

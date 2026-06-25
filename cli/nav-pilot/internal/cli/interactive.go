@@ -16,6 +16,9 @@ func isInteractive() bool {
 	if forceNonInteractive {
 		return false
 	}
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		return false
+	}
 	fi, err := os.Stdin.Stat()
 	if err != nil {
 		return false
@@ -730,5 +733,3 @@ func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 		return launchClient(resolved)
 	})
 }
-
-
