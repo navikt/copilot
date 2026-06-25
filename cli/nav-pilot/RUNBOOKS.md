@@ -13,6 +13,7 @@ nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/telemetry.go`)
 | `nav_pilot_command_total` | Counter | `command`, `mode`, `scope`, `result`, `version`, `execution_context` |
 | `nav_pilot_command_duration_ms` | Histogram | `command`, `mode`, `scope`, `result`, `version`, `execution_context` |
 | `nav_pilot_command_error_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
+| `nav_pilot_rtk_setup_total` | Counter | `client`, `choice`, `result`, `version`, `execution_context` |
 | `nav_pilot_install_items_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
 | `nav_pilot_sync_updates_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
 | `nav_pilot_sync_conflicts_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |

@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
@@ -67,10 +68,10 @@ func (NoopRecorder) RecordUpToDate(string, string, bool)                        
 func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                 {}
 func (NoopRecorder) RecordConfig(string, string, string, string, string, string, bool, bool) {
 }
-func (NoopRecorder) RecordClientAvailable(string, bool) {}
-func (NoopRecorder) RecordLaunchError(string, string)   {}
+func (NoopRecorder) RecordClientAvailable(string, bool)    {}
+func (NoopRecorder) RecordLaunchError(string, string)      {}
 func (NoopRecorder) RecordRtkSetup(string, string, string) {}
-func (NoopRecorder) Shutdown(context.Context) error     { return nil }
+func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
 	provider *sdkmetric.MeterProvider
@@ -97,9 +98,10 @@ type otelTelemetry struct {
 	executionContext string
 	os               string
 	arch             string
+	rtkInstalled     string
 }
 
-func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
+func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) (Recorder, error) {
 	configureOTelDiagnostics()
 
 	if !TelemetryEnabled() {
@@ -126,7 +128,19 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 		endpoint = defaultTelemetryEndpoint
 	}
 
-	opts := []otlpmetrichttp.Option{}
+	opts := []otlpmetrichttp.Option{
+		otlpmetrichttp.WithTemporalitySelector(func(kind sdkmetric.InstrumentKind) metricdata.Temporality {
+			switch kind {
+			case sdkmetric.InstrumentKindCounter,
+				sdkmetric.InstrumentKindUpDownCounter,
+				sdkmetric.InstrumentKindObservableCounter,
+				sdkmetric.InstrumentKindObservableUpDownCounter:
+				return metricdata.DeltaTemporality
+			default:
+				return metricdata.CumulativeTemporality
+			}
+		}),
+	}
 	if endpoint != "" {
 		opts = append(opts, otlpmetrichttp.WithEndpointURL(endpoint))
 	}
@@ -248,6 +262,7 @@ func InitTelemetry(ctx context.Context, cliVersion string) (Recorder, error) {
 		executionContext:   execCtx,
 		os:                 osName,
 		arch:               arch,
+		rtkInstalled:       rtkInstalled,
 	}
 	tel.recordInfo()
 
@@ -313,6 +328,7 @@ func (t *otelTelemetry) recordInfo() {
 		attribute.String("execution_context", t.executionContext),
 		attribute.String("os", t.os),
 		attribute.String("arch", t.arch),
+		attribute.String("rtk_installed", t.rtkInstalled),
 	))
 }
 

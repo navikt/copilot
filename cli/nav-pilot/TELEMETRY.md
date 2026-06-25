@@ -11,6 +11,8 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_command_total` | Counter | Antall kommandoer kjørt | `command=install`, `mode=interactive`, `scope=repo`, `result=success` |
 | `nav_pilot_command_duration_ms` | Histogram | Kjøringstid per kommando (ms) | Samme som over |
 | `nav_pilot_command_error_total` | Counter | Antall kommandoer som feilet | `command=sync`, `scope=user` |
+| `nav_pilot_launch_error_total` | Counter | Klient-oppstart som feilet | `client=copilot`, `error_type=launch_failed` |
+| `nav_pilot_rtk_setup_total` | Counter | Resultat av interaktiv RTK-prompt | `client=copilot`, `choice=yes`, `result=success` |
 | `nav_pilot_install_items_total` | Counter | Antall elementer installert | `command=install`, `scope=repo`, `mode=interactive` |
 | `nav_pilot_sync_updates_total` | Counter | Antall oppdateringer funnet ved sync | `command=sync`, `scope=user` |
 | `nav_pilot_sync_conflicts_total` | Counter | Antall konflikter ved sync | `command=sync`, `scope=repo` |
@@ -158,13 +160,13 @@ tredjeparts-binær vi ikke instrumenterer) — vi injiserer den som
      kortlevde Copilot-prosessene:
      ```promql
      sum by (gen_ai_request_model) (
-       sum_over_time(gen_ai_client_token_usage_sum{nav_pilot_device_id="nav-pilot-abc123"}[$__range])
+       increase(gen_ai_client_token_usage_sum{nav_pilot_device_id="nav-pilot-abc123"}[$__range])
      )
      ```
   2. **Uten promotering — join mot `target_info`.** Mulig, men skjørt for efemere
      prosesser (samme staleness-problem som for nav-pilots egne tellere):
      ```promql
-     sum_over_time(gen_ai_client_token_usage_sum[$__range])
+     increase(gen_ai_client_token_usage_sum[$__range])
        * on (job, instance) group_left(nav_pilot_device_id) target_info
      ```
 
@@ -193,37 +195,35 @@ $ nav-pilot list
 
 ### Dashboard-eksempler (Grafana / Prometheus)
 
-> **Viktig — delta-tellere fra efemere prosesser:** `nav_pilot_*`-tellerne skrives av
-> kortlevde CLI-prosesser som hver eksporterer sin egen verdi én gang. Prøvene lander på
-> samme serie (lik etikett-kombinasjon), så `rate()`/`increase()` ser en flat kurve og
-> returnerer **0**. Bruk `sum_over_time(<metric>[<range>])` for å summere hver kjøring
-> korrekt, og `count_over_time(...)` for å telle antall kjøringer. Histogrammer aggregeres
-> med `sum_over_time(<metric>_bucket[<range>])` før `histogram_quantile`.
+> **Viktig — OTel Delta Temporality:** Fra og med v0.x er CLI-en konfigurert med
+> `DeltaTemporality` for tellere. OTel-collectoren konverterer disse til korrekte 
+> kumulative Prometheus-tellere. Bruk standard Prometheus-funksjoner som `increase(<metric>[<range>])` 
+> og `rate()` for grafer. Histogrammer aggregeres med `sum by (le) (increase(<metric>_bucket[<range>]))` før `histogram_quantile`.
 
 **Daglige installs per scope:**
 ```promql
-sum by (scope) (sum_over_time(nav_pilot_install_items_total[1d]))
+sum by (scope) (increase(nav_pilot_install_items_total[1d]))
 ```
 
 **Kommando-varighet p95 per kommando:**
 ```promql
-histogram_quantile(0.95, sum by (command, le) (sum_over_time(nav_pilot_command_duration_ms_bucket[$__range])))
+histogram_quantile(0.95, sum by (command, le) (increase(nav_pilot_command_duration_ms_bucket[$__range])))
 ```
 
 **Feiltakt (% feil av alle kommandoer):**
 ```promql
-100 * sum(sum_over_time(nav_pilot_command_error_total[$__range]))
-    / clamp_min(sum(sum_over_time(nav_pilot_command_total[$__range])), 1)
+100 * sum(increase(nav_pilot_command_error_total[$__range]))
+    / clamp_min(sum(increase(nav_pilot_command_total[$__range])), 1)
 ```
 
 **Sync-konflikter (totalt) per scope:**
 ```promql
-sum by (scope) (sum_over_time(nav_pilot_sync_conflicts_total[$__range]))
+sum by (scope) (increase(nav_pilot_sync_conflicts_total[$__range]))
 ```
 
 **Antall kommandokjøringer per versjon:**
 ```promql
-sum by (version) (sum_over_time(nav_pilot_command_total[$__range]))
+sum by (version) (increase(nav_pilot_command_total[$__range]))
 ```
 
 > En ferdig Grafana-dashboard ligger i [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)

@@ -77,9 +77,9 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 	fmt.Println()
 	var rtkPath string
 	if !hasRtk {
-		p, installErr := installRtk()
+		p, res, installErr := installRtk()
 		if installErr != nil {
-			telemetry.RecordRtkSetup(cfg.Client, "yes", "error")
+			telemetry.RecordRtkSetup(cfg.Client, "yes", res)
 			return fmt.Errorf("installation failed: %w", installErr)
 		}
 		rtkPath = p
@@ -120,58 +120,58 @@ func isRtkInstalled() bool {
 	return err == nil
 }
 
-func installRtk() (string, error) {
+func installRtk() (string, string, error) {
 	if _, err := exec.LookPath("brew"); err == nil {
 		return installRtkViaBrew()
 	}
 	return installRtkViaCurl()
 }
 
-func installRtkViaBrew() (string, error) {
+func installRtkViaBrew() (string, string, error) {
 	fmt.Printf("%s Installing rtk via brew...\n", dim("→"))
 	cmd := exec.Command("brew", "install", "navikt/tap/rtk")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return "", err
+		return "", "brew_failed", err
 	}
 
 	// Resolve correct path after install
 	if p, err := exec.LookPath("rtk"); err == nil {
-		return p, nil
+		return p, "success", nil
 	}
 	
 	// Fallback to brew prefix if LookPath fails
 	if out, err := exec.Command("brew", "--prefix").Output(); err == nil {
-		return filepath.Join(strings.TrimSpace(string(out)), "bin", "rtk"), nil
+		return filepath.Join(strings.TrimSpace(string(out)), "bin", "rtk"), "success", nil
 	}
 	
-	return "rtk", nil
+	return "rtk", "success", nil
 }
 
-func installRtkViaCurl() (string, error) {
+func installRtkViaCurl() (string, string, error) {
 	fmt.Printf("%s Installing rtk via curl script...\n", dim("→"))
 	cmd := exec.Command("sh", "-c", "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return "", err
+		return "", "curl_failed", err
 	}
 	
 	// The install script might drop it somewhere not immediately in PATH
 	if p, err := exec.LookPath("rtk"); err == nil {
-		return p, nil
+		return p, "success", nil
 	}
 	
 	// Check common cargo bin if the script is rust-based or uses cargo
 	home, _ := os.UserHomeDir()
 	cargoBin := filepath.Join(home, ".cargo", "bin", "rtk")
 	if _, err := os.Stat(cargoBin); err == nil {
-		return cargoBin, nil
+		return cargoBin, "success", nil
 	}
 	
 	// Just return "rtk" and let the exec fail if it still can't find it
-	return "rtk", nil
+	return "rtk", "success", nil
 }
 
 func initRtkHooks(client string, rtkPath string) error {

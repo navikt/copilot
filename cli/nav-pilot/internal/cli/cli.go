@@ -484,7 +484,11 @@ func Main(info BuildInfo) {
 	providerpkg.SetVersion(info.Version)
 	providerpkg.FetchLatestVersion = fetchLatestVersion
 
-	tel, err := initTelemetry(context.Background(), info.Version)
+	rtkStatus := "false"
+	if isRtkInstalled() {
+		rtkStatus = "true"
+	}
+	tel, err := initTelemetry(context.Background(), info.Version, rtkStatus)
 	if err != nil {
 		debugLog("telemetry disabled: %v", err)
 	}

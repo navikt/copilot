@@ -3,34 +3,30 @@
     {
       "kind": "AnnotationQuery",
       "spec": {
-        "query": {
-          "kind": "DataQuery",
-          "group": "grafana",
-          "version": "v0",
-          "datasource": {
-            "name": "-- Grafana --"
-          },
-          "spec": {}
-        },
+        "builtIn": true,
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
-        "builtIn": true
+        "query": {
+          "datasource": {
+            "name": "-- Grafana --"
+          },
+          "group": "grafana",
+          "kind": "DataQuery",
+          "spec": {},
+          "version": "v0"
+        }
       }
     }
   ],
   "cursorSync": "Crosshair",
-  "description": "Nav-pilot CLI-telemetri: adopsjon/utrulling, pålitelighet og sync/ferskhet. Spørringer er robuste mot manglende data under utrulling.",
+  "description": "Nav-pilot CLI-telemetri: adopsjon/utrulling, p\u00e5litelighet og sync/ferskhet. Sp\u00f8rringer er robuste mot manglende data under utrulling.",
   "editable": true,
   "elements": {
     "panel-10": {
       "kind": "Panel",
       "spec": {
-        "id": 10,
-        "title": "Kommandokjøringer per intervall",
-        "description": "Antall kommandokjøringer per intervall. nav_pilot_* er delta-tellere fra efemere CLI-prosesser, så rate()/increase() gir 0 — sum_over_time() summerer hver kjøring korrekt.",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -38,64 +34,37 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum by (command) (sum_over_time(nav_pilot_command_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__interval]))",
                       "legendFormat": "{{command}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "Antall kommandokj\u00f8ringer per intervall. nav_pilot_* er delta-tellere fra efemere CLI-prosesser, s\u00e5 rate()/increase() gir 0 \u2014 sum_over_time() summerer hver kj\u00f8ring korrekt.",
+        "id": 10,
+        "links": [],
+        "title": "Kommandokj\u00f8ringer per intervall",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "timeseries",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "mean",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            },
             "fieldConfig": {
               "defaults": {
-                "unit": "short",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
                 "color": {
                   "mode": "palette-classic"
                 },
@@ -132,21 +101,48 @@
                   "thresholdsStyle": {
                     "mode": "off"
                   }
-                }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
               },
               "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "mean",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-11": {
       "kind": "Panel",
       "spec": {
-        "id": 11,
-        "title": "Feil per kommando",
-        "description": "Antall feil per kommando per intervall. Tom = ingen feil rapportert (forventet).",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -154,64 +150,37 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum by (command) (sum_over_time(nav_pilot_command_error_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__interval]))",
                       "legendFormat": "{{command}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "Antall feil per kommando per intervall. Tom = ingen feil rapportert (forventet).",
+        "id": 11,
+        "links": [],
+        "title": "Feil per kommando",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "timeseries",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "mean",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            },
             "fieldConfig": {
               "defaults": {
-                "unit": "short",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
                 "color": {
                   "mode": "palette-classic"
                 },
@@ -248,21 +217,48 @@
                   "thresholdsStyle": {
                     "mode": "off"
                   }
-                }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
               },
               "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "mean",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-13": {
       "kind": "Panel",
       "spec": {
-        "id": 13,
-        "title": "Sync-konflikter per scope",
-        "description": "Konflikter oppdaget under sync. Bør være lavt; egnet for varsling.",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -270,64 +266,37 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum by (scope) (sum_over_time(nav_pilot_sync_conflicts_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__interval]))",
                       "legendFormat": "{{scope}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "Konflikter oppdaget under sync. B\u00f8r v\u00e6re lavt; egnet for varsling.",
+        "id": 13,
+        "links": [],
+        "title": "Sync-konflikter per scope",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "timeseries",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "mean",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            },
             "fieldConfig": {
               "defaults": {
-                "unit": "short",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
                 "color": {
                   "mode": "palette-classic"
                 },
@@ -364,21 +333,48 @@
                   "thresholdsStyle": {
                     "mode": "off"
                   }
-                }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
               },
               "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "mean",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-14": {
       "kind": "Panel",
       "spec": {
-        "id": 14,
-        "title": "Andel up-to-date per komponent",
-        "description": "Gjennomsnittlig andel kjøringer der komponenten var oppdatert (1=oppdatert).",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -386,32 +382,64 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "avg by (component) (max_over_time(nav_pilot_up_to_date{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range]))",
                       "legendFormat": "{{component}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "Gjennomsnittlig andel kj\u00f8ringer der komponenten var oppdatert (1=oppdatert).",
+        "id": 14,
+        "links": [],
+        "title": "Andel up-to-date per komponent",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "bargauge",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "max": 1,
+                "min": 0,
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.9
+                    }
+                  ]
+                },
+                "unit": "percentunit"
+              },
+              "overrides": []
+            },
             "options": {
               "displayMode": "gradient",
               "legend": {
@@ -435,47 +463,15 @@
               "showUnfilled": true,
               "sizing": "auto",
               "valueMode": "color"
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "percentunit",
-                "min": 0,
-                "max": 1,
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "red"
-                    },
-                    {
-                      "value": 0.5,
-                      "color": "yellow"
-                    },
-                    {
-                      "value": 0.9,
-                      "color": "green"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-15": {
       "kind": "Panel",
       "spec": {
-        "id": 15,
-        "title": "Sync-oppdateringer funnet (periode)",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -483,32 +479,55 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum(sum_over_time(nav_pilot_sync_updates_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range])) or vector(0)",
                       "legendFormat": ""
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 15,
+        "links": [],
+        "title": "Sync-oppdateringer funnet (periode)",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "stat",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "decimals": 0,
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "colorMode": "background",
               "graphMode": "none",
@@ -525,38 +544,15 @@
               "showPercentChange": false,
               "textMode": "auto",
               "wideLayout": true
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "decimals": 0,
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-16": {
       "kind": "Panel",
       "spec": {
-        "id": 16,
-        "title": "Versjonsskew p95",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -564,32 +560,63 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "histogram_quantile(0.95, sum by (le) (sum_over_time(nav_pilot_version_skew_days_bucket{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range])))",
                       "legendFormat": ""
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 16,
+        "links": [],
+        "title": "Versjonsskew p95",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "stat",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "decimals": 1,
+                "noValue": "\u2014",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 7
+                    },
+                    {
+                      "color": "red",
+                      "value": 30
+                    }
+                  ]
+                },
+                "unit": "d"
+              },
+              "overrides": []
+            },
             "options": {
               "colorMode": "background",
               "graphMode": "none",
@@ -606,46 +633,15 @@
               "showPercentChange": false,
               "textMode": "auto",
               "wideLayout": true
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "d",
-                "decimals": 1,
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    },
-                    {
-                      "value": 7,
-                      "color": "yellow"
-                    },
-                    {
-                      "value": 30,
-                      "color": "red"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "—"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-17": {
       "kind": "Panel",
       "spec": {
-        "id": 17,
-        "title": "Ferskhetsverdikt (up-to-date / stale)",
-        "description": "Faktiske ferskhetsverdikt. Ikke-verdikt-utfall (dev, no_install, cooldown) er ekskludert for å fremheve up_to_date/stale/lookup_failed/corrupted. Adopsjon/installasjon vises i egne paneler.",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -653,32 +649,52 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum by (result) (sum_over_time(nav_pilot_staleness_check_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\", result=~\"up_to_date|stale|lookup_failed|corrupted\"}[$__range]))",
                       "legendFormat": "{{result}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "Faktiske ferskhetsverdikt. Ikke-verdikt-utfall (dev, no_install, cooldown) er ekskludert for \u00e5 fremheve up_to_date/stale/lookup_failed/corrupted. Adopsjon/installasjon vises i egne paneler.",
+        "id": 17,
+        "links": [],
+        "title": "Ferskhetsverdikt (up-to-date / stale)",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "piechart",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  }
+                },
+                "noValue": "0",
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "displayLabels": [
                 "percent"
@@ -705,35 +721,15 @@
                 "mode": "single",
                 "sort": "desc"
               }
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "noValue": "0",
-                "custom": {
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  }
-                }
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-18": {
       "kind": "Panel",
       "spec": {
-        "id": 18,
-        "title": "Kommandolatens p95 per kommando",
-        "description": "P95 varighet. Histogram-suffiks _bucket forutsetter OTLP→Prometheus standardmapping.",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -741,64 +737,37 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "histogram_quantile(0.95, sum by (command, le) (sum_over_time(nav_pilot_command_duration_ms_bucket{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__range])))",
                       "legendFormat": "{{command}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "P95 varighet. Histogram-suffiks _bucket forutsetter OTLP\u2192Prometheus standardmapping.",
+        "id": 18,
+        "links": [],
+        "title": "Kommandolatens p95 per kommando",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "timeseries",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "mean",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            },
             "fieldConfig": {
               "defaults": {
-                "unit": "ms",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
                 "color": {
                   "mode": "palette-classic"
                 },
@@ -835,21 +804,48 @@
                   "thresholdsStyle": {
                     "mode": "off"
                   }
-                }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "ms"
               },
               "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "mean",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-19": {
       "kind": "Panel",
       "spec": {
-        "id": 19,
-        "title": "Installerte elementer per type/status",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -857,32 +853,54 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum by (type, status) (max_over_time(nav_pilot_installed_items{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range]))",
                       "legendFormat": "{{type}} / {{status}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 19,
+        "links": [],
+        "title": "Installerte elementer per type/status",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "bargauge",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "displayMode": "gradient",
               "legend": {
@@ -906,37 +924,15 @@
               "showUnfilled": true,
               "sizing": "auto",
               "valueMode": "color"
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-2": {
       "kind": "Panel",
       "spec": {
-        "id": 2,
-        "title": "Unike enheter (periode)",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -944,32 +940,54 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "count(count by (device_id) (max_over_time(nav_pilot_info{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range]))) or vector(0)",
                       "legendFormat": ""
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 2,
+        "links": [],
+        "title": "Unike enheter (periode)",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "stat",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "colorMode": "background",
               "graphMode": "none",
@@ -986,37 +1004,15 @@
               "showPercentChange": false,
               "textMode": "auto",
               "wideLayout": true
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-20": {
       "kind": "Panel",
       "spec": {
-        "id": 20,
-        "title": "Operativsystem",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1024,32 +1020,52 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "count by (os) (max_over_time(nav_pilot_info{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range]))",
                       "legendFormat": "{{os}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 20,
+        "links": [],
+        "title": "Operativsystem",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "piechart",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  }
+                },
+                "noValue": "0",
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "displayLabels": [
                 "percent"
@@ -1076,35 +1092,15 @@
                 "mode": "single",
                 "sort": "desc"
               }
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "noValue": "0",
-                "custom": {
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  }
-                }
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-21": {
       "kind": "Panel",
       "spec": {
-        "id": 21,
-        "title": "Arkitektur",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1112,32 +1108,52 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "count by (arch) (max_over_time(nav_pilot_info{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range]))",
                       "legendFormat": "{{arch}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 21,
+        "links": [],
+        "title": "Arkitektur",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "piechart",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  }
+                },
+                "noValue": "0",
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "displayLabels": [
                 "percent"
@@ -1164,35 +1180,15 @@
                 "mode": "single",
                 "sort": "desc"
               }
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "noValue": "0",
-                "custom": {
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  }
-                }
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-22": {
       "kind": "Panel",
       "spec": {
-        "id": 22,
-        "title": "Install present per komponent/scope",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1200,32 +1196,56 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "avg by (collection) (max_over_time(nav_pilot_install_present{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range]))",
                       "legendFormat": "{{collection}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 22,
+        "links": [],
+        "title": "Install present per komponent/scope",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "bargauge",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "max": 1,
+                "min": 0,
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "percentunit"
+              },
+              "overrides": []
+            },
             "options": {
               "displayMode": "gradient",
               "legend": {
@@ -1249,39 +1269,289 @@
               "showUnfilled": true,
               "sizing": "auto",
               "valueMode": "color"
-            },
+            }
+          },
+          "version": "13.0.1+security-01"
+        }
+      }
+    },
+    "panel-23": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "${DS_METRICS}"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum by (choice) (sum_over_time(nav_pilot_rtk_setup_total{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range])) / ignoring(choice) group_left sum(sum_over_time(nav_pilot_rtk_setup_total{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range]))",
+                      "legendFormat": "{{choice}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Viser den relative prosentvise fordelingen (uavhengig av totalvolum).",
+        "id": 23,
+        "links": [],
+        "title": "RTK Setup Valg",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
             "fieldConfig": {
               "defaults": {
-                "unit": "percentunit",
-                "min": 0,
-                "max": 1,
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "drawStyle": "line",
+                  "fillOpacity": 60,
+                  "gradientMode": "opacity",
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "showPoints": "auto",
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "normal"
+                  },
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto"
+                },
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "value": 0,
-                      "color": "green"
+                      "color": "green",
+                      "value": 0
                     }
                   ]
                 },
+                "unit": "percentunit"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.0.1+security-01"
+        }
+      }
+    },
+    "panel-24": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "${DS_METRICS}"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum by (result) (sum_over_time(nav_pilot_rtk_setup_total{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range])) / ignoring(result) group_left sum(sum_over_time(nav_pilot_rtk_setup_total{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range]))",
+                      "legendFormat": "{{result}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Viser den relative prosentvise fordelingen (uavhengig av totalvolum).",
+        "id": 24,
+        "links": [],
+        "title": "RTK Setup Resultat",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "drawStyle": "line",
+                  "fillOpacity": 60,
+                  "gradientMode": "opacity",
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "showPoints": "auto",
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "normal"
+                  },
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "percentunit"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.0.1+security-01"
+        }
+      }
+    },
+    "panel-25": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "${DS_METRICS}"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "count(max_over_time(nav_pilot_info{rtk_installed=\"true\"}[$__range])) / count(max_over_time(nav_pilot_info[$__range]))",
+                      "legendFormat": "Adopsjon"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Prosentandel av alle aktive maskiner (siste intervall) som har RTK installert.",
+        "id": 25,
+        "links": [],
+        "title": "RTK Adopsjon (Alle kjente maskiner)",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
                 "color": {
                   "mode": "thresholds"
                 },
-                "noValue": "0"
+                "decimals": 1,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.8
+                    }
+                  ]
+                },
+                "unit": "percentunit"
               },
               "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-3": {
       "kind": "Panel",
       "spec": {
-        "id": 3,
-        "title": "Kommandokjøringer (periode)",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1289,32 +1559,55 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum(sum_over_time(nav_pilot_command_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__range])) or vector(0)",
                       "legendFormat": ""
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 3,
+        "links": [],
+        "title": "Kommandokj\u00f8ringer (periode)",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "stat",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "decimals": 0,
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "colorMode": "background",
               "graphMode": "none",
@@ -1331,38 +1624,15 @@
               "showPercentChange": false,
               "textMode": "auto",
               "wideLayout": true
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "decimals": 0,
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-4": {
       "kind": "Panel",
       "spec": {
-        "id": 4,
-        "title": "Feilrate",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1370,32 +1640,63 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "100 * sum(sum_over_time(nav_pilot_command_error_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__range])) / clamp_min(sum(sum_over_time(nav_pilot_command_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__range])), 1)",
                       "legendFormat": ""
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 4,
+        "links": [],
+        "title": "Feilrate",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "stat",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "decimals": 1,
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                },
+                "unit": "percent"
+              },
+              "overrides": []
+            },
             "options": {
               "colorMode": "background",
               "graphMode": "none",
@@ -1412,46 +1713,15 @@
               "showPercentChange": false,
               "textMode": "auto",
               "wideLayout": true
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "percent",
-                "decimals": 1,
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    },
-                    {
-                      "value": 2,
-                      "color": "yellow"
-                    },
-                    {
-                      "value": 5,
-                      "color": "red"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-5": {
       "kind": "Panel",
       "spec": {
-        "id": 5,
-        "title": "Sync-konflikter (periode)",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1459,32 +1729,59 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum(sum_over_time(nav_pilot_sync_conflicts_total{version=~\"$version\", execution_context=~\"$execution_context\", scope=~\"$scope\"}[$__range])) or vector(0)",
                       "legendFormat": ""
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 5,
+        "links": [],
+        "title": "Sync-konflikter (periode)",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "stat",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "decimals": 0,
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "colorMode": "background",
               "graphMode": "none",
@@ -1501,42 +1798,15 @@
               "showPercentChange": false,
               "textMode": "auto",
               "wideLayout": true
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "decimals": 0,
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    },
-                    {
-                      "value": 1,
-                      "color": "red"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-6": {
       "kind": "Panel",
       "spec": {
-        "id": 6,
-        "title": "Aktive enheter per versjon",
-        "description": "Antall unike enheter per versjon i perioden. nav_pilot_info skrives én gang per kjøring, så en tidsserie blir støyete; bargauge er tydeligere ved lavt volum.",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1544,32 +1814,54 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "count by (version) (max_over_time(nav_pilot_info{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range]))",
                       "legendFormat": "{{version}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "Antall unike enheter per versjon i perioden. nav_pilot_info skrives \u00e9n gang per kj\u00f8ring, s\u00e5 en tidsserie blir st\u00f8yete; bargauge er tydeligere ved lavt volum.",
+        "id": 6,
+        "links": [],
+        "title": "Aktive enheter per versjon",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "bargauge",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "displayMode": "gradient",
               "legend": {
@@ -1593,37 +1885,15 @@
               "showUnfilled": true,
               "sizing": "auto",
               "valueMode": "color"
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-7": {
       "kind": "Panel",
       "spec": {
-        "id": 7,
-        "title": "Organic vs CI",
-        "description": "Fordeling av kommandokjøringer mellom interaktiv bruk (organic) og CI.",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1631,32 +1901,52 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "label_replace(sum by (execution_context) (sum_over_time(nav_pilot_command_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__range])), \"execution_context\", \"ukjent\", \"execution_context\", \"^$\")",
                       "legendFormat": "{{execution_context}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "Fordeling av kommandokj\u00f8ringer mellom interaktiv bruk (organic) og CI.",
+        "id": 7,
+        "links": [],
+        "title": "Organic vs CI",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "piechart",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  }
+                },
+                "noValue": "0",
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "displayLabels": [
                 "percent"
@@ -1683,35 +1973,15 @@
                 "mode": "single",
                 "sort": "desc"
               }
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "noValue": "0",
-                "custom": {
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  }
-                }
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     },
     "panel-8": {
       "kind": "Panel",
       "spec": {
-        "id": 8,
-        "title": "Volum per kommando (periode)",
-        "description": "",
-        "links": [],
         "data": {
           "kind": "QueryGroup",
           "spec": {
@@ -1719,32 +1989,54 @@
               {
                 "kind": "PanelQuery",
                 "spec": {
+                  "hidden": false,
                   "query": {
-                    "kind": "DataQuery",
-                    "group": "prometheus",
-                    "version": "v0",
                     "datasource": {
                       "name": "${DS_METRICS}"
                     },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
                     "spec": {
                       "expr": "sum by (command) (sum_over_time(nav_pilot_command_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__range]))",
                       "legendFormat": "{{command}}"
-                    }
+                    },
+                    "version": "v0"
                   },
-                  "refId": "A",
-                  "hidden": false
+                  "refId": "A"
                 }
               }
             ],
-            "transformations": [],
-            "queryOptions": {}
+            "queryOptions": {},
+            "transformations": []
           }
         },
+        "description": "",
+        "id": 8,
+        "links": [],
+        "title": "Volum per kommando (periode)",
         "vizConfig": {
-          "kind": "VizConfig",
           "group": "bargauge",
-          "version": "13.0.1+security-01",
+          "kind": "VizConfig",
           "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "noValue": "0",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
             "options": {
               "displayMode": "gradient",
               "legend": {
@@ -1768,27 +2060,9 @@
               "showUnfilled": true,
               "sizing": "auto",
               "valueMode": "color"
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "short",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "value": 0,
-                      "color": "green"
-                    }
-                  ]
-                },
-                "color": {
-                  "mode": "thresholds"
-                },
-                "noValue": "0"
-              },
-              "overrides": []
             }
-          }
+          },
+          "version": "13.0.1+security-01"
         }
       }
     }
@@ -1800,7 +2074,6 @@
         {
           "kind": "RowsLayoutRow",
           "spec": {
-            "title": "Adopsjon & helse",
             "collapse": false,
             "layout": {
               "kind": "GridLayout",
@@ -1809,103 +2082,103 @@
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 0,
-                      "y": 0,
-                      "width": 6,
-                      "height": 4,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-2"
-                      }
+                      },
+                      "height": 4,
+                      "width": 6,
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 6,
-                      "y": 0,
-                      "width": 6,
-                      "height": 4,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-3"
-                      }
+                      },
+                      "height": 4,
+                      "width": 6,
+                      "x": 6,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 12,
-                      "y": 0,
-                      "width": 6,
-                      "height": 4,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-4"
-                      }
+                      },
+                      "height": 4,
+                      "width": 6,
+                      "x": 12,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 18,
-                      "y": 0,
-                      "width": 6,
-                      "height": 4,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-5"
-                      }
+                      },
+                      "height": 4,
+                      "width": 6,
+                      "x": 18,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 0,
-                      "y": 4,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-6"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 0,
+                      "y": 4
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 12,
-                      "y": 4,
-                      "width": 6,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-7"
-                      }
+                      },
+                      "height": 8,
+                      "width": 6,
+                      "x": 12,
+                      "y": 4
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 18,
-                      "y": 4,
-                      "width": 6,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-8"
-                      }
+                      },
+                      "height": 8,
+                      "width": 6,
+                      "x": 18,
+                      "y": 4
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "Adopsjon & helse"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
-            "title": "Kommandobruk & pålitelighet",
             "collapse": false,
             "layout": {
               "kind": "GridLayout",
@@ -1914,38 +2187,38 @@
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 0,
-                      "y": 0,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-10"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 12,
-                      "y": 0,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-11"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 12,
+                      "y": 0
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "Kommandobruk & p\u00e5litelighet"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
-            "title": "Sync & ferskhet",
             "collapse": false,
             "layout": {
               "kind": "GridLayout",
@@ -1954,77 +2227,77 @@
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 0,
-                      "y": 0,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-13"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 12,
-                      "y": 0,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-14"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 12,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 0,
-                      "y": 8,
-                      "width": 6,
-                      "height": 5,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-15"
-                      }
+                      },
+                      "height": 5,
+                      "width": 6,
+                      "x": 0,
+                      "y": 8
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 6,
-                      "y": 8,
-                      "width": 6,
-                      "height": 5,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-16"
-                      }
+                      },
+                      "height": 5,
+                      "width": 6,
+                      "x": 6,
+                      "y": 8
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 12,
-                      "y": 8,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-17"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 12,
+                      "y": 8
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "Sync & ferskhet"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
-            "title": "Detaljer — plattform & install",
             "collapse": false,
             "layout": {
               "kind": "GridLayout",
@@ -2033,71 +2306,125 @@
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 0,
-                      "y": 0,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-18"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 12,
-                      "y": 0,
-                      "width": 12,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-19"
-                      }
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 12,
+                      "y": 0
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 0,
-                      "y": 8,
-                      "width": 8,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-20"
-                      }
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 0,
+                      "y": 8
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 8,
-                      "y": 8,
-                      "width": 8,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-21"
-                      }
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 8,
+                      "y": 8
                     }
                   },
                   {
                     "kind": "GridLayoutItem",
                     "spec": {
-                      "x": 16,
-                      "y": 8,
-                      "width": 8,
-                      "height": 8,
                       "element": {
                         "kind": "ElementReference",
                         "name": "panel-22"
-                      }
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 16,
+                      "y": 8
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "Detaljer \u2014 plattform & install"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-25"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 0,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-23"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 8,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-24"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 16,
+                      "y": 0
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "RTK Adopsjon & Setup"
           }
         }
       ]
@@ -2112,9 +2439,6 @@
     "nais"
   ],
   "timeSettings": {
-    "timezone": "browser",
-    "from": "now-7d",
-    "to": "now",
     "autoRefresh": "",
     "autoRefreshIntervals": [
       "30s",
@@ -2126,173 +2450,176 @@
       "2h",
       "1d"
     ],
+    "fiscalYearStartMonth": 0,
+    "from": "now-7d",
     "hideTimepicker": false,
-    "fiscalYearStartMonth": 0
+    "timezone": "browser",
+    "to": "now"
   },
   "title": "Nav-pilot CLI",
   "variables": [
     {
       "kind": "DatasourceVariable",
       "spec": {
-        "name": "DS_METRICS",
-        "pluginId": "prometheus",
-        "refresh": "onDashboardLoad",
-        "regex": "",
+        "allowCustomValue": true,
         "current": {
           "text": "nav-metrics",
           "value": "P91A6F0B3584B90E7"
         },
-        "options": [],
-        "multi": false,
+        "hide": "dontHide",
         "includeAll": false,
         "label": "Metrics",
-        "hide": "dontHide",
-        "skipUrlSync": false,
-        "allowCustomValue": true
+        "multi": false,
+        "name": "DS_METRICS",
+        "options": [],
+        "pluginId": "prometheus",
+        "refresh": "onDashboardLoad",
+        "regex": "",
+        "skipUrlSync": false
       }
     },
     {
       "kind": "QueryVariable",
       "spec": {
-        "name": "version",
+        "allValue": ".*",
+        "allowCustomValue": true,
         "current": {
           "text": "All",
           "value": "$__all"
         },
-        "label": "Versjon",
+        "definition": "label_values(nav_pilot_info, version)",
         "hide": "dontHide",
-        "refresh": "onTimeRangeChanged",
-        "skipUrlSync": false,
+        "includeAll": true,
+        "label": "Versjon",
+        "multi": true,
+        "name": "version",
+        "options": [],
         "query": {
-          "kind": "DataQuery",
-          "group": "prometheus",
-          "version": "v0",
           "datasource": {
             "name": "${DS_METRICS}"
           },
+          "group": "prometheus",
+          "kind": "DataQuery",
           "spec": {
             "qryType": 1,
             "query": "label_values(nav_pilot_info, version)",
             "refId": "PrometheusVariableQueryEditor-VariableQuery"
-          }
+          },
+          "version": "v0"
         },
+        "refresh": "onTimeRangeChanged",
         "regex": "",
         "regexApplyTo": "value",
-        "sort": "alphabeticalAsc",
-        "definition": "label_values(nav_pilot_info, version)",
-        "options": [],
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
-        "allowCustomValue": true
+        "skipUrlSync": false,
+        "sort": "alphabeticalAsc"
       }
     },
     {
       "kind": "QueryVariable",
       "spec": {
-        "name": "execution_context",
+        "allValue": ".*",
+        "allowCustomValue": true,
         "current": {
           "text": "All",
           "value": "$__all"
         },
-        "label": "Kjøringskontekst",
+        "definition": "label_values(nav_pilot_command_total, execution_context)",
         "hide": "dontHide",
-        "refresh": "onTimeRangeChanged",
-        "skipUrlSync": false,
+        "includeAll": true,
+        "label": "Kj\u00f8ringskontekst",
+        "multi": true,
+        "name": "execution_context",
+        "options": [],
         "query": {
-          "kind": "DataQuery",
-          "group": "prometheus",
-          "version": "v0",
           "datasource": {
             "name": "${DS_METRICS}"
           },
+          "group": "prometheus",
+          "kind": "DataQuery",
           "spec": {
             "qryType": 1,
             "query": "label_values(nav_pilot_command_total, execution_context)",
             "refId": "PrometheusVariableQueryEditor-VariableQuery"
-          }
+          },
+          "version": "v0"
         },
+        "refresh": "onTimeRangeChanged",
         "regex": "",
         "regexApplyTo": "value",
-        "sort": "alphabeticalAsc",
-        "definition": "label_values(nav_pilot_command_total, execution_context)",
-        "options": [],
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
-        "allowCustomValue": true
+        "skipUrlSync": false,
+        "sort": "alphabeticalAsc"
       }
     },
     {
       "kind": "QueryVariable",
       "spec": {
-        "name": "scope",
+        "allValue": ".*",
+        "allowCustomValue": true,
         "current": {
           "text": "All",
           "value": "$__all"
         },
-        "label": "Scope",
+        "definition": "label_values(nav_pilot_command_total, scope)",
         "hide": "dontHide",
-        "refresh": "onTimeRangeChanged",
-        "skipUrlSync": false,
+        "includeAll": true,
+        "label": "Scope",
+        "multi": true,
+        "name": "scope",
+        "options": [],
         "query": {
-          "kind": "DataQuery",
-          "group": "prometheus",
-          "version": "v0",
           "datasource": {
             "name": "${DS_METRICS}"
           },
+          "group": "prometheus",
+          "kind": "DataQuery",
           "spec": {
             "qryType": 1,
             "query": "label_values(nav_pilot_command_total, scope)",
             "refId": "PrometheusVariableQueryEditor-VariableQuery"
-          }
+          },
+          "version": "v0"
         },
+        "refresh": "onTimeRangeChanged",
         "regex": "",
         "regexApplyTo": "value",
-        "sort": "alphabeticalAsc",
-        "definition": "label_values(nav_pilot_command_total, scope)",
-        "options": [],
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
-        "allowCustomValue": true
+        "skipUrlSync": false,
+        "sort": "alphabeticalAsc"
       }
     },
     {
       "kind": "QueryVariable",
       "spec": {
-        "name": "command",
+        "allValue": ".*",
+        "allowCustomValue": true,
         "current": {
           "text": "All",
           "value": "$__all"
         },
-        "label": "Kommando",
+        "definition": "label_values(nav_pilot_command_total, command)",
         "hide": "dontHide",
-        "refresh": "onTimeRangeChanged",
-        "skipUrlSync": false,
+        "includeAll": true,
+        "label": "Kommando",
+        "multi": true,
+        "name": "command",
+        "options": [],
         "query": {
-          "kind": "DataQuery",
-          "group": "prometheus",
-          "version": "v0",
           "datasource": {
             "name": "${DS_METRICS}"
           },
+          "group": "prometheus",
+          "kind": "DataQuery",
           "spec": {
             "qryType": 1,
             "query": "label_values(nav_pilot_command_total, command)",
             "refId": "PrometheusVariableQueryEditor-VariableQuery"
-          }
+          },
+          "version": "v0"
         },
+        "refresh": "onTimeRangeChanged",
         "regex": "",
         "regexApplyTo": "value",
-        "sort": "alphabeticalAsc",
-        "definition": "label_values(nav_pilot_command_total, command)",
-        "options": [],
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
-        "allowCustomValue": true
+        "skipUrlSync": false,
+        "sort": "alphabeticalAsc"
       }
     }
   ]

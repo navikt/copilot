@@ -203,7 +203,7 @@ func TestOtelRecordInfo(t *testing.T) {
 
 func TestInitTelemetry_Disabled(t *testing.T) {
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "0")
-	r, err := InitTelemetry(context.Background(), "dev")
+	r, err := InitTelemetry(context.Background(), "dev", "false")
 	if err != nil {
 		t.Fatalf("InitTelemetry(disabled) = %v, want nil", err)
 	}
