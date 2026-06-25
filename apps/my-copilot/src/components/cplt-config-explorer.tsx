@@ -6,8 +6,8 @@ import type { CpltConfigKey } from "@/lib/cplt-config";
 
 type ConfigItem = CpltConfigKey & { example: string };
 
-const SECTIONS = ["proxy", "sandbox", "allow", "deny"] as const;
-type Section = (typeof SECTIONS)[number];
+// Sections are no longer used in the flat nav-pilot config
+type Section = "general";
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   bool: { bg: "#dbeafe", text: "#1e40af" },
@@ -20,17 +20,17 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 function makeExample(item: CpltConfigKey): string {
   switch (item.type) {
     case "bool":
-      return `cplt config set ${item.key} ${item.default === "true" ? "false" : "true"}`;
+      return `nav-pilot config set ${item.key} ${item.default === "true" ? "false" : "true"}`;
     case "integer":
-      return `cplt config set ${item.key} 8080`;
+      return `nav-pilot config set ${item.key} 8080`;
     case "string":
-      return `cplt config set ${item.key} ~/path/to/file`;
+      return `nav-pilot config set ${item.key} "value"`;
     case "string[]":
-      return `cplt config set ${item.key} example-value`;
+      return `nav-pilot config set ${item.key} "value1,value2"`;
     case "integer[]":
-      return `cplt config set ${item.key} 3000`;
+      return `nav-pilot config set ${item.key} 3000`;
     default:
-      return `cplt config set ${item.key} value`;
+      return `nav-pilot config set ${item.key} "value"`;
   }
 }
 
@@ -46,11 +46,10 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
     if (!hasActiveFilter) return [];
     const q = search.toLowerCase();
     return items.filter((item) => {
-      if (activeSection !== null && activeSection !== "all" && item.section !== activeSection) return false;
       if (!q) return true;
       return item.key.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
     });
-  }, [search, activeSection, hasActiveFilter, items]);
+  }, [search, hasActiveFilter, items]);
 
   return (
     <div>
@@ -72,24 +71,21 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
           }}
         />
         <div className="flex gap-1.5 flex-wrap">
-          {(["all", ...SECTIONS] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setActiveSection(activeSection === s ? null : s)}
-              className="rounded-full font-medium cursor-pointer"
-              style={{
-                padding: "0.375rem 0.875rem",
-                fontSize: "0.75rem",
-                border: "1px solid",
-                borderColor: activeSection === s ? "#10b981" : "#e2e8f0",
-                background: activeSection === s ? "#ecfdf5" : "white",
-                color: activeSection === s ? "#065f46" : "#64748b",
-                transition: "all 150ms",
-              }}
-            >
-              {s === "all" ? "All" : s}
-            </button>
-          ))}
+          <button
+            onClick={() => setActiveSection(activeSection === "all" ? null : "all")}
+            className="rounded-full font-medium cursor-pointer"
+            style={{
+              padding: "0.375rem 0.875rem",
+              fontSize: "0.75rem",
+              border: "1px solid",
+              borderColor: activeSection === "all" ? "#10b981" : "#e2e8f0",
+              background: activeSection === "all" ? "#ecfdf5" : "white",
+              color: activeSection === "all" ? "#065f46" : "#64748b",
+              transition: "all 150ms",
+            }}
+          >
+            Show All
+          </button>
         </div>
       </div>
 
