@@ -1862,7 +1862,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "count by (version) (max_over_time(nav_pilot_info{version=~\"$version\", execution_context=~\"$execution_context\"}[$__range]))",
+                      "expr": "count by (version) (max_over_time(nav_pilot_info{version=~\"$version\", execution_context=~\"$execution_context\"}[1d]))",
                       "legendFormat": "{{version}}"
                     },
                     "version": "v0"
@@ -1875,42 +1875,63 @@
             "transformations": []
           }
         },
-        "description": "Antall unike enheter per versjon i perioden. nav_pilot_info skrives én gang per kjøring, så en tidsserie blir støyete; bargauge er tydeligere ved lavt volum.",
+        "description": "Daglig aktive enheter per versjon (DAU). Viser hvordan utrulling av nye versjoner fortrenger de gamle over tid.",
         "id": 6,
         "links": [],
-        "title": "Aktive enheter per versjon",
+        "title": "Adopsjon per versjon (Siste 24t rullerende)",
         "vizConfig": {
-          "group": "state-timeline",
+          "group": "timeseries",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "palette-classic"
                 },
                 "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
                   "axisPlacement": "auto",
-                  "fillOpacity": 70,
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 80,
+                  "gradientMode": "none",
                   "hideFrom": {
                     "legend": false,
                     "tooltip": false,
                     "viz": false
                   },
                   "insertNulls": false,
-                  "lineWidth": 0,
-                  "spanNulls": false
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "normal"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
                 },
-                "noValue": "0",
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "transparent",
+                      "color": "green",
                       "value": 0
                     },
                     {
-                      "color": "green",
-                      "value": 1
+                      "color": "red",
+                      "value": 80
                     }
                   ]
                 },
@@ -1919,22 +1940,19 @@
               "overrides": []
             },
             "options": {
-              "alignValue": "left",
               "annotations": {
                 "clustering": -1,
                 "multiLane": false
               },
               "legend": {
-                "displayMode": "list",
+                "calcs": [],
+                "displayMode": "table",
                 "placement": "bottom",
                 "showLegend": true
               },
-              "mergeValues": true,
-              "rowHeight": 0.9,
-              "showValue": "never",
               "tooltip": {
                 "hideZeros": false,
-                "mode": "single",
+                "mode": "multi",
                 "sort": "none"
               }
             }
