@@ -462,7 +462,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "opencode.json")
 
 	// 1. File doesn't exist -> should return nil and not create
-	err := patchOpenCodeConfig(configPath)
+	err := patchOpenCodeConfig(configPath, "/mock/config/dir")
 	if err != nil {
 		t.Fatalf("expected nil for non-existent file, got: %v", err)
 	}
@@ -475,7 +475,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("failed to write initial config: %v", err)
 	}
-	err = patchOpenCodeConfig(configPath)
+	err = patchOpenCodeConfig(configPath, "/mock/config/dir")
 	if err != nil {
 		t.Fatalf("failed to patch config: %v", err)
 	}
@@ -483,13 +483,13 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read patched config: %v", err)
 	}
-	if !strings.Contains(string(data), `"plugin":`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
+	if !strings.Contains(string(data), `"plugin":`) || !strings.Contains(string(data), `"/mock/config/dir/plugins/rtk.ts"`) {
 		t.Fatalf("expected rtk plugin to be added, got: %s", string(data))
 	}
 
 	// 3. File exists and already has rtk.ts
 	// The file now has it, patching again should succeed and not duplicate
-	err = patchOpenCodeConfig(configPath)
+	err = patchOpenCodeConfig(configPath, "/mock/config/dir")
 	if err != nil {
 		t.Fatalf("failed to patch config second time: %v", err)
 	}
@@ -497,7 +497,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config after second patch: %v", err)
 	}
-	if strings.Count(string(data), `"~/.config/opencode/plugins/rtk.ts"`) != 1 {
+	if strings.Count(string(data), `"/mock/config/dir/plugins/rtk.ts"`) != 1 {
 		t.Fatalf("expected exactly one rtk plugin entry, got: %s", string(data))
 	}
 
@@ -506,7 +506,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("failed to write existing plugins config: %v", err)
 	}
-	err = patchOpenCodeConfig(configPath)
+	err = patchOpenCodeConfig(configPath, "/mock/config/dir")
 	if err != nil {
 		t.Fatalf("failed to patch config with existing plugins: %v", err)
 	}
@@ -514,7 +514,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config with existing plugins: %v", err)
 	}
-	if !strings.Contains(string(data), `"something-else.ts"`) || !strings.Contains(string(data), `"~/.config/opencode/plugins/rtk.ts"`) {
+	if !strings.Contains(string(data), `"something-else.ts"`) || !strings.Contains(string(data), `"/mock/config/dir/plugins/rtk.ts"`) {
 		t.Fatalf("expected both plugins to be present, got: %s", string(data))
 	}
 
@@ -523,7 +523,7 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("failed to write invalid json config: %v", err)
 	}
-	err = patchOpenCodeConfig(configPath)
+	err = patchOpenCodeConfig(configPath, "/mock/config/dir")
 	if err == nil {
 		t.Fatalf("expected error for invalid json")
 	}

@@ -26,32 +26,6 @@ interface SetupCommandBlock {
   commands: string[];
 }
 
-const OS_INSTALL_BLOCKS: Record<OS, SetupCommandBlock[]> = {
-  mac: [
-    { title: "# 1. Installer Copilot CLI (NPM)", commands: ["npm install -g @github/copilot"] },
-    {
-      title: "# 2. Installer Nav-verktøy (inkluderer rtk for token-sparing)",
-      commands: ["brew install navikt/tap/nav-pilot navikt/tap/cplt rtk"],
-    },
-  ],
-  linux: [
-    { title: "# 1. Installer Copilot CLI (NPM)", commands: ["npm install -g @github/copilot"] },
-    {
-      title: "# 2. Last ned verktøy (inkluderer rtk for token-sparing og sandbox)",
-      commands: [
-        "curl -sL https://github.com/navikt/copilot/releases/latest/download/nav-pilot_linux_amd64 -o nav-pilot",
-        "curl -sL https://github.com/navikt/copilot/releases/latest/download/cplt_linux_amd64 -o cplt",
-        "curl -sL https://github.com/rtk-ai/rtk/releases/latest/download/rtk-linux-amd64 -o rtk",
-        "chmod +x nav-pilot cplt rtk && sudo mv nav-pilot cplt rtk /usr/local/bin/",
-      ],
-    },
-  ],
-  windows: [
-    { title: "# 1. Installer via winget", commands: ["winget install GitHub.Copilot"] },
-    { title: "# Nav-pilot (agent og context) fungerer best i WSL (Linux).", commands: [] },
-  ],
-};
-
 const WORKFLOW_COMMANDS: Record<Workflow, string[]> = {
   cli: ["nav-pilot"],
   opencode: ["nav-pilot config set client opencode", "nav-pilot --client opencode"],
@@ -76,14 +50,40 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
     };
   }
 
-  const blocks = [...OS_INSTALL_BLOCKS[os]];
+  const blocks: SetupCommandBlock[] = [];
 
-  if (os !== "windows") {
+  if (os === "windows") {
     blocks.push({
-      title: "# 3. Sett opp for ditt prosjekt",
-      commands: [`nav-pilot install ${stack}`, ...WORKFLOW_COMMANDS[workflow]],
+      title:
+        "# Nav-pilot (agent og context) fungerer best i WSL (Linux).\n# Åpne WSL2-terminalen din og kjør følgende:",
+      commands: [],
     });
   }
+
+  const isMac = os === "mac";
+
+  if (workflow === "cli") {
+    blocks.push({ title: "# 1. Installer Copilot CLI (NPM)", commands: ["npm install -g @github/copilot"] });
+  } else if (workflow === "opencode") {
+    blocks.push({ title: "# 1. Installer OpenCode", commands: ["curl -fsSL https://opencode.ai/install | bash"] });
+  }
+
+  if (isMac) {
+    blocks.push({
+      title: "# 2. Installer Nav-verktøy (inkluderer rtk for token-sparing)",
+      commands: ["brew install navikt/tap/nav-pilot navikt/tap/cplt rtk"],
+    });
+  } else {
+    blocks.push({
+      title: "# 2. Last ned verktøy (inkluderer rtk for token-sparing og sandbox)",
+      commands: ["curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"],
+    });
+  }
+
+  blocks.push({
+    title: "# 3. Sett opp for ditt prosjekt",
+    commands: [`nav-pilot install ${stack}`, ...WORKFLOW_COMMANDS[workflow]],
+  });
 
   const codeString = blocks.map((b) => [b.title, ...b.commands].filter(Boolean).join("\n")).join("\n\n");
 
