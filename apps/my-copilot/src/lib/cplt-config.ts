@@ -13,11 +13,11 @@ export type CpltConfigKey = {
   dangerous: boolean;
 };
 
-const CONFIG_GO_URL = "https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/internal/cli/config_cmd.go";
+const CONFIG_RS_URL = "https://raw.githubusercontent.com/navikt/cplt/main/src/config/registry.rs";
 
 export async function fetchCpltConfigKeys(): Promise<CpltConfigKey[]> {
   try {
-    const res = await fetch(CONFIG_GO_URL, { next: { revalidate: 3600 } });
+    const res = await fetch(CONFIG_RS_URL, { next: { revalidate: 3600 } });
     if (!res.ok) return [];
     const source = await res.text();
     return parseConfigKeys(source);
@@ -29,26 +29,31 @@ export async function fetchCpltConfigKeys(): Promise<CpltConfigKey[]> {
 function parseConfigKeys(source: string): CpltConfigKey[] {
   const keys: CpltConfigKey[] = [];
   const pattern =
-    /name:\s*"([^"]+)",\s*kind:\s*(keyKind[a-zA-Z]+),\s*description:\s*"([^"]+)",[\s\S]*?defaultVal:\s*"([^"]*)",/g;
+    /section:\s*"([^"]+)",\s*key:\s*"([^"]+)",\s*value_type:\s*ConfigValueType::([a-zA-Z0-9]+),\s*dangerous:\s*(true|false),\s*default_display:\s*"([^"]*)",\s*description:\s*"([^"]+)",/g;
   let match: RegExpExecArray | null;
 
   while ((match = pattern.exec(source)) !== null) {
-    const key = match[1];
-    const kind = match[2];
-    const description = match[3];
-    const defaultDisplay = match[4];
+    const section = match[1];
+    const key = match[2];
+    const kind = match[3];
+    const dangerous = match[4] === "true";
+    const defaultDisplay = match[5];
+    const description = match[6];
 
     let typeStr = "string";
-    if (kind === "keyKindInt") typeStr = "integer";
-    if (kind === "keyKindBool") typeStr = "bool";
+    if (kind === "U16") typeStr = "integer";
+    if (kind === "U16Array") typeStr = "integer[]";
+    if (kind === "Bool") typeStr = "bool";
+    if (kind === "StrArray") typeStr = "string[]";
+    if (kind === "ArrayOfTables") typeStr = "string[]"; // Hack for now
 
     keys.push({
-      key,
-      section: "general",
+      key: `${section}.${key}`,
+      section,
       type: typeStr,
       default: defaultDisplay,
       description,
-      dangerous: false,
+      dangerous,
     });
   }
 

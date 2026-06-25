@@ -20,17 +20,17 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 function makeExample(item: CpltConfigKey): string {
   switch (item.type) {
     case "bool":
-      return `nav-pilot config set ${item.key} ${item.default === "true" ? "false" : "true"}`;
+      return `cplt config set ${item.key} ${item.default === "true" ? "false" : "true"}`;
     case "integer":
-      return `nav-pilot config set ${item.key} 8080`;
+      return `cplt config set ${item.key} 8080`;
     case "string":
-      return `nav-pilot config set ${item.key} "value"`;
+      return `cplt config set ${item.key} "value"`;
     case "string[]":
-      return `nav-pilot config set ${item.key} "value1,value2"`;
+      return `cplt config set ${item.key} "value1,value2"`;
     case "integer[]":
-      return `nav-pilot config set ${item.key} 3000`;
+      return `cplt config set ${item.key} 3000`;
     default:
-      return `nav-pilot config set ${item.key} "value"`;
+      return `cplt config set ${item.key} "value"`;
   }
 }
 
