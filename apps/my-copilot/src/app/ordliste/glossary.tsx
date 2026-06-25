@@ -105,7 +105,7 @@ export function Glossary({ terms }: { terms: Term[] }) {
             size="medium"
           />
         </div>
-        <div className="w-full md:w-1/3 [&_.navds-combobox__selected-options]:hidden">
+        <div className="w-full md:w-1/3 [&_.navds-combobox__selected-options]:hidden [&_.aksel-combobox__selected-options]:hidden">
           <UNSAFE_Combobox
             id="ordbok-kategori-filter"
             label="Kategori"

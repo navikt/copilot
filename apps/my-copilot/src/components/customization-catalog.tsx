@@ -144,7 +144,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             onClear={() => setSearch("")}
           />
         </div>
-        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden">
+        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden [&_.aksel-combobox__selected-options]:hidden">
           <UNSAFE_Combobox
             id={typeId}
             label="Type"
@@ -158,7 +158,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             placeholder={selectedTypes.length > 0 ? `${selectedTypes.length} valgt` : "Alle typer"}
           />
         </div>
-        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden">
+        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden [&_.aksel-combobox__selected-options]:hidden">
           <UNSAFE_Combobox
             id={collectionId}
             label="Samling"
