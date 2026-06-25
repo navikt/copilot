@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -117,7 +118,15 @@ func isBrewManaged() bool {
 // Returns the raw version (matching the build-injected format, e.g. "2026.04.13-170138-abc1234")
 // and the full tag (e.g. "nav-pilot/2026.04.13-170138-abc1234").
 func fetchLatestVersion() (ver string, tag string, err error) {
-	resp, err := httpClient.Get(releasesAPI + "?per_page=20")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", releasesAPI+"?per_page=20", nil)
+	if err != nil {
+		return "", "", err
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", "", err
 	}

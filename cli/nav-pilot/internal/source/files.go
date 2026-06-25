@@ -276,11 +276,11 @@ func CheckConflict(targetPath, sourcePath string, isDir bool) (*Conflict, error)
 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 		return nil, nil
 	}
-	currentHash, err := RawArtifactHash(targetPath, isDir)
+	currentHash, err := ComparableArtifactHash(targetPath, isDir)
 	if err != nil {
 		return nil, fmt.Errorf("hashing %s: %w", targetPath, err)
 	}
-	newHash, err := RawArtifactHash(sourcePath, isDir)
+	newHash, err := ComparableArtifactHash(sourcePath, isDir)
 	if err != nil {
 		return nil, fmt.Errorf("hashing %s: %w", sourcePath, err)
 	}

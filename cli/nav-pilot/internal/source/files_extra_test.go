@@ -104,6 +104,26 @@ func TestCheckConflict_SameContent(t *testing.T) {
 	}
 }
 
+func TestCheckConflict_TrivialDifferences(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "src.md")
+	dst := filepath.Join(tmp, "dst.md")
+	// Same content, but different whitespace / line endings
+	if err := os.WriteFile(src, []byte("same content \nwith newline\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("same content\r\nwith newline\r\n  "), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := CheckConflict(dst, src, false)
+	if err != nil {
+		t.Fatalf("CheckConflict(trivial diff) = %v, want nil", err)
+	}
+	if c != nil {
+		t.Errorf("CheckConflict(trivial diff) = %v, want nil (should normalize and ignore)", c)
+	}
+}
+
 func TestCheckConflict_DifferentContent(t *testing.T) {
 	tmp := t.TempDir()
 	src := filepath.Join(tmp, "src.md")
