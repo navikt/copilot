@@ -75,16 +75,10 @@ run = "(cd scripts/generate-docs && go run . --check)"
 # ─── Skills ──────────────────────────────────────────────────────────────────
 
 [tasks."skills:lint"]
-description = "Lint .github/skills/ for quality (token budget, structure, metadata)"
+description = "Lint skills/ for quality (token budget, structure, metadata)"
 run = "bash scripts/lint-skills.sh"
 
-[tasks."skills:sync-check"]
-description = "Verify .github/skills/ and skills/ are in sync"
-run = "bash scripts/sync-skills-dirs.sh"
 
-[tasks."skills:sync-fix"]
-description = "Mirror .github/skills/ → skills/ (fix drift)"
-run = "bash scripts/sync-skills-dirs.sh --fix"
 
 [tasks."collections:lint"]
 description = "Verify docs page COLLECTIONS data matches manifest.json files"

@@ -107,7 +107,7 @@ func TestGenerateInstallationGuide_SkillWithoutReferences(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(guide, `mkdir -p ".github/skills/aksel-spacing"`) {
+	if !strings.Contains(guide, `mkdir -p "skills/aksel-spacing"`) {
 		t.Error("guide should create skill directory")
 	}
 	if !strings.Contains(guide, "curl -fsSL") {
@@ -116,7 +116,7 @@ func TestGenerateInstallationGuide_SkillWithoutReferences(t *testing.T) {
 	if !strings.Contains(guide, "SKILL.md") {
 		t.Error("guide should download SKILL.md")
 	}
-	if strings.Contains(guide, "mkdir -p \".github/skills/aksel-spacing/references\"") {
+	if strings.Contains(guide, "mkdir -p \"skills/aksel-spacing/references\"") {
 		t.Error("guide should NOT create references dir for skill without references")
 	}
 }
@@ -147,10 +147,10 @@ func TestGenerateInstallationGuide_SkillWithReferences(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(guide, `mkdir -p ".github/skills/observability-setup"`) {
+	if !strings.Contains(guide, `mkdir -p "skills/observability-setup"`) {
 		t.Error("guide should create skill directory")
 	}
-	if !strings.Contains(guide, `mkdir -p ".github/skills/observability-setup/references"`) {
+	if !strings.Contains(guide, `mkdir -p "skills/observability-setup/references"`) {
 		t.Error("guide should create references subdirectory")
 	}
 	if !strings.Contains(guide, "SKILL.md") {

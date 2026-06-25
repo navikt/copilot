@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	githubDir := flag.String("github-dir", "../../.github", "Path to .github directory")
+	githubDir := flag.String("github-dir", "../..", "Path to source directory (formerly .github)")
 	output := flag.String("output", "internal/discovery/copilot-manifest.json", "Output path for embedded manifest")
 	repoOwner := flag.String("owner", "navikt", "Repository owner")
 	repoName := flag.String("repo", "copilot", "Repository name")

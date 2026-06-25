@@ -5,9 +5,9 @@ import type { Domain, ExampleItem } from "../src/lib/manifest-types.ts";
 import { VALID_DOMAINS } from "../src/lib/manifest-types.ts";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
-const GITHUB_DIR = path.join(REPO_ROOT, ".github");
+const GITHUB_DIR = REPO_ROOT;
 const COLLECTIONS_DIR = path.join(GITHUB_DIR, "collections");
-const RAW_BASE = "https://raw.githubusercontent.com/navikt/copilot/main/.github";
+const RAW_BASE = "https://raw.githubusercontent.com/navikt/copilot/main";
 const OUTPUT = path.resolve(import.meta.dirname, "../src/lib/copilot-manifest.json");
 
 interface Metadata {
