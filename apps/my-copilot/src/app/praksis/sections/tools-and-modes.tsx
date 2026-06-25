@@ -239,50 +239,41 @@ export default function ToolsAndModes() {
         </div>
         <Box background="warning-soft" padding="space-12" borderRadius="8" className="mb-4">
           <BodyShort size="small">
-            <strong>Nytt kostnadsregime:</strong> GitHub går over til bruksbasert prising. Vi forventer omtrent 3×
-            kostnadsøkning for organisasjonen. Bruk modellene bevisst — velg <strong>Auto</strong> eller inkluderte
-            modeller der det er tilstrekkelig.{" "}
-            <NextLink href="/priser" className="underline">
-              Se fullstendig pristabell →
-            </NextLink>
+            <strong>Bruk riktig modell:</strong> Valg av modell kan ha stor innvirkning på hvor godt Copilot forstår
+            koden din. Ikke nøl med å bytte modell i dropdown-menyen hvis du står fast, da de ulike leverandørene ofte
+            tenker litt annerledes!
           </BodyShort>
         </Box>
         <BodyShort className="text-gray-600 text-sm mb-5">
-          Du har <strong>300 premium requests</strong> per måned. Inkluderte modeller (GPT-4.1, GPT-4o og lignende)
-          bruker ingen premium requests. <strong>Auto</strong> gir 10 % rabatt og velger beste modell automatisk.
+          Alle brukere får et personlig budsjett med <strong>AI Credits</strong> hver måned. Ulike modeller har ulik
+          kostnad i form av AI Credits. Du kan velge fritt mellom de ulike AI-leverandørene GitHub Copilot støtter.
         </BodyShort>
         <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
           <div>
             <Label size="small" className="text-green-700">
-              Inkluderte (0x)
+              Inkluderte modeller
             </Label>
             <BodyShort className="text-gray-600 text-xs">
-              GPT-4.1, GPT-4o og tilsvarende — ingen premium requests
+              Mindre modeller (f.eks. GPT-4o mini, Claude 3.5 Haiku)
             </BodyShort>
           </div>
           <div>
-            <Label size="small" className="text-green-700">
-              Auto (10 % rabatt)
-            </Label>
+            <Label size="small">Anthropic Claude</Label>
+            <BodyShort className="text-gray-600 text-xs">Claude 3.5 Sonnet (Rask og god på koding)</BodyShort>
+          </div>
+          <div>
+            <Label size="small">OpenAI GPT</Label>
+            <BodyShort className="text-gray-600 text-xs">GPT-4o (Bred kunnskap og god ytelse)</BodyShort>
+          </div>
+          <div>
+            <Label size="small">Google Gemini</Label>
+            <BodyShort className="text-gray-600 text-xs">Gemini 1.5 Pro (God på store kontekstvinduer)</BodyShort>
+          </div>
+          <div>
+            <Label size="small">OpenAI o1</Label>
             <BodyShort className="text-gray-600 text-xs">
-              Anbefalt – velger optimal modell, 0.9× multiplikator
+              o1-preview (Resonneringsmodell for komplekse oppgaver)
             </BodyShort>
-          </div>
-          <div>
-            <Label size="small">Claude Sonnet (siste)</Label>
-            <BodyShort className="text-gray-600 text-xs">Balansert – god til de fleste oppgaver (1×)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">GPT-4o / nyeste OpenAI</Label>
-            <BodyShort className="text-gray-600 text-xs">OpenAI premium – bred kunnskap (1×)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">Claude Opus (siste)</Label>
-            <BodyShort className="text-gray-600 text-xs">Kraftigst – komplekse oppgaver (3×)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">Haiku / mini-modeller</Label>
-            <BodyShort className="text-gray-600 text-xs">Raske – enklere oppgaver (0.33×)</BodyShort>
           </div>
         </HGrid>
         <Box background="info-soft" padding="space-12" borderRadius="8" className="mt-5">
@@ -298,14 +289,14 @@ export default function ToolsAndModes() {
         <BodyShort className="text-gray-500 text-xs mt-3">
           Se{" "}
           <a
-            href="https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests"
+            href="https://docs.github.com/en/copilot/using-github-copilot/changing-the-ai-model-for-github-copilot"
             className="text-blue-600 hover:underline"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Premium requests dokumentasjon
+            GitHubs offisielle dokumentasjon
           </a>{" "}
-          for detaljer.
+          for en fullstendig og oppdatert liste over modeller.
         </BodyShort>
       </Box>
     </div>

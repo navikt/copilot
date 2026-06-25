@@ -49,12 +49,12 @@ export default function Resources() {
             <li className="flex gap-2">
               <span className="text-blue-600">▪</span>
               <a
-                href="https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests"
+                href="https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-ai-credits"
                 className="text-blue-600 hover:underline text-sm"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Premium Requests & Limits
+                AI Credits & Limits
               </a>
             </li>
             <li className="flex gap-2">

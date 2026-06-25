@@ -70,6 +70,7 @@ export function PraksisHub({ categories }: { categories: ClientCategory[] }) {
             <div className="flex px-3 pt-2 pb-1">
               <textarea
                 value={query}
+                aria-label="Søk i guider eller beskriv oppgaven din"
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Spør om hva som helst, eller beskriv hva du vil gjøre..."
                 className="w-full bg-transparent resize-none outline-none text-text-default placeholder-text-subtle min-h-[60px]"
@@ -107,6 +108,11 @@ export function PraksisHub({ categories }: { categories: ClientCategory[] }) {
                 size="small"
                 icon={<PaperplaneIcon aria-hidden />}
                 className="rounded-lg hover:bg-blue-50"
+                onClick={() => {
+                  if (query.trim()) {
+                    alert("Interaktiv chat er under utvikling! Akkurat nå filtrerer dette bare guidene nedenfor.");
+                  }
+                }}
               />
             </div>
           </div>
