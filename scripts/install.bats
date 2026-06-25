@@ -9,24 +9,46 @@ setup() {
   mkdir -p "${MOCK_BIN}"
   export PATH="${MOCK_BIN}:${PATH}"
 
-  # Default mock for curl (always succeeds and outputs a dummy checksum if asked)
   cat <<'EOF' > "${MOCK_BIN}/curl"
 #!/bin/bash
+out_file=""
+for i in "$@"; do
+  if [[ "$prev" == "-o" ]]; then
+    out_file="$i"
+  fi
+  prev="$i"
+done
+
+write_out() {
+  if [[ -n "$out_file" ]]; then
+    echo -e "$1" > "$out_file"
+  else
+    echo -e "$1"
+  fi
+}
+
 if [[ "$*" == *"api.github.com"* ]]; then
-  echo '{"tag_name": "nav-pilot/2026.01.01-mock"}'
+  write_out '{"tag_name": "nav-pilot/2026.01.01-mock"}'
   exit 0
 elif [[ "$*" == *"SHA256SUMS"* ]]; then
-  echo "dummyhash  nav-pilot-linux-amd64"
-  echo "dummyhash  nav-pilot-darwin-arm64"
+  write_out "dummyhash  nav-pilot-linux-amd64\ndummyhash  nav-pilot-darwin-arm64"
   exit 0
 elif [[ "$*" == *".sh"* ]]; then
-  echo "# Mocked script download"
+  write_out "# Mocked script download"
   exit 0
 fi
-echo "Mocked curl download"
+write_out "Mocked curl download"
 exit 0
 EOF
   chmod +x "${MOCK_BIN}/curl"
+
+  # Mock chmod so we don't actually modify the system (or if file doesn't exist)
+  cat <<'EOF' > "${MOCK_BIN}/chmod"
+#!/bin/bash
+echo "mock chmod $1 $2"
+exit 0
+EOF
+  chmod +x "${MOCK_BIN}/chmod"
 
   # Default mock for sha256sum
   cat <<'EOF' > "${MOCK_BIN}/sha256sum"
