@@ -104,6 +104,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "--auto-launch / --no-auto-launch",
 	},
 	{
+		name:        "auto_update",
+		kind:        keyKindBool,
+		description: "Automatically upgrade nav-pilot when a new version is available, skipping the interactive prompt.",
+		allowed:     nil,
+		defaultVal:  "false",
+		flag:        "",
+	},
+	{
 		name:        "log_level",
 		kind:        keyKindString,
 		description: "Log level for Copilot CLI output.",
@@ -208,6 +216,11 @@ version = 1
 # Default: false
 # Corresponds to nav-pilot flag: --auto-launch / --no-auto-launch
 # auto_launch = false
+
+# Automatically upgrade nav-pilot when a new version is available, skipping the
+# interactive prompt.
+# Default: false
+# auto_update = false
 
 # Log level for Copilot CLI output.
 # Allowed: none, error, warning, info, debug, all, default — Default: unset
@@ -315,6 +328,7 @@ func cmdConfigShow(jsonOutput bool) error {
 			"allow_all_tools":  resolved.AllowAllTools,
 			"ask_user":         resolved.AskUser,
 			"auto_launch":      resolved.AutoLaunch,
+			"auto_update":      resolved.AutoUpdate,
 			"log_level":        resolved.LogLevel,
 			"otel_log_level":   resolved.OtelLogLevel,
 		})
@@ -386,6 +400,12 @@ func cmdConfigShow(jsonOutput bool) error {
 	}
 	printBoolField("auto_launch", resolved.AutoLaunch, autoLaunchSrc)
 
+	autoUpdateSrc := "default"
+	if cfg != nil && cfg.AutoUpdate != nil {
+		autoUpdateSrc = "file"
+	}
+	printBoolField("auto_update", resolved.AutoUpdate, autoUpdateSrc)
+
 	logSrc := "unset"
 	if cfg != nil && cfg.LogLevel != nil {
 		logSrc = "file"
@@ -448,6 +468,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AskUser)
 	case "auto_launch":
 		return strconv.FormatBool(r.AutoLaunch)
+	case "auto_update":
+		return strconv.FormatBool(r.AutoUpdate)
 	case "log_level":
 		return r.LogLevel
 	case "otel_log_level":

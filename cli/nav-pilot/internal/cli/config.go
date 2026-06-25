@@ -230,6 +230,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.AutoLaunch != nil {
 			r.AutoLaunch = *file.AutoLaunch
 		}
+		if file.AutoUpdate != nil {
+			r.AutoUpdate = *file.AutoUpdate
+		}
 		if file.LogLevel != nil {
 			r.LogLevel = *file.LogLevel
 		}

@@ -26,6 +26,7 @@ type Config struct {
 	OtelLogLevel      *string `toml:"otel_log_level"`
 	RtkPromptedClient *string `toml:"rtk_prompted_client"`
 	RtkPromptedAt     *string `toml:"rtk_prompted_at"`
+	AutoUpdate        *bool   `toml:"auto_update"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -43,6 +44,7 @@ type ResolvedConfig struct {
 	OtelLogLevel      string // always set; defaults to "none"
 	RtkPromptedClient string // comma-separated list of clients where the RTK setup was prompted
 	RtkPromptedAt     string // RFC3339 timestamp of when the user was last prompted
+	AutoUpdate        bool   // true to bypass upgrade prompt
 }
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".

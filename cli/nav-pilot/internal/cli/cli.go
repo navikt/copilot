@@ -114,7 +114,18 @@ func run(args []string) error {
 	assessment := assessStaleness(Version)
 	recordFreshness("cli", "none", assessment)
 	if Version != "dev" && assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, Version) {
-		if isInteractive() && assessment.SkewDays > 14 {
+		fileCfg, _ := readConfig()
+		autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
+
+		if autoUpdate {
+			fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
+			if err := cmdUpdate(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Auto-update failed: %v\n", yellow("⚠"), err)
+			} else {
+				fmt.Println("Upgrade successful! Please re-run your command.")
+				os.Exit(0)
+			}
+		} else if isInteractive() && assessment.SkewDays > 7 {
 			var upgradeChoice bool
 			err := huh.NewConfirm().
 				Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).

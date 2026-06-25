@@ -18,6 +18,7 @@ type setupAnswers struct {
 	Model           string // empty = don't write the key
 	Mode            string
 	ReasoningEffort string // empty = don't write the key
+	AutoUpdate      string // "true" or "false"
 }
 
 // writeSetupConfig writes a new config file from wizard answers.
@@ -56,6 +57,12 @@ func writeSetupConfig(answers setupAnswers) error {
 	if answers.ReasoningEffort != "" {
 		effortVal, _ := formatTOMLValue(findKeyDef("reasoning_effort"), answers.ReasoningEffort)
 		lines = append(lines, "reasoning_effort = "+effortVal)
+	}
+
+	if answers.AutoUpdate == "true" {
+		lines = append(lines, "auto_update = true")
+	} else if answers.AutoUpdate == "false" {
+		lines = append(lines, "auto_update = false")
 	}
 
 	content := strings.Join(lines, "\n") + "\n"
@@ -212,6 +219,21 @@ func runConfigSetup() error {
 			huh.NewOption("max", "max"),
 		).
 		Value(&answers.ReasoningEffort).
+		WithTheme(navTheme()).
+		Run()
+	if err != nil {
+		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
+		return nil
+	}
+
+	err = huh.NewSelect[string]().
+		Title("Auto-update nav-pilot").
+		Description("Automatically install new CLI versions in the background.").
+		Options(
+			huh.NewOption("Yes (recommended)", "true"),
+			huh.NewOption("No (prompt after 7 days)", "false"),
+		).
+		Value(&answers.AutoUpdate).
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
