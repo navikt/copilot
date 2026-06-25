@@ -12,7 +12,7 @@ export default function StrengthsLimitations() {
     <div className="space-y-8">
       <Box background="danger-soft" padding="space-16" borderRadius="8" className="border-2 border-red-600">
         <Heading size="small" level="3" className="text-red-700 mb-2">
-          Trener Copilot på koden vår? NEI.
+          Brukes koden vår til trening? Nei.
         </Heading>
         <BodyShort className="text-gray-800">
           En av de største misforståelsene rundt GitHub Copilot Business/Enterprise er at Microsoft bruker koden din til
@@ -24,24 +24,23 @@ export default function StrengthsLimitations() {
 
       <Box background="neutral-soft" padding="space-16" borderRadius="8">
         <Heading size="small" level="3" className="mb-2">
-          Skjerming av sensitiv kode (.copilotignore)
+          Skjerming av sensitiv kode (Content Exclusion)
         </Heading>
         <BodyShort className="text-gray-700 mb-3">
           Selv om koden ikke brukes til trening, vil du kanskje forhindre at Copilot i det hele tatt kan <em>lese</em>{" "}
-          visse filer (f.eks. lokalt test-passord eller spesifikke konfigurasjonsfiler) slik at de ikke ved et uhell
-          blir sendt som kontekst i en spørring.
+          visse filer (f.eks. konfigurasjonsfiler med passord) slik at de ikke ved et uhell blir sendt som kontekst i en
+          spørring.
+        </BodyShort>
+        <BodyShort className="text-gray-700 mb-3">
+          <strong className="text-red-600">Viktig advarsel:</strong> Mange tror de kan bruke en lokal{" "}
+          <code>.copilotignore</code>-fil. Dette er en myte! GitHub Copilot støtter ikke <code>.copilotignore</code>.
         </BodyShort>
         <BodyShort className="text-gray-700">
-          Dette løses med filen <code>.copilotignore</code>. Den fungerer nøyaktig som <code>.gitignore</code>, bare for
-          Copilot. Plasser den i roten av repoet ditt:
+          Den offisielle og sikre metoden er <strong>Content Exclusion</strong>. Dette konfigureres i GitHubs
+          web-grensesnitt av en administrator eller repo-eier under{" "}
+          <code>Settings &gt; Copilot &gt; Content Exclusion</code>. Her legger du inn <code>fnmatch</code>-mønstre (som{" "}
+          <code>secrets/**/*</code> eller <code>application-dev.yml</code>) for å blokkere tilgangen helt.
         </BodyShort>
-        <pre className="bg-gray-900 text-green-400 p-4 rounded-md mt-3 text-sm font-mono overflow-x-auto">
-          {`# .copilotignore
-config/application-dev.yml
-secrets/
-*.key
-test-data/passwords.txt`}
-        </pre>
       </Box>
 
       <Carousel showIndicators={true} showSwipeHint={true} className="mb-6">

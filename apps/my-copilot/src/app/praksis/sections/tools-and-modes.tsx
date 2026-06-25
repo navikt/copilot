@@ -73,6 +73,16 @@ export default function ToolsAndModes() {
                 Agent spør om godkjenning før terminalkommandoer og nettsidefetching.
               </BodyShort>
             </div>
+            <div>
+              <BodyShort weight="semibold" className="text-sm text-blue-700">
+                ⚠️ Forskjeller mellom IDE-er
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                Vær oppmerksom på at IntelliJ og Visual Studio ofte ligger flere måneder bak VS Code i
+                Copilot-funksjonalitet. Agent Mode / Copilot Edits og avanserte slash-kommandoer fungerer ofte best
+                (eller kun) i VS Code.
+              </BodyShort>
+            </div>
           </div>
         </Box>
 
@@ -275,6 +285,16 @@ export default function ToolsAndModes() {
             <BodyShort className="text-gray-600 text-xs">Raske – enklere oppgaver (0.33×)</BodyShort>
           </div>
         </HGrid>
+        <Box background="info-soft" padding="space-12" borderRadius="8" className="mt-5">
+          <Heading size="xsmall" level="4" className="mb-1 text-blue-700">
+            Forvirret over "Context Window" måleren? (Reserved Output)
+          </Heading>
+          <BodyShort className="text-gray-700 text-xs">
+            Nyere modeller reserverer automatisk en stor del av kontekstvinduet (ofte tusenvis av tokens) til sin
+            interne "chain-of-thought" (resonnering). Derfor vil kontekstmåleren din kunne se nesten full ut selv om du
+            bare har lagt ved et par filer. Dette er normalt og nødvendig for at modellen skal tenke seg om.
+          </BodyShort>
+        </Box>
         <BodyShort className="text-gray-500 text-xs mt-3">
           Se{" "}
           <a

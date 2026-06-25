@@ -73,6 +73,21 @@ export default function UnderstandingCode() {
             </p>
           </div>
         </section>
+
+        <section className="bg-surface-default border border-border-subtle p-6 rounded-lg">
+          <Heading size="xsmall" level="4" className="mb-2">
+            Semantisk Søk i kodebasen
+          </Heading>
+          <BodyShort size="small" className="text-gray-700 mb-3">
+            Du trenger ikke lenger vite nøyaktig hvilken fil koden ligger i. Bruk <code>@workspace</code> i Copilot Chat
+            for å stille spørsmål om arkitekturen direkte.
+          </BodyShort>
+          <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+            <p className="text-sm font-mono text-gray-800">
+              "@workspace Hvor ligger logikken for autentisering mot betalingsgatewayen, og hvilke filer er involvert?"
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );
