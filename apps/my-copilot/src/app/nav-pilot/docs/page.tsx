@@ -376,17 +376,16 @@ function IntroductionSection() {
             Hva er nav-pilot?
           </LinkableHeading>
           <BodyLong className="mt-3 mb-6" style={{ color: "#475569" }}>
-            nav-pilot er et <strong>CLI-verktøy</strong> og en <strong>AI-agent</strong>. CLI-et installerer agenter,
-            skills og instruksjoner i repoet ditt, og vil i tillegg{" "}
-            <strong>automatisk spørre om du vil sette opp Terminal Token Optimizer (rtk)</strong> for
-            token-optimalisering. Agenten (
+            nav-pilot er et <strong>CLI-verktøy</strong> og en <strong>AI-agent</strong>. CLI-et klargjør repoet ditt
+            med riktige agenter, skills og instruksjoner. Agenten (
             <code
               className="text-sm font-mono rounded px-1.5 py-0.5"
               style={{ background: "#f1f5f9", color: "#3b82f6" }}
             >
               @nav-pilot
             </code>
-            ) bruker denne kunnskapen til å planlegge og arkitektere Nav-applikasjoner i Copilot Chat.
+            ) bruker denne kunnskapen til å planlegge og arkitektere Nav-applikasjoner i Copilot Chat. I bakgrunnen
+            sørger CLI-et også for at token-bruken din optimaliseres automatisk.
           </BodyLong>
           <BodyLong style={{ color: "#475569" }}>
             nav-pilot inneholder <strong>én planleggingsagent, fire planning skills og fem collections</strong>.
