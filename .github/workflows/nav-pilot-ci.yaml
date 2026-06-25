@@ -88,11 +88,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install BATS
-        run: sudo apt-get update && sudo apt-get install -y bats
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
 
       - name: Run BATS
-        run: bats scripts/install.bats
+        run: mise exec -- bats scripts/install.bats
 
   e2e-install:
     name: E2E test install.sh

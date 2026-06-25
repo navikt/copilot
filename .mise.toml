@@ -20,6 +20,7 @@ lefthook = "2.1.9"
 node = "24"
 pnpm = "11"
 shellcheck = "latest"
+bats = "latest"
 
 [env]
 APPS = "copilot-adoption copilot-api copilot-metrics mcp-onboarding mcp-registry my-copilot"
@@ -121,11 +122,7 @@ echo "  vet..."     && go vet ./... && \
 echo "  staticcheck..." && go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./... && \
 cd ../.. && \
 echo "  shellcheck..." && shellcheck scripts/install.sh && \
-if command -v bats &>/dev/null; then \
-  echo "  bats..." && bats scripts/install.bats; \
-else \
-  echo "  bats... (skipped, not installed)"; \
-fi && \
+echo "  bats..." && bats scripts/install.bats && \
 echo "  ✅ nav-pilot checks passed"
 """
 
