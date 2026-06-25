@@ -1,7 +1,8 @@
 #!/usr/bin/env bats
 
 setup() {
-  export TMP_DIR="$(mktemp -d)"
+  export TMP_DIR="${BATS_TEST_DIRNAME}/.tmp-${BATS_TEST_NUMBER}"
+  mkdir -p "${TMP_DIR}"
   export PATH="${TMP_DIR}:${PATH}"
   
   # Create a bin directory for our mocks
