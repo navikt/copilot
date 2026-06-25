@@ -46,7 +46,7 @@ done
 
 if [[ "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_DIR" ]] && command -v brew &>/dev/null; then
   echo "→ Installing via Homebrew..."
-  brew install navikt/tap/nav-pilot
+  brew install navikt/tap/nav-pilot navikt/tap/cplt rtk
   echo ""
   INSTALLED_VERSION=$(nav-pilot version 2>/dev/null || echo "unknown")
   echo "✓ nav-pilot is ready! (${INSTALLED_VERSION})"
@@ -170,7 +170,25 @@ fi
 chmod +x "${TMP_DIR}/${ASSET}"
 mv "${TMP_DIR}/${ASSET}" "${INSTALL_DIR}/${BINARY}"
 
-echo "  ✓ Installed to ${INSTALL_DIR}/${BINARY}"
+echo "  ✓ Installed nav-pilot to ${INSTALL_DIR}/${BINARY}"
+
+# ─── Install Dependencies (cplt, rtk) ────────────────────────────────────────
+
+echo ""
+echo "→ Installing cplt (sandbox)..."
+if curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash; then
+  echo "  ✓ Installed cplt"
+else
+  echo "  ⚠ Failed to install cplt"
+fi
+
+echo ""
+echo "→ Installing rtk (token optimizer)..."
+if curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh; then
+  echo "  ✓ Installed rtk"
+else
+  echo "  ⚠ Failed to install rtk"
+fi
 
 # ─── Verify ──────────────────────────────────────────────────────────────────
 

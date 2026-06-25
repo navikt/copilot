@@ -80,3 +80,43 @@ jobs:
 
       - name: ShellCheck
         run: shellcheck scripts/install.sh
+
+  bats:
+    name: Unit Test install.sh
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install BATS
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Run BATS
+        run: bats scripts/install.bats
+
+  e2e-install:
+    name: E2E test install.sh
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        container: ["ubuntu:latest", "alpine:latest"]
+    container: ${{ matrix.container }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup prerequisites (Ubuntu)
+        if: contains(matrix.container, 'ubuntu')
+        run: apt-get update && apt-get install -y curl
+
+      - name: Setup prerequisites (Alpine)
+        if: contains(matrix.container, 'alpine')
+        run: apk add --no-cache bash curl coreutils
+
+      - name: Run install.sh
+        run: bash scripts/install.sh --dir /usr/local/bin
+
+      - name: Verify installation
+        run: |
+          /usr/local/bin/nav-pilot version
+          # Ensure scripts exited 0

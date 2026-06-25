@@ -113,7 +113,7 @@ description = "Run nav-pilot installer tests"
 run = "(cd cli/nav-pilot && go test -race ./...)"
 
 [tasks."nav-pilot:check"]
-description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, shellcheck)"
+description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, shellcheck, bats)"
 run = """
 echo "  build..."   && cd cli/nav-pilot && go build -o /dev/null . && \
 echo "  test..."    && go test -race ./... && \
@@ -121,6 +121,11 @@ echo "  vet..."     && go vet ./... && \
 echo "  staticcheck..." && go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./... && \
 cd ../.. && \
 echo "  shellcheck..." && shellcheck scripts/install.sh && \
+if command -v bats &>/dev/null; then \
+  echo "  bats..." && bats scripts/install.bats; \
+else \
+  echo "  bats... (skipped, not installed)"; \
+fi && \
 echo "  ✅ nav-pilot checks passed"
 """
 

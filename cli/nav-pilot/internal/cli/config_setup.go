@@ -279,5 +279,12 @@ func cmdConfigSetup(force bool) error {
 	if !isInteractive() {
 		return fmt.Errorf("config setup requires an interactive terminal.\n\nUse 'nav-pilot config init' to create a template, then edit it directly")
 	}
-	return runConfigSetup()
+	if err := runConfigSetup(); err != nil {
+		return err
+	}
+
+	if resolved, err := loadConfigForLaunch(CLIOverrides{}); err == nil {
+		maybePromptRtkSetup(resolved)
+	}
+	return nil
 }

@@ -24,9 +24,12 @@ describe("generateSetupScript", () => {
     it("generates correct OpenCode script", () => {
       const result = generateSetupScript(os, "opencode", "kotlin-backend");
       expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt rtk");
+      expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot --client opencode");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).not.toContain("@github/copilot");
+      expect(result.code).not.toContain("npm install");
     });
   });
 
@@ -37,12 +40,19 @@ describe("generateSetupScript", () => {
       const result = generateSetupScript(os, "cli", "kotlin-backend");
       expect(result.code).toContain("npm install -g @github/copilot");
       expect(result.code).toContain(
-        "curl -sL https://github.com/navikt/copilot/releases/latest/download/nav-pilot_linux_amd64 -o nav-pilot"
+        "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
+      expect(result.code).toContain("nav-pilot install kotlin-backend");
+    });
+
+    it("generates correct OpenCode script with curl", () => {
+      const result = generateSetupScript(os, "opencode", "kotlin-backend");
+      expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
+      expect(result.code).not.toContain("npm install -g opencode");
       expect(result.code).toContain(
-        "curl -sL https://github.com/rtk-ai/rtk/releases/latest/download/rtk-linux-amd64 -o rtk"
+        "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
-      expect(result.code).toContain("chmod +x nav-pilot cplt rtk");
+      expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
     });
   });
@@ -50,12 +60,23 @@ describe("generateSetupScript", () => {
   describe("Windows", () => {
     const os: OS = "windows";
 
-    it("generates winget command and no nav-pilot execution", () => {
+    it("generates WSL instructions for CLI", () => {
       const result = generateSetupScript(os, "cli", "kotlin-backend");
-      expect(result.code).toContain("winget install GitHub.Copilot");
-      expect(result.code).toContain("best i WSL");
-      expect(result.code).not.toContain("nav-pilot install");
-      expect(result.code).not.toContain("nav-pilot config");
+      expect(result.code).toContain("WSL2-terminalen");
+      expect(result.code).toContain("npm install -g @github/copilot");
+      expect(result.code).toContain(
+        "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
+      );
+      expect(result.code).toContain("nav-pilot install kotlin-backend");
+    });
+
+    it("generates WSL instructions for OpenCode", () => {
+      const result = generateSetupScript(os, "opencode", "kotlin-backend");
+      expect(result.code).toContain("WSL2-terminalen");
+      expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
+      expect(result.code).toContain("nav-pilot config set client opencode");
+      expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).not.toContain("npm install");
     });
   });
 });

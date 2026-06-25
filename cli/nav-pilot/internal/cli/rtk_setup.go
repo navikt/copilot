@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -140,12 +141,12 @@ func installRtkViaBrew() (string, string, error) {
 	if p, err := exec.LookPath("rtk"); err == nil {
 		return p, "success", nil
 	}
-	
+
 	// Fallback to brew prefix if LookPath fails
 	if out, err := exec.Command("brew", "--prefix").Output(); err == nil {
 		return filepath.Join(strings.TrimSpace(string(out)), "bin", "rtk"), "success", nil
 	}
-	
+
 	return "rtk", "success", nil
 }
 
@@ -157,36 +158,40 @@ func installRtkViaCurl() (string, string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", "curl_failed", err
 	}
-	
+
 	// The install script might drop it somewhere not immediately in PATH
-	if p, err := exec.LookPath("rtk"); err == nil {
+	rtkBinName := "rtk"
+	if runtime.GOOS == "windows" {
+		rtkBinName = "rtk.exe"
+	}
+	if p, err := exec.LookPath(rtkBinName); err == nil {
 		return p, "success", nil
 	}
-	
+
 	// Check common cargo bin if the script is rust-based or uses cargo
 	home, _ := os.UserHomeDir()
-	cargoBin := filepath.Join(home, ".cargo", "bin", "rtk")
+	cargoBin := filepath.Join(home, ".cargo", "bin", rtkBinName)
 	if _, err := os.Stat(cargoBin); err == nil {
 		return cargoBin, "success", nil
 	}
-	
-	// Just return "rtk" and let the exec fail if it still can't find it
-	return "rtk", "success", nil
+
+	// Just return the binary name and let the exec fail if it still can't find it
+	return rtkBinName, "success", nil
 }
 
 func initRtkHooks(client string, rtkPath string) error {
 	fmt.Printf("%s Initializing rtk hooks...\n", dim("→"))
 	args := []string{"init", "--global"}
-	
+
 	switch client {
 	case "copilot":
 		args = append(args, "--copilot")
 	case "opencode":
 		args = append(args, "--opencode")
-		home, err := os.UserHomeDir()
+		cfgDir, err := os.UserConfigDir()
 		if err == nil {
-			opencodePath := filepath.Join(home, ".config", "opencode", "opencode.json")
-			if patchErr := patchOpenCodeConfig(opencodePath); patchErr != nil {
+			opencodePath := filepath.Join(cfgDir, "opencode", "opencode.json")
+			if patchErr := patchOpenCodeConfig(opencodePath, cfgDir); patchErr != nil {
 				fmt.Fprintf(os.Stderr, "%s Warning: Could not auto-patch opencode.json: %v\n", yellow("⚠"), patchErr)
 			}
 		}
@@ -208,7 +213,7 @@ func initRtkHooks(client string, rtkPath string) error {
 }
 
 // patchOpenCodeConfig ensures the given opencode config file has the rtk plugin configured.
-func patchOpenCodeConfig(opencodePath string) error {
+func patchOpenCodeConfig(opencodePath string, cfgDir string) error {
 	// Resolve symlinks to avoid overwriting the symlink itself with a regular file during atomic rename
 	realPath, err := filepath.EvalSymlinks(opencodePath)
 	if err != nil {
@@ -234,24 +239,32 @@ func patchOpenCodeConfig(opencodePath string) error {
 		return fmt.Errorf("failed to unmarshal opencode config: %w", err)
 	}
 
+	pluginStr := "~/.config/opencode/plugins/rtk.ts"
+	if runtime.GOOS == "windows" {
+		pluginStr = filepath.ToSlash(filepath.Join(cfgDir, "opencode", "plugins", "rtk.ts"))
+	}
+
 	pluginsRaw, exists := config["plugin"]
 	if !exists {
-		config["plugin"] = []string{"~/.config/opencode/plugins/rtk.ts"}
+		config["plugin"] = []string{pluginStr}
 	} else {
 		// Handle the case where 'plugin' is a string instead of an array
 		if singleStr, ok := pluginsRaw.(string); ok {
-			config["plugin"] = []string{singleStr, "~/.config/opencode/plugins/rtk.ts"}
+			if singleStr == pluginStr {
+				return nil
+			}
+			config["plugin"] = []string{singleStr, pluginStr}
 		} else if plugins, ok := pluginsRaw.([]interface{}); ok {
 			hasPlugin := false
 			for _, p := range plugins {
-				if str, ok := p.(string); ok && str == "~/.config/opencode/plugins/rtk.ts" {
+				if str, ok := p.(string); ok && str == pluginStr {
 					hasPlugin = true
 					break
 				}
 			}
 
 			if !hasPlugin {
-				config["plugin"] = append(plugins, "~/.config/opencode/plugins/rtk.ts")
+				config["plugin"] = append(plugins, pluginStr)
 			} else {
 				return nil // already patched
 			}
