@@ -38,7 +38,9 @@ func cmdUpdate() error {
 	}
 
 	current := Version
-	latest, tag, err := fetchLatestVersion()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	latest, tag, err := fetchLatestVersion(ctx)
 	if err != nil {
 		return fmt.Errorf("could not check for updates: %w", err)
 	}
@@ -117,10 +119,7 @@ func isBrewManaged() bool {
 // It filters by the "nav-pilot/" tag prefix to avoid picking up other monorepo releases.
 // Returns the raw version (matching the build-injected format, e.g. "2026.04.13-170138-abc1234")
 // and the full tag (e.g. "nav-pilot/2026.04.13-170138-abc1234").
-func fetchLatestVersion() (ver string, tag string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
+func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", releasesAPI+"?per_page=20", nil)
 	if err != nil {
 		return "", "", err

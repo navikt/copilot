@@ -482,7 +482,11 @@ func Main(info BuildInfo) {
 	Version = info.Version
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)
-	providerpkg.FetchLatestVersion = fetchLatestVersion
+	providerpkg.FetchLatestVersion = func() (string, string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return fetchLatestVersion(ctx)
+	}
 
 	rtkStatus := "false"
 	if isRtkInstalled() {

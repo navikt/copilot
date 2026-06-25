@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -163,7 +164,7 @@ var (
 			origClient := httpClient
 			httpClient = client
 			defer func() { httpClient = origClient }()
-			return fetchLatestVersion()
+			return fetchLatestVersion(context.Background())
 		}
 		return artifacts.AssessStaleness(installedVersion, fetchFn)
 	}
