@@ -39,7 +39,7 @@ func configureOTelDiagnostics() {
 const defaultTelemetryEndpoint = "https://collector-internet.nav.cloud.nais.io/v1/metrics"
 
 type Recorder interface {
-	RecordCommand(command, mode, scope, result string, duration time.Duration)
+	RecordCommand(command, mode, scope, result, errorType string, duration time.Duration)
 	RecordInstallItems(scope, mode string, count int64)
 	RecordSyncUpdates(scope, mode string, count int64)
 	RecordSyncConflicts(scope, mode string, count int64)
@@ -57,15 +57,15 @@ type Recorder interface {
 
 type NoopRecorder struct{}
 
-func (NoopRecorder) RecordCommand(string, string, string, string, time.Duration) {}
-func (NoopRecorder) RecordInstallItems(string, string, int64)                    {}
-func (NoopRecorder) RecordSyncUpdates(string, string, int64)                     {}
-func (NoopRecorder) RecordSyncConflicts(string, string, int64)                   {}
-func (NoopRecorder) RecordInstallPresent(string, string, bool)                   {}
-func (NoopRecorder) RecordInstalledItems(string, string, string, int64)          {}
-func (NoopRecorder) RecordStalenessCheck(string, string, string)                 {}
-func (NoopRecorder) RecordUpToDate(string, string, bool)                         {}
-func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                 {}
+func (NoopRecorder) RecordCommand(string, string, string, string, string, time.Duration) {}
+func (NoopRecorder) RecordInstallItems(string, string, int64)                            {}
+func (NoopRecorder) RecordSyncUpdates(string, string, int64)                             {}
+func (NoopRecorder) RecordSyncConflicts(string, string, int64)                           {}
+func (NoopRecorder) RecordInstallPresent(string, string, bool)                           {}
+func (NoopRecorder) RecordInstalledItems(string, string, string, int64)                  {}
+func (NoopRecorder) RecordStalenessCheck(string, string, string)                         {}
+func (NoopRecorder) RecordUpToDate(string, string, bool)                                 {}
+func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                         {}
 func (NoopRecorder) RecordConfig(string, string, string, string, string, string, bool, bool) {
 }
 func (NoopRecorder) RecordClientAvailable(string, bool)    {}
@@ -365,7 +365,7 @@ func (t *otelTelemetry) RecordClientAvailable(client string, available bool) {
 	))
 }
 
-func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, duration time.Duration) {
+func (t *otelTelemetry) RecordCommand(command, mode, scope, result, errorType string, duration time.Duration) {
 	attrs := []attribute.KeyValue{
 		attribute.String("command", normalizeTelemetryDimension(command, "unknown")),
 		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
@@ -383,6 +383,7 @@ func (t *otelTelemetry) RecordCommand(command, mode, scope, result string, durat
 			attribute.String("command", normalizeTelemetryDimension(command, "unknown")),
 			attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 			attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
+			attribute.String("error_type", normalizeTelemetryDimension(errorType, "unknown")),
 			attribute.String("version", t.version),
 			attribute.String("execution_context", t.executionContext),
 		))

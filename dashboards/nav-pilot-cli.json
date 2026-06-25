@@ -21,7 +21,7 @@
     }
   ],
   "cursorSync": "Crosshair",
-  "description": "Nav-pilot CLI-telemetri: adopsjon/utrulling, pålitelighet og sync/ferskhet. Spørringer er robuste mot manglende data under utrulling.",
+  "description": "Nav-pilot CLI-telemetri: adopsjon/utrulling, p\u00e5litelighet og sync/ferskhet. Sp\u00f8rringer er robuste mot manglende data under utrulling.",
   "editable": true,
   "elements": {
     "panel-10": {
@@ -55,10 +55,10 @@
             "transformations": []
           }
         },
-        "description": "Antall kommandokjøringer per intervall. nav_pilot_* er delta-tellere fra efemere CLI-prosesser, så rate()/increase() gir 0 — sum_over_time() summerer hver kjøring korrekt.",
+        "description": "Antall kommandokj\u00f8ringer per intervall. nav_pilot_* er delta-tellere fra efemere CLI-prosesser, s\u00e5 rate()/increase() gir 0 \u2014 sum_over_time() summerer hver kj\u00f8ring korrekt.",
         "id": 10,
         "links": [],
-        "title": "Kommandokjøringer per intervall",
+        "title": "Kommandokj\u00f8ringer per intervall",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -287,7 +287,7 @@
             "transformations": []
           }
         },
-        "description": "Konflikter oppdaget under sync. Bør være lavt; egnet for varsling.",
+        "description": "Konflikter oppdaget under sync. B\u00f8r v\u00e6re lavt; egnet for varsling.",
         "id": 13,
         "links": [],
         "title": "Sync-konflikter per scope",
@@ -403,7 +403,7 @@
             "transformations": []
           }
         },
-        "description": "Gjennomsnittlig andel kjøringer der komponenten var oppdatert (1=oppdatert).",
+        "description": "Gjennomsnittlig andel kj\u00f8ringer der komponenten var oppdatert (1=oppdatert).",
         "id": 14,
         "links": [],
         "title": "Andel up-to-date per komponent",
@@ -595,7 +595,7 @@
                   "mode": "thresholds"
                 },
                 "decimals": 1,
-                "noValue": "—",
+                "noValue": "\u2014",
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
@@ -670,7 +670,7 @@
             "transformations": []
           }
         },
-        "description": "Faktiske ferskhetsverdikt. Ikke-verdikt-utfall (dev, no_install, cooldown) er ekskludert for å fremheve up_to_date/stale/lookup_failed/corrupted. Adopsjon/installasjon vises i egne paneler.",
+        "description": "Faktiske ferskhetsverdikt. Ikke-verdikt-utfall (dev, no_install, cooldown) er ekskludert for \u00e5 fremheve up_to_date/stale/lookup_failed/corrupted. Adopsjon/installasjon vises i egne paneler.",
         "id": 17,
         "links": [],
         "title": "Ferskhetsverdikt (up-to-date / stale)",
@@ -758,7 +758,7 @@
             "transformations": []
           }
         },
-        "description": "P95 varighet. Histogram-suffiks _bucket forutsetter OTLP→Prometheus standardmapping.",
+        "description": "P95 varighet. Histogram-suffiks _bucket forutsetter OTLP\u2192Prometheus standardmapping.",
         "id": 18,
         "links": [],
         "title": "Kommandolatens p95 per kommando",
@@ -1623,7 +1623,7 @@
         "description": "",
         "id": 3,
         "links": [],
-        "title": "Kommandokjøringer (periode)",
+        "title": "Kommandokj\u00f8ringer (periode)",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -1992,7 +1992,7 @@
             "transformations": []
           }
         },
-        "description": "Fordeling av kommandokjøringer mellom interaktiv bruk (organic) og CI.",
+        "description": "Fordeling av kommandokj\u00f8ringer mellom interaktiv bruk (organic) og CI.",
         "id": 7,
         "links": [],
         "title": "Organic vs CI",
@@ -2130,6 +2130,122 @@
               "showUnfilled": true,
               "sizing": "auto",
               "valueMode": "color"
+            }
+          },
+          "version": "13.0.1+security-01"
+        }
+      }
+    },
+    "panel-26": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "${DS_METRICS}"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum by (error_type) (sum_over_time(nav_pilot_command_error_total{version=~\"$version\", execution_context=~\"$execution_context\", command=~\"$command\", scope=~\"$scope\"}[$__interval]))",
+                      "legendFormat": "{{error_type}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Antall feil per kommando per intervall. Tom = ingen feil rapportert (forventet).",
+        "id": 11,
+        "links": [],
+        "title": "Feil per type",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "bars",
+                  "fillOpacity": 70,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "linear",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "mean",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
           },
           "version": "13.0.1+security-01"
@@ -2283,7 +2399,7 @@
                 ]
               }
             },
-            "title": "Kommandobruk & pålitelighet"
+            "title": "Kommandobruk & p\u00e5litelighet"
           }
         },
         {
@@ -2441,7 +2557,7 @@
                 ]
               }
             },
-            "title": "Detaljer — plattform & install"
+            "title": "Detaljer \u2014 plattform & install"
           }
         },
         {
@@ -2596,7 +2712,7 @@
         "definition": "label_values(nav_pilot_command_total, execution_context)",
         "hide": "dontHide",
         "includeAll": true,
-        "label": "Kjøringskontekst",
+        "label": "Kj\u00f8ringskontekst",
         "multi": true,
         "name": "execution_context",
         "options": [],
