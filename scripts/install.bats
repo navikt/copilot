@@ -118,7 +118,7 @@ EOF
   [ "$status" -eq 0 ]
   # Check that it fetched the latest release and correctly resolved the linux-amd64 asset
   [[ "$output" == *"Fetching latest nav-pilot release"* ]]
-  [[ "$output" == *"nav-pilot 2026.01.01-mock (linux/amd64)"* ]]
+  [[ "$output" == *"nav-pilot nav-pilot/2026.01.01-mock (linux/amd64)"* ]]
   [[ "$output" == *"Downloading nav-pilot-linux-amd64"* ]]
   [[ "$output" == *"Installed nav-pilot to ${TMP_DIR}/install-dest/nav-pilot"* ]]
 }
@@ -133,7 +133,7 @@ EOF
   run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest" --no-brew
   
   [ "$status" -eq 0 ]
-  [[ "$output" == *"nav-pilot 2026.01.01-mock (darwin/arm64)"* ]]
+  [[ "$output" == *"nav-pilot nav-pilot/2026.01.01-mock (darwin/arm64)"* ]]
   [[ "$output" == *"Downloading nav-pilot-darwin-arm64"* ]]
 }
 
