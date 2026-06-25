@@ -1946,9 +1946,9 @@
               },
               "legend": {
                 "calcs": [],
-                "displayMode": "table",
+                "displayMode": "list",
                 "placement": "bottom",
-                "showLegend": true
+                "showLegend": false
               },
               "tooltip": {
                 "hideZeros": false,
@@ -2022,8 +2022,8 @@
                 "percent"
               ],
               "legend": {
-                "displayMode": "table",
-                "placement": "right",
+                "displayMode": "list",
+                "placement": "bottom",
                 "showLegend": true,
                 "values": [
                   "value"
