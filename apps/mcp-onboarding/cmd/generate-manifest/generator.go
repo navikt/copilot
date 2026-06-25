@@ -155,7 +155,7 @@ func (g *Generator) loadAgents(dir string) ([]discovery.Customization, error) {
 		}
 
 		filename := filepath.Base(file)
-		relPath := path.Join(".github/agents", filename)
+		relPath := path.Join("agents", filename)
 		category := g.inferCategory(fm.Name, fm.Description)
 		tags := g.extractTags(fm.Name, fm.Description)
 
@@ -196,7 +196,7 @@ func (g *Generator) loadInstructions(dir string) ([]discovery.Customization, err
 		}
 
 		filename := filepath.Base(file)
-		relPath := path.Join(".github/instructions", filename)
+		relPath := path.Join("instructions", filename)
 		name := strings.TrimSuffix(filename, ".instructions.md")
 		displayName := g.humanizeName(name)
 		description := g.extractDescription(string(content))
@@ -251,7 +251,7 @@ func (g *Generator) loadPrompts(dir string) ([]discovery.Customization, error) {
 		}
 
 		filename := filepath.Base(file)
-		relPath := path.Join(".github/prompts", filename)
+		relPath := path.Join("prompts", filename)
 		tags := g.extractTags(fm.Name, fm.Description)
 
 		prompts = append(prompts, discovery.Customization{
@@ -293,7 +293,7 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 		}
 
 		name := entry.Name()
-		relPath := path.Join(".github/skills", name, "SKILL.md")
+		relPath := path.Join("skills", name, "SKILL.md")
 
 		var fm SkillFrontmatter
 		if err := parseFrontmatter(string(content), &fm); err != nil {
@@ -320,7 +320,7 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 				for _, ref := range meta.References {
 					refs = append(refs, discovery.SkillReference{
 						Path:   ref,
-						RawURL: g.generateRawURL(path.Join(".github/skills", name, ref)),
+						RawURL: g.generateRawURL(path.Join("skills", name, ref)),
 					})
 				}
 			}

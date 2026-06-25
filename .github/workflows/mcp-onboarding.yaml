@@ -5,20 +5,20 @@ on:
     branches: [main]
     paths:
       - 'apps/mcp-onboarding/**'
-      - '.github/agents/**'
-      - '.github/instructions/**'
-      - '.github/prompts/**'
-      - '.github/skills/**'
+      - 'agents/**'
+      - 'instructions/**'
+      - 'prompts/**'
+      - 'skills/**'
       - '.github/workflows/mcp-onboarding.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'apps/mcp-onboarding/**'
-      - '.github/agents/**'
-      - '.github/instructions/**'
-      - '.github/prompts/**'
-      - '.github/skills/**'
+      - 'agents/**'
+      - 'instructions/**'
+      - 'prompts/**'
+      - 'skills/**'
       - '.github/workflows/mcp-onboarding.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   workflow_dispatch:

@@ -213,7 +213,7 @@ func (d *Service) GenerateInstallationGuide(customType CustomizationType, name s
 	// Skills with references get a multi-file install guide
 	if customType == TypeSkill {
 		guide := fmt.Sprintf("# Installing %s\n\n## Manual Install\n\n```bash\n", item.DisplayName)
-		skillDir := ".github/skills/" + item.Name
+		skillDir := "skills/" + item.Name
 		guide += fmt.Sprintf("mkdir -p \"%s\"\n", skillDir)
 		guide += fmt.Sprintf("curl -fsSL -o \"%s/SKILL.md\" \"%s\"\n", skillDir, item.RawURL)
 		if len(item.References) > 0 {

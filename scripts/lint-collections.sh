@@ -10,7 +10,7 @@
 #
 set -euo pipefail
 
-COLLECTIONS_DIR=".github/collections"
+COLLECTIONS_DIR="collections"
 DOCS_PAGE="apps/my-copilot/src/app/nav-pilot/docs/page.tsx"
 
 QUIET=false
@@ -167,7 +167,7 @@ echo ""
 if [[ "$errors" -gt 0 ]]; then
   red "❌ $errors error(s), $warnings warning(s)"
   echo ""
-  echo "Fix: update COLLECTIONS in $DOCS_PAGE to match .github/collections/*/manifest.json"
+  echo "Fix: update COLLECTIONS in $DOCS_PAGE to match collections/*/manifest.json"
   exit 1
 else
   green "✅ All collections match ($warnings warning(s))"

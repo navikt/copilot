@@ -15,7 +15,7 @@ const CATEGORY_TO_DIR: Record<string, string> = {
   agents: ".github/agents/",
   instructions: ".github/instructions/",
   prompts: ".github/prompts/",
-  skills: ".github/skills/",
+  skills: "skills/",
 };
 
 /**
@@ -28,7 +28,7 @@ function extractCategoryAndFile(filePath: string): [string, string] | null {
     if (filePath.includes(dir)) {
       const parts = filePath.split("/");
       if (category === "skills" && parts.length >= 2) {
-        // Skills: use directory name (e.g., "observability-setup" from ".github/skills/observability-setup/SKILL.md")
+        // Skills: use directory name (e.g., "observability-setup" from "skills/observability-setup/SKILL.md")
         return [category, parts[parts.length - 2]];
       }
       const fileName = parts.pop();

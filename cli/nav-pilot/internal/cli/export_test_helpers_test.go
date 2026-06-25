@@ -11,7 +11,7 @@ func setupTestSource(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 
-	skillDir := filepath.Join(dir, ".github", "skills", "security-review")
+	skillDir := filepath.Join(dir, "skills", "security-review")
 	mustMkdir(t, skillDir)
 	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), `---
 name: security-review
@@ -30,7 +30,7 @@ Run security checks on your code.
 `)
 	mustWrite(t, filepath.Join(skillDir, "checklist.md"), "## Checklist\n\n- [ ] Check for secrets\n")
 
-	agentDir := filepath.Join(dir, ".github", "agents")
+	agentDir := filepath.Join(dir, "agents")
 	mustMkdir(t, agentDir)
 	mustWrite(t, filepath.Join(agentDir, "nav-pilot.agent.md"), `---
 name: nav-pilot
@@ -55,7 +55,7 @@ tools:
 You handle auth flows for Nav apps.
 `)
 
-	promptDir := filepath.Join(dir, ".github", "prompts")
+	promptDir := filepath.Join(dir, "prompts")
 	mustMkdir(t, promptDir)
 	mustWrite(t, filepath.Join(promptDir, "aksel-component.prompt.md"), `---
 name: aksel-component
@@ -65,7 +65,7 @@ description: Generate Aksel components
 Create a responsive React component using Aksel Design System.
 `)
 
-	instrDir := filepath.Join(dir, ".github", "instructions")
+	instrDir := filepath.Join(dir, "instructions")
 	mustMkdir(t, instrDir)
 	mustWrite(t, filepath.Join(instrDir, "accessibility.instructions.md"), `---
 applyTo: "**/*.tsx"

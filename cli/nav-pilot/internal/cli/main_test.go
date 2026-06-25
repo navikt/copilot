@@ -166,7 +166,7 @@ func TestIsGitRepo(t *testing.T) {
 
 func TestLoadManifest(t *testing.T) {
 	dir := t.TempDir()
-	collectionsDir := filepath.Join(dir, ".github", "collections", "test-collection")
+	collectionsDir := filepath.Join(dir, "collections", "test-collection")
 	if err := os.MkdirAll(collectionsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestLoadManifest_NotFound(t *testing.T) {
 
 func TestLoadManifest_InvalidAgent(t *testing.T) {
 	dir := t.TempDir()
-	collectionsDir := filepath.Join(dir, ".github", "collections", "bad")
+	collectionsDir := filepath.Join(dir, "collections", "bad")
 	os.MkdirAll(collectionsDir, 0o755)
 	os.WriteFile(filepath.Join(collectionsDir, "manifest.json"),
 		[]byte(`{"name":"bad","agents":["../etc/passwd"]}`), 0o644)
@@ -226,7 +226,7 @@ func TestLoadManifest_InvalidAgent(t *testing.T) {
 
 func TestLoadManifest_DuplicateSkill(t *testing.T) {
 	dir := t.TempDir()
-	collectionsDir := filepath.Join(dir, ".github", "collections", "dup")
+	collectionsDir := filepath.Join(dir, "collections", "dup")
 	os.MkdirAll(collectionsDir, 0o755)
 	os.WriteFile(filepath.Join(collectionsDir, "manifest.json"),
 		[]byte(`{"name":"dup","skills":["a","a"]}`), 0o644)
@@ -242,7 +242,7 @@ func TestLoadManifest_DuplicateSkill(t *testing.T) {
 
 func TestLoadManifest_EmptyName(t *testing.T) {
 	dir := t.TempDir()
-	collectionsDir := filepath.Join(dir, ".github", "collections", "empty")
+	collectionsDir := filepath.Join(dir, "collections", "empty")
 	os.MkdirAll(collectionsDir, 0o755)
 	os.WriteFile(filepath.Join(collectionsDir, "manifest.json"),
 		[]byte(`{"name":""}`), 0o644)
@@ -267,12 +267,12 @@ func TestValidateManifest_Valid(t *testing.T) {
 func TestListCollectionDirs(t *testing.T) {
 	dir := t.TempDir()
 	for _, name := range []string{"alpha", "beta"} {
-		cDir := filepath.Join(dir, ".github", "collections", name)
+		cDir := filepath.Join(dir, "collections", name)
 		os.MkdirAll(cDir, 0o755)
 		os.WriteFile(filepath.Join(cDir, "manifest.json"), []byte(`{"name":"`+name+`"}`), 0o644)
 	}
 	// Dir without manifest should be ignored
-	os.MkdirAll(filepath.Join(dir, ".github", "collections", "no-manifest"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "collections", "no-manifest"), 0o755)
 
 	names, err := listCollectionDirs(dir)
 	if err != nil {
@@ -479,7 +479,7 @@ func TestCheckConflict_ConflictDiffers(t *testing.T) {
 func TestInstallAgent(t *testing.T) {
 	// Set up source
 	srcDir := t.TempDir()
-	agentsDir := filepath.Join(srcDir, ".github", "agents")
+	agentsDir := filepath.Join(srcDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("---\nname: test\n---\n# Test"), 0o644)
 
@@ -506,7 +506,7 @@ func TestInstallAgent(t *testing.T) {
 
 func TestInstallAgent_NotFound(t *testing.T) {
 	srcDir := t.TempDir()
-	os.MkdirAll(filepath.Join(srcDir, ".github", "agents"), 0o755)
+	os.MkdirAll(filepath.Join(srcDir, "agents"), 0o755)
 	dstDir := t.TempDir()
 	result := &installResult{}
 
@@ -521,7 +521,7 @@ func TestInstallAgent_NotFound(t *testing.T) {
 
 func TestInstallSkill(t *testing.T) {
 	srcDir := t.TempDir()
-	skillDir := filepath.Join(srcDir, ".github", "skills", "my-skill")
+	skillDir := filepath.Join(srcDir, "skills", "my-skill")
 	refsDir := filepath.Join(skillDir, "references")
 	os.MkdirAll(refsDir, 0o755)
 	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Skill"), 0o644)
@@ -548,7 +548,7 @@ func TestInstallSkill(t *testing.T) {
 
 func TestInstallConflictBlocked(t *testing.T) {
 	srcDir := t.TempDir()
-	agentsDir := filepath.Join(srcDir, ".github", "agents")
+	agentsDir := filepath.Join(srcDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("source content"), 0o644)
 
@@ -572,7 +572,7 @@ func TestInstallConflictBlocked(t *testing.T) {
 
 func TestInstallConflictForced(t *testing.T) {
 	srcDir := t.TempDir()
-	agentsDir := filepath.Join(srcDir, ".github", "agents")
+	agentsDir := filepath.Join(srcDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	os.WriteFile(filepath.Join(agentsDir, "test.agent.md"), []byte("source content"), 0o644)
 
@@ -627,7 +627,7 @@ func TestValidateName(t *testing.T) {
 
 func TestInstallAgent_PathTraversal(t *testing.T) {
 	srcDir := t.TempDir()
-	os.MkdirAll(filepath.Join(srcDir, ".github", "agents"), 0o755)
+	os.MkdirAll(filepath.Join(srcDir, "agents"), 0o755)
 	dstDir := t.TempDir()
 	result := &installResult{}
 
@@ -644,7 +644,7 @@ func TestInstallAgent_PathTraversal(t *testing.T) {
 
 func TestInstallInstruction(t *testing.T) {
 	srcDir := t.TempDir()
-	instrDir := filepath.Join(srcDir, ".github", "instructions")
+	instrDir := filepath.Join(srcDir, "instructions")
 	os.MkdirAll(instrDir, 0o755)
 	os.WriteFile(filepath.Join(instrDir, "my-instr.instructions.md"), []byte("# Instruction"), 0o644)
 
@@ -667,7 +667,7 @@ func TestInstallInstruction(t *testing.T) {
 
 func TestInstallInstruction_NotFound(t *testing.T) {
 	srcDir := t.TempDir()
-	os.MkdirAll(filepath.Join(srcDir, ".github", "instructions"), 0o755)
+	os.MkdirAll(filepath.Join(srcDir, "instructions"), 0o755)
 	dstDir := t.TempDir()
 	result := &installResult{}
 
@@ -682,7 +682,7 @@ func TestInstallInstruction_NotFound(t *testing.T) {
 
 func TestInstallPrompt_FlatFile(t *testing.T) {
 	srcDir := t.TempDir()
-	promptsDir := filepath.Join(srcDir, ".github", "prompts")
+	promptsDir := filepath.Join(srcDir, "prompts")
 	os.MkdirAll(promptsDir, 0o755)
 	os.WriteFile(filepath.Join(promptsDir, "my-prompt.prompt.md"), []byte("# Prompt"), 0o644)
 
@@ -700,7 +700,7 @@ func TestInstallPrompt_FlatFile(t *testing.T) {
 
 func TestInstallPrompt_Directory(t *testing.T) {
 	srcDir := t.TempDir()
-	promptDir := filepath.Join(srcDir, ".github", "prompts", "my-prompt")
+	promptDir := filepath.Join(srcDir, "prompts", "my-prompt")
 	os.MkdirAll(promptDir, 0o755)
 	os.WriteFile(filepath.Join(promptDir, "prompt.md"), []byte("# Prompt"), 0o644)
 
@@ -723,7 +723,7 @@ func TestInstallPrompt_Directory(t *testing.T) {
 
 func TestInstallPrompt_NotFound(t *testing.T) {
 	srcDir := t.TempDir()
-	os.MkdirAll(filepath.Join(srcDir, ".github", "prompts"), 0o755)
+	os.MkdirAll(filepath.Join(srcDir, "prompts"), 0o755)
 	dstDir := t.TempDir()
 	result := &installResult{}
 
@@ -839,8 +839,8 @@ func TestCmdStatus_WithState(t *testing.T) {
 func TestCmdStatusAuto_ShowsBothScopes(t *testing.T) {
 	// Set up a repo-scope state
 	repoDir := t.TempDir()
-	os.MkdirAll(filepath.Join(repoDir, ".github", "agents"), 0o755)
-	agentPath := filepath.Join(repoDir, ".github", "agents", "test.agent.md")
+	os.MkdirAll(filepath.Join(repoDir, "agents"), 0o755)
+	agentPath := filepath.Join(repoDir, "agents", "test.agent.md")
 	os.WriteFile(agentPath, []byte("# Agent"), 0o644)
 	hash, _ := fileHash(agentPath)
 	writeState(repoDir, &StateFile{
@@ -987,12 +987,12 @@ func TestCmdInstallFromSource_Collection(t *testing.T) {
 	os.MkdirAll(filepath.Join(dstDir, ".git"), 0o755)
 
 	// Set up a collection
-	collectDir := filepath.Join(srcDir, ".github", "collections", "fullstack")
+	collectDir := filepath.Join(srcDir, "collections", "fullstack")
 	os.MkdirAll(collectDir, 0o755)
 	manifest := `{"name":"fullstack","description":"Full stack","agents":["test-a"]}`
 	os.WriteFile(filepath.Join(collectDir, "manifest.json"), []byte(manifest), 0o644)
 
-	agentsDir := filepath.Join(srcDir, ".github", "agents")
+	agentsDir := filepath.Join(srcDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	os.WriteFile(filepath.Join(agentsDir, "test-a.agent.md"), []byte("# Agent A"), 0o644)
 
@@ -1036,11 +1036,11 @@ func TestCmdInstallFromSource_DryRun(t *testing.T) {
 	dstDir := t.TempDir()
 	os.MkdirAll(filepath.Join(dstDir, ".git"), 0o755)
 
-	collectDir := filepath.Join(srcDir, ".github", "collections", "test")
+	collectDir := filepath.Join(srcDir, "collections", "test")
 	os.MkdirAll(collectDir, 0o755)
 	os.WriteFile(filepath.Join(collectDir, "manifest.json"), []byte(`{"name":"test","agents":["a"]}`), 0o644)
 
-	agentsDir := filepath.Join(srcDir, ".github", "agents")
+	agentsDir := filepath.Join(srcDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	os.WriteFile(filepath.Join(agentsDir, "a.agent.md"), []byte("# A"), 0o644)
 
@@ -1068,11 +1068,11 @@ func TestCmdInstallFromSource_Ambiguity(t *testing.T) {
 	os.MkdirAll(filepath.Join(dstDir, ".git"), 0o755)
 
 	// Create both a collection AND a skill with name "kafka"
-	collectDir := filepath.Join(srcDir, ".github", "collections", "kafka")
+	collectDir := filepath.Join(srcDir, "collections", "kafka")
 	os.MkdirAll(collectDir, 0o755)
 	os.WriteFile(filepath.Join(collectDir, "manifest.json"), []byte(`{"name":"kafka","agents":["x"]}`), 0o644)
 
-	skillDir := filepath.Join(srcDir, ".github", "skills", "kafka")
+	skillDir := filepath.Join(srcDir, "skills", "kafka")
 	os.MkdirAll(skillDir, 0o755)
 	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Kafka"), 0o644)
 
@@ -1103,10 +1103,10 @@ func TestCmdInstallFromSource_Ambiguity(t *testing.T) {
 func TestInstallItems(t *testing.T) {
 	srcDir := t.TempDir()
 	// Create agent
-	os.MkdirAll(filepath.Join(srcDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(srcDir, ".github", "agents", "a.agent.md"), []byte("# A"), 0o644)
+	os.MkdirAll(filepath.Join(srcDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(srcDir, "agents", "a.agent.md"), []byte("# A"), 0o644)
 	// Create skill
-	skillDir := filepath.Join(srcDir, ".github", "skills", "s")
+	skillDir := filepath.Join(srcDir, "skills", "s")
 	os.MkdirAll(skillDir, 0o755)
 	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# S"), 0o644)
 
@@ -1388,7 +1388,7 @@ func TestUpdateStateHashes_OnlyUpdatesApplied(t *testing.T) {
 
 func TestCollectAllItems(t *testing.T) {
 	source := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Create agent files
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -1445,7 +1445,7 @@ func TestCollectAllItems_Empty(t *testing.T) {
 
 func TestCollectAllItems_SkipsInvalidNames(t *testing.T) {
 	source := t.TempDir()
-	agentsDir := filepath.Join(source, ".github", "agents")
+	agentsDir := filepath.Join(source, "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	// ".." in name should be rejected by validateName
 	os.WriteFile(filepath.Join(agentsDir, "valid.agent.md"), []byte("ok"), 0o644)
@@ -1464,7 +1464,7 @@ func TestCollectAllItems_SkipsInvalidNames(t *testing.T) {
 func TestInstallAllFromSource(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Set up agents
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -1541,7 +1541,7 @@ func TestInstallAllFromSource_EmptySource(t *testing.T) {
 func TestInstallAllFromSource_DryRun(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	agentsDir := filepath.Join(ghDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
@@ -1575,7 +1575,7 @@ func TestInstallAllFromSource_DryRun(t *testing.T) {
 func TestDetectNewItems(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Create 3 agents and 2 skills in source
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -1663,7 +1663,7 @@ func TestDetectNewItems_NonAllCollection(t *testing.T) {
 func TestDetectNewItems_AllUpToDate(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// One agent
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -1715,7 +1715,7 @@ func TestRun_InstallUserWithCollection(t *testing.T) {
 
 func TestListAvailableItems_PromptDirectories(t *testing.T) {
 	source := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Create a prompt directory (not just flat file)
 	promptDir := filepath.Join(ghDir, "prompts", "my-prompt")
@@ -1753,7 +1753,7 @@ func TestListAvailableItems_PromptDirectories(t *testing.T) {
 
 func TestCollectAllItems_WithInstructions(t *testing.T) {
 	source := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Create agent
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -1798,7 +1798,7 @@ func TestCollectAllItems_WithInstructions(t *testing.T) {
 func TestInstallAllFromSource_WithInstructions(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Set up agent
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -1860,7 +1860,7 @@ func TestInstallAllFromSource_WithInstructions(t *testing.T) {
 func TestDetectNewItems_Instructions(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Set up source with agent + instruction
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -1969,7 +1969,7 @@ func TestCmdEnv_NoInstructions(t *testing.T) {
 func TestInstallAllFromSource_WithIgnoredItems(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Set up 3 agents, 1 skill, 1 instruction in source
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -2055,7 +2055,7 @@ func TestInstallAllFromSource_WithIgnoredItems(t *testing.T) {
 func TestInstallAllFromSource_IgnoredItems_DryRun(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	agentsDir := filepath.Join(ghDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
@@ -2091,7 +2091,7 @@ func TestInstallAllFromSource_IgnoredItems_DryRun(t *testing.T) {
 func TestInstallAllFromSource_NoDuplicatePaths(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	agentsDir := filepath.Join(ghDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
@@ -2131,7 +2131,7 @@ func TestInstallAllFromSource_NoDuplicatePaths(t *testing.T) {
 func TestPickerInstallSyncCycle(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	// Step 1: Set up source with 3 agents
 	agentsDir := filepath.Join(ghDir, "agents")
@@ -2213,7 +2213,7 @@ func TestPickerInstallSyncCycle(t *testing.T) {
 func TestPickerInstallSyncCycle_NewSourceItem(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	agentsDir := filepath.Join(ghDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
@@ -2252,7 +2252,7 @@ func TestPickerInstallSyncCycle_NewSourceItem(t *testing.T) {
 func TestDetectNewItems_IgnoredItemNotReported(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
-	ghDir := filepath.Join(source, ".github")
+	ghDir := source
 
 	agentsDir := filepath.Join(ghDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)

@@ -113,7 +113,7 @@ func TestNormalizeTelemetryDimension(t *testing.T) {
 
 func TestNoopRecorder_AllMethods(t *testing.T) {
 	var r Recorder = NoopRecorder{}
-	r.RecordCommand("install", "interactive", "repo", "success", 100*time.Millisecond)
+	r.RecordCommand("install", "interactive", "repo", "success", "", 100*time.Millisecond)
 	r.RecordInstallItems("repo", "interactive", 3)
 	r.RecordSyncUpdates("repo", "non_interactive", 2)
 	r.RecordSyncConflicts("user", "non_interactive", 1)
@@ -134,8 +134,8 @@ func TestNoopRecorder_AllMethods(t *testing.T) {
 func TestOtelRecordCommand_Success(t *testing.T) {
 	tel, _ := newFullTestTelemetry(t)
 	// should not panic
-	tel.RecordCommand("install", "interactive", "repo", "success", 50*time.Millisecond)
-	tel.RecordCommand("install", "interactive", "repo", "error", 50*time.Millisecond)
+	tel.RecordCommand("install", "interactive", "repo", "success", "", 50*time.Millisecond)
+	tel.RecordCommand("install", "interactive", "repo", "error", "network_error", 50*time.Millisecond)
 }
 
 func TestOtelRecordInstallItems(t *testing.T) {

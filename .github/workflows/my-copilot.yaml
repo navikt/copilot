@@ -6,10 +6,10 @@ on:
     paths:
       - 'apps/my-copilot/**'
       - 'docs/news/**/*.md'
-      - '.github/agents/**'
-      - '.github/instructions/**'
-      - '.github/prompts/**'
-      - '.github/skills/**'
+      - 'agents/**'
+      - 'instructions/**'
+      - 'prompts/**'
+      - 'skills/**'
       - '.github/workflows/my-copilot.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   pull_request:
@@ -17,10 +17,10 @@ on:
     paths:
       - 'apps/my-copilot/**'
       - 'docs/news/**/*.md'
-      - '.github/agents/**'
-      - '.github/instructions/**'
-      - '.github/prompts/**'
-      - '.github/skills/**'
+      - 'agents/**'
+      - 'instructions/**'
+      - 'prompts/**'
+      - 'skills/**'
       - '.github/workflows/my-copilot.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   workflow_dispatch:

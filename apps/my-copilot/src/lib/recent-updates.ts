@@ -28,7 +28,7 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
   let logOutput: string;
   try {
     logOutput = execSync(
-      `git --no-pager log --format="%H|%s|%ai|%aN" -50 -- '.github/skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
+      `git --no-pager log --format="%H|%s|%ai|%aN" -50 -- 'skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
       { cwd: repoRoot, encoding: "utf-8", timeout: 5000 }
     );
   } catch {
@@ -48,7 +48,7 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
     let changedFiles: string[];
     try {
       changedFiles = execSync(
-        `git diff-tree --no-commit-id --name-only -r ${hash} -- '.github/skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
+        `git diff-tree --no-commit-id --name-only -r ${hash} -- 'skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
         {
           cwd: repoRoot,
           encoding: "utf-8",

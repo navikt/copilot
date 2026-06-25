@@ -286,7 +286,7 @@ func TestCollectAvailableItems_Empty(t *testing.T) {
 
 func TestCollectAvailableItems_WithAgents(t *testing.T) {
 	tmp := t.TempDir()
-	agentsDir := tmp + "/.github/agents"
+	agentsDir := tmp + "/agents"
 	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

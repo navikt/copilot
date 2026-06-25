@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/skills/**'
+      - 'skills/**'
       - 'skills/**'
       - 'scripts/next-skills-version.sh'
       - 'scripts/skills-cliff.toml'
@@ -37,9 +37,6 @@ jobs:
           tar -xzf /tmp/gh.tar.gz -C /tmp
           sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
           gh --version
-
-      - name: Check skills directories in sync
-        run: bash scripts/sync-skills-dirs.sh
 
       - name: Lint skills
         run: bash scripts/lint-skills.sh
@@ -111,7 +108,7 @@ jobs:
           args: >-
             --unreleased
             --tag ${{ steps.version.outputs.tag }}
-            --include-path ".github/skills/**"
+            --include-path "skills/**"
             --include-path "skills/**"
 
       - name: Publish skills

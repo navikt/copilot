@@ -54,7 +54,7 @@ func ValidateManifest(m *Manifest) error {
 
 // LoadManifest loads and validates a collection manifest from the source directory.
 func LoadManifest(sourceDir, collection string) (*Manifest, error) {
-	path := filepath.Join(sourceDir, ".github", "collections", collection, "manifest.json")
+	path := filepath.Join(sourceDir, "collections", collection, "manifest.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("collection %q not found: %w", collection, err)
@@ -71,7 +71,7 @@ func LoadManifest(sourceDir, collection string) (*Manifest, error) {
 
 // ListCollectionDirs returns the names of all collections in the source directory.
 func ListCollectionDirs(sourceDir string) ([]string, error) {
-	collectionsDir := filepath.Join(sourceDir, ".github", "collections")
+	collectionsDir := filepath.Join(sourceDir, "collections")
 	entries, err := os.ReadDir(collectionsDir)
 	if err != nil {
 		return nil, fmt.Errorf("reading collections dir: %w", err)

@@ -154,7 +154,7 @@ func installBadge(installType, vscodeScheme, rawPath string) string {
 }
 
 func processAgents(root string) int {
-	dir := filepath.Join(root, ".github", "agents")
+	dir := filepath.Join(root, "agents")
 	docPath := filepath.Join(root, "docs", "README.agents.md")
 
 	entries, err := filepath.Glob(filepath.Join(dir, "*.agent.md"))
@@ -182,10 +182,10 @@ func processAgents(root string) int {
 		}
 
 		displayName := titleCase(name)
-		badge := installBadge("agent", "chat-agent", ".github/agents/"+fname)
+		badge := installBadge("agent", "chat-agent", "agents/"+fname)
 		desc = escapeTableCell(desc)
 
-		row := fmt.Sprintf("| **%s**<br/>[`@%s`](../.github/agents/%s) | %s | %s |",
+		row := fmt.Sprintf("| **%s**<br/>[`@%s`](../agents/%s) | %s | %s |",
 			displayName, name, fname, desc, badge)
 		rows = append(rows, row)
 	}
@@ -197,7 +197,7 @@ func processAgents(root string) int {
 }
 
 func processInstructions(root string) int {
-	dir := filepath.Join(root, ".github", "instructions")
+	dir := filepath.Join(root, "instructions")
 	docPath := filepath.Join(root, "docs", "README.instructions.md")
 
 	entries, err := filepath.Glob(filepath.Join(dir, "*.instructions.md"))
@@ -223,10 +223,10 @@ func processInstructions(root string) int {
 			displayName = titleCase(stem)
 		}
 
-		badge := installBadge("instructions", "chat-instructions", ".github/instructions/"+fname)
+		badge := installBadge("instructions", "chat-instructions", "instructions/"+fname)
 		desc = escapeTableCell(desc)
 
-		row := fmt.Sprintf("| **%s**<br/>[View File](../.github/instructions/%s) | %s | %s |",
+		row := fmt.Sprintf("| **%s**<br/>[View File](../instructions/%s) | %s | %s |",
 			displayName, fname, desc, badge)
 		rows = append(rows, row)
 	}
@@ -238,7 +238,7 @@ func processInstructions(root string) int {
 }
 
 func processPrompts(root string) int {
-	dir := filepath.Join(root, ".github", "prompts")
+	dir := filepath.Join(root, "prompts")
 	docPath := filepath.Join(root, "docs", "README.prompts.md")
 
 	entries, err := filepath.Glob(filepath.Join(dir, "*.prompt.md"))
@@ -265,10 +265,10 @@ func processPrompts(root string) int {
 			name = stem
 		}
 
-		badge := installBadge("prompt", "chat-prompt", ".github/prompts/"+fname)
+		badge := installBadge("prompt", "chat-prompt", "prompts/"+fname)
 		desc = escapeTableCell(desc)
 
-		row := fmt.Sprintf("| **#%s**<br/>[View File](../.github/prompts/%s) | %s | %s |",
+		row := fmt.Sprintf("| **#%s**<br/>[View File](../prompts/%s) | %s | %s |",
 			name, fname, desc, badge)
 		rows = append(rows, row)
 	}
@@ -280,7 +280,7 @@ func processPrompts(root string) int {
 }
 
 func processSkills(root string) int {
-	dir := filepath.Join(root, ".github", "skills")
+	dir := filepath.Join(root, "skills")
 	docPath := filepath.Join(root, "docs", "README.skills.md")
 
 	entries, err := os.ReadDir(dir)
@@ -309,7 +309,7 @@ func processSkills(root string) int {
 
 		fm := parseFrontmatter(skillPath)
 		desc := escapeTableCell(fm["description"])
-		location := fmt.Sprintf("[`.github/skills/%s/`](../.github/skills/%s/SKILL.md)", name, name)
+		location := fmt.Sprintf("[`skills/%s/`](../skills/%s/SKILL.md)", name, name)
 
 		row := fmt.Sprintf("| **%s** | %s | %s |", name, desc, location)
 
@@ -376,10 +376,10 @@ func updateDocWithMarkers(path, begin, end, newContent string) int {
 func processReadmeCounts(root string) int {
 	readmePath := filepath.Join(root, "README.md")
 
-	agentCount := countFiles(filepath.Join(root, ".github", "agents"), "*.agent.md")
-	instructionCount := countFiles(filepath.Join(root, ".github", "instructions"), "*.instructions.md")
-	promptCount := countFiles(filepath.Join(root, ".github", "prompts"), "*.prompt.md")
-	skillCount := countPublicSkills(filepath.Join(root, ".github", "skills"))
+	agentCount := countFiles(filepath.Join(root, "agents"), "*.agent.md")
+	instructionCount := countFiles(filepath.Join(root, "instructions"), "*.instructions.md")
+	promptCount := countFiles(filepath.Join(root, "prompts"), "*.prompt.md")
+	skillCount := countPublicSkills(filepath.Join(root, "skills"))
 
 	counts := fmt.Sprintf(`- **🤖 [%d Agenter](docs/README.agents.md)** — Spesialiserte AI-assistenter for Nav-domener
 - **📋 [%d Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster

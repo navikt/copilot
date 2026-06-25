@@ -20,8 +20,8 @@ export function getOfficialFileNames(): Set<string> {
   const names = new Set<string>();
   for (const item of items) {
     const parts = item.filePath.split("/");
-    if (item.filePath.includes(".github/skills/") && parts.length >= 2) {
-      // Skills: use directory name (e.g., "observability-setup" from ".github/skills/observability-setup/SKILL.md")
+    if (item.filePath.includes("skills/") && parts.length >= 2) {
+      // Skills: use directory name (e.g., "observability-setup" from "skills/observability-setup/SKILL.md")
       names.add(parts[parts.length - 2]);
     } else {
       const basename = parts.pop();

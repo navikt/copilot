@@ -7,11 +7,11 @@ on:
       - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
       - 'scripts/install.bats'
-      - '.github/skills/**'
-      - '.github/agents/**'
-      - '.github/collections/**'
-      - '.github/instructions/**'
-      - '.github/prompts/**'
+      - 'skills/**'
+      - 'agents/**'
+      - 'collections/**'
+      - 'instructions/**'
+      - 'prompts/**'
       - '.github/workflows/nav-pilot-ci.yaml'
   pull_request:
     branches: [main]
@@ -19,11 +19,11 @@ on:
       - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
       - 'scripts/install.bats'
-      - '.github/skills/**'
-      - '.github/agents/**'
-      - '.github/collections/**'
-      - '.github/instructions/**'
-      - '.github/prompts/**'
+      - 'skills/**'
+      - 'agents/**'
+      - 'collections/**'
+      - 'instructions/**'
+      - 'prompts/**'
       - '.github/workflows/nav-pilot-ci.yaml'
   workflow_dispatch:
 
@@ -119,6 +119,8 @@ jobs:
         run: apk add --no-cache bash curl coreutils git
 
       - name: Run install.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash scripts/install.sh --dir /usr/local/bin
 
       - name: Verify installation

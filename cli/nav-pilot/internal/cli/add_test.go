@@ -54,7 +54,7 @@ func TestCmdAdd_Agent(t *testing.T) {
 	target := t.TempDir()
 
 	// Create source agent
-	agentDir := filepath.Join(source, ".github", "agents")
+	agentDir := filepath.Join(source, "agents")
 	os.MkdirAll(agentDir, 0o755)
 	os.WriteFile(filepath.Join(agentDir, "test-agent.agent.md"), []byte("# Test Agent"), 0o644)
 
@@ -62,7 +62,7 @@ func TestCmdAdd_Agent(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	// Set up for local source resolution
-	os.MkdirAll(filepath.Join(source, ".github", "collections"), 0o755)
+	os.MkdirAll(filepath.Join(source, "collections"), 0o755)
 
 	result := &installResult{}
 	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindAgent, "test-agent", false, false, result)
@@ -85,7 +85,7 @@ func TestCmdAdd_Skill(t *testing.T) {
 	target := t.TempDir()
 
 	// Create source skill directory
-	skillDir := filepath.Join(source, ".github", "skills", "test-skill")
+	skillDir := filepath.Join(source, "skills", "test-skill")
 	os.MkdirAll(skillDir, 0o755)
 	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test Skill"), 0o644)
 	os.WriteFile(filepath.Join(skillDir, "metadata.json"), []byte(`{"name":"test"}`), 0o644)
@@ -136,62 +136,6 @@ func TestCmdAdd_Skill_RootLevel(t *testing.T) {
 	}
 	if string(got) != "# Root Skill" {
 		t.Errorf("content mismatch: got %q", string(got))
-	}
-}
-
-func TestCmdAdd_Skill_BothExist_RootWins(t *testing.T) {
-	source := t.TempDir()
-	target := t.TempDir()
-
-	// Create at both root and legacy — root should win
-	for _, dir := range []string{
-		filepath.Join(source, "skills", "my-skill"),
-		filepath.Join(source, ".github", "skills", "my-skill"),
-	} {
-		os.MkdirAll(dir, 0o755)
-	}
-	os.WriteFile(filepath.Join(source, "skills", "my-skill", "SKILL.md"), []byte("root version"), 0o644)
-	os.WriteFile(filepath.Join(source, ".github", "skills", "my-skill", "SKILL.md"), []byte("legacy version"), 0o644)
-
-	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
-
-	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindSkill, "my-skill", false, false, result)
-	if err != nil {
-		t.Fatalf("installArtifact skill: %v", err)
-	}
-
-	got, _ := os.ReadFile(filepath.Join(target, ".github", "skills", "my-skill", "SKILL.md"))
-	if string(got) != "root version" {
-		t.Errorf("expected root version to win, got %q", string(got))
-	}
-}
-
-func TestCmdAdd_Skill_InvalidRootFallsBackToLegacy(t *testing.T) {
-	source := t.TempDir()
-	target := t.TempDir()
-
-	// Root dir exists but has NO SKILL.md (invalid)
-	os.MkdirAll(filepath.Join(source, "skills", "my-skill"), 0o755)
-
-	// Legacy dir has valid SKILL.md
-	os.MkdirAll(filepath.Join(source, ".github", "skills", "my-skill"), 0o755)
-	os.WriteFile(filepath.Join(source, ".github", "skills", "my-skill", "SKILL.md"), []byte("legacy content"), 0o644)
-
-	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
-
-	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindSkill, "my-skill", false, false, result)
-	if err != nil {
-		t.Fatalf("installArtifact skill: %v", err)
-	}
-	if result.Installed != 1 {
-		t.Errorf("expected 1 installed, got %d", result.Installed)
-	}
-
-	got, _ := os.ReadFile(filepath.Join(target, ".github", "skills", "my-skill", "SKILL.md"))
-	if string(got) != "legacy content" {
-		t.Errorf("expected legacy content (invalid root should not win), got %q", string(got))
 	}
 }
 
@@ -261,30 +205,6 @@ func TestCmdAdd_Agent_RootLevel(t *testing.T) {
 	}
 }
 
-func TestCmdAdd_Agent_BothExist_RootWins(t *testing.T) {
-	source := t.TempDir()
-	target := t.TempDir()
-
-	// Both root and legacy
-	os.MkdirAll(filepath.Join(source, "agents"), 0o755)
-	os.WriteFile(filepath.Join(source, "agents", "nais.agent.md"), []byte("root version"), 0o644)
-	os.MkdirAll(filepath.Join(source, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(source, ".github", "agents", "nais.agent.md"), []byte("legacy version"), 0o644)
-
-	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
-
-	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindAgent, "nais", false, false, result)
-	if err != nil {
-		t.Fatalf("installArtifact agent: %v", err)
-	}
-
-	got, _ := os.ReadFile(filepath.Join(target, ".github", "agents", "nais.agent.md"))
-	if string(got) != "root version" {
-		t.Errorf("expected root version to win, got %q", string(got))
-	}
-}
-
 func TestCmdAdd_Prompt_RootLevel(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
@@ -341,73 +261,6 @@ func TestCmdAdd_Prompt_RootDirLevel(t *testing.T) {
 	}
 }
 
-func TestCollectAllItems_MergesBothDirs(t *testing.T) {
-	source := t.TempDir()
-
-	// Root-level skills
-	os.MkdirAll(filepath.Join(source, "skills", "root-only"), 0o755)
-	os.WriteFile(filepath.Join(source, "skills", "root-only", "SKILL.md"), []byte("# Root"), 0o644)
-
-	// Legacy skills
-	os.MkdirAll(filepath.Join(source, ".github", "skills", "legacy-only"), 0o755)
-	os.WriteFile(filepath.Join(source, ".github", "skills", "legacy-only", "SKILL.md"), []byte("# Legacy"), 0o644)
-
-	// Skill in both (root should win, no duplicates)
-	os.MkdirAll(filepath.Join(source, "skills", "both"), 0o755)
-	os.WriteFile(filepath.Join(source, "skills", "both", "SKILL.md"), []byte("# Both Root"), 0o644)
-	os.MkdirAll(filepath.Join(source, ".github", "skills", "both"), 0o755)
-	os.WriteFile(filepath.Join(source, ".github", "skills", "both", "SKILL.md"), []byte("# Both Legacy"), 0o644)
-
-	// Root-level agents
-	os.MkdirAll(filepath.Join(source, "agents"), 0o755)
-	os.WriteFile(filepath.Join(source, "agents", "root-agent.agent.md"), []byte("# Root Agent"), 0o644)
-
-	// Legacy agents (different name + duplicate name)
-	os.MkdirAll(filepath.Join(source, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(source, ".github", "agents", "legacy-agent.agent.md"), []byte("# Legacy Agent"), 0o644)
-	os.WriteFile(filepath.Join(source, ".github", "agents", "root-agent.agent.md"), []byte("# Root Agent Legacy"), 0o644)
-
-	// Root-level instructions
-	os.MkdirAll(filepath.Join(source, "instructions"), 0o755)
-	os.WriteFile(filepath.Join(source, "instructions", "go.instructions.md"), []byte("# Go"), 0o644)
-
-	// Legacy instructions (different name)
-	os.MkdirAll(filepath.Join(source, ".github", "instructions"), 0o755)
-	os.WriteFile(filepath.Join(source, ".github", "instructions", "kotlin.instructions.md"), []byte("# Kotlin"), 0o644)
-
-	m, err := collectAllItems(source)
-	if err != nil {
-		t.Fatalf("collectAllItems: %v", err)
-	}
-
-	// Should find all 3 unique skills (both, legacy-only, root-only) sorted
-	if len(m.Skills) != 3 {
-		t.Fatalf("expected 3 skills, got %d: %v", len(m.Skills), m.Skills)
-	}
-	expected := []string{"both", "legacy-only", "root-only"}
-	for i, want := range expected {
-		if m.Skills[i] != want {
-			t.Errorf("skill[%d] = %q, want %q", i, m.Skills[i], want)
-		}
-	}
-
-	// Should find 2 unique agents (legacy-agent, root-agent) sorted, no duplicates
-	if len(m.Agents) != 2 {
-		t.Fatalf("expected 2 agents, got %d: %v", len(m.Agents), m.Agents)
-	}
-	if m.Agents[0] != "legacy-agent" || m.Agents[1] != "root-agent" {
-		t.Errorf("agents = %v, want [legacy-agent, root-agent]", m.Agents)
-	}
-
-	// Should find 2 unique instructions (go, kotlin) sorted
-	if len(m.Instructions) != 2 {
-		t.Fatalf("expected 2 instructions, got %d: %v", len(m.Instructions), m.Instructions)
-	}
-	if m.Instructions[0] != "go" || m.Instructions[1] != "kotlin" {
-		t.Errorf("instructions = %v, want [go, kotlin]", m.Instructions)
-	}
-}
-
 func TestCmdAdd_AppendsToState(t *testing.T) {
 	source := t.TempDir()
 	target := t.TempDir()
@@ -425,7 +278,7 @@ func TestCmdAdd_AppendsToState(t *testing.T) {
 	writeState(target, initialState)
 
 	// Create source agent
-	agentDir := filepath.Join(source, ".github", "agents")
+	agentDir := filepath.Join(source, "agents")
 	os.MkdirAll(agentDir, 0o755)
 	os.WriteFile(filepath.Join(agentDir, "new-agent.agent.md"), []byte("# New Agent"), 0o644)
 
@@ -718,7 +571,7 @@ func TestCmdUninstall_RemovesFiles(t *testing.T) {
 func createFixtureSource(t *testing.T) string {
 	t.Helper()
 	source := t.TempDir()
-	gh := filepath.Join(source, ".github")
+	gh := source
 
 	// Collection manifest
 	collDir := filepath.Join(gh, "collections", "test-collection")

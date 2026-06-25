@@ -98,7 +98,7 @@ func TestGenerateInstallationGuide_SkillWithoutReferences(t *testing.T) {
 			Name:        "aksel-spacing",
 			DisplayName: "aksel-spacing",
 			Description: "Responsive layout",
-			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/aksel-spacing/SKILL.md",
+			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-spacing/SKILL.md",
 		},
 	})
 
@@ -107,7 +107,7 @@ func TestGenerateInstallationGuide_SkillWithoutReferences(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(guide, `mkdir -p ".github/skills/aksel-spacing"`) {
+	if !strings.Contains(guide, `mkdir -p "skills/aksel-spacing"`) {
 		t.Error("guide should create skill directory")
 	}
 	if !strings.Contains(guide, "curl -fsSL") {
@@ -116,7 +116,7 @@ func TestGenerateInstallationGuide_SkillWithoutReferences(t *testing.T) {
 	if !strings.Contains(guide, "SKILL.md") {
 		t.Error("guide should download SKILL.md")
 	}
-	if strings.Contains(guide, "mkdir -p \".github/skills/aksel-spacing/references\"") {
+	if strings.Contains(guide, "mkdir -p \"skills/aksel-spacing/references\"") {
 		t.Error("guide should NOT create references dir for skill without references")
 	}
 }
@@ -128,15 +128,15 @@ func TestGenerateInstallationGuide_SkillWithReferences(t *testing.T) {
 			Name:        "observability-setup",
 			DisplayName: "observability-setup",
 			Description: "Prometheus metrics and tracing",
-			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/SKILL.md",
+			RawURL:      "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
 			References: []SkillReference{
 				{
 					Path:   "references/grafana-queries.md",
-					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/grafana-queries.md",
+					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/references/grafana-queries.md",
 				},
 				{
 					Path:   "references/production-patterns.md",
-					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/.github/skills/observability-setup/references/production-patterns.md",
+					RawURL: "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/references/production-patterns.md",
 				},
 			},
 		},
@@ -147,10 +147,10 @@ func TestGenerateInstallationGuide_SkillWithReferences(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(guide, `mkdir -p ".github/skills/observability-setup"`) {
+	if !strings.Contains(guide, `mkdir -p "skills/observability-setup"`) {
 		t.Error("guide should create skill directory")
 	}
-	if !strings.Contains(guide, `mkdir -p ".github/skills/observability-setup/references"`) {
+	if !strings.Contains(guide, `mkdir -p "skills/observability-setup/references"`) {
 		t.Error("guide should create references subdirectory")
 	}
 	if !strings.Contains(guide, "SKILL.md") {

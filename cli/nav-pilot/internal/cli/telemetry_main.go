@@ -2,6 +2,8 @@ package cli
 
 import (
 	"errors"
+	"net"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -16,7 +18,7 @@ func telemetryMode() string {
 func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
 	start := time.Now()
 	err := fn()
-	telemetry.RecordCommand(command, mode, scope, telemetryResult(err), time.Since(start))
+	telemetry.RecordCommand(command, mode, scope, telemetryResult(err), classifyError(err), time.Since(start))
 	return err
 }
 
@@ -28,6 +30,30 @@ func telemetryResult(err error) string {
 		return "updates_available"
 	default:
 		return "error"
+	}
+}
+
+func classifyError(err error) string {
+	if err == nil {
+		return ""
+	}
+	var netErr net.Error
+	var exitErr *exec.ExitError
+	switch {
+	case errors.Is(err, exec.ErrNotFound):
+		return "client_not_found"
+	case errors.As(err, &exitErr):
+		return "launch_failed"
+	case errors.As(err, &netErr) && netErr.Timeout():
+		return "network_error"
+	case strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "403"):
+		return "auth_error"
+	case errors.Is(err, errSyncFailed):
+		return "sync_failed"
+	case errors.Is(err, errUpdatesAvailable):
+		return "" // Not an error
+	default:
+		return "unknown"
 	}
 }
 

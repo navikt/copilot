@@ -31,7 +31,7 @@ else
 fi
 
 # Get commit hashes touching canonical skills dir
-mapfile -t HASHES < <(git log "$RANGE" --format="%H" -- .github/skills/)
+mapfile -t HASHES < <(git log "$RANGE" --format="%H" -- skills/)
 
 if [[ ${#HASHES[@]} -eq 0 ]]; then
   if $CHECK; then

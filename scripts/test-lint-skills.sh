@@ -48,7 +48,7 @@ setup_test_repo() {
   local tmpdir
   tmpdir=$(mktemp -d)
   git -C "$tmpdir" init --quiet
-  mkdir -p "$tmpdir/.github/skills"
+  mkdir -p "$tmpdir/skills"
   mkdir -p "$tmpdir/scripts"
   cp "$LINT_SCRIPT" "$tmpdir/scripts/lint-skills.sh"
   echo "$tmpdir"
@@ -56,7 +56,7 @@ setup_test_repo() {
 
 create_skill() {
   local repo=$1 name=$2 skill_content=$3 metadata=$4
-  local dir="$repo/.github/skills/$name"
+  local dir="$repo/skills/$name"
   mkdir -p "$dir"
   echo "$skill_content" > "$dir/SKILL.md"
   echo "$metadata" > "$dir/metadata.json"
@@ -78,8 +78,8 @@ description: Test
 See [queries](references/queries.md) for details.
 ' \
 '{"description": "Test", "references": ["references/queries.md"]}'
-mkdir -p "$repo/.github/skills/test-skill/references"
-echo "# Queries" > "$repo/.github/skills/test-skill/references/queries.md"
+mkdir -p "$repo/skills/test-skill/references"
+echo "# Queries" > "$repo/skills/test-skill/references/queries.md"
 
 exit_code=0
 output=$(cd "$repo" && bash scripts/lint-skills.sh test-skill 2>&1) || exit_code=$?
@@ -99,8 +99,8 @@ description: Test
 # Test
 ' \
 '{"description": "Test"}'
-mkdir -p "$repo/.github/skills/drift-skill/references"
-echo "# Orphan" > "$repo/.github/skills/drift-skill/references/orphan.md"
+mkdir -p "$repo/skills/drift-skill/references"
+echo "# Orphan" > "$repo/skills/drift-skill/references/orphan.md"
 
 exit_code=0
 output=$(cd "$repo" && bash scripts/lint-skills.sh drift-skill 2>&1) || exit_code=$?

@@ -165,7 +165,7 @@ func TestUserAndTargetDotMutuallyExclusive(t *testing.T) {
 
 func TestCmdAdd_UserScopeAcceptsInstruction(t *testing.T) {
 	source := t.TempDir()
-	ghDir := filepath.Join(source, ".github", "instructions")
+	ghDir := filepath.Join(source, "instructions")
 	os.MkdirAll(ghDir, 0o755)
 	os.WriteFile(filepath.Join(ghDir, "test.instructions.md"), []byte("# Test"), 0o644)
 
@@ -201,7 +201,7 @@ func TestInstallAgent_UserScope(t *testing.T) {
 	target := t.TempDir()
 
 	// Create source agent
-	agentDir := filepath.Join(source, ".github", "agents")
+	agentDir := filepath.Join(source, "agents")
 	os.MkdirAll(agentDir, 0o755)
 	os.WriteFile(filepath.Join(agentDir, "test.agent.md"), []byte("# Test Agent"), 0o644)
 	os.WriteFile(filepath.Join(agentDir, "test.metadata.json"), []byte(`{"name":"test"}`), 0o644)
@@ -429,42 +429,16 @@ func TestResolverMapLocalPath_TableDriven(t *testing.T) {
 	}
 }
 
-func TestResolverMapLocalPath_InvalidRootFallsBackToLegacy(t *testing.T) {
-	sourceDir := t.TempDir()
-
-	// Root dir exists but has NO SKILL.md — invalid
-	os.MkdirAll(filepath.Join(sourceDir, "skills", "broken"), 0o755)
-
-	// Legacy dir has valid SKILL.md
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "broken"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "broken", "SKILL.md"), []byte("# Valid"), 0o644)
-
-	resolver := NewSourceResolver(sourceDir)
-
-	// Repo scope: should NOT pick invalid root, should stay at .github/
-	got := resolver.MapLocalPath(".github/skills/broken/", false)
-	if got != ".github/skills/broken/" {
-		t.Errorf("repo scope: got %q, want .github/skills/broken/ (invalid root should not win)", got)
-	}
-
-	// User scope: should also fall back to .github/
-	got = resolver.MapLocalPath("skills/broken/", true)
-	want := filepath.Join(".github", "skills", "broken") + "/"
-	if got != want {
-		t.Errorf("user scope: got %q, want %q (invalid root should not win)", got, want)
-	}
-}
-
 func TestResolverGet_Skill(t *testing.T) {
 	sourceDir := t.TempDir()
 
 	os.MkdirAll(filepath.Join(sourceDir, "skills", "root-skill"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "skills", "root-skill", "SKILL.md"), []byte("# Root"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "legacy-skill"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "legacy-skill", "SKILL.md"), []byte("# Legacy"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "legacy-skill"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "legacy-skill", "SKILL.md"), []byte("# Legacy"), 0o644)
 	os.MkdirAll(filepath.Join(sourceDir, "skills", "invalid-root"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "invalid-root"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "invalid-root", "SKILL.md"), []byte("# Fallback"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "skills", "invalid-root"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "skills", "invalid-root", "SKILL.md"), []byte("# Fallback"), 0o644)
 
 	resolver := NewSourceResolver(sourceDir)
 	tests := []struct {
@@ -474,8 +448,8 @@ func TestResolverGet_Skill(t *testing.T) {
 		wantOK    bool
 	}{
 		{"root skill", "root-skill", filepath.Join(sourceDir, "skills", "root-skill"), true},
-		{"legacy skill", "legacy-skill", filepath.Join(sourceDir, ".github", "skills", "legacy-skill"), true},
-		{"invalid root falls back", "invalid-root", filepath.Join(sourceDir, ".github", "skills", "invalid-root"), true},
+		{"legacy skill", "legacy-skill", filepath.Join(sourceDir, "skills", "legacy-skill"), true},
+		{"invalid root falls back", "invalid-root", filepath.Join(sourceDir, "skills", "invalid-root"), true},
 		{"nonexistent", "nope", "", false},
 	}
 	for _, tt := range tests {
@@ -488,53 +462,6 @@ func TestResolverGet_Skill(t *testing.T) {
 				t.Errorf("AbsPath = %q, want %q", art.AbsPath, tt.wantDir)
 			}
 		})
-	}
-}
-
-func TestResolverList_Skills(t *testing.T) {
-	sourceDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(sourceDir, "skills", "alpha"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, "skills", "alpha", "SKILL.md"), []byte("# Alpha"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "beta"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "beta", "SKILL.md"), []byte("# Beta"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, "skills", "gamma"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, "skills", "gamma", "SKILL.md"), []byte("# Gamma Root"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "gamma"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "gamma", "SKILL.md"), []byte("# Gamma Legacy"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, "skills", "delta"), 0o755)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "skills", "delta"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "skills", "delta", "SKILL.md"), []byte("# Delta"), 0o644)
-
-	resolver := NewSourceResolver(sourceDir)
-	skills := resolver.List(KindSkill)
-
-	if len(skills) != 4 {
-		t.Fatalf("expected 4 skills, got %d: %v", len(skills), skills)
-	}
-	names := make([]string, len(skills))
-	for i, s := range skills {
-		names[i] = s.Name
-	}
-	expected := []string{"alpha", "beta", "delta", "gamma"}
-	for i, want := range expected {
-		if names[i] != want {
-			t.Errorf("skill[%d] = %q, want %q", i, names[i], want)
-		}
-	}
-
-	// Root wins for gamma
-	for _, s := range skills {
-		if s.Name == "gamma" && strings.Contains(s.AbsPath, ".github") {
-			t.Errorf("gamma should come from root, not .github: %q", s.AbsPath)
-		}
-	}
-
-	// Delta comes from legacy (invalid root)
-	for _, s := range skills {
-		if s.Name == "delta" && !strings.Contains(s.AbsPath, ".github") {
-			t.Errorf("delta should come from legacy (invalid root), got %q", s.AbsPath)
-		}
 	}
 }
 
@@ -556,68 +483,15 @@ func TestResolverList_Skills_RootOnlyScope(t *testing.T) {
 	}
 }
 
-func TestResolverGetFile_Agent(t *testing.T) {
-	sourceDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, "agents", "root.agent.md"), []byte("root"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "legacy.agent.md"), []byte("legacy"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "root.agent.md"), []byte("legacy-dup"), 0o644)
-
-	resolver := NewSourceResolver(sourceDir)
-
-	// Root wins when both exist
-	path, _, ok := resolver.GetFile("agents", "root.agent.md")
-	if !ok || !strings.HasSuffix(path, filepath.Join("agents", "root.agent.md")) || strings.Contains(path, ".github") {
-		t.Errorf("root should win, got %q ok=%v", path, ok)
-	}
-
-	// Legacy found when no root
-	path, _, ok = resolver.GetFile("agents", "legacy.agent.md")
-	if !ok || !strings.Contains(path, ".github") {
-		t.Errorf("legacy should be found, got %q ok=%v", path, ok)
-	}
-
-	// Not found
-	_, _, ok = resolver.GetFile("agents", "missing.agent.md")
-	if ok {
-		t.Error("should not find missing file")
-	}
-}
-
-func TestResolverGetFile_InstructionRel(t *testing.T) {
-	sourceDir := t.TempDir()
-
-	os.MkdirAll(filepath.Join(sourceDir, "instructions"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, "instructions", "go.instructions.md"), []byte("root"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "kotlin.instructions.md"), []byte("legacy"), 0o644)
-
-	resolver := NewSourceResolver(sourceDir)
-
-	// Root-level returns root-relative path
-	_, rel, ok := resolver.GetFile("instructions", "go.instructions.md")
-	if !ok || rel != filepath.Join("instructions", "go.instructions.md") {
-		t.Errorf("got %q ok=%v, want instructions/go.instructions.md", rel, ok)
-	}
-
-	// Legacy returns .github/-prefixed path
-	_, rel, ok = resolver.GetFile("instructions", "kotlin.instructions.md")
-	if !ok || rel != filepath.Join(".github", "instructions", "kotlin.instructions.md") {
-		t.Errorf("got %q ok=%v, want .github/instructions/kotlin.instructions.md", rel, ok)
-	}
-}
-
 func TestResolverList_Agents(t *testing.T) {
 	sourceDir := t.TempDir()
 
 	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "agents", "alpha.agent.md"), []byte("root"), 0o644)
 	os.WriteFile(filepath.Join(sourceDir, "agents", "gamma.agent.md"), []byte("root"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "beta.agent.md"), []byte("legacy"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "agents", "gamma.agent.md"), []byte("legacy-dup"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "beta.agent.md"), []byte("legacy"), 0o644)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "gamma.agent.md"), []byte("legacy-dup"), 0o644)
 
 	resolver := NewSourceResolver(sourceDir)
 	entries := resolver.List(KindAgent)
@@ -644,9 +518,9 @@ func TestResolverList_Agents(t *testing.T) {
 func TestResolverList_Instructions_LegacyOnly(t *testing.T) {
 	sourceDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "instructions"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "go.instructions.md"), []byte("go"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "instructions", "kotlin.instructions.md"), []byte("kt"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "instructions"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "instructions", "go.instructions.md"), []byte("go"), 0o644)
+	os.WriteFile(filepath.Join(sourceDir, "instructions", "kotlin.instructions.md"), []byte("kt"), 0o644)
 
 	resolver := NewSourceResolver(sourceDir)
 	entries := resolver.List(KindInstruction)
@@ -673,9 +547,9 @@ func TestResolverGet_Prompt(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "prompts", "complex"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "prompts", "complex", "prompt.md"), []byte("complex"), 0o644)
 	os.WriteFile(filepath.Join(sourceDir, "prompts", "simple.prompt.md"), []byte("simple"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "prompts", "legacy-dir"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "prompts", "legacy-dir", "prompt.md"), []byte("legacy"), 0o644)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "prompts", "legacy-flat.prompt.md"), []byte("legacy"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "prompts", "legacy-dir"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "legacy-dir", "prompt.md"), []byte("legacy"), 0o644)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "legacy-flat.prompt.md"), []byte("legacy"), 0o644)
 
 	resolver := NewSourceResolver(sourceDir)
 
@@ -718,8 +592,8 @@ func TestResolverGet_Prompt_RootDirWinsScope(t *testing.T) {
 
 	os.MkdirAll(filepath.Join(sourceDir, "prompts", "review"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "prompts", "review", "prompt.md"), []byte("root"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "prompts"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "prompts", "review.prompt.md"), []byte("legacy"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "prompts"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "review.prompt.md"), []byte("legacy"), 0o644)
 
 	resolver := NewSourceResolver(sourceDir)
 	art, ok := resolver.Get(KindPrompt, "review")
@@ -736,8 +610,8 @@ func TestResolverList_Prompts(t *testing.T) {
 
 	os.MkdirAll(filepath.Join(sourceDir, "prompts", "dir-prompt"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "prompts", "flat.prompt.md"), []byte("flat"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "prompts"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "prompts", "legacy.prompt.md"), []byte("legacy"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "prompts"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "legacy.prompt.md"), []byte("legacy"), 0o644)
 
 	resolver := NewSourceResolver(sourceDir)
 	entries := resolver.List(KindPrompt)
@@ -766,8 +640,8 @@ func TestResolverList_Prompts_RootWinsScope(t *testing.T) {
 
 	os.MkdirAll(filepath.Join(sourceDir, "prompts"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "prompts", "review.prompt.md"), []byte("root"), 0o644)
-	os.MkdirAll(filepath.Join(sourceDir, ".github", "prompts"), 0o755)
-	os.WriteFile(filepath.Join(sourceDir, ".github", "prompts", "review.prompt.md"), []byte("legacy"), 0o644)
+	os.MkdirAll(filepath.Join(sourceDir, "prompts"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "review.prompt.md"), []byte("legacy"), 0o644)
 
 	resolver := NewSourceResolver(sourceDir)
 	entries := resolver.List(KindPrompt)

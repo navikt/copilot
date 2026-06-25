@@ -11,7 +11,7 @@ func TestResolveSource_UsesLocalRepoWhenCollectionsExist(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repoDir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repoDir, ".github", "collections"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repoDir, "collections"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -43,7 +43,7 @@ func TestResolveSourceForSync_SkipsLocalRepoAutoDetection(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repoDir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repoDir, ".github", "collections"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repoDir, "collections"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
