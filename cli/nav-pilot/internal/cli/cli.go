@@ -107,7 +107,7 @@ Flags:
 
 Exit Codes:
   0   Success
-  1   Error (or updates available for sync --json)
+  1   Error / Updates available (sync)
   2   Sync failed
 
 Get started:
@@ -370,7 +370,6 @@ func run(args []string) error {
 				continue
 			}
 			if strings.HasPrefix(rest[i], "-") {
-				knownFlags := []string{"--dry-run", "-n", "--force", "-f", "--target", "-t", "--ref", "-r", "--source", "-s", "--user", "-u", "--type", "--all", "--apply", "--sync", "--json", "--feature", "-F", "--items", "--installed", "--help", "-h"}
 				if hint := suggest(rest[i], knownFlags); hint != "" {
 					return fmt.Errorf("unknown flag: %s. Did you mean %s?", rest[i], hint)
 				}
@@ -533,7 +532,7 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "status", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "version"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "status", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}

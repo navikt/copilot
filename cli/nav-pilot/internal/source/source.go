@@ -134,11 +134,13 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	go func() {
 		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 		i := 0
+		ticker := time.NewTicker(80 * time.Millisecond)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-done:
 				return
-			case <-time.After(80 * time.Millisecond):
+			case <-ticker.C:
 				fmt.Fprintf(os.Stderr, "\r%s %s", domain.Dim(frames[i%len(frames)]), msg)
 				i++
 			}
@@ -163,12 +165,12 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		os.RemoveAll(tmpDir)
 		gitErr := strings.TrimSpace(stderr.String())
 		if gitErr != "" {
-			gitErr = " (" + gitErr + ")"
+			gitErr = "\n\n  " + strings.ReplaceAll(gitErr, "\n", "\n  ")
 		}
 		if ref != "" {
-			return nil, fmt.Errorf("could not clone %s@%s%s", label, ref, gitErr)
+			return nil, fmt.Errorf("could not clone %s@%s — check that the ref exists and you have network access%s", label, ref, gitErr)
 		}
-		return nil, fmt.Errorf("could not clone %s%s", label, gitErr)
+		return nil, fmt.Errorf("could not clone %s — check your network connection%s", label, gitErr)
 	}
 
 	sha := getGitSHA(tmpDir)

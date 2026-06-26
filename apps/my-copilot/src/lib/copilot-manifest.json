@@ -149,11 +149,11 @@
       "tags": ["auth", "azure-ad", "tokenx", "id-porten", "security"],
       "examples": [
         {
-          "prompt": "@auth-agent Sett opp Azure AD-autentisering i fp-sak",
+          "prompt": "@auth Sett opp Azure AD-autentisering i fp-sak",
           "scenario": "Azure AD-integrasjon"
         },
         {
-          "prompt": "@auth-agent Hvordan validerer jeg et ID-porten-token i dp-soknad?",
+          "prompt": "@auth Hvordan validerer jeg et ID-porten-token i dp-soknad?",
           "scenario": "ID-porten-validering"
         }
       ],
@@ -189,15 +189,15 @@
       "tags": ["code-review", "quality", "conventions", "pre-merge"],
       "examples": [
         {
-          "prompt": "@code-review-agent Gå gjennom endringene mine før jeg lager PR",
+          "prompt": "@code-review Gå gjennom endringene mine før jeg lager PR",
           "scenario": "Pre-PR gjennomgang"
         },
         {
-          "prompt": "@code-review-agent Sjekk denne Kotlin-kontrolleren for sikkerhetsproblemer",
+          "prompt": "@code-review Sjekk denne Kotlin-kontrolleren for sikkerhetsproblemer",
           "scenario": "Sikkerhetssjekk"
         },
         {
-          "prompt": "@code-review-agent Sjekk src/app/usage/page.tsx for Nav-konvensjoner",
+          "prompt": "@code-review Sjekk src/app/usage/page.tsx for Nav-konvensjoner",
           "scenario": "Konvensjonssjekk"
         }
       ],
