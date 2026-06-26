@@ -278,5 +278,6 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	if cli.OtelLogLevel != "" {
 		r.OtelLogLevel = cli.OtelLogLevel
 	}
+	r.ExtraArgs = cli.ExtraArgs
 	return r
 }

@@ -39,12 +39,13 @@ type ResolvedConfig struct {
 	ContextTier       string // empty = unset
 	AllowAllTools     bool
 	AskUser           bool
-	AutoLaunch        bool   // skip the interactive "Launch X now?" confirmation
-	LogLevel          string // empty = unset
-	OtelLogLevel      string // always set; defaults to "none"
-	RtkPromptedClient string // comma-separated list of clients where the RTK setup was prompted
-	RtkPromptedAt     string // RFC3339 timestamp of when the user was last prompted
-	AutoUpdate        bool   // true to bypass upgrade prompt
+	AutoLaunch        bool     // skip the interactive "Launch X now?" confirmation
+	LogLevel          string   // empty = unset
+	OtelLogLevel      string   // always set; defaults to "none"
+	RtkPromptedClient string   // comma-separated list of clients where the RTK setup was prompted
+	RtkPromptedAt     string   // RFC3339 timestamp of when the user was last prompted
+	AutoUpdate        bool     // true to bypass upgrade prompt
+	ExtraArgs         []string // pass-through arguments for the client
 }
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
@@ -59,6 +60,7 @@ type CLIOverrides struct {
 	AutoLaunch      *bool
 	LogLevel        string
 	OtelLogLevel    string
+	ExtraArgs       []string
 }
 
 var (
