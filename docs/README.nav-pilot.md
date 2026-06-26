@@ -8,12 +8,21 @@ nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot
 ## Kom i gang
 
 ```bash
-# Installer CLI og nødvendige avhengigheter (anbefalt)
-curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash
-
-# ... eller via Homebrew (installerer også rtk og cplt)
+# Anbefalt: Homebrew (macOS) — verifisert supply chain
 brew install navikt/tap/nav-pilot
 
+# Linux / CI — last ned og inspiser skriptet manuelt:
+curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
+cat install.sh   # Se gjennom skriptet før kjøring
+bash install.sh
+```
+
+> ⚠ **Sikkerhetsmerk:** Å pipe `curl` direkte til `bash` (`curl ... | bash`) betyr at installasjons-
+> skriptet kjøres uten forhåndsverifikasjon. Selve binæren verifiseres med SHA256-checksum og SLSA
+> provenance (krever `gh` CLI), men skriptet som laster ned binæren er ikke signert. Bruk Homebrew
+> på macOS, eller last ned og inspiser skriptet manuelt på Linux/CI.
+
+```bash
 # I et repo
 nav-pilot
 nav-pilot install kotlin-backend
