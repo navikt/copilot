@@ -2,6 +2,30 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-06-26
+
+### Refaktorering og struktur
+- **Rotmappe-migrering**: Flyttet alle customization-artefakter (agents, skills, instructions, prompts) til prosjektets rotmappe for ryddigere struktur (#330).
+
+### nav-pilot CLI — UX, robusthet og auto-oppdatering
+- **Auto-oppdatering og varsler**: CLI-en tilbyr nå en interaktiv oppgradering for utdaterte nav-pilot-installasjoner, samt støtte for `auto_update`-konfigurasjon (7-dagers terskel).
+- **UX-løft**: Lagt til animerte spinnere under nettverkskall, `did-you-mean`-forslag ved skrivefeil i kommandoer/flagg, og tydeligere exit-koder dokumentert i `--help` (#331).
+- **Konflikthåndtering i sync**: `sync --dry-run` evaluerer nå konflikter for å automatisk rydde opp dem som allerede er løst manuelt.
+- **Kloning fra tilpasset `--source`**: Fikset en bug der `sync --source` feilet. CLI-en fanger nå opp og formaterer `git clone` feilmeldinger (stderr) slik at nettverks- og referansefeil blir tydelige.
+- **Sikkerhetskontekst (Sandbox)**: Dokumentert `cplt` sandbox-restriksjoner eksplisitt i `nav-pilot.agent.md` og globale `AGENTS.md` for å forhindre filtilgang utenfor gjeldende workspace (#326).
+
+### Standardisering av språk og innhold
+- **Språkstandardisering**: Body-tekst i instruksjoner og skills er harmonisert til engelsk, mens metadata i YAML frontmatter forblir på norsk (#179).
+- **Tilgjengelighet slanket**: Trimmet `accessibility.instructions.md` kraftig for å unngå dobbeltoppføring. Dype WCAG-remedieringer og ARIA-eksempler er samlet i `@accessibility`-agenten (#167).
+- **Konsistente agentnavn**: Navngivning av flere agenter er strømlinjeformet (f.eks. ble `auth-agent` til `@auth` og `code-review-agent` til `@code-review`), inkludert manifest-oppdateringer og oppdaterte prompt-eksempler.
+
+### Telemetri og test
+- **Separasjon av bakgrunnssynk**: Telemetri skiller nå `auto_sync` fra manuelle `sync`-kall for å gi mer nøyaktig bruksstatistikk.
+- **Test-robusthet (Bats)**: Bypasset macOS `noexec`-restriksjoner på `/tmp` ved å peke Bats tmp-katalog til workspace-mappen.
+- Diverse opprydding etter grundige kodegjennomganger (Adversarial Review og Opus).
+
+---
+
 ## 2026-06-09
 
 ### nav-pilot design — canonical spec og delegasjonsklarhet
