@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
@@ -96,9 +98,10 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		args = append(args, "--log-level", resolved.LogLevel)
 	}
 	if cliName == "cplt" {
-		return append([]string{"--agent", "copilot", "--"}, args...)
+		cpltArgs := append([]string{"--agent", "copilot", "--"}, args...)
+		return append(cpltArgs, resolved.ExtraArgs...)
 	}
-	return args
+	return append(args, resolved.ExtraArgs...)
 }
 
 // LaunchCopilotResolved launches the Copilot CLI with the resolved launch config.
@@ -242,4 +245,28 @@ func userCopilotDir() string {
 	}
 
 	return ""
+}
+
+// printCopilotDiagnostics prints the cplt system configuration for nav-pilot status.
+func printCopilotDiagnostics() {
+	cliPath, cliName := FindCopilotCLI()
+	if cliPath == "" || cliName != "cplt" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var sb strings.Builder
+	versionOut, err := exec.CommandContext(ctx, cliPath, "--version").Output()
+	version := strings.TrimSpace(string(versionOut))
+	if err != nil {
+		version = "unknown"
+	}
+	sb.WriteString(fmt.Sprintf("\n%s cplt found at %s (%s)\n", domain.Green("✓"), cliPath, version))
+
+	sb.WriteString("  agent pinned    : copilot → nav-pilot\n")
+	sb.WriteString("  cplt config     : run 'cplt config show' to view sandbox settings\n")
+
+	fmt.Print(sb.String())
 }

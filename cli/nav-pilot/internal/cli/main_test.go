@@ -806,7 +806,7 @@ func TestCmdUninstall_DryRun(t *testing.T) {
 
 func TestCmdStatus_NoState(t *testing.T) {
 	dir := t.TempDir()
-	err := cmdStatus(ScopeRepo(dir), false)
+	err := cmdListInstalledScoped(ScopeRepo(dir), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -830,7 +830,7 @@ func TestCmdStatus_WithState(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	err := cmdStatus(ScopeRepo(dir), false)
+	err := cmdListInstalledScoped(ScopeRepo(dir), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -870,8 +870,8 @@ func TestCmdStatusAuto_ShowsBothScopes(t *testing.T) {
 		Files:      []InstalledFile{{Path: "agents/nav-pilot.agent.md", Hash: userHash}},
 	})
 
-	// cmdStatusAuto should show both without error
-	err = cmdStatusAuto(repoDir, false)
+	// cmdListInstalledAuto should show both without error
+	err = cmdListInstalledAuto(repoDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -897,7 +897,7 @@ func TestCmdStatusAuto_UserOnly(t *testing.T) {
 		Files:      []InstalledFile{{Path: "agents/test.agent.md", Hash: userHash}},
 	})
 
-	err := cmdStatusAuto(repoDir, false)
+	err := cmdListInstalledAuto(repoDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -908,7 +908,7 @@ func TestCmdStatusAuto_NeitherScope(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
-	err := cmdStatusAuto(repoDir, false)
+	err := cmdListInstalledAuto(repoDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -929,7 +929,7 @@ func TestCmdStatusAuto_JSON(t *testing.T) {
 	t.Setenv("HOME", fakeHome)
 
 	// JSON output should work without error
-	err := cmdStatusAuto(repoDir, true)
+	err := cmdListInstalledAuto(repoDir, true)
 	if err != nil {
 		t.Fatal(err)
 	}

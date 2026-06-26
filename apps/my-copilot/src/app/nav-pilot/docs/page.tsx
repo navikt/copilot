@@ -276,6 +276,7 @@ const CLI_COMMANDS = [
   { command: "nav-pilot install --force <collection>", description: "Overskriv lokalt endrede filer" },
   { command: "nav-pilot list", description: "Vis tilgjengelige collections og enkeltkomponenter" },
   { command: "nav-pilot list --installed", description: "Vis installerte filer og integritet" },
+  { command: "nav-pilot doctor", description: "Kjør helsesjekk av systemet og miljøet" },
   { command: "nav-pilot install <name>", description: "Installer enkeltkomponent (agent, skill, etc.)" },
   {
     command: "nav-pilot install <name> --type <type>",

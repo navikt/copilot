@@ -523,7 +523,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		return fallback
 	}
 	switch v {
-	case "install", "sync", "upgrade", "list", "startup", "launch",
+	case "install", "sync", "upgrade", "list", "startup", "launch", "doctor",
 		"interactive", "non_interactive",
 		"repo", "user", "auto", "none", "unknown",
 		"success", "error", "updates_available", "dev",

@@ -656,15 +656,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	return nil
 }
 
-// cmdInstall installs a named collection. Used by the old direct dispatch path
-// and re-resolves source (unlike cmdInstallFromSource which reuses an existing source).
-func cmdStatus(scope *InstallScope, jsonOutput bool) error {
-	return cmdStatusScoped(scope, false, jsonOutput)
-}
-
-// cmdStatusAuto shows status for all detected scopes (repo + user) when the
-// user didn't explicitly pick one with --user or --target.
-func cmdStatusAuto(repoDir string, jsonOutput bool) error {
+// cmdListInstalledAuto shows list for all detected scopes (repo + user) when the
+// scope isn't explicitly requested.
+func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 	repoScope := ScopeRepo(repoDir)
 	repoState, _ := readScopedState(repoScope)
 
@@ -674,12 +668,21 @@ func cmdStatusAuto(repoDir string, jsonOutput bool) error {
 		userState, _ = readScopedState(userScope)
 	}
 
-	if repoState == nil && userState == nil {
+	hasProviderCtx := false
+	for _, p := range allProviders() {
+		if p.ContextStatus() != nil {
+			hasProviderCtx = true
+			break
+		}
+	}
+
+	if repoState == nil && userState == nil && !hasProviderCtx {
 		if jsonOutput {
 			return outputJSON(map[string]interface{}{"installed": false})
 		}
-		fmt.Println("No nav-pilot collection installed (repo or user scope).")
+		fmt.Printf("No nav-pilot collection installed (repo or user scope).\n")
 		fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
+
 		return nil
 	}
 
@@ -743,7 +746,7 @@ func cmdStatusAuto(repoDir string, jsonOutput bool) error {
 	return nil
 }
 
-func cmdStatusScoped(scope *InstallScope, _ bool, jsonOutput bool) error {
+func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error {
 	state, err := readScopedState(scope)
 	if err != nil {
 		return fmt.Errorf("reading state: %w", err)

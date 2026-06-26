@@ -57,7 +57,7 @@ func isKnownCommand(arg string) bool {
 		return true
 	}
 	switch arg {
-	case "install", "init", "export", "add", "ignore", "sync", "list", "status",
+	case "install", "init", "export", "add", "ignore", "sync", "list", "doctor",
 		"uninstall", "upgrade", "update", "config", "env", "feedback", "models",
 		"version", "--version", "-v", "-h", "--help", "help":
 		return true
@@ -74,6 +74,7 @@ Once installed, use @nav-pilot in Copilot Chat to plan and build Nav apps.
 
 Usage:
   nav-pilot <command> [flags]
+  nav-pilot [options] [-- [client-flags]]
 
 Commands:
   install (i) <name>      Install a collection or individual agent/skill/instruction/prompt
@@ -82,6 +83,7 @@ Commands:
   sync (s)                Check for updates and optionally apply them
   list (ls)               List available collections and items
   list --installed        Show what's currently installed
+  doctor                  Run system health checks and diagnostics
   upgrade (up)            Update nav-pilot CLI to the latest version
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
@@ -259,6 +261,9 @@ func run(args []string) error {
 			case "--no-auto-launch":
 				f := false
 				cliOverrides.AutoLaunch = &f
+			case "--":
+				cliOverrides.ExtraArgs = append(cliOverrides.ExtraArgs, args[i+1:]...)
+				i = len(args) // consume the rest
 			default:
 				cleanArgs = append(cleanArgs, args[i])
 			}
@@ -365,7 +370,10 @@ func run(args []string) error {
 			usage()
 			return nil
 		default:
-			if rest[i] == "-" || rest[i] == "--" {
+			if rest[i] == "--" {
+				return fmt.Errorf("the '--' separator is only supported for the 'launch' command to pass extra arguments")
+			}
+			if rest[i] == "-" {
 				positional = append(positional, rest[i])
 				continue
 			}
@@ -409,7 +417,7 @@ func run(args []string) error {
 	// Reject --user for commands that don't support scoped installs
 	if userScope {
 		switch command {
-		case "install", "add", "ignore", "sync", "status", "uninstall", "export", "list":
+		case "install", "add", "ignore", "sync", "doctor", "uninstall", "export", "list":
 			// These commands support --user
 		default:
 			return fmt.Errorf("--user is not supported for %q", command)
@@ -490,22 +498,16 @@ func run(args []string) error {
 		return runWithCommandTelemetry("list", telemetryMode(), listScope, func() error {
 			if listInstalled {
 				if userScope || targetProvided {
-					return cmdStatusScoped(scope, false, jsonOutput)
+					return cmdListInstalledScoped(scope, false, jsonOutput)
 				}
-				return cmdStatusAuto(targetDir, jsonOutput)
+				return cmdListInstalledAuto(targetDir, jsonOutput)
 			}
 			return cmdList(ref, sourceRepo, listItems, jsonOutput)
 		})
-	case "status":
-		// Deprecated: hidden alias for backward compatibility
-		if !jsonOutput {
-			fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
-				yellow("⚠"), bold("nav-pilot status"), bold("nav-pilot list --installed"))
-		}
-		if userScope || targetProvided {
-			return cmdStatusScoped(scope, false, jsonOutput)
-		}
-		return cmdStatusAuto(targetDir, jsonOutput)
+	case "doctor":
+		return runWithCommandTelemetry("doctor", telemetryMode(), "none", func() error {
+			return cmdDoctor()
+		})
 	case "uninstall":
 		return cmdUninstall(scope, dryRun)
 	case "upgrade":
@@ -532,7 +534,7 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "status", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "version", "help"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}

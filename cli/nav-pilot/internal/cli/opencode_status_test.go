@@ -31,7 +31,7 @@ func TestCmdStatusAutoIncludesOpenCode(t *testing.T) {
 		t.Fatalf("writing AGENTS.md: %v", err)
 	}
 
-	if err := cmdStatusAuto(t.TempDir(), false); err != nil {
-		t.Errorf("cmdStatusAuto error: %v", err)
+	if err := cmdListInstalledAuto(t.TempDir(), false); err != nil {
+		t.Errorf("cmdListInstalledAuto error: %v", err)
 	}
 }

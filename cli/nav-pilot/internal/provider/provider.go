@@ -48,6 +48,7 @@ type Provider interface {
 	SyncContext(ref, sourceRepo string, jsonOutput, hasPrevOutput bool) ProviderSyncResult
 	ContextStatus() *ProviderContextStatus
 	PrintContextStatus()
+	PrintSystemDiagnostics()
 }
 
 // OpenCodeDefaultModel is the Nav-curated default model for opencode. opencode
@@ -183,6 +184,7 @@ func (copilotProvider) SyncContext(_, _ string, _, _ bool) ProviderSyncResult {
 }
 func (copilotProvider) ContextStatus() *ProviderContextStatus { return nil }
 func (copilotProvider) PrintContextStatus()                   {}
+func (copilotProvider) PrintSystemDiagnostics()               { printCopilotDiagnostics() }
 
 type openCodeProvider struct{}
 
@@ -307,6 +309,8 @@ func (openCodeProvider) PrintContextStatus() {
 	}
 }
 
+func (openCodeProvider) PrintSystemDiagnostics() {}
+
 type piProvider struct{}
 
 func (piProvider) ID() string                           { return "pi" }
@@ -323,6 +327,7 @@ func (piProvider) Bootstrap() (string, error)                            { retur
 func (piProvider) SyncContext(_, _ string, _, _ bool) ProviderSyncResult { return ProviderSyncResult{} }
 func (piProvider) ContextStatus() *ProviderContextStatus                 { return nil }
 func (piProvider) PrintContextStatus()                                   {}
+func (piProvider) PrintSystemDiagnostics()                               {}
 
 func (piProvider) Available() bool {
 	_, err := exec.LookPath("pi")

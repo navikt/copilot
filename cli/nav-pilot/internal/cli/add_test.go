@@ -524,7 +524,7 @@ func TestCmdStatus_Integrity(t *testing.T) {
 	writeState(target, state)
 
 	// Should not error
-	err := cmdStatus(ScopeRepo(target), false)
+	err := cmdListInstalledScoped(ScopeRepo(target), false, false)
 	if err != nil {
 		t.Fatalf("cmdStatus: %v", err)
 	}

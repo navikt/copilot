@@ -8,6 +8,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Rotmappe-migrering**: Flyttet alle customization-artefakter (agents, skills, instructions, prompts) til prosjektets rotmappe for ryddigere struktur (#330).
 
 ### nav-pilot CLI — UX, robusthet og auto-oppdatering
+- **nav-pilot doctor**: Erstattet den gamle `status`-kommandoen med en ny, handlingsrettet `doctor`-kommando som kjører systemhelsesjekk og gir proaktive, kopierbare løsninger på manglende kontekst, feil i konfigurasjon eller cplt sandbox-tilganger (#308, #231).
+- **Sandbox-konfigurasjon**: Implementert konfigurasjon for `cplt` sandbox og synlighet i den interaktive oppsettveiviseren for å enklere sette riktig prosjektmodus (#309).
 - **Auto-oppdatering og varsler**: CLI-en tilbyr nå en interaktiv oppgradering for utdaterte nav-pilot-installasjoner, samt støtte for `auto_update`-konfigurasjon (7-dagers terskel).
 - **UX-løft**: Lagt til animerte spinnere under nettverkskall, `did-you-mean`-forslag ved skrivefeil i kommandoer/flagg, og tydeligere exit-koder dokumentert i `--help` (#331).
 - **Konflikthåndtering i sync**: `sync --dry-run` evaluerer nå konflikter for å automatisk rydde opp dem som allerede er løst manuelt.
