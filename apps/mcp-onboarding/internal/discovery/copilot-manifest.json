@@ -16,7 +16,7 @@
         "ui"
       ],
       "filePath": "agents/accessibility.agent.md",
-      "contentHash": "c35b6db4d15e6f9fd0134667d83a1084cbc596cca40560715503c47d50f962df",
+      "contentHash": "67b453f152c4f663e721bceee58924d383cbc08a08e53f8bfcb3b41a39f1d865",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -48,8 +48,8 @@
     },
     {
       "type": "agent",
-      "name": "auth-agent",
-      "displayName": "@auth-agent",
+      "name": "auth",
+      "displayName": "@auth",
       "description": "Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-apper",
       "category": "security",
       "tags": [
@@ -59,7 +59,7 @@
         "security"
       ],
       "filePath": "agents/auth.agent.md",
-      "contentHash": "fb975bbc3b6d9cd4ca6543bc9ad1b813bb5052ca6d49bb8b16129d0c1a8d7e65",
+      "contentHash": "275b0d834d2a75f3fb9b04e741f1c2b28b306ef21b8cb316d6539b2c5cc99154",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -73,11 +73,11 @@
     },
     {
       "type": "agent",
-      "name": "code-review-agent",
-      "displayName": "@code-review-agent",
+      "name": "code-review",
+      "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "3f32b4e215bca95d73d859175c1c0d9be541c3558fd81bbd4f372073f371a307",
+      "contentHash": "ba64c6ac567371bbc6ce8d5d87479b162164e87b5d3953df9e4ca3b064b235cd",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -198,7 +198,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "f490eb3f9ca1e9a372939f99c164a6df32ae89c9c9d52d9c84e7a8258f78e93c",
+      "contentHash": "09c7351bf3ceb03b2e43978ca95cee75be010c50fbaf796bf360b903bb978ecd",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -220,8 +220,8 @@
     },
     {
       "type": "agent",
-      "name": "observability-agent",
-      "displayName": "@observability-agent",
+      "name": "observability",
+      "displayName": "@observability",
       "description": "Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling",
       "category": "platform",
       "tags": [
@@ -232,7 +232,7 @@
         "prometheus"
       ],
       "filePath": "agents/observability.agent.md",
-      "contentHash": "dc896b1966b009c039508776e0daf9aa6046fb737395b0544edceeb704b8a55f",
+      "contentHash": "790f7e03f52e44d865b6703685f0dac4a100cb5f69455f7f688d2e80f3b72b64",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -328,7 +328,7 @@
       "displayName": "Accessibility (UU)",
       "description": "WCAG 2.1 AA, semantisk HTML, ARIA, Aksel a11y-patterns, keyboard-navigasjon.",
       "filePath": "instructions/accessibility.instructions.md",
-      "contentHash": "3f682e93474bfdd8da4c2ff34ab126fa0972d5f5c58853db514f77fc4a7ab4cb",
+      "contentHash": "986ef7aa27d8a1d989c0ca5036d71a5f64fc626148211b671654b46933e64af4",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md"
     },
@@ -348,7 +348,7 @@
       "displayName": "Database Development",
       "description": "Flyway migration standards, PostgreSQL schema patterns, safe alterations.",
       "filePath": "instructions/database.instructions.md",
-      "contentHash": "5b4639fd54c7b4f384ccf466d431aaa1a81038d53b16ef75339cf59f18a38bfd",
+      "contentHash": "9fb524bf4111f25f414abbe2bd08a121bbd3b80aa5d91e72210372d44ad2e3bf",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/database.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/database.instructions.md"
     },
@@ -415,7 +415,7 @@
         "backend"
       ],
       "filePath": "instructions/kotlin-ktor.instructions.md",
-      "contentHash": "495a1016fde292892ab632aabc2f9eaf270d577ff642a64509f87ff57fbe72bc",
+      "contentHash": "f180c7d9ebb3ddeee8bc9df382f560103ae2eca77aaba69a1eba612380fb08a0",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-ktor.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-ktor.instructions.md"
     },
@@ -430,7 +430,7 @@
         "backend"
       ],
       "filePath": "instructions/kotlin-spring.instructions.md",
-      "contentHash": "bdf9d1bfd412180301f5f5e4f7f6b23c4b9de272ea2cd7ddfa2c4437cec089f9",
+      "contentHash": "9c5bc41afd68d9621074e38f6d312ac68b1f53663d41e9cef0eebf02d442f58b",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-spring.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-spring.instructions.md"
     },
@@ -498,7 +498,7 @@
       "type": "instruction",
       "name": "testing-kotlin",
       "displayName": "Testing/Kotlin Development",
-      "description": "Kotlin-spesifikke testmønstre for Nav: Kotest-matchers, TestRapid, Testcontainers og MockOAuth2Server.",
+      "description": "Kotlin-specific test patterns for Nav: Kotest-matchers, TestRapid, Testcontainers, and MockOAuth2Server.",
       "tags": [
         "auth",
         "azure-ad",
@@ -506,7 +506,7 @@
         "security"
       ],
       "filePath": "instructions/testing-kotlin.instructions.md",
-      "contentHash": "13a5a10d86577f845bc1710505d67f2adfd242c6f2a4e19b044b06952a4f41d4",
+      "contentHash": "183e7a28acecdbb569111f723631d52991b2d2cb097c484c7a92cd5fdd9b143c",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing-kotlin.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing-kotlin.instructions.md"
     },
@@ -514,7 +514,7 @@
       "type": "instruction",
       "name": "testing-typescript",
       "displayName": "Testing/Typescript Development",
-      "description": "TypeScript-spesifikke testmønstre for Nav: Vitest, mocking, async og React-komponenttesting.",
+      "description": "TypeScript-specific test patterns for Nav: Vitest, mocking, async, and React component testing.",
       "tags": [
         "testing",
         "jest",
@@ -522,7 +522,7 @@
         "quality"
       ],
       "filePath": "instructions/testing-typescript.instructions.md",
-      "contentHash": "d3fd7e7d5f2ee256dd25194b09afe3c667a5c3496066a3ade13fe7cf4f50b7ba",
+      "contentHash": "6c6055340a9d075cf520e77ab64983b65c11593984db7a3d263bdc6f2fbec1b2",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing-typescript.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing-typescript.instructions.md"
     },
@@ -537,7 +537,7 @@
         "backend"
       ],
       "filePath": "instructions/testing.instructions.md",
-      "contentHash": "4a6a7547a3701ce134e8e85744fbc839e0a75cf563ae549ba4a48c4af56cf3ba",
+      "contentHash": "ca2a23744bef3a2c3dafcd7470c5566c1abd2b9592f326a6ff13e37ae1ec3831",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing.instructions.md"
     }
@@ -730,7 +730,7 @@
       "displayName": "conventional-commit",
       "description": "Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format",
       "filePath": "skills/conventional-commit/SKILL.md",
-      "contentHash": "7ff77862da5510a426758adab92663e987695d3fa2ff8e029f38584f9ea39f93",
+      "contentHash": "3ee8419b48ef77fbe0954d6884d2a442ff082345a126c85c3cab760f5b97ac17",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/conventional-commit/SKILL.md"
     },

@@ -36,27 +36,27 @@ Generate commit messages following the Conventional Commits specification, adapt
 | `ci` | CI configuration changes |
 | `chore` | Other changes that don't affect code |
 
-## Nav-relevante scopes
+## Nav-relevant scopes
 
 ```
-feat(vedtak): legg til støtte for klagevedtak
-fix(auth): fiks token-validering for TokenX
-docs(api): oppdater OpenAPI-spec for vedtak-endepunktet
-refactor(repository): bruk CTE for bedre lesbarhet
-test(controller): legg til integrasjonstest med MockOAuth2Server
-build(deps): oppgrader Spring Boot til 3.4.1
-ci(deploy): legg til prod-deploy steg
-perf(db): legg til indeks på bruker_id
-chore(nais): oppdater ressursgrenser
+feat(vedtak): add support for complaint decisions
+fix(auth): fix token validation for TokenX
+docs(api): update OpenAPI spec for the vedtak endpoint
+refactor(repository): use CTE for better readability
+test(controller): add integration test with MockOAuth2Server
+build(deps): upgrade Spring Boot to 3.4.1
+ci(deploy): add prod deploy step
+perf(db): add index on bruker_id
+chore(nais): update resource limits
 ```
 
 ## Breaking Changes
 
 ```
-feat(api)!: endre responsformat for vedtak-endepunktet
+feat(api)!: change response format for the vedtak endpoint
 
-BREAKING CHANGE: Feltet `vedtakDato` er endret til `opprettetDato`.
-Konsumenter må oppdatere sin parsing.
+BREAKING CHANGE: The `vedtakDato` field has been changed to `opprettetDato`.
+Consumers must update their parsing.
 ```
 
 ## Rules
@@ -70,24 +70,24 @@ Konsumenter må oppdatere sin parsing.
 ## Examples
 
 ```bash
-# Enkel feature
-git commit -m "feat(søknad): legg til validering av fødselsnummer"
+# Simple feature
+git commit -m "feat(søknad): add validation of national identity number"
 
-# Bugfix med referanse
-git commit -m "fix(auth): håndter utløpt refresh-token
+# Bugfix with reference
+git commit -m "fix(auth): handle expired refresh token
 
-Refresh-tokenet ble ikke fornyet ved utløp, som førte til
-at brukere ble logget ut uten varsel.
+The refresh token was not renewed upon expiration, which caused
+users to be logged out without warning.
 
 Fixes #456"
 
-# Dependency-oppdatering
-git commit -m "build(deps): oppgrader postgresql driver til 42.7.4"
+# Dependency update
+git commit -m "build(deps): upgrade postgresql driver to 42.7.4"
 
 # Breaking change
-git commit -m "feat(api)!: fjern deprecated /api/v1/vedtak endepunkt
+git commit -m "feat(api)!: remove deprecated /api/v1/vedtak endpoint
 
-BREAKING CHANGE: /api/v1/vedtak er fjernet. Bruk /api/v2/vedtak."
+BREAKING CHANGE: /api/v1/vedtak has been removed. Use /api/v2/vedtak."
 ```
 
 ## Analyzing Staged Changes

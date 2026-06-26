@@ -1,10 +1,12 @@
 ---
+name: Kotlin Spring Boot Patterns
+description: "Spring Boot-mønstre for Nav-backends: controller, service, repository, validering og feilhåndtering."
 applyTo: "**/*.kt"
 ---
 
-Spring Boot-mønstre for Nav-backends: controller, service, repository, validering og feilhåndtering.
+Spring Boot patterns for Nav backends: controller, service, repository, validation, and error handling.
 
-> Ktor er det mest brukte rammeverket for nye Kotlin-backends i Nav, men Spring Boot brukes aktivt av mange team. Teamene velger selv. For migrering mellom rammeverkene, se [$java-to-kotlin](../skills/java-to-kotlin/).
+> Ktor is the most widely used framework for new Kotlin backends in Nav, but Spring Boot is actively used by many teams. Teams choose for themselves. For migrating between frameworks, see [$java-to-kotlin](../skills/java-to-kotlin/).
 
 > Spring Boot patterns for Nav backends. Apply when the file uses Spring (`@RestController`, `@Service`, Spring Data etc.) — for Ktor/Rapids & Rivers apps, see `kotlin-ktor.instructions.md` instead.
 

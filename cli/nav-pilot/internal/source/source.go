@@ -1,11 +1,13 @@
 package source
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
@@ -34,7 +36,12 @@ func (s *Source) Cleanup() {
 func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
-		return CloneRemoteFn(ref, sourceRepo)
+		src, err := CloneRemoteFn(ref, sourceRepo)
+		if err != nil {
+			return nil, err
+		}
+		src.Version = cliVersion
+		return src, nil
 	}
 
 	if ref != "" {
@@ -118,11 +125,27 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	if sourceRepo != "" {
 		label = sourceRepo
 	}
+	msg := fmt.Sprintf("Fetching %s...", label)
 	if ref != "" {
-		fmt.Fprintf(os.Stderr, "%s Fetching %s@%s...\n", domain.Dim("→"), label, ref)
-	} else {
-		fmt.Fprintf(os.Stderr, "%s Fetching %s...\n", domain.Dim("→"), label)
+		msg = fmt.Sprintf("Fetching %s@%s...", label, ref)
 	}
+
+	done := make(chan struct{})
+	go func() {
+		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		i := 0
+		ticker := time.NewTicker(80 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				fmt.Fprintf(os.Stderr, "\r%s %s", domain.Dim(frames[i%len(frames)]), msg)
+				i++
+			}
+		}
+	}()
 
 	args := []string{"-c", "advice.detachedHead=false", "clone", "--depth", "1", "--quiet"}
 	if ref != "" {
@@ -131,13 +154,23 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	args = append(args, repoURL, tmpDir)
 
 	cmd := exec.Command("git", args...)
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	// Suppress stderr during clone so it doesn't overwrite the spinner unless there's an error
+	err = cmd.Run()
+
+	close(done)
+	fmt.Fprintf(os.Stderr, "\r\033[K")
+	if err != nil {
 		os.RemoveAll(tmpDir)
-		if ref != "" {
-			return nil, fmt.Errorf("could not clone navikt/copilot@%s — check that the ref exists and you have network access.\n  See releases: https://github.com/navikt/copilot/releases", ref)
+		gitErr := strings.TrimSpace(stderr.String())
+		if gitErr != "" {
+			gitErr = "\n\n  " + strings.ReplaceAll(gitErr, "\n", "\n  ")
 		}
-		return nil, fmt.Errorf("could not clone navikt/copilot — check your network connection")
+		if ref != "" {
+			return nil, fmt.Errorf("could not clone %s@%s — check that the ref exists and you have network access%s", label, ref, gitErr)
+		}
+		return nil, fmt.Errorf("could not clone %s — check your network connection%s", label, gitErr)
 	}
 
 	sha := getGitSHA(tmpDir)

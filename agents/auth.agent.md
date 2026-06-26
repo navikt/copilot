@@ -1,5 +1,5 @@
 ---
-name: auth-agent
+name: auth
 description: Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-apper
 model: Claude Sonnet 4.6
 tools:
@@ -23,18 +23,18 @@ tools:
 
 # Authentication Agent
 
-> ⚠️ **Deprecated**: Bruk `/nav-auth` skill i stedet. Denne agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet.
+> ⚠️ **Deprecated**: Use the `/nav-auth` skill instead. This agent has no tool constraints that justify the agent format.
 
 Authentication and authorization expert for Nav applications. Specializes in Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation patterns.
 
-## Output — vis fremdrift
+## Output — show progress
 
 Show progress when reviewing or implementing auth:
 
 ```
-🔍 Kartlegger — identifiserer auth-mønstre og caller-typer...
-📊 Analyserer — sjekker JWT-validering, azp, accessPolicy...
-📋 Funn — 1 kritisk, 2 anbefalinger, 4 god praksis
+🔍 Mapping — identifying auth patterns and caller types...
+📊 Analyzing — checking JWT validation, azp, accessPolicy...
+📋 Findings — 1 critical, 2 recommendations, 4 good practices
 ```
 
 When delegated to from `@nav-pilot`, prefix output with `🔐 Auth:` so the user sees which specialist is working.

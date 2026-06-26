@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-25T21:58:58.065Z",
+  "generatedAt": "2026-06-26T05:43:22.315Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -10,7 +10,7 @@
       "domain": "frontend",
       "filePath": ".github/agents/accessibility.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/accessibility.agent.md",
-      "contentHash": "c35b6db4d15e6f9fd0134667d83a1084cbc596cca40560715503c47d50f962df",
+      "contentHash": "67b453f152c4f663e721bceee58924d383cbc08a08e53f8bfcb3b41a39f1d865",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "tools": [
@@ -116,14 +116,14 @@
       ]
     },
     {
-      "id": "auth-agent",
-      "name": "auth-agent",
+      "id": "auth",
+      "name": "auth",
       "description": "Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-apper",
       "type": "agent",
       "domain": "auth",
       "filePath": ".github/agents/auth.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/auth.agent.md",
-      "contentHash": "fb975bbc3b6d9cd4ca6543bc9ad1b813bb5052ca6d49bb8b16129d0c1a8d7e65",
+      "contentHash": "275b0d834d2a75f3fb9b04e741f1c2b28b306ef21b8cb316d6539b2c5cc99154",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fauth.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fauth.agent.md",
       "tools": [
@@ -145,7 +145,7 @@
         "io.github.navikt/github-mcp/search_pull_requests"
       ],
       "model": ["Claude Sonnet 4.6"],
-      "agentReferences": ["nais-agent", "observability-agent", "security-champion-agent"],
+      "agentReferences": ["nais-agent", "security-champion-agent"],
       "tags": ["auth", "azure-ad", "tokenx", "id-porten", "security"],
       "examples": [
         {
@@ -161,14 +161,14 @@
       "deprecatedMessage": "Bruk /nav-auth skill i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet."
     },
     {
-      "id": "code-review-agent",
-      "name": "code-review-agent",
+      "id": "code-review",
+      "name": "code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "type": "agent",
       "domain": "general",
       "filePath": ".github/agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/code-review.agent.md",
-      "contentHash": "3f32b4e215bca95d73d859175c1c0d9be541c3558fd81bbd4f372073f371a307",
+      "contentHash": "ba64c6ac567371bbc6ce8d5d87479b162164e87b5d3953df9e4ca3b064b235cd",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -185,13 +185,7 @@
         "io.github.navikt/github-mcp/search_pull_requests"
       ],
       "model": ["GPT-5.3-Codex"],
-      "agentReferences": [
-        "accessibility-agent",
-        "aksel-agent",
-        "auth-agent",
-        "observability-agent",
-        "security-champion-agent"
-      ],
+      "agentReferences": ["accessibility-agent", "aksel-agent", "security-champion-agent"],
       "tags": ["code-review", "quality", "conventions", "pre-merge"],
       "examples": [
         {
@@ -206,7 +200,8 @@
           "prompt": "@code-review-agent Sjekk src/app/usage/page.tsx for Nav-konvensjoner",
           "scenario": "Konvensjonssjekk"
         }
-      ]
+      ],
+      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
     },
     {
       "id": "forfatter",
@@ -284,7 +279,7 @@
         "io.github.navikt/github-mcp/search_pull_requests"
       ],
       "model": ["GPT-5.3-Codex"],
-      "agentReferences": ["nais-agent", "observability-agent", "security-champion-agent"],
+      "agentReferences": ["nais-agent", "security-champion-agent"],
       "tags": ["kafka", "events", "rapids-rivers", "streaming"],
       "examples": [
         {
@@ -332,7 +327,7 @@
         "io.github.navikt/github-mcp/list_tags"
       ],
       "model": ["GPT-5.3-Codex"],
-      "agentReferences": ["auth-agent", "kafka-agent", "observability-agent", "security-champion-agent"],
+      "agentReferences": ["kafka-agent", "security-champion-agent"],
       "tags": ["nais", "kubernetes", "deployment", "infrastructure"],
       "examples": [
         {
@@ -403,7 +398,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "f490eb3f9ca1e9a372939f99c164a6df32ae89c9c9d52d9c84e7a8258f78e93c",
+      "contentHash": "09c7351bf3ceb03b2e43978ca95cee75be010c50fbaf796bf360b903bb978ecd",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -430,10 +425,8 @@
       "agentReferences": [
         "accessibility-agent",
         "aksel-agent",
-        "auth-agent",
         "kafka-agent",
         "nais-agent",
-        "observability-agent",
         "research-agent",
         "security-champion-agent"
       ],
@@ -463,14 +456,14 @@
       "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
     },
     {
-      "id": "observability-agent",
-      "name": "observability-agent",
+      "id": "observability",
+      "name": "observability",
       "description": "Prometheus-metrikker, OpenTelemetry-tracing, Grafana-dashboards og varsling",
       "type": "agent",
       "domain": "observability",
       "filePath": ".github/agents/observability.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/observability.agent.md",
-      "contentHash": "dc896b1966b009c039508776e0daf9aa6046fb737395b0544edceeb704b8a55f",
+      "contentHash": "790f7e03f52e44d865b6703685f0dac4a100cb5f69455f7f688d2e80f3b72b64",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fobservability.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fobservability.agent.md",
       "tools": [
@@ -540,14 +533,7 @@
         "io.github.navikt/github-mcp/list_branches"
       ],
       "model": ["GPT-5.3-Codex"],
-      "agentReferences": [
-        "aksel-agent",
-        "auth-agent",
-        "kafka-agent",
-        "nais-agent",
-        "observability-agent",
-        "security-champion-agent"
-      ],
+      "agentReferences": ["aksel-agent", "kafka-agent", "nais-agent", "security-champion-agent"],
       "tags": ["research", "analysis", "codebase-exploration"],
       "examples": [
         {
@@ -584,7 +570,7 @@
         "io.github.navikt/github-mcp/search_repositories"
       ],
       "model": ["GPT-5.3-Codex"],
-      "agentReferences": ["code-review-agent", "nais-agent", "observability-agent", "security-champion-agent"],
+      "agentReferences": ["nais-agent", "security-champion-agent"],
       "tags": ["rust", "cargo", "clippy", "async", "tokio"],
       "deprecated": true,
       "deprecatedMessage": "Bruk /rust-development skill i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet."
@@ -625,7 +611,7 @@
         "io.github.navikt/github-mcp/list_branches"
       ],
       "model": ["Claude Opus 4.6"],
-      "agentReferences": ["auth-agent", "nais-agent", "observability-agent"],
+      "agentReferences": ["nais-agent"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
         {
@@ -646,7 +632,7 @@
       "domain": "frontend",
       "filePath": ".github/instructions/accessibility.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md",
-      "contentHash": "3f682e93474bfdd8da4c2ff34ab126fa0972d5f5c58853db514f77fc4a7ab4cb",
+      "contentHash": "986ef7aa27d8a1d989c0ca5036d71a5f64fc626148211b671654b46933e64af4",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Faccessibility.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Faccessibility.instructions.md",
       "applyTo": "src/**/*.{tsx,jsx}",
@@ -681,7 +667,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/database.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/database.instructions.md",
-      "contentHash": "5b4639fd54c7b4f384ccf466d431aaa1a81038d53b16ef75339cf59f18a38bfd",
+      "contentHash": "9fb524bf4111f25f414abbe2bd08a121bbd3b80aa5d91e72210372d44ad2e3bf",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdatabase.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdatabase.instructions.md",
       "applyTo": "**/db/migration/**/*.sql",
@@ -767,7 +753,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-ktor.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-ktor.instructions.md",
-      "contentHash": "495a1016fde292892ab632aabc2f9eaf270d577ff642a64509f87ff57fbe72bc",
+      "contentHash": "f180c7d9ebb3ddeee8bc9df382f560103ae2eca77aaba69a1eba612380fb08a0",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-ktor.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-ktor.instructions.md",
       "applyTo": "**/*.kt",
@@ -783,7 +769,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-spring.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-spring.instructions.md",
-      "contentHash": "bdf9d1bfd412180301f5f5e4f7f6b23c4b9de272ea2cd7ddfa2c4437cec089f9",
+      "contentHash": "9c5bc41afd68d9621074e38f6d312ac68b1f53663d41e9cef0eebf02d442f58b",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-spring.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-spring.instructions.md",
       "applyTo": "**/*.kt",
@@ -872,7 +858,7 @@
       "domain": "general",
       "filePath": ".github/instructions/testing-kotlin.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing-kotlin.instructions.md",
-      "contentHash": "13a5a10d86577f845bc1710505d67f2adfd242c6f2a4e19b044b06952a4f41d4",
+      "contentHash": "183e7a28acecdbb569111f723631d52991b2d2cb097c484c7a92cd5fdd9b143c",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-kotlin.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-kotlin.instructions.md",
       "applyTo": "**/*.test.{kt,kts}",
@@ -886,7 +872,7 @@
       "domain": "general",
       "filePath": ".github/instructions/testing-typescript.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing-typescript.instructions.md",
-      "contentHash": "d3fd7e7d5f2ee256dd25194b09afe3c667a5c3496066a3ade13fe7cf4f50b7ba",
+      "contentHash": "6c6055340a9d075cf520e77ab64983b65c11593984db7a3d263bdc6f2fbec1b2",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-typescript.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-typescript.instructions.md",
       "applyTo": "**/*.test.{ts,tsx}",
@@ -900,7 +886,7 @@
       "domain": "general",
       "filePath": ".github/instructions/testing.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/testing.instructions.md",
-      "contentHash": "4a6a7547a3701ce134e8e85744fbc839e0a75cf563ae549ba4a48c4af56cf3ba",
+      "contentHash": "ca2a23744bef3a2c3dafcd7470c5566c1abd2b9592f326a6ff13e37ae1ec3831",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting.instructions.md",
       "applyTo": "**/*.test.{ts,tsx,kt,kts}",
@@ -1179,7 +1165,7 @@
       "domain": "general",
       "filePath": "skills/conventional-commit/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/conventional-commit/SKILL.md",
-      "contentHash": "7ff77862da5510a426758adab92663e987695d3fa2ff8e029f38584f9ea39f93",
+      "contentHash": "3ee8419b48ef77fbe0954d6884d2a442ff082345a126c85c3cab760f5b97ac17",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["git", "commit", "conventional-commits", "changelog"],
