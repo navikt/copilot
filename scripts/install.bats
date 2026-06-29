@@ -59,6 +59,14 @@ exit 0
 EOF
   chmod +x "${MOCK_BIN}/sha256sum"
 
+  # Mock gh CLI for SLSA provenance verification
+  cat <<'EOF' > "${MOCK_BIN}/gh"
+#!/bin/bash
+echo "mock gh $*"
+exit 0
+EOF
+  chmod +x "${MOCK_BIN}/gh"
+
   # Default mock for uname (Linux x86_64)
   cat <<'EOF' > "${MOCK_BIN}/uname"
 #!/bin/bash

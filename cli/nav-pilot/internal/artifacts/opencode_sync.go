@@ -69,7 +69,7 @@ func ValidateOpenCodeStatePath(p string) error {
 
 // SyncOpenCodeArtifacts materializes Nav context into outputDir with conflict detection
 // and state tracking. It is the state-aware counterpart to MaterializeOpenCode.
-func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string) (skills, commands, agents, instructions int, conflicts []string, err error) {
+func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
 	existingState, _ := ReadOpenCodeState(outputDir)
 	stateHashes := map[string]string{}
 	if existingState != nil {
@@ -215,10 +215,31 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA string
 		instructions = len(globalSections) + len(scopedRefs)
 	}
 
+	// Build map of new/updated files
+	newFilesMap := make(map[string]bool)
+	for _, f := range files {
+		newFilesMap[f.Path] = true
+	}
+
+	// Delete old files that are not in the new file set
+	if existingState != nil {
+		for _, f := range existingState.Files {
+			if !newFilesMap[f.Path] {
+				dst := filepath.Join(outputDir, f.Path)
+				if strings.HasSuffix(f.Path, "/") {
+					os.RemoveAll(dst)
+				} else {
+					os.Remove(dst)
+				}
+			}
+		}
+	}
+
 	newState := &domain.StateFile{
 		Collection:  OpenCodeCollection,
 		Version:     sourceVersion,
 		Scope:       OpenCodeScopeName,
+		SourceRepo:  sourceRepo,
 		SourceSHA:   sourceSHA,
 		InstalledAt: time.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       files,

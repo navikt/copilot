@@ -256,7 +256,11 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 	assessment := assessStaleness(ocState.Version)
 	recordFreshness("opencode", artifacts.OpenCodeScopeName, assessment)
 
-	ocSrc, ocSrcErr := source.ResolveSourceForSync(ref, sourceRepo, cliVersion)
+	sRepo := sourceRepo
+	if sRepo == "" && ocState.SourceRepo != "" {
+		sRepo = ocState.SourceRepo
+	}
+	ocSrc, ocSrcErr := source.ResolveSourceForSync(ref, sRepo, cliVersion)
 	if ocSrcErr != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Opencode sync failed: could not resolve source: %v\n", domain.Yellow("⚠"), ocSrcErr)
@@ -266,7 +270,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 	}
 	defer ocSrc.Cleanup()
 
-	_, _, _, _, ocConflicts, ocErr := artifacts.SyncOpenCodeArtifacts(ocSrc.Dir, ocOutputDir, ocSrc.Version, ocSrc.SHA)
+	_, _, _, _, ocConflicts, ocErr := artifacts.SyncOpenCodeArtifacts(ocSrc.Dir, ocOutputDir, ocSrc.Version, ocSrc.SHA, ocSrc.Repo)
 	if ocErr != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Opencode sync error: %v\n", domain.Yellow("⚠"), ocErr)

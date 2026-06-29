@@ -18,6 +18,7 @@ type Source struct {
 	TempDir string
 	SHA     string
 	Version string // release version (e.g. "2026.04.14-..."), empty for local dev
+	Repo    string // git repository owner/name (e.g. "navikt/copilot")
 }
 
 // CloneRemoteFn is overridable in tests.
@@ -41,6 +42,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 			return nil, err
 		}
 		src.Version = cliVersion
+		src.Repo = sourceRepo
 		return src, nil
 	}
 
@@ -53,6 +55,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 		if v := strings.TrimPrefix(ref, "nav-pilot/"); v != ref {
 			src.Version = v
 		}
+		src.Repo = "navikt/copilot"
 		return src, nil
 	}
 
@@ -65,7 +68,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 				sha := getGitSHA(gitRoot)
 				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", domain.Dim("→"), domain.Dim(gitRoot))
-				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion}, nil
+				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion, Repo: ""}, nil
 			}
 		}
 	}
@@ -76,6 +79,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 		return nil, err
 	}
 	src.Version = cliVersion
+	src.Repo = "navikt/copilot"
 	return src, nil
 }
 
@@ -174,7 +178,11 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	}
 
 	sha := getGitSHA(tmpDir)
-	return &Source{Dir: tmpDir, TempDir: tmpDir, SHA: sha}, nil
+	repo := "navikt/copilot"
+	if sourceRepo != "" {
+		repo = sourceRepo
+	}
+	return &Source{Dir: tmpDir, TempDir: tmpDir, SHA: sha, Repo: repo}, nil
 }
 
 func getGitSHA(dir string) string {

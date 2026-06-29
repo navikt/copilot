@@ -59,20 +59,26 @@ func openCodeNavContextDir() string {
 // the launch message, or an empty string if nothing was produced.
 // Non-fatal: callers should warn and continue on error.
 func EnsureOpenCodeNavContext() (string, error) {
-	src, err := source.ResolveSource("", "", cliVersion)
+	outputDir := openCodeNavContextDir()
+	prevState, _ := artifacts.ReadOpenCodeState(outputDir)
+
+	sRepo := ""
+	if prevState != nil && prevState.SourceRepo != "" {
+		sRepo = prevState.SourceRepo
+	}
+
+	src, err := source.ResolveSource("", sRepo, cliVersion)
 	if err != nil {
 		return "", fmt.Errorf("resolving source: %w", err)
 	}
 	defer src.Cleanup()
 
-	outputDir := openCodeNavContextDir()
-
-	if prevState, _ := artifacts.ReadOpenCodeState(outputDir); prevState != nil {
+	if prevState != nil {
 		assessment := assessStaleness(prevState.Version)
 		recordFreshness("opencode", artifacts.OpenCodeScopeName, assessment)
 	}
 
-	skills, commands, agents, instrCount, conflicts, err := artifacts.SyncOpenCodeArtifacts(src.Dir, outputDir, src.Version, src.SHA)
+	skills, commands, agents, instrCount, conflicts, err := artifacts.SyncOpenCodeArtifacts(src.Dir, outputDir, src.Version, src.SHA, src.Repo)
 	if err != nil {
 		return "", err
 	}

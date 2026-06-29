@@ -282,7 +282,8 @@ func (s *InstallScope) IsUser() bool {
 type StateFile struct {
 	Collection  string          `json:"collection"`
 	Version     string          `json:"version"`
-	Scope       string          `json:"scope,omitempty"` // "repo" or "user"; empty means "repo" (backwards compat)
+	Scope       string          `json:"scope,omitempty"`       // "repo" or "user"; empty means "repo" (backwards compat)
+	SourceRepo  string          `json:"source_repo,omitempty"` // git repository owner/name (e.g. "navikt/copilot")
 	SourceSHA   string          `json:"source_sha"`
 	InstalledAt string          `json:"installed_at"`
 	Files       []InstalledFile `json:"files"`
