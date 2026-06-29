@@ -940,3 +940,55 @@ func TestSync_RemoteDeletions(t *testing.T) {
 		t.Errorf("state files = %v, expected only nais.agent.md", newState.Files)
 	}
 }
+
+func TestSync_DirectoryPromptAndLocalSource(t *testing.T) {
+	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// 1. Setup local source repo
+	os.MkdirAll(filepath.Join(sourceDir, "prompts", "my-prompt"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "my-prompt", "custom.md"), []byte("# Prompt"), 0o644)
+
+	// Resolve local source (simulating dev mode)
+	src, err := source.ResolveSource("", sourceDir, "2026.07")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if src.Repo != sourceDir {
+		t.Errorf("expected Repo to be sourceDir path %q, got %q", sourceDir, src.Repo)
+	}
+
+	// 2. Install directory prompt to target
+	targetScope := ScopeRepo(dir)
+	err = cmdAddFromSource("prompt", "my-prompt", src, targetScope, false, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that prompt dir exists locally in target
+	targetPromptDir := filepath.Join(dir, ".github", "prompts", "my-prompt")
+	if info, err := os.Stat(targetPromptDir); err != nil || !info.IsDir() {
+		t.Error("prompt should have been installed as directory")
+	}
+
+	// Verify that state path includes trailing slash for prompt dir
+	state, err := readScopedState(targetScope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundSlash := false
+	for _, f := range state.Files {
+		if f.Path == ".github/prompts/my-prompt/" {
+			foundSlash = true
+		}
+	}
+	if !foundSlash {
+		t.Errorf("state files did not contain directory prompt path with trailing slash: %v", state.Files)
+	}
+
+	// 3. Test that sync works correctly using the tracked local source path
+	err = cmdSync(targetScope, "", "", false, false)
+	if err != nil && err != errUpdatesAvailable {
+		t.Fatalf("sync check failed: %v", err)
+	}
+}

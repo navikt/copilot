@@ -37,6 +37,12 @@ func (s *Source) Cleanup() {
 func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
+		if filepath.IsAbs(sourceRepo) {
+			if info, err := os.Stat(sourceRepo); err == nil && info.IsDir() {
+				sha := getGitSHA(sourceRepo)
+				return &Source{Dir: sourceRepo, SHA: sha, Version: cliVersion, Repo: sourceRepo}, nil
+			}
+		}
 		src, err := CloneRemoteFn(ref, sourceRepo)
 		if err != nil {
 			return nil, err
@@ -68,7 +74,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 				sha := getGitSHA(gitRoot)
 				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", domain.Dim("→"), domain.Dim(gitRoot))
-				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion, Repo: ""}, nil
+				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion, Repo: gitRoot}, nil
 			}
 		}
 	}

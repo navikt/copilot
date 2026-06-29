@@ -39,6 +39,11 @@ func TestNormalizeTelemetryDimension_AllowsStartupAndLaunch(t *testing.T) {
 	if got := normalizeTelemetryDimension("launch", "unknown"); got != "launch" {
 		t.Fatalf("normalizeTelemetryDimension(launch) = %q, want launch", got)
 	}
+	for _, val := range []string{"network_error", "auth_error", "sync_failed"} {
+		if got := normalizeTelemetryDimension(val, "unknown"); got != val {
+			t.Fatalf("normalizeTelemetryDimension(%s) = %q, want %s", val, got, val)
+		}
+	}
 }
 
 func TestDetectExecutionContext(t *testing.T) {

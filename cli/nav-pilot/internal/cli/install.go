@@ -64,6 +64,9 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 
 	dst := scope.DstPath(kind.Dir, art.FileName())
 	relPath := kind.RelPathForName(scope, art.Name)
+	if art.IsDir && !strings.HasSuffix(relPath, "/") {
+		relPath = scope.RelPath(kind.Dir, art.Name) + "/"
+	}
 
 	if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
 		return err

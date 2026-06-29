@@ -537,7 +537,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"darwin", "linux", "windows",
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
-		"client_not_found", "launch_failed",
+		"client_not_found", "launch_failed", "network_error", "auth_error", "sync_failed",
 		"yes", "no", "aborted", "brew_failed", "curl_failed", "init_failed", "already_installed":
 		return v
 	default:

@@ -313,6 +313,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		if err := removeFilesFromState(scope, deletedSuccessPaths); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not remove files from state: %v\n", yellow("⚠"), err)
 		}
+		scope.CleanupDirs()
 	}
 
 	// Only bump source SHA and version if ALL updates/deletions were applied successfully
