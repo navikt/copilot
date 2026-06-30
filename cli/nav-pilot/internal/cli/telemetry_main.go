@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"net"
 	"os/exec"
@@ -17,6 +18,20 @@ func telemetryMode() string {
 
 func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
 	start := time.Now()
+
+	defer func() {
+		if r := recover(); r != nil {
+			telemetry.RecordCommand(command, mode, scope, "error", "panic", time.Since(start))
+
+			// Flush telemetry before we crash
+			ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+			defer cancel()
+			_ = telemetry.Shutdown(ctx)
+
+			panic(r)
+		}
+	}()
+
 	err := fn()
 	telemetry.RecordCommand(command, mode, scope, telemetryResult(err), classifyError(err), time.Since(start))
 	return err

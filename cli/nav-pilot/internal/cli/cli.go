@@ -448,7 +448,9 @@ func run(args []string) error {
 			return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
 		})
 	case "init":
-		return cmdInit(targetDir, dryRun, force)
+		return runWithCommandTelemetry("init", telemetryMode(), scope.Name, func() error {
+			return cmdInit(targetDir, dryRun, force)
+		})
 	case "export":
 		if len(positional) == 0 {
 			return fmt.Errorf("export requires a format.\n\nUsage: nav-pilot export <format>\n\nFormats: opencode")
@@ -458,7 +460,9 @@ func run(args []string) error {
 				yellow("⚠"), bold("export opencode --user"), bold("nav-pilot sync"),
 				bold("nav-pilot --client opencode"), bold("nav-pilot sync"), bold("export opencode"))
 		}
-		return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		return runWithCommandTelemetry("export", telemetryMode(), scope.Name, func() error {
+			return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		})
 	case "add":
 		// Deprecated: hidden alias for backward compatibility
 		if !jsonOutput {
@@ -473,12 +477,16 @@ func run(args []string) error {
 		if len(positional) < 2 {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
 		}
-		return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		return runWithCommandTelemetry("add", telemetryMode(), scope.Name, func() error {
+			return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		})
 	case "ignore":
 		if len(positional) < 2 {
 			return fmt.Errorf("ignore requires a type and name.\n\nUsage: nav-pilot ignore <type> <name> --user\n\nTypes: agent, skill, instruction\n\nExamples:\n  nav-pilot ignore instruction nextjs-aksel --user\n  nav-pilot ignore agent security-champion --user")
 		}
-		return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
+		return runWithCommandTelemetry("ignore", telemetryMode(), scope.Name, func() error {
+			return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
+		})
 	case "sync":
 		syncScope := "auto"
 		if userScope || targetProvided {
@@ -509,7 +517,9 @@ func run(args []string) error {
 			return cmdDoctor()
 		})
 	case "uninstall":
-		return cmdUninstall(scope, dryRun)
+		return runWithCommandTelemetry("uninstall", telemetryMode(), scope.Name, func() error {
+			return cmdUninstall(scope, dryRun)
+		})
 	case "upgrade":
 		return runWithCommandTelemetry("upgrade", telemetryMode(), "none", cmdUpdate)
 	case "update":
@@ -518,15 +528,21 @@ func run(args []string) error {
 			fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
 				yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
 		}
-		return cmdUpdate()
+		return runWithCommandTelemetry("update", telemetryMode(), "none", cmdUpdate)
 	case "config":
-		return cmdConfig(positional, force, jsonOutput)
+		return runWithCommandTelemetry("config", telemetryMode(), "none", func() error {
+			return cmdConfig(positional, force, jsonOutput)
+		})
 	case "env":
-		return cmdEnv()
+		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)
 	case "feedback":
-		return cmdFeedback(targetDir, featureRequest)
+		return runWithCommandTelemetry("feedback", telemetryMode(), "none", func() error {
+			return cmdFeedback(targetDir, featureRequest)
+		})
 	case "models":
-		return cmdModels(jsonOutput)
+		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
+			return cmdModels(jsonOutput)
+		})
 	case "version", "--version", "-v":
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
@@ -571,7 +587,7 @@ func Main(info BuildInfo) {
 		exitCode = exitCodeFor(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 	_ = telemetry.Shutdown(ctx)
 	if exitCode != 0 {
