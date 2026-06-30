@@ -63,6 +63,8 @@ jobs:
 
       - name: Install nav-pilot
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash -s -- --no-brew
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
