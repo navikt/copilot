@@ -196,14 +196,29 @@ echo "  ✓ Checksum verified"
 
 echo "→ Verifying build provenance (GitHub Artifact Attestations)..."
 if command -v gh &>/dev/null; then
-  if gh attestation verify "${TMP_DIR}/${ASSET}" --repo "${REPO}" >/dev/null 2>&1; then
+  VERIFY_ERR="${TMP_DIR}/verify_err.txt"
+  if gh attestation verify "${TMP_DIR}/${ASSET}" --repo "${REPO}" >/dev/null 2>"$VERIFY_ERR"; then
     echo "  ✓ Provenance verified (SLSA)"
   else
-    echo "Error: Provenance verification failed!"
-    echo "  The binary was not produced by the official GitHub Actions workflow."
-    echo "  This may indicate supply chain tampering. Do not proceed."
-    echo "  Report this to the nav-pilot team: https://github.com/${REPO}/issues"
-    exit 1
+    ERR_MSG=$(cat "$VERIFY_ERR")
+    if echo "$ERR_MSG" | grep -Eiq "auth|token|login|credential|sign in"; then
+      echo ""
+      echo "  ⚠ WARNING: GitHub CLI (gh) is not authenticated — skipping provenance verification!"
+      echo "  Error from gh: $(echo "$ERR_MSG" | tr '\n' ' ')"
+      echo "  To enable provenance verification:"
+      echo "    - In GitHub Actions: pass env: GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
+      echo "    - Locally: run 'gh auth login' or set GH_TOKEN environment variable."
+      echo ""
+    else
+      echo "Error: Provenance verification failed!"
+      echo "  The binary was not produced by the official GitHub Actions workflow."
+      echo "  This may indicate supply chain tampering. Do not proceed."
+      echo "  Report this to the nav-pilot team: https://github.com/${REPO}/issues"
+      if [[ -n "$ERR_MSG" ]]; then
+        echo "  Details: $ERR_MSG"
+      fi
+      exit 1
+    fi
   fi
 else
   echo ""
