@@ -47,8 +47,9 @@ Sources used to compile this matrix. Re-check these when updating.
 | **Reusable Prompts (.prompt.md)** | ✅ `/prompt-name`     | ✅ `/prompt-name`     | ❌                       | ❌                  | ✅ `/prompt-name` | ❌              | ❌              |
 | **Agent Skills (SKILL.md)**       | ✅ Auto-discovery     | ⚠️ Agent Mode preview | ✅ Coding agent          | ✅ `/skills`        | ❌                | ❌              | ❌              |
 | **MCP Servers**                   | ✅ `.vscode/mcp.json` | ✅ `.idea/mcp.json`   | ✅ Org config            | ✅ `gh copilot mcp` | ✅                | ❌              | ❌              |
-| **Organization instructions**     | ❌                    | ❌                    | ✅ Chat + Agent + Review | ❌                  | ❌                | ❌              | ❌              |
+| **Organization instructions**     | ❌                    | ❌                    | ✅ Chat + Agent + Review | ❌                  | ✅                | ❌              | ❌              |
 | **Personal instructions**         | ✅ Settings           | ✅ Settings           | ✅ Chat                  | ❌                  | ✅ Settings       | ❌              | ❌              |
+| **Copilot / Agent Memory**        | ✅ (User/Repo/Session) | ❌                    | ✅ (Repo scope)           | ✅ (Repo scope)      | ❌                | ❌              | ❌              |
 
 > **Note**: "Agent" refers to Copilot coding agent (autonomous mode). "Chat" refers to interactive Copilot Chat.
 
@@ -188,6 +189,14 @@ Sources used to compile this matrix. Re-check these when updating.
 | **Prompt files: Visual Studio support added**                | Prompts now work in VS Code + JetBrains + Visual Studio (3 IDEs).                           |
 | **GitHub.com agents tab**                                    | Create and manage custom agents directly on github.com/copilot/agents.                      |
 | **rust.agent.md added**                                      | New agent without metadata.json yet.                                                        |
+
+### 2026-06-30: June 2026 updates (Microsoft Build & IDE releases)
+
+| Change | Impact |
+| ------ | ------ |
+| **Visual Studio: Organization instructions supported** | Organizations can define custom instructions across all repositories, available in Visual Studio. |
+| **Copilot Memory / Agent Memory support** | Scoped memories (User, Repo, Session) introduced in VS Code, and Enterprise controls/policies introduced. |
+| **VS Code 1.124: Autopilot & Background sessions** | Autopilot is on by default to determine completion; sessions can run in the background. |
 
 ### Docs corrections needed
 
