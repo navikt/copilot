@@ -547,7 +547,7 @@ func Main(info BuildInfo) {
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)
 	providerpkg.FetchLatestVersion = func() (string, string, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		return fetchLatestVersion(ctx)
 	}

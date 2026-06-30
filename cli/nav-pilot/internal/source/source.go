@@ -164,6 +164,7 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	args = append(args, repoURL, tmpDir)
 
 	cmd := exec.Command("git", args...)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	// Suppress stderr during clone so it doesn't overwrite the spinner unless there's an error
@@ -176,6 +177,12 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		gitErr := strings.TrimSpace(stderr.String())
 		if gitErr != "" {
 			gitErr = "\n\n  " + strings.ReplaceAll(gitErr, "\n", "\n  ")
+		}
+		isAuthFailure := strings.Contains(gitErr, "Authentication failed") ||
+			strings.Contains(gitErr, "could not read Username") ||
+			strings.Contains(gitErr, "Permission denied")
+		if isAuthFailure {
+			return nil, fmt.Errorf("could not clone %s: authentication failed. Check your SSH keys/git credentials or set GITHUB_TOKEN.%s", label, gitErr)
 		}
 		if ref != "" {
 			return nil, fmt.Errorf("could not clone %s@%s — check that the ref exists and you have network access%s", label, ref, gitErr)

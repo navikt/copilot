@@ -160,7 +160,12 @@ var (
 var (
 	assessStaleness = func(installedVersion string) artifacts.StalenessAssessment {
 		fetchFn := func() (string, string, error) {
-			client := &http.Client{Timeout: 2 * time.Second}
+			client := &http.Client{
+				Timeout: 5 * time.Second,
+				Transport: &http.Transport{
+					Proxy: http.ProxyFromEnvironment,
+				},
+			}
 			origClient := httpClient
 			httpClient = client
 			defer func() { httpClient = origClient }()

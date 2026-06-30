@@ -21,7 +21,12 @@ var (
 )
 
 // httpClient is the client used for all HTTP requests. Overridable in tests.
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+	},
+}
 
 type ghRelease struct {
 	TagName string `json:"tag_name"`
@@ -125,6 +130,10 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 		return "", "", err
 	}
 
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", "", err
@@ -152,7 +161,14 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 }
 
 func httpGet(url string) ([]byte, error) {
-	resp, err := httpClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
