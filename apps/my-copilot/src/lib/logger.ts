@@ -3,6 +3,11 @@ import pino, { Logger } from "pino";
 
 const logger: Logger = pino({
   base: undefined, // remove default fields
+  // Without this, `log.error({ err }, ...)` serializes Error objects to `{}`
+  // (message/stack are non-enumerable), hiding the real failure reason.
+  serializers: {
+    err: pino.stdSerializers.err,
+  },
   formatters: {
     // display level as a string
     level: (label) => {

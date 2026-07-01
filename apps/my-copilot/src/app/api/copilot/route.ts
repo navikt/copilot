@@ -11,9 +11,9 @@ export async function GET() {
   const user = await getUser(false);
   const token = await getUserToken();
 
-  const error = (message: string, status: number) => {
+  const error = (message: string, status: number, err?: unknown) => {
     if (status >= 500) {
-      log.error(message);
+      log.error({ err }, message);
     } else {
       log.warn(message);
     }
@@ -68,8 +68,7 @@ export async function GET() {
       githubUsername,
     });
   } catch (err) {
-    log.error({ err }, "Failed to fetch Copilot subscription status");
-    return error("Failed to fetch Copilot subscription status", 500);
+    return error("Failed to fetch Copilot subscription status", 500, err);
   }
 }
 
@@ -85,9 +84,9 @@ export async function POST(request: Request) {
   const user = await getUser(false);
   const token = await getUserToken();
 
-  const error = (message: string, status: number) => {
+  const error = (message: string, status: number, err?: unknown) => {
     if (status >= 500) {
-      log.error(message);
+      log.error({ err }, message);
     } else {
       log.warn(message);
     }
@@ -152,7 +151,6 @@ export async function POST(request: Request) {
         return error("Unknown action", 400);
     }
   } catch (err) {
-    log.error({ err, action }, "Failed to process Copilot subscription action");
-    return error("Failed to process Copilot subscription action", 500);
+    return error("Failed to process Copilot subscription action", 500, err);
   }
 }

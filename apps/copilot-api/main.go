@@ -84,12 +84,15 @@ func main() {
 
 	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
 	var budgetHandlers *BudgetHandlers
-	if config.GitHubBillingToken != "" && githubClient != nil {
+	switch {
+	case config.GitHubBillingToken == "":
+		slog.Warn("GITHUB_BILLING_TOKEN not configured - budget endpoint will be unavailable")
+	case githubClient == nil:
+		slog.Warn("GitHub client unavailable - budget endpoint will be unavailable (see GitHub client initialization error above)")
+	default:
 		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
 		budgetHandlers = newBudgetHandlers(budgetClient, githubClient)
 		slog.Info("Budget client initialized successfully")
-	} else {
-		slog.Warn("GITHUB_BILLING_TOKEN not configured - budget endpoint will be unavailable")
 	}
 
 	// Middleware
