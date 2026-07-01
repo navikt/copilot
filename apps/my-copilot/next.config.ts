@@ -51,8 +51,12 @@ const nextConfig: NextConfig = {
   // per-request Prerender environment it spawns in __NEXT_DEV_SERVER mode causes
   // sustained high CPU (500%+) and memory growth. Only enable in production builds.
   ...(isProduction ? { cacheComponents: true } : {}),
+  // Disable dev indicators to avoid the executionId-based reload loop during startup.
+  ...(!isProduction ? { devIndicators: false } : {}),
   turbopack: {
-    root: path.resolve("."),
+    // Dev: monorepo root so Turbopack resolves workspace deps and serves chunks after HMR.
+    // Prod: app root so standalone output isn't nested under apps/my-copilot/ (see 06f6c00d).
+    root: isProduction ? path.resolve(".") : path.resolve("../.."),
   },
   experimental: {
     optimizePackageImports: ["@navikt/ds-react", "@navikt/aksel-icons"],
