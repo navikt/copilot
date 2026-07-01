@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-06-29
+ * Last updated: 2026-07-01
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -51,7 +51,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 15,
   },
   {
-    model: "GPT-5.4 (Long context, > 272K)",
+    model: "GPT-5.4 (Long context, 272K)",
     provider: "OpenAI",
     category: "Versatile",
     status: "GA",
@@ -87,7 +87,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 30,
   },
   {
-    model: "GPT-5.5 (Long context, > 272K)",
+    model: "GPT-5.5 (Long context, 272K)",
     provider: "OpenAI",
     category: "Powerful",
     status: "GA",
@@ -177,6 +177,16 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 25,
   },
   {
+    model: "Claude Sonnet 5",
+    provider: "Anthropic",
+    category: "Versatile",
+    status: "GA",
+    input: 2,
+    cachedInput: 0.2,
+    cacheWrite: 2.5,
+    output: 10,
+  },
+  {
     model: "Claude Opus 4.8 (fast mode) (preview)",
     provider: "Anthropic",
     category: "Powerful",
@@ -225,7 +235,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 12,
   },
   {
-    model: "Gemini 3.1 Pro (Long context, > 200K)",
+    model: "Gemini 3.1 Pro (Long context, 200K)",
     provider: "Google",
     category: "Powerful",
     status: "Public preview",
@@ -255,4 +265,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-06-29";
+export const PRICING_LAST_UPDATED = "2026-07-01";
