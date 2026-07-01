@@ -19,6 +19,7 @@ type setupAnswers struct {
 	Mode            string
 	ReasoningEffort string // empty = don't write the key
 	AutoUpdate      string // "true" or "false"
+	AutoLaunch      string // "true" or "false"
 }
 
 // writeSetupConfig writes a new config file from wizard answers.
@@ -63,6 +64,12 @@ func writeSetupConfig(answers setupAnswers) error {
 		lines = append(lines, "auto_update = true")
 	} else if answers.AutoUpdate == "false" {
 		lines = append(lines, "auto_update = false")
+	}
+
+	if answers.AutoLaunch == "true" {
+		lines = append(lines, "auto_launch = true")
+	} else if answers.AutoLaunch == "false" {
+		lines = append(lines, "auto_launch = false")
 	}
 
 	content := strings.Join(lines, "\n") + "\n"
@@ -219,6 +226,21 @@ func runConfigSetup() error {
 			huh.NewOption("max", "max"),
 		).
 		Value(&answers.ReasoningEffort).
+		WithTheme(navTheme()).
+		Run()
+	if err != nil {
+		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
+		return errors.New("setup aborted by user")
+	}
+
+	err = huh.NewSelect[string]().
+		Title("Auto-launch").
+		Description("Launch the coding agent immediately after sync/install, skipping the \"Launch now?\" prompt.").
+		Options(
+			huh.NewOption("No (ask each time, default)", "false"),
+			huh.NewOption("Yes (launch immediately)", "true"),
+		).
+		Value(&answers.AutoLaunch).
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
