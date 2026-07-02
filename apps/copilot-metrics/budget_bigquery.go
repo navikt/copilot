@@ -14,14 +14,14 @@ const budgetSnapshotsTable = "budget_snapshots"
 
 // BudgetSnapshotRow represents a row in the budget_snapshots BigQuery table.
 type BudgetSnapshotRow struct {
-	SnapshotDate   civil.Date `bigquery:"snapshot_date"`
-	ScopeID        string     `bigquery:"scope_id"`
-	BudgetScope    string     `bigquery:"budget_scope"`
-	EntityName     string     `bigquery:"entity_name"`
-	BudgetAmount   float64    `bigquery:"budget_amount"`
-	ConsumedAmount *float64   `bigquery:"consumed_amount"`
-	IsOverride     bool       `bigquery:"is_override"`
-	LoadedAt       time.Time  `bigquery:"loaded_at"`
+	SnapshotDate   civil.Date           `bigquery:"snapshot_date"`
+	ScopeID        string               `bigquery:"scope_id"`
+	BudgetScope    string               `bigquery:"budget_scope"`
+	EntityName     string               `bigquery:"entity_name"`
+	BudgetAmount   float64              `bigquery:"budget_amount"`
+	ConsumedAmount bigquery.NullFloat64 `bigquery:"consumed_amount"`
+	IsOverride     bool                 `bigquery:"is_override"`
+	LoadedAt       time.Time            `bigquery:"loaded_at"`
 }
 
 // EnsureBudgetSnapshotsTableExists creates the budget_snapshots table if it doesn't exist.
@@ -133,13 +133,17 @@ func (c *BigQueryClient) InsertBudgetSnapshots(ctx context.Context, date time.Ti
 		if entityName == "" {
 			entityName = scopeID
 		}
+		var consumed bigquery.NullFloat64
+		if e.ConsumedAmount != nil {
+			consumed = bigquery.NullFloat64{Float64: *e.ConsumedAmount, Valid: true}
+		}
 		rows = append(rows, &BudgetSnapshotRow{
 			SnapshotDate:   snapshotDate,
 			ScopeID:        scopeID,
 			BudgetScope:    e.BudgetScope,
 			EntityName:     entityName,
 			BudgetAmount:   e.BudgetAmount,
-			ConsumedAmount: e.ConsumedAmount,
+			ConsumedAmount: consumed,
 			IsOverride:     isOverride,
 			LoadedAt:       loadedAt,
 		})

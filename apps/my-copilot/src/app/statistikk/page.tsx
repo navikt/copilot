@@ -608,7 +608,6 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
         <BillingModelBreakdownChart
           breakdown={billingModelBreakdown}
           trend={billingMonthlyTrend}
-          dailyData={billingModelDaily ?? undefined}
           forecast={billingModelForecast}
         />
       )}

@@ -66,9 +66,11 @@ func (c *BigQueryClient) createOrReplaceView(ctx context.Context, v viewDefiniti
 	userTeamsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userTeamsTable)
 	userMetricsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.userMetricsTable)
 	billingUsageRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageTable)
+	billingUsageDailyModelRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageDailyModelTable)
 	userBudgetSnapshotsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, userBudgetSnapshotsTable)
 	sql = strings.ReplaceAll(sql, "{{user_teams}}", userTeamsRef)
 	sql = strings.ReplaceAll(sql, "{{user_metrics}}", userMetricsRef)
+	sql = strings.ReplaceAll(sql, "{{billing_usage_daily_model}}", billingUsageDailyModelRef)
 	sql = strings.ReplaceAll(sql, "{{billing_usage}}", billingUsageRef)
 	sql = strings.ReplaceAll(sql, "{{user_budget_snapshots}}", userBudgetSnapshotsRef)
 
