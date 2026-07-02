@@ -75,7 +75,7 @@ async function CachedUsageData({ token }: { token: string }) {
 
   const filteredUsage = usage.slice(-28);
 
-  return <UsageContent usage={filteredUsage} token={token} />;
+  return <UsageTabs usage={filteredUsage} token={token} />;
 }
 
 // Whether to allow viewing all teams (disabled in prod until approved)
@@ -172,27 +172,115 @@ async function TeamUsageContent({ token }: { token: string }) {
 // Individual data fetches are NOT cached at the BFF layer — caching is owned
 // by copilot-api (1 h in-memory cache). Each request fetches fresh data from
 // the backend, which is the single source of truth for cache lifetime.
-async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
+//
+// The "Utforsking" (details) tab only needs data derived from `usage` (already
+// resolved by the time this renders) — it does not depend on any of the
+// dashboard tab's additional BigQuery calls. Splitting dashboard/team/details
+// into independent Suspense-wrapped siblings here (rather than one monolithic
+// async component) lets each tab stream in as soon as its own data is ready,
+// instead of the whole page waiting on the slowest of ~10 backend calls.
+function UsageTabs({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
   const dateRange = getDateRange(usage);
   if (!dateRange) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
 
   const aggregatedMetrics = getAggregatedMetrics(usage);
   if (!aggregatedMetrics) return <ErrorState message="Kunne ikke beregne nøkkeltall" />;
 
-  const topLanguages = getTopLanguages(usage);
-  const editorStats = getEditorStats(usage);
-  const prMetrics = getPRMetrics(usage);
-  const modelUsageMetrics = getModelUsageMetrics(usage);
-  const generationModeSummary = getGenerationModeSummary(usage);
+  const tabs = [
+    {
+      id: "dashboard",
+      label: "Oversikt",
+      content: (
+        <Suspense
+          fallback={
+            <div className="space-y-4">
+              <Skeleton variant="text" width="60%" />
+              <Skeleton variant="rectangle" height={400} />
+            </div>
+          }
+        >
+          <DashboardTabContent usage={usage} token={token} />
+        </Suspense>
+      ),
+      hashIds: [
+        "dashboard",
+        "nokkeltall",
+        "månedlige-trender",
+        "måned-hittil-modeller-og-kostnad",
+        "ai-modeller-over-tid",
+        "bruker-vs-agent",
+        "ai-adopsjonsfaser",
+        "pull-requests-og-code-review",
+      ],
+    },
+    {
+      id: "team",
+      label: "Meg og team",
+      content: (
+        <div id="team">
+          <div id="meg-og-team">
+            <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
+              <TeamUsageContent token={token} />
+            </Suspense>
+          </div>
+        </div>
+      ),
+      hashIds: ["team", "meg-og-team"],
+    },
+    {
+      id: "details",
+      label: "Utforsking",
+      content: <DetailsTabContent usage={usage} />,
+      hashIds: [
+        "details",
+        "daglig-aktivitet",
+        "kodeforslag",
+        "sprak-og-verktoy",
+        "ai-modeller-i-bruk",
+        "topp-språk",
+        "verktøy",
+      ],
+    },
+  ];
 
-  const trendData = buildTrendData(usage);
-  const modelChartData = buildModelChartData(usage);
+  return (
+    <>
+      <VStack gap="space-24">
+        <BodyShort className="text-gray-600">
+          Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager)
+        </BodyShort>
+        <Tabs tabs={tabs} defaultTab="dashboard" enableHashNavigation />
+      </VStack>
+    </>
+  );
+}
+
+// ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
+// Owns the heavy multi-endpoint fetch (monthly trends, billing, cohorts,
+// daily summary, etc.) — independent of the "Utforsking" tab so a slow
+// backend call here doesn't block that tab from rendering.
+async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
+  const aggregatedMetrics = getAggregatedMetrics(usage);
+  if (!aggregatedMetrics) return <ErrorState message="Kunne ikke beregne nøkkeltall" />;
+
+  const prMetrics = getPRMetrics(usage);
+  const generationModeSummary = getGenerationModeSummary(usage);
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
   // Prefer current month for "Måned hittil"; fall back to latest complete month if needed.
   const currentBillingMonth = new Date().toISOString().slice(0, 7);
+  // Previous calendar month is the overwhelmingly common fallback target when the
+  // current month has no billing data yet — fetch it eagerly alongside the current
+  // month so the common case never needs a second sequential round-trip.
+  const previousBillingMonth = (() => {
+    const d = new Date();
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  })();
 
-  // Fetch all datasets in parallel — daily/forecast for current month included upfront
+  // Fetch all datasets in parallel — daily/forecast for current AND previous month
+  // included upfront so the (common) current-month-has-no-data-yet case doesn't
+  // require a second sequential fetch after the fact.
   const [
     { trends: monthlyTrends, error: monthlyError },
     { usage: billingUsage, error: billingError },
@@ -200,8 +288,10 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     { trend: billingMonthlyTrend, error: billingTrendError },
     { breakdown: billingModelBreakdown, error: billingBreakdownError },
     { summary: dailySummary, error: dailySummaryError },
-    { usage: billingModelDailyInit, error: billingModelDailyInitError },
-    { forecast: billingModelForecastInit, error: billingModelForecastInitError },
+    { usage: billingModelDailyCurrent, error: billingModelDailyCurrentError },
+    { forecast: billingModelForecastCurrent, error: billingModelForecastCurrentError },
+    { usage: billingModelDailyPrev, error: billingModelDailyPrevError },
+    { forecast: billingModelForecastPrev, error: billingModelForecastPrevError },
   ] = await Promise.all([
     getMonthlyTrends(token),
     getMonthlyBillingUsage(token),
@@ -211,6 +301,8 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     getDailySummary(token),
     getBillingModelDaily(token, currentBillingMonth),
     getBillingModelForecast(token, currentBillingMonth),
+    getBillingModelDaily(token, previousBillingMonth),
+    getBillingModelForecast(token, previousBillingMonth),
   ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
@@ -242,21 +334,32 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     return { month: latest, label, netAmount, grossAmount };
   })();
 
-  // Daily/forecast already fetched in parallel above; fall back to latest complete month if current has no data
-  let billingModelDaily = billingModelDailyInit;
-  let billingModelForecast = billingModelForecastInit;
-  let billingModelDailyError = billingModelDailyInitError;
-  let billingModelForecastError = billingModelForecastInitError;
+  // Pick the current month's data if present; otherwise use whichever of the
+  // eagerly-fetched previous-month data matches the latest complete billing
+  // month. Only fall back to a sequential fetch in the rare case where the
+  // latest complete month is neither the current nor the previous calendar
+  // month (e.g. a multi-month data gap).
+  let billingModelDaily = billingModelDailyCurrent;
+  let billingModelForecast = billingModelForecastCurrent;
+  let billingModelDailyError = billingModelDailyCurrentError;
+  let billingModelForecastError = billingModelForecastCurrentError;
 
   if (billingModelDaily.length === 0 && latestBillingMonth?.month && latestBillingMonth.month !== currentBillingMonth) {
-    const [fallbackDaily, fallbackForecast] = await Promise.all([
-      getBillingModelDaily(token, latestBillingMonth.month),
-      getBillingModelForecast(token, latestBillingMonth.month),
-    ]);
-    billingModelDaily = fallbackDaily.usage;
-    billingModelForecast = fallbackForecast.forecast;
-    billingModelDailyError = billingModelDailyError ?? fallbackDaily.error;
-    billingModelForecastError = billingModelForecastError ?? fallbackForecast.error;
+    if (latestBillingMonth.month === previousBillingMonth) {
+      billingModelDaily = billingModelDailyPrev;
+      billingModelForecast = billingModelForecastPrev;
+      billingModelDailyError = billingModelDailyPrevError;
+      billingModelForecastError = billingModelForecastPrevError;
+    } else {
+      const [fallbackDaily, fallbackForecast] = await Promise.all([
+        getBillingModelDaily(token, latestBillingMonth.month),
+        getBillingModelForecast(token, latestBillingMonth.month),
+      ]);
+      billingModelDaily = fallbackDaily.usage;
+      billingModelForecast = fallbackForecast.forecast;
+      billingModelDailyError = billingModelDailyError ?? fallbackDaily.error;
+      billingModelForecastError = billingModelForecastError ?? fallbackForecast.error;
+    }
   }
 
   if (billingModelDailyError) console.error("[statistikk] Billing model daily failed:", billingModelDailyError);
@@ -306,7 +409,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     : undefined;
 
   // ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
-  const dashboardContent = (
+  return (
     <VStack id="dashboard" gap="space-24">
       {/* Hero metrics — the 4 numbers that matter */}
       {heroMonthLabel && (
@@ -715,9 +818,23 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       )}
     </VStack>
   );
+}
 
-  // ─── TAB 2: DETALJER (Deep dives) ───
-  const detailsContent = (
+// ─── TAB 2: DETALJER (Deep dives) ───
+// Depends only on `usage` (already resolved by the parent) — no additional
+// BigQuery calls, so this renders instantly regardless of how long the
+// dashboard tab's fetches take.
+function DetailsTabContent({ usage }: { usage: EnterpriseMetrics[] }) {
+  const aggregatedMetrics = getAggregatedMetrics(usage);
+  if (!aggregatedMetrics) return <ErrorState message="Kunne ikke beregne nøkkeltall" />;
+
+  const topLanguages = getTopLanguages(usage);
+  const editorStats = getEditorStats(usage);
+  const modelUsageMetrics = getModelUsageMetrics(usage);
+  const trendData = buildTrendData(usage);
+  const modelChartData = buildModelChartData(usage);
+
+  return (
     <VStack id="details" gap="space-24">
       {/* Daily Activity Trend */}
       <div id="daglig-aktivitet">
@@ -851,63 +968,6 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         </Box>
       )}
     </VStack>
-  );
-
-  const tabs = [
-    {
-      id: "dashboard",
-      label: "Oversikt222",
-      content: dashboardContent,
-      hashIds: [
-        "dashboard",
-        "nokkeltall",
-        "månedlige-trender",
-        "måned-hittil-modeller-og-kostnad",
-        "ai-modeller-over-tid",
-        "bruker-vs-agent",
-        "ai-adopsjonsfaser",
-        "pull-requests-og-code-review",
-      ],
-    },
-    {
-      id: "team",
-      label: "Meg og team",
-      content: (
-        <div id="team">
-          <div id="meg-og-team">
-            <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-              <TeamUsageContent token={token} />
-            </Suspense>
-          </div>
-        </div>
-      ),
-      hashIds: ["team", "meg-og-team"],
-    },
-    {
-      id: "details",
-      label: "Utforsking",
-      content: detailsContent,
-      hashIds: [
-        "details",
-        "daglig-aktivitet",
-        "kodeforslag",
-        "sprak-og-verktoy",
-        "ai-modeller-i-bruk",
-        "topp-språk",
-        "verktøy",
-      ],
-    },
-  ];
-
-  return (
-    <>
-      <VStack gap="space-24">
-        <BodyShort className="text-gray-600">
-          Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager)
-        </BodyShort>
-        <Tabs tabs={tabs} defaultTab="dashboard" enableHashNavigation />
-      </VStack>
-    </>
   );
 }
 
