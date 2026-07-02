@@ -10,6 +10,8 @@ import type { TooltipItem } from "chart.js";
 
 interface UsageDistributionChartProps {
   distribution: UsageDistribution | null;
+  /** Current logged-in user's total credits consumed this month, if known. */
+  currentUserCredits?: number | null;
 }
 
 // Same bucket order used server-side (copilot-api bigquery_stats.go getCreditsHistogram).
@@ -24,7 +26,20 @@ const BUCKET_LABELS: Record<string, string> = {
   "100%+": "100 %+",
 };
 
-const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distribution }) => {
+// Mirrors the bucket boundary logic in copilot-api's bigquery_stats.go
+// (getCreditsHistogram) — must stay in sync with the backend SQL CASE statement.
+function bucketForCredits(credits: number, budget: number): string {
+  if (credits === 0) return "0%";
+  if (budget <= 0) return "100%+";
+  if (credits < budget * 0.1) return "1-9%";
+  if (credits < budget * 0.25) return "10-24%";
+  if (credits < budget * 0.5) return "25-49%";
+  if (credits < budget * 0.75) return "50-74%";
+  if (credits < budget) return "75-99%";
+  return "100%+";
+}
+
+const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distribution, currentUserCredits }) => {
   if (!distribution || distribution.num_users === 0) {
     return <BodyShort className="text-gray-500">Ingen fordelingsdata tilgjengelig ennå.</BodyShort>;
   }
@@ -38,12 +53,17 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
     );
   }
 
-  const labels = distribution.credits_histogram.map((b) => BUCKET_LABELS[b.bucket] ?? b.bucket);
+  const buckets = distribution.credits_histogram.map((b) => b.bucket);
+  const labels = buckets.map((b) => BUCKET_LABELS[b] ?? b);
   const counts = distribution.credits_histogram.map((b) => b.num_users);
   const totalUsers = distribution.num_users;
   const totalSeats = distribution.total_licensed_seats;
   const budgetUsd = distribution.budget_credits * 0.01;
   const adoptionPct = totalSeats > 0 ? Math.round((totalUsers / totalSeats) * 100) : null;
+
+  const currentUserBucket =
+    currentUserCredits != null ? bucketForCredits(currentUserCredits, distribution.budget_credits) : null;
+  const currentUserBucketIndex = currentUserBucket ? buckets.indexOf(currentUserBucket) : -1;
 
   const chartData = {
     labels,
@@ -51,9 +71,13 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
       {
         label: "Antall brukere",
         data: counts,
-        backgroundColor: getBackgroundColor(chartColors[3], 0.5),
-        borderColor: chartColors[3],
-        borderWidth: 1,
+        backgroundColor: buckets.map((_, i) =>
+          i === currentUserBucketIndex
+            ? getBackgroundColor(chartColors[1], 0.7)
+            : getBackgroundColor(chartColors[3], 0.5)
+        ),
+        borderColor: buckets.map((_, i) => (i === currentUserBucketIndex ? chartColors[1] : chartColors[3])),
+        borderWidth: buckets.map((_, i) => (i === currentUserBucketIndex ? 2 : 1)),
         borderRadius: 2,
         // Histogram bars should touch — this isn't a categorical bar chart,
         // it's counts within contiguous credit ranges.
@@ -65,7 +89,10 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
 
   const options = {
     responsive: true,
-    maintainAspectRatio: true,
+    // false: let the aspect-* CSS class on the wrapping div control the
+    // canvas size — Chart.js's own aspectRatio handling (used when this is
+    // true) ignores the container's CSS and defaults to a 2:1 ratio.
+    maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -76,7 +103,8 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
           label: (ctx: TooltipItem<"bar">) => {
             const value = ctx.parsed.y as number;
             const pct = ((value / totalUsers) * 100).toFixed(0);
-            return ` ${formatNumber(value)} brukere (${pct} %)`;
+            const you = ctx.dataIndex === currentUserBucketIndex ? " — inkluderer deg" : "";
+            return ` ${formatNumber(value)} brukere (${pct} %)${you}`;
           },
         },
       },
@@ -106,16 +134,20 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
       <Heading size="small" level="4" spacing>
         Fordeling av AI-kredittbruk — {distribution.month}
       </Heading>
-      <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--a-spacing-4)" }}>
-        {formatNumber(totalUsers)} brukere denne måneden
-        {adoptionPct !== null ? ` av ${formatNumber(totalSeats)} tildelte lisenser (${adoptionPct} % adopsjon)` : ""}.
-      </BodyShort>
       <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--a-spacing-8)" }}>
-        Bøttene viser andel av det personlige AI-kredittbudsjettet (${formatNumber(budgetUsd)}/måned,{" "}
-        {formatNumber(distribution.budget_credits)} kreditter — 1 kreditt = $0,01). Ingen enkeltbrukere identifiseres,
-        kun antall brukere per intervall.
+        {adoptionPct !== null
+          ? `${formatNumber(totalUsers)} av ${formatNumber(totalSeats)} lisenser i bruk (${adoptionPct} % adopsjon).`
+          : `${formatNumber(totalUsers)} brukere hadde AI-aktivitet denne måneden.`}{" "}
+        Budsjett: ${formatNumber(budgetUsd)}/måned ({formatNumber(distribution.budget_credits)} kreditter). Ingen
+        enkeltbrukere vises.
+        {currentUserBucket && (
+          <>
+            {" "}
+            Du er i intervallet <strong>{BUCKET_LABELS[currentUserBucket] ?? currentUserBucket}</strong> (uthevet).
+          </>
+        )}
       </BodyShort>
-      <div className="aspect-[8/1.5]">
+      <div className="aspect-[12/1]">
         <Bar
           data={chartData as Parameters<typeof Bar>[0]["data"]}
           options={options as Parameters<typeof Bar>[0]["options"]}

@@ -27,6 +27,7 @@ import type {
   BillingMonthlyTrend,
   BillingModelBreakdown,
   DailySummary,
+  DailyCredits,
   UsageDistribution,
 } from "./types";
 
@@ -146,6 +147,21 @@ export async function getUserWeeklyTrends(
     backendRequest<WeeklyTrend[]>(`/api/v1/copilot/usage/user/${encodeURIComponent(username)}/weekly`, token)
   );
   return { trends: result.data, error: result.error };
+}
+
+export async function getUserDailyCredits(
+  username: string,
+  token: string,
+  days?: number
+): Promise<{ credits: DailyCredits[]; error: string | null }> {
+  const query = days ? `?days=${days}` : "";
+  const result = await fetchWithFallback("getUserDailyCredits", [] as DailyCredits[], () =>
+    backendRequest<DailyCredits[]>(
+      `/api/v1/copilot/usage/user/${encodeURIComponent(username)}/daily-credits${query}`,
+      token
+    )
+  );
+  return { credits: result.data, error: result.error };
 }
 
 export async function getMonthlyTrends(token: string): Promise<{

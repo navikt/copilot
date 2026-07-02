@@ -44,6 +44,7 @@ interface TeamUsageTableProps {
   userTeams?: string[];
   userMetrics?: UserMetricsSummary | null;
   userWeeklyTrends?: WeeklyTrend[] | null;
+  userWeeklyCredits?: Record<string, number> | null;
   allowAllTeams?: boolean;
 }
 
@@ -52,6 +53,7 @@ export default function TeamUsageTable({
   userTeams = [],
   userMetrics,
   userWeeklyTrends,
+  userWeeklyCredits,
   allowAllTeams = false,
 }: TeamUsageTableProps) {
   const [page, setPage] = useState(1);
@@ -310,7 +312,7 @@ export default function TeamUsageTable({
                 <BodyShort weight="semibold" size="small">
                   Ukentlig aktivitet
                 </BodyShort>
-                <WeeklyTrendsChart data={userWeeklyTrends} />
+                <WeeklyTrendsChart data={userWeeklyTrends} weeklyCredits={userWeeklyCredits} />
               </div>
             )}
           </VStack>

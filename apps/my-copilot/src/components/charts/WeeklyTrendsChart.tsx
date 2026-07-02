@@ -7,14 +7,31 @@ import { chartColors, getBackgroundColor, commonLineOptions, NO_DATA_MESSAGE } f
 
 interface WeeklyTrendsChartProps {
   data: WeeklyTrend[];
+  /** Optional map of ISO week label (e.g. "2026-W27") to total AI credits used that week. */
+  weeklyCredits?: Record<string, number> | null;
 }
 
-const WeeklyTrendsChart: React.FC<WeeklyTrendsChartProps> = ({ data }) => {
+const WeeklyTrendsChart: React.FC<WeeklyTrendsChartProps> = ({ data, weeklyCredits }) => {
   if (!data || data.length === 0) {
     return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
 
   const labels = data.map((d) => d.week);
+
+  const hasCredits = !!weeklyCredits && data.some((d) => (weeklyCredits[d.week] ?? 0) > 0);
+  const creditsDataset = hasCredits
+    ? {
+        label: "AI-kreditter brukt",
+        data: data.map((d) => weeklyCredits![d.week] ?? 0),
+        borderColor: chartColors[5 % chartColors.length],
+        backgroundColor: getBackgroundColor(chartColors[5 % chartColors.length]),
+        tension: 0.4,
+        fill: false,
+        stack: undefined as string | undefined,
+        borderDash: [5, 3],
+        yAxisID: "yCredits",
+      }
+    : null;
 
   // Extract unique models across all weeks for stacked view
   const hasModels = data.some((d) => d.models && d.models.length > 0);
@@ -41,21 +58,7 @@ const WeeklyTrendsChart: React.FC<WeeklyTrendsChartProps> = ({ data }) => {
           fill: true,
           stack: "models",
         })),
-        ...(data.some((d) => d.prompt_tokens + d.output_tokens > 0)
-          ? [
-              {
-                label: "CLI tokens (inn + ut)",
-                data: data.map((d) => d.prompt_tokens + d.output_tokens),
-                borderColor: chartColors[6 % chartColors.length],
-                backgroundColor: getBackgroundColor(chartColors[6 % chartColors.length]),
-                tension: 0.4,
-                fill: false,
-                stack: undefined as string | undefined,
-                borderDash: [5, 3],
-                yAxisID: "y1",
-              },
-            ]
-          : []),
+        ...(creditsDataset ? [creditsDataset] : []),
       ]
     : [
         {
@@ -80,36 +83,38 @@ const WeeklyTrendsChart: React.FC<WeeklyTrendsChartProps> = ({ data }) => {
           backgroundColor: getBackgroundColor(chartColors[2]),
           tension: 0.4,
         },
+        ...(creditsDataset ? [creditsDataset] : []),
       ];
 
   const chartData = { labels, datasets };
 
-  const hasCLITokens = hasModels && data.some((d) => d.prompt_tokens + d.output_tokens > 0);
-
   const options = {
     ...commonLineOptions,
-    maintainAspectRatio: true,
-    ...(hasModels && {
-      scales: {
-        ...commonLineOptions.scales,
+    // false: let the aspect-* CSS class on the wrapping div control the
+    // canvas size — Chart.js's own aspectRatio handling (used when this is
+    // true) ignores the container's CSS and defaults to a 2:1 ratio.
+    maintainAspectRatio: false,
+    scales: {
+      ...commonLineOptions.scales,
+      ...(hasModels && {
         y: {
           ...((commonLineOptions.scales as Record<string, unknown>)?.y || {}),
           stacked: true,
         },
-        ...(hasCLITokens && {
-          y1: {
-            position: "right" as const,
-            display: true,
-            grid: { drawOnChartArea: false },
-            title: { display: true, text: "CLI tokens" },
-          },
-        }),
-      },
-    }),
+      }),
+      ...(hasCredits && {
+        yCredits: {
+          position: "right" as const,
+          display: true,
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: "Kreditter" },
+        },
+      }),
+    },
   };
 
   return (
-    <div className="aspect-[3/1]">
+    <div className="aspect-[6/1]">
       <Line data={chartData} options={options} />
     </div>
   );

@@ -10,6 +10,7 @@ import {
   getBillingModelDaily,
   getBillingModelForecast,
   getUserWeeklyTrends,
+  getUserDailyCredits,
   getAdoptionCohorts,
   getBillingMonthlyTrend,
   getBillingModelBreakdown,
@@ -17,6 +18,7 @@ import {
   getUsageDistribution,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
+import { isoWeekLabel } from "@/lib/format";
 import Tabs from "@/components/tabs";
 import TeamUsageTable from "@/components/team-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
@@ -103,6 +105,8 @@ async function TeamUsageContent({ token }: { token: string }) {
   let userTeams: string[] = [];
   let userMetrics = null;
   let userWeeklyTrends = null;
+  let userCredits: number | null = null;
+  let userWeeklyCredits: Record<string, number> | null = null;
   if (user?.email) {
     let ghLogin: string | null = null;
 
@@ -128,18 +132,43 @@ async function TeamUsageContent({ token }: { token: string }) {
     }
 
     if (ghLogin) {
-      const [{ metrics, error: metricsError }, { trends: weeklyTrends, error: trendsError }] = await Promise.all([
+      const [
+        { metrics, error: metricsError },
+        { trends: weeklyTrends, error: trendsError },
+        { credits: dailyCredits, error: dailyCreditsError },
+      ] = await Promise.all([
         getUserMetrics(ghLogin, token),
         getUserWeeklyTrends(ghLogin, token),
+        // 90 days (the endpoint's max) comfortably covers both the current
+        // month (for the distribution bucket) and the default 12-week
+        // (84-day) weekly trends window.
+        getUserDailyCredits(ghLogin, token, 90),
       ]);
       if (metricsError) console.error("[statistikk] User metrics failed:", metricsError);
       if (trendsError) console.error("[statistikk] User weekly trends failed:", trendsError);
+      if (dailyCreditsError) console.error("[statistikk] User daily credits failed:", dailyCreditsError);
       if (metrics) {
         userTeams = (metrics.teams ?? []).filter((t) => !IGNORED_TEAMS.has(t));
         userMetrics = metrics;
       }
       if (weeklyTrends.length > 0) {
         userWeeklyTrends = weeklyTrends;
+      }
+      // Sum only the days that fall within the distribution's month — the
+      // fetch window can span multiple months.
+      if (usageDistribution && dailyCredits.length > 0) {
+        userCredits = dailyCredits
+          .filter((d) => d.day.startsWith(usageDistribution.month))
+          .reduce((sum, d) => sum + d.credits, 0);
+      }
+      // Aggregate daily credits into the same ISO week buckets used by the
+      // weekly trends endpoint, so the chart can plot credits alongside them.
+      if (dailyCredits.length > 0) {
+        userWeeklyCredits = {};
+        for (const d of dailyCredits) {
+          const week = isoWeekLabel(d.day);
+          userWeeklyCredits[week] = (userWeeklyCredits[week] ?? 0) + d.credits;
+        }
       }
     }
   }
@@ -155,13 +184,14 @@ async function TeamUsageContent({ token }: { token: string }) {
   return (
     <VStack gap="space-24">
       <Box background="neutral-soft" padding="space-24" borderRadius="12">
-        <UsageDistributionChart distribution={usageDistribution} />
+        <UsageDistributionChart distribution={usageDistribution} currentUserCredits={userCredits} />
       </Box>
       <TeamUsageTable
         teams={visibleTeams}
         userTeams={userTeams}
         userMetrics={userMetrics}
         userWeeklyTrends={userWeeklyTrends}
+        userWeeklyCredits={userWeeklyCredits}
         allowAllTeams={ALLOW_ALL_TEAMS}
       />
     </VStack>
