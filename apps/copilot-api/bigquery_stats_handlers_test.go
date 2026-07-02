@@ -130,10 +130,7 @@ func TestHandleUsageDistributionDoesNotMutateCachedResponse(t *testing.T) {
 	}
 	mock := &mockBigQueryClient{usageDistribution: shared}
 	h := newBigQueryHandlers(mock)
-
-	metricsCollector.mu.Lock()
-	metricsCollector.githubSeatsActive = 42
-	metricsCollector.mu.Unlock()
+	h.setActiveSeatsGetter(func() int64 { return 42 })
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/distribution", nil)
 	rec := httptest.NewRecorder()
@@ -153,6 +150,31 @@ func TestHandleUsageDistributionDoesNotMutateCachedResponse(t *testing.T) {
 	}
 	if got.TotalLicensedSeats != 42 {
 		t.Errorf("response TotalLicensedSeats = %d, want 42", got.TotalLicensedSeats)
+	}
+}
+
+// TestHandleUsageDistributionSeatsGetterDefaultsToNil verifies the handler
+// doesn't panic and simply reports zero seats when no getter has been wired
+// (e.g. a handler constructed without newBigQueryHandlers).
+func TestHandleUsageDistributionSeatsGetterDefaultsToNil(t *testing.T) {
+	mock := &mockBigQueryClient{
+		usageDistribution: &UsageDistribution{Month: "2026-06", NumUsers: 10},
+	}
+	h := &BigQueryHandlers{bqClient: mock}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/distribution", nil)
+	rec := httptest.NewRecorder()
+	h.handleUsageDistribution(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var got UsageDistribution
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if got.TotalLicensedSeats != 0 {
+		t.Errorf("TotalLicensedSeats = %d, want 0 with nil getter", got.TotalLicensedSeats)
 	}
 }
 

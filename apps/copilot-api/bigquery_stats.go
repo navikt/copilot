@@ -79,8 +79,6 @@ type MonthlyModelUsage struct {
 	Month        string `bigquery:"month" json:"month"`
 	Model        string `bigquery:"model" json:"model"`
 	Interactions int64  `bigquery:"interactions" json:"interactions"`
-	PromptTokens int64  `bigquery:"prompt_tokens" json:"prompt_tokens"`
-	OutputTokens int64  `bigquery:"output_tokens" json:"output_tokens"`
 }
 
 type MonthlyBillingUsage struct {
@@ -487,27 +485,14 @@ func (bq *BigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) 
           AND JSON_VALUE(mf, '$.model') != 'others'
         GROUP BY month, model
         HAVING (interactions + generations) > 0
-      ),
-      monthly_tokens AS (
-        SELECT
-          FORMAT_DATE('%%Y-%%m', day) AS month,
-          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.prompt_tokens_sum') AS INT64)), 0) AS prompt_tokens,
-          COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.totals_by_cli.token_usage.output_tokens_sum') AS INT64)), 0) AS output_tokens
-        FROM %s
-        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
-          AND scope = 'enterprise'
-        GROUP BY month
       )
       SELECT
         ma.month,
         ma.model,
-        (ma.interactions + ma.generations + ma.acceptances) AS interactions,
-        COALESCE(mt.prompt_tokens, 0) AS prompt_tokens,
-        COALESCE(mt.output_tokens, 0) AS output_tokens
+        (ma.interactions + ma.generations + ma.acceptances) AS interactions
       FROM model_activity ma
-      LEFT JOIN monthly_tokens mt ON ma.month = mt.month
       ORDER BY ma.month, interactions DESC
-    `, metricsRef, metricsRef)
+    `, metricsRef)
 	query := bq.client.Query(queryStr)
 	query.Parameters = []bigquery.QueryParameter{{Name: "months", Value: months}}
 	it, err := query.Read(ctx)

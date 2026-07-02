@@ -8,13 +8,21 @@ import (
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {
-	bqClient     BigQueryQuerier
-	budgetClient globalBudgetGetter
+	bqClient          BigQueryQuerier
+	budgetClient      globalBudgetGetter
+	activeSeatsGetter func() int64
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 	return &BigQueryHandlers{
 		bqClient: bqClient,
+		// Defaults to the real MetricsCollector singleton; tests can override
+		// this via setActiveSeatsGetter to avoid depending on global state.
+		activeSeatsGetter: func() int64 {
+			metricsCollector.mu.RLock()
+			defer metricsCollector.mu.RUnlock()
+			return metricsCollector.githubSeatsActive
+		},
 	}
 }
 
@@ -23,6 +31,13 @@ func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 // credit ceiling. Optional — call sites may leave this unset.
 func (h *BigQueryHandlers) setBudgetClient(budgetClient globalBudgetGetter) {
 	h.budgetClient = budgetClient
+}
+
+// setActiveSeatsGetter overrides how handleUsageDistribution resolves the
+// current active GitHub Copilot seat count. Primarily used by tests to avoid
+// depending on the metricsCollector global singleton.
+func (h *BigQueryHandlers) setActiveSeatsGetter(getter func() int64) {
+	h.activeSeatsGetter = getter
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {

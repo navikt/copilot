@@ -11,8 +11,14 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/api/iterator"
 )
+
+// bqQueryTimeout bounds how long a single BigQuery query is allowed to run.
+// This is shorter than the server's WriteTimeout so a slow query fails fast
+// with a clear error instead of the whole HTTP response timing out.
+const bqQueryTimeout = 15 * time.Second
 
 // BigQueryClient wraps BigQuery operations for Copilot data
 type BigQueryClient struct {
@@ -386,6 +392,7 @@ type BigQueryQuerier interface {
 type CachedBigQueryClient struct {
 	client *BigQueryClient
 	cache  *Cache
+	group  singleflight.Group
 }
 
 func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedBigQueryClient {
@@ -395,168 +402,232 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 	}
 }
 
-func getCachedValue[T any](cache *Cache, cacheKey string, loader func() (T, error)) (T, error) {
+// getCachedValue reads cacheKey from cache, or invokes loader on a miss.
+// Concurrent misses for the same cacheKey are deduplicated via singleflight
+// so a cache expiration under load triggers exactly one BigQuery call
+// instead of one per in-flight request (cache stampede).
+func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func() (T, error)) (T, error) {
 	var zero T
-	if cached, ok := cache.Get(cacheKey); ok {
+	if cached, ok := c.cache.Get(cacheKey); ok {
 		if value, ok := cached.(T); ok {
 			slog.Debug("Cache hit", "key", cacheKey)
 			return value, nil
 		}
 	}
 
-	value, err := loader()
+	result, err, _ := c.group.Do(cacheKey, func() (any, error) {
+		// Re-check the cache: another goroutine may have populated it
+		// while we were waiting to acquire the singleflight slot.
+		if cached, ok := c.cache.Get(cacheKey); ok {
+			if value, ok := cached.(T); ok {
+				return value, nil
+			}
+		}
+		value, err := loader()
+		if err != nil {
+			return zero, err
+		}
+		c.cache.Set(cacheKey, value)
+		return value, nil
+	})
 	if err != nil {
 		return zero, err
 	}
+	return result.(T), nil
+}
 
-	cache.Set(cacheKey, value)
-	return value, nil
+// withQueryTimeout returns a context bounded by bqQueryTimeout, alongside its
+// cancel function. Callers must invoke the returned cancel function.
+func withQueryTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, bqQueryTimeout)
 }
 
 func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("daily_metrics_%v", days)
-	return getCachedValue(c.cache, cacheKey, func() ([]EnterpriseMetrics, error) {
+	return getCachedValue(c, cacheKey, func() ([]EnterpriseMetrics, error) {
 		return c.client.GetDailyMetrics(ctx, days)
 	})
 }
 
 func (c *CachedBigQueryClient) GetAdoptionSummary(ctx context.Context) (*AdoptionSummary, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := "adoption_summary"
-	return getCachedValue(c.cache, cacheKey, func() (*AdoptionSummary, error) {
+	return getCachedValue(c, cacheKey, func() (*AdoptionSummary, error) {
 		return c.client.GetAdoptionSummary(ctx)
 	})
 }
 
 func (c *CachedBigQueryClient) GetTeamAdoption(ctx context.Context) ([]TeamAdoption, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := "team_adoption"
-	return getCachedValue(c.cache, cacheKey, func() ([]TeamAdoption, error) {
+	return getCachedValue(c, cacheKey, func() ([]TeamAdoption, error) {
 		return c.client.GetTeamAdoption(ctx)
 	})
 }
 
 func (c *CachedBigQueryClient) GetCustomizationDetails(ctx context.Context) ([]CustomizationDetail, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := "customization_details"
-	return getCachedValue(c.cache, cacheKey, func() ([]CustomizationDetail, error) {
+	return getCachedValue(c, cacheKey, func() ([]CustomizationDetail, error) {
 		return c.client.GetCustomizationDetails(ctx)
 	})
 }
 
 func (c *CachedBigQueryClient) GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := "customization_usage"
-	return getCachedValue(c.cache, cacheKey, func() ([]CustomizationUsage, error) {
+	return getCachedValue(c, cacheKey, func() ([]CustomizationUsage, error) {
 		return c.client.GetCustomizationUsage(ctx)
 	})
 }
 
 func (c *CachedBigQueryClient) GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := "language_adoption"
-	return getCachedValue(c.cache, cacheKey, func() ([]LanguageAdoption, error) {
+	return getCachedValue(c, cacheKey, func() ([]LanguageAdoption, error) {
 		return c.client.GetLanguageAdoption(ctx)
 	})
 }
 
 func (c *CachedBigQueryClient) GetStalenessData(ctx context.Context) ([]StalenessFile, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := "staleness_data"
-	return getCachedValue(c.cache, cacheKey, func() ([]StalenessFile, error) {
+	return getCachedValue(c, cacheKey, func() ([]StalenessFile, error) {
 		return c.client.GetStalenessData(ctx)
 	})
 }
 
 func (c *CachedBigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("team_usage_summary_%d", days)
-	return getCachedValue(c.cache, cacheKey, func() ([]TeamUsageSummary, error) {
+	return getCachedValue(c, cacheKey, func() ([]TeamUsageSummary, error) {
 		return c.client.GetTeamUsageSummary(ctx, days)
 	})
 }
 
 func (c *CachedBigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("user_metrics_%s_%d", userLogin, days)
-	return getCachedValue(c.cache, cacheKey, func() (*UserMetricsSummary, error) {
+	return getCachedValue(c, cacheKey, func() (*UserMetricsSummary, error) {
 		return c.client.GetUserMetrics(ctx, userLogin, days)
 	})
 }
 
 func (c *CachedBigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("monthly_trends_%d", months)
-	return getCachedValue(c.cache, cacheKey, func() ([]MonthlyTrend, error) {
+	return getCachedValue(c, cacheKey, func() ([]MonthlyTrend, error) {
 		return c.client.GetMonthlyTrends(ctx, months)
 	})
 }
 
 func (c *CachedBigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("monthly_model_usage_%d", months)
-	return getCachedValue(c.cache, cacheKey, func() ([]MonthlyModelUsage, error) {
+	return getCachedValue(c, cacheKey, func() ([]MonthlyModelUsage, error) {
 		return c.client.GetMonthlyModelUsage(ctx, months)
 	})
 }
 
 func (c *CachedBigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("monthly_billing_usage_%d", months)
-	return getCachedValue(c.cache, cacheKey, func() ([]MonthlyBillingUsage, error) {
+	return getCachedValue(c, cacheKey, func() ([]MonthlyBillingUsage, error) {
 		return c.client.GetMonthlyBillingUsage(ctx, months)
 	})
 }
 
 func (c *CachedBigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("billing_model_daily_costs_%s", month)
-	return getCachedValue(c.cache, cacheKey, func() ([]BillingModelDailyCost, error) {
+	return getCachedValue(c, cacheKey, func() ([]BillingModelDailyCost, error) {
 		return c.client.GetBillingModelDailyCosts(ctx, month)
 	})
 }
 
 func (c *CachedBigQueryClient) GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("billing_model_forecast_%s", month)
-	return getCachedValue(c.cache, cacheKey, func() (*BillingModelForecast, error) {
+	return getCachedValue(c, cacheKey, func() (*BillingModelForecast, error) {
 		return c.client.GetBillingModelForecast(ctx, month)
 	})
 }
 
 func (c *CachedBigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("user_weekly_trends_%s_%d", userLogin, weeks)
-	return getCachedValue(c.cache, cacheKey, func() ([]WeeklyTrend, error) {
+	return getCachedValue(c, cacheKey, func() ([]WeeklyTrend, error) {
 		return c.client.GetUserWeeklyTrends(ctx, userLogin, weeks)
 	})
 }
 
 func (c *CachedBigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin string, days int) ([]DailyCredits, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("user_daily_credits_%s_%d", userLogin, days)
-	return getCachedValue(c.cache, cacheKey, func() ([]DailyCredits, error) {
+	return getCachedValue(c, cacheKey, func() ([]DailyCredits, error) {
 		return c.client.GetUserDailyCredits(ctx, userLogin, days)
 	})
 }
 
 func (c *CachedBigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]AdoptionCohortDay, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("adoption_cohorts_%d", days)
-	return getCachedValue(c.cache, cacheKey, func() ([]AdoptionCohortDay, error) {
+	return getCachedValue(c, cacheKey, func() ([]AdoptionCohortDay, error) {
 		return c.client.GetAdoptionCohorts(ctx, days)
 	})
 }
 
 func (c *CachedBigQueryClient) GetBillingMonthlyTrend(ctx context.Context, months int) ([]BillingMonthlyTrend, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("billing_monthly_trend_%d", months)
-	return getCachedValue(c.cache, cacheKey, func() ([]BillingMonthlyTrend, error) {
+	return getCachedValue(c, cacheKey, func() ([]BillingMonthlyTrend, error) {
 		return c.client.GetBillingMonthlyTrend(ctx, months)
 	})
 }
 
 func (c *CachedBigQueryClient) GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	cacheKey := fmt.Sprintf("billing_model_breakdown_%d", months)
-	return getCachedValue(c.cache, cacheKey, func() ([]BillingModelBreakdown, error) {
+	return getCachedValue(c, cacheKey, func() ([]BillingModelBreakdown, error) {
 		return c.client.GetBillingModelBreakdown(ctx, months)
 	})
 }
 
 func (c *CachedBigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, error) {
-	return getCachedValue(c.cache, "daily_summary", func() (*DailySummary, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "daily_summary", func() (*DailySummary, error) {
 		return c.client.GetDailySummary(ctx)
 	})
 }
 
 func (c *CachedBigQueryClient) GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
 	// Use 2 decimal places (not %.0f) so distinct budgets that round to the same
 	// whole credit amount don't collide into the same cache entry.
 	cacheKey := fmt.Sprintf("usage_distribution_%s_%.2f", month, budgetCredits)
-	return getCachedValue(c.cache, cacheKey, func() (*UsageDistribution, error) {
+	return getCachedValue(c, cacheKey, func() (*UsageDistribution, error) {
 		return c.client.GetUsageDistribution(ctx, month, budgetCredits)
 	})
 }

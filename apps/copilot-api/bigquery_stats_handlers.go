@@ -295,9 +295,10 @@ func (h *BigQueryHandlers) handleUsageDistribution(w http.ResponseWriter, r *htt
 
 	// Seat count comes from the background-collected GitHub metrics, not BigQuery.
 	// Copy the struct to avoid mutating the cached pointer (shared across requests).
-	metricsCollector.mu.RLock()
-	seats := metricsCollector.githubSeatsActive
-	metricsCollector.mu.RUnlock()
+	var seats int64
+	if h.activeSeatsGetter != nil {
+		seats = h.activeSeatsGetter()
+	}
 
 	result := *distribution
 	result.TotalLicensedSeats = seats
@@ -333,6 +334,11 @@ func (h *BigQueryHandlers) handleDailySummary(w http.ResponseWriter, r *http.Req
 		// frontend's response.json() then throws on the empty body). Return
 		// 200 with a literal JSON null instead — this is what fetchNullable
 		// on the frontend expects for "no data yet".
+		//
+		// Use a short cache TTL (rather than none) so early-morning requests
+		// before the day's data lands don't bypass the cache entirely and
+		// hammer BigQuery on every request until data appears.
+		cacheControl(w, 300, false)
 		respondJSON(w, nil, http.StatusOK)
 		return
 	}
