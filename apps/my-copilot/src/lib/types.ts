@@ -468,6 +468,24 @@ export interface DailySummary {
   pr_median_minutes_to_merge: number;
 }
 
+// Privacy-preserving, aggregate-only usage spread for a given month.
+// Never contains per-user identifiers — see copilot-api's minUsersForDistribution.
+export interface UsageHistogramBucket {
+  bucket: string;
+  num_users: number;
+}
+
+export interface UsageDistribution {
+  month: string;
+  num_users: number;
+  total_licensed_seats: number;
+  budget_credits: number;
+  credits_deciles: number[];
+  interactions_deciles: number[];
+  acceptances_deciles: number[];
+  credits_histogram: UsageHistogramBucket[];
+}
+
 export interface BillingModelDailyCost {
   day: string;
   model: string;

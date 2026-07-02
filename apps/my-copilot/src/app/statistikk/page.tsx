@@ -14,6 +14,7 @@ import {
   getBillingMonthlyTrend,
   getBillingModelBreakdown,
   getDailySummary,
+  getUsageDistribution,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
@@ -26,6 +27,7 @@ import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import BillingModelBreakdownChart from "@/components/charts/BillingModelBreakdownChart";
+import UsageDistributionChart from "@/components/charts/UsageDistributionChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
@@ -81,7 +83,15 @@ const ALLOW_ALL_TEAMS = process.env.NODE_ENV === "development";
 
 // Cached team usage data component — resolves user's teams for highlighting
 async function TeamUsageContent({ token }: { token: string }) {
-  const [{ teams, error }, user] = await Promise.all([getTeamUsage(token), getUser()]);
+  const [{ teams, error }, user, { distribution: usageDistribution, error: distributionError }] = await Promise.all([
+    getTeamUsage(token),
+    getUser(),
+    getUsageDistribution(token),
+  ]);
+
+  if (distributionError) {
+    console.error("[statistikk] Usage distribution failed:", distributionError);
+  }
 
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
   if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
@@ -143,13 +153,18 @@ async function TeamUsageContent({ token }: { token: string }) {
     .filter((t) => ALLOW_ALL_TEAMS || userTeamSet.has(t.team_slug.toLowerCase()));
 
   return (
-    <TeamUsageTable
-      teams={visibleTeams}
-      userTeams={userTeams}
-      userMetrics={userMetrics}
-      userWeeklyTrends={userWeeklyTrends}
-      allowAllTeams={ALLOW_ALL_TEAMS}
-    />
+    <VStack gap="space-24">
+      <Box background="neutral-soft" padding="space-24" borderRadius="12">
+        <UsageDistributionChart distribution={usageDistribution} />
+      </Box>
+      <TeamUsageTable
+        teams={visibleTeams}
+        userTeams={userTeams}
+        userMetrics={userMetrics}
+        userWeeklyTrends={userWeeklyTrends}
+        allowAllTeams={ALLOW_ALL_TEAMS}
+      />
+    </VStack>
   );
 }
 
@@ -841,7 +856,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
   const tabs = [
     {
       id: "dashboard",
-      label: "Oversikt",
+      label: "Oversikt222",
       content: dashboardContent,
       hashIds: [
         "dashboard",

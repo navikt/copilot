@@ -8,13 +8,21 @@ import (
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {
-	bqClient BigQueryQuerier
+	bqClient     BigQueryQuerier
+	budgetClient globalBudgetGetter
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 	return &BigQueryHandlers{
 		bqClient: bqClient,
 	}
+}
+
+// setBudgetClient wires in the enterprise budget lookup so usage-distribution
+// histograms can scale to the actual per-user $ budget instead of a hardcoded
+// credit ceiling. Optional — call sites may leave this unset.
+func (h *BigQueryHandlers) setBudgetClient(budgetClient globalBudgetGetter) {
+	h.budgetClient = budgetClient
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {

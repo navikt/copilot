@@ -27,6 +27,7 @@ import type {
   BillingMonthlyTrend,
   BillingModelBreakdown,
   DailySummary,
+  UsageDistribution,
 } from "./types";
 
 function getErrorMessage(label: string, err: unknown): string {
@@ -233,4 +234,18 @@ export async function getDailySummary(token: string): Promise<{
     backendRequest<DailySummary>("/api/v1/copilot/usage/daily-summary", token)
   );
   return { summary: result.data, error: result.error };
+}
+
+export async function getUsageDistribution(
+  token: string,
+  month?: string
+): Promise<{
+  distribution: UsageDistribution | null;
+  error: string | null;
+}> {
+  const query = month ? `?month=${encodeURIComponent(month)}` : "";
+  const result = await fetchNullable("getUsageDistribution", () =>
+    backendRequest<UsageDistribution>(`/api/v1/copilot/usage/distribution${query}`, token)
+  );
+  return { distribution: result.data, error: result.error };
 }

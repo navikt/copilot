@@ -144,6 +144,23 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 
 var errBudgetNotFound = errors.New("budget not found for user")
 
+// globalBudgetGetter abstracts the enterprise-wide credit budget lookup.
+// Used by usage-distribution histograms to scale credit buckets to the
+// actual per-user $ budget rather than a hardcoded ceiling.
+type globalBudgetGetter interface {
+	getGlobalBudget(ctx context.Context) (*GlobalBudget, error)
+}
+
+// usdPerAICredit is GitHub Copilot's billing conversion rate: 1 AI credit = $0.01 USD.
+// Source: apps/my-copilot/src/lib/model-pricing.ts (auto-generated from GitHub docs).
+const usdPerAICredit = 0.01
+
+// defaultPerUserBudgetCredits is used as a fallback when the budget client is
+// unavailable or errors, so the usage-distribution endpoint degrades gracefully
+// instead of failing outright. As of 2026-07 this matches the $400/user/month
+// enterprise default (400 / 0.01 = 40,000 credits).
+const defaultPerUserBudgetCredits = 40000
+
 // GlobalBudget aggregates AI credit consumption across all users this month.
 type GlobalBudget struct {
 	TotalConsumed float64 `json:"totalConsumed"`

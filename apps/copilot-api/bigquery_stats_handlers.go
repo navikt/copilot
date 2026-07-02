@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -276,6 +277,50 @@ func (h *BigQueryHandlers) handleBillingModelBreakdown(w http.ResponseWriter, r 
 	respondJSON(w, breakdown, http.StatusOK)
 }
 
+func (h *BigQueryHandlers) handleUsageDistribution(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+
+	budgetCredits := h.resolveBudgetCredits(r.Context())
+
+	distribution, err := h.bqClient.GetUsageDistribution(r.Context(), month, budgetCredits)
+	if err != nil {
+		slog.Error("Failed to fetch usage distribution", "error", err)
+		respondError(w, "internal_error", "Failed to fetch usage distribution", http.StatusInternalServerError)
+		return
+	}
+
+	// Seat count comes from the background-collected GitHub metrics, not BigQuery.
+	// Copy the struct to avoid mutating the cached pointer (shared across requests).
+	metricsCollector.mu.RLock()
+	seats := metricsCollector.githubSeatsActive
+	metricsCollector.mu.RUnlock()
+
+	result := *distribution
+	result.TotalLicensedSeats = seats
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, &result, http.StatusOK)
+}
+
+// resolveBudgetCredits fetches the enterprise per-user $ budget and converts it to
+// AI credits (1 credit = $0.01). Falls back to defaultPerUserBudgetCredits if the
+// budget client is unavailable or errors, so the distribution endpoint keeps working.
+func (h *BigQueryHandlers) resolveBudgetCredits(ctx context.Context) float64 {
+	if h.budgetClient == nil {
+		return defaultPerUserBudgetCredits
+	}
+	budget, err := h.budgetClient.getGlobalBudget(ctx)
+	if err != nil || budget == nil || budget.PerUserBudget <= 0 {
+		slog.Warn("Falling back to default per-user budget for usage distribution", "error", err)
+		return defaultPerUserBudgetCredits
+	}
+	return budget.PerUserBudget / usdPerAICredit
+}
+
 func (h *BigQueryHandlers) handleDailySummary(w http.ResponseWriter, r *http.Request) {
 	summary, err := h.bqClient.GetDailySummary(r.Context())
 	if err != nil {
@@ -284,7 +329,11 @@ func (h *BigQueryHandlers) handleDailySummary(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if summary == nil {
-		respondJSON(w, nil, http.StatusNoContent)
+		// 204 must not carry a body (Go's http package rejects it, and the
+		// frontend's response.json() then throws on the empty body). Return
+		// 200 with a literal JSON null instead — this is what fetchNullable
+		// on the frontend expects for "no data yet".
+		respondJSON(w, nil, http.StatusOK)
 		return
 	}
 

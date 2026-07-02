@@ -379,6 +379,7 @@ type BigQueryQuerier interface {
 	GetBillingMonthlyTrend(ctx context.Context, months int) ([]BillingMonthlyTrend, error)
 	GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error)
 	GetDailySummary(ctx context.Context) (*DailySummary, error)
+	GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error)
 }
 
 // Cache wrapper for BigQuery operations
@@ -548,6 +549,15 @@ func (c *CachedBigQueryClient) GetBillingModelBreakdown(ctx context.Context, mon
 func (c *CachedBigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, error) {
 	return getCachedValue(c.cache, "daily_summary", func() (*DailySummary, error) {
 		return c.client.GetDailySummary(ctx)
+	})
+}
+
+func (c *CachedBigQueryClient) GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error) {
+	// Use 2 decimal places (not %.0f) so distinct budgets that round to the same
+	// whole credit amount don't collide into the same cache entry.
+	cacheKey := fmt.Sprintf("usage_distribution_%s_%.2f", month, budgetCredits)
+	return getCachedValue(c.cache, cacheKey, func() (*UsageDistribution, error) {
+		return c.client.GetUsageDistribution(ctx, month, budgetCredits)
 	})
 }
 

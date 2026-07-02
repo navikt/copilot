@@ -92,6 +92,9 @@ func main() {
 	default:
 		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
 		budgetHandlers = newBudgetHandlers(budgetClient, githubClient)
+		if bqHandlers != nil {
+			bqHandlers.setBudgetClient(budgetClient)
+		}
 		slog.Info("Budget client initialized successfully")
 	}
 

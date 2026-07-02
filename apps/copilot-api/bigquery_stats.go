@@ -746,6 +746,154 @@ func tail(values []float64, n int) []float64 {
 	return out
 }
 
+// minUsersForDistribution enforces k-anonymity: below this many users,
+// aggregate stats could still let someone infer an individual's usage.
+const minUsersForDistribution = 5
+
+// UsageHistogramBucket is one bucket of the credits histogram: how many
+// users fall in a given usage range. No individual users are identifiable.
+type UsageHistogramBucket struct {
+	Bucket   string `bigquery:"bucket" json:"bucket"`
+	NumUsers int64  `bigquery:"num_users" json:"num_users"`
+}
+
+// UsageDistribution is a privacy-preserving, aggregate-only view of how
+// Copilot usage is spread across all users in a given month: percentiles
+// (deciles) per metric plus a credits histogram. It never contains
+// per-user identifiers.
+type UsageDistribution struct {
+	Month               string                 `json:"month"`
+	NumUsers            int64                  `json:"num_users"`
+	TotalLicensedSeats  int64                  `json:"total_licensed_seats"`
+	BudgetCredits       float64                `json:"budget_credits"`
+	CreditsDeciles      []float64              `json:"credits_deciles"`
+	InteractionsDeciles []int64                `json:"interactions_deciles"`
+	AcceptancesDeciles  []int64                `json:"acceptances_deciles"`
+	CreditsHistogram    []UsageHistogramBucket `json:"credits_histogram"`
+}
+
+// GetUsageDistribution returns an aggregate-only usage distribution for the given
+// month. budgetCredits is the per-user AI credit budget (already converted from
+// USD) and is used to bucket the credits histogram as % of budget consumed,
+// so the chart stays meaningful regardless of the raw credit scale.
+func (bq *BigQueryClient) GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error) {
+	if !isValidYearMonth(month) {
+		return nil, fmt.Errorf("invalid month format %q (expected YYYY-MM)", month)
+	}
+
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+
+	distribution, numUsers, err := bq.getUsageDistributionData(ctx, metricsRef, month, budgetCredits)
+	if err != nil {
+		return nil, err
+	}
+	if numUsers < minUsersForDistribution {
+		// Too few users to safely aggregate without risking re-identification.
+		// Omit the exact (small) count too — even that alone can aid re-identification.
+		return &UsageDistribution{Month: month, BudgetCredits: budgetCredits}, nil
+	}
+
+	distribution.Month = month
+	distribution.NumUsers = numUsers
+	distribution.BudgetCredits = budgetCredits
+	return distribution, nil
+}
+
+// getUsageDistributionData computes per-user credits/interactions/acceptances once
+// and derives both the decile summary and the credits histogram from it in a
+// single query, avoiding a second full scan of user_metrics for the same month.
+func (bq *BigQueryClient) getUsageDistributionData(ctx context.Context, metricsRef, month string, budgetCredits float64) (*UsageDistribution, int64, error) {
+	queryStr := fmt.Sprintf(`
+      WITH per_user AS (
+        SELECT
+          JSON_VALUE(raw_record, '$.user_login') AS user_login,
+          SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0.0)) AS credits,
+          SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)) AS interactions,
+          SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64), 0)) AS acceptances
+        FROM %s
+        WHERE FORMAT_DATE('%%Y-%%m', day) = @month
+          AND scope = 'enterprise'
+        GROUP BY user_login
+      ),
+      deciles AS (
+        SELECT
+          APPROX_QUANTILES(credits, 10) AS credits_deciles,
+          APPROX_QUANTILES(interactions, 10) AS interactions_deciles,
+          APPROX_QUANTILES(acceptances, 10) AS acceptances_deciles,
+          COUNT(*) AS num_users
+        FROM per_user
+      ),
+      bucketed AS (
+        SELECT
+          CASE
+            WHEN credits = 0 THEN '0%%'
+            WHEN credits < @budget * 0.10 THEN '1-9%%'
+            WHEN credits < @budget * 0.25 THEN '10-24%%'
+            WHEN credits < @budget * 0.50 THEN '25-49%%'
+            WHEN credits < @budget * 0.75 THEN '50-74%%'
+            WHEN credits < @budget THEN '75-99%%'
+            ELSE '100%%+'
+          END AS bucket
+        FROM per_user
+      ),
+      -- All bucket labels in display order, so empty buckets still show as 0
+      -- instead of disappearing from the chart.
+      all_buckets AS (
+        SELECT bucket, offset AS bucket_order
+        FROM UNNEST(['0%%', '1-9%%', '10-24%%', '25-49%%', '50-74%%', '75-99%%', '100%%+']) AS bucket WITH OFFSET
+      ),
+      histogram AS (
+        SELECT
+          all_buckets.bucket AS bucket,
+          COUNT(bucketed.bucket) AS num_users
+        FROM all_buckets
+        LEFT JOIN bucketed ON bucketed.bucket = all_buckets.bucket
+        GROUP BY all_buckets.bucket, all_buckets.bucket_order
+        ORDER BY all_buckets.bucket_order
+      )
+      SELECT
+        (SELECT AS STRUCT deciles.* FROM deciles) AS deciles,
+        ARRAY(SELECT AS STRUCT histogram.* FROM histogram) AS histogram
+    `, metricsRef)
+
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{
+		{Name: "month", Value: month},
+		{Name: "budget", Value: budgetCredits},
+	}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("execute query: %w", err)
+	}
+
+	type decilesStruct struct {
+		CreditsDeciles      []float64 `bigquery:"credits_deciles"`
+		InteractionsDeciles []int64   `bigquery:"interactions_deciles"`
+		AcceptancesDeciles  []int64   `bigquery:"acceptances_deciles"`
+		NumUsers            int64     `bigquery:"num_users"`
+	}
+	type combinedRow struct {
+		Deciles   decilesStruct          `bigquery:"deciles"`
+		Histogram []UsageHistogramBucket `bigquery:"histogram"`
+	}
+
+	rows, err := readAllRows[combinedRow](it)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(rows) == 0 {
+		return &UsageDistribution{}, 0, nil
+	}
+
+	row := rows[0]
+	return &UsageDistribution{
+		CreditsDeciles:      row.Deciles.CreditsDeciles,
+		InteractionsDeciles: row.Deciles.InteractionsDeciles,
+		AcceptancesDeciles:  row.Deciles.AcceptancesDeciles,
+		CreditsHistogram:    row.Histogram,
+	}, row.Deciles.NumUsers, nil
+}
+
 func isValidYearMonth(v string) bool {
 	parsed, err := time.Parse("2006-01", v)
 	if err != nil {
