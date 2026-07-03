@@ -32,12 +32,12 @@ function aggregateToWeeks(data: AdoptionCohortTrendData): AdoptionCohortTrendDat
   const weekMap = new Map<string, { phase0: number[]; phase1: number[]; phase2: number[]; phase3: number[] }>();
 
   for (let i = 0; i < data.days.length; i++) {
-    const date = new Date(data.days[i]);
-    // ISO week: Monday-based — get the Monday of the week
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(date.setDate(diff));
-    const weekLabel = monday.toISOString().slice(0, 10);
+    const date = new Date(data.days[i] + "T00:00:00Z");
+    // ISO week: Monday-based — get the Monday of the week (using UTC to avoid TZ shifts)
+    const day = date.getUTCDay();
+    const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
+    date.setUTCDate(diff);
+    const weekLabel = date.toISOString().slice(0, 10);
 
     if (!weekMap.has(weekLabel)) {
       weekMap.set(weekLabel, { phase0: [], phase1: [], phase2: [], phase3: [] });

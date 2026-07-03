@@ -48,6 +48,7 @@ import {
   getGenerationModeSummary,
   buildGenerationModeTrendData,
 } from "@/lib/data-utils";
+import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/month-utils";
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
@@ -298,15 +299,9 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
   // Prefer current month for "Måned hittil"; fall back to latest complete month if needed.
-  const currentBillingMonth = new Date().toISOString().slice(0, 7);
-  // Previous calendar month is the overwhelmingly common fallback target when the
-  // current month has no billing data yet — fetch it eagerly alongside the current
-  // month so the common case never needs a second sequential round-trip.
-  const previousBillingMonth = (() => {
-    const d = new Date();
-    d.setUTCMonth(d.getUTCMonth() - 1);
-    return d.toISOString().slice(0, 7);
-  })();
+  const currentBillingMonth = currentMonthUTC();
+  // Previous calendar month — safe against day-31 overflow.
+  const previousBillingMonth = previousMonth(currentBillingMonth);
 
   // Fetch all datasets in parallel — daily/forecast for current AND previous month
   // included upfront so the (common) current-month-has-no-data-yet case doesn't
@@ -397,17 +392,11 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
     console.error("[statistikk] Billing model forecast failed:", billingModelForecastError);
 
   // Find the last COMPLETE month (not the current partial month)
-  // A month is "complete" if it has 28+ days of data or isn't the current calendar month
-  // Use the latest month in the data as reference to avoid new Date() prerender issues
-  const latestMonth = monthlyTrends.length > 0 ? monthlyTrends[monthlyTrends.length - 1].month : null;
-  const completeMonths = latestMonth
-    ? monthlyTrends.filter((m) => m.month !== latestMonth || m.days_in_month >= 28)
-    : monthlyTrends;
-  const currentMonth = latestMonth ? monthlyTrends.find((m) => m.month === latestMonth && m.days_in_month < 28) : null;
-
-  // Use last complete month for hero, with MoM comparison to the one before
-  const latestComplete = completeMonths.length > 0 ? completeMonths[completeMonths.length - 1] : null;
-  const prevComplete = completeMonths.length > 1 ? completeMonths[completeMonths.length - 2] : null;
+  // A month is "complete" if it has all expected calendar days or isn't the current month.
+  const { completeMonths, currentMonth, latestComplete, prevComplete } = selectCompleteMonths(
+    monthlyTrends,
+    currentBillingMonth
+  );
 
   function momChange(current: number, previous: number | undefined): string | undefined {
     if (!previous || previous === 0) return undefined;
