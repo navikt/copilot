@@ -445,7 +445,11 @@ func withQueryTimeout(ctx context.Context) (context.Context, context.CancelFunc)
 func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	cacheKey := fmt.Sprintf("daily_metrics_%v", days)
+	effectiveDays := 0
+	if days != nil {
+		effectiveDays = *days
+	}
+	cacheKey := fmt.Sprintf("daily_metrics_%d", effectiveDays)
 	return getCachedValue(c, cacheKey, func() ([]EnterpriseMetrics, error) {
 		return c.client.GetDailyMetrics(ctx, days)
 	})
