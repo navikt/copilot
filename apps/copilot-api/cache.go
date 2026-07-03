@@ -86,6 +86,12 @@ func (c *Cache) Get(key string) (interface{}, bool) {
 // that isn't enough, entries are evicted in (unspecified) map iteration
 // order as a last-resort safety valve against unbounded growth.
 func (c *Cache) Set(key string, value interface{}) {
+	c.SetWithTTL(key, value, c.ttl)
+}
+
+// SetWithTTL stores a value with a custom TTL. Useful for negative caching
+// (storing "no data" results for a shorter period than the default).
+func (c *Cache) SetWithTTL(key string, value interface{}, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -95,7 +101,7 @@ func (c *Cache) Set(key string, value interface{}) {
 
 	c.entries[key] = CacheEntry{
 		value:      value,
-		expiration: time.Now().Add(c.ttl),
+		expiration: time.Now().Add(ttl),
 	}
 }
 

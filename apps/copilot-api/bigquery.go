@@ -16,9 +16,9 @@ import (
 )
 
 // bqQueryTimeout bounds how long a single BigQuery query is allowed to run.
-// This is shorter than the server's WriteTimeout so a slow query fails fast
-// with a clear error instead of the whole HTTP response timing out.
-const bqQueryTimeout = 15 * time.Second
+// Set below the BFF's 15s request timeout so the backend returns a clear error
+// before the upstream HTTP connection is aborted.
+const bqQueryTimeout = 12 * time.Second
 
 // BigQueryClient wraps BigQuery operations for Copilot data
 type BigQueryClient struct {
@@ -402,10 +402,16 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 	}
 }
 
+// negativeCacheTTL is used for nil/zero-value results so "no data yet"
+// responses are retried sooner than the full cache TTL.
+const negativeCacheTTL = 5 * time.Minute
+
 // getCachedValue reads cacheKey from cache, or invokes loader on a miss.
 // Concurrent misses for the same cacheKey are deduplicated via singleflight
 // so a cache expiration under load triggers exactly one BigQuery call
 // instead of one per in-flight request (cache stampede).
+// Nil/zero-value results are cached for a shorter duration (5 min) so
+// transient "no data" states are retried sooner.
 func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func() (T, error)) (T, error) {
 	var zero T
 	if cached, ok := c.cache.Get(cacheKey); ok {
@@ -427,7 +433,13 @@ func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func
 		if err != nil {
 			return zero, err
 		}
-		c.cache.Set(cacheKey, value)
+		// Use a shorter TTL for nil results (e.g. daily summary before
+		// data lands) so they're retried sooner.
+		if any(value) == nil {
+			c.cache.SetWithTTL(cacheKey, value, negativeCacheTTL)
+		} else {
+			c.cache.Set(cacheKey, value)
+		}
 		return value, nil
 	})
 	if err != nil {
@@ -436,10 +448,12 @@ func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func
 	return result.(T), nil
 }
 
-// withQueryTimeout returns a context bounded by bqQueryTimeout, alongside its
-// cancel function. Callers must invoke the returned cancel function.
-func withQueryTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, bqQueryTimeout)
+// withQueryTimeout returns a context bounded by bqQueryTimeout that is
+// detached from the caller's request lifecycle. This ensures a client
+// disconnect doesn't cancel a query that other concurrent waiters (via
+// singleflight) depend on. The returned cancel must still be called.
+func withQueryTimeout(_ context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), bqQueryTimeout)
 }
 
 func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {
