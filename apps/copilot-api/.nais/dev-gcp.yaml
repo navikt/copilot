@@ -6,3 +6,9 @@ video_feed_cache_seconds: "60"
 # NOTE: AZURE_APP_PRE_AUTHORIZED_APPS must be set via NAIS secret with my-copilot's client ID
 # Format: [{"clientId": "my-copilot-client-id"}]
 # This allows my-copilot to call this API with delegated user credentials
+
+# NOTE: COPILOT_CLI_CLIENT_ID must be set via NAIS secret once copilot-cli has been
+# deployed and its Azure AD app client ID is known (see apps/copilot-cli). This
+# also needs to be added to AZURE_APP_PRE_AUTHORIZED_APPS above so copilot-cli's
+# M2M token is accepted at all — COPILOT_CLI_CLIENT_ID only controls whether the
+# X-On-Behalf-Of header is trusted for that already-authorized azp.

@@ -19,7 +19,23 @@ import (
 // acceptance counts, lines of code) by simply passing a different ?username= param.
 // The frontend supplies the username from the user's own SAML-resolved identity,
 // but the backend must not trust that — verify server-side via SAML lookup.
+//
+// Trusted intermediary bypass: when the request is authenticated with an M2M
+// token whose azp is copilot-cli's configured client ID, copilot-cli has
+// already verified the caller's GitHub identity and navikt org membership via
+// their own GitHub token — see apps/copilot-cli. In that case we trust the
+// X-On-Behalf-Of header as the verified username instead of doing a SAML
+// lookup (there is no NAVident/email to resolve from an M2M token). The
+// requested path username must still match the header exactly. This check
+// runs first, before the githubClient-nil fallback below, since copilot-cli
+// requests never carry a resolvable SAML identity.
 func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
+	if h.copilotCLIClientID != "" {
+		if user, ok := getUserFromContext(r.Context()); ok && user != nil && user.AZP == h.copilotCLIClientID {
+			return h.verifyCopilotCLIOnBehalfOf(w, r, requestedUsername)
+		}
+	}
+
 	if h.githubClient == nil {
 		// SECURITY: Fail closed in production. If the GitHub client failed to
 		// initialize (bad key, transient error), deny access rather than serving
@@ -53,6 +69,30 @@ func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *htt
 		slog.Warn("Per-user read denied: username mismatch",
 			"requested_username", requestedUsername,
 			"actor_navident", user.NAVident,
+		)
+		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+// verifyCopilotCLIOnBehalfOf trusts the X-On-Behalf-Of header as the caller's
+// verified GitHub username, for requests already authenticated as copilot-cli
+// (see verifyUsernameOwnership). copilot-cli validates the developer's GitHub
+// token and navikt org membership itself before setting this header, so no
+// further identity lookup is needed here — but the header must be present and
+// must match the requested path username.
+func (h *BigQueryHandlers) verifyCopilotCLIOnBehalfOf(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
+	onBehalfOf := r.Header.Get("X-On-Behalf-Of")
+	if onBehalfOf == "" {
+		slog.Warn("copilot-cli request missing X-On-Behalf-Of header")
+		respondError(w, "unauthorized", "Missing X-On-Behalf-Of header", http.StatusUnauthorized)
+		return false
+	}
+	if !strings.EqualFold(onBehalfOf, requestedUsername) {
+		slog.Warn("Per-user read denied: copilot-cli on-behalf-of mismatch",
+			"requested_username", requestedUsername,
+			"on_behalf_of", onBehalfOf,
 		)
 		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
 		return false

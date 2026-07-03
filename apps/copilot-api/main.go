@@ -89,6 +89,13 @@ func main() {
 		bqHandlers.setGitHubClient(githubClient)
 	}
 
+	// Trust copilot-cli's X-On-Behalf-Of header on per-user endpoints once its
+	// Entra ID client ID is configured (set after copilot-cli's first deploy).
+	if bqHandlers != nil && config.CopilotCLIClientID != "" {
+		bqHandlers.setCopilotCLIClientID(config.CopilotCLIClientID)
+		slog.Info("copilot-cli trusted for X-On-Behalf-Of on per-user endpoints")
+	}
+
 	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
 	var budgetHandlers *BudgetHandlers
 	switch {
