@@ -66,7 +66,8 @@ func isKnownCommand(arg string) bool {
 	switch arg {
 	case "install", "init", "export", "add", "ignore", "sync", "list", "doctor",
 		"uninstall", "upgrade", "update", "config", "validate", "env", "feedback",
-		"models", "alpha", "version", "--version", "-v", "-h", "--help", "help":
+		"models", "alpha", "auth", "usage",
+		"version", "--version", "-v", "-h", "--help", "help":
 		return true
 	default:
 		return false
@@ -100,6 +101,8 @@ Commands:
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
+  auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
+  usage                   Show your GitHub Copilot usage (requires 'auth login')
   version                 Show version information
 
 Flags:
@@ -384,7 +387,7 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, tmuxFormat bool
 	var targetDir, ref, sourceRepo, installType string
 	var positional []string
 
@@ -410,6 +413,8 @@ func run(args []string) error {
 			apply = true
 		case "--json":
 			jsonOutput = true
+		case "--tmux":
+			tmuxFormat = true
 		case "--items":
 			listItems = true
 		case "--installed":
@@ -724,6 +729,14 @@ func run(args []string) error {
 		return runWithCommandTelemetry("alpha", telemetryMode(), "none", func() error {
 			return cmdAlpha(positional)
 		})
+	case "auth":
+		return runWithCommandTelemetry("auth", telemetryMode(), "none", func() error {
+			return cmdAuth(positional, jsonOutput)
+		})
+	case "usage":
+		return runWithCommandTelemetry("usage", telemetryMode(), "none", func() error {
+			return cmdUsage(jsonOutput, tmuxFormat)
+		})
 	case "version", "--version", "-v":
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
@@ -731,7 +744,7 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "auth", "usage", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}
