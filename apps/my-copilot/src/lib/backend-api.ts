@@ -63,9 +63,32 @@ async function fetchWithTimeout(
 }
 
 /**
- * Exchange user token for backend API OBO token via Texas sidecar
+ * Exchange user token for backend API OBO token via Texas sidecar.
+ * Memoized per token string within the same event loop — collapses
+ * concurrent exchanges for the same user token into a single request.
  */
+let pendingExchange: { token: string; promise: Promise<string> } | null = null;
+
 async function exchangeToken(userToken: string): Promise<string> {
+  // Reuse in-flight exchange for the same token (covers parallel backendRequest calls)
+  if (pendingExchange && pendingExchange.token === userToken) {
+    return pendingExchange.promise;
+  }
+
+  const promise = doExchangeToken(userToken);
+  pendingExchange = { token: userToken, promise };
+
+  try {
+    return await promise;
+  } finally {
+    // Clear once resolved so next request cycle gets a fresh exchange
+    if (pendingExchange?.promise === promise) {
+      pendingExchange = null;
+    }
+  }
+}
+
+async function doExchangeToken(userToken: string): Promise<string> {
   const endpoint = process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT;
   if (!endpoint) {
     throw new Error("NAIS_TOKEN_EXCHANGE_ENDPOINT not configured");
