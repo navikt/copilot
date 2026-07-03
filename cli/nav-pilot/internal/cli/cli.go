@@ -59,6 +59,7 @@ func isKnownCommand(arg string) bool {
 	switch arg {
 	case "install", "init", "export", "add", "ignore", "sync", "list", "doctor",
 		"uninstall", "upgrade", "update", "config", "env", "feedback", "models",
+		"auth", "usage",
 		"version", "--version", "-v", "-h", "--help", "help":
 		return true
 	default:
@@ -91,6 +92,8 @@ Commands:
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
+  auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
+  usage                   Show your GitHub Copilot usage (requires 'auth login')
   version                 Show version information
 
 Flags:
@@ -335,7 +338,7 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided, installAll, listInstalled bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided, installAll, listInstalled, tmuxFormat bool
 	var targetDir, ref, sourceRepo, installType string
 	var positional []string
 
@@ -351,6 +354,8 @@ func run(args []string) error {
 			apply = true
 		case "--json":
 			jsonOutput = true
+		case "--tmux":
+			tmuxFormat = true
 		case "--items":
 			listItems = true
 		case "--installed":
@@ -563,6 +568,14 @@ func run(args []string) error {
 		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
 			return cmdModels(jsonOutput)
 		})
+	case "auth":
+		return runWithCommandTelemetry("auth", telemetryMode(), "none", func() error {
+			return cmdAuth(positional, jsonOutput)
+		})
+	case "usage":
+		return runWithCommandTelemetry("usage", telemetryMode(), "none", func() error {
+			return cmdUsage(jsonOutput, tmuxFormat)
+		})
 	case "version", "--version", "-v":
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
@@ -570,7 +583,7 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "version", "help"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "auth", "usage", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}
