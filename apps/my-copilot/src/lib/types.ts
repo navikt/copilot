@@ -163,9 +163,9 @@ export interface PRMetrics {
   totalCreatedByCopilot: number;
   totalMergedCreatedByCopilot: number;
   totalMergedReviewedByCopilot: number;
-  medianMinutesToMerge: number;
-  medianMinutesToMergeCopilotAuthored: number;
-  medianMinutesToMergeCopilotReviewed: number;
+  medianMinutesToMerge: number | null;
+  medianMinutesToMergeCopilotAuthored: number | null;
+  medianMinutesToMergeCopilotReviewed: number | null;
   totalSuggestions: number;
   totalCopilotSuggestions: number;
   totalAppliedSuggestions: number;

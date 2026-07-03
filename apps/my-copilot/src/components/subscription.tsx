@@ -108,8 +108,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
       const response = await fetch("/api/copilot");
       const data = await response.json();
 
-      if (data.error) {
-        setSubscriptionError(data.error);
+      if (!response.ok || data.error) {
+        setSubscriptionError(data.error ?? "Feil ved henting av abonnement");
         setErrorTraceId(data.traceId ?? null);
         return;
       }

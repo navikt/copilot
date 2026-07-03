@@ -93,9 +93,9 @@ export const getPRMetrics = (usage: EnterpriseMetrics[]): PRMetrics | null => {
     totalCreatedByCopilot: 0,
     totalMergedCreatedByCopilot: 0,
     totalMergedReviewedByCopilot: 0,
-    medianMinutesToMerge: 0,
-    medianMinutesToMergeCopilotAuthored: 0,
-    medianMinutesToMergeCopilotReviewed: 0,
+    medianMinutesToMerge: null,
+    medianMinutesToMergeCopilotAuthored: null,
+    medianMinutesToMergeCopilotReviewed: null,
     totalSuggestions: 0,
     totalCopilotSuggestions: 0,
     totalAppliedSuggestions: 0,
@@ -121,10 +121,24 @@ export const getPRMetrics = (usage: EnterpriseMetrics[]): PRMetrics | null => {
   }
   if (!hasPR) return null;
 
-  const latest = usage[usage.length - 1];
-  result.medianMinutesToMerge = latest.pull_requests?.median_minutes_to_merge || 0;
-  result.medianMinutesToMergeCopilotAuthored = latest.pull_requests?.median_minutes_to_merge_copilot_authored || 0;
-  result.medianMinutesToMergeCopilotReviewed = latest.pull_requests?.median_minutes_to_merge_copilot_reviewed || 0;
+  // Use the most recent day that has PR median data, not just the absolute last day
+  // (avoids showing "0 min" during ingestion lag)
+  let medianSource: (typeof usage)[number]["pull_requests"] | undefined;
+  for (let i = usage.length - 1; i >= 0; i--) {
+    const pr = usage[i].pull_requests;
+    if (
+      pr &&
+      (pr.median_minutes_to_merge ||
+        pr.median_minutes_to_merge_copilot_authored ||
+        pr.median_minutes_to_merge_copilot_reviewed)
+    ) {
+      medianSource = pr;
+      break;
+    }
+  }
+  result.medianMinutesToMerge = medianSource?.median_minutes_to_merge ?? null;
+  result.medianMinutesToMergeCopilotAuthored = medianSource?.median_minutes_to_merge_copilot_authored ?? null;
+  result.medianMinutesToMergeCopilotReviewed = medianSource?.median_minutes_to_merge_copilot_reviewed ?? null;
 
   return result;
 };

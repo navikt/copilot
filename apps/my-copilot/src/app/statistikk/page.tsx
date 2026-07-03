@@ -54,10 +54,12 @@ import { formatNumber } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
 import { backendRequest } from "@/lib/backend-api";
 
-function formatMinutes(minutes: number): string {
+function formatMinutes(minutes: number | null): string {
+  if (minutes == null || minutes <= 0) return "–";
   if (minutes < 60) return `${Math.round(minutes)} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
   if (hours < 24) return mins > 0 ? `${hours}t ${mins}m` : `${hours}t`;
   const days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
