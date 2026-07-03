@@ -177,8 +177,9 @@ func assignBQScalar(field reflect.Value, val bigquery.Value) error {
 }
 
 // readAllRows scans every row of the iterator into a slice of T using decodeBQRow.
+// Always returns a non-nil slice on success so JSON serialization produces [] not null.
 func readAllRows[T any](it *bigquery.RowIterator) ([]T, error) {
-	var results []T
+	results := make([]T, 0)
 	for {
 		var row []bigquery.Value
 		err := it.Next(&row)
