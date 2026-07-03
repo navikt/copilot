@@ -4,7 +4,10 @@
 
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 const TOKEN_EXCHANGE_TIMEOUT_MS = 5000;
-const BACKEND_REQUEST_TIMEOUT_MS = 15000;
+// In dev, allow more time for cold BigQuery queries to complete so the first
+// render produces stable output (avoids Turbopack hash-mismatch reload loop
+// while the backend cache is warming).
+const BACKEND_REQUEST_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 60000 : 15000;
 
 // Local dev: no Texas sidecar means no token exchange endpoint.
 // Use this check (not NAIS_CLUSTER_NAME) to stay consistent with auth.ts

@@ -60,6 +60,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ["@navikt/ds-react", "@navikt/aksel-icons"],
+    // In dev, give the router cache a generous stale window so Turbopack HMR events
+    // during slow backend renders don't trigger refetches that restart the render.
+    ...(!isProduction ? { staleTimes: { dynamic: 30, static: 180 } } : {}),
   },
   ...(isProduction
     ? {
