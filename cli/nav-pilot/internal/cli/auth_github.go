@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// githubAPIBaseURL is the GitHub REST API base, overridable in tests to
+// point at an httptest server instead of the real api.github.com.
+var githubAPIBaseURL = "https://api.github.com"
+
 // githubUserInfo is the subset of GitHub's GET /user response nav-pilot needs
 // to confirm a stored token is still valid and show the developer who they're
 // logged in as.
@@ -22,7 +26,7 @@ func fetchGitHubUser(ctx context.Context, token string) (*githubUserInfo, error)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, githubAPIBaseURL+"/user", nil)
 	if err != nil {
 		return nil, fmt.Errorf("building /user request: %w", err)
 	}
@@ -54,7 +58,7 @@ func checkOrgMembership(ctx context.Context, token, org, username string) (bool,
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	url := fmt.Sprintf("https://api.github.com/orgs/%s/members/%s", org, username)
+	url := fmt.Sprintf("%s/orgs/%s/members/%s", githubAPIBaseURL, org, username)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return false, fmt.Errorf("building org membership request: %w", err)
