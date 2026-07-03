@@ -9,16 +9,12 @@ import {
   getMonthlyBillingUsage,
   getBillingModelDaily,
   getBillingModelForecast,
-  getUserWeeklyTrends,
-  getUserDailyCredits,
   getAdoptionCohorts,
   getBillingMonthlyTrend,
   getBillingModelBreakdown,
   getDailySummary,
-  getUsageDistribution,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
-import { isoWeekLabel } from "@/lib/format";
 import Tabs from "@/components/tabs";
 import TeamUsageTable from "@/components/team-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
@@ -29,7 +25,6 @@ import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import BillingModelBreakdownChart from "@/components/charts/BillingModelBreakdownChart";
-import UsageDistributionChart from "@/components/charts/UsageDistributionChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
@@ -92,15 +87,7 @@ const ALLOW_ALL_TEAMS = process.env.NODE_ENV === "development";
 
 // Cached team usage data component — resolves user's teams for highlighting
 async function TeamUsageContent({ token }: { token: string }) {
-  const [{ teams, error }, user, { distribution: usageDistribution, error: distributionError }] = await Promise.all([
-    getTeamUsage(token),
-    getUser(),
-    getUsageDistribution(token),
-  ]);
-
-  if (distributionError) {
-    console.error("[statistikk] Usage distribution failed:", distributionError);
-  }
+  const [{ teams, error }, user] = await Promise.all([getTeamUsage(token), getUser()]);
 
   if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
   if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
@@ -108,16 +95,10 @@ async function TeamUsageContent({ token }: { token: string }) {
   // Filter out the catch-all org team — it contains all users and skews comparisons
   const IGNORED_TEAMS = new Set(["nav-it-github-users"]);
 
-  // Resolve user's GitHub username and fetch personal metrics from BigQuery
+  // Resolve user's teams so we can highlight them in the table
   let userTeams: string[] = [];
-  let userMetrics = null;
-  let userWeeklyTrends = null;
-  let userCredits: number | null = null;
-  let userWeeklyCredits: Record<string, number> | null = null;
   if (user?.email) {
     let ghLogin: string | null = null;
-
-    // DEV_GITHUB_LOGIN bypasses SAML lookup when GitHub App auth is broken locally
     if (process.env.NODE_ENV === "development" && process.env.DEV_GITHUB_LOGIN) {
       ghLogin = process.env.DEV_GITHUB_LOGIN;
     } else {
@@ -127,55 +108,14 @@ async function TeamUsageContent({ token }: { token: string }) {
           token
         );
         ghLogin = saml.username;
-        // NOTE: SCIM-based username lookup was removed during the backend migration
-        // (the previous BFF called getUsernameByScim as a fallback for users who
-        // appear in SCIM but not in SAML). That endpoint no longer exists in the
-        // backend. Users in SCIM-only will resolve ghLogin=null here and therefore
-        // not see their personal metrics tab. This is a known gap pending product
-        // confirmation — see issue backlog.
       } catch (err) {
         console.error("[statistikk] SAML lookup failed:", err);
       }
     }
-
     if (ghLogin) {
-      const [
-        { metrics, error: metricsError },
-        { trends: weeklyTrends, error: trendsError },
-        { credits: dailyCredits, error: dailyCreditsError },
-      ] = await Promise.all([
-        getUserMetrics(ghLogin, token),
-        getUserWeeklyTrends(ghLogin, token),
-        // 90 days (the endpoint's max) comfortably covers both the current
-        // month (for the distribution bucket) and the default 12-week
-        // (84-day) weekly trends window.
-        getUserDailyCredits(ghLogin, token, 90),
-      ]);
-      if (metricsError) console.error("[statistikk] User metrics failed:", metricsError);
-      if (trendsError) console.error("[statistikk] User weekly trends failed:", trendsError);
-      if (dailyCreditsError) console.error("[statistikk] User daily credits failed:", dailyCreditsError);
+      const { metrics } = await getUserMetrics(ghLogin, token);
       if (metrics) {
         userTeams = (metrics.teams ?? []).filter((t) => !IGNORED_TEAMS.has(t));
-        userMetrics = metrics;
-      }
-      if (weeklyTrends.length > 0) {
-        userWeeklyTrends = weeklyTrends;
-      }
-      // Sum only the days that fall within the distribution's month — the
-      // fetch window can span multiple months.
-      if (usageDistribution && dailyCredits.length > 0) {
-        userCredits = dailyCredits
-          .filter((d) => d.day.startsWith(usageDistribution.month))
-          .reduce((sum, d) => sum + d.credits, 0);
-      }
-      // Aggregate daily credits into the same ISO week buckets used by the
-      // weekly trends endpoint, so the chart can plot credits alongside them.
-      if (dailyCredits.length > 0) {
-        userWeeklyCredits = {};
-        for (const d of dailyCredits) {
-          const week = isoWeekLabel(d.day);
-          userWeeklyCredits[week] = (userWeeklyCredits[week] ?? 0) + d.credits;
-        }
       }
     }
   }
@@ -188,21 +128,7 @@ async function TeamUsageContent({ token }: { token: string }) {
     .filter((t) => !IGNORED_TEAMS.has(t.team_slug))
     .filter((t) => ALLOW_ALL_TEAMS || userTeamSet.has(t.team_slug.toLowerCase()));
 
-  return (
-    <VStack gap="space-24">
-      <Box background="neutral-soft" padding="space-24" borderRadius="12">
-        <UsageDistributionChart distribution={usageDistribution} currentUserCredits={userCredits} />
-      </Box>
-      <TeamUsageTable
-        teams={visibleTeams}
-        userTeams={userTeams}
-        userMetrics={userMetrics}
-        userWeeklyTrends={userWeeklyTrends}
-        userWeeklyCredits={userWeeklyCredits}
-        allowAllTeams={ALLOW_ALL_TEAMS}
-      />
-    </VStack>
-  );
+  return <TeamUsageTable teams={visibleTeams} userTeams={userTeams} allowAllTeams={ALLOW_ALL_TEAMS} />;
 }
 
 // Main content component that takes usage data as props.
@@ -252,17 +178,15 @@ function UsageTabs({ usage, token }: { usage: EnterpriseMetrics[]; token: string
     },
     {
       id: "team",
-      label: "Meg og team",
+      label: "Team i Nav",
       content: (
         <div id="team">
-          <div id="meg-og-team">
-            <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-              <TeamUsageContent token={token} />
-            </Suspense>
-          </div>
+          <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
+            <TeamUsageContent token={token} />
+          </Suspense>
         </div>
       ),
-      hashIds: ["team", "meg-og-team"],
+      hashIds: ["team"],
     },
     {
       id: "details",
