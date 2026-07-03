@@ -54,7 +54,8 @@ async function updateCopilotSubscription(action: "activate" | "deactivate") {
 const SubscriptionActionButton: React.FC<{
   subscription: SubscriptionDetailsProps["subscription"] | null;
   onClick: () => void;
-}> = ({ subscription, onClick }) => {
+  isLoading?: boolean;
+}> = ({ subscription, onClick, isLoading }) => {
   let buttonColor:
     | "secondary"
     | "primary"
@@ -65,10 +66,13 @@ const SubscriptionActionButton: React.FC<{
     | "danger"
     | undefined = "secondary";
   let buttonText: string;
+  let disabled = false;
 
   if (subscription?.pending_cancellation_date) {
-    buttonColor = "danger";
+    // Pending cancellation is a terminal status — don't offer an action.
+    buttonColor = "secondary-neutral";
     buttonText = "Avslutter Copilot…";
+    disabled = true;
   } else if (subscription?.updated_at) {
     buttonColor = "danger";
     buttonText = "Deaktiver Copilot";
@@ -78,7 +82,7 @@ const SubscriptionActionButton: React.FC<{
   }
 
   return (
-    <Button variant={buttonColor} onClick={onClick}>
+    <Button variant={buttonColor} onClick={onClick} disabled={disabled || isLoading} loading={isLoading}>
       {buttonText}
     </Button>
   );
@@ -95,6 +99,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   const [budget, setBudget] = useState<BudgetData | null>(null);
   const [usageMetrics, setUsageMetrics] = useState<UserMetricsSummary | null>(null);
   const [dailyCredits, setDailyCredits] = useState<DailyCredits[] | null>(null);
+  const [mutating, setMutating] = useState<boolean>(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const fetchSubscription = async () => {
     setLoading(true);
@@ -134,32 +140,27 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   };
 
   const handleClick = async () => {
-    if (eligibility) {
-      if (subscription && subscription.updated_at && !subscription.pending_cancellation_date) {
-        try {
-          const response = await updateCopilotSubscription("deactivate");
-          const data = await response.json();
-          if (data.error) {
-            console.error("Error deactivating subscription:", data.error);
-          }
-        } catch (error) {
-          console.error("Error:", error);
-        } finally {
-          fetchSubscription();
-        }
-      } else {
-        try {
-          const response = await updateCopilotSubscription("activate");
-          const data = await response.json();
-          if (data.error) {
-            console.error("Error activating subscription:", data.error);
-          }
-        } catch (error) {
-          console.error("Error:", error);
-        } finally {
-          fetchSubscription();
-        }
+    if (!eligibility || mutating) return;
+    // Never allow mutation when cancellation is pending — the button should be
+    // disabled, but guard here as defense-in-depth.
+    if (subscription?.pending_cancellation_date) return;
+
+    const action = subscription?.updated_at ? "deactivate" : "activate";
+    setMutating(true);
+    setMutationError(null);
+
+    try {
+      const response = await updateCopilotSubscription(action);
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        setMutationError(data.error ?? `Feil ved ${action === "activate" ? "aktivering" : "deaktivering"} av Copilot`);
       }
+    } catch (error) {
+      console.error("Error:", error);
+      setMutationError("Nettverksfeil — prøv igjen");
+    } finally {
+      await fetchSubscription();
+      setMutating(false);
     }
   };
 
@@ -291,6 +292,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               </VStack>
             ) : needsGitHubLink ? (
               <BodyShort>Koble GitHub-kontoen din til navikt-organisasjonen for å aktivere Copilot.</BodyShort>
+            ) : subscriptionError ? (
+              <BodyShort>Noe gikk galt ved henting av abonnementsinformasjon. Prøv å laste siden på nytt.</BodyShort>
             ) : !eligibility ? (
               <BodyShort>
                 Du har ikke tilgang til å få GitHub Copilot nå. GitHub Copilot er bare tilgjengelig for ansatte og
@@ -329,7 +332,12 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                 <BodyShort>
                   <strong>Siste editor:</strong> {subscription.last_activity_editor || "Ikke tilgjengelig"}
                 </BodyShort>
-                <SubscriptionActionButton subscription={subscription} onClick={handleClick} />
+                <SubscriptionActionButton subscription={subscription} onClick={handleClick} isLoading={mutating} />
+                {mutationError && (
+                  <Alert variant="error" size="small">
+                    {mutationError}
+                  </Alert>
+                )}
               </VStack>
             ) : (
               <VStack gap="space-4">
@@ -339,7 +347,12 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                 <BodyShort>
                   Du er kvalifisert for GitHub Copilot. Aktiver for å komme i gang – det er raskt gjort.
                 </BodyShort>
-                <SubscriptionActionButton subscription={subscription} onClick={handleClick} />
+                <SubscriptionActionButton subscription={subscription} onClick={handleClick} isLoading={mutating} />
+                {mutationError && (
+                  <Alert variant="error" size="small">
+                    {mutationError}
+                  </Alert>
+                )}
               </VStack>
             )}
           </Box>
