@@ -12,11 +12,13 @@ type BigQueryHandlers struct {
 	budgetClient      globalBudgetGetter
 	activeSeatsGetter func() int64
 	githubClient      GitHubAPI // for SAML ownership checks on per-user endpoints
+	environment       string    // "local", "dev", "prod" — controls fail-open behavior
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 	return &BigQueryHandlers{
-		bqClient: bqClient,
+		bqClient:    bqClient,
+		environment: "local", // safe default; main.go overrides with actual NAIS_CLUSTER_NAME
 		// Defaults to the real MetricsCollector singleton; tests can override
 		// this via setActiveSeatsGetter to avoid depending on global state.
 		activeSeatsGetter: func() int64 {

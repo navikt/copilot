@@ -451,9 +451,10 @@ func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func
 // withQueryTimeout returns a context bounded by bqQueryTimeout that is
 // detached from the caller's request lifecycle. This ensures a client
 // disconnect doesn't cancel a query that other concurrent waiters (via
-// singleflight) depend on. The returned cancel must still be called.
-func withQueryTimeout(_ context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), bqQueryTimeout)
+// singleflight) depend on. We use WithoutCancel to preserve trace/span
+// values (so queries appear in OTel traces) while ignoring cancellation.
+func withQueryTimeout(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(parent), bqQueryTimeout)
 }
 
 func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error) {

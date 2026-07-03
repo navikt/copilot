@@ -14,7 +14,7 @@ interface BillingMonthNowChartProps {
 }
 
 const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, forecast }) => {
-  if (!dailyData || dailyData.length === 0 || !forecast) {
+  if (!dailyData || dailyData.length === 0 || !forecast || !forecast.points?.length) {
     return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
   const monthLabel = new Date(`${forecast.month}-01`).toLocaleDateString("nb-NO", { month: "long", year: "numeric" });

@@ -73,6 +73,7 @@ func main() {
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
 			cachedBQClient = newCachedBigQueryClient(bqClient, cacheTTL)
 			bqHandlers = newBigQueryHandlers(cachedBQClient)
+			bqHandlers.environment = config.Environment
 			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
 		}
 	} else {

@@ -21,7 +21,15 @@ import (
 // but the backend must not trust that — verify server-side via SAML lookup.
 func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
 	if h.githubClient == nil {
-		// No SAML client available — allow through (local/dev environments).
+		// SECURITY: Fail closed in production. If the GitHub client failed to
+		// initialize (bad key, transient error), deny access rather than serving
+		// anyone's data to any authenticated caller. Only allow through in local
+		// dev where SAML infrastructure is unavailable.
+		if h.environment != "local" {
+			slog.Error("Ownership check unavailable: githubClient is nil in non-local environment")
+			respondError(w, "service_unavailable", "Ownership verification temporarily unavailable", http.StatusServiceUnavailable)
+			return false
+		}
 		return true
 	}
 

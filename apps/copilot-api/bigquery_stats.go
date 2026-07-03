@@ -637,6 +637,7 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	forecast := &BillingModelForecast{
 		Month:       month,
 		DaysInMonth: daysInMonth,
+		Points:      make([]BillingModelForecastPoint, 0),
 	}
 	if len(dayIndices) == 0 {
 		return forecast, nil
@@ -668,18 +669,26 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	// may not have completed). Exclude it from the run rate calculation to
 	// avoid systematically depressing projections.
 	today := time.Now().UTC().Day()
-	if lastActualDay == today && len(dailySeries) > 1 {
-		lastDate := time.Date(monthStart.Year(), monthStart.Month(), lastActualDay, 0, 0, 0, 0, time.UTC)
-		if isWeekend(lastDate) {
-			if len(weekendAmounts) > 1 {
-				weekendAmounts = weekendAmounts[:len(weekendAmounts)-1]
+	if lastActualDay == today {
+		if len(dailySeries) > 1 {
+			lastDate := time.Date(monthStart.Year(), monthStart.Month(), lastActualDay, 0, 0, 0, 0, time.UTC)
+			if isWeekend(lastDate) {
+				if len(weekendAmounts) > 1 {
+					weekendAmounts = weekendAmounts[:len(weekendAmounts)-1]
+				}
+			} else {
+				if len(weekdayAmounts) > 1 {
+					weekdayAmounts = weekdayAmounts[:len(weekdayAmounts)-1]
+				}
 			}
+			dailySeries = dailySeries[:len(dailySeries)-1]
 		} else {
-			if len(weekdayAmounts) > 1 {
-				weekdayAmounts = weekdayAmounts[:len(weekdayAmounts)-1]
-			}
+			// Day 1 of the month and it's today (partial) — discard current
+			// month data entirely; the prev-month blend below will provide rates.
+			weekdayAmounts = weekdayAmounts[:0]
+			weekendAmounts = weekendAmounts[:0]
+			dailySeries = dailySeries[:0]
 		}
-		dailySeries = dailySeries[:len(dailySeries)-1]
 	}
 
 	// Compute weekday-aware run rates
