@@ -572,13 +572,15 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	}
 	daysInMonth := time.Date(monthStart.Year(), monthStart.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
 
+	// Fetch current month + previous month daily data for weekday-aligned forecasting
 	billingRef := bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")
+	prevMonthStart := monthStart.AddDate(0, -1, 0)
 	queryStr := fmt.Sprintf(`
       SELECT
         FORMAT_DATE('%%Y-%%m-%%d', day) AS day,
         SUM(net_amount) AS net_amount
       FROM %s
-      WHERE day >= DATE(@month || '-01')
+      WHERE day >= DATE(@prev_month_start)
         AND day < DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH)
         AND LOWER(scope_id) = 'nav'
         AND gross_quantity > 0
@@ -587,7 +589,10 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
     `, billingRef)
 
 	query := bq.client.Query(queryStr)
-	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month}}
+	query.Parameters = []bigquery.QueryParameter{
+		{Name: "month", Value: month},
+		{Name: "prev_month_start", Value: prevMonthStart.Format("2006-01-02")},
+	}
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
@@ -603,16 +608,29 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 		return nil, err
 	}
 
-	dailyAmounts := make(map[int]float64, len(rows))
-	dayIndices := make([]int, 0, len(rows))
+	// Separate current month and previous month data
+	dailyAmounts := make(map[int]float64, 31)
+	dayIndices := make([]int, 0, 31)
+	prevMonthWeekdayAmounts := make([]float64, 0, 22)
+	prevMonthWeekendAmounts := make([]float64, 0, 9)
+
 	for _, row := range rows {
 		dayTime, parseErr := time.Parse("2006-01-02", row.Day)
 		if parseErr != nil {
 			return nil, fmt.Errorf("parse day %q: %w", row.Day, parseErr)
 		}
-		day := dayTime.Day()
-		dailyAmounts[day] = row.NetAmount
-		dayIndices = append(dayIndices, day)
+		if dayTime.Month() == monthStart.Month() && dayTime.Year() == monthStart.Year() {
+			day := dayTime.Day()
+			dailyAmounts[day] = row.NetAmount
+			dayIndices = append(dayIndices, day)
+		} else {
+			// Previous month — collect by day type for baseline
+			if isWeekend(dayTime) {
+				prevMonthWeekendAmounts = append(prevMonthWeekendAmounts, row.NetAmount)
+			} else {
+				prevMonthWeekdayAmounts = append(prevMonthWeekdayAmounts, row.NetAmount)
+			}
+		}
 	}
 	slices.Sort(dayIndices)
 
@@ -629,11 +647,20 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	forecast.DaysElapsed = lastActualDay
 
 	actualMTD := 0.0
+	weekdayAmounts := make([]float64, 0, lastActualDay)
+	weekendAmounts := make([]float64, 0, lastActualDay)
 	dailySeries := make([]float64, 0, lastActualDay)
+
 	for day := 1; day <= lastActualDay; day++ {
 		value := dailyAmounts[day]
 		dailySeries = append(dailySeries, value)
 		actualMTD += value
+		dayDate := time.Date(monthStart.Year(), monthStart.Month(), day, 0, 0, 0, 0, time.UTC)
+		if isWeekend(dayDate) {
+			weekendAmounts = append(weekendAmounts, value)
+		} else {
+			weekdayAmounts = append(weekdayAmounts, value)
+		}
 	}
 	forecast.ActualMTDNetAmount = actualMTD
 
@@ -641,30 +668,79 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	// may not have completed). Exclude it from the run rate calculation to
 	// avoid systematically depressing projections.
 	today := time.Now().UTC().Day()
-	seriesForRate := dailySeries
 	if lastActualDay == today && len(dailySeries) > 1 {
-		seriesForRate = dailySeries[:len(dailySeries)-1]
+		lastDate := time.Date(monthStart.Year(), monthStart.Month(), lastActualDay, 0, 0, 0, 0, time.UTC)
+		if isWeekend(lastDate) {
+			if len(weekendAmounts) > 1 {
+				weekendAmounts = weekendAmounts[:len(weekendAmounts)-1]
+			}
+		} else {
+			if len(weekdayAmounts) > 1 {
+				weekdayAmounts = weekdayAmounts[:len(weekdayAmounts)-1]
+			}
+		}
+		dailySeries = dailySeries[:len(dailySeries)-1]
 	}
 
-	runRate := weightedRunRate(seriesForRate, 7)
-	if runRate <= 0 && len(seriesForRate) > 0 {
-		sum := 0.0
-		for _, v := range seriesForRate {
-			sum += v
+	// Compute weekday-aware run rates
+	weekdayRate := weightedRunRate(weekdayAmounts, 7)
+	weekendRate := weightedRunRate(weekendAmounts, 4)
+
+	// Blend with previous month data if current month has few data points.
+	// This stabilizes the forecast early in the month when we have <5 weekdays.
+	if len(weekdayAmounts) < 5 && len(prevMonthWeekdayAmounts) > 5 {
+		prevWeekdayRate := simpleAverage(prevMonthWeekdayAmounts)
+		if weekdayRate <= 0 {
+			weekdayRate = prevWeekdayRate
+		} else {
+			// Blend: weight current data more as we get more of it
+			currentWeight := float64(len(weekdayAmounts)) / 5.0
+			weekdayRate = weekdayRate*currentWeight + prevWeekdayRate*(1-currentWeight)
 		}
-		runRate = sum / float64(len(seriesForRate))
 	}
-	forecast.ProjectedDailyRunRate = runRate
+	if len(weekendAmounts) < 2 && len(prevMonthWeekendAmounts) > 2 {
+		prevWeekendRate := simpleAverage(prevMonthWeekendAmounts)
+		if weekendRate <= 0 {
+			weekendRate = prevWeekendRate
+		} else {
+			currentWeight := float64(len(weekendAmounts)) / 2.0
+			weekendRate = weekendRate*currentWeight + prevWeekendRate*(1-currentWeight)
+		}
+	}
+
+	// If weekend rate is still 0 (no weekends yet this month and no prev data),
+	// estimate it as ~5% of weekday rate (typical for developer tools).
+	if weekendRate <= 0 && weekdayRate > 0 {
+		weekendRate = weekdayRate * 0.05
+	}
+
+	// Compute effective blended run rate for reporting
+	var totalRemaining float64
+	remainingWeekdays := 0
+	remainingWeekends := 0
+	for day := lastActualDay + 1; day <= daysInMonth; day++ {
+		dayDate := time.Date(monthStart.Year(), monthStart.Month(), day, 0, 0, 0, 0, time.UTC)
+		if isWeekend(dayDate) {
+			remainingWeekends++
+			totalRemaining += weekendRate
+		} else {
+			remainingWeekdays++
+			totalRemaining += weekdayRate
+		}
+	}
 
 	remainingDays := daysInMonth - lastActualDay
-	projectedEOM := actualMTD + (runRate * float64(remainingDays))
+	if remainingDays > 0 {
+		forecast.ProjectedDailyRunRate = totalRemaining / float64(remainingDays)
+	} else {
+		forecast.ProjectedDailyRunRate = weekdayRate
+	}
+
+	projectedEOM := actualMTD + totalRemaining
 	forecast.ProjectedEOMNetAmount = projectedEOM
 
 	// Uncertainty compounds with the square root of the number of remaining
-	// days (random-walk assumption: independent daily errors), not linearly
-	// with remainingDays. Note: the last "actual" day in dailySeries may
-	// itself be a partial day (if the ingestion job ran mid-day), which
-	// slightly understates volatility for that point — not corrected here.
+	// days (random-walk assumption: independent daily errors).
 	volatility := sampleStdDev(tail(dailySeries, 14)) * math.Sqrt(float64(remainingDays))
 	lower := projectedEOM - volatility
 	if lower < actualMTD {
@@ -673,8 +749,10 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	forecast.LowerEOMNetAmount = lower
 	forecast.UpperEOMNetAmount = projectedEOM + volatility
 
+	// Build day-by-day points with weekday-aware projection
 	points := make([]BillingModelForecastPoint, 0, daysInMonth)
 	actualCumulative := 0.0
+	projectedCumulative := actualMTD
 	for day := 1; day <= daysInMonth; day++ {
 		date := fmt.Sprintf("%s-%02d", month, day)
 		if day <= lastActualDay {
@@ -689,16 +767,39 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 			continue
 		}
 
-		projected := actualCumulative + (runRate * float64(day-lastActualDay))
+		dayDate := time.Date(monthStart.Year(), monthStart.Month(), day, 0, 0, 0, 0, time.UTC)
+		if isWeekend(dayDate) {
+			projectedCumulative += weekendRate
+		} else {
+			projectedCumulative += weekdayRate
+		}
 		points = append(points, BillingModelForecastPoint{
 			Day:                 date,
-			ProjectedCumulative: projected,
+			ProjectedCumulative: projectedCumulative,
 			IsActual:            false,
 		})
 	}
 
 	forecast.Points = points
 	return forecast, nil
+}
+
+// isWeekend returns true for Saturday and Sunday.
+func isWeekend(t time.Time) bool {
+	wd := t.Weekday()
+	return wd == time.Saturday || wd == time.Sunday
+}
+
+// simpleAverage returns the arithmetic mean of a slice.
+func simpleAverage(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+	return sum / float64(len(values))
 }
 
 func weightedRunRate(series []float64, window int) float64 {

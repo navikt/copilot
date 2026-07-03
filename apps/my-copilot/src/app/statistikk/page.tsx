@@ -522,62 +522,6 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
         </div>
       )}
 
-      {/* Latest billing month summary — replaced by richer view data when available */}
-      {billingMonthlyTrend.length > 0 ? (
-        (() => {
-          const latest = billingMonthlyTrend[billingMonthlyTrend.length - 1];
-          const label = new Date(latest.year_month + "-01").toLocaleDateString("nb-NO", {
-            month: "long",
-            year: "numeric",
-          });
-          return (
-            <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
-              <HStack gap="space-8" align="center" justify="space-between">
-                <HStack gap="space-8" align="center">
-                  <BodyShort className="text-gray-600 text-sm">Fakturert {label}</BodyShort>
-                  <HelpText title="Fakturert beløp">
-                    Faktisk fakturert beløp fra GitHub for premium AI-modellforespørsler (etter Nav-rabatt). Kilde:{" "}
-                    v_billing_monthly_trend.
-                  </HelpText>
-                </HStack>
-                <HStack gap="space-16" align="center">
-                  <BodyShort className="text-gray-500 text-sm">
-                    Brutto: {formatNumber(Math.round(latest.total_gross_amount))} USD
-                  </BodyShort>
-                  <BodyShort className="text-gray-500 text-sm">
-                    Rabatt: {Math.round(latest.discount_rate_pct)} %
-                  </BodyShort>
-                  <BodyShort className="text-gray-800 text-sm font-semibold">
-                    Netto: {formatNumber(Math.round(latest.total_net_amount))} USD
-                  </BodyShort>
-                  <BodyShort className="text-gray-500 text-sm">{latest.distinct_models} modeller</BodyShort>
-                </HStack>
-              </HStack>
-            </Box>
-          );
-        })()
-      ) : latestBillingMonth ? (
-        <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
-          <HStack gap="space-8" align="center" justify="space-between">
-            <HStack gap="space-8" align="center">
-              <BodyShort className="text-gray-600 text-sm">Fakturert {latestBillingMonth.label}</BodyShort>
-              <HelpText title="Fakturert beløp">
-                Faktisk fakturert beløp fra GitHub for premium AI-modellforespørsler (etter Nav-rabatt). Kilde: GitHub
-                Enhanced Billing API.
-              </HelpText>
-            </HStack>
-            <HStack gap="space-16" align="center">
-              <BodyShort className="text-gray-500 text-sm">
-                Brutto: {formatNumber(Math.round(latestBillingMonth.grossAmount))} USD
-              </BodyShort>
-              <BodyShort className="text-gray-800 text-sm font-semibold">
-                Netto: {formatNumber(Math.round(latestBillingMonth.netAmount))} USD
-              </BodyShort>
-            </HStack>
-          </HStack>
-        </Box>
-      ) : null}
-
       {/* Monthly trends — THE story */}
       {monthlyTrends.length > 0 && (
         <div id="manedlige-trender">
