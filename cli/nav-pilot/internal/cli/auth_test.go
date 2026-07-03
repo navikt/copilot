@@ -131,3 +131,120 @@ func TestFormatSecondsRemaining(t *testing.T) {
 		t.Fatalf("future time should include hours: got %q", got)
 	}
 }
+
+func TestCmdAuthLoginSuccess(t *testing.T) {
+	keyring.MockInit()
+
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/user":
+			_, _ = w.Write([]byte(`{"login":"starefossen","name":"Hans Kristian"}`))
+		default:
+			w.WriteHeader(http.StatusNoContent) // org membership
+		}
+	}))
+	defer githubServer.Close()
+
+	oauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/login/device/code":
+			_, _ = w.Write([]byte(`{"device_code":"dc","user_code":"ABCD-1234","verification_uri":"https://github.com/login/device","expires_in":900,"interval":0}`))
+		case "/login/oauth/access_token":
+			_, _ = w.Write([]byte(`{"access_token":"gho_abc","token_type":"bearer","scope":"read:user"}`))
+		}
+	}))
+	defer oauthServer.Close()
+
+	origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
+	origGitHubAPI := githubAPIBaseURL
+	setTestURLs(oauthServer.URL+"/login/device/code", oauthServer.URL+"/login/oauth/access_token")
+	githubAPIBaseURL = githubServer.URL
+	defer func() {
+		setTestURLs(origDeviceURL, origTokenURL)
+		githubAPIBaseURL = origGitHubAPI
+	}()
+
+	if err := cmdAuthLogin(); err != nil {
+		t.Fatalf("cmdAuthLogin: %v", err)
+	}
+
+	tok, err := loadToken()
+	if err != nil {
+		t.Fatalf("loadToken after login: %v", err)
+	}
+	if tok.Login != "starefossen" || tok.AccessToken != "gho_abc" {
+		t.Fatalf("unexpected stored token: %+v", tok)
+	}
+}
+
+func TestCmdAuthLoginNotOrgMember(t *testing.T) {
+	keyring.MockInit()
+
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/user":
+			_, _ = w.Write([]byte(`{"login":"outsider","name":""}`))
+		default:
+			w.WriteHeader(http.StatusNotFound) // not an org member
+		}
+	}))
+	defer githubServer.Close()
+
+	oauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/login/device/code":
+			_, _ = w.Write([]byte(`{"device_code":"dc","user_code":"WXYZ-5678","verification_uri":"https://github.com/login/device","expires_in":900,"interval":0}`))
+		case "/login/oauth/access_token":
+			_, _ = w.Write([]byte(`{"access_token":"gho_xyz","token_type":"bearer","scope":"read:user"}`))
+		}
+	}))
+	defer oauthServer.Close()
+
+	origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
+	origGitHubAPI := githubAPIBaseURL
+	setTestURLs(oauthServer.URL+"/login/device/code", oauthServer.URL+"/login/oauth/access_token")
+	githubAPIBaseURL = githubServer.URL
+	defer func() {
+		setTestURLs(origDeviceURL, origTokenURL)
+		githubAPIBaseURL = origGitHubAPI
+	}()
+
+	// Login should still succeed (token stored) even though org membership
+	// is denied — copilot-cli will reject requests server-side; this is
+	// just a local warning, not a hard failure.
+	if err := cmdAuthLogin(); err != nil {
+		t.Fatalf("cmdAuthLogin should not fail on non-membership: %v", err)
+	}
+}
+
+func TestRunDeviceFlowDefaultInterval(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/login/device/code":
+			_, _ = w.Write([]byte(`{"device_code":"dc","user_code":"CODE-0000","verification_uri":"https://github.com/login/device","expires_in":900,"interval":0}`))
+		case "/login/oauth/access_token":
+			_, _ = w.Write([]byte(`{"access_token":"gho_default","token_type":"bearer","scope":"read:user"}`))
+		}
+	}))
+	defer server.Close()
+
+	origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
+	setTestURLs(server.URL+"/login/device/code", server.URL+"/login/oauth/access_token")
+	defer setTestURLs(origDeviceURL, origTokenURL)
+
+	// runDeviceFlow (not the WithInterval variant) exercises the
+	// default-interval branch directly; the server responds immediately
+	// so this doesn't need to wait for the real 5s default.
+	token, err := runDeviceFlow(t.Context(), "client", "scope", func(string, string) {})
+	if err != nil {
+		t.Fatalf("runDeviceFlow: %v", err)
+	}
+	if token.AccessToken != "gho_default" {
+		t.Fatalf("unexpected token: %+v", token)
+	}
+}

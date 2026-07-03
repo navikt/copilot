@@ -1,8 +1,13 @@
 package cli
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/zalando/go-keyring"
 )
 
 func TestFormatNorwegianNumber(t *testing.T) {
@@ -75,5 +80,88 @@ func TestFormatUsageTmux(t *testing.T) {
 	u.Credits.Percentage = 72
 	if got := formatUsageTmux(u); got != "Copilot 72%" {
 		t.Errorf("formatUsageTmux = %q", got)
+	}
+}
+
+func TestCopilotCLIURL(t *testing.T) {
+	if got := copilotCLIURL(); got != defaultCopilotCLIURL {
+		t.Errorf("copilotCLIURL() default = %q, want %q", got, defaultCopilotCLIURL)
+	}
+
+	t.Setenv("NAV_PILOT_COPILOT_CLI_URL", "https://example.test")
+	if got := copilotCLIURL(); got != "https://example.test" {
+		t.Errorf("copilotCLIURL() override = %q", got)
+	}
+}
+
+func TestFetchUsage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/usage" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer tok" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"username":"starefossen","period":"November 2025","credits":{"used":100,"limit":1000,"percentage":10}}`))
+	}))
+	defer server.Close()
+
+	usage, err := fetchUsage(context.Background(), server.URL, "tok")
+	if err != nil {
+		t.Fatalf("fetchUsage: %v", err)
+	}
+	if usage.Username != "starefossen" || usage.Credits.Used != 100 {
+		t.Fatalf("unexpected usage: %+v", usage)
+	}
+
+	if _, err := fetchUsage(context.Background(), server.URL, "wrong"); err == nil {
+		t.Fatal("expected error for unauthorized token")
+	}
+}
+
+func TestFetchUsageServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("boom"))
+	}))
+	defer server.Close()
+
+	if _, err := fetchUsage(context.Background(), server.URL, "tok"); err == nil {
+		t.Fatal("expected error for 500 response")
+	}
+}
+
+func TestCmdUsageNotLoggedIn(t *testing.T) {
+	keyring.MockInit()
+	if err := cmdUsage(false, false); err == nil {
+		t.Fatal("expected error when not logged in")
+	}
+}
+
+func TestCmdUsageLoggedIn(t *testing.T) {
+	keyring.MockInit()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"username":"starefossen","period":"November 2025","credits":{"used":100,"limit":1000,"percentage":10}}`))
+	}))
+	defer server.Close()
+
+	if err := saveToken(storedToken{AccessToken: "tok"}); err != nil {
+		t.Fatalf("saveToken: %v", err)
+	}
+	t.Setenv("NAV_PILOT_COPILOT_CLI_URL", server.URL)
+
+	if err := cmdUsage(false, false); err != nil {
+		t.Fatalf("cmdUsage (text): %v", err)
+	}
+	if err := cmdUsage(true, false); err != nil {
+		t.Fatalf("cmdUsage (json): %v", err)
+	}
+	if err := cmdUsage(false, true); err != nil {
+		t.Fatalf("cmdUsage (tmux): %v", err)
 	}
 }
