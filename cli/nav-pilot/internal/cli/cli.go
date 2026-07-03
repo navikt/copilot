@@ -135,17 +135,28 @@ func run(args []string) error {
 		fileCfg, _ := readConfig()
 		autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
 
-		if autoUpdate {
+		// Guard against re-exec loops: if we already re-exec'd once after an
+		// auto-update in this process chain, don't attempt another update
+		// even if the (possibly stale) cache still reports a newer version.
+		alreadyReexeced := os.Getenv(reexecGuardEnv) == "1"
+
+		if autoUpdate && !alreadyReexeced {
 			fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
-			if err := cmdUpdate(); err != nil {
+			updated, err := doUpdate()
+			if err != nil {
 				return fmt.Errorf("auto-update failed: %w", err)
-			} else {
-				fmt.Println("Upgrade successful! Re-executing command...")
-				exe, _ := os.Executable()
-				syscall.Exec(exe, os.Args, os.Environ())
-				os.Exit(0)
 			}
-		} else if isInteractive() && assessment.SkewDays > 7 {
+			if updated {
+				if err := reexecSelf(); err != nil {
+					fmt.Fprintf(os.Stderr, "%s Updated, but failed to re-execute automatically: %v\n", yellow("⚠"), err)
+					fmt.Fprintln(os.Stderr, "Please re-run your command manually.")
+					return nil
+				}
+			}
+			// If updated == false, the binary was already up to date (e.g. the
+			// cache was stale); fall through and run the command normally
+			// instead of re-executing and looping.
+		} else if !autoUpdate && isInteractive() && assessment.SkewDays > 7 {
 			var upgradeChoice bool
 			err := huh.NewConfirm().
 				Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).
@@ -154,17 +165,26 @@ func run(args []string) error {
 				Run()
 
 			if err == nil && upgradeChoice {
-				if err := cmdUpdate(); err != nil {
+				updated, err := doUpdate()
+				if err != nil {
 					return fmt.Errorf("interactive upgrade failed: %w", err)
-				} else {
-					fmt.Println("Upgrade successful! Re-executing command...")
-					exe, _ := os.Executable()
-					syscall.Exec(exe, os.Args, os.Environ())
-					os.Exit(0)
+				}
+				if updated {
+					if err := reexecSelf(); err != nil {
+						fmt.Fprintf(os.Stderr, "%s Updated, but failed to re-execute automatically: %v\n", yellow("⚠"), err)
+						fmt.Fprintln(os.Stderr, "Please re-run your command manually.")
+						return nil
+					}
 				}
 			}
-		} else {
+		} else if !autoUpdate {
 			fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
+				yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
+		} else {
+			// autoUpdate is true but alreadyReexeced is true: we already tried
+			// updating once in this process chain and it didn't stick (e.g.
+			// stale cache). Warn instead of looping.
+			fmt.Fprintf(os.Stderr, "%s nav-pilot %s still reported after a recent update attempt (current: %s) — run %s to retry\n",
 				yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
 		}
 	}
@@ -556,6 +576,34 @@ func run(args []string) error {
 		}
 		return fmt.Errorf("unknown command: %s. Run with --help for usage", command)
 	}
+}
+
+// reexecGuardEnv marks a process as having already attempted a self re-exec
+// after an auto-update, preventing infinite update/re-exec loops if the
+// staleness cache still reports a newer version afterward (e.g. due to a
+// stale cache entry or a race with a concurrent release check).
+const reexecGuardEnv = "NAV_PILOT_REEXEC_GUARD"
+
+// reexecSelf replaces the current process with a fresh invocation of the
+// (now updated) binary, carrying the loop guard forward. Returns an error
+// if the executable path cannot be determined or exec fails, instead of
+// silently falling through as the previous implementation did.
+func reexecSelf() error {
+	fmt.Println("Upgrade successful! Re-executing command...")
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot determine binary path: %w", err)
+	}
+	exe, err = filepath.EvalSymlinks(exe)
+	if err != nil {
+		return fmt.Errorf("cannot resolve binary path: %w", err)
+	}
+	env := append(os.Environ(), reexecGuardEnv+"=1")
+	if err := syscall.Exec(exe, os.Args, env); err != nil {
+		return fmt.Errorf("exec failed: %w", err)
+	}
+	// syscall.Exec only returns on error; unreachable on success.
+	return nil
 }
 
 func Main(info BuildInfo) {
