@@ -82,6 +82,12 @@ func main() {
 		defer cachedBQClient.Close()
 	}
 
+	// Wire GitHub client into BigQuery handlers for per-user ownership checks.
+	// This is independent of the budget client — ownership verification only needs SAML.
+	if bqHandlers != nil && githubClient != nil {
+		bqHandlers.setGitHubClient(githubClient)
+	}
+
 	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
 	var budgetHandlers *BudgetHandlers
 	switch {

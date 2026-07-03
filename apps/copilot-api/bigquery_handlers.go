@@ -11,6 +11,7 @@ type BigQueryHandlers struct {
 	bqClient          BigQueryQuerier
 	budgetClient      globalBudgetGetter
 	activeSeatsGetter func() int64
+	githubClient      GitHubAPI // for SAML ownership checks on per-user endpoints
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
@@ -38,6 +39,12 @@ func (h *BigQueryHandlers) setBudgetClient(budgetClient globalBudgetGetter) {
 // depending on the metricsCollector global singleton.
 func (h *BigQueryHandlers) setActiveSeatsGetter(getter func() int64) {
 	h.activeSeatsGetter = getter
+}
+
+// setGitHubClient wires in the GitHub client so per-user read endpoints can
+// verify that the caller owns the requested username via SAML.
+func (h *BigQueryHandlers) setGitHubClient(client GitHubAPI) {
+	h.githubClient = client
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {

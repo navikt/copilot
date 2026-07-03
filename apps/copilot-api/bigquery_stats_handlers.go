@@ -9,6 +9,43 @@ import (
 	"time"
 )
 
+// verifyUsernameOwnership resolves the authenticated caller's GitHub username
+// via SAML and compares it to the requested username. Returns true if ownership
+// is verified (or if no githubClient is configured — graceful degradation).
+// On failure it writes an appropriate error response and returns false.
+func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
+	if h.githubClient == nil {
+		// No SAML client available — allow through (local/dev environments).
+		return true
+	}
+
+	user, ok := getUserFromContext(r.Context())
+	if !ok || user == nil {
+		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		return false
+	}
+
+	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
+	if err != nil {
+		slog.Error("Failed to verify caller identity via SAML", "error", err)
+		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
+		return false
+	}
+	if resolvedUsername == "" {
+		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
+		return false
+	}
+	if !strings.EqualFold(resolvedUsername, requestedUsername) {
+		slog.Warn("Per-user read denied: username mismatch",
+			"requested_username", requestedUsername,
+			"actor_navident", user.NAVident,
+		)
+		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
 func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxValue int) (int, bool) {
 	value := r.URL.Query().Get(name)
 	if value == "" {
@@ -58,6 +95,10 @@ func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Requ
 	username := r.PathValue("username")
 	if !isValidUsageUsername(username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		return
+	}
+
+	if !h.verifyUsernameOwnership(w, r, username) {
 		return
 	}
 
@@ -182,6 +223,10 @@ func (h *BigQueryHandlers) handleUserWeeklyTrends(w http.ResponseWriter, r *http
 		return
 	}
 
+	if !h.verifyUsernameOwnership(w, r, username) {
+		return
+	}
+
 	weeks, ok := optionalIntParam(r, "weeks", 12, 1, 52)
 	if !ok {
 		respondError(w, "invalid_parameter", "weeks must be between 1 and 52", http.StatusBadRequest)
@@ -203,6 +248,10 @@ func (h *BigQueryHandlers) handleUserDailyCredits(w http.ResponseWriter, r *http
 	username := r.PathValue("username")
 	if !isValidUsageUsername(username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		return
+	}
+
+	if !h.verifyUsernameOwnership(w, r, username) {
 		return
 	}
 

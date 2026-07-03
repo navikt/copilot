@@ -61,6 +61,27 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ownership check: only allow users to view their own seat data.
+	user, ok := getUserFromContext(r.Context())
+	if !ok || user == nil {
+		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
+	if err != nil {
+		slog.Error("Failed to verify caller identity via SAML", "error", err)
+		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
+		return
+	}
+	if resolvedUsername == "" {
+		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
+		return
+	}
+	if !strings.EqualFold(resolvedUsername, username) {
+		respondError(w, "forbidden", "You can only view your own seat data", http.StatusForbidden)
+		return
+	}
+
 	seat, err := h.githubClient.getCopilotSeat(r.Context(), username)
 	if err != nil {
 		slog.Error("Failed to fetch seat", "username", username, "error", err)
@@ -210,11 +231,23 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 }
 
 // handleGetUsernameBySAML handles GET /api/v1/copilot/saml/{identity}
+// Restricted: callers can only look up their own email identity.
 // Cache: 30 min (SAML identity mappings rarely change)
 func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.Request) {
 	identity := r.PathValue("identity")
 	if identity == "" || len(identity) > 254 || strings.Contains(identity, "/") {
 		respondError(w, "invalid_parameter", "Invalid SAML identity", http.StatusBadRequest)
+		return
+	}
+
+	// Ownership check: only allow users to look up their own email.
+	user, ok := getUserFromContext(r.Context())
+	if !ok || user == nil {
+		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !strings.EqualFold(user.Email, identity) {
+		respondError(w, "forbidden", "You can only look up your own identity", http.StatusForbidden)
 		return
 	}
 
