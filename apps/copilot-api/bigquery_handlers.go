@@ -8,11 +8,12 @@ import (
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {
-	bqClient          BigQueryQuerier
-	budgetClient      globalBudgetGetter
-	activeSeatsGetter func() int64
-	githubClient      GitHubAPI // for SAML ownership checks on per-user endpoints
-	environment       string    // "local", "dev", "prod" — controls fail-open behavior
+	bqClient           BigQueryQuerier
+	budgetClient       globalBudgetGetter
+	activeSeatsGetter  func() int64
+	githubClient       GitHubAPI // for SAML ownership checks on per-user endpoints
+	environment        string    // "local", "dev", "prod" — controls fail-open behavior
+	copilotCLIClientID string    // azp of copilot-cli's M2M tokens; trusts X-On-Behalf-Of when it matches
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
@@ -47,6 +48,16 @@ func (h *BigQueryHandlers) setActiveSeatsGetter(getter func() int64) {
 // verify that the caller owns the requested username via SAML.
 func (h *BigQueryHandlers) setGitHubClient(client GitHubAPI) {
 	h.githubClient = client
+}
+
+// setCopilotCLIClientID configures the Entra ID client ID (azp) that
+// identifies copilot-cli's M2M tokens. When a request's authenticated azp
+// matches this value, verifyUsernameOwnership trusts the X-On-Behalf-Of
+// header instead of resolving the caller's GitHub username via SAML —
+// copilot-cli has already validated the developer's GitHub token and org
+// membership before forwarding the request.
+func (h *BigQueryHandlers) setCopilotCLIClientID(clientID string) {
+	h.copilotCLIClientID = clientID
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {

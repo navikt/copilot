@@ -19,6 +19,90 @@ func (m *mockBudgetGetter) getGlobalBudget(_ context.Context) (*GlobalBudget, er
 	return m.budget, m.err
 }
 
+func TestVerifyUsernameOwnership(t *testing.T) {
+	newRequestWithUser := func(user *User) *http.Request {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
+		if user != nil {
+			req = req.WithContext(context.WithValue(req.Context(), userContextKey, user))
+		}
+		return req
+	}
+
+	t.Run("copilot-cli azp with matching X-On-Behalf-Of succeeds", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setCopilotCLIClientID("copilot-cli-client-id")
+
+		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id"})
+		req.Header.Set("X-On-Behalf-Of", "hans")
+		rec := httptest.NewRecorder()
+
+		if ok := h.verifyUsernameOwnership(rec, req, "hans"); !ok {
+			t.Fatalf("expected ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("copilot-cli azp with mismatched X-On-Behalf-Of is denied", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setCopilotCLIClientID("copilot-cli-client-id")
+
+		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id"})
+		req.Header.Set("X-On-Behalf-Of", "someone-else")
+		rec := httptest.NewRecorder()
+
+		if ok := h.verifyUsernameOwnership(rec, req, "hans"); ok {
+			t.Fatal("expected ownership check to fail on username mismatch")
+		}
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want %d", rec.Code, http.StatusForbidden)
+		}
+	})
+
+	t.Run("copilot-cli azp with missing X-On-Behalf-Of is rejected", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setCopilotCLIClientID("copilot-cli-client-id")
+
+		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id"})
+		rec := httptest.NewRecorder()
+
+		if ok := h.verifyUsernameOwnership(rec, req, "hans"); ok {
+			t.Fatal("expected ownership check to fail without X-On-Behalf-Of header")
+		}
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status: got %d, want %d", rec.Code, http.StatusUnauthorized)
+		}
+	})
+
+	t.Run("non-copilot-cli azp falls back to SAML lookup", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setCopilotCLIClientID("copilot-cli-client-id")
+		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
+		h.environment = "prod"
+
+		req := newRequestWithUser(&User{AZP: "my-copilot-client-id", Email: "hans@nav.no"})
+		req.Header.Set("X-On-Behalf-Of", "attacker") // must be ignored for non-copilot-cli callers
+		rec := httptest.NewRecorder()
+
+		if ok := h.verifyUsernameOwnership(rec, req, "hans"); !ok {
+			t.Fatalf("expected SAML-based ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("copilotCLIClientID unset ignores X-On-Behalf-Of entirely", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
+		h.environment = "prod"
+
+		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id", Email: "hans@nav.no"})
+		req.Header.Set("X-On-Behalf-Of", "attacker")
+		rec := httptest.NewRecorder()
+
+		// copilotCLIClientID is empty, so even a matching azp must not bypass SAML.
+		if ok := h.verifyUsernameOwnership(rec, req, "hans"); !ok {
+			t.Fatalf("expected SAML-based ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
 func TestResolveBudgetCredits(t *testing.T) {
 	tests := []struct {
 		name         string
