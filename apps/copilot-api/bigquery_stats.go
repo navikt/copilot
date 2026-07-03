@@ -453,7 +453,7 @@ func (bq *BigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]M
         COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS chat_users,
         COUNT(DISTINCT IF(SAFE_CAST(JSON_VALUE(raw_record, '$.used_cli') AS BOOL), JSON_VALUE(raw_record, '$.user_id'), NULL)) AS cli_users
       FROM %s
-      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+      WHERE day >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
         AND scope = 'enterprise'
       GROUP BY month
       ORDER BY month
@@ -479,7 +479,7 @@ func (bq *BigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) 
           COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances
         FROM %s,
           UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
-        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        WHERE day >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
           AND scope = 'enterprise'
           AND JSON_VALUE(mf, '$.model') IS NOT NULL
           AND JSON_VALUE(mf, '$.model') != 'others'
@@ -514,8 +514,8 @@ func (bq *BigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int
         SUM(gross_amount) AS gross_amount,
         SUM(net_amount) AS net_amount
       FROM %s
-      WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
-        AND scope_id = 'nav'
+      WHERE day >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
+        AND LOWER(scope_id) = 'nav'
         AND gross_quantity > 0
       GROUP BY month, model, sku
       ORDER BY month, gross_requests DESC
@@ -544,7 +544,8 @@ func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month s
         SUM(gross_amount) AS gross_amount,
         SUM(net_amount) AS net_amount
       FROM %s
-      WHERE FORMAT_DATE('%%Y-%%m', day) = @month
+      WHERE day >= DATE(@month || '-01')
+        AND day < DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH)
         AND LOWER(scope_id) = 'nav'
         AND gross_quantity > 0
       GROUP BY day, model
@@ -577,8 +578,10 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
         FORMAT_DATE('%%Y-%%m-%%d', day) AS day,
         SUM(net_amount) AS net_amount
       FROM %s
-      WHERE FORMAT_DATE('%%Y-%%m', day) = @month
+      WHERE day >= DATE(@month || '-01')
+        AND day < DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH)
         AND LOWER(scope_id) = 'nav'
+        AND gross_quantity > 0
       GROUP BY day
       ORDER BY day ASC
     `, billingRef)
@@ -644,13 +647,18 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	projectedEOM := actualMTD + (runRate * float64(remainingDays))
 	forecast.ProjectedEOMNetAmount = projectedEOM
 
-	volatility := sampleStdDev(tail(dailySeries, 14))
-	lower := projectedEOM - (volatility * float64(remainingDays))
+	// Uncertainty compounds with the square root of the number of remaining
+	// days (random-walk assumption: independent daily errors), not linearly
+	// with remainingDays. Note: the last "actual" day in dailySeries may
+	// itself be a partial day (if the ingestion job ran mid-day), which
+	// slightly understates volatility for that point — not corrected here.
+	volatility := sampleStdDev(tail(dailySeries, 14)) * math.Sqrt(float64(remainingDays))
+	lower := projectedEOM - volatility
 	if lower < actualMTD {
 		lower = actualMTD
 	}
 	forecast.LowerEOMNetAmount = lower
-	forecast.UpperEOMNetAmount = projectedEOM + (volatility * float64(remainingDays))
+	forecast.UpperEOMNetAmount = projectedEOM + volatility
 
 	points := make([]BillingModelForecastPoint, 0, daysInMonth)
 	actualCumulative := 0.0
@@ -796,7 +804,8 @@ func (bq *BigQueryClient) getUsageDistributionData(ctx context.Context, metricsR
           SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)) AS interactions,
           SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64), 0)) AS acceptances
         FROM %s
-        WHERE FORMAT_DATE('%%Y-%%m', day) = @month
+        WHERE day >= DATE(@month || '-01')
+          AND day < DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH)
           AND scope = 'enterprise'
         GROUP BY user_login
       ),
@@ -973,10 +982,10 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
         SAFE_CAST(REGEXP_EXTRACT(JSON_VALUE(raw_record, '$.ai_adoption_phase.phase'), r'\d+') AS INT64) AS phase,
         JSON_VALUE(raw_record, '$.ai_adoption_phase.version') AS phase_version,
         COUNT(DISTINCT JSON_VALUE(raw_record, '$.user_id')) AS user_count,
-        AVG(CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64)) AS avg_generations,
-        AVG(CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)) AS avg_acceptances,
-        AVG(CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)) AS avg_interactions,
-        AVG(CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)) AS avg_lines_added
+        AVG(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64)) AS avg_generations,
+        AVG(SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64)) AS avg_acceptances,
+        AVG(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64)) AS avg_interactions,
+        AVG(SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64)) AS avg_lines_added
       FROM %s
       WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
         AND scope = 'enterprise'
@@ -999,7 +1008,7 @@ func (bq *BigQueryClient) GetBillingMonthlyTrend(ctx context.Context, months int
 	queryStr := fmt.Sprintf(`
       SELECT year_month, total_gross_amount, total_net_amount, discount_rate_pct, distinct_models
       FROM %s
-      WHERE scope_id = 'nav'
+      WHERE LOWER(scope_id) = 'nav'
         AND PARSE_DATE('%%Y-%%m', year_month) >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
       ORDER BY year_month ASC
     `, viewRef)
@@ -1061,7 +1070,7 @@ func (bq *BigQueryClient) GetBillingModelBreakdown(ctx context.Context, months i
 	queryStr := fmt.Sprintf(`
       SELECT year_month, model, gross_amount, net_amount, pct_of_monthly_net
       FROM %s
-      WHERE scope_id = 'nav'
+      WHERE LOWER(scope_id) = 'nav'
         AND PARSE_DATE('%%Y-%%m', year_month) >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
       ORDER BY year_month ASC, net_amount DESC
     `, viewRef)

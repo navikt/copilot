@@ -44,7 +44,19 @@ const getCachedUser = cache(async (): Promise<User | null> => {
     return null;
   }
 
-  const [lastName, firstName] = claims.name ? claims.name.split(", ") : ["", ""];
+  // Names come as "Last, First" from Entra ID. For values without the expected
+  // ", " separator (e.g. a mononym) fall back to using the whole name so the
+  // firstName is never `undefined`.
+  let firstName = "";
+  let lastName = "";
+  if (claims.name) {
+    const parts = claims.name.split(", ");
+    if (parts.length >= 2) {
+      [lastName, firstName] = parts;
+    } else {
+      firstName = claims.name;
+    }
+  }
   const email = (claims.preferred_username ?? "").toLowerCase();
   const groups = claims.groups ?? [];
 
