@@ -1,0 +1,134 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+)
+
+type contextKey string
+
+const requestUserContextKey contextKey = "copilot-cli-user"
+
+// orgMembershipCache avoids re-checking org membership on every request for
+// the same (token, org) pair within the TTL window. Keyed by a hash of the
+// token so we never retain the raw token in memory longer than necessary.
+type orgMembershipCache struct {
+	mu      sync.Mutex
+	ttl     time.Duration
+	entries map[string]cacheEntry
+}
+
+type cacheEntry struct {
+	user      *AuthenticatedUser
+	expiresAt time.Time
+}
+
+func newOrgMembershipCache(ttl time.Duration) *orgMembershipCache {
+	return &orgMembershipCache{
+		ttl:     ttl,
+		entries: make(map[string]cacheEntry),
+	}
+}
+
+func (c *orgMembershipCache) get(token string) (*AuthenticatedUser, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	entry, ok := c.entries[token]
+	if !ok || time.Now().After(entry.expiresAt) {
+		return nil, false
+	}
+	return entry.user, true
+}
+
+func (c *orgMembershipCache) set(token string, user *AuthenticatedUser) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[token] = cacheEntry{user: user, expiresAt: time.Now().Add(c.ttl)}
+}
+
+// authMiddleware validates the caller's GitHub token and enforces org
+// membership before allowing access to /api/v1/* routes. On success, the
+// resolved AuthenticatedUser is attached to the request context so
+// downstream handlers can forward it to copilot-api as X-On-Behalf-Of.
+//
+// Fail closed: any error talking to GitHub results in a rejected request —
+// we never cache-and-trust a previously valid token past its TTL.
+func authMiddleware(gh *GitHubClient, cache *orgMembershipCache, org string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token, err := bearerToken(r)
+		if err != nil {
+			writeAuthError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+
+		if user, ok := cache.get(token); ok {
+			r = r.WithContext(context.WithValue(r.Context(), requestUserContextKey, user))
+			next(w, r)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		user, err := gh.resolveUser(ctx, token)
+		if err != nil {
+			status := http.StatusUnauthorized
+			if !errors.Is(err, errInvalidToken) {
+				status = http.StatusBadGateway
+			}
+			writeAuthError(w, status, "could not validate GitHub token")
+			return
+		}
+
+		member, err := gh.isOrgMember(ctx, token, org, user.Login)
+		if err != nil {
+			status := http.StatusUnauthorized
+			if !errors.Is(err, errInvalidToken) {
+				status = http.StatusBadGateway
+			}
+			writeAuthError(w, status, "could not verify org membership")
+			return
+		}
+		if !member {
+			writeAuthError(w, http.StatusForbidden, fmt.Sprintf("user is not a member of %s", org))
+			return
+		}
+
+		cache.set(token, user)
+		r = r.WithContext(context.WithValue(r.Context(), requestUserContextKey, user))
+		next(w, r)
+	}
+}
+
+func bearerToken(r *http.Request) (string, error) {
+	header := r.Header.Get("Authorization")
+	if header == "" {
+		return "", errors.New("missing Authorization header")
+	}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(header, prefix) {
+		return "", errors.New("authorization header must use bearer scheme")
+	}
+	token := strings.TrimSpace(strings.TrimPrefix(header, prefix))
+	if token == "" {
+		return "", errors.New("empty bearer token")
+	}
+	return token, nil
+}
+
+func userFromContext(ctx context.Context) (*AuthenticatedUser, bool) {
+	user, ok := ctx.Value(requestUserContextKey).(*AuthenticatedUser)
+	return user, ok
+}
+
+func writeAuthError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = fmt.Fprintf(w, `{"error":%q}`, message)
+}

@@ -202,6 +202,7 @@ Tilpasningene dekker Navs kjernestack:
 ├── apps/                 # Nav applications
 │   ├── copilot-adoption/ # Naisjob that scans navikt repos for customization files
 │   ├── copilot-api/      # Go backend API (BigQuery, GitHub API, seat management)
+│   ├── copilot-cli/      # Go CLI gateway (GitHub device auth + M2M proxy for nav-pilot)
 │   ├── copilot-metrics/  # BigQuery data pipeline (Naisjob)
 │   ├── mcp-onboarding/   # MCP server for agent readiness
 │   ├── mcp-registry/     # MCP server registry
