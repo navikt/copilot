@@ -515,19 +515,6 @@ export interface BillingModelForecast {
   points: BillingModelForecastPoint[];
 }
 
-export interface WeeklyTrend {
-  week: string;
-  interactions: number;
-  cli_requests: number;
-  acceptances: number;
-  lines_added: number;
-  lines_deleted: number;
-  prompt_tokens: number;
-  output_tokens: number;
-  active_days: number;
-  models?: Array<{ model: string; interactions: number }>;
-}
-
 // AI Adoption Cohort types (from user_metrics ai_adoption_phase field)
 export interface AdoptionCohortDay {
   day: string;

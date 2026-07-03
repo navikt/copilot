@@ -27,7 +27,7 @@ import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import BillingModelBreakdownChart from "@/components/charts/BillingModelBreakdownChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
+import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import { LinkableHeading } from "@/components/linkable-heading";
@@ -323,10 +323,7 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
 
   // Find the last COMPLETE month (not the current partial month)
   // A month is "complete" if it has all expected calendar days or isn't the current month.
-  const { completeMonths, currentMonth, latestComplete, prevComplete } = selectCompleteMonths(
-    monthlyTrends,
-    currentBillingMonth
-  );
+  const { currentMonth, latestComplete, prevComplete } = selectCompleteMonths(monthlyTrends, currentBillingMonth);
 
   function momChange(current: number, previous: number | undefined): string | undefined {
     if (!previous || previous === 0) return undefined;

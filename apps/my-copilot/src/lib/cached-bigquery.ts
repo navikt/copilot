@@ -22,7 +22,6 @@ import type {
   TeamAdoption,
   TeamUsageSummary,
   UserMetricsSummary,
-  WeeklyTrend,
   AdoptionCohortDay,
   BillingMonthlyTrend,
   BillingModelBreakdown,
@@ -137,16 +136,6 @@ export async function getUserMetrics(
     }
   });
   return { metrics: result.data, error: result.error };
-}
-
-export async function getUserWeeklyTrends(
-  username: string,
-  token: string
-): Promise<{ trends: WeeklyTrend[]; error: string | null }> {
-  const result = await fetchWithFallback("getUserWeeklyTrends", [] as WeeklyTrend[], () =>
-    backendRequest<WeeklyTrend[]>(`/api/v1/copilot/usage/user/${encodeURIComponent(username)}/weekly`, token)
-  );
-  return { trends: result.data, error: result.error };
 }
 
 export async function getUserDailyCredits(
