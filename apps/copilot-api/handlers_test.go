@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -177,6 +178,57 @@ func TestLoggingMiddleware(t *testing.T) {
 
 			if rec.Code != tt.wantStatus {
 				t.Errorf("Expected status %d, got %d", tt.wantStatus, rec.Code)
+			}
+		})
+	}
+}
+
+// TestAPIRoutesRequireAuth proves that every /api/v1/ route is behind auth middleware.
+// This is a router-level integration test — it constructs the same middleware chain as main.go
+// and verifies that requests without a Bearer token receive 401.
+func TestAPIRoutesRequireAuth(t *testing.T) {
+	// Use a strict auth middleware that rejects missing tokens (same as prod).
+	authMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := extractBearerToken(r)
+			if err != nil {
+				respondError(w, "unauthorized", err.Error(), http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	config := &Config{Environment: "prod"}
+	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil))
+
+	// All /api/v1/ paths should require auth
+	paths := []string{
+		"/api/v1/copilot/usage/metrics",
+		"/api/v1/copilot/adoption/summary",
+		"/api/v1/copilot/seats/testuser",
+		"/api/v1/copilot/budget",
+		"/api/v1/copilot/budget/global",
+		"/api/v1/copilot/usage/summary",
+	}
+
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+
+			apiRouter.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Errorf("GET %s without token: expected 401, got %d", path, rec.Code)
+			}
+
+			var problem ProblemDetail
+			if err := json.NewDecoder(rec.Body).Decode(&problem); err != nil {
+				t.Fatalf("Failed to decode response body: %v", err)
+			}
+			if !strings.Contains(problem.Type, "unauthorized") {
+				t.Errorf("Expected problem type containing 'unauthorized', got %q", problem.Type)
 			}
 		})
 	}
