@@ -463,6 +463,9 @@ func (c *CachedBigQueryClient) GetDailyMetrics(ctx context.Context, days *int) (
 	if days != nil {
 		effectiveDays = *days
 	}
+	// IMPORTANT: Use %d on the dereferenced value, not %v on the pointer.
+	// With %v on *int, the key becomes "daily_metrics_0xc000..." (pointer address),
+	// unique per allocation — causing 0% cache hits and full BigQuery scans per request.
 	cacheKey := fmt.Sprintf("daily_metrics_%d", effectiveDays)
 	return getCachedValue(c, cacheKey, func() ([]EnterpriseMetrics, error) {
 		return c.client.GetDailyMetrics(ctx, days)

@@ -13,6 +13,12 @@ import (
 // via SAML and compares it to the requested username. Returns true if ownership
 // is verified (or if no githubClient is configured — graceful degradation).
 // On failure it writes an appropriate error response and returns false.
+//
+// SECURITY: This check is required on ALL per-user read endpoints. Without it,
+// any employee can read any colleague's personal Copilot activity (daily credits,
+// acceptance counts, lines of code) by simply passing a different ?username= param.
+// The frontend supplies the username from the user's own SAML-resolved identity,
+// but the backend must not trust that — verify server-side via SAML lookup.
 func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
 	if h.githubClient == nil {
 		// No SAML client available — allow through (local/dev environments).

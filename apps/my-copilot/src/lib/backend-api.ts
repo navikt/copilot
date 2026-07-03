@@ -67,8 +67,14 @@ async function fetchWithTimeout(
 
 /**
  * Exchange user token for backend API OBO token via Texas sidecar.
- * Memoized per token string within the same event loop — collapses
- * concurrent exchanges for the same user token into a single request.
+ *
+ * Uses in-flight promise deduplication (NOT React.cache) because this module
+ * is imported by both RSC and Route Handlers. React.cache only works inside
+ * the RSC render tree — using it here causes a Turbopack parse error:
+ * "Expected ',', got 'async'" in Route Handler bundles.
+ *
+ * The pattern: collapse concurrent exchanges for the same user token into a
+ * single request, then clear the promise so the next request cycle gets fresh tokens.
  */
 let pendingExchange: { token: string; promise: Promise<string> } | null = null;
 

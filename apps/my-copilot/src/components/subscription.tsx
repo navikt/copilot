@@ -69,7 +69,10 @@ const SubscriptionActionButton: React.FC<{
   let disabled = false;
 
   if (subscription?.pending_cancellation_date) {
-    // Pending cancellation is a terminal status — don't offer an action.
+    // IMPORTANT: Button MUST be disabled when cancellation is pending.
+    // Without this, clicking the "danger" button would POST /activate (because
+    // the deactivate branch requires !pending_cancellation_date), silently
+    // re-activating the seat and cancelling the cancellation with zero feedback.
     buttonColor = "secondary-neutral";
     buttonText = "Avslutter Copilot…";
     disabled = true;

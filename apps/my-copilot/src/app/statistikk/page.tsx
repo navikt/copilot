@@ -54,6 +54,10 @@ import { formatNumber } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
 import { backendRequest } from "@/lib/backend-api";
 
+// formatMinutes converts a duration to human-readable Norwegian format.
+// IMPORTANT: Rounds total minutes FIRST, then splits into hours/minutes.
+// The previous approach (Math.round on the remainder) caused "1t 60m" when
+// minutes % 60 was between 59.5 and 60 (e.g. 119.7 → floor(1.99)=1h, round(59.7)=60m).
 function formatMinutes(minutes: number | null): string {
   if (minutes == null || minutes <= 0) return "–";
   if (minutes < 60) return `${Math.round(minutes)} min`;
