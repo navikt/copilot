@@ -100,6 +100,8 @@ accessPolicy:
     rules:
       - application: my-copilot    # ONLY my-copilot can reach copilot-api
         namespace: copilot
+      - application: copilot-cli   # CLI gateway for nav-pilot (see below)
+        namespace: copilot
   outbound:
     external:
       - host: api.github.com               # GitHub REST + GraphQL API
@@ -107,6 +109,37 @@ accessPolicy:
       - host: storage.googleapis.com        # BigQuery storage API
       - host: login.microsoftonline.com     # Azure AD JWKS endpoint
 ```
+
+### copilot-cli (`apps/copilot-cli/.nais/app.yaml`)
+
+New service (see [issue #337](https://github.com/navikt/copilot/issues/337)) that
+lets `nav-pilot` fetch personal Copilot usage data from the terminal, without
+routing through the my-copilot web BFF.
+
+```
+nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)──▶ copilot-api
+```
+
+1. The developer's GitHub token (from `nav-pilot auth login`, device flow) is
+   sent to copilot-cli as a Bearer token — copilot-cli never issues or stores
+   GitHub credentials itself.
+2. copilot-cli validates the token via `GET api.github.com/user` and checks
+   `navikt` org membership via `GET /orgs/navikt/members/{user}` (cached 5 min).
+   Fails closed: any GitHub API error rejects the request rather than trusting
+   a stale cache entry.
+3. copilot-cli exchanges its own workload identity for an M2M access token via
+   the Texas sidecar (`NAIS_TOKEN_ENDPOINT`), scoped to the copilot-api audience.
+4. copilot-cli calls copilot-api with the M2M token and an
+   `X-On-Behalf-Of: <github-username>` header identifying the verified user.
+
+- Inbound: none (`accessPolicy.inbound.rules: []`) — only reachable via its
+  `.intern.nav.no` ingress, which requires naisdevice.
+- Outbound: copilot-api (service discovery) + `api.github.com` / `github.com`.
+
+> **Status:** copilot-api does not yet trust the `X-On-Behalf-Of` header — that
+> change (validating the M2M token's `azp` claim matches copilot-cli's client
+> ID before honoring the header) is tracked as a follow-up in issue #337 and
+> must land before copilot-cli's proxy is usable end-to-end.
 
 ### my-copilot (`apps/my-copilot/.nais/app.yaml`)
 

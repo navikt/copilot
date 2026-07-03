@@ -1,0 +1,88 @@
+[tools]
+go = "1.26"
+golangci-lint = "2.10.1"
+
+[tasks.version]
+description = "Generate version string (YYYYMMDD-gitsha)"
+run = "echo $(date +%Y.%m.%d)-$(date +%H.%M)-$(git rev-parse --short HEAD)"
+
+[tasks.install]
+description = "Download dependencies"
+run = "go mod download"
+
+[tasks.update]
+description = "Update all Go dependencies"
+run = ["go get -u ./...", "go mod tidy"]
+
+[tasks.build]
+description = "Build the Go application"
+run = "go build -o bin/copilot-cli ."
+
+[tasks.test]
+description = "Run all tests with verbose output"
+run = "go test -v ./..."
+
+[tasks."test:coverage"]
+description = "Run tests with coverage report"
+run = [
+  "go test -v -cover -coverprofile=coverage.out ./...",
+  "go tool cover -html=coverage.out -o coverage.html",
+  "echo 'Coverage report: coverage.html'",
+]
+
+[tasks."test:short"]
+description = "Run tests without verbose output"
+run = "go test ./..."
+
+[tasks.lint]
+description = "Run linters (golangci-lint)"
+run = "golangci-lint run ./..."
+
+[tasks."lint:fix"]
+description = "Run linters and auto-fix issues"
+run = "golangci-lint run --fix ./..."
+
+[tasks.fmt]
+description = "Format code with gofmt"
+run = ["gofmt -w .", "go mod tidy"]
+
+[tasks.vet]
+description = "Run go vet for static analysis"
+run = "go vet ./..."
+
+[tasks.staticcheck]
+description = "Run staticcheck for advanced static analysis"
+run = "go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./..."
+
+[tasks.check]
+description = "Run all checks (fmt, vet, staticcheck, lint, test)"
+depends = ["fmt", "vet", "staticcheck", "lint", "test:short"]
+
+[tasks.all]
+description = "Run all checks, build, test and docker build"
+depends = ["check", "build", "test", "docker:build"]
+
+[tasks.dev]
+description = "Run with development settings (DEBUG log level)"
+env = { LOG_LEVEL = "DEBUG" }
+run = "go run ."
+
+[tasks.clean]
+description = "Clean build artifacts and test outputs"
+run = ["rm -rf bin/", "rm -f coverage.out coverage.html", "go clean"]
+
+[tasks.deps]
+description = "Download and verify dependencies"
+run = ["go mod download", "go mod verify", "go mod tidy"]
+
+[tasks."docker:build"]
+description = "Build Docker image"
+run = "docker build -t ghcr.io/navikt/copilot-cli:latest ."
+
+[tasks."docker:run"]
+description = "Run Docker container locally"
+run = "docker run --rm -p 8080:8080 ghcr.io/navikt/copilot-cli:latest"
+
+[env]
+GO111MODULE = "on"
+CGO_ENABLED = "0"
