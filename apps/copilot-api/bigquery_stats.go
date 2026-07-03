@@ -389,7 +389,7 @@ func (bq *BigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin str
 	queryStr := fmt.Sprintf(`
       WITH date_spine AS (
         SELECT day
-        FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY), CURRENT_DATE())) AS day
+        FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(CURRENT_DATE(), INTERVAL (@days - 1) DAY), CURRENT_DATE())) AS day
       ),
       user_data AS (
         SELECT
@@ -637,9 +637,22 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	}
 	forecast.ActualMTDNetAmount = actualMTD
 
-	runRate := weightedRunRate(dailySeries, 7)
-	if runRate <= 0 && lastActualDay > 0 {
-		runRate = actualMTD / float64(lastActualDay)
+	// If the last actual day is today, it's likely a partial day (ingestion
+	// may not have completed). Exclude it from the run rate calculation to
+	// avoid systematically depressing projections.
+	today := time.Now().UTC().Day()
+	seriesForRate := dailySeries
+	if lastActualDay == today && len(dailySeries) > 1 {
+		seriesForRate = dailySeries[:len(dailySeries)-1]
+	}
+
+	runRate := weightedRunRate(seriesForRate, 7)
+	if runRate <= 0 && len(seriesForRate) > 0 {
+		sum := 0.0
+		for _, v := range seriesForRate {
+			sum += v
+		}
+		runRate = sum / float64(len(seriesForRate))
 	}
 	forecast.ProjectedDailyRunRate = runRate
 
