@@ -210,6 +210,11 @@ func main() {
 			slog.Error("Ingestion failed", "error", err)
 			os.Exit(1)
 		}
+		// Retry supplementary data for recent days where entity metrics exists
+		// but user-teams/user-metrics are missing (they may not have been available
+		// when the entity metrics were first ingested).
+		ingestMissingSupplementary(ctx, ghClient, bqClient, config)
+
 		// Ingest current month's billing data (always re-ingests since it's cumulative)
 		if billingClient != nil {
 			ingestCurrentMonthBilling(ctx, billingClient, bqClient, config)
@@ -224,10 +229,14 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		// Ingest today's budget snapshot (always re-ingests since consumption is live)
+		// Ingest budget snapshots — today is the primary target but also retry
+		// yesterday in case the previous run failed (snapshots are point-in-time
+		// and lost forever if not captured).
 		if budgetClient != nil {
 			ingestTodayBudgetSnapshot(ctx, budgetClient, bqClient, config)
+			ingestYesterdayBudgetSnapshot(ctx, budgetClient, bqClient, config)
 			ingestTodayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
+			ingestYesterdayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
@@ -438,6 +447,76 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 		} else {
 			slog.Info("Ingested per-user metrics report", "day", dayStr, "records", len(usersResult.Records))
 		}
+	}
+}
+
+// ingestMissingSupplementary checks the last 7 days for days that have entity
+// metrics but are missing user-teams or user-metrics data. This handles the case
+// where supplementary reports weren't available when entity metrics were first
+// ingested (GitHub may take 24-48h to generate them).
+func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config) {
+	scopeID := cfg.EnterpriseSlug
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	// Check last 7 days — reports are typically available within 48h
+	const lookbackDays = 7
+	var filled int
+
+	for i := 1; i <= lookbackDays; i++ {
+		day := today.AddDate(0, 0, -i)
+		dayStr := day.Format("2006-01-02")
+
+		// Only check days where entity metrics exist (otherwise ingestMissing handles it)
+		entityExists, err := bq.DayExists(ctx, day, scopeID)
+		if err != nil {
+			slog.Warn("Failed to check entity data existence", "day", dayStr, "error", err)
+			continue
+		}
+		if !entityExists {
+			continue
+		}
+
+		// Check and fill user-teams
+		teamsExists, err := bq.UserTeamsDayExists(ctx, day, scopeID)
+		if err != nil {
+			slog.Warn("Failed to check user-teams existence", "day", dayStr, "error", err)
+		} else if !teamsExists {
+			if teamsResult, fetchErr := gh.FetchDailyUserTeams(ctx, day); fetchErr != nil {
+				if !errors.Is(fetchErr, ErrReportNotAvailable) {
+					slog.Warn("Failed to fetch missing user-teams", "day", dayStr, "error", fetchErr)
+				}
+			} else if len(teamsResult.Records) > 0 {
+				if insertErr := bq.InsertUserTeams(ctx, day, teamsResult.Scope, teamsResult.ScopeID, teamsResult.Records); insertErr != nil {
+					slog.Warn("Failed to insert missing user-teams", "day", dayStr, "error", insertErr)
+				} else {
+					slog.Info("Backfilled missing user-teams", "day", dayStr, "records", len(teamsResult.Records))
+					filled++
+				}
+			}
+		}
+
+		// Check and fill per-user metrics
+		usersExists, err := bq.UserMetricsDayExists(ctx, day, scopeID)
+		if err != nil {
+			slog.Warn("Failed to check user-metrics existence", "day", dayStr, "error", err)
+		} else if !usersExists {
+			if usersResult, fetchErr := gh.FetchDailyUserMetrics(ctx, day); fetchErr != nil {
+				if !errors.Is(fetchErr, ErrReportNotAvailable) {
+					slog.Warn("Failed to fetch missing user-metrics", "day", dayStr, "error", fetchErr)
+				}
+			} else if len(usersResult.Records) > 0 {
+				if insertErr := bq.InsertUserMetrics(ctx, day, usersResult.Scope, usersResult.ScopeID, usersResult.Records); insertErr != nil {
+					slog.Warn("Failed to insert missing user-metrics", "day", dayStr, "error", insertErr)
+				} else {
+					slog.Info("Backfilled missing user-metrics", "day", dayStr, "records", len(usersResult.Records))
+					filled++
+				}
+			}
+		}
+	}
+
+	if filled > 0 {
+		slog.Info("Supplementary gap-fill completed", "filled", filled)
 	}
 }
 
@@ -660,4 +739,83 @@ func ingestTodayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, budget
 	}
 
 	slog.Info("User budget snapshot ingested successfully", "date", dateStr, "users", len(entries))
+}
+
+// ingestYesterdayBudgetSnapshot ensures yesterday's enterprise budget snapshot exists.
+// Budget snapshots are point-in-time — if yesterday's run failed or was skipped,
+// that day's data is lost forever. This lookback recovers it on the next successful run.
+// Only inserts if no data exists for yesterday (does not overwrite).
+func ingestYesterdayBudgetSnapshot(ctx context.Context, budget *BudgetClient, bq *BigQueryClient, cfg *Config) {
+	yesterday := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+	dateStr := yesterday.Format("2006-01-02")
+
+	exists, err := bq.BudgetSnapshotExists(ctx, yesterday, cfg.EnterpriseSlug)
+	if err != nil {
+		slog.Warn("Could not check if yesterday's budget snapshot exists", "date", dateStr, "error", err)
+		return
+	}
+	if exists {
+		return // Already captured — nothing to do
+	}
+
+	slog.Info("Yesterday's budget snapshot missing, attempting recovery", "date", dateStr)
+
+	entries, err := budget.FetchAllBudgets(ctx)
+	if err != nil {
+		slog.Warn("Failed to fetch budget entries for yesterday recovery", "date", dateStr, "error", err)
+		return
+	}
+	if len(entries) == 0 {
+		return
+	}
+
+	if err := bq.InsertBudgetSnapshots(ctx, yesterday, cfg.EnterpriseSlug, entries); err != nil {
+		slog.Warn("Failed to insert yesterday's budget snapshot", "date", dateStr, "error", err)
+		return
+	}
+
+	slog.Info("Recovered yesterday's budget snapshot", "date", dateStr, "entries", len(entries))
+}
+
+// ingestYesterdayUserBudgetSnapshot ensures yesterday's per-user budget snapshot exists.
+// Same recovery logic as ingestYesterdayBudgetSnapshot — captures missed days.
+func ingestYesterdayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, budget *BudgetClient, bq *BigQueryClient, cfg *Config) {
+	yesterday := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+	dateStr := yesterday.Format("2006-01-02")
+
+	exists, err := bq.UserBudgetSnapshotExists(ctx, yesterday, cfg.EnterpriseSlug)
+	if err != nil {
+		slog.Warn("Could not check if yesterday's user budget snapshot exists", "date", dateStr, "error", err)
+		return
+	}
+	if exists {
+		return
+	}
+
+	slog.Info("Yesterday's user budget snapshot missing, attempting recovery", "date", dateStr)
+
+	logins, err := gh.FetchAllCopilotLogins(ctx)
+	if err != nil {
+		slog.Warn("Failed to fetch Copilot seat holders for yesterday recovery", "date", dateStr, "error", err)
+		return
+	}
+	if len(logins) == 0 {
+		return
+	}
+
+	entries, err := budget.FetchAllUserBudgets(ctx, logins)
+	if err != nil {
+		slog.Warn("Failed to fetch user budgets for yesterday recovery", "date", dateStr, "error", err)
+		return
+	}
+	if len(entries) == 0 {
+		return
+	}
+
+	if err := bq.InsertUserBudgetSnapshots(ctx, yesterday, cfg.EnterpriseSlug, entries); err != nil {
+		slog.Warn("Failed to insert yesterday's user budget snapshot", "date", dateStr, "error", err)
+		return
+	}
+
+	slog.Info("Recovered yesterday's user budget snapshot", "date", dateStr, "users", len(entries))
 }

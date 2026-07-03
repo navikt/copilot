@@ -75,6 +75,9 @@ func ingestMissingBillingUsageReports(ctx context.Context, fetcher UsageReportFe
 		return nil
 	}
 
+	// Continue past individual day failures so that one unavailable day doesn't
+	// block ingestion of all subsequent days. Track errors and report at the end.
+	var failedDays []string
 	for day := startDate; !day.After(yesterday); day = day.AddDate(0, 0, 1) {
 		select {
 		case <-ctx.Done():
@@ -83,13 +86,17 @@ func ingestMissingBillingUsageReports(ctx context.Context, fetcher UsageReportFe
 		}
 
 		if err := ingestBillingUsageReportDay(ctx, fetcher, store, cfg, day, false); err != nil {
-			return fmt.Errorf("ingest billing usage report day %s: %w", day.Format("2006-01-02"), err)
+			slog.Warn("Failed to ingest billing usage report day (continuing)", "day", day.Format("2006-01-02"), "error", err)
+			failedDays = append(failedDays, day.Format("2006-01-02"))
 		}
 
 		// Keep requests below API thresholds.
 		time.Sleep(billingUsageReportRateLimitDelay)
 	}
 
+	if len(failedDays) > 0 {
+		return fmt.Errorf("billing usage report ingestion failed for %d day(s): %v", len(failedDays), failedDays)
+	}
 	return nil
 }
 
