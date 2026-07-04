@@ -108,12 +108,24 @@ func main() {
 	// Order matters: OnBehalfOfIdentityResolver must be registered before
 	// SAMLIdentityResolver since a trusted M2M token typically has no email
 	// claim for SAML to resolve.
+	//
+	// The copilot-cli client ID is derived from AZURE_APP_PRE_AUTHORIZED_APPS
+	// (NAIS auto-populates it from accessPolicy.inbound.rules) rather than a
+	// separate manual secret — the same data that already gates M2M auth in
+	// newTokenValidator. If copilot-cli isn't a pre-authorized inbound app the
+	// trust path stays disabled (fails closed).
 	var identityResolvers []IdentityResolver
-	if config.CopilotCLIClientID != "" {
+	copilotCLIClientID, err := trustedClientIDForApp(config.PreAuthorizedApps, "copilot-cli")
+	if err != nil {
+		slog.Warn("Could not parse AZURE_APP_PRE_AUTHORIZED_APPS — X-On-Behalf-Of trust disabled", "error", err)
+	}
+	if copilotCLIClientID != "" {
 		identityResolvers = append(identityResolvers, NewOnBehalfOfIdentityResolver(map[string]bool{
-			config.CopilotCLIClientID: true,
+			copilotCLIClientID: true,
 		}))
-		slog.Info("copilot-cli trusted for X-On-Behalf-Of on per-user endpoints")
+		slog.Info("copilot-cli trusted for X-On-Behalf-Of on read-only per-user endpoints", "client_id", copilotCLIClientID)
+	} else {
+		slog.Debug("copilot-cli not found in pre-authorized apps — X-On-Behalf-Of trust disabled")
 	}
 	if githubClient != nil {
 		identityResolvers = append(identityResolvers, NewSAMLIdentityResolver(githubClient))

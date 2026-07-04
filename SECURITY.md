@@ -138,11 +138,13 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 
 > **Status:** copilot-api trusts `X-On-Behalf-Of` via its Identity Resolver
 > architecture (see `apps/copilot-api/ARCHITECTURE.md`). The
-> `OnBehalfOfIdentityResolver` activates when `COPILOT_CLI_CLIENT_ID` matches
-> the calling token's `azp` claim; the header value is format-validated
-> against GitHub's username rules before being accepted. The env var is empty
-> by default — copilot-cli's Azure AD app must be provisioned and its client
-> ID configured in copilot-api before end-to-end flow works.
+> `OnBehalfOfIdentityResolver` activates when the calling token's `azp` claim
+> matches copilot-cli's client ID, which copilot-api derives automatically
+> from `AZURE_APP_PRE_AUTHORIZED_APPS` (NAIS injects it from
+> `accessPolicy.inbound.rules` — no manual secret step). Trust is scoped to
+> read-only `GET` requests only, and the header value is format-validated
+> against GitHub's username rules before being accepted. If copilot-cli is not
+> a pre-authorized inbound app the trust path stays disabled (fails closed).
 
 ### my-copilot (`apps/my-copilot/.nais/app.yaml`)
 

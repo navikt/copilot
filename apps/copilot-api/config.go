@@ -32,7 +32,6 @@ type Config struct {
 	VideoBucketPublic      string
 	VideoPublicBaseURL     string
 	VideoFeedCacheSeconds  int
-	CopilotCLIClientID     string
 }
 
 func loadConfig() *Config {
@@ -62,14 +61,6 @@ func loadConfig() *Config {
 		VideoBucketPublic:      selectVideoValue(environment, os.Getenv("VIDEO_BUCKET_PUBLIC_DEV"), os.Getenv("VIDEO_BUCKET_PUBLIC_PROD"), os.Getenv("VIDEO_BUCKET_PUBLIC")),
 		VideoPublicBaseURL:     getEnv("VIDEO_PUBLIC_BASE_URL", ""),
 		VideoFeedCacheSeconds:  getEnvInt("VIDEO_FEED_CACHE_SECONDS", 60),
-		// CopilotCLIClientID identifies the copilot-cli service's own Entra ID
-		// client (azp claim on its M2M tokens). When set, copilot-api trusts
-		// the X-On-Behalf-Of header from requests carrying this azp instead of
-		// resolving the caller's GitHub username via SAML — copilot-cli has
-		// already verified the developer's GitHub identity and org membership.
-		// Left empty (default) until copilot-cli is deployed and its client ID
-		// is known, so this trust path fails closed until explicitly enabled.
-		CopilotCLIClientID: os.Getenv("COPILOT_CLI_CLIENT_ID"),
 	}
 
 	return config

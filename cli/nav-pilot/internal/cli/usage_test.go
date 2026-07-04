@@ -159,6 +159,89 @@ func TestFetchUsageServerError(t *testing.T) {
 	}
 }
 
+func TestUsageHTTPError(t *testing.T) {
+	tests := []struct {
+		name       string
+		status     int
+		body       string
+		wantSubstr string
+	}{
+		{
+			name:       "401 maps to login guidance",
+			status:     http.StatusUnauthorized,
+			body:       `{"error":"could not validate GitHub token"}`,
+			wantSubstr: "nav-pilot auth login",
+		},
+		{
+			name:       "403 maps to org-membership guidance",
+			status:     http.StatusForbidden,
+			body:       `{"error":"not a member of navikt"}`,
+			wantSubstr: "navikt-organisasjonen",
+		},
+		{
+			name:       "404 maps to no-data-yet message",
+			status:     http.StatusNotFound,
+			body:       `{"error":"no usage data"}`,
+			wantSubstr: "ingen bruksdata",
+		},
+		{
+			name:       "500 with problem+json detail surfaces the reason",
+			status:     http.StatusInternalServerError,
+			body:       `{"type":"about:blank","title":"Internal Server Error","status":500,"detail":"bigquery timeout"}`,
+			wantSubstr: "bigquery timeout",
+		},
+		{
+			name:       "500 with error field surfaces the reason",
+			status:     http.StatusBadGateway,
+			body:       `{"error":"upstream unavailable"}`,
+			wantSubstr: "upstream unavailable",
+		},
+		{
+			name:       "unparseable body still yields a clean status error",
+			status:     http.StatusInternalServerError,
+			body:       `not json`,
+			wantSubstr: "status 500",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := usageHTTPError(tc.status, []byte(tc.body))
+			if err == nil {
+				t.Fatal("expected an error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantSubstr) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.wantSubstr)
+			}
+		})
+	}
+}
+
+// TestCmdUsageJSONFailsCleanly ensures --json mode surfaces the mapped error
+// instead of emitting partial/garbled JSON when copilot-cli returns non-200.
+func TestCmdUsageJSONFailsCleanly(t *testing.T) {
+	keyring.MockInit()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"could not validate GitHub token"}`))
+	}))
+	defer server.Close()
+
+	if err := saveToken(storedToken{AccessToken: "tok"}); err != nil {
+		t.Fatalf("saveToken: %v", err)
+	}
+	t.Setenv("NAV_PILOT_COPILOT_CLI_URL", server.URL)
+
+	err := cmdUsage(true, false)
+	if err == nil {
+		t.Fatal("expected error in json mode for 401 response")
+	}
+	if !strings.Contains(err.Error(), "nav-pilot auth login") {
+		t.Errorf("expected actionable 401 guidance, got: %v", err)
+	}
+}
+
 func TestCmdUsageNotLoggedIn(t *testing.T) {
 	keyring.MockInit()
 	if err := cmdUsage(false, false); err == nil {
