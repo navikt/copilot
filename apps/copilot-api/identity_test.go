@@ -263,6 +263,20 @@ func TestIdentityMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("required=true, rejects malformed X-On-Behalf-Of header", func(t *testing.T) {
+		gotIdentity = nil
+		handler := IdentityMiddleware(chain, true)(next)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("X-On-Behalf-Of", "inv@lid")
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{AZP: "copilot-cli-client-id"}))
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+		}
+	})
+
 	t.Run("required=false, proceeds without identity on failure", func(t *testing.T) {
 		gotIdentity = nil
 		emptyChain := NewIdentityResolverChain()
@@ -356,4 +370,34 @@ func TestRequireOwnership(t *testing.T) {
 			t.Errorf("status = %d, want %d", rec.Code, http.StatusForbidden)
 		}
 	})
+}
+
+func TestWriteIdentityResolutionError(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantType   string
+	}{
+		{"no applicable resolver", ErrNoApplicableResolver, 401, "unauthorized"},
+		{"no github account", ErrNoGitHubAccount, 403, "no_github_account"},
+		{"identity header missing", ErrIdentityHeaderMissing, 401, "unauthorized"},
+		{"invalid identity header", ErrInvalidIdentityHeader, 401, "unauthorized"},
+		{"unexpected error", errors.New("database timeout"), 500, "identity_check_failed"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			writeIdentityResolutionError(rec, tc.err)
+
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+			body := rec.Body.String()
+			if !strings.Contains(body, tc.wantType) {
+				t.Errorf("body %q does not contain expected type %q", body, tc.wantType)
+			}
+		})
+	}
 }
