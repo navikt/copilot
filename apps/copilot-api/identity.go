@@ -32,6 +32,11 @@ var (
 	// ErrIdentityHeaderMissing means a trusted-intermediary resolver expected
 	// an identity header (e.g. X-On-Behalf-Of) that wasn't present.
 	ErrIdentityHeaderMissing = errors.New("required identity header missing")
+	// ErrInvalidIdentityHeader means a trusted-intermediary resolver received
+	// an identity header whose value isn't a well-formed GitHub username.
+	// Defense-in-depth: even a compromised or buggy trusted intermediary
+	// can't inject malformed identifiers into downstream systems this way.
+	ErrInvalidIdentityHeader = errors.New("identity header is not a valid GitHub username")
 )
 
 // IdentityResolver resolves the authenticated caller's GitHub username using

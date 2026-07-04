@@ -67,6 +67,8 @@ func writeIdentityResolutionError(w http.ResponseWriter, err error) {
 		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
 	case errors.Is(err, ErrIdentityHeaderMissing):
 		respondError(w, "unauthorized", "Missing required identity header", http.StatusUnauthorized)
+	case errors.Is(err, ErrInvalidIdentityHeader):
+		respondError(w, "unauthorized", "Invalid identity header", http.StatusUnauthorized)
 	default:
 		slog.Error("Identity resolution failed", "error", err)
 		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
@@ -80,6 +82,17 @@ func writeIdentityResolutionError(w http.ResponseWriter, err error) {
 func GetResolvedIdentity(ctx context.Context) (*ResolvedIdentity, bool) {
 	identity, ok := ctx.Value(resolvedIdentityContextKey).(*ResolvedIdentity)
 	return identity, ok && identity != nil
+}
+
+// requireResolvedIdentity wraps a per-user handler so that identity
+// resolution is mandatory for this specific route, regardless of how
+// IdentityMiddleware was configured globally. This makes it structurally
+// impossible to add a new per-user route that forgets to call
+// requireOwnership/GetResolvedIdentity: if resolution fails or was skipped
+// upstream, the request is rejected here before the handler ever runs.
+func requireResolvedIdentity(chain *IdentityResolverChain, next http.HandlerFunc) http.HandlerFunc {
+	wrapped := IdentityMiddleware(chain, true)(next)
+	return wrapped.ServeHTTP
 }
 
 // requireOwnership verifies that the resolved caller identity matches the

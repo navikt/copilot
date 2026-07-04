@@ -43,8 +43,12 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// makeAPIRouter creates the main API router for /api/v1/
-func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers) http.Handler {
+// makeAPIRouter creates the main API router for /api/v1/. identityChain is
+// used to make identity resolution mandatory on per-user routes (see
+// requireResolvedIdentity) — this is defense-in-depth on top of each
+// handler's own requireOwnership/GetResolvedIdentity call, ensuring a future
+// per-user route can't accidentally ship without an ownership check.
+func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *IdentityResolverChain) http.Handler {
 	mux := http.NewServeMux()
 
 	bqStub := serviceUnavailableHandler("BigQuery is not configured for this environment")
@@ -69,6 +73,12 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 		}
 		return budgetStub
 	}
+	// perUser wraps a per-user handler with mandatory identity resolution.
+	// Applied only to routes whose handler ownership-checks a specific
+	// {username}/caller (see requireOwnership usage in those handlers).
+	perUser := func(h http.HandlerFunc) http.HandlerFunc {
+		return requireResolvedIdentity(identityChain, h)
+	}
 
 	// BigQuery endpoints
 	mux.HandleFunc("GET /api/v1/copilot/usage/metrics", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleDailyMetrics })))
@@ -79,9 +89,9 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/customizations/details", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationDetails })))
 	mux.HandleFunc("GET /api/v1/copilot/customizations/usage", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/team-summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamUsageSummary })))
-	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserMetrics })))
-	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/weekly", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserWeeklyTrends })))
-	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/daily-credits", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserDailyCredits })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserMetrics }))))
+	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/weekly", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserWeeklyTrends }))))
+	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/daily-credits", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserDailyCredits }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/trends", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyTrends })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/models", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyModelUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/monthly", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyBillingUsage })))
@@ -97,13 +107,13 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/billing", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleBilling })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/premium", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handlePremiumRequestUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/repo-contributors", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleRepositoryContributors })))
-	mux.HandleFunc("GET /api/v1/copilot/seats/{username}", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleGetSeat })))
-	mux.HandleFunc("POST /api/v1/copilot/seats", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleAssignSeat })))
-	mux.HandleFunc("DELETE /api/v1/copilot/seats/{username}", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleUnassignSeat })))
+	mux.HandleFunc("GET /api/v1/copilot/seats/{username}", gh(perUser(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleGetSeat }))))
+	mux.HandleFunc("POST /api/v1/copilot/seats", gh(perUser(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleAssignSeat }))))
+	mux.HandleFunc("DELETE /api/v1/copilot/seats/{username}", gh(perUser(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleUnassignSeat }))))
 	mux.HandleFunc("GET /api/v1/copilot/saml/{identity}", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleGetUsernameBySAML })))
 
 	// Enterprise budget endpoints
-	mux.HandleFunc("GET /api/v1/copilot/budget", budget(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetBudget })))
+	mux.HandleFunc("GET /api/v1/copilot/budget", budget(perUser(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetBudget }))))
 	mux.HandleFunc("GET /api/v1/copilot/budget/global", budget(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetGlobalBudget })))
 
 	// Placeholder endpoints - to be implemented in future phases

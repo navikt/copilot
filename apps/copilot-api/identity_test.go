@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -139,6 +140,25 @@ func TestOnBehalfOfIdentityResolverResolve(t *testing.T) {
 		_, err := r.Resolve(context.Background(), &User{AZP: "copilot-cli-client-id"}, req)
 		if !errors.Is(err, ErrIdentityHeaderMissing) {
 			t.Fatalf("expected ErrIdentityHeaderMissing, got %v", err)
+		}
+	})
+
+	t.Run("malformed header value is rejected", func(t *testing.T) {
+		malformed := []string{
+			"has/slash",
+			"has spaces",
+			"-leading-hyphen",
+			"trailing-hyphen-",
+			"inv@lid",
+			strings.Repeat("a", 40),
+		}
+		for _, v := range malformed {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set("X-On-Behalf-Of", v)
+			_, err := r.Resolve(context.Background(), &User{AZP: "copilot-cli-client-id"}, req)
+			if !errors.Is(err, ErrInvalidIdentityHeader) {
+				t.Errorf("value %q: expected ErrInvalidIdentityHeader, got %v", v, err)
+			}
 		}
 	})
 }

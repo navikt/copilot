@@ -151,7 +151,7 @@ func main() {
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", otelhttp.NewHandler(
-		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers)))),
+		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain)))),
 		"api",
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + r.URL.Path
