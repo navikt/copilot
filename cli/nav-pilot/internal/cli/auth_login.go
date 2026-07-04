@@ -22,7 +22,7 @@ func cmdAuthLogin() error {
 	defer cancel()
 
 	fmt.Println()
-	token, err := runDeviceFlow(ctx, navPilotGitHubClientID, navPilotGitHubScopes, func(userCode, verificationURI string) {
+	token, err := runDeviceFlow(ctx, navPilotGitHubClientID(), navPilotGitHubScopes, func(userCode, verificationURI string) {
 		fmt.Printf("  %s Open %s and enter the code:\n\n", bold("→"), bold(verificationURI))
 		fmt.Printf("      ┌─────────────┐\n")
 		fmt.Printf("      │  %s  │\n", bold(userCode))

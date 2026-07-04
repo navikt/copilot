@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +18,18 @@ import (
 // device flow authentication. This is not a secret — device flow client IDs
 // are safe to embed in distributed binaries (see GitHub's device flow docs).
 // The App must have "Device Flow" enabled in its settings.
-const navPilotGitHubClientID = "Iv1.nav-pilot-devflow"
+//
+// Overridable via NAV_PILOT_GITHUB_CLIENT_ID so the PoC can be pointed at a
+// real OAuth App without rebuilding nav-pilot (the constant below is a
+// placeholder until a production client ID is provisioned).
+const navPilotGitHubClientIDDefault = "Iv1.nav-pilot-devflow"
+
+func navPilotGitHubClientID() string {
+	if v := os.Getenv("NAV_PILOT_GITHUB_CLIENT_ID"); v != "" {
+		return v
+	}
+	return navPilotGitHubClientIDDefault
+}
 
 // navPilotGitHubScopes are the minimum scopes needed to validate identity
 // (read:user) and navikt org membership (read:org) for copilot-cli.

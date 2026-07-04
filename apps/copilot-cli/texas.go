@@ -96,12 +96,13 @@ func (c *texasClient) token(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	c.cachedToken = result.AccessToken
 	// Refresh 30s before actual expiry to avoid using a token that expires
-	// mid-flight to copilot-api.
+	// mid-flight to copilot-api. If the token's lifetime is shorter than the
+	// margin, don't clamp the TTL up to the margin (that would make
+	// expiresAt == now, forcing a Texas call on every single request);
+	// instead set expiresAt in the past so the token is correctly treated
+	// as immediately expired/uncacheable and re-fetched next call.
 	margin := 30 * time.Second
 	ttl := time.Duration(result.ExpiresIn) * time.Second
-	if ttl <= margin {
-		ttl = margin
-	}
 	c.expiresAt = time.Now().Add(ttl - margin)
 	c.mu.Unlock()
 

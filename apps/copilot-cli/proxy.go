@@ -13,7 +13,8 @@ import (
 // exchanging copilot-cli's workload identity for an M2M token and
 // identifying the calling developer via X-On-Behalf-Of. copilot-api trusts
 // this header only when the M2M token's azp matches copilot-cli's client ID
-// (see apps/copilot-api auth.go resolveRequestUser).
+// (see apps/copilot-api/bigquery_stats_handlers.go verifyUsernameOwnership /
+// verifyCopilotCLIOnBehalfOf).
 type copilotAPIProxy struct {
 	httpClient *http.Client
 	baseURL    string
@@ -64,7 +65,11 @@ func (p *copilotAPIProxy) forward(upstreamPath string) http.HandlerFunc {
 		}
 		defer resp.Body.Close()
 
-		w.Header().Set("Content-Type", "application/json")
+		contentType := resp.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/json"
+		}
+		w.Header().Set("Content-Type", contentType)
 		w.WriteHeader(resp.StatusCode)
 		if _, err := io.Copy(w, resp.Body); err != nil {
 			slog.Warn("failed to stream copilot-api response", "error", err)
