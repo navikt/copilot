@@ -4,10 +4,14 @@
 min-copilot.ansatt.nav.no. It holds the GitHub App and BigQuery credentials; my-copilot
 holds neither.
 
+`copilot-cli` is the second caller: a gateway that lets `nav-pilot` reach the same
+backend from a terminal. It holds no secrets either.
+
 This document covers the shape of the system and the reasoning behind it. The endpoint
 list, the full config table and the error-type catalogue live in
-[`apps/copilot-api/README.md`](./apps/copilot-api/README.md). Trust zones, input
-validation and audit logging live in [SECURITY.md](./SECURITY.md).
+[`apps/copilot-api/README.md`](./apps/copilot-api/README.md). The identity-resolution
+design lives in [`apps/copilot-api/ARCHITECTURE.md`](./apps/copilot-api/ARCHITECTURE.md).
+Trust zones, input validation and audit logging live in [SECURITY.md](./SECURITY.md).
 
 ## Request path
 
@@ -36,6 +40,27 @@ to introspect the incoming token, asks Texas again for an On-Behalf-Of token min
 the `copilot-api` audience, and forwards that. `copilot-api` then validates the OBO
 token from scratch. Nothing the BFF asserts about the user is trusted.
 
+The CLI path reaches the same backend from the other side.
+
+```
+Developer terminal
+  │  nav-pilot auth login stores a GitHub token in the OS keychain
+  ▼
+nav-pilot
+  │  Bearer <GitHub token>
+  ▼
+copilot-cli (Go gateway, naisdevice-gated ingress)
+  │  validates the token against GitHub and checks navikt org membership
+  │  asks Texas for an M2M token minted for the copilot-api audience
+  ▼
+copilot-api
+```
+
+`copilot-cli` holds no secrets either. An M2M token carries no user claims, so the
+resolved GitHub username travels in an explicit `X-On-Behalf-Of` header, which
+`copilot-api` trusts only for GET requests from a pre-authorized `azp`. That trust path
+and its limits are set out in [SECURITY.md](./SECURITY.md).
+
 ## Token validation
 
 Every request to `/api/v1/` must clear five checks before a handler runs.
@@ -54,6 +79,11 @@ mutation can be traced back to the calling application as well as the person.
 
 The `azp` check fails closed. An empty or missing pre-authorized apps list rejects
 everything rather than letting anything through.
+
+Which of the two mechanisms produced the caller's GitHub username, SAML lookup from an
+Entra email or a trusted `X-On-Behalf-Of` header, is resolved once per request and hidden
+from the handlers behind a `ResolvedIdentity`. See
+[`apps/copilot-api/ARCHITECTURE.md`](./apps/copilot-api/ARCHITECTURE.md).
 
 ## API design
 
@@ -148,10 +178,23 @@ accessPolicy:
     rules:
       - application: my-copilot
         namespace: copilot
+      - application: copilot-cli
+        namespace: copilot
   outbound:
     external:
       - host: api.github.com
       - host: bigquery.googleapis.com
+```
+
+```yaml
+# copilot-cli
+accessPolicy:
+  outbound:
+    rules:
+      - application: copilot-api
+        namespace: copilot
+    external:
+      - host: api.github.com
 ```
 
 ```yaml
