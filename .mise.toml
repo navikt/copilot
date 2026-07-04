@@ -108,16 +108,30 @@ description = "Run nav-pilot installer tests"
 run = "(cd cli/nav-pilot && go test -race ./...)"
 
 [tasks."nav-pilot:check"]
-description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, shellcheck, bats)"
+description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, deadcode, shellcheck, bats)"
 run = """
 echo "  build..."   && cd cli/nav-pilot && go build -o /dev/null . && \
 echo "  test..."    && go test -race ./... && \
 echo "  vet..."     && go vet ./... && \
 echo "  staticcheck..." && go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./... && \
+echo "  deadcode..." && dc_out=$(go run golang.org/x/tools/cmd/deadcode@v0.47.0 -test ./... 2>&1); \
+  if [ -n "$dc_out" ]; then echo "$dc_out"; echo "deadcode found unreachable functions (see above)" >&2; exit 1; fi && \
 cd ../.. && \
 echo "  shellcheck..." && shellcheck scripts/install.sh && \
 echo "  bats..." && bats scripts/install.bats && \
 echo "  ✅ nav-pilot checks passed"
+"""
+
+[tasks."nav-pilot:deadcode"]
+description = "Report unreachable functions (dead code) in nav-pilot via Rapid Type Analysis; fails if any is found"
+run = """
+cd cli/nav-pilot
+out=$(go run golang.org/x/tools/cmd/deadcode@v0.47.0 -test ./... 2>&1)
+if [ -n "$out" ]; then
+  echo "$out"
+  echo "deadcode found unreachable functions (see above) — remove them or justify with a comment" >&2
+  exit 1
+fi
 """
 
 [tasks."nav-pilot:install"]
