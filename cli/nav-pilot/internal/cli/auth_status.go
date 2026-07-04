@@ -26,6 +26,14 @@ func cmdAuthStatus(jsonOutput bool) error {
 		return fmt.Errorf("reading stored token: %w", err)
 	}
 
+	if token.expired() {
+		if jsonOutput {
+			return printAuthStatusJSON(authStatus{LoggedIn: false, Error: "token expired"})
+		}
+		fmt.Printf("  %s Token expired on %s. Run %s to re-authenticate.\n", yellow("⚠"), token.ExpiresAt.Format("2006-01-02 15:04"), bold("nav-pilot auth login"))
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -73,7 +81,7 @@ func cmdAuthStatus(jsonOutput bool) error {
 	}
 	fmt.Println(orgLine)
 
-	fmt.Printf("  Token:    logget inn siden %s\n", token.ObtainedAt.Format("2006-01-02 15:04"))
+	fmt.Printf("  Token:    logget inn siden %s (%s)\n", token.ObtainedAt.Format("2006-01-02 15:04"), formatSecondsRemaining(token.ExpiresAt))
 	return nil
 }
 

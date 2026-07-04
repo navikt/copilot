@@ -31,6 +31,14 @@ type storedToken struct {
 	ExpiresAt time.Time `json:"expires_at,omitempty"`
 }
 
+// expired reports whether the token is known to have expired. Returns false
+// when ExpiresAt is zero (unknown / non-expiring token) — callers should
+// still treat a "not expired" result as provisional and let the server-side
+// validation (GET /user) be the final word.
+func (t storedToken) expired() bool {
+	return !t.ExpiresAt.IsZero() && time.Now().After(t.ExpiresAt)
+}
+
 // saveToken persists the token to the OS keychain.
 func saveToken(t storedToken) error {
 	data, err := json.Marshal(t)

@@ -23,13 +23,18 @@ const navPilotGitHubClientID = "Iv1.nav-pilot-devflow"
 // (read:user) and navikt org membership (read:org) for copilot-cli.
 const navPilotGitHubScopes = "read:user read:org"
 
+// deviceCodeURL and accessTokenURL are GitHub's device flow endpoints,
+// overridable only by tests via setTestURLs to point at an httptest server.
+// These are package-level mutable vars for test convenience — none of the
+// tests in this package use t.Parallel(), and these vars must stay that way
+// (sequential only) for as long as the override mechanism works this way.
 var (
 	deviceCodeURL  = "https://github.com/login/device/code"
 	accessTokenURL = "https://github.com/login/oauth/access_token"
 )
 
 // setTestURLs overrides the GitHub device flow endpoints for testing against
-// an httptest server. Not safe for concurrent use across parallel tests.
+// an httptest server. Test-only; not safe for concurrent/parallel use.
 func setTestURLs(deviceURL, tokenURL string) {
 	deviceCodeURL = deviceURL
 	accessTokenURL = tokenURL
@@ -50,11 +55,15 @@ type deviceCodeResponse struct {
 }
 
 // accessTokenResponse is GitHub's response to POST /login/oauth/access_token
-// while polling the device flow, or the final success response.
+// while polling the device flow, or the final success response. ExpiresIn is
+// only populated when the GitHub App has "token expiration" enabled; classic
+// OAuth Apps and Apps without expiration enabled omit it, meaning the token
+// does not expire (ExpiresIn stays 0).
 type accessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	Scope       string `json:"scope"`
+	ExpiresIn   int    `json:"expires_in"`
 	Error       string `json:"error"`
 }
 

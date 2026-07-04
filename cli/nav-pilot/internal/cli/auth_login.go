@@ -45,13 +45,18 @@ func cmdAuthLogin() error {
 		fmt.Fprintf(os.Stderr, "%s You are not a member of the %s GitHub organization — copilot-cli will reject requests until you are.\n", yellow("⚠"), navPilotGitHubOrg)
 	}
 
-	if err := saveToken(storedToken{
+	now := time.Now()
+	stored := storedToken{
 		AccessToken: token.AccessToken,
 		TokenType:   token.TokenType,
 		Scope:       token.Scope,
 		Login:       user.Login,
-		ObtainedAt:  time.Now(),
-	}); err != nil {
+		ObtainedAt:  now,
+	}
+	if token.ExpiresIn > 0 {
+		stored.ExpiresAt = now.Add(time.Duration(token.ExpiresIn) * time.Second)
+	}
+	if err := saveToken(stored); err != nil {
 		return fmt.Errorf("could not store token: %w", err)
 	}
 

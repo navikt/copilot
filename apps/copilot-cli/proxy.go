@@ -68,6 +68,10 @@ func (p *copilotAPIProxy) forward(upstreamPath string) http.HandlerFunc {
 		w.WriteHeader(resp.StatusCode)
 		if _, err := io.Copy(w, resp.Body); err != nil {
 			slog.Warn("failed to stream copilot-api response", "error", err)
+			// Best-effort drain so the underlying connection can still be
+			// reused by the transport's connection pool even though the
+			// client-facing copy failed partway through.
+			_, _ = io.Copy(io.Discard, resp.Body)
 		}
 	}
 }

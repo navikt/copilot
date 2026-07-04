@@ -6,38 +6,49 @@ import (
 )
 
 // formatUsageTerminal renders the usage summary as a human-friendly
-// dashboard, mirroring the mockup in the PRD (issue #337). Numbers use
-// Norwegian space-grouping to match the my-copilot web UI convention.
+// dashboard. Numbers use Norwegian space-grouping to match the my-copilot
+// web UI convention. Reflects copilot-api's UserMetricsSummary fields
+// (interactions/acceptances/lines/active days) — there is no per-user
+// "credits" or "subscription" concept in that endpoint (see
+// apps/copilot-api/bigquery_stats.go); a daily-credits endpoint exists
+// separately (GetUserDailyCredits) but is not yet wired into this command.
 func formatUsageTerminal(u *usageResponse) string {
 	var b strings.Builder
 
 	title := "GitHub Copilot"
-	if u.Period != "" {
-		title += " — " + u.Period
+	if u.UserLogin != "" {
+		title += " — " + u.UserLogin
 	}
 	fmt.Fprintf(&b, "  %s\n", bold(title))
 	fmt.Fprintln(&b, "  "+strings.Repeat("─", 40))
 
-	fmt.Fprintf(&b, "  Kreditt:        %s / %s (%d%%)  %s\n",
-		formatNorwegianNumber(u.Credits.Used),
-		formatNorwegianNumber(u.Credits.Limit),
-		u.Credits.Percentage,
-		progressBar(u.Credits.Percentage, 10),
+	fmt.Fprintf(&b, "  Periode:        %d dager (%d aktive)\n", u.DaysInPeriod, u.ActiveDays)
+	fmt.Fprintf(&b, "  Interaksjoner:  %s\n", formatNorwegianNumber(u.TotalInteractions))
+	fmt.Fprintf(&b, "  Akseptert kode: %s / %s (%.0f%%)\n",
+		formatNorwegianNumber(u.TotalAcceptances),
+		formatNorwegianNumber(u.TotalGenerations),
+		u.acceptanceRate(),
 	)
-	fmt.Fprintf(&b, "  Interaksjoner:  %s\n", formatNorwegianNumber(u.Interactions.Total))
-	fmt.Fprintf(&b, "  Akseptert kode: %s (%.0f%%)\n", formatNorwegianNumber(u.Interactions.Accepted), u.Interactions.AcceptanceRate)
-	fmt.Fprintf(&b, "  Aktive dager:   %d\n", u.ActiveDays)
+	fmt.Fprintf(&b, "  Linjer:         %s foreslått, %s akseptert\n",
+		formatNorwegianNumber(u.TotalLinesSuggested),
+		formatNorwegianNumber(u.TotalLinesAccepted),
+	)
+	if u.CLITotalRequests > 0 {
+		fmt.Fprintf(&b, "  CLI:            %s forespørsler, %s økter\n",
+			formatNorwegianNumber(u.CLITotalRequests),
+			formatNorwegianNumber(u.CLISessions),
+		)
+	}
 	fmt.Fprintln(&b, "  "+strings.Repeat("─", 40))
 
-	if u.Forecast.ProjectedCredits > 0 {
-		fmt.Fprintf(&b, "  Prognose:       %s kreditt\n", formatNorwegianNumber(u.Forecast.ProjectedCredits))
-	}
-	if u.Subscription.Status != "" {
-		statusIcon := yellow("○")
-		if strings.EqualFold(u.Subscription.Status, "active") {
-			statusIcon = green("✓")
+	if len(u.TopModels) > 0 {
+		fmt.Fprintln(&b, "  Mest brukte modeller:")
+		for _, m := range u.TopModels {
+			fmt.Fprintf(&b, "    %-30s %s\n", m.Model, formatNorwegianNumber(m.Interactions))
 		}
-		fmt.Fprintf(&b, "  Abonnement:     %s %s\n", capitalize(u.Subscription.Status), statusIcon)
+	}
+	if len(u.Teams) > 0 {
+		fmt.Fprintf(&b, "  Team:           %s\n", strings.Join(u.Teams, ", "))
 	}
 
 	return b.String()
@@ -46,7 +57,7 @@ func formatUsageTerminal(u *usageResponse) string {
 // formatUsageTmux renders a compact single-line summary suitable for a tmux
 // status bar segment (Phase 3 polish per the PRD — kept minimal for now).
 func formatUsageTmux(u *usageResponse) string {
-	return fmt.Sprintf("Copilot %d%%", u.Credits.Percentage)
+	return fmt.Sprintf("Copilot %.0f%%", u.acceptanceRate())
 }
 
 // capitalize upper-cases the first rune of s, leaving the rest unchanged.
@@ -76,7 +87,7 @@ func progressBar(percentage, segments int) string {
 // formatNorwegianNumber groups an integer with spaces every three digits,
 // matching the my-copilot web UI's Norwegian locale formatting
 // (see apps/my-copilot/src/lib/format.ts formatNumber).
-func formatNorwegianNumber(n int) string {
+func formatNorwegianNumber(n int64) string {
 	s := fmt.Sprintf("%d", n)
 	neg := strings.HasPrefix(s, "-")
 	if neg {
