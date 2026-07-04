@@ -112,6 +112,36 @@ func main() {
 		slog.Info("Budget client initialized successfully")
 	}
 
+	// Build the new IdentityResolver-based identity chain (see identity.go)
+	// and wire it in shadow mode: it runs alongside the legacy
+	// verifyUsernameOwnership/SAML logic above, only logging disagreements,
+	// never changing response behavior. This validates the new abstraction
+	// against real traffic before Phase 3 cuts handlers over to depend on it
+	// directly and removes the legacy fields/logic.
+	//
+	// Order matters: OnBehalfOfIdentityResolver must be registered before
+	// SAMLIdentityResolver since a trusted M2M token typically has no email
+	// claim for SAML to resolve.
+	var identityResolvers []IdentityResolver
+	if config.CopilotCLIClientID != "" {
+		identityResolvers = append(identityResolvers, NewOnBehalfOfIdentityResolver(map[string]bool{
+			config.CopilotCLIClientID: true,
+		}))
+	}
+	if githubClient != nil {
+		identityResolvers = append(identityResolvers, NewSAMLIdentityResolver(githubClient))
+	}
+	if len(identityResolvers) > 0 {
+		identityChain := NewIdentityResolverChain(identityResolvers...)
+		if bqHandlers != nil {
+			bqHandlers.setIdentityChain(identityChain)
+		}
+		if budgetHandlers != nil {
+			budgetHandlers.setIdentityChain(identityChain)
+		}
+		slog.Info("Identity resolver chain wired in shadow mode", "resolver_count", len(identityResolvers))
+	}
+
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
 	videoHandlers := newVideoHandlers(config)

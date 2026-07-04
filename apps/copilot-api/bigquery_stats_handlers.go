@@ -29,7 +29,9 @@ import (
 // requested path username must still match the header exactly. This check
 // runs first, before the githubClient-nil fallback below, since copilot-cli
 // requests never carry a resolvable SAML identity.
-func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
+func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) (verified bool) {
+	defer func() { h.logIdentityShadowComparison(r, requestedUsername, verified) }()
+
 	if h.copilotCLIClientID != "" {
 		if user, ok := getUserFromContext(r.Context()); ok && user != nil && user.AZP == h.copilotCLIClientID {
 			return h.verifyCopilotCLIOnBehalfOf(w, r, requestedUsername)
@@ -98,6 +100,50 @@ func (h *BigQueryHandlers) verifyCopilotCLIOnBehalfOf(w http.ResponseWriter, r *
 		return false
 	}
 	return true
+}
+
+// logIdentityShadowComparison compares the legacy verifyUsernameOwnership
+// verdict against what the new IdentityResolver-based chain (see identity.go)
+// would have decided for the same request, and logs any disagreement. This
+// is pure observability — it never affects the response written to the
+// client and is a no-op unless setIdentityChain has been called (Phase 2 of
+// the auth architecture migration; see identity.go).
+//
+// A mismatch here indicates a bug in one of the two implementations and
+// should be investigated before Phase 3 removes the legacy path.
+func (h *BigQueryHandlers) logIdentityShadowComparison(r *http.Request, requestedUsername string, legacyVerified bool) {
+	if h.identityChain == nil {
+		return
+	}
+	user, ok := getUserFromContext(r.Context())
+	if !ok || user == nil {
+		return
+	}
+
+	identity, err := h.identityChain.Resolve(r.Context(), user, r)
+	newVerified := err == nil && strings.EqualFold(identity.GitHubUsername, requestedUsername)
+
+	if newVerified != legacyVerified {
+		slog.Warn("Identity resolution shadow-mode mismatch",
+			"requested_username", requestedUsername,
+			"legacy_verified", legacyVerified,
+			"new_verified", newVerified,
+			"new_resolve_error", errString(err),
+		)
+		return
+	}
+	slog.Debug("Identity resolution shadow-mode match",
+		"requested_username", requestedUsername,
+		"verified", legacyVerified,
+	)
+}
+
+// errString safely renders an error for structured logging, returning "" for nil.
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxValue int) (int, bool) {

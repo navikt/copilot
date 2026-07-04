@@ -4,12 +4,19 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 // BudgetHandlers handles the enterprise AI credit budget endpoint.
 type BudgetHandlers struct {
 	budgetClient *BudgetClient
 	githubClient GitHubAPI
+
+	// identityChain enables shadow-mode comparison logging, same as
+	// BigQueryHandlers.identityChain (see identity.go and
+	// logIdentityShadowComparison in bigquery_stats_handlers.go). Nil by
+	// default (disabled).
+	identityChain *IdentityResolverChain
 }
 
 func newBudgetHandlers(budgetClient *BudgetClient, githubClient GitHubAPI) *BudgetHandlers {
@@ -17,6 +24,13 @@ func newBudgetHandlers(budgetClient *BudgetClient, githubClient GitHubAPI) *Budg
 		budgetClient: budgetClient,
 		githubClient: githubClient,
 	}
+}
+
+// setIdentityChain wires in the new IdentityResolver-based identity chain
+// for shadow-mode comparison against the legacy SAML lookup in
+// handleGetBudget. Passing nil disables shadow-mode comparison (the default).
+func (h *BudgetHandlers) setIdentityChain(chain *IdentityResolverChain) {
+	h.identityChain = chain
 }
 
 // handleGetBudget handles GET /api/v1/copilot/budget.
@@ -38,6 +52,7 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 		respondError(w, "not_found", "GitHub account not linked to Nav organisation", http.StatusNotFound)
 		return
 	}
+	h.logIdentityShadowComparison(r, user, username)
 
 	budget, err := h.budgetClient.getUserBudget(r.Context(), username)
 	if err != nil {
@@ -79,4 +94,30 @@ func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Re
 
 	cacheControl(w, 30*60, true) // public — same for all users
 	respondJSON(w, budget, http.StatusOK)
+}
+
+// logIdentityShadowComparison compares the legacy SAML-resolved username
+// used by handleGetBudget against what the new IdentityResolver-based chain
+// would resolve, and logs any disagreement. Pure observability — see the
+// equivalent method on BigQueryHandlers in bigquery_stats_handlers.go for
+// full rationale. No-op unless setIdentityChain has been called.
+func (h *BudgetHandlers) logIdentityShadowComparison(r *http.Request, user *User, legacyUsername string) {
+	if h.identityChain == nil {
+		return
+	}
+	identity, err := h.identityChain.Resolve(r.Context(), user, r)
+	newUsername := ""
+	if err == nil {
+		newUsername = identity.GitHubUsername
+	}
+
+	if !strings.EqualFold(newUsername, legacyUsername) {
+		slog.Warn("Identity resolution shadow-mode mismatch (budget)",
+			"legacy_username", legacyUsername,
+			"new_username", newUsername,
+			"new_resolve_error", errString(err),
+		)
+		return
+	}
+	slog.Debug("Identity resolution shadow-mode match (budget)", "username", legacyUsername)
 }

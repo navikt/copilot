@@ -14,6 +14,16 @@ type BigQueryHandlers struct {
 	githubClient       GitHubAPI // for SAML ownership checks on per-user endpoints
 	environment        string    // "local", "dev", "prod" — controls fail-open behavior
 	copilotCLIClientID string    // azp of copilot-cli's M2M tokens; trusts X-On-Behalf-Of when it matches
+
+	// identityChain is the new IdentityResolver-based identity resolution
+	// path (see identity.go), run in shadow mode alongside the legacy
+	// verifyUsernameOwnership logic above. Nil until wired via
+	// setIdentityChain — when set, verifyUsernameOwnership logs any
+	// disagreement between the legacy result and the chain's result but
+	// does NOT change response behavior. This lets us validate the new
+	// abstraction against production traffic before Phase 3 cuts handlers
+	// over to rely on it directly.
+	identityChain *IdentityResolverChain
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
@@ -58,6 +68,14 @@ func (h *BigQueryHandlers) setGitHubClient(client GitHubAPI) {
 // membership before forwarding the request.
 func (h *BigQueryHandlers) setCopilotCLIClientID(clientID string) {
 	h.copilotCLIClientID = clientID
+}
+
+// setIdentityChain wires in the new IdentityResolver-based identity chain
+// for shadow-mode comparison against the legacy verifyUsernameOwnership
+// logic (see the identityChain field doc comment, and identity.go). Passing
+// nil disables shadow-mode comparison (the default).
+func (h *BigQueryHandlers) setIdentityChain(chain *IdentityResolverChain) {
+	h.identityChain = chain
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
