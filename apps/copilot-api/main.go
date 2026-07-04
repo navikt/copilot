@@ -73,7 +73,6 @@ func main() {
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
 			cachedBQClient = newCachedBigQueryClient(bqClient, cacheTTL)
 			bqHandlers = newBigQueryHandlers(cachedBQClient)
-			bqHandlers.environment = config.Environment
 			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
 		}
 	} else {
@@ -81,19 +80,6 @@ func main() {
 	}
 	if cachedBQClient != nil {
 		defer cachedBQClient.Close()
-	}
-
-	// Wire GitHub client into BigQuery handlers for per-user ownership checks.
-	// This is independent of the budget client — ownership verification only needs SAML.
-	if bqHandlers != nil && githubClient != nil {
-		bqHandlers.setGitHubClient(githubClient)
-	}
-
-	// Trust copilot-cli's X-On-Behalf-Of header on per-user endpoints once its
-	// Entra ID client ID is configured (set after copilot-cli's first deploy).
-	if bqHandlers != nil && config.CopilotCLIClientID != "" {
-		bqHandlers.setCopilotCLIClientID(config.CopilotCLIClientID)
-		slog.Info("copilot-cli trusted for X-On-Behalf-Of on per-user endpoints")
 	}
 
 	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
@@ -105,19 +91,19 @@ func main() {
 		slog.Warn("GitHub client unavailable - budget endpoint will be unavailable (see GitHub client initialization error above)")
 	default:
 		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
-		budgetHandlers = newBudgetHandlers(budgetClient, githubClient)
+		budgetHandlers = newBudgetHandlers(budgetClient)
 		if bqHandlers != nil {
 			bqHandlers.setBudgetClient(budgetClient)
 		}
 		slog.Info("Budget client initialized successfully")
 	}
 
-	// Build the new IdentityResolver-based identity chain (see identity.go)
-	// and wire it in shadow mode: it runs alongside the legacy
-	// verifyUsernameOwnership/SAML logic above, only logging disagreements,
-	// never changing response behavior. This validates the new abstraction
-	// against real traffic before Phase 3 cuts handlers over to depend on it
-	// directly and removes the legacy fields/logic.
+	// Build the IdentityResolver chain (see identity.go) that determines "who
+	// is this caller, as a GitHub username?" independent of which mechanism
+	// (SAML or copilot-cli's trusted X-On-Behalf-Of header) authenticated the
+	// request. Per-user handlers (handleUserMetrics, handleGetBudget, ...)
+	// call requireOwnership/GetResolvedIdentity and have no knowledge of how
+	// the identity was resolved.
 	//
 	// Order matters: OnBehalfOfIdentityResolver must be registered before
 	// SAMLIdentityResolver since a trusted M2M token typically has no email
@@ -127,20 +113,17 @@ func main() {
 		identityResolvers = append(identityResolvers, NewOnBehalfOfIdentityResolver(map[string]bool{
 			config.CopilotCLIClientID: true,
 		}))
+		slog.Info("copilot-cli trusted for X-On-Behalf-Of on per-user endpoints")
 	}
 	if githubClient != nil {
 		identityResolvers = append(identityResolvers, NewSAMLIdentityResolver(githubClient))
 	}
-	if len(identityResolvers) > 0 {
-		identityChain := NewIdentityResolverChain(identityResolvers...)
-		if bqHandlers != nil {
-			bqHandlers.setIdentityChain(identityChain)
-		}
-		if budgetHandlers != nil {
-			budgetHandlers.setIdentityChain(identityChain)
-		}
-		slog.Info("Identity resolver chain wired in shadow mode", "resolver_count", len(identityResolvers))
-	}
+	identityChain := NewIdentityResolverChain(identityResolvers...)
+	// required=false: identity resolution failures only matter to the
+	// specific per-user handlers that call requireOwnership/GetResolvedIdentity
+	// (which return their own 401/403). Team/org-level aggregate endpoints
+	// must keep working even for callers with no resolvable GitHub identity.
+	identityMiddleware := IdentityMiddleware(identityChain, false)
 
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
@@ -168,7 +151,7 @@ func main() {
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", otelhttp.NewHandler(
-		loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers))),
+		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers)))),
 		"api",
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + r.URL.Path

@@ -561,7 +561,11 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 func requestWithUsername(path, username string) *http.Request {
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	req.SetPathValue("username", username)
-	return req
+	// Simulate IdentityMiddleware having already resolved the caller's
+	// identity (see identity_middleware.go) — handleUserMetrics and friends
+	// call requireOwnership, which reads this from context.
+	ctx := context.WithValue(req.Context(), resolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: username, Source: "test"})
+	return req.WithContext(ctx)
 }
 
 // abs returns the absolute value of a float64

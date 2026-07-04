@@ -9,143 +9,6 @@ import (
 	"time"
 )
 
-// verifyUsernameOwnership resolves the authenticated caller's GitHub username
-// via SAML and compares it to the requested username. Returns true if ownership
-// is verified (or if no githubClient is configured — graceful degradation).
-// On failure it writes an appropriate error response and returns false.
-//
-// SECURITY: This check is required on ALL per-user read endpoints. Without it,
-// any employee can read any colleague's personal Copilot activity (daily credits,
-// acceptance counts, lines of code) by simply passing a different ?username= param.
-// The frontend supplies the username from the user's own SAML-resolved identity,
-// but the backend must not trust that — verify server-side via SAML lookup.
-//
-// Trusted intermediary bypass: when the request is authenticated with an M2M
-// token whose azp is copilot-cli's configured client ID, copilot-cli has
-// already verified the caller's GitHub identity and navikt org membership via
-// their own GitHub token — see apps/copilot-cli. In that case we trust the
-// X-On-Behalf-Of header as the verified username instead of doing a SAML
-// lookup (there is no NAVident/email to resolve from an M2M token). The
-// requested path username must still match the header exactly. This check
-// runs first, before the githubClient-nil fallback below, since copilot-cli
-// requests never carry a resolvable SAML identity.
-func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) (verified bool) {
-	defer func() { h.logIdentityShadowComparison(r, requestedUsername, verified) }()
-
-	if h.copilotCLIClientID != "" {
-		if user, ok := getUserFromContext(r.Context()); ok && user != nil && user.AZP == h.copilotCLIClientID {
-			return h.verifyCopilotCLIOnBehalfOf(w, r, requestedUsername)
-		}
-	}
-
-	if h.githubClient == nil {
-		// SECURITY: Fail closed in production. If the GitHub client failed to
-		// initialize (bad key, transient error), deny access rather than serving
-		// anyone's data to any authenticated caller. Only allow through in local
-		// dev where SAML infrastructure is unavailable.
-		if h.environment != "local" {
-			slog.Error("Ownership check unavailable: githubClient is nil in non-local environment")
-			respondError(w, "service_unavailable", "Ownership verification temporarily unavailable", http.StatusServiceUnavailable)
-			return false
-		}
-		return true
-	}
-
-	user, ok := getUserFromContext(r.Context())
-	if !ok || user == nil {
-		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
-		return false
-	}
-
-	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
-	if err != nil {
-		slog.Error("Failed to verify caller identity via SAML", "error", err)
-		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
-		return false
-	}
-	if resolvedUsername == "" {
-		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
-		return false
-	}
-	if !strings.EqualFold(resolvedUsername, requestedUsername) {
-		slog.Warn("Per-user read denied: username mismatch",
-			"requested_username", requestedUsername,
-			"actor_navident", user.NAVident,
-		)
-		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
-		return false
-	}
-	return true
-}
-
-// verifyCopilotCLIOnBehalfOf trusts the X-On-Behalf-Of header as the caller's
-// verified GitHub username, for requests already authenticated as copilot-cli
-// (see verifyUsernameOwnership). copilot-cli validates the developer's GitHub
-// token and navikt org membership itself before setting this header, so no
-// further identity lookup is needed here — but the header must be present and
-// must match the requested path username.
-func (h *BigQueryHandlers) verifyCopilotCLIOnBehalfOf(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
-	onBehalfOf := r.Header.Get("X-On-Behalf-Of")
-	if onBehalfOf == "" {
-		slog.Warn("copilot-cli request missing X-On-Behalf-Of header")
-		respondError(w, "unauthorized", "Missing X-On-Behalf-Of header", http.StatusUnauthorized)
-		return false
-	}
-	if !strings.EqualFold(onBehalfOf, requestedUsername) {
-		slog.Warn("Per-user read denied: copilot-cli on-behalf-of mismatch",
-			"requested_username", requestedUsername,
-			"on_behalf_of", onBehalfOf,
-		)
-		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
-		return false
-	}
-	return true
-}
-
-// logIdentityShadowComparison compares the legacy verifyUsernameOwnership
-// verdict against what the new IdentityResolver-based chain (see identity.go)
-// would have decided for the same request, and logs any disagreement. This
-// is pure observability — it never affects the response written to the
-// client and is a no-op unless setIdentityChain has been called (Phase 2 of
-// the auth architecture migration; see identity.go).
-//
-// A mismatch here indicates a bug in one of the two implementations and
-// should be investigated before Phase 3 removes the legacy path.
-func (h *BigQueryHandlers) logIdentityShadowComparison(r *http.Request, requestedUsername string, legacyVerified bool) {
-	if h.identityChain == nil {
-		return
-	}
-	user, ok := getUserFromContext(r.Context())
-	if !ok || user == nil {
-		return
-	}
-
-	identity, err := h.identityChain.Resolve(r.Context(), user, r)
-	newVerified := err == nil && strings.EqualFold(identity.GitHubUsername, requestedUsername)
-
-	if newVerified != legacyVerified {
-		slog.Warn("Identity resolution shadow-mode mismatch",
-			"requested_username", requestedUsername,
-			"legacy_verified", legacyVerified,
-			"new_verified", newVerified,
-			"new_resolve_error", errString(err),
-		)
-		return
-	}
-	slog.Debug("Identity resolution shadow-mode match",
-		"requested_username", requestedUsername,
-		"verified", legacyVerified,
-	)
-}
-
-// errString safely renders an error for structured logging, returning "" for nil.
-func errString(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
-}
-
 func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxValue int) (int, bool) {
 	value := r.URL.Query().Get(name)
 	if value == "" {
@@ -198,7 +61,7 @@ func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if !h.verifyUsernameOwnership(w, r, username) {
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
@@ -323,7 +186,7 @@ func (h *BigQueryHandlers) handleUserWeeklyTrends(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !h.verifyUsernameOwnership(w, r, username) {
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
@@ -351,7 +214,7 @@ func (h *BigQueryHandlers) handleUserDailyCredits(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !h.verifyUsernameOwnership(w, r, username) {
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
