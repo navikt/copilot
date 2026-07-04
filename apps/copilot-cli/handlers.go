@@ -40,7 +40,16 @@ func makeRouter(cfg *Config, gh *GitHubClient, cache *orgMembershipCache, proxy 
 	}
 
 	mux.HandleFunc("/api/v1/usage", auth(func(w http.ResponseWriter, r *http.Request) {
-		user, _ := userFromContext(r.Context())
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		user, ok := userFromContext(r.Context())
+		if !ok {
+			writeAuthError(w, http.StatusInternalServerError, "missing authenticated user in context")
+			return
+		}
 		proxy.forward(usagePath(user.Login))(w, r)
 	}))
 

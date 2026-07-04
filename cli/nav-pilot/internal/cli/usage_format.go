@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // formatUsageTerminal renders the usage summary as a human-friendly
@@ -60,12 +62,14 @@ func formatUsageTmux(u *usageResponse) string {
 	return fmt.Sprintf("Copilot %.0f%%", u.acceptanceRate())
 }
 
-// capitalize upper-cases the first rune of s, leaving the rest unchanged.
+// capitalize upper-cases the first rune of s (UTF-8 safe), leaving the rest
+// unchanged.
 func capitalize(s string) string {
 	if s == "" {
 		return s
 	}
-	return strings.ToUpper(s[:1]) + s[1:]
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 // progressBar renders a simple filled/empty block bar for percentage (0-100)

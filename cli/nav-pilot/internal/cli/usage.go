@@ -15,8 +15,9 @@ import (
 )
 
 // defaultCopilotCLIURL is the naisdevice-only ingress for the copilot-cli
-// gateway (see apps/copilot-cli). Overridable via the copilot_cli_url config
-// key for testing against a different environment (e.g. dev-gcp).
+// gateway (see apps/copilot-cli). Overridable via the NAV_PILOT_COPILOT_CLI_URL
+// environment variable for testing against a different environment (e.g.
+// dev-gcp).
 const defaultCopilotCLIURL = "https://copilot-cli.intern.nav.no"
 
 // usageResponse mirrors copilot-api's UserMetricsSummary JSON shape
