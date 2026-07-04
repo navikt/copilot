@@ -1,7 +1,6 @@
 import { Heading, BodyShort, Box, HGrid, Label } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
-import NextLink from "next/link";
 
 export default function ToolsAndModes() {
   return (
