@@ -41,11 +41,18 @@ func (o *OnBehalfOfIdentityResolver) CanResolve(user *User, _ *http.Request) boo
 }
 
 // Resolve trusts the X-On-Behalf-Of header value as the caller's GitHub
-// username. Returns ErrIdentityHeaderMissing if the header is absent.
+// username. Returns ErrIdentityHeaderMissing if the header is absent, or
+// ErrInvalidIdentityHeader if it isn't a well-formed GitHub username. This
+// validation is defense-in-depth: even a compromised or buggy trusted
+// intermediary can't inject malformed identifiers (e.g. control characters,
+// path separators) into downstream systems like the budget/BigQuery clients.
 func (o *OnBehalfOfIdentityResolver) Resolve(_ context.Context, _ *User, r *http.Request) (*ResolvedIdentity, error) {
 	username := strings.TrimSpace(r.Header.Get("X-On-Behalf-Of"))
 	if username == "" {
 		return nil, ErrIdentityHeaderMissing
+	}
+	if !isValidGitHubUsername(username) {
+		return nil, ErrInvalidIdentityHeader
 	}
 	return &ResolvedIdentity{GitHubUsername: username, Source: "on-behalf-of"}, nil
 }
