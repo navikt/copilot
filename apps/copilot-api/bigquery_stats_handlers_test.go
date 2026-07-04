@@ -1,14 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -22,173 +19,93 @@ func (m *mockBudgetGetter) getGlobalBudget(_ context.Context) (*GlobalBudget, er
 	return m.budget, m.err
 }
 
-func TestVerifyUsernameOwnership(t *testing.T) {
-	newRequestWithUser := func(user *User) *http.Request {
+// TestRequireOwnershipIntegration exercises the full IdentityMiddleware +
+// requireOwnership path used by handleUserMetrics/handleUserWeeklyTrends/
+// handleUserDailyCredits (Phase 3 of the auth architecture migration — see
+// identity.go, identity_middleware.go). Unit-level coverage of the
+// individual resolvers and requireOwnership itself lives in identity_test.go;
+// this test verifies they compose correctly through the middleware chain.
+func TestRequireOwnershipIntegration(t *testing.T) {
+	newRequest := func(user *User, onBehalfOf string) *http.Request {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
 		if user != nil {
 			req = req.WithContext(context.WithValue(req.Context(), userContextKey, user))
 		}
+		if onBehalfOf != "" {
+			req.Header.Set("X-On-Behalf-Of", onBehalfOf)
+		}
 		return req
 	}
 
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if requireOwnership(w, r, "hans") {
+			w.WriteHeader(http.StatusOK)
+		}
+	}
+
 	t.Run("copilot-cli azp with matching X-On-Behalf-Of succeeds", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setCopilotCLIClientID("copilot-cli-client-id")
+		chain := NewIdentityResolverChain(NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := IdentityMiddleware(chain, true)
 
-		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id"})
-		req.Header.Set("X-On-Behalf-Of", "hans")
 		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, "hans"))
 
-		if ok := h.verifyUsernameOwnership(rec, req, "hans"); !ok {
-			t.Fatalf("expected ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 	})
 
 	t.Run("copilot-cli azp with mismatched X-On-Behalf-Of is denied", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setCopilotCLIClientID("copilot-cli-client-id")
+		chain := NewIdentityResolverChain(NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := IdentityMiddleware(chain, true)
 
-		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id"})
-		req.Header.Set("X-On-Behalf-Of", "someone-else")
 		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, "someone-else"))
 
-		if ok := h.verifyUsernameOwnership(rec, req, "hans"); ok {
-			t.Fatal("expected ownership check to fail on username mismatch")
-		}
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("status: got %d, want %d", rec.Code, http.StatusForbidden)
 		}
 	})
 
 	t.Run("copilot-cli azp with missing X-On-Behalf-Of is rejected", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setCopilotCLIClientID("copilot-cli-client-id")
+		chain := NewIdentityResolverChain(NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := IdentityMiddleware(chain, true)
 
-		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id"})
 		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, ""))
 
-		if ok := h.verifyUsernameOwnership(rec, req, "hans"); ok {
-			t.Fatal("expected ownership check to fail without X-On-Behalf-Of header")
-		}
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("status: got %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 	})
 
 	t.Run("non-copilot-cli azp falls back to SAML lookup", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setCopilotCLIClientID("copilot-cli-client-id")
-		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
-		h.environment = "prod"
+		chain := NewIdentityResolverChain(
+			NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
+			NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
+		)
+		mw := IdentityMiddleware(chain, true)
 
-		req := newRequestWithUser(&User{AZP: "my-copilot-client-id", Email: "hans@nav.no"})
-		req.Header.Set("X-On-Behalf-Of", "attacker") // must be ignored for non-copilot-cli callers
+		req := newRequest(&User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "attacker") // header must be ignored
 		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
 
-		if ok := h.verifyUsernameOwnership(rec, req, "hans"); !ok {
-			t.Fatalf("expected SAML-based ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 	})
 
-	t.Run("copilotCLIClientID unset ignores X-On-Behalf-Of entirely", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
-		h.environment = "prod"
+	t.Run("copilot-cli resolver not registered ignores X-On-Behalf-Of entirely", func(t *testing.T) {
+		// Chain has only a SAML resolver wired (equivalent to CopilotCLIClientID being unset).
+		chain := NewIdentityResolverChain(NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}))
+		mw := IdentityMiddleware(chain, true)
 
-		req := newRequestWithUser(&User{AZP: "copilot-cli-client-id", Email: "hans@nav.no"})
-		req.Header.Set("X-On-Behalf-Of", "attacker")
+		req := newRequest(&User{AZP: "copilot-cli-client-id", Email: "hans@nav.no"}, "attacker")
 		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
 
-		// copilotCLIClientID is empty, so even a matching azp must not bypass SAML.
-		if ok := h.verifyUsernameOwnership(rec, req, "hans"); !ok {
-			t.Fatalf("expected SAML-based ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
-		}
-	})
-}
-
-// captureSlog temporarily redirects the default slog logger to a buffer for
-// the duration of fn, returning the captured output. Restores the previous
-// default logger afterward.
-func captureSlog(t *testing.T, fn func()) string {
-	t.Helper()
-	var buf bytes.Buffer
-	prev := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
-	defer slog.SetDefault(prev)
-	fn()
-	return buf.String()
-}
-
-func TestVerifyUsernameOwnershipShadowMode(t *testing.T) {
-	newRequestWithUser := func(user *User) *http.Request {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
-		if user != nil {
-			req = req.WithContext(context.WithValue(req.Context(), userContextKey, user))
-		}
-		return req
-	}
-
-	t.Run("shadow chain agreeing with legacy SAML result logs no mismatch and does not affect response", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
-		h.environment = "prod"
-		h.setIdentityChain(NewIdentityResolverChain(NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"})))
-
-		req := newRequestWithUser(&User{Email: "hans@nav.no"})
-		rec := httptest.NewRecorder()
-
-		var ok bool
-		logs := captureSlog(t, func() {
-			ok = h.verifyUsernameOwnership(rec, req, "hans")
-		})
-
-		if !ok {
-			t.Fatalf("expected ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
-		}
-		if strings.Contains(logs, "mismatch") {
-			t.Errorf("expected no shadow-mode mismatch log, got: %s", logs)
-		}
-	})
-
-	t.Run("shadow chain disagreeing with legacy result logs a mismatch but does not change the response", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
-		h.environment = "prod"
-		// Deliberately wire a chain that resolves a different username, to
-		// simulate a bug/divergence between legacy and new logic.
-		h.setIdentityChain(NewIdentityResolverChain(NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "someone-else"})))
-
-		req := newRequestWithUser(&User{Email: "hans@nav.no"})
-		rec := httptest.NewRecorder()
-
-		var ok bool
-		logs := captureSlog(t, func() {
-			ok = h.verifyUsernameOwnership(rec, req, "hans")
-		})
-
-		// The legacy result must still govern the actual response — shadow
-		// mode must never change client-visible behavior.
-		if !ok {
-			t.Fatalf("expected legacy ownership result to still be verified, got response %d: %s", rec.Code, rec.Body.String())
-		}
-		if !strings.Contains(logs, "Identity resolution shadow-mode mismatch") {
-			t.Errorf("expected a shadow-mode mismatch log, got: %s", logs)
-		}
-	})
-
-	t.Run("nil identity chain is a no-op", func(t *testing.T) {
-		h := newBigQueryHandlers(&mockBigQueryClient{})
-		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
-		h.environment = "prod"
-
-		req := newRequestWithUser(&User{Email: "hans@nav.no"})
-		rec := httptest.NewRecorder()
-
-		logs := captureSlog(t, func() {
-			h.verifyUsernameOwnership(rec, req, "hans")
-		})
-		if strings.Contains(logs, "shadow-mode") {
-			t.Errorf("expected no shadow-mode logging when identityChain is nil, got: %s", logs)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 	})
 }

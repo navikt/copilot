@@ -8,28 +8,14 @@ import (
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {
-	bqClient           BigQueryQuerier
-	budgetClient       globalBudgetGetter
-	activeSeatsGetter  func() int64
-	githubClient       GitHubAPI // for SAML ownership checks on per-user endpoints
-	environment        string    // "local", "dev", "prod" — controls fail-open behavior
-	copilotCLIClientID string    // azp of copilot-cli's M2M tokens; trusts X-On-Behalf-Of when it matches
-
-	// identityChain is the new IdentityResolver-based identity resolution
-	// path (see identity.go), run in shadow mode alongside the legacy
-	// verifyUsernameOwnership logic above. Nil until wired via
-	// setIdentityChain — when set, verifyUsernameOwnership logs any
-	// disagreement between the legacy result and the chain's result but
-	// does NOT change response behavior. This lets us validate the new
-	// abstraction against production traffic before Phase 3 cuts handlers
-	// over to rely on it directly.
-	identityChain *IdentityResolverChain
+	bqClient          BigQueryQuerier
+	budgetClient      globalBudgetGetter
+	activeSeatsGetter func() int64
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 	return &BigQueryHandlers{
-		bqClient:    bqClient,
-		environment: "local", // safe default; main.go overrides with actual NAIS_CLUSTER_NAME
+		bqClient: bqClient,
 		// Defaults to the real MetricsCollector singleton; tests can override
 		// this via setActiveSeatsGetter to avoid depending on global state.
 		activeSeatsGetter: func() int64 {
@@ -52,30 +38,6 @@ func (h *BigQueryHandlers) setBudgetClient(budgetClient globalBudgetGetter) {
 // depending on the metricsCollector global singleton.
 func (h *BigQueryHandlers) setActiveSeatsGetter(getter func() int64) {
 	h.activeSeatsGetter = getter
-}
-
-// setGitHubClient wires in the GitHub client so per-user read endpoints can
-// verify that the caller owns the requested username via SAML.
-func (h *BigQueryHandlers) setGitHubClient(client GitHubAPI) {
-	h.githubClient = client
-}
-
-// setCopilotCLIClientID configures the Entra ID client ID (azp) that
-// identifies copilot-cli's M2M tokens. When a request's authenticated azp
-// matches this value, verifyUsernameOwnership trusts the X-On-Behalf-Of
-// header instead of resolving the caller's GitHub username via SAML —
-// copilot-cli has already validated the developer's GitHub token and org
-// membership before forwarding the request.
-func (h *BigQueryHandlers) setCopilotCLIClientID(clientID string) {
-	h.copilotCLIClientID = clientID
-}
-
-// setIdentityChain wires in the new IdentityResolver-based identity chain
-// for shadow-mode comparison against the legacy verifyUsernameOwnership
-// logic (see the identityChain field doc comment, and identity.go). Passing
-// nil disables shadow-mode comparison (the default).
-func (h *BigQueryHandlers) setIdentityChain(chain *IdentityResolverChain) {
-	h.identityChain = chain
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {

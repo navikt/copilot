@@ -4,57 +4,31 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 )
 
 // BudgetHandlers handles the enterprise AI credit budget endpoint.
 type BudgetHandlers struct {
 	budgetClient *BudgetClient
-	githubClient GitHubAPI
-
-	// identityChain enables shadow-mode comparison logging, same as
-	// BigQueryHandlers.identityChain (see identity.go and
-	// logIdentityShadowComparison in bigquery_stats_handlers.go). Nil by
-	// default (disabled).
-	identityChain *IdentityResolverChain
 }
 
-func newBudgetHandlers(budgetClient *BudgetClient, githubClient GitHubAPI) *BudgetHandlers {
+func newBudgetHandlers(budgetClient *BudgetClient) *BudgetHandlers {
 	return &BudgetHandlers{
 		budgetClient: budgetClient,
-		githubClient: githubClient,
 	}
-}
-
-// setIdentityChain wires in the new IdentityResolver-based identity chain
-// for shadow-mode comparison against the legacy SAML lookup in
-// handleGetBudget. Passing nil disables shadow-mode comparison (the default).
-func (h *BudgetHandlers) setIdentityChain(chain *IdentityResolverChain) {
-	h.identityChain = chain
 }
 
 // handleGetBudget handles GET /api/v1/copilot/budget.
-// Resolves the authenticated user's GitHub username via SAML and returns their AI credit budget.
+// Relies on IdentityMiddleware (see identity_middleware.go) having already
+// resolved the caller's GitHub username — mechanism-agnostic, works
+// identically whether resolution came from SAML or X-On-Behalf-Of.
 func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request) {
-	user, ok := getUserFromContext(r.Context())
+	identity, ok := GetResolvedIdentity(r.Context())
 	if !ok {
-		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		respondError(w, "unauthorized", "Caller identity could not be determined", http.StatusUnauthorized)
 		return
 	}
 
-	username, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
-	if err != nil {
-		slog.Error("Failed to resolve GitHub username via SAML", "error", err)
-		respondError(w, "saml_error", "Failed to resolve GitHub identity", http.StatusInternalServerError)
-		return
-	}
-	if username == "" {
-		respondError(w, "not_found", "GitHub account not linked to Nav organisation", http.StatusNotFound)
-		return
-	}
-	h.logIdentityShadowComparison(r, user, username)
-
-	budget, err := h.budgetClient.getUserBudget(r.Context(), username)
+	budget, err := h.budgetClient.getUserBudget(r.Context(), identity.GitHubUsername)
 	if err != nil {
 		if errors.Is(err, errBudgetNotFound) {
 			respondError(w, "not_found", "No budget data found", http.StatusNotFound)
@@ -70,7 +44,7 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 }
 
 // handleGetGlobalBudget handles GET /api/v1/copilot/budget/global.
-// Returns the enterprise-wide default AI credit budget (no SAML lookup required).
+// Returns the enterprise-wide default AI credit budget (no identity resolution required).
 func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Request) {
 	budget, err := h.budgetClient.getGlobalBudget(r.Context())
 	if err != nil {
@@ -94,30 +68,4 @@ func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Re
 
 	cacheControl(w, 30*60, true) // public — same for all users
 	respondJSON(w, budget, http.StatusOK)
-}
-
-// logIdentityShadowComparison compares the legacy SAML-resolved username
-// used by handleGetBudget against what the new IdentityResolver-based chain
-// would resolve, and logs any disagreement. Pure observability — see the
-// equivalent method on BigQueryHandlers in bigquery_stats_handlers.go for
-// full rationale. No-op unless setIdentityChain has been called.
-func (h *BudgetHandlers) logIdentityShadowComparison(r *http.Request, user *User, legacyUsername string) {
-	if h.identityChain == nil {
-		return
-	}
-	identity, err := h.identityChain.Resolve(r.Context(), user, r)
-	newUsername := ""
-	if err == nil {
-		newUsername = identity.GitHubUsername
-	}
-
-	if !strings.EqualFold(newUsername, legacyUsername) {
-		slog.Warn("Identity resolution shadow-mode mismatch (budget)",
-			"legacy_username", legacyUsername,
-			"new_username", newUsername,
-			"new_resolve_error", errString(err),
-		)
-		return
-	}
-	slog.Debug("Identity resolution shadow-mode match (budget)", "username", legacyUsername)
 }
