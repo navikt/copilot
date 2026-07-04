@@ -10,6 +10,8 @@ import (
 
 // githubAPIBaseURL is the GitHub REST API base, overridable in tests to
 // point at an httptest server instead of the real api.github.com.
+// Test-only mutable package var; not safe for concurrent/parallel test use —
+// no test in this package uses t.Parallel(), and this must stay that way.
 var githubAPIBaseURL = "https://api.github.com"
 
 // githubUserInfo is the subset of GitHub's GET /user response nav-pilot needs

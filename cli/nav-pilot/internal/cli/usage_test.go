@@ -11,7 +11,7 @@ import (
 )
 
 func TestFormatNorwegianNumber(t *testing.T) {
-	cases := map[int]string{
+	cases := map[int64]string{
 		0:       "0",
 		42:      "42",
 		999:     "999",
@@ -56,29 +56,54 @@ func TestCapitalize(t *testing.T) {
 }
 
 func TestFormatUsageTerminalDoesNotPanic(t *testing.T) {
-	u := &usageResponse{Period: "November 2025"}
-	u.Credits.Used = 4500
-	u.Credits.Limit = 10000
-	u.Credits.Percentage = 45
-	u.Interactions.Total = 320
-	u.Interactions.Accepted = 210
-	u.Interactions.AcceptanceRate = 65.6
-	u.ActiveDays = 18
-	u.Subscription.Status = "active"
+	u := &usageResponse{
+		UserLogin:           "starefossen",
+		TotalAcceptances:    210,
+		TotalInteractions:   320,
+		TotalGenerations:    350,
+		TotalLinesSuggested: 4500,
+		TotalLinesAccepted:  3800,
+		ActiveDays:          18,
+		DaysInPeriod:        30,
+		CLITotalRequests:    42,
+		CLISessions:         12,
+		TopModels: []usageModel{
+			{Model: "gpt-5", Interactions: 200},
+			{Model: "claude-sonnet-5", Interactions: 120},
+		},
+		Teams: []string{"team-a", "team-b"},
+	}
 
 	out := formatUsageTerminal(u)
-	if !strings.Contains(out, "4 500") || !strings.Contains(out, "10 000") {
-		t.Errorf("expected formatted credit numbers in output: %s", out)
+	if !strings.Contains(out, "4 500") || !strings.Contains(out, "3 800") {
+		t.Errorf("expected formatted line-count numbers in output: %s", out)
 	}
-	if !strings.Contains(out, "45%") {
-		t.Errorf("expected percentage in output: %s", out)
+	if !strings.Contains(out, "starefossen") {
+		t.Errorf("expected username in output: %s", out)
+	}
+	if !strings.Contains(out, "gpt-5") || !strings.Contains(out, "claude-sonnet-5") {
+		t.Errorf("expected top models in output: %s", out)
+	}
+	if !strings.Contains(out, "team-a") {
+		t.Errorf("expected teams in output: %s", out)
+	}
+}
+
+func TestAcceptanceRate(t *testing.T) {
+	u := &usageResponse{TotalAcceptances: 50, TotalGenerations: 200}
+	if got := u.acceptanceRate(); got != 25 {
+		t.Errorf("acceptanceRate() = %v, want 25", got)
+	}
+
+	zero := &usageResponse{}
+	if got := zero.acceptanceRate(); got != 0 {
+		t.Errorf("acceptanceRate() with no generations = %v, want 0", got)
 	}
 }
 
 func TestFormatUsageTmux(t *testing.T) {
-	u := &usageResponse{}
-	u.Credits.Percentage = 72
-	if got := formatUsageTmux(u); got != "Copilot 72%" {
+	u := &usageResponse{TotalAcceptances: 36, TotalGenerations: 100}
+	if got := formatUsageTmux(u); got != "Copilot 36%" {
 		t.Errorf("formatUsageTmux = %q", got)
 	}
 }
@@ -105,7 +130,7 @@ func TestFetchUsage(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"username":"starefossen","period":"November 2025","credits":{"used":100,"limit":1000,"percentage":10}}`))
+		_, _ = w.Write([]byte(`{"user_login":"starefossen","total_acceptances":100,"total_generations":400,"active_days":5}`))
 	}))
 	defer server.Close()
 
@@ -113,7 +138,7 @@ func TestFetchUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fetchUsage: %v", err)
 	}
-	if usage.Username != "starefossen" || usage.Credits.Used != 100 {
+	if usage.UserLogin != "starefossen" || usage.TotalAcceptances != 100 {
 		t.Fatalf("unexpected usage: %+v", usage)
 	}
 
@@ -146,7 +171,7 @@ func TestCmdUsageLoggedIn(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"username":"starefossen","period":"November 2025","credits":{"used":100,"limit":1000,"percentage":10}}`))
+		_, _ = w.Write([]byte(`{"user_login":"starefossen","total_acceptances":100,"total_generations":400,"active_days":5}`))
 	}))
 	defer server.Close()
 
