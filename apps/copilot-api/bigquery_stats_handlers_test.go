@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -99,6 +102,93 @@ func TestVerifyUsernameOwnership(t *testing.T) {
 		// copilotCLIClientID is empty, so even a matching azp must not bypass SAML.
 		if ok := h.verifyUsernameOwnership(rec, req, "hans"); !ok {
 			t.Fatalf("expected SAML-based ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+// captureSlog temporarily redirects the default slog logger to a buffer for
+// the duration of fn, returning the captured output. Restores the previous
+// default logger afterward.
+func captureSlog(t *testing.T, fn func()) string {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer slog.SetDefault(prev)
+	fn()
+	return buf.String()
+}
+
+func TestVerifyUsernameOwnershipShadowMode(t *testing.T) {
+	newRequestWithUser := func(user *User) *http.Request {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
+		if user != nil {
+			req = req.WithContext(context.WithValue(req.Context(), userContextKey, user))
+		}
+		return req
+	}
+
+	t.Run("shadow chain agreeing with legacy SAML result logs no mismatch and does not affect response", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
+		h.environment = "prod"
+		h.setIdentityChain(NewIdentityResolverChain(NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"})))
+
+		req := newRequestWithUser(&User{Email: "hans@nav.no"})
+		rec := httptest.NewRecorder()
+
+		var ok bool
+		logs := captureSlog(t, func() {
+			ok = h.verifyUsernameOwnership(rec, req, "hans")
+		})
+
+		if !ok {
+			t.Fatalf("expected ownership to be verified, got response %d: %s", rec.Code, rec.Body.String())
+		}
+		if strings.Contains(logs, "mismatch") {
+			t.Errorf("expected no shadow-mode mismatch log, got: %s", logs)
+		}
+	})
+
+	t.Run("shadow chain disagreeing with legacy result logs a mismatch but does not change the response", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
+		h.environment = "prod"
+		// Deliberately wire a chain that resolves a different username, to
+		// simulate a bug/divergence between legacy and new logic.
+		h.setIdentityChain(NewIdentityResolverChain(NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "someone-else"})))
+
+		req := newRequestWithUser(&User{Email: "hans@nav.no"})
+		rec := httptest.NewRecorder()
+
+		var ok bool
+		logs := captureSlog(t, func() {
+			ok = h.verifyUsernameOwnership(rec, req, "hans")
+		})
+
+		// The legacy result must still govern the actual response — shadow
+		// mode must never change client-visible behavior.
+		if !ok {
+			t.Fatalf("expected legacy ownership result to still be verified, got response %d: %s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(logs, "Identity resolution shadow-mode mismatch") {
+			t.Errorf("expected a shadow-mode mismatch log, got: %s", logs)
+		}
+	})
+
+	t.Run("nil identity chain is a no-op", func(t *testing.T) {
+		h := newBigQueryHandlers(&mockBigQueryClient{})
+		h.setGitHubClient(&mockGitHubClient{samlUsername: "hans"})
+		h.environment = "prod"
+
+		req := newRequestWithUser(&User{Email: "hans@nav.no"})
+		rec := httptest.NewRecorder()
+
+		logs := captureSlog(t, func() {
+			h.verifyUsernameOwnership(rec, req, "hans")
+		})
+		if strings.Contains(logs, "shadow-mode") {
+			t.Errorf("expected no shadow-mode logging when identityChain is nil, got: %s", logs)
 		}
 	})
 }
