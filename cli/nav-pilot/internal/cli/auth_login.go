@@ -18,6 +18,13 @@ const navPilotGitHubOrg = "navikt"
 // the OS keychain (macOS Keychain / Windows Credential Manager / Linux
 // libsecret via go-keyring).
 func cmdAuthLogin() error {
+	// The bundled client ID is a placeholder — no GitHub App is provisioned
+	// yet (see issue #337). Starting the device flow with it just yields a raw
+	// GitHub 4xx, so fail fast with an actionable message instead.
+	if navPilotGitHubClientID() == navPilotGitHubClientIDDefault {
+		return fmt.Errorf("ingen GitHub App er provisjonert for nav-pilot ennå — sett NAV_PILOT_GITHUB_CLIENT_ID til klient-ID-en for en GitHub App/OAuth App med device flow aktivert (se issue #337)")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 

@@ -90,19 +90,33 @@ func TestSAMLIdentityResolverResolve(t *testing.T) {
 
 func TestOnBehalfOfIdentityResolverCanResolve(t *testing.T) {
 	r := NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true})
+	get := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	if r.CanResolve(&User{AZP: "copilot-cli-client-id"}, nil) != true {
-		t.Error("expected CanResolve true for trusted azp")
+	if r.CanResolve(&User{AZP: "copilot-cli-client-id"}, get) != true {
+		t.Error("expected CanResolve true for trusted azp on GET")
 	}
-	if r.CanResolve(&User{AZP: "some-other-client"}, nil) != false {
+	if r.CanResolve(&User{AZP: "some-other-client"}, get) != false {
 		t.Error("expected CanResolve false for untrusted azp")
 	}
-	if r.CanResolve(nil, nil) != false {
+	if r.CanResolve(nil, get) != false {
 		t.Error("expected CanResolve false for nil user")
+	}
+	if r.CanResolve(&User{AZP: "copilot-cli-client-id"}, nil) != false {
+		t.Error("expected CanResolve false for nil request")
+	}
+
+	// Trust is scoped to read-only routes: write methods must never match,
+	// even for a trusted azp, so a compromised intermediary can't mutate
+	// arbitrary users' resources (e.g. seats) via X-On-Behalf-Of.
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut, http.MethodPatch} {
+		req := httptest.NewRequest(method, "/", nil)
+		if r.CanResolve(&User{AZP: "copilot-cli-client-id"}, req) != false {
+			t.Errorf("expected CanResolve false for trusted azp on %s (read-only trust)", method)
+		}
 	}
 
 	empty := NewOnBehalfOfIdentityResolver(nil)
-	if empty.CanResolve(&User{AZP: "copilot-cli-client-id"}, nil) != false {
+	if empty.CanResolve(&User{AZP: "copilot-cli-client-id"}, get) != false {
 		t.Error("expected CanResolve false when trustedClientIDs is empty/nil")
 	}
 }
@@ -199,6 +213,22 @@ func TestIdentityResolverChain(t *testing.T) {
 			t.Fatalf("expected ErrNoApplicableResolver, got %v", err)
 		}
 	})
+
+	// A trusted intermediary with a valid X-On-Behalf-Of header must NOT be
+	// able to resolve identity on write routes: the M2M token has no email
+	// for SAML to fall back to, so the chain fails closed (401) for POST and
+	// DELETE. This bounds the blast radius of a compromised copilot-cli to the
+	// single read-only route it legitimately proxies.
+	for _, method := range []string{http.MethodPost, http.MethodDelete} {
+		t.Run("write method with trusted azp is not resolved: "+method, func(t *testing.T) {
+			req := httptest.NewRequest(method, "/api/v1/copilot/seats", nil)
+			req.Header.Set("X-On-Behalf-Of", "hans")
+			_, err := chain.Resolve(context.Background(), &User{AZP: "copilot-cli-client-id"}, req)
+			if !errors.Is(err, ErrNoApplicableResolver) {
+				t.Fatalf("expected ErrNoApplicableResolver for %s, got %v", method, err)
+			}
+		})
+	}
 
 	t.Run("empty chain always fails", func(t *testing.T) {
 		empty := NewIdentityResolverChain()
@@ -397,6 +427,65 @@ func TestWriteIdentityResolutionError(t *testing.T) {
 			body := rec.Body.String()
 			if !strings.Contains(body, tc.wantType) {
 				t.Errorf("body %q does not contain expected type %q", body, tc.wantType)
+			}
+		})
+	}
+}
+
+func TestTrustedClientIDForApp(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:  "valid entry matched on final name segment",
+			input: `[{"name":"dev-gcp:copilot:copilot-cli","clientId":"cli-uuid"}]`,
+			want:  "cli-uuid",
+		},
+		{
+			name:  "no matching app name",
+			input: `[{"name":"dev-gcp:copilot:my-copilot","clientId":"other-uuid"}]`,
+			want:  "",
+		},
+		{
+			name:  "empty input",
+			input: "",
+			want:  "",
+		},
+		{
+			name:    "malformed JSON fails closed with error",
+			input:   `[{"name":`,
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name:  "multiple matches fail closed (ambiguous)",
+			input: `[{"name":"dev-gcp:copilot:copilot-cli","clientId":"a"},{"name":"prod-gcp:copilot:copilot-cli","clientId":"b"}]`,
+			want:  "",
+		},
+		{
+			name:  "entry with empty clientId is ignored",
+			input: `[{"name":"dev-gcp:copilot:copilot-cli","clientId":""}]`,
+			want:  "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := trustedClientIDForApp(tc.input, "copilot-cli")
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected an error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("trustedClientIDForApp() = %q, want %q", got, tc.want)
 			}
 		})
 	}

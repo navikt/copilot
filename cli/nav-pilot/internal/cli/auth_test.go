@@ -134,6 +134,7 @@ func TestFormatSecondsRemaining(t *testing.T) {
 
 func TestCmdAuthLoginSuccess(t *testing.T) {
 	keyring.MockInit()
+	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", "Iv1.test-client")
 
 	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -181,6 +182,7 @@ func TestCmdAuthLoginSuccess(t *testing.T) {
 
 func TestCmdAuthLoginNotOrgMember(t *testing.T) {
 	keyring.MockInit()
+	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", "Iv1.test-client")
 
 	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -218,6 +220,21 @@ func TestCmdAuthLoginNotOrgMember(t *testing.T) {
 	// just a local warning, not a hard failure.
 	if err := cmdAuthLogin(); err != nil {
 		t.Fatalf("cmdAuthLogin should not fail on non-membership: %v", err)
+	}
+}
+
+func TestCmdAuthLoginPlaceholderClientID(t *testing.T) {
+	keyring.MockInit()
+	// An empty override resolves to the placeholder default, which means no
+	// GitHub App is provisioned — login must fail fast before any network call.
+	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", "")
+
+	err := cmdAuthLogin()
+	if err == nil {
+		t.Fatal("expected error when client ID is the placeholder default")
+	}
+	if !strings.Contains(err.Error(), "NAV_PILOT_GITHUB_CLIENT_ID") {
+		t.Errorf("error should mention the env var to set, got: %v", err)
 	}
 }
 

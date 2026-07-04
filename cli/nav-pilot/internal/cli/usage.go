@@ -139,7 +139,7 @@ func fetchUsage(ctx context.Context, baseURL, githubToken string) (*usageRespons
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("copilot-cli returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, usageHTTPError(resp.StatusCode, body)
 	}
 
 	var usage usageResponse
@@ -147,4 +147,53 @@ func fetchUsage(ctx context.Context, baseURL, githubToken string) (*usageRespons
 		return nil, fmt.Errorf("decoding usage response: %w", err)
 	}
 	return &usage, nil
+}
+
+// cliErrorBody captures the error payloads nav-pilot can receive from a
+// non-200 response: copilot-cli responds {"error":"..."}, while copilot-api
+// (proxied through copilot-cli) uses RFC 7807 problem+json with a "detail"
+// field (see apps/copilot-api/handlers.go respondError). Parsing both lets us
+// surface the underlying reason regardless of which service produced it.
+type cliErrorBody struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+	Detail  string `json:"detail"`
+}
+
+// detail returns the most specific human-readable reason present, or "".
+func (e cliErrorBody) detail() string {
+	switch {
+	case e.Error != "":
+		return e.Error
+	case e.Message != "":
+		return e.Message
+	case e.Detail != "":
+		return e.Detail
+	default:
+		return ""
+	}
+}
+
+// usageHTTPError maps a non-200 response from copilot-cli into an actionable,
+// user-facing Norwegian error. 401 is the common path (a locally-unexpired but
+// server-rejected GitHub token), so it gets concrete recovery guidance rather
+// than a raw status + JSON body dump.
+func usageHTTPError(status int, body []byte) error {
+	var parsed cliErrorBody
+	_ = json.Unmarshal(body, &parsed)
+	reason := parsed.detail()
+
+	switch status {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("ugyldig eller utløpt GitHub-token — kjør 'nav-pilot auth login' for å logge inn på nytt")
+	case http.StatusForbidden:
+		return fmt.Errorf("tilgang nektet — du er sannsynligvis ikke medlem av navikt-organisasjonen på GitHub. Sjekk 'nav-pilot auth status'")
+	case http.StatusNotFound:
+		return fmt.Errorf("ingen bruksdata er registrert ennå — dette er normalt første gang du bruker Copilot, prøv igjen senere")
+	default:
+		if reason != "" {
+			return fmt.Errorf("uventet svar fra copilot-cli (status %d): %s", status, reason)
+		}
+		return fmt.Errorf("uventet svar fra copilot-cli (status %d)", status)
+	}
 }
