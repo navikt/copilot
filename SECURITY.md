@@ -136,12 +136,13 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
   `.intern.nav.no` ingress, which requires naisdevice.
 - Outbound: copilot-api (service discovery) + `api.github.com` / `github.com`.
 
-> **Status:** copilot-api trusts `X-On-Behalf-Of` once `COPILOT_CLI_CLIENT_ID`
-> is set (see `apps/copilot-api/bigquery_stats_handlers.go`
-> `verifyUsernameOwnership`). That env var is empty by default and must be set
-> manually via NAIS secret after copilot-cli's Azure AD app is provisioned —
-> see `apps/copilot-api/.nais/dev-gcp.yaml` for the exact steps required
-> before end-to-end testing works.
+> **Status:** copilot-api trusts `X-On-Behalf-Of` via its Identity Resolver
+> architecture (see `apps/copilot-api/ARCHITECTURE.md`). The
+> `OnBehalfOfIdentityResolver` activates when `COPILOT_CLI_CLIENT_ID` matches
+> the calling token's `azp` claim; the header value is format-validated
+> against GitHub's username rules before being accepted. The env var is empty
+> by default — copilot-cli's Azure AD app must be provisioned and its client
+> ID configured in copilot-api before end-to-end flow works.
 
 ### my-copilot (`apps/my-copilot/.nais/app.yaml`)
 
