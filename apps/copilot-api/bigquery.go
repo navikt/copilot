@@ -659,7 +659,13 @@ func (c *CachedBigQueryClient) Close() {
 }
 
 // devQueryHandler handles POST /dev/query — accepts {"sql":"..."} and returns JSON rows.
-// Only registered in local dev mode (no auth middleware applied).
+//
+// SECURITY: this handler intentionally executes caller-provided SQL without
+// authentication (accepted CodeQL finding — it is a local development
+// convenience, not a production endpoint). It is double-gated in
+// registerDevRoutes (main.go): it is only registered when Environment is
+// "local" AND ENABLE_DEV_QUERY=true is set explicitly, so it can never be
+// exposed by a deployment that merely lost an env var.
 func (c *BigQueryClient) devQueryHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
