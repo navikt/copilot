@@ -3,3 +3,13 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+# Security overrides for transitive dependencies pinned by their parents —
+# scoped to the vulnerable ranges so they become no-ops once parents catch up.
+overrides:
+  # Dependabot alert #92: postcss XSS via unescaped </style>; next@16.2.7 pins postcss 8.4.31 exactly
+  "postcss@<8.5.10": "8.5.15"
+  # Dependabot alert #130: esbuild dev-server file read on Windows; storybook@10.4.5 caps esbuild at ^0.27.0
+  "esbuild@>=0.27.3 <0.28.1": "0.28.1"
+  # Dependabot alert #133: @opentelemetry/core unbounded memory in W3C Baggage propagation; @opentelemetry 0.218.0 packages pin core 2.7.1 exactly
+  "@opentelemetry/core@<2.8.0": "2.8.0"
