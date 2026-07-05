@@ -1,0 +1,414 @@
+# Merge-queue-compatible CI gate for the monorepo.
+#
+# Runs on every pull request AND on merge_group (merge queue) entries,
+# detects which components changed (dorny/paths-filter — merge_group is not
+# supported by path filters in `on:`), runs only the affected components'
+# check tasks, and reports a single check named `ci-ok`.
+#
+# `ci-ok` is intended to be the single required status check in the branch
+# ruleset. It succeeds when every needed job succeeded or was skipped
+# (including the nothing-changed case) and fails if anything failed or was
+# cancelled.
+#
+# The per-component workflows (copilot-api.yaml, my-copilot.yaml, ...) still
+# run on pull_request/push for PR-preview deploys and post-merge deploys —
+# they are intentionally NOT required checks and do NOT run in the queue.
+
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel merge_group runs; superseded PR runs are safe to cancel.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      copilot-adoption: ${{ steps.filter.outputs.copilot-adoption }}
+      copilot-api: ${{ steps.filter.outputs.copilot-api }}
+      copilot-metrics: ${{ steps.filter.outputs.copilot-metrics }}
+      mcp-onboarding: ${{ steps.filter.outputs.mcp-onboarding }}
+      mcp-registry: ${{ steps.filter.outputs.mcp-registry }}
+      my-copilot: ${{ steps.filter.outputs.my-copilot }}
+      nav-pilot: ${{ steps.filter.outputs.nav-pilot }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      # Full history so paths-filter can diff merge_group base..head with git.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+      # v4.0.1+ is required for native merge_group support (v3 has none).
+      # Each filter mirrors the component workflow's own on.pull_request.paths,
+      # plus this workflow file so editing the gate re-tests everything.
+      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # ratchet:dorny/paths-filter@v4.0.2
+        id: filter
+        with:
+          filters: |
+            copilot-adoption:
+              - 'apps/copilot-adoption/**'
+              - '.github/workflows/copilot-adoption.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            copilot-api:
+              - 'apps/copilot-api/**'
+              - '.github/workflows/copilot-api.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            copilot-metrics:
+              - 'apps/copilot-metrics/**'
+              - '.github/workflows/copilot-metrics.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            mcp-onboarding:
+              - 'apps/mcp-onboarding/**'
+              - 'agents/**'
+              - 'instructions/**'
+              - 'prompts/**'
+              - 'skills/**'
+              - '.github/workflows/mcp-onboarding.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            mcp-registry:
+              - 'apps/mcp-registry/**'
+              - '.github/workflows/mcp-registry.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            my-copilot:
+              - 'apps/my-copilot/**'
+              - 'docs/news/**/*.md'
+              - 'agents/**'
+              - 'instructions/**'
+              - 'prompts/**'
+              - 'skills/**'
+              - '.github/workflows/my-copilot.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            nav-pilot:
+              - 'cli/nav-pilot/**'
+              - 'scripts/install.sh'
+              - 'scripts/install.bats'
+              - 'skills/**'
+              - 'agents/**'
+              - 'collections/**'
+              - 'instructions/**'
+              - 'prompts/**'
+              - '.github/workflows/nav-pilot-ci.yaml'
+              - '.github/workflows/ci.yaml'
+            docs:
+              - 'agents/**'
+              - 'instructions/**'
+              - 'prompts/**'
+              - 'skills/**'
+              - 'docs/**'
+              - 'README.md'
+              - 'scripts/generate-docs/**'
+              - '.github/workflows/docs.yaml'
+              - '.github/workflows/ci.yaml'
+
+  # ── mise-based app checks ──────────────────────────────────────────────────
+  # Each job replicates the Check job of the reusable mise-build-deploy-nais
+  # workflow for that app: mise setup ("install") followed by the same
+  # mise-tasks the component workflow passes ("lint", "check").
+  # No docker build, no deploy.
+
+  copilot-adoption:
+    name: copilot-adoption
+    needs: changes
+    if: needs.changes.outputs.copilot-adoption == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/copilot-adoption
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  copilot-api:
+    name: copilot-api
+    needs: changes
+    if: needs.changes.outputs.copilot-api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/copilot-api
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  copilot-metrics:
+    name: copilot-metrics
+    needs: changes
+    if: needs.changes.outputs.copilot-metrics == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/copilot-metrics
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  mcp-onboarding:
+    name: mcp-onboarding
+    needs: changes
+    if: needs.changes.outputs.mcp-onboarding == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mcp-onboarding
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  mcp-registry:
+    name: mcp-registry
+    needs: changes
+    if: needs.changes.outputs.mcp-registry == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mcp-registry
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  my-copilot:
+    name: my-copilot
+    needs: changes
+    if: needs.changes.outputs.my-copilot == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/my-copilot
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  # ── nav-pilot installer CLI ────────────────────────────────────────────────
+  # Mirrors nav-pilot-ci.yaml's build-and-test, shellcheck and bats jobs
+  # (including the coverage floor). The e2e installer matrix stays in
+  # nav-pilot-ci.yaml only.
+
+  nav-pilot:
+    name: nav-pilot
+    needs: changes
+    if: needs.changes.outputs.nav-pilot == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # ratchet:actions/setup-go@v6.5.0
+        with:
+          go-version-file: cli/nav-pilot/go.mod
+          cache: true
+      - name: Build
+        run: cd cli/nav-pilot && go build -o nav-pilot .
+      - name: Test and Coverage
+        run: |
+          cd cli/nav-pilot && go test -race -v -coverpkg=./... -coverprofile=cover.out ./...
+          go tool cover -func=cover.out
+          total=$(go tool cover -func=cover.out | awk '/^total:/ {gsub(/%/, "", $NF); print $NF}')
+          floor=65
+          awk -v t="$total" -v f="$floor" 'BEGIN {
+            if (t + 0 < f + 0) {
+              print "ERROR: coverage " t "% is below floor " f "%"
+              exit 1
+            }
+            print "Coverage " t "% meets floor " f "%"
+          }'
+          rm -f cover.out
+      - name: Vet
+        run: cd cli/nav-pilot && go vet ./...
+      - name: Staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+          cd cli/nav-pilot && staticcheck ./...
+      - name: ShellCheck
+        run: shellcheck scripts/install.sh
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # ratchet:jdx/mise-action@v4.2.0
+        with:
+          experimental: true
+      - name: Run BATS
+        run: mise exec -- bats scripts/install.bats
+
+  # ── docs and skills content checks ─────────────────────────────────────────
+  # Mirrors docs.yaml's "Docs in sync" and "Skills quality" jobs.
+
+  docs:
+    name: docs
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # ratchet:actions/setup-go@v6.5.0
+        with:
+          go-version-file: scripts/generate-docs/go.mod
+      - name: Docs in sync
+        run: cd scripts/generate-docs && go run . --check
+      - name: Lint skills
+        run: bash scripts/lint-skills.sh
+      - name: Upgrade gh CLI (gh skill requires 2.90.0+)
+        run: |
+          GH_VERSION=2.90.0
+          curl -sSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+          sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
+          gh --version
+      - name: Validate agentskills.io spec
+        run: gh skill publish --dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # ── secret scanning ────────────────────────────────────────────────────────
+  # Mirrors gitleaks.yaml's scan job so secret scanning also gates the merge
+  # queue. Always runs (no path filter) — it scans the whole history.
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+        with:
+          # Full history so gitleaks can scan every commit
+          fetch-depth: 0
+      - name: Download gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+        run: |
+          curl -fsSL -o "${RUNNER_TEMP}/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  ${RUNNER_TEMP}/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/gitleaks.tar.gz" -C "${RUNNER_TEMP}" gitleaks
+      - name: Scan full git history
+        run: '"${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 .'
+
+  # ── the gate ───────────────────────────────────────────────────────────────
+  # Single check to require in the branch ruleset. Succeeds when every needed
+  # job succeeded or was skipped (nothing relevant changed); fails when any
+  # needed job failed or was cancelled.
+
+  ci-ok:
+    name: ci-ok
+    needs:
+      - changes
+      - copilot-adoption
+      - copilot-api
+      - copilot-metrics
+      - mcp-onboarding
+      - mcp-registry
+      - my-copilot
+      - nav-pilot
+      - docs
+      - gitleaks
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check results
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$RESULTS" | jq -e 'to_entries | map(.value.result) | any(. == "failure" or . == "cancelled")' > /dev/null; then
+            echo "❌ One or more required jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "✅ All required jobs succeeded or were skipped"

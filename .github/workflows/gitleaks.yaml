@@ -4,11 +4,13 @@ name: gitleaks
 # Vi kjører gitleaks-binæren direkte i stedet for gitleaks/gitleaks-action,
 # fordi actionen krever en betalt GITLEAKS_LICENSE for organisasjoner.
 # Falske positiver håndteres i .gitleaks.toml (plukkes opp automatisk).
+#
+# På pull requests og i merge-køen kjøres samme skann av gitleaks-jobben i
+# ci.yaml (gated av required-sjekken `ci-ok`). Denne workflowen dekker
+# push til main (inkl. direkte push utenom køen).
 
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
   workflow_dispatch:
 
