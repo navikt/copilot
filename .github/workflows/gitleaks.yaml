@@ -1,0 +1,45 @@
+name: gitleaks
+
+# Skanner hele git-historikken for hemmeligheter med gitleaks.
+# Vi kjører gitleaks-binæren direkte i stedet for gitleaks/gitleaks-action,
+# fordi actionen krever en betalt GITLEAKS_LICENSE for organisasjoner.
+# Falske positiver håndteres i .gitleaks.toml (plukkes opp automatisk).
+#
+# På pull requests og i merge-køen kjøres samme skann av gitleaks-jobben i
+# ci.yaml (gated av required-sjekken `ci-ok`). Denne workflowen dekker
+# push til main (inkl. direkte push utenom køen).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7.0.0
+        with:
+          # Full historikk slik at gitleaks kan skanne alle commits
+          fetch-depth: 0
+
+      - name: Download gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+        run: |
+          curl -fsSL -o "${RUNNER_TEMP}/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  ${RUNNER_TEMP}/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/gitleaks.tar.gz" -C "${RUNNER_TEMP}" gitleaks
+
+      - name: Scan full git history
+        run: '"${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 .'

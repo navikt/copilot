@@ -8,8 +8,16 @@ import (
 )
 
 type Config struct {
-	Port                   string
-	Environment            string
+	Port        string
+	Environment string
+	// EnableDevQuery is the second half of the double-lock guarding the
+	// unauthenticated raw-SQL /dev/query endpoint (see main.go). Environment
+	// defaults to "local" when NAIS_CLUSTER_NAME is unset, so gating on the
+	// environment alone would fail OPEN: a misconfigured deployment missing
+	// that env var would silently expose an unauthenticated SQL console.
+	// Requiring an explicit ENABLE_DEV_QUERY=true opt-in ensures the endpoint
+	// can never appear just because an env var went missing.
+	EnableDevQuery         bool
 	LogLevel               slog.Level
 	LoggedEndpoints        map[string]bool
 	AzureClientID          string
@@ -39,6 +47,7 @@ func loadConfig() *Config {
 	config := &Config{
 		Port:                   getEnv("PORT", "8080"),
 		Environment:            getEnv("NAIS_CLUSTER_NAME", "local"),
+		EnableDevQuery:         getEnv("ENABLE_DEV_QUERY", "") == "true",
 		LogLevel:               parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
 		LoggedEndpoints:        parseEndpoints(getEnv("LOGGED_ENDPOINTS", "/api/v1/")),
 		AzureClientID:          getEnv("AZURE_APP_CLIENT_ID", ""),

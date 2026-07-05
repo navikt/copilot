@@ -234,6 +234,28 @@ Tilpasningene dekker Navs kjernestack:
 
 Kjør `mise check` etter endringer for å validere alt.
 
+### CI og merge queue
+
+Alle pull requests og merge queue-oppføringer kjører [`ci.yaml`](.github/workflows/ci.yaml), som produserer én sjekk: **`ci-ok`**. Dette er den eneste required status check i branch-rulesettet — blir den grønn, kan PR-en merges via køen.
+
+Slik fungerer det:
+
+- Jobben `changes` bruker [dorny/paths-filter](https://github.com/dorny/paths-filter) til å finne hvilke komponenter som er berørt av endringen (samme path-lister som komponent-workflowene bruker). Kun de berørte komponentenes sjekker kjøres — endrer du ingenting relevant, blir `ci-ok` grønn med en gang.
+- gitleaks-skann av hele historikken kjører alltid, uavhengig av hvilke filer som er endret.
+- `ci-ok` feiler hvis en kjørt sjekk feiler eller avbrytes, og lykkes når alt som trengtes er grønt (hoppede jobber teller som OK).
+
+Komponent-workflowene (`copilot-api.yaml`, `my-copilot.yaml`, osv.) kjører fortsatt på pull requests for PR-preview-deploy til dev, og på push til `main` for deploy til produksjon. De er bevisst *ikke* required checks og kjører ikke i merge-køen — deploys skal ikke skje per køoppføring.
+
+### Unngå å committe hemmeligheter
+
+CI skanner hele historikken med [gitleaks](https://github.com/gitleaks/gitleaks). Vil du fange lekkasjer allerede før commit, installer gitleaks lokalt (`brew install gitleaks`) og legg til en valgfri pre-commit-sjekk:
+
+```bash
+gitleaks git --pre-commit --staged    # Skanner kun stagede endringer
+```
+
+Falske positiver håndteres i [.gitleaks.toml](.gitleaks.toml).
+
 <details>
 <summary>Utvikleroppsett for applikasjonene</summary>
 

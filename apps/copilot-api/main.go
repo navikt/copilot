@@ -149,10 +149,7 @@ func main() {
 	mux.HandleFunc("/ready", readyHandler)
 	mux.Handle("/metrics", metricsHandler())
 
-	// Dev-only raw BigQuery query endpoint (no auth, local only)
-	if rawBQClient != nil && config.Environment == "local" {
-		mux.HandleFunc("/dev/query", rawBQClient.devQueryHandler)
-	}
+	registerDevRoutes(mux, config, rawBQClient)
 	mux.Handle("/public/v1/", otelhttp.NewHandler(
 		loggingMiddleware(config, makePublicRouter(config, videoHandlers)),
 		"public-api",
@@ -204,4 +201,21 @@ func main() {
 	}
 
 	slog.Info("Server stopped")
+}
+
+// registerDevRoutes registers development-only endpoints.
+//
+// The raw-SQL /dev/query endpoint is unauthenticated, so it is double-gated:
+// Environment must be "local" AND ENABLE_DEV_QUERY=true must be set
+// explicitly. Environment defaults to "local" when NAIS_CLUSTER_NAME is
+// unset, meaning the environment check alone would fail OPEN in a
+// misconfigured deployment. The explicit ENABLE_DEV_QUERY opt-in ensures an
+// unauthenticated raw-SQL endpoint can never appear because an env var went
+// missing.
+func registerDevRoutes(mux *http.ServeMux, config *Config, rawBQClient *BigQueryClient) {
+	if rawBQClient == nil || config.Environment != "local" || !config.EnableDevQuery {
+		return
+	}
+	slog.Warn("Registering unauthenticated /dev/query endpoint (local development only)")
+	mux.HandleFunc("/dev/query", rawBQClient.devQueryHandler)
 }

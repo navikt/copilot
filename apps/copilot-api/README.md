@@ -118,6 +118,7 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 | `VIDEO_MANIFEST_PATH` | Local fallback manifest path for tests/dev (not primary runtime source) | `video_manifest.local-fallback.json` |
 | `VIDEO_PUBLIC_BASE_URL` | Optional override for public GCS base URL | `https://storage.googleapis.com/<bucket>` |
 | `VIDEO_FEED_CACHE_SECONDS` | Feed response and manifest cache TTL | `60` |
+| `ENABLE_DEV_QUERY` | Set to `true` to register the unauthenticated raw-SQL `POST /dev/query` endpoint. Only takes effect when the environment is `local` (i.e. `NAIS_CLUSTER_NAME` is unset) — both conditions are required so the endpoint can never appear in a deployment just because an env var went missing | (unset) |
 
 ## Development
 
