@@ -163,9 +163,9 @@ export interface PRMetrics {
   totalCreatedByCopilot: number;
   totalMergedCreatedByCopilot: number;
   totalMergedReviewedByCopilot: number;
-  medianMinutesToMerge: number;
-  medianMinutesToMergeCopilotAuthored: number;
-  medianMinutesToMergeCopilotReviewed: number;
+  medianMinutesToMerge: number | null;
+  medianMinutesToMergeCopilotAuthored: number | null;
+  medianMinutesToMergeCopilotReviewed: number | null;
   totalSuggestions: number;
   totalCopilotSuggestions: number;
   totalAppliedSuggestions: number;
@@ -468,6 +468,24 @@ export interface DailySummary {
   pr_median_minutes_to_merge: number;
 }
 
+// Privacy-preserving, aggregate-only usage spread for a given month.
+// Never contains per-user identifiers — see copilot-api's minUsersForDistribution.
+export interface UsageHistogramBucket {
+  bucket: string;
+  num_users: number;
+}
+
+export interface UsageDistribution {
+  month: string;
+  num_users: number;
+  total_licensed_seats: number;
+  budget_credits: number;
+  credits_deciles: number[];
+  interactions_deciles: number[];
+  acceptances_deciles: number[];
+  credits_histogram: UsageHistogramBucket[];
+}
+
 export interface BillingModelDailyCost {
   day: string;
   model: string;
@@ -495,19 +513,6 @@ export interface BillingModelForecast {
   lower_eom_net_amount: number;
   upper_eom_net_amount: number;
   points: BillingModelForecastPoint[];
-}
-
-export interface WeeklyTrend {
-  week: string;
-  interactions: number;
-  cli_requests: number;
-  acceptances: number;
-  lines_added: number;
-  lines_deleted: number;
-  prompt_tokens: number;
-  output_tokens: number;
-  active_days: number;
-  models?: Array<{ model: string; interactions: number }>;
 }
 
 // AI Adoption Cohort types (from user_metrics ai_adoption_phase field)

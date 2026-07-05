@@ -18,6 +18,7 @@ type Source struct {
 	TempDir string
 	SHA     string
 	Version string // release version (e.g. "2026.04.14-..."), empty for local dev
+	Repo    string // git repository owner/name (e.g. "navikt/copilot")
 }
 
 // CloneRemoteFn is overridable in tests.
@@ -36,11 +37,18 @@ func (s *Source) Cleanup() {
 func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
+		if filepath.IsAbs(sourceRepo) {
+			if info, err := os.Stat(sourceRepo); err == nil && info.IsDir() {
+				sha := getGitSHA(sourceRepo)
+				return &Source{Dir: sourceRepo, SHA: sha, Version: cliVersion, Repo: sourceRepo}, nil
+			}
+		}
 		src, err := CloneRemoteFn(ref, sourceRepo)
 		if err != nil {
 			return nil, err
 		}
 		src.Version = cliVersion
+		src.Repo = sourceRepo
 		return src, nil
 	}
 
@@ -53,6 +61,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 		if v := strings.TrimPrefix(ref, "nav-pilot/"); v != ref {
 			src.Version = v
 		}
+		src.Repo = "navikt/copilot"
 		return src, nil
 	}
 
@@ -65,7 +74,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 				sha := getGitSHA(gitRoot)
 				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", domain.Dim("→"), domain.Dim(gitRoot))
-				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion}, nil
+				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion, Repo: gitRoot}, nil
 			}
 		}
 	}
@@ -76,6 +85,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 		return nil, err
 	}
 	src.Version = cliVersion
+	src.Repo = "navikt/copilot"
 	return src, nil
 }
 
@@ -154,6 +164,7 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	args = append(args, repoURL, tmpDir)
 
 	cmd := exec.Command("git", args...)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	// Suppress stderr during clone so it doesn't overwrite the spinner unless there's an error
@@ -167,6 +178,12 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		if gitErr != "" {
 			gitErr = "\n\n  " + strings.ReplaceAll(gitErr, "\n", "\n  ")
 		}
+		isAuthFailure := strings.Contains(gitErr, "Authentication failed") ||
+			strings.Contains(gitErr, "could not read Username") ||
+			strings.Contains(gitErr, "Permission denied")
+		if isAuthFailure {
+			return nil, fmt.Errorf("could not clone %s: authentication failed. Check your SSH keys/git credentials or set GITHUB_TOKEN.%s", label, gitErr)
+		}
 		if ref != "" {
 			return nil, fmt.Errorf("could not clone %s@%s — check that the ref exists and you have network access%s", label, ref, gitErr)
 		}
@@ -174,7 +191,11 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	}
 
 	sha := getGitSHA(tmpDir)
-	return &Source{Dir: tmpDir, TempDir: tmpDir, SHA: sha}, nil
+	repo := "navikt/copilot"
+	if sourceRepo != "" {
+		repo = sourceRepo
+	}
+	return &Source{Dir: tmpDir, TempDir: tmpDir, SHA: sha, Repo: repo}, nil
 }
 
 func getGitSHA(dir string) string {

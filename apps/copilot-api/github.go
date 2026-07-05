@@ -30,6 +30,7 @@ type GitHubClient struct {
 	token          string
 	tokenExpiry    time.Time
 	tokenMu        sync.Mutex
+	samlCache      *Cache // email→GitHub username cache
 }
 
 func newGitHubClient(config *Config) (*GitHubClient, error) {
@@ -64,6 +65,7 @@ func newGitHubClient(config *Config) (*GitHubClient, error) {
 		appID:          config.GitHubAppID,
 		privateKey:     privateKey,
 		installationID: config.GitHubInstallationID,
+		samlCache:      NewCache(10 * time.Minute),
 	}, nil
 }
 
@@ -370,8 +372,14 @@ func (g *GitHubClient) unassignUserFromCopilot(ctx context.Context, username str
 	return &UnassignResult{SeatsCancelled: result.SeatsCancelled}, nil
 }
 
-// getUsernameBySamlIdentity looks up a GitHub username by SAML identity using GraphQL
+// getUsernameBySamlIdentity looks up a GitHub username by SAML identity using GraphQL.
+// Results are cached for 10 minutes to avoid repeated GraphQL calls for the same identity.
 func (g *GitHubClient) getUsernameBySamlIdentity(ctx context.Context, identity string) (string, error) {
+	cacheKey := "saml_" + strings.ToLower(identity)
+	if cached, ok := g.samlCache.Get(cacheKey); ok {
+		return cached.(string), nil
+	}
+
 	query := `
 		query($organization: String!, $identity: String!) {
 			organization(login: $organization) {
@@ -448,9 +456,13 @@ func (g *GitHubClient) getUsernameBySamlIdentity(ctx context.Context, identity s
 
 	edges := result.Data.Organization.SAMLIdentityProvider.ExternalIdentities.Edges
 	if len(edges) > 0 && edges[0].Node.User != nil {
-		return edges[0].Node.User.Login, nil
+		username := edges[0].Node.User.Login
+		g.samlCache.Set(cacheKey, username)
+		return username, nil
 	}
 
+	// Cache empty result with shorter TTL to avoid hammering for non-existent users
+	g.samlCache.SetWithTTL(cacheKey, "", 5*time.Minute)
 	return "", nil
 }
 

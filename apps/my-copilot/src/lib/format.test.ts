@@ -1,4 +1,4 @@
-import { formatNumber, formatPercentage } from "./format";
+import { formatNumber, formatPercentage, isoWeekLabel } from "./format";
 
 describe("formatNumber", () => {
   it("should format numbers with Norwegian locale (space as thousands separator)", () => {
@@ -32,5 +32,29 @@ describe("formatPercentage", () => {
   it("should handle decimal percentages", () => {
     expect(formatPercentage(25.5)).toBe("25.5%");
     expect(formatPercentage(99.9)).toBe("99.9%");
+  });
+});
+
+describe("isoWeekLabel", () => {
+  it("matches BigQuery's FORMAT_DATE('%G-W%V', day) for known dates", () => {
+    // Thursday — unambiguous, always in the ISO week matching the calendar week
+    expect(isoWeekLabel("2026-01-01")).toBe("2026-W01");
+    expect(isoWeekLabel("2026-07-02")).toBe("2026-W27");
+  });
+
+  it("assigns year-end dates to the correct ISO week year", () => {
+    // 2025-12-31 is a Wednesday in ISO week 1 of 2026
+    expect(isoWeekLabel("2025-12-31")).toBe("2026-W01");
+    // 2024-12-30 is a Monday in ISO week 1 of 2025
+    expect(isoWeekLabel("2024-12-30")).toBe("2025-W01");
+  });
+
+  it("groups every day of the same ISO week under the same label", () => {
+    const week = new Set(
+      ["2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-04", "2026-07-05"].map(
+        isoWeekLabel
+      )
+    );
+    expect(week.size).toBe(1);
   });
 });

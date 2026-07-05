@@ -84,6 +84,11 @@ description = "Run single ingestion for yesterday"
 env = { LOG_LEVEL = "INFO" }
 run = "fnox exec -- go run . --run-once"
 
+[tasks."run:once:prod"]
+description = "Run single ingestion for yesterday (prod) — also recreates/updates BigQuery views"
+env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
+run = "fnox exec -- go run . --run-once"
+
 [tasks."backfill:usage"]
 description = "Backfill usage metrics only (dev)"
 env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }

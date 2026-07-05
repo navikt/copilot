@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 func TestResolveSyncFiles_WithState(t *testing.T) {
@@ -866,5 +868,127 @@ func TestCmdSyncAuto_BothScopes_PrintsScopeFeedback(t *testing.T) {
 	}
 	if !strings.Contains(output, "User scope synced") {
 		t.Errorf("expected user synced feedback, got: %s", output)
+	}
+}
+
+func TestSync_RemoteDeletions(t *testing.T) {
+	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// 1. Setup target directory (with files installed and tracked in state)
+	targetScope := ScopeRepo(dir)
+	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.WriteFile(filepath.Join(dir, ".github", "agents", "deprecated.agent.md"), []byte("# Deprecated"), 0o644)
+
+	state := &StateFile{
+		Collection: "kotlin-backend",
+		Version:    "2026.06",
+		SourceRepo: "my-custom/repo",
+		Files: []InstalledFile{
+			{Path: ".github/agents/nais.agent.md", Hash: "nais-hash"},
+			{Path: ".github/agents/deprecated.agent.md", Hash: "deprecated-hash"},
+		},
+	}
+	writeState(dir, state)
+
+	// 2. Setup source directory (only has nais, deprecated.agent.md is DELETED)
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+
+	// Override resolveSourceForSync to point to our sourceDir
+	origResolveSourceForSync := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = origResolveSourceForSync })
+	resolveSourceForSync = func(ref, sourceRepo string) (*source.Source, error) {
+		if sourceRepo != "my-custom/repo" {
+			t.Errorf("expected sourceRepo %q, got %q", "my-custom/repo", sourceRepo)
+		}
+		return &source.Source{Dir: sourceDir, SHA: "new-sha", Version: "2026.07", Repo: sourceRepo}, nil
+	}
+
+	// 3. Sync check (dry run): should report deletion and return errUpdatesAvailable
+	err := cmdSync(targetScope, "", "", false, false)
+	if err != errUpdatesAvailable {
+		t.Fatalf("expected errUpdatesAvailable, got %v", err)
+	}
+
+	// Check that target files still exist
+	if _, err := os.Stat(filepath.Join(dir, ".github", "agents", "deprecated.agent.md")); os.IsNotExist(err) {
+		t.Error("deprecated file should not be removed in dry run")
+	}
+
+	// 4. Sync apply: should delete the deprecated file and update the state
+	err = cmdSync(targetScope, "", "", true, false)
+	if err != nil {
+		t.Fatalf("sync apply failed: %v", err)
+	}
+
+	// Check that target file is removed
+	if _, err := os.Stat(filepath.Join(dir, ".github", "agents", "deprecated.agent.md")); !os.IsNotExist(err) {
+		t.Error("deprecated file should have been removed in apply run")
+	}
+
+	// Check that state has been updated (deprecated file removed, sourceRepo preserved)
+	newState, err := readScopedState(targetScope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newState.SourceRepo != "my-custom/repo" {
+		t.Errorf("expected SourceRepo to be %q, got %q", "my-custom/repo", newState.SourceRepo)
+	}
+	if len(newState.Files) != 1 || newState.Files[0].Path != ".github/agents/nais.agent.md" {
+		t.Errorf("state files = %v, expected only nais.agent.md", newState.Files)
+	}
+}
+
+func TestSync_DirectoryPromptAndLocalSource(t *testing.T) {
+	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	// 1. Setup local source repo
+	os.MkdirAll(filepath.Join(sourceDir, "prompts", "my-prompt"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "prompts", "my-prompt", "custom.md"), []byte("# Prompt"), 0o644)
+
+	// Resolve local source (simulating dev mode)
+	src, err := source.ResolveSource("", sourceDir, "2026.07")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if src.Repo != sourceDir {
+		t.Errorf("expected Repo to be sourceDir path %q, got %q", sourceDir, src.Repo)
+	}
+
+	// 2. Install directory prompt to target
+	targetScope := ScopeRepo(dir)
+	err = cmdAddFromSource("prompt", "my-prompt", src, targetScope, false, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that prompt dir exists locally in target
+	targetPromptDir := filepath.Join(dir, ".github", "prompts", "my-prompt")
+	if info, err := os.Stat(targetPromptDir); err != nil || !info.IsDir() {
+		t.Error("prompt should have been installed as directory")
+	}
+
+	// Verify that state path includes trailing slash for prompt dir
+	state, err := readScopedState(targetScope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundSlash := false
+	for _, f := range state.Files {
+		if f.Path == ".github/prompts/my-prompt/" {
+			foundSlash = true
+		}
+	}
+	if !foundSlash {
+		t.Errorf("state files did not contain directory prompt path with trailing slash: %v", state.Files)
+	}
+
+	// 3. Test that sync works correctly using the tracked local source path
+	err = cmdSync(targetScope, "", "", false, false)
+	if err != nil && err != errUpdatesAvailable {
+		t.Fatalf("sync check failed: %v", err)
 	}
 }

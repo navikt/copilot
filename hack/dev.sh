@@ -81,8 +81,62 @@ cd "$ROOT_DIR"
 
 # Export secrets from keychain into this shell's environment.
 # Child processes (air, pnpm) inherit these vars naturally.
-eval "$(cd apps/copilot-api && fnox export -f env 2>/dev/null)" || true
-eval "$(cd apps/my-copilot  && fnox export -f env 2>/dev/null)" || true
+#
+# `fnox export` can fail or silently under-populate the environment (e.g.
+# Keychain locked, or a stale/incomplete secret) — previously this was
+# swallowed (`2>/dev/null || true`), causing confusing 503s with no
+# indication of the real cause. We now hard-fail with a clear message:
+#   1. fnox export itself must succeed (exit 0).
+#   2. Every secret key *declared* in that app's fnox.toml must resolve to
+#      a non-empty value after export. Keys are read from fnox.toml itself
+#      (not hardcoded here) so this stays correct as secrets are added or
+#      removed per app.
+required_secret_keys() {
+    # Prints one secret key name per line from the [secrets] section of a
+    # fnox.toml. Apps that declare zero secrets (e.g. my-copilot) print
+    # nothing, so the check below is a no-op for them.
+    local fnox_toml="$1"
+    [[ -f "$fnox_toml" ]] || return 0
+    awk '
+        /^\[secrets\]/ { in_secrets = 1; next }
+        /^\[/          { in_secrets = 0 }
+        in_secrets && /^[A-Za-z_][A-Za-z0-9_]*[ \t]*=/ {
+            sub(/[ \t]*=.*/, "")
+            print
+        }
+    ' "$fnox_toml"
+}
+
+export_secrets() {
+    local dir="$1" out
+    if ! out="$(cd "$dir" && fnox export -f shell 2>&1)"; then
+        echo -e "${YELLOW}✗ fnox export failed for ${dir}:${RESET}"
+        echo "$out" | while IFS= read -r line; do echo "  $line"; done
+        echo -e "${YELLOW}Fix the Keychain/fnox setup above, then re-run 'mise dev'.${RESET}"
+        exit 1
+    fi
+    eval "$out"
+
+    local missing=()
+    local key
+    while IFS= read -r key; do
+        [[ -z "$key" ]] && continue
+        if [[ -z "${!key:-}" ]]; then
+            missing+=("$key")
+        fi
+    done < <(required_secret_keys "$dir/fnox.toml")
+
+    if [[ "${#missing[@]}" -gt 0 ]]; then
+        echo -e "${YELLOW}✗ ${dir}: fnox export succeeded but these declared secrets are empty:${RESET}"
+        for key in "${missing[@]}"; do
+            echo "  - $key"
+        done
+        echo -e "${YELLOW}Set them with: (cd ${dir} && fnox set <KEY> < path/to/value)${RESET}"
+        exit 1
+    fi
+}
+export_secrets apps/copilot-api
+export_secrets apps/my-copilot
 
 # Single source of truth for the local dev user. Inherited by BOTH child processes:
 # - my-copilot: mock logged-in user (email + derived name)

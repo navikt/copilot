@@ -8,13 +8,45 @@ import (
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {
-	bqClient BigQueryQuerier
+	bqClient          BigQueryQuerier
+	budgetClient      globalBudgetGetter
+	activeSeatsGetter func() int64
+	githubClient      GitHubAPI // for SAML ownership checks on per-user endpoints
+	environment       string    // "local", "dev", "prod" — controls fail-open behavior
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 	return &BigQueryHandlers{
-		bqClient: bqClient,
+		bqClient:    bqClient,
+		environment: "local", // safe default; main.go overrides with actual NAIS_CLUSTER_NAME
+		// Defaults to the real MetricsCollector singleton; tests can override
+		// this via setActiveSeatsGetter to avoid depending on global state.
+		activeSeatsGetter: func() int64 {
+			metricsCollector.mu.RLock()
+			defer metricsCollector.mu.RUnlock()
+			return metricsCollector.githubSeatsActive
+		},
 	}
+}
+
+// setBudgetClient wires in the enterprise budget lookup so usage-distribution
+// histograms can scale to the actual per-user $ budget instead of a hardcoded
+// credit ceiling. Optional — call sites may leave this unset.
+func (h *BigQueryHandlers) setBudgetClient(budgetClient globalBudgetGetter) {
+	h.budgetClient = budgetClient
+}
+
+// setActiveSeatsGetter overrides how handleUsageDistribution resolves the
+// current active GitHub Copilot seat count. Primarily used by tests to avoid
+// depending on the metricsCollector global singleton.
+func (h *BigQueryHandlers) setActiveSeatsGetter(getter func() int64) {
+	h.activeSeatsGetter = getter
+}
+
+// setGitHubClient wires in the GitHub client so per-user read endpoints can
+// verify that the caller owns the requested username via SAML.
+func (h *BigQueryHandlers) setGitHubClient(client GitHubAPI) {
+	h.githubClient = client
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {

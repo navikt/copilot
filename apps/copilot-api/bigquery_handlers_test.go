@@ -45,6 +45,8 @@ type mockBigQueryClient struct {
 	weeklyTrendsErr    error
 	cohorts            []AdoptionCohortDay
 	cohortsErr         error
+	usageDistribution  *UsageDistribution
+	usageDistErr       error
 }
 
 func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]EnterpriseMetrics, error) {
@@ -125,6 +127,10 @@ func (m *mockBigQueryClient) GetBillingModelBreakdown(_ context.Context, _ int) 
 
 func (m *mockBigQueryClient) GetDailySummary(_ context.Context) (*DailySummary, error) {
 	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetUsageDistribution(_ context.Context, _ string, _ float64) (*UsageDistribution, error) {
+	return m.usageDistribution, m.usageDistErr
 }
 
 func TestHandleDailyMetrics(t *testing.T) {

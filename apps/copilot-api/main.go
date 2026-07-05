@@ -73,6 +73,7 @@ func main() {
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
 			cachedBQClient = newCachedBigQueryClient(bqClient, cacheTTL)
 			bqHandlers = newBigQueryHandlers(cachedBQClient)
+			bqHandlers.environment = config.Environment
 			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
 		}
 	} else {
@@ -82,14 +83,26 @@ func main() {
 		defer cachedBQClient.Close()
 	}
 
+	// Wire GitHub client into BigQuery handlers for per-user ownership checks.
+	// This is independent of the budget client — ownership verification only needs SAML.
+	if bqHandlers != nil && githubClient != nil {
+		bqHandlers.setGitHubClient(githubClient)
+	}
+
 	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
 	var budgetHandlers *BudgetHandlers
-	if config.GitHubBillingToken != "" && githubClient != nil {
+	switch {
+	case config.GitHubBillingToken == "":
+		slog.Warn("GITHUB_BILLING_TOKEN not configured - budget endpoint will be unavailable")
+	case githubClient == nil:
+		slog.Warn("GitHub client unavailable - budget endpoint will be unavailable (see GitHub client initialization error above)")
+	default:
 		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
 		budgetHandlers = newBudgetHandlers(budgetClient, githubClient)
+		if bqHandlers != nil {
+			bqHandlers.setBudgetClient(budgetClient)
+		}
 		slog.Info("Budget client initialized successfully")
-	} else {
-		slog.Warn("GITHUB_BILLING_TOKEN not configured - budget endpoint will be unavailable")
 	}
 
 	// Middleware

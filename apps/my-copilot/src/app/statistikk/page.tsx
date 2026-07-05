@@ -9,7 +9,6 @@ import {
   getMonthlyBillingUsage,
   getBillingModelDaily,
   getBillingModelForecast,
-  getUserWeeklyTrends,
   getAdoptionCohorts,
   getBillingMonthlyTrend,
   getBillingModelBreakdown,
@@ -28,7 +27,7 @@ import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import BillingModelBreakdownChart from "@/components/charts/BillingModelBreakdownChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack, HStack } from "@navikt/ds-react";
+import { Table, BodyShort, Heading, HGrid, Box, HelpText, Skeleton, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { PageHero } from "@/components/page-hero";
 import { LinkableHeading } from "@/components/linkable-heading";
@@ -44,15 +43,22 @@ import {
   getGenerationModeSummary,
   buildGenerationModeTrendData,
 } from "@/lib/data-utils";
+import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/month-utils";
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
 import { backendRequest } from "@/lib/backend-api";
 
-function formatMinutes(minutes: number): string {
+// formatMinutes converts a duration to human-readable Norwegian format.
+// IMPORTANT: Rounds total minutes FIRST, then splits into hours/minutes.
+// The previous approach (Math.round on the remainder) caused "1t 60m" when
+// minutes % 60 was between 59.5 and 60 (e.g. 119.7 → floor(1.99)=1h, round(59.7)=60m).
+function formatMinutes(minutes: number | null): string {
+  if (minutes == null || minutes <= 0) return "–";
   if (minutes < 60) return `${Math.round(minutes)} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
   if (hours < 24) return mins > 0 ? `${hours}t ${mins}m` : `${hours}t`;
   const days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
@@ -73,7 +79,7 @@ async function CachedUsageData({ token }: { token: string }) {
 
   const filteredUsage = usage.slice(-28);
 
-  return <UsageContent usage={filteredUsage} token={token} />;
+  return <UsageTabs usage={filteredUsage} token={token} />;
 }
 
 // Whether to allow viewing all teams (disabled in prod until approved)
@@ -89,14 +95,10 @@ async function TeamUsageContent({ token }: { token: string }) {
   // Filter out the catch-all org team — it contains all users and skews comparisons
   const IGNORED_TEAMS = new Set(["nav-it-github-users"]);
 
-  // Resolve user's GitHub username and fetch personal metrics from BigQuery
+  // Resolve user's teams so we can highlight them in the table
   let userTeams: string[] = [];
-  let userMetrics = null;
-  let userWeeklyTrends = null;
   if (user?.email) {
     let ghLogin: string | null = null;
-
-    // DEV_GITHUB_LOGIN bypasses SAML lookup when GitHub App auth is broken locally
     if (process.env.NODE_ENV === "development" && process.env.DEV_GITHUB_LOGIN) {
       ghLogin = process.env.DEV_GITHUB_LOGIN;
     } else {
@@ -106,30 +108,14 @@ async function TeamUsageContent({ token }: { token: string }) {
           token
         );
         ghLogin = saml.username;
-        // NOTE: SCIM-based username lookup was removed during the backend migration
-        // (the previous BFF called getUsernameByScim as a fallback for users who
-        // appear in SCIM but not in SAML). That endpoint no longer exists in the
-        // backend. Users in SCIM-only will resolve ghLogin=null here and therefore
-        // not see their personal metrics tab. This is a known gap pending product
-        // confirmation — see issue backlog.
       } catch (err) {
         console.error("[statistikk] SAML lookup failed:", err);
       }
     }
-
     if (ghLogin) {
-      const [{ metrics, error: metricsError }, { trends: weeklyTrends, error: trendsError }] = await Promise.all([
-        getUserMetrics(ghLogin, token),
-        getUserWeeklyTrends(ghLogin, token),
-      ]);
-      if (metricsError) console.error("[statistikk] User metrics failed:", metricsError);
-      if (trendsError) console.error("[statistikk] User weekly trends failed:", trendsError);
+      const { metrics } = await getUserMetrics(ghLogin, token);
       if (metrics) {
         userTeams = (metrics.teams ?? []).filter((t) => !IGNORED_TEAMS.has(t));
-        userMetrics = metrics;
-      }
-      if (weeklyTrends.length > 0) {
-        userWeeklyTrends = weeklyTrends;
       }
     }
   }
@@ -142,42 +128,114 @@ async function TeamUsageContent({ token }: { token: string }) {
     .filter((t) => !IGNORED_TEAMS.has(t.team_slug))
     .filter((t) => ALLOW_ALL_TEAMS || userTeamSet.has(t.team_slug.toLowerCase()));
 
-  return (
-    <TeamUsageTable
-      teams={visibleTeams}
-      userTeams={userTeams}
-      userMetrics={userMetrics}
-      userWeeklyTrends={userWeeklyTrends}
-      allowAllTeams={ALLOW_ALL_TEAMS}
-    />
-  );
+  return <TeamUsageTable teams={visibleTeams} userTeams={userTeams} allowAllTeams={ALLOW_ALL_TEAMS} />;
 }
 
 // Main content component that takes usage data as props.
 // Individual data fetches are NOT cached at the BFF layer — caching is owned
 // by copilot-api (1 h in-memory cache). Each request fetches fresh data from
 // the backend, which is the single source of truth for cache lifetime.
-async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
+//
+// The "Utforsking" (details) tab only needs data derived from `usage` (already
+// resolved by the time this renders) — it does not depend on any of the
+// dashboard tab's additional BigQuery calls. Splitting dashboard/team/details
+// into independent Suspense-wrapped siblings here (rather than one monolithic
+// async component) lets each tab stream in as soon as its own data is ready,
+// instead of the whole page waiting on the slowest of ~10 backend calls.
+function UsageTabs({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
   const dateRange = getDateRange(usage);
   if (!dateRange) return <ErrorState message="Ingen bruksdata tilgjengelig" />;
 
   const aggregatedMetrics = getAggregatedMetrics(usage);
   if (!aggregatedMetrics) return <ErrorState message="Kunne ikke beregne nøkkeltall" />;
 
-  const topLanguages = getTopLanguages(usage);
-  const editorStats = getEditorStats(usage);
-  const prMetrics = getPRMetrics(usage);
-  const modelUsageMetrics = getModelUsageMetrics(usage);
-  const generationModeSummary = getGenerationModeSummary(usage);
+  const tabs = [
+    {
+      id: "dashboard",
+      label: "Oversikt",
+      content: (
+        <Suspense
+          fallback={
+            <div className="space-y-4">
+              <Skeleton variant="text" width="60%" />
+              <Skeleton variant="rectangle" height={400} />
+            </div>
+          }
+        >
+          <DashboardTabContent usage={usage} token={token} />
+        </Suspense>
+      ),
+      hashIds: [
+        "dashboard",
+        "nokkeltall",
+        "månedlige-trender",
+        "måned-hittil-modeller-og-kostnad",
+        "ai-modeller-over-tid",
+        "bruker-vs-agent",
+        "ai-adopsjonsfaser",
+        "pull-requests-og-code-review",
+      ],
+    },
+    {
+      id: "team",
+      label: "Team i Nav",
+      content: (
+        <div id="team">
+          <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
+            <TeamUsageContent token={token} />
+          </Suspense>
+        </div>
+      ),
+      hashIds: ["team"],
+    },
+    {
+      id: "details",
+      label: "Utforsking",
+      content: <DetailsTabContent usage={usage} />,
+      hashIds: [
+        "details",
+        "daglig-aktivitet",
+        "kodeforslag",
+        "sprak-og-verktoy",
+        "ai-modeller-i-bruk",
+        "topp-språk",
+        "verktøy",
+      ],
+    },
+  ];
 
-  const trendData = buildTrendData(usage);
-  const modelChartData = buildModelChartData(usage);
+  return (
+    <>
+      <VStack gap="space-24">
+        <BodyShort className="text-gray-600">
+          Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager)
+        </BodyShort>
+        <Tabs tabs={tabs} defaultTab="dashboard" enableHashNavigation />
+      </VStack>
+    </>
+  );
+}
+
+// ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
+// Owns the heavy multi-endpoint fetch (monthly trends, billing, cohorts,
+// daily summary, etc.) — independent of the "Utforsking" tab so a slow
+// backend call here doesn't block that tab from rendering.
+async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[]; token: string }) {
+  const aggregatedMetrics = getAggregatedMetrics(usage);
+  if (!aggregatedMetrics) return <ErrorState message="Kunne ikke beregne nøkkeltall" />;
+
+  const prMetrics = getPRMetrics(usage);
+  const generationModeSummary = getGenerationModeSummary(usage);
   const generationModeTrendData = buildGenerationModeTrendData(usage);
 
   // Prefer current month for "Måned hittil"; fall back to latest complete month if needed.
-  const currentBillingMonth = new Date().toISOString().slice(0, 7);
+  const currentBillingMonth = currentMonthUTC();
+  // Previous calendar month — safe against day-31 overflow.
+  const previousBillingMonth = previousMonth(currentBillingMonth);
 
-  // Fetch all datasets in parallel — daily/forecast for current month included upfront
+  // Fetch all datasets in parallel — daily/forecast for current AND previous month
+  // included upfront so the (common) current-month-has-no-data-yet case doesn't
+  // require a second sequential fetch after the fact.
   const [
     { trends: monthlyTrends, error: monthlyError },
     { usage: billingUsage, error: billingError },
@@ -185,8 +243,10 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     { trend: billingMonthlyTrend, error: billingTrendError },
     { breakdown: billingModelBreakdown, error: billingBreakdownError },
     { summary: dailySummary, error: dailySummaryError },
-    { usage: billingModelDailyInit, error: billingModelDailyInitError },
-    { forecast: billingModelForecastInit, error: billingModelForecastInitError },
+    { usage: billingModelDailyCurrent, error: billingModelDailyCurrentError },
+    { forecast: billingModelForecastCurrent, error: billingModelForecastCurrentError },
+    { usage: billingModelDailyPrev, error: billingModelDailyPrevError },
+    { forecast: billingModelForecastPrev, error: billingModelForecastPrevError },
   ] = await Promise.all([
     getMonthlyTrends(token),
     getMonthlyBillingUsage(token),
@@ -196,6 +256,8 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     getDailySummary(token),
     getBillingModelDaily(token, currentBillingMonth),
     getBillingModelForecast(token, currentBillingMonth),
+    getBillingModelDaily(token, previousBillingMonth),
+    getBillingModelForecast(token, previousBillingMonth),
   ]);
   if (monthlyError) {
     console.error("[statistikk] Monthly trends failed:", monthlyError);
@@ -227,21 +289,32 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     return { month: latest, label, netAmount, grossAmount };
   })();
 
-  // Daily/forecast already fetched in parallel above; fall back to latest complete month if current has no data
-  let billingModelDaily = billingModelDailyInit;
-  let billingModelForecast = billingModelForecastInit;
-  let billingModelDailyError = billingModelDailyInitError;
-  let billingModelForecastError = billingModelForecastInitError;
+  // Pick the current month's data if present; otherwise use whichever of the
+  // eagerly-fetched previous-month data matches the latest complete billing
+  // month. Only fall back to a sequential fetch in the rare case where the
+  // latest complete month is neither the current nor the previous calendar
+  // month (e.g. a multi-month data gap).
+  let billingModelDaily = billingModelDailyCurrent;
+  let billingModelForecast = billingModelForecastCurrent;
+  let billingModelDailyError = billingModelDailyCurrentError;
+  let billingModelForecastError = billingModelForecastCurrentError;
 
   if (billingModelDaily.length === 0 && latestBillingMonth?.month && latestBillingMonth.month !== currentBillingMonth) {
-    const [fallbackDaily, fallbackForecast] = await Promise.all([
-      getBillingModelDaily(token, latestBillingMonth.month),
-      getBillingModelForecast(token, latestBillingMonth.month),
-    ]);
-    billingModelDaily = fallbackDaily.usage;
-    billingModelForecast = fallbackForecast.forecast;
-    billingModelDailyError = billingModelDailyError ?? fallbackDaily.error;
-    billingModelForecastError = billingModelForecastError ?? fallbackForecast.error;
+    if (latestBillingMonth.month === previousBillingMonth) {
+      billingModelDaily = billingModelDailyPrev;
+      billingModelForecast = billingModelForecastPrev;
+      billingModelDailyError = billingModelDailyPrevError;
+      billingModelForecastError = billingModelForecastPrevError;
+    } else {
+      const [fallbackDaily, fallbackForecast] = await Promise.all([
+        getBillingModelDaily(token, latestBillingMonth.month),
+        getBillingModelForecast(token, latestBillingMonth.month),
+      ]);
+      billingModelDaily = fallbackDaily.usage;
+      billingModelForecast = fallbackForecast.forecast;
+      billingModelDailyError = billingModelDailyError ?? fallbackDaily.error;
+      billingModelForecastError = billingModelForecastError ?? fallbackForecast.error;
+    }
   }
 
   if (billingModelDailyError) console.error("[statistikk] Billing model daily failed:", billingModelDailyError);
@@ -249,17 +322,8 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     console.error("[statistikk] Billing model forecast failed:", billingModelForecastError);
 
   // Find the last COMPLETE month (not the current partial month)
-  // A month is "complete" if it has 28+ days of data or isn't the current calendar month
-  // Use the latest month in the data as reference to avoid new Date() prerender issues
-  const latestMonth = monthlyTrends.length > 0 ? monthlyTrends[monthlyTrends.length - 1].month : null;
-  const completeMonths = latestMonth
-    ? monthlyTrends.filter((m) => m.month !== latestMonth || m.days_in_month >= 28)
-    : monthlyTrends;
-  const currentMonth = latestMonth ? monthlyTrends.find((m) => m.month === latestMonth && m.days_in_month < 28) : null;
-
-  // Use last complete month for hero, with MoM comparison to the one before
-  const latestComplete = completeMonths.length > 0 ? completeMonths[completeMonths.length - 1] : null;
-  const prevComplete = completeMonths.length > 1 ? completeMonths[completeMonths.length - 2] : null;
+  // A month is "complete" if it has all expected calendar days or isn't the current month.
+  const { currentMonth, latestComplete, prevComplete } = selectCompleteMonths(monthlyTrends, currentBillingMonth);
 
   function momChange(current: number, previous: number | undefined): string | undefined {
     if (!previous || previous === 0) return undefined;
@@ -291,7 +355,7 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
     : undefined;
 
   // ─── TAB 1: DASHBOARD (Key Indicators + Trends) ───
-  const dashboardContent = (
+  return (
     <VStack id="dashboard" gap="space-24">
       {/* Hero metrics — the 4 numbers that matter */}
       {heroMonthLabel && (
@@ -379,62 +443,6 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         </div>
       )}
 
-      {/* Latest billing month summary — replaced by richer view data when available */}
-      {billingMonthlyTrend.length > 0 ? (
-        (() => {
-          const latest = billingMonthlyTrend[billingMonthlyTrend.length - 1];
-          const label = new Date(latest.year_month + "-01").toLocaleDateString("nb-NO", {
-            month: "long",
-            year: "numeric",
-          });
-          return (
-            <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
-              <HStack gap="space-8" align="center" justify="space-between">
-                <HStack gap="space-8" align="center">
-                  <BodyShort className="text-gray-600 text-sm">Fakturert {label}</BodyShort>
-                  <HelpText title="Fakturert beløp">
-                    Faktisk fakturert beløp fra GitHub for premium AI-modellforespørsler (etter Nav-rabatt). Kilde:{" "}
-                    v_billing_monthly_trend.
-                  </HelpText>
-                </HStack>
-                <HStack gap="space-16" align="center">
-                  <BodyShort className="text-gray-500 text-sm">
-                    Brutto: {formatNumber(Math.round(latest.total_gross_amount))} USD
-                  </BodyShort>
-                  <BodyShort className="text-gray-500 text-sm">
-                    Rabatt: {Math.round(latest.discount_rate_pct)} %
-                  </BodyShort>
-                  <BodyShort className="text-gray-800 text-sm font-semibold">
-                    Netto: {formatNumber(Math.round(latest.total_net_amount))} USD
-                  </BodyShort>
-                  <BodyShort className="text-gray-500 text-sm">{latest.distinct_models} modeller</BodyShort>
-                </HStack>
-              </HStack>
-            </Box>
-          );
-        })()
-      ) : latestBillingMonth ? (
-        <Box background="default" padding="space-16" borderRadius="8" className="border border-gray-200">
-          <HStack gap="space-8" align="center" justify="space-between">
-            <HStack gap="space-8" align="center">
-              <BodyShort className="text-gray-600 text-sm">Fakturert {latestBillingMonth.label}</BodyShort>
-              <HelpText title="Fakturert beløp">
-                Faktisk fakturert beløp fra GitHub for premium AI-modellforespørsler (etter Nav-rabatt). Kilde: GitHub
-                Enhanced Billing API.
-              </HelpText>
-            </HStack>
-            <HStack gap="space-16" align="center">
-              <BodyShort className="text-gray-500 text-sm">
-                Brutto: {formatNumber(Math.round(latestBillingMonth.grossAmount))} USD
-              </BodyShort>
-              <BodyShort className="text-gray-800 text-sm font-semibold">
-                Netto: {formatNumber(Math.round(latestBillingMonth.netAmount))} USD
-              </BodyShort>
-            </HStack>
-          </HStack>
-        </Box>
-      ) : null}
-
       {/* Monthly trends — THE story */}
       {monthlyTrends.length > 0 && (
         <div id="manedlige-trender">
@@ -460,7 +468,6 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         <BillingModelBreakdownChart
           breakdown={billingModelBreakdown}
           trend={billingMonthlyTrend}
-          dailyData={billingModelDaily ?? undefined}
           forecast={billingModelForecast}
         />
       )}
@@ -700,9 +707,23 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
       )}
     </VStack>
   );
+}
 
-  // ─── TAB 2: DETALJER (Deep dives) ───
-  const detailsContent = (
+// ─── TAB 2: DETALJER (Deep dives) ───
+// Depends only on `usage` (already resolved by the parent) — no additional
+// BigQuery calls, so this renders instantly regardless of how long the
+// dashboard tab's fetches take.
+function DetailsTabContent({ usage }: { usage: EnterpriseMetrics[] }) {
+  const aggregatedMetrics = getAggregatedMetrics(usage);
+  if (!aggregatedMetrics) return <ErrorState message="Kunne ikke beregne nøkkeltall" />;
+
+  const topLanguages = getTopLanguages(usage);
+  const editorStats = getEditorStats(usage);
+  const modelUsageMetrics = getModelUsageMetrics(usage);
+  const trendData = buildTrendData(usage);
+  const modelChartData = buildModelChartData(usage);
+
+  return (
     <VStack id="details" gap="space-24">
       {/* Daily Activity Trend */}
       <div id="daglig-aktivitet">
@@ -836,63 +857,6 @@ async function UsageContent({ usage, token }: { usage: EnterpriseMetrics[]; toke
         </Box>
       )}
     </VStack>
-  );
-
-  const tabs = [
-    {
-      id: "dashboard",
-      label: "Oversikt",
-      content: dashboardContent,
-      hashIds: [
-        "dashboard",
-        "nokkeltall",
-        "månedlige-trender",
-        "måned-hittil-modeller-og-kostnad",
-        "ai-modeller-over-tid",
-        "bruker-vs-agent",
-        "ai-adopsjonsfaser",
-        "pull-requests-og-code-review",
-      ],
-    },
-    {
-      id: "team",
-      label: "Meg og team",
-      content: (
-        <div id="team">
-          <div id="meg-og-team">
-            <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-              <TeamUsageContent token={token} />
-            </Suspense>
-          </div>
-        </div>
-      ),
-      hashIds: ["team", "meg-og-team"],
-    },
-    {
-      id: "details",
-      label: "Utforsking",
-      content: detailsContent,
-      hashIds: [
-        "details",
-        "daglig-aktivitet",
-        "kodeforslag",
-        "sprak-og-verktoy",
-        "ai-modeller-i-bruk",
-        "topp-språk",
-        "verktøy",
-      ],
-    },
-  ];
-
-  return (
-    <>
-      <VStack gap="space-24">
-        <BodyShort className="text-gray-600">
-          Periode: {dateRange.start} - {dateRange.end} ({formatNumber(usage.length)} dager)
-        </BodyShort>
-        <Tabs tabs={tabs} defaultTab="dashboard" enableHashNavigation />
-      </VStack>
-    </>
   );
 }
 

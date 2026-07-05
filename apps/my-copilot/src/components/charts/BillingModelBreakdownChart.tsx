@@ -1,11 +1,6 @@
 "use client";
 
-import type {
-  BillingModelBreakdown,
-  BillingMonthlyTrend,
-  BillingModelDailyCost,
-  BillingModelForecast,
-} from "@/lib/types";
+import type { BillingModelBreakdown, BillingMonthlyTrend, BillingModelForecast } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
@@ -16,16 +11,10 @@ import { LinkableHeading } from "@/components/linkable-heading";
 interface BillingModelBreakdownChartProps {
   breakdown: BillingModelBreakdown[];
   trend: BillingMonthlyTrend[];
-  dailyData?: BillingModelDailyCost[];
   forecast?: BillingModelForecast | null;
 }
 
-const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
-  breakdown,
-  trend,
-  dailyData,
-  forecast,
-}) => {
+const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({ breakdown, trend, forecast }) => {
   if (!breakdown || breakdown.length === 0) {
     return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
@@ -33,57 +22,26 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
   const today = new Date();
   const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-  // Aggregate dailyData by model for the current month (gross) — same source as "Daglig brutto" chart
-  const dailyGrossByModel = new Map<string, number>();
-  let dailyTotalGross = 0;
-  if (dailyData && dailyData.length > 0) {
-    for (const row of dailyData) {
-      if (row.day.startsWith(currentYearMonth)) {
-        dailyGrossByModel.set(row.model, (dailyGrossByModel.get(row.model) ?? 0) + row.gross_amount);
-        dailyTotalGross += row.gross_amount;
-      }
-    }
-  }
-  const hasDailyCurrentMonth = dailyGrossByModel.size > 0;
+  const months = [...new Set(breakdown.map((d) => d.year_month))].sort();
 
-  // Months: historical from breakdown + current month (always using daily data if available)
-  const breakdownMonths = [...new Set(breakdown.map((d) => d.year_month))].sort();
-  const months =
-    hasDailyCurrentMonth && !breakdownMonths.includes(currentYearMonth)
-      ? [...breakdownMonths, currentYearMonth].sort()
-      : breakdownMonths;
-
-  // Gross by model + month — historical from breakdown, current month from daily data
+  // Gross by model + month from breakdown (view now sources from daily table, all months are accurate)
   const grossByModelMonth = new Map<string, Map<string, number>>();
   for (const row of breakdown) {
-    // Skip current month from breakdown (near-zero, billing not yet received)
-    if (row.year_month === currentYearMonth) continue;
     if (!grossByModelMonth.has(row.model)) grossByModelMonth.set(row.model, new Map());
     grossByModelMonth.get(row.model)!.set(row.year_month, row.gross_amount);
   }
-  // Current month: real daily gross per model
-  if (hasDailyCurrentMonth) {
-    for (const [model, gross] of dailyGrossByModel) {
-      if (!grossByModelMonth.has(model)) grossByModelMonth.set(model, new Map());
-      grossByModelMonth.get(model)!.set(currentYearMonth, gross);
-    }
-  }
 
-  // Top models: prioritize current month's models so they always appear,
-  // then fill remaining slots with historical top models
-  const currentMonthTopModels = hasDailyCurrentMonth
-    ? [...dailyGrossByModel.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => m)
-    : [];
-  const historicalTotals = new Map<string, number>();
+  // Top models by total gross across all months
+  const modelTotals = new Map<string, number>();
   for (const [model, byMonth] of grossByModelMonth) {
-    for (const [month, gross] of byMonth) {
-      if (month !== currentYearMonth) {
-        historicalTotals.set(model, (historicalTotals.get(model) ?? 0) + gross);
-      }
+    for (const [, gross] of byMonth) {
+      modelTotals.set(model, (modelTotals.get(model) ?? 0) + gross);
     }
   }
-  const historicalTopModels = [...historicalTotals.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => m);
-  const topModels = [...new Set([...currentMonthTopModels, ...historicalTopModels])].slice(0, 8);
+  const topModels = [...modelTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([m]) => m);
 
   const datasets = topModels.map((model, i) => ({
     label: model,
@@ -149,7 +107,7 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
     },
   };
 
-  // Summary cards — show current month MTD from daily/forecast, else latest completed month
+  // Summary cards — show latest month (including partial current month now that views source from daily table)
   const isCurrentMonthLatest = months[months.length - 1] === currentYearMonth;
   const latestMonth = months[months.length - 1];
   const latestTrend = trend.find((t) => t.year_month === latestMonth);
@@ -159,28 +117,26 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
 
   const summaryNetAmount =
     isCurrentMonthLatest && forecast ? forecast.actual_mtd_net_amount : (latestTrend?.total_net_amount ?? null);
-  const summaryGrossAmount =
-    isCurrentMonthLatest && hasDailyCurrentMonth ? dailyTotalGross : (latestTrend?.total_gross_amount ?? null);
-  const summaryModels =
-    isCurrentMonthLatest && hasDailyCurrentMonth ? dailyGrossByModel.size : (latestTrend?.distinct_models ?? null);
+  const latestMonthGross = breakdown
+    .filter((r) => r.year_month === latestMonth)
+    .reduce((sum, r) => sum + r.gross_amount, 0);
+  const summaryGrossAmount = latestMonthGross > 0 ? latestMonthGross : (latestTrend?.total_gross_amount ?? null);
+  const summaryModels = latestTrend?.distinct_models ?? null;
 
   // Top 3 models in latest month
-  const latestTopModels =
-    isCurrentMonthLatest && hasDailyCurrentMonth
-      ? [...dailyGrossByModel.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([model, gross]) => ({ model, pct: Math.round((gross / dailyTotalGross) * 100) }))
-      : breakdown
-          .filter((r) => r.year_month === latestMonth)
-          .sort((a, b) => b.gross_amount - a.gross_amount)
-          .slice(0, 3)
-          .map((r) => ({ model: r.model, pct: Math.round(r.pct_of_monthly_net) }));
+  const latestTopModels = breakdown
+    .filter((r) => r.year_month === latestMonth)
+    .sort((a, b) => b.gross_amount - a.gross_amount)
+    .slice(0, 3)
+    .map((r) => ({
+      model: r.model,
+      pct: Math.round((r.gross_amount / (latestMonthGross || 1)) * 100),
+    }));
 
-  // Estimate current month discount from net/gross ratio (forecast net MTD / daily gross MTD)
+  // Estimate current month discount from net/gross ratio (forecast net MTD / gross MTD)
   const summaryDiscountPct =
-    isCurrentMonthLatest && forecast && dailyTotalGross > 0
-      ? Math.round((1 - forecast.actual_mtd_net_amount / dailyTotalGross) * 100)
+    isCurrentMonthLatest && forecast && latestMonthGross > 0
+      ? Math.round((1 - forecast.actual_mtd_net_amount / latestMonthGross) * 100)
       : latestTrend
         ? Math.round(latestTrend.discount_rate_pct)
         : null;
@@ -194,9 +150,8 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
           </LinkableHeading>
           <HelpText title="Modellkostnad — brutto vs netto" placement="top">
             Søylene viser brutto kostnad per modell per måned (før Nav-rabatt). Netto-linjen viser faktisk fakturert
-            beløp etter rabatt — derfor er linjen alltid lavere enn toppen av søylene. Inneværende måned bruker daglige
-            bruttotall fra fakturerings-API-et; nettotallet er akkumulert hittil i måneden. For prognose månedsslutt, se
-            «Prognose månedsslutt (USD)»-grafen over.
+            beløp etter rabatt — derfor er linjen alltid lavere enn toppen av søylene. Inneværende måned viser
+            akkumulert brutto hittil; for prognose månedsslutt, se «Prognose månedsslutt (USD)»-grafen over.
           </HelpText>
         </div>
 

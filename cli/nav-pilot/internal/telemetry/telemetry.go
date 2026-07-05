@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -99,6 +100,7 @@ type otelTelemetry struct {
 	os               string
 	arch             string
 	rtkInstalled     string
+	projectType      string
 }
 
 func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) (Recorder, error) {
@@ -119,6 +121,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	osName := normalizeTelemetryDimension(runtime.GOOS, "unknown")
 	arch := normalizeTelemetryDimension(runtime.GOARCH, "unknown")
 	execCtx := normalizeTelemetryDimension(executionContext, "unknown")
+	projType := normalizeTelemetryDimension(detectProjectType(), "na")
 
 	endpoint := strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENDPOINT"))
 	if endpoint == "" {
@@ -263,6 +266,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		os:                 osName,
 		arch:               arch,
 		rtkInstalled:       rtkInstalled,
+		projectType:        projType,
 	}
 	tel.recordInfo()
 
@@ -329,6 +333,7 @@ func (t *otelTelemetry) recordInfo() {
 		attribute.String("os", t.os),
 		attribute.String("arch", t.arch),
 		attribute.String("rtk_installed", t.rtkInstalled),
+		attribute.String("project_type", t.projectType),
 	))
 }
 
@@ -524,8 +529,10 @@ func normalizeTelemetryDimension(v, fallback string) string {
 	}
 	switch v {
 	case "install", "sync", "upgrade", "list", "startup", "launch", "doctor",
+		"init", "export", "uninstall", "config", "env", "feedback", "models", "ignore", "add",
 		"interactive", "non_interactive",
 		"repo", "user", "auto", "none", "unknown",
+		"go", "node", "jvm", "python", "na",
 		"success", "error", "updates_available", "dev",
 		"all", "other",
 		"fullstack", "kotlin-backend", "frontend", "nextjs-frontend", "platform",
@@ -537,7 +544,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"darwin", "linux", "windows",
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
-		"client_not_found", "launch_failed",
+		"client_not_found", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
 		"yes", "no", "aborted", "brew_failed", "curl_failed", "init_failed", "already_installed":
 		return v
 	default:
@@ -560,4 +567,41 @@ func maxInt64(a, b int64) int64 {
 		return a
 	}
 	return b
+}
+
+func detectProjectType() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "na"
+	}
+
+	dir := cwd
+	for i := 0; i < 4; i++ {
+		if exists(filepath.Join(dir, "go.mod")) {
+			return "go"
+		}
+		if exists(filepath.Join(dir, "package.json")) {
+			return "node"
+		}
+		if exists(filepath.Join(dir, "pom.xml")) || exists(filepath.Join(dir, "build.gradle")) || exists(filepath.Join(dir, "build.gradle.kts")) {
+			return "jvm"
+		}
+		if exists(filepath.Join(dir, "requirements.txt")) || exists(filepath.Join(dir, "pyproject.toml")) {
+			return "python"
+		}
+		if exists(filepath.Join(dir, ".git")) {
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "na"
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

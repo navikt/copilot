@@ -22,11 +22,12 @@ import type {
   TeamAdoption,
   TeamUsageSummary,
   UserMetricsSummary,
-  WeeklyTrend,
   AdoptionCohortDay,
   BillingMonthlyTrend,
   BillingModelBreakdown,
   DailySummary,
+  DailyCredits,
+  UsageDistribution,
 } from "./types";
 
 function getErrorMessage(label: string, err: unknown): string {
@@ -137,14 +138,19 @@ export async function getUserMetrics(
   return { metrics: result.data, error: result.error };
 }
 
-export async function getUserWeeklyTrends(
+export async function getUserDailyCredits(
   username: string,
-  token: string
-): Promise<{ trends: WeeklyTrend[]; error: string | null }> {
-  const result = await fetchWithFallback("getUserWeeklyTrends", [] as WeeklyTrend[], () =>
-    backendRequest<WeeklyTrend[]>(`/api/v1/copilot/usage/user/${encodeURIComponent(username)}/weekly`, token)
+  token: string,
+  days?: number
+): Promise<{ credits: DailyCredits[]; error: string | null }> {
+  const query = days ? `?days=${days}` : "";
+  const result = await fetchWithFallback("getUserDailyCredits", [] as DailyCredits[], () =>
+    backendRequest<DailyCredits[]>(
+      `/api/v1/copilot/usage/user/${encodeURIComponent(username)}/daily-credits${query}`,
+      token
+    )
   );
-  return { trends: result.data, error: result.error };
+  return { credits: result.data, error: result.error };
 }
 
 export async function getMonthlyTrends(token: string): Promise<{
@@ -233,4 +239,18 @@ export async function getDailySummary(token: string): Promise<{
     backendRequest<DailySummary>("/api/v1/copilot/usage/daily-summary", token)
   );
   return { summary: result.data, error: result.error };
+}
+
+export async function getUsageDistribution(
+  token: string,
+  month?: string
+): Promise<{
+  distribution: UsageDistribution | null;
+  error: string | null;
+}> {
+  const query = month ? `?month=${encodeURIComponent(month)}` : "";
+  const result = await fetchNullable("getUsageDistribution", () =>
+    backendRequest<UsageDistribution>(`/api/v1/copilot/usage/distribution${query}`, token)
+  );
+  return { distribution: result.data, error: result.error };
 }

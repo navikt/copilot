@@ -135,17 +135,28 @@ func run(args []string) error {
 		fileCfg, _ := readConfig()
 		autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
 
-		if autoUpdate {
+		// Guard against re-exec loops: if we already re-exec'd once after an
+		// auto-update in this process chain, don't attempt another update
+		// even if the (possibly stale) cache still reports a newer version.
+		alreadyReexeced := os.Getenv(reexecGuardEnv) == "1"
+
+		if autoUpdate && !alreadyReexeced {
 			fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
-			if err := cmdUpdate(); err != nil {
+			updated, err := doUpdate()
+			if err != nil {
 				return fmt.Errorf("auto-update failed: %w", err)
-			} else {
-				fmt.Println("Upgrade successful! Re-executing command...")
-				exe, _ := os.Executable()
-				syscall.Exec(exe, os.Args, os.Environ())
-				os.Exit(0)
 			}
-		} else if isInteractive() && assessment.SkewDays > 7 {
+			if updated {
+				if err := reexecSelf(); err != nil {
+					fmt.Fprintf(os.Stderr, "%s Updated, but failed to re-execute automatically: %v\n", yellow("⚠"), err)
+					fmt.Fprintln(os.Stderr, "Please re-run your command manually.")
+					return nil
+				}
+			}
+			// If updated == false, the binary was already up to date (e.g. the
+			// cache was stale); fall through and run the command normally
+			// instead of re-executing and looping.
+		} else if !autoUpdate && isInteractive() && assessment.SkewDays > 7 {
 			var upgradeChoice bool
 			err := huh.NewConfirm().
 				Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).
@@ -154,17 +165,26 @@ func run(args []string) error {
 				Run()
 
 			if err == nil && upgradeChoice {
-				if err := cmdUpdate(); err != nil {
+				updated, err := doUpdate()
+				if err != nil {
 					return fmt.Errorf("interactive upgrade failed: %w", err)
-				} else {
-					fmt.Println("Upgrade successful! Re-executing command...")
-					exe, _ := os.Executable()
-					syscall.Exec(exe, os.Args, os.Environ())
-					os.Exit(0)
+				}
+				if updated {
+					if err := reexecSelf(); err != nil {
+						fmt.Fprintf(os.Stderr, "%s Updated, but failed to re-execute automatically: %v\n", yellow("⚠"), err)
+						fmt.Fprintln(os.Stderr, "Please re-run your command manually.")
+						return nil
+					}
 				}
 			}
-		} else {
+		} else if !autoUpdate {
 			fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
+				yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
+		} else {
+			// autoUpdate is true but alreadyReexeced is true: we already tried
+			// updating once in this process chain and it didn't stick (e.g.
+			// stale cache). Warn instead of looping.
+			fmt.Fprintf(os.Stderr, "%s nav-pilot %s still reported after a recent update attempt (current: %s) — run %s to retry\n",
 				yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
 		}
 	}
@@ -448,7 +468,9 @@ func run(args []string) error {
 			return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
 		})
 	case "init":
-		return cmdInit(targetDir, dryRun, force)
+		return runWithCommandTelemetry("init", telemetryMode(), scope.Name, func() error {
+			return cmdInit(targetDir, dryRun, force)
+		})
 	case "export":
 		if len(positional) == 0 {
 			return fmt.Errorf("export requires a format.\n\nUsage: nav-pilot export <format>\n\nFormats: opencode")
@@ -458,7 +480,9 @@ func run(args []string) error {
 				yellow("⚠"), bold("export opencode --user"), bold("nav-pilot sync"),
 				bold("nav-pilot --client opencode"), bold("nav-pilot sync"), bold("export opencode"))
 		}
-		return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		return runWithCommandTelemetry("export", telemetryMode(), scope.Name, func() error {
+			return cmdExport(positional[0], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		})
 	case "add":
 		// Deprecated: hidden alias for backward compatibility
 		if !jsonOutput {
@@ -473,12 +497,16 @@ func run(args []string) error {
 		if len(positional) < 2 {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
 		}
-		return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		return runWithCommandTelemetry("add", telemetryMode(), scope.Name, func() error {
+			return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force, jsonOutput)
+		})
 	case "ignore":
 		if len(positional) < 2 {
 			return fmt.Errorf("ignore requires a type and name.\n\nUsage: nav-pilot ignore <type> <name> --user\n\nTypes: agent, skill, instruction\n\nExamples:\n  nav-pilot ignore instruction nextjs-aksel --user\n  nav-pilot ignore agent security-champion --user")
 		}
-		return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
+		return runWithCommandTelemetry("ignore", telemetryMode(), scope.Name, func() error {
+			return cmdIgnore(positional[0], positional[1], scope, jsonOutput)
+		})
 	case "sync":
 		syncScope := "auto"
 		if userScope || targetProvided {
@@ -509,7 +537,9 @@ func run(args []string) error {
 			return cmdDoctor()
 		})
 	case "uninstall":
-		return cmdUninstall(scope, dryRun)
+		return runWithCommandTelemetry("uninstall", telemetryMode(), scope.Name, func() error {
+			return cmdUninstall(scope, dryRun)
+		})
 	case "upgrade":
 		return runWithCommandTelemetry("upgrade", telemetryMode(), "none", cmdUpdate)
 	case "update":
@@ -518,15 +548,21 @@ func run(args []string) error {
 			fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
 				yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
 		}
-		return cmdUpdate()
+		return runWithCommandTelemetry("update", telemetryMode(), "none", cmdUpdate)
 	case "config":
-		return cmdConfig(positional, force, jsonOutput)
+		return runWithCommandTelemetry("config", telemetryMode(), "none", func() error {
+			return cmdConfig(positional, force, jsonOutput)
+		})
 	case "env":
-		return cmdEnv()
+		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)
 	case "feedback":
-		return cmdFeedback(targetDir, featureRequest)
+		return runWithCommandTelemetry("feedback", telemetryMode(), "none", func() error {
+			return cmdFeedback(targetDir, featureRequest)
+		})
 	case "models":
-		return cmdModels(jsonOutput)
+		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
+			return cmdModels(jsonOutput)
+		})
 	case "version", "--version", "-v":
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
@@ -542,12 +578,40 @@ func run(args []string) error {
 	}
 }
 
+// reexecGuardEnv marks a process as having already attempted a self re-exec
+// after an auto-update, preventing infinite update/re-exec loops if the
+// staleness cache still reports a newer version afterward (e.g. due to a
+// stale cache entry or a race with a concurrent release check).
+const reexecGuardEnv = "NAV_PILOT_REEXEC_GUARD"
+
+// reexecSelf replaces the current process with a fresh invocation of the
+// (now updated) binary, carrying the loop guard forward. Returns an error
+// if the executable path cannot be determined or exec fails, instead of
+// silently falling through as the previous implementation did.
+func reexecSelf() error {
+	fmt.Println("Upgrade successful! Re-executing command...")
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot determine binary path: %w", err)
+	}
+	exe, err = filepath.EvalSymlinks(exe)
+	if err != nil {
+		return fmt.Errorf("cannot resolve binary path: %w", err)
+	}
+	env := append(os.Environ(), reexecGuardEnv+"=1")
+	if err := syscall.Exec(exe, os.Args, env); err != nil {
+		return fmt.Errorf("exec failed: %w", err)
+	}
+	// syscall.Exec only returns on error; unreachable on success.
+	return nil
+}
+
 func Main(info BuildInfo) {
 	Version = info.Version
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)
 	providerpkg.FetchLatestVersion = func() (string, string, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		return fetchLatestVersion(ctx)
 	}
@@ -571,7 +635,7 @@ func Main(info BuildInfo) {
 		exitCode = exitCodeFor(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 	_ = telemetry.Shutdown(ctx)
 	if exitCode != 0 {

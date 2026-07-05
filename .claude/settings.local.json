@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk ls *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk wc *)"
+    ]
+  },
+  "prefersReducedMotion": true,
+  "outputStyle": "default"
+}

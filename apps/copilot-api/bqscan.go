@@ -177,8 +177,11 @@ func assignBQScalar(field reflect.Value, val bigquery.Value) error {
 }
 
 // readAllRows scans every row of the iterator into a slice of T using decodeBQRow.
+// IMPORTANT: Uses make([]T, 0) instead of var results []T because Go's nil slice
+// serializes as JSON `null` while an empty initialized slice serializes as `[]`.
+// The frontend expects arrays (e.g. weeklyTrends.length) and crashes on null.
 func readAllRows[T any](it *bigquery.RowIterator) ([]T, error) {
-	var results []T
+	results := make([]T, 0) // non-nil: ensures JSON [] not null on empty result sets
 	for {
 		var row []bigquery.Value
 		err := it.Next(&row)

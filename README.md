@@ -233,6 +233,16 @@ Tilpasningene dekker Navs kjernestack:
 
 Kjør `mise check` etter endringer for å validere alt.
 
+### Unngå å committe hemmeligheter
+
+CI skanner hele historikken med [gitleaks](https://github.com/gitleaks/gitleaks). Vil du fange lekkasjer allerede før commit, installer gitleaks lokalt (`brew install gitleaks`) og legg til en valgfri pre-commit-sjekk:
+
+```bash
+gitleaks git --pre-commit --staged    # Skanner kun stagede endringer
+```
+
+Falske positiver håndteres i [.gitleaks.toml](.gitleaks.toml).
+
 <details>
 <summary>Utvikleroppsett for applikasjonene</summary>
 

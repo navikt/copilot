@@ -1,12 +1,64 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// verifyUsernameOwnership resolves the authenticated caller's GitHub username
+// via SAML and compares it to the requested username. Returns true if ownership
+// is verified (or if no githubClient is configured — graceful degradation).
+// On failure it writes an appropriate error response and returns false.
+//
+// SECURITY: This check is required on ALL per-user read endpoints. Without it,
+// any employee can read any colleague's personal Copilot activity (daily credits,
+// acceptance counts, lines of code) by simply passing a different ?username= param.
+// The frontend supplies the username from the user's own SAML-resolved identity,
+// but the backend must not trust that — verify server-side via SAML lookup.
+func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
+	if h.githubClient == nil {
+		// SECURITY: Fail closed in production. If the GitHub client failed to
+		// initialize (bad key, transient error), deny access rather than serving
+		// anyone's data to any authenticated caller. Only allow through in local
+		// dev where SAML infrastructure is unavailable.
+		if h.environment != "local" {
+			slog.Error("Ownership check unavailable: githubClient is nil in non-local environment")
+			respondError(w, "service_unavailable", "Ownership verification temporarily unavailable", http.StatusServiceUnavailable)
+			return false
+		}
+		return true
+	}
+
+	user, ok := getUserFromContext(r.Context())
+	if !ok || user == nil {
+		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		return false
+	}
+
+	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
+	if err != nil {
+		slog.Error("Failed to verify caller identity via SAML", "error", err)
+		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
+		return false
+	}
+	if resolvedUsername == "" {
+		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
+		return false
+	}
+	if !strings.EqualFold(resolvedUsername, requestedUsername) {
+		slog.Warn("Per-user read denied: username mismatch",
+			"requested_username", requestedUsername,
+			"actor_navident", user.NAVident,
+		)
+		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
+		return false
+	}
+	return true
+}
 
 func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxValue int) (int, bool) {
 	value := r.URL.Query().Get(name)
@@ -57,6 +109,10 @@ func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Requ
 	username := r.PathValue("username")
 	if !isValidUsageUsername(username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		return
+	}
+
+	if !h.verifyUsernameOwnership(w, r, username) {
 		return
 	}
 
@@ -181,6 +237,10 @@ func (h *BigQueryHandlers) handleUserWeeklyTrends(w http.ResponseWriter, r *http
 		return
 	}
 
+	if !h.verifyUsernameOwnership(w, r, username) {
+		return
+	}
+
 	weeks, ok := optionalIntParam(r, "weeks", 12, 1, 52)
 	if !ok {
 		respondError(w, "invalid_parameter", "weeks must be between 1 and 52", http.StatusBadRequest)
@@ -202,6 +262,10 @@ func (h *BigQueryHandlers) handleUserDailyCredits(w http.ResponseWriter, r *http
 	username := r.PathValue("username")
 	if !isValidUsageUsername(username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
+		return
+	}
+
+	if !h.verifyUsernameOwnership(w, r, username) {
 		return
 	}
 
@@ -276,6 +340,51 @@ func (h *BigQueryHandlers) handleBillingModelBreakdown(w http.ResponseWriter, r 
 	respondJSON(w, breakdown, http.StatusOK)
 }
 
+func (h *BigQueryHandlers) handleUsageDistribution(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+
+	budgetCredits := h.resolveBudgetCredits(r.Context())
+
+	distribution, err := h.bqClient.GetUsageDistribution(r.Context(), month, budgetCredits)
+	if err != nil {
+		slog.Error("Failed to fetch usage distribution", "error", err)
+		respondError(w, "internal_error", "Failed to fetch usage distribution", http.StatusInternalServerError)
+		return
+	}
+
+	// Seat count comes from the background-collected GitHub metrics, not BigQuery.
+	// Copy the struct to avoid mutating the cached pointer (shared across requests).
+	var seats int64
+	if h.activeSeatsGetter != nil {
+		seats = h.activeSeatsGetter()
+	}
+
+	result := *distribution
+	result.TotalLicensedSeats = seats
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, &result, http.StatusOK)
+}
+
+// resolveBudgetCredits fetches the enterprise per-user $ budget and converts it to
+// AI credits (1 credit = $0.01). Falls back to defaultPerUserBudgetCredits if the
+// budget client is unavailable or errors, so the distribution endpoint keeps working.
+func (h *BigQueryHandlers) resolveBudgetCredits(ctx context.Context) float64 {
+	if h.budgetClient == nil {
+		return defaultPerUserBudgetCredits
+	}
+	budget, err := h.budgetClient.getGlobalBudget(ctx)
+	if err != nil || budget == nil || budget.PerUserBudget <= 0 {
+		slog.Warn("Falling back to default per-user budget for usage distribution", "error", err)
+		return defaultPerUserBudgetCredits
+	}
+	return budget.PerUserBudget / usdPerAICredit
+}
+
 func (h *BigQueryHandlers) handleDailySummary(w http.ResponseWriter, r *http.Request) {
 	summary, err := h.bqClient.GetDailySummary(r.Context())
 	if err != nil {
@@ -284,7 +393,16 @@ func (h *BigQueryHandlers) handleDailySummary(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if summary == nil {
-		respondJSON(w, nil, http.StatusNoContent)
+		// 204 must not carry a body (Go's http package rejects it, and the
+		// frontend's response.json() then throws on the empty body). Return
+		// 200 with a literal JSON null instead — this is what fetchNullable
+		// on the frontend expects for "no data yet".
+		//
+		// Use a short cache TTL (rather than none) so early-morning requests
+		// before the day's data lands don't bypass the cache entirely and
+		// hammer BigQuery on every request until data appears.
+		cacheControl(w, 300, false)
+		respondJSON(w, nil, http.StatusOK)
 		return
 	}
 

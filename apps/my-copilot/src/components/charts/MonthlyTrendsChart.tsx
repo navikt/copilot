@@ -7,6 +7,7 @@ import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-ut
 import { VStack, HGrid, BodyShort, Box } from "@navikt/ds-react";
 import { formatNumber } from "@/lib/format";
 import { LinkableHeading } from "@/components/linkable-heading";
+import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
 
 interface MonthlyTrendsChartProps {
   data: MonthlyTrend[];
@@ -17,19 +18,13 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
     return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
 
-  const labels = data.map((d) => {
-    // Mark current partial month
-    const now = new Date();
-    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    return d.month === currentMonthStr ? `${d.month} *` : d.month;
-  });
+  const current = currentMonthUTC();
+  const labels = data.map((d) => (d.month === current ? `${d.month} *` : d.month));
 
-  // Summary: latest COMPLETE month vs previous
-  const now = new Date();
-  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const completeMonths = data.filter((d) => d.month !== currentMonthStr);
-  const latest = completeMonths.length > 0 ? completeMonths[completeMonths.length - 1] : data[data.length - 1];
-  const prev = completeMonths.length > 1 ? completeMonths[completeMonths.length - 2] : null;
+  // Summary: latest COMPLETE month vs previous (using shared utility)
+  const { latestComplete, prevComplete: prev } = selectCompleteMonths(data, current);
+  // Fall back to last data point if no month qualifies as complete
+  const latest = latestComplete ?? data[data.length - 1];
 
   const usersChartData = {
     labels,

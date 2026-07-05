@@ -64,6 +64,9 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 
 	dst := scope.DstPath(kind.Dir, art.FileName())
 	relPath := kind.RelPathForName(scope, art.Name)
+	if art.IsDir && !strings.HasSuffix(relPath, "/") {
+		relPath = scope.RelPath(kind.Dir, art.Name) + "/"
+	}
 
 	if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
 		return err
@@ -272,6 +275,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		Collection:  collection,
 		Version:     stateVersion,
 		Scope:       scope.Name,
+		SourceRepo:  src.Repo,
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       result.Files,
@@ -361,11 +365,15 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, d
 			Collection:  "(à la carte)",
 			Scope:       scope.Name,
 			Version:     src.Version,
+			SourceRepo:  src.Repo,
 			SourceSHA:   src.SHA,
 			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		}
 	}
 	state.SourceSHA = src.SHA
+	if state.SourceRepo == "" {
+		state.SourceRepo = src.Repo
+	}
 	if state.Version == "" {
 		state.Version = src.Version
 	}
@@ -619,6 +627,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		Collection:  CollectionAll,
 		Version:     stateVersion,
 		Scope:       scope.Name,
+		SourceRepo:  src.Repo,
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       result.Files,

@@ -13,33 +13,8 @@ interface BillingMonthNowChartProps {
   forecast: BillingModelForecast | null;
 }
 
-function tail(values: number[], n: number): number[] {
-  if (n <= 0 || values.length === 0) return [];
-  return values.length <= n ? values : values.slice(values.length - n);
-}
-
-function weightedRunRate(series: number[], window = 7): number {
-  const values = tail(series, window);
-  if (values.length === 0) return 0;
-  let weightedSum = 0;
-  let weightTotal = 0;
-  values.forEach((value, index) => {
-    const weight = index + 1;
-    weightedSum += value * weight;
-    weightTotal += weight;
-  });
-  return weightTotal > 0 ? weightedSum / weightTotal : 0;
-}
-
-function sampleStdDev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1);
-  return Math.sqrt(variance);
-}
-
 const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, forecast }) => {
-  if (!dailyData || dailyData.length === 0 || !forecast) {
+  if (!dailyData || dailyData.length === 0 || !forecast || !forecast.points?.length) {
     return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
   }
   const monthLabel = new Date(`${forecast.month}-01`).toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
@@ -73,45 +48,43 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
     stack: "gross",
   }));
 
-  const dayNumbers = labels.map((label) => Number(label.slice(8))).filter((d) => Number.isFinite(d));
-  const daysElapsed = dayNumbers.length > 0 ? Math.max(...dayNumbers) : 0;
+  const daysElapsed = forecast.days_elapsed;
   const daysInMonth = forecast.days_in_month;
   const cumulativeLabels = Array.from({ length: daysInMonth }, (_, index) => String(index + 1).padStart(2, "0"));
 
-  const dailyGrossSeries = Array.from({ length: Math.max(daysElapsed, 0) }, (_, index) => {
-    const day = String(index + 1).padStart(2, "0");
-    const date = `${forecast.month}-${day}`;
-    return grossByDay.get(date) || 0;
-  });
-  const actualMTDGross = dailyGrossSeries.reduce((sum, value) => sum + value, 0);
-  let runRate = weightedRunRate(dailyGrossSeries, 7);
-  if (runRate <= 0 && daysElapsed > 0) {
-    runRate = actualMTDGross / daysElapsed;
-  }
-  const projectedEOMGross = actualMTDGross + runRate * (daysInMonth - daysElapsed);
-  const dailyVolatility = sampleStdDev(tail(dailyGrossSeries, 14));
+  // Use backend's weekday-aware forecast points for the projection line.
+  // The backend separates weekday/weekend rates and blends with previous month
+  // data early in the billing cycle — this gives a more accurate projection than
+  // a simple linear run-rate computed client-side.
+  const actualMTDGross = forecast.actual_mtd_net_amount;
+  const projectedEOMGross = forecast.projected_eom_net_amount;
 
   const actual: Array<number | null> = [];
   const projected: number[] = [];
   const bandUpper: number[] = [];
   const bandLower: number[] = [];
-  let cumulative = 0;
-  for (let day = 1; day <= daysInMonth; day++) {
-    if (day <= daysElapsed) {
-      const dayValue = dailyGrossSeries[day - 1] || 0;
-      cumulative += dayValue;
-      actual.push(Number(cumulative.toFixed(2)));
-      projected.push(Number(cumulative.toFixed(2)));
-      bandUpper.push(Number(cumulative.toFixed(2)));
-      bandLower.push(Number(cumulative.toFixed(2)));
-      continue;
+
+  // Compute uncertainty spread per day for the confidence band
+  const remainingDays = daysInMonth - daysElapsed;
+  const totalSpread = remainingDays > 0 ? forecast.upper_eom_net_amount - forecast.projected_eom_net_amount : 0;
+  // Spread grows with sqrt(days) — scale per-day accordingly
+  const sqrtTotal = Math.sqrt(Math.max(remainingDays, 1));
+
+  for (const point of forecast.points) {
+    if (point.is_actual) {
+      actual.push(Number((point.actual_cumulative ?? point.projected_cumulative).toFixed(2)));
+      projected.push(Number(point.projected_cumulative.toFixed(2)));
+      bandUpper.push(Number(point.projected_cumulative.toFixed(2)));
+      bandLower.push(Number(point.projected_cumulative.toFixed(2)));
+    } else {
+      const dayNum = Number(point.day.slice(8));
+      const daysFromActual = dayNum - daysElapsed;
+      const spread = totalSpread * (Math.sqrt(daysFromActual) / sqrtTotal);
+      actual.push(null);
+      projected.push(Number(point.projected_cumulative.toFixed(2)));
+      bandUpper.push(Number((point.projected_cumulative + spread).toFixed(2)));
+      bandLower.push(Number(Math.max(actualMTDGross, point.projected_cumulative - spread).toFixed(2)));
     }
-    const projectedValue = cumulative + runRate * (day - daysElapsed);
-    const spread = dailyVolatility * (day - daysElapsed);
-    actual.push(null);
-    projected.push(Number(projectedValue.toFixed(2)));
-    bandUpper.push(Number((projectedValue + spread).toFixed(2)));
-    bandLower.push(Number(Math.max(actualMTDGross, projectedValue - spread).toFixed(2)));
   }
 
   return (
@@ -150,10 +123,8 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
             <BodyShort weight="semibold">Prognose månedsslutt (USD)</BodyShort>
             <BodyShort size="small" className="text-gray-500">
               MTD {formatNumber(Math.round(actualMTDGross))} • Prognose {formatNumber(Math.round(projectedEOMGross))} (
-              {formatNumber(
-                Math.round(Math.max(actualMTDGross, projectedEOMGross - dailyVolatility * (daysInMonth - daysElapsed)))
-              )}{" "}
-              – {formatNumber(Math.round(projectedEOMGross + dailyVolatility * (daysInMonth - daysElapsed)))})
+              {formatNumber(Math.round(forecast.lower_eom_net_amount))} –{" "}
+              {formatNumber(Math.round(forecast.upper_eom_net_amount))})
             </BodyShort>
             <div className="aspect-[2/1]">
               <Line

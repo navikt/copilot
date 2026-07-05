@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 )
 
 var (
@@ -21,7 +23,12 @@ var (
 )
 
 // httpClient is the client used for all HTTP requests. Overridable in tests.
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+	},
+}
 
 type ghRelease struct {
 	TagName string `json:"tag_name"`
@@ -30,11 +37,20 @@ type ghRelease struct {
 // cmdUpdate checks for a newer version and updates the binary in-place.
 // If installed via Homebrew, it tells the user to use brew upgrade instead.
 func cmdUpdate() error {
+	_, err := doUpdate()
+	return err
+}
+
+// doUpdate performs the update check and, if a newer version is available,
+// downloads and installs it. It returns updated=true only if the binary was
+// actually replaced, so callers can distinguish "already up to date" (no-op)
+// from "successfully updated" and avoid re-executing when nothing changed.
+func doUpdate() (updated bool, err error) {
 	if isBrewManaged() {
 		fmt.Println("nav-pilot is managed by Homebrew.")
 		fmt.Println()
 		fmt.Println("  brew upgrade navikt/tap/nav-pilot")
-		return nil
+		return false, nil
 	}
 
 	current := Version
@@ -42,23 +58,23 @@ func cmdUpdate() error {
 	defer cancel()
 	latest, tag, err := fetchLatestVersion(ctx)
 	if err != nil {
-		return fmt.Errorf("could not check for updates: %w", err)
+		return false, fmt.Errorf("could not check for updates: %w", err)
 	}
 
 	if !versionNewer(latest, current) {
 		fmt.Printf("✓ nav-pilot is up to date (%s)\n", current)
-		return nil
+		return false, nil
 	}
 
 	fmt.Printf("Update available: %s → %s\n", current, latest)
 
 	self, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("cannot determine binary path: %w", err)
+		return false, fmt.Errorf("cannot determine binary path: %w", err)
 	}
 	self, err = filepath.EvalSymlinks(self)
 	if err != nil {
-		return fmt.Errorf("cannot resolve binary path: %w", err)
+		return false, fmt.Errorf("cannot resolve binary path: %w", err)
 	}
 
 	asset := fmt.Sprintf("nav-pilot-%s-%s", runtime.GOOS, runtime.GOARCH)
@@ -68,38 +84,46 @@ func cmdUpdate() error {
 	fmt.Printf("→ Downloading %s...\n", asset)
 	bin, err := httpGet(assetURL)
 	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
+		return false, fmt.Errorf("download failed: %w", err)
 	}
 
 	if err := verifyChecksum(bin, asset, checksumURL); err != nil {
-		return err
+		return false, err
 	}
 
 	// Atomic replace: write temp file next to binary, then rename
 	dir := filepath.Dir(self)
 	tmp, err := os.CreateTemp(dir, ".nav-pilot-update-*")
 	if err != nil {
-		return fmt.Errorf("cannot create temp file (is %s writable?): %w", dir, err)
+		return false, fmt.Errorf("cannot create temp file (is %s writable?): %w", dir, err)
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
 
 	if _, err := tmp.Write(bin); err != nil {
 		tmp.Close()
-		return fmt.Errorf("write failed: %w", err)
+		return false, fmt.Errorf("write failed: %w", err)
 	}
 	tmp.Close()
 
 	if err := os.Chmod(tmpPath, 0o755); err != nil {
-		return fmt.Errorf("chmod failed: %w", err)
+		return false, fmt.Errorf("chmod failed: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, self); err != nil {
-		return fmt.Errorf("replace failed: %w", err)
+		return false, fmt.Errorf("replace failed: %w", err)
 	}
 
+	// Invalidate the staleness cache now that we're on the latest version,
+	// so a subsequent process doesn't see a stale "update available" entry
+	// (e.g. if this rename raced with a fresh release check elsewhere).
+	artifacts.WriteCache(&artifacts.StalenessCache{
+		LastChecked:   time.Now().UTC().Format(time.RFC3339),
+		LatestVersion: latest,
+	})
+
 	fmt.Printf("✓ Updated to nav-pilot %s\n", latest)
-	return nil
+	return true, nil
 }
 
 // isBrewManaged returns true if the running binary lives inside a Homebrew prefix.
@@ -123,6 +147,10 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 	req, err := http.NewRequestWithContext(ctx, "GET", releasesAPI+"?per_page=20", nil)
 	if err != nil {
 		return "", "", err
+	}
+
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
 	resp, err := httpClient.Do(req)
@@ -152,7 +180,14 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 }
 
 func httpGet(url string) ([]byte, error) {
-	resp, err := httpClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

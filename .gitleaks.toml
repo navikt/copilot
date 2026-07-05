@@ -1,0 +1,35 @@
+# Gitleaks-konfigurasjon for navikt/copilot
+# Utvider standard-regelsettet. Oppføringene under er KUN bekreftede
+# falske positiver — aldri allowlist ekte hemmeligheter her.
+
+[extend]
+useDefault = true
+
+# Falsk positiv: avkortet, falsk JWT-header brukt som testfixture i
+# copilot-api sine auth-tester. Strengen er kun base64 av
+# {"alg":"RS256","typ":"JWT"} etterfulgt av "..." — ingen payload
+# eller signatur, altså ikke et gyldig token.
+[[allowlists]]
+description = "Testfixture: avkortet falsk JWT-header i auth-tester"
+regexTarget = "line"
+regexes = ['''eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9\.\.\.''']
+
+# Falsk positiv: dokumentasjonseksempel som viser FEIL måte å håndtere
+# hemmeligheter på ("❌ Feil — hardkodet hemmelighet") i
+# instructions/github-actions.instructions.md (lå tidligere under
+# .github/instructions/, derav valgfritt prefiks i path-regexen).
+# Verdien er en åpenbar placeholder, ikke en ekte nøkkel.
+[[allowlists]]
+description = "Dokumentasjonseksempel på hardkodet nøkkel (bevisst feileksempel)"
+condition = "AND"
+paths = ['''(\.github/)?instructions/github-actions\.instructions\.md''']
+regexes = ['''sk-1234567890''']
+
+# Falsk positiv: ren prosa i copilot-instructions.md — generic-api-key-
+# regelen matcher "installation tokens, billing/seat/SAML" i en
+# punktliste som beskriver github.go. Ingen hemmelighet.
+[[allowlists]]
+description = "Prosa i copilot-instructions.md matchet av generic-api-key"
+condition = "AND"
+paths = ['''\.github/copilot-instructions\.md''']
+regexes = ['''billing/seat/SAML''']

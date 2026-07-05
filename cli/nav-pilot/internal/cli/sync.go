@@ -13,6 +13,7 @@ type syncResult struct {
 	UpToDate  bool         `json:"up_to_date"`
 	Source    string       `json:"source"`
 	Updates   []syncUpdate `json:"updates,omitempty"`
+	Deletions []string     `json:"deletions,omitempty"`
 	Errors    []string     `json:"errors,omitempty"`
 	Overrides []string     `json:"overrides,omitempty"`
 	Ignored   []string     `json:"ignored,omitempty"`
@@ -45,6 +46,11 @@ var cmdSyncFn = cmdSync
 //
 // Works with both state-based repos (nav-pilot install) and auto-detected repos.
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
+	if sourceRepo == "" {
+		if state, err := readScopedState(scope); err == nil && state != nil && state.SourceRepo != "" {
+			sourceRepo = state.SourceRepo
+		}
+	}
 	src, err := resolveSourceForSync(ref, sourceRepo)
 	if err != nil {
 		return err
@@ -125,6 +131,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	// Files that are in state but missing on disk are treated as intentionally
 	// deleted — they get marked "ignored" in the state file so future syncs skip them.
 	var updates []syncUpdate
+	var deletedPaths []string
 	var syncErrors []string
 	var ignoredPaths []string
 	for _, sf := range files {
@@ -132,6 +139,13 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		localFull := filepath.Join(scope.RootDir, sf.localPath)
 		if _, statErr := os.Stat(localFull); os.IsNotExist(statErr) {
 			ignoredPaths = append(ignoredPaths, sf.localPath)
+			continue
+		}
+
+		// Check if it exists in the source
+		sourceFull := filepath.Join(src.Dir, sf.sourcePath)
+		if _, statErr := os.Stat(sourceFull); os.IsNotExist(statErr) {
+			deletedPaths = append(deletedPaths, sf.localPath)
 			continue
 		}
 
@@ -164,9 +178,10 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	}
 
 	result := syncResult{
-		UpToDate:  len(updates) == 0 && len(syncErrors) == 0 && (apply || len(conflictPaths) == 0),
+		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && (apply || len(conflictPaths) == 0),
 		Source:    src.SHA,
 		Updates:   updates,
+		Deletions: deletedPaths,
 		Errors:    syncErrors,
 		Overrides: overriddenPaths,
 		Ignored:   ignoredPaths,
@@ -183,7 +198,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		if err := outputJSON(result); err != nil {
 			return err
 		}
-		// Exit 2 if any errors occurred (even with updates)
+		// Exit 2 if any errors occurred (even with updates/deletions)
 		if len(syncErrors) > 0 {
 			return errSyncFailed
 		}
@@ -220,7 +235,19 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
 		}
 		fmt.Println()
-	} else if len(conflictPaths) > 0 && !apply {
+	}
+
+	// Report deletions
+	if len(deletedPaths) > 0 {
+		fmt.Printf("%s %d file(s) deleted in source and will be removed (source: %s)\n\n",
+			yellow("⚠"), len(deletedPaths), src.SHA)
+		for _, p := range deletedPaths {
+			fmt.Printf("  %s %s\n", red("-"), p)
+		}
+		fmt.Println()
+	}
+
+	if len(conflictPaths) > 0 && !apply {
 		fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
 			yellow("⚠"), len(conflictPaths), src.SHA)
 		for _, p := range conflictPaths {
@@ -248,14 +275,48 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		applied++
 		appliedUpdates = append(appliedUpdates, u)
 	}
-	fmt.Printf("\n%s Updated %d file(s).\n", green("✓"), applied)
+
+	// Apply deletions
+	deleted := 0
+	var deletedSuccessPaths []string
+	for _, p := range deletedPaths {
+		localFull := filepath.Join(scope.RootDir, p)
+		var rmErr error
+		if strings.HasSuffix(p, "/") {
+			rmErr = os.RemoveAll(localFull)
+		} else {
+			rmErr = os.Remove(localFull)
+		}
+		if rmErr != nil && !os.IsNotExist(rmErr) {
+			fmt.Fprintf(os.Stderr, "%s Could not remove %s: %v\n", yellow("⚠"), p, rmErr)
+			applyErrors++
+			continue
+		}
+		fmt.Printf("  %s %s (deleted)\n", red("×"), p)
+		deleted++
+		deletedSuccessPaths = append(deletedSuccessPaths, p)
+	}
+
+	if len(updates) > 0 {
+		fmt.Printf("\n%s Updated %d file(s).\n", green("✓"), applied)
+	}
+	if len(deletedPaths) > 0 {
+		fmt.Printf("%s Removed %d file(s).\n", green("✓"), deleted)
+	}
 
 	// Update state with new hashes
 	if err := updateScopedStateHashes(scope, appliedUpdates); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update state file: %v\n", yellow("⚠"), err)
 	}
 
-	// Only bump source SHA and version if ALL updates were applied successfully
+	if len(deletedSuccessPaths) > 0 {
+		if err := removeFilesFromState(scope, deletedSuccessPaths); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not remove files from state: %v\n", yellow("⚠"), err)
+		}
+		scope.CleanupDirs()
+	}
+
+	// Only bump source SHA and version if ALL updates/deletions were applied successfully
 	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {
 			state.SourceSHA = src.SHA
@@ -651,6 +712,33 @@ func markFilesIgnored(scope *InstallScope, paths []string) error {
 		if pathSet[f.Path] {
 			state.Files[i].Status = fileStatusIgnored
 		}
+	}
+
+	return writeScopedState(scope, state)
+}
+
+// removeFilesFromState removes the specified paths from the state file.
+func removeFilesFromState(scope *InstallScope, paths []string) error {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+
+	pathSet := make(map[string]bool, len(paths))
+	for _, p := range paths {
+		pathSet[p] = true
+	}
+
+	var keptFiles []InstalledFile
+	for _, f := range state.Files {
+		if !pathSet[f.Path] {
+			keptFiles = append(keptFiles, f)
+		}
+	}
+	state.Files = keptFiles
+
+	if len(state.Files) == 0 {
+		return os.Remove(scope.StatePath())
 	}
 
 	return writeScopedState(scope, state)

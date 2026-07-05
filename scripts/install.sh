@@ -60,6 +60,20 @@ if [[ "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_DIR" ]] && command -v
   exit 0
 fi
 
+# ─── Security notice ────────────────────────────────────────────────────────
+#
+# WARNING: Piping curl to bash (curl | bash) means the script itself is not
+# verified before execution. If the GitHub CDN or repository is compromised,
+# this script could be replaced before the binary checks run.
+#
+# For the strongest supply chain security, install via Homebrew:
+#   brew install navikt/tap/nav-pilot
+#
+# On Linux/CI, download and inspect the script before running:
+#   curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
+#   cat install.sh  # Inspect before running!
+#   bash install.sh
+
 # ─── Detect platform ─────────────────────────────────────────────────────────
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -138,33 +152,81 @@ if ! curl -fsSL -o "${TMP_DIR}/${ASSET}" "$DOWNLOAD_URL"; then
 fi
 
 # ─── Verify checksum ─────────────────────────────────────────────────────────
+#
+# NOTE: SHA256SUMS is co-located with the binary on GitHub Releases.
+# This protects against accidental corruption and network-level tampering,
+# but NOT against a compromised GitHub release. SLSA attestation below
+# provides the stronger guarantee.
 
 echo "→ Verifying checksum..."
-if curl -fsSL -o "${TMP_DIR}/SHA256SUMS" "$CHECKSUM_URL" 2>/dev/null; then
-  EXPECTED=$(grep -F "  ${ASSET}" "${TMP_DIR}/SHA256SUMS" | awk '{print $1}')
-  if [[ -z "$EXPECTED" ]]; then
-    echo "Error: No checksum entry found for ${ASSET}"
-    exit 1
-  fi
-  if [[ -n "$EXPECTED" ]]; then
-    if command -v sha256sum &>/dev/null; then
-      ACTUAL=$(sha256sum "${TMP_DIR}/${ASSET}" | awk '{print $1}')
-    elif command -v shasum &>/dev/null; then
-      ACTUAL=$(shasum -a 256 "${TMP_DIR}/${ASSET}" | awk '{print $1}')
+if ! curl -fsSL -o "${TMP_DIR}/SHA256SUMS" "$CHECKSUM_URL" 2>/dev/null; then
+  echo "Error: Could not download SHA256SUMS from ${CHECKSUM_URL}"
+  exit 1
+fi
+
+EXPECTED=$(grep -F "  ${ASSET}" "${TMP_DIR}/SHA256SUMS" | awk '{print $1}')
+if [[ -z "$EXPECTED" ]]; then
+  echo "Error: No checksum entry found for ${ASSET} in SHA256SUMS"
+  exit 1
+fi
+
+if command -v sha256sum &>/dev/null; then
+  ACTUAL=$(sha256sum "${TMP_DIR}/${ASSET}" | awk '{print $1}')
+elif command -v shasum &>/dev/null; then
+  ACTUAL=$(shasum -a 256 "${TMP_DIR}/${ASSET}" | awk '{print $1}')
+else
+  echo "Error: Neither sha256sum nor shasum found. Cannot verify binary integrity."
+  echo "Install coreutils (Linux) or use Homebrew on macOS."
+  exit 1
+fi
+
+if [[ "$EXPECTED" != "$ACTUAL" ]]; then
+  echo "Error: Checksum mismatch!"
+  echo "  Expected: ${EXPECTED}"
+  echo "  Got:      ${ACTUAL}"
+  exit 1
+fi
+echo "  ✓ Checksum verified"
+
+# ─── Verify provenance (SLSA) ────────────────────────────────────────────────
+#
+# This is the strongest check: it verifies the binary was produced by our
+# GitHub Actions workflow and has not been tampered with since.
+# Requires 'gh' (GitHub CLI). Install: https://cli.github.com
+
+echo "→ Verifying build provenance (GitHub Artifact Attestations)..."
+if command -v gh &>/dev/null; then
+  VERIFY_ERR="${TMP_DIR}/verify_err.txt"
+  if gh attestation verify "${TMP_DIR}/${ASSET}" --repo "${REPO}" >/dev/null 2>"$VERIFY_ERR"; then
+    echo "  ✓ Provenance verified (SLSA)"
+  else
+    ERR_MSG=$(cat "$VERIFY_ERR")
+    if echo "$ERR_MSG" | grep -Eiq "auth|token|login|credential|sign in"; then
+      echo ""
+      echo "  ⚠ WARNING: GitHub CLI (gh) is not authenticated — skipping provenance verification!"
+      echo "  Error from gh: $(echo "$ERR_MSG" | tr '\n' ' ')"
+      echo "  To enable provenance verification:"
+      echo "    - In GitHub Actions: pass env: GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
+      echo "    - Locally: run 'gh auth login' or set GH_TOKEN environment variable."
+      echo ""
     else
-      echo "  ⚠ Neither sha256sum nor shasum found (skipping verification)"
-      ACTUAL=""
-    fi
-    if [[ -n "$ACTUAL" && "$EXPECTED" != "$ACTUAL" ]]; then
-      echo "Error: Checksum mismatch!"
-      echo "  Expected: ${EXPECTED}"
-      echo "  Got:      ${ACTUAL}"
+      echo "Error: Provenance verification failed!"
+      echo "  The binary was not produced by the official GitHub Actions workflow."
+      echo "  This may indicate supply chain tampering. Do not proceed."
+      echo "  Report this to the nav-pilot team: https://github.com/${REPO}/issues"
+      if [[ -n "$ERR_MSG" ]]; then
+        echo "  Details: $ERR_MSG"
+      fi
       exit 1
     fi
-    echo "  ✓ Checksum verified"
   fi
 else
-  echo "  ⚠ Could not download checksums (skipping verification)"
+  echo ""
+  echo "  ⚠ WARNING: GitHub CLI (gh) not found — skipping provenance verification!"
+  echo "  This means the binary's build origin cannot be confirmed."
+  echo "  Install gh for full supply chain security: https://cli.github.com"
+  echo "  Or install via Homebrew for a verified install: brew install navikt/tap/nav-pilot"
+  echo ""
 fi
 
 # ─── Install ─────────────────────────────────────────────────────────────────
@@ -178,6 +240,9 @@ echo "  ✓ Installed nav-pilot to ${INSTALL_DIR}/${BINARY}"
 
 echo ""
 echo "→ Installing cplt (sandbox)..."
+# NOTE: cplt and rtk are installed via their own install scripts without
+# provenance verification. These scripts are fetched from external repos
+# and are not controlled by nav-pilot's release pipeline.
 if curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash; then
   echo "  ✓ Installed cplt"
 else

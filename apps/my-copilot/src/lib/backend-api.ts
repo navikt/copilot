@@ -4,7 +4,10 @@
 
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 const TOKEN_EXCHANGE_TIMEOUT_MS = 5000;
-const BACKEND_REQUEST_TIMEOUT_MS = 15000;
+// In dev, allow more time for cold BigQuery queries to complete so the first
+// render produces stable output (avoids Turbopack hash-mismatch reload loop
+// while the backend cache is warming).
+const BACKEND_REQUEST_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 60000 : 15000;
 
 // Local dev: no Texas sidecar means no token exchange endpoint.
 // Use this check (not NAIS_CLUSTER_NAME) to stay consistent with auth.ts
@@ -63,9 +66,38 @@ async function fetchWithTimeout(
 }
 
 /**
- * Exchange user token for backend API OBO token via Texas sidecar
+ * Exchange user token for backend API OBO token via Texas sidecar.
+ *
+ * Uses in-flight promise deduplication (NOT React.cache) because this module
+ * is imported by both RSC and Route Handlers. React.cache only works inside
+ * the RSC render tree — using it here causes a Turbopack parse error:
+ * "Expected ',', got 'async'" in Route Handler bundles.
+ *
+ * The pattern: collapse concurrent exchanges for the same user token into a
+ * single request, then clear the promise so the next request cycle gets fresh tokens.
  */
+let pendingExchange: { token: string; promise: Promise<string> } | null = null;
+
 async function exchangeToken(userToken: string): Promise<string> {
+  // Reuse in-flight exchange for the same token (covers parallel backendRequest calls)
+  if (pendingExchange && pendingExchange.token === userToken) {
+    return pendingExchange.promise;
+  }
+
+  const promise = doExchangeToken(userToken);
+  pendingExchange = { token: userToken, promise };
+
+  try {
+    return await promise;
+  } finally {
+    // Clear once resolved so next request cycle gets a fresh exchange
+    if (pendingExchange?.promise === promise) {
+      pendingExchange = null;
+    }
+  }
+}
+
+async function doExchangeToken(userToken: string): Promise<string> {
   const endpoint = process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT;
   if (!endpoint) {
     throw new Error("NAIS_TOKEN_EXCHANGE_ENDPOINT not configured");

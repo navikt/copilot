@@ -18,6 +18,7 @@ const (
 type StalenessCache struct {
 	LastChecked   string `json:"last_checked"`
 	LatestVersion string `json:"latest_version"`
+	LastFailed    string `json:"last_failed,omitempty"`
 }
 
 type StalenessAssessment struct {
@@ -63,12 +64,35 @@ func WriteCache(c *StalenessCache) {
 	if path == "" {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return
 	}
 	data, _ := json.MarshalIndent(c, "", "  ")
 	data = append(data, '\n')
-	_ = os.WriteFile(path, data, 0o644)
+
+	tmpFile, err := os.CreateTemp(dir, "cache-*.tmp")
+	if err != nil {
+		return
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return
+	}
+	if err := tmpFile.Sync(); err != nil {
+		tmpFile.Close()
+		return
+	}
+	if err := tmpFile.Close(); err != nil {
+		return
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		return
+	}
+	_ = os.Rename(tmpPath, path)
 }
 
 // CheckStaleness returns the latest available version if the installed
@@ -90,7 +114,11 @@ func AssessStaleness(installedVersion string, fetchFn func() (string, string, er
 	cache := ReadCache()
 	if cache != nil && cache.LastChecked != "" {
 		if t, err := time.Parse(time.RFC3339, cache.LastChecked); err == nil {
-			if time.Since(t) < checkInterval {
+			if cache.LastFailed != "" {
+				if time.Since(t) < 1*time.Hour {
+					return AssessFromLatest(installedVersion, cache.LatestVersion, "cooldown")
+				}
+			} else if time.Since(t) < checkInterval {
 				return AssessFromLatest(installedVersion, cache.LatestVersion, "cooldown")
 			}
 		}
@@ -98,6 +126,15 @@ func AssessStaleness(installedVersion string, fetchFn func() (string, string, er
 
 	latest, _, err := fetchFn()
 	if err != nil {
+		var prevLatest string
+		if cache != nil {
+			prevLatest = cache.LatestVersion
+		}
+		WriteCache(&StalenessCache{
+			LastChecked:   time.Now().UTC().Format(time.RFC3339),
+			LatestVersion: prevLatest,
+			LastFailed:    time.Now().UTC().Format(time.RFC3339),
+		})
 		return StalenessAssessment{Result: "lookup_failed"}
 	}
 

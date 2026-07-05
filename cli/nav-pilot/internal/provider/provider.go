@@ -66,6 +66,7 @@ const openCodeProviderPrefix = "github-copilot/"
 
 var knownCopilotModels = []domain.ModelChoice{
 	{ID: "auto", Label: "Auto (let Copilot pick)"},
+	{ID: "claude-sonnet-5", Label: "Claude Sonnet 5"},
 	{ID: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6 (default)"},
 	{ID: "claude-haiku-4.5", Label: "Claude Haiku 4.5"},
 	{ID: "claude-opus-4.8", Label: "Claude Opus 4.8"},
@@ -81,6 +82,7 @@ var knownCopilotModels = []domain.ModelChoice{
 
 var knownOpenCodeModels = []domain.ModelChoice{
 	{ID: OpenCodeDefaultModel, Label: "Claude Sonnet 4.5 (Nav default)"},
+	{ID: "github-copilot/claude-sonnet-5", Label: "Claude Sonnet 5"},
 	{ID: "github-copilot/claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
 	{ID: "github-copilot/claude-opus-4.8", Label: "Claude Opus 4.8"},
 	{ID: "github-copilot/claude-haiku-4.5", Label: "Claude Haiku 4.5"},
@@ -256,7 +258,11 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 	assessment := assessStaleness(ocState.Version)
 	recordFreshness("opencode", artifacts.OpenCodeScopeName, assessment)
 
-	ocSrc, ocSrcErr := source.ResolveSourceForSync(ref, sourceRepo, cliVersion)
+	sRepo := sourceRepo
+	if sRepo == "" && ocState.SourceRepo != "" {
+		sRepo = ocState.SourceRepo
+	}
+	ocSrc, ocSrcErr := source.ResolveSourceForSync(ref, sRepo, cliVersion)
 	if ocSrcErr != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Opencode sync failed: could not resolve source: %v\n", domain.Yellow("⚠"), ocSrcErr)
@@ -266,7 +272,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 	}
 	defer ocSrc.Cleanup()
 
-	_, _, _, _, ocConflicts, ocErr := artifacts.SyncOpenCodeArtifacts(ocSrc.Dir, ocOutputDir, ocSrc.Version, ocSrc.SHA)
+	_, _, _, _, ocConflicts, ocErr := artifacts.SyncOpenCodeArtifacts(ocSrc.Dir, ocOutputDir, ocSrc.Version, ocSrc.SHA, ocSrc.Repo)
 	if ocErr != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Opencode sync error: %v\n", domain.Yellow("⚠"), ocErr)

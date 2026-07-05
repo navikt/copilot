@@ -104,24 +104,29 @@ func TestHandleBilling(t *testing.T) {
 }
 
 func TestHandleGetSeat(t *testing.T) {
+	actor := &User{Email: "octocat@nav.no", NAVident: "A123456"}
+
 	tests := []struct {
-		name       string
-		username   string
-		seat       *CopilotSeat
-		seatErr    error
-		wantStatus int
+		name         string
+		username     string
+		seat         *CopilotSeat
+		seatErr      error
+		samlUsername string
+		wantStatus   int
 	}{
 		{
-			name:       "returns seat for valid user",
-			username:   "octocat",
-			seat:       &CopilotSeat{PlanType: "business"},
-			wantStatus: http.StatusOK,
+			name:         "returns seat for valid user",
+			username:     "octocat",
+			seat:         &CopilotSeat{PlanType: "business"},
+			samlUsername: "octocat",
+			wantStatus:   http.StatusOK,
 		},
 		{
-			name:       "returns 404 when seat not found",
-			username:   "octocat",
-			seat:       nil,
-			wantStatus: http.StatusNotFound,
+			name:         "returns 404 when seat not found",
+			username:     "octocat",
+			seat:         nil,
+			samlUsername: "octocat",
+			wantStatus:   http.StatusNotFound,
 		},
 		{
 			name:       "rejects invalid username",
@@ -129,20 +134,28 @@ func TestHandleGetSeat(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 500 on backend error",
-			username:   "octocat",
-			seatErr:    errors.New("github down"),
-			wantStatus: http.StatusInternalServerError,
+			name:         "returns 500 on backend error",
+			username:     "octocat",
+			seatErr:      errors.New("github down"),
+			samlUsername: "octocat",
+			wantStatus:   http.StatusInternalServerError,
+		},
+		{
+			name:         "denies access to other user seat",
+			username:     "other-user",
+			samlUsername: "octocat",
+			wantStatus:   http.StatusForbidden,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mock := &mockGitHubClient{seat: tc.seat, seatErr: tc.seatErr}
+			mock := &mockGitHubClient{seat: tc.seat, seatErr: tc.seatErr, samlUsername: tc.samlUsername}
 			h := newGitHubHandlers(mock)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/seats/"+tc.username, nil)
 			req.SetPathValue("username", tc.username)
+			req = userContext(req, actor)
 			rec := httptest.NewRecorder()
 			h.handleGetSeat(rec, req)
 
@@ -354,6 +367,7 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 	tests := []struct {
 		name         string
 		identity     string
+		actorEmail   string
 		mockUsername string
 		mockErr      error
 		wantStatus   int
@@ -361,12 +375,14 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 		{
 			name:         "returns username for known identity",
 			identity:     "user@nav.no",
+			actorEmail:   "user@nav.no",
 			mockUsername: "octocat",
 			wantStatus:   http.StatusOK,
 		},
 		{
 			name:       "returns null username for unknown identity",
 			identity:   "unknown@nav.no",
+			actorEmail: "unknown@nav.no",
 			wantStatus: http.StatusOK,
 		},
 		{
@@ -382,8 +398,15 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 		{
 			name:       "returns 500 on backend error",
 			identity:   "user@nav.no",
+			actorEmail: "user@nav.no",
 			mockErr:    errors.New("github error"),
 			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "denies lookup of other user identity",
+			identity:   "other@nav.no",
+			actorEmail: "me@nav.no",
+			wantStatus: http.StatusForbidden,
 		},
 	}
 
@@ -394,6 +417,9 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/saml/"+tc.identity, nil)
 			req.SetPathValue("identity", tc.identity)
+			if tc.actorEmail != "" {
+				req = userContext(req, &User{Email: tc.actorEmail, NAVident: "T123456"})
+			}
 			rec := httptest.NewRecorder()
 			h.handleGetUsernameBySAML(rec, req)
 

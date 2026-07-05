@@ -2,6 +2,16 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-06-30
+
+### nav-pilot CLI — robusthet, proxy og credential-varsling
+- **Robust ferskhetssjekk & feilcooldown**: Lagt til 1-times cooldown på mislykkede API-søk mot GitHub for å hindre rate-limiting feilsirkler under ustabile nettverk eller offline-tilstand.
+- **Proxy- og tokenstøtte**: Lagt til støtte for system-proxy (`http.ProxyFromEnvironment`) og bruk av `GITHUB_TOKEN` for ferskhetssjekk- og oppdateringskall. Økt sjekktimeout fra 2s til 5s for bedriftsnettverk.
+- **Installasjons-fallback (rtk_setup)**: Implementert fallback-installasjon fra Brew til `curl` dersom Homebrew feiler. Lagt til hjelpetekster til Stderr ved mislykket hook-initialisering.
+- **Feilsikker bakgrunnskloning**: Lagt til `GIT_TERMINAL_PROMPT=0` under kloningskall for å unngå henger i ikke-interaktive bakgrunnsjobber, samt mer presis parsing av git-feilmeldinger for manglende SSH-nøkler eller autentiseringstokens.
+- **Atomisk skriving av cache**: Forbedret `WriteCache` til å skrive atomisk via midlertidig fil og rename for å forhindre korrupt JSON ved avbrudd.
+- **Sikkerhetskonfigurasjon (.gitignore)**: Git-ignorerer lokal teststatus (`.local/`) for å forhindre innsending av testdata.
+
 ## 2026-06-26
 
 ### Refaktorering og struktur

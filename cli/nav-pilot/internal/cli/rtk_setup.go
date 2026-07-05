@@ -122,10 +122,20 @@ func isRtkInstalled() bool {
 }
 
 func installRtk() (string, string, error) {
+	var brewErr error
 	if _, err := exec.LookPath("brew"); err == nil {
-		return installRtkViaBrew()
+		p, res, err := installRtkViaBrew()
+		if err == nil {
+			return p, res, nil
+		}
+		brewErr = err
+		fmt.Fprintf(os.Stderr, "Brew installation failed: %v. Retrying with curl installation method...\n", err)
 	}
-	return installRtkViaCurl()
+	p, res, curlErr := installRtkViaCurl()
+	if curlErr != nil && brewErr != nil {
+		return "", "install_failed", fmt.Errorf("brew install failed (%v) and curl install failed (%w)", brewErr, curlErr)
+	}
+	return p, res, curlErr
 }
 
 func installRtkViaBrew() (string, string, error) {
@@ -216,6 +226,8 @@ func initRtkHooks(client string, rtkPath string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
+		cmdStr := fmt.Sprintf("%s %s", rtkPath, strings.Join(args, " "))
+		fmt.Fprintf(os.Stderr, "\n  Suggestions:\n  1. Try running the command manually: %s\n  2. Ensure you have the necessary write permissions.\n", cmdStr)
 		return fmt.Errorf("failed to init hooks: %w", err)
 	}
 

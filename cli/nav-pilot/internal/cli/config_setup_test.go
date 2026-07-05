@@ -185,6 +185,19 @@ func TestWriteSetupConfig_AllValidEfforts(t *testing.T) {
 	}
 }
 
+func TestWriteSetupConfig_AutoLaunch(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
+
+	if err := writeSetupConfig(setupAnswers{Client: "copilot", Mode: "default", AutoLaunch: "true"}); err != nil {
+		t.Fatalf("writeSetupConfig() error: %v", err)
+	}
+	data, _ := os.ReadFile(configPath())
+	if !strings.Contains(string(data), "auto_launch = true") {
+		t.Errorf("expected auto_launch = true in config, got:\n%s", string(data))
+	}
+}
+
 // ─── maybeRunFirstRunSetup guard logic ───────────────────────────────────────
 
 func TestMaybeRunFirstRunSetup_NonInteractive(t *testing.T) {

@@ -51,11 +51,23 @@ const nextConfig: NextConfig = {
   // per-request Prerender environment it spawns in __NEXT_DEV_SERVER mode causes
   // sustained high CPU (500%+) and memory growth. Only enable in production builds.
   ...(isProduction ? { cacheComponents: true } : {}),
+  // IMPORTANT: devIndicators must be false in dev. The indicator component injects
+  // an executionId that changes on each lazy-compile, causing chunk hash mismatches
+  // that trigger location.reload() loops during Turbopack startup on large pages.
+  ...(!isProduction ? { devIndicators: false } : {}),
   turbopack: {
-    root: path.resolve("."),
+    // Dev: monorepo root so Turbopack resolves workspace deps and serves chunks after HMR.
+    // Prod: app root so standalone output isn't nested under apps/my-copilot/ (see 06f6c00d).
+    root: isProduction ? path.resolve(".") : path.resolve("../.."),
   },
   experimental: {
     optimizePackageImports: ["@navikt/ds-react", "@navikt/aksel-icons"],
+    // IMPORTANT (dev only): Without staleTimes, Turbopack HMR events during cold
+    // BigQuery cache warmup trigger client-side refetches that produce different
+    // server output (error→success or vice versa), causing hash mismatches that
+    // loop location.reload() 15-20x. The 30s dynamic stale window prevents this
+    // by letting the router cache serve the initial render while the backend warms.
+    ...(!isProduction ? { staleTimes: { dynamic: 30, static: 180 } } : {}),
   },
   ...(isProduction
     ? {
