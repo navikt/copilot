@@ -74,3 +74,7 @@ apps/copilot-api/copilot-api
 
 # Local test directories
 .local/
+
+# Guardrails mot utilsiktede commits (#343)
+# *.pem, secret*.yaml og .DS_Store dekkes allerede lenger opp i filen.
+*.log
