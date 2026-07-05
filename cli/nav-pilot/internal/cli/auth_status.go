@@ -53,11 +53,15 @@ func cmdAuthStatus(jsonOutput bool) error {
 		LoggedIn:   true,
 		Login:      user.Login,
 		Name:       user.Name,
-		OrgMember:  member,
 		ObtainedAt: token.ObtainedAt,
+		ExpiresAt:  token.ExpiresAt,
 	}
 	if memberErr != nil {
+		// Membership is unknown (not false): leave OrgMember nil and surface
+		// the failure via OrgCheckError instead.
 		status.OrgCheckError = memberErr.Error()
+	} else {
+		status.OrgMember = &member
 	}
 
 	if jsonOutput {
@@ -96,13 +100,18 @@ func cmdAuthLogout() error {
 }
 
 type authStatus struct {
-	LoggedIn      bool      `json:"logged_in"`
-	Login         string    `json:"login,omitempty"`
-	Name          string    `json:"name,omitempty"`
-	OrgMember     bool      `json:"org_member,omitempty"`
+	LoggedIn bool   `json:"logged_in"`
+	Login    string `json:"login,omitempty"`
+	Name     string `json:"name,omitempty"`
+	// OrgMember is a pointer so JSON output distinguishes an explicit false
+	// (not a member) from nil/omitted (membership check failed — see
+	// OrgCheckError).
+	OrgMember     *bool     `json:"org_member,omitempty"`
 	OrgCheckError string    `json:"org_check_error,omitempty"`
-	ObtainedAt    time.Time `json:"obtained_at,omitempty"`
-	Error         string    `json:"error,omitempty"`
+	ObtainedAt    time.Time `json:"obtained_at,omitzero"`
+	// ExpiresAt is omitted when the token does not expire (zero value).
+	ExpiresAt time.Time `json:"expires_at,omitzero"`
+	Error     string    `json:"error,omitempty"`
 }
 
 func printAuthStatusJSON(s authStatus) error {

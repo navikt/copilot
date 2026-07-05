@@ -32,7 +32,8 @@ type Config struct {
 	NaisTokenEndpoint string
 
 	// OrgMembershipCacheTTL controls how long a verified org membership is
-	// cached per GitHub username, to avoid hammering the GitHub API.
+	// cached, keyed by a SHA-256 hash of the caller's GitHub token, to avoid
+	// hammering the GitHub API.
 	OrgMembershipCacheTTL time.Duration
 }
 

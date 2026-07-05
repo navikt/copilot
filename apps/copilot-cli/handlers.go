@@ -39,19 +39,28 @@ func makeRouter(cfg *Config, gh *GitHubClient, cache *orgMembershipCache, proxy 
 		return authMiddleware(gh, cache, cfg.GitHubOrg, h)
 	}
 
-	mux.HandleFunc("/api/v1/usage", auth(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.Header().Set("Allow", http.MethodGet)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
+	// requireGET rejects non-GET requests before authMiddleware runs, so a
+	// disallowed method gets 405 (not 401) and never triggers token
+	// validation or GitHub API calls.
+	requireGET := func(h http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				w.Header().Set("Allow", http.MethodGet)
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			h(w, r)
 		}
+	}
+
+	mux.HandleFunc("/api/v1/usage", requireGET(auth(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := userFromContext(r.Context())
 		if !ok {
 			writeAuthError(w, http.StatusInternalServerError, "missing authenticated user in context")
 			return
 		}
 		proxy.forward(usagePath(user.Login))(w, r)
-	}))
+	})))
 
 	return mux
 }

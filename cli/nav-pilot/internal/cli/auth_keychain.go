@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,8 +53,8 @@ func saveToken(t storedToken) error {
 }
 
 // loadToken reads the token from the OS keychain. Returns keyring.ErrNotFound
-// (wrapped) when no token has been stored, which callers should treat as
-// "not logged in" rather than an unexpected error.
+// as-is when no token has been stored, which callers should detect with
+// errors.Is and treat as "not logged in" rather than an unexpected error.
 func loadToken() (storedToken, error) {
 	data, err := keyring.Get(keychainService, keychainAccount)
 	if err != nil {
@@ -69,7 +70,7 @@ func loadToken() (storedToken, error) {
 // deleteToken removes the token from the OS keychain. Not finding an existing
 // entry is not an error — logout is idempotent.
 func deleteToken() error {
-	if err := keyring.Delete(keychainService, keychainAccount); err != nil && err != keyring.ErrNotFound {
+	if err := keyring.Delete(keychainService, keychainAccount); err != nil && !errors.Is(err, keyring.ErrNotFound) {
 		return fmt.Errorf("deleting token from keychain: %w", err)
 	}
 	return nil

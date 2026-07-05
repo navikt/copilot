@@ -9,9 +9,13 @@ import (
 )
 
 // TestUsageRouteMethodNotAllowed verifies /api/v1/usage rejects non-GET
-// methods with 405 instead of proxying them upstream as GET.
+// methods with 405 instead of proxying them upstream as GET, that the check
+// runs before authMiddleware (no 401 for unauthenticated non-GETs), and that
+// rejected methods never trigger GitHub API calls.
 func TestUsageRouteMethodNotAllowed(t *testing.T) {
+	var ghCalls int
 	ghSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ghCalls++
 		switch r.URL.Path {
 		case "/user":
 			w.Header().Set("Content-Type", "application/json")
@@ -32,16 +36,35 @@ func TestUsageRouteMethodNotAllowed(t *testing.T) {
 
 	router := makeRouter(cfg, gh, cache, proxy)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage", nil)
-	req.Header.Set("Authorization", "Bearer good-token")
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	t.Run("with valid token", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/usage", nil)
+		req.Header.Set("Authorization", "Bearer good-token")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("expected 405 for POST, got %d", rec.Code)
-	}
-	if got := rec.Header().Get("Allow"); got != http.MethodGet {
-		t.Fatalf("expected Allow header %q, got %q", http.MethodGet, got)
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("expected 405 for POST, got %d", rec.Code)
+		}
+		if got := rec.Header().Get("Allow"); got != http.MethodGet {
+			t.Fatalf("expected Allow header %q, got %q", http.MethodGet, got)
+		}
+	})
+
+	t.Run("without auth header", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/usage", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("expected 405 before auth for unauthenticated DELETE, got %d", rec.Code)
+		}
+		if got := rec.Header().Get("Allow"); got != http.MethodGet {
+			t.Fatalf("expected Allow header %q, got %q", http.MethodGet, got)
+		}
+	})
+
+	if ghCalls != 0 {
+		t.Fatalf("expected no GitHub API calls for rejected methods, got %d", ghCalls)
 	}
 }
 

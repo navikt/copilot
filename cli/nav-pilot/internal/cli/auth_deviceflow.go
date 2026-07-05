@@ -112,7 +112,13 @@ func requestDeviceCode(ctx context.Context, clientID, scope string) (*deviceCode
 		return nil, fmt.Errorf("decoding device code response: %w", err)
 	}
 	if result.DeviceCode == "" || result.UserCode == "" {
-		return nil, fmt.Errorf("device code response missing required fields")
+		return nil, fmt.Errorf("malformed device code response: missing device_code or user_code")
+	}
+	if result.VerificationURI == "" {
+		return nil, fmt.Errorf("malformed device code response: missing verification_uri")
+	}
+	if result.ExpiresIn <= 0 {
+		return nil, fmt.Errorf("malformed device code response: expires_in must be positive, got %d", result.ExpiresIn)
 	}
 	return &result, nil
 }

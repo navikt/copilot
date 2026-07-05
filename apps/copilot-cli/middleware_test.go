@@ -70,3 +70,60 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 	})
 }
+
+func TestBearerToken(t *testing.T) {
+	tests := []struct {
+		name    string
+		header  string
+		want    string
+		wantErr bool
+	}{
+		{"canonical scheme", "Bearer tok123", "tok123", false},
+		{"lowercase scheme", "bearer tok123", "tok123", false},
+		{"uppercase scheme", "BEARER tok123", "tok123", false},
+		{"missing header", "", "", true},
+		{"scheme without token", "Bearer", "", true},
+		{"scheme with only whitespace", "Bearer   ", "", true},
+		{"wrong scheme", "Basic dXNlcjpwYXNz", "", true},
+		{"extra fields", "Bearer tok123 extra", "", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/usage", nil)
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			got, err := bearerToken(req)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for header %q, got token %q", tc.header, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("bearerToken(%q): %v", tc.header, err)
+			}
+			if got != tc.want {
+				t.Fatalf("bearerToken(%q) = %q, want %q", tc.header, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestOrgMembershipCacheEvictsExpired verifies that an expired entry is
+// deleted from the backing map on lookup, not just treated as a miss.
+func TestOrgMembershipCacheEvictsExpired(t *testing.T) {
+	cache := newOrgMembershipCache(-1 * time.Second) // entries expire immediately
+	cache.set("tok", &AuthenticatedUser{Login: "hans"})
+
+	if user, ok := cache.get("tok"); ok {
+		t.Fatalf("expected expired entry to be a miss, got %+v", user)
+	}
+
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if len(cache.entries) != 0 {
+		t.Fatalf("expected expired entry to be evicted, %d entries remain", len(cache.entries))
+	}
+}

@@ -17,8 +17,9 @@ type contextKey string
 const requestUserContextKey contextKey = "copilot-cli-user"
 
 // orgMembershipCache avoids re-checking org membership on every request for
-// the same (token, org) pair within the TTL window. Keyed by a hash of the
-// token so we never retain the raw token in memory longer than necessary.
+// the same token within the TTL window (the org is fixed per deployment, so
+// it is not part of the key). Keyed by a hash of the token so we never
+// retain the raw token in memory longer than necessary.
 type orgMembershipCache struct {
 	mu      sync.Mutex
 	ttl     time.Duration
@@ -41,8 +42,14 @@ func (c *orgMembershipCache) get(token string) (*AuthenticatedUser, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	entry, ok := c.entries[hashToken(token)]
-	if !ok || time.Now().After(entry.expiresAt) {
+	key := hashToken(token)
+	entry, ok := c.entries[key]
+	if !ok {
+		return nil, false
+	}
+	if time.Now().After(entry.expiresAt) {
+		// Evict lazily so stale entries don't accumulate in the map.
+		delete(c.entries, key)
 		return nil, false
 	}
 	return entry.user, true
@@ -123,15 +130,16 @@ func bearerToken(r *http.Request) (string, error) {
 	if header == "" {
 		return "", errors.New("missing Authorization header")
 	}
-	const prefix = "Bearer "
-	if !strings.HasPrefix(header, prefix) {
+	// The auth scheme is case-insensitive per RFC 9110 §11.1, so accept
+	// "bearer"/"BEARER"/... rather than only the canonical "Bearer".
+	fields := strings.Fields(header)
+	if len(fields) == 0 || !strings.EqualFold(fields[0], "Bearer") {
 		return "", errors.New("authorization header must use bearer scheme")
 	}
-	token := strings.TrimSpace(strings.TrimPrefix(header, prefix))
-	if token == "" {
-		return "", errors.New("empty bearer token")
+	if len(fields) != 2 {
+		return "", errors.New("empty or malformed bearer token")
 	}
-	return token, nil
+	return fields[1], nil
 }
 
 func userFromContext(ctx context.Context) (*AuthenticatedUser, bool) {
