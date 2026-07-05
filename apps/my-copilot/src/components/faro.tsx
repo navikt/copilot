@@ -6,6 +6,15 @@ import { TracingInstrumentation } from "@grafana/faro-web-tracing";
 
 const PII_PATTERN = /\b\d{11}\b/g;
 
+// Hosts we propagate W3C trace headers to. Anchored at the start of the URL
+// and terminated at a host boundary (path, port, or end of string) so that
+// lookalike hosts such as https://x.nav.no.evil.com do NOT match and trace
+// headers never leak to arbitrary origins (CodeQL alert #31).
+export const propagateTraceHeaderCorsUrls = [
+  /^https:\/\/([a-z0-9-]+\.)*nav\.no(\/|:|$)/,
+  /^https:\/\/([a-z0-9-]+\.)*nav\.cloud\.nais\.io(\/|:|$)/,
+];
+
 function sanitizeUrl(url: string): string {
   return url.replace(PII_PATTERN, "[REDACTED]");
 }
@@ -35,7 +44,7 @@ export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
           }),
           new TracingInstrumentation({
             instrumentationOptions: {
-              propagateTraceHeaderCorsUrls: [/https:\/\/.*\.nav\.no/, /https:\/\/.*\.nav\.cloud\.nais\.io/],
+              propagateTraceHeaderCorsUrls,
             },
           }),
         ],
