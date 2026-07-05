@@ -69,7 +69,8 @@ run = "go run ."
 
 [tasks.dev]
 description = "Run with hot reload (air), DEBUG log level, and secrets from Keychain via fnox"
-env = { LOG_LEVEL = "DEBUG", LOGGED_ENDPOINTS = "/api/v1/,/health,/ready", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }
+# ENABLE_DEV_QUERY opts in to the unauthenticated /dev/query endpoint (local-only double lock, see main.go)
+env = { LOG_LEVEL = "DEBUG", LOGGED_ENDPOINTS = "/api/v1/,/health,/ready", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a", ENABLE_DEV_QUERY = "true" }
 run = "fnox exec -- air"
 
 [tasks.clean]
