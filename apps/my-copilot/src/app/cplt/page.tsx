@@ -483,6 +483,41 @@ function ProtectionsSection() {
               </div>
             ))}
           </HGrid>
+
+          {/* Bubblewrap defense-in-depth (Linux) */}
+          <div
+            className="rounded-xl flex items-start gap-4"
+            style={{
+              padding: "1.25rem",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div
+              className="flex items-center justify-center rounded-lg shrink-0"
+              style={{
+                width: "2.5rem",
+                height: "2.5rem",
+                background: "#a78bfa15",
+                border: "1px solid #a78bfa30",
+              }}
+            >
+              <ShieldLockIcon fontSize="1.25rem" style={{ color: "#a78bfa" }} aria-hidden />
+            </div>
+            <div>
+              <p className="font-semibold mb-1" style={{ color: "white", fontSize: "0.9rem", margin: 0 }}>
+                Bubblewrap namespace isolation (Linux, defense-in-depth)
+              </p>
+              <p style={{ color: "#94a3b8", fontSize: "0.8125rem", lineHeight: 1.6, margin: 0 }}>
+                On top of Landlock + seccomp, cplt can wrap the agent in PID, IPC, UTS, cgroup, and user namespaces with
+                a private <code style={{ fontSize: "0.75rem" }}>/tmp</code>. Auto-detected when{" "}
+                <code style={{ fontSize: "0.75rem" }}>bwrap</code> is installed, with graceful fallback to
+                Landlock-only. It is not a network boundary and not a full-filesystem-confidentiality boundary: the host
+                network is shared by design so the proxy keeps working, and the root filesystem is bind-mounted
+                read-only with Landlock as the access-control layer.
+              </p>
+            </div>
+          </div>
         </VStack>
       </Box>
 
@@ -672,6 +707,59 @@ function ProxySection() {
               </defs>
             </svg>
           </div>
+
+          {/* Proxy-forced mode + upstream chaining */}
+          <HGrid columns={{ xs: 1, md: 2 }} gap="space-16" className="items-stretch">
+            <div
+              className="rounded-xl overflow-hidden flex flex-col"
+              style={{ background: "white", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            >
+              <div className="px-5 py-4 flex-1" style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <Heading size="xsmall" level="3">
+                  Proxy-forced mode — opt-in
+                </Heading>
+                <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
+                  By default the kernel still allows direct outbound <code style={{ fontSize: "0.75rem" }}>:443</code>,
+                  so a raw socket or an unset <code style={{ fontSize: "0.75rem" }}>HTTPS_PROXY</code> can skip the
+                  proxy. <code style={{ fontSize: "0.75rem" }}>proxy.forced</code> closes that bypass: the proxy becomes
+                  mandatory and kernel-level egress is restricted to the proxy port only. Fails closed — if the proxy
+                  cannot start, the agent does not launch. macOS pins fully to{" "}
+                  <code style={{ fontSize: "0.75rem" }}>localhost:&lt;proxy_port&gt;</code>; Linux drops the direct{" "}
+                  <code style={{ fontSize: "0.75rem" }}>:443</code> allow, but Landlock filtering is port-based, so a
+                  narrow port-based residual remains — a deliberate limitation, tracked upstream.
+                </p>
+              </div>
+              <div className="px-5 py-3 flex items-center gap-3" style={{ background: "#f8fafc" }}>
+                <code className="font-mono flex-1" style={{ fontSize: "0.6875rem", color: "#475569" }}>
+                  cplt config set proxy.forced true
+                </code>
+                <CopyButton copyText="cplt config set proxy.forced true" size="xsmall" />
+              </div>
+            </div>
+
+            <div
+              className="rounded-xl overflow-hidden flex flex-col"
+              style={{ background: "white", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            >
+              <div className="px-5 py-4 flex-1" style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <Heading size="xsmall" level="3">
+                  Corporate / upstream proxy chaining
+                </Heading>
+                <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
+                  Behind a corporate proxy? <code style={{ fontSize: "0.75rem" }}>proxy.upstream</code> forwards CONNECT
+                  tunnels through it instead of forcing you to disable the cplt proxy. cplt applies its own domain
+                  filtering, logging, and port checks <em>before</em> forwarding the tunnel upstream — a blocked target
+                  never reaches the corporate proxy. Optional basic-auth userinfo is supported; http scheme only.
+                </p>
+              </div>
+              <div className="px-5 py-3 flex items-center gap-3" style={{ background: "#f8fafc" }}>
+                <code className="font-mono flex-1" style={{ fontSize: "0.6875rem", color: "#475569" }}>
+                  cplt config set proxy.upstream &quot;http://proxy.example.com:8080&quot;
+                </code>
+                <CopyButton copyText='cplt config set proxy.upstream "http://proxy.example.com:8080"' size="xsmall" />
+              </div>
+            </div>
+          </HGrid>
         </VStack>
       </Box>
     </section>

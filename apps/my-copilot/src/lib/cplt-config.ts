@@ -26,10 +26,16 @@ export async function fetchCpltConfigKeys(): Promise<CpltConfigKey[]> {
   }
 }
 
+/** Unescape the string escapes we expect in registry.rs literals (\" and \\). */
+function unescapeRustString(value: string): string {
+  return value.replace(/\\(["\\])/g, "$1");
+}
+
 function parseConfigKeys(source: string): CpltConfigKey[] {
   const keys: CpltConfigKey[] = [];
+  // default_display and description may contain escaped quotes (\") in the Rust source.
   const pattern =
-    /section:\s*"([^"]+)",\s*key:\s*"([^"]+)",\s*value_type:\s*ConfigValueType::([a-zA-Z0-9]+),\s*dangerous:\s*(true|false),\s*default_display:\s*"([^"]*)",\s*description:\s*"([^"]+)",/g;
+    /section:\s*"([^"]+)",\s*key:\s*"([^"]+)",\s*value_type:\s*ConfigValueType::([a-zA-Z0-9]+),\s*dangerous:\s*(true|false),\s*default_display:\s*"((?:[^"\\]|\\.)*)",\s*description:\s*"((?:[^"\\]|\\.)+)",/g;
   let match: RegExpExecArray | null;
 
   while ((match = pattern.exec(source)) !== null) {
@@ -37,11 +43,12 @@ function parseConfigKeys(source: string): CpltConfigKey[] {
     const key = match[2];
     const kind = match[3];
     const dangerous = match[4] === "true";
-    const defaultDisplay = match[5];
-    const description = match[6];
+    const defaultDisplay = unescapeRustString(match[5]);
+    const description = unescapeRustString(match[6]);
 
     let typeStr = "string";
     if (kind === "U16") typeStr = "integer";
+    if (kind === "U64") typeStr = "integer";
     if (kind === "U16Array") typeStr = "integer[]";
     if (kind === "Bool") typeStr = "bool";
     if (kind === "StrArray") typeStr = "string[]";
