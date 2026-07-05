@@ -64,6 +64,7 @@ Klassifisering prioriterer:
 
 **Hva sendes IKKE:**
 - ✗ Filstier, reponavn, eller prosjektkontekst
+  (unntak: `nav.repo`-slug for navikt-repoer på agent-sessions, se seksjon 3)
 - ✗ Innhold fra Copilot-instruksjoner eller agenter
 - ✗ Bruker-ID (aldri NAVident, e-post, GitHub-brukernavn)
 - ✗ Git-commit-info eller miljøvariabler
@@ -132,9 +133,24 @@ nav-pilot. Eksisterende nøkler beholdes (append-merge, ingen overskriving):
 | `nav.pilot.launcher` | `nav-pilot` | Isolere Copilot-sessions startet via nav-pilot |
 | `nav.pilot.version` | nav-pilot-versjon | Adopsjon/versjon av launcheren |
 | `nav.pilot.device_id` | pseudonymt `nav-pilot-<hash>` | Join (på verdi) mot nav-pilots egen `device_id`-attributt |
+| `nav.repo` | `navikt/<repo>`-slug fra `origin`-remote | Join (server-side, ved spørring) mot repo→team-mapping, slik at sessionsdata kan aggregeres per team (issue #344) |
 
 `nav.pilot.device_id` injiseres kun når nav-pilot-telemetri er aktiv; med
 `NAV_PILOT_TELEMETRY_ENABLED=false` utelates den (launcher/version beholdes).
+
+`nav.repo` settes kun når nav-pilot startes inne i et git-repo hvis
+`origin`-remote peker på GitHub-organisasjonen `navikt` (både ssh-formen
+`git@github.com:navikt/foo.git` og https-formen `https://github.com/navikt/foo`,
+med eller uten `.git`, gjenkjennes). Attributten identifiserer en **kodebase,
+ikke en person**.
+
+**Hva `nav.repo` IKKE samler inn:**
+- ✗ Ingen brukernavn, e-post eller NAVident
+- ✗ Ingen hostname
+- ✗ Ingen filstier — kun `owner/navn`-slug utledet fra remote-URL-en
+- ✗ Utenfor navikt-repoer utelates attributten **helt** (ikke et git-repo,
+  ingen `origin`-remote, eller remote utenfor navikt-org) — det gjettes aldri
+- ✗ En bruker-satt `nav.repo` i `OTEL_RESOURCE_ATTRIBUTES` overskrives aldri
 
 #### Per-device-spørringer på Copilot-data («vis brukeren egne data»)
 
