@@ -50,6 +50,63 @@ func TestSaveLoadDeleteToken(t *testing.T) {
 	}
 }
 
+// TestRequestDeviceCodeMalformed verifies that structurally valid JSON with
+// missing or nonsensical device-flow fields is rejected with a clear error
+// instead of propagating an unusable response into the polling loop.
+func TestRequestDeviceCodeMalformed(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantSubstr string
+	}{
+		{
+			name:       "missing device_code and user_code",
+			body:       `{"verification_uri":"https://github.com/login/device","expires_in":900}`,
+			wantSubstr: "missing device_code or user_code",
+		},
+		{
+			name:       "missing verification_uri",
+			body:       `{"device_code":"dc","user_code":"ABCD-1234","expires_in":900}`,
+			wantSubstr: "missing verification_uri",
+		},
+		{
+			name:       "missing expires_in",
+			body:       `{"device_code":"dc","user_code":"ABCD-1234","verification_uri":"https://github.com/login/device"}`,
+			wantSubstr: "expires_in must be positive",
+		},
+		{
+			name:       "negative expires_in",
+			body:       `{"device_code":"dc","user_code":"ABCD-1234","verification_uri":"https://github.com/login/device","expires_in":-1}`,
+			wantSubstr: "expires_in must be positive",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+
+			origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
+			setTestURLs(server.URL, server.URL)
+			defer setTestURLs(origDeviceURL, origTokenURL)
+
+			_, err := requestDeviceCode(context.Background(), "client-id", navPilotGitHubScopes)
+			if err == nil {
+				t.Fatal("expected error for malformed device code response")
+			}
+			if !strings.Contains(err.Error(), "malformed device code response") {
+				t.Errorf("error %q does not mention malformed response", err.Error())
+			}
+			if !strings.Contains(err.Error(), tc.wantSubstr) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.wantSubstr)
+			}
+		})
+	}
+}
+
 func TestRunDeviceFlowSuccess(t *testing.T) {
 	pollCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

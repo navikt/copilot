@@ -68,9 +68,10 @@ func (u *usageResponse) acceptanceRate() float64 {
 	return float64(u.TotalAcceptances) / float64(u.TotalGenerations) * 100
 }
 
-// copilotCLIURL resolves the copilot-cli endpoint: user config takes
-// precedence over the built-in default. No CLI flag is exposed for this yet —
-// it's intended for internal testing against dev-gcp during Phase 1.
+// copilotCLIURL resolves the copilot-cli endpoint: the
+// NAV_PILOT_COPILOT_CLI_URL environment variable takes precedence over the
+// built-in default. No CLI flag is exposed for this yet — it's intended for
+// internal testing against dev-gcp during Phase 1.
 func copilotCLIURL() string {
 	if v := os.Getenv("NAV_PILOT_COPILOT_CLI_URL"); v != "" {
 		return v

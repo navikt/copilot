@@ -108,6 +108,7 @@ Flags:
   --apply                 Apply available updates (sync only)
   --sync                  Sync all scopes and launch Copilot (non-interactive)
   --json                  Output results as JSON
+  --tmux                  Compact one-line output for a tmux status bar (usage only)
   -F, --feature           Submit a feature request (feedback only)
 
 Exit Codes:

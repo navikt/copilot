@@ -109,6 +109,9 @@ func TestFormatUsageTmux(t *testing.T) {
 }
 
 func TestCopilotCLIURL(t *testing.T) {
+	// Clear any ambient override so the default-value assertion is
+	// deterministic regardless of the developer's shell environment.
+	t.Setenv("NAV_PILOT_COPILOT_CLI_URL", "")
 	if got := copilotCLIURL(); got != defaultCopilotCLIURL {
 		t.Errorf("copilotCLIURL() default = %q, want %q", got, defaultCopilotCLIURL)
 	}

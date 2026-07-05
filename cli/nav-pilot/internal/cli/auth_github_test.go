@@ -184,7 +184,8 @@ func TestPrintAuthStatusJSON(t *testing.T) {
 }
 
 func TestAuthStatusJSONRoundtrip(t *testing.T) {
-	s := authStatus{LoggedIn: true, Login: "starefossen", OrgMember: true}
+	member := true
+	s := authStatus{LoggedIn: true, Login: "starefossen", OrgMember: &member}
 	data, err := json.Marshal(s)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -195,5 +196,30 @@ func TestAuthStatusJSONRoundtrip(t *testing.T) {
 	}
 	if out.Login != s.Login {
 		t.Fatalf("roundtrip mismatch: %+v", out)
+	}
+	if out.OrgMember == nil || !*out.OrgMember {
+		t.Fatalf("expected org_member true after roundtrip, got %+v", out.OrgMember)
+	}
+}
+
+// TestAuthStatusJSONOrgMemberFalseVsUnknown ensures an explicit non-member
+// (false) is serialized while an unknown membership (nil pointer, e.g. the
+// org check failed) is omitted from the JSON output.
+func TestAuthStatusJSONOrgMemberFalseVsUnknown(t *testing.T) {
+	notMember := false
+	data, err := json.Marshal(authStatus{LoggedIn: true, OrgMember: &notMember})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(data), `"org_member":false`) {
+		t.Errorf("expected explicit org_member false in %s", data)
+	}
+
+	data, err = json.Marshal(authStatus{LoggedIn: true, OrgCheckError: "boom"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), "org_member") {
+		t.Errorf("expected org_member omitted when unknown, got %s", data)
 	}
 }

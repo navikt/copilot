@@ -12,9 +12,9 @@ import (
 // copilotAPIProxy forwards authenticated CLI requests to copilot-api,
 // exchanging copilot-cli's workload identity for an M2M token and
 // identifying the calling developer via X-On-Behalf-Of. copilot-api trusts
-// this header only when the M2M token's azp matches copilot-cli's client ID
-// (see apps/copilot-api/bigquery_stats_handlers.go verifyUsernameOwnership /
-// verifyCopilotCLIOnBehalfOf).
+// this header only when the M2M token's azp matches a trusted client ID
+// (see OnBehalfOfIdentityResolver in apps/copilot-api/identity_onbehalfof.go
+// and requireOwnership in apps/copilot-api/identity_middleware.go).
 type copilotAPIProxy struct {
 	httpClient *http.Client
 	baseURL    string
