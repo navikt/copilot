@@ -110,6 +110,7 @@ func TestApplyCopilotOTelEnv(t *testing.T) {
 	})
 
 	t.Run("injects nav-pilot resource attributes", func(t *testing.T) {
+		stubDetectNavRepo(t, "")
 		envOut, _ := ApplyCopilotOTelEnv([]string{}, "dev")
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
@@ -134,12 +135,42 @@ func TestApplyCopilotOTelEnv(t *testing.T) {
 			t.Fatalf("launcher should still be present: %q", got)
 		}
 	})
+
+	t.Run("injects nav.repo when launched inside a navikt repo", func(t *testing.T) {
+		stubDetectNavRepo(t, "navikt/foo")
+		envOut, _ := ApplyCopilotOTelEnv([]string{}, "dev")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if !strings.Contains(got, "nav.repo=navikt%2Ffoo") {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.repo=navikt%%2Ffoo", got)
+		}
+	})
+
+	t.Run("omits nav.repo outside navikt repos", func(t *testing.T) {
+		stubDetectNavRepo(t, "")
+		envOut, _ := ApplyCopilotOTelEnv([]string{}, "dev")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if strings.Contains(got, "nav.repo=") {
+			t.Fatalf("nav.repo should be omitted when no navikt repo is detected: %q", got)
+		}
+	})
+}
+
+// stubDetectNavRepo pins repo detection for the duration of a test so the
+// outcome does not depend on which git checkout the tests happen to run
+// inside. Mutating the package variable is safe because the telemetry
+// package tests are sequential-only by design (t.Setenv is used throughout,
+// which is incompatible with t.Parallel).
+func stubDetectNavRepo(t *testing.T, repo string) {
+	t.Helper()
+	prev := detectNavRepo
+	detectNavRepo = func() string { return repo }
+	t.Cleanup(func() { detectNavRepo = prev })
 }
 
 func TestApplyCopilotResourceAttributes(t *testing.T) {
 	t.Run("appends to existing attributes without clobbering", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=team=foo,nav.pilot.version=9.9.9"}
-		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123")
+		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "")
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
@@ -159,7 +190,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	})
 
 	t.Run("skips empty values", func(t *testing.T) {
-		envOut, changed := applyCopilotResourceAttributes([]string{}, "", "")
+		envOut, changed := applyCopilotResourceAttributes([]string{}, "", "", "")
 		if !changed {
 			t.Fatal("expected launcher attribute to be added")
 		}
@@ -170,7 +201,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	})
 
 	t.Run("percent-encodes unsafe characters", func(t *testing.T) {
-		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.0 beta,rc=1", "id")
+		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.0 beta,rc=1", "id", "")
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if !strings.Contains(got, "nav.pilot.version=1.0%20beta%2Crc%3D1") {
 			t.Fatalf("value not percent-encoded: %q", got)
@@ -178,11 +209,11 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	})
 
 	t.Run("is idempotent across relaunch", func(t *testing.T) {
-		env1, changed1 := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123")
+		env1, changed1 := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "")
 		if !changed1 {
 			t.Fatal("expected first call to change env")
 		}
-		env2, changed2 := applyCopilotResourceAttributes(env1, "1.2.3", "nav-pilot-abc123")
+		env2, changed2 := applyCopilotResourceAttributes(env1, "1.2.3", "nav-pilot-abc123", "")
 		if changed2 {
 			t.Fatal("expected second call to be a no-op")
 		}
@@ -193,7 +224,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 
 	t.Run("recognises a bare existing key without value", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=nav.pilot.launcher"}
-		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123")
+		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "")
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
 			t.Fatalf("bare existing key should not be re-added with a value: %q", got)
@@ -202,7 +233,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 
 	t.Run("tolerates whitespace and trailing commas in existing value", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES= team = foo ,"}
-		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123")
+		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "")
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
@@ -212,6 +243,37 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 		}
 		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
 			t.Fatalf("missing launcher attribute: %q", got)
+		}
+	})
+
+	t.Run("appends nav.repo when a repo is detected", func(t *testing.T) {
+		envOut, changed := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "navikt/foo")
+		if !changed {
+			t.Fatal("expected env to be changed")
+		}
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if !strings.Contains(got, "nav.repo=navikt%2Ffoo") {
+			t.Fatalf("missing nav.repo attribute: %q", got)
+		}
+	})
+
+	t.Run("omits nav.repo when no repo is detected", func(t *testing.T) {
+		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if strings.Contains(got, "nav.repo=") {
+			t.Fatalf("nav.repo should be omitted when empty: %q", got)
+		}
+	})
+
+	t.Run("preserves a user-set nav.repo", func(t *testing.T) {
+		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=nav.repo=custom/override"}
+		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "navikt/foo")
+		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
+		if strings.Count(got, "nav.repo=") != 1 {
+			t.Fatalf("user-set nav.repo was overwritten: %q", got)
+		}
+		if !strings.Contains(got, "nav.repo=custom/override") {
+			t.Fatalf("user-set nav.repo value not preserved: %q", got)
 		}
 	})
 }
