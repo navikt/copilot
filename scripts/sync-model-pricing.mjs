@@ -144,10 +144,21 @@ function getCell(cells, index) {
 }
 
 function stripHtml(html) {
-  return html
-    .replace(/<sup[^>]*>.*?<\/sup>/g, "")
-    .replace(/<a[^>]*>.*?<\/a>/g, "")
-    .replace(/<[^>]+>/g, "")
+  // Single-pass tag removal is bypassable (e.g. "<scr<sup></sup>ipt>" becomes
+  // "<script>" after one pass), so loop until the string stops changing.
+  let text = html;
+  let previous;
+  do {
+    previous = text;
+    text = text
+      .replace(/<sup[^>]*>.*?<\/sup>/g, "")
+      .replace(/<a[^>]*>.*?<\/a>/g, "")
+      .replace(/<[^>]+>/g, "");
+  } while (text !== previous);
+  // This is a text extractor, not an HTML renderer: drop any leftover angle
+  // brackets (unbalanced/malformed markup) entirely.
+  return text
+    .replace(/[<>]/g, "")
     .replace(/&[a-z]+;/g, "")
     .trim();
 }
