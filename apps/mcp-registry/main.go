@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,6 +30,17 @@ func main() {
 		"logged_endpoints", getEndpointsList(config.LoggedEndpoints),
 	)
 
+	if err := run(config); err != nil {
+		slog.Error("Server failed", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("Server stopped")
+}
+
+// run owns all deferred cleanup (tracer flush, signal handling). Keeping
+// os.Exit confined to main ensures these defers actually run on failure.
+func run(config *Config) error {
 	// Initialize OTel tracing — must happen before any instrumented handlers are
 	// set up. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by Nais (runtime: sdk).
 	ctx := context.Background()
@@ -44,8 +56,7 @@ func main() {
 	}
 
 	if err := validateAllowListFile(); err != nil {
-		slog.Error("Server startup failed - invalid allowlist.json", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("invalid allowlist.json: %w", err)
 	}
 
 	// otelHandler wraps a content handler with OTel HTTP tracing and a
@@ -80,26 +91,29 @@ func main() {
 	}
 
 	// Graceful shutdown so the deferred tracer flush runs on SIGTERM.
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	errCh := make(chan error, 1)
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Server failed", "error", err)
-			os.Exit(1)
+			errCh <- err
 		}
 	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-errCh:
+		return err
+	case <-sigCtx.Done():
+	}
 	slog.Info("Shutting down gracefully...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("Server shutdown failed", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	slog.Info("Server stopped")
+	return nil
 }

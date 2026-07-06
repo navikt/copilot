@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -75,6 +76,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := run(cfg); err != nil {
+		slog.Error("server failed", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("server stopped")
+}
+
+// run owns all deferred cleanup (tracer flush, signal handling). Keeping
+// os.Exit confined to main ensures these defers actually run on failure.
+func run(cfg *Config) error {
 	// Initialize OTel tracing — must happen before instrumented handlers are set
 	// up. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by Nais (runtime: sdk).
 	ctx := context.Background()
@@ -96,8 +108,7 @@ func main() {
 	// Initialize discovery service with embedded manifest
 	discoveryService := discovery.NewService("navikt", "copilot", "main", cfg.BaseURL)
 	if err := discoveryService.LoadManifest(); err != nil {
-		slog.Error("failed to load embedded manifest", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to load embedded manifest: %w", err)
 	}
 	manifest := discoveryService.GetManifest()
 	slog.Info("loaded customizations manifest",
@@ -162,25 +173,28 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	errCh := make(chan error, 1)
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server error", "error", err)
-			os.Exit(1)
+			errCh <- err
 		}
 	}()
 
-	<-sigCtx.Done()
+	select {
+	case err := <-errCh:
+		return err
+	case <-sigCtx.Done():
+	}
 	slog.Info("shutting down gracefully...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("server shutdown failed", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	slog.Info("server stopped")
+	return nil
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {
