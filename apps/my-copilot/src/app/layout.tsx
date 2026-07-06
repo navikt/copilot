@@ -46,7 +46,7 @@ export default async function RootLayout({
     <html lang="nb">
       <meta name="nais-app" content="my-copilot" />
       <meta name="nais-team" content="copilot" />
-      <meta name="nais-version" content={process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"} />
+      <meta name="nais-version" content={process.env.NEXT_PUBLIC_APP_VERSION || "unknown"} />
       {telemetryCollectorUrl ? <meta name="nais-telemetry-url" content={telemetryCollectorUrl} /> : null}
       <body className={`${inter.className} bg-gray-800 min-h-dvh flex flex-col`}>
         <Suspense fallback={null}>
