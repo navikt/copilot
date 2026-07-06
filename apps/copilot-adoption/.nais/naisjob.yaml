@@ -26,6 +26,13 @@ spec:
       value: "3"
     - name: SCAN_CONCURRENCY
       value: "5"
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
+    logging:
+      destinations:
+        - id: loki
   gcp:
     bigQueryDatasets:
       - name: copilot_adoption

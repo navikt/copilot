@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Config struct {
@@ -70,6 +75,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize OTel tracing — must happen before instrumented handlers are set
+	// up. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by Nais (runtime: sdk).
+	ctx := context.Background()
+	shutdownTracer, err := initTracer(ctx, "mcp-onboarding")
+	if err != nil {
+		slog.Warn("OTel tracer initialization failed — tracing disabled", "error", err)
+	} else {
+		defer func() {
+			if err := shutdownTracer(ctx); err != nil {
+				slog.Warn("OTel tracer shutdown error", "error", err)
+			}
+		}()
+	}
+
 	store := NewTokenStore()
 	githubClient := NewGitHubClient(cfg.GitHubClientID, cfg.GitHubClientSecret)
 	oauthServer := NewOAuthServer(cfg.BaseURL, githubClient, store, cfg.AllowedOrganization)
@@ -106,9 +125,28 @@ func main() {
 
 	mux.HandleFunc("/", handleRoot)
 
+	// Wrap the handler chain with OTel HTTP tracing (per-route span names).
+	// loggingMiddleware runs inside the span; health/ready/metrics are filtered
+	// out to avoid tracing probe/scrape noise.
+	handler := otelhttp.NewHandler(
+		loggingMiddleware(mux),
+		"mcp-onboarding",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}),
+		otelhttp.WithFilter(func(r *http.Request) bool {
+			switch r.URL.Path {
+			case "/health", "/ready", "/metrics":
+				return false
+			default:
+				return true
+			}
+		}),
+	)
+
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      loggingMiddleware(mux),
+		Handler:      handler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -120,10 +158,29 @@ func main() {
 		"allowed_org", cfg.AllowedOrganization,
 	)
 
-	if err := server.ListenAndServe(); err != nil {
-		slog.Error("server error", "error", err)
+	// Graceful shutdown so the deferred tracer flush runs on SIGTERM.
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("server error", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-sigCtx.Done()
+	slog.Info("shutting down gracefully...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("server shutdown failed", "error", err)
 		os.Exit(1)
 	}
+
+	slog.Info("server stopped")
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {

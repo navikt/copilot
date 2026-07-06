@@ -11,6 +11,10 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 func main() {
@@ -33,6 +37,21 @@ func main() {
 		"concurrency", config.ScanConcurrency,
 		"run_once", *runOnce,
 	)
+
+	// Initialize OTel tracing. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by Nais
+	// (runtime: sdk); no-op locally. The shutdown flushes buffered spans — a
+	// batch exporter drops the final spans of a short-lived job otherwise, so we
+	// call it explicitly before os.Exit in the run paths as well as via defer.
+	shutdownTracer, err := initTracer(context.Background(), "copilot-adoption")
+	if err != nil {
+		slog.Warn("OTel tracer initialization failed — tracing disabled", "error", err)
+		shutdownTracer = func(context.Context) error { return nil }
+	}
+	defer func() {
+		if err := shutdownTracer(context.Background()); err != nil {
+			slog.Warn("OTel tracer shutdown error", "error", err)
+		}
+	}()
 
 	if *dryRun {
 		// Dry-run: only validate GitHub credentials, skip BigQuery
@@ -96,10 +115,28 @@ func main() {
 	if *runOnce {
 		slack := NewSlackNotifier(config.SlackWebhookURL)
 		today := time.Now().UTC().Truncate(24 * time.Hour)
-		if err := RunScan(ctx, ghClient, bqClient, config, today, slack); err != nil {
-			slog.Error("Scan failed", "error", err)
+
+		// Root span for the cron run. Duration is inherent to the span;
+		// per-repo counters remain in RunScan's structured logs.
+		runCtx, span := otel.Tracer("copilot-adoption").Start(ctx, "copilot-adoption.run")
+		span.SetAttributes(attribute.String("scan.date", today.Format("2006-01-02")))
+		runErr := RunScan(runCtx, ghClient, bqClient, config, today, slack)
+		if runErr != nil {
+			span.RecordError(runErr)
+			span.SetStatus(codes.Error, "scan failed")
+		}
+		span.End()
+
+		// Flush spans before exiting — the deferred shutdown does not run on
+		// os.Exit, so call it explicitly here (idempotent).
+		if err := shutdownTracer(context.Background()); err != nil {
+			slog.Warn("OTel tracer shutdown error", "error", err)
+		}
+
+		if runErr != nil {
+			slog.Error("Scan failed", "error", runErr)
 			if slack != nil {
-				slack.NotifyError(ctx, fmt.Sprintf("Scan failed: %v", err))
+				slack.NotifyError(ctx, fmt.Sprintf("Scan failed: %v", runErr))
 			}
 			os.Exit(1)
 		}
@@ -107,10 +144,13 @@ func main() {
 		return
 	}
 
+	// Daemon mode (binary started without --run-once) — only reached in local
+	// dev; the Naisjob always runs with --run-once. No /metrics endpoint: a cron
+	// Naisjob is never scraped (no prometheus block in the manifest), so the
+	// previous hand-rolled /metrics handler was dead code and has been removed.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/ready", readyHandler)
-	mux.HandleFunc("/metrics", metricsHandler)
 
 	server := &http.Server{
 		Addr:         ":" + config.Port,
@@ -159,12 +199,4 @@ func readyHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = fmt.Fprint(w, `{"status":"ready"}`)
-}
-
-func metricsHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, "# HELP copilot_adoption_up Application is up\n")
-	_, _ = fmt.Fprint(w, "# TYPE copilot_adoption_up gauge\n")
-	_, _ = fmt.Fprint(w, "copilot_adoption_up 1\n")
 }

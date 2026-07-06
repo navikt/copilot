@@ -20,10 +20,10 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@grafana/faro-web-sdk": "^2.7.1",
-    "@grafana/faro-web-tracing": "^2.7.1",
+    "@grafana/faro-react": "2.8.2",
     "@headlessui/react": "2.2.10",
     "@icons-pack/react-simple-icons": "^13.13.0",
+    "@nais/apm": "0.3.0",
     "@navikt/aksel-icons": "8.11.1",
     "@navikt/ds-css": "^8.13.0",
     "@navikt/ds-react": "^8.13.0",

@@ -1,4 +1,4 @@
-import Faro from "@/components/faro";
+import ApmRouteTracker from "@/components/apm-route-tracker";
 import { FooterMessage } from "@/components/footer-message";
 import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
 import NavBudgetBar from "@/components/nav-budget-bar";
@@ -35,8 +35,19 @@ export default async function RootLayout({
 }>) {
   const user = await getUser(false);
 
+  // Runtime config for @nais/apm, read from nais meta tags in the browser.
+  // NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL is injected at runtime by nais
+  // (frontend.generatedConfig) and differs between dev-gcp and prod-gcp. When
+  // it is unset (local dev) the tag is omitted so the SDK falls into dev mode
+  // (console echo, no network). React 19 hoists these <meta> tags into <head>.
+  const telemetryCollectorUrl = process.env.NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL;
+
   return (
     <html lang="nb">
+      <meta name="nais-app" content="my-copilot" />
+      <meta name="nais-team" content="copilot" />
+      <meta name="nais-version" content={process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"} />
+      {telemetryCollectorUrl ? <meta name="nais-telemetry-url" content={telemetryCollectorUrl} /> : null}
       <body className={`${inter.className} bg-gray-800 min-h-dvh flex flex-col`}>
         <Suspense fallback={null}>
           <HashAnchorScroll />
@@ -107,7 +118,9 @@ export default async function RootLayout({
             </footer>
           </HStack>
         </Theme>
-        <Faro collectorUrl={process.env.NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL} />
+        <Suspense fallback={null}>
+          <ApmRouteTracker />
+        </Suspense>
       </body>
     </html>
   );

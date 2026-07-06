@@ -260,6 +260,13 @@ jobs:
     if: needs.changes.outputs.my-copilot == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # packages:read lets `pnpm install` pull @nais/apm from GitHub Package
+    # Registry; GITHUB_TOKEN carries the scope for same-repo public packages.
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: apps/my-copilot

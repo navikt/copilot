@@ -29,6 +29,13 @@ spec:
   prometheus:
     enabled: true
     path: /metrics
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
+    logging:
+      destinations:
+        - id: loki
   env:
     - name: PORT
       value: "8080"

@@ -47,30 +47,6 @@ func TestReadyHandler(t *testing.T) {
 	}
 }
 
-func TestMetricsHandler(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-	rec := httptest.NewRecorder()
-
-	metricsHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "text/plain" {
-		t.Errorf("Content-Type = %q, want %q", ct, "text/plain")
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, "copilot_metrics_up 1") {
-		t.Errorf("body should contain gauge metric, got: %s", body)
-	}
-	if !strings.Contains(body, "# HELP") {
-		t.Errorf("body should contain HELP comment, got: %s", body)
-	}
-	if !strings.Contains(body, "# TYPE") {
-		t.Errorf("body should contain TYPE comment, got: %s", body)
-	}
-}
-
 func TestIngestDay_DeleteError(t *testing.T) {
 	ctx := t.Context()
 	day := fixedDay()

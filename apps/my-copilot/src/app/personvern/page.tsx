@@ -30,8 +30,10 @@ export default function PersonvernPage() {
               Hva vi samler inn
             </Heading>
             <BodyLong>
-              Vi bruker Grafana Faro for feilovervåking og ytelsesmåling. Faro samler inn teknisk informasjon om
-              nettleser, operativsystem og feilmeldinger for å forbedre tjenesten. Vi samler ikke inn
+              Vi bruker Navs egen telemetriløsning (@nais/apm, basert på Grafana Faro) for feilovervåking og
+              ytelsesmåling. Verktøyet samler inn teknisk informasjon om nettleser, operativsystem og feilmeldinger for
+              å forbedre tjenesten. Personidentifiserende informasjon (fødselsnummer og varianter, e-postadresser og
+              token-parametere i URL-er) vaskes bort automatisk før noe sendes, og vi samler ikke inn
               personidentifiserende informasjon fra anonyme besøkende.
             </BodyLong>
             <BodyLong>

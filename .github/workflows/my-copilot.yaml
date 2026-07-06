@@ -32,6 +32,7 @@ concurrency:
 permissions:
   contents: write
   id-token: write
+  packages: read # read @nais/apm from GitHub Package Registry during install/build/docker
 
 jobs:
   build:
