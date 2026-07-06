@@ -12,6 +12,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 func main() {
@@ -51,6 +54,21 @@ func main() {
 		slog.Error("Configuration error", "error", err)
 		os.Exit(1)
 	}
+
+	// Initialize OTel tracing. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by Nais
+	// (runtime: sdk); no-op locally. The shutdown flushes buffered spans — a
+	// batch exporter drops the final spans of a short-lived job otherwise, so it
+	// is called explicitly before os.Exit in the run paths as well as via defer.
+	shutdownTracer, err := initTracer(context.Background(), "copilot-metrics")
+	if err != nil {
+		slog.Warn("OTel tracer initialization failed — tracing disabled", "error", err)
+		shutdownTracer = func(context.Context) error { return nil }
+	}
+	defer func() {
+		if err := shutdownTracer(context.Background()); err != nil {
+			slog.Warn("OTel tracer shutdown error", "error", err)
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -203,29 +221,46 @@ func main() {
 
 	if *runOnce {
 		slack := NewSlackNotifier(config.SlackWebhookURL)
-		if err := ingestMissing(ctx, ghClient, bqClient, config, slack); err != nil {
+
+		// Root span for the cron run; the ingest* calls nest under runCtx.
+		runCtx, span := otel.Tracer("copilot-metrics").Start(ctx, "copilot-metrics.run")
+
+		// failRun records the error on the run span and flushes buffered spans
+		// before the caller exits — the deferred shutdown does not run on os.Exit.
+		failRun := func(err error) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.End()
+			if serr := shutdownTracer(context.Background()); serr != nil {
+				slog.Warn("OTel tracer shutdown error", "error", serr)
+			}
+		}
+
+		if err := ingestMissing(runCtx, ghClient, bqClient, config, slack); err != nil {
 			if slack != nil {
 				slack.NotifyError(ctx, fmt.Sprintf("Ingestion failed: %v", err))
 			}
 			slog.Error("Ingestion failed", "error", err)
+			failRun(err)
 			os.Exit(1)
 		}
 		// Retry supplementary data for recent days where entity metrics exists
 		// but user-teams/user-metrics are missing (they may not have been available
 		// when the entity metrics were first ingested).
-		ingestMissingSupplementary(ctx, ghClient, bqClient, config)
+		ingestMissingSupplementary(runCtx, ghClient, bqClient, config)
 
 		// Ingest current month's billing data (always re-ingests since it's cumulative)
 		if billingClient != nil {
-			ingestCurrentMonthBilling(ctx, billingClient, bqClient, config)
-			if err := ingestMissingBillingUsageReports(ctx, billingClient, bqClient, config); err != nil {
+			ingestCurrentMonthBilling(runCtx, billingClient, bqClient, config)
+			if err := ingestMissingBillingUsageReports(runCtx, billingClient, bqClient, config); err != nil {
 				slog.Warn("Billing usage report ingestion failed", "error", err)
 			}
-			if err := ingestRecentBillingModelDaily(ctx, billingClient, bqClient, config); err != nil {
+			if err := ingestRecentBillingModelDaily(runCtx, billingClient, bqClient, config); err != nil {
 				if slack != nil {
 					slack.NotifyError(ctx, fmt.Sprintf("Billing daily model ingestion failed: %v", err))
 				}
 				slog.Error("Billing daily model ingestion failed", "error", err)
+				failRun(err)
 				os.Exit(1)
 			}
 		}
@@ -233,19 +268,28 @@ func main() {
 		// yesterday in case the previous run failed (snapshots are point-in-time
 		// and lost forever if not captured).
 		if budgetClient != nil {
-			ingestTodayBudgetSnapshot(ctx, budgetClient, bqClient, config)
-			ingestYesterdayBudgetSnapshot(ctx, budgetClient, bqClient, config)
-			ingestTodayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
-			ingestYesterdayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
+			ingestTodayBudgetSnapshot(runCtx, budgetClient, bqClient, config)
+			ingestYesterdayBudgetSnapshot(runCtx, budgetClient, bqClient, config)
+			ingestTodayUserBudgetSnapshot(runCtx, ghClient, budgetClient, bqClient, config)
+			ingestYesterdayUserBudgetSnapshot(runCtx, ghClient, budgetClient, bqClient, config)
+		}
+
+		span.End()
+		if err := shutdownTracer(context.Background()); err != nil {
+			slog.Warn("OTel tracer shutdown error", "error", err)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
 	}
 
+	// Daemon mode (binary started without --run-once or a backfill flag) — only
+	// reached in local dev; the Naisjob always runs with --run-once. No /metrics
+	// endpoint: a cron Naisjob is never scraped (no prometheus block in the
+	// manifest), so the previous hand-rolled /metrics handler was dead code and
+	// has been removed.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/ready", readyHandler)
-	mux.HandleFunc("/metrics", metricsHandler)
 
 	server := &http.Server{
 		Addr:         ":" + config.Port,
@@ -551,14 +595,6 @@ func readyHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = fmt.Fprint(w, `{"status":"ready"}`)
-}
-
-func metricsHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, "# HELP copilot_metrics_up Application is up\n")
-	_, _ = fmt.Fprint(w, "# TYPE copilot_metrics_up gauge\n")
-	_, _ = fmt.Fprint(w, "copilot_metrics_up 1\n")
 }
 
 // ingestCurrentMonthBilling fetches and stores billing data for the current and previous month.

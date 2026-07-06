@@ -32,6 +32,13 @@ spec:
   prometheus:
     enabled: true
     path: /metrics
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
+    logging:
+      destinations:
+        - id: loki
   ingresses:
     {{#each ingresses}}
     - {{this}}

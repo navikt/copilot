@@ -70,6 +70,21 @@ Install the dependencies:
 pnpm install --frozen-lockfile
 ```
 
+> [!NOTE]
+> Browser telemetry uses [`@nais/apm`](https://github.com/nais/apm), which is
+> published to the GitHub Package Registry. Even though the package is public,
+> npm.pkg.github.com requires an authenticated token to download it. Before
+> installing, create a Personal Access Token (classic) with the `read:packages`
+> scope and export it (navikt's org-standard `READER_TOKEN` works too if you
+> have it):
+>
+> ```bash
+> export GITHUB_PACKAGES_TOKEN=ghp_your_read_packages_token
+> pnpm install --frozen-lockfile
+> ```
+>
+> `apps/my-copilot/.npmrc` reads the token from `GITHUB_PACKAGES_TOKEN`.
+
 Create a `.env.local` file in the root directory and add the required environment variables:
 
 ```env

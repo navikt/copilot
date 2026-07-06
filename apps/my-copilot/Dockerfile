@@ -6,7 +6,12 @@ FROM base AS deps
 WORKDIR /app
 
 COPY apps/my-copilot/package.json apps/my-copilot/pnpm-lock.yaml apps/my-copilot/pnpm-workspace.yaml apps/my-copilot/.npmrc ./
-RUN pnpm install --frozen-lockfile
+# @nais/apm is published to GitHub Package Registry, which requires an
+# authenticated token (read:packages) even for public packages. The token is
+# passed as a BuildKit secret — never an ARG/ENV — so it is not persisted in any
+# image layer. .npmrc reads it from the GITHUB_PACKAGES_TOKEN env var.
+RUN --mount=type=secret,id=github_packages_token \
+    GITHUB_PACKAGES_TOKEN="$(cat /run/secrets/github_packages_token)" pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app

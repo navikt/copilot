@@ -1,10 +1,17 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func main() {
@@ -23,33 +30,90 @@ func main() {
 		"logged_endpoints", getEndpointsList(config.LoggedEndpoints),
 	)
 
-	if err := validateAllowListFile(); err != nil {
-		slog.Error("Server startup failed - invalid allowlist.json", "error", err)
+	if err := run(config); err != nil {
+		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
 
-	http.HandleFunc("/health", loggingMiddleware(config, healthHandler))
-	http.HandleFunc("/ready", loggingMiddleware(config, readyHandler))
-	http.Handle("/metrics", metricsHandler())
-	http.HandleFunc("/v0.1/servers", loggingMiddleware(config, makeServersListHandler(config)))
-	http.HandleFunc("/v0.1/servers/", loggingMiddleware(config, makeServerVersionHandler(config)))
-	http.HandleFunc("/robots.txt", robotsTxtHandler)
-	http.HandleFunc("/favicon.ico", faviconHandler)
-	http.HandleFunc("/.well-known/security.txt", securityTxtHandler)
-	http.HandleFunc("/", loggingMiddleware(config, rootHandler))
+	slog.Info("Server stopped")
+}
+
+// run owns all deferred cleanup (tracer flush, signal handling). Keeping
+// os.Exit confined to main ensures these defers actually run on failure.
+func run(config *Config) error {
+	// Initialize OTel tracing — must happen before any instrumented handlers are
+	// set up. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by Nais (runtime: sdk).
+	ctx := context.Background()
+	shutdownTracer, err := initTracer(ctx, "mcp-registry")
+	if err != nil {
+		slog.Warn("OTel tracer initialization failed — tracing disabled", "error", err)
+	} else {
+		defer func() {
+			if err := shutdownTracer(ctx); err != nil {
+				slog.Warn("OTel tracer shutdown error", "error", err)
+			}
+		}()
+	}
+
+	if err := validateAllowListFile(); err != nil {
+		return fmt.Errorf("invalid allowlist.json: %w", err)
+	}
+
+	// otelHandler wraps a content handler with OTel HTTP tracing and a
+	// per-route span name (method + path). Health/ready/metrics and static
+	// endpoints are left unwrapped to avoid tracing probe/scrape noise.
+	otelHandler := func(name string, h http.HandlerFunc) http.Handler {
+		return otelhttp.NewHandler(h, name, otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}))
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", loggingMiddleware(config, healthHandler))
+	mux.HandleFunc("/ready", loggingMiddleware(config, readyHandler))
+	mux.Handle("/metrics", metricsHandler())
+	mux.Handle("/v0.1/servers", otelHandler("servers-list", loggingMiddleware(config, makeServersListHandler(config))))
+	mux.Handle("/v0.1/servers/", otelHandler("server-version", loggingMiddleware(config, makeServerVersionHandler(config))))
+	mux.HandleFunc("/robots.txt", robotsTxtHandler)
+	mux.HandleFunc("/favicon.ico", faviconHandler)
+	mux.HandleFunc("/.well-known/security.txt", securityTxtHandler)
+	mux.Handle("/", otelHandler("root", loggingMiddleware(config, rootHandler)))
 
 	slog.Info("Allowlist validation passed - registry contains valid server configurations")
 	slog.Info("Server listening", "port", config.Port)
 
 	server := &http.Server{
 		Addr:         ":" + config.Port,
+		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		slog.Error("Server failed", "error", err)
-		os.Exit(1)
+	// Graceful shutdown so the deferred tracer flush runs on SIGTERM.
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-sigCtx.Done():
 	}
+	slog.Info("Shutting down gracefully...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	return nil
 }

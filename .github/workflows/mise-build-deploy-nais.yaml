@@ -156,8 +156,14 @@ jobs:
     name: Setup
     permissions:
       contents: read
+      packages: read # read @nais/apm from GitHub Package Registry (my-copilot); no-op for other apps
     if: ${{ inputs.mise-setup-tasks != '[]' }}
     runs-on: ${{ inputs.runner-size }}
+    # Exposed so `pnpm install` can authenticate to npm.pkg.github.com (see
+    # apps/my-copilot/.npmrc). Unused by apps that install only from the public
+    # registry. GITHUB_TOKEN carries packages:read for same-repo public packages.
+    env:
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -201,6 +207,7 @@ jobs:
     name: Check
     permissions:
       contents: read
+      packages: read # read @nais/apm from GitHub Package Registry (my-copilot); no-op for other apps
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
     strategy:
@@ -208,6 +215,8 @@ jobs:
       matrix:
         task: ${{ fromJson(inputs.mise-tasks) }}
     runs-on: ${{ inputs.runner-size }}
+    env:
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -256,9 +265,12 @@ jobs:
     name: Build
     permissions:
       contents: read
+      packages: read # read @nais/apm from GitHub Package Registry (my-copilot); no-op for other apps
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
     runs-on: ${{ inputs.runner-size }}
+    env:
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -308,6 +320,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: read # read @nais/apm from GitHub Package Registry during the image build (my-copilot)
     runs-on: ${{ inputs.runner-size-docker }}
     needs: [meta, lint, build]
     outputs:
@@ -326,6 +339,11 @@ jobs:
           docker_context: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.docker-context) || inputs.docker-context }}
           build_args: |
             APP_VERSION=${{ needs.meta.outputs.version }}
+          # Exposed as a BuildKit secret for `pnpm install` (my-copilot pulls
+          # @nais/apm from GitHub Package Registry). Dockerfiles that do not mount
+          # the secret ignore it. Never leaks into image layers.
+          build_secrets: |
+            github_packages_token=${{ secrets.GITHUB_TOKEN }}
           cache_from: type=gha
           cache_to: type=gha,mode=max
 
