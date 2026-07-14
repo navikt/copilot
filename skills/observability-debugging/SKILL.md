@@ -61,17 +61,21 @@ curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: te
 > **Log line fields (require `| json`, slower):** `level`, `message`, `trace_id`, `span_id`, `logger_name`, `thread_name`
 > Always narrow with labels first, then filter metadata/fields.
 
+> **One global endpoint** (`loki.nav.cloud.nais.io`) — like Mimir. Pick the cluster with the
+> `k8s_cluster_name="$CLUSTER"` label (`dev-gcp`, `prod-gcp`, `dev-fss`, `prod-fss`, …), not an
+> environment-specific host.
+
 ```bash
-# Query via Loki API (dev environment)
+# Query via the global Loki endpoint — select the cluster with k8s_cluster_name
 curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://loki.nav.cloud.nais.io/loki/api/v1/query_range" \
-  --data-urlencode "query={k8s_cluster_name=~\"dev.*\",service_name=\"$APP\"} |= \"ERROR\"" \
+  --data-urlencode "query={k8s_cluster_name=\"$CLUSTER\",service_name=\"$APP\"} |= \"ERROR\"" \
   --data-urlencode "limit=50" | jq .
 
-# Prod environment
+# Parse structured fields for level/detail
 curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: tenant" \
   "https://loki.nav.cloud.nais.io/loki/api/v1/query_range" \
-  --data-urlencode "query={k8s_cluster_name=~\"prod.*\",service_name=\"$APP\"} | json | level=\"error\"" | jq .
+  --data-urlencode "query={k8s_cluster_name=\"$CLUSTER\",service_name=\"$APP\"} | json | level=\"error\"" | jq .
 ```
 
 ### Tempo — Trace Search
