@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	cloud.google.com/go v0.123.0
-	cloud.google.com/go/bigquery v1.78.0
+	cloud.google.com/go/bigquery v1.79.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 )
 
