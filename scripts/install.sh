@@ -97,9 +97,15 @@ ASSET="${BINARY}-${OS}-${ARCH}"
 
 if [[ -z "$VERSION" ]]; then
   echo "→ Fetching latest nav-pilot release..."
+  # Use GITHUB_TOKEN if available (CI) to avoid rate-limiting on unauthenticated requests
+  CURL_AUTH_HEADER=""
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    CURL_AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
+  fi
   # Filter by nav-pilot/ tag prefix to avoid picking up unrelated releases (e.g. skills)
   set +o pipefail
-  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100" \
+  VERSION=$(curl -fsSL ${CURL_AUTH_HEADER:+-H "$CURL_AUTH_HEADER"} \
+    "https://api.github.com/repos/${REPO}/releases?per_page=100" \
     | grep '"tag_name"' \
     | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' \
     | grep '^nav-pilot/' \
