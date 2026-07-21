@@ -466,6 +466,8 @@ export interface DailySummary {
   cli_session_count: number;
   cli_request_count: number;
   pr_median_minutes_to_merge: number;
+  pr_avg_minutes_to_review: number;
+  pr_avg_review_cycles: number;
 }
 
 // Privacy-preserving, aggregate-only usage spread for a given month.

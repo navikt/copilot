@@ -439,6 +439,18 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
               helpTitle="Chat-brukere"
               helpText="Unike brukere som har brukt Copilot Chat i inneværende måned. Kilde: v_daily_summary."
             />
+            <MetricCard
+              value={formatMinutes(dailySummary.pr_avg_minutes_to_review)}
+              label="Tid til første PR-review"
+              helpTitle="Tid til første PR-review"
+              helpText="Median tid fra en pull request opprettes til den får sin første review, snittet over AI-adopsjonsfaser og vektet på antall merget PR-er. Kun merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."
+            />
+            <MetricCard
+              value={dailySummary.pr_avg_review_cycles > 0 ? dailySummary.pr_avg_review_cycles.toFixed(1) : "–"}
+              label="Review-runder per PR"
+              helpTitle="Review-runder per PR"
+              helpText="Median antall review-innsendinger en pull request får før den merges, snittet over AI-adopsjonsfaser og vektet på antall merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."
+            />
           </HGrid>
         </div>
       )}
