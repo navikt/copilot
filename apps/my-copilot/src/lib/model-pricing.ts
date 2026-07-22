@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-07-01
+ * Last updated: 2026-07-22
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -11,7 +11,7 @@
 
 export interface ModelPrice {
   model: string;
-  provider: "OpenAI" | "Anthropic" | "Google" | "GitHub";
+  provider: "OpenAI" | "Anthropic" | "Google" | "GitHub" | "Microsoft" | "Moonshot AI";
   category: "Lightweight" | "Versatile" | "Powerful";
   status: "GA" | "Public preview";
   input: number;
@@ -94,6 +94,60 @@ export const MODEL_PRICING: ModelPrice[] = [
     input: 10,
     cachedInput: 1,
     output: 45,
+  },
+  {
+    model: "GPT-5.6 Luna (Default, ≤ 200K)",
+    provider: "OpenAI",
+    category: "Lightweight",
+    status: "GA",
+    input: 1,
+    cachedInput: 0.1,
+    output: 6,
+  },
+  {
+    model: "GPT-5.6 Luna (Long context, 200K)",
+    provider: "OpenAI",
+    category: "Lightweight",
+    status: "GA",
+    input: 2,
+    cachedInput: 0.2,
+    output: 9,
+  },
+  {
+    model: "GPT-5.6 Sol (Default, ≤ 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 5,
+    cachedInput: 0.5,
+    output: 30,
+  },
+  {
+    model: "GPT-5.6 Sol (Long context, 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 10,
+    cachedInput: 1,
+    output: 45,
+  },
+  {
+    model: "GPT-5.6 Terra (Default, ≤ 272K)",
+    provider: "OpenAI",
+    category: "Versatile",
+    status: "GA",
+    input: 2.5,
+    cachedInput: 0.25,
+    output: 15,
+  },
+  {
+    model: "GPT-5.6 Terra (Long context, 272K)",
+    provider: "OpenAI",
+    category: "Versatile",
+    status: "GA",
+    input: 5,
+    cachedInput: 0.5,
+    output: 22.5,
   },
   // Anthropic
   {
@@ -252,6 +306,15 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.15,
     output: 9,
   },
+  {
+    model: "Gemini 3.6 Flash (Default)",
+    provider: "Google",
+    category: "Versatile",
+    status: "GA",
+    input: 1.5,
+    cachedInput: 0.15,
+    output: 7.5,
+  },
   // GitHub
   {
     model: "Raptor mini",
@@ -262,7 +325,27 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.025,
     output: 2,
   },
+  // Microsoft
+  {
+    model: "MAI-Code-1-Flash",
+    provider: "Microsoft",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.75,
+    cachedInput: 0.075,
+    output: 4.5,
+  },
+  // Moonshot AI
+  {
+    model: "Kimi K2.7 Code",
+    provider: "Moonshot AI",
+    category: "Versatile",
+    status: "GA",
+    input: 0.95,
+    cachedInput: 0.19,
+    output: 4,
+  },
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-07-01";
+export const PRICING_LAST_UPDATED = "2026-07-22";
