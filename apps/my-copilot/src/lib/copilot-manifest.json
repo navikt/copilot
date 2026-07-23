@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-07-14T20:20:25.228Z",
+  "generatedAt": "2026-07-22T21:09:31.391Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -902,11 +902,11 @@
       "domain": "frontend",
       "filePath": ".github/prompts/aksel-component.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/aksel-component.prompt.md",
-      "contentHash": "68c1da8a387cdffe7871268f7039075015a927deecec25217ce1d03bc96265ae",
+      "contentHash": "721f879cfd8e89da6bf407d2febbbe98b4f579a6ab49b9c6898bb9c5af37876c",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Faksel-component.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Faksel-component.prompt.md",
       "invocation": "#aksel-component",
-      "model": ["Gemini 3.5 Flash"],
+      "model": ["Gemini 3.6 Flash"],
       "tags": [
         "aksel",
         "design-system",

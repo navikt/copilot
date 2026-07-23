@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
 };
 
-const PROVIDER_ORDER = ["OpenAI", "Anthropic", "Google", "GitHub"] as const;
+const PROVIDER_ORDER = ["OpenAI", "Anthropic", "Google", "GitHub", "Moonshot AI", "Microsoft"] as const;
 
 function formatPrice(price: number): string {
   if (price < 0.1) return `$${price.toFixed(3)}`;

@@ -39,6 +39,8 @@ function parsePricingTables(html) {
     { provider: "Anthropic", anchorId: "anthropic" },
     { provider: "Google", anchorId: "google" },
     { provider: "GitHub", anchorId: "fine-tuned-github" },
+    { provider: "Microsoft", anchorId: "microsoft" },
+    { provider: "Moonshot AI", anchorId: "moonshot-ai" },
   ];
 
   for (const section of sections) {
@@ -212,7 +214,7 @@ function parsePrice(str) {
 function generateTypeScript(models) {
   const today = new Date().toISOString().split("T")[0];
 
-  const providerOrder = ["OpenAI", "Anthropic", "Google", "GitHub"];
+  const providerOrder = ["OpenAI", "Anthropic", "Google", "GitHub", "Microsoft", "Moonshot AI"];
   const grouped = {};
   for (const m of models) {
     if (!grouped[m.provider]) grouped[m.provider] = [];
@@ -256,7 +258,7 @@ function generateTypeScript(models) {
 
 export interface ModelPrice {
   model: string;
-  provider: "OpenAI" | "Anthropic" | "Google" | "GitHub";
+  provider: "OpenAI" | "Anthropic" | "Google" | "GitHub" | "Microsoft" | "Moonshot AI";
   category: "Lightweight" | "Versatile" | "Powerful";
   status: "GA" | "Public preview";
   input: number;

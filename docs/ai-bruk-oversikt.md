@@ -2,6 +2,8 @@
 
 > Kartlegging av hvordan vi bruker AI-verktøy i utviklingsarbeidet, og hvor vi bevisst *ikke* bruker dem.
 
+Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og prompt, kriterier for å bytte modell og sjekkliste for nye modeller.
+
 ## Agenter — domeneeksperter for utviklere
 
 | Agent | Formål | Domene | Sone |

@@ -33,11 +33,19 @@ export const MODEL_PRICING: Record<string, TokenRate> = {
   "GPT-5.3-Codex": { input: 1.75, cached: 0.175, output: 14.0 },
   "GPT-5.4": { input: 2.5, cached: 0.25, output: 15.0 },
   "GPT-5.4 mini": { input: 0.75, cached: 0.075, output: 4.5 },
+  "GPT-5.5": { input: 5.0, cached: 0.5, output: 30.0 },
   "GPT-5 mini": { input: 0.75, cached: 0.075, output: 4.5 },
+  "GPT-5.6 Luna": { input: 1.0, cached: 0.1, output: 6.0 },
+  "GPT-5.6 Terra": { input: 2.5, cached: 0.25, output: 15.0 },
+  "GPT-5.6 Sol": { input: 5.0, cached: 0.5, output: 30.0 },
   // Google Gemini
   "Gemini 2.5 Pro": { input: 1.25, cached: 0.31, output: 10.0 },
   "Gemini 3 Flash": { input: 0.15, cached: 0.02, output: 0.6 },
   "Gemini 3.1 Pro": { input: 1.25, cached: 0.31, output: 10.0 },
+  "Gemini 3.5 Flash": { input: 1.5, cached: 0.15, output: 9.0 },
+  "Gemini 3.6 Flash": { input: 1.5, cached: 0.15, output: 7.5 },
+  // Moonshot AI
+  "Kimi K2.7 Code": { input: 0.95, cached: 0.19, output: 4.0 },
   // xAI
   "Grok Code Fast 1": { input: 0.5, cached: 0.05, output: 2.0 },
   // Copilot internal models (estimate: Sonnet-tier pricing)
@@ -220,6 +228,9 @@ export function getModelCategory(modelName: string): ModelCategory {
   if (name.includes("grok")) return "grok";
   if (name.includes("gemini") && name.includes("flash")) return "gemini_flash";
   if (name.includes("gemini")) return "gemini_pro";
+  if (name.includes("kimi")) return "gpt_standard"; // versatile tier
+  if (name.includes("5.6 sol")) return "opus"; // powerful tier
+  if (name.includes("5.6 luna")) return "gpt_mini"; // lightweight tier
   if (name.includes("mini")) return "gpt_mini";
   return "gpt_standard";
 }
