@@ -2,7 +2,7 @@
 title: "Copilot impact dashboard og repo-nivå bruksmetrikker"
 date: 2026-07-22
 category: copilot
-excerpt: "Nytt impact dashboard med adopsjonsfaser og -kohorter, plus GA for repository-nivå bruksmetrikker via REST API."
+excerpt: "Nytt impact dashboard med adopsjonsfaser og -kohorter, pluss GA for repository-nivå bruksmetrikker via REST API."
 url: "https://github.blog/changelog/2026-07-22-new-copilot-usage-metrics-impact-dashboard"
 tags:
   - metrics

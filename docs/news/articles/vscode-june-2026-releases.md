@@ -25,7 +25,7 @@ Du kan nå starte flere Copilot-sesjoner parallelt og la dem jobbe i bakgrunnen 
 
 ## Kostnadsoversikt per sesjon
 
-En ny «Cost» badge viser estimert kreditforbruk per chat-sesjon. Utviklere ser forbruket underveis og kan justere arbeidsmetoden deretter.
+En ny «Cost»-badge viser estimert kredittforbruk per chat-sesjon. Utviklere ser forbruket underveis og kan justere arbeidsmetoden deretter.
 
 ## Modellvelger fra Marketplace
 

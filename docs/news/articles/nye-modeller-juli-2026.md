@@ -101,7 +101,7 @@ Disse fem modellene er tillegg til det vi allerede har — ikke erstatninger. De
 | Bruksmønster | Gode valg | Hvorfor |
 | --- | --- | --- |
 | Norsk tekst, microcopy, PR-beskrivelser | Claude Sonnet 4.6 / Sonnet 5 | Anthropic-modellene er best på norsk |
-| Dyp risikovurdering, sikkerhetskritisk kode | Claude Opus 5 (Opus 4.6/4.8 fortsatt tilgjengelig) | Sterkest på resonering og nyanserte vurderinger, med justerbar effort |
+| Dyp risikovurdering, sikkerhetskritisk kode | Claude Opus 5 (Opus 4.6/4.8 fortsatt tilgjengelig) | Sterkest på resonnering og nyanserte vurderinger, med justerbar effort |
 | Research, store kodebaser med mye kontekst | Gemini 3.1 Pro | Overtar rollen etter Gemini 2.5 Pro, som utfases 31. juli |
 | Sjekklister, templates, scaffold-prompts | Claude Haiku 4.5 | Rask og billig for enkle strukturerte oppgaver |
 | Daglig koding, refaktorering | Terra, Sonnet 5, Auto | Alle tre er solide allroundere i samme prisklasse |

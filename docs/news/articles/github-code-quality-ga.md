@@ -10,7 +10,7 @@ tags:
   - security
 ---
 
-GitHub Code Quality er nå generelt tilgjengelig (GA) for GitHub Enterprise Cloud og GitHub Team. Produktet kombinerer CodeQLs determiniske analyse med AI-assistert deteksjon for å fange vedlikeholds- og pålitelighetsproblemer i pull requests. Copilot Autofix foreslår rettelser du kan gjennomgå før merge.
+GitHub Code Quality er nå generelt tilgjengelig (GA) for GitHub Enterprise Cloud og GitHub Team. Produktet kombinerer CodeQLs deterministiske analyse med AI-assistert deteksjon for å fange vedlikeholds- og pålitelighetsproblemer i pull requests. Copilot Autofix foreslår rettelser du kan gjennomgå før merge.
 
 ## Nytt siden public preview
 
