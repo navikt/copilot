@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PRIVATE_PAGE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement", "/kalkulator"];
+const PRIVATE_PAGE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement"];
 
 const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/statistikk/json"];
 
@@ -51,7 +51,6 @@ export const config = {
     "/adopsjon/:path*",
     "/kostnad/:path*",
     "/abonnement/:path*",
-    "/kalkulator/:path*",
     "/api/copilot/:path*",
     "/api/adoption/:path*",
   ],

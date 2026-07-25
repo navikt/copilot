@@ -231,6 +231,16 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 25,
   },
   {
+    model: "Claude Opus 5",
+    provider: "Anthropic",
+    category: "Powerful",
+    status: "GA",
+    input: 5,
+    cachedInput: 0.5,
+    cacheWrite: 6.25,
+    output: 25,
+  },
+  {
     model: "Claude Sonnet 5",
     provider: "Anthropic",
     category: "Versatile",
@@ -242,6 +252,16 @@ export const MODEL_PRICING: ModelPrice[] = [
   },
   {
     model: "Claude Opus 4.8 (fast mode) (preview)",
+    provider: "Anthropic",
+    category: "Powerful",
+    status: "GA",
+    input: 10,
+    cachedInput: 1,
+    cacheWrite: 12.5,
+    output: 50,
+  },
+  {
+    model: "Claude Opus 5 (fast mode) (preview)",
     provider: "Anthropic",
     category: "Powerful",
     status: "GA",

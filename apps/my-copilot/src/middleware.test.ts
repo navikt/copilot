@@ -35,8 +35,6 @@ describe("isPrivatePath", () => {
     ["/adopsjon/debug", true],
     ["/kostnad", true],
     ["/abonnement", true],
-    ["/kalkulator", true],
-    ["/kalkulator/foo", true],
     ["/api/copilot", true],
     ["/api/copilot/seats", true],
     ["/api/adoption", true],
@@ -141,11 +139,6 @@ describe("proxy", () => {
       proxy(createMockRequest("/statistikk", { search: "?tab=models" }));
       const url = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL;
       expect(url.searchParams.get("redirect")).toBe("/statistikk?tab=models");
-    });
-
-    it("redirects /kalkulator to /oauth2/login", () => {
-      proxy(createMockRequest("/kalkulator"));
-      expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
     });
   });
 

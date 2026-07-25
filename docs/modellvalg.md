@@ -46,6 +46,7 @@ Oversikt over hele modellflåten — ikke bare de som er pinnet i agenter.
 
 | Modell | Kategori | Input | Output | Best for |
 |--------|----------|-------|--------|----------|
+| Claude Opus 5 | Powerful | $5.00 | $25.00 | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026 |
 | Claude Opus 4.6 / 4.8 | Powerful | $5.00 | $25.00 | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur |
 | Claude Sonnet 4.6 | Versatile | $3.00 | $15.00 | Daglig koding, norsk tekst, planlegging |
 | Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6, lavere pris (kampanje t.o.m. 31. aug 2026) |
@@ -54,7 +55,7 @@ Oversikt over hele modellflåten — ikke bare de som er pinnet i agenter.
 | GPT-5.6 Luna | Lightweight | $1.00 | $6.00 | Raske rutineoppgaver, enkel autofullfør |
 | GPT-5.6 Terra | Versatile | $2.50 | $15.00 | Allround daglig koding i GPT-familien |
 | GPT-5.6 Sol | Powerful | $5.00 | $30.00 | Tung reasoning over store kodebaser (krever Pro+) |
-| Gemini 2.5 Pro | Powerful | $1.25 | $10.00 | Beste pris/ytelse for research og lange kontekstvinduer |
+| Gemini 2.5 Pro | Powerful | $1.25 | $10.00 | ⚠️ Utfases 31. juli 2026 — bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
 | Gemini 3.6 Flash | Versatile | $1.50 | $7.50 | Agentiske workflows med parallell verktøybruk |
 | Kimi K2.7 Code | Versatile | $0.95 | $4.00 | Rimeligste alternativ for kode-agent-løkker (open-weight) |
@@ -85,7 +86,9 @@ Vi bytter **ikke** modell automatisk når noe nytt lanseres. Et bytte krever at 
 
 ## Sjekkliste for nye modeller
 
-Når nye modeller slås på (som nå med GPT-5.6-familien, Kimi K2.7 og Gemini 3.6 Flash):
+> **Notat (24. juli 2026):** Claude Opus 5 (`claude-opus-5`) er lansert av Anthropic og er en kandidat til å erstatte Opus 4.6-pinningene på `@nav-pilot-opus` og `@security-champion`. Listeprisen er identisk med Opus 4.8 ($5.00/$25.00), og Anthropic oppgir vesentlig sterkere resonnering (mer enn dobling av Opus 4.8 på Frontier-Bench v0.1). Et eventuelt bytte skal gå gjennom sjekklisten under før pinningene endres — foreløpig beholdes Opus 4.6. Merk at utrullingen i Copilot er gradvis (GA for Pro+/Max/Business/Enterprise 24. juli), så modellen kan mangle i model picker en periode.
+
+Når nye modeller slås på (som nå med Claude Opus 5, GPT-5.6-familien, Kimi K2.7 og Gemini 3.6 Flash):
 
 - [ ] Bekreft eksakt modell-ID i model picker (ikke bare dokumentasjonsnavn)
 - [ ] Sammenlign pris mot eksisterende pinnet modell for samme agent
@@ -105,6 +108,7 @@ Eksisterende observasjon av navnekonvensjoner i `model:`-feltet:
 | `GPT-5.3-Codex` | Bindestrek mellom versjon og variant | Fungerer |
 | `Claude Sonnet 4.6` | Mellomrom | Fungerer |
 | `Claude Opus 4.6` | Mellomrom | Fungerer |
+| `Claude Opus 5` | Mellomrom | Verifisert (GitHub changelog / Anthropic, 24. juli 2026) — API-ID `claude-opus-5` |
 | `Gemini 3.5 Flash` | Mellomrom | Fungerer |
 | `Gemini 3.6 Flash` | Mellomrom | Antatt — ikke verifisert i praksis |
 | `GPT-5.6 Terra` | Mellomrom | Antatt — ikke verifisert i praksis |
