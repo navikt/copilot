@@ -198,33 +198,6 @@ export interface CopilotBilling {
   public_code_suggestions?: string;
 }
 
-// Billing types
-interface PremiumRequestUsageItem {
-  product: string;
-  sku: string;
-  model: string;
-  unitType: string;
-  pricePerUnit: number;
-  grossQuantity: number;
-  grossAmount: number;
-  discountQuantity: number;
-  discountAmount: number;
-  netQuantity: number;
-  netAmount: number;
-}
-
-interface BillingTimePeriod {
-  year: number;
-  month?: number;
-  day?: number;
-}
-
-export interface PremiumRequestUsage {
-  timePeriod: BillingTimePeriod;
-  organization: string;
-  usageItems: PremiumRequestUsageItem[];
-}
-
 // AI Customization Adoption types (from copilot_adoption BigQuery views)
 export interface AdoptionSummary {
   scan_date: string;

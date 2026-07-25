@@ -7,7 +7,7 @@
  * call site passes a per-user OBO token as an argument, which would create a
  * separate cache entry per user and defeat org-level caching.
  */
-import type { CopilotBilling, Contributor, PremiumRequestUsage } from "./types";
+import type { CopilotBilling, Contributor } from "./types";
 import { backendRequest } from "./backend-api";
 
 function getErrorMessage(err: unknown): string {
@@ -23,31 +23,6 @@ export async function getCopilotBilling(token: string): Promise<{
     return { billing, error: null };
   } catch (error) {
     return { billing: null, error: getErrorMessage(error) };
-  }
-}
-
-/**
- * Fetch premium request usage for an organization via backend API.
- * Requires authentication token.
- */
-export async function getPremiumRequestUsage(
-  token: string,
-  org: string,
-  year?: number,
-  month?: number
-): Promise<{
-  usage: PremiumRequestUsage | null;
-  error: string | null;
-}> {
-  try {
-    let path = `/api/v1/copilot/billing/premium?org=${encodeURIComponent(org)}`;
-    if (year) path += `&year=${year}`;
-    if (month) path += `&month=${month}`;
-
-    const usage = await backendRequest<PremiumRequestUsage>(path, token);
-    return { usage, error: null };
-  } catch (error) {
-    return { usage: null, error: getErrorMessage(error) };
   }
 }
 
