@@ -47,6 +47,8 @@ type mockBigQueryClient struct {
 	cohortsErr         error
 	usageDistribution  *UsageDistribution
 	usageDistErr       error
+	repositoryUsage    []RepositoryUsage
+	repositoryUsageErr error
 }
 
 func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]EnterpriseMetrics, error) {
@@ -131,6 +133,10 @@ func (m *mockBigQueryClient) GetDailySummary(_ context.Context) (*DailySummary, 
 
 func (m *mockBigQueryClient) GetUsageDistribution(_ context.Context, _ string, _ float64) (*UsageDistribution, error) {
 	return m.usageDistribution, m.usageDistErr
+}
+
+func (m *mockBigQueryClient) GetRepositoryUsage(_ context.Context) ([]RepositoryUsage, error) {
+	return m.repositoryUsage, m.repositoryUsageErr
 }
 
 func TestHandleDailyMetrics(t *testing.T) {
@@ -542,6 +548,20 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			mock:       &mockBigQueryClient{cohortsErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil),
 			handle:     (*BigQueryHandlers).handleAdoptionCohorts,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "repository usage success",
+			mock:       &mockBigQueryClient{repositoryUsage: []RepositoryUsage{{RepoName: "repo-a", RepoVisibility: "INTERNAL", PRCreatedByCopilot: 3}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/repositories", nil),
+			handle:     (*BigQueryHandlers).handleRepositoryUsage,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "repository usage error",
+			mock:       &mockBigQueryClient{repositoryUsageErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/repositories", nil),
+			handle:     (*BigQueryHandlers).handleRepositoryUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
 	}
