@@ -13,10 +13,12 @@ import {
   getBillingMonthlyTrend,
   getBillingModelBreakdown,
   getDailySummary,
+  getRepositoryUsage,
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
 import TeamUsageTable from "@/components/team-usage-table";
+import RepositoryUsageTable from "@/components/repository-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
 import ModelUsageChart from "@/components/charts/ModelUsageChart";
 
@@ -45,25 +47,9 @@ import {
 } from "@/lib/data-utils";
 import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/month-utils";
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatMinutes } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
 import { backendRequest } from "@/lib/backend-api";
-
-// formatMinutes converts a duration to human-readable Norwegian format.
-// IMPORTANT: Rounds total minutes FIRST, then splits into hours/minutes.
-// The previous approach (Math.round on the remainder) caused "1t 60m" when
-// minutes % 60 was between 59.5 and 60 (e.g. 119.7 → floor(1.99)=1h, round(59.7)=60m).
-function formatMinutes(minutes: number | null): string {
-  if (minutes == null || minutes <= 0) return "–";
-  if (minutes < 60) return `${Math.round(minutes)} min`;
-  const totalMinutes = Math.round(minutes);
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  if (hours < 24) return mins > 0 ? `${hours}t ${mins}m` : `${hours}t`;
-  const days = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  return remainingHours > 0 ? `${days}d ${remainingHours}t` : `${days}d`;
-}
 
 // Static header component (automatically prerendered)
 function UsageHeader() {
@@ -131,6 +117,52 @@ async function TeamUsageContent({ token }: { token: string }) {
   return <TeamUsageTable teams={visibleTeams} userTeams={userTeams} allowAllTeams={ALLOW_ALL_TEAMS} />;
 }
 
+// Cached repository usage data component — per-repo Copilot PR activity.
+// The backend view is already all-time aggregated and privacy-suppressed
+// (private repos excluded, repos with < 5 total PRs hidden), so this component
+// just fetches and renders. Wrapped in its own Suspense boundary on the page so
+// a slow query here doesn't block the other tabs.
+async function RepositoryUsageContent({ token }: { token: string }) {
+  const { repositories, error } = await getRepositoryUsage(token);
+
+  if (error) return <ErrorState message={`Feil ved henting av repositoriedata: ${error}`} />;
+  if (!repositories || repositories.length === 0)
+    return <ErrorState message="Ingen repositoriedata tilgjengelig ennå." />;
+
+  // Roll up headline totals across all surfaced repos for the metric cards.
+  const totalCopilotAuthored = repositories.reduce((sum, r) => sum + r.pr_created_by_copilot, 0);
+  const totalCopilotReviewed = repositories.reduce((sum, r) => sum + r.pr_reviewed_by_copilot, 0);
+  const totalSuggestions = repositories.reduce((sum, r) => sum + r.pr_copilot_suggestions, 0);
+  const totalAppliedSuggestions = repositories.reduce((sum, r) => sum + r.pr_copilot_applied_suggestions, 0);
+  const appliedRate = totalSuggestions > 0 ? Math.round((totalAppliedSuggestions / totalSuggestions) * 100) : 0;
+
+  return (
+    <VStack gap="space-24">
+      <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
+        <MetricCard
+          value={formatNumber(totalCopilotAuthored)}
+          label="Copilot-forfattede PR-er"
+          helpTitle="Copilot-forfattede PR-er"
+          helpText="Antall pull requests opprettet av Copilot coding agent, summert over alle synlige repositorier og hele perioden med data."
+        />
+        <MetricCard
+          value={formatNumber(totalCopilotReviewed)}
+          label="Copilot-reviewede PR-er"
+          helpTitle="Copilot-reviewede PR-er"
+          helpText="Antall pull requests gjennomgått av Copilot code review, summert over alle synlige repositorier og hele perioden med data."
+        />
+        <MetricCard
+          value={`${appliedRate} %`}
+          label="Forslag tatt i bruk"
+          helpTitle="Forslag tatt i bruk"
+          helpText="Andel av Copilots review-forslag som ble tatt i bruk, på tvers av alle synlige repositorier."
+        />
+      </HGrid>
+      <RepositoryUsageTable repositories={repositories} />
+    </VStack>
+  );
+}
+
 // Main content component that takes usage data as props.
 // Individual data fetches are NOT cached at the BFF layer — caching is owned
 // by copilot-api (1 h in-memory cache). Each request fetches fresh data from
@@ -187,6 +219,18 @@ function UsageTabs({ usage, token }: { usage: EnterpriseMetrics[]; token: string
         </div>
       ),
       hashIds: ["team"],
+    },
+    {
+      id: "repositories",
+      label: "Repositorier",
+      content: (
+        <div id="repositories">
+          <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
+            <RepositoryUsageContent token={token} />
+          </Suspense>
+        </div>
+      ),
+      hashIds: ["repositories", "repositorier"],
     },
     {
       id: "details",

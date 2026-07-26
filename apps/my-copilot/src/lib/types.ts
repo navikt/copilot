@@ -342,6 +342,36 @@ export interface TeamUsageSummary {
   top_models?: Array<{ model: string; interactions: number }>;
 }
 
+// Per-repository Copilot PR activity, from the v_repository_usage BigQuery view
+// via copilot-api's GET /api/v1/copilot/usage/repositories. Privacy-preserving:
+// the view is all-time aggregated (never per-day per-repo), excludes private
+// repos (repo_visibility IN ('PUBLIC','INTERNAL')) and suppresses low-activity
+// repos (fewer than 5 total PRs) — see the k=5 guard mirrored from
+// minUsersForDistribution. The three median fields are nullable when no
+// qualifying PRs exist for that slice.
+export interface RepositoryUsage {
+  repo_id: number;
+  repo_owner: string;
+  repo_name: string;
+  repo_visibility: string;
+  scope_id: string;
+  days_with_data: number;
+  first_day: string;
+  last_day: string;
+  pr_total_created: number;
+  pr_total_merged: number;
+  pr_total_reviewed: number;
+  pr_created_by_copilot: number;
+  pr_reviewed_by_copilot: number;
+  pr_merged_copilot_authored: number;
+  pr_merged_copilot_reviewed: number;
+  pr_copilot_suggestions: number;
+  pr_copilot_applied_suggestions: number;
+  pr_avg_median_minutes_to_merge: number | null;
+  pr_avg_median_minutes_to_merge_copilot: number | null;
+  pr_avg_median_minutes_to_merge_copilot_reviewed: number | null;
+}
+
 export interface DailyCredits {
   day: string;
   credits: number;

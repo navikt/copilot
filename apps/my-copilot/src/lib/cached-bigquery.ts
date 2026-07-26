@@ -28,6 +28,7 @@ import type {
   DailySummary,
   DailyCredits,
   UsageDistribution,
+  RepositoryUsage,
 } from "./types";
 
 function getErrorMessage(label: string, err: unknown): string {
@@ -114,6 +115,16 @@ export async function getTeamUsage(token: string): Promise<{
     backendRequest<TeamUsageSummary[]>("/api/v1/copilot/usage/team-summary", token)
   );
   return { teams: result.data, error: result.error };
+}
+
+export async function getRepositoryUsage(token: string): Promise<{
+  repositories: RepositoryUsage[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getRepositoryUsage", [] as RepositoryUsage[], () =>
+    backendRequest<RepositoryUsage[]>("/api/v1/copilot/usage/repositories", token)
+  );
+  return { repositories: result.data, error: result.error };
 }
 
 export async function getUserMetrics(

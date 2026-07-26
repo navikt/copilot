@@ -1,4 +1,4 @@
-import { formatNumber, formatPercentage, isoWeekLabel } from "./format";
+import { formatNumber, formatPercentage, isoWeekLabel, formatMinutes } from "./format";
 
 describe("formatNumber", () => {
   it("should format numbers with Norwegian locale (space as thousands separator)", () => {
@@ -32,6 +32,35 @@ describe("formatPercentage", () => {
   it("should handle decimal percentages", () => {
     expect(formatPercentage(25.5)).toBe("25.5%");
     expect(formatPercentage(99.9)).toBe("99.9%");
+  });
+});
+
+describe("formatMinutes", () => {
+  it("returns an en-dash for null, zero and negative durations", () => {
+    expect(formatMinutes(null)).toBe("–");
+    expect(formatMinutes(0)).toBe("–");
+    expect(formatMinutes(-5)).toBe("–");
+  });
+
+  it("formats sub-hour durations as minutes", () => {
+    expect(formatMinutes(1)).toBe("1 min");
+    expect(formatMinutes(45)).toBe("45 min");
+    expect(formatMinutes(59.4)).toBe("59 min");
+  });
+
+  it("formats hour+minute durations", () => {
+    expect(formatMinutes(60)).toBe("1t");
+    expect(formatMinutes(192)).toBe("3t 12m");
+  });
+
+  it("rounds total minutes before splitting to avoid a 60-minute remainder", () => {
+    // 119.7 rounds to 120 total minutes → "2t", never "1t 60m"
+    expect(formatMinutes(119.7)).toBe("2t");
+  });
+
+  it("formats multi-day durations", () => {
+    expect(formatMinutes(24 * 60)).toBe("1d");
+    expect(formatMinutes(2 * 24 * 60 + 4 * 60)).toBe("2d 4t");
   });
 });
 
