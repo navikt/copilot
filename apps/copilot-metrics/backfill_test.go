@@ -93,6 +93,10 @@ func (f *countingFetcher) FetchDailyUserMetrics(_ context.Context, _ time.Time) 
 	return nil, ErrReportNotAvailable
 }
 
+func (f *countingFetcher) FetchDailyRepoMetrics(_ context.Context, _ time.Time) (*FetchResult, error) {
+	return nil, ErrReportNotAvailable
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }

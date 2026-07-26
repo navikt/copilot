@@ -83,6 +83,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := bqClient.EnsureRepoMetricsTableExists(ctx); err != nil {
+		slog.Error("Failed to ensure repository_metrics table exists", "error", err)
+		os.Exit(1)
+	}
+
 	if err := bqClient.EnsureViewsExist(ctx); err != nil {
 		slog.Warn("Failed to ensure views exist (continuing without views)", "error", err)
 	}
@@ -448,6 +453,27 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 			slog.Info("Ingested per-user metrics report", "day", dayStr, "records", len(usersResult.Records))
 		}
 	}
+
+	// Per-repository metrics report (repos-1-day) — PR-only, may lag like the
+	// other supplementary reports (available from GA on 2026-07-17 onwards).
+	if reposResult, err := gh.FetchDailyRepoMetrics(ctx, day); err != nil {
+		if errors.Is(err, ErrReportNotAvailable) {
+			slog.Info("Per-repository metrics report not available yet", "day", dayStr)
+		} else {
+			slog.Warn("Failed to fetch per-repository metrics report", "day", dayStr, "error", err)
+		}
+	} else if len(reposResult.Records) > 0 {
+		if err := upsertReport(ctx, bq.RepoMetricsDayExists, bq.DeleteRepoMetricsDay, bq.InsertRepoMetrics,
+			day, reposResult); err != nil {
+			if errors.Is(err, ErrStreamingBuffer) {
+				slog.Info("Skipping repo-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
+			} else {
+				slog.Warn("Failed to store per-repository metrics report", "day", dayStr, "error", err)
+			}
+		} else {
+			slog.Info("Ingested per-repository metrics report", "day", dayStr, "records", len(reposResult.Records))
+		}
+	}
 }
 
 // ingestMissingSupplementary checks the last 7 days for days that have entity
@@ -509,6 +535,25 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 					slog.Warn("Failed to insert missing user-metrics", "day", dayStr, "error", insertErr)
 				} else {
 					slog.Info("Backfilled missing user-metrics", "day", dayStr, "records", len(usersResult.Records))
+					filled++
+				}
+			}
+		}
+
+		// Check and fill per-repository metrics
+		reposExists, err := bq.RepoMetricsDayExists(ctx, day, scopeID)
+		if err != nil {
+			slog.Warn("Failed to check repo-metrics existence", "day", dayStr, "error", err)
+		} else if !reposExists {
+			if reposResult, fetchErr := gh.FetchDailyRepoMetrics(ctx, day); fetchErr != nil {
+				if !errors.Is(fetchErr, ErrReportNotAvailable) {
+					slog.Warn("Failed to fetch missing repo-metrics", "day", dayStr, "error", fetchErr)
+				}
+			} else if len(reposResult.Records) > 0 {
+				if insertErr := bq.InsertRepoMetrics(ctx, day, reposResult.Scope, reposResult.ScopeID, reposResult.Records); insertErr != nil {
+					slog.Warn("Failed to insert missing repo-metrics", "day", dayStr, "error", insertErr)
+				} else {
+					slog.Info("Backfilled missing repo-metrics", "day", dayStr, "records", len(reposResult.Records))
 					filled++
 				}
 			}

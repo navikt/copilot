@@ -24,6 +24,7 @@ type BigQueryClient struct {
 	table            string
 	userTeamsTable   string
 	userMetricsTable string
+	repoMetricsTable string
 }
 
 type UsageMetricsRow struct {
@@ -47,6 +48,7 @@ func NewBigQueryClient(ctx context.Context, cfg *Config) (*BigQueryClient, error
 		table:            cfg.BigQueryTable,
 		userTeamsTable:   cfg.BigQueryUserTeamsTable,
 		userMetricsTable: cfg.BigQueryUserMetricsTable,
+		repoMetricsTable: cfg.BigQueryRepoMetricsTable,
 	}, nil
 }
 
@@ -64,6 +66,10 @@ func (c *BigQueryClient) EnsureUserTeamsTableExists(ctx context.Context) error {
 
 func (c *BigQueryClient) EnsureUserMetricsTableExists(ctx context.Context) error {
 	return c.ensureMetricsTable(ctx, c.userMetricsTable, "GitHub Copilot per-user usage metrics from the Usage Metrics API")
+}
+
+func (c *BigQueryClient) EnsureRepoMetricsTableExists(ctx context.Context) error {
+	return c.ensureMetricsTable(ctx, c.repoMetricsTable, "GitHub Copilot per-repository usage metrics from the Usage Metrics API")
 }
 
 // ensureMetricsTable creates a table with the standard metrics schema if it doesn't exist.
@@ -119,6 +125,10 @@ func (c *BigQueryClient) InsertUserMetrics(ctx context.Context, day time.Time, s
 	return c.insertRecords(ctx, c.userMetricsTable, day, scope, scopeID, records)
 }
 
+func (c *BigQueryClient) InsertRepoMetrics(ctx context.Context, day time.Time, scope, scopeID string, records []json.RawMessage) error {
+	return c.insertRecords(ctx, c.repoMetricsTable, day, scope, scopeID, records)
+}
+
 func (c *BigQueryClient) insertRecords(ctx context.Context, tableName string, day time.Time, scope, scopeID string, records []json.RawMessage) error {
 	if len(records) == 0 {
 		slog.Warn("No records to insert", "table", tableName, "day", day.Format("2006-01-02"))
@@ -162,6 +172,10 @@ func (c *BigQueryClient) UserMetricsDayExists(ctx context.Context, day time.Time
 	return c.dayExistsInTable(ctx, c.userMetricsTable, day, scopeID)
 }
 
+func (c *BigQueryClient) RepoMetricsDayExists(ctx context.Context, day time.Time, scopeID string) (bool, error) {
+	return c.dayExistsInTable(ctx, c.repoMetricsTable, day, scopeID)
+}
+
 func (c *BigQueryClient) dayExistsInTable(ctx context.Context, tableName string, day time.Time, scopeID string) (bool, error) {
 	dayStr := day.Format("2006-01-02")
 
@@ -200,6 +214,10 @@ func (c *BigQueryClient) DeleteUserTeamsDay(ctx context.Context, day time.Time, 
 
 func (c *BigQueryClient) DeleteUserMetricsDay(ctx context.Context, day time.Time, scopeID string) error {
 	return c.deleteDayFromTable(ctx, c.userMetricsTable, day, scopeID)
+}
+
+func (c *BigQueryClient) DeleteRepoMetricsDay(ctx context.Context, day time.Time, scopeID string) error {
+	return c.deleteDayFromTable(ctx, c.repoMetricsTable, day, scopeID)
 }
 
 func (c *BigQueryClient) deleteDayFromTable(ctx context.Context, tableName string, day time.Time, scopeID string) error {

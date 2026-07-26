@@ -133,6 +133,7 @@ rtk go run . --run-once
 | `GCP_TEAM_PROJECT_ID`        | GCP project (from NAIS)              | (required)        |
 | `BIGQUERY_DATASET`           | BigQuery dataset name                | `copilot_metrics` |
 | `BIGQUERY_TABLE`             | BigQuery table name                  | `usage_metrics`   |
+| `BIGQUERY_REPO_METRICS_TABLE` | Per-repository metrics table name   | `repository_metrics` |
 | `SLACK_WEBHOOK_URL`          | Slack webhook for failure alerts     | (optional)        |
 
 ## BigQuery Schema
@@ -145,6 +146,25 @@ rtk go run . --run-once
 | `scope`      | STRING    | `enterprise` or `organization` |
 | `scope_id`   | STRING    | Enterprise/org identifier      |
 | `raw_record` | JSON      | Full NDJSON record as-is       |
+| `loaded_at`  | TIMESTAMP | When the row was inserted      |
+
+Table is partitioned by `day` and clustered by `scope`, `scope_id`.
+
+### `repository_metrics` table
+
+Per-repository, PR-only Copilot lifecycle activity from the `repos-1-day`
+Usage Metrics report (coding-agent authored/merged PRs and Copilot code-review
+suggestions). One row per repository per day. Ingested as a supplementary report
+alongside `users-1-day` / `user-teams-1-day`, so it flows through the nightly
+gap-fill and historical backfill automatically (data available from GitHub's
+GA on 2026-07-17).
+
+| Column       | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `day`        | DATE      | Calendar day of the metrics    |
+| `scope`      | STRING    | `enterprise` or `organization` (fetch source) |
+| `scope_id`   | STRING    | Enterprise/org identifier      |
+| `raw_record` | JSON      | Full per-repo NDJSON record as-is (includes `repo_id`, `repo_name`) |
 | `loaded_at`  | TIMESTAMP | When the row was inserted      |
 
 Table is partitioned by `day` and clustered by `scope`, `scope_id`.
