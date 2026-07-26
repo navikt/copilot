@@ -446,7 +446,7 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
               helpText="Median tid fra en pull request opprettes til den får sin første review, snittet over AI-adopsjonsfaser og vektet på antall merget PR-er. Kun merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."
             />
             <MetricCard
-              value={dailySummary.pr_avg_review_cycles > 0 ? dailySummary.pr_avg_review_cycles.toFixed(1) : "–"}
+              value={dailySummary.pr_avg_review_cycles != null ? dailySummary.pr_avg_review_cycles.toFixed(1) : "–"}
               label="Review-runder per PR"
               helpTitle="Review-runder per PR"
               helpText="Median antall review-innsendinger en pull request får før den merges, snittet over AI-adopsjonsfaser og vektet på antall merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."

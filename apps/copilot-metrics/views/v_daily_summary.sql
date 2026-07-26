@@ -37,7 +37,8 @@ SELECT
           * CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64)),
       SUM(CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64))
     )
-    FROM UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_ai_adoption_phase')) AS phase
+    FROM UNNEST(IFNULL(JSON_QUERY_ARRAY(raw_record, '$.totals_by_ai_adoption_phase'), [])) AS phase
+    WHERE JSON_VALUE(phase, '$.avg_pull_requests_minutes_to_review') IS NOT NULL
   ) AS pr_avg_minutes_to_review,
   (
     SELECT SAFE_DIVIDE(
@@ -45,7 +46,8 @@ SELECT
           * CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64)),
       SUM(CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64))
     )
-    FROM UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_ai_adoption_phase')) AS phase
+    FROM UNNEST(IFNULL(JSON_QUERY_ARRAY(raw_record, '$.totals_by_ai_adoption_phase'), [])) AS phase
+    WHERE JSON_VALUE(phase, '$.avg_pull_requests_review_cycles') IS NOT NULL
   ) AS pr_avg_review_cycles,
   CAST(JSON_VALUE(raw_record, '$.pull_requests.total_suggestions') AS INT64) AS pr_total_suggestions,
   CAST(JSON_VALUE(raw_record, '$.pull_requests.total_copilot_suggestions') AS INT64) AS pr_copilot_suggestions,

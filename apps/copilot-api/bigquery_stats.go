@@ -1158,8 +1158,11 @@ type DailySummary struct {
 	CliSessionCount         int64   `bigquery:"cli_session_count" json:"cli_session_count"`
 	CliRequestCount         int64   `bigquery:"cli_request_count" json:"cli_request_count"`
 	PrMedianMinutesToMerge  float64 `bigquery:"pr_median_minutes_to_merge" json:"pr_median_minutes_to_merge"`
-	PrAvgMinutesToReview    float64 `bigquery:"pr_avg_minutes_to_review" json:"pr_avg_minutes_to_review"`
-	PrAvgReviewCycles       float64 `bigquery:"pr_avg_review_cycles" json:"pr_avg_review_cycles"`
+	// These live per AI adoption phase and were added to the usage API 2026-07-07;
+	// they are NULL for days ingested before then. Use pointers so a missing metric
+	// serializes as JSON null instead of a misleading 0.
+	PrAvgMinutesToReview *float64 `bigquery:"pr_avg_minutes_to_review" json:"pr_avg_minutes_to_review"`
+	PrAvgReviewCycles    *float64 `bigquery:"pr_avg_review_cycles" json:"pr_avg_review_cycles"`
 }
 
 func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, error) {
