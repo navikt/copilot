@@ -28,6 +28,7 @@ var views = []viewDefinition{
 	{name: "v_billing_monthly_trend", filename: "views/v_billing_monthly_trend.sql"},
 	{name: "v_billing_model_breakdown", filename: "views/v_billing_model_breakdown.sql"},
 	{name: "v_user_budget_trend", filename: "views/v_user_budget_trend.sql"},
+	{name: "v_repository_usage", filename: "views/v_repository_usage.sql"},
 }
 
 func (c *BigQueryClient) EnsureViewsExist(ctx context.Context) error {
@@ -68,8 +69,10 @@ func (c *BigQueryClient) createOrReplaceView(ctx context.Context, v viewDefiniti
 	billingUsageRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageTable)
 	billingUsageDailyModelRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, billingUsageDailyModelTable)
 	userBudgetSnapshotsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, userBudgetSnapshotsTable)
+	repoMetricsRef := fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, c.repoMetricsTable)
 	sql = strings.ReplaceAll(sql, "{{user_teams}}", userTeamsRef)
 	sql = strings.ReplaceAll(sql, "{{user_metrics}}", userMetricsRef)
+	sql = strings.ReplaceAll(sql, "{{repository_metrics}}", repoMetricsRef)
 	sql = strings.ReplaceAll(sql, "{{billing_usage_daily_model}}", billingUsageDailyModelRef)
 	sql = strings.ReplaceAll(sql, "{{billing_usage}}", billingUsageRef)
 	sql = strings.ReplaceAll(sql, "{{user_budget_snapshots}}", userBudgetSnapshotsRef)
