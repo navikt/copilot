@@ -13,6 +13,8 @@ func TestLoadConfig_DefaultValues(t *testing.T) {
 		"GITHUB_ENTERPRISE_SLUG", "GITHUB_ORG",
 		"GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", "GITHUB_APP_INSTALLATION_ID",
 		"GCP_TEAM_PROJECT_ID", "BIGQUERY_DATASET", "BIGQUERY_TABLE",
+		"BIGQUERY_USER_TEAMS_TABLE", "BIGQUERY_USER_METRICS_TABLE",
+		"BIGQUERY_REPO_METRICS_TABLE",
 		"SLACK_WEBHOOK_URL",
 	} {
 		t.Setenv(key, "")
@@ -30,6 +32,9 @@ func TestLoadConfig_DefaultValues(t *testing.T) {
 		{"OrganizationSlug", cfg.OrganizationSlug, "navikt"},
 		{"BigQueryDataset", cfg.BigQueryDataset, "copilot_metrics"},
 		{"BigQueryTable", cfg.BigQueryTable, "usage_metrics"},
+		{"BigQueryUserTeamsTable", cfg.BigQueryUserTeamsTable, "user_teams"},
+		{"BigQueryUserMetricsTable", cfg.BigQueryUserMetricsTable, "user_metrics"},
+		{"BigQueryRepoMetricsTable", cfg.BigQueryRepoMetricsTable, "repository_metrics"},
 	}
 
 	for _, tt := range tests {
@@ -62,6 +67,7 @@ func TestLoadConfig_CustomEnvValues(t *testing.T) {
 	t.Setenv("GCP_TEAM_PROJECT_ID", "my-project")
 	t.Setenv("BIGQUERY_DATASET", "custom_dataset")
 	t.Setenv("BIGQUERY_TABLE", "custom_table")
+	t.Setenv("BIGQUERY_REPO_METRICS_TABLE", "custom_repos")
 	t.Setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/test")
 
 	cfg := loadConfig()
@@ -95,6 +101,9 @@ func TestLoadConfig_CustomEnvValues(t *testing.T) {
 	}
 	if cfg.BigQueryTable != "custom_table" {
 		t.Errorf("BigQueryTable = %q, want %q", cfg.BigQueryTable, "custom_table")
+	}
+	if cfg.BigQueryRepoMetricsTable != "custom_repos" {
+		t.Errorf("BigQueryRepoMetricsTable = %q, want %q", cfg.BigQueryRepoMetricsTable, "custom_repos")
 	}
 	if cfg.SlackWebhookURL != "https://hooks.slack.com/test" {
 		t.Errorf("SlackWebhookURL = %q, want %q", cfg.SlackWebhookURL, "https://hooks.slack.com/test")

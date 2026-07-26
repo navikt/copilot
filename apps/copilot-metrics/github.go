@@ -440,6 +440,15 @@ func (c *GitHubClient) FetchDailyUserMetrics(ctx context.Context, day time.Time)
 	return c.fetchDailyReport(ctx, day, "users-1-day")
 }
 
+// FetchDailyRepoMetrics fetches the repos-1-day report for the given day.
+// This report contains per-repository, PR-only Copilot lifecycle activity
+// (coding-agent authored/merged PRs and Copilot code-review suggestions).
+// It uses the same enterprise-first-then-org fallback and NDJSON transport as
+// the other daily reports.
+func (c *GitHubClient) FetchDailyRepoMetrics(ctx context.Context, day time.Time) (*FetchResult, error) {
+	return c.fetchDailyReport(ctx, day, "repos-1-day")
+}
+
 // fetchDailyReport fetches a daily report by type, trying enterprise first then org.
 func (c *GitHubClient) fetchDailyReport(ctx context.Context, day time.Time, reportType string) (*FetchResult, error) {
 	dayStr := day.Format("2006-01-02")
