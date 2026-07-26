@@ -124,6 +124,16 @@ func assignBQRecord(field reflect.Value, val bigquery.Value, fs *bigquery.FieldS
 }
 
 func assignBQScalar(field reflect.Value, val bigquery.Value) error {
+	// Nullable scalar: allocate the pointee and assign into it. A NULL column is
+	// already handled upstream (val == nil leaves the pointer as its nil zero
+	// value), so reaching here means we have a concrete value to store.
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			field.Set(reflect.New(field.Type().Elem()))
+		}
+		return assignBQScalar(field.Elem(), val)
+	}
+
 	// Fast path: directly assignable (string, civil.Date, time.Time, matching numeric).
 	vv := reflect.ValueOf(val)
 	if vv.Type().AssignableTo(field.Type()) {
