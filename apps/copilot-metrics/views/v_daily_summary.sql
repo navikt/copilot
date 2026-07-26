@@ -27,6 +27,26 @@ SELECT
   CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge') AS FLOAT64) AS pr_median_minutes_to_merge,
   CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_authored') AS FLOAT64) AS pr_median_minutes_to_merge_copilot,
   CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_reviewed') AS FLOAT64) AS pr_median_minutes_to_merge_copilot_reviewed,
+  -- Code-review velocity (added to the usage API 2026-07-07). These live per AI
+  -- adoption phase in totals_by_ai_adoption_phase[], so we roll them up to a daily
+  -- figure weighted by each phase's merged-PR count. NULL for days ingested before
+  -- the fields existed (the array or fields are simply absent).
+  (
+    SELECT SAFE_DIVIDE(
+      SUM(CAST(JSON_VALUE(phase, '$.avg_pull_requests_minutes_to_review') AS FLOAT64)
+          * CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64)),
+      SUM(CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64))
+    )
+    FROM UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_ai_adoption_phase')) AS phase
+  ) AS pr_avg_minutes_to_review,
+  (
+    SELECT SAFE_DIVIDE(
+      SUM(CAST(JSON_VALUE(phase, '$.avg_pull_requests_review_cycles') AS FLOAT64)
+          * CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64)),
+      SUM(CAST(JSON_VALUE(phase, '$.total_pull_requests_merged') AS INT64))
+    )
+    FROM UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_ai_adoption_phase')) AS phase
+  ) AS pr_avg_review_cycles,
   CAST(JSON_VALUE(raw_record, '$.pull_requests.total_suggestions') AS INT64) AS pr_total_suggestions,
   CAST(JSON_VALUE(raw_record, '$.pull_requests.total_copilot_suggestions') AS INT64) AS pr_copilot_suggestions,
   CAST(JSON_VALUE(raw_record, '$.pull_requests.total_applied_suggestions') AS INT64) AS pr_applied_suggestions,

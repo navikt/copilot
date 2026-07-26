@@ -1158,6 +1158,8 @@ type DailySummary struct {
 	CliSessionCount         int64   `bigquery:"cli_session_count" json:"cli_session_count"`
 	CliRequestCount         int64   `bigquery:"cli_request_count" json:"cli_request_count"`
 	PrMedianMinutesToMerge  float64 `bigquery:"pr_median_minutes_to_merge" json:"pr_median_minutes_to_merge"`
+	PrAvgMinutesToReview    float64 `bigquery:"pr_avg_minutes_to_review" json:"pr_avg_minutes_to_review"`
+	PrAvgReviewCycles       float64 `bigquery:"pr_avg_review_cycles" json:"pr_avg_review_cycles"`
 }
 
 func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, error) {
@@ -1168,7 +1170,8 @@ func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, e
         daily_active_users, weekly_active_users, monthly_active_users,
         monthly_active_chat_users, monthly_active_agent_users, daily_active_cli_users,
         pr_reviewed_by_copilot, pr_created_by_copilot, pr_merged_copilot_authored,
-        cli_session_count, cli_request_count, pr_median_minutes_to_merge
+        cli_session_count, cli_request_count, pr_median_minutes_to_merge,
+        pr_avg_minutes_to_review, pr_avg_review_cycles
       FROM %s
       WHERE scope = 'organization' AND scope_id = 'navikt'
       ORDER BY day DESC
