@@ -1194,6 +1194,81 @@ func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, e
 	return &rows[0], nil
 }
 
+// RepositoryUsage is one per-repository rollup of GitHub Copilot pull-request
+// activity, read from the v_repository_usage view. The view aggregates across
+// all available days and bakes in privacy safeguards (private repos excluded,
+// low-activity repos suppressed), so this layer exposes its rows as-is.
+//
+// The three PRAvgMedian* fields are *float64: the view emits NULL for a repo
+// whose days never carried a merge-time median (pre-GA days / no merges), and a
+// pointer lets that serialize as JSON null instead of a misleading 0. The
+// count columns are always present, so they stay int64.
+type RepositoryUsage struct {
+	RepoID                                   int64    `bigquery:"repo_id" json:"repo_id"`
+	RepoOwner                                string   `bigquery:"repo_owner" json:"repo_owner"`
+	RepoName                                 string   `bigquery:"repo_name" json:"repo_name"`
+	RepoVisibility                           string   `bigquery:"repo_visibility" json:"repo_visibility"`
+	ScopeID                                  string   `bigquery:"scope_id" json:"scope_id"`
+	DaysWithData                             int64    `bigquery:"days_with_data" json:"days_with_data"`
+	FirstDay                                 string   `bigquery:"first_day" json:"first_day"`
+	LastDay                                  string   `bigquery:"last_day" json:"last_day"`
+	PRTotalCreated                           int64    `bigquery:"pr_total_created" json:"pr_total_created"`
+	PRTotalMerged                            int64    `bigquery:"pr_total_merged" json:"pr_total_merged"`
+	PRTotalReviewed                          int64    `bigquery:"pr_total_reviewed" json:"pr_total_reviewed"`
+	PRCreatedByCopilot                       int64    `bigquery:"pr_created_by_copilot" json:"pr_created_by_copilot"`
+	PRReviewedByCopilot                      int64    `bigquery:"pr_reviewed_by_copilot" json:"pr_reviewed_by_copilot"`
+	PRMergedCopilotAuthored                  int64    `bigquery:"pr_merged_copilot_authored" json:"pr_merged_copilot_authored"`
+	PRMergedCopilotReviewed                  int64    `bigquery:"pr_merged_copilot_reviewed" json:"pr_merged_copilot_reviewed"`
+	PRCopilotSuggestions                     int64    `bigquery:"pr_copilot_suggestions" json:"pr_copilot_suggestions"`
+	PRCopilotAppliedSuggestions              int64    `bigquery:"pr_copilot_applied_suggestions" json:"pr_copilot_applied_suggestions"`
+	PRAvgMedianMinutesToMerge                *float64 `bigquery:"pr_avg_median_minutes_to_merge" json:"pr_avg_median_minutes_to_merge"`
+	PRAvgMedianMinutesToMergeCopilot         *float64 `bigquery:"pr_avg_median_minutes_to_merge_copilot" json:"pr_avg_median_minutes_to_merge_copilot"`
+	PRAvgMedianMinutesToMergeCopilotReviewed *float64 `bigquery:"pr_avg_median_minutes_to_merge_copilot_reviewed" json:"pr_avg_median_minutes_to_merge_copilot_reviewed"`
+}
+
+// GetRepositoryUsage returns the per-repository Copilot PR activity rollups from
+// the v_repository_usage view, most Copilot-authored PRs first. The view is
+// already all-time-aggregated and privacy-suppressed (see
+// apps/copilot-metrics/views/v_repository_usage.sql), so there is no time-window
+// parameter to apply here — every surfaced row is returned as-is.
+//
+// DEPLOY ORDERING: the v_repository_usage view must be deployed by copilot-metrics
+// before this endpoint is queried, the same coupling GetDailySummary has with
+// v_daily_summary.
+func (bq *BigQueryClient) GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error) {
+	viewRef := bq.viewRef(bq.metricsDataset, "v_repository_usage")
+	queryStr := fmt.Sprintf(`
+      SELECT
+        repo_id,
+        repo_owner,
+        repo_name,
+        repo_visibility,
+        scope_id,
+        days_with_data,
+        CAST(first_day AS STRING) AS first_day,
+        CAST(last_day AS STRING) AS last_day,
+        pr_total_created,
+        pr_total_merged,
+        pr_total_reviewed,
+        pr_created_by_copilot,
+        pr_reviewed_by_copilot,
+        pr_merged_copilot_authored,
+        pr_merged_copilot_reviewed,
+        pr_copilot_suggestions,
+        pr_copilot_applied_suggestions,
+        pr_avg_median_minutes_to_merge,
+        pr_avg_median_minutes_to_merge_copilot,
+        pr_avg_median_minutes_to_merge_copilot_reviewed
+      FROM %s
+      ORDER BY pr_created_by_copilot DESC
+    `, viewRef)
+	it, err := bq.client.Query(queryStr).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[RepositoryUsage](it)
+}
+
 func (bq *BigQueryClient) GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error) {
 	viewRef := bq.viewRef(bq.metricsDataset, "v_billing_model_breakdown")
 	queryStr := fmt.Sprintf(`

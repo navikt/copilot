@@ -386,6 +386,7 @@ type BigQueryQuerier interface {
 	GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error)
 	GetDailySummary(ctx context.Context) (*DailySummary, error)
 	GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error)
+	GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error)
 }
 
 // Cache wrapper for BigQuery operations
@@ -651,6 +652,14 @@ func (c *CachedBigQueryClient) GetUsageDistribution(ctx context.Context, month s
 	cacheKey := fmt.Sprintf("usage_distribution_%s_%.2f", month, budgetCredits)
 	return getCachedValue(c, cacheKey, func() (*UsageDistribution, error) {
 		return c.client.GetUsageDistribution(ctx, month, budgetCredits)
+	})
+}
+
+func (c *CachedBigQueryClient) GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "repository_usage", func() ([]RepositoryUsage, error) {
+		return c.client.GetRepositoryUsage(ctx)
 	})
 }
 

@@ -409,3 +409,19 @@ func (h *BigQueryHandlers) handleDailySummary(w http.ResponseWriter, r *http.Req
 	cacheControl(w, 3600, false)
 	respondJSON(w, summary, http.StatusOK)
 }
+
+// handleRepositoryUsage handles GET /api/v1/copilot/usage/repositories
+// Cache: 1 hour (aggregated per-repository metrics). No query parameters: the
+// v_repository_usage view is already all-time-aggregated and privacy-suppressed,
+// so there is no trailing window to bound here.
+func (h *BigQueryHandlers) handleRepositoryUsage(w http.ResponseWriter, r *http.Request) {
+	repositories, err := h.bqClient.GetRepositoryUsage(r.Context())
+	if err != nil {
+		slog.Error("Failed to fetch repository usage", "error", err)
+		respondError(w, "internal_error", "Failed to fetch repository usage", http.StatusInternalServerError)
+		return
+	}
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, repositories, http.StatusOK)
+}
