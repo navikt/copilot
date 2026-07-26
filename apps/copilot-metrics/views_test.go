@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -45,6 +46,7 @@ func TestViewDefinitions(t *testing.T) {
 		"v_billing_monthly_trend",
 		"v_billing_model_breakdown",
 		"v_user_budget_trend",
+		"v_repository_usage",
 	}
 
 	if len(views) != len(expectedViews) {
@@ -65,5 +67,27 @@ func TestViewDefinitions(t *testing.T) {
 		if len(data) == 0 {
 			t.Errorf("embedded SQL for %s is empty", want)
 		}
+	}
+}
+
+// TestRepositoryUsageViewPlaceholders asserts the repository usage view is wired
+// to the {{repository_metrics}} placeholder that createOrReplaceView substitutes,
+// and that its privacy safeguards (private-repo exclusion + k=5 suppression) are
+// present in the SQL.
+func TestRepositoryUsageViewPlaceholders(t *testing.T) {
+	data, err := viewsFS.ReadFile("views/v_repository_usage.sql")
+	if err != nil {
+		t.Fatalf("could not read v_repository_usage.sql: %v", err)
+	}
+	sql := string(data)
+
+	if !strings.Contains(sql, "{{repository_metrics}}") {
+		t.Errorf("v_repository_usage.sql must reference the {{repository_metrics}} placeholder")
+	}
+	if !strings.Contains(sql, "IN ('PUBLIC', 'INTERNAL')") {
+		t.Errorf("v_repository_usage.sql must exclude private repos via visibility filter")
+	}
+	if !strings.Contains(sql, "HAVING") || !strings.Contains(sql, "min_repo_activity") {
+		t.Errorf("v_repository_usage.sql must suppress low-activity repos via a HAVING threshold")
 	}
 }
