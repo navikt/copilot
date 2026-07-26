@@ -17,6 +17,29 @@ export function formatPercentage(value: number): string {
   return `${value}%`;
 }
 
+/**
+ * Format a duration in minutes to a human-readable Norwegian string.
+ * Returns "–" for null, zero or negative durations (e.g. a nullable median
+ * with no qualifying pull requests).
+ *
+ * IMPORTANT: Rounds total minutes FIRST, then splits into hours/minutes.
+ * The naive approach (Math.round on the remainder) caused "1t 60m" when
+ * minutes % 60 was between 59.5 and 60 (e.g. 119.7 → floor(1.99)=1h, round(59.7)=60m).
+ * @param minutes - Duration in minutes, or null
+ * @returns Formatted string, e.g. "3t 12m", "45 min", "2d 4t" or "–"
+ */
+export function formatMinutes(minutes: number | null): string {
+  if (minutes == null || minutes <= 0) return "–";
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (hours < 24) return mins > 0 ? `${hours}t ${mins}m` : `${hours}t`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return remainingHours > 0 ? `${days}d ${remainingHours}t` : `${days}d`;
+}
+
 export function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("nb-NO", {
     day: "numeric",
