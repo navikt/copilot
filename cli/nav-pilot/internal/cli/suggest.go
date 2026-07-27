@@ -78,4 +78,5 @@ var knownFlags = []string{
 	"-r", "--ref",
 	"-s", "--source",
 	"-h", "--help",
+	"--tmux",
 }

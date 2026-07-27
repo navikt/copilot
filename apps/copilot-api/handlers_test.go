@@ -200,7 +200,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 	}
 
 	config := &Config{Environment: "prod"}
-	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil))
+	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil, NewIdentityResolverChain()))
 
 	// All /api/v1/ paths should require auth
 	paths := []string{
