@@ -1,3 +1,5 @@
+"use client";
+
 import { Heading, BodyShort, Box, Accordion, VStack } from "@navikt/ds-react";
 import { WrenchIcon, InformationSquareIcon } from "@navikt/aksel-icons";
 
@@ -22,26 +24,33 @@ export default function Troubleshooting() {
           <Accordion.Item>
             <Accordion.Header>
               <Heading size="xsmall" level="4">
-                1. Sertifikat- eller Proxy-feil (Zscaler / VPN)
+                1. Nettverksproblemer og tilkobling
               </Heading>
             </Accordion.Header>
             <Accordion.Content>
               <VStack gap="space-16">
-                <BodyShort>
-                  Dette er den hyppigste årsaken til at Copilot slutter å virke i enterprise-miljøer. Strenge VPN-er og
-                  proxyer (som Zscaler) kan blokkere telemetri-endepunktene eller tukle med SSL-sertifikatene.
-                </BodyShort>
                 <div className="pl-4 border-l-2 border-gray-300">
-                  <BodyShort weight="semibold">Løsning:</BodyShort>
+                  <BodyShort weight="semibold">Sjekk:</BodyShort>
                   <ul className="list-disc pl-5 space-y-1 mt-2 text-gray-700 text-sm">
-                    <li>Koble fra og til VPN/Zscaler.</li>
-                    <li>Sørg for at du har de nyeste Nav-sertifikatene installert på maskinen.</li>
                     <li>
-                      Hvis editoren din klager på "Self-signed certificate in certificate chain", må du peke editoren
-                      til Navs sertifikat-bundle via innstillingene.
+                      Om det er en pågående hendelse hos GitHub:{" "}
+                      <a href="https://www.githubstatus.com" className="text-blue-600 hover:underline">
+                        githubstatus.com
+                      </a>
+                      .
+                    </li>
+                    <li>Nettverket du sitter på — gjestenett og enkelte hjemmerutere blokkerer utgående trafikk.</li>
+                    <li>
+                      Proxy-innstillinger du selv har satt i editoren tidligere. Står det noe under <em>http.proxy</em>{" "}
+                      i VS Code, er det som regel en rest fra et gammelt oppsett.
                     </li>
                   </ul>
                 </div>
+                <BodyShort className="text-sm text-gray-600">
+                  Endpoint-sikkerhet (CrowdStrike Falcon) kan i prinsippet påvirke nettverkstrafikk, men er per i dag
+                  ingen kjent kilde til Copilot-feil. Mistenker du likevel det, si fra i{" "}
+                  <strong>#github-copilot</strong> — da får vi kartlagt det.
+                </BodyShort>
               </VStack>
             </Accordion.Content>
           </Accordion.Item>
@@ -169,8 +178,8 @@ export default function Troubleshooting() {
           </Heading>
         </div>
         <BodyShort className="text-gray-800">
-          Hvis trinnene over ikke løser problemet ditt, spør gjerne i <strong>#copilot-hjelp</strong> på Slack. Legg ved
-          et utdrag fra Copilot Logs og nevn hvilken Editor (inkludert versjon) du sitter på.
+          Hvis trinnene over ikke løser problemet ditt, spør gjerne i <strong>#github-copilot</strong> på Slack. Legg
+          ved et utdrag fra Copilot Logs og nevn hvilken Editor (inkludert versjon) du sitter på.
         </BodyShort>
       </Box>
     </VStack>
