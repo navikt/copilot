@@ -42,9 +42,33 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ─── Homebrew install (macOS) ────────────────────────────────────────────────
+# ─── Detect platform ─────────────────────────────────────────────────────────
 
-if [[ "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_DIR" ]] && command -v brew &>/dev/null; then
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+ARCH="$(uname -m)"
+
+case "$OS" in
+  darwin) ;;
+  linux)  ;;
+  *)      echo "Error: Unsupported OS: $OS"; exit 1 ;;
+esac
+
+case "$ARCH" in
+  arm64|aarch64) ARCH="arm64" ;;
+  x86_64)        ARCH="amd64" ;;
+  *)             echo "Error: Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+ASSET="${BINARY}-${OS}-${ARCH}"
+
+# ─── Homebrew install (macOS) ────────────────────────────────────────────────
+#
+# Homebrew is only used on macOS. Homebrew on Linux exists, but navikt/tap/cplt
+# ships macOS-only bottles, so `brew install` aborts the whole install with
+# "formula requires at least a URL". Linux falls through to the download path
+# below, where cplt's own installer provides a Linux binary.
+
+if [[ "$OS" == "darwin" && "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_DIR" ]] && command -v brew &>/dev/null; then
   echo "→ Installing via Homebrew..."
   brew install navikt/tap/nav-pilot navikt/tap/cplt rtk
   echo ""
@@ -73,25 +97,6 @@ fi
 #   curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
 #   cat install.sh  # Inspect before running!
 #   bash install.sh
-
-# ─── Detect platform ─────────────────────────────────────────────────────────
-
-OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH="$(uname -m)"
-
-case "$OS" in
-  darwin) ;;
-  linux)  ;;
-  *)      echo "Error: Unsupported OS: $OS"; exit 1 ;;
-esac
-
-case "$ARCH" in
-  arm64|aarch64) ARCH="arm64" ;;
-  x86_64)        ARCH="amd64" ;;
-  *)             echo "Error: Unsupported architecture: $ARCH"; exit 1 ;;
-esac
-
-ASSET="${BINARY}-${OS}-${ARCH}"
 
 # ─── Resolve version ─────────────────────────────────────────────────────────
 

@@ -97,8 +97,10 @@ teardown() {
 @test "installs via brew on macOS if brew is available" {
   cat <<'EOF' > "${MOCK_BIN}/uname"
 #!/bin/bash
-echo "Darwin"
+if [[ "$1" == "-s" ]]; then echo "Darwin"; elif [[ "$1" == "-m" ]]; then echo "arm64"; fi
+exit 0
 EOF
+  chmod +x "${MOCK_BIN}/uname"
   
   cat <<'EOF' > "${MOCK_BIN}/brew"
 #!/bin/bash
@@ -128,6 +130,25 @@ EOF
   # Check that it fetched the latest release and correctly resolved the linux-amd64 asset
   [[ "$output" == *"Fetching latest nav-pilot release"* ]]
   [[ "$output" == *"nav-pilot nav-pilot/2026.01.01-mock (linux/amd64)"* ]]
+  [[ "$output" == *"Downloading nav-pilot-linux-amd64"* ]]
+  [[ "$output" == *"Installed nav-pilot to ${TMP_DIR}/install-dest/nav-pilot"* ]]
+}
+
+# Homebrew on Linux resolves navikt/tap/cplt, which only ships macOS bottles.
+# Taking the brew path there aborts the entire install before nav-pilot is
+# downloaded, so Linux must use the release binary even when brew is present.
+@test "does not use brew on Linux even if brew is available" {
+  cat <<'EOF' > "${MOCK_BIN}/brew"
+#!/bin/bash
+echo "mock brew $*"
+exit 0
+EOF
+  chmod +x "${MOCK_BIN}/brew"
+
+  run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Installing via Homebrew"* ]]
   [[ "$output" == *"Downloading nav-pilot-linux-amd64"* ]]
   [[ "$output" == *"Installed nav-pilot to ${TMP_DIR}/install-dest/nav-pilot"* ]]
 }
