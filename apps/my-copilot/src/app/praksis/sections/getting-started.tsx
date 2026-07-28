@@ -9,7 +9,7 @@ export default function GettingStarted() {
         </Heading>
         <BodyShort className="text-gray-700 mb-4">
           For å bruke GitHub Copilot i Nav må du ha en tildelt lisens. Har du ikke dette ennå, kan du be om tilgang via
-          Porten eller ved å spørre i Slack-kanalen <strong>#copilot-hjelp</strong>. Når du har fått tildelt lisensen,
+          Porten eller ved å spørre i Slack-kanalen <strong>#github-copilot</strong>. Når du har fått tildelt lisensen,
           er den knyttet til din GitHub-brukerkonto (den som er medlem av navikt-organisasjonen).
         </BodyShort>
       </section>
