@@ -31,11 +31,19 @@ var views = []viewDefinition{
 	{name: "v_repository_usage", filename: "views/v_repository_usage.sql"},
 }
 
+// EnsureViewsExist creates or replaces every view. A failing view no longer
+// blocks the ones after it — views are independent, and aborting on the first
+// error means a single bad definition silently leaves later views missing.
 func (c *BigQueryClient) EnsureViewsExist(ctx context.Context) error {
+	var failed []string
 	for _, v := range views {
 		if err := c.createOrReplaceView(ctx, v); err != nil {
-			return fmt.Errorf("failed to create view %s: %w", v.name, err)
+			slog.Error("Failed to create view", "view", v.name, "error", err)
+			failed = append(failed, v.name)
 		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("failed to create %d view(s): %s", len(failed), strings.Join(failed, ", "))
 	}
 	return nil
 }

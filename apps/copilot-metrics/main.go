@@ -89,7 +89,10 @@ func main() {
 	}
 
 	if err := bqClient.EnsureViewsExist(ctx); err != nil {
-		slog.Warn("Failed to ensure views exist (continuing without views)", "error", err)
+		// Non-fatal: ingestion is the job's primary purpose and must not be
+		// blocked by DDL. Logged at ERROR so a missing view surfaces in
+		// alerting instead of silently 500-ing the dashboard.
+		slog.Error("Failed to ensure views exist (continuing without them)", "error", err)
 	}
 
 	// Set up billing + budget clients (optional — require classic PAT with admin:enterprise scope)

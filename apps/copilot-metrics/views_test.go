@@ -87,7 +87,12 @@ func TestRepositoryUsageViewPlaceholders(t *testing.T) {
 	if !strings.Contains(sql, "IN ('PUBLIC', 'INTERNAL')") {
 		t.Errorf("v_repository_usage.sql must exclude private repos via visibility filter")
 	}
-	if !strings.Contains(sql, "HAVING") || !strings.Contains(sql, "min_repo_activity") {
-		t.Errorf("v_repository_usage.sql must suppress low-activity repos via a HAVING threshold")
+	if !strings.Contains(sql, "HAVING pr_total_created >= 5") {
+		t.Errorf("v_repository_usage.sql must suppress low-activity repos via a k=5 HAVING threshold")
+	}
+	// Regression guard: SUM() over the SELECT alias is read as SUM(SUM(...)) by
+	// BigQuery and fails with "Aggregations of aggregations are not allowed".
+	if strings.Contains(sql, "HAVING SUM(") {
+		t.Errorf("v_repository_usage.sql must not re-aggregate an aggregate alias in HAVING")
 	}
 }
