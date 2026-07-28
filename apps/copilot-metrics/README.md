@@ -45,6 +45,9 @@ rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report'
 # Daily model billing usage only
 rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily'
 
+# Per-repository usage metrics only
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:repo-metrics'
+
 # Everything
 rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all'
 ```
@@ -56,6 +59,7 @@ rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:usage:prod'
 rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-monthly:prod'
 rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report:prod'
 rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily:prod'
+rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:repo-metrics:prod'
 rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all:prod'
 ```
 
@@ -105,6 +109,26 @@ rtk copilot-metrics --billing-model-daily-backfill
 rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10
 rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10 --force
 ```
+
+### Repository metrics backfill
+
+One-time operation to fill gaps in the `repository_metrics` table without
+touching `usage_metrics`, `user_metrics` or `user_teams`.
+
+The nightly job only gap-fills the last 7 days, so days between the report's
+GA date (2026-07-17) and the deploy of repository ingestion fall outside that
+window permanently. This flag closes those gaps.
+
+```bash
+rtk copilot-metrics --repo-metrics-backfill
+rtk copilot-metrics --repo-metrics-backfill --repo-metrics-from=2026-07-17
+rtk copilot-metrics --repo-metrics-backfill --repo-metrics-from=2026-07-17 --force
+```
+
+Days that already have data are skipped before the API call, so the command is
+cheap to re-run. Unlike `--backfill`, it resumes per day rather than from a
+single high-water mark, so interior gaps are filled. Use `--force` to re-ingest
+days that already exist. Days before GA are reported as unavailable and skipped.
 
 ### Local development
 
@@ -156,8 +180,9 @@ Per-repository, PR-only Copilot lifecycle activity from the `repos-1-day`
 Usage Metrics report (coding-agent authored/merged PRs and Copilot code-review
 suggestions). One row per repository per day. Ingested as a supplementary report
 alongside `users-1-day` / `user-teams-1-day`, so it flows through the nightly
-gap-fill and historical backfill automatically (data available from GitHub's
-GA on 2026-07-17).
+gap-fill (last 7 days) and historical backfill automatically (data available
+from GitHub's GA on 2026-07-17). Days older than the gap-fill window are filled
+with `--repo-metrics-backfill`.
 
 | Column       | Type      | Description                    |
 | ------------ | --------- | ------------------------------ |

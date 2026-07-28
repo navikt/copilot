@@ -24,6 +24,8 @@ func main() {
 	billingDailyReportFrom := flag.String("billing-daily-report-from", "2025-10-10", "Start day for daily billing usage report backfill (YYYY-MM-DD)")
 	billingModelDailyBackfill := flag.Bool("billing-model-daily-backfill", false, "Backfill daily model billing data")
 	billingModelDailyFrom := flag.String("billing-model-daily-from", "2025-10-10", "Start day for daily model billing backfill (YYYY-MM-DD)")
+	repoMetricsBackfill := flag.Bool("repo-metrics-backfill", false, "Backfill per-repository usage metrics (repos-1-day) only")
+	repoMetricsFrom := flag.String("repo-metrics-from", repoMetricsGADate, "Start day for repository metrics backfill (YYYY-MM-DD)")
 	legacyBillingBackfill := flag.Bool("billing-backfill", false, "Deprecated: use --billing-monthly-backfill")
 	legacyBillingFrom := flag.String("billing-from", "", "Deprecated: use --billing-monthly-from")
 	legacyBillingUsageBackfill := flag.Bool("billing-usage-backfill", false, "Deprecated: use --billing-daily-report-backfill")
@@ -191,6 +193,19 @@ func main() {
 		}
 		if err := runBillingBackfill(ctx, billingClient, bqClient, config, startMonth, *backfillForce); err != nil {
 			slog.Error("Billing monthly backfill failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if *repoMetricsBackfill {
+		startDay, err := time.Parse("2006-01-02", *repoMetricsFrom)
+		if err != nil {
+			slog.Error("Invalid repo-metrics-from day", "error", err)
+			os.Exit(1)
+		}
+		if err := runRepoMetricsBackfill(ctx, ghClient, bqClient, config, startDay, *backfillForce); err != nil {
+			slog.Error("Repository metrics backfill failed", "error", err)
 			os.Exit(1)
 		}
 		return
