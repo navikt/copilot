@@ -43,6 +43,21 @@ type RepoMetricsStore interface {
 // cheap to re-run and handles interior gaps — unlike the entity backfill,
 // which resumes from a single high-water mark.
 func runRepoMetricsBackfill(ctx context.Context, gh RepoMetricsFetcher, bq RepoMetricsStore, cfg *Config, startDay time.Time, force bool) error {
+	// Normalise to UTC midnight so the loop steps day-by-day regardless of the
+	// caller's location or time component, and so the comparison against
+	// endDay below is on equal footing.
+	startDay = startDay.UTC().Truncate(24 * time.Hour)
+
+	// Days before GA always return ErrReportNotAvailable, so clamp to avoid
+	// spending API calls and rate-limit sleeps on days that cannot exist.
+	if gaDay, err := time.Parse("2006-01-02", repoMetricsGADate); err == nil && startDay.Before(gaDay) {
+		slog.Info("Clamping start day to repository metrics GA date",
+			"requested", startDay.Format("2006-01-02"),
+			"ga", repoMetricsGADate,
+		)
+		startDay = gaDay
+	}
+
 	endDay := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 
 	slog.Info("Starting repository metrics backfill",

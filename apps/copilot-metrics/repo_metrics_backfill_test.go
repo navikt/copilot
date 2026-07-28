@@ -259,6 +259,56 @@ func TestRunRepoMetricsBackfill_CancelledContext(t *testing.T) {
 	}
 }
 
+func TestRunRepoMetricsBackfill_ClampsStartDayToGADate(t *testing.T) {
+	withoutRepoMetricsDelay(t)
+
+	gaDay, err := time.Parse("2006-01-02", repoMetricsGADate)
+	if err != nil {
+		t.Fatalf("parse GA date: %v", err)
+	}
+
+	store := newRepoBackfillStore()
+	fetcher := &repoBackfillFetcher{records: 1}
+
+	// A year before GA: without clamping this would burn ~365 API calls on
+	// days GitHub cannot serve.
+	if err := runRepoMetricsBackfill(context.Background(), fetcher, store, repoBackfillConfig(), gaDay.AddDate(-1, 0, 0), false); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(fetcher.fetched) == 0 {
+		t.Fatal("expected days to be fetched")
+	}
+	if got := fetcher.fetched[0]; got != repoMetricsGADate {
+		t.Errorf("expected first fetched day to be clamped to %s, got %s", repoMetricsGADate, got)
+	}
+}
+
+func TestRunRepoMetricsBackfill_NormalisesStartDayToUTCMidnight(t *testing.T) {
+	withoutRepoMetricsDelay(t)
+
+	store := newRepoBackfillStore()
+	fetcher := &repoBackfillFetcher{records: 1}
+
+	// Late-evening local time two days ago. Without normalisation the loop
+	// would step on a non-midnight offset and the boundary comparison against
+	// yesterday could drop the final day.
+	startDay := daysAgo(2).Add(23 * time.Hour)
+
+	if err := runRepoMetricsBackfill(context.Background(), fetcher, store, repoBackfillConfig(), startDay, false); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	want := []string{daysAgo(2).Format("2006-01-02"), daysAgo(1).Format("2006-01-02")}
+	if len(fetcher.fetched) != len(want) {
+		t.Fatalf("expected %d days fetched, got %d (%v)", len(want), len(fetcher.fetched), fetcher.fetched)
+	}
+	for i, day := range want {
+		if fetcher.fetched[i] != day {
+			t.Errorf("day %d: expected %s, got %s", i, day, fetcher.fetched[i])
+		}
+	}
+}
+
 func TestRepoMetricsGADateIsParseable(t *testing.T) {
 	if _, err := time.Parse("2006-01-02", repoMetricsGADate); err != nil {
 		t.Fatalf("repoMetricsGADate must be a valid date: %v", err)
