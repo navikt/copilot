@@ -28,13 +28,7 @@
 -- All pull_requests.* metrics are NULL for pre-GA (2026-07-17) days — the
 -- repos-1-day report did not exist before GA, so those days contribute nothing.
 CREATE OR REPLACE VIEW `%s.%s.v_repository_usage` AS
-WITH privacy_thresholds AS (
-  -- min_repo_activity mirrors bigquery_stats.go:minUsersForDistribution (k = 5):
-  -- below this many total PRs created over the window, a single contributor's
-  -- behaviour dominates the repo's numbers, so the repo is suppressed.
-  SELECT 5 AS min_repo_activity
-),
-daily AS (
+WITH daily AS (
   SELECT
     CAST(JSON_VALUE(raw_record, '$.repo_id') AS INT64)  AS repo_id,
     JSON_VALUE(raw_record, '$.repo_owner_name')         AS repo_owner,
@@ -85,6 +79,14 @@ SELECT
   AVG(pr_median_minutes_to_merge_copilot_reviewed) AS pr_avg_median_minutes_to_merge_copilot_reviewed
 FROM daily
 GROUP BY repo_id, repo_owner, repo_name, scope_id
--- Privacy safeguard 2: suppress low-activity repos (k = 5 on total PRs created).
-HAVING SUM(pr_total_created) >= (SELECT min_repo_activity FROM privacy_thresholds)
+-- Privacy safeguard 2: suppress low-activity repos. The threshold 5 mirrors
+-- bigquery_stats.go:minUsersForDistribution (k = 5) — below this many total PRs
+-- created over the window, a single contributor's behaviour dominates the
+-- repo's numbers, so the repo is suppressed.
+--
+-- Referenced as the SELECT alias, not SUM(pr_total_created): in HAVING the alias
+-- shadows the source column, so wrapping it in SUM() again is read as
+-- SUM(SUM(...)) and BigQuery rejects it with "Aggregations of aggregations are
+-- not allowed".
+HAVING pr_total_created >= 5
 ORDER BY pr_created_by_copilot DESC;

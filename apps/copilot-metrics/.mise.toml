@@ -129,24 +129,36 @@ description = "Backfill daily model billing usage only (prod)"
 env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
 run = "fnox exec -- go run . --billing-model-daily-backfill --billing-model-daily-from=${BACKFILL_FROM:-2025-10-10} --force"
 
+[tasks."backfill:repo-metrics"]
+description = "Backfill per-repository usage metrics only (dev)"
+env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }
+run = "fnox exec -- go run . --repo-metrics-backfill --repo-metrics-from=${BACKFILL_FROM:-2026-07-17}"
+
+[tasks."backfill:repo-metrics:prod"]
+description = "Backfill per-repository usage metrics only (prod)"
+env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
+run = "fnox exec -- go run . --repo-metrics-backfill --repo-metrics-from=${BACKFILL_FROM:-2026-07-17}"
+
 [tasks."backfill:all"]
-description = "Backfill usage metrics + monthly billing + daily billing usage reports + daily model billing (dev)"
+description = "Backfill usage metrics + monthly billing + daily billing usage reports + daily model billing + repository metrics (dev)"
 env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-dev-e17a" }
 run = [
   "fnox exec -- go run . --backfill --backfill-from=${BACKFILL_FROM:-2025-10-10} --force",
   "FROM=${BACKFILL_FROM:-2026-03-01}; fnox exec -- go run . --billing-monthly-backfill --billing-monthly-from=${FROM:0:7} --force",
   "fnox exec -- go run . --billing-daily-report-backfill --billing-daily-report-from=${BACKFILL_FROM:-2025-10-10} --force",
   "fnox exec -- go run . --billing-model-daily-backfill --billing-model-daily-from=${BACKFILL_FROM:-2025-10-10} --force",
+  "fnox exec -- go run . --repo-metrics-backfill --force",
 ]
 
 [tasks."backfill:all:prod"]
-description = "Backfill usage metrics + monthly billing + daily billing usage reports + daily model billing (prod)"
+description = "Backfill usage metrics + monthly billing + daily billing usage reports + daily model billing + repository metrics (prod)"
 env = { LOG_LEVEL = "INFO", GCP_TEAM_PROJECT_ID = "copilot-prod-c697" }
 run = [
   "fnox exec -- go run . --backfill --backfill-from=${BACKFILL_FROM:-2025-10-10} --force",
   "FROM=${BACKFILL_FROM:-2026-03-01}; fnox exec -- go run . --billing-monthly-backfill --billing-monthly-from=${FROM:0:7} --force",
   "fnox exec -- go run . --billing-daily-report-backfill --billing-daily-report-from=${BACKFILL_FROM:-2025-10-10} --force",
   "fnox exec -- go run . --billing-model-daily-backfill --billing-model-daily-from=${BACKFILL_FROM:-2025-10-10} --force",
+  "fnox exec -- go run . --repo-metrics-backfill --force",
 ]
 
 [tasks."docker:build"]
