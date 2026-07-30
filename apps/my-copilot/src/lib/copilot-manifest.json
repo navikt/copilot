@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-07-30T17:20:19.802Z",
+  "generatedAt": "2026-07-30T17:31:04.137Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1625,7 +1625,7 @@
       "domain": "backend",
       "filePath": "skills/jackson-3-migration/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/SKILL.md",
-      "contentHash": "f70fd1814c10c2484c78b600f7b7bf9e91f6e8fc1a4c8141d17008f410ca1801",
+      "contentHash": "ce53c4bd48a0734dad274edf75a2ab9d79c738ccfe3c78b35c7a0f74cb14e052",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": [

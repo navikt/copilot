@@ -44,6 +44,8 @@ Systematic migration from Jackson 2.x (`com.fasterxml.jackson`) to Jackson 3.x (
 
 Use the official recipe to handle mechanical Java renames before touching anything by hand.
 
+**Check the current state before assuming a clean 2.x baseline.** If the codebase already has a partial, hand-rolled migration attempt (mixed `com.fasterxml`/`tools.jackson` imports, ad-hoc renames), running the recipe may not apply cleanly or may not be the fastest path. In that case, run `./gradlew compileKotlin` (or the Java equivalent) directly first to see the actual current compile errors, then work from those rather than assuming this playbook's recipe-first order fits as-is.
+
 ```kotlin
 // build.gradle.kts — add temporarily if not already present
 plugins {
@@ -94,6 +96,13 @@ val mapper = ObjectMapper().registerKotlinModule()
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
 val mapper = jacksonObjectMapper()
+
+// need further config? prefer jacksonMapperBuilder() over manually chaining
+// JsonMapper.builder().addModule(kotlinModule()) — same result, one call:
+import tools.jackson.module.kotlin.jacksonMapperBuilder
+val mapper = jacksonMapperBuilder()
+    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+    .build()
 ```
 
 Search for `ObjectMapper()` followed by `.apply`, `.registerModule`, `.configure`, `.enable`, `.disable`, `.setXxx` calls outside a builder chain — these are the highest-risk pattern in Kotlin codebases and fail silently rather than with a compile error (full before/after in the reference file).

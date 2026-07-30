@@ -16,6 +16,13 @@ val mapper = JsonMapper.builder()
     .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
     .build()
 // java.time support (JavaTimeModule) is now built into jackson-databind — no explicit registration needed
+
+// if the Kotlin module is needed too, prefer jacksonMapperBuilder() over
+// JsonMapper.builder().addModule(kotlinModule()) — same builder, kotlin module pre-added:
+import tools.jackson.module.kotlin.jacksonMapperBuilder
+val mapper = jacksonMapperBuilder()
+    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+    .build()
 ```
 
 ## `setSerializationInclusion` / `serializationInclusion` (removed, not just renamed)
