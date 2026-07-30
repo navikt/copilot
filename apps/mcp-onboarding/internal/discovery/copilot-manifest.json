@@ -746,6 +746,26 @@
     },
     {
       "type": "skill",
+      "name": "jackson-3-migration",
+      "displayName": "jackson-3-migration",
+      "description": "Migrer Jackson 2.x til Jackson 3.x (tools.jackson) i Kotlin/Java-prosjekter — automatisert OpenRewrite-pass pluss manuell Kotlin-spesifikk opprydding og verifisering",
+      "filePath": "skills/jackson-3-migration/SKILL.md",
+      "contentHash": "f786d84e51790e165f54afb5a7bdbd99f3ddf46102f59a9b9602353abece3aa7",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/SKILL.md",
+      "references": [
+        {
+          "path": "references/kotlin-cleanup.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/references/kotlin-cleanup.md"
+        },
+        {
+          "path": "references/rename-and-defaults.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/references/rename-and-defaults.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "java-to-kotlin",
       "displayName": "java-to-kotlin",
       "description": "Trinnvis Java-til-Kotlin-migrering med rammeverk-bevisste transformasjoner for Spring, Ktor og Nav-mønstre",
