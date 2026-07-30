@@ -1,0 +1,16 @@
+{
+  "description": "Migrer Jackson 2.x til Jackson 3.x (tools.jackson) i Kotlin/Java-prosjekter — automatisert OpenRewrite-pass pluss manuell Kotlin-spesifikk opprydding og verifisering",
+  "domain": "backend",
+  "tags": ["jackson", "kotlin", "java", "migration", "serialization", "openrewrite", "ktor"],
+  "examples": [
+    {
+      "prompt": "Migrer denne Ktor-tjenesten fra Jackson 2 til Jackson 3",
+      "scenario": "Fullstendig migrasjon av en enkelt tjeneste"
+    },
+    {
+      "prompt": "Bygget feiler etter at en transitiv avhengighet dro inn Jackson 3 — fiks det",
+      "scenario": "Reaktiv feilsøking etter versjonsoppgradering"
+    }
+  ],
+  "references": ["references/kotlin-cleanup.md", "references/rename-and-defaults.md"]
+}
