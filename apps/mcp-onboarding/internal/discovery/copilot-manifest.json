@@ -750,7 +750,7 @@
       "displayName": "jackson-3-migration",
       "description": "Migrer Jackson 2.x til Jackson 3.x (tools.jackson) i Kotlin/Java-prosjekter — automatisert OpenRewrite-pass pluss manuell Kotlin-spesifikk opprydding og verifisering",
       "filePath": "skills/jackson-3-migration/SKILL.md",
-      "contentHash": "f786d84e51790e165f54afb5a7bdbd99f3ddf46102f59a9b9602353abece3aa7",
+      "contentHash": "f7119555563b1c1b52907efa0f5662c4da6d8f4b281813532afd570a5ccd6881",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/SKILL.md",
       "references": [

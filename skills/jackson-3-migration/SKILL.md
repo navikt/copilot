@@ -23,7 +23,8 @@ Systematic migration from Jackson 2.x (`com.fasterxml.jackson`) to Jackson 3.x (
 1. Confirm baseline JDK is 17+ (`java -version`, `sourceCompatibility` in Gradle). Jackson 3 does not run on Java 8/11 — stop and flag if not met.
 2. Confirm all direct/transitive Jackson-dependent libraries (Spring, Ktor, testing libs) have Jackson 3-compatible versions available before starting. Do not migrate a library still pinned to Jackson 2.
 3. Target Jackson **3.1+** (LTS). Jackson 3.0.x is a transitional, non-LTS release — avoid pinning to it if 3.1+ is available.
-4. **Ktor bonus:** if the service uses Ktor's content negotiation, it ships a *dedicated* module for Jackson 3 — `io.ktor:ktor-serialization-jackson3` — with the `jackson3 { ... }` DSL under package `io.ktor.serialization.jackson3.*`. The old `ktor-serialization-jackson` artifact (`io.ktor.serialization.jackson.*`) stays on Jackson 2 and is **not** drop-in compatible; swap the artifact and the import together, not just the Jackson dependency.
+4. **Check for a stray Jackson 2.x `databind`/`core` on the classpath before declaring the migration done.** A not-yet-upgraded dependency (test library, HTTP client, an internal module, etc.) can transitively pull in `com.fasterxml.jackson.core:jackson-databind`/`jackson-core` alongside the new `tools.jackson.*` jars. Gradle/Maven will happily resolve both at once, so old `com.fasterxml.jackson.databind.*` imports (e.g. `JsonMappingException`, `ObjectMapper`) **keep compiling with no error** — they just silently bind to the leftover 2.x jar instead of failing loudly. Run `./gradlew dependencies --configuration compileClasspath | grep jackson` (or the Maven `dependency:tree` equivalent) after migrating and confirm the only `com.fasterxml.jackson*` group left is `jackson-annotations`. If something else shows up, upgrade that dependency or `exclude(group = "com.fasterxml.jackson.core")` on it explicitly.
+5. **Ktor bonus:** if the service uses Ktor's content negotiation, it ships a *dedicated* module for Jackson 3 — `io.ktor:ktor-serialization-jackson3` — with the `jackson3 { ... }` DSL under package `io.ktor.serialization.jackson3.*`. The old `ktor-serialization-jackson` artifact (`io.ktor.serialization.jackson.*`) stays on Jackson 2 and is **not** drop-in compatible; swap the artifact and the import together, not just the Jackson dependency.
 
 ## Package/Group-ID Exception (apply before any blanket rename)
 
@@ -130,7 +131,8 @@ dependencies {
 1. `./gradlew build` (or project's equivalent) — compile errors will surface most renamed classes/methods immediately.
 2. Run the full test suite — immutable `ObjectMapper` misconfiguration and default-setting changes (e.g. `FAIL_ON_TRAILING_TOKENS` now on by default) typically show up as test failures, not compile errors.
 3. Grep for any remaining `com.fasterxml.jackson` imports outside `jackson-annotations` usage — these indicate incomplete migration.
-4. If default-setting changes break existing behavior intentionally relied upon, consider `JsonMapper.builderWithJackson2Defaults()` as a stepping stone rather than reintroducing legacy settings ad hoc.
+4. Re-run the dependency-tree check from Pre-flight step 4 — grepping your own source is not enough, since a stray transitive `com.fasterxml.jackson.core:jackson-databind` can let old imports keep compiling without ever showing up in a source-level grep.
+5. If default-setting changes break existing behavior intentionally relied upon, consider `JsonMapper.builderWithJackson2Defaults()` as a stepping stone rather than reintroducing legacy settings ad hoc.
 
 For symptom → likely cause → fix lookups (e.g. "dates serialize as strings now", "property order changed"), see [references/rename-and-defaults.md](references/rename-and-defaults.md).
 
@@ -150,6 +152,7 @@ For symptom → likely cause → fix lookups (e.g. "dates serialize as strings n
 - Verify Java 17+ baseline before starting
 - Run the OpenRewrite recipe first, then do Kotlin-specific cleanup by hand
 - Search explicitly for post-construction `ObjectMapper` mutation (`.apply { ... }` patterns) — the #1 silent-failure risk
+- Run a dependency-tree check (`./gradlew dependencies | grep jackson`) after migrating to confirm no `com.fasterxml.jackson.core:jackson-databind`/`jackson-core` remains transitively — old imports keep compiling with no error if a stray 2.x jar is still on the classpath
 - Use LSP/symbol tools (`findReferences`, rename refactoring) to verify Jackson usages before and after renaming, not blind text search-and-replace
 - Run full build + test suite after migration, not just compile
 - Target Jackson 3.1+ (LTS), not 3.0.x
