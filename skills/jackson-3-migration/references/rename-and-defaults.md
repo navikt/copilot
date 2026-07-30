@@ -2,12 +2,30 @@
 
 Full lookup tables for `Step 3: General Manual Cleanup` and `Step 4: Verification` in `SKILL.md`. Consult this file when a compile error or test failure doesn't match one of the inline examples.
 
+## Fully-qualified 3.x package paths (verified — don't guess, don't unzip jars)
+
+**General rule: most `com.fasterxml.jackson.databind.*` types land in the `tools.jackson.databind` *root* package in 3.x, not in a `.exc`/`.core`-style subpackage**, even though a few 2.x types were historically split across subpackages. Guessing a subpackage by analogy with 2.x layout is a common wrong turn — confirm with IDE autocomplete / LSP `workspaceSymbol` search instead of inspecting jar contents.
+
+Verified against Jackson 3.1.2 / jackson-module-kotlin 3.2.1 / Ktor 3.5.1:
+
+| Class (2.x name → 3.x name) | Fully-qualified 3.x path |
+|---|---|
+| `JsonMappingException` → `DatabindException` | `tools.jackson.databind.DatabindException` (root package, **not** `.exc`) |
+| `DeserializationFeature` | `tools.jackson.databind.DeserializationFeature` (root package) |
+| `SerializationFeature` | `tools.jackson.databind.SerializationFeature` (root package) |
+| `ObjectMapper` (mutable) → `JsonMapper` | `tools.jackson.databind.json.JsonMapper` |
+| `jacksonObjectMapper()` (Kotlin module) | `tools.jackson.module.kotlin.jacksonObjectMapper` |
+| `jacksonMapperBuilder()` (Kotlin module) | `tools.jackson.module.kotlin.jacksonMapperBuilder` |
+| Ktor `JacksonConverter` | `io.ktor.serialization.jackson3.JacksonConverter` (artifact `io.ktor:ktor-serialization-jackson3`) |
+
+The rename tables below give class-name mappings only, not full package paths, for every renamed type — treat the general rule above as the default assumption for anything not listed here, and verify with `workspaceSymbol`/autocomplete rather than trial-and-error imports.
+
 ## Exceptions and core type renames
 
 | Area | Before (2.x) | After (3.x) |
 |------|--------------|-------------|
 | Exceptions | `catch (e: JsonProcessingException)` | `catch (e: JacksonException)` (now unchecked `RuntimeException`) |
-| Exceptions | `JsonMappingException` | `DatabindException` |
+| Exceptions | `JsonMappingException` | `DatabindException` — `tools.jackson.databind.DatabindException` (root package, see above) |
 | Exceptions | `JsonEOFException` | `UnexpectedEndOfInputException` |
 | Format mappers | `ObjectMapper(YAMLFactory())` | `YAMLMapper()` / `YAMLMapper.builder()` |
 | Streaming features | `JsonParser.Feature` | `StreamReadFeature` / `JsonReadFeature` |

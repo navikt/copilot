@@ -42,6 +42,8 @@ Systematic migration from Jackson 2.x (`com.fasterxml.jackson`) to Jackson 3.x (
 
 **Prefer semantic tools over text search-and-replace for this step.** Before renaming, use LSP/code-intelligence tools (`findReferences`, `goToDefinition`) or an IDE's MCP server (e.g. `search_symbol`, `rename_refactoring`) to enumerate every real usage of a Jackson type — a blind `grep`+`sed` pass cannot tell `com.fasterxml.jackson.annotation.*` (stays) apart from `com.fasterxml.jackson.databind.*` (moves), and will happily "rename" a string literal or comment that only looks like a package path. After renaming, re-run `findReferences`/symbol search to confirm no stale `com.fasterxml.jackson.*` symbol remains outside the annotation exception.
 
+**Don't guess a 3.x subpackage by analogy with 2.x layout, and don't unzip jars to check.** Most `com.fasterxml.jackson.databind.*` types land in the `tools.jackson.databind` *root* package in 3.x (e.g. `DatabindException`, not `tools.jackson.databind.exc.DatabindException`) — see [references/rename-and-defaults.md](references/rename-and-defaults.md) for a verified list of fully-qualified paths. If a class isn't in that list, verify the package with LSP `workspaceSymbol` search or IDE autocomplete before trying an import.
+
 ## Step 1: Automated Pass (OpenRewrite)
 
 Use the official recipe to handle mechanical Java renames before touching anything by hand.
