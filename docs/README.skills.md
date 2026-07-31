@@ -23,6 +23,7 @@ nav-pilot install <skill-name>
 | **api-design** | REST API-designmønstre, versjonering, feilhåndtering (RFC 7807) og OpenAPI-konvensjoner for Nav-tjenester | [`skills/api-design/`](../skills/api-design/SKILL.md) |
 | **conventional-commit** | Generer conventional commit-meldinger med Nav-relevante scopes og breaking change-format | [`skills/conventional-commit/`](../skills/conventional-commit/SKILL.md) |
 | **flyway-migration** | Databasemigrasjonsmønstre med Flyway og versjonerte SQL-skript | [`skills/flyway-migration/`](../skills/flyway-migration/SKILL.md) |
+| **jackson-3-migration** | Migrer Jackson 2.x til Jackson 3.x (tools.jackson) i Kotlin/Java-prosjekter — automatisert OpenRewrite-pass pluss manuell Kotlin-spesifikk opprydding og verifisering | [`skills/jackson-3-migration/`](../skills/jackson-3-migration/SKILL.md) |
 | **java-to-kotlin** | Trinnvis Java-til-Kotlin-migrering med rammeverk-bevisste transformasjoner for Spring, Ktor og Nav-mønstre | [`skills/java-to-kotlin/`](../skills/java-to-kotlin/SKILL.md) |
 | **kafka** | Rapids & Rivers, eventdrevet arkitektur, Kafka-mønstre og schema-design for Nav-applikasjoner | [`skills/kafka/`](../skills/kafka/SKILL.md) |
 | **kotlin-app-config** | Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger | [`skills/kotlin-app-config/`](../skills/kotlin-app-config/SKILL.md) |

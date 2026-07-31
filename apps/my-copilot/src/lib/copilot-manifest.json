@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-07-22T21:09:31.391Z",
+  "generatedAt": "2026-07-30T17:53:53.263Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1203,6 +1203,39 @@
       "tags": ["database", "flyway", "sql", "migration"],
       "examples": ["Lag en Flyway-migrasjon som legger til en indeks på fødselsnummer"],
       "collections": ["fullstack", "kotlin-backend"]
+    },
+    {
+      "id": "jackson-3-migration",
+      "name": "jackson-3-migration",
+      "description": "Migrer Jackson 2.x til Jackson 3.x (tools.jackson) i Kotlin/Java-prosjekter — automatisert OpenRewrite-pass pluss manuell Kotlin-spesifikk opprydding og verifisering",
+      "type": "skill",
+      "domain": "backend",
+      "filePath": "skills/jackson-3-migration/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/SKILL.md",
+      "contentHash": "2aca0496eeecd3b7b9f5886f47702b70d8b404f9e28e68759dfcd8e978a41817",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["jackson", "kotlin", "java", "migration", "serialization", "openrewrite", "ktor"],
+      "examples": [
+        {
+          "prompt": "Migrer denne Ktor-tjenesten fra Jackson 2 til Jackson 3",
+          "scenario": "Fullstendig migrasjon av en enkelt tjeneste"
+        },
+        {
+          "prompt": "Bygget feiler etter at en transitiv avhengighet dro inn Jackson 3 — fiks det",
+          "scenario": "Reaktiv feilsøking etter versjonsoppgradering"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/kotlin-cleanup.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/references/kotlin-cleanup.md"
+        },
+        {
+          "path": "references/rename-and-defaults.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/references/rename-and-defaults.md"
+        }
+      ]
     },
     {
       "id": "java-to-kotlin",
