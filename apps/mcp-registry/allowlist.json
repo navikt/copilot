@@ -313,6 +313,8 @@
       "tools": [
         "lock_document",
         "get_my_teams",
+        "list_nom_avdelinger",
+        "search_slack_channel",
         "list_etterlevelse_dokumentasjoner",
         "get_etterlevelse_dokumentasjon",
         "create_etterlevelse_dokumentasjon",
