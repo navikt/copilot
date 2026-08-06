@@ -69,6 +69,8 @@ onLanguageSelect((language) => {
 ## getAnalyticsInstance
 
 Henter logger-instans for analytics (Umami). Støtter taksonomi-events og custom events.
+Oppgi `origin` når logger-instansen opprettes for å identifisere appens egne hendelser. Bruk den
+samme verdien som `origin` i dekoratørparameterne for automatiske `besøk`-hendelser.
 
 ```ts
 import {

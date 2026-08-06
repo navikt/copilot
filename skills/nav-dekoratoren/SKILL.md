@@ -116,7 +116,11 @@ export default async function RootLayout({
 }) {
     const Decorator = await fetchDecoratorReact({
         env: "prod",
-        params: { context: "privatperson", language: "nb" },
+        params: {
+            context: "privatperson",
+            language: "nb",
+            origin: "min-app",
+        },
     });
 
     return (
@@ -167,7 +171,11 @@ class MyDocument extends Document<MyDocumentProps> {
         const initialProps = await Document.getInitialProps(ctx);
         const Decorator = await fetchDecoratorReact({
             env: "prod",
-            params: { context: "privatperson", language: "nb" },
+            params: {
+                context: "privatperson",
+                language: "nb",
+                origin: "min-app",
+            },
         });
 
         return { ...initialProps, Decorator };
@@ -207,7 +215,7 @@ const {
     DECORATOR_SCRIPTS,
 } = await fetchDecoratorHtml({
     env: "dev",
-    params: { context: "privatperson" },
+    params: { context: "privatperson", origin: "min-app" },
 });
 ```
 
@@ -241,6 +249,7 @@ De viktigste:
 | `redirectToApp`      | `boolean`                                             | `false`        |
 | `logoutWarning`      | `boolean`                                             | `true`         |
 | `feedback`           | `boolean`                                             | `false`        |
+| `origin`             | `string`                                              | `undefined`    |
 
 ---
 
@@ -294,6 +303,10 @@ onLanguageSelect((language) => {
 ```
 
 ### 5.3 Analytics (Umami)
+
+Send appens tekniske navn som `origin` i dekoratørparameterne. Verdien legges til automatiske
+`besøk`-hendelser, slik at sidevisninger kan filtreres per app. Når parameteren utelates, bruker
+`besøk`-hendelser verdien `nav-dekoratoren`.
 
 ```ts
 import { getAnalyticsInstance, Events } from "@navikt/nav-dekoratoren-moduler";
