@@ -311,7 +311,7 @@ Send appens tekniske navn som `origin` i dekoratørparameterne. Verdien legges t
 ```ts
 import { getAnalyticsInstance, Events } from "@navikt/nav-dekoratoren-moduler";
 
-const logger = getAnalyticsInstance("min-app-origin");
+const logger = getAnalyticsInstance("min-app");
 
 // Taksonomi-event (strengt typet fra @navikt/analytics-types)
 logger(Events.SKJEMA_STARTET, { skjemaId: "1234", skjemanavn: "aap" });
