@@ -69,6 +69,8 @@ onLanguageSelect((language) => {
 ## getAnalyticsInstance
 
 Henter logger-instans for analytics (Umami). Støtter taksonomi-events og custom events.
+Oppgi `origin` når logger-instansen opprettes for å identifisere appens egne hendelser. Bruk den
+samme verdien som `origin` i dekoratørparameterne for automatiske `besøk`-hendelser.
 
 ```ts
 import {
@@ -77,7 +79,7 @@ import {
     isValidEventName,
 } from "@navikt/nav-dekoratoren-moduler";
 
-const logger = getAnalyticsInstance("min-app-origin");
+const logger = getAnalyticsInstance("min-app");
 
 // Taksonomi-event – strengt typet fra @navikt/analytics-types
 logger(Events.SKJEMA_STARTET, { skjemaId: "1234", skjemanavn: "aap" });
