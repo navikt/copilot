@@ -12,8 +12,24 @@
         "url": "https://github.com/github/github-mcp-server",
         "source": "github"
       },
-      "tools": ["get_file_contents", "search_repositories", "create_issue", "list_issues", "create_pull_request", "list_pull_requests", "search_code", "get_commit", "list_commits", "create_branch", "list_branches"],
-      "tags": ["developer-tools", "version-control", "github"],
+      "tools": [
+        "get_file_contents",
+        "search_repositories",
+        "create_issue",
+        "list_issues",
+        "create_pull_request",
+        "list_pull_requests",
+        "search_code",
+        "get_commit",
+        "list_commits",
+        "create_branch",
+        "list_branches"
+      ],
+      "tags": [
+        "developer-tools",
+        "version-control",
+        "github"
+      ],
       "examples": [
         {
           "scenario": "Finn kode i et annet repo",
@@ -44,8 +60,24 @@
         "source": "github",
         "subfolder": "apps/mcp-onboarding"
       },
-      "tools": ["hello_world", "greet", "whoami", "echo", "get_time", "list_agents", "list_instructions", "list_prompts", "list_skills", "check_agent_readiness", "generate_agents_md"],
-      "tags": ["developer-tools", "onboarding", "nav-internal"],
+      "tools": [
+        "hello_world",
+        "greet",
+        "whoami",
+        "echo",
+        "get_time",
+        "list_agents",
+        "list_instructions",
+        "list_prompts",
+        "list_skills",
+        "check_agent_readiness",
+        "generate_agents_md"
+      ],
+      "tags": [
+        "developer-tools",
+        "onboarding",
+        "nav-internal"
+      ],
       "examples": [
         {
           "scenario": "Sjekk om repoet er klart for agentmodus",
@@ -76,8 +108,20 @@
         "source": "github",
         "subfolder": "apps/mcp-server"
       },
-      "tools": ["aksel_find_docs", "aksel_get_doc", "aksel_get_token_details", "aksel_find_icons", "aksel_get_component_info"],
-      "tags": ["aksel", "designsystem", "ui", "frontend", "developer-tools"],
+      "tools": [
+        "aksel_find_docs",
+        "aksel_get_doc",
+        "aksel_get_token_details",
+        "aksel_find_icons",
+        "aksel_get_component_info"
+      ],
+      "tags": [
+        "aksel",
+        "designsystem",
+        "ui",
+        "frontend",
+        "developer-tools"
+      ],
       "examples": [
         {
           "scenario": "Søk i Aksel-dokumentasjon",
@@ -115,8 +159,18 @@
         "url": "https://github.com/figma/mcp-server-guide",
         "source": "github"
       },
-      "tools": ["get_design_context", "get_screenshot", "get_metadata", "get_figjam", "generate_diagram"],
-      "tags": ["design", "frontend", "figma"],
+      "tools": [
+        "get_design_context",
+        "get_screenshot",
+        "get_metadata",
+        "get_figjam",
+        "generate_diagram"
+      ],
+      "tags": [
+        "design",
+        "frontend",
+        "figma"
+      ],
       "examples": [
         {
           "scenario": "Design til kode",
@@ -142,8 +196,17 @@
         "url": "https://github.com/vercel/next-devtools-mcp",
         "source": "github"
       },
-      "tools": ["getErrors", "getRouteInfo", "getDebugInfo", "getDocs"],
-      "tags": ["frontend", "nextjs", "developer-tools"],
+      "tools": [
+        "getErrors",
+        "getRouteInfo",
+        "getDebugInfo",
+        "getDocs"
+      ],
+      "tags": [
+        "frontend",
+        "nextjs",
+        "developer-tools"
+      ],
       "examples": [
         {
           "scenario": "Feilsøk Next.js-app",
@@ -182,8 +245,15 @@
         "source": "github",
         "subfolder": "packages/mcp"
       },
-      "tools": ["search_docs", "analyze_code"],
-      "tags": ["frontend", "svelte", "documentation"],
+      "tools": [
+        "search_docs",
+        "analyze_code"
+      ],
+      "tags": [
+        "frontend",
+        "svelte",
+        "documentation"
+      ],
       "examples": [
         {
           "scenario": "Søk i Svelte-dokumentasjon",
@@ -219,8 +289,19 @@
         "url": "https://github.com/microsoft/playwright-mcp",
         "source": "github"
       },
-      "tools": ["browser_navigate", "browser_click", "browser_type", "browser_snapshot", "browser_take_screenshot", "browser_wait"],
-      "tags": ["testing", "browser-automation", "frontend"],
+      "tools": [
+        "browser_navigate",
+        "browser_click",
+        "browser_type",
+        "browser_snapshot",
+        "browser_take_screenshot",
+        "browser_wait"
+      ],
+      "tags": [
+        "testing",
+        "browser-automation",
+        "frontend"
+      ],
       "examples": [
         {
           "scenario": "Test brukerflyt",
@@ -285,8 +366,34 @@
           "url": "http://127.0.0.1:64342/sse"
         }
       ],
-      "tools": ["get_symbol_info", "get_file_problems", "get_project_dependencies", "get_project_modules", "search_in_files_by_text", "search_in_files_by_regex", "find_files_by_glob", "find_files_by_name_keyword", "get_file_text_by_path", "list_directory_tree", "get_all_open_file_paths", "get_run_configurations", "get_repositories", "create_new_file", "replace_text_in_file", "reformat_file", "rename_refactoring", "open_file_in_editor", "execute_terminal_command", "execute_run_configuration"],
-      "tags": ["developer-tools", "ide", "jetbrains", "code-intelligence"],
+      "tools": [
+        "get_symbol_info",
+        "get_file_problems",
+        "get_project_dependencies",
+        "get_project_modules",
+        "search_in_files_by_text",
+        "search_in_files_by_regex",
+        "find_files_by_glob",
+        "find_files_by_name_keyword",
+        "get_file_text_by_path",
+        "list_directory_tree",
+        "get_all_open_file_paths",
+        "get_run_configurations",
+        "get_repositories",
+        "create_new_file",
+        "replace_text_in_file",
+        "reformat_file",
+        "rename_refactoring",
+        "open_file_in_editor",
+        "execute_terminal_command",
+        "execute_run_configuration"
+      ],
+      "tags": [
+        "developer-tools",
+        "ide",
+        "jetbrains",
+        "code-intelligence"
+      ],
       "examples": [
         {
           "scenario": "Semantisk symboloppslag",
@@ -295,6 +402,85 @@
         {
           "scenario": "Kodeinspeksjon",
           "prompt": "Kjør IntelliJ-inspeksjoner på src/main/kotlin og vis feil og advarsler"
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.github.navikt/nav-etterlevelse-mcp",
+      "description": "Document compliance and privacy impact assessments (PVK/DPIA) for Nav systems. Covers etterlevelse requirements, risk scenarios, and behandlingskatalog integration.",
+      "version": "0.1.0",
+      "status": "active",
+      "publishedAt": "2026-08-05T00:00:00Z",
+      "websiteUrl": "https://github.com/navikt/nav-etterlevelse-mcp",
+      "repository": {
+        "url": "https://github.com/navikt/nav-etterlevelse-mcp",
+        "source": "github"
+      },
+      "tools": [
+        "lock_document",
+        "get_my_teams",
+        "list_nom_avdelinger",
+        "search_slack_channel",
+        "list_etterlevelse_dokumentasjoner",
+        "get_etterlevelse_dokumentasjon",
+        "get_etterlevelse_status_oversikt",
+        "create_etterlevelse_dokumentasjon",
+        "write_etterlevelse_dokumentasjon",
+        "list_krav",
+        "get_krav",
+        "get_etterlevelse",
+        "write_etterlevelse",
+        "delete_etterlevelse",
+        "get_pvk_dokument",
+        "create_pvk_dokument",
+        "delete_pvk_dokument",
+        "write_pvk_egenskaper",
+        "write_pvk_involvering",
+        "write_pvk_melding_til_pvo",
+        "write_pvk_risikoeier",
+        "write_behandlingens_art_og_omfang",
+        "get_behandlingens_livsloep",
+        "write_behandlingens_livsloep",
+        "delete_behandlingens_livsloep",
+        "list_risikoscenarioer",
+        "write_risikoscenario",
+        "delete_risikoscenario",
+        "link_krav_to_risikoscenario",
+        "unlink_krav_from_risikoscenario",
+        "list_tiltak",
+        "write_tiltak",
+        "delete_tiltak",
+        "get_behandling",
+        "search_behandlinger",
+        "get_processor"
+      ],
+      "tags": [
+        "compliance",
+        "privacy",
+        "etterlevelse",
+        "pvk",
+        "dpia",
+        "nav-internal"
+      ],
+      "examples": [
+        {
+          "scenario": "Vurder etterlevelse for et system",
+          "prompt": "Gjennomfør etterlevelsessjekk for navikt/dp-soknad"
+        },
+        {
+          "scenario": "Lag PVK for et system",
+          "prompt": "Gjennomfør en personvernkonsekvensvurdering for navikt/fp-sak"
+        },
+        {
+          "scenario": "Finn krav for et dokument",
+          "prompt": "Hvilke etterlevelseskrav er relevante for etterlevelsesdokumentasjon E123?"
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://nav-etterlevelse-mcp.{{domain_internal}}/mcp"
         }
       ]
     },
@@ -317,7 +503,12 @@
         }
       ],
       "tools": [],
-      "tags": ["frontend", "aksel", "local", "developer-tools"],
+      "tags": [
+        "frontend",
+        "aksel",
+        "local",
+        "developer-tools"
+      ],
       "examples": [
         {
           "scenario": "Rediger JSX",
