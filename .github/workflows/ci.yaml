@@ -53,7 +53,7 @@ jobs:
       # v4.0.1+ is required for native merge_group support (v3 has none).
       # Each filter mirrors the component workflow's own on.pull_request.paths,
       # plus this workflow file so editing the gate re-tests everything.
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # ratchet:dorny/paths-filter@v4.0.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # ratchet:dorny/paths-filter@v4.0.3
         id: filter
         with:
           filters: |
@@ -143,7 +143,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4.2.3
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
         with:
           experimental: true
       - run: mise run install
@@ -169,7 +169,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4.2.3
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
         with:
           experimental: true
       - run: mise run install
@@ -195,7 +195,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4.2.3
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
         with:
           experimental: true
       - run: mise run install
@@ -221,7 +221,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4.2.3
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
         with:
           experimental: true
       - run: mise run install
@@ -247,7 +247,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4.2.3
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
         with:
           experimental: true
       - run: mise run install
@@ -271,7 +271,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4.2.3
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
         with:
           experimental: true
       - run: mise run install
@@ -319,7 +319,7 @@ jobs:
           cd cli/nav-pilot && staticcheck ./...
       - name: ShellCheck
         run: shellcheck scripts/install.sh
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4.2.3
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
         with:
           experimental: true
       - name: Run BATS
