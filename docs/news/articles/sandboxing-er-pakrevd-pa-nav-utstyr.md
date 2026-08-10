@@ -1,5 +1,5 @@
 ---
-title: "Sandboxing er påkrevd for agentarbeid på Nav-utstyr"
+title: "Sandboxing og isolasjon er påkrevd på Nav-utstyr"
 date: 2026-08-10
 author: starefossen
 category: praksis
@@ -21,14 +21,14 @@ Kravet gjelder alt agentarbeid på utstyret:
 - personlig utforsking og sideprosjekter
 
 Det er utstyret og tilgangene som må beskyttes. At oppgaven er personlig, reduserer
-ikke risikoen for at agenten får tilgang til credentials, secrets, filer eller
-interne tjenester på maskinen.
+ikke risikoen for at agenten får tilgang til filer, hemmeligheter,
+tilgangsinformasjon eller interne tjenester på maskinen.
 
 ## Bruk cplt
 
 [`cplt`](/cplt) er den anbefalte og enkleste måten å oppfylle kravet på. cplt
-starter agenten med OS-håndhevet isolasjon og begrenser blant annet tilgang til
-filer, credentials og nettverk.
+starter agenten med isolasjon som operativsystemet håndhever. Dette begrenser
+blant annet tilgangen til filer, tilgangsinformasjon og nettverk.
 
 ```bash
 brew install navikt/tap/cplt
@@ -46,9 +46,10 @@ Bruk cplt som standard fremfor å bygge din egen løsning.
 
 ## Hvis du ikke bruker cplt
 
-Du må selv sette deg inn i hvilken sandboxing agentklienten tilbyr, aktivere den
-og forstå hva den faktisk isolerer. Hvis klienten ikke tilbyr tilstrekkelig
-isolasjon, må du bruke en annen mekanisme, for eksempel en VM eller container.
+Du må selv sette deg inn i hvordan agentklienten isolerer agenten, aktivere denne
+funksjonen og forstå hva den faktisk beskytter. Hvis klienten ikke gir
+tilstrekkelig beskyttelse, må du bruke en annen mekanisme, for eksempel en VM
+eller container.
 
 Vi går ikke nærmere inn på oppsett av alternative løsninger her. Hovedregelen er
 enkel: Ikke kjør en AI-agent med ubegrenset tilgang til Nav-utstyret.

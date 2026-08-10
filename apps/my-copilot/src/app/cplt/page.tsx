@@ -178,10 +178,10 @@ function HeroSection({ stars }: { stars: number | null }) {
               }}
             >
               <p style={{ color: "#d1fae5", lineHeight: 1.6, margin: 0, textAlign: "left" }}>
-                <strong>Isolation is required on Nav-owned equipment.</strong> This applies to every AI-agent session,
-                whether the work is Nav-related or personal. Use cplt (recommended). If you choose another solution, you
-                are responsible for enabling and understanding the client&apos;s sandbox, or providing equivalent
-                isolation such as a VM or container.
+                <strong>Isolation is required on Nav-owned equipment.</strong> This applies to all AI agent work,
+                whether it is Nav-related or personal. Use cplt (recommended). If you choose another solution, you are
+                responsible for enabling and understanding the isolation provided by the agent client, or for providing
+                equivalent isolation with a VM or container.
               </p>
               <p style={{ marginBlock: "0.75rem 0 0", textAlign: "left" }}>
                 <NextLink

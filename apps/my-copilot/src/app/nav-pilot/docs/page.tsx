@@ -493,8 +493,9 @@ function IntroductionSection() {
                   cplt
                 </NextLink>{" "}
                 — det er den anbefalte og enkleste løsningen. Hvis du velger en annen løsning, må du selv sette deg inn
-                i og aktivere sandboxingen som agentklienten tilbyr, eller sørge for tilsvarende isolasjon med for
-                eksempel en VM eller container. Ikke kjør agenter med ubegrenset tilgang til Nav-utstyret.
+                i hvordan agentklienten isolerer agenten, og aktivere denne funksjonen. Hvis klienten ikke gir
+                tilstrekkelig beskyttelse, må du sørge for tilsvarende isolasjon, for eksempel med en VM eller
+                container. Ikke kjør agenter med ubegrenset tilgang til Nav-utstyret.
               </BodyLong>
               <BodyLong style={{ color: "#475569" }}>
                 <NextLink href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr" className="text-blue-600 hover:underline">
