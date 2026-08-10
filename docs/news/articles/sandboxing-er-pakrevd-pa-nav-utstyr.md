@@ -44,6 +44,24 @@ nav-pilot
 
 Bruk cplt som standard fremfor å bygge din egen løsning.
 
+### Valgfrie aliaser
+
+Bruker du zsh eller bash, kan du legge disse aliasene i `~/.zshrc` eller
+`~/.bashrc`:
+
+```bash
+alias copilot='cplt --'
+alias np='nav-pilot'
+```
+
+Det første aliaset sender vanlig bruk av `copilot` gjennom cplt. `--` gjør at
+Copilot-flagg sendes videre til Copilot CLI. Det andre er bare en kortform for
+`nav-pilot`, som allerede bruker cplt.
+
+Aliasene gjelder bare i terminalen. Agenter i VS Code, JetBrains og andre
+klienter må fortsatt bruke klientens sandboxing eller en annen
+isolasjonsmekanisme.
+
 ## Hvis du ikke bruker cplt
 
 Du må selv sette deg inn i hvordan agentklienten isolerer agenten, aktivere denne

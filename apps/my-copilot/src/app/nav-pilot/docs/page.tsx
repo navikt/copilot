@@ -649,6 +649,12 @@ function QuickStartSection() {
             </div>
             <CodeBlock compact>{`brew install navikt/tap/nav-pilot navikt/tap/cplt`}</CodeBlock>
             <AltInstall />
+            <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
+              Valgfritt for zsh eller bash: Legg{" "}
+              <code className="font-mono text-xs">alias copilot=&apos;cplt --&apos;</code> og{" "}
+              <code className="font-mono text-xs">alias np=&apos;nav-pilot&apos;</code> i shell-profilen din. Aliasene
+              gjelder bare i terminalen.
+            </BodyLong>
           </div>
 
           <div className="mt-6">
