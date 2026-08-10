@@ -8,8 +8,8 @@ nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot
 ## Kom i gang
 
 ```bash
-# Anbefalt: Homebrew (macOS) — verifisert supply chain
-brew install navikt/tap/nav-pilot
+# Anbefalt: Homebrew (macOS) — nav-pilot og påkrevd isolasjon
+brew install navikt/tap/nav-pilot navikt/tap/cplt
 
 # Linux / CI — last ned og inspiser skriptet manuelt:
 curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
@@ -28,6 +28,21 @@ nav-pilot
 nav-pilot install kotlin-backend
 ```
 
+## Sandboxing og isolasjon er påkrevd
+
+Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller
+tilsvarende isolasjon. Kravet gjelder både Nav-relatert og personlig agentarbeid.
+
+Bruk [`cplt`](https://github.com/navikt/cplt) — det er den anbefalte og enkleste
+måten å oppfylle kravet på. Hvis du velger en annen løsning, må du selv sette deg
+inn i hvordan agentklienten isolerer agenten, og aktivere denne funksjonen. Hvis
+klienten ikke gir tilstrekkelig beskyttelse, må du sørge for tilsvarende isolasjon,
+for eksempel med en VM eller container. Ikke kjør agenter med ubegrenset tilgang
+til Nav-utstyret.
+
+Les [kortversjonen av kravet](https://ki-utvikling.nav.no/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr)
+for en lenke du kan dele med andre.
+
 ## Klienter
 
 nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
@@ -38,10 +53,11 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 | `opencode` | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | `github-copilot/claude-sonnet-4.5` |
 | `pi` *(eksperimentell)* | `cplt` + `pi` | Via `AGENTS.md` i prosjektroten | Pis eget valg (`model`/`mode` videresendes ikke ennå) |
 
-> **Alle klienter startes i cplt-sandboxen.** nav-pilot kjører klienten via
-> `cplt --agent <klient>` slik at agenten er kjerne-nivå-sandboxet (kan lese/skrive
-> prosjektfiler, men når ikke SSH-nøkler, sky-credentials eller andre hemmeligheter).
-> `cplt` må derfor være installert for å starte `opencode` og `pi` (i tillegg til selve klient-binæren).
+> **Bruk cplt-sandboxen.** nav-pilot foretrekker `cplt` og kjører klienten via
+> `cplt --agent <klient>`. Agenten kan da lese og skrive prosjektfiler, men når
+> ikke SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter.
+> `cplt` må være installert for å starte `opencode` og `pi` (i tillegg til selve
+> klient-binæren).
 
 ### opencode — Nav-kontekst automatisk
 
