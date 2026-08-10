@@ -169,6 +169,30 @@ function HeroSection({ stars }: { stars: number | null }) {
             >
               Kernel-level isolation for AI coding agents. Your secrets stay secret — enforced by the OS, not by trust.
             </p>
+            <Box
+              padding="space-16"
+              className="max-w-2xl mx-auto rounded-lg"
+              style={{
+                background: "rgba(167,243,208,0.08)",
+                border: "1px solid rgba(167,243,208,0.3)",
+              }}
+            >
+              <p style={{ color: "#d1fae5", lineHeight: 1.6, margin: 0, textAlign: "left" }}>
+                <strong>Isolation is required on Nav-owned equipment.</strong> This applies to every AI-agent session,
+                whether the work is Nav-related or personal. Use cplt (recommended). If you choose another solution, you
+                are responsible for enabling and understanding the client&apos;s sandbox, or providing equivalent
+                isolation such as a VM or container.
+              </p>
+              <p style={{ marginBlock: "0.75rem 0 0", textAlign: "left" }}>
+                <NextLink
+                  href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr"
+                  className="underline"
+                  style={{ color: "#a7f3d0" }}
+                >
+                  Read the policy summary
+                </NextLink>
+              </p>
+            </Box>
             {/* GitHub badge */}
             <div className="flex justify-center">
               <NextLink

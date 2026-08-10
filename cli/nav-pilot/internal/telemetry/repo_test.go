@@ -1,7 +1,10 @@
 package telemetry
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -51,8 +54,17 @@ func TestNavRepoFromDir(t *testing.T) {
 			t.Fatalf("git init: %v\n%s", err, out)
 		}
 		if originURL != "" {
-			if out, err := exec.Command("git", "-C", dir, "remote", "add", "origin", originURL).CombinedOutput(); err != nil {
-				t.Fatalf("git remote add: %v\n%s", err, out)
+			config, err := os.OpenFile(filepath.Join(dir, ".git", "config"), os.O_APPEND|os.O_WRONLY, 0)
+			if err != nil {
+				t.Fatalf("open git config: %v", err)
+			}
+			_, writeErr := fmt.Fprintf(config, "\n[remote \"origin\"]\n\turl = %s\n", originURL)
+			closeErr := config.Close()
+			if writeErr != nil {
+				t.Fatalf("write git config: %v", writeErr)
+			}
+			if closeErr != nil {
+				t.Fatalf("close git config: %v", closeErr)
 			}
 		}
 		return dir

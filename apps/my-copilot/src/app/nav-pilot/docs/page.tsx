@@ -41,6 +41,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Introduksjon",
     children: [
       { id: "hva-er-nav-pilot", label: "Hva er nav-pilot?" },
+      { id: "isolasjon-er-pakrevd", label: "Isolasjon er påkrevd" },
       { id: "hvorfor-nav-pilot", label: "Hvorfor nav-pilot?" },
       { id: "hva-nav-pilot-vet", label: "Hva nav-pilot vet" },
     ],
@@ -476,6 +477,35 @@ function IntroductionSection() {
           </HGrid>
         </div>
 
+        <VStack id="isolasjon-er-pakrevd" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Isolasjon er påkrevd på Nav-utstyr
+          </LinkableHeading>
+          <Box background="warning-soft" borderRadius="8" padding="space-16">
+            <VStack gap="space-8">
+              <BodyLong style={{ color: "#475569" }}>
+                Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende isolasjon.
+                Kravet gjelder både Nav-relatert og personlig agentarbeid.
+              </BodyLong>
+              <BodyLong style={{ color: "#475569" }}>
+                Bruk{" "}
+                <NextLink href="/cplt" className="text-blue-600 hover:underline">
+                  cplt
+                </NextLink>{" "}
+                — det er den anbefalte og enkleste løsningen. Hvis du velger en annen løsning, må du selv sette deg inn
+                i og aktivere sandboxingen som agentklienten tilbyr, eller sørge for tilsvarende isolasjon med for
+                eksempel en VM eller container. Ikke kjør agenter med ubegrenset tilgang til Nav-utstyret.
+              </BodyLong>
+              <BodyLong style={{ color: "#475569" }}>
+                <NextLink href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr" className="text-blue-600 hover:underline">
+                  Les kortversjonen av kravet
+                </NextLink>{" "}
+                for en lenke du kan dele med andre.
+              </BodyLong>
+            </VStack>
+          </Box>
+        </VStack>
+
         {/* Why nav-pilot */}
         <div id="hvorfor-nav-pilot">
           <LinkableHeading size="small" level="3">
@@ -616,7 +646,7 @@ function QuickStartSection() {
                 Installer nav-pilot CLI
               </Label>
             </div>
-            <CodeBlock compact>{`brew install navikt/tap/nav-pilot`}</CodeBlock>
+            <CodeBlock compact>{`brew install navikt/tap/nav-pilot navikt/tap/cplt`}</CodeBlock>
             <AltInstall />
           </div>
 
@@ -660,7 +690,7 @@ nav-pilot`}
                 </Label>
                 <div className="mt-1">
                   <CodeBlock compact>
-                    {`copilot --agent nav-pilot --prompt "Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
+                    {`cplt -- --agent nav-pilot --prompt "Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
                   </CodeBlock>
                 </div>
               </div>
@@ -1923,8 +1953,16 @@ function CliReferenceSection() {
             Installer CLI
           </LinkableHeading>
           <div className="mt-4">
-            <CodeBlock compact>{`brew install navikt/tap/nav-pilot`}</CodeBlock>
-            <AltInstall />
+            <VStack gap="space-12">
+              <div>
+                <CodeBlock compact>{`brew install navikt/tap/nav-pilot`}</CodeBlock>
+                <AltInstall />
+              </div>
+              <BodyLong size="small" style={{ color: "#64748b" }}>
+                Installer også <code className="font-mono text-xs">cplt</code> før du starter en agent. Sandboxing er et
+                krav på Nav-utstyr.
+              </BodyLong>
+            </VStack>
           </div>
         </div>
 
