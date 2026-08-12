@@ -1141,6 +1141,13 @@ func TestConfigAdvisories_NonCopilotModel_NoWarning(t *testing.T) {
 	}
 }
 
+func TestConfigAdvisories_KnownOpenCodeModel_NoWarning(t *testing.T) {
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/claude-opus-4.6\"\n")
+	if w := configAdvisories(cfg, meta); len(w) != 0 {
+		t.Errorf("configAdvisories() = %v, want no warnings for known opencode model", w)
+	}
+}
+
 func TestConfigAdvisories_UnrecognizedOpenCodeModel(t *testing.T) {
 	// Valid shape but not in the Nav-curated list → soft advisory.
 	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"anthropic/claude-3-5-sonnet\"\n")
