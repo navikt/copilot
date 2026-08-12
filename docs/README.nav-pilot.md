@@ -176,8 +176,9 @@ globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
   `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
 - opencode (startes via cplt → GitHub Copilot-provider): bruk `github-copilot/<id>`,
   f.eks. `github-copilot/auto` (Nav-standard), `github-copilot/claude-opus-4.8`,
-  `github-copilot/gpt-5.5`. Modellen må være på `provider/model`-format (med `/`);
-  `auto` eller tom verdi faller tilbake til Nav-standarden `github-copilot/auto`.
+  `github-copilot/gpt-5.5`. Modellen i config må være på `provider/model`-format
+  (med `/`). `--model auto` på CLI (eller tom CLI-verdi) normaliseres til
+  Nav-standarden `github-copilot/auto`.
 
 Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient.
 `nav-pilot config explain model` lister opp de kurerte id-ene.
