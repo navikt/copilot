@@ -1766,8 +1766,7 @@ function KlienterOgKonfigurasjonSection() {
                 desc: (
                   <>
                     Når ingen modell er konfigurert, settes{" "}
-							<code className="font-mono text-xs">github-copilot/auto</code> som Nav-standard for
-                    opencode.
+                    <code className="font-mono text-xs">github-copilot/auto</code> som Nav-standard for opencode.
                   </>
                 ),
                 color: "#3b82f6",

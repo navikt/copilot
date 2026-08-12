@@ -89,6 +89,10 @@ Veiviseren viser en **velger** med Nav-kurerte modeller per provider
 - Copilot: `knownCopilotModels` — inkluderer `auto`, Claude Sonnet/Haiku/Opus, GPT-5.x, Gemini
 - opencode: `knownOpenCodeModels` — Nav-anbefalt `github-copilot/auto` som standard
 
+Ved oppstart med `--client opencode` normaliseres modellverdien med `ToOpenCodeModel`:
+tom verdi eller `auto` blir `github-copilot/auto`, og bare Copilot-id-er (som
+`claude-sonnet-4.6`) prefikses til `github-copilot/<id>`.
+
 En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
 `nav-pilot config explain model` lister opp de kjente id-ene per provider.
 
