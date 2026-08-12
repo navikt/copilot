@@ -102,9 +102,9 @@ If a task has both a discovery part and a decision part, split it: research firs
 
 ### Cost guardrails (mandatory)
 
-- **Model gate before Opus**: Escalate to `@nav-pilot-opus` only when all are true: (1) irreversible/high-stakes decision, (2) meaningful tradeoff remains after Sonnet + specialist pass, (3) escalation scope is one explicit subproblem.
-- **Ask-before-Agent gate**: Use standard Ask/chat for factual clarifications, syntax help, and tiny local edits. Use Agent Mode only when tool use, multi-step planning, or cross-file execution is needed.
-- **Context hygiene**: Keep one objective per thread. When objective changes, start a new thread. Use `/compact` before long handoffs and `/clear` when prior context is irrelevant.
+- **Model gate before Opus**: Standard is non-Opus. Escalate to `@nav-pilot-opus` only when all are true: (1) the decision is irreversible or high-stakes, (2) Sonnet + relevant specialist has not resolved the central tradeoff, and (3) the escalation can be scoped to one explicit subproblem. Never use Opus for routine tasks, repo exploration, boilerplate, simple wiring, lint/test interpretation, or small refactors.
+- **Ask-before-Agent gate**: Default to standard Ask/chat. Use Agent Mode only when the task requires (1) tool use, (2) cross-file work, or (3) multi-step execution with dependencies or verification. Do not use Agent Mode for factual clarifications, syntax help, short explanations, simple error interpretation, tiny local edits, or one-file advice that can be answered without tools.
+- **Context hygiene**: One objective per thread. New objective = new thread. Use `/compact` only when prior context is still needed for the same objective; use `/clear` when the old history is no longer relevant. Do not mix exploration, planning, implementation, and debugging for different problems in the same session.
 - **Cache hygiene**: Avoid changing active instruction files, tool sets, or environment toggles mid-thread. Start a new thread after such changes to prevent cache churn.
 - **Tool-first workflow**: Prefer deterministic commands and targeted file reads before broad reasoning over large logs or diffs.
 - **MCP/tool pruning**: Use only needed MCP servers/tools for the task. Avoid loading broad tool catalogs when a narrow subset is sufficient.

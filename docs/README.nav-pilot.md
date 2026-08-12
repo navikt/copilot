@@ -50,7 +50,7 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 | Klient | Binær | Nav-kontekst | Standard modell |
 |---|---|---|---|
 | `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
-| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | `github-copilot/claude-sonnet-4.5` |
+| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | `github-copilot/auto` |
 | `pi` *(eksperimentell)* | `cplt` + `pi` | Via `AGENTS.md` i prosjektroten | Pis eget valg (`model`/`mode` videresendes ikke ennå) |
 
 > **Bruk cplt-sandboxen.** nav-pilot foretrekker `cplt` og kjører klienten via
@@ -175,9 +175,9 @@ globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
   `gpt-5.3-codex`, `gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.6-flash`,
   `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
 - opencode (startes via cplt → GitHub Copilot-provider): bruk `github-copilot/<id>`,
-  f.eks. `github-copilot/claude-sonnet-4.5` (Nav-standard), `github-copilot/claude-opus-4.8`,
+  f.eks. `github-copilot/auto` (Nav-standard), `github-copilot/claude-opus-4.8`,
   `github-copilot/gpt-5.5`. Modellen må være på `provider/model`-format (med `/`);
-  `auto` eller tom verdi faller tilbake til Nav-standarden `github-copilot/claude-sonnet-4.5`.
+  `auto` eller tom verdi faller tilbake til Nav-standarden `github-copilot/auto`.
 
 Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient.
 `nav-pilot config explain model` lister opp de kurerte id-ene.
