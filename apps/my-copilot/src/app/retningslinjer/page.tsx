@@ -117,7 +117,39 @@ export default function RetningslinjerPage() {
                     MCP-servere utenfor Nav-katalogen kan sende kode og kontekst til eksterne tjenester. Bruk kun
                     godkjente servere fra Verktøy-siden.
                   </ForbiddenItem>
+                  <ForbiddenItem title="Agenter uten isolasjon">
+                    Å kjøre AI-agenter med ubegrenset tilgang til Nav-utstyr er ikke tillatt. Bruk cplt eller
+                    tilsvarende isolasjon — også for personlig agentarbeid på utstyret.
+                  </ForbiddenItem>
                 </HGrid>
+              </VStack>
+            </Section>
+
+            {/* Sandboxing / isolasjon */}
+            <Section icon={<ShieldLockIcon aria-hidden />} title="Krav: agenter skal kjøre isolert">
+              <VStack gap="space-8">
+                <BodyLong>
+                  Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende isolasjon.
+                  Kravet gjelder all agentbruk på utstyret — både Nav-relatert arbeid og personlig agentarbeid.
+                </BodyLong>
+                <BodyLong>
+                  Bruk{" "}
+                  <NextLink href="/cplt" className="text-blue-600 hover:underline">
+                    cplt
+                  </NextLink>{" "}
+                  — Navs egen sandbox for AI-agenter. Velger du en annen løsning, må du selv sette deg inn i og aktivere
+                  isolasjonen agentklienten tilbyr, eller bruke en annen mekanisme (for eksempel VM eller container).
+                  Ikke kjør agenter med ubegrenset tilgang til maskinen.
+                </BodyLong>
+                <BodyLong>
+                  <NextLink
+                    href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Les mer om kravet
+                  </NextLink>
+                  .
+                </BodyLong>
               </VStack>
             </Section>
 
@@ -218,6 +250,13 @@ export default function RetningslinjerPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr className="border-b">
+                      <td className="py-2 pr-4 whitespace-nowrap">2026-08-13</td>
+                      <td className="py-2">
+                        Lagt til krav om at AI-agenter skal kjøre isolert (sandbox) på Nav-utstyr, med cplt som anbefalt
+                        løsning. Gjelder også personlig agentarbeid.
+                      </td>
+                    </tr>
                     <tr className="border-b">
                       <td className="py-2 pr-4 whitespace-nowrap">2026-05-05</td>
                       <td className="py-2">
