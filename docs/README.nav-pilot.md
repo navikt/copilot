@@ -43,6 +43,48 @@ til Nav-utstyret.
 Les [kortversjonen av kravet](https://ki-utvikling.nav.no/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr)
 for en lenke du kan dele med andre.
 
+### Sikkerhetsvakter (anbefalt)
+
+`cplt` har tre sikkerhetsvakter som er skrudd av som standard. Aktiver dem
+med:
+
+```bash
+nav-pilot config security
+```
+
+| Innstilling | Hva den gjør | Standard |
+|---|---|---|
+| `gh_guard` | Blokkerer destruktive GitHub-operasjoner (`gh pr merge`, `gh repo delete`, org-API) | Av |
+| `git_guard` | Blokkerer `git push` uten eksplisitt godkjenning | Av |
+| `proxy.forced` | Tvinger all nettverkstrafikk gjennom cplt-proxyen — hindrer rå socket-bypass | Av |
+| `proxy.default_allowlist` | Fail-closed domenefilter: kun allowlistede domener slipper gjennom | Av |
+
+Når du aktiverer `proxy.default_allowlist` i `nav-pilot config security`, kan du
+lime inn domener eller hele URL-er. nav-pilot normaliserer input til kun host
+(for eksempel `https://api.github.com/repos/...` → `api.github.com`) og skriver
+listen til `~/.config/cplt/allowed-domains.txt`. Stien settes automatisk i
+`proxy.allowed_domains`.
+
+Brukeren eier alltid konfigurasjonen og kan overstyre når som helst:
+
+```bash
+# Skru av guard
+cplt config set gh_guard.enabled false
+
+# Bytt til audit-modus (logger men blokkerer ikke)
+cplt config set gh_guard.mode audit
+cplt config set git_guard.mode audit
+
+# Skru av proxy.forced
+cplt config set proxy.forced false
+
+# Skru av fail-closed allowlist
+cplt config set proxy.default_allowlist false
+```
+
+> **Merk:** `gh_guard`, `git_guard`, `proxy.forced` og `proxy.default_allowlist` er globale cplt-innstillinger
+> og kan ikke settes i `.cplt.toml`. De gjelder alle prosjekter på maskinen.
+
 ## Klienter
 
 nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):

@@ -368,6 +368,7 @@ Apply silently when detected. Do NOT ask users to invoke skills manually.
 - Adding new GCP resources (cost implications)
 - Changing Kafka topic configuration
 - Proposing architecture that deviates from Nav standards
+- Running in autopilot mode (`ask_user = false`) — confirm that `gh_guard` and `git_guard` are active in cplt before proceeding autonomously (`cplt config show | grep guard`)
 
 ### 🚫 Never
 - Do work belonging to a later phase in the same response **when on full-tier** (Phase integrity rule applies to full-tier only — compressed/trivial may show multiple phases in one response by design)

@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
+	"slices"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -34,16 +37,19 @@ func cmdConfigSandbox() error {
 		return fmt.Errorf("prompt cancelled: %w", err)
 	}
 
+	// One shared context for the entire operation — 30s is generous enough for
+	// cold-start CI environments (antivirus, IO locks) while still bounding hangs.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	keys := []string{"sandbox.allow_docker", "sandbox.allow_localhost_any", "sandbox.allow_browser", "sandbox.allow_tmp_exec"}
 	for _, key := range keys {
-		val := "false"
-		for _, c := range choices {
-			if c == key {
-				val = "true"
-				break
-			}
+		val := slices.Contains(choices, key)
+		valStr := "false"
+		if val {
+			valStr = "true"
 		}
-		out, err := exec.Command(cliPath, "config", "set", key, val).CombinedOutput()
+		out, err := exec.CommandContext(ctx, cliPath, "config", "set", key, valStr).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to set %s: %v\n%s", key, err, string(out))
 		}

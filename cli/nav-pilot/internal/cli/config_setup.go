@@ -285,6 +285,10 @@ func runConfigSetup() error {
 	fmt.Printf("    %s\n", dim("edit "+path+" directly"))
 	fmt.Printf("    %s\n", dim("pass CLI flags per run (e.g. --client opencode)"))
 	fmt.Println()
+	fmt.Printf("  %s Run %s to enable security guards\n", bold("💡"), bold("nav-pilot config security"))
+	fmt.Printf("    %s\n", dim("Activates gh_guard and git_guard in cplt — blocks destructive agent operations"))
+	fmt.Printf("    %s\n", dim("Also prompts for proxy.forced and proxy.default_allowlist (fail-closed domains)"))
+	fmt.Println()
 
 	return nil
 }
