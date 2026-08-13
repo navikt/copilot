@@ -429,6 +429,7 @@
         "write_etterlevelse_dokumentasjon",
         "list_krav",
         "get_krav",
+        "get_krav_for_gjennomgang",
         "get_etterlevelse",
         "write_etterlevelse",
         "delete_etterlevelse",
