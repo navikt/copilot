@@ -114,6 +114,10 @@ func TestCopilotProvider_ModelAdvisory(t *testing.T) {
 	if msg := p.ModelAdvisory("claude-sonnet-4.6"); msg != "" {
 		t.Errorf("ModelAdvisory(known) = %q, want empty", msg)
 	}
+	// Regression: claude-opus-5 is GA in Copilot and must not warn (#425).
+	if msg := p.ModelAdvisory("claude-opus-5"); msg != "" {
+		t.Errorf("ModelAdvisory(claude-opus-5) = %q, want empty", msg)
+	}
 	if msg := p.ModelAdvisory("sonnet"); msg == "" {
 		t.Error("ModelAdvisory(unknown) = empty, want advisory")
 	}
