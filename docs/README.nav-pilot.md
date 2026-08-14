@@ -169,10 +169,11 @@ globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 > cplt/copilot/opencode automatisk uten «Launch X now?»-bekreftelsen.
 
 **Modell per klient:**
-- Copilot: `auto`, `claude-opus-5`, `claude-sonnet-5`, `claude-sonnet-4.6`,
-  `claude-haiku-4.5`, `claude-opus-4.8`, `gpt-5.6-sol`, `gpt-5.6-terra`,
-  `gpt-5.5`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini`, `gemini-3.6-flash`,
-  `gemini-3.1-pro-preview`, `kimi-k2.7-code`, `kimi-k3`
+- Copilot: `auto`, `claude-opus-5`, `claude-fable-5`, `claude-sonnet-5`,
+  `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.8`, `claude-opus-4.6`,
+  `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`,
+  `gpt-5.3-codex`, `gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.6-flash`,
+  `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
 - opencode (startes via cplt → GitHub Copilot-provider): bruk `github-copilot/<id>`,
   f.eks. `github-copilot/claude-sonnet-4.5` (Nav-standard), `github-copilot/claude-opus-4.8`,
   `github-copilot/gpt-5.5`. Modellen må være på `provider/model`-format (med `/`);

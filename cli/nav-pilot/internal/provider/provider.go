@@ -91,17 +91,19 @@ var knownCopilotModels = []domain.ModelChoice{
 	{ID: "kimi-k3", Label: "Kimi K3"},
 }
 
-var knownOpenCodeModels = []domain.ModelChoice{
-	{ID: OpenCodeDefaultModel, Label: "Claude Sonnet 4.5 (Nav default)"},
-	{ID: "github-copilot/claude-opus-5", Label: "Claude Opus 5"},
-	{ID: "github-copilot/claude-sonnet-5", Label: "Claude Sonnet 5"},
-	{ID: "github-copilot/claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
-	{ID: "github-copilot/claude-opus-4.8", Label: "Claude Opus 4.8"},
-	{ID: "github-copilot/claude-haiku-4.5", Label: "Claude Haiku 4.5"},
-	{ID: "github-copilot/gpt-5.6-terra", Label: "GPT-5.6 Terra"},
-	{ID: "github-copilot/gpt-5.5", Label: "GPT-5.5"},
-	{ID: "github-copilot/gpt-5.4", Label: "GPT-5.4"},
-}
+// knownOpenCodeModels mirrors knownCopilotModels under the github-copilot
+// provider prefix, so a bare Copilot id never triggers the opencode advisory
+// after ToOpenCodeModel mapping.
+var knownOpenCodeModels = func() []domain.ModelChoice {
+	models := []domain.ModelChoice{{ID: OpenCodeDefaultModel, Label: "Claude Sonnet 4.5 (Nav default)"}}
+	for _, m := range knownCopilotModels {
+		if m.ID == "auto" {
+			continue
+		}
+		models = append(models, domain.ModelChoice{ID: openCodeProviderPrefix + m.ID, Label: m.Label})
+	}
+	return models
+}()
 
 // ToOpenCodeModel maps a configured model id to an opencode model id for the
 // github-copilot provider that cplt connects opencode to. Empty or "auto" use
