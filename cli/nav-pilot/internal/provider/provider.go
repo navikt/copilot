@@ -64,28 +64,41 @@ const OpenCodeAgentPersona = "nav-pilot"
 // opencode against. Bare Copilot-style model ids are mapped under it.
 const openCodeProviderPrefix = "github-copilot/"
 
+// Curated model lists. Source of truth for ids: models.dev github-copilot
+// provider. Keep pinned (no dynamic fetch) — update when Copilot ships new
+// models.
 var knownCopilotModels = []domain.ModelChoice{
 	{ID: "auto", Label: "Auto (let Copilot pick)"},
+	{ID: "claude-opus-5", Label: "Claude Opus 5"},
+	{ID: "claude-fable-5", Label: "Claude Fable 5"},
 	{ID: "claude-sonnet-5", Label: "Claude Sonnet 5"},
-	{ID: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6 (default)"},
+	{ID: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
 	{ID: "claude-haiku-4.5", Label: "Claude Haiku 4.5"},
 	{ID: "claude-opus-4.8", Label: "Claude Opus 4.8"},
 	{ID: "claude-opus-4.6", Label: "Claude Opus 4.6"},
+	{ID: "gpt-5.6-sol", Label: "GPT-5.6 Sol"},
+	{ID: "gpt-5.6-terra", Label: "GPT-5.6 Terra"},
+	{ID: "gpt-5.6-luna", Label: "GPT-5.6 Luna"},
 	{ID: "gpt-5.5", Label: "GPT-5.5"},
 	{ID: "gpt-5.4", Label: "GPT-5.4"},
 	{ID: "gpt-5.3-codex", Label: "GPT-5.3-Codex"},
 	{ID: "gpt-5.4-mini", Label: "GPT-5.4 mini"},
 	{ID: "gpt-5-mini", Label: "GPT-5 mini"},
+	{ID: "gemini-3.6-flash", Label: "Gemini 3.6 Flash"},
 	{ID: "gemini-3.1-pro-preview", Label: "Gemini 3.1 Pro (Preview)"},
 	{ID: "gemini-3.5-flash", Label: "Gemini 3.5 Flash"},
+	{ID: "kimi-k2.7-code", Label: "Kimi K2.7 Code"},
+	{ID: "kimi-k3", Label: "Kimi K3"},
 }
 
 var knownOpenCodeModels = []domain.ModelChoice{
 	{ID: OpenCodeDefaultModel, Label: "Claude Sonnet 4.5 (Nav default)"},
+	{ID: "github-copilot/claude-opus-5", Label: "Claude Opus 5"},
 	{ID: "github-copilot/claude-sonnet-5", Label: "Claude Sonnet 5"},
 	{ID: "github-copilot/claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
 	{ID: "github-copilot/claude-opus-4.8", Label: "Claude Opus 4.8"},
 	{ID: "github-copilot/claude-haiku-4.5", Label: "Claude Haiku 4.5"},
+	{ID: "github-copilot/gpt-5.6-terra", Label: "GPT-5.6 Terra"},
 	{ID: "github-copilot/gpt-5.5", Label: "GPT-5.5"},
 	{ID: "github-copilot/gpt-5.4", Label: "GPT-5.4"},
 }
