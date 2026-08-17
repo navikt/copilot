@@ -132,7 +132,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # ratchet:jdx/mise-action@v4.2.5
         with:
           experimental: true
       - id: version
@@ -185,7 +185,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # ratchet:jdx/mise-action@v4.2.5
         with:
           experimental: true
       - name: Run setup tasks
@@ -235,7 +235,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # ratchet:jdx/mise-action@v4.2.5
         with:
           experimental: true
       - name: Run setup tasks
@@ -286,7 +286,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4.2.4
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # ratchet:jdx/mise-action@v4.2.5
         with:
           experimental: true
       - name: Run setup tasks
@@ -315,7 +315,7 @@ jobs:
       telemetry: ${{ steps.docker-push.outputs.telemetry }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-      - uses: nais/docker-build-push@2d2b0a7193e65422b7f0355d4afb445e0a8b2cc3 # ratchet:nais/docker-build-push@v0
+      - uses: nais/docker-build-push@8e41f1f58749b9248e376c25d33bfbdd2b1163c0 # ratchet:nais/docker-build-push@v0
         id: docker-push
         with:
           team: ${{ inputs.nais-team }}
