@@ -87,7 +87,12 @@ Copilot-id som `claude-opus-4.8` gir hard feil for opencode-provideren.
 Veiviseren viser en **velger** med Nav-kurerte modeller per provider
 (`KnownModels()` fra `Provider`-grensesnittet):
 - Copilot: `knownCopilotModels` — inkluderer `auto`, Claude Sonnet/Haiku/Opus, GPT-5.x, Gemini
-- opencode: `knownOpenCodeModels` — Nav-anbefalt `anthropic/claude-sonnet-4-5` som standard
+- opencode: `knownOpenCodeModels` — Nav-anbefalt `github-copilot/auto` som standard
+
+Ved oppstart med `--client opencode` normaliseres **CLI-overstyringen** `--model`
+med `ToOpenCodeModel`: tom verdi eller `auto` blir `github-copilot/auto`, og bare
+Copilot-id-er (som `claude-sonnet-4.6`) prefikses til `github-copilot/<id>`.
+Konfigverdi for opencode må fortsatt være på `provider/model`-format.
 
 En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
 `nav-pilot config explain model` lister opp de kjente id-ene per provider.
@@ -158,7 +163,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 
 | nav-pilot konfig | opencode-flagg | Merknad |
 |---|---|---|
-| `model` | `--model` | Krever `provider/model` (f.eks. `anthropic/claude-sonnet-4-5`); Nav-standard er `anthropic/claude-sonnet-4-5` når unset |
+| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-sonnet-4.6`); Nav-standard er `github-copilot/auto` når unset |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
 | `allow_all_tools` | `--dangerously-skip-permissions` | |

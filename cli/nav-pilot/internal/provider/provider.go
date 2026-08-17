@@ -51,10 +51,12 @@ type Provider interface {
 	PrintSystemDiagnostics()
 }
 
-// OpenCodeDefaultModel is the Nav-curated default model for opencode. opencode
-// is always launched inside cplt, which connects it to the GitHub Copilot
-// provider, so the model id uses the github-copilot/<id> form (see models.dev).
-const OpenCodeDefaultModel = "github-copilot/claude-sonnet-4.5"
+// OpenCodeDefaultModel is the Nav-curated default model selector for opencode.
+// opencode is always launched inside cplt, which connects it to the GitHub
+// Copilot provider, so the model id uses the github-copilot/<id> form.
+// Prefer Copilot Auto so default routing can follow the current
+// cost/quality frontier instead of a historically pinned model.
+const OpenCodeDefaultModel = "github-copilot/auto"
 
 // OpenCodeAgentPersona is the materialized opencode primary agent that loads
 // Nav's context and persona. Mirrors CopilotAgentPersona for the copilot client.
@@ -95,7 +97,7 @@ var knownCopilotModels = []domain.ModelChoice{
 // provider prefix, so a bare Copilot id never triggers the opencode advisory
 // after ToOpenCodeModel mapping.
 var knownOpenCodeModels = func() []domain.ModelChoice {
-	models := []domain.ModelChoice{{ID: OpenCodeDefaultModel, Label: "Claude Sonnet 4.5 (Nav default)"}}
+	models := []domain.ModelChoice{{ID: OpenCodeDefaultModel, Label: "Auto (Nav default)"}}
 	for _, m := range knownCopilotModels {
 		if m.ID == "auto" {
 			continue

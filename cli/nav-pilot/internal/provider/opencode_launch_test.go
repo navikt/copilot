@@ -22,6 +22,7 @@ func TestToOpenCodeModel(t *testing.T) {
 		{"  ", OpenCodeDefaultModel},
 		{"claude-sonnet-4.6", "github-copilot/claude-sonnet-4.6"},
 		{"gpt-5.5", "github-copilot/gpt-5.5"},
+		{"github-copilot/auto", "github-copilot/auto"},
 		{"github-copilot/claude-opus-4.8", "github-copilot/claude-opus-4.8"},
 		{"anthropic/claude-3-5-sonnet", "anthropic/claude-3-5-sonnet"},
 		{"  claude-haiku-4.5 ", "github-copilot/claude-haiku-4.5"},

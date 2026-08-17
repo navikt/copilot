@@ -26,10 +26,17 @@ const CLIENT_LABEL: Record<ClientId, string> = {
 };
 
 const COLLECTION_MODEL: Record<CollectionId, string> = {
-  "kotlin-backend": "github-copilot/claude-sonnet-4.5",
-  "nextjs-frontend": "github-copilot/claude-sonnet-4.5",
-  fullstack: "github-copilot/claude-opus-4.6",
+  "kotlin-backend": "auto",
+  "nextjs-frontend": "auto",
+  fullstack: "claude-opus-4.6",
 };
+
+function launchModelForClient(client: ClientId, model: string): string {
+  if (client === "opencode") {
+    return model.includes("/") ? model : `github-copilot/${model}`;
+  }
+  return model;
+}
 
 const COLLECTION_LABEL: Record<CollectionId, string> = {
   "kotlin-backend": "Kotlin-backend",
@@ -43,7 +50,7 @@ const COLLECTION_LABEL: Record<CollectionId, string> = {
  */
 export function buildCommands(sel: BuilderSelection): BuiltCommands {
   const clientLabel = CLIENT_LABEL[sel.client];
-  const model = COLLECTION_MODEL[sel.collection];
+  const model = launchModelForClient(sel.client, COLLECTION_MODEL[sel.collection]);
 
   if (sel.surface === "editor") {
     return {

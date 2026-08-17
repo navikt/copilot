@@ -1585,7 +1585,7 @@ const CONFIG_KEYS = [
   {
     key: "model",
     flag: "--model",
-    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); anthropic/claude-sonnet-4-5 (opencode)",
+    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/auto (opencode)",
     desc: "Modell å bruke. Format avhenger av klient.",
   },
   {
@@ -1766,8 +1766,7 @@ function KlienterOgKonfigurasjonSection() {
                 desc: (
                   <>
                     Når ingen modell er konfigurert, settes{" "}
-                    <code className="font-mono text-xs">anthropic/claude-sonnet-4-5</code> som Nav-standard for
-                    opencode.
+                    <code className="font-mono text-xs">github-copilot/auto</code> som Nav-standard for opencode.
                   </>
                 ),
                 color: "#3b82f6",
@@ -1870,7 +1869,7 @@ function KlienterOgKonfigurasjonSection() {
 client = "opencode"
 
 # Modell (format avhenger av klient)
-model = "anthropic/claude-sonnet-4-5"
+model = "github-copilot/auto"
 
 # Modus (default | plan | autopilot) — kun Copilot
 # mode = "default"

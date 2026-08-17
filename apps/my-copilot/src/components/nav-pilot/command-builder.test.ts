@@ -8,8 +8,18 @@ describe("buildCommands", () => {
       surface: "terminal",
       collection: "kotlin-backend",
     });
-    expect(cmd.launch).toBe("nav-pilot --client copilot --model github-copilot/claude-sonnet-4.5");
+    expect(cmd.launch).toBe("nav-pilot --client copilot --model auto");
     expect(cmd.clientLabel).toBe("GitHub Copilot CLI");
+  });
+
+  it("prefixes opencode models with the GitHub Copilot provider", () => {
+    const cmd = buildCommands({
+      client: "opencode",
+      surface: "terminal",
+      collection: "kotlin-backend",
+    });
+    expect(cmd.launch).toContain("--client opencode");
+    expect(cmd.launch).toContain("github-copilot/auto");
   });
 
   it("uses opus for the fullstack collection", () => {
