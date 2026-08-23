@@ -111,6 +111,44 @@ val mapper = jacksonMapperBuilder()
 
 Search for `ObjectMapper()` followed by `.apply`, `.registerModule`, `.configure`, `.enable`, `.disable`, `.setXxx` calls outside a builder chain — these are the highest-risk pattern in Kotlin codebases and fail silently rather than with a compile error (full before/after in the reference file).
 
+### `JsonNode.map()` shadows Kotlin's `Iterable.map` (Jackson 3.1+)
+
+**The single most widespread Kotlin breakage in this migration** — and one OpenRewrite does not touch. Jackson 3.1 added a member method on `JsonNode` ([jackson-databind#5579](https://github.com/FasterXML/jackson-databind/issues/5579)):
+
+```java
+public <R> R map(Function<? super JsonNode, ? extends R> mapper) { return mapper.apply(this); }
+```
+
+`JsonNode` still implements `Iterable<JsonNode>`, and **Kotlin resolves members before extensions**, so every existing `jsonNode.map { ... }` silently stops calling `kotlin.collections.map` (iterate array/object children → `List<R>`) and instead calls the new member (apply the lambda once to the node itself → a single `R`).
+
+```kotlin
+// before (Jackson 2, or Jackson 3.0.x) — List<String> of the array's elements
+val behov = packet["@behov"].map { it.asString() }
+
+// on Jackson 3.1+, unchanged source now means: mapper.apply(wholeArrayNode) → one String
+```
+
+Fix by making the receiver an ordinary Kotlin collection first:
+
+```kotlin
+// preferred: values() is the same children view JsonNode.iterator() uses — no copy
+val behov = packet["@behov"].values().map { it.asString() }
+
+// equally correct, and what most Nav repos already use — one extra list allocation
+val behov = packet["@behov"].toList().map { it.asString() }
+
+// null-safe chains need the conversion inside the chain
+val orgnumre = godkjenning["orgnummere"]?.toList()?.map(JsonNode::asString).orEmpty()
+```
+
+- Applies to method references too — `node.map(JsonNode::asString)` is SAM-converted onto the member just the same.
+- **Usually, but not always, a compile error.** It typically surfaces as `Unresolved reference` / type mismatch on the *next* call in the chain (`.containsAll(...)`, `.sorted()`, `.takeUnless(List<*>::isEmpty)`). It compiles silently — and ships a behavior change — when the single result happens to fit: the lambda returns `String` and the chain continues with `CharSequence` extensions (`first()`, `take()`, `isEmpty()`, `filter { }`, `none { }`), or the result is only interpolated into a string, passed as `Any`, or fed to a generic parameter.
+- **Only `map` is affected.** `filter`, `filterNot`, `flatMap`, `mapNotNull`, `any`, `none`, `first`, `sortedBy` have no `JsonNode` member and still resolve to the Kotlin extensions — including on a `List` produced by an earlier `filter`, which is why `node.filterNot { ... }.map { ... }` is already safe. `forEach` resolves to `java.lang.Iterable.forEach(Consumer)`, which behaves identically.
+- The `asIterable()` workaround suggested in the issue thread does **not** exist as a Kotlin stdlib extension on `Iterable` — use `values()` or `toList()`.
+- A project pinned to Jackson **3.0.x** will not see this at all; it appears the moment the version is bumped to 3.1+. Since 3.1 is the LTS line to target, treat it as part of every migration.
+
+See [references/kotlin-cleanup.md](references/kotlin-cleanup.md) for how to find every call site, including a bytecode check that catches the silently-compiling ones.
+
 ### Nav-specific gotcha: fields/properties starting with æ, ø, å
 
 **Extremely sneaky** — not a compile error, not a migration-specific bug, but very likely to surface (or resurface) exactly when an `ObjectMapper`/`JsonMapper` gets rebuilt during this migration. Jackson's default accessor-naming validator treats the first character of a derived property name strictly (roughly: must be an ASCII letter), so Kotlin properties/Java fields whose *first character* is `æ`, `ø`, or `å` (very common in Norwegian domain models, e.g. `årsak`, `øknad`) get silently rejected as valid getter/setter targets — the property is dropped from (de)serialization with no exception, no warning.
@@ -147,9 +185,10 @@ dependencies {
 
 1. `./gradlew build` (or project's equivalent) — compile errors will surface most renamed classes/methods immediately.
 2. Run the full test suite — immutable `ObjectMapper` misconfiguration and default-setting changes (e.g. `FAIL_ON_TRAILING_TOKENS` now on by default) typically show up as test failures, not compile errors.
-3. Grep for any remaining `com.fasterxml.jackson` imports outside `jackson-annotations` usage — these indicate incomplete migration.
-4. Re-run the dependency-tree check from Pre-flight step 4 — grepping your own source is not enough, since a stray transitive `com.fasterxml.jackson.core:jackson-databind` can let old imports keep compiling without ever showing up in a source-level grep.
-5. If default-setting changes break existing behavior intentionally relied upon, consider `JsonMapper.builderWithJackson2Defaults()` as a stepping stone rather than reintroducing legacy settings ad hoc.
+3. Check for `JsonNode.map` shadowing (Jackson 3.1+): source-search every `jsonNode.map { }` call site, then confirm with `javap -p -c` over `build/classes/kotlin` that no call to `tools/jackson/databind/JsonNode.map` remains — a compiling build does *not* prove this one is clean. Procedure in [references/kotlin-cleanup.md](references/kotlin-cleanup.md).
+4. Grep for any remaining `com.fasterxml.jackson` imports outside `jackson-annotations` usage — these indicate incomplete migration.
+5. Re-run the dependency-tree check from Pre-flight step 4 — grepping your own source is not enough, since a stray transitive `com.fasterxml.jackson.core:jackson-databind` can let old imports keep compiling without ever showing up in a source-level grep.
+6. If default-setting changes break existing behavior intentionally relied upon, consider `JsonMapper.builderWithJackson2Defaults()` as a stepping stone rather than reintroducing legacy settings ad hoc.
 
 For symptom → likely cause → fix lookups (e.g. "dates serialize as strings now", "property order changed"), see [references/rename-and-defaults.md](references/rename-and-defaults.md).
 
@@ -161,6 +200,7 @@ For symptom → likely cause → fix lookups (e.g. "dates serialize as strings n
 | `kotlin-app-config` skill | Sealed class config pattern, useful when rebuilding `ObjectMapper` setup as a builder |
 | OpenRewrite recipe `org.openrewrite.java.jackson.UpgradeJackson_2_3` | Automated mechanical Java-side migration |
 | [Official migration guide](https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md) | Authoritative source — consult for anything not covered here |
+| [jackson-databind#5579](https://github.com/FasterXML/jackson-databind/issues/5579) | The `JsonNode.map()` addition (3.1) and the Kotlin shadowing discussion in its comments |
 
 ## Boundaries
 
@@ -170,6 +210,7 @@ For symptom → likely cause → fix lookups (e.g. "dates serialize as strings n
 - Verify framework version minimums before migrating (Ktor 3.4.0+ for `ktor-serialization-jackson3`, Spring Boot 4.0+/Framework 7.0+ for Jackson 3) and use `./gradlew dependencyInsight --dependency <lib>` to check for hardcoded-vs-catalog version skew — don't assume the catalog is a local toml file to grep
 - Run the OpenRewrite recipe first, then do Kotlin-specific cleanup by hand
 - Search explicitly for post-construction `ObjectMapper` mutation (`.apply { ... }` patterns) — the #1 silent-failure risk
+- Rewrite every `jsonNode.map { ... }` / `jsonNode.map(JsonNode::asX)` as `.values().map { ... }` (or `.toList().map { ... }`) when targeting Jackson 3.1+ — the new `JsonNode.map()` member shadows Kotlin's `Iterable.map`, and verify with a `javap` bytecode grep since some cases compile silently
 - Run a dependency-tree check (`./gradlew dependencies | grep jackson`) after migrating to confirm no `com.fasterxml.jackson.core:jackson-databind`/`jackson-core` remains transitively — old imports keep compiling with no error if a stray 2.x jar is still on the classpath
 - Use LSP/symbol tools (`findReferences`, rename refactoring) to verify Jackson usages before and after renaming, not blind text search-and-replace
 - Run full build + test suite after migration, not just compile
@@ -186,6 +227,7 @@ For symptom → likely cause → fix lookups (e.g. "dates serialize as strings n
 ### 🚫 Never
 
 - Assume OpenRewrite fully handles Kotlin source files — it doesn't
+- Assume a green build means the Kotlin side is done — `jsonNode.map { }` can bind to the new `JsonNode.map()` member and compile cleanly while returning a single value instead of a list
 - Blanket-rewrite `com.fasterxml.jackson.annotation.*` to `tools.jackson` — that package intentionally stays on the old name; only databind/format-specific annotations move
 - Leave `com.fasterxml.jackson` imports referring to non-annotation packages (`databind`, `core`, `datatype`, etc.) after migration is declared done — those must all move to `tools.jackson`
 - Migrate Jackson before confirming all dependent libraries (Spring, Ktor, etc.) support Jackson 3
