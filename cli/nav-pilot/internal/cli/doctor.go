@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // cmdDoctor runs system health checks and outputs actionable diagnostics.
@@ -114,15 +115,16 @@ func cmdDoctor() error {
 		}
 		fmt.Printf("      %s Binary found: %s (%s)\n", green("✓"), cpltPath, version)
 
-		// Check pinning
-		cfgOut, _ := exec.CommandContext(ctx, cpltPath, "config", "show").CombinedOutput()
-		if strings.Contains(string(cfgOut), "nav-pilot") {
-			fmt.Printf("      %s Agent properly pinned to nav-pilot\n", green("✓"))
-		} else {
-			hasErrors = true
-			fmt.Printf("      %s Agent not pinned to nav-pilot\n", red("[✗]"))
-			fmt.Printf("          %s Set agent alias via %s\n", red("Solution:"), bold("cplt config set copilot.agent_name nav-pilot"))
-		}
+		// The persona is pinned by nav-pilot itself, not by user configuration:
+		// BuildCopilotArgs unconditionally emits `cplt --agent copilot --
+		// --agent nav-pilot` on every launch. There is nothing to check and
+		// nothing for the user to set.
+		//
+		// This previously grepped `cplt config show` for "nav-pilot". cplt has
+		// no such key, so the check always failed and pointed users at
+		// `cplt config set copilot.agent_name nav-pilot` — a key that has never
+		// existed in cplt, which rejects it with "unknown config key" (#406).
+		fmt.Printf("      %s Agent pinned to %s at launch\n", green("✓"), providerpkg.CopilotAgentPersona)
 	}
 
 	// opencode
