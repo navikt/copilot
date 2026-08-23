@@ -30,10 +30,12 @@ Source review can't tell a shadowed call from a deliberate one, and the silent c
 ```bash
 find . -path "*build/classes/kotlin*" -name "*.class" > /tmp/classes.txt
 xargs -P 8 -n 200 javap -p -c < /tmp/classes.txt 2>/dev/null \
-  | grep "tools/jackson/databind/JsonNode.map"
+  | grep -E 'tools/jackson/databind/(node/)?[A-Za-z]*Node\.map:'
 ```
 
-Every hit is either a shadowed `Iterable.map` that changed meaning, or an intentional single-node transform — inspect each. Sanity-check the pipeline first by grepping for a method you know is used (e.g. `JsonNode.path`); an empty result from a stale or missing build directory is not evidence of a clean codebase, so confirm the build is up to date.
+**Don't narrow this to `JsonNode.map`.** The call site records the *static* type of the receiver, so a receiver declared `ArrayNode` or `ObjectNode` compiles to `.../node/ArrayNode.map:` and a `JsonNode`-only grep reports a false clean. The pattern above covers all of them; the distinctive descriptor is `(Ljava/util/function/Function;)Ljava/lang/Object;` if you want to confirm a hit is really this method.
+
+Every hit is either a shadowed `Iterable.map` that changed meaning, or an intentional single-node transform — inspect each. Sanity-check the pipeline first by grepping for a method you know is used (e.g. `Node\.path:`); an empty result from a stale or missing build directory is not evidence of a clean codebase, so confirm the build is up to date.
 
 ### 3. Regression test
 

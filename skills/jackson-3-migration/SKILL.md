@@ -170,7 +170,7 @@ dependencies {
 
 1. `./gradlew build` (or project's equivalent) — compile errors will surface most renamed classes/methods immediately.
 2. Run the full test suite — immutable `ObjectMapper` misconfiguration and default-setting changes (e.g. `FAIL_ON_TRAILING_TOKENS` now on by default) typically show up as test failures, not compile errors.
-3. Check for `JsonNode.map` shadowing (Jackson 3.1+): source-search every `jsonNode.map { }` call site, then confirm with `javap -p -c` over `build/classes/kotlin` that no call to `tools/jackson/databind/JsonNode.map` remains — a compiling build does *not* prove this one is clean. Procedure in [references/kotlin-cleanup.md](references/kotlin-cleanup.md).
+3. Check for `JsonNode.map` shadowing (Jackson 3.1+): source-search every `jsonNode.map { }` call site, then confirm with `javap -p -c` over `build/classes/kotlin` that no call to `…databind/*Node.map:` remains — match every `*Node` type, not just `JsonNode`, since the call site records the receiver's static type. A compiling build does *not* prove this one is clean. Procedure in [references/kotlin-cleanup.md](references/kotlin-cleanup.md).
 4. Grep for any remaining `com.fasterxml.jackson` imports outside `jackson-annotations` usage — these indicate incomplete migration.
 5. Re-run the dependency-tree check from Pre-flight step 5 — grepping your own source is not enough, since a stray transitive `com.fasterxml.jackson.core:jackson-databind` can let old imports keep compiling without ever showing up in a source-level grep.
 6. If default-setting changes break existing behavior intentionally relied upon, consider `JsonMapper.builderWithJackson2Defaults()` as a stepping stone rather than reintroducing legacy settings ad hoc.

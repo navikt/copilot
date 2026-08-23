@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-23T16:36:21.153Z",
+  "generatedAt": "2026-08-23T16:57:39.690Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1211,7 +1211,7 @@
       "domain": "backend",
       "filePath": "skills/jackson-3-migration/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/jackson-3-migration/SKILL.md",
-      "contentHash": "dcd9fcc2646b691fcdea613cc51cb9f08abc4ee43ee073bac9cec08274d2ae81",
+      "contentHash": "917e88a10022714eaa6e6684ab31e8fb26e23371f2f4bb273c8ea4a2e6c06fa2",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["jackson", "kotlin", "java", "migration", "serialization", "openrewrite", "ktor"],
