@@ -12,5 +12,5 @@
       "scenario": "Reaktiv feilsøking etter versjonsoppgradering"
     }
   ],
-  "references": ["references/kotlin-cleanup.md", "references/rename-and-defaults.md"]
+  "references": ["references/kotlin-cleanup.md", "references/rename-and-defaults.md", "references/dependency-preflight.md"]
 }

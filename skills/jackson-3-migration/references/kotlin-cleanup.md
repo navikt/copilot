@@ -2,6 +2,45 @@
 
 Detailed before/after snippets for Kotlin-specific Jackson 3 patterns beyond `jackson-module-kotlin` and the æ/ø/å gotcha covered in `SKILL.md`.
 
+## Finding every `jsonNode.map { }` call site (Jackson 3.1+ shadowing)
+
+Background and the fix itself are in `SKILL.md`; this is the search procedure. Do this on every Kotlin module, before declaring the migration done — the compiler catches most, but not all, of these.
+
+### 1. Source search
+
+Only files that actually see a Jackson 3 `JsonNode` matter, so scope the search first:
+
+```bash
+# files using Jackson 3 that contain any .map call
+grep -rl "^import tools\.jackson" --include=*.kt . \
+  | xargs grep -lE "\.map\s*[{(]" > /tmp/candidates.txt
+
+# receivers that are almost certainly JsonNode
+xargs grep -nE '(\.path\([^()]*\)|\.get\([^()]*\)|\["[^"]*"\]|readTree\([^()]*\))\s*\.map\s*[({]|\.map\(JsonNode::' < /tmp/candidates.txt
+```
+
+Also check `JsonNode`-typed locals and parameters, which the receiver patterns above miss: for each candidate file, list the names declared as `: JsonNode` and grep for `<name>.map`. `JsonMessage`-style accessors (`packet["@behov"]`, `message["x"]`) return `JsonNode` too, even when the file never imports `JsonNode` itself — include them.
+
+Ignore hits already written as `.values().map` (the fix), `.toList().map` (an equivalent older workaround — leave it, or normalise to `values()`), or where an intervening `filter`/`filterNot`/`flatMap` has already produced a `List`.
+
+### 2. Bytecode check (catches the silently-compiling ones)
+
+Source review can't tell a shadowed call from a deliberate one, and the silent cases produce no compiler output at all. After a build, look for actual invocations of the member — in migrated Kotlin code there should normally be **zero**:
+
+```bash
+find . -path "*build/classes/kotlin*" -name "*.class" > /tmp/classes.txt
+xargs -P 8 -n 200 javap -p -c < /tmp/classes.txt 2>/dev/null \
+  | grep -E 'tools/jackson/databind/(node/)?[A-Za-z]*Node\.map:'
+```
+
+**Don't narrow this to `JsonNode.map`.** The call site records the *static* type of the receiver, so a receiver declared `ArrayNode` or `ObjectNode` compiles to `.../node/ArrayNode.map:` and a `JsonNode`-only grep reports a false clean. The pattern above covers all of them; the distinctive descriptor is `(Ljava/util/function/Function;)Ljava/lang/Object;` if you want to confirm a hit is really this method.
+
+Every hit is either a shadowed `Iterable.map` that changed meaning, or an intentional single-node transform — inspect each. Sanity-check the pipeline first by grepping for a method you know is used (e.g. `Node\.path:`); an empty result from a stale or missing build directory is not evidence of a clean codebase, so confirm the build is up to date.
+
+### 3. Regression test
+
+The silent cases are behavioral, not structural — add or keep a test asserting that mapping over an array node yields *all* elements (`assertEquals(listOf("a", "b"), node.path("arr").values().map(JsonNode::asString))`). A test that only checks "doesn't throw" passes happily with the shadowed member.
+
 ## Mutable `ObjectMapper` construction (very common in Kotlin)
 
 ```kotlin
