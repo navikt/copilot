@@ -21,7 +21,7 @@ xargs grep -nE '(\.path\([^()]*\)|\.get\([^()]*\)|\["[^"]*"\]|readTree\([^()]*\)
 
 Also check `JsonNode`-typed locals and parameters, which the receiver patterns above miss: for each candidate file, list the names declared as `: JsonNode` and grep for `<name>.map`. `JsonMessage`-style accessors (`packet["@behov"]`, `message["x"]`) return `JsonNode` too, even when the file never imports `JsonNode` itself — include them.
 
-Ignore hits already written as `.toList().map`, `.values().map`, or where an intervening `filter`/`filterNot`/`flatMap` has already produced a `List`.
+Ignore hits already written as `.values().map` (the fix), `.toList().map` (an equivalent older workaround — leave it, or normalise to `values()`), or where an intervening `filter`/`filterNot`/`flatMap` has already produced a `List`.
 
 ### 2. Bytecode check (catches the silently-compiling ones)
 
@@ -37,7 +37,7 @@ Every hit is either a shadowed `Iterable.map` that changed meaning, or an intent
 
 ### 3. Regression test
 
-The silent cases are behavioral, not structural — add or keep a test asserting that mapping over an array node yields *all* elements (`assertEquals(listOf("a", "b"), node.path("arr").toList().map(JsonNode::asString))`). A test that only checks "doesn't throw" passes happily with the shadowed member.
+The silent cases are behavioral, not structural — add or keep a test asserting that mapping over an array node yields *all* elements (`assertEquals(listOf("a", "b"), node.path("arr").values().map(JsonNode::asString))`). A test that only checks "doesn't throw" passes happily with the shadowed member.
 
 ## Mutable `ObjectMapper` construction (very common in Kotlin)
 
