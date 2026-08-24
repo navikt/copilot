@@ -31,6 +31,10 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 		}
 	}
 
+	if err := guardScopeSource(scope, sourceRepo); err != nil {
+		return err
+	}
+
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
@@ -40,10 +44,12 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	}
 	defer src.Cleanup()
 
-	sourceLabel := "navikt/copilot"
-	if sourceRepo != "" {
-		sourceLabel = sourceRepo
+	// Fail closed before touching the filesystem (A3).
+	if err := validatePakkeSource(src); err != nil {
+		return err
 	}
+
+	sourceLabel := sourceLabelFor(src)
 
 	result := &installResult{}
 
@@ -61,7 +67,7 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 
 	// Dispatch to the appropriate installer
 	kind := kindByName[itemType]
-	resolver := NewSourceResolver(src.Dir)
+	resolver := resolverFor(src.Dir, pakkeFor(src, name))
 	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr

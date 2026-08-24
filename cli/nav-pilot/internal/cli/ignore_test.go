@@ -217,7 +217,7 @@ func TestDetectNewItems_IgnoredEntryNotReported(t *testing.T) {
 	}
 	writeScopedState(scope, state)
 
-	newItems := detectNewItems(scope, source)
+	newItems := detectNewItems(scope, NewSourceResolver(source))
 	if len(newItems) != 0 {
 		t.Errorf("expected no new items (instruction is ignored), got %v", newItems)
 	}

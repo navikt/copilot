@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 // ─── Get ────────────────────────────────────────────────────────────────────
@@ -267,5 +269,95 @@ func mkDir(t *testing.T, parts ...string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(parts...), 0o755); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// --- layout-aware resolution (agentpakke Tier 1) ---
+
+func TestNewSourceResolverForLayout(t *testing.T) {
+	tmp := t.TempDir()
+	mkFile(t, tmp, "plugin", "agents", "chef.agent.md")
+	mkFile(t, tmp, "plugin", "skills", "grilling", "SKILL.md")
+	mkFile(t, tmp, "agents", "canonical.agent.md")
+
+	tests := []struct {
+		name       string
+		layout     *agentpakke.Layout
+		kind       *ArtifactKind
+		item       string
+		wantFound  bool
+		wantRelDir string
+	}{
+		{
+			name:       "nil layout reads the canonical directories",
+			layout:     nil,
+			kind:       KindAgent,
+			item:       "canonical",
+			wantFound:  true,
+			wantRelDir: "agents",
+		},
+		{
+			name:       "declared layout reads the manifest paths",
+			layout:     &agentpakke.Layout{Agents: "plugin/agents", Skills: "plugin/skills"},
+			kind:       KindAgent,
+			item:       "chef",
+			wantFound:  true,
+			wantRelDir: filepath.Join("plugin", "agents"),
+		},
+		{
+			name:      "declared layout hides the canonical directories",
+			layout:    &agentpakke.Layout{Agents: "plugin/agents", Skills: "plugin/skills"},
+			kind:      KindAgent,
+			item:      "canonical",
+			wantFound: false,
+		},
+		{
+			name:       "directory artifacts follow the layout too",
+			layout:     &agentpakke.Layout{Agents: "plugin/agents", Skills: "plugin/skills"},
+			kind:       KindSkill,
+			item:       "grilling",
+			wantFound:  true,
+			wantRelDir: filepath.Join("plugin", "skills"),
+		},
+		{
+			name:       "layout repeating the canonical name is a no-op",
+			layout:     &agentpakke.Layout{Agents: "agents", Skills: "skills"},
+			kind:       KindAgent,
+			item:       "canonical",
+			wantFound:  true,
+			wantRelDir: "agents",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewSourceResolverForLayout(tmp, tt.layout)
+			art, ok := r.Get(tt.kind, tt.item)
+			if ok != tt.wantFound {
+				t.Fatalf("Get(%s, %q) found = %v, want %v", tt.kind.Name, tt.item, ok, tt.wantFound)
+			}
+			if !tt.wantFound {
+				return
+			}
+			if got := filepath.Dir(art.RelPath); got != tt.wantRelDir {
+				t.Errorf("RelPath dir = %q, want %q", got, tt.wantRelDir)
+			}
+			if r.SourceDir() != tmp {
+				t.Errorf("SourceDir() = %q, want %q", r.SourceDir(), tmp)
+			}
+		})
+	}
+}
+
+func TestCollectAllItemsWithLayout(t *testing.T) {
+	tmp := t.TempDir()
+	mkFile(t, tmp, "plugin", "agents", "chef.agent.md")
+
+	m, err := CollectAllItemsWith(NewSourceResolverForLayout(tmp, &agentpakke.Layout{Agents: "plugin/agents", Skills: "plugin/skills"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Agents) != 1 || m.Agents[0] != "chef" {
+		t.Errorf("agents = %v, want [chef]", m.Agents)
 	}
 }

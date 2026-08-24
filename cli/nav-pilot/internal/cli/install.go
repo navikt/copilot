@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 type installResult struct {
@@ -15,8 +17,9 @@ type installResult struct {
 	Files       []InstalledFile
 }
 
-func installItems(sourceDir string, scope *InstallScope, manifest *Manifest, dryRun, force bool) (*installResult, error) {
-	resolver := NewSourceResolver(sourceDir)
+// installItems installs every artifact a collection manifest names, reading
+// content through the resolver the active agentpakke manifest produced.
+func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manifest, dryRun, force bool) (*installResult, error) {
 	result := &installResult{}
 
 	for _, group := range []struct {
@@ -46,6 +49,31 @@ func installItems(sourceDir string, scope *InstallScope, manifest *Manifest, dry
 	}
 
 	return result, nil
+}
+
+// pakkeContents lists everything an agentpakke's layout ships, as the content
+// manifest the installer already knows how to walk. It is the manifest-bearing
+// counterpart to loadManifest: the agentpakke manifest supersedes
+// collections/<name>/manifest.json rather than declaring entries in it.
+func pakkeContents(resolver *SourceResolver, pakke *agentpakke.Manifest) (*Manifest, error) {
+	manifest, err := collectAllItemsWith(resolver)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range resolver.List(KindPrompt) {
+		manifest.Prompts = append(manifest.Prompts, p.Name)
+	}
+	manifest.Name = pakke.Name
+	manifest.Description = pakke.Description
+	if err := validateManifest(manifest); err != nil {
+		return nil, fmt.Errorf("agentpakke %q: %w", pakke.Name, err)
+	}
+	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions) + len(manifest.Prompts)
+	if total == 0 {
+		return nil, fmt.Errorf("agentpakke %q declares a layout but ships no agents, skills, instructions, or prompts.\n"+
+			"Check the layout paths in %s", pakke.Name, agentpakke.ManifestPath)
+	}
+	return manifest, nil
 }
 
 // installArtifact handles the install for any artifact type.
@@ -130,6 +158,10 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		}
 	}
 
+	if err := guardScopeSource(scope, sourceRepo); err != nil {
+		return err
+	}
+
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
@@ -139,18 +171,32 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	}
 	defer src.Cleanup()
 
+	// A source that ships an agentpakke manifest supersedes the collection
+	// model: its single installable name is the agentpakke identity, and that
+	// name wins over an artifact of the same name (agentpakker commonly ship an
+	// agent named after themselves). The artifact stays installable with --type.
+	pakkeName := pakkeInstallName(src)
+	if pakkeName != "" && name == pakkeName {
+		return cmdInstallFromSource(name, src, scope, dryRun, force, jsonOutput)
+	}
+
 	// Check if name matches a collection
 	isCollection := false
-	collections, _ := listCollectionDirs(src.Dir) // ignore error: missing dir = no collections
-	for _, c := range collections {
-		if c == name {
-			isCollection = true
-			break
+	var collections []string
+	if pakkeName != "" {
+		collections = []string{pakkeName}
+	} else {
+		collections, _ = listCollectionDirs(src.Dir) // ignore error: missing dir = no collections
+		for _, c := range collections {
+			if c == name {
+				isCollection = true
+				break
+			}
 		}
 	}
 
 	// Check if name matches any artifact
-	resolver := NewSourceResolver(src.Dir)
+	resolver := resolverFor(src.Dir, pakkeFor(src, name))
 	var matchedKinds []*ArtifactKind
 	for _, kind := range AllKinds {
 		if _, ok := resolver.Get(kind, name); ok {
@@ -210,13 +256,33 @@ func articleFor(kind string) string {
 }
 
 // cmdInstallFromSource installs a collection from an already-resolved source.
+//
+// The active agentpakke manifest decides what "a collection" means here: a
+// manifest-bearing source supersedes collections/<name>/manifest.json and
+// installs everything its layout declares, while a manifest-less source keeps
+// reading the collection manifest exactly as before.
 func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
-	manifest, err := loadManifest(src.Dir, collection)
+	pakke := pakkeFor(src, collection)
+	resolver := resolverFor(src.Dir, pakke)
+
+	// Fail closed before touching the filesystem (A3): a non-conforming
+	// agentpakke must not leave a partial install behind.
+	if err := validatePakkeSource(src); err != nil {
+		return err
+	}
+
+	var manifest *Manifest
+	var err error
+	if src.Pakke != nil {
+		manifest, err = pakkeContents(resolver, pakke)
+	} else {
+		manifest, err = loadManifest(src.Dir, collection)
+	}
 	if err != nil {
 		return err
 	}
 
-	sourceLabel := "navikt/copilot"
+	sourceLabel := sourceLabelFor(src)
 
 	if !jsonOutput {
 		fmt.Println()
@@ -231,7 +297,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		fmt.Println()
 	}
 
-	result, err := installItems(src.Dir, scope, manifest, dryRun, force)
+	result, err := installItems(resolver, scope, manifest, dryRun, force)
 	if err != nil {
 		return err
 	}
@@ -242,7 +308,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
 			"command":     "install",
-			"collection":  collection,
+			"collection":  stateCollection(src, collection),
 			"scope":       scope.Name,
 			"source_sha":  src.SHA,
 			"version":     src.Version,
@@ -272,7 +338,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	stateVersion := src.Version
 
 	state := &StateFile{
-		Collection:  collection,
+		Collection:  stateCollection(src, collection),
 		Version:     stateVersion,
 		Scope:       scope.Name,
 		SourceRepo:  src.Repo,
@@ -307,7 +373,7 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, d
 		return fmt.Errorf("type %q is not supported in user scope. Only agents, skills, and instructions can be installed to ~/.copilot", itemType)
 	}
 
-	sourceLabel := "navikt/copilot"
+	sourceLabel := sourceLabelFor(src)
 
 	result := &installResult{}
 
@@ -324,7 +390,7 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, d
 	}
 
 	kind := kindByName[itemType]
-	resolver := NewSourceResolver(src.Dir)
+	resolver := resolverFor(src.Dir, pakkeFor(src, name))
 	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr
@@ -414,45 +480,67 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 	}
 	defer src.Cleanup()
 
-	names, err := listCollectionDirs(src.Dir)
-	if err != nil {
-		return err
+	resolver := resolverFor(src.Dir, pakkeFor(src, ""))
+
+	// A source that ships an agentpakke manifest offers exactly one installable
+	// name — the agentpakke itself — because the manifest supersedes the
+	// collections/<name> model.
+	type collectionInfo struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Items       int    `json:"items"`
+		agents      []string
+	}
+	var collections []collectionInfo
+	add := func(m *Manifest) {
+		collections = append(collections, collectionInfo{
+			Name:        m.Name,
+			Description: m.Description,
+			Items:       len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts),
+			agents:      m.Agents,
+		})
 	}
 
-	if jsonOutput {
-		type collectionInfo struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Items       int    `json:"items"`
+	if src.Pakke != nil {
+		m, err := pakkeContents(resolver, src.Pakke)
+		if err != nil {
+			return err
 		}
-		var collections []collectionInfo
+		add(m)
+	} else {
+		names, err := listCollectionDirs(src.Dir)
+		if err != nil {
+			return err
+		}
 		for _, name := range names {
 			m, err := loadManifest(src.Dir, name)
 			if err != nil {
 				continue
 			}
-			total := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts)
-			collections = append(collections, collectionInfo{Name: name, Description: m.Description, Items: total})
+			m.Name = name
+			add(m)
 		}
-		result := map[string]interface{}{"collections": collections}
+	}
+
+	if jsonOutput {
+		result := map[string]interface{}{"collections": collections, "source": sourceLabelFor(src)}
 		if showItems {
-			result["items"] = collectAvailableItems(src.Dir)
+			result["items"] = collectAvailableItems(resolver)
 		}
 		return outputJSON(result)
 	}
 
 	fmt.Println()
-	fmt.Println(bold("Available collections:"))
+	if src.Pakke != nil {
+		fmt.Println(bold(fmt.Sprintf("Agentpakke in %s:", sourceLabelFor(src))))
+	} else {
+		fmt.Println(bold("Available collections:"))
+	}
 	fmt.Println()
-	for _, name := range names {
-		m, err := loadManifest(src.Dir, name)
-		if err != nil {
-			continue
-		}
-		total := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts)
-		fmt.Printf("  %-20s %s %s\n", bold(name), m.Description, dim(fmt.Sprintf("(%d items)", total)))
-		if len(m.Agents) > 0 {
-			fmt.Printf("  %-20s %s\n", "", dim("agents: "+strings.Join(m.Agents, ", ")))
+	for _, c := range collections {
+		fmt.Printf("  %-20s %s %s\n", bold(c.Name), c.Description, dim(fmt.Sprintf("(%d items)", c.Items)))
+		if len(c.agents) > 0 {
+			fmt.Printf("  %-20s %s\n", "", dim("agents: "+strings.Join(c.agents, ", ")))
 		}
 	}
 	fmt.Println()
@@ -461,7 +549,7 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 
 	if showItems {
 		fmt.Println()
-		if err := listAvailableItems(src.Dir); err != nil {
+		if err := listAvailableItems(resolver); err != nil {
 			return err
 		}
 	} else {
@@ -471,8 +559,7 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 }
 
 // listAvailableItems prints all agents, skills, instructions, and prompts in the source.
-func listAvailableItems(sourceDir string) error {
-	resolver := NewSourceResolver(sourceDir)
+func listAvailableItems(resolver *SourceResolver) error {
 	for _, kind := range AllKinds {
 		items := resolver.List(kind)
 		if len(items) == 0 {
@@ -488,8 +575,7 @@ func listAvailableItems(sourceDir string) error {
 }
 
 // collectAvailableItems returns all available items as a structured map for JSON output.
-func collectAvailableItems(sourceDir string) map[string][]string {
-	resolver := NewSourceResolver(sourceDir)
+func collectAvailableItems(resolver *SourceResolver) map[string][]string {
 	result := make(map[string][]string)
 	for _, kind := range AllKinds {
 		for _, art := range resolver.List(kind) {
@@ -541,6 +627,9 @@ func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
 // Used when `nav-pilot install --user` is run without a collection name.
 // When interactive, offers the same picker as the root `nav-pilot` command.
 func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
+	if err := guardScopeSource(scope, sourceRepo); err != nil {
+		return err
+	}
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
@@ -563,9 +652,17 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 // extraStateFiles are appended to the state file after install (e.g. ignored items from picker).
 // Extracted so both cmdInstallAll and the interactive flow can share this.
 func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool, extraStateFiles ...InstalledFile) error {
+	pakke := pakkeFor(src, CollectionAll)
+	resolver := resolverFor(src.Dir, pakke)
+
+	// Fail closed before touching the filesystem (A3).
+	if err := validatePakkeSource(src); err != nil {
+		return err
+	}
+
 	if manifest == nil {
 		var err error
-		manifest, err = collectAllItems(src.Dir)
+		manifest, err = collectAllItemsWith(resolver)
 		if err != nil {
 			return err
 		}
@@ -576,7 +673,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		return fmt.Errorf("no agents, skills, or instructions found in source")
 	}
 
-	sourceLabel := "navikt/copilot"
+	sourceLabel := sourceLabelFor(src)
 
 	if !jsonOutput {
 		fmt.Println()
@@ -590,7 +687,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		fmt.Println()
 	}
 
-	result, err := installItems(src.Dir, scope, manifest, dryRun, force)
+	result, err := installItems(resolver, scope, manifest, dryRun, force)
 	if err != nil {
 		return err
 	}
@@ -606,7 +703,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
 			"command":    "install",
-			"collection": CollectionAll,
+			"collection": stateCollection(src, CollectionAll),
 			"scope":      scope.Name,
 			"source_sha": src.SHA,
 			"version":    src.Version,
@@ -624,7 +721,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	stateVersion := src.Version
 
 	state := &StateFile{
-		Collection:  CollectionAll,
+		Collection:  stateCollection(src, CollectionAll),
 		Version:     stateVersion,
 		Scope:       scope.Name,
 		SourceRepo:  src.Repo,

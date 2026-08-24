@@ -48,6 +48,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "--client",
 	},
 	{
+		name:        "source",
+		kind:        keyKindString,
+		description: "Agentpakke content source: a GitHub repo (owner/name) or an absolute path to a local checkout. Set it to \"\" to clear it and go back to the default.",
+		allowed:     nil,
+		defaultVal:  defaultSourceRepo,
+		flag:        "--source",
+	},
+	{
 		name:        "model",
 		kind:        keyKindString,
 		description: "Model id (e.g. auto, claude-opus-4.8, gpt-5.5). Format-validated; the catalog is checked downstream.",
@@ -175,6 +183,13 @@ version = 1
 # Coding-agent CLI nav-pilot launches.
 # Allowed: copilot, opencode, pi — Default: copilot
 # client = "copilot"
+
+# Agentpakke content source: a GitHub repo (owner/name) or an absolute path to a
+# local checkout. Set by "nav-pilot install --source <repo>" after a successful
+# install; clear it with: nav-pilot config set source ""
+# Default: navikt/copilot
+# Corresponds to nav-pilot flag: --source
+# source = "navikt/copilot"
 
 # Model id. Common Copilot models: auto, claude-opus-5, claude-sonnet-5,
 # claude-sonnet-4.6, claude-haiku-4.5, claude-opus-4.8, gpt-5.6-sol,
@@ -325,6 +340,7 @@ func cmdConfigShow(jsonOutput bool) error {
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
 			"client":           resolved.Client,
+			"source":           effectiveSourceLabel(resolved),
 			"model":            resolved.Model,
 			"mode":             resolved.Mode,
 			"reasoning_effort": resolved.ReasoningEffort,
@@ -361,6 +377,12 @@ func cmdConfigShow(jsonOutput bool) error {
 		clientSrc = "file"
 	}
 	printField("client", resolved.Client, clientSrc)
+
+	sourceSrc := "default"
+	if cfg != nil && cfg.Source != nil && strings.TrimSpace(*cfg.Source) != "" {
+		sourceSrc = "file"
+	}
+	printField("source", effectiveSourceLabel(resolved), sourceSrc)
 
 	modelSrc := "unset"
 	if cfg != nil && cfg.Model != nil {
@@ -458,6 +480,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return "1" // version is always 1 when valid
 	case "client":
 		return r.Client
+	case "source":
+		return r.Source
 	case "model":
 		return r.Model
 	case "mode":
@@ -489,17 +513,44 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 // ─── config set ──────────────────────────────────────────────────────────────
 
 func cmdConfigSet(key, value string) error {
+	tomlVal, err := writeConfigKey(key, value)
+	if err != nil {
+		return err
+	}
+	if key == "source" && strings.TrimSpace(value) == "" {
+		fmt.Printf("%s source cleared — nav-pilot installs and syncs from %s again.\n",
+			green("✓"), bold(defaultSourceRepo))
+		return nil
+	}
+	fmt.Printf("%s %s = %s\n", green("✓"), key, tomlVal)
+	return nil
+}
+
+// effectiveSourceLabel names the source a resolved config selects, spelling out
+// the built-in default when no source is persisted.
+func effectiveSourceLabel(r ResolvedConfig) string {
+	if r.Source == "" {
+		return defaultSourceRepo
+	}
+	return r.Source
+}
+
+// writeConfigKey validates a key/value pair and writes it into the config file,
+// replacing the first matching line (active or commented out) or appending it.
+// It returns the TOML literal written. Callers own the user-facing message —
+// `config set` prints one, install's source persistence prints another.
+func writeConfigKey(key, value string) (string, error) {
 	kd := findKeyDef(key)
 	if kd == nil {
-		return fmt.Errorf("unknown key: %q\n\nKnown keys: %s", key, knownKeyNames())
+		return "", fmt.Errorf("unknown key: %q\n\nKnown keys: %s", key, knownKeyNames())
 	}
 	if err := validateKeyValue(kd, value); err != nil {
-		return err
+		return "", err
 	}
 
 	tomlVal, err := formatTOMLValue(kd, value)
 	if err != nil {
-		return err
+		return "", err
 	}
 	newLine := key + " = " + tomlVal
 
@@ -510,7 +561,7 @@ func cmdConfigSet(key, value string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("reading config: %w", err)
+			return "", fmt.Errorf("reading config: %w", err)
 		}
 		// New file: seed the required schema version so the resulting config
 		// passes on-launch validation (validateConfig requires version = 1).
@@ -537,18 +588,17 @@ func cmdConfigSet(key, value string) error {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
+		return "", fmt.Errorf("creating config directory: %w", err)
 	}
 	content := strings.Join(lines, "\n") + "\n"
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		return fmt.Errorf("writing config: %w", err)
+		return "", fmt.Errorf("writing config: %w", err)
 	}
 	if err := os.Chmod(path, 0o600); err != nil {
-		return fmt.Errorf("setting config permissions: %w", err)
+		return "", fmt.Errorf("setting config permissions: %w", err)
 	}
 
-	fmt.Printf("%s %s = %s\n", green("✓"), key, tomlVal)
-	return nil
+	return tomlVal, nil
 }
 
 // isConfigKeyLine returns true if line (active or commented-out) represents the given key.
@@ -583,6 +633,13 @@ func validateKeyValue(kd *configKeyDef, value string) error {
 	// Key-specific validation beyond the generic kind/allowlist checks.
 	if kd.name == "model" {
 		if err := validateModelValue(value); err != nil {
+			return err
+		}
+	}
+	// An empty source is the documented way to clear the key and fall back to
+	// the default; any other value must name a repo or a local checkout.
+	if kd.name == "source" && strings.TrimSpace(value) != "" {
+		if err := validateSourceValue(value); err != nil {
 			return err
 		}
 	}

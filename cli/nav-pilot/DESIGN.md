@@ -48,6 +48,7 @@ Files:
 |---|---|---|---|
 | `version` | int | (required) | — |
 | `client` | string | `copilot` | `--client` |
+| `source` | string | `navikt/copilot` | `--source` |
 | `model` | string | unset | `--model` |
 | `mode` | string | `default` | `--mode` |
 | `reasoning_effort` | string | unset | `--effort` |
@@ -242,6 +243,7 @@ func cmdExport(format string, scope *InstallScope, ref, sourceRepo string, dryRu
 func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
 func cmdInstall(collection string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error
+func cmdValidate(ref, sourceRepo string, jsonOutput bool) error
 func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error  // deprecated alias
 func cmdInit(targetDir string, dryRun, force bool) error
 ```
@@ -370,7 +372,19 @@ installArtifact(resolver, scope, kind, name, dryRun, force, result)  // replaces
 
 ## Source
 
-`Source` løser opp kildekodemappa. Prioritet:
+Hvilket *innholdsrepo* som brukes, avgjøres av kilde-presedensen (B1):
+
+1. Eksplisitt `--source <owner/name>` eller absolutt sti
+2. `source`-nøkkelen i `~/.nav-pilot/config.toml` (settes av
+   `nav-pilot install --source <repo>` etter vellykket install, tømmes med
+   `nav-pilot config set source ""`)
+3. Standard: `navikt/copilot` (`source.DefaultRepo`)
+
+Presedensen ligger i `sourceRepoFor()` (config.go) og brukes fra trakta i
+`aliases.go` — `resolveSource`/`resolveSourceForSync` — slik at hver kommando
+arver den uten å gjenta den.
+
+`Source` løser deretter opp kildekodemappa. Prioritet:
 
 1. Eksplisitt `--ref` → `git clone --depth 1 --branch <ref>`
 2. Lokal repo (CWD er inne i navikt/copilot) → dev-modus, ingen clone
@@ -398,8 +412,8 @@ Alle flagg parses manuelt i `run()`. Ingen flag-bibliotek.
 | `--dry-run` | `-n` | nei | install, add, export, uninstall |
 | `--force` | `-f` | nei | install, add, export |
 | `--target` | `-t` | dir | install, add, export, sync |
-| `--ref` | `-r` | ref | install, add, export, sync, list |
-| `--source` | `-s` | repo | install, add, export, sync, list |
+| `--ref` | `-r` | ref | install, add, export, sync, list, validate |
+| `--source` | `-s` | repo/sti | install, add, export, sync, list, validate |
 | `--user` | `-u` | nei | install, add, sync, status, uninstall, export |
 | `--apply` | | nei | sync |
 | `--json` | | nei | sync, install, add, status, export, list |
@@ -409,6 +423,41 @@ Alle flagg parses manuelt i `run()`. Ingen flag-bibliotek.
 Nye flagg: legg til i for-løkka i `run()`, med `--long` og `-short` form. Gjenbruk eksisterende flagg der det gir mening.
 
 `--user` og `--target` er gjensidig utelukkende — `run()` sjekker dette.
+
+## Agentpakke (agentpakke.json)
+
+Et kilderepo kan levere en **agentpakke-manifest** på
+`.nav-pilot/agentpakke.json` (`internal/agentpakke`, JSON Schema i
+`cli/nav-pilot/schemas/`). Manifestet er den eneste interne valutaen:
+
+```
+resolveSource (aliases.go)
+  └─ attachPakke  → src.Pakke  (nil hvis repoet ikke har manifest)
+       └─ pakkeFor(src, collection)  → *agentpakke.Manifest
+            │   nil ⇒ agentpakke.SynthesizeLegacy(collection) — legacy-adapteren
+            └─ resolverFor(dir, pakke) → SourceResolver med layout-stiene
+                 └─ install / sync
+```
+
+Konsekvenser:
+
+- **Fail-closed (A3):** et repo som *har* manifest må ha et gyldig et. Feil
+  manifest stopper resolve før noe skrives; innholdssjekken
+  (`agentpakke.ValidateSource`) kjører før første filoperasjon i install.
+- **Supersede:** et repo med manifest erstatter `collections/<navn>/manifest.json`.
+  Innholdet hentes fra `layout`-stiene, og `StateFile.Collection` får manifestets
+  `name`. Uten manifest er alt uendret, byte for byte.
+- **Per scope (B4):** hvert scope husker `source_repo` i state. `guardScopeSource`
+  (install) og `guardScopeSyncSource` (sync) nekter å blande innhold fra to
+  agentpakker i samme scope; eksplisitt `--source` er overstyringen.
+- **Sømmen stopper her:** persona, modell og launch (`internal/provider`,
+  `internal/source/frontmatter.go`) leser fortsatt Nav-defaults. De flyttes til
+  manifestet i M2.
+
+`nav-pilot validate [--source <repo>|<sti>] [--ref <ref>]` kjører hele
+konformanssjekken og avslutter med kode 1 ved brudd — ment for agentpakke-repoets
+egen CI. Ikke å forveksle med `nav-pilot config validate`, som sjekker
+brukerens egen config.
 
 ## Sikkerhetsregler
 

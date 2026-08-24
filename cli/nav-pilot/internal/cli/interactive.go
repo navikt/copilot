@@ -267,7 +267,7 @@ func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 // interactiveUserInstallFromSource is the shared implementation for user-scope interactive install.
 // Used by both the root `nav-pilot` command and `nav-pilot install --user`.
 func interactiveUserInstallFromSource(scope *InstallScope, src *Source) error {
-	manifest, err := collectAllItems(src.Dir)
+	manifest, err := collectAllItemsWith(resolverFor(src.Dir, pakkeFor(src, CollectionAll)))
 	if err != nil {
 		return err
 	}
@@ -488,6 +488,12 @@ func computeSkippedItems(full, selected *Manifest, scope *InstallScope) []Instal
 
 // interactiveRepoInstall handles repo-scope collection picker flow.
 func interactiveRepoInstall(src *Source, scope *InstallScope) error {
+	// A manifest-bearing source supersedes collections: there is exactly one
+	// thing to install, so there is nothing to pick.
+	if name := pakkeInstallName(src); name != "" {
+		return cmdInstallFromSource(name, src, scope, false, false, false)
+	}
+
 	names, err := listCollectionDirs(src.Dir)
 	if err != nil {
 		return err

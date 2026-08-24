@@ -98,19 +98,58 @@ var (
 	kindByName      = source.KindByName
 )
 
-// Const alias
-const CollectionAll = source.CollectionAll
+// Const aliases
+const (
+	CollectionAll = source.CollectionAll
 
-// Function aliases — closures capture the package-level `Version` var at call time
+	// defaultSourceRepo is the content source used when neither --source nor
+	// the config file's source key names one.
+	defaultSourceRepo = source.DefaultRepo
+)
+
+// Function aliases — closures capture the package-level `Version` var at call time.
+//
+// resolveSource and resolveSourceForSync are the CLI's source funnel: they
+// apply the source precedence (--source > config `source` > navikt/copilot) and
+// attach the agentpakke manifest, so every command that reads content gets the
+// selected agentpakke and its fail-closed validation without repeating either.
 var (
 	resolveSource = func(ref, sourceRepo string) (*source.Source, error) {
-		return source.ResolveSource(ref, sourceRepo, Version)
+		effective, err := sourceRepoFor(sourceRepo)
+		if err != nil {
+			return nil, err
+		}
+		src, err := source.ResolveSource(ref, effective, Version)
+		if err != nil {
+			return nil, err
+		}
+		return src, attachPakkeOrCleanup(src)
 	}
 	resolveSourceForSync = func(ref, sourceRepo string) (*source.Source, error) {
-		return source.ResolveSourceForSync(ref, sourceRepo, Version)
+		effective, err := sourceRepoFor(sourceRepo)
+		if err != nil {
+			return nil, err
+		}
+		src, err := source.ResolveSourceForSync(ref, effective, Version)
+		if err != nil {
+			return nil, err
+		}
+		return src, attachPakkeOrCleanup(src)
 	}
-	findGitRoot       = source.FindGitRoot
-	NewSourceResolver = source.NewSourceResolver
+	// resolveSourceRaw skips the manifest attach, so `nav-pilot validate` can
+	// report a non-conforming manifest as findings instead of failing to
+	// resolve the source at all.
+	resolveSourceRaw = func(ref, sourceRepo string) (*source.Source, error) {
+		effective, err := sourceRepoFor(sourceRepo)
+		if err != nil {
+			return nil, err
+		}
+		return source.ResolveSource(ref, effective, Version)
+	}
+	findGitRoot                = source.FindGitRoot
+	NewSourceResolver          = source.NewSourceResolver
+	NewSourceResolverForLayout = source.NewSourceResolverForLayout
+	validateSourceValue        = source.ValidateSourceValue
 
 	// files.go
 	fileHash               = source.FileHash
@@ -125,12 +164,24 @@ var (
 	checkConflict          = source.CheckConflict
 
 	// manifest.go
-	validateName       = source.ValidateName
-	validateManifest   = source.ValidateManifest
-	loadManifest       = source.LoadManifest
-	listCollectionDirs = source.ListCollectionDirs
-	collectAllItems    = source.CollectAllItems
+	validateName        = source.ValidateName
+	validateManifest    = source.ValidateManifest
+	loadManifest        = source.LoadManifest
+	listCollectionDirs  = source.ListCollectionDirs
+	collectAllItems     = source.CollectAllItems
+	collectAllItemsWith = source.CollectAllItemsWith
 )
+
+// attachPakkeOrCleanup attaches the agentpakke manifest and removes a cloned
+// checkout when the manifest is unusable, so a fail-closed resolve does not
+// leak a temp dir the caller never got to defer Cleanup on.
+func attachPakkeOrCleanup(src *source.Source) error {
+	if err := attachPakke(src); err != nil {
+		src.Cleanup()
+		return err
+	}
+	return nil
+}
 
 // ─── artifacts aliases ───────────────────────────────────────────────────────
 
@@ -180,8 +231,16 @@ var (
 	overrideSet    = artifacts.OverrideSet
 )
 
+// cmdExport funnels the source precedence into the artifacts package, which
+// resolves its own source. The agentpakke manifest is not threaded here: export
+// materializes another tool's format from canonical content and is migrated
+// with the rest of the provider layer in M2.
 var cmdExport = func(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
-	return artifacts.CmdExport(format, scope, ref, sourceRepo, Version, dryRun, force, jsonOutput)
+	effective, err := sourceRepoFor(sourceRepo)
+	if err != nil {
+		return err
+	}
+	return artifacts.CmdExport(format, scope, ref, effective, Version, dryRun, force, jsonOutput)
 }
 
 var writeOpenCodeState = artifacts.WriteOpenCodeState

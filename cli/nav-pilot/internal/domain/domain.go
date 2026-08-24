@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Version           int     `toml:"version"`
 	Client            *string `toml:"client"`
+	Source            *string `toml:"source"`
 	Model             *string `toml:"model"`
 	Mode              *string `toml:"mode"`
 	ReasoningEffort   *string `toml:"reasoning_effort"`
@@ -32,7 +33,10 @@ type Config struct {
 // ResolvedConfig holds the final configuration after applying precedence:
 // CLI flag > file value > built-in default.
 type ResolvedConfig struct {
-	Client            string
+	Client string
+	// Source is the agentpakke content source: a git repo "owner/name" or an
+	// absolute path. Empty means the built-in default (navikt/copilot).
+	Source            string
 	Model             string // empty = use agent default
 	Mode              string
 	ReasoningEffort   string // empty = unset
@@ -50,7 +54,10 @@ type ResolvedConfig struct {
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
 type CLIOverrides struct {
-	Client          string
+	Client string
+	// Source is the --source flag value (agentpakke repo "owner/name" or an
+	// absolute path). It takes precedence over the config file's source key.
+	Source          string
 	Model           string
 	Mode            string
 	ReasoningEffort string
