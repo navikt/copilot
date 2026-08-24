@@ -851,6 +851,45 @@ Templatene er string-building (ingen template-bibliotek, i tråd med DESIGN-filo
 
 ---
 
+## Kontekstbudsjett — les dette før du «optimaliserer» innholdet
+
+Målt august 2026 (tiktoken `o200k_base`, reelle installasjoner, ikke estimat), dokumentert i [#441](https://github.com/navikt/copilot/issues/441).
+
+nav-pilot legger **~6 900–8 000 tokens alltid-lastet kontekst** til hver sesjon, og **~13 000–15 000** i en realistisk arbeidsøkt når scopede instruksjoner slår inn. Persona-fila står for 60–67 % av bunnen.
+
+To ting er allerede riktige, og bør ikke rotes med:
+
+- **Launch-injeksjon er null.** nav-pilot legger ikke til systemprompt, preamble eller policy-tekst, registrerer ingen MCP-server og installerer ingen hooks. Den setter flagg og env-variabler og exec-er klienten.
+- **Per-turn-overhead er null.** nav-pilot avslutter inn i `exec`; ingenting re-injiseres per tur.
+- **Progressive disclosure virker.** Skills koster bare header til de invokeres; prompts og ikke-persona-agenter koster ingenting før bruk. `buildLeanAGENTSmd` er grunnen til at OpenCode-siden ligger på 8k og ikke 34k.
+
+### Vurdert og bevisst forkastet
+
+Disse forslagene ser lønnsomme ut i en måling og er det ikke. De har vært utredet én gang; ikke foreslå dem på nytt uten nye argumenter.
+
+| Forslag | Hvorfor ikke |
+|---|---|
+| Trimme personaen mot `nav-pilot-opus.agent.md` (702 tokens) | **Ugyldig sammenligning.** Opus er en *leaf-only* ledsager som nav-pilot kaller for ett avgrenset delproblem (`agents/nav-pilot-opus.agent.md:87-89` — «must not delegate further… hand the result back»). Den har verken fasemaskin, scope-klassifisering, blindsone-sjekkliste eller Nav-tabeller. Et trimmål utledet herfra fjerner det som gjør nav-pilot nyttig. |
+| Fjerne arketype-tabellen, auth-treet, kommunikasjonstreet (310 tokens) | Duplikatet fra `$nav-plan` er **bevisst**. Det er grunnen til at agenten svarer riktig om Nav-arkitektur uten et skill-hopp. |
+| Snevre `applyTo` på `code-review.instructions.md` (604 tokens) | Ville svekket sikkerhetsreview i stillhet. `applyTo` matcher filer under arbeid og kan ikke skille en review-sesjon fra en kodesesjon — snevrer man den, snevrer man reviewen. Innholdet dekker fnr i logger, auth-annotasjoner, `accessPolicy` og upinnede action-SHA-er. Riktig vei er å restrukturere review-kanalen (`.github/copilot-review-instructions.md`), som er en annen mekanisme. |
+| Skille `kotlin-ktor` og `kotlin-spring` med bedre glob (5 748 kontekstuelt) | Ingen løsning finnes. Begge ligger under `src/main/kotlin/**`, og `applyTo` ser verken build-filer eller imports. |
+| Korte ned skill-beskrivelser aggressivt | Beskrivelsen er det modellen bruker for å avgjøre **om skillen fyrer**. For kort = skillen fyrer aldri. Dedupliser gjerne innad, men ikke fjern trigger-vokabular. Median er ~30 tokens; store beskrivelser kan være riktige for brede skills. |
+| Flytte `deliberate-ai-use.instructions.md` (1 182 tokens) | **Eierbeslutning, ikke teknisk opprydding.** Den er agentrettet (L64-90), og personaens rødsone-erklæring i Fase 2 avhenger av klassifiseringen i L20-47 — kobling på tvers av filer. Kom inn med #187 som et publisert Nav-rammeverk, referert fra 8+ dokumenter. |
+
+### Hvorfor output-komprimering ikke er svaret
+
+Verktøy som komprimerer output eller filtrerer verktøyresultater markedsfører 60–90 % besparelse. Kontrollert måling finner 0–10 %, og noen ganger høyere kostnad. Grunnen er aritmetisk: output er ~1,2 % av sesjonens tokens, agent-prosa ~0,05 %, og cache-treffraten ligger rundt 98 %. Taket er lavt uansett hvor god kompressoren er. To fellesfeller: verktøyets egen teller priser fjernede tokens til full input-rate selv om de var cachet til en tiendedel, og verktøy som muterer en cachet prefiks bytter billige tokens mot dyre. Se [#438](https://github.com/navikt/copilot/pull/438) og `docs/news/articles/token-forbruk-verktoy-teknikker.md`.
+
+**Mål alltid fakturert kostnad per fullført oppgave, aldri et verktøys eget sparetall.** Det gjelder også våre egne endringer.
+
+### Hvor spaken faktisk er
+
+Modellvalg og `reasoning_effort` — begge eier vi allerede i konfigurasjonen, begge endrer prisen per token framfor å slåss om antallet, og begge koster ingenting å justere. En studie fant at leverandørens egen medium-innstilling nådde samme kvalitet billigere enn høy innstilling pluss en tredjeparts-skill, og at rtk-effekten forsvant helt ved høyt resonneringsnivå. Det er ikke målt på Nav-arbeidsmengder ennå.
+
+### Før du endrer persona-innhold
+
+Kjør `scripts/nav-pilot-golden.sh` før og etter (se [Testbarhet](#testbarhet)). `mise run nav-pilot:check` tester binæren, ikke innholdet — en persona-endring feiler ikke høyt, den viser seg uker senere som «nav-pilot kan visst ikke X lenger».
+
 ## Kjente begrensninger
 
 Dokumenterte designbegrensninger som kan endres i fremtidige versjoner.
