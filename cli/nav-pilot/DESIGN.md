@@ -472,6 +472,39 @@ konformanssjekken og avslutter med kode 1 ved brudd — ment for agentpakke-repo
 egen CI. Ikke å forveksle med `nav-pilot config validate`, som sjekker
 brukerens egen config.
 
+Feltreferansen for manifestet, kompatibilitetsreglene og CI-bruken for
+agentpakke-forfattere står i [docs/README.agentpakke.md](../../docs/README.agentpakke.md).
+Kontrakten selv er JSON Schema-filen `schemas/agentpakke-v1.json`, som er både
+publisert i repoet og embedded i binæren.
+
+### Migrasjon: én valuta, tre faser
+
+Prinsippet bak sømmen er at **manifestet er den eneste interne valutaen**. Hver
+konsument nedstrøms leser persona, allowlist, modell-defaults og innholdslayout
+fra en `agentpakke.Manifest` — aldri fra hardkodede konstanter, og aldri fra en
+`legacy eller manifest`-forgrening. Kilder uten manifest adapteres opp i toppen
+av pipelinen (`agentpakke.SynthesizeLegacy`), som uttrykker dagens
+navikt/copilot-konvensjoner i manifestform. Etter load trenger ingenting å vite
+hvor manifestet kom fra. Legacy-adapteren finnes nettopp for at det skal være
+én installasjonsmodell, ikke to.
+
+Overgangen går i tre faser:
+
+1. **Fase 1 (levert, M1):** manifestet er valgfritt. En kilde uten
+   `.nav-pilot/agentpakke.json` gir `ErrNoManifest`, og kalleren setter inn
+   `SynthesizeLegacy` — eksisterende installasjoner oppfører seg byte for byte
+   som før.
+2. **Fase 2:** `navikt/copilot` leverer sitt eget `.nav-pilot/agentpakke.json` og
+   blir en ordinær agentpakke — standardpakka. Syntesen sluttes å bli brukt for
+   standardkilden.
+3. **Fase 3:** `SynthesizeLegacy` og samlingsmekanismen fjernes, innenfor
+   deprekeringsvinduet kontraktens kompatibilitetsregler (A4) krever.
+
+Ingenting her skal vokse en andre, parallell installasjonsmodell for å betjene
+overgangen. Fasene er også dokumentert i pakkedokumentasjonen til
+`internal/agentpakke` (`go doc ./internal/agentpakke`), som er referansen på
+kodenivå; denne seksjonen er den kanoniske beskrivelsen for designet.
+
 ## Sikkerhetsregler
 
 ### Symlinkbeskyttelse

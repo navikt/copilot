@@ -114,6 +114,21 @@ nav-pilot install --user --all
 eval "$(nav-pilot env)"
 ```
 
+## Agentpakker fra andre team
+
+Et team kan distribuere sitt eget innhold som en **agentpakke** — et repo med
+manifest på `.nav-pilot/agentpakke.json`. Installer det med `--source`; kilden
+huskes per scope til du tømmer den.
+
+```bash
+nav-pilot install --source navikt/<repo> <pakkenavn>
+nav-pilot config set source ""     # tilbake til navikt/copilot
+nav-pilot validate --source navikt/<repo>   # sjekk en pakke mot kontrakten
+```
+
+**[Lag din egen agentpakke →](README.agentpakke.md)** — manifestreferanse,
+kompatibilitetsregler og CI-validering.
+
 ## Telemetry (pilot, default on)
 
 nav-pilot sender OTel-metrikker som standard i pilot.
