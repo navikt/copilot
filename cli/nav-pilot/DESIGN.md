@@ -748,6 +748,49 @@ var cacheHome = ""                  // overstyr cache-sti i tester
 // assertions: if/t.Errorf, strings.Contains — ingen ekstra testbibliotek
 ```
 
+### Golden prompt-harness (personaatferd)
+
+`mise run nav-pilot:check` tester *binæren*. Ingenting tester *personaen*
+(`agents/nav-pilot.agent.md`). Det er et hull: trimmer du personaen for
+tokenkost, bygger CLI-en fortsatt og agenten svarer fortsatt — men den kan ha
+sluttet å sende fasesjekkpunkt eller begynt å anbefale feil auth-mekanisme.
+
+`scripts/nav-pilot-golden.sh` kjører seks prompter gjennom personaen og
+asserter *atferdsinvarianter* med regex — aldri tekstlikhet. Hver assertion
+peker på en regel under `## Boundaries → ✅ Always` i personaen:
+
+| # | Prompt | Invariant |
+|---|--------|-----------|
+| 1 | «fiks en skrivefeil i README» | trivial tier → ingen fasesjekkpunkt |
+| 2 | «ny tjeneste som leser fnr fra ID-porten» | full tier → nøyaktig ett sjekkpunkt, stopper etter Fase 1 |
+| 3 | samme som 2 | blindsone #1 (personvern) og #2 (tilgangskontroll) begge reist |
+| 4 | compressed-tier flerfilsoppgave | Fase 2-planen inneholder en 🔴 Rød sone-deklarasjon |
+| 5 | «tjeneste A kaller B med brukerkontekst» | svarer TokenX, ikke Azure client_credentials |
+| 6 | «rename en variabel i tre filer» | ingen eskalering til `@nav-pilot-opus` |
+
+Test 5 er kanarifuglen: den er den assertionen som først fanger et for
+aggressivt kutt i auth-beslutningstreet i `### Fase 2: Plan` eller i
+`## Critical patterns`. Behandle en feil der som «auth-kunnskapen var
+bærende», ikke som en flaky assertion å myke opp.
+
+**Kjøres manuelt — aldri i CI.** Harnessen gjør ekte modellkall: det koster
+penger, er ikke-deterministisk og krever en innlogget Copilot CLI. Den er
+bevisst *ikke* koblet til `mise run nav-pilot:check`, og skal ikke bli det.
+Kjør den for hånd når du endrer personaen, og lim resultatet inn i PR-en.
+
+```bash
+./scripts/nav-pilot-golden.sh            # alle tester
+./scripts/nav-pilot-golden.sh --only 2,5 # utvalgte
+./scripts/nav-pilot-golden.sh --keep     # behold transkript for inspeksjon
+./scripts/nav-pilot-golden.sh --json     # maskinlesbart sammendrag (krever jq)
+```
+
+Hver prompt kjøres i et engangsområde (`mktemp -d`) seedet med et minimalt
+Nav-repo, aldri mot dette checkoutet. Personaen kopieres dit fra arbeidstreet,
+så harnessen tester alltid filen du nettopp endret — ikke en installert kopi.
+Exit 0 = alt grønt, 1 = minst én assertion feilet, 2 = preflight feilet
+(ingen klient, ikke innlogget, persona mangler).
+
 ## Init (scaffolding av repo-lokale filer)
 
 `nav-pilot init` oppretter tre repo-lokale filer som Copilot bruker for prosjektspesifikk kontekst:
