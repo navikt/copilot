@@ -34,33 +34,33 @@ Explicit tasks so "backfill" is unambiguous:
 
 ```bash
 # Usage metrics only
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:usage'
+bash -lc 'cd apps/copilot-metrics && mise backfill:usage'
 
 # Monthly billing only
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-monthly'
+bash -lc 'cd apps/copilot-metrics && mise backfill:billing-monthly'
 
 # Daily billing usage reports only
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report'
+bash -lc 'cd apps/copilot-metrics && mise backfill:billing-daily-report'
 
 # Daily model billing usage only
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily'
+bash -lc 'cd apps/copilot-metrics && mise backfill:billing-model-daily'
 
 # Per-repository usage metrics only
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:repo-metrics'
+bash -lc 'cd apps/copilot-metrics && mise backfill:repo-metrics'
 
 # Everything
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all'
+bash -lc 'cd apps/copilot-metrics && mise backfill:all'
 ```
 
 Prod variants:
 
 ```bash
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:usage:prod'
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-monthly:prod'
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-daily-report:prod'
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:billing-model-daily:prod'
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:repo-metrics:prod'
-rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all:prod'
+bash -lc 'cd apps/copilot-metrics && mise backfill:usage:prod'
+bash -lc 'cd apps/copilot-metrics && mise backfill:billing-monthly:prod'
+bash -lc 'cd apps/copilot-metrics && mise backfill:billing-daily-report:prod'
+bash -lc 'cd apps/copilot-metrics && mise backfill:billing-model-daily:prod'
+bash -lc 'cd apps/copilot-metrics && mise backfill:repo-metrics:prod'
+bash -lc 'cd apps/copilot-metrics && mise backfill:all:prod'
 ```
 
 ### Nightly job (default)
@@ -68,7 +68,7 @@ rtk bash -lc 'cd apps/copilot-metrics && rtk mise backfill:all:prod'
 Runs as a Kubernetes CronJob via NAIS. Automatically detects missing days in BigQuery and fills gaps:
 
 ```bash
-rtk copilot-metrics --run-once
+copilot-metrics --run-once
 ```
 
 ### Historical backfill
@@ -76,8 +76,8 @@ rtk copilot-metrics --run-once
 One-time operation to load historical data:
 
 ```bash
-rtk copilot-metrics --backfill
-rtk copilot-metrics --backfill --backfill-from=2025-10-10
+copilot-metrics --backfill
+copilot-metrics --backfill --backfill-from=2025-10-10
 ```
 
 ### Billing usage backfill
@@ -85,9 +85,9 @@ rtk copilot-metrics --backfill --backfill-from=2025-10-10
 One-time operation to load premium request billing data per model (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-rtk copilot-metrics --billing-monthly-backfill
-rtk copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01
-rtk copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01 --force
+copilot-metrics --billing-monthly-backfill
+copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01
+copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01 --force
 ```
 
 ### Billing usage report backfill (daily rows)
@@ -95,9 +95,9 @@ rtk copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01 --
 One-time operation to load daily organization billing usage report rows (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-rtk copilot-metrics --billing-daily-report-backfill
-rtk copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10
-rtk copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10 --force
+copilot-metrics --billing-daily-report-backfill
+copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10
+copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025-10-10 --force
 ```
 
 ### Billing daily model backfill
@@ -105,9 +105,9 @@ rtk copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=
 One-time operation to load daily model-level premium request billing data (requires `GITHUB_BILLING_TOKEN`):
 
 ```bash
-rtk copilot-metrics --billing-model-daily-backfill
-rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10
-rtk copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10 --force
+copilot-metrics --billing-model-daily-backfill
+copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10
+copilot-metrics --billing-model-daily-backfill --billing-model-daily-from=2025-10-10 --force
 ```
 
 ### Repository metrics backfill
@@ -120,9 +120,9 @@ GA date (2026-07-17) and the deploy of repository ingestion fall outside that
 window permanently. This flag closes those gaps.
 
 ```bash
-rtk copilot-metrics --repo-metrics-backfill
-rtk copilot-metrics --repo-metrics-backfill --repo-metrics-from=2026-07-17
-rtk copilot-metrics --repo-metrics-backfill --repo-metrics-from=2026-07-17 --force
+copilot-metrics --repo-metrics-backfill
+copilot-metrics --repo-metrics-backfill --repo-metrics-from=2026-07-17
+copilot-metrics --repo-metrics-backfill --repo-metrics-from=2026-07-17 --force
 ```
 
 Days that already have data are skipped before the API call, so the command is
@@ -139,7 +139,7 @@ export GITHUB_APP_INSTALLATION_ID=789
 export GCP_TEAM_PROJECT_ID=my-project
 export LOG_LEVEL=DEBUG
 
-rtk go run . --run-once
+go run . --run-once
 ```
 
 ## Configuration
@@ -285,13 +285,13 @@ Set `GITHUB_BILLING_TOKEN` in the `copilot-metrics` secret to enable billing ing
 Deployed as a NAIS Job in the `copilot` namespace:
 
 ```bash
-rtk kubectl apply -f .nais/naisjob.yaml -f .nais/dev.yaml
+kubectl apply -f .nais/naisjob.yaml -f .nais/dev.yaml
 ```
 
 Manual trigger:
 
 ```bash
-rtk kubectl create job --from=cronjob/copilot-metrics copilot-metrics-manual -n copilot
+kubectl create job --from=cronjob/copilot-metrics copilot-metrics-manual -n copilot
 ```
 
 ## Related

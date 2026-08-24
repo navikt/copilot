@@ -185,12 +185,14 @@ EOF
   [[ "$output" == *"Got:      badhash"* ]]
 }
 
-@test "installs cplt and rtk dependencies" {
+@test "installs cplt and only mentions rtk as optional" {
   run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
-  
+
   [ "$status" -eq 0 ]
   [[ "$output" == *"Installing cplt (sandbox)"* ]]
   [[ "$output" == *"Installed cplt"* ]]
-  [[ "$output" == *"Installing rtk (token optimizer)"* ]]
-  [[ "$output" == *"Installed rtk"* ]]
+  [[ "$output" == *"Optional: rtk (terminal output filter)"* ]]
+  [[ "$output" == *"brew install rtk"* ]]
+  # rtk must never be auto-installed from an unpinned upstream branch
+  [[ "$output" != *"refs/heads/master/install.sh"* ]]
 }

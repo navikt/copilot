@@ -70,7 +70,7 @@ ASSET="${BINARY}-${OS}-${ARCH}"
 
 if [[ "$OS" == "darwin" && "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_DIR" ]] && command -v brew &>/dev/null; then
   echo "→ Installing via Homebrew..."
-  brew install navikt/tap/nav-pilot navikt/tap/cplt rtk
+  brew install navikt/tap/nav-pilot navikt/tap/cplt
   echo ""
   INSTALLED_VERSION=$(nav-pilot version 2>/dev/null || echo "unknown")
   echo "✓ nav-pilot is ready! (${INSTALLED_VERSION})"
@@ -241,26 +241,30 @@ mv "${TMP_DIR}/${ASSET}" "${INSTALL_DIR}/${BINARY}"
 
 echo "  ✓ Installed nav-pilot to ${INSTALL_DIR}/${BINARY}"
 
-# ─── Install Dependencies (cplt, rtk) ────────────────────────────────────────
+# ─── Install Dependencies (cplt) ─────────────────────────────────────────────
 
 echo ""
 echo "→ Installing cplt (sandbox)..."
-# NOTE: cplt and rtk are installed via their own install scripts without
-# provenance verification. These scripts are fetched from external repos
-# and are not controlled by nav-pilot's release pipeline.
+# NOTE: cplt is installed via its own install script without provenance
+# verification. The script is fetched from navikt/cplt and is not controlled by
+# nav-pilot's release pipeline.
 if curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash; then
   echo "  ✓ Installed cplt"
 else
   echo "  ⚠ Failed to install cplt"
 fi
 
+# rtk (terminal output filter) is optional and no longer installed automatically.
+#
+# It used to be installed with `curl … rtk/refs/heads/master/install.sh | sh` —
+# an unpinned pipe-to-shell from a moving upstream branch. rtk is in
+# homebrew-core, so users who want it can install a checksum-verified build
+# themselves. It is also no longer promoted: public controlled measurement has
+# not reproduced its advertised token savings.
+# https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/
 echo ""
-echo "→ Installing rtk (token optimizer)..."
-if curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh; then
-  echo "  ✓ Installed rtk"
-else
-  echo "  ⚠ Failed to install rtk"
-fi
+echo "→ Optional: rtk (terminal output filter) — install it yourself if you want it:"
+echo "    brew install rtk"
 
 # ─── Verify ──────────────────────────────────────────────────────────────────
 
