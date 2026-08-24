@@ -408,6 +408,125 @@ func TestSyncNotesRecordedSourceWins(t *testing.T) {
 	}
 }
 
+// TestSyncAdoptsSourceForPreTrackingScope covers the pre-source-tracking
+// policy: a scope installed before nav-pilot recorded sources is synced from
+// the effective source, told so once, and has that source recorded afterwards
+// so the normal B3 guard applies from the next run on.
+func TestSyncAdoptsSourceForPreTrackingScope(t *testing.T) {
+	tests := []struct {
+		name          string
+		configuredSrc string
+		jsonOutput    bool
+		syncErr       error
+		wantSource    string // recorded in state after the sync
+		wantNote      bool
+	}{
+		{
+			name:          "sourceless scope adopts the configured source",
+			configuredSrc: "navikt/grillmester",
+			wantSource:    "navikt/grillmester",
+			wantNote:      true,
+		},
+		{
+			name:          "json output stays machine-readable",
+			configuredSrc: "navikt/grillmester",
+			jsonOutput:    true,
+			wantSource:    "navikt/grillmester",
+		},
+		{
+			name:          "a failed sync records nothing",
+			configuredSrc: "navikt/grillmester",
+			syncErr:       errors.New("could not clone"),
+			wantNote:      true,
+		},
+		{
+			name: "nothing configured, nothing adopted",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := isolatedConfig(t)
+			content := "version = 1\n"
+			if tt.configuredSrc != "" {
+				content += "source = \"" + tt.configuredSrc + "\"\n"
+			}
+			mustWrite(t, path, content)
+
+			scope := ScopeRepo(repoTarget(t))
+			writeGuardState(t, scope, "")
+
+			srcDir := legacySourceTree(t)
+			orig := resolveSourceForSync
+			t.Cleanup(func() { resolveSourceForSync = orig })
+			resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+				if tt.syncErr != nil {
+					return nil, tt.syncErr
+				}
+				return &Source{Dir: srcDir, SHA: "abc1234", Version: "dev", Repo: sourceRepo}, nil
+			}
+
+			out := captureStdoutFor(t, func() {
+				err := cmdSync(scope, "", "", false, tt.jsonOutput)
+				if tt.syncErr == nil && err != nil {
+					t.Errorf("cmdSync = %v, want nil", err)
+				}
+				if tt.syncErr != nil && err == nil {
+					t.Error("cmdSync succeeded, want the resolve failure")
+				}
+			})
+
+			gotNote := strings.Contains(out, "predates source tracking")
+			if gotNote != tt.wantNote {
+				t.Errorf("informational line present = %v, want %v. Output:\n%s", gotNote, tt.wantNote, out)
+			}
+			if tt.wantNote && !strings.Contains(out, tt.configuredSrc) {
+				t.Errorf("informational line does not name the source being adopted:\n%s", out)
+			}
+
+			state, err := readScopedState(scope)
+			if err != nil {
+				t.Fatalf("readScopedState: %v", err)
+			}
+			if state.SourceRepo != tt.wantSource {
+				t.Errorf("state.SourceRepo = %q, want %q", state.SourceRepo, tt.wantSource)
+			}
+		})
+	}
+}
+
+// TestSyncAdoptedSourceIsGuardedAfterwards covers the point of adopting: the
+// healed scope is an ordinary recorded-source scope, so a later configured
+// source change is refused on install instead of silently mixed in.
+func TestSyncAdoptedSourceIsGuardedAfterwards(t *testing.T) {
+	path := isolatedConfig(t)
+	mustWrite(t, path, "version = 1\nsource = \""+defaultSourceRepo+"\"\n")
+
+	scope := ScopeRepo(repoTarget(t))
+	writeGuardState(t, scope, "")
+
+	srcDir := legacySourceTree(t)
+	orig := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = orig })
+	resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+		return &Source{Dir: srcDir, SHA: "abc1234", Version: "dev", Repo: sourceRepo}, nil
+	}
+	captureStdoutFor(t, func() {
+		if err := cmdSync(scope, "", "", false, false); err != nil {
+			t.Fatalf("cmdSync: %v", err)
+		}
+	})
+
+	// The user now points the config at another agentpakke.
+	mustWrite(t, path, "version = 1\nsource = \"navikt/grillmester\"\n")
+	if err := guardScopeSource(scope, ""); err == nil {
+		t.Error("install into the healed scope was not guarded against the new source")
+	}
+	adopted, err := adoptSyncSource(scope, "")
+	if err != nil || adopted != "" {
+		t.Errorf("adoptSyncSource on the healed scope = (%q, %v), want (\"\", nil)", adopted, err)
+	}
+}
+
 // ─── root TUI staleness is a default-source question ─────────────────────────
 
 // TestScopeStalenessOnlyForDefaultSource covers MINOR-4: nav-pilot's release
@@ -811,18 +930,18 @@ func TestGuardScopeSource(t *testing.T) {
 	}
 }
 
-func TestGuardScopeSyncSource(t *testing.T) {
+func TestAdoptSyncSource(t *testing.T) {
 	tests := []struct {
 		name            string
 		configuredSrc   string
 		flagSource      string
 		stateSourceRepo string
-		wantErr         bool
+		wantAdopt       string
 	}{
-		{name: "recorded source wins, no error", configuredSrc: "navikt/grillmester", stateSourceRepo: defaultSourceRepo},
+		{name: "recorded source wins, nothing to adopt", configuredSrc: "navikt/grillmester", stateSourceRepo: defaultSourceRepo},
 		{name: "same source", configuredSrc: defaultSourceRepo, stateSourceRepo: defaultSourceRepo},
 		{name: "no configured source", stateSourceRepo: ""},
-		{name: "unknown recorded source is refused", configuredSrc: "navikt/grillmester", stateSourceRepo: "", wantErr: true},
+		{name: "sourceless scope adopts the configured source", configuredSrc: "navikt/grillmester", stateSourceRepo: "", wantAdopt: "navikt/grillmester"},
 		{name: "explicit flag overrides", configuredSrc: "navikt/grillmester", flagSource: defaultSourceRepo, stateSourceRepo: ""},
 	}
 	for _, tt := range tests {
@@ -837,9 +956,12 @@ func TestGuardScopeSyncSource(t *testing.T) {
 			scope := ScopeRepo(repoTarget(t))
 			writeGuardState(t, scope, tt.stateSourceRepo)
 
-			err := guardScopeSyncSource(scope, tt.flagSource)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("guardScopeSyncSource = %v, wantErr = %v", err, tt.wantErr)
+			got, err := adoptSyncSource(scope, tt.flagSource)
+			if err != nil {
+				t.Fatalf("adoptSyncSource = %v, want no error", err)
+			}
+			if got != tt.wantAdopt {
+				t.Fatalf("adoptSyncSource = %q, want %q", got, tt.wantAdopt)
 			}
 		})
 	}
@@ -861,9 +983,10 @@ func TestGuardIsPerScope(t *testing.T) {
 	if err := guardScopeSource(navScope, ""); err == nil {
 		t.Error("scope on a different source was not guarded")
 	}
-	// Sync leaves both alone: each scope syncs from its own recorded source.
-	if err := guardScopeSyncSource(navScope, ""); err != nil {
-		t.Errorf("sync guard fired for a scope with a recorded source: %v", err)
+	// Sync leaves both alone: each scope syncs from its own recorded source,
+	// so neither has anything to adopt.
+	if adopted, err := adoptSyncSource(navScope, ""); err != nil || adopted != "" {
+		t.Errorf("adoptSyncSource on a scope with a recorded source = (%q, %v), want (\"\", nil)", adopted, err)
 	}
 }
 
@@ -1066,6 +1189,43 @@ func TestSameSourceRepo(t *testing.T) {
 		if got := sameSourceRepo(tt.a, tt.b); got != tt.want {
 			t.Errorf("sameSourceRepo(%q, %q) = %v, want %v", tt.a, tt.b, got, tt.want)
 		}
+	}
+}
+
+// TestSameSourceRepoResolvesSymlinks covers the false cross-source refusal: a
+// configured path and a recorded symlink to the same checkout are one source.
+func TestSameSourceRepoResolvesSymlinks(t *testing.T) {
+	root := t.TempDir()
+	real := filepath.Join(root, "checkout")
+	other := filepath.Join(root, "other")
+	for _, d := range []string{real, other} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		a, b string
+		want bool
+	}{
+		{name: "symlink and its target are the same source", a: link, b: real, want: true},
+		{name: "symlink and its target, other way round", a: real, b: link, want: true},
+		{name: "symlink into a subpath of the target", a: filepath.Join(link, "."), b: real, want: true},
+		{name: "different directories still differ", a: link, b: other},
+		{name: "nonexistent paths fall back to the cleaned path", a: filepath.Join(root, "gone"), b: filepath.Join(root, "gone") + "/", want: true},
+		{name: "nonexistent paths that differ still differ", a: filepath.Join(root, "gone"), b: filepath.Join(root, "elsewhere")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sameSourceRepo(tt.a, tt.b); got != tt.want {
+				t.Errorf("sameSourceRepo(%q, %q) = %v, want %v", tt.a, tt.b, got, tt.want)
+			}
+		})
 	}
 }
 

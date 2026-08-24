@@ -45,10 +45,29 @@ var cmdSyncFn = cmdSync
 //   - apply: update differing files in place
 //
 // Works with both state-based repos (nav-pilot install) and auto-detected repos.
+//
+// A scope whose state predates source tracking adopts the source it syncs from
+// (B3): the sync says so, runs, and records the source only once it succeeded,
+// so a failed sync leaves the scope exactly as sourceless as it found it.
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
-	if err := guardScopeSyncSource(scope, sourceRepo); err != nil {
+	adopted, err := adoptSyncSource(scope, sourceRepo)
+	if err != nil {
 		return err
 	}
+	if adopted != "" && !jsonOutput {
+		noteAdoptedSource(scope, adopted)
+	}
+	if err := syncScope(scope, ref, sourceRepo, apply, jsonOutput); err != nil {
+		return err
+	}
+	if adopted != "" {
+		recordAdoptedSource(scope, adopted)
+	}
+	return nil
+}
+
+// syncScope is the sync itself, once the source question is settled.
+func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
 	// The source a scope was installed from wins over the persisted default:
 	// selection is per scope (B4), so syncing one scope never drags another
 	// scope's agentpakke into it.

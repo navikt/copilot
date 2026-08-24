@@ -178,26 +178,49 @@ func guardScopeSource(scope *InstallScope, flagSource string) error {
 		bold(`nav-pilot config set source ""`))
 }
 
-// guardScopeSyncSource is the sync-side half of B3. Sync already prefers the
-// source recorded in the scope's state over the configured one, so a scope that
-// knows where it came from can never be cross-synced. What it cannot decide is
-// an install whose state predates source tracking: syncing that against a
-// configured agentpakke would overwrite files from an unknown origin, so it
-// refuses and asks for an explicit answer.
-func guardScopeSyncSource(scope *InstallScope, flagSource string) error {
+// adoptSyncSource is the sync-side half of B3. Sync already prefers the source
+// recorded in the scope's state over the configured one, so a scope that knows
+// where it came from can never be cross-synced — [guardScopeSource] covers the
+// install side and this returns nothing for it.
+//
+// The case it answers is an install whose state predates source tracking. That
+// scope has no recorded origin to guard against, and refusing to sync it would
+// strand every pre-tracking install behind a flag. Instead sync proceeds from
+// the effective source and adopts it: the returned value is what the caller
+// records in state after a successful sync, so from the next run on the scope
+// has an origin and the normal guard applies. An empty return means there is
+// nothing to adopt (explicit --source, no configured source, no install, or a
+// scope that already records one).
+func adoptSyncSource(scope *InstallScope, flagSource string) (string, error) {
 	configured, state, err := crossSourceCheck(scope, flagSource)
 	if err != nil || state == nil || state.SourceRepo != "" {
-		return err
+		return "", err
 	}
-	return fmt.Errorf(
-		"the %s scope records no source (it was installed before nav-pilot tracked one), "+
-			"and your configured source is %s.\n"+
-			"Syncing would pull content from an agentpakke this install may not come from.\n\n"+
-			"  Sync from a named source:  %s\n"+
-			"  Or reinstall the scope:    %s",
-		scope.Name, bold(configured),
-		bold("nav-pilot sync --source "+defaultSourceRepo),
-		bold("nav-pilot install --source "+configured+" <name>"))
+	return configured, nil
+}
+
+// noteAdoptedSource says which source a pre-tracking scope is being synced
+// from, and that nav-pilot is about to remember it. Adopting silently is how
+// someone ends up with a scope pinned to a source they never chose.
+func noteAdoptedSource(scope *InstallScope, sourceRepo string) {
+	fmt.Printf("%s The %s scope predates source tracking; syncing from %s and recording it as this scope's source.\n\n",
+		dim("ℹ"), scope.Name, bold(sourceRepo))
+}
+
+// recordAdoptedSource writes the adopted source into the scope's state, after
+// the sync it describes actually succeeded. It never fails the sync: the files
+// are already correct, and a scope that stays sourceless just gets asked again
+// next time.
+func recordAdoptedSource(scope *InstallScope, sourceRepo string) {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil || state.SourceRepo != "" {
+		return
+	}
+	state.SourceRepo = sourceRepo
+	if err := writeScopedState(scope, state); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not record %s as the %s scope's source: %v\n",
+			yellow("⚠"), sourceRepo, scope.Name, err)
+	}
 }
 
 // crossSourceCheck returns the configured source and the scope's state for the
@@ -220,15 +243,33 @@ func crossSourceCheck(scope *InstallScope, flagSource string) (string, *StateFil
 }
 
 // sameSourceRepo compares two source values. Repo ids are case-insensitive on
-// GitHub; local paths are compared as cleaned paths.
+// GitHub; local paths are compared as the checkout they resolve to.
 func sameSourceRepo(a, b string) bool {
 	if a == b {
 		return true
 	}
 	if filepath.IsAbs(a) || filepath.IsAbs(b) {
-		return filepath.Clean(a) == filepath.Clean(b)
+		return resolvedSourcePath(a) == resolvedSourcePath(b)
 	}
 	return strings.EqualFold(a, b)
+}
+
+// resolvedSourcePath reduces a path-form source to the directory it actually
+// names, so a symlink and the checkout behind it are one source rather than two
+// — otherwise the B3 guard refuses a sync over what is the same content.
+//
+// A path that cannot be resolved (it no longer exists, or is not a path at all)
+// falls back to the cleaned string, which is the comparison this had before and
+// the only one still available.
+func resolvedSourcePath(p string) string {
+	if !filepath.IsAbs(p) {
+		return filepath.Clean(p)
+	}
+	resolved, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return filepath.Clean(p)
+	}
+	return resolved
 }
 
 // noteRecordedSourceWins says which source a sync actually reads from when the

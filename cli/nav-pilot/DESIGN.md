@@ -448,10 +448,16 @@ Konsekvenser:
   Innholdet hentes fra `layout`-stiene, og `StateFile.Collection` får manifestets
   `name`. Uten manifest er alt uendret, byte for byte.
 - **Per scope (B4):** hvert scope husker `source_repo` i state. `guardScopeSource`
-  (install, inkludert alle interaktive stier) og `guardScopeSyncSource` (sync)
-  nekter å blande innhold fra to agentpakker i samme scope; eksplisitt
-  `--source` er overstyringen. Sync bruker scopets registrerte kilde og sier fra
-  når den avviker fra den konfigurerte. Ferskhetssjekken i rot-TUI-en hopper over
+  (install, inkludert alle interaktive stier) nekter å blande innhold fra to
+  agentpakker i samme scope; eksplisitt `--source` er overstyringen. Sync bruker
+  scopets registrerte kilde og sier fra når den avviker fra den konfigurerte.
+  Et scope fra før kildesporingen har ingen registrert kilde å beskytte:
+  `adoptSyncSource` lar synken gå fra den gjeldende kilden, skriver én
+  informasjonslinje om det (ikke i `--json`), og `recordAdoptedSource` fester
+  kilden i state *etter* en vellykket sync — en sync som feiler registrerer
+  ingenting. Fra neste kjøring gjelder den vanlige B3-vakten. Stiformede kilder
+  sammenlignes symlink-oppløst (`resolvedSourcePath`), så en symlink og
+  checkouten bak den er én kilde. Ferskhetssjekken i rot-TUI-en hopper over
   scope som ikke kommer fra `navikt/copilot`: release-feeden beskriver bare den.
 - **Tier 2 ennå ikke støttet:** en agentpakke uten `layout`, med klienter som har
   `payloads`, avvises med sin egen begrunnelse i stedet for en misvisende
