@@ -184,7 +184,7 @@ Andre tips for vedlikeholdere:
 
 ### RTK — komprimerer terminaloutput
 
-> **Oppdatert 2026-08-24:** Denne seksjonen påsto opprinnelig at «RTK rapporterer 60–90 % reduksjon på verktøydata». Det tallet er verktøyets egen selvrapportering, og den er ikke bekreftet av kontrollert måling. Avsnittet er rettet, og nav-pilot anbefaler ikke lenger RTK aktivt.
+> **Oppdatert 2026-08-24:** Denne seksjonen påsto opprinnelig at «RTK rapporterer 60–90 % reduksjon på verktøydata». Det tallet er verktøyets egen selvrapportering, og ingen kontrollert måling bekrefter det. Vi har rettet avsnittet, og nav-pilot anbefaler ikke lenger RTK aktivt.
 
 [RTK](https://github.com/rtk-ai/rtk) er en CLI-proxy som filtrerer og komprimerer kommando-output (testresultater, diff, kubectl) før den når kontekstvinduet.
 
@@ -193,13 +193,19 @@ brew install rtk
 rtk init -g --copilot
 ```
 
-**Hva vi vet om effekten:** RTK har en innebygd teller (`rtk gain`) som viser hvor mye den mener den har spart. Den tellingen er ikke det samme som lavere regning: den regner hele den rå kommando-outputen som «spart» selv om agenten uansett kutter store verktøyresultater, den priser fjernede tokens til full input-pris selv om det meste av sesjonsinput er cachede gjenlesninger til rundt en tidel av prisen, og bare en del av verktøyresultatene går gjennom hooken i det hele tatt (innebygde lese- og søkeverktøy går utenom).
+**Hva vi vet om effekten:** RTK har en innebygd teller (`rtk gain`) som viser hvor mye verktøyet mener det har spart. Den tellingen er ikke det samme som lavere regning:
 
-Den eneste store offentlige kontrollerte studien — [JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) med forhåndsregistrerte endepunkter — fant ingen besparelse: 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen målbar forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell. Merk omfanget: studien målte RTK i Claude Code, og hook-dekningen over er et arkitekturtrekk ved den agenten. Tilsvarende kontrollert måling finnes ikke for Copilot CLI eller OpenCode — der er effekten rett og slett ikke målt. Liknende resultater er rapportert for andre komprimerende verktøy: [0,6 % av en faktisk regning på 755 dollar](https://jayn.app/caveman), og en prompt-komprimerende proxy som [kuttet tokens 39 % men brøt prompt-cachen 123 ganger](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) og dermed flyttet millioner av tokens til full pris.
+- Den regner hele den rå kommando-outputen som «spart», selv om agenten uansett kutter store verktøyresultater.
+- Den priser fjernede tokens til full input-pris, selv om det meste av sesjonsinput er cachede gjenlesninger til rundt en tidel av prisen.
+- Bare en del av verktøyresultatene går gjennom hooken i det hele tatt — innebygde lese- og søkeverktøy går utenom.
 
-Den strukturelle grunnen er at output-tokens er en liten andel av totalen i en agent-sesjon, og at cache-treffraten er høy. Da er det lite igjen å hente på å komprimere tekst.
+Den eneste store offentlige kontrollerte studien — [JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) med forhåndsregistrerte endepunkter — fant ingen besparelse: 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen målbar forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell.
 
-**Praktisk konklusjon:** RTK gjør terminaloutput lettere å lese, og det kan i seg selv være verdt noe. Men ikke regn med lavere regning, og ikke bruk verktøyets eget sparetall som bevis — mål heller fakturert kostnad per fullført oppgave. Grepene som faktisk har dokumentert effekt er modellvalg, resonneringsnivå, å holde prompt-cachen intakt, og å gjøre mindre arbeid.
+Merk omfanget: studien målte RTK i Claude Code, og hook-dekningen over er et arkitekturtrekk ved den agenten. Tilsvarende kontrollert måling finnes ikke for Copilot CLI eller OpenCode — der er effekten ikke målt. Andre har rapportert liknende for andre komprimerende verktøy: [0,6 % av en faktisk regning på 755 dollar](https://jayn.app/caveman), og en prompt-komprimerende proxy som [kuttet tokens 39 % men brøt prompt-cachen 123 ganger](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) og dermed flyttet millioner av tokens til full pris.
+
+Grunnen er strukturell: output-tokens utgjør en liten andel av totalen i en agent-sesjon, og cache-treffraten er høy. Da er det lite å hente på å komprimere tekst.
+
+**Praktisk konklusjon:** RTK gjør terminaloutput lettere å lese, og det kan være verdt noe i seg selv. Men ikke regn med lavere regning, og ikke bruk verktøyets eget sparetall som bevis — mål heller fakturert kostnad per fullført oppgave. Grepene som faktisk har dokumentert effekt, er modellvalg, resonneringsnivå, å holde prompt-cachen intakt og å gjøre mindre arbeid.
 
 **Merk:** RTK prosesserer terminaloutput lokalt. Sjekk at verktøyet er godkjent for ditt team før du bruker det med output som kan inneholde sensitive data.
 
