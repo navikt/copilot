@@ -15,7 +15,7 @@ describe("generateSetupScript", () => {
 
     it("generates correct CLI script", () => {
       const result = generateSetupScript(os, "cli", "kotlin-backend");
-      expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt rtk");
+      expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt");
       expect(result.code).toContain("npm install -g @github/copilot");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
       expect(result.code).not.toContain("opencode");
@@ -23,7 +23,7 @@ describe("generateSetupScript", () => {
 
     it("generates correct OpenCode script", () => {
       const result = generateSetupScript(os, "opencode", "kotlin-backend");
-      expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt rtk");
+      expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt");
       expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot --client opencode");

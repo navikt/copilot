@@ -41,7 +41,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 2. Bonus episode B: Mål effekt i statistikk
 3. Bonus episode C: Chronicle — forstå og optimaliser context
 4. Bonus episode D: Cplt sandbox — kom i gang på 3 minutter
-5. Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
+5. Bonus episode E: Fire grep som faktisk senker regningen
 
 ## Produksjonsstatus
 
@@ -57,7 +57,7 @@ Kort serie for alle utviklere i Nav som bruker Copilot i det daglige.
 | Bonus B | Planlagt | Kan fortsatt justeres. |
 | Bonus C | Planlagt | Fokus: `/context`, `tips`, `cost-tips`, `improve`. |
 | Bonus D | Spilt inn | Lås manus, metadata og overlay. |
-| Bonus E | Planlagt | Fokus: rtk gain/discover, git/go test, side-by-side output. |
+| Bonus E | Planlagt | Fokus: modellvalg, resonneringsnivå, prompt-cache, mindre arbeid. Erstatter tidligere rtk-utkast. |
 
 **Regel:** Ikke endre innholdet i episoder merket **Spilt inn**. Juster bare status, beskrivelser eller produksjonsnotater ved behov.
 
@@ -790,139 +790,118 @@ Output: nummerert liste.
 
 ---
 
-## Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
+## Bonus episode E: Fire grep som faktisk senker regningen
 
 **Status:** Planlagt
 
-**Overlay:** E · orange/amber · before/after compression meter · git log / git status / go test / git diff · 60-90% ↓
+**Overlay:** E · orange/amber · lever-meter · modell / resonneringsnivå / cache / mindre arbeid · kr per oppgave
 
-**Mål:** Vise hvordan `rtk`-prefiksen på CLI-kommandoer automatisk senker tokenbruk på kommandoer med tydelig output — med visuell før/etter-sammenligning av output.
+**Mål:** Vise de fire grepene som har dokumentert effekt på tokenkostnad — og lære seeren å måle effekt på fakturert kostnad per fullført oppgave i stedet for på et verktøys eget sparetall.
 
-**Kan sees alene fordi:** Vi forklarer `rtk`-prinsippet i 30 sek og viser fem konkrete kommandoer der effekten er tydelig.
+**Kan sees alene fordi:** Vi starter med hvorfor «spart tokens» og «lavere regning» ikke er samme sak, og går rett på fire grep man kan gjøre samme dag.
 
-**Oppsett før demo:** Installer og initialiser `rtk` for Copilot først:
+**Bakgrunn (til deg som spiller inn):** Denne episoden erstatter et tidligere utkast som handlet om `rtk` og CLI-output-komprimering med en påstand om 60–90 % besparelse. Den påstanden er verktøyets egen selvrapportering. Den eneste store offentlige kontrollerte studien ([JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/)) fant 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell. Ikke bruk tall fra verktøydashbord i videoen.
 
-```bash
-brew install rtk
-rtk init -g --copilot
-```
+**Oppsett før demo:** Ingen installasjon. Du trenger tilgang til modellvalg, resonneringsnivå og en kostnadsvisning (Spend Meter i VS Code eller statistikk i my-copilot).
 
 **Script-outline (one-take):**
-1. "Hei og velkommen! I dag lærer du ett enkelt grep som senker tokens på alt du kjører fra terminalen."
-2. Vis installasjon og init: `brew install rtk` og `rtk init -g --copilot`.
-3. Vis samme kommando to ganger: uten og med `rtk` foran.
-4. Demonstrer effekten med fire kommandoer som gir tydelig forskjell (git log, git status, go test med cache av, git diff).
-5. Kjør `rtk gain` bare som bonus hvis tracking-databasen er tilgjengelig; ellers bruk `rtk discover` som status-sjekk.
-6. Avslutt med: "Add `rtk` to the start of any command."
+1. "Hei og velkommen! I dag ser vi på hva som faktisk senker AI-regningen — og hvorfor det vanligste rådet ikke gjør det."
+2. Vis forskjellen på «tokens spart» og «kroner fakturert»: output-tokens er en liten del av en sesjon, og det meste av input er cachede gjenlesninger til rundt en tidel av prisen.
+3. Grep 1 — modellvalg: samme oppgave på to modeller, vis pris per token og resultat.
+4. Grep 2 — resonneringsnivå: kjør en rutineoppgave på lavt nivå og vis at kvaliteten holder.
+5. Grep 3 — hold prompt-cachen intakt: vis hva som bryter cachen, og hva det koster.
+6. Grep 4 — gjør mindre arbeid: målrettet test i stedet for full pipeline, én oppgave per sesjon.
+7. Avslutt med målereglen: sammenlign fakturert kostnad per fullført oppgave, aldri et verktøys eget sparetall.
 
 **Innhold (3–5 min):**
-1. Vis hva `rtk` gjør i 20 sek (filter + compress).
-2. **Setup (20 sek):** `brew install rtk` og `rtk init -g --copilot`.
-3. **Demo 1 (45 sek):** `git log --oneline --decorate --all` uten vs med rtk.
-   - Uten: ~80 linjer med mye padding og dekor
-   - Med rtk: ~20 linjer, signal-only
-4. **Demo 2 (45 sek):** `git status` uten vs med rtk.
-   - Uten: verbose forklaringer og lange blokker
-   - Med rtk: kompakt liste som er lett å lese på skjerm
-5. **Demo 3 (45 sek):** `go test -count=1 -v ./...` uten vs med rtk.
-   - Uten: test-for-test output og pakkevis støy
-   - Med rtk: aggregert resultat som fortsatt viser om noe feiler
-6. **Demo 4 (30 sek):** `git diff` på en ekte, større endring uten vs med rtk.
-   - Uten: mange hunk-linjer og kontekst
-   - Med rtk: kort oppsummering av hva som faktisk endret seg
-7. **Demo 5 (20 sek, valgfri):** `rtk gain` eller `rtk discover` hvis tracking er tilgjengelig.
-   - Brukes som bonus, ikke som hovedbevis
-8. **Avslutt (30 sek):** Kort sjekkliste: add rtk til kommandoer som faktisk produserer mye output.
+1. **Rammen (40 sek):** Hvorfor «spart output» ≈ 0 kroner. Output-tokens er en liten andel av en agent-sesjon, cache-treffraten er høy, og de fleste tellere priser fjernede tokens til full input-pris.
+2. **Grep 1 — modellvalg (60 sek):** Den største spaken, fordi den endrer pris per token og ikke bare antall tokens. Kjør samme oppgave på en rask og en tung modell, og vis at rutineoppgaven ikke ble bedre av den dyre modellen.
+3. **Grep 2 — resonneringsnivå (45 sek):** Leverandørens egen innstilling for resonneringsnivå er et reelt kostnadsvalg. Vis en rutineoppgave på lavt nivå med samme resultat, og si tydelig når du *bør* skru opp igjen.
+4. **Grep 3 — prompt-cache (45 sek):** Vis hva som bryter cachen (endre systemprompt/instruksjonsfiler midt i sesjonen, injisere ny kontekst tidlig i prompten) og hva som bevarer den. Poeng: et tiltak som «sparer tokens» men bryter cachen kan gi *høyere* regning.
+5. **Grep 4 — mindre arbeid (45 sek):** `./gradlew test --tests *MinTest` i stedet for full pipeline, én oppgave per sesjon, la agenten lese selv i stedet for å lime inn. Færre runder slår kortere tekst.
+6. **Måleregel (30 sek):** Kjør samme oppgavesett før og etter, og sammenlign fakturert kostnad per *fullført* oppgave. Verktøyets eget sparetall teller ikke som bevis.
 
-**Demo-kontekst (referanserepo):** Monorepo med go, git, docker — gir flere virkelige eksempler.
-**Viktig:** Ikke bruk `go build` som hoveddemo; cache kan gjøre at forskjellen blir usynlig. Bruk heller `go test -count=1 -v` eller kommandoer som alltid er støynete.
+**Demo-kontekst (referanserepo):** Bruk dette monorepoet. Velg én reell oppgave (f.eks. en liten endring i `apps/copilot-metrics`) og kjør den to ganger med ulikt modell-/resonneringsvalg.
 
-**📄 Referanse:** Se eksempelseksjonen nederst i denne fila for konkrete før/etter-eksempler, copy-paste-klare kommandoer, og opptak-sjekkliste.
+**📄 Referanse:** Se referanseseksjonen nederst i denne fila for kilder, tall og opptaks-sjekkliste.
 
 **Reell oppgave i repo (velg én før opptak):**
-- Optimaliser fire kommandoer du kjører regelmessig ved å legge `rtk` foran — vis tydelig forskjell i output.
+- Kjør samme lille endring to ganger med ulik modell og ulikt resonneringsnivå, og noter fakturert kostnad per fullført oppgave for begge.
 
-**Ta med deg videre:** Prefix alle CLI-kommandoer med `rtk` når output faktisk blir kortere og klarere. En vane som sparer gjentakende.
+**Ta med deg videre:** Velg riktig modell og riktig resonneringsnivå, ikke komprimer tekst. Mål i kroner per fullført oppgave.
 
-**Oppsummering:** `rtk` er en enveisventil som klipper støy fra alle kommandoer. Null læringskurve, umiddelbar effekt.
+**Oppsummering:** De fire spakene med dokumentert effekt er modellvalg, resonneringsnivå, intakt prompt-cache og mindre arbeid.
 
-**Outro:** Bruk `rtk` på kommandoene som produserer mye støy, og sjekk `rtk gain` når tracking er satt opp for å se den kumulative sparingen.
+**Outro:** Neste gang du vurderer et token-sparende verktøy: be om fakturert kostnad per fullført oppgave, ikke et skjermbilde av verktøyets eget dashbord.
 
 **Prompt-manus (copy/paste):**
 
-```bash
-# Vis hvordan rtk virker (talk-through, ikke prompt)
-brew install rtk
-rtk init -g --copilot
+```text
+Gjør denne endringen. Bruk en rask modell og lavt resonneringsnivå.
+Oppgave: legg til en manglende feilmelding i <fil>.
+Output: bare diffen.
+```
 
-git log --oneline --decorate --all | head -20
+```text
+Samme oppgave, men bruk høyt resonneringsnivå.
+Sammenlign resultatet med forrige kjøring.
+```
 
-rtk git log --oneline --decorate --all
-
-# Go test (disable cache so the difference is visible)
-go test -count=1 -v ./... | head -30
-
-rtk go test -count=1 -v ./...
-
-# Samlet sparing denne økten (valgfri, hvis tracking er tilgjengelig)
-rtk gain
-
-# Per-kommando historikk (valgfri)
-rtk gain --history
-
-# Finn kommandoer du kjørte uten rtk
-rtk discover
-
-# Rå kommando uten filtering (benchmark/feilsøking)
-rtk proxy git status
+```text
+Kjør bare testene som dekker <fil>, ikke hele pipelinen.
+Rapporter bare feilende tester.
 ```
 
 **Demo-senario for videoen:**
 
-Sekvens 1 (0:00-1:00): Introduksjon
-- "Logs og output fra CLI er ofte fulle av støy."
-- "rtk er en filter som sitter foran alle kommandoer."
-- "Bare legg `rtk` foran — og bespar 60–90 % tokens."
+Sekvens 1 (0:00–0:50): Rammen
+- "Alle vil spare tokens. Men det er kroner du blir fakturert for."
+- Vis fordelingen: input dominerer, det meste er cachet, output er en liten andel.
+- "Derfor er det å komprimere tekst en liten spak — og noen ganger negativ, hvis den bryter cachen."
 
-Sekvens 2 (1:00-2:15): Før/etter-demo (split screen hvis mulig)
-- **Venstre (uten rtk):** `git log --oneline --decorate --all`
-  - Vis 20–30 linjer av output med mye dekor
-  - Teller tokens mentalt eller med overlay
-- **Høyre (med rtk):** `rtk git log --oneline --decorate --all`
-  - Vis samme kommando, 8–10 linjer, ren output
-  - Overlay viser "60% fewer tokens"
+Sekvens 2 (0:50–1:50): Modellvalg
+- Samme oppgave, to modeller, side ved side
+- Vis pris per token for begge og resultatet av begge
+- Overlay: "Største spaken: pris per token"
 
-Sekvens 3 (2:15-3:00): Go-test eksempel
-- `go test -count=1 -v ./...` (cache av, verbose, mye noise)
-- `rtk go test -count=1 -v ./...` (aggregert)
+Sekvens 3 (1:50–2:35): Resonneringsnivå
+- Rutineoppgave på lavt nivå, samme resultat
+- Nevn når du skal skru opp igjen (arkitektur, feilsøking i ukjent kode)
 
-Sekvens 4 (3:00-3:30): Git status / diff
-- `git status` og `git diff` på ekte endring
-- `rtk git status` og `rtk git diff` viser renere, kortere output
+Sekvens 4 (2:35–3:20): Prompt-cache
+- Vis en sesjon der cachen holder, og en der den brytes
+- Overlay: "Cachet input ≈ 1/10 pris"
 
-Sekvens 5 (3:30-4:00): Måling og impact (valgfri)
-- Kjør `rtk gain` hvis tracking-databasen finnes
-- Ellers vis `rtk discover` som status-sjekk
-- Overlay animerer token-meter oppover
+Sekvens 5 (3:20–4:00): Mindre arbeid
+- Målrettet test vs full pipeline
+- Én oppgave per sesjon
 
-Sekvens 6 (4:00-4:20): Avslutting og sjekkliste
+Sekvens 6 (4:00–4:20): Måleregel og sjekkliste
 - "Her er hva du gjør neste gang:"
-  - Prefix all CLI med `rtk`
-  - Kjør `rtk gain` når tracking er satt opp
-  - Sjekk `rtk gain --history` ukentlig hvis den er tilgjengelig
+  - Velg modell etter oppgave, ikke etter vane
+  - Sett resonneringsnivå bevisst
+  - Ikke bryt cachen midt i en sesjon
+  - Mål i kroner per fullført oppgave
 
-**Forventet respons-signal:** Tydelig før/etter-kontrast. Målbar token-sparing. Enkelt regel.
+**Forventet respons-signal:** Seeren kan navngi de fire spakene, og vet at et verktøys eget sparetall ikke er bevis for lavere regning.
+
+**Kilder:**
+- JetBrains: [Measuring rtk's token savings in Claude Code](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) — 425 kjøringer, 86 oppgaver, forhåndsregistrerte endepunkter
+- [jayn caveman-replay](https://jayn.app/caveman) ([data](https://github.com/jaynapp/jayn-caveman)) — 0,6 % av en faktisk regning på 755 dollar
+- Brandon Barker: [Fewer tokens, bigger bill](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) — 39 % færre tokens, men cachen brutt 123 ganger
+- [Token savings: wrong number](https://zernie.com/blog/token-savings-wrong-number/) — ca. −6 % målt mot −65 % annonsert
+- Nav: [Slik holder du token-forbruket nede](news/articles/token-forbruk-verktoy-teknikker.md)
 
 **Overlay metadata (OverlayComponent format):**
 
 ```ts
 {
-  id: "bonus-e-rtk",
-  title: "rtk — CLI Output Compression",
+  id: "bonus-e-kostnadsspaker",
+  title: "Fire grep som faktisk senker regningen",
   accent: "#ff8c42", // orange
   secondaryAccent: "#ffc857", // amber
-  motif: "compression-wave", // visual representation of filtering
-  poster: "bonus-e-rtk-poster.png",
+  motif: "lever-meter", // fire spaker med ulik lengde
+  poster: "bonus-e-kostnadsspaker-poster.png",
   components: [
     {
       kind: "episode-number",
@@ -930,32 +909,31 @@ Sekvens 6 (4:00-4:20): Avslutting og sjekkliste
       labels: ["E"]
     },
     {
-      kind: "compare-bars",
+      kind: "ladder",
+      anchor: "center-left",
+      labels: ["Modellvalg", "Resonneringsnivå", "Prompt-cache", "Mindre arbeid"],
+      highlightIndex: 0
+    },
+    {
+      kind: "rule-pill",
       anchor: "bottom-full",
-      labels: ["Without rtk (200 lines)", "With rtk (30 lines)"],
-      highlightIndex: 1
+      labels: ["Mål i kroner per fullført oppgave"]
     },
     {
       kind: "chip",
       anchor: "top-right",
-      labels: ["60-90% saved"],
+      labels: ["ikke verktøyets eget sparetall"],
       monospace: true
-    },
-    {
-      kind: "counter",
-      anchor: "center-left",
-      labels: ["git log", "git status", "go test", "git diff"],
-      highlightIndex: 0
     }
   ]
 }
 ```
 
 **Frontend rendering hints:**
-- Compression wave motif: show concentric lines squeezing inward, suggesting "filtering"
-- Compare bars: stacked or side-by-side bar chart showing lines reduced
-- Token counter chip: small monospace text in top-right showing percentage
-- Command list: vertical stack of 3 commands with checkmarks
+- Lever-meter motif: fire vannrette spaker med synkende lengde, øverste tydelig lengst
+- Ladder: vertikal liste med de fire spakene, øverste uthevet
+- Rule-pill: én bred pille nederst med målereglen
+- Chip: liten monospace-tekst øverst til høyre som advarsel mot selvrapporterte tall
 
 ---
 
@@ -1029,7 +1007,7 @@ Resultatet: 10x raskere svar, 90% færre tokens, og færre feil—fordi du gir L
 
 ### Episode 5: Kort output uten kvalitetstap
 
-LLM-er gir deg lange, detaljerte svar som regel. Det er fint når du trenger full forklaring, men når du bare vil ha koden eller punktene, er halvparten av outputen bortkastet. I denne videoen introduserer vi `/terse`-modus: den samme svarene, men uten fyllord, unødvendige forklaringer og repetisjon. Du får 40-50% færre tokens—og eksakt samme informasjon.
+LLM-er gir deg lange, detaljerte svar som regel. Det er fint når du trenger full forklaring, men når du bare vil ha koden eller punktene, er halvparten av outputen bortkastet. I denne videoen introduserer vi `/terse`-modus: den samme svarene, men uten fyllord, unødvendige forklaringer og repetisjon. Du får kortere output med samme kjerneinnhold. Hvor mye det utgjør varierer med oppgaven, så mål det på dine egne oppgaver framfor å stole på et fasttall.
 
 /terse er perfekt når du allerede skjønner domenet og bare vil ha resultatet raskt. Vi viser før/etter-eksempler med kodegenering, planlegging og debugging. Etter denne videoen bruker du `/terse` som standard, og velger full-mode bare når du trenger læring, ikke speed.
 
@@ -1063,69 +1041,54 @@ Med Chronicle kan du måle hvor mye hver fil/agent/instruksjon koster, og målre
 
 Bruk sandboxen til å eksperimentere med nye workflows, teste optimaliseringsteknikker, eller lære agentdelegeringen uten å påvirke din normale setup. Det er som en sikker øvingsgrunn for Copilot-bruken din. Etter denne videoen kan du starte eksperimenter med det samme.
 
-### Bonus episode E: rtk — CLI-output-komprimering (60-90% token-besparelse)
+### Bonus episode E: Fire grep som faktisk senker regningen
 
-Hver gang du kjører `go test -count=1 -v` fra terminalen, scrolles du gjennom hundrevis av linjer. Mye støy, lite signal. Med `rtk` foran kommandoen får du det samme resultatet på én linje—og 95% færre tokens. Videoen viser også hvordan du installerer og initialiserer verktøyet for Copilot med `brew install rtk` og `rtk init -g --copilot`.
+De fleste råd om tokensparing handler om å komprimere tekst. Problemet er at tekst er den minste posten på regningen: i en agent-sesjon er input dominerende, og det meste av input er cachede gjenlesninger som faktureres til en brøkdel av full pris. Verktøy som komprimerer output kan derfor vise imponerende tall i sitt eget dashbord uten at regningen flytter seg — og et tiltak som bryter prompt-cachen kan gjøre den dyrere.
 
-Ingen oppsetting, ingen læringskurve. Bare legg `rtk` foran kommandoer som faktisk produserer mye output, og se resultatene med `rtk discover` eller `rtk gain` når tracking er satt opp. Vi viser fire konkrete eksempler: git log, git status, go test med cache av, og git diff—hver med 60-90% besparelse. Prøv `rtk` foran din neste kommando. Du merker resultatet med en gang.
+I denne videoen ser vi på de fire grepene som faktisk har målbar effekt: modellvalg (den største spaken, fordi den endrer pris per token), bevisst resonneringsnivå, å holde prompt-cachen intakt, og å gjøre mindre arbeid i stedet for å skrive kortere. Vi kjører den samme oppgaven i dette repoet med ulike valg og sammenligner.
 
-### rtk — konkrete demoer og opptaksnotater
+Til slutt får du målereglen som gjør deg immun mot markedsføring: sammenlign fakturert kostnad per *fullført* oppgave før og etter, aldri et verktøys eget sparetall. Etter denne videoen vet du hvilke fire knapper du skal skru på, og hvordan du sjekker at det virket.
 
-#### Setup: installer og initialiser
+### Kostnadsspaker — kilder og opptaksnotater
 
-```bash
-brew install rtk
-rtk init -g --copilot
-```
+#### Hvorfor output-komprimering er en liten spak
 
-Bruk dette før opptak så seeren ser hele løypa fra null til bruksklar Copilot-integrasjon.
+Output-tokens utgjør en liten andel av tokenbruken i en agent-sesjon, og cache-treffraten på input er høy. Tellere i komprimeringsverktøy overvurderer typisk effekten på tre måter: de regner hele den rå verktøyoutputen som «spart» selv om agenten uansett kutter store resultater, de priser fjernede tokens til full input-pris i stedet for cache-pris, og de fanger bare den delen av verktøyresultatene som faktisk går gjennom hooken.
 
-#### Demo 1: git log
+#### Kilder du kan vise på skjerm
 
-Uten `rtk` får du lang og dekorert historikk. Med `rtk git log --oneline --decorate --all` blir output kortere, renere og lettere å lese på skjerm. Dette er den enkleste måten å vise at verktøyet kutter støy uten å kutte signal.
+- JetBrains: [Measuring rtk's token savings in Claude Code](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) — 425 kjøringer, 86 oppgaver, forhåndsregistrerte endepunkter. Resultat: +7,6 % kostnad per oppgave ved lavt resonneringsnivå (p = 0,004), +0,1 % (p = 0,99) ved høyt, ingen kvalitetsforskjell.
+- [jayn caveman-replay](https://jayn.app/caveman), [data](https://github.com/jaynapp/jayn-caveman) — 0,6 % spart av en faktisk regning på 755 dollar.
+- Brandon Barker: [Fewer tokens, bigger bill](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) — 39 % færre tokens, men prompt-cachen brutt 123 ganger.
+- [Token savings: wrong number](https://zernie.com/blog/token-savings-wrong-number/) — ca. −6 % målt mot −65 % annonsert.
 
-#### Demo 2: git status
+#### Demo 1: modellvalg
 
-`git status` gir ofte både forklaringer og lange blokker med endringer. `rtk git status` gjør resultatet kompakt nok til at seeren faktisk ser hva som er endret uten å scrolle. Dette er en tydelig før/etter-demo fordi samme informasjon blir mye lettere å konsumere.
+Kjør samme lille oppgave to ganger med ulik modell. Vis pris per token for begge før du starter, og vis at resultatet på en rutineoppgave er likeverdig. Dette er den sterkeste demoen fordi den endrer prisen, ikke bare mengden.
 
-#### Demo 3: go test
+#### Demo 2: resonneringsnivå
 
-Bruk `go test -count=1 -v ./...` for å unngå cache og få en synlig forskjell. Kjør deretter `rtk go test -count=1 -v ./...` for en aggregert og mer lesbar output. Dette er den sterkeste demoen når du vil vise hvor mye støy som vanligvis ligger i testkjøring.
+Kjør en rutineoppgave på lavt resonneringsnivå og vis at kvaliteten holder. Si tydelig når du bør skru opp igjen: arkitekturvalg, feilsøking i ukjent kode, sikkerhetsvurderinger.
 
-#### Demo 4: git diff
+#### Demo 3: prompt-cache
 
-På en større endring er `git diff` perfekt for å vise forskjellen mellom rå og filtrert output. Uten `rtk` blir hunkene lange og tunge. Med `rtk git diff` får du kortere oppsummering av selve endringen, som gjør poenget umiddelbart synlig.
+Vis to sesjoner: én der instruksjoner og systemprompt ligger i ro, og én der du endrer kontekst tidlig i prompten midt i sesjonen. Poenget er at cachet input koster rundt en tidel, og at et «sparetiltak» som bryter cachen kan gi høyere regning.
 
-#### Demo 5: måling og status
+#### Demo 4: mindre arbeid
 
-`rtk gain` er valgfri bonus hvis tracking-databasen er tilgjengelig. Hvis ikke, bruk `rtk discover` for å vise status og eventuelle savnede besparelser. Poenget er at måling ikke skal være en blokkering for selve demoen.
+Kjør en målrettet test i stedet for full pipeline, og la agenten lese filer selv i stedet for at du limer inn. Færre runder slår kortere tekst.
+
+#### Måleregel
+
+Kjør et fast sett oppgaver før og etter endringen, og sammenlign fakturert kostnad per fullført oppgave. Ta med kvalitet: en «besparelse» som gir flere runder er ingen besparelse.
 
 #### Opptaksregel
 
-- Vis installasjon først: `brew install rtk` og `rtk init -g --copilot`
-- Velg bare kommandoer med tydelig output-forskjell
-- Ikke bruk `go build` som hoveddemo når cache kan skjule effekten
-- Hold `rtk gain` som bonus, ikke som hovedbevis
-- Vis alltid same kommando med og uten `rtk` før du går videre
+- Ikke vis tall fra et verktøys eget sparedashbord som bevis
+- Bruk fakturerte tall (Spend Meter i VS Code eller statistikk i my-copilot)
+- Velg en oppgave som er liten nok til å kjøres flere ganger på opptak
+- Vær tydelig på hva som *ikke* er testet: én studie, ett verktøy, to resonneringsnivåer
 
-#### Kopiérbare kommandoer
+#### Nevn gjerne, men uten anbefaling
 
-```bash
-brew install rtk
-rtk init -g --copilot
-
-git log --oneline --decorate --all | head -20
-rtk git log --oneline --decorate --all
-
-git status
-rtk git status
-
-go test -count=1 -v ./... | head -30
-rtk go test -count=1 -v ./...
-
-git diff HEAD~1..HEAD -- docs/large-file.md
-rtk git diff HEAD~1..HEAD -- docs/large-file.md
-
-rtk discover
-rtk gain
-```
+`rtk` finnes fortsatt og kan installeres med `brew install rtk`. Den gjør terminaloutput lettere å lese. Hvis du nevner den i videoen, si samtidig at den offentlige kontrollerte målingen ikke gjenskapte den annonserte besparelsen — og ikke bruk `rtk gain` som bevis for noe.

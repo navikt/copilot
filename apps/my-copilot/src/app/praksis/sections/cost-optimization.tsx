@@ -33,8 +33,8 @@ export default function CostOptimization() {
             <BodyShort size="small" className="text-gray-700">
               VS Code 1.125 introduserte et innebygd «Spend Meter» som viser ditt eget AI Credits-forbruk i sanntid.
               Finn det under <code>View → Status Bar → Copilot Usage</code>. Bruk det aktivt for å oppdage dyre mønstre
-              tidlig. Kombinert med <code>rtk</code>-proxyen (60–90 % token-besparelse) er dette de to viktigste
-              verktøyene for å holde kostnadene nede.
+              tidlig. Måler du effekten av et tiltak, bruk fakturert kostnad per fullført oppgave — ikke sparetallet et
+              verktøy rapporterer om seg selv.
             </BodyShort>
           </Box>
 

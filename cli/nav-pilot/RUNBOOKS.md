@@ -67,7 +67,7 @@ Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `de
 2. **Was there a recent code push?**
    ```bash
    # Check git log for installs.go changes in last 2h
-   rtk git log --oneline -n 20 -- cli/nav-pilot/install.go
+   git log --oneline -n 20 -- cli/nav-pilot/install.go
    ```
 
 3. **Which error types are causing failures?**
@@ -154,7 +154,7 @@ On-call determines: fix in place, or revert to stable version
 
 2. **Recent error message changes?**
    ```bash
-   rtk git log --oneline -n 10 -- cli/nav-pilot/output.go cli/nav-pilot/interactive.go
+   git log --oneline -n 10 -- cli/nav-pilot/output.go cli/nav-pilot/interactive.go
    ```
 
 3. **Check error context:**
@@ -242,7 +242,7 @@ Check rate next day
 
 2. **Any recent changes to scope handling?**
    ```bash
-   rtk git log --oneline -n 5 -- cli/nav-pilot/scope.go
+   git log --oneline -n 5 -- cli/nav-pilot/scope.go
    ```
 
 3. **What does the error message say?**
@@ -322,7 +322,7 @@ Følg med neste uke
 1. **When did this spike start?**
    - Recent change to prompts?
    ```bash
-   rtk git log --oneline -n 5 -- cli/nav-pilot/interactive.go
+   git log --oneline -n 5 -- cli/nav-pilot/interactive.go
    ```
 
 2. **Which action is being declined?**
@@ -409,7 +409,7 @@ Følg med neste vakt
 
 2. **Recent changes to merge algorithm?**
    ```bash
-   rtk git log --oneline -n 5 -- cli/nav-pilot/sync.go cli/nav-pilot/manifest.go
+   git log --oneline -n 5 -- cli/nav-pilot/sync.go cli/nav-pilot/manifest.go
    ```
 
 3. **Are users aborting on conflicts?**

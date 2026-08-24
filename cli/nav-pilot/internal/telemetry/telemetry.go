@@ -545,7 +545,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
 		"client_not_found", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
-		"yes", "no", "aborted", "brew_failed", "curl_failed", "init_failed", "already_installed":
+		"yes", "no", "aborted", "brew_failed", "brew_missing", "init_failed", "already_installed":
 		return v
 	default:
 		if strings.Count(v, ".") >= 1 || strings.Count(v, "-") >= 1 {

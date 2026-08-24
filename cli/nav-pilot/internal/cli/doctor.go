@@ -198,8 +198,17 @@ func cmdDoctor() error {
 			fmt.Printf("    %s %s: OK\n", green("✓"), name)
 		}
 	}
-	checkDep("rtk")
+	// checkOptionalDep reports presence without failing the health check. rtk is
+	// optional: nav-pilot works fully without it.
+	checkOptionalDep := func(name string) {
+		if p, _ := exec.LookPath(name); p == "" {
+			fmt.Printf("    %s %s: Not installed (optional)\n", dim("-"), name)
+		} else {
+			fmt.Printf("    %s %s: OK\n", green("✓"), name)
+		}
+	}
 	checkDep("git")
+	checkOptionalDep("rtk")
 	fmt.Println()
 
 	if hasErrors {

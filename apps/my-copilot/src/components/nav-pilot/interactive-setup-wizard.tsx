@@ -70,12 +70,12 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
 
   if (isMac) {
     blocks.push({
-      title: "# 2. Installer Nav-verktøy (inkluderer rtk for token-sparing)",
-      commands: ["brew install navikt/tap/nav-pilot navikt/tap/cplt rtk"],
+      title: "# 2. Installer Nav-verktøy",
+      commands: ["brew install navikt/tap/nav-pilot navikt/tap/cplt"],
     });
   } else {
     blocks.push({
-      title: "# 2. Last ned verktøy (inkluderer rtk for token-sparing og sandbox)",
+      title: "# 2. Last ned verktøy (inkluderer sandbox)",
       commands: ["curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"],
     });
   }

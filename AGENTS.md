@@ -14,35 +14,30 @@ Monorepo for Nav’s Copilot ecosystem:
 
 Security model and trust boundaries: see `SECURITY.md`.
 
-## Efficiency rule (mandatory)
+## Efficiency rule
 
-Always prefix shell commands with `rtk`.
+Keep tool output small: run targeted commands, avoid dumping whole files or full
+build logs into context, and prefer deterministic tools over asking the model to
+guess.
 
-```bash
-rtk git status
-rtk mise check
-rtk gh pr view 123
-rtk go test ./...
-```
-
-In chained commands, prefix every command:
-
-```bash
-rtk git add . && rtk git commit -m "msg" && rtk git push
-```
+`rtk` is an optional CLI proxy that filters terminal output before it reaches the
+model. It is available if you want it (`rtk git status`), but it is not required
+and not assumed anywhere in this repo — public controlled measurement has not
+reproduced its advertised savings
+([JetBrains study](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/)).
 
 ## Standard commands
 
 From repo root:
 
 ```bash
-rtk mise check
-rtk mise test
-rtk mise build
-rtk mise all
+mise check
+mise test
+mise build
+mise all
 ```
 
-Per app: run `rtk mise check` in the app directory after edits.
+Per app: run `mise check` in the app directory after edits.
 
 ## Repo conventions that matter
 
@@ -55,5 +50,5 @@ Per app: run `rtk mise check` in the app directory after edits.
 ## When in doubt
 
 - Start with the smallest safe change.
-- Validate with existing checks (`rtk mise check`, or `rtk mise all` for cross-repo impact).
-- Prefer deterministic tools first (`rtk rg`, `rtk git`, `rtk gh`), then LLM synthesis.
+- Validate with existing checks (`mise check`, or `mise all` for cross-repo impact).
+- Prefer deterministic tools first (`rg`, `git`, `gh`), then LLM synthesis.

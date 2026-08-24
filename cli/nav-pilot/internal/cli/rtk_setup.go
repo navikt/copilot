@@ -45,16 +45,18 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 	hasRtk := isRtkInstalled()
 
 	fmt.Println()
-	fmt.Printf("%s Terminal Token Optimizer (rtk)\n", bold("🚀"))
-	fmt.Println(dim("  Safely filters terminal noise before it reaches the AI, saving 60-90% on token costs."))
-	fmt.Println(dim("  It runs entirely in the background and won't change how your commands work."))
+	fmt.Printf("%s Terminal output filter (rtk)\n", bold("🔧"))
+	fmt.Println(dim("  rtk filters and compresses terminal output before it reaches the model's context."))
+	fmt.Println(dim("  It runs in the background and won't change how your commands work."))
+	fmt.Println(dim("  Note: public controlled measurement has not reproduced the vendor's savings claim —"))
+	fmt.Println(dim("  https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/"))
 	fmt.Println()
 
 	var choice string
 	err := huh.NewSelect[string]().
-		Title(fmt.Sprintf("Install Terminal Token Optimizer for %s?", cfg.Client)).
+		Title(fmt.Sprintf("Install the terminal output filter (rtk) for %s?", cfg.Client)).
 		Options(
-			huh.NewOption("Yes, set it up (Highly Recommended)", "yes"),
+			huh.NewOption("Yes, set it up", "yes"),
 			huh.NewOption("No thanks", "no"),
 		).
 		Value(&choice).
@@ -121,26 +123,40 @@ func isRtkInstalled() bool {
 	return err == nil
 }
 
+// installRtk installs rtk through Homebrew only.
+//
+// Why there is no scripted fallback: the previous implementation ran
+// `brew install navikt/tap/rtk`, but navikt/homebrew-tap has no rtk formula
+// (only cplt and nav-pilot), so the brew step always failed and every user
+// silently fell through to `curl … refs/heads/master/install.sh | sh` — an
+// unpinned pipe-to-shell from a moving upstream branch. rtk ships in
+// homebrew-core, so `brew install rtk` gets us a checksum-verified bottle and
+// Homebrew's own supply-chain handling. If Homebrew is unavailable we print
+// manual instructions rather than reintroducing an unverified install script.
 func installRtk() (string, string, error) {
-	var brewErr error
-	if _, err := exec.LookPath("brew"); err == nil {
-		p, res, err := installRtkViaBrew()
-		if err == nil {
-			return p, res, nil
-		}
-		brewErr = err
-		fmt.Fprintf(os.Stderr, "Brew installation failed: %v. Retrying with curl installation method...\n", err)
+	if _, err := exec.LookPath("brew"); err != nil {
+		printManualRtkInstructions()
+		return "", "brew_missing", fmt.Errorf("homebrew not found; rtk must be installed manually")
 	}
-	p, res, curlErr := installRtkViaCurl()
-	if curlErr != nil && brewErr != nil {
-		return "", "install_failed", fmt.Errorf("brew install failed (%v) and curl install failed (%w)", brewErr, curlErr)
+	p, res, err := installRtkViaBrew()
+	if err != nil {
+		printManualRtkInstructions()
+		return "", res, err
 	}
-	return p, res, curlErr
+	return p, res, nil
+}
+
+// printManualRtkInstructions tells the user how to install rtk themselves.
+func printManualRtkInstructions() {
+	fmt.Fprint(os.Stderr, "\n  Install rtk manually, then run nav-pilot again:\n")
+	fmt.Fprint(os.Stderr, "    brew install rtk    (homebrew-core, checksum-verified)\n")
+	fmt.Fprint(os.Stderr, "    or download a signed release archive from https://github.com/rtk-ai/rtk/releases\n\n")
 }
 
 func installRtkViaBrew() (string, string, error) {
 	fmt.Printf("%s Installing rtk via brew...\n", dim("→"))
-	cmd := exec.Command("brew", "install", "navikt/tap/rtk")
+	// homebrew-core formula (https://formulae.brew.sh/formula/rtk), not a Nav tap.
+	cmd := exec.Command("brew", "install", "rtk")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -158,35 +174,6 @@ func installRtkViaBrew() (string, string, error) {
 	}
 
 	return "rtk", "success", nil
-}
-
-func installRtkViaCurl() (string, string, error) {
-	fmt.Printf("%s Installing rtk via curl script...\n", dim("→"))
-	cmd := exec.Command("sh", "-c", "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return "", "curl_failed", err
-	}
-
-	// The install script might drop it somewhere not immediately in PATH
-	rtkBinName := "rtk"
-	if runtime.GOOS == "windows" {
-		rtkBinName = "rtk.exe"
-	}
-	if p, err := exec.LookPath(rtkBinName); err == nil {
-		return p, "success", nil
-	}
-
-	// Check common cargo bin if the script is rust-based or uses cargo
-	home, _ := os.UserHomeDir()
-	cargoBin := filepath.Join(home, ".cargo", "bin", rtkBinName)
-	if _, err := os.Stat(cargoBin); err == nil {
-		return cargoBin, "success", nil
-	}
-
-	// Just return the binary name and let the exec fail if it still can't find it
-	return rtkBinName, "success", nil
 }
 
 func getOpenCodeConfigDir() string {
