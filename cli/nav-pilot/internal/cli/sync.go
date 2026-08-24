@@ -55,6 +55,9 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	if sourceRepo == "" {
 		if state, err := readScopedState(scope); err == nil && state != nil && state.SourceRepo != "" {
 			sourceRepo = state.SourceRepo
+			if !jsonOutput {
+				noteRecordedSourceWins(state.SourceRepo)
+			}
 		}
 	}
 	src, err := resolveSourceForSync(ref, sourceRepo)
@@ -234,7 +237,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 				}
 			}
 		}
-		reportNewItems(scope, resolver)
+		reportNewItems(scope, resolver, src)
 		return nil
 	}
 
@@ -346,7 +349,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		return errSyncFailed
 	}
 
-	reportNewItems(scope, resolver)
+	reportNewItems(scope, resolver, src)
 	return nil
 }
 
@@ -492,11 +495,12 @@ func conflictStatePaths(scope *InstallScope) []string {
 	return conflicts
 }
 
-// detectNewItems checks if the source has agents/skills/instructions not in the state file.
-// Only relevant for "(all)" user-scope installs where new items may appear.
-func detectNewItems(scope *InstallScope, resolver *SourceResolver) []string {
+// detectNewItems checks if the source has agents/skills/instructions not in the
+// state file. Only relevant for installs that are meant to hold everything
+// their source ships — see [scopeTracksEverything].
+func detectNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) []string {
 	state, err := readScopedState(scope)
-	if err != nil || state == nil || state.Collection != CollectionAll || !scope.IsUser() {
+	if err != nil || state == nil || !scopeTracksEverything(scope, state, src) {
 		return nil
 	}
 
@@ -755,9 +759,25 @@ func outputJSON(v interface{}) error {
 	return enc.Encode(v)
 }
 
+// scopeTracksEverything reports whether a scope's install is meant to hold all
+// of its source's content, which is what makes "the source grew an item" worth
+// reporting rather than noise about content the user never asked for.
+//
+// Legacy: the "(all)" user-scope install, the only collection that means
+// everything. Agentpakke: any pakke install — a pakke is installed whole, in
+// either scope, so anything its layout grows belongs to this scope too. Items
+// the user deselected in the picker are recorded as ignored and stay excluded
+// in both cases.
+func scopeTracksEverything(scope *InstallScope, state *StateFile, src *Source) bool {
+	if src != nil && src.Pakke != nil {
+		return state.Collection == src.Pakke.Name
+	}
+	return state.Collection == CollectionAll && scope.IsUser()
+}
+
 // reportNewItems prints a notice if the source has new items not yet installed.
-func reportNewItems(scope *InstallScope, resolver *SourceResolver) {
-	newItems := detectNewItems(scope, resolver)
+func reportNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) {
+	newItems := detectNewItems(scope, resolver, src)
 	if len(newItems) == 0 {
 		return
 	}
@@ -766,5 +786,15 @@ func reportNewItems(scope *InstallScope, resolver *SourceResolver) {
 	for _, item := range newItems {
 		fmt.Printf("    %s\n", item)
 	}
-	fmt.Printf("  Run %s to add them.\n", bold("nav-pilot install --user"))
+	fmt.Printf("  Run %s to add them.\n", bold(installCommandFor(scope, src)))
+}
+
+// installCommandFor names the command that would pull new source items into
+// this scope: an agentpakke installs by name into a repo, everything else is
+// the user-scope install-all.
+func installCommandFor(scope *InstallScope, src *Source) string {
+	if src != nil && src.Pakke != nil && !scope.IsUser() {
+		return "nav-pilot install " + src.Pakke.Name
+	}
+	return "nav-pilot install --user"
 }

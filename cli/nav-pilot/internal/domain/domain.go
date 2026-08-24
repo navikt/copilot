@@ -241,6 +241,42 @@ func (s *InstallScope) ValidateStatePath(p string) error {
 	return nil
 }
 
+// PathWithinRoot reports whether abs is still inside root once every symlink on
+// the way to it has been resolved.
+//
+// Lstat on the final component is not containment: a source repo whose agents/
+// directory is a symlink to /etc still Lstats agents/passwd as a regular file,
+// and reading or copying it leaves the checkout. Every read of source content —
+// the content resolver, and the agentpakke conformance checks — asks this first,
+// so an intermediate symlink cannot hand nav-pilot a file from outside the
+// source it thinks it is reading.
+//
+// Both sides are resolved, so a checkout that itself sits behind a symlink
+// (macOS /tmp, /var) is compared like with like. A path that does not exist yet
+// is resolved as far as its existing ancestors go and judged on those: the
+// parents are what decide containment.
+func PathWithinRoot(root, abs string) bool {
+	rel, err := filepath.Rel(resolveSymlinks(root), resolveSymlinks(abs))
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// resolveSymlinks resolves p, falling back to its longest existing ancestor so
+// a not-yet-existing path is still judged by the parents that do exist.
+func resolveSymlinks(p string) string {
+	p = filepath.Clean(p)
+	if resolved, err := filepath.EvalSymlinks(p); err == nil {
+		return resolved
+	}
+	parent := filepath.Dir(p)
+	if parent == p {
+		return p
+	}
+	return filepath.Join(resolveSymlinks(parent), filepath.Base(p))
+}
+
 // CleanupDirs removes empty artifact directories after uninstall.
 func (s *InstallScope) CleanupDirs() {
 	if s.Name == "repo" {

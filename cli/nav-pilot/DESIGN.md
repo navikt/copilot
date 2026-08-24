@@ -448,11 +448,18 @@ Konsekvenser:
   Innholdet hentes fra `layout`-stiene, og `StateFile.Collection` får manifestets
   `name`. Uten manifest er alt uendret, byte for byte.
 - **Per scope (B4):** hvert scope husker `source_repo` i state. `guardScopeSource`
-  (install) og `guardScopeSyncSource` (sync) nekter å blande innhold fra to
-  agentpakker i samme scope; eksplisitt `--source` er overstyringen.
+  (install, inkludert alle interaktive stier) og `guardScopeSyncSource` (sync)
+  nekter å blande innhold fra to agentpakker i samme scope; eksplisitt
+  `--source` er overstyringen. Sync bruker scopets registrerte kilde og sier fra
+  når den avviker fra den konfigurerte. Ferskhetssjekken i rot-TUI-en hopper over
+  scope som ikke kommer fra `navikt/copilot`: release-feeden beskriver bare den.
+- **Tier 2 ennå ikke støttet:** en agentpakke uten `layout`, med klienter som har
+  `payloads`, avvises med sin egen begrunnelse i stedet for en misvisende
+  «mangler agenter»-feil.
 - **Sømmen stopper her:** persona, modell og launch (`internal/provider`,
   `internal/source/frontmatter.go`) leser fortsatt Nav-defaults. De flyttes til
-  manifestet i M2.
+  manifestet i M2. `export` leser fortsatt de kanoniske katalogene og nekter
+  derfor kilder med et manifest som legger innholdet et annet sted.
 
 `nav-pilot validate [--source <repo>|<sti>] [--ref <ref>]` kjører hele
 konformanssjekken og avslutter med kode 1 ved brudd — ment for agentpakke-repoets
@@ -474,6 +481,12 @@ writeStateAt(path, boundary, state) // sjekker state-sti
 `checkSymlink()` stopper ved boundary for å unngå falske positiver fra system-symlinker (f.eks. `/var → /private/var` på macOS).
 
 `copyDirSimple()` i export.go sjekker kilde-symlinker i stedet (avviser dem).
+
+Lesesiden er også innelukket: `SourceResolver.checkSafePath()` og
+`agentpakke.ValidateSource()` bruker `domain.PathWithinRoot()`, som løser opp
+symlinker i hele stikjeden. En agentpakke der `layout.agents` peker ut av
+checkouten blir dermed avvist både av install og av `nav-pilot validate` — ikke
+bare når siste ledd er en symlink.
 
 ### Stivalidering
 

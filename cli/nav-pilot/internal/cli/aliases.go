@@ -234,7 +234,9 @@ var (
 // cmdExport funnels the source precedence into the artifacts package, which
 // resolves its own source. The agentpakke manifest is not threaded here: export
 // materializes another tool's format from canonical content and is migrated
-// with the rest of the provider layer in M2.
+// with the rest of the provider layer in M2. Until then, artifacts refuses a
+// source whose manifest declares a non-canonical layout rather than exporting
+// an empty tree from paths that source does not use.
 var cmdExport = func(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	effective, err := sourceRepoFor(sourceRepo)
 	if err != nil {

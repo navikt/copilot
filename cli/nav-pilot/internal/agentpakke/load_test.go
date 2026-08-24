@@ -306,7 +306,7 @@ func TestMinNavPilotVersion(t *testing.T) {
 		{"dev build is exempt", "dev", "2099.01.01-000000-0000000", false},
 		{"unset version is exempt", "", "2099.01.01-000000-0000000", false},
 		{"no minimum declared", "2020.01.01-000000-abc1234", "", false},
-		{"unparseable minimum is not enforced", "2020.01.01-000000-abc1234", "whenever", false},
+		{"minimum without a build sha still compares", "2026.10.01-120000-abc1234", "2026.09.01-000000", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -333,6 +333,64 @@ func TestMinNavPilotVersion(t *testing.T) {
 				t.Fatalf("parse = %v, want nil", err)
 			}
 		})
+	}
+}
+
+// TestMinNavPilotVersionMustBeAReleaseVersion covers the fail-closed half of
+// the gate: a minimum nav-pilot cannot compare (a bare date, a word) must be an
+// error, not a silently disabled check. Both layers enforce it — the published
+// schema, so an agentpakke's own CI lint catches it, and the semantic pass, so
+// a manifest reaching this binary another way still fails.
+func TestMinNavPilotVersionMustBeAReleaseVersion(t *testing.T) {
+	malformed := []string{
+		"2026.09.01",              // date only: compares older than every release
+		"2026.09.01-",             // truncated
+		"whenever",                // not a version at all
+		"v2026.09.01-120000-abc1", // tagged form
+		" 2026.09.01-120000",      // padded
+	}
+
+	for _, required := range malformed {
+		t.Run("schema/"+required, func(t *testing.T) {
+			data := patchManifest(t, grillmesterManifest, func(doc map[string]any) {
+				doc["minNavPilotVersion"] = required
+			})
+			err := Validate(data)
+			if err == nil {
+				t.Fatalf("Validate with minNavPilotVersion %q = nil, want a schema violation", required)
+			}
+			if !strings.Contains(err.Error(), "minNavPilotVersion") {
+				t.Errorf("error %q does not name the offending field", err)
+			}
+		})
+
+		t.Run("semantics/"+required, func(t *testing.T) {
+			// Bypass the schema pass: the semantic rule must stand on its own.
+			m := &Manifest{Name: "grillmester", MinNavPilotVersion: required}
+			err := m.checkMinVersion("2099.01.01-000000-abc1234")
+			if err == nil {
+				t.Fatalf("checkMinVersion with %q = nil, want a fail-closed error", required)
+			}
+			if !strings.Contains(err.Error(), "YYYY.MM.DD-HHMMSS") {
+				t.Errorf("error %q does not say what the format is", err)
+			}
+		})
+
+		t.Run("dev-build/"+required, func(t *testing.T) {
+			// The dev-build exemption applies to the *running* version, never to
+			// a malformed declaration.
+			m := &Manifest{Name: "grillmester", MinNavPilotVersion: required}
+			if err := m.checkMinVersion(devVersion); err == nil {
+				t.Errorf("checkMinVersion(%q) on a dev build = nil, want the format error", required)
+			}
+		})
+	}
+
+	for _, required := range []string{"2026.09.01-120000", "2026.09.01-120000-a1b2c3d", "2026.09.01-120000-a1b2c3d4e5f6"} {
+		m := &Manifest{Name: "grillmester", MinNavPilotVersion: required}
+		if err := m.checkMinVersion("2099.01.01-000000-abc1234"); err != nil {
+			t.Errorf("checkMinVersion with the well-formed %q = %v, want nil", required, err)
+		}
 	}
 }
 

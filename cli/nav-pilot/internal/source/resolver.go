@@ -145,6 +145,12 @@ func (r *SourceResolver) Get(kind *ArtifactKind, name string) (Resolved, bool) {
 	return r.getSimpleFile(kind, name)
 }
 
+// checkSafePath refuses to hand back anything the source checkout does not
+// actually contain: a path that is textually outside it, a symlink, or a path
+// that leaves the checkout through a symlinked parent directory (an agentpakke
+// whose layout.agents is a link to somewhere else on the machine, say). The
+// containment check covers the canonical directories too, not only
+// manifest-declared ones.
 func (r *SourceResolver) checkSafePath(abs string) (os.FileInfo, error) {
 	rel, err := filepath.Rel(r.sourceDir, abs)
 	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
@@ -155,6 +161,9 @@ func (r *SourceResolver) checkSafePath(abs string) (os.FileInfo, error) {
 		return nil, err
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, os.ErrNotExist
+	}
+	if !domain.PathWithinRoot(r.sourceDir, abs) {
 		return nil, os.ErrNotExist
 	}
 	return info, nil

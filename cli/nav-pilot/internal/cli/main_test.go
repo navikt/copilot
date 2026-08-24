@@ -1605,7 +1605,7 @@ func TestDetectNewItems(t *testing.T) {
 		t.Fatalf("writeScopedState: %v", err)
 	}
 
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	if len(newItems) != 2 {
 		t.Fatalf("newItems = %d, want 2 (got %v)", len(newItems), newItems)
 	}
@@ -1634,7 +1634,7 @@ func TestDetectNewItems_NoState(t *testing.T) {
 	target := t.TempDir()
 
 	scope := &InstallScope{Name: "user", RootDir: target, StateFile: ".nav-pilot-state.json", SupportedTypes: []string{"agent", "skill", "instruction"}}
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	if len(newItems) != 0 {
 		t.Errorf("expected no items without state, got %v", newItems)
 	}
@@ -1654,7 +1654,7 @@ func TestDetectNewItems_NonAllCollection(t *testing.T) {
 	}
 	writeScopedState(scope, state)
 
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	if len(newItems) != 0 {
 		t.Errorf("expected no items for non-all collection, got %v", newItems)
 	}
@@ -1679,7 +1679,7 @@ func TestDetectNewItems_AllUpToDate(t *testing.T) {
 	}
 	writeScopedState(scope, state)
 
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	if len(newItems) != 0 {
 		t.Errorf("expected no new items, got %v", newItems)
 	}
@@ -1891,7 +1891,7 @@ func TestDetectNewItems_Instructions(t *testing.T) {
 	data, _ := json.Marshal(state)
 	os.WriteFile(filepath.Join(target, ".nav-pilot-state.json"), data, 0o644)
 
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	if len(newItems) != 1 {
 		t.Fatalf("expected 1 new item, got %d: %v", len(newItems), newItems)
 	}
@@ -2202,7 +2202,7 @@ func TestPickerInstallSyncCycle(t *testing.T) {
 	}
 
 	// Step 6: Verify detectNewItems does NOT report the ignored item
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	for _, item := range newItems {
 		if strings.Contains(item, "rust-agent") {
 			t.Errorf("detectNewItems should not report ignored rust-agent: %v", newItems)
@@ -2237,7 +2237,7 @@ func TestPickerInstallSyncCycle_NewSourceItem(t *testing.T) {
 	os.WriteFile(filepath.Join(agentsDir, "brand-new.agent.md"), []byte("# New"), 0o644)
 
 	// detectNewItems should find it
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	found := false
 	for _, item := range newItems {
 		if strings.Contains(item, "brand-new") {
@@ -2280,7 +2280,7 @@ func TestDetectNewItems_IgnoredItemNotReported(t *testing.T) {
 		t.Fatalf("writeScopedState: %v", err)
 	}
 
-	newItems := detectNewItems(scope, NewSourceResolver(source))
+	newItems := detectNewItems(scope, NewSourceResolver(source), nil)
 	for _, item := range newItems {
 		if strings.Contains(item, "rust-agent") {
 			t.Errorf("ignored item should not be reported as new: %v", newItems)

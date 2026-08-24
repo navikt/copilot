@@ -462,14 +462,8 @@ func run(args []string) error {
 	switch command {
 	case "install":
 		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
-			// B2: an explicit --source is persisted only after the install it
-			// was given to succeeded (and validated, which resolveSource does).
 			install := func(err error) error {
-				if err != nil {
-					return err
-				}
-				persistInstalledSource(sourceRepo, dryRun)
-				return nil
+				return finishInstall(err, sourceRepo, dryRun)
 			}
 			if userScope && (len(positional) == 0 || installAll) {
 				return install(cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput))

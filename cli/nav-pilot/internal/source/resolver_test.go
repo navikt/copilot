@@ -361,3 +361,53 @@ func TestCollectAllItemsWithLayout(t *testing.T) {
 		t.Errorf("agents = %v, want [chef]", m.Agents)
 	}
 }
+
+// ─── containment ────────────────────────────────────────────────────────────
+
+// TestResolverRefusesSymlinkedContentDir covers the canonical directories as
+// well as manifest layout paths: an intermediate symlink out of the checkout
+// must not become a read path, even though Lstat of the final component sees an
+// ordinary file.
+func TestResolverRefusesSymlinkedContentDir(t *testing.T) {
+	outside := t.TempDir()
+	mkFile(t, outside, "elsewhere.agent.md")
+	mkFile(t, outside, "leaked", "SKILL.md")
+
+	tmp := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(tmp, "agents")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(tmp, "skills")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	r := NewSourceResolver(tmp)
+	if art, ok := r.Get(KindAgent, "elsewhere"); ok {
+		t.Errorf("resolved %q through a symlinked agents/ directory", art.AbsPath)
+	}
+	if art, ok := r.Get(KindSkill, "leaked"); ok {
+		t.Errorf("resolved %q through a symlinked skills/ directory", art.AbsPath)
+	}
+	if _, _, ok := r.GetFile("agents", "elsewhere.agent.md"); ok {
+		t.Error("GetFile resolved a file through a symlinked agents/ directory")
+	}
+	if items := r.List(KindAgent); len(items) != 0 {
+		t.Errorf("List returned %d agent(s) from outside the checkout", len(items))
+	}
+}
+
+// TestResolverAllowsSymlinkedDirInsideCheckout keeps the containment check from
+// overreaching: a link that stays inside the source is still readable, which is
+// how a repo may lay its content out.
+func TestResolverAllowsSymlinkedDirInsideCheckout(t *testing.T) {
+	tmp := t.TempDir()
+	mkFile(t, tmp, "content", "agents", "nais.agent.md")
+	if err := os.Symlink(filepath.Join(tmp, "content", "agents"), filepath.Join(tmp, "agents")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	r := NewSourceResolver(tmp)
+	if _, ok := r.Get(KindAgent, "nais"); !ok {
+		t.Error("agents/ symlinked to a directory inside the checkout should still resolve")
+	}
+}

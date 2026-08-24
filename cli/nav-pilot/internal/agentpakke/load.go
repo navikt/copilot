@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // ErrNoManifest reports that a source checkout ships no agentpakke manifest.
@@ -107,9 +109,18 @@ func (m *Manifest) checkContractVersion() error {
 // Development and unset builds are exempt: they carry no comparable version,
 // and gating them would block local work on an agentpakke.
 func (m *Manifest) checkMinVersion(runningVersion string) error {
-	required := strings.TrimSpace(m.MinNavPilotVersion)
-	if required == "" || !isReleaseVersion(required) {
+	// The raw value is checked, not a trimmed copy: padding is a malformed
+	// declaration of a known field, and checkRelPath rejects it for paths too.
+	required := m.MinNavPilotVersion
+	if strings.TrimSpace(required) == "" {
 		return nil
+	}
+	if !isReleaseVersionFormat(required) {
+		return fmt.Errorf(
+			"minNavPilotVersion %q is not a nav-pilot release version. "+
+				"Use the YYYY.MM.DD-HHMMSS-sha7 format (for example 2026.09.01-120000-a1b2c3d); "+
+				"a value nav-pilot cannot compare would silently disable the minimum-version gate instead of enforcing it",
+			m.MinNavPilotVersion)
 	}
 	if !isReleaseVersion(runningVersion) {
 		return nil
@@ -305,10 +316,13 @@ func (m *Manifest) validateContent(sourceRoot string) []error {
 	return errs
 }
 
-// requireDir reports a manifest-referenced directory that is missing or is not
-// a directory.
+// requireDir reports a manifest-referenced directory that is missing, is not a
+// directory, or is not really inside the repo.
 func requireDir(sourceRoot, field, rel string) error {
 	abs := filepath.Join(sourceRoot, filepath.FromSlash(rel))
+	if err := requireContained(sourceRoot, field, rel); err != nil {
+		return err
+	}
 	info, err := os.Stat(abs)
 	if err != nil {
 		return fmt.Errorf("%s references %q, which does not exist in the agentpakke repo", field, rel)
@@ -319,16 +333,40 @@ func requireDir(sourceRoot, field, rel string) error {
 	return nil
 }
 
-// requireFile reports a manifest-referenced file that is missing or is not a
-// regular file.
+// requireFile reports a manifest-referenced file that is missing, is not a
+// regular file, or is not really inside the repo.
 func requireFile(sourceRoot, field, rel string) error {
 	abs := filepath.Join(sourceRoot, filepath.FromSlash(rel))
+	if err := requireContained(sourceRoot, field, rel); err != nil {
+		return err
+	}
 	info, err := os.Stat(abs)
 	if err != nil {
 		return fmt.Errorf("%s expects the file %q, which does not exist in the agentpakke repo", field, rel)
 	}
 	if info.IsDir() {
 		return fmt.Errorf("%s expects the file %q, but it is a directory", field, rel)
+	}
+	return nil
+}
+
+// requireContained is checkRelPath's on-disk counterpart. checkRelPath rules out
+// paths that are textually outside the repo; this rules out paths that are
+// textually inside it and physically elsewhere — a symlinked layout directory,
+// or a link somewhere along the way to one. nav-pilot reads and copies from
+// these paths, so what they resolve to is what matters, and os.Stat alone would
+// follow the link and call it conforming.
+func requireContained(sourceRoot, field, rel string) error {
+	abs := filepath.Join(sourceRoot, filepath.FromSlash(rel))
+	if info, err := os.Lstat(abs); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf(
+			"%s references %q, which is a symlink; agentpakke content must be real files and directories inside the repo",
+			field, rel)
+	}
+	if !domain.PathWithinRoot(sourceRoot, abs) {
+		return fmt.Errorf(
+			"%s references %q, which resolves outside the agentpakke repo through a symlinked parent directory",
+			field, rel)
 	}
 	return nil
 }
@@ -354,6 +392,13 @@ func checkAgentFiles(agentsDir, field string) []error {
 			continue
 		}
 		found++
+		// A symlinked agent file reads whatever it points at — including files
+		// outside the checkout — so it is refused rather than parsed.
+		if e.Type()&os.ModeSymlink != 0 {
+			errs = append(errs, fmt.Errorf(
+				"%s: %q is a symlink; agent files must be real files inside the agentpakke repo", field, e.Name()))
+			continue
+		}
 		data, err := os.ReadFile(filepath.Join(agentsDir, e.Name()))
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: reading %q: %v", field, e.Name(), err))

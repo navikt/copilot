@@ -86,6 +86,31 @@ func stateCollection(src *Source, collection string) string {
 	return collection
 }
 
+// guardTier2Only refuses an install from an agentpakke that ships only
+// pre-built payloads.
+//
+// Tier is derived from shape: a manifest with no layout and payload-bearing
+// clients has no Tier 1 content for this binary to materialize. Installing it
+// would resolve the canonical agents//skills/ directories in a repo that ships
+// neither, and report "declares a layout but ships no agents" about a manifest
+// that declares no layout at all. Tier 2 staging arrives in a later milestone;
+// until then this says so.
+func guardTier2Only(src *Source) error {
+	if src == nil || src.Pakke == nil || src.Pakke.Layout != nil {
+		return nil
+	}
+	if !src.Pakke.HasTier(agentpakke.TierPayload) {
+		return nil
+	}
+	return fmt.Errorf(
+		"agentpakke %q in %s ships pre-built payloads (Tier 2), which this nav-pilot version cannot install yet.\n"+
+			"Nothing was installed — Tier 2 payload staging arrives in a later nav-pilot release.\n\n"+
+			"  Inspect what it declares:  %s\n"+
+			"  Or ask the agentpakke for a Tier 1 layout (agents/skills content nav-pilot materializes itself)",
+		src.Pakke.Name, sourceLabelFor(src),
+		bold("nav-pilot validate --source "+sourceLabelFor(src)))
+}
+
 // validatePakkeSource runs the on-disk conformance checks before any file is
 // written (A3: no partial installs). It is a no-op for manifest-less sources,
 // which have no contract to violate.
@@ -204,6 +229,38 @@ func sameSourceRepo(a, b string) bool {
 		return filepath.Clean(a) == filepath.Clean(b)
 	}
 	return strings.EqualFold(a, b)
+}
+
+// noteRecordedSourceWins says which source a sync actually reads from when the
+// user has configured a different one.
+//
+// The precedence is deliberate — selection is per scope (B4), and the scope's
+// recorded source is the only one that can be synced into it without mixing
+// agentpakker — but applying it silently is how someone ends up wondering why
+// `nav-pilot sync` never picks up the agentpakke they configured. It stays
+// quiet when nothing is configured: the config key is what the user asked for,
+// and an absent key asks for nothing.
+func noteRecordedSourceWins(stateRepo string) {
+	configured, err := configuredSourceRepo()
+	if err != nil || configured == "" || sameSourceRepo(configured, stateRepo) {
+		return
+	}
+	fmt.Printf("%s Syncing from %s (recorded for this scope); configured source %s is not used here — reinstall with %s to switch.\n\n",
+		dim("ℹ"), bold(stateRepo), bold(configured),
+		bold("nav-pilot install --source "+configured+" <name>"))
+}
+
+// tracksDefaultSource reports whether a scope's install came from the default
+// source, which is the only source nav-pilot's own release feed describes.
+//
+// An install that predates source tracking records nothing; it is treated as
+// coming from the default, which is where it must have come from — so
+// manifest-less default-source users see no behaviour change.
+func tracksDefaultSource(state *StateFile) bool {
+	if state == nil || state.SourceRepo == "" {
+		return true
+	}
+	return sameSourceRepo(state.SourceRepo, defaultSourceRepo)
 }
 
 // ─── B2: persisting the selected source ──────────────────────────────────────

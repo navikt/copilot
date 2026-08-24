@@ -143,8 +143,9 @@
       }
     },
     "minNavPilotVersion": {
-      "description": "Minimum nav-pilot version required. Format: YYYY.MM.DD-HHMMSS-sha7.",
-      "type": "string"
+      "description": "Minimum nav-pilot version required, in the release format YYYY.MM.DD-HHMMSS-sha7 (the build sha is optional). A value outside this format is rejected rather than ignored: nav-pilot cannot compare it, so accepting it would silently disable the gate the manifest asked for.",
+      "type": "string",
+      "pattern": "^\\d{4}\\.\\d{2}\\.\\d{2}-\\d{6}(-[0-9a-zA-Z][0-9a-zA-Z.-]*)?$"
     }
   }
 }

@@ -2,12 +2,14 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 )
 
 // ─── source-tree fixtures ────────────────────────────────────────────────────
@@ -266,6 +268,348 @@ func TestValidatePakkeSourceLeavesNothingInstalled(t *testing.T) {
 	}
 }
 
+// ─── Tier 2-only agentpakker ─────────────────────────────────────────────────
+
+const tier2ManifestJSON = `{
+  "contractVersion": "1",
+  "name": "grillmester",
+  "description": "Grillmester agentpakke, pre-built",
+  "clients": {"copilot": {"primaryAgents": ["grillmester"], "payloads": {"full": {"path": "dist/copilot/full"}}}}
+}`
+
+// tier2SourceTree builds a conforming Tier 2 agentpakke: payload tree present,
+// payload manifest present, no layout — so the only thing wrong with installing
+// it is that this binary cannot stage payloads yet.
+func tier2SourceTree(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, agentpakke.ManifestDir, agentpakke.ManifestFile), tier2ManifestJSON)
+	mustWrite(t, filepath.Join(dir, "dist", "copilot", "full", "manifest.json"), `{"files":[]}`)
+	return dir
+}
+
+func TestTier2OnlyPakkeIsRefusedWithItsOwnReason(t *testing.T) {
+	isolatedConfig(t)
+	src := &Source{Dir: tier2SourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/grillmester"}
+	if err := attachPakke(src); err != nil {
+		t.Fatalf("attachPakke on a conforming Tier 2 manifest: %v", err)
+	}
+	if src.Pakke == nil || src.Pakke.Layout != nil {
+		t.Fatalf("fixture is not Tier 2-only: %+v", src.Pakke)
+	}
+
+	target := repoTarget(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	userScope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{"collection install", func() error { return cmdInstallFromSource("grillmester", src, ScopeRepo(target), false, false, false) }},
+		{"install all", func() error { return installAllFromSource(userScope, src, nil, false, false, false) }},
+		{"interactive user install", func() error { return interactiveUserInstallFromSource(userScope, src, "") }},
+		{"list", func() error { return cmdList("", "", false, true) }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.name == "list" {
+				stubResolveSource(t, src)
+			}
+			err := tt.run()
+			if err == nil {
+				t.Fatal("Tier 2-only agentpakke was accepted, want a refusal")
+			}
+			if !strings.Contains(err.Error(), "pre-built payloads (Tier 2), which this nav-pilot version cannot install yet") {
+				t.Errorf("error %q does not name the Tier 2 case", err)
+			}
+			if strings.Contains(err.Error(), "declares a layout") || strings.Contains(err.Error(), "no agents, skills, or instructions found") {
+				t.Errorf("error %q is still the misleading layout/empty-source message", err)
+			}
+		})
+	}
+
+	if entries, _ := os.ReadDir(filepath.Join(target, ".github")); len(entries) > 0 {
+		t.Errorf("refused Tier 2 install left %d entries under .github/", len(entries))
+	}
+}
+
+// ─── B4: sync says which source it actually used ─────────────────────────────
+
+// TestSyncNotesRecordedSourceWins covers MINOR-5: the recorded source keeps
+// winning, but the user is told when that means their configured source is not
+// the one being read.
+func TestSyncNotesRecordedSourceWins(t *testing.T) {
+	tests := []struct {
+		name          string
+		configuredSrc string
+		stateSource   string
+		wantNote      bool
+	}{
+		{name: "configured source differs", configuredSrc: "navikt/grillmester", stateSource: defaultSourceRepo, wantNote: true},
+		{name: "configured source matches", configuredSrc: defaultSourceRepo, stateSource: defaultSourceRepo},
+		{name: "configured source matches case-insensitively", configuredSrc: "Navikt/Copilot", stateSource: defaultSourceRepo},
+		{name: "nothing configured", stateSource: "navikt/grillmester"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := isolatedConfig(t)
+			content := "version = 1\n"
+			if tt.configuredSrc != "" {
+				content += "source = \"" + tt.configuredSrc + "\"\n"
+			}
+			mustWrite(t, path, content)
+
+			target := repoTarget(t)
+			scope := ScopeRepo(target)
+			if err := writeScopedState(scope, &StateFile{
+				Collection: "fullstack",
+				Version:    "dev",
+				Scope:      scope.Name,
+				SourceRepo: tt.stateSource,
+				SourceSHA:  "abc1234",
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			srcDir := legacySourceTree(t)
+			orig := resolveSourceForSync
+			t.Cleanup(func() { resolveSourceForSync = orig })
+			var gotSourceRepo string
+			resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+				gotSourceRepo = sourceRepo
+				return &Source{Dir: srcDir, SHA: "abc1234", Version: "dev", Repo: sourceRepo}, nil
+			}
+
+			out := captureStdoutFor(t, func() {
+				if err := cmdSync(scope, "", "", false, false); err != nil {
+					t.Fatalf("cmdSync: %v", err)
+				}
+			})
+
+			if gotSourceRepo != tt.stateSource {
+				t.Errorf("sync resolved source %q, want the recorded %q", gotSourceRepo, tt.stateSource)
+			}
+			gotNote := strings.Contains(out, "is not used here")
+			if gotNote != tt.wantNote {
+				t.Errorf("informational line present = %v, want %v. Output:\n%s", gotNote, tt.wantNote, out)
+			}
+			if tt.wantNote && !strings.Contains(out, tt.stateSource) {
+				t.Errorf("informational line does not name the source actually used:\n%s", out)
+			}
+		})
+	}
+}
+
+// ─── root TUI staleness is a default-source question ─────────────────────────
+
+// TestScopeStalenessOnlyForDefaultSource covers MINOR-4: nav-pilot's release
+// feed describes navikt/copilot, so a scope installed from another agentpakke
+// is neither assessed against it nor offered a sync to nav-pilot/<latest>.
+func TestScopeStalenessOnlyForDefaultSource(t *testing.T) {
+	orig := assessStaleness
+	t.Cleanup(func() { assessStaleness = orig })
+	assessed := 0
+	assessStaleness = func(installedVersion string) artifacts.StalenessAssessment {
+		assessed++
+		return artifacts.StalenessAssessment{LatestVersion: "2099.01.01-000000-abc1234"}
+	}
+
+	tests := []struct {
+		name        string
+		sourceRepo  string
+		wantLatest  string
+		wantAssess  int
+		description string
+	}{
+		{name: "default source is assessed", sourceRepo: defaultSourceRepo, wantLatest: "2099.01.01-000000-abc1234", wantAssess: 1},
+		{name: "untracked source is assessed as the default", sourceRepo: "", wantLatest: "2099.01.01-000000-abc1234", wantAssess: 1},
+		{name: "other agentpakke is left alone", sourceRepo: "navikt/grillmester", wantLatest: "", wantAssess: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assessed = 0
+			scope := ScopeRepo(repoTarget(t))
+			state := &StateFile{Collection: "grillmester", Version: "2026.01.01-000000-abc1234", SourceRepo: tt.sourceRepo}
+
+			got := scopeStaleness(scope, state)
+			if got != tt.wantLatest {
+				t.Errorf("scopeStaleness = %q, want %q", got, tt.wantLatest)
+			}
+			if assessed != tt.wantAssess {
+				t.Errorf("assessStaleness called %d time(s), want %d — a non-default source must not be checked against nav-pilot releases", assessed, tt.wantAssess)
+			}
+		})
+	}
+}
+
+// ─── new-item reminders for agentpakke scopes ────────────────────────────────
+
+// TestDetectNewItemsForPakkeScope covers MINOR-8: a pakke is installed whole, so
+// content it grows is new content for that scope — the reminder is not limited
+// to the legacy "(all)" user-scope install.
+func TestDetectNewItemsForPakkeScope(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := pakkeSourceTree(t, tier1ManifestJSON)
+	target := repoTarget(t)
+	scope := ScopeRepo(target)
+
+	src := &Source{Dir: srcDir, SHA: "def5678", Version: "dev", Repo: "navikt/grillmester"}
+	if err := attachPakke(src); err != nil {
+		t.Fatalf("attachPakke: %v", err)
+	}
+	if err := cmdInstallFromSource("grillmester", src, scope, false, false, false); err != nil {
+		t.Fatalf("cmdInstallFromSource: %v", err)
+	}
+
+	resolver := resolverFor(srcDir, src.Pakke)
+	if items := detectNewItems(scope, resolver, src); len(items) != 0 {
+		t.Errorf("freshly installed pakke reported new items: %v", items)
+	}
+
+	// The agentpakke grows an agent.
+	mustWrite(t, filepath.Join(srcDir, "plugin", "agents", "sausage.agent.md"),
+		"---\nname: sausage\ndescription: S\n---\nBody\n")
+
+	items := detectNewItems(scope, resolver, src)
+	if len(items) != 1 || !strings.Contains(items[0], "sausage") {
+		t.Errorf("detectNewItems = %v, want the new agent from the pakke layout", items)
+	}
+	if got := installCommandFor(scope, src); got != "nav-pilot install grillmester" {
+		t.Errorf("installCommandFor = %q, want the pakke install command", got)
+	}
+
+	// A user's deselected item stays out of the reminder.
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.Files = append(state.Files, InstalledFile{
+		Path:   KindAgent.RelPathForName(scope, "sausage"),
+		Status: fileStatusIgnored,
+	})
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatal(err)
+	}
+	if items := detectNewItems(scope, resolver, src); len(items) != 0 {
+		t.Errorf("detectNewItems reported an ignored item: %v", items)
+	}
+}
+
+// TestDetectNewItemsLegacyUnchanged pins the pre-existing rule: without an
+// agentpakke, only the "(all)" user-scope install gets reminders.
+func TestDetectNewItemsLegacyUnchanged(t *testing.T) {
+	srcDir := legacySourceTree(t)
+	resolver := resolverFor(srcDir, pakkeFor(nil, CollectionAll))
+
+	tests := []struct {
+		name       string
+		collection string
+		userScope  bool
+		want       int
+	}{
+		{name: "single collection in repo scope", collection: "fullstack", want: 0},
+		{name: "single collection in user scope", collection: "fullstack", userScope: true, want: 0},
+		{name: "(all) in repo scope", collection: CollectionAll, want: 0},
+		{name: "(all) in user scope", collection: CollectionAll, userScope: true, want: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			scope := ScopeRepo(repoTarget(t))
+			if tt.userScope {
+				var err error
+				if scope, err = ScopeUser(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := writeScopedState(scope, &StateFile{
+				Collection: tt.collection,
+				Scope:      scope.Name,
+				SourceRepo: defaultSourceRepo,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if got := detectNewItems(scope, resolver, nil); len(got) != tt.want {
+				t.Errorf("detectNewItems = %v (%d), want %d item(s)", got, len(got), tt.want)
+			}
+		})
+	}
+}
+
+// ─── containment: symlinked layout directories ───────────────────────────────
+
+// symlinkedLayoutTree builds an agentpakke whose layout.agents directory is a
+// symlink to content outside the checkout — the escape an Lstat of the final
+// path component alone does not catch.
+func symlinkedLayoutTree(t *testing.T) string {
+	t.Helper()
+	outside := t.TempDir()
+	mustWrite(t, filepath.Join(outside, "secret.agent.md"), "---\nname: secret\ndescription: S\n---\nBody\n")
+
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, agentpakke.ManifestDir, agentpakke.ManifestFile), tier1ManifestJSON)
+	if err := os.MkdirAll(filepath.Join(dir, "plugin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "plugin", "agents")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	mustWrite(t, filepath.Join(dir, "plugin", "skills", "grilling", "SKILL.md"), "# Grilling\n")
+	return dir
+}
+
+func TestSymlinkedLayoutDirIsRefused(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := symlinkedLayoutTree(t)
+	target := repoTarget(t)
+
+	src := &Source{Dir: srcDir, SHA: "abc1234", Version: "dev", Repo: "navikt/grillmester"}
+	if err := attachPakke(src); err != nil {
+		t.Fatalf("attachPakke: %v", err)
+	}
+
+	// validate reports it...
+	_, _, findings := validateSourceTree(src)
+	if len(findings) == 0 {
+		t.Error("validate accepted a layout directory symlinked outside the repo")
+	}
+	var joined string
+	for _, f := range findings {
+		joined += f.Error() + "\n"
+	}
+	if !strings.Contains(joined, "symlink") {
+		t.Errorf("findings do not name the symlink:\n%s", joined)
+	}
+
+	// ...and install refuses before writing anything.
+	err := cmdInstallFromSource("grillmester", src, ScopeRepo(target), false, false, false)
+	if err == nil {
+		t.Fatal("install from a source with a symlinked layout directory succeeded, want a refusal")
+	}
+	if entries, _ := os.ReadDir(filepath.Join(target, ".github")); len(entries) > 0 {
+		t.Errorf("refused install left %d entries under .github/", len(entries))
+	}
+
+	// The resolver behind reads and copies must not see the escaped content
+	// either, whichever way it is asked.
+	resolver := resolverFor(srcDir, src.Pakke)
+	if art, ok := resolver.Get(KindAgent, "secret"); ok {
+		t.Errorf("resolver resolved %q through a symlinked layout directory", art.AbsPath)
+	}
+	if items := resolver.List(KindAgent); len(items) != 0 {
+		t.Errorf("resolver listed %d agent(s) from outside the checkout", len(items))
+	}
+}
+
 // ─── B1: source precedence ───────────────────────────────────────────────────
 
 func TestSourceRepoFor(t *testing.T) {
@@ -520,6 +864,176 @@ func TestGuardIsPerScope(t *testing.T) {
 	// Sync leaves both alone: each scope syncs from its own recorded source.
 	if err := guardScopeSyncSource(navScope, ""); err != nil {
 		t.Errorf("sync guard fired for a scope with a recorded source: %v", err)
+	}
+}
+
+// ─── B3 in the interactive paths ─────────────────────────────────────────────
+
+// stubResolveSource points the CLI's source funnel at an already-prepared
+// checkout, so interactive flows can be driven without cloning anything.
+func stubResolveSource(t *testing.T, src *Source) {
+	t.Helper()
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) { return src, nil }
+}
+
+// pakkeSource builds a resolved, manifest-bearing source over a fixture tree.
+func pakkeSource(t *testing.T, repo string) *Source {
+	t.Helper()
+	src := &Source{Dir: pakkeSourceTree(t, tier1ManifestJSON), SHA: "def5678", Version: "dev", Repo: repo}
+	if err := attachPakke(src); err != nil {
+		t.Fatalf("attachPakke: %v", err)
+	}
+	return src
+}
+
+// TestInteractiveInstallGuardsCrossSource covers B3 in the prompt-driven install
+// paths: picking a scope in a TUI is not a way around the cross-source guard.
+func TestInteractiveInstallGuardsCrossSource(t *testing.T) {
+	tests := []struct {
+		name string
+		// run installs into a scope whose state records defaultSourceRepo while
+		// the configured source is navikt/grillmester.
+		run func(t *testing.T, src *Source, home, target string) error
+	}{
+		{
+			name: "repo collection picker",
+			run: func(t *testing.T, src *Source, home, target string) error {
+				return interactiveRepoInstall(src, ScopeRepo(target), "")
+			},
+		},
+		{
+			name: "user item picker",
+			run: func(t *testing.T, src *Source, home, target string) error {
+				scope, err := ScopeUser()
+				if err != nil {
+					t.Fatal(err)
+				}
+				return interactiveUserInstallFromSource(scope, src, "")
+			},
+		},
+		{
+			name: "bare install in a repo",
+			run: func(t *testing.T, src *Source, home, target string) error {
+				stubResolveSource(t, src)
+				return cmdInstallInteractive(target, "", "")
+			},
+		},
+		{
+			name: "bare install outside a repo",
+			run: func(t *testing.T, src *Source, home, target string) error {
+				stubResolveSource(t, src)
+				return cmdInstallInteractive("", "", "")
+			},
+		},
+		{
+			name: "install --user",
+			run: func(t *testing.T, src *Source, home, target string) error {
+				stubResolveSource(t, src)
+				scope, err := ScopeUser()
+				if err != nil {
+					t.Fatal(err)
+				}
+				return cmdInstallAll(scope, "", "", false, false, false)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			forceNonInteractive = true
+			t.Cleanup(func() { forceNonInteractive = false })
+
+			path := isolatedConfig(t)
+			mustWrite(t, path, "version = 1\nsource = \"navikt/grillmester\"\n")
+
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			target := repoTarget(t)
+
+			userScope, err := ScopeUser()
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGuardState(t, userScope, defaultSourceRepo)
+			writeGuardState(t, ScopeRepo(target), defaultSourceRepo)
+
+			err = tt.run(t, pakkeSource(t, "navikt/grillmester"), home, target)
+			if err == nil {
+				t.Fatal("interactive install from a different source succeeded, want the B3 refusal")
+			}
+			if !strings.Contains(err.Error(), "will not silently mix") {
+				t.Errorf("error %q is not the cross-source refusal", err)
+			}
+		})
+	}
+}
+
+// TestInteractiveInstallAllowsExplicitSource is the other half: an explicit
+// --source is the user answering the guard's question, so the interactive path
+// installs.
+func TestInteractiveInstallAllowsExplicitSource(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
+	path := isolatedConfig(t)
+	mustWrite(t, path, "version = 1\nsource = \"navikt/grillmester\"\n")
+
+	target := repoTarget(t)
+	scope := ScopeRepo(target)
+	writeGuardState(t, scope, defaultSourceRepo)
+
+	src := pakkeSource(t, "navikt/grillmester")
+	if err := interactiveRepoInstall(src, scope, "navikt/grillmester"); err != nil {
+		t.Fatalf("interactiveRepoInstall with an explicit --source: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, ".github", "agents", "grillmester.agent.md")); err != nil {
+		t.Errorf("explicit --source install did not write the agent: %v", err)
+	}
+}
+
+// ─── B2: a cancelled install persists nothing ────────────────────────────────
+
+// TestCancelledInteractiveInstallDoesNotPersistSource covers MAJOR-2: cancelling
+// a prompt must be distinguishable from a successful install, or --source gets
+// saved for an install that never happened.
+func TestCancelledInteractiveInstallDoesNotPersistSource(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
+	path := isolatedConfig(t)
+	mustWrite(t, path, "version = 1\n")
+
+	target := repoTarget(t)
+	src := pakkeSource(t, "navikt/grillmester")
+	stubResolveSource(t, src)
+
+	// promptInstallScope cancelling is the cheapest cancel to simulate: it is
+	// the same nil-scope path a user takes by pressing Esc.
+	origPrompt := promptInstallScopeFn
+	t.Cleanup(func() { promptInstallScopeFn = origPrompt })
+	promptInstallScopeFn = func(string) (*InstallScope, error) { return nil, nil }
+
+	err := cmdInstallInteractive(target, "", "navikt/grillmester")
+	if !errors.Is(err, errInstallCancelled) {
+		t.Fatalf("cancelled install returned %v, want errInstallCancelled", err)
+	}
+
+	// finishInstall is what run() wraps every install in: it must turn the
+	// sentinel into a clean exit and persist nothing.
+	if err := finishInstall(err, "navikt/grillmester", false); err != nil {
+		t.Errorf("finishInstall(cancelled) = %v, want nil (clean exit)", err)
+	}
+	if got, _ := configuredSourceRepo(); got != "" {
+		t.Errorf("cancelled install persisted source = %q, want none", got)
+	}
+	data, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if strings.Contains(string(data), "source =") {
+		t.Errorf("cancelled install wrote a source key:\n%s", data)
 	}
 }
 

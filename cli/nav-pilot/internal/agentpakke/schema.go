@@ -164,6 +164,8 @@ func hintFor(loc []string, msg string) string {
 		}
 	case "layout":
 		return "layout requires agents and skills as repo-relative paths"
+	case "minNavPilotVersion":
+		return "expected a nav-pilot release version, e.g. 2026.09.01-120000-a1b2c3d"
 	}
 	return ""
 }

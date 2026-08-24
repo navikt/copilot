@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,7 +56,11 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 // manifest the installer already knows how to walk. It is the manifest-bearing
 // counterpart to loadManifest: the agentpakke manifest supersedes
 // collections/<name>/manifest.json rather than declaring entries in it.
-func pakkeContents(resolver *SourceResolver, pakke *agentpakke.Manifest) (*Manifest, error) {
+func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
+	if err := guardTier2Only(src); err != nil {
+		return nil, err
+	}
+	pakke := src.Pakke
 	manifest, err := collectAllItemsWith(resolver)
 	if err != nil {
 		return nil, err
@@ -139,6 +144,23 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 }
 
 // ─── Commands ───────────────────────────────────────────────────────────────
+
+// finishInstall closes out an install command.
+//
+// B2: an explicit --source is persisted only after the install it was given to
+// actually succeeded (and validated, which resolveSource does). A cancelled
+// prompt installed nothing, so it persists nothing — and it is still a clean
+// exit, not an error the user has to read.
+func finishInstall(err error, flagSource string, dryRun bool) error {
+	if errors.Is(err, errInstallCancelled) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	persistInstalledSource(flagSource, dryRun)
+	return nil
+}
 
 // cmdInstallAuto resolves whether <name> is a collection or an individual artifact,
 // then dispatches to the appropriate installer. If --type is provided, it skips
@@ -267,6 +289,9 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 
 	// Fail closed before touching the filesystem (A3): a non-conforming
 	// agentpakke must not leave a partial install behind.
+	if err := guardTier2Only(src); err != nil {
+		return err
+	}
 	if err := validatePakkeSource(src); err != nil {
 		return err
 	}
@@ -274,7 +299,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	var manifest *Manifest
 	var err error
 	if src.Pakke != nil {
-		manifest, err = pakkeContents(resolver, pakke)
+		manifest, err = pakkeContents(resolver, src)
 	} else {
 		manifest, err = loadManifest(src.Dir, collection)
 	}
@@ -502,7 +527,7 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 	}
 
 	if src.Pakke != nil {
-		m, err := pakkeContents(resolver, src.Pakke)
+		m, err := pakkeContents(resolver, src)
 		if err != nil {
 			return err
 		}
@@ -602,25 +627,25 @@ func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
 		if scopeErr != nil {
 			return scopeErr
 		}
-		return interactiveUserInstallFromSource(scope, src)
+		return interactiveUserInstallFromSource(scope, src, sourceRepo)
 	}
 
 	// In a git repo: ask where to install
-	scope, err := promptInstallScope(targetDir)
+	scope, err := promptInstallScopeFn(targetDir)
 	if err != nil {
 		return err
 	}
 	if scope == nil {
 		fmt.Println(dim("Cancelled."))
-		return nil
+		return errInstallCancelled
 	}
 
 	if scope.IsUser() {
-		return interactiveUserInstallFromSource(scope, src)
+		return interactiveUserInstallFromSource(scope, src, sourceRepo)
 	}
 
 	// Repo scope: pick a collection
-	return interactiveRepoInstall(src, scope)
+	return interactiveRepoInstall(src, scope, sourceRepo)
 }
 
 // cmdInstallAll installs all agents and skills to user scope by scanning the source.
@@ -641,7 +666,7 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 
 	// Interactive mode: offer the picker (same UX as `nav-pilot` root command)
 	if isInteractive() && !dryRun && !jsonOutput {
-		return interactiveUserInstallFromSource(scope, src)
+		return interactiveUserInstallFromSource(scope, src, sourceRepo)
 	}
 
 	return installAllFromSource(scope, src, nil, dryRun, force, jsonOutput)
@@ -656,6 +681,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	resolver := resolverFor(src.Dir, pakke)
 
 	// Fail closed before touching the filesystem (A3).
+	if err := guardTier2Only(src); err != nil {
+		return err
+	}
 	if err := validatePakkeSource(src); err != nil {
 		return err
 	}
