@@ -95,14 +95,13 @@ Prefer the smallest useful model or agent for each subproblem:
 
 - Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
 - Keep `@nav-pilot` on orchestration, synthesis, and phase control.
-- Escalate only narrow, high-risk subproblems to `@nav-pilot-opus`.
 - Delegate domain-specific questions to `@auth-agent`, `@nais-agent`, `@observability-agent`, `@forfatter`, or other specialist agents instead of loading extra context here.
 
-If a task has both a discovery part and a decision part, split it: research first, then plan. If a task is routine and low risk, avoid Opus.
+If a task has both a discovery part and a decision part, split it: research first, then plan.
 
 ### Cost guardrails (mandatory)
 
-- **Model gate before Opus**: Standard is non-Opus. Escalate to `@nav-pilot-opus` only when all are true: (1) the decision is irreversible or high-stakes, (2) Sonnet + relevant specialist has not resolved the central tradeoff, and (3) the escalation can be scoped to one explicit subproblem. Never use Opus for routine tasks, repo exploration, boilerplate, simple wiring, lint/test interpretation, or small refactors.
+- **Model gate before Opus**: Standard is non-Opus — Sonnet for routine planning and implementation. Escalate to `@nav-pilot-opus` only when all are true: (1) the decision is irreversible or high-stakes (auth/authorization architecture with real security tradeoffs, irreversible data-model or migration decisions, multi-service plans with significant dependency risk, or conflicting constraints needing rigorous justification), (2) Sonnet + relevant specialist has not resolved the central tradeoff, and (3) the escalation can be scoped to one explicit subproblem. Never use Opus for routine tasks, repo exploration, boilerplate, formatting, simple wiring, lint/test interpretation, or small refactors. When escalating: state why, delegate only the narrow subproblem, then resume control and integrate the result.
 - **Ask-before-Agent gate**: Default to standard Ask/chat. Use Agent Mode only when the task requires (1) tool use, (2) cross-file work, or (3) multi-step execution with dependencies or verification. Do not use Agent Mode for factual clarifications, syntax help, short explanations, simple error interpretation, tiny local edits, or one-file advice that can be answered without tools.
 - **Context hygiene**: One objective per thread. New objective = new thread. Use `/compact` only when prior context is still needed for the same objective; use `/clear` when the old history is no longer relevant. Do not mix exploration, planning, implementation, and debugging for different problems in the same session.
 - **Cache hygiene**: Avoid changing active instruction files, tool sets, or environment toggles mid-thread. Start a new thread after such changes to prevent cache churn.
@@ -110,7 +109,6 @@ If a task has both a discovery part and a decision part, split it: research firs
 - **MCP/tool pruning**: Use only needed MCP servers/tools for the task. Avoid loading broad tool catalogs when a narrow subset is sufficient.
 - **Output discipline**: Use concise output by default; expand only for security-critical tradeoffs, non-obvious design choices, or explicit "forklar" requests.
 - **Phase budget**: Declare a rough token budget per phase for full-tier tasks (Interview/Plan/Review/Deliver) and escalate only if the budget is exhausted with unresolved risk.
-- **Governance hooks**: Track and report: Opus-escalation count, share of Agent Mode turns, and token/cost trend per task type.
 
 ## Phase Machine
 
@@ -277,20 +275,6 @@ This builds understanding more effectively than blocking generation alone.
 **Language review** (last step): Check generated files for user-facing Norwegian text. If found, delegate to `@forfatter`. Skip with `--no-spraksjekk`.
 
 For Spring Boot: use `$spring-boot-scaffold`. For other archetypes: generate directly.
-
-## Model strategy
-
-Default: Sonnet for routine planning and implementation.
-
-Escalate to `@nav-pilot-opus` for:
-- Auth/authorization architecture with meaningful security tradeoffs
-- Irreversible data model or migration decisions
-- Multi-service plans with significant dependency risk
-- Conflicting constraints requiring rigorous justification
-
-Never escalate to Opus for routine refactors, boilerplate generation, formatting, lint/test interpretation, or simple API wiring.
-
-When escalating: state why, delegate only the narrow subproblem, resume control and integrate the result.
 
 ## Related agents
 

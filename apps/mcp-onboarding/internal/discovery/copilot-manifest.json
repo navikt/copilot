@@ -198,7 +198,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "c026ac85182629e4c3fc68de4922cc540e14d49dbeca228c73ee9db57a54dc7f",
+      "contentHash": "6ae2b1bab24669682fd1bb6e06d54c467c52617a3d6ef8ea6dc4f94e5aa50ea1",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -658,7 +658,7 @@
       "displayName": "aksel-builder",
       "description": "Ekspertbygger for Aksel. React-komponenter, design-tokens, layout-primitiver, theming (lys/mørk), ikoner, CSS, Tailwind-preset, versjonsmigreringer og design til kode.",
       "filePath": "skills/aksel-builder/SKILL.md",
-      "contentHash": "1871996def98bd4c5a41c72291bdde3ade9c41d8ce2bbd8400a543c774acf5e3",
+      "contentHash": "19426456c10f06cd50bf4a5dc0066bf9a808ee9f2a44249d55890d81f4a22789",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-builder/SKILL.md",
       "references": [
