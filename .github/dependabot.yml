@@ -14,6 +14,12 @@ updates:
       github-actions:
         patterns:
           - "*"
+        # Kompilerte lock-filer skal ikke SHA-patches av Dependabot — de
+        # genereres fra kilden (f.eks. `gh aw compile`). Da #428 og #433
+        # oppdaterte news-excerpts.lock.yml direkte, kom SHA-ene ut av takt
+        # med filas eget manifest og workflowen sluttet å kjøre (#443).
+        exclude-patterns:
+          - "*.lock.yml"
     open-pull-requests-limit: 5
 
   # my-copilot (Next.js)

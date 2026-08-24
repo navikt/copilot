@@ -12,9 +12,6 @@ cli/nav-pilot/install-collection
 nav-pilot-darwin-*
 nav-pilot-linux-*
 
-# Logs
-.github/aw/logs/
-
 # Secrets - NEVER commit these
 secret.yaml
 secrets.yaml
