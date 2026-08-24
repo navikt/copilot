@@ -63,6 +63,7 @@ Gå til **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/
 - **[Skills →](docs/README.skills.md)** — VS Code (`security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js)
 - **[MCP-servere →](docs/README.mcp.md)** — Alle editorer
 - **[Samlinger →](docs/README.collections.md)** — Installer alt på én gang
+- **[Agentpakke →](docs/README.agentpakke.md)** — Lag og distribuer teamets egen agentpakke
 - **[nav-pilot →](docs/README.nav-pilot.md)** — CLI-verktøy og AI-agent for Nav-tilpasninger
 - **[Testing →](docs/README.testing.md)** — Strukturelle og E2E-tester for nav-pilot
 - **[Hold tilpasninger oppdatert →](docs/README.sync.md)** — Automatisk sync-workflow (som Dependabot)
@@ -84,6 +85,7 @@ Bruk **MCP Onboarding**-serveren for å utforske tilpasninger, sjekke agent-read
 | 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no)                 | **[MCP-servere →](docs/README.mcp.md)**            |
 | 🔄 **Sync**          | Hold tilpasninger oppdatert automatisk (som Dependabot)                                 | **[Sync →](docs/README.sync.md)**                  |
 | 📦 **Samlinger**     | Installer en hel pakke med agenter, skills og instruksjoner på én gang                  | **[Samlinger →](docs/README.collections.md)**      |
+| 🧳 **Agentpakke**    | Teamets eget innholdsrepo med manifest — installeres med `nav-pilot install --source`   | **[Agentpakke →](docs/README.agentpakke.md)**      |
 | 🧭 **nav-pilot**     | CLI-verktøy og AI-agent som installerer og bruker Nav-tilpasninger i Copilot Chat       | **[nav-pilot →](docs/README.nav-pilot.md)**        |
 
 ---

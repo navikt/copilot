@@ -9,8 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
+
+// DefaultRepo is the content source used when neither --source nor the config
+// file's source key names one.
+const DefaultRepo = "navikt/copilot"
 
 // Source holds a resolved source directory and optional temp dir to clean up.
 type Source struct {
@@ -19,6 +24,40 @@ type Source struct {
 	SHA     string
 	Version string // release version (e.g. "2026.04.14-..."), empty for local dev
 	Repo    string // git repository owner/name (e.g. "navikt/copilot")
+
+	// Pakke is the agentpakke manifest shipped by this checkout, or nil when it
+	// ships none. It is attached by the CLI's source funnel
+	// (internal/cli/aliases.go) rather than by ResolveSource, so that
+	// `nav-pilot validate` can resolve a non-conforming source and report its
+	// findings instead of failing at resolution.
+	//
+	// nil is not "no agentpakke": callers turn it into a Manifest with
+	// agentpakke.SynthesizeLegacy so everything downstream reads one type (see
+	// the agentpakke package doc's migration path).
+	Pakke *agentpakke.Manifest
+}
+
+// ValidateSourceValue checks a persisted or flag-provided source value. Accepted
+// forms mirror what ResolveSource understands: a GitHub "owner/name" repo, or an
+// absolute path to a local checkout.
+func ValidateSourceValue(v string) error {
+	if v != strings.TrimSpace(v) {
+		return fmt.Errorf("source %q must not be padded with whitespace", v)
+	}
+	if v == "" {
+		return fmt.Errorf("source must not be empty")
+	}
+	if filepath.IsAbs(v) {
+		return nil
+	}
+	if strings.HasPrefix(v, "~") || strings.HasPrefix(v, ".") {
+		return fmt.Errorf("source %q must be a GitHub repo (owner/name) or an absolute path", v)
+	}
+	owner, name, ok := strings.Cut(v, "/")
+	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
+		return fmt.Errorf("source %q must be a GitHub repo (owner/name) or an absolute path", v)
+	}
+	return nil
 }
 
 // CloneRemoteFn is overridable in tests.
@@ -61,7 +100,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 		if v := strings.TrimPrefix(ref, "nav-pilot/"); v != ref {
 			src.Version = v
 		}
-		src.Repo = "navikt/copilot"
+		src.Repo = DefaultRepo
 		return src, nil
 	}
 
@@ -85,7 +124,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 		return nil, err
 	}
 	src.Version = cliVersion
-	src.Repo = "navikt/copilot"
+	src.Repo = DefaultRepo
 	return src, nil
 }
 
@@ -126,12 +165,12 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		return nil, fmt.Errorf("creating temp dir: %w", err)
 	}
 
-	repoURL := "https://github.com/navikt/copilot.git"
+	repoURL := "https://github.com/" + DefaultRepo + ".git"
 	if sourceRepo != "" {
 		repoURL = "https://github.com/" + sourceRepo + ".git"
 	}
 
-	label := "navikt/copilot"
+	label := DefaultRepo
 	if sourceRepo != "" {
 		label = sourceRepo
 	}
@@ -191,7 +230,7 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	}
 
 	sha := getGitSHA(tmpDir)
-	repo := "navikt/copilot"
+	repo := DefaultRepo
 	if sourceRepo != "" {
 		repo = sourceRepo
 	}

@@ -328,7 +328,7 @@ func TestListAvailableItems(t *testing.T) {
 	os.WriteFile(filepath.Join(ghDir, "prompts", "test.prompt.md"), []byte("# Prompt"), 0o644)
 
 	// Should not panic/error
-	err := listAvailableItems(source)
+	err := listAvailableItems(NewSourceResolver(source))
 	if err != nil {
 		t.Fatalf("listAvailableItems: %v", err)
 	}
@@ -401,7 +401,7 @@ func TestCmdInstall_FullFlow(t *testing.T) {
 		t.Fatalf("loadManifest: %v", err)
 	}
 
-	result, err := installItems(source, ScopeRepo(target), manifest, false, false)
+	result, err := installItems(NewSourceResolver(source), ScopeRepo(target), manifest, false, false)
 	if err != nil {
 		t.Fatalf("installItems: %v", err)
 	}
@@ -433,7 +433,7 @@ func TestCmdInstall_DryRunNoSideEffects(t *testing.T) {
 		t.Fatalf("loadManifest: %v", err)
 	}
 
-	result, err := installItems(source, ScopeRepo(target), manifest, true, false)
+	result, err := installItems(NewSourceResolver(source), ScopeRepo(target), manifest, true, false)
 	if err != nil {
 		t.Fatalf("installItems dry-run: %v", err)
 	}
@@ -461,7 +461,7 @@ func TestInstallArtifact_ConflictStillTracked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadManifest: %v", err)
 	}
-	result, err := installItems(source, ScopeRepo(target), manifest, false, false)
+	result, err := installItems(NewSourceResolver(source), ScopeRepo(target), manifest, false, false)
 	if err != nil {
 		t.Fatalf("first install: %v", err)
 	}
@@ -474,7 +474,7 @@ func TestInstallArtifact_ConflictStillTracked(t *testing.T) {
 	os.WriteFile(agentPath, []byte("# Modified locally"), 0o644)
 
 	// Second install WITHOUT force — should report conflict but still track it
-	result2, err := installItems(source, ScopeRepo(target), manifest, false, false)
+	result2, err := installItems(NewSourceResolver(source), ScopeRepo(target), manifest, false, false)
 	if err != nil {
 		t.Fatalf("second install: %v", err)
 	}
@@ -513,7 +513,7 @@ func TestCmdStatus_Integrity(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	manifest, _ := loadManifest(source, "test-collection")
-	result, _ := installItems(source, ScopeRepo(target), manifest, false, false)
+	result, _ := installItems(NewSourceResolver(source), ScopeRepo(target), manifest, false, false)
 
 	state := &StateFile{
 		Collection: "test-collection",
@@ -537,7 +537,7 @@ func TestCmdUninstall_RemovesFiles(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	manifest, _ := loadManifest(source, "test-collection")
-	result, _ := installItems(source, ScopeRepo(target), manifest, false, false)
+	result, _ := installItems(NewSourceResolver(source), ScopeRepo(target), manifest, false, false)
 
 	state := &StateFile{
 		Collection: "test-collection",
@@ -662,7 +662,7 @@ func TestCmdAdd_ClearsIgnoredStatus(t *testing.T) {
 	}
 
 	// Verify resolveSyncFiles includes the file again
-	files, _, err := resolveSyncFiles(scope, "", false)
+	files, _, err := resolveSyncFiles(scope, NewSourceResolver(""), false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -45,10 +45,38 @@ var cmdSyncFn = cmdSync
 //   - apply: update differing files in place
 //
 // Works with both state-based repos (nav-pilot install) and auto-detected repos.
+//
+// A scope whose state predates source tracking adopts the source it syncs from
+// (B3): the sync says so, runs, and records the source only once it succeeded,
+// so a failed sync leaves the scope exactly as sourceless as it found it.
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
+	adopted, err := adoptSyncSource(scope, sourceRepo)
+	if err != nil {
+		return err
+	}
+	if adopted != "" && !jsonOutput {
+		noteAdoptedSource(scope, adopted)
+	}
+	if err := syncScope(scope, ref, sourceRepo, apply, jsonOutput); err != nil {
+		return err
+	}
+	if adopted != "" {
+		recordAdoptedSource(scope, adopted)
+	}
+	return nil
+}
+
+// syncScope is the sync itself, once the source question is settled.
+func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
+	// The source a scope was installed from wins over the persisted default:
+	// selection is per scope (B4), so syncing one scope never drags another
+	// scope's agentpakke into it.
 	if sourceRepo == "" {
 		if state, err := readScopedState(scope); err == nil && state != nil && state.SourceRepo != "" {
 			sourceRepo = state.SourceRepo
+			if !jsonOutput {
+				noteRecordedSourceWins(state.SourceRepo)
+			}
 		}
 	}
 	src, err := resolveSourceForSync(ref, sourceRepo)
@@ -57,14 +85,19 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	}
 	defer src.Cleanup()
 
+	// One resolver for the whole sync, built from the agentpakke manifest that
+	// governs this source (the legacy adapter when it ships none).
+	syncState, _ := readScopedState(scope)
+	resolver := resolverForState(src, syncState)
+
 	// Determine which files to check
-	files, _, err := resolveSyncFiles(scope, src.Dir, apply)
+	files, _, err := resolveSyncFiles(scope, resolver, apply)
 	if err != nil {
 		return err
 	}
 
 	conflictPaths := conflictStatePaths(scope)
-	if err := clearResolvedConflicts(scope, src.Dir, conflictPaths); err != nil {
+	if err := clearResolvedConflicts(scope, resolver, conflictPaths); err != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Could not clear resolved conflicts: %v\n", yellow("⚠"), err)
 		}
@@ -223,7 +256,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 				}
 			}
 		}
-		reportNewItems(scope, src.Dir)
+		reportNewItems(scope, resolver, src)
 		return nil
 	}
 
@@ -335,7 +368,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 		return errSyncFailed
 	}
 
-	reportNewItems(scope, src.Dir)
+	reportNewItems(scope, resolver, src)
 	return nil
 }
 
@@ -432,7 +465,7 @@ type syncFile struct {
 // resolveSyncFiles determines which files to sync.
 // If a state file exists, uses the installed file list.
 // Otherwise, auto-detects customization files in the target repo.
-func resolveSyncFiles(scope *InstallScope, sourceDir string, includeConflicts bool) ([]syncFile, string, error) {
+func resolveSyncFiles(scope *InstallScope, resolver *SourceResolver, includeConflicts bool) ([]syncFile, string, error) {
 	state, err := readScopedState(scope)
 	if err != nil {
 		return nil, "", fmt.Errorf("reading state: %w", err)
@@ -440,7 +473,6 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string, includeConflicts bo
 
 	if state != nil {
 		// State-based: check all installed files, skip ignored and conflicted ones
-		resolver := NewSourceResolver(sourceDir)
 		var files []syncFile
 		for _, f := range state.Files {
 			if f.Status == fileStatusIgnored {
@@ -465,7 +497,7 @@ func resolveSyncFiles(scope *InstallScope, sourceDir string, includeConflicts bo
 	}
 
 	// Auto-detect: scan for customization files that also exist in source
-	return autoDetectSyncFiles(scope.RootDir, sourceDir)
+	return autoDetectSyncFiles(scope.RootDir, resolver)
 }
 
 func conflictStatePaths(scope *InstallScope) []string {
@@ -482,15 +514,14 @@ func conflictStatePaths(scope *InstallScope) []string {
 	return conflicts
 }
 
-// detectNewItems checks if the source has agents/skills/instructions not in the state file.
-// Only relevant for "(all)" user-scope installs where new items may appear.
-func detectNewItems(scope *InstallScope, sourceDir string) []string {
+// detectNewItems checks if the source has agents/skills/instructions not in the
+// state file. Only relevant for installs that are meant to hold everything
+// their source ships — see [scopeTracksEverything].
+func detectNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) []string {
 	state, err := readScopedState(scope)
-	if err != nil || state == nil || state.Collection != CollectionAll || !scope.IsUser() {
+	if err != nil || state == nil || !scopeTracksEverything(scope, state, src) {
 		return nil
 	}
-
-	resolver := NewSourceResolver(sourceDir)
 
 	installed := make(map[string]bool)
 	for _, f := range state.Files {
@@ -511,9 +542,7 @@ func detectNewItems(scope *InstallScope, sourceDir string) []string {
 
 // autoDetectSyncFiles finds customization files in the target that also exist in source.
 // Target files are always under .github/. Source may be at root or .github/.
-func autoDetectSyncFiles(targetDir, sourceDir string) ([]syncFile, string, error) {
-	resolver := NewSourceResolver(sourceDir)
-
+func autoDetectSyncFiles(targetDir string, resolver *SourceResolver) ([]syncFile, string, error) {
 	// Build file scan patterns from artifact kind definitions.
 	type scanPattern struct {
 		glob    string
@@ -640,7 +669,7 @@ func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
 }
 
 // clearResolvedConflicts clears conflict status for files that currently match source.
-func clearResolvedConflicts(scope *InstallScope, sourceDir string, conflictPaths []string) error {
+func clearResolvedConflicts(scope *InstallScope, resolver *SourceResolver, conflictPaths []string) error {
 	if len(conflictPaths) == 0 {
 		return nil
 	}
@@ -655,7 +684,6 @@ func clearResolvedConflicts(scope *InstallScope, sourceDir string, conflictPaths
 		conflictSet[p] = true
 	}
 
-	resolver := NewSourceResolver(sourceDir)
 	changed := false
 	for i, f := range state.Files {
 		if !conflictSet[f.Path] {
@@ -664,7 +692,7 @@ func clearResolvedConflicts(scope *InstallScope, sourceDir string, conflictPaths
 
 		localFull := filepath.Join(scope.RootDir, f.Path)
 		sourcePath := resolver.MapLocalPath(f.Path, scope.IsUser())
-		sourceFull := filepath.Join(sourceDir, sourcePath)
+		sourceFull := filepath.Join(resolver.SourceDir(), sourcePath)
 		isDir := strings.HasSuffix(f.Path, "/")
 
 		localHash, localErr := comparableArtifactHash(localFull, isDir)
@@ -750,9 +778,25 @@ func outputJSON(v interface{}) error {
 	return enc.Encode(v)
 }
 
+// scopeTracksEverything reports whether a scope's install is meant to hold all
+// of its source's content, which is what makes "the source grew an item" worth
+// reporting rather than noise about content the user never asked for.
+//
+// Legacy: the "(all)" user-scope install, the only collection that means
+// everything. Agentpakke: any pakke install — a pakke is installed whole, in
+// either scope, so anything its layout grows belongs to this scope too. Items
+// the user deselected in the picker are recorded as ignored and stay excluded
+// in both cases.
+func scopeTracksEverything(scope *InstallScope, state *StateFile, src *Source) bool {
+	if src != nil && src.Pakke != nil {
+		return state.Collection == src.Pakke.Name
+	}
+	return state.Collection == CollectionAll && scope.IsUser()
+}
+
 // reportNewItems prints a notice if the source has new items not yet installed.
-func reportNewItems(scope *InstallScope, sourceDir string) {
-	newItems := detectNewItems(scope, sourceDir)
+func reportNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) {
+	newItems := detectNewItems(scope, resolver, src)
 	if len(newItems) == 0 {
 		return
 	}
@@ -761,5 +805,15 @@ func reportNewItems(scope *InstallScope, sourceDir string) {
 	for _, item := range newItems {
 		fmt.Printf("    %s\n", item)
 	}
-	fmt.Printf("  Run %s to add them.\n", bold("nav-pilot install --user"))
+	fmt.Printf("  Run %s to add them.\n", bold(installCommandFor(scope, src)))
+}
+
+// installCommandFor names the command that would pull new source items into
+// this scope: an agentpakke installs by name into a repo, everything else is
+// the user-scope install-all.
+func installCommandFor(scope *InstallScope, src *Source) string {
+	if src != nil && src.Pakke != nil && !scope.IsUser() {
+		return "nav-pilot install " + src.Pakke.Name
+	}
+	return "nav-pilot install --user"
 }

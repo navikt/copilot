@@ -2,10 +2,12 @@ package source
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
@@ -71,11 +73,65 @@ func (k *ArtifactKind) RelPathForName(scope *domain.InstallScope, name string) s
 // SourceResolver centralizes all source-repo path resolution.
 type SourceResolver struct {
 	sourceDir string
+
+	// layout remaps a canonical artifact directory ("agents", "skills", …) to
+	// the repo-relative directory an agentpakke manifest declares for it. It is
+	// nil (and every lookup falls back to the canonical name) for sources that
+	// ship content at the canonical paths — which is what the legacy adapter
+	// synthesizes, so manifest-less sources resolve byte-for-byte as before.
+	layout map[string]string
 }
 
-// NewSourceResolver creates a resolver for the given source directory.
+// NewSourceResolver creates a resolver for the given source directory, reading
+// content from the canonical directories (agents/, skills/, …).
 func NewSourceResolver(sourceDir string) *SourceResolver {
 	return &SourceResolver{sourceDir: sourceDir}
+}
+
+// NewSourceResolverForLayout creates a resolver that reads content from an
+// agentpakke manifest's layout paths (D1). A nil layout, or one that only
+// repeats the canonical directory names, behaves exactly like
+// [NewSourceResolver].
+func NewSourceResolverForLayout(sourceDir string, layout *agentpakke.Layout) *SourceResolver {
+	r := &SourceResolver{sourceDir: sourceDir}
+	if layout == nil {
+		return r
+	}
+	declared := map[string]string{
+		KindAgent.Dir:       layout.Agents,
+		KindSkill.Dir:       layout.Skills,
+		KindInstruction.Dir: layout.Instructions,
+		KindPrompt.Dir:      layout.Prompts,
+	}
+	for canonical, dir := range declared {
+		dir = strings.TrimSpace(dir)
+		if dir == "" {
+			continue
+		}
+		clean := path.Clean(dir)
+		if clean == canonical {
+			continue
+		}
+		if r.layout == nil {
+			r.layout = make(map[string]string, len(declared))
+		}
+		r.layout[canonical] = filepath.FromSlash(clean)
+	}
+	return r
+}
+
+// SourceDir returns the checkout the resolver reads from. Callers that need to
+// join a resolved RelPath back to an absolute path use this instead of carrying
+// the directory alongside the resolver.
+func (r *SourceResolver) SourceDir() string { return r.sourceDir }
+
+// dirFor returns the source-relative directory that holds a canonical artifact
+// directory's content.
+func (r *SourceResolver) dirFor(canonical string) string {
+	if dir, ok := r.layout[canonical]; ok {
+		return dir
+	}
+	return canonical
 }
 
 // Get finds a single named artifact. Checks root first, then .github/.
@@ -89,6 +145,12 @@ func (r *SourceResolver) Get(kind *ArtifactKind, name string) (Resolved, bool) {
 	return r.getSimpleFile(kind, name)
 }
 
+// checkSafePath refuses to hand back anything the source checkout does not
+// actually contain: a path that is textually outside it, a symlink, or a path
+// that leaves the checkout through a symlinked parent directory (an agentpakke
+// whose layout.agents is a link to somewhere else on the machine, say). The
+// containment check covers the canonical directories too, not only
+// manifest-declared ones.
 func (r *SourceResolver) checkSafePath(abs string) (os.FileInfo, error) {
 	rel, err := filepath.Rel(r.sourceDir, abs)
 	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
@@ -101,12 +163,15 @@ func (r *SourceResolver) checkSafePath(abs string) (os.FileInfo, error) {
 	if info.Mode()&os.ModeSymlink != 0 {
 		return nil, os.ErrNotExist
 	}
+	if !domain.PathWithinRoot(r.sourceDir, abs) {
+		return nil, os.ErrNotExist
+	}
 	return info, nil
 }
 
 func (r *SourceResolver) getSimpleFile(kind *ArtifactKind, name string) (Resolved, bool) {
 	fileName := name + kind.Suffix
-	rel := filepath.Join(kind.Dir, fileName)
+	rel := filepath.Join(r.dirFor(kind.Dir), fileName)
 	abs := filepath.Join(r.sourceDir, rel)
 	if _, err := r.checkSafePath(abs); err == nil {
 		return Resolved{Kind: kind, Name: name, AbsPath: abs, RelPath: rel, IsDir: false}, true
@@ -115,7 +180,7 @@ func (r *SourceResolver) getSimpleFile(kind *ArtifactKind, name string) (Resolve
 }
 
 func (r *SourceResolver) getDir(kind *ArtifactKind, name string) (Resolved, bool) {
-	rel := filepath.Join(kind.Dir, name)
+	rel := filepath.Join(r.dirFor(kind.Dir), name)
 	abs := filepath.Join(r.sourceDir, rel)
 
 	if _, err := r.checkSafePath(abs); err != nil {
@@ -135,12 +200,12 @@ func (r *SourceResolver) getDir(kind *ArtifactKind, name string) (Resolved, bool
 }
 
 func (r *SourceResolver) getCanBeDir(kind *ArtifactKind, name string) (Resolved, bool) {
-	dirRel := filepath.Join(kind.Dir, name)
+	dirRel := filepath.Join(r.dirFor(kind.Dir), name)
 	dirAbs := filepath.Join(r.sourceDir, dirRel)
 	if info, err := r.checkSafePath(dirAbs); err == nil && info.IsDir() {
 		return Resolved{Kind: kind, Name: name, AbsPath: dirAbs, RelPath: dirRel, IsDir: true}, true
 	}
-	fileRel := filepath.Join(kind.Dir, name+kind.Suffix)
+	fileRel := filepath.Join(r.dirFor(kind.Dir), name+kind.Suffix)
 	fileAbs := filepath.Join(r.sourceDir, fileRel)
 	if _, err := r.checkSafePath(fileAbs); err == nil {
 		return Resolved{Kind: kind, Name: name, AbsPath: fileAbs, RelPath: fileRel, IsDir: false}, true
@@ -150,7 +215,7 @@ func (r *SourceResolver) getCanBeDir(kind *ArtifactKind, name string) (Resolved,
 
 // GetFile resolves a specific file by typeDir + fileName.
 func (r *SourceResolver) GetFile(typeDir, fileName string) (absPath, relPath string, ok bool) {
-	rel := filepath.Join(typeDir, fileName)
+	rel := filepath.Join(r.dirFor(typeDir), fileName)
 	abs := filepath.Join(r.sourceDir, rel)
 	if _, err := r.checkSafePath(abs); err == nil {
 		return abs, rel, true
@@ -175,7 +240,7 @@ func (r *SourceResolver) discoverNames(kind *ArtifactKind) []string {
 	var names []string
 
 	for _, base := range [1]string{
-		filepath.Join(r.sourceDir, kind.Dir),
+		filepath.Join(r.sourceDir, r.dirFor(kind.Dir)),
 	} {
 		entries, err := os.ReadDir(base)
 		if err != nil {

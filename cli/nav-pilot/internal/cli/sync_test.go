@@ -32,7 +32,7 @@ func TestResolveSyncFiles_WithState(t *testing.T) {
 
 	writeState(dir, state)
 
-	files, collection, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
+	files, collection, err := resolveSyncFiles(ScopeRepo(dir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestResolveSyncFiles_ConflictHandling(t *testing.T) {
 	writeState(dir, state)
 
 	// Default sync check should skip conflicts
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestResolveSyncFiles_ConflictHandling(t *testing.T) {
 	}
 
 	// Apply mode should include conflicts so they can be overwritten
-	files, _, err = resolveSyncFiles(ScopeRepo(dir), sourceDir, true)
+	files, _, err = resolveSyncFiles(ScopeRepo(dir), NewSourceResolver(sourceDir), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestResolveSyncFiles_AutoDetect(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("# API"), 0o644)
 
-	files, collection, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
+	files, collection, err := resolveSyncFiles(ScopeRepo(targetDir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelSource(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "skills", "api-design"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "skills", "api-design", "SKILL.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,7 +404,7 @@ func TestResolveSyncFiles_UserScope_NoState_ReturnsEmpty(t *testing.T) {
 		SupportedTypes: []string{"agent", "skill", "instruction"},
 	}
 
-	files, collection, err := resolveSyncFiles(scope, "", false)
+	files, collection, err := resolveSyncFiles(scope, NewSourceResolver(""), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +530,7 @@ func TestResolveSyncFiles_SkipsIgnoredFiles(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,7 +564,7 @@ func TestResolveSyncFiles_SkipsConflictedFiles(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), sourceDir, false)
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -648,7 +648,7 @@ func TestStateFile_BackwardsCompat_NoStatusField(t *testing.T) {
 	}
 
 	// resolveSyncFiles should include all files (none ignored)
-	files, _, err := resolveSyncFiles(ScopeRepo(dir), "", false)
+	files, _, err := resolveSyncFiles(ScopeRepo(dir), NewSourceResolver(""), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -699,7 +699,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelAgents(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,7 +731,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelInstructions(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "instructions"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "instructions", "go.instructions.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -763,7 +763,7 @@ func TestResolveSyncFiles_AutoDetect_RootLevelPromptDir(t *testing.T) {
 	os.MkdirAll(filepath.Join(sourceDir, "prompts", "review"), 0o755)
 	os.WriteFile(filepath.Join(sourceDir, "prompts", "review", "prompt.md"), []byte("new"), 0o644)
 
-	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), sourceDir, false)
+	files, _, err := resolveSyncFiles(ScopeRepo(targetDir), NewSourceResolver(sourceDir), false)
 	if err != nil {
 		t.Fatal(err)
 	}

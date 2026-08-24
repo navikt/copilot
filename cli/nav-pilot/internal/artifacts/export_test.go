@@ -656,3 +656,63 @@ func TestMaterializeOpenCodeEmpty(t *testing.T) {
 		t.Errorf("expected all zeros on empty source, got %d/%d/%d/%d", skills, commands, agents, instructions)
 	}
 }
+
+// ─── agentpakke sources ─────────────────────────────────────────────────────
+
+// TestExportRefusesNonCanonicalAgentpakke covers the seam export has not
+// crossed yet: it reads canonical directories, so a source that puts its
+// content elsewhere must be refused loudly instead of exporting nothing.
+func TestExportRefusesNonCanonicalAgentpakke(t *testing.T) {
+	srcDir := t.TempDir()
+	mustWrite(t, filepath.Join(srcDir, ".nav-pilot", "agentpakke.json"), `{
+	  "contractVersion": "1",
+	  "name": "grillmester",
+	  "description": "Grillmester agentpakke",
+	  "clients": {"copilot": {"primaryAgents": ["grillmester"]}},
+	  "layout": {"agents": "plugin/agents", "skills": "plugin/skills"}
+	}`)
+	mustWrite(t, filepath.Join(srcDir, "plugin", "agents", "grillmester.agent.md"),
+		"---\nname: grillmester\ndescription: Chef\n---\nBody\n")
+	mustWrite(t, filepath.Join(srcDir, "plugin", "skills", "grilling", "SKILL.md"), "# Grilling\n")
+
+	outputDir := t.TempDir()
+	scope := domain.ScopeRepo(outputDir)
+
+	err := ExportOpenCode(scope, "", srcDir, "dev", false, false, false)
+	if err == nil {
+		t.Fatal("export from a non-canonical agentpakke succeeded, want a refusal")
+	}
+	if !strings.Contains(err.Error(), "export does not support agentpakke sources yet") {
+		t.Errorf("error %q is not the documented refusal", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(outputDir, ".opencode")); statErr == nil {
+		t.Error("refused export still wrote an .opencode tree")
+	}
+}
+
+// TestExportAllowsCanonicalAgentpakke keeps the refusal narrow: a manifest that
+// declares the canonical layout is exactly what export already reads.
+func TestExportAllowsCanonicalAgentpakke(t *testing.T) {
+	srcDir := t.TempDir()
+	mustWrite(t, filepath.Join(srcDir, ".nav-pilot", "agentpakke.json"), `{
+	  "contractVersion": "1",
+	  "name": "grillmester",
+	  "description": "Grillmester agentpakke",
+	  "clients": {"copilot": {"primaryAgents": ["grillmester"]}},
+	  "layout": {"agents": "agents", "skills": "skills"}
+	}`)
+	mustWrite(t, filepath.Join(srcDir, "agents", "grillmester.agent.md"),
+		"---\nname: grillmester\ndescription: Chef\n---\nBody\n")
+
+	outputDir := t.TempDir()
+	scope := domain.ScopeRepo(outputDir)
+
+	if err := ExportOpenCode(scope, "", srcDir, "dev", false, false, false); err != nil {
+		t.Fatalf("export from a canonical-layout agentpakke: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, ".opencode", "agent", "grillmester.md")); err != nil {
+		if _, err2 := os.Stat(filepath.Join(outputDir, ".opencode")); err2 != nil {
+			t.Errorf("canonical agentpakke export wrote nothing: %v", err)
+		}
+	}
+}

@@ -261,7 +261,7 @@ func TestInstallItems_UserScope_SkipsUnsupported(t *testing.T) {
 		t.Fatalf("loadManifest: %v", err)
 	}
 
-	result, err := installItems(source, scope, manifest, false, false)
+	result, err := installItems(NewSourceResolver(source), scope, manifest, false, false)
 	if err != nil {
 		t.Fatalf("installItems: %v", err)
 	}

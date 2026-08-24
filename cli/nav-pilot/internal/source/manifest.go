@@ -92,7 +92,13 @@ func ListCollectionDirs(sourceDir string) ([]string, error) {
 // CollectAllItems scans the source directory for all agents, skills, and instructions,
 // returning a synthetic manifest. Used for user-scope "install everything".
 func CollectAllItems(sourceDir string) (*Manifest, error) {
-	resolver := NewSourceResolver(sourceDir)
+	return CollectAllItemsWith(NewSourceResolver(sourceDir))
+}
+
+// CollectAllItemsWith is CollectAllItems for an already-built resolver, so a
+// caller that resolves content through an agentpakke manifest's layout paths
+// discovers items from those paths instead of the canonical directories.
+func CollectAllItemsWith(resolver *SourceResolver) (*Manifest, error) {
 	m := &Manifest{
 		Name:        "(all)",
 		Description: "All agents, skills, and instructions",

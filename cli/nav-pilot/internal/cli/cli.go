@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -58,8 +59,8 @@ func isKnownCommand(arg string) bool {
 	}
 	switch arg {
 	case "install", "init", "export", "add", "ignore", "sync", "list", "doctor",
-		"uninstall", "upgrade", "update", "config", "env", "feedback", "models",
-		"version", "--version", "-v", "-h", "--help", "help":
+		"uninstall", "upgrade", "update", "config", "validate", "env", "feedback",
+		"models", "version", "--version", "-v", "-h", "--help", "help":
 		return true
 	default:
 		return false
@@ -88,6 +89,7 @@ Commands:
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
   config <subcommand>     Manage user-specific nav-pilot configuration (init, setup, show, get, set, validate)
+  validate                Check that a source repo conforms to the agentpakke contract
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
@@ -98,7 +100,7 @@ Flags:
   -f, --force             Overwrite files that differ from source
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from
-  -s, --source <repo>     Source repository (default: navikt/copilot)
+  -s, --source <repo>     Source repository or absolute path (default: the config's source key, else navikt/copilot)
   -u, --user              Install to ~/.copilot — works across all repos (agents, skills & instructions only)
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
   --all                   Install everything (use with --user)
@@ -120,6 +122,8 @@ Get started:
   nav-pilot install security-champion    # Install a single agent
   nav-pilot sync                         # Check for updates
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
+  nav-pilot install --source navikt/x    # Install another team's agentpakke (and remember it)
+  nav-pilot validate --source navikt/x   # Check an agentpakke repo against the contract
 
 After installing, use @nav-pilot in GitHub Copilot Chat.
 `)
@@ -411,6 +415,12 @@ func run(args []string) error {
 		return fmt.Errorf("--user and --target are mutually exclusive")
 	}
 
+	// --source participates in the config precedence too, so a launch triggered
+	// from a subcommand resolves the same source the command installed from.
+	if sourceRepo != "" {
+		cliOverrides.Source = sourceRepo
+	}
+
 	if abs, err := filepath.Abs(targetDir); err == nil {
 		targetDir = abs
 	}
@@ -452,20 +462,23 @@ func run(args []string) error {
 	switch command {
 	case "install":
 		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
+			install := func(err error) error {
+				return finishInstall(err, sourceRepo, dryRun)
+			}
 			if userScope && (len(positional) == 0 || installAll) {
-				return cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput)
+				return install(cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput))
 			}
 			if len(positional) == 0 {
 				// No args: launch interactive flow if in a terminal
 				if isInteractive() && !jsonOutput {
-					return cmdInstallInteractive(targetDir, ref, sourceRepo)
+					return install(cmdInstallInteractive(targetDir, ref, sourceRepo))
 				}
 				return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
 			}
 			if len(positional) > 1 {
 				return fmt.Errorf("install takes one name. Did you mean: nav-pilot install %s --type %s", positional[1], positional[0])
 			}
-			return cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput)
+			return install(cmdInstallAuto(positional[0], installType, scope, ref, sourceRepo, dryRun, force, jsonOutput))
 		})
 	case "init":
 		return runWithCommandTelemetry("init", telemetryMode(), scope.Name, func() error {
@@ -553,6 +566,15 @@ func run(args []string) error {
 		return runWithCommandTelemetry("config", telemetryMode(), "none", func() error {
 			return cmdConfig(positional, force, jsonOutput)
 		})
+	case "validate":
+		// Distinct from `nav-pilot config validate`, which checks the user's own
+		// config: this validates a content repo against the agentpakke contract.
+		if len(positional) > 0 {
+			return fmt.Errorf("validate takes no arguments.\n\nUsage: nav-pilot validate [--source <repo>|<path>] [--ref <ref>]")
+		}
+		return runWithCommandTelemetry("validate", telemetryMode(), "none", func() error {
+			return cmdValidate(ref, sourceRepo, jsonOutput)
+		})
 	case "env":
 		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)
 	case "feedback":
@@ -570,7 +592,7 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "env", "feedback", "models", "version", "help"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}
@@ -610,6 +632,7 @@ func Main(info BuildInfo) {
 	Version = info.Version
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)
+	agentpakke.SetVersion(info.Version)
 	providerpkg.FetchLatestVersion = func() (string, string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

@@ -45,6 +45,15 @@ func writeSetupConfig(answers setupAnswers) error {
 		"",
 	)
 
+	// Preserve a persisted agentpakke source: the wizard does not ask about it,
+	// and rewriting the file must not silently drop the user's selection (B2).
+	if existing, err := readConfig(); err == nil && existing != nil && existing.Source != nil {
+		if persisted := strings.TrimSpace(*existing.Source); persisted != "" {
+			sourceVal, _ := formatTOMLValue(findKeyDef("source"), persisted)
+			lines = append(lines, "source = "+sourceVal)
+		}
+	}
+
 	clientVal, _ := formatTOMLValue(findKeyDef("client"), answers.Client)
 	lines = append(lines, "client = "+clientVal)
 

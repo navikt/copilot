@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,16 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// errInstallCancelled reports that an interactive install ended because the
+// user cancelled a prompt, rather than because it succeeded.
+//
+// Cancelling used to be indistinguishable from success (both returned nil),
+// which made `install --source X` persist X as the user's source even though
+// nothing was installed. The sentinel never reaches the user: run() maps it
+// back to a clean exit, and the TUI flows swallow it where they already print
+// "Cancelled."
+var errInstallCancelled = errors.New("install cancelled")
 
 // isInteractive returns true when stdin is a terminal (not piped).
 func isInteractive() bool {
@@ -112,6 +123,35 @@ func cmdInteractive(overrides CLIOverrides) error {
 	return interactiveUserOnlyInstall(resolved)
 }
 
+// staleScope pairs a scope with the newer nav-pilot release found for it.
+type staleScope struct {
+	scope  *InstallScope
+	state  *StateFile
+	latest string
+}
+
+// scopeStaleness returns the newer nav-pilot release available for a scope's
+// install, or "" when the scope is current — or when staleness is not a
+// question that can be asked about it.
+//
+// The release feed it consults publishes navikt/copilot's nav-pilot/<version>
+// tags, so it only describes installs that came from there. A scope installed
+// from another agentpakke has that agentpakke's versions, and offering to sync
+// it to "nav-pilot/<latest>" would pull the default source's content into a
+// scope that never came from it (B3/B4). Such a scope is left alone: no
+// assessment, no "update available", no auto-sync.
+func scopeStaleness(scope *InstallScope, state *StateFile) string {
+	if !tracksDefaultSource(state) {
+		return ""
+	}
+	assessment := assessStaleness(state.Version)
+	recordFreshness("collection", scope.Name, assessment)
+	if assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, state.Version) {
+		return assessment.LatestVersion
+	}
+	return ""
+}
+
 // interactiveSyncAndLaunch handles the case where at least one scope has an install.
 // Checks for staleness in all scopes and offers to sync, then launches Copilot.
 func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, userScope *InstallScope, userState *StateFile, resolved ResolvedConfig) error {
@@ -129,27 +169,18 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 	}
 	fmt.Printf("%s  %s\n", bold("🧭 nav-pilot"), dim(strings.Join(scopeParts, "  ·  ")))
 
-	type staleScope struct {
-		scope  *InstallScope
-		state  *StateFile
-		latest string
-	}
 	var stale []staleScope
 	var allAgents []string
 
 	if repoState != nil {
-		assessment := assessStaleness(repoState.Version)
-		recordFreshness("collection", repoScope.Name, assessment)
-		if assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, repoState.Version) {
-			stale = append(stale, staleScope{repoScope, repoState, assessment.LatestVersion})
+		if latest := scopeStaleness(repoScope, repoState); latest != "" {
+			stale = append(stale, staleScope{repoScope, repoState, latest})
 		}
 		allAgents = append(allAgents, installedAgents(repoState)...)
 	}
 	if userState != nil {
-		assessment := assessStaleness(userState.Version)
-		recordFreshness("collection", userScope.Name, assessment)
-		if assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, userState.Version) {
-			stale = append(stale, staleScope{userScope, userState, assessment.LatestVersion})
+		if latest := scopeStaleness(userScope, userState); latest != "" {
+			stale = append(stale, staleScope{userScope, userState, latest})
 		}
 		allAgents = append(allAgents, installedAgents(userState)...)
 	}
@@ -225,7 +256,10 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 	}
 
 	// Repo scope: pick a collection
-	if err := interactiveRepoInstall(src, scope); err != nil {
+	if err := interactiveRepoInstall(src, scope, ""); err != nil {
+		if errors.Is(err, errInstallCancelled) {
+			return nil
+		}
 		return err
 	}
 	offerLaunchCopilot(resolved)
@@ -252,12 +286,19 @@ func interactiveUserOnlyInstall(resolved ResolvedConfig) error {
 // interactiveUserInstall installs agents, skills & instructions to user home.
 // Offers a two-step flow: install everything or customize selection.
 // Called from interactiveFreshInstall and interactiveUserOnlyInstall (root command only).
+//
+// The root TUI has no --source flag to thread, so the cross-source guard runs
+// against the configured source (B3), exactly as a bare `nav-pilot install`
+// would.
 func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 	scope, err := ScopeUser()
 	if err != nil {
 		return err
 	}
-	if err := interactiveUserInstallFromSource(scope, src); err != nil {
+	if err := interactiveUserInstallFromSource(scope, src, ""); err != nil {
+		if errors.Is(err, errInstallCancelled) {
+			return nil
+		}
 		return err
 	}
 	offerLaunchCopilot(resolved)
@@ -266,8 +307,23 @@ func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 
 // interactiveUserInstallFromSource is the shared implementation for user-scope interactive install.
 // Used by both the root `nav-pilot` command and `nav-pilot install --user`.
-func interactiveUserInstallFromSource(scope *InstallScope, src *Source) error {
-	manifest, err := collectAllItems(src.Dir)
+//
+// flagSource is the raw --source value, or "" when the caller is a TUI flow
+// that has none: the B3 guard must see the same input here as it does on the
+// non-interactive install paths, or picking a scope in a prompt would be a way
+// around it.
+func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSource string) error {
+	if err := guardScopeSource(scope, flagSource); err != nil {
+		return err
+	}
+	// Before the item picker: a Tier 2-only agentpakke has nothing this binary
+	// can offer to select, and "no agents found in source" would be the wrong
+	// reason.
+	if err := guardTier2Only(src); err != nil {
+		return err
+	}
+
+	manifest, err := collectAllItemsWith(resolverFor(src.Dir, pakkeFor(src, CollectionAll)))
 	if err != nil {
 		return err
 	}
@@ -297,7 +353,7 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source) error {
 			Run()
 		if err != nil || installChoice == "cancel" {
 			fmt.Println(dim("Cancelled."))
-			return nil
+			return errInstallCancelled
 		}
 
 		if installChoice == "custom" {
@@ -307,7 +363,7 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source) error {
 			}
 			if selected == nil {
 				fmt.Println(dim("Cancelled."))
-				return nil
+				return errInstallCancelled
 			}
 			manifest = selected
 			skippedItems = skipped
@@ -487,7 +543,20 @@ func computeSkippedItems(full, selected *Manifest, scope *InstallScope) []Instal
 }
 
 // interactiveRepoInstall handles repo-scope collection picker flow.
-func interactiveRepoInstall(src *Source, scope *InstallScope) error {
+//
+// flagSource is the raw --source value, or "" for the root TUI, which has none
+// (see interactiveUserInstallFromSource).
+func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string) error {
+	if err := guardScopeSource(scope, flagSource); err != nil {
+		return err
+	}
+
+	// A manifest-bearing source supersedes collections: there is exactly one
+	// thing to install, so there is nothing to pick.
+	if name := pakkeInstallName(src); name != "" {
+		return cmdInstallFromSource(name, src, scope, false, false, false)
+	}
+
 	names, err := listCollectionDirs(src.Dir)
 	if err != nil {
 		return err
@@ -521,7 +590,7 @@ func interactiveRepoInstall(src *Source, scope *InstallScope) error {
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
-		return nil // user cancelled
+		return errInstallCancelled // user cancelled
 	}
 
 	// Show preview with contents
@@ -547,13 +616,17 @@ func interactiveRepoInstall(src *Source, scope *InstallScope) error {
 		Run()
 	if err != nil || installChoice != "yes" {
 		fmt.Println(dim("Cancelled."))
-		return nil
+		return errInstallCancelled
 	}
 
 	// Install using the already-resolved source (avoid redundant git clone)
 	fmt.Println()
 	return cmdInstallFromSource(selected, src, scope, false, false, false)
 }
+
+// promptInstallScopeFn is the scope prompt, overridable in tests so a cancelled
+// prompt can be exercised without a terminal.
+var promptInstallScopeFn = promptInstallScope
 
 // promptInstallScope asks the user where to install: repo or user home.
 // Returns nil if the user cancels.

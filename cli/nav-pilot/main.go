@@ -8,6 +8,7 @@
 //	nav-pilot sync                         # check for updates
 //	nav-pilot list                         # list available collections and items
 //	nav-pilot list --installed             # show installed state
+//	nav-pilot validate                     # check a source against the agentpakke contract
 //	nav-pilot uninstall                    # remove installed files
 package main
 

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
@@ -22,6 +24,62 @@ func CmdExport(format string, scope *domain.InstallScope, ref, sourceRepo, cliVe
 	}
 }
 
+// refuseNonCanonicalPakke stops an export that would otherwise produce wrong or
+// empty output.
+//
+// export reads a source's canonical agents//skills/instructions/prompts
+// directories directly; it does not go through the agentpakke layout resolver
+// that install and sync use. A source whose manifest puts its content anywhere
+// else would therefore export whatever happens to sit at the canonical paths —
+// in practice nothing at all, silently. Until export is migrated onto the
+// manifest (M2), that is a hard error. A manifest declaring the canonical
+// layout, and a manifest-less source, export exactly as before.
+func refuseNonCanonicalPakke(src *source.Source) error {
+	m, err := agentpakke.Load(src.Dir)
+	if err != nil {
+		// No manifest is the legacy case. A manifest that fails to load is
+		// install and sync's fail-closed error to report, in the words those
+		// commands use; export does not second-guess it here.
+		return nil //nolint:nilerr // deliberate: only a usable manifest changes export's behaviour
+	}
+	if isCanonicalLayout(m.Layout) {
+		return nil
+	}
+	label := src.Repo
+	if label == "" {
+		label = source.DefaultRepo
+	}
+	return fmt.Errorf(
+		"export does not support agentpakke sources yet: %s ships an agentpakke (%q) whose content is not at the canonical agents/, skills/, instructions/, prompts/ paths.\n"+
+			"Exporting it would silently produce an empty or wrong opencode tree, so nothing was written.\n\n"+
+			"  Install the agentpakke instead:    %s\n"+
+			"  Or export from a canonical source: %s",
+		label, m.Name,
+		domain.Bold("nav-pilot install --source "+label+" "+m.Name),
+		domain.Bold("nav-pilot export opencode --source "+source.DefaultRepo))
+}
+
+// isCanonicalLayout reports whether a manifest's layout is the one export
+// already reads: the canonical directory names. A Tier 2-only manifest declares
+// no layout at all, which is equally not something export can read.
+func isCanonicalLayout(l *agentpakke.Layout) bool {
+	if l == nil {
+		return false
+	}
+	for _, d := range []struct{ declared, canonical string }{
+		{l.Agents, "agents"},
+		{l.Skills, "skills"},
+		{l.Instructions, "instructions"},
+		{l.Prompts, "prompts"},
+	} {
+		declared := strings.TrimSpace(d.declared)
+		if declared != "" && path.Clean(declared) != d.canonical {
+			return false
+		}
+	}
+	return true
+}
+
 // ExportOpenCode transforms Nav's .github/ artifacts into OpenCode-compatible .opencode/ format.
 func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion string, dryRun, force, jsonOutput bool) error {
 	src, err := source.ResolveSource(ref, sourceRepo, cliVersion)
@@ -29,6 +87,10 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 		return err
 	}
 	defer src.Cleanup()
+
+	if err := refuseNonCanonicalPakke(src); err != nil {
+		return err
+	}
 
 	outputDir := OpenCodeOutputDir(scope)
 

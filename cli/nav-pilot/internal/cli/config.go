@@ -71,6 +71,40 @@ func readConfigWithMeta() (*Config, toml.MetaData, error) {
 	return &cfg, meta, nil
 }
 
+// configuredSourceRepo returns the source persisted in the config file, or the
+// empty string when none is set (meaning the built-in default).
+func configuredSourceRepo() (string, error) {
+	cfg, err := readConfig()
+	if err != nil {
+		return "", err
+	}
+	if cfg == nil || cfg.Source == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(*cfg.Source), nil
+}
+
+// sourceRepoFor applies the source precedence for content resolution:
+// explicit --source flag > config file `source` > built-in default (B1).
+// An empty result means the default, which resolveSource already implements.
+func sourceRepoFor(flagSource string) (string, error) {
+	if flagSource != "" {
+		return flagSource, nil
+	}
+	configured, err := configuredSourceRepo()
+	if err != nil {
+		return "", fmt.Errorf("%w\n\nFix %s or run `nav-pilot config validate`", err, configPath())
+	}
+	if configured == "" {
+		return "", nil
+	}
+	if err := validateSourceValue(configured); err != nil {
+		return "", fmt.Errorf("config key %s is invalid: %w\n\nFix %s, or clear it with `nav-pilot config set source \"\"`",
+			bold("source"), err, configPath())
+	}
+	return configured, nil
+}
+
 // validateConfigProblems checks semantic correctness of a parsed config and
 // returns a list of human-readable problem strings (empty = valid).
 // It does NOT check for unknown TOML keys — use MetaData.Undecoded() for that.
@@ -93,6 +127,13 @@ func validateConfigProblems(cfg *Config) []string {
 			client = *cfg.Client
 		}
 		if err := validateModelForClient(*cfg.Model, client); err != nil {
+			problems = append(problems, err.Error())
+		}
+	}
+	// An empty source is how the key is cleared back to the default, so only a
+	// non-empty value is checked for shape.
+	if cfg.Source != nil && strings.TrimSpace(*cfg.Source) != "" {
+		if err := validateSourceValue(*cfg.Source); err != nil {
 			problems = append(problems, err.Error())
 		}
 	}
@@ -209,6 +250,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.Client != nil {
 			r.Client = *file.Client
 		}
+		if file.Source != nil {
+			r.Source = strings.TrimSpace(*file.Source)
+		}
 		if file.Model != nil {
 			r.Model = *file.Model
 		}
@@ -250,6 +294,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	// Apply CLI overrides (higher precedence than file).
 	if cli.Client != "" {
 		r.Client = cli.Client
+	}
+	if cli.Source != "" {
+		r.Source = cli.Source
 	}
 	if cli.Model != "" {
 		r.Model = cli.Model

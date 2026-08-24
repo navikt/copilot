@@ -277,7 +277,7 @@ func TestCmdEnv_WithInstructions(t *testing.T) {
 
 func TestCollectAvailableItems_Empty(t *testing.T) {
 	tmp := t.TempDir()
-	result := collectAvailableItems(tmp)
+	result := collectAvailableItems(NewSourceResolver(tmp))
 	// Empty source dir should return empty map (no panics)
 	if result == nil {
 		t.Error("collectAvailableItems returned nil, want empty map")
@@ -300,7 +300,7 @@ Body.
 		t.Fatal(err)
 	}
 
-	result := collectAvailableItems(tmp)
+	result := collectAvailableItems(NewSourceResolver(tmp))
 	if len(result["agents"]) == 0 {
 		t.Error("expected nav-pilot agent in result")
 	}
