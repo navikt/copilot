@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-v1.json",
+  "title": "nav-pilot agentpakke manifest (v1)",
+  "description": "Contract between an agentpakke repo and the nav-pilot binary. Lives at .nav-pilot/agentpakke.json in the agentpakke repo. Unknown client keys, context keys, and additional fields are ignored by consumers (A3/A4), so growth of the ecosystem never invalidates an existing manifest on an older binary.",
+  "type": "object",
+  "required": ["contractVersion", "name", "description", "clients"],
+  "additionalProperties": true,
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "relativePath": {
+      "description": "Repo-relative path. Absolute paths and parent traversal are rejected by nav-pilot's semantic validation.",
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "properties": {
+    "contractVersion": {
+      "description": "Manifest schema-and-semantics version. nav-pilot supports major version 1.",
+      "type": "string",
+      "pattern": "^1(\\.\\d+)?$"
+    },
+    "name": {
+      "description": "Agentpakke identity. Recorded as the install's collection name (the agentpakke manifest supersedes the collection manifest).",
+      "$ref": "#/$defs/identifier"
+    },
+    "description": {
+      "type": "string"
+    },
+    "owner": {
+      "description": "Attribution only; the install source is wherever the manifest was cloned from.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "repo": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+        "team": { "type": "string" }
+      }
+    },
+    "clients": {
+      "description": "One entry per supported client (keys today: copilot, opencode, pi). Keys are pattern-validated, not enumerated: a consumer MUST ignore client keys it does not recognize — that client is unavailable, the manifest stays valid (A3/A4). Tier is derived from shape: an entry with `payloads` is Tier 2; an entry relying on the top-level `layout` is Tier 1 (A1).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/identifier" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["primaryAgents"],
+        "additionalProperties": true,
+        "properties": {
+          "primaryAgents": {
+            "description": "Agent names treated as primary personas for this client (C1-C2). Every other agent materializes as a subagent.",
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          },
+          "compatibility": {
+            "description": "Supported client version RANGE (A1); exact pins belong only to the local/security-profile tier (M4).",
+            "type": "string"
+          },
+          "defaultModel": {
+            "description": "Default model id, or the literal \"inherit\" (F3).",
+            "type": "string"
+          },
+          "defaultContext": {
+            "description": "Which payload context launches by default (G3); defaults to \"full\".",
+            "$ref": "#/$defs/identifier"
+          },
+          "payloads": {
+            "description": "Tier 2: one entry per context (keys today: full, focused) — same ignore-unknown rule as client keys. Payload manifest is `<path>/manifest.json` by convention (A7); `manifest` only overrides that.",
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": { "$ref": "#/$defs/identifier" },
+            "additionalProperties": {
+              "type": "object",
+              "required": ["path"],
+              "additionalProperties": true,
+              "properties": {
+                "path": { "$ref": "#/$defs/relativePath" },
+                "manifest": { "$ref": "#/$defs/relativePath" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "layout": {
+      "description": "Tier 1 clients only: repo-relative paths to content directories (D1).",
+      "type": "object",
+      "required": ["agents", "skills"],
+      "additionalProperties": true,
+      "properties": {
+        "agents": { "$ref": "#/$defs/relativePath" },
+        "skills": { "$ref": "#/$defs/relativePath" },
+        "instructions": { "$ref": "#/$defs/relativePath" },
+        "prompts": { "$ref": "#/$defs/relativePath" }
+      }
+    },
+    "provenance": {
+      "description": "For composed content (H2): base repo + digest, overlay components with versions.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "base": {
+          "type": "object",
+          "required": ["repo", "digest"],
+          "additionalProperties": true,
+          "properties": {
+            "repo": { "type": "string", "minLength": 1 },
+            "digest": { "type": "string", "minLength": 1 }
+          }
+        },
+        "overlays": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["component", "version"],
+            "additionalProperties": true,
+            "properties": {
+              "component": { "type": "string", "minLength": 1 },
+              "version": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "policies": {
+      "description": "Optional pointers to policy artifacts materialized by nav-pilot for Tier 1 clients (E1).",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "opencodePermissions": { "$ref": "#/$defs/relativePath" }
+      }
+    },
+    "profiles": {
+      "description": "Optional launch profiles: a directory of profile files plus the manifest-declared default (E2).",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "dir": { "$ref": "#/$defs/relativePath" },
+        "default": { "type": "string" }
+      }
+    },
+    "minNavPilotVersion": {
+      "description": "Minimum nav-pilot version required. Format: YYYY.MM.DD-HHMMSS-sha7.",
+      "type": "string"
+    }
+  }
+}
