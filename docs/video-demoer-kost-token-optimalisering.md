@@ -796,11 +796,11 @@ Output: nummerert liste.
 
 **Overlay:** E · orange/amber · lever-meter · modell / resonneringsnivå / cache / mindre arbeid · kr per oppgave
 
-**Mål:** Vise de fire grepene som har dokumentert effekt på tokenkostnad — og lære seeren å måle effekt på fakturert kostnad per fullført oppgave i stedet for på et verktøys eget sparetall.
+**Mål:** Vise de fire grepene som har dokumentert effekt på tokenkostnad, og lære seeren å måle effekten i fakturert kostnad per fullført oppgave — ikke i et verktøys eget sparetall.
 
-**Kan sees alene fordi:** Vi starter med hvorfor «spart tokens» og «lavere regning» ikke er samme sak, og går rett på fire grep man kan gjøre samme dag.
+**Kan sees alene fordi:** Vi starter med hvorfor «spart tokens» og «lavere regning» ikke er samme sak, og går rett på fire grep du kan gjøre samme dag.
 
-**Bakgrunn (til deg som spiller inn):** Denne episoden erstatter et tidligere utkast som handlet om `rtk` og CLI-output-komprimering med en påstand om 60–90 % besparelse. Den påstanden er verktøyets egen selvrapportering. Den eneste store offentlige kontrollerte studien ([JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/)) fant 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell. Ikke bruk tall fra verktøydashbord i videoen.
+**Bakgrunn (til deg som spiller inn):** Denne episoden erstatter et tidligere utkast om `rtk` og CLI-output-komprimering. Utkastet påsto 60–90 % besparelse, men det tallet er verktøyets egen selvrapportering. Den eneste store offentlige kontrollerte studien ([JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/)) fant 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell. Ikke bruk tall fra verktøydashbord i videoen.
 
 **Oppsett før demo:** Ingen installasjon. Du trenger tilgang til modellvalg, resonneringsnivå og en kostnadsvisning (Spend Meter i VS Code eller statistikk i my-copilot).
 
@@ -823,16 +823,16 @@ Output: nummerert liste.
 
 **Demo-kontekst (referanserepo):** Bruk dette monorepoet. Velg én reell oppgave (f.eks. en liten endring i `apps/copilot-metrics`) og kjør den to ganger med ulikt modell-/resonneringsvalg.
 
-**📄 Referanse:** Se referanseseksjonen nederst i denne fila for kilder, tall og opptaks-sjekkliste.
+**📄 Referanse:** Se referanseseksjonen nederst i denne fila for kilder, tall og opptakssjekkliste.
 
 **Reell oppgave i repo (velg én før opptak):**
 - Kjør samme lille endring to ganger med ulik modell og ulikt resonneringsnivå, og noter fakturert kostnad per fullført oppgave for begge.
 
-**Ta med deg videre:** Velg riktig modell og riktig resonneringsnivå, ikke komprimer tekst. Mål i kroner per fullført oppgave.
+**Ta med deg videre:** Velg riktig modell og riktig resonneringsnivå — ikke komprimer tekst. Mål i kroner per fullført oppgave.
 
 **Oppsummering:** De fire spakene med dokumentert effekt er modellvalg, resonneringsnivå, intakt prompt-cache og mindre arbeid.
 
-**Outro:** Neste gang du vurderer et token-sparende verktøy: be om fakturert kostnad per fullført oppgave, ikke et skjermbilde av verktøyets eget dashbord.
+**Outro:** Neste gang du vurderer et token-sparende verktøy, be om fakturert kostnad per fullført oppgave — ikke et skjermbilde av verktøyets eget dashbord.
 
 **Prompt-manus (copy/paste):**
 
@@ -857,7 +857,7 @@ Rapporter bare feilende tester.
 Sekvens 1 (0:00–0:50): Rammen
 - "Alle vil spare tokens. Men det er kroner du blir fakturert for."
 - Vis fordelingen: input dominerer, det meste er cachet, output er en liten andel.
-- "Derfor er det å komprimere tekst en liten spak — og noen ganger negativ, hvis den bryter cachen."
+- "Derfor er tekstkomprimering en liten spak — og noen ganger negativ, hvis den bryter cachen."
 
 Sekvens 2 (0:50–1:50): Modellvalg
 - Samme oppgave, to modeller, side ved side
@@ -883,7 +883,7 @@ Sekvens 6 (4:00–4:20): Måleregel og sjekkliste
   - Ikke bryt cachen midt i en sesjon
   - Mål i kroner per fullført oppgave
 
-**Forventet respons-signal:** Seeren kan navngi de fire spakene, og vet at et verktøys eget sparetall ikke er bevis for lavere regning.
+**Forventet respons-signal:** Seeren kan navngi de fire spakene og vet at et verktøys eget sparetall ikke er bevis for lavere regning.
 
 **Kilder:**
 - JetBrains: [Measuring rtk's token savings in Claude Code](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) — 425 kjøringer, 86 oppgaver, forhåndsregistrerte endepunkter
@@ -1007,7 +1007,7 @@ Resultatet: 10x raskere svar, 90% færre tokens, og færre feil—fordi du gir L
 
 ### Episode 5: Kort output uten kvalitetstap
 
-LLM-er gir deg lange, detaljerte svar som regel. Det er fint når du trenger full forklaring, men når du bare vil ha koden eller punktene, er halvparten av outputen bortkastet. I denne videoen introduserer vi `/terse`-modus: den samme svarene, men uten fyllord, unødvendige forklaringer og repetisjon. Du får kortere output med samme kjerneinnhold. Hvor mye det utgjør varierer med oppgaven, så mål det på dine egne oppgaver framfor å stole på et fasttall.
+LLM-er gir deg lange, detaljerte svar som regel. Det er fint når du trenger full forklaring, men når du bare vil ha koden eller punktene, er halvparten av outputen bortkastet. I denne videoen introduserer vi `/terse`-modus: den samme svarene, men uten fyllord, unødvendige forklaringer og repetisjon. Du får kortere output med samme kjerneinnhold. Hvor mye det utgjør, varierer — mål det på dine egne oppgaver framfor å stole på et fasttall.
 
 /terse er perfekt når du allerede skjønner domenet og bare vil ha resultatet raskt. Vi viser før/etter-eksempler med kodegenering, planlegging og debugging. Etter denne videoen bruker du `/terse` som standard, og velger full-mode bare når du trenger læring, ikke speed.
 
@@ -1043,9 +1043,9 @@ Bruk sandboxen til å eksperimentere med nye workflows, teste optimaliseringstek
 
 ### Bonus episode E: Fire grep som faktisk senker regningen
 
-De fleste råd om tokensparing handler om å komprimere tekst. Problemet er at tekst er den minste posten på regningen: i en agent-sesjon er input dominerende, og det meste av input er cachede gjenlesninger som faktureres til en brøkdel av full pris. Verktøy som komprimerer output kan derfor vise imponerende tall i sitt eget dashbord uten at regningen flytter seg — og et tiltak som bryter prompt-cachen kan gjøre den dyrere.
+De fleste råd om tokensparing handler om å komprimere tekst. Problemet er at tekst er den minste posten på regningen: i en agent-sesjon dominerer input, og det meste av input er cachede gjenlesninger som koster en brøkdel av full pris. Verktøy som komprimerer output kan derfor vise imponerende tall i sitt eget dashbord uten at regningen flytter seg — og et tiltak som bryter prompt-cachen kan gjøre den dyrere.
 
-I denne videoen ser vi på de fire grepene som faktisk har målbar effekt: modellvalg (den største spaken, fordi den endrer pris per token), bevisst resonneringsnivå, å holde prompt-cachen intakt, og å gjøre mindre arbeid i stedet for å skrive kortere. Vi kjører den samme oppgaven i dette repoet med ulike valg og sammenligner.
+I denne videoen ser vi på de fire grepene som faktisk har målbar effekt: modellvalg (den største spaken, fordi den endrer pris per token), bevisst resonneringsnivå, å holde prompt-cachen intakt og å gjøre mindre arbeid i stedet for å skrive kortere. Vi kjører den samme oppgaven i dette repoet med ulike valg og sammenligner.
 
 Til slutt får du målereglen som gjør deg immun mot markedsføring: sammenlign fakturert kostnad per *fullført* oppgave før og etter, aldri et verktøys eget sparetall. Etter denne videoen vet du hvilke fire knapper du skal skru på, og hvordan du sjekker at det virket.
 
@@ -1053,7 +1053,11 @@ Til slutt får du målereglen som gjør deg immun mot markedsføring: sammenlign
 
 #### Hvorfor output-komprimering er en liten spak
 
-Output-tokens utgjør en liten andel av tokenbruken i en agent-sesjon, og cache-treffraten på input er høy. Tellere i komprimeringsverktøy overvurderer typisk effekten på tre måter: de regner hele den rå verktøyoutputen som «spart» selv om agenten uansett kutter store resultater, de priser fjernede tokens til full input-pris i stedet for cache-pris, og de fanger bare den delen av verktøyresultatene som faktisk går gjennom hooken.
+Output-tokens utgjør en liten andel av tokenbruken i en agent-sesjon, og cache-treffraten på input er høy. Tellere i komprimeringsverktøy overvurderer typisk effekten på tre måter:
+
+- De regner hele den rå verktøyoutputen som «spart», selv om agenten uansett kutter store resultater.
+- De priser fjernede tokens til full input-pris i stedet for cache-pris.
+- De fanger bare den delen av verktøyresultatene som går gjennom hooken.
 
 #### Kilder du kan vise på skjerm
 
@@ -1091,4 +1095,4 @@ Kjør et fast sett oppgaver før og etter endringen, og sammenlign fakturert kos
 
 #### Nevn gjerne, men uten anbefaling
 
-`rtk` finnes fortsatt og kan installeres med `brew install rtk`. Den gjør terminaloutput lettere å lese. Hvis du nevner den i videoen, si samtidig at den offentlige kontrollerte målingen ikke gjenskapte den annonserte besparelsen — og ikke bruk `rtk gain` som bevis for noe.
+`rtk` finnes fortsatt, og du installerer den med `brew install rtk`. Den gjør terminaloutput lettere å lese. Hvis du nevner den i videoen, si samtidig at den offentlige kontrollerte målingen ikke gjenskapte den annonserte besparelsen — og ikke bruk `rtk gain` som bevis for noe.
