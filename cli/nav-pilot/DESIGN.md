@@ -894,22 +894,6 @@ Kjør `scripts/nav-pilot-golden.sh` før og etter (se [Testbarhet](#testbarhet))
 
 Dokumenterte designbegrensninger som kan endres i fremtidige versjoner.
 
-### Ingen passthrough av argumenter til Copilot CLI
-
-Når nav-pilot starter Copilot CLI interaktivt (etter install/sync-flyt), er det ingen måte å sende ekstra argumenter til `copilot`/`cplt`. Launchen er hardkodet til kun å videresende `--agent nav-pilot`:
-
-```go
-// interactive.go — launchCopilotWithAgent()
-args := []string{}
-if agent != "" {
-    args = append(args, "--", "--agent", agent)  // cplt
-    // eller: args = append(args, "--agent", agent)  // copilot
-}
-cmd := exec.Command(cliPath, args...)
-```
-
-Brukere som vil sende andre flagg (f.eks. `--model`, egne prompts, eller en annen agent) må kjøre `copilot`/`cplt` direkte etter at nav-pilot har satt opp miljøet.
-
 **Status:** OTel-metrics er aktivert som standard og kan deaktiveres med `NAV_PILOT_TELEMETRY_ENABLED=0`. OTLP-endepunkt kan overstyres ved behov.
 
 ---
