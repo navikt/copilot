@@ -27,7 +27,10 @@ func runBackfill(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *C
 	)
 
 	if !force {
-		latestDay, err := bq.GetLatestDay(ctx, cfg.EnterpriseSlug)
+		// Same high-water mark as the nightly ingestMissing, and for the same
+		// reason it spans scopes: an enterprise-only MAX(day) misses days stored
+		// under the org scope and would re-ingest them into the other scope.
+		latestDay, err := latestDayAcrossScopes(ctx, bq.GetLatestDay, reportScopeIDs(cfg))
 		if err != nil {
 			slog.Warn("Could not get latest day from BigQuery", "error", err)
 		} else if !latestDay.IsZero() {
