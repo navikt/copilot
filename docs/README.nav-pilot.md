@@ -170,6 +170,7 @@ Metrikkene inkluderer også `execution_context` for å skille organisk bruk fra 
 Du kan lagre standardvalg i `~/.nav-pilot/config.toml`.
 
 ```bash
+nav-pilot config          # interaktiv innstillingsside — alle valg med forklaring
 nav-pilot config init
 nav-pilot config setup
 nav-pilot config show

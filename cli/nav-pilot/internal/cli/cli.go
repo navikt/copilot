@@ -88,7 +88,7 @@ Commands:
   upgrade (up)            Update nav-pilot CLI to the latest version
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
-  config <subcommand>     Manage user-specific nav-pilot configuration (init, setup, show, get, set, validate)
+  config [subcommand]     Manage user-specific nav-pilot configuration; no subcommand opens the interactive settings page
   validate                Check that a source repo conforms to the agentpakke contract
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
@@ -441,7 +441,27 @@ func run(args []string) error {
 				targetDir = root
 			}
 		}
-		scope = ScopeRepo(targetDir)
+		// An explicit `install <name>` (or `add <type> <name>`) without --user
+		// or --target used to silently fill the repo's .github/. Ask the same
+		// question the bare interactive flow asks. Only well-formed invocations
+		// are prompted: `install` with no name has its own picker in
+		// cmdInstallInteractive, and malformed ones must still report the usage
+		// error rather than open a picker.
+		wellFormed := (command == "install" && len(positional) == 1) ||
+			(command == "add" && len(positional) >= 2)
+		if wellFormed && !targetProvided && !jsonOutput && !dryRun && isInteractive() {
+			var err error
+			scope, err = promptInstallScopeFn(targetDir)
+			if err != nil {
+				return err
+			}
+			if scope == nil {
+				fmt.Println(dim("Cancelled."))
+				return nil
+			}
+		} else {
+			scope = ScopeRepo(targetDir)
+		}
 	}
 
 	// Reject --user for commands that don't support scoped installs

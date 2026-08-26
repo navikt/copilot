@@ -264,6 +264,11 @@ version = 1
 
 func cmdConfig(args []string, force bool, jsonOutput bool) error {
 	if len(args) == 0 {
+		// On a terminal, bare `config` opens the interactive settings page;
+		// scripts keep the usage error.
+		if isInteractive() {
+			return cmdConfigPage()
+		}
 		return fmt.Errorf("config requires a subcommand.\n\nUsage: nav-pilot config <subcommand> [options]\n\nSubcommands:\n  init      Create ~/.nav-pilot/config.toml with all options commented out\n  setup     Run the interactive first-run setup wizard\n  show      Print effective configuration (file values merged with defaults)\n  path      Print the config file path\n  get       Print one key value\n  set       Set a key value (creates file if missing)\n  validate  Validate config syntax, unknown keys, and values\n  explain   Describe configuration keys\n  sandbox   Interactively configure cplt sandbox profile")
 	}
 
@@ -361,88 +366,13 @@ func cmdConfigShow(jsonOutput bool) error {
 		fmt.Printf("# Config file: %s\n\n", path)
 	}
 
-	printField := func(key, val, src string) {
+	for _, key := range configPageKeys {
+		val := configKeyValue(resolved, key)
 		if val == "" {
-			fmt.Printf("  %-20s = %-20s (%s)\n", key, "(unset)", src)
-		} else {
-			fmt.Printf("  %-20s = %-20s (%s)\n", key, val, src)
+			val = "(unset)"
 		}
+		fmt.Printf("  %-20s = %-20s (%s)\n", key, val, configKeySource(cfg, key))
 	}
-	printBoolField := func(key string, val bool, src string) {
-		fmt.Printf("  %-20s = %-20s (%s)\n", key, strconv.FormatBool(val), src)
-	}
-
-	clientSrc := "default"
-	if cfg != nil && cfg.Client != nil {
-		clientSrc = "file"
-	}
-	printField("client", resolved.Client, clientSrc)
-
-	sourceSrc := "default"
-	if cfg != nil && cfg.Source != nil && strings.TrimSpace(*cfg.Source) != "" {
-		sourceSrc = "file"
-	}
-	printField("source", effectiveSourceLabel(resolved), sourceSrc)
-
-	modelSrc := "unset"
-	if cfg != nil && cfg.Model != nil {
-		modelSrc = "file"
-	}
-	printField("model", resolved.Model, modelSrc)
-
-	modeSrc := "default"
-	if cfg != nil && cfg.Mode != nil {
-		modeSrc = "file"
-	}
-	printField("mode", resolved.Mode, modeSrc)
-
-	effortSrc := "unset"
-	if cfg != nil && cfg.ReasoningEffort != nil {
-		effortSrc = "file"
-	}
-	printField("reasoning_effort", resolved.ReasoningEffort, effortSrc)
-
-	tierSrc := "unset"
-	if cfg != nil && cfg.ContextTier != nil {
-		tierSrc = "file"
-	}
-	printField("context_tier", resolved.ContextTier, tierSrc)
-
-	toolsSrc := "default"
-	if cfg != nil && cfg.AllowAllTools != nil {
-		toolsSrc = "file"
-	}
-	printBoolField("allow_all_tools", resolved.AllowAllTools, toolsSrc)
-
-	askSrc := "default"
-	if cfg != nil && cfg.AskUser != nil {
-		askSrc = "file"
-	}
-	printBoolField("ask_user", resolved.AskUser, askSrc)
-
-	autoLaunchSrc := "default"
-	if cfg != nil && cfg.AutoLaunch != nil {
-		autoLaunchSrc = "file"
-	}
-	printBoolField("auto_launch", resolved.AutoLaunch, autoLaunchSrc)
-
-	autoUpdateSrc := "default"
-	if cfg != nil && cfg.AutoUpdate != nil {
-		autoUpdateSrc = "file"
-	}
-	printBoolField("auto_update", resolved.AutoUpdate, autoUpdateSrc)
-
-	logSrc := "unset"
-	if cfg != nil && cfg.LogLevel != nil {
-		logSrc = "file"
-	}
-	printField("log_level", resolved.LogLevel, logSrc)
-
-	otelSrc := "default"
-	if cfg != nil && cfg.OtelLogLevel != nil {
-		otelSrc = "file"
-	}
-	printField("otel_log_level", resolved.OtelLogLevel, otelSrc)
 
 	return nil
 }

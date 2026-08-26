@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -650,5 +651,112 @@ func TestResolverList_Prompts_RootWinsScope(t *testing.T) {
 	}
 	if strings.Contains(entries[0].AbsPath, ".github") {
 		t.Errorf("root should win: %q", entries[0].AbsPath)
+	}
+}
+
+var errStubNoSource = errors.New("stubbed: no source")
+
+// ─── explicit install asks where to install ──────────────────────────────────
+
+// forceInteractive makes isInteractive() report true deterministically:
+// /dev/null is a character device, which is what isInteractive() checks.
+func forceInteractive(t *testing.T) {
+	t.Helper()
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Skipf("cannot open %s: %v", os.DevNull, err)
+	}
+	orig := os.Stdin
+	os.Stdin = devnull
+	t.Cleanup(func() { os.Stdin = orig; devnull.Close() })
+}
+
+// stubScopePrompt replaces the scope picker and reports whether it was asked.
+func stubScopePrompt(t *testing.T, scope *InstallScope) *bool {
+	t.Helper()
+	orig := promptInstallScopeFn
+	t.Cleanup(func() { promptInstallScopeFn = orig })
+	asked := false
+	promptInstallScopeFn = func(string) (*InstallScope, error) {
+		asked = true
+		return scope, nil
+	}
+	return &asked
+}
+
+func TestRun_InstallScopePrompt(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		interactive bool
+		wantPrompt  bool
+	}{
+		{"--user says where already", []string{"install", "--user", "grillmester"}, true, false},
+		{"--target says where already", []string{"install", "--target", "TMP", "grillmester"}, true, false},
+		{"non-interactive cannot ask", []string{"install", "grillmester"}, false, false},
+		{"--json must stay scriptable", []string{"install", "grillmester", "--json"}, true, false},
+		{"--dry-run installs nothing", []string{"install", "grillmester", "--dry-run"}, true, false},
+		{"bare install is not prompted before dispatch", []string{"install"}, true, false},
+		{"explicit install asks", []string{"install", "grillmester"}, true, true},
+		{"add asks too", []string{"add", "agent", "grillmester"}, true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatedConfig(t)
+			t.Setenv("HOME", t.TempDir())
+			if tt.interactive {
+				forceInteractive(t)
+			} else {
+				forceNonInteractive = true
+				t.Cleanup(func() { forceNonInteractive = false })
+			}
+
+			origResolve := resolveSource
+			t.Cleanup(func() { resolveSource = origResolve })
+			resolveSource = func(ref, sourceRepo string) (*Source, error) {
+				return nil, errStubNoSource
+			}
+
+			args := append([]string(nil), tt.args...)
+			for i, a := range args {
+				if a == "TMP" {
+					args[i] = repoTarget(t)
+				}
+			}
+
+			// Cancelling (nil scope) keeps every case a no-op.
+			asked := stubScopePrompt(t, nil)
+			err := run(args)
+			if *asked != tt.wantPrompt {
+				t.Fatalf("prompt asked = %v, want %v (err: %v)", *asked, tt.wantPrompt, err)
+			}
+			if tt.wantPrompt && err != nil {
+				t.Errorf("cancelled scope prompt must exit cleanly, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestRun_InstallHonoursPromptedScope(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	forceInteractive(t)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+	target := repoTarget(t)
+	asked := stubScopePrompt(t, ScopeRepo(target))
+
+	if err := run([]string{"install", "grillmester"}); err != nil {
+		t.Fatalf("install grillmester: %v", err)
+	}
+	if !*asked {
+		t.Fatal("explicit install must ask where to install")
+	}
+	installed := filepath.Join(target, ".github", "agents", "grillmester.agent.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("install went somewhere else, %s missing: %v", installed, err)
 	}
 }
