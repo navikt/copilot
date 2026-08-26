@@ -13,15 +13,17 @@ import (
 // Pointer types are used for optional fields to distinguish "unset" from zero-value,
 // enabling correct per-field precedence in resolve().
 type Config struct {
-	Version           int     `toml:"version"`
-	Client            *string `toml:"client"`
-	Source            *string `toml:"source"`
-	Model             *string `toml:"model"`
-	Mode              *string `toml:"mode"`
-	ReasoningEffort   *string `toml:"reasoning_effort"`
-	ContextTier       *string `toml:"context_tier"`
-	AllowAllTools     *bool   `toml:"allow_all_tools"`
-	AskUser           *bool   `toml:"ask_user"`
+	Version         int     `toml:"version"`
+	Client          *string `toml:"client"`
+	Source          *string `toml:"source"`
+	Model           *string `toml:"model"`
+	Mode            *string `toml:"mode"`
+	ReasoningEffort *string `toml:"reasoning_effort"`
+	ContextTier     *string `toml:"context_tier"`
+	AllowAllTools   *bool   `toml:"allow_all_tools"`
+	AskUser         *bool   `toml:"ask_user"`
+	// AutoLaunch controls whether nav-pilot starts the coding agent by itself
+	// after an install/sync. Defaults to true; false means never launch.
 	AutoLaunch        *bool   `toml:"auto_launch"`
 	LogLevel          *string `toml:"log_level"`
 	OtelLogLevel      *string `toml:"otel_log_level"`
@@ -43,7 +45,7 @@ type ResolvedConfig struct {
 	ContextTier       string // empty = unset
 	AllowAllTools     bool
 	AskUser           bool
-	AutoLaunch        bool     // skip the interactive "Launch X now?" confirmation
+	AutoLaunch        bool     // launch the coding agent automatically after install/sync
 	LogLevel          string   // empty = unset
 	OtelLogLevel      string   // always set; defaults to "none"
 	RtkPromptedClient string   // comma-separated list of clients where the RTK setup was prompted

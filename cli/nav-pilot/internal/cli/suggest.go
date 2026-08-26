@@ -74,6 +74,7 @@ var knownFlags = []string{
 	"--items",
 	"-F", "--feature",
 	"-u", "--user",
+	"--repo",
 	"-t", "--target",
 	"-r", "--ref",
 	"-s", "--source",

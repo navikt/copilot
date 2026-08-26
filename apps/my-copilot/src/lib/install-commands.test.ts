@@ -314,13 +314,13 @@ describe("getGhSkillInstallCommand", () => {
 describe("getNavPilotAddCommand", () => {
   it("generates nav-pilot install command for agent", () => {
     const result = getNavPilotAddCommand(agent)!;
-    expect(result.repo).toBe("nav-pilot install nais --type agent");
+    expect(result.repo).toBe("nav-pilot install nais --type agent --repo");
     expect(result.user).toBe("nav-pilot install nais --type agent --user");
   });
 
   it("generates nav-pilot install command for agent with explicit id", () => {
     const result = getNavPilotAddCommand(authAgent)!;
-    expect(result.repo).toBe("nav-pilot install auth-agent --type agent");
+    expect(result.repo).toBe("nav-pilot install auth-agent --type agent --repo");
     expect(result.user).toBe("nav-pilot install auth-agent --type agent --user");
   });
 
@@ -335,25 +335,25 @@ describe("getNavPilotAddCommand", () => {
       tools: [],
     };
     const result = getNavPilotAddCommand(securityChampionAgent)!;
-    expect(result.repo).toBe("nav-pilot install security-champion --type agent");
+    expect(result.repo).toBe("nav-pilot install security-champion --type agent --repo");
     expect(result.user).toBe("nav-pilot install security-champion --type agent --user");
   });
 
   it("generates nav-pilot install command for instruction using id, not display name", () => {
     const result = getNavPilotAddCommand(instruction)!;
-    expect(result.repo).toBe("nav-pilot install nextjs-aksel --type instruction");
+    expect(result.repo).toBe("nav-pilot install nextjs-aksel --type instruction --repo");
     expect(result.user).toBe("nav-pilot install nextjs-aksel --type instruction --user");
   });
 
   it("generates nav-pilot install command for prompt", () => {
     const result = getNavPilotAddCommand(prompt)!;
-    expect(result.repo).toBe("nav-pilot install code-review --type prompt");
+    expect(result.repo).toBe("nav-pilot install code-review --type prompt --repo");
     expect(result.user).toBe("nav-pilot install code-review --type prompt --user");
   });
 
   it("generates nav-pilot install command for skill", () => {
     const result = getNavPilotAddCommand(skill)!;
-    expect(result.repo).toBe("nav-pilot install aksel-spacing --type skill");
+    expect(result.repo).toBe("nav-pilot install aksel-spacing --type skill --repo");
     expect(result.user).toBe("nav-pilot install aksel-spacing --type skill --user");
   });
 
@@ -363,7 +363,7 @@ describe("getNavPilotAddCommand", () => {
 
   it("falls back to rawGitHubUrl stem when filePath is unexpected", () => {
     const result = getNavPilotAddCommand({ ...authAgent, filePath: "invalid-path" })!;
-    expect(result.repo).toBe("nav-pilot install auth --type agent");
+    expect(result.repo).toBe("nav-pilot install auth --type agent --repo");
     expect(result.user).toBe("nav-pilot install auth --type agent --user");
   });
 
@@ -378,7 +378,7 @@ describe("getNavPilotAddCommand", () => {
       tools: [],
     };
     const result = getNavPilotAddCommand(kafkaAgent)!;
-    expect(result.repo).toBe("nav-pilot install kafka --type agent");
+    expect(result.repo).toBe("nav-pilot install kafka --type agent --repo");
     expect(result.user).toBe("nav-pilot install kafka --type agent --user");
   });
 });

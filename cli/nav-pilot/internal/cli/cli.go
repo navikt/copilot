@@ -88,7 +88,7 @@ Commands:
   upgrade (up)            Update nav-pilot CLI to the latest version
   uninstall (rm)          Remove installed collection files
   export <format>         Export Nav customizations to another tool's format
-  config <subcommand>     Manage user-specific nav-pilot configuration (init, setup, show, get, set, validate)
+  config [subcommand]     Manage user-specific nav-pilot configuration; no subcommand opens the interactive settings page
   validate                Check that a source repo conforms to the agentpakke contract
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
@@ -102,6 +102,7 @@ Flags:
   -r, --ref <ref>         Git branch or tag to install from
   -s, --source <repo>     Source repository or absolute path (default: the config's source key, else navikt/copilot)
   -u, --user              Install to ~/.copilot — works across all repos (agents, skills & instructions only)
+  --repo                  Install to this repository's .github/ (opposite of --user; skips the scope question)
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
   --all                   Install everything (use with --user)
   --apply                 Apply available updates (sync only)
@@ -120,6 +121,7 @@ Get started:
   nav-pilot install kotlin-backend       # Install a collection to .github/
   nav-pilot install --user --all         # Install everything to ~/.copilot (all repos)
   nav-pilot install security-champion    # Install a single agent
+  nav-pilot install frontend --repo      # Install to this repo without being asked
   nav-pilot sync                         # Check for updates
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
   nav-pilot install --source navikt/x    # Install another team's agentpakke (and remember it)
@@ -131,6 +133,28 @@ After installing, use @nav-pilot in GitHub Copilot Chat.
 
 // run parses args and dispatches to the appropriate command.
 // It returns an error instead of calling os.Exit, making it testable.
+// requestedType is the artifact type the invocation asks for, "" when it is up
+// to the installer to work out (a collection or agentpakke name).
+func requestedType(command, installType string, positional []string) string {
+	if command == "add" && len(positional) > 0 {
+		return positional[0]
+	}
+	return installType
+}
+
+// userScopeAccepts reports whether ~/.copilot can hold the given type. An
+// unknown home directory is not a reason to hide the question.
+func userScopeAccepts(itemType string) bool {
+	if itemType == "" {
+		return true
+	}
+	u, err := ScopeUser()
+	if err != nil {
+		return true
+	}
+	return u.SupportsType(itemType)
+}
+
 func run(args []string) error {
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
 	assessment := assessStaleness(Version)
@@ -339,7 +363,7 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, targetProvided, installAll, listInstalled bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled bool
 	var targetDir, ref, sourceRepo, installType string
 	var positional []string
 
@@ -365,6 +389,8 @@ func run(args []string) error {
 			featureRequest = true
 		case "-u", "--user":
 			userScope = true
+		case "--repo":
+			repoScope = true
 		case "-t", "--target":
 			if i+1 >= len(rest) {
 				return fmt.Errorf("--target requires a value")
@@ -414,6 +440,14 @@ func run(args []string) error {
 	if userScope && targetProvided {
 		return fmt.Errorf("--user and --target are mutually exclusive")
 	}
+	if repoScope && userScope {
+		return fmt.Errorf("--repo and --user are mutually exclusive")
+	}
+	if repoScope && targetProvided {
+		return fmt.Errorf("--repo and --target are mutually exclusive")
+	}
+	// Any explicit scope flag answers the repo-vs-user question up front.
+	scopeProvided := userScope || repoScope || targetProvided
 
 	// --source participates in the config precedence too, so a launch triggered
 	// from a subcommand resolves the same source the command installed from.
@@ -436,21 +470,61 @@ func run(args []string) error {
 	} else {
 		// For repo scope without explicit --target, resolve to git root
 		// so commands work from any subdirectory.
+		gitRoot := ""
 		if !targetProvided {
-			if root := findGitRoot(targetDir); root != "" {
-				targetDir = root
+			if gitRoot = findGitRoot(targetDir); gitRoot != "" {
+				targetDir = gitRoot
 			}
 		}
-		scope = ScopeRepo(targetDir)
+		// An explicit `install <name>` (or `add <type> <name>`) without --user
+		// or --target used to silently fill the repo's .github/. Ask the same
+		// question the bare interactive flow asks. Only well-formed invocations
+		// are prompted: `install` with no name has its own picker in
+		// cmdInstallInteractive, and malformed ones must still report the usage
+		// error rather than open a picker.
+		wellFormed := (command == "install" && len(positional) == 1) ||
+			(command == "add" && len(positional) >= 2)
+		switch {
+		case !(wellFormed && !scopeProvided && !jsonOutput && !dryRun && isInteractive()):
+			scope = ScopeRepo(targetDir)
+		case gitRoot == "":
+			// Outside a git repo the repo answer fails later on, so don't ask.
+			var err error
+			scope, err = ScopeUser()
+			if err != nil {
+				return fmt.Errorf("resolving user home: %w", err)
+			}
+		case !userScopeAccepts(requestedType(command, installType, positional)):
+			// A type user scope cannot hold makes the user answer fail later.
+			scope = ScopeRepo(targetDir)
+		default:
+			var err error
+			scope, err = promptInstallScopeFn(targetDir)
+			switch {
+			case err != nil:
+				// No usable terminal: keep the pre-prompt behaviour instead of
+				// silently installing nothing.
+				fmt.Fprintf(os.Stderr, "%s Could not ask where to install (%v) — using this repository. Pass %s or %s to choose.\n",
+					yellow("⚠"), err, bold("--user"), bold("--repo"))
+				scope = ScopeRepo(targetDir)
+			case scope == nil:
+				fmt.Println(dim("Cancelled."))
+				return nil
+			}
+		}
 	}
 
-	// Reject --user for commands that don't support scoped installs
-	if userScope {
+	// Reject --user/--repo for commands that don't support scoped installs
+	if userScope || repoScope {
+		flag := "--user"
+		if repoScope {
+			flag = "--repo"
+		}
 		switch command {
 		case "install", "add", "ignore", "sync", "doctor", "uninstall", "export", "list":
-			// These commands support --user
+			// These commands support --user and --repo
 		default:
-			return fmt.Errorf("--user is not supported for %q", command)
+			return fmt.Errorf("%s is not supported for %q", flag, command)
 		}
 	}
 
@@ -522,23 +596,23 @@ func run(args []string) error {
 		})
 	case "sync":
 		syncScope := "auto"
-		if userScope || targetProvided {
+		if scopeProvided {
 			syncScope = scope.Name
 		}
 		return runWithCommandTelemetry("sync", telemetryMode(), syncScope, func() error {
-			if userScope || targetProvided {
+			if scopeProvided {
 				return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
 			}
 			return cmdSyncAuto(targetDir, ref, sourceRepo, apply, jsonOutput)
 		})
 	case "list":
 		listScope := "none"
-		if userScope || targetProvided {
+		if scopeProvided {
 			listScope = scope.Name
 		}
 		return runWithCommandTelemetry("list", telemetryMode(), listScope, func() error {
 			if listInstalled {
-				if userScope || targetProvided {
+				if scopeProvided {
 					return cmdListInstalledScoped(scope, false, jsonOutput)
 				}
 				return cmdListInstalledAuto(targetDir, jsonOutput)

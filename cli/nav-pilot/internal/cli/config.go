@@ -242,6 +242,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		Client:       "copilot",
 		Mode:         "default",
 		AskUser:      true,
+		AutoLaunch:   true,
 		OtelLogLevel: "none",
 	}
 

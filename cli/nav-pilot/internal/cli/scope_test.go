@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -650,5 +651,239 @@ func TestResolverList_Prompts_RootWinsScope(t *testing.T) {
 	}
 	if strings.Contains(entries[0].AbsPath, ".github") {
 		t.Errorf("root should win: %q", entries[0].AbsPath)
+	}
+}
+
+var errStubNoSource = errors.New("stubbed: no source")
+
+// ─── explicit install asks where to install ──────────────────────────────────
+
+// forceInteractive makes isInteractive() report true deterministically:
+// /dev/null is a character device, which is what isInteractive() checks.
+func forceInteractive(t *testing.T) {
+	t.Helper()
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Skipf("cannot open %s: %v", os.DevNull, err)
+	}
+	orig := os.Stdin
+	os.Stdin = devnull
+	t.Cleanup(func() { os.Stdin = orig; devnull.Close() })
+}
+
+// stubScopePrompt replaces the scope picker and reports whether it was asked.
+func stubScopePrompt(t *testing.T, scope *InstallScope) *bool {
+	t.Helper()
+	orig := promptInstallScopeFn
+	t.Cleanup(func() { promptInstallScopeFn = orig })
+	asked := false
+	promptInstallScopeFn = func(string) (*InstallScope, error) {
+		asked = true
+		return scope, nil
+	}
+	return &asked
+}
+
+func TestRun_InstallScopePrompt(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		interactive bool
+		wantPrompt  bool
+	}{
+		{"--user says where already", []string{"install", "--user", "grillmester"}, true, false},
+		{"--repo says where already", []string{"install", "--repo", "grillmester"}, true, false},
+		{"--target says where already", []string{"install", "--target", "TMP", "grillmester"}, true, false},
+		{"non-interactive cannot ask", []string{"install", "grillmester"}, false, false},
+		{"--json must stay scriptable", []string{"install", "grillmester", "--json"}, true, false},
+		{"--dry-run installs nothing", []string{"install", "grillmester", "--dry-run"}, true, false},
+		{"bare install is not prompted before dispatch", []string{"install"}, true, false},
+		{"explicit install asks", []string{"install", "grillmester"}, true, true},
+		{"add asks too", []string{"add", "agent", "grillmester"}, true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatedConfig(t)
+			t.Setenv("HOME", t.TempDir())
+			if tt.interactive {
+				forceInteractive(t)
+			} else {
+				forceNonInteractive = true
+				t.Cleanup(func() { forceNonInteractive = false })
+			}
+
+			origResolve := resolveSource
+			t.Cleanup(func() { resolveSource = origResolve })
+			resolveSource = func(ref, sourceRepo string) (*Source, error) {
+				return nil, errStubNoSource
+			}
+
+			args := append([]string(nil), tt.args...)
+			for i, a := range args {
+				if a == "TMP" {
+					args[i] = repoTarget(t)
+				}
+			}
+
+			// Cancelling (nil scope) keeps every case a no-op.
+			asked := stubScopePrompt(t, nil)
+			err := run(args)
+			if *asked != tt.wantPrompt {
+				t.Fatalf("prompt asked = %v, want %v (err: %v)", *asked, tt.wantPrompt, err)
+			}
+			if tt.wantPrompt && err != nil {
+				t.Errorf("cancelled scope prompt must exit cleanly, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestRun_InstallHonoursPromptedScope(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	forceInteractive(t)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+	target := repoTarget(t)
+	asked := stubScopePrompt(t, ScopeRepo(target))
+
+	if err := run([]string{"install", "grillmester"}); err != nil {
+		t.Fatalf("install grillmester: %v", err)
+	}
+	if !*asked {
+		t.Fatal("explicit install must ask where to install")
+	}
+	installed := filepath.Join(target, ".github", "agents", "grillmester.agent.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("install went somewhere else, %s missing: %v", installed, err)
+	}
+}
+
+// --repo is the non-interactive way to answer "this repository", and like the
+// prompted answer it installs into the git root, not the subdirectory we're in.
+func TestRun_InstallRepoFlagUsesGitRoot(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	forceInteractive(t)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+	target := repoTarget(t)
+	sub := filepath.Join(target, "cli", "nested")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+
+	asked := stubScopePrompt(t, nil)
+	if err := run([]string{"install", "grillmester", "--repo"}); err != nil {
+		t.Fatalf("install grillmester --repo: %v", err)
+	}
+	if *asked {
+		t.Error("--repo already answers where to install")
+	}
+	installed := filepath.Join(target, ".github", "agents", "grillmester.agent.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("--repo must install into the git root, %s missing: %v", installed, err)
+	}
+	if _, err := os.Stat(filepath.Join(sub, ".github")); err == nil {
+		t.Error("--repo installed into the subdirectory instead of the git root")
+	}
+}
+
+// --repo picks a scope, so combining it with the other scope flags is a
+// contradiction rather than a silent winner.
+func TestRun_RepoFlagConflicts(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"--repo with --user", []string{"install", "grillmester", "--repo", "--user"}, "--repo and --user are mutually exclusive"},
+		{"--repo with --target", []string{"install", "grillmester", "--repo", "--target", "TMP"}, "--repo and --target are mutually exclusive"},
+		{"--repo on an unscoped command", []string{"init", "--repo"}, `--repo is not supported for "init"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatedConfig(t)
+			t.Setenv("HOME", t.TempDir())
+
+			args := append([]string(nil), tt.args...)
+			for i, a := range args {
+				if a == "TMP" {
+					args[i] = repoTarget(t)
+				}
+			}
+
+			err := run(args)
+			if err == nil || err.Error() != tt.want {
+				t.Fatalf("run(%v) error = %v, want %q", args, err, tt.want)
+			}
+		})
+	}
+}
+
+// A prompt that cannot open a terminal must not be mistaken for a cancel: the
+// install still lands in the repository, the way it did before the prompt.
+func TestRun_InstallFallsBackToRepoWhenPromptFails(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	forceInteractive(t)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+	target := repoTarget(t)
+	t.Chdir(target)
+
+	orig := promptInstallScopeFn
+	t.Cleanup(func() { promptInstallScopeFn = orig })
+	promptInstallScopeFn = func(string) (*InstallScope, error) {
+		return nil, errors.New("huh: could not open a new TTY")
+	}
+
+	if err := run([]string{"install", "grillmester"}); err != nil {
+		t.Fatalf("install grillmester: %v", err)
+	}
+	installed := filepath.Join(target, ".github", "agents", "grillmester.agent.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("a failed prompt must still install into the repo, %s missing: %v", installed, err)
+	}
+}
+
+// Outside a git repo the "this repo" answer cannot work, and a prompt type that
+// user scope cannot hold makes the other answer fail — neither is asked about.
+func TestRun_InstallSkipsPromptWhenOnlyOneScopeWorks(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		inGit bool
+	}{
+		{"no git repo", []string{"install", "grillmester"}, false},
+		{"prompts cannot live in user scope", []string{"add", "prompt", "grillmester"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatedConfig(t)
+			t.Setenv("HOME", t.TempDir())
+			forceInteractive(t)
+			if tt.inGit {
+				t.Chdir(repoTarget(t))
+			} else {
+				t.Chdir(t.TempDir())
+			}
+
+			origResolve := resolveSource
+			t.Cleanup(func() { resolveSource = origResolve })
+			resolveSource = func(ref, sourceRepo string) (*Source, error) {
+				return nil, errStubNoSource
+			}
+
+			asked := stubScopePrompt(t, nil)
+			_ = run(tt.args)
+			if *asked {
+				t.Error("asked a question with only one workable answer")
+			}
+		})
 	}
 }

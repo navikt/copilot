@@ -82,7 +82,7 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
 
   blocks.push({
     title: "# 3. Sett opp for ditt prosjekt",
-    commands: [`nav-pilot install ${stack}`, ...WORKFLOW_COMMANDS[workflow]],
+    commands: [`nav-pilot install ${stack} --repo`, ...WORKFLOW_COMMANDS[workflow]],
   });
 
   const codeString = blocks.map((b) => [b.title, ...b.commands].filter(Boolean).join("\n")).join("\n\n");

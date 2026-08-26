@@ -443,8 +443,8 @@ func TestResolve_Defaults(t *testing.T) {
 	if r.AllowAllTools != false {
 		t.Error("AllowAllTools = true, want false")
 	}
-	if r.AutoLaunch != false {
-		t.Error("AutoLaunch = true, want false (default)")
+	if !r.AutoLaunch {
+		t.Error("AutoLaunch = false, want true (default)")
 	}
 	if r.Model != "" {
 		t.Errorf("Model = %q, want empty", r.Model)
@@ -471,7 +471,7 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 	tier := "long_context"
 	allowAll := true
 	askUser := false
-	autoLaunch := true
+	autoLaunch := false
 	logLevel := "debug"
 
 	cfg := &Config{
@@ -509,8 +509,8 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 	if r.AskUser {
 		t.Error("AskUser = true, want false")
 	}
-	if !r.AutoLaunch {
-		t.Error("AutoLaunch = false, want true (file overrides default)")
+	if r.AutoLaunch {
+		t.Error("AutoLaunch = true, want false (file overrides default)")
 	}
 	if r.LogLevel != "debug" {
 		t.Errorf("LogLevel = %q, want debug", r.LogLevel)
@@ -518,12 +518,10 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 }
 
 func TestResolve_AutoLaunch_CLIOverridesFile(t *testing.T) {
-	fileFalse := false
-	cfg := &Config{Version: 1, AutoLaunch: &fileFalse}
-
 	// File says false; CLI --auto-launch (true) wins.
+	fileFalse := false
 	trueVal := true
-	r := resolve(cfg, CLIOverrides{AutoLaunch: &trueVal})
+	r := resolve(&Config{Version: 1, AutoLaunch: &fileFalse}, CLIOverrides{AutoLaunch: &trueVal})
 	if !r.AutoLaunch {
 		t.Error("AutoLaunch = false, want true (CLI overrides file)")
 	}
@@ -1103,6 +1101,36 @@ func TestKnownCopilotModelIDs(t *testing.T) {
 func TestConfigAdvisories_Nil(t *testing.T) {
 	if w := configAdvisories(nil, tomlMetaForTest(t, "")); len(w) != 0 {
 		t.Errorf("configAdvisories(nil) = %v, want empty", w)
+	}
+}
+
+func TestReadConfig_AutoLaunchOptOut(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nauto_launch = false\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+
+	cfg, meta, err := readConfigWithMeta()
+	if err != nil {
+		t.Fatalf("auto_launch config failed to load: %v", err)
+	}
+	if len(meta.Undecoded()) != 0 {
+		t.Errorf("auto_launch must stay a known key, got undecoded %v", meta.Undecoded())
+	}
+	if w := configAdvisories(cfg, meta); len(w) != 0 {
+		t.Errorf("configAdvisories() = %v, want none for auto_launch", w)
+	}
+	if resolve(cfg, CLIOverrides{}).AutoLaunch {
+		t.Error("AutoLaunch = true, want false (auto_launch = false in the file)")
+	}
+
+	// An absent key means launch.
+	path = writeTempConfig(t, "version = 1\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	cfg, _, err = readConfigWithMeta()
+	if err != nil {
+		t.Fatalf("config failed to load: %v", err)
+	}
+	if !resolve(cfg, CLIOverrides{}).AutoLaunch {
+		t.Error("AutoLaunch = false, want true (key absent)")
 	}
 }
 

@@ -67,8 +67,9 @@ var (
 
 	recordFreshness = providerpkg.RecordFreshness
 
-	copilotEnv = providerpkg.CopilotEnv
-	launchPi   = providerpkg.LaunchPi
+	copilotEnv     = providerpkg.CopilotEnv
+	findCopilotCLI = providerpkg.FindCopilotCLI
+	launchPi       = providerpkg.LaunchPi
 
 	openCodeDefaultModel  = providerpkg.OpenCodeDefaultModel
 	isKnownCopilotModel   = providerpkg.IsKnownCopilotModel
