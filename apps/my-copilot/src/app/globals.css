@@ -128,7 +128,6 @@
 @media (prefers-reduced-motion: no-preference) {
   .budget-bar-critical {
     animation: budget-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
-    animation-delay: 0s;
   }
 }
 
