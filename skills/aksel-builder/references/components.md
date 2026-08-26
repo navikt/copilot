@@ -13,7 +13,7 @@ trust the table alone for props.
 
 > Names move over time — some are new (`Dialog`, `LinkCard`, `GlobalAlert`, `LocalAlert`,
 > `InfoCard`, `InlineMessage`), some carry prefixes (`UNSAFE_Combobox`), some are deprecated
-> (`LinkPanel`, `Panel`, `Box.New`). Let MCP confirm the current name when unsure.
+> (`Alert`, `LinkPanel`, `Panel`, `Box.New`). Let MCP confirm the current name when unsure.
 
 ## Need → component
 
@@ -71,7 +71,7 @@ trust the table alone for props.
 
 | Need                 | Use                                                                        |
 | -------------------- | -------------------------------------------------------------------------- |
-| Inline page alert    | `Alert` (or `LocalAlert` / `GlobalAlert` / `InfoCard` — verify which fits) |
+| Inline page alert    | `LocalAlert` / `GlobalAlert` / `InfoCard` — verify which fits              |
 | Short inline message | `InlineMessage`                                                            |
 | Loading spinner      | `Loader`                                                                   |
 | Determinate progress | `ProgressBar`                                                              |

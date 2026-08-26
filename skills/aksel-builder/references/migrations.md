@@ -60,7 +60,7 @@ encodes a color, the code predates v8 — migrate it.
 | `Box.New` / `BoxNew`             | `Box` ([primitives-layout.md](primitives-layout.md)) |
 | `variant="…"` that names a color | `variant` (emphasis) + `data-color` (role)           |
 | Numeric/px spacing on primitives | `space-*` tokens                                     |
-| `LinkPanel`, `Panel`             | deprecated — check docs for the current component    |
+| `Alert`, `LinkPanel`, `Panel`    | deprecated — check docs for the current component    |
 
 When you encounter outdated patterns while editing, prefer running the matching codemod over
 piecemeal hand-edits, then review the diff.
