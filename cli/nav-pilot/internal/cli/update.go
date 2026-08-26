@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -20,6 +21,9 @@ import (
 var (
 	releasesAPI = "https://api.github.com/repos/navikt/copilot/releases"
 	downloadURL = "https://github.com/navikt/copilot/releases/download"
+
+	// cplt ships from its own repo, with its own release train and unprefixed tags.
+	cpltReleasesAPI = "https://api.github.com/repos/navikt/cplt/releases"
 )
 
 // httpClient is the client used for all HTTP requests. Overridable in tests.
@@ -47,9 +51,13 @@ func cmdUpdate() error {
 // from "successfully updated" and avoid re-executing when nothing changed.
 func doUpdate() (updated bool, err error) {
 	if isBrewManaged() {
+		formulae := "navikt/tap/nav-pilot"
+		if cpltBehind() {
+			formulae += " navikt/tap/cplt"
+		}
 		fmt.Println("nav-pilot is managed by Homebrew.")
 		fmt.Println()
-		fmt.Println("  brew upgrade navikt/tap/nav-pilot")
+		fmt.Printf("  brew upgrade %s\n", formulae)
 		return false, nil
 	}
 
@@ -144,7 +152,14 @@ func isBrewManaged() bool {
 // Returns the raw version (matching the build-injected format, e.g. "2026.04.13-170138-abc1234")
 // and the full tag (e.g. "nav-pilot/2026.04.13-170138-abc1234").
 func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", releasesAPI+"?per_page=20", nil)
+	return fetchLatestRelease(ctx, releasesAPI, "nav-pilot/")
+}
+
+// fetchLatestRelease returns the newest release from a GitHub releases API whose
+// tag carries prefix (empty prefix = the newest release, for repos that do not
+// prefix their tags). Returns the version (tag minus prefix) and the full tag.
+func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, tag string, err error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", api+"?per_page=20", nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -169,14 +184,54 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 	}
 
 	for _, rel := range releases {
-		if strings.HasPrefix(rel.TagName, "nav-pilot/") {
+		if strings.HasPrefix(rel.TagName, prefix) {
 			tag = rel.TagName
-			ver = strings.TrimPrefix(tag, "nav-pilot/")
+			ver = strings.TrimPrefix(tag, prefix)
 			return ver, tag, nil
 		}
 	}
 
-	return "", "", fmt.Errorf("no nav-pilot release found")
+	return "", "", fmt.Errorf("no release found with tag prefix %q", prefix)
+}
+
+// latestCpltVersion returns the newest published cplt version. The short
+// timeout keeps a slow or unreachable GitHub from stalling doctor or upgrade —
+// callers treat an error as "could not check", never as "outdated".
+// A var so tests can stub it without a network call.
+var latestCpltVersion = func() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ver, _, err := fetchLatestRelease(ctx, cpltReleasesAPI, "")
+	return ver, err
+}
+
+// parseCpltVersion pulls the bare version out of `cplt --version` output, which
+// reads "cplt 2026.08.24-153138-0d1d66d".
+func parseCpltVersion(out string) string {
+	fields := strings.Fields(out)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[len(fields)-1]
+}
+
+// cpltBehind reports whether the installed cplt is older than the latest cplt
+// release. Everything uncertain — no cplt, no network, an unparseable version —
+// answers false: nav-pilot stays quiet rather than guessing.
+func cpltBehind() bool {
+	cliPath, err := findCplt()
+	if err != nil {
+		return false
+	}
+	out, err := exec.Command(cliPath, "--version").Output()
+	if err != nil {
+		return false
+	}
+	latest, err := latestCpltVersion()
+	if err != nil {
+		return false
+	}
+	return versionNewer(latest, parseCpltVersion(string(out)))
 }
 
 func httpGet(url string) ([]byte, error) {

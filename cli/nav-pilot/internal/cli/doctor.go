@@ -115,6 +115,33 @@ func cmdDoctor() error {
 		}
 		fmt.Printf("      %s Binary found: %s (%s)\n", green("✓"), cpltPath, version)
 
+		// Version skew is warn-only: nav-pilot never downloads or upgrades cplt,
+		// and a slow or offline GitHub must not fail the health check.
+		installed := parseCpltVersion(version)
+		switch latest, lerr := latestCpltVersion(); {
+		case lerr != nil || latest == "":
+			fmt.Printf("      %s Could not check for a newer cplt release\n", dim("-"))
+		case versionNewer(latest, installed):
+			fmt.Printf("      %s cplt %s is out of date (latest: %s)\n", yellow("⚠"), installed, latest)
+			fmt.Printf("          %s Run %s\n", yellow("Solution:"), bold("brew upgrade navikt/tap/cplt"))
+		default:
+			fmt.Printf("      %s cplt is up to date\n", green("✓"))
+		}
+
+		// Security posture. A recommendation, not a failure — and an unknown
+		// preset is skipped rather than guessed at.
+		preset := cpltSandboxPreset()
+		switch {
+		case preset == "":
+			// cplt could not tell us; nothing to recommend.
+		case cpltRecommendStrict(preset):
+			fmt.Printf("      %s Sandbox preset is %q (recommended: %q — turns on gh_guard, git_guard and forced proxy)\n",
+				yellow("⚠"), preset, cpltRecommendedPreset)
+			fmt.Printf("          %s Run %s\n", yellow("Solution:"), bold("cplt config set sandbox.preset strict"))
+		default:
+			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
+		}
+
 		// The persona is pinned by nav-pilot itself, not by user configuration:
 		// BuildCopilotArgs unconditionally emits `cplt --agent copilot --
 		// --agent nav-pilot` on every launch. There is nothing to check and

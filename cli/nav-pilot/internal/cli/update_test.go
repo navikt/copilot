@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"net/http"
@@ -136,4 +137,60 @@ func TestRun_UpdateCommand(t *testing.T) {
 		t.Fatal("update command not wired up in main.go")
 	}
 	// Will get a network error or version mismatch, that's fine
+}
+
+func TestFetchLatestRelease_UnprefixedTags(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `[
+			{"tag_name": "2026.08.26-201133-2e78d25"},
+			{"tag_name": "2026.08.24-153138-0d1d66d"}
+		]`)
+	}))
+	defer srv.Close()
+
+	origClient := httpClient
+	httpClient = srv.Client()
+	defer func() { httpClient = origClient }()
+
+	// cplt tags carry no prefix, so the newest release wins outright.
+	ver, tag, err := fetchLatestRelease(context.Background(), srv.URL, "")
+	if err != nil {
+		t.Fatalf("fetchLatestRelease: %v", err)
+	}
+	if ver != "2026.08.26-201133-2e78d25" || tag != ver {
+		t.Errorf("got ver=%q tag=%q, want both %q", ver, tag, "2026.08.26-201133-2e78d25")
+	}
+}
+
+func TestParseCpltVersion(t *testing.T) {
+	tests := []struct{ out, want string }{
+		{"cplt 2026.08.24-153138-0d1d66d", "2026.08.24-153138-0d1d66d"},
+		{"cplt 2026.08.24-153138-0d1d66d\n", "2026.08.24-153138-0d1d66d"},
+		{"unknown", "unknown"},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		if got := parseCpltVersion(tc.out); got != tc.want {
+			t.Errorf("parseCpltVersion(%q) = %q, want %q", tc.out, got, tc.want)
+		}
+	}
+}
+
+func TestCpltVersionSkew(t *testing.T) {
+	const latest = "2026.08.26-201133-2e78d25"
+	tests := []struct {
+		name, versionOut string
+		wantBehind       bool
+	}{
+		{"older", "cplt 2026.08.24-153138-0d1d66d", true},
+		{"same", "cplt " + latest, false},
+		{"newer (local build)", "cplt 2026.09.01-090000-aaaaaaa", false},
+		{"unparseable version output", "unknown", false},
+	}
+	for _, tc := range tests {
+		if got := versionNewer(latest, parseCpltVersion(tc.versionOut)); got != tc.wantBehind {
+			t.Errorf("%s: behind = %v, want %v", tc.name, got, tc.wantBehind)
+		}
+	}
 }

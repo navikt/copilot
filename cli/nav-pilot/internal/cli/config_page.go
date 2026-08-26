@@ -123,8 +123,22 @@ func buildConfigPageEntries(cfg *Config, r ResolvedConfig) []configPageEntry {
 // Sentinel option values; no config key can collide with them.
 const (
 	configPageSandbox = "\x00sandbox"
+	configPagePosture = "\x00posture"
 	configPageDone    = "\x00done"
 )
+
+// cpltPostureLabel renders the security-posture row the way the key rows read:
+// the current value first, and what it should be when it is not that already.
+func cpltPostureLabel(preset string) string {
+	switch {
+	case preset == "":
+		return "cplt security posture   unknown  (could not read it from cplt)"
+	case cpltRecommendStrict(preset):
+		return fmt.Sprintf("cplt security posture   %s  (recommended: %s)", preset, cpltRecommendedPreset)
+	default:
+		return fmt.Sprintf("cplt security posture   %s", preset)
+	}
+}
 
 // errConfigPageUnavailable reports that the settings page never started, e.g.
 // because there is no usable terminal. Callers fall back to their non-
@@ -138,6 +152,10 @@ func cmdConfigPage() error {
 	// a TTY must leave no trace before its caller falls back.
 	rendered := false
 
+	// Reading the preset costs a cplt spawn, so it is read once per page and
+	// refreshed only when the user actually changes it — not on every redraw.
+	preset := cpltSandboxPreset()
+
 	for {
 		cfg, err := readConfig()
 		if err != nil {
@@ -148,15 +166,17 @@ func cmdConfigPage() error {
 
 		descriptions := map[string]string{
 			configPageSandbox: "Runs the cplt sandbox wizard (requires cplt on your PATH).",
+			configPagePosture: "Sets cplt sandbox.preset = strict, which turns on gh_guard, git_guard and forced proxy in one key (requires cplt on your PATH).",
 			configPageDone:    "Leave the settings page.",
 		}
-		opts := make([]huh.Option[string], 0, len(entries)+2)
+		opts := make([]huh.Option[string], 0, len(entries)+3)
 		for _, e := range entries {
 			opts = append(opts, huh.NewOption(e.label(), e.Key))
 			descriptions[e.Key] = e.Description
 		}
 		opts = append(opts,
 			huh.NewOption("Configure cplt sandbox settings…", configPageSandbox),
+			huh.NewOption(cpltPostureLabel(preset), configPagePosture),
 			huh.NewOption("Done", configPageDone),
 		)
 
@@ -190,6 +210,12 @@ func cmdConfigPage() error {
 			// "cplt not on PATH" is a notice, not a reason to leave the page.
 			if err := cmdConfigSandbox(); err != nil {
 				fmt.Printf("%s %v\n", yellow("⚠"), err)
+			}
+		case configPagePosture:
+			if err := cmdConfigStrictPreset(); err != nil {
+				fmt.Printf("%s %v\n", yellow("⚠"), err)
+			} else {
+				preset = cpltSandboxPreset()
 			}
 		default:
 			if err := editConfigKey(choice, resolved); err != nil {
