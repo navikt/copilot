@@ -104,6 +104,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "--no-ask-user (when false)",
 	},
 	{
+		name:        "auto_launch",
+		kind:        keyKindBool,
+		description: "Launch the coding agent automatically after install/sync. Set to false to never launch it; nav-pilot prints the command instead.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "--auto-launch / --no-auto-launch",
+	},
+	{
 		name:        "auto_update",
 		kind:        keyKindBool,
 		description: "Automatically upgrade nav-pilot when a new version is available, skipping the interactive prompt.",
@@ -220,6 +228,12 @@ version = 1
 # Corresponds to Copilot CLI flag: --no-ask-user (when false)
 # ask_user = true
 
+# Launch the coding agent automatically after sync/install. Set to false to
+# never launch it; nav-pilot prints the ready-to-run command instead.
+# Default: true
+# Corresponds to nav-pilot flag: --auto-launch / --no-auto-launch
+# auto_launch = true
+
 # Automatically upgrade nav-pilot when a new version is available, skipping the
 # interactive prompt.
 # Default: false
@@ -248,12 +262,25 @@ version = 1
 
 // ─── Subcommand dispatch ──────────────────────────────────────────────────────
 
+// cmdConfigPageFn is the settings page, overridable in tests so the fallback
+// can be exercised without a terminal.
+var cmdConfigPageFn = cmdConfigPage
+
 func cmdConfig(args []string, force bool, jsonOutput bool) error {
 	if len(args) == 0 {
 		// On a terminal, bare `config` opens the interactive settings page;
-		// scripts keep the usage error.
-		if isInteractive() {
-			return cmdConfigPage()
+		// scripts and --json keep the usage error, and so does a page that
+		// could not start (stdin on a char device with no controlling tty).
+		if isInteractive() && !jsonOutput {
+			err := cmdConfigPageFn()
+			if err == nil {
+				return nil
+			}
+			// A page that could not start falls back to the usage error; a
+			// broken config file must still say so.
+			if !errors.Is(err, errConfigPageUnavailable) {
+				return err
+			}
 		}
 		return fmt.Errorf("config requires a subcommand.\n\nUsage: nav-pilot config <subcommand> [options]\n\nSubcommands:\n  init      Create ~/.nav-pilot/config.toml with all options commented out\n  setup     Run the interactive first-run setup wizard\n  show      Print effective configuration (file values merged with defaults)\n  path      Print the config file path\n  get       Print one key value\n  set       Set a key value (creates file if missing)\n  validate  Validate config syntax, unknown keys, and values\n  explain   Describe configuration keys\n  sandbox   Interactively configure cplt sandbox profile")
 	}
@@ -338,6 +365,7 @@ func cmdConfigShow(jsonOutput bool) error {
 			"context_tier":     resolved.ContextTier,
 			"allow_all_tools":  resolved.AllowAllTools,
 			"ask_user":         resolved.AskUser,
+			"auto_launch":      resolved.AutoLaunch,
 			"auto_update":      resolved.AutoUpdate,
 			"log_level":        resolved.LogLevel,
 			"otel_log_level":   resolved.OtelLogLevel,
@@ -409,6 +437,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AllowAllTools)
 	case "ask_user":
 		return strconv.FormatBool(r.AskUser)
+	case "auto_launch":
+		return strconv.FormatBool(r.AutoLaunch)
 	case "auto_update":
 		return strconv.FormatBool(r.AutoUpdate)
 	case "log_level":
@@ -487,16 +517,26 @@ func writeConfigKey(key, value string) (string, error) {
 		}
 	}
 
-	// Find and replace the first matching line (active or commented-out).
-	found := false
+	// Replace an active line for the key if there is one anywhere in the file,
+	// and only otherwise a commented-out one: replacing the comment while an
+	// active line lives further down would define the key twice and leave the
+	// config unparseable.
+	replace := -1
 	for i, line := range lines {
-		if isConfigKeyLine(line, key) {
-			lines[i] = newLine
-			found = true
+		if !isConfigKeyLine(line, key) {
+			continue
+		}
+		if !strings.HasPrefix(strings.TrimLeft(line, " \t"), "#") {
+			replace = i
 			break
 		}
+		if replace == -1 {
+			replace = i
+		}
 	}
-	if !found {
+	if replace >= 0 {
+		lines[replace] = newLine
+	} else {
 		lines = append(lines, newLine)
 	}
 

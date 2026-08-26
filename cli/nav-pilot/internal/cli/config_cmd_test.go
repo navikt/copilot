@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -225,7 +226,7 @@ func TestCmdConfigExplain_AllKeys(t *testing.T) {
 	if explainErr != nil {
 		t.Fatalf("cmdConfigExplain(\"\") returned error: %v", explainErr)
 	}
-	for _, key := range []string{"client", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level", "otel_log_level", "version"} {
+	for _, key := range []string{"client", "model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "auto_launch", "log_level", "otel_log_level", "version"} {
 		if !strings.Contains(out, key) {
 			t.Errorf("expected key %q in all-keys explain output", key)
 		}
@@ -432,5 +433,70 @@ func TestConfigHints_EmptyShortIDFallsBack(t *testing.T) {
 	}
 	if strings.Contains(hints[0], "model \"\"") {
 		t.Errorf("hint should not suggest empty model: %s", hints[0])
+	}
+}
+
+// Bare `config` opens the settings page only on a terminal without --json, and
+// a page that cannot start falls back to the usage error instead of the raw
+// TTY error.
+func TestCmdConfig_NoArgsJSONAndPageFallback(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+
+	opened := false
+	orig := cmdConfigPageFn
+	t.Cleanup(func() { cmdConfigPageFn = orig })
+	cmdConfigPageFn = func() error {
+		opened = true
+		return fmt.Errorf("%w: huh: could not open a new TTY", errConfigPageUnavailable)
+	}
+
+	err := cmdConfig(nil, false, true)
+	if err == nil || !strings.Contains(err.Error(), "requires a subcommand") {
+		t.Errorf("config --json = %v, want the usage error", err)
+	}
+	if opened {
+		t.Error("config --json must not open the settings page")
+	}
+
+	err = cmdConfig(nil, false, false)
+	if err == nil || !strings.Contains(err.Error(), "requires a subcommand") {
+		t.Errorf("config with an unstartable page = %v, want the usage error", err)
+	}
+	if !opened {
+		t.Error("config on a terminal must try the settings page")
+	}
+}
+
+// A commented-out key must not be rewritten while an active one exists: that
+// defines the key twice and leaves the config unparseable.
+func TestWriteConfigKey_PrefersActiveLineOverComment(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\n# model = \"auto\"\nclient = \"copilot\"\nmodel = \"gpt-5.5\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+
+	if _, err := writeConfigKey("model", "claude-opus-4.8"); err != nil {
+		t.Fatalf("writeConfigKey: %v", err)
+	}
+
+	cfg, err := readConfig()
+	if err != nil {
+		t.Fatalf("config no longer parses: %v", err)
+	}
+	if cfg.Model == nil || *cfg.Model != "claude-opus-4.8" {
+		t.Errorf("model = %v, want claude-opus-4.8", cfg.Model)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := 0
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "model") {
+			active++
+		}
+	}
+	if active != 1 {
+		t.Errorf("%d active model keys, want 1:\n%s", active, data)
 	}
 }

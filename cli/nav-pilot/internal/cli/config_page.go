@@ -22,6 +22,7 @@ var configPageKeys = []string{
 	"context_tier",
 	"allow_all_tools",
 	"ask_user",
+	"auto_launch",
 	"auto_update",
 	"log_level",
 	"otel_log_level",
@@ -69,6 +70,8 @@ func configKeyInFile(cfg *Config, key string) bool {
 		return cfg.AllowAllTools != nil
 	case "ask_user":
 		return cfg.AskUser != nil
+	case "auto_launch":
+		return cfg.AutoLaunch != nil
 	case "auto_update":
 		return cfg.AutoUpdate != nil
 	case "log_level":
@@ -123,10 +126,17 @@ const (
 	configPageDone    = "\x00done"
 )
 
+// errConfigPageUnavailable reports that the settings page never started, e.g.
+// because there is no usable terminal. Callers fall back to their non-
+// interactive behaviour; every other error is a real failure worth surfacing.
+var errConfigPageUnavailable = errors.New("settings page unavailable")
+
 // cmdConfigPage runs the interactive settings page: pick a key, edit it, repeat.
 // It is what `nav-pilot config` with no subcommand does on a terminal.
 func cmdConfigPage() error {
-	fmt.Printf("%s %s\n\n", dim("Config file:"), configPath())
+	// The header waits for the first successful render: a page that cannot open
+	// a TTY must leave no trace before its caller falls back.
+	rendered := false
 
 	for {
 		cfg, err := readConfig()
@@ -163,7 +173,14 @@ func cmdConfigPage() error {
 			if errors.Is(err, huh.ErrUserAborted) {
 				return nil
 			}
+			if !rendered {
+				return fmt.Errorf("%w: %v", errConfigPageUnavailable, err)
+			}
 			return err
+		}
+		if !rendered {
+			rendered = true
+			fmt.Printf("%s %s\n\n", dim("Config file:"), configPath())
 		}
 
 		switch choice {

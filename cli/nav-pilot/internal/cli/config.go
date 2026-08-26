@@ -178,12 +178,8 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 	if cfg == nil {
 		return nil
 	}
-	var out []string
-	if cfg.AutoLaunch != nil {
-		out = append(out, fmt.Sprintf("auto_launch is no longer used — nav-pilot launches directly after install; you can remove it from %s", configPath()))
-	}
 	if cfg.Model == nil || validateModelValue(*cfg.Model) != nil {
-		return out
+		return nil
 	}
 	clientID := "copilot"
 	if cfg.Client != nil {
@@ -191,12 +187,12 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 	}
 	p, err := providerFor(clientID)
 	if err != nil {
-		return out
+		return nil
 	}
 	if msg := p.ModelAdvisory(*cfg.Model); msg != "" {
-		out = append(out, msg)
+		return []string{msg}
 	}
-	return out
+	return nil
 }
 
 // loadConfigForLaunch reads, validates, and resolves the user config ahead of a
@@ -246,6 +242,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		Client:       "copilot",
 		Mode:         "default",
 		AskUser:      true,
+		AutoLaunch:   true,
 		OtelLogLevel: "none",
 	}
 
@@ -274,6 +271,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.AskUser != nil {
 			r.AskUser = *file.AskUser
+		}
+		if file.AutoLaunch != nil {
+			r.AutoLaunch = *file.AutoLaunch
 		}
 		if file.AutoUpdate != nil {
 			r.AutoUpdate = *file.AutoUpdate
@@ -316,6 +316,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 	if cli.AskUser != nil {
 		r.AskUser = *cli.AskUser
+	}
+	if cli.AutoLaunch != nil {
+		r.AutoLaunch = *cli.AutoLaunch
 	}
 	if cli.LogLevel != "" {
 		r.LogLevel = cli.LogLevel

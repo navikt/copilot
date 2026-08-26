@@ -630,7 +630,9 @@ func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string)
 var promptInstallScopeFn = promptInstallScope
 
 // promptInstallScope asks the user where to install: repo or user home.
-// Returns nil if the user cancels.
+// Returns (nil, nil) only when the user cancels; a prompt that could not run
+// (no usable TTY) returns its error so callers can fall back instead of
+// pretending the user said no.
 func promptInstallScope(targetDir string) (*InstallScope, error) {
 	if !isInteractive() {
 		// Non-interactive: default to repo scope
@@ -647,7 +649,10 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
-		return nil, nil // user cancelled
+		if errors.Is(err, huh.ErrUserAborted) {
+			return nil, nil // user cancelled
+		}
+		return nil, err
 	}
 
 	switch choice {
@@ -729,20 +734,26 @@ type launchDecision int
 
 const (
 	launchSkipUnavailable    launchDecision = iota // client binary missing: warn, don't launch
+	launchSkipOptedOut                             // auto_launch = false: name the command, don't launch
 	launchSkipQuiet                                // no terminal: do nothing
 	launchGo                                       // launch
 	launchConfirmUnsandboxed                       // warn about the missing sandbox, ask, then launch
 )
 
-// decideLaunch maps the post-install state to a launch decision. sandboxed is
-// false only when the copilot client resolved to the plain, unsandboxed CLI.
-// Without a terminal nothing is ever launched.
-func decideLaunch(available, sandboxed, interactive bool) launchDecision {
+// decideLaunch maps the post-install state to a launch decision. autoLaunch is
+// the resolved auto_launch setting; false means the user opted out and nothing
+// is ever launched or confirmed, only the command to run is printed. sandboxed
+// is false only when the copilot client resolved to the plain, unsandboxed CLI.
+// Without a terminal nothing is ever launched — and nothing is printed either,
+// so scripted runs stay as quiet as they were before the launch warnings.
+func decideLaunch(available, autoLaunch, sandboxed, interactive bool) launchDecision {
 	switch {
-	case !available:
-		return launchSkipUnavailable
 	case !interactive:
 		return launchSkipQuiet
+	case !available:
+		return launchSkipUnavailable
+	case !autoLaunch:
+		return launchSkipOptedOut
 	case sandboxed:
 		return launchGo
 	default:
@@ -751,8 +762,9 @@ func decideLaunch(available, sandboxed, interactive bool) launchDecision {
 }
 
 // offerLaunchCopilot launches the configured agent after install. A healthy
-// setup launches without asking; a missing binary is warned about, and an
-// unsandboxed launch is confirmed interactively.
+// setup launches without asking; a missing binary is warned about, an
+// unsandboxed launch is confirmed interactively, and auto_launch = false
+// prints the command to run instead of launching anything.
 func offerLaunchCopilot(resolved ResolvedConfig) {
 	p, err := providerFor(resolved.Client)
 	if err != nil {
@@ -760,12 +772,17 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	}
 
 	sandboxed := true
+	cmdName := resolved.Client // opencode and pi are launched under their own name
 	if resolved.Client == "copilot" {
 		_, name := findCopilotCLI()
 		sandboxed = name == "cplt"
+		cmdName = "cplt"
+		if name != "" {
+			cmdName = name
+		}
 	}
 
-	decision := decideLaunch(p.Available(), sandboxed, isInteractive())
+	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, isInteractive())
 	if decision == launchSkipQuiet {
 		return
 	}
@@ -774,17 +791,25 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	switch decision {
 	case launchSkipUnavailable:
 		missing := p.DisplayName()
+		// With no client on PATH the copilot provider has no name to display;
+		// cmdName always holds a real command to point at.
+		if missing == "" {
+			missing = cmdName
+		}
 		// opencode needs both opencode and cplt; name whichever is missing.
 		if resolved.Client == "opencode" {
 			if _, err := exec.LookPath("opencode"); err == nil {
 				missing = "cplt"
 			}
 		}
-		fmt.Printf("%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
+		fmt.Fprintf(os.Stderr, "%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
 			yellow("⚠"), missing, bold("nav-pilot doctor"))
 		return
+	case launchSkipOptedOut:
+		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", cmdName)))
+		return
 	case launchConfirmUnsandboxed:
-		fmt.Printf("%s The cplt sandbox was not found — %s would run unsandboxed.\n",
+		fmt.Fprintf(os.Stderr, "%s The cplt sandbox was not found — %s would run unsandboxed.\n",
 			yellow("⚠"), p.DisplayName())
 		var ok bool
 		if err := huh.NewConfirm().
@@ -798,9 +823,11 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	}
 
 	fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
-	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
+	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClient(resolved)
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Launch failed: %v\n", yellow("⚠"), err)
+	}
 }
 
 // offerLaunchCopilotWithAgents is offerLaunchCopilot for callers that have the

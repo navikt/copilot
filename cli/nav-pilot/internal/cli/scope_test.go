@@ -760,3 +760,66 @@ func TestRun_InstallHonoursPromptedScope(t *testing.T) {
 		t.Errorf("install went somewhere else, %s missing: %v", installed, err)
 	}
 }
+
+// A prompt that cannot open a terminal must not be mistaken for a cancel: the
+// install still lands in the repository, the way it did before the prompt.
+func TestRun_InstallFallsBackToRepoWhenPromptFails(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	forceInteractive(t)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+	target := repoTarget(t)
+	t.Chdir(target)
+
+	orig := promptInstallScopeFn
+	t.Cleanup(func() { promptInstallScopeFn = orig })
+	promptInstallScopeFn = func(string) (*InstallScope, error) {
+		return nil, errors.New("huh: could not open a new TTY")
+	}
+
+	if err := run([]string{"install", "grillmester"}); err != nil {
+		t.Fatalf("install grillmester: %v", err)
+	}
+	installed := filepath.Join(target, ".github", "agents", "grillmester.agent.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("a failed prompt must still install into the repo, %s missing: %v", installed, err)
+	}
+}
+
+// Outside a git repo the "this repo" answer cannot work, and a prompt type that
+// user scope cannot hold makes the other answer fail — neither is asked about.
+func TestRun_InstallSkipsPromptWhenOnlyOneScopeWorks(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		inGit bool
+	}{
+		{"no git repo", []string{"install", "grillmester"}, false},
+		{"prompts cannot live in user scope", []string{"add", "prompt", "grillmester"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatedConfig(t)
+			t.Setenv("HOME", t.TempDir())
+			forceInteractive(t)
+			if tt.inGit {
+				t.Chdir(repoTarget(t))
+			} else {
+				t.Chdir(t.TempDir())
+			}
+
+			origResolve := resolveSource
+			t.Cleanup(func() { resolveSource = origResolve })
+			resolveSource = func(ref, sourceRepo string) (*Source, error) {
+				return nil, errStubNoSource
+			}
+
+			asked := stubScopePrompt(t, nil)
+			_ = run(tt.args)
+			if *asked {
+				t.Error("asked a question with only one workable answer")
+			}
+		})
+	}
+}

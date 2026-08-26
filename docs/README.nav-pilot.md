@@ -28,6 +28,10 @@ nav-pilot
 nav-pilot install kotlin-backend
 ```
 
+`install` spør hvor den skal installere — i repoet (`.github/`) eller i hjemmekatalogen
+(`~/.copilot/`). Bruk `--user` eller `--target <mappe>` for å svare på forhånd og hoppe
+over spørsmålet.
+
 ## Sandboxing og isolasjon er påkrevd
 
 Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller
@@ -177,9 +181,13 @@ nav-pilot config show
 ```
 
 Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
-`allow_all_tools`, `ask_user` og `log_level`. Du kan overstyre dem per kjøring med
+`allow_all_tools`, `ask_user`, `auto_launch` og `log_level`. Du kan overstyre dem per kjøring med
 globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
-`--allow-all-tools`, `--no-ask-user` og `--log-level`.
+`--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
+
+Etter synk/installasjon starter nav-pilot kodeagenten automatisk. Sett
+`auto_launch = false` (eller bruk `--no-auto-launch`) hvis du heller vil starte
+den selv — da skriver nav-pilot bare ut kommandoen du kan kjøre.
 
 **Modell per klient:**
 - Copilot: `auto`, `claude-opus-5`, `claude-fable-5`, `claude-sonnet-5`,

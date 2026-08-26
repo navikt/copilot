@@ -131,6 +131,28 @@ After installing, use @nav-pilot in GitHub Copilot Chat.
 
 // run parses args and dispatches to the appropriate command.
 // It returns an error instead of calling os.Exit, making it testable.
+// requestedType is the artifact type the invocation asks for, "" when it is up
+// to the installer to work out (a collection or agentpakke name).
+func requestedType(command, installType string, positional []string) string {
+	if command == "add" && len(positional) > 0 {
+		return positional[0]
+	}
+	return installType
+}
+
+// userScopeAccepts reports whether ~/.copilot can hold the given type. An
+// unknown home directory is not a reason to hide the question.
+func userScopeAccepts(itemType string) bool {
+	if itemType == "" {
+		return true
+	}
+	u, err := ScopeUser()
+	if err != nil {
+		return true
+	}
+	return u.SupportsType(itemType)
+}
+
 func run(args []string) error {
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
 	assessment := assessStaleness(Version)
@@ -279,8 +301,12 @@ func run(args []string) error {
 			case "--no-ask-user":
 				f := false
 				cliOverrides.AskUser = &f
-			// Retired: accepted and ignored so old aliases and scripts keep working.
-			case "--auto-launch", "--no-auto-launch":
+			case "--auto-launch":
+				t := true
+				cliOverrides.AutoLaunch = &t
+			case "--no-auto-launch":
+				f := false
+				cliOverrides.AutoLaunch = &f
 			case "--":
 				cliOverrides.ExtraArgs = append(cliOverrides.ExtraArgs, args[i+1:]...)
 				i = len(args) // consume the rest
@@ -432,9 +458,10 @@ func run(args []string) error {
 	} else {
 		// For repo scope without explicit --target, resolve to git root
 		// so commands work from any subdirectory.
+		gitRoot := ""
 		if !targetProvided {
-			if root := findGitRoot(targetDir); root != "" {
-				targetDir = root
+			if gitRoot = findGitRoot(targetDir); gitRoot != "" {
+				targetDir = gitRoot
 			}
 		}
 		// An explicit `install <name>` (or `add <type> <name>`) without --user
@@ -445,18 +472,33 @@ func run(args []string) error {
 		// error rather than open a picker.
 		wellFormed := (command == "install" && len(positional) == 1) ||
 			(command == "add" && len(positional) >= 2)
-		if wellFormed && !targetProvided && !jsonOutput && !dryRun && isInteractive() {
+		switch {
+		case !(wellFormed && !targetProvided && !jsonOutput && !dryRun && isInteractive()):
+			scope = ScopeRepo(targetDir)
+		case gitRoot == "":
+			// Outside a git repo the repo answer fails later on, so don't ask.
+			var err error
+			scope, err = ScopeUser()
+			if err != nil {
+				return fmt.Errorf("resolving user home: %w", err)
+			}
+		case !userScopeAccepts(requestedType(command, installType, positional)):
+			// A type user scope cannot hold makes the user answer fail later.
+			scope = ScopeRepo(targetDir)
+		default:
 			var err error
 			scope, err = promptInstallScopeFn(targetDir)
-			if err != nil {
-				return err
-			}
-			if scope == nil {
+			switch {
+			case err != nil:
+				// No usable terminal: keep the pre-prompt behaviour instead of
+				// silently installing nothing.
+				fmt.Fprintf(os.Stderr, "%s Could not ask where to install (%v) — using this repository. Pass %s or %s to choose.\n",
+					yellow("⚠"), err, bold("--user"), bold("--target <dir>"))
+				scope = ScopeRepo(targetDir)
+			case scope == nil:
 				fmt.Println(dim("Cancelled."))
 				return nil
 			}
-		} else {
-			scope = ScopeRepo(targetDir)
 		}
 	}
 

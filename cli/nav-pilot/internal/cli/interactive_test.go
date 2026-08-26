@@ -531,22 +531,26 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 
 func TestDecideLaunch(t *testing.T) {
 	tests := []struct {
-		name                              string
-		available, sandboxed, interactive bool
-		want                              launchDecision
+		name                                          string
+		available, autoLaunch, sandboxed, interactive bool
+		want                                          launchDecision
 	}{
-		{"client missing", false, true, true, launchSkipUnavailable},
-		{"client missing wins over no terminal", false, true, false, launchSkipUnavailable},
-		{"no terminal", true, true, false, launchSkipQuiet},
-		{"healthy and interactive launches without asking", true, true, true, launchGo},
-		{"no sandbox, interactive: confirm", true, false, true, launchConfirmUnsandboxed},
-		{"no sandbox, no terminal: nothing", true, false, false, launchSkipQuiet},
+		{"client missing", false, true, true, true, launchSkipUnavailable},
+		{"no terminal wins over a missing client", false, true, true, false, launchSkipQuiet},
+		{"client missing wins over opt-out", false, false, true, true, launchSkipUnavailable},
+		{"no terminal", true, true, true, false, launchSkipQuiet},
+		{"healthy and interactive launches without asking", true, true, true, true, launchGo},
+		{"no sandbox, interactive: confirm", true, true, false, true, launchConfirmUnsandboxed},
+		{"no sandbox, no terminal: nothing", true, true, false, false, launchSkipQuiet},
+		{"opt-out", true, false, true, true, launchSkipOptedOut},
+		{"opt-out wins over the unsandboxed confirmation", true, false, false, true, launchSkipOptedOut},
+		{"no terminal wins over the opt-out notice", true, false, true, false, launchSkipQuiet},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := decideLaunch(tt.available, tt.sandboxed, tt.interactive); got != tt.want {
-				t.Errorf("decideLaunch(%v, %v, %v) = %v, want %v",
-					tt.available, tt.sandboxed, tt.interactive, got, tt.want)
+			if got := decideLaunch(tt.available, tt.autoLaunch, tt.sandboxed, tt.interactive); got != tt.want {
+				t.Errorf("decideLaunch(%v, %v, %v, %v) = %v, want %v",
+					tt.available, tt.autoLaunch, tt.sandboxed, tt.interactive, got, tt.want)
 			}
 		})
 	}
