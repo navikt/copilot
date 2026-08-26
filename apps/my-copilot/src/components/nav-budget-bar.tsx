@@ -28,6 +28,7 @@ export default function NavBudgetBar() {
   return (
     <div
       style={{ display: "flex", alignItems: "center", gap: "6px" }}
+      className={pct > 90 ? "budget-bar-critical" : undefined}
       title={`${pct}% av AI-kredittgrensen brukt denne måneden`}
     >
       <div

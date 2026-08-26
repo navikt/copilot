@@ -105,6 +105,32 @@
   }
 }
 
+/* Budget bar shake — triggered when token usage exceeds 90 % */
+@keyframes budget-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .budget-bar-critical {
+    animation: budget-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+  }
+}
+
 /* Featured news card — clean elevation, no decorative border */
 .featured-card {
   background: #f5f7fa;
