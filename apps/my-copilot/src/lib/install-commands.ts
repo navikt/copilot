@@ -98,7 +98,7 @@ export function getGhSkillInstallCommand(item: AnyCustomization): string {
 export function getNavPilotAddCommand(item: AnyCustomization): { repo: string; user: string } | null {
   if (item.type === "mcp") return null;
   const cmd = `nav-pilot install ${getNavPilotInstallName(item)} --type ${item.type}`;
-  return { repo: cmd, user: `${cmd} --user` };
+  return { repo: `${cmd} --repo`, user: `${cmd} --user` };
 }
 
 function stemFromPath(path: string | undefined, suffix: string): string | null {

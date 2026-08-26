@@ -694,6 +694,7 @@ func TestRun_InstallScopePrompt(t *testing.T) {
 		wantPrompt  bool
 	}{
 		{"--user says where already", []string{"install", "--user", "grillmester"}, true, false},
+		{"--repo says where already", []string{"install", "--repo", "grillmester"}, true, false},
 		{"--target says where already", []string{"install", "--target", "TMP", "grillmester"}, true, false},
 		{"non-interactive cannot ask", []string{"install", "grillmester"}, false, false},
 		{"--json must stay scriptable", []string{"install", "grillmester", "--json"}, true, false},
@@ -758,6 +759,69 @@ func TestRun_InstallHonoursPromptedScope(t *testing.T) {
 	installed := filepath.Join(target, ".github", "agents", "grillmester.agent.md")
 	if _, err := os.Stat(installed); err != nil {
 		t.Errorf("install went somewhere else, %s missing: %v", installed, err)
+	}
+}
+
+// --repo is the non-interactive way to answer "this repository", and like the
+// prompted answer it installs into the git root, not the subdirectory we're in.
+func TestRun_InstallRepoFlagUsesGitRoot(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	forceInteractive(t)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+	target := repoTarget(t)
+	sub := filepath.Join(target, "cli", "nested")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+
+	asked := stubScopePrompt(t, nil)
+	if err := run([]string{"install", "grillmester", "--repo"}); err != nil {
+		t.Fatalf("install grillmester --repo: %v", err)
+	}
+	if *asked {
+		t.Error("--repo already answers where to install")
+	}
+	installed := filepath.Join(target, ".github", "agents", "grillmester.agent.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("--repo must install into the git root, %s missing: %v", installed, err)
+	}
+	if _, err := os.Stat(filepath.Join(sub, ".github")); err == nil {
+		t.Error("--repo installed into the subdirectory instead of the git root")
+	}
+}
+
+// --repo picks a scope, so combining it with the other scope flags is a
+// contradiction rather than a silent winner.
+func TestRun_RepoFlagConflicts(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"--repo with --user", []string{"install", "grillmester", "--repo", "--user"}, "--repo and --user are mutually exclusive"},
+		{"--repo with --target", []string{"install", "grillmester", "--repo", "--target", "TMP"}, "--repo and --target are mutually exclusive"},
+		{"--repo on an unscoped command", []string{"init", "--repo"}, `--repo is not supported for "init"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatedConfig(t)
+			t.Setenv("HOME", t.TempDir())
+
+			args := append([]string(nil), tt.args...)
+			for i, a := range args {
+				if a == "TMP" {
+					args[i] = repoTarget(t)
+				}
+			}
+
+			err := run(args)
+			if err == nil || err.Error() != tt.want {
+				t.Fatalf("run(%v) error = %v, want %q", args, err, tt.want)
+			}
+		})
 	}
 }
 

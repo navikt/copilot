@@ -268,7 +268,10 @@ const PLANNING_SKILLS = [
 const CLI_COMMANDS = [
   { command: "nav-pilot", description: "Interaktivt: installer, oppgrader eller start Copilot-sandkassen (cplt)" },
   { command: "nav-pilot --client opencode", description: "Start OpenCode-sesjonen med Nav-kontekst levert automatisk" },
-  { command: "nav-pilot install <collection>", description: "Installer en collection i repoet ditt" },
+  {
+    command: "nav-pilot install <collection>",
+    description: "Installer en collection — spør om repoet (.github/) eller hjemmekatalogen (~/.copilot/)",
+  },
   {
     command: "nav-pilot install --user",
     description: "Installer agenter, skills og instruksjoner til ~/.copilot (alle repoer)",
@@ -301,6 +304,7 @@ const CLI_COMMANDS = [
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
   { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
+  { command: "nav-pilot config", description: "Interaktiv innstillingsside i terminalen" },
   { command: "nav-pilot config init", description: "Opprett ~/.nav-pilot/config.toml med alle valg kommentert ut" },
   { command: "nav-pilot config setup", description: "Interaktiv konfigurasjonsveileder (klient, modell, modus)" },
   { command: "nav-pilot config show", description: "Vis effektiv konfigurasjon (fil + standardverdier)" },
@@ -719,7 +723,7 @@ nav-pilot`}
                   <CodeBlock compact>{`nav-pilot`}</CodeBlock>
                 </div>
                 <BodyLong className="mt-1" size="small" style={{ color: "#94a3b8" }}>
-                  Starter interaktiv modus — sjekker oppdateringer og tilbyr å starte Copilot med valgt agent.
+                  Starter interaktiv modus — sjekker oppdateringer og starter Copilot med valgt agent.
                 </BodyLong>
               </div>
             </div>
@@ -1836,6 +1840,14 @@ function KlienterOgKonfigurasjonSection() {
           <div className="mt-4 space-y-3">
             <div>
               <Label size="small" style={{ color: "#64748b" }}>
+                Interaktiv innstillingsside i terminalen
+              </Label>
+              <div className="mt-1">
+                <CodeBlock compact>{`nav-pilot config`}</CodeBlock>
+              </div>
+            </div>
+            <div>
+              <Label size="small" style={{ color: "#64748b" }}>
                 Opprett konfigurasjonsfil (alle nøkler kommentert ut)
               </Label>
               <div className="mt-1">
@@ -2047,6 +2059,13 @@ function CliReferenceSection() {
               </tbody>
             </table>
           </div>
+          <BodyLong size="small" className="mt-3" style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">install</code> spør hvor den skal installere — i repoet (
+            <code className="font-mono text-xs">.github/</code>) eller i hjemmekatalogen (
+            <code className="font-mono text-xs">~/.copilot/</code>). Bruk{" "}
+            <code className="font-mono text-xs">--repo</code> eller <code className="font-mono text-xs">--user</code>{" "}
+            for å svare på forhånd og hoppe over spørsmålet.
+          </BodyLong>
         </div>
 
         {/* Advanced examples — basics are shown in "Kom i gang" and "Sync og oppdatering" */}

@@ -29,8 +29,8 @@ nav-pilot install kotlin-backend
 ```
 
 `install` spør hvor den skal installere — i repoet (`.github/`) eller i hjemmekatalogen
-(`~/.copilot/`). Bruk `--user` eller `--target <mappe>` for å svare på forhånd og hoppe
-over spørsmålet.
+(`~/.copilot/`). Bruk `--repo`, `--user` eller `--target <mappe>` for å svare på forhånd og
+hoppe over spørsmålet.
 
 ## Sandboxing og isolasjon er påkrevd
 
