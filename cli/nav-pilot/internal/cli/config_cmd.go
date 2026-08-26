@@ -104,14 +104,6 @@ var configKeyDefs = []configKeyDef{
 		flag:        "--no-ask-user (when false)",
 	},
 	{
-		name:        "auto_launch",
-		kind:        keyKindBool,
-		description: "Launch the coding-agent CLI immediately, skipping the \"Launch X now?\" confirmation.",
-		allowed:     nil,
-		defaultVal:  "false",
-		flag:        "--auto-launch / --no-auto-launch",
-	},
-	{
 		name:        "auto_update",
 		kind:        keyKindBool,
 		description: "Automatically upgrade nav-pilot when a new version is available, skipping the interactive prompt.",
@@ -227,12 +219,6 @@ version = 1
 # Default: true
 # Corresponds to Copilot CLI flag: --no-ask-user (when false)
 # ask_user = true
-
-# Launch the coding-agent CLI immediately after sync/install, skipping the
-# interactive "Launch <client> now?" confirmation prompt.
-# Default: false
-# Corresponds to nav-pilot flag: --auto-launch / --no-auto-launch
-# auto_launch = false
 
 # Automatically upgrade nav-pilot when a new version is available, skipping the
 # interactive prompt.
@@ -352,7 +338,6 @@ func cmdConfigShow(jsonOutput bool) error {
 			"context_tier":     resolved.ContextTier,
 			"allow_all_tools":  resolved.AllowAllTools,
 			"ask_user":         resolved.AskUser,
-			"auto_launch":      resolved.AutoLaunch,
 			"auto_update":      resolved.AutoUpdate,
 			"log_level":        resolved.LogLevel,
 			"otel_log_level":   resolved.OtelLogLevel,
@@ -424,8 +409,6 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AllowAllTools)
 	case "ask_user":
 		return strconv.FormatBool(r.AskUser)
-	case "auto_launch":
-		return strconv.FormatBool(r.AutoLaunch)
 	case "auto_update":
 		return strconv.FormatBool(r.AutoUpdate)
 	case "log_level":

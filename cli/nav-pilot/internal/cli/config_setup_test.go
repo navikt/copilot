@@ -185,16 +185,19 @@ func TestWriteSetupConfig_AllValidEfforts(t *testing.T) {
 	}
 }
 
-func TestWriteSetupConfig_AutoLaunch(t *testing.T) {
+func TestWriteSetupConfig_AutoUpdate(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	if err := writeSetupConfig(setupAnswers{Client: "copilot", Mode: "default", AutoLaunch: "true"}); err != nil {
+	if err := writeSetupConfig(setupAnswers{Client: "copilot", Mode: "default", AutoUpdate: "true"}); err != nil {
 		t.Fatalf("writeSetupConfig() error: %v", err)
 	}
 	data, _ := os.ReadFile(configPath())
-	if !strings.Contains(string(data), "auto_launch = true") {
-		t.Errorf("expected auto_launch = true in config, got:\n%s", string(data))
+	if !strings.Contains(string(data), "auto_update = true") {
+		t.Errorf("expected auto_update = true in config, got:\n%s", string(data))
+	}
+	if strings.Contains(string(data), "auto_launch") {
+		t.Errorf("auto_launch should no longer be written, got:\n%s", string(data))
 	}
 }
 

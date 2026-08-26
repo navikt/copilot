@@ -13,15 +13,18 @@ import (
 // Pointer types are used for optional fields to distinguish "unset" from zero-value,
 // enabling correct per-field precedence in resolve().
 type Config struct {
-	Version           int     `toml:"version"`
-	Client            *string `toml:"client"`
-	Source            *string `toml:"source"`
-	Model             *string `toml:"model"`
-	Mode              *string `toml:"mode"`
-	ReasoningEffort   *string `toml:"reasoning_effort"`
-	ContextTier       *string `toml:"context_tier"`
-	AllowAllTools     *bool   `toml:"allow_all_tools"`
-	AskUser           *bool   `toml:"ask_user"`
+	Version         int     `toml:"version"`
+	Client          *string `toml:"client"`
+	Source          *string `toml:"source"`
+	Model           *string `toml:"model"`
+	Mode            *string `toml:"mode"`
+	ReasoningEffort *string `toml:"reasoning_effort"`
+	ContextTier     *string `toml:"context_tier"`
+	AllowAllTools   *bool   `toml:"allow_all_tools"`
+	AskUser         *bool   `toml:"ask_user"`
+	// AutoLaunch is accepted for backwards compatibility only; it no longer
+	// has any effect. Keeping the field stops old config files from failing
+	// the unknown-key check at launch.
 	AutoLaunch        *bool   `toml:"auto_launch"`
 	LogLevel          *string `toml:"log_level"`
 	OtelLogLevel      *string `toml:"otel_log_level"`
@@ -43,7 +46,6 @@ type ResolvedConfig struct {
 	ContextTier       string // empty = unset
 	AllowAllTools     bool
 	AskUser           bool
-	AutoLaunch        bool     // skip the interactive "Launch X now?" confirmation
 	LogLevel          string   // empty = unset
 	OtelLogLevel      string   // always set; defaults to "none"
 	RtkPromptedClient string   // comma-separated list of clients where the RTK setup was prompted
@@ -64,7 +66,6 @@ type CLIOverrides struct {
 	ContextTier     string
 	AllowAllTools   *bool
 	AskUser         *bool
-	AutoLaunch      *bool
 	LogLevel        string
 	OtelLogLevel    string
 	ExtraArgs       []string

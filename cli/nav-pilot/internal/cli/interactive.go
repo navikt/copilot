@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -723,86 +724,89 @@ func launchClient(resolved ResolvedConfig) error {
 	return p.Launch(resolved)
 }
 
-// offerLaunchCopilot prompts the user to launch the configured agent after install.
-// If the provider binary is not found in PATH, the prompt is skipped.
+// launchDecision is what offerLaunchCopilot should do about launching.
+type launchDecision int
+
+const (
+	launchSkipUnavailable    launchDecision = iota // client binary missing: warn, don't launch
+	launchSkipQuiet                                // no terminal: do nothing
+	launchGo                                       // launch
+	launchConfirmUnsandboxed                       // warn about the missing sandbox, ask, then launch
+)
+
+// decideLaunch maps the post-install state to a launch decision. sandboxed is
+// false only when the copilot client resolved to the plain, unsandboxed CLI.
+// Without a terminal nothing is ever launched.
+func decideLaunch(available, sandboxed, interactive bool) launchDecision {
+	switch {
+	case !available:
+		return launchSkipUnavailable
+	case !interactive:
+		return launchSkipQuiet
+	case sandboxed:
+		return launchGo
+	default:
+		return launchConfirmUnsandboxed
+	}
+}
+
+// offerLaunchCopilot launches the configured agent after install. A healthy
+// setup launches without asking; a missing binary is warned about, and an
+// unsandboxed launch is confirmed interactively.
 func offerLaunchCopilot(resolved ResolvedConfig) {
 	p, err := providerFor(resolved.Client)
-	if err != nil || !p.Available() {
+	if err != nil {
 		return
 	}
 
-	if resolved.AutoLaunch {
+	sandboxed := true
+	if resolved.Client == "copilot" {
+		_, name := findCopilotCLI()
+		sandboxed = name == "cplt"
+	}
+
+	decision := decideLaunch(p.Available(), sandboxed, isInteractive())
+	if decision == launchSkipQuiet {
+		return
+	}
+
+	fmt.Println()
+	switch decision {
+	case launchSkipUnavailable:
+		missing := p.DisplayName()
+		// opencode needs both opencode and cplt; name whichever is missing.
+		if resolved.Client == "opencode" {
+			if _, err := exec.LookPath("opencode"); err == nil {
+				missing = "cplt"
+			}
+		}
+		fmt.Printf("%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
+			yellow("⚠"), missing, bold("nav-pilot doctor"))
+		return
+	case launchConfirmUnsandboxed:
+		fmt.Printf("%s The cplt sandbox was not found — %s would run unsandboxed.\n",
+			yellow("⚠"), p.DisplayName())
+		var ok bool
+		if err := huh.NewConfirm().
+			Title("Launch without the cplt sandbox?").
+			Value(&ok).
+			WithTheme(navTheme()).
+			Run(); err != nil || !ok {
+			return
+		}
 		fmt.Println()
-		fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
-		_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-			return launchClient(resolved)
-		})
-		return
 	}
 
-	if !isInteractive() {
-		return
-	}
-
-	fmt.Println()
-	var choice string
-	err = huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", p.DisplayName())).
-		Options(
-			huh.NewOption("Yes", "yes"),
-			huh.NewOption("No", "no"),
-		).
-		Value(&choice).
-		WithTheme(navTheme()).
-		Run()
-	if err != nil || choice != "yes" {
-		return
-	}
-	fmt.Println()
+	fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
 	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClient(resolved)
 	})
 }
 
-// offerLaunchCopilotWithAgents prompts the user to launch the configured agent
-// using the resolved launch config. If the provider binary is not found, skipped.
+// offerLaunchCopilotWithAgents is offerLaunchCopilot for callers that have the
+// installed agent list at hand; the launch config already carries the persona,
+// so the list is unused.
 func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
 	_ = agents
-	p, err := providerFor(resolved.Client)
-	if err != nil || !p.Available() {
-		return
-	}
-
-	if resolved.AutoLaunch {
-		fmt.Println()
-		fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
-		_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-			return launchClient(resolved)
-		})
-		return
-	}
-
-	if !isInteractive() {
-		return
-	}
-
-	fmt.Println()
-	var choice string
-	err = huh.NewSelect[string]().
-		Title(fmt.Sprintf("Launch %s now?", p.DisplayName())).
-		Options(
-			huh.NewOption("Yes", "yes"),
-			huh.NewOption("No", "no"),
-		).
-		Value(&choice).
-		WithTheme(navTheme()).
-		Run()
-	if err != nil || choice != "yes" {
-		return
-	}
-
-	fmt.Println()
-	_ = runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchClient(resolved)
-	})
+	offerLaunchCopilot(resolved)
 }

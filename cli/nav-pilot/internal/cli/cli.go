@@ -279,12 +279,8 @@ func run(args []string) error {
 			case "--no-ask-user":
 				f := false
 				cliOverrides.AskUser = &f
-			case "--auto-launch":
-				t := true
-				cliOverrides.AutoLaunch = &t
-			case "--no-auto-launch":
-				f := false
-				cliOverrides.AutoLaunch = &f
+			// Retired: accepted and ignored so old aliases and scripts keep working.
+			case "--auto-launch", "--no-auto-launch":
 			case "--":
 				cliOverrides.ExtraArgs = append(cliOverrides.ExtraArgs, args[i+1:]...)
 				i = len(args) // consume the rest

@@ -22,7 +22,6 @@ var configPageKeys = []string{
 	"context_tier",
 	"allow_all_tools",
 	"ask_user",
-	"auto_launch",
 	"auto_update",
 	"log_level",
 	"otel_log_level",
@@ -70,8 +69,6 @@ func configKeyInFile(cfg *Config, key string) bool {
 		return cfg.AllowAllTools != nil
 	case "ask_user":
 		return cfg.AskUser != nil
-	case "auto_launch":
-		return cfg.AutoLaunch != nil
 	case "auto_update":
 		return cfg.AutoUpdate != nil
 	case "log_level":

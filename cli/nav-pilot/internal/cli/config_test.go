@@ -443,9 +443,6 @@ func TestResolve_Defaults(t *testing.T) {
 	if r.AllowAllTools != false {
 		t.Error("AllowAllTools = true, want false")
 	}
-	if r.AutoLaunch != false {
-		t.Error("AutoLaunch = true, want false (default)")
-	}
 	if r.Model != "" {
 		t.Errorf("Model = %q, want empty", r.Model)
 	}
@@ -471,7 +468,6 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 	tier := "long_context"
 	allowAll := true
 	askUser := false
-	autoLaunch := true
 	logLevel := "debug"
 
 	cfg := &Config{
@@ -483,7 +479,6 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 		ContextTier:     &tier,
 		AllowAllTools:   &allowAll,
 		AskUser:         &askUser,
-		AutoLaunch:      &autoLaunch,
 		LogLevel:        &logLevel,
 	}
 
@@ -509,31 +504,8 @@ func TestResolve_FileOverridesDefaults(t *testing.T) {
 	if r.AskUser {
 		t.Error("AskUser = true, want false")
 	}
-	if !r.AutoLaunch {
-		t.Error("AutoLaunch = false, want true (file overrides default)")
-	}
 	if r.LogLevel != "debug" {
 		t.Errorf("LogLevel = %q, want debug", r.LogLevel)
-	}
-}
-
-func TestResolve_AutoLaunch_CLIOverridesFile(t *testing.T) {
-	fileFalse := false
-	cfg := &Config{Version: 1, AutoLaunch: &fileFalse}
-
-	// File says false; CLI --auto-launch (true) wins.
-	trueVal := true
-	r := resolve(cfg, CLIOverrides{AutoLaunch: &trueVal})
-	if !r.AutoLaunch {
-		t.Error("AutoLaunch = false, want true (CLI overrides file)")
-	}
-
-	// File says true; CLI --no-auto-launch (false) wins.
-	fileTrue := true
-	falseVal := false
-	r = resolve(&Config{Version: 1, AutoLaunch: &fileTrue}, CLIOverrides{AutoLaunch: &falseVal})
-	if r.AutoLaunch {
-		t.Error("AutoLaunch = true, want false (CLI overrides file)")
 	}
 }
 
@@ -999,9 +971,6 @@ func TestValidateKeyValue(t *testing.T) {
 		{"allow_all_tools", "maybe", true},
 		{"ask_user", "true", false},
 		{"ask_user", "false", false},
-		{"auto_launch", "true", false},
-		{"auto_launch", "false", false},
-		{"auto_launch", "nope", true},
 		{"version", "1", false},
 		{"version", "2", true},
 		{"version", "abc", true},
@@ -1103,6 +1072,23 @@ func TestKnownCopilotModelIDs(t *testing.T) {
 func TestConfigAdvisories_Nil(t *testing.T) {
 	if w := configAdvisories(nil, tomlMetaForTest(t, "")); len(w) != 0 {
 		t.Errorf("configAdvisories(nil) = %v, want empty", w)
+	}
+}
+
+func TestConfigAdvisories_AutoLaunchDeprecated(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nauto_launch = true\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+
+	cfg, meta, err := readConfigWithMeta()
+	if err != nil {
+		t.Fatalf("auto_launch config failed to load: %v", err)
+	}
+	if len(meta.Undecoded()) != 0 {
+		t.Errorf("auto_launch must stay a known key, got undecoded %v", meta.Undecoded())
+	}
+	w := configAdvisories(cfg, meta)
+	if len(w) != 1 || !strings.Contains(w[0], "auto_launch is no longer used") {
+		t.Errorf("configAdvisories() = %v, want one auto_launch deprecation advisory", w)
 	}
 }
 

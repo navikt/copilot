@@ -528,3 +528,26 @@ func TestPatchOpenCodeConfig(t *testing.T) {
 		t.Fatalf("expected error for invalid json")
 	}
 }
+
+func TestDecideLaunch(t *testing.T) {
+	tests := []struct {
+		name                              string
+		available, sandboxed, interactive bool
+		want                              launchDecision
+	}{
+		{"client missing", false, true, true, launchSkipUnavailable},
+		{"client missing wins over no terminal", false, true, false, launchSkipUnavailable},
+		{"no terminal", true, true, false, launchSkipQuiet},
+		{"healthy and interactive launches without asking", true, true, true, launchGo},
+		{"no sandbox, interactive: confirm", true, false, true, launchConfirmUnsandboxed},
+		{"no sandbox, no terminal: nothing", true, false, false, launchSkipQuiet},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := decideLaunch(tt.available, tt.sandboxed, tt.interactive); got != tt.want {
+				t.Errorf("decideLaunch(%v, %v, %v) = %v, want %v",
+					tt.available, tt.sandboxed, tt.interactive, got, tt.want)
+			}
+		})
+	}
+}
