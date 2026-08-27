@@ -271,6 +271,17 @@ func run(args []string) error {
 					return fmt.Errorf("--context %q is not valid (allowed: %s)", v, strings.Join(validContextTiers, ", "))
 				}
 				cliOverrides.ContextTier = v
+			case "--payload-context":
+				// The agentpakke payload context (G3) — distinct from
+				// --context above, which is Copilot's long-context tier.
+				// Context ids are open-ended per the contract's
+				// ignore-unknown rule, so the value is validated against the
+				// manifest at launch, not against a fixed set here.
+				if i+1 >= len(args) {
+					return fmt.Errorf("--payload-context requires a value")
+				}
+				i++
+				cliOverrides.PayloadContext = args[i]
 			case "--log-level":
 				if i+1 >= len(args) {
 					return fmt.Errorf("--log-level requires a value")

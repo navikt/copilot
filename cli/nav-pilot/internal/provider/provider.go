@@ -223,8 +223,14 @@ func (openCodeProvider) Available() bool {
 }
 
 func (openCodeProvider) Launch(r domain.ResolvedConfig) error { return LaunchOpenCode(r) }
-func (openCodeProvider) DefaultModel() string                 { return OpenCodeDefaultModel }
-func (openCodeProvider) KnownModels() []domain.ModelChoice    { return knownOpenCodeModels }
+
+// DefaultModel reports the model an opencode launch falls back to, read from
+// the active agentpakke — the same source the launch fallback reads, so the
+// "Nav default" label in `config setup` and the model actually launched can
+// never disagree.
+func (openCodeProvider) DefaultModel() string { return openCodeDefaultModel() }
+
+func (openCodeProvider) KnownModels() []domain.ModelChoice { return knownOpenCodeModels }
 
 func (openCodeProvider) ValidateModel(model string) error {
 	if err := domain.ValidateModelValue(model); err != nil {

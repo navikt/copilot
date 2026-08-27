@@ -19,6 +19,11 @@ type cpltLaunch struct {
 	// agent is the cplt --agent value selecting which agent to sandbox
 	// (e.g. "copilot", "opencode", "pi").
 	agent string
+	// cpltArgs are cplt-level flags placed between "--agent <agent>" and the
+	// "--" separator (e.g. --allow-read, --pass-env). Empty for every legacy
+	// launch, which keeps their argument vectors byte-identical
+	// (golden_launch_test.go, cplt_test.go).
+	cpltArgs []string
 	// agentArgs are forwarded to the agent process after the "--" separator.
 	agentArgs []string
 	// env is the process environment. nil inherits the parent environment.
@@ -27,6 +32,16 @@ type cpltLaunch struct {
 	displayName string
 	// messageSuffix is appended to the "Launching …" line (e.g. nav-context summary).
 	messageSuffix string
+}
+
+// cpltArgv is the argument vector launchViaCplt passes to cplt:
+// `--agent <agent> [cpltArgs...] -- [agentArgs...]`. Pure, so the vector is
+// testable without launching anything. With no cpltArgs it is byte-identical
+// to what every legacy launch produced before Tier 2 staging existed.
+func cpltArgv(spec cpltLaunch) []string {
+	args := append([]string{"--agent", spec.agent}, spec.cpltArgs...)
+	args = append(args, "--")
+	return append(args, spec.agentArgs...)
 }
 
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring
@@ -39,7 +54,7 @@ func launchViaCplt(spec cpltLaunch) error {
 		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
 	}
 
-	args := append([]string{"--agent", spec.agent, "--"}, spec.agentArgs...)
+	args := cpltArgv(spec)
 
 	fmt.Printf("Launching %s via %s%s...\n\n",
 		domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)
