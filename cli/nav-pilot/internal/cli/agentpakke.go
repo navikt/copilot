@@ -33,13 +33,35 @@ func attachPakke(src *Source) error {
 			src.Pakke = nil
 			return nil
 		}
-		return fmt.Errorf("%s ships an agentpakke manifest (%s) that this nav-pilot cannot use:\n  %v\n\nNothing was installed. Fix the manifest in the source repo, or run %s to list every finding",
+		return &unusableManifestError{msg: fmt.Sprintf("%s ships an agentpakke manifest (%s) that this nav-pilot cannot use:\n  %v\n\nNothing was installed. Fix the manifest in the source repo, or run %s to list every finding",
 			sourceLabelFor(src), agentpakke.ManifestPath, err,
-			bold("nav-pilot validate --source "+sourceLabelFor(src)))
+			bold("nav-pilot validate --source "+sourceLabelFor(src)))}
 	}
 	src.Pakke = m
 	return nil
 }
+
+// errUnusableManifest is the sentinel behind every attachPakke validation
+// failure — a non-conforming manifest, an unsupported contractVersion, a
+// nav-pilot too old for the pakke's minimum version.
+//
+// It exists so callers that degrade gracefully on a *resolve* failure (being
+// offline, a repo name that no longer exists) can still fail closed on a
+// manifest failure, which arrives through the same error return. Without it
+// the day a pakke adopts contract major 2, every older nav-pilot would quietly
+// drop to the built-in default instead of saying "upgrade".
+//
+// This mirrors agentpakke.ErrNoManifest, the package's other errors.Is
+// sentinel: manifest present but broken, versus manifest absent.
+var errUnusableManifest = errors.New("unusable agentpakke manifest")
+
+// unusableManifestError carries attachPakke's user-facing message — which
+// already says everything — while errors.Is can see errUnusableManifest behind
+// it. Wrapping with %w would prefix the sentinel's text onto that message.
+type unusableManifestError struct{ msg string }
+
+func (e *unusableManifestError) Error() string { return e.msg }
+func (e *unusableManifestError) Unwrap() error { return errUnusableManifest }
 
 // pakkeFor returns the manifest that governs an install from this source: the
 // one the source ships, or the legacy adapter naming the collection being

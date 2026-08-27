@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -120,6 +121,46 @@ func openCodeClientArgs(bind, forwarded []string) []string {
 	}
 }
 
+// containsOption reports whether an argument vector carries an option, in
+// either the "--opt value" or "--opt=value" spelling. Transcribed from the
+// reference launcher's _contains_option (grillmester.py lines 602-603 at
+// 3573b93cc8b7568516117263562d073cae9ee7fc).
+func containsOption(args []string, option string) bool {
+	return slices.ContainsFunc(args, func(a string) bool {
+		return a == option || strings.HasPrefix(a, option+"=")
+	})
+}
+
+// rejectReservedClientArgs refuses client arguments that a Tier 2 launch owns.
+// Transcribed from the reference launcher's _reject_reserved_arguments
+// (grillmester.py lines 633-643):
+//
+//	line 633-636  client --agent
+//	line 637-640  client --project-dir
+//	line 641-643  copilot --plugin-dir
+//
+// These select what the session actually runs, and on this path that is fixed
+// by the digest-verified payload: a forwarded --plugin-dir would append an
+// unverified plugin directory to a verified session. The reference's cplt-side
+// checks (lines 613-632) have no counterpart here — nav-pilot builds its cplt
+// argument vector itself and forwards nothing of the user's into it.
+//
+// Refused, not dropped: the user typed it and deserves to be told why it did
+// not take effect. Only the staged path is guarded; the legacy path has no
+// verified payload to protect.
+func rejectReservedClientArgs(client, pakkeName string, args []string) error {
+	reserved := []string{"--agent", "--project-dir"}
+	if client == "copilot" {
+		reserved = append(reserved, "--plugin-dir")
+	}
+	for _, option := range reserved {
+		if containsOption(args, option) {
+			return fmt.Errorf("%s is owned by agentpakke %q's verified payload and cannot be passed to %s after --", option, pakkeName, client)
+		}
+	}
+	return nil
+}
+
 // stagedPrimaryAgent returns the persona a staged launch starts, failing loudly
 // rather than passing an empty --agent if a future call site sets a pakke that
 // does not declare the client (see [SetActivePakke]'s invariant).
@@ -136,6 +177,9 @@ func stagedPrimaryAgent(client, pakkeName string) (string, error) {
 // OPENCODE_CONFIG_DIR pointing at the same payload, and --pass-env for it, with
 // the client receiving --agent <agent>.
 func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
+	if err := rejectReservedClientArgs("opencode", s.PakkeName, r.ExtraArgs); err != nil {
+		return cpltLaunch{}, err
+	}
 	primary, err := stagedPrimaryAgent("opencode", s.PakkeName)
 	if err != nil {
 		return cpltLaunch{}, err
@@ -172,6 +216,9 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 // <plugin> on the cplt side, and --plugin-dir <plugin> before
 // --agent <pakke>:<agent> on the client side.
 func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
+	if err := rejectReservedClientArgs("copilot", s.PakkeName, r.ExtraArgs); err != nil {
+		return cpltLaunch{}, err
+	}
 	primary, err := stagedPrimaryAgent("copilot", s.PakkeName)
 	if err != nil {
 		return cpltLaunch{}, err

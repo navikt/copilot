@@ -485,3 +485,78 @@ func TestStagedCopilotDoesNotInjectUserInstructions(t *testing.T) {
 		t.Errorf("staged copilot launch injected %s = %q; a pakke gets the user's own context only when it declares that it accepts it", key, got)
 	}
 }
+
+// TestStagedLaunchRejectsReservedClientArguments pins the guard transcribed
+// from the reference launcher's _reject_reserved_arguments (grillmester.py
+// lines 633-643 at 3573b93cc8b7568516117263562d073cae9ee7fc):
+//
+//	line 633-636  client --agent        both clients
+//	line 637-640  client --project-dir  both clients
+//	line 641-643  client --plugin-dir   copilot only
+//
+// These select what the session runs, which on a Tier 2 launch is fixed by the
+// digest-verified payload. Without the guard,
+// `nav-pilot --client copilot -- --plugin-dir /tmp/unverified` appends an
+// unverified plugin directory to a verified session.
+//
+// Both spellings the reference accepts are covered: "--opt value" and
+// "--opt=value" (_contains_option, lines 602-603).
+func TestStagedLaunchRejectsReservedClientArguments(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
+
+	tests := []struct {
+		name      string
+		client    string
+		extraArgs []string
+		wantErr   string
+	}{
+		{name: "copilot --agent", client: "copilot", extraArgs: []string{"--agent", "other"}, wantErr: "--agent"},
+		{name: "copilot --agent=", client: "copilot", extraArgs: []string{"--agent=other"}, wantErr: "--agent"},
+		{name: "copilot --project-dir", client: "copilot", extraArgs: []string{"--project-dir", "/tmp"}, wantErr: "--project-dir"},
+		{name: "copilot --plugin-dir", client: "copilot", extraArgs: []string{"--plugin-dir", "/tmp/unverified"}, wantErr: "--plugin-dir"},
+		{name: "copilot --plugin-dir=", client: "copilot", extraArgs: []string{"--plugin-dir=/tmp/unverified"}, wantErr: "--plugin-dir"},
+		{name: "opencode --agent", client: "opencode", extraArgs: []string{"--agent", "other"}, wantErr: "--agent"},
+		{name: "opencode --project-dir", client: "opencode", extraArgs: []string{"--project-dir", "/tmp"}, wantErr: "--project-dir"},
+		// Even behind an opencode subcommand, which openCodeClientArgs
+		// forwards unchanged: the reference rejects before it dispatches.
+		{name: "opencode run --agent", client: "opencode", extraArgs: []string{"run", "--agent", "other"}, wantErr: "--agent"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := domain.ResolvedConfig{Client: tt.client, ExtraArgs: tt.extraArgs}
+			var err error
+			if tt.client == "opencode" {
+				_, err = buildStagedOpenCodeSpec(r, staged)
+			} else {
+				_, err = buildStagedCopilotSpec(r, staged)
+			}
+			if err == nil {
+				t.Fatalf("%v must be refused, not silently accepted", tt.extraArgs)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error should name %s, got: %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+// TestOpenCodeAcceptsPluginDir: --plugin-dir is a copilot flag, so the
+// per-client rule of the reference (line 641, `client == "copilot"`) must not
+// be flattened into a single list for both clients.
+func TestOpenCodeAcceptsPluginDir(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
+	spec, err := buildStagedOpenCodeSpec(
+		domain.ResolvedConfig{Client: "opencode", ExtraArgs: []string{"--plugin-dir", "/tmp/x"}}, staged)
+	if err != nil {
+		t.Fatalf("opencode --plugin-dir is not reserved: %v", err)
+	}
+	if !slices.Contains(spec.agentArgs, "--plugin-dir") {
+		t.Errorf("forwarded argument dropped: %v", spec.agentArgs)
+	}
+}

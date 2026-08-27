@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -268,5 +270,229 @@ func TestTier2LaunchIsNotOfferedUnsandboxed(t *testing.T) {
 		ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}, true)
 	if err == nil {
 		t.Fatal("a Tier 2 launch must fail rather than reach the unsandboxed confirmation")
+	}
+}
+
+// contractMajor2ManifestJSON is a manifest on a contract major this nav-pilot
+// does not implement — the case that makes the difference between the two
+// failure modes matter: every older binary must be told to upgrade, not
+// silently dropped to the built-in default.
+const contractMajor2ManifestJSON = `{
+  "contractVersion": "2",
+  "name": "grillmester",
+  "description": "Grillmester agentpakke",
+  "clients": {"copilot": {"primaryAgents": ["grillmester"]}}
+}`
+
+// stubResolveSourceAttaching installs a source funnel that runs the real
+// attachPakke over a fixture tree, so its error reaches tryPakkeLaunch exactly
+// as the production funnel delivers it (aliases.go: resolveSource returns
+// attachPakkeOrCleanup's error verbatim).
+func stubResolveSourceAttaching(t *testing.T, dir, repo string) {
+	t.Helper()
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		src := &Source{Dir: dir, SHA: "def5678", Version: "dev", Repo: repo}
+		return src, attachPakke(src)
+	}
+}
+
+// TestUnusableManifestAbortsLaunch is the other half of
+// TestUnresolvableSourceFallsBackToLegacy: a source that was fetched fine but
+// ships a manifest this nav-pilot cannot use must abort the launch with the
+// real message, not warn and take the legacy path with the user's own
+// ~/.copilot injected.
+func TestUnusableManifestAbortsLaunch(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	stubResolveSourceAttaching(t, pakkeSourceTree(t, contractMajor2ManifestJSON), "navikt/grillmester")
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err == nil {
+		t.Fatalf("tryPakkeLaunch(unusable manifest) = (%v, %v), want (true, error) — the launch must abort", handled, err)
+	}
+	if !errors.Is(err, errUnusableManifest) {
+		t.Errorf("error should carry errUnusableManifest, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "contractVersion") {
+		t.Errorf("error should name the manifest problem, got: %v", err)
+	}
+	assertDefaultPakkeActive(t)
+}
+
+// TestUnusableManifestIsNotCached: a launch that aborted before the tier gate
+// learned no tier, so it must not leave an answer behind for the next launch.
+func TestUnusableManifestIsNotCached(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	stubResolveSourceAttaching(t, pakkeSourceTree(t, contractMajor2ManifestJSON), "navikt/grillmester")
+
+	if _, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}); err == nil {
+		t.Fatal("setup: the unusable manifest must fail the launch")
+	}
+	if tier, ok := cachedTier("navikt/grillmester", "copilot"); ok {
+		t.Errorf("a failed manifest validation cached tier %d; it must leave the cache untouched", tier)
+	}
+}
+
+// ─── tier memory ─────────────────────────────────────────────────────────────
+
+// countingResolveSource installs a source funnel that hands out a prepared
+// checkout and counts how often it was asked, so a test can pin that a launch
+// resolved nothing.
+func countingResolveSource(t *testing.T, src *Source) *int {
+	t.Helper()
+	calls := 0
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		calls++
+		return src, nil
+	}
+	return &calls
+}
+
+// tier1Launch runs a Tier 1 launch and fails the test if it did not take the
+// legacy path.
+func tier1Launch(t *testing.T, source string) {
+	t.Helper()
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: source})
+	if handled || err != nil {
+		t.Fatalf("tryPakkeLaunch(Tier 1) = (%v, %v), want (false, nil)", handled, err)
+	}
+}
+
+// TestTierCacheSkipsSecondResolve: resolving a repo-shaped source clones it.
+// Once a launch has learned that a source is not Tier 2, the next launch must
+// take the legacy path without cloning again to re-learn it.
+func TestTierCacheSkipsSecondResolve(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	calls := countingResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+	tier1Launch(t, "navikt/grillmester")
+	tier1Launch(t, "navikt/grillmester")
+
+	if *calls != 1 {
+		t.Errorf("resolveSource called %d times, want 1 — the second launch must reuse the remembered tier", *calls)
+	}
+	assertDefaultPakkeActive(t)
+}
+
+// TestTierCacheExpires: a pakke that changes tier has to be picked up without
+// the user knowing a cache exists, so an entry older than tierCacheTTL is not
+// trusted.
+func TestTierCacheExpires(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	calls := countingResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+	tier1Launch(t, "navikt/grillmester")
+	ageTierCache(t, tierCacheTTL+time.Minute)
+	tier1Launch(t, "navikt/grillmester")
+
+	if *calls != 2 {
+		t.Errorf("resolveSource called %d times, want 2 — an expired entry must resolve again", *calls)
+	}
+}
+
+// ageTierCache backdates every entry in the cache file by d.
+func ageTierCache(t *testing.T, d time.Duration) {
+	t.Helper()
+	data, err := os.ReadFile(tierCachePath())
+	if err != nil {
+		t.Fatalf("reading the tier cache: %v", err)
+	}
+	var cache map[string]tierCacheEntry
+	if err := json.Unmarshal(data, &cache); err != nil {
+		t.Fatalf("parsing the tier cache: %v", err)
+	}
+	if len(cache) == 0 {
+		t.Fatal("the tier cache is empty; nothing was remembered")
+	}
+	for k, e := range cache {
+		e.LearnedAt = e.LearnedAt.Add(-d)
+		cache[k] = e
+	}
+	data, err = json.Marshal(cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tierCachePath(), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestTierCacheKeyedBySource: changing `source` asks a question the cache has
+// never been asked, so the new source is resolved rather than inheriting the
+// old one's answer.
+func TestTierCacheKeyedBySource(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	calls := countingResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+	tier1Launch(t, "navikt/grillmester")
+	tier1Launch(t, "navikt/other-pakke")
+
+	if *calls != 2 {
+		t.Errorf("resolveSource called %d times, want 2 — a different source must resolve", *calls)
+	}
+}
+
+// TestTierCacheCorruptFileResolves: an unreadable cache degrades to a normal
+// resolve. It must never be an error, and never a legacy assumption.
+func TestTierCacheCorruptFileResolves(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	src := tier2Source(t)
+	calls := countingResolveSource(t, src)
+
+	if err := os.MkdirAll(filepath.Dir(tierCachePath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tierCachePath(), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// A Tier 2 source: had the corrupt file been read as "legacy", this would
+	// have returned (false, nil) without resolving anything.
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err == nil {
+		t.Fatalf("tryPakkeLaunch over a corrupt cache = (%v, %v), want (true, staging error)", handled, err)
+	}
+	if *calls != 1 {
+		t.Errorf("resolveSource called %d times, want 1 — a corrupt cache must resolve normally", *calls)
+	}
+}
+
+// TestPayloadContextAlwaysResolves: --payload-context asks about payloads only
+// the manifest declares, so it must resolve even when the cache holds a
+// non-payload answer for the same source.
+func TestPayloadContextAlwaysResolves(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	calls := countingResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+	tier1Launch(t, "navikt/grillmester")
+
+	_, err := tryPakkeLaunch(ResolvedConfig{
+		Client: "copilot", Source: "navikt/grillmester", PayloadContext: "focused",
+	})
+	if err == nil {
+		t.Fatal("--payload-context against a Tier 1 agentpakke must be an error")
+	}
+	if *calls != 2 {
+		t.Errorf("resolveSource called %d times, want 2 — --payload-context must always resolve", *calls)
+	}
+}
+
+// TestTierCacheLivesWithNavPilotState keeps the remembered decision next to
+// config.toml and the staged trees, not in an OS cache directory that may be
+// swept between launches.
+func TestTierCacheLivesWithNavPilotState(t *testing.T) {
+	cfg := isolatedConfig(t)
+	if got, want := tierCachePath(), filepath.Join(filepath.Dir(cfg), "tier-cache.json"); got != want {
+		t.Errorf("tierCachePath() = %q, want %q", got, want)
 	}
 }
