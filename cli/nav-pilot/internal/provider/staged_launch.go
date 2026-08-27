@@ -60,8 +60,9 @@ type StagedLaunch struct {
 	// PakkeName is the agentpakke identity, used to plugin-qualify the copilot
 	// persona (<pakke>:<agent>).
 	PakkeName string
-	// Context is the payload context id ("full", "focused", …), for the
-	// launch message only.
+	// Context is the payload context id ("full", "focused", …). It selects
+	// the payload whose primaryAgents roster the launch reads, and names the
+	// context in the launch message.
 	Context string
 }
 
@@ -174,13 +175,15 @@ func rejectReservedClientArgs(client, pakkeName string, args []string) error {
 	return nil
 }
 
-// stagedPrimaryAgent returns the persona a staged launch starts, failing loudly
-// rather than passing an empty --agent if a future call site sets a pakke that
-// does not declare the client (see [SetActivePakke]'s invariant).
-func stagedPrimaryAgent(client, pakkeName string) (string, error) {
-	agent := PrimaryAgent(client)
+// stagedPrimaryAgent returns the persona a staged launch starts: the first
+// agent the launched *context's* payload declares, not the client entry's. It
+// fails loudly rather than passing an empty --agent if a future call site sets
+// a pakke that does not declare the client or the context (see
+// [SetActivePakke]'s invariant).
+func stagedPrimaryAgent(client, context, pakkeName string) (string, error) {
+	agent := PrimaryAgentFor(client, context)
 	if agent == "" {
-		return "", fmt.Errorf("agentpakke %q declares no primary agent for %s — it cannot be launched", pakkeName, client)
+		return "", fmt.Errorf("agentpakke %q declares no primary agent for %s context %q — it cannot be launched", pakkeName, client, context)
 	}
 	return agent, nil
 }
@@ -194,7 +197,7 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	if err := rejectReservedClientArgs("opencode", s.PakkeName, r.ExtraArgs); err != nil {
 		return cpltLaunch{}, err
 	}
-	primary, err := stagedPrimaryAgent("opencode", s.PakkeName)
+	primary, err := stagedPrimaryAgent("opencode", s.Context, s.PakkeName)
 	if err != nil {
 		return cpltLaunch{}, err
 	}
@@ -235,7 +238,7 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 	if err := rejectReservedClientArgs("copilot", s.PakkeName, r.ExtraArgs); err != nil {
 		return cpltLaunch{}, err
 	}
-	primary, err := stagedPrimaryAgent("copilot", s.PakkeName)
+	primary, err := stagedPrimaryAgent("copilot", s.Context, s.PakkeName)
 	if err != nil {
 		return cpltLaunch{}, err
 	}

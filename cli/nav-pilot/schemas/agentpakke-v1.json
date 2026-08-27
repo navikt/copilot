@@ -46,11 +46,12 @@
       "propertyNames": { "$ref": "#/$defs/identifier" },
       "additionalProperties": {
         "type": "object",
-        "required": ["primaryAgents"],
         "additionalProperties": true,
+        "if": { "not": { "required": ["payloads"] } },
+        "then": { "required": ["primaryAgents"] },
         "properties": {
           "primaryAgents": {
-            "description": "Agent names treated as primary personas for this client (C1-C2). Every other agent materializes as a subagent.",
+            "description": "Agent names treated as primary personas for this client (C1-C2). Every other agent materializes as a subagent. Required for a Tier 1 entry (no `payloads`), which is the unit carrying the agents there. Ignored for a Tier 2 entry, where the roster belongs to each payload tree: see clients.<client>.payloads.<context>.primaryAgents.",
             "type": "array",
             "items": { "type": "string", "minLength": 1 },
             "minItems": 1
@@ -68,17 +69,23 @@
             "$ref": "#/$defs/identifier"
           },
           "payloads": {
-            "description": "Tier 2: one entry per context (keys today: full, focused) — same ignore-unknown rule as client keys. Payload manifest is `<path>/manifest.json` by convention (A7); `manifest` only overrides that.",
+            "description": "Tier 2: one entry per context (keys today: full, focused) — same ignore-unknown rule as client keys. Each payload declares its own primaryAgents, because the payload tree is what carries the agents. Payload manifest is `<path>/manifest.json` by convention (A7); `manifest` only overrides that.",
             "type": "object",
             "minProperties": 1,
             "propertyNames": { "$ref": "#/$defs/identifier" },
             "additionalProperties": {
               "type": "object",
-              "required": ["path"],
+              "required": ["path", "primaryAgents"],
               "additionalProperties": true,
               "properties": {
                 "path": { "$ref": "#/$defs/relativePath" },
-                "manifest": { "$ref": "#/$defs/relativePath" }
+                "manifest": { "$ref": "#/$defs/relativePath" },
+                "primaryAgents": {
+                  "description": "Agent names launchable in this context. The first element is the context's default persona. Required: a payload tree carries its own agents, so a context roster cannot be inferred from the client entry (C1-C2).",
+                  "type": "array",
+                  "items": { "type": "string", "minLength": 1 },
+                  "minItems": 1
+                }
               }
             }
           }
