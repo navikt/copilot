@@ -47,6 +47,25 @@ til Nav-utstyret.
 Les [kortversjonen av kravet](https://ki-utvikling.nav.no/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr)
 for en lenke du kan dele med andre.
 
+### Sikkerhetsnivå og versjon i cplt
+
+`nav-pilot doctor` sjekker sikkerhetsnivået til cplt og anbefaler
+`sandbox.preset = strict`. Det presetet slår på `gh_guard`, `git_guard` og
+tvungen proxy i én nøkkel, og nøkler du har satt selv gjelder fortsatt foran
+presetet. cplt-config er personlig, så nav-pilot setter den aldri stilltiende —
+du velger selv, enten med
+
+```bash
+cplt config set sandbox.preset strict
+```
+
+eller ved å velge raden `cplt security posture` på innstillingssiden
+(`nav-pilot config`), som spør før den setter nøkkelen.
+
+`nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår
+`brew upgrade navikt/tap/cplt`. nav-pilot laster aldri ned eller oppgraderer
+cplt for deg, og hvis GitHub ikke svarer, hopper den bare over versjonssjekken.
+
 ## Klienter
 
 nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):

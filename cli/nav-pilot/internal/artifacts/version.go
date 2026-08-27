@@ -12,18 +12,22 @@ func VersionTimestamp(v string) string {
 	return v
 }
 
+// VersionParseable reports whether v carries a comparable date-time prefix.
+// VersionNewer answers false for anything else, so callers that must tell
+// "not newer" apart from "cannot tell" ask this first instead of inventing
+// their own rule.
+func VersionParseable(v string) bool {
+	t := VersionTimestamp(v)
+	return len(t) > 0 && t[0] >= '0' && t[0] <= '9'
+}
+
 // VersionNewer returns true if candidate is a newer version than current.
 // Compares the date-time prefix (YYYY.MM.DD-HHMMSS) lexicographically,
 // which works because the format is zero-padded and fixed-width.
 // Returns false if either version is malformed (e.g. "dev", "").
 func VersionNewer(candidate, current string) bool {
-	ct := VersionTimestamp(candidate)
-	cu := VersionTimestamp(current)
-	if len(ct) == 0 || ct[0] < '0' || ct[0] > '9' {
+	if !VersionParseable(candidate) || !VersionParseable(current) {
 		return false
 	}
-	if len(cu) == 0 || cu[0] < '0' || cu[0] > '9' {
-		return false
-	}
-	return ct > cu
+	return VersionTimestamp(candidate) > VersionTimestamp(current)
 }

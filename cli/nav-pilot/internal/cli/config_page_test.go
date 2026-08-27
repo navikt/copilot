@@ -133,3 +133,18 @@ func TestClearConfigKey(t *testing.T) {
 		t.Errorf("mode still parsed as %q", *cfg.Mode)
 	}
 }
+
+func TestCpltPostureLabel(t *testing.T) {
+	tests := []struct {
+		preset, want string
+	}{
+		{"strict", "cplt security posture   strict"},
+		{"standard", "cplt security posture   standard  (recommended: strict)"},
+		{"", "cplt security posture   unknown  (could not read it from cplt)"},
+	}
+	for _, tc := range tests {
+		if got := cpltPostureLabel(tc.preset); got != tc.want {
+			t.Errorf("cpltPostureLabel(%q) = %q, want %q", tc.preset, got, tc.want)
+		}
+	}
+}

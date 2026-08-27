@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -20,6 +21,9 @@ import (
 var (
 	releasesAPI = "https://api.github.com/repos/navikt/copilot/releases"
 	downloadURL = "https://github.com/navikt/copilot/releases/download"
+
+	// cplt ships from its own repo, with its own release train and unprefixed tags.
+	cpltReleasesAPI = "https://api.github.com/repos/navikt/cplt/releases"
 )
 
 // httpClient is the client used for all HTTP requests. Overridable in tests.
@@ -47,9 +51,15 @@ func cmdUpdate() error {
 // from "successfully updated" and avoid re-executing when nothing changed.
 func doUpdate() (updated bool, err error) {
 	if isBrewManaged() {
+		// Print first, then check cplt: the cplt lookup can take seconds, and
+		// the "managed by Homebrew" line used to be instant.
 		fmt.Println("nav-pilot is managed by Homebrew.")
 		fmt.Println()
-		fmt.Println("  brew upgrade navikt/tap/nav-pilot")
+		formulae := "navikt/tap/nav-pilot"
+		if cpltBehind() {
+			formulae += " navikt/tap/cplt"
+		}
+		fmt.Printf("  brew upgrade %s\n", formulae)
 		return false, nil
 	}
 
@@ -144,18 +154,29 @@ func isBrewManaged() bool {
 // Returns the raw version (matching the build-injected format, e.g. "2026.04.13-170138-abc1234")
 // and the full tag (e.g. "nav-pilot/2026.04.13-170138-abc1234").
 func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", releasesAPI+"?per_page=20", nil)
+	return fetchLatestRelease(ctx, releasesAPI, "nav-pilot/")
+}
+
+// fetchLatestRelease returns the newest release from a GitHub releases API whose
+// tag carries prefix (empty prefix = the newest release, for repos that do not
+// prefix their tags). Returns the version (tag minus prefix) and the full tag.
+func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, tag string, err error) {
+	token := os.Getenv("GITHUB_TOKEN")
+	resp, err := releasesRequest(ctx, api, token)
 	if err != nil {
 		return "", "", err
 	}
 
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return "", "", err
+	// A GITHUB_TOKEN scoped for packages (but not for api.github.com) answers
+	// 401/403 here and would kill release checks for good. The releases API is
+	// public, so retry once anonymously. The authenticated attempt stays first
+	// for its higher rate limit.
+	if token != "" && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+		resp.Body.Close()
+		resp, err = releasesRequest(ctx, api, "")
+		if err != nil {
+			return "", "", err
+		}
 	}
 	defer resp.Body.Close()
 
@@ -169,14 +190,117 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 	}
 
 	for _, rel := range releases {
-		if strings.HasPrefix(rel.TagName, "nav-pilot/") {
+		if strings.HasPrefix(rel.TagName, prefix) {
 			tag = rel.TagName
-			ver = strings.TrimPrefix(tag, "nav-pilot/")
+			ver = strings.TrimPrefix(tag, prefix)
 			return ver, tag, nil
 		}
 	}
 
-	return "", "", fmt.Errorf("no nav-pilot release found")
+	return "", "", fmt.Errorf("no release found with tag prefix %q", prefix)
+}
+
+// releasesRequest issues one GET against a GitHub releases API, authenticated
+// when token is non-empty.
+func releasesRequest(ctx context.Context, api, token string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", api+"?per_page=20", nil)
+	if err != nil {
+		return nil, err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	return httpClient.Do(req)
+}
+
+// latestCpltVersion returns the newest published cplt version. The short
+// timeout keeps a slow or unreachable GitHub from stalling doctor or upgrade —
+// callers treat an error as "could not check", never as "outdated".
+// A var so tests can stub it without a network call.
+var latestCpltVersion = func() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ver, _, err := fetchLatestRelease(ctx, cpltReleasesAPI, "")
+	return ver, err
+}
+
+// cpltCommandTimeout bounds every cplt process spawn. Each spawn gets its own
+// deadline: no check may share a wall clock with an unrelated one.
+const cpltCommandTimeout = 2 * time.Second
+
+// runBounded runs a command with its own deadline and returns its stdout.
+func runBounded(name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, name, args...).Output()
+}
+
+// runBoundedCombined is runBounded, but keeps stderr — for commands whose
+// interesting output is not reliably on stdout.
+func runBoundedCombined(name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+}
+
+// parseCpltVersion pulls the bare version out of `cplt --version` output, which
+// reads "cplt 2026.08.24-153138-0d1d66d". Anything that is not a comparable
+// version ("unknown", "dev", a future format) yields "" — unknown, so callers
+// cannot mistake it for "up to date".
+func parseCpltVersion(out string) string {
+	fields := strings.Fields(out)
+	if len(fields) == 0 {
+		return ""
+	}
+	v := fields[len(fields)-1]
+	if !versionParseable(v) {
+		return ""
+	}
+	return v
+}
+
+// cpltSkew is the three-way outcome of the cplt version-skew check.
+type cpltSkew int
+
+const (
+	cpltVersionUnknown cpltSkew = iota // could not tell — never report as current
+	cpltVersionCurrent
+	cpltVersionBehind
+)
+
+// classifyCpltSkew compares the installed cplt version against the latest
+// release. A failed lookup or a version neither side can parse is unknown, not
+// current: a security-relevant check must never go green on missing data.
+func classifyCpltSkew(installed, latest string, lookupErr error) cpltSkew {
+	if lookupErr != nil || !versionParseable(latest) || !versionParseable(installed) {
+		return cpltVersionUnknown
+	}
+	if versionNewer(latest, installed) {
+		return cpltVersionBehind
+	}
+	return cpltVersionCurrent
+}
+
+// cpltVersionSkew reads the installed cplt version and compares it to the
+// latest release. Everything uncertain — no cplt, no network, an unparseable
+// version — is cpltVersionUnknown.
+func cpltVersionSkew() cpltSkew {
+	cliPath, err := findCplt()
+	if err != nil {
+		return cpltVersionUnknown
+	}
+	out, err := runBounded(cliPath, "--version")
+	if err != nil {
+		return cpltVersionUnknown
+	}
+	latest, lerr := latestCpltVersion()
+	return classifyCpltSkew(parseCpltVersion(string(out)), latest, lerr)
+}
+
+// cpltBehind reports whether the installed cplt is older than the latest cplt
+// release. Uncertainty answers false: nav-pilot stays quiet rather than guessing.
+func cpltBehind() bool {
+	return cpltVersionSkew() == cpltVersionBehind
 }
 
 func httpGet(url string) ([]byte, error) {

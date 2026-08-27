@@ -192,6 +192,7 @@ type (
 
 var (
 	versionNewer     = artifacts.VersionNewer
+	versionParseable = artifacts.VersionParseable
 	versionTimestamp = artifacts.VersionTimestamp
 )
 
