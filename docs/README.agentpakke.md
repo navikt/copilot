@@ -112,6 +112,8 @@ Utover manifestets form sjekker `nav-pilot validate` (og install) innholdet:
 
 Alle funn rapporteres samlet, ikke bare det første.
 
+**Hva verifiseringen gir — og ikke gir.** Payload-manifestet ligger i samme repo som payloaden og er skrevet av samme part, så kjeden er selvsignert: digestene sier ingenting om at innholdet er vurdert av noen andre. Det de gir, er integritet og konsistens — treet nav-pilot stager er byte-identisk med det pakkerepoets egen CI så, og ingenting kan smugles inn mellom verifisering og kopiering. Mot en pakkeforfatter med vond vilje er det tre andre ting som er grensa: at brukeren selv har valgt kilden, at en staget launch kjører i cplts sandkasse (med `--no-audit`, som lukker parent-side audit), og at ingenting av brukerens eget klientinnhold blandes inn. Det er samme tillitsmodell som `brew install`: «verifisert» betyr uendret, ikke godkjent.
+
 ## Versjonsgate
 
 `minNavPilotVersion` må skrives på nav-pilots releaseformat: `YYYY.MM.DD-HHMMSS`, eventuelt med build-sha (`2026.09.01-120000-a1b2c3d`). Andre formater avvises framfor å ignoreres — nav-pilot kan ikke sammenligne dem, og å godta dem ville stille av akkurat den gaten manifestet ba om.
