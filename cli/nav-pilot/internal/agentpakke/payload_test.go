@@ -565,8 +565,7 @@ const tier2Manifest = `{
   "description": "Tier 2 agentpakke med én payload",
   "clients": {
     "copilot": {
-      "primaryAgents": ["grillmester"],
-      "payloads": { "full": { "path": "plugin" } }
+      "payloads": { "full": { "path": "plugin", "primaryAgents": ["grillmester"] } }
     }
   }
 }`
