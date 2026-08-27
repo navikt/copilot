@@ -149,7 +149,34 @@ Kontrakten er bygget for at en agentpakke skal kunne vokse uten å knekke bruker
 - Å gjøre et tidligere valgfritt felt påkrevd, eller å fjerne et felt konsumenter leser.
 - Å endre en konvensjon konsumenten har innebygget, for eksempel hvor payload-manifestet ligger.
 
-Motsatt vei har nav-pilot en tilsvarende forpliktelse: en fjerning på kontrakten skjer med deprekeringsvindu, ikke i én release.
+### Deprekeringsvindu
+
+Motsatt vei har nav-pilot en tilsvarende forpliktelse: en fjerning på kontrakten skjer med deprekeringsvindu, ikke i én release. **Vinduet er 90 dager**, fra deprekeringen er kunngjort til fjerningen er merget. nav-pilot slippes ved hver merge til `main`, så et antall releaser er ikke noe å planlegge mot — kalendertid er det eneste målet en pakkeforfatter har.
+
+Kunngjøringen står der kontrakten står: den deprekerte konstruksjonen merkes i tabellene over og i [schemaet](../cli/nav-pilot/schemas/agentpakke-v1.json), i samme PR som starter klokka. Vinduet gjelder bare det som krever bump av `contractVersion` — de additive endringene over trenger ingen kunngjøring.
+
+### Å endre kontrakten
+
+Endringen *er* pull requesten som endrer [`agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json) og dette dokumentet sammen; schemaet er kompilert inn i binæren, så de to kan ikke drifte fra hverandre. [CODEOWNERS](../CODEOWNERS) avgjør hvem som må godkjenne. Det finnes ingen forslagsmal og intet eget vedtakssteg.
+
+### Når en pakke slutter å validere
+
+nav-pilot feiler lukket, og gjør ikke noe utover det. Et manifest som ikke lenger laster, stopper enhver kommando som resolver kilden — `install`, `add`, `sync` — før første filoperasjon ([Ignorer-ukjent](#ignorer-ukjent-og-hva-som-feiler-lukket)). `nav-pilot validate` er unntaket: den resolver bevisst uten å feste manifestet, slik at et ugyldig manifest rapporteres som funn framfor som en resolve-feil. Innhold som allerede er installert står urørt og virker videre.
+
+nav-pilot varsler ingen om det, deaktiverer ingenting automatisk, og har ingen forestilling om en forlatt pakke. Å oppdage det i tide er pakkerepoets egen CI-jobb ([Validering i CI](#validering-i-ci)).
+
+## Eierskap og vedlikehold
+
+| Hva | Eier | Forpliktelse |
+| --- | --- | --- |
+| Kontrakten — schemaet og dette dokumentet | nav-pilot-vedlikeholderne, `@navikt/copilot` per [CODEOWNERS](../CODEOWNERS) | Reglene over: additivt uten bump, fjerning med 90 dagers vindu. |
+| En agentpakke | eierne av repoet manifestet klones fra | Å holde pakka validerende mot en støttet `contractVersion`, og å svare på det som meldes mot pakkerepoet. |
+
+`owner` i manifestet er attribusjon, ikke tilgangsstyring. Å publisere en agentpakke er å si at innholdet er ment å kjøre på andres maskiner enn dine egne.
+
+**Referansepinning.** Der nav-pilot pinner en referanseimplementasjon for differensialtesting, står SHA-en i kildekommentarene i `cli/nav-pilot/internal/agentpakke`. Å flytte pinnen er en bevisst og reviewbar endring avtalt med eierne av pakka det måles mot — ikke stille drift.
+
+**Kompromittert innhold.** Et payload-tre er digest-bundet mot payload-manifestet sitt og verifiseres i sin helhet av `nav-pilot validate` og av install ([Innholdssjekker på disk](#innholdssjekker-på-disk)); en byttet eller endret fil verifiserer ikke, og stopper der. Tier 1-innhold er ikke digest-bundet — der er git-historikken i pakkerepoet hele sporbarheten. Det finnes **ingen tilbakekalling**: nav-pilot har ingen liste over trukne pakker eller digester, og når ikke en installasjon som allerede står på en maskin. Meld fra i pakkerepoets eget issue-spor, og til `@navikt/copilot` for kontrakten eller nav-pilot selv — [SECURITY.md](../SECURITY.md) i rota beskriver sikkerhetsarkitekturen for copilot-tjenestene og har ingen varslingskanal for agentpakker.
 
 ## Validering i CI
 
@@ -370,6 +397,7 @@ Hver payload-katalog må ha et payload-manifest: `plugin/manifest.json`, `target
 ## Se også
 
 - [JSON Schema: `cli/nav-pilot/schemas/agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json) — kontrakten selv
+- [Beslutninger](agentpakke-beslutninger.md) — hvorfor nav-pilot oppfører seg som den gjør: bevisste avvik, åpne spørsmål og aksepterte begrensninger
 - [nav-pilot](README.nav-pilot.md) — CLI-et som konsumerer agentpakker
 - [Samlinger](README.collections.md) — legacy-modellen en agentpakke erstatter
 - [Sync](README.sync.md) — hvordan installert innhold holdes oppdatert
