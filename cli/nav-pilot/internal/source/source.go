@@ -17,6 +17,30 @@ import (
 // file's source key names one.
 const DefaultRepo = "navikt/copilot"
 
+// activePakke is the agentpakke whose declarations — launch persona, opencode
+// primary-agent allowlist, model defaults — drive launch and materialization.
+// It defaults to the in-memory legacy adapter, so no default path reads a file
+// to learn them.
+//
+// It is held here rather than in internal/provider because internal/artifacts
+// needs the same declarations when it materializes agent frontmatter, and
+// artifacts cannot import provider. [provider.SetActivePakke] is the seam
+// callers use.
+var activePakke = agentpakke.Default()
+
+// SetActivePakke sets the agentpakke read by launch and materialization. A nil
+// manifest restores the built-in default. Call it through
+// provider.SetActivePakke.
+func SetActivePakke(m *agentpakke.Manifest) {
+	if m == nil {
+		m = agentpakke.Default()
+	}
+	activePakke = m
+}
+
+// ActivePakke returns the active agentpakke. Never nil.
+func ActivePakke() *agentpakke.Manifest { return activePakke }
+
 // Source holds a resolved source directory and optional temp dir to clean up.
 type Source struct {
 	Dir     string
