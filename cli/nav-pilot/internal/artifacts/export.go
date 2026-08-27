@@ -314,7 +314,8 @@ func transformAgent(data []byte, name string) []byte {
 		description = "Nav agent"
 	}
 
-	newFM := source.BuildAgentFrontmatter(description, source.OpenCodeAgentMode(name))
+	mode := source.OpenCodeAgentMode(name, source.ActivePakke().PrimaryAgents("opencode"))
+	newFM := source.BuildAgentFrontmatter(description, mode)
 	return source.Reassemble(newFM, body)
 }
 

@@ -106,7 +106,7 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	} else {
 		// Launch the materialized Nav primary agent so the session starts with
 		// Nav's persona and context (parity with the copilot client persona).
-		args = append(args, "--agent", OpenCodeAgentPersona)
+		args = append(args, "--agent", PrimaryAgent("opencode"))
 	}
 	if resolved.ReasoningEffort != "" {
 		args = append(args, "--variant", resolved.ReasoningEffort)

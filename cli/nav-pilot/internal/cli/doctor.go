@@ -149,7 +149,7 @@ func cmdDoctor() error {
 		// no such key, so the check always failed and pointed users at
 		// `cplt config set copilot.agent_name nav-pilot` — a key that has never
 		// existed in cplt, which rejects it with "unknown config key" (#406).
-		fmt.Printf("      %s Agent pinned to %s at launch\n", green("✓"), providerpkg.CopilotAgentPersona)
+		fmt.Printf("      %s Agent pinned to %s at launch\n", green("✓"), providerpkg.PrimaryAgent("copilot"))
 	}
 
 	// opencode

@@ -14,11 +14,6 @@ import (
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
-// CopilotAgentPersona is the Copilot CLI custom-agent persona that loads
-// Nav's instructions and context. This is distinct from resolved.Client,
-// which selects the launcher (copilot vs opencode vs pi).
-const CopilotAgentPersona = "nav-pilot"
-
 // FindCopilotCLI returns the path to cplt or copilot CLI.
 // Prefers cplt (unambiguous GitHub Copilot CLI).
 // If the "copilot" binary is actually cplt (aliased), it's treated as cplt.
@@ -74,12 +69,14 @@ func copilotAgentArgs(agent string) []string {
 // agent on PATH (e.g. opencode) is never picked, then forward the copilot
 // persona + flags after the "--" separator.
 //
-// Note: the forwarded --agent is always the nav-pilot persona; resolved.Client
-// selects the launcher and is consumed by launchClient before reaching here.
+// Note: the forwarded --agent is always the active agentpakke's copilot
+// persona; resolved.Client selects the launcher and is consumed by
+// launchClient before reaching here.
 func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
+	persona := PrimaryAgent("copilot")
 	var args []string
-	args = append(args, "--agent", CopilotAgentPersona)
-	args = append(args, copilotAgentArgs(CopilotAgentPersona)...)
+	args = append(args, "--agent", persona)
+	args = append(args, copilotAgentArgs(persona)...)
 	if resolved.Model != "" {
 		args = append(args, "--model", resolved.Model)
 	}
@@ -123,7 +120,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	PrintModelAvailabilityHint(resolved.Model)
 	args := BuildCopilotArgs(cliName, resolved)
 	displayName := CLIDisplayName(cliName)
-	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(CopilotAgentPersona))
+	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(PrimaryAgent("copilot")))
 	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

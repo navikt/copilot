@@ -182,12 +182,12 @@ func TestRunRepoMetricsBackfill_ExistsCheckErrorFallsThrough(t *testing.T) {
 	}
 }
 
-func TestRunRepoMetricsBackfill_PreCheckUsesEnterpriseSlugAndUpsertUsesFetchedScope(t *testing.T) {
+func TestRunRepoMetricsBackfill_PreCheckProbesConfiguredScopesAndUpsertUsesFetchedScope(t *testing.T) {
 	withoutRepoMetricsDelay(t)
 
-	// The cheap pre-check queries the configured enterprise slug, while the
-	// authoritative upsert uses whatever scope the fetch actually resolved to
-	// (enterprise-first with org fallback).
+	// The cheap pre-check walks the configured scope_ids, enterprise slug first,
+	// while the authoritative upsert uses whatever scope the fetch actually
+	// resolved to (enterprise-first with org fallback).
 	store := newRepoBackfillStore()
 	fetcher := &repoBackfillFetcher{records: 2, scopeID: "navikt"}
 
@@ -196,7 +196,7 @@ func TestRunRepoMetricsBackfill_PreCheckUsesEnterpriseSlugAndUpsertUsesFetchedSc
 	}
 
 	if len(store.existsScope) == 0 || store.existsScope[0] != "nav" {
-		t.Errorf("expected pre-check to use the enterprise slug %q, got %v", "nav", store.existsScope)
+		t.Errorf("expected pre-check to probe the enterprise slug %q first, got %v", "nav", store.existsScope)
 	}
 	if len(store.insertScope) != 1 || store.insertScope[0] != "navikt" {
 		t.Errorf("expected insert to use the fetched scope %q, got %v", "navikt", store.insertScope)
@@ -312,5 +312,39 @@ func TestRunRepoMetricsBackfill_NormalisesStartDayToUTCMidnight(t *testing.T) {
 func TestRepoMetricsGADateIsParseable(t *testing.T) {
 	if _, err := time.Parse("2006-01-02", repoMetricsGADate); err != nil {
 		t.Fatalf("repoMetricsGADate must be a valid date: %v", err)
+	}
+}
+
+// TestRunRepoMetricsBackfill_SkipsDayStoredUnderAnyScope pins the cheap skip to
+// every scope_id the repos-1-day report can land under.
+//
+// An enterprise-only probe reads "missing" for a day whose rows sit under the
+// org scope_id, and upsertReport — keyed on the scope the fetch resolved to —
+// then writes a second copy under the enterprise scope_id. v_repository_usage
+// groups by scope_id, so the day's repos would show up twice with split PR
+// counts, each half measured against `HAVING pr_total_created >= 5` on its own.
+func TestRunRepoMetricsBackfill_SkipsDayStoredUnderAnyScope(t *testing.T) {
+	withoutRepoMetricsDelay(t)
+
+	day := daysAgo(1)
+	store := newScopedStore()
+	store.seed(tableRepoMetrics, day, "navikt", 6)
+
+	// The enterprise endpoint is up again, so a fetch would resolve to "nav".
+	fetcher := &repoBackfillFetcher{records: 6, scopeID: "nav"}
+	cfg := &Config{EnterpriseSlug: "nav", OrganizationSlug: "navikt"}
+
+	if err := runRepoMetricsBackfill(context.Background(), fetcher, store, cfg, day, false); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(fetcher.fetched) != 0 {
+		t.Errorf("expected the org-stored day to be skipped before fetching, got fetches %v", fetcher.fetched)
+	}
+	if got := store.count(tableRepoMetrics, day, "nav"); got != 0 {
+		t.Errorf("expected no enterprise-scoped second copy, got %d rows", got)
+	}
+	if got := store.countAllScopes(tableRepoMetrics, day); got != 6 {
+		t.Errorf("expected the day to stay at 6 rows across scopes, got %d", got)
 	}
 }
