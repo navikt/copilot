@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "target": "copilot-full-v1",
+  "generator": {
+    "path": "scripts/generate_copilot_manifest.py",
+    "version": 1
+  },
+  "counts": {
+    "agents": 1,
+    "skills": 0
+  },
+  "agents": [
+    "barista"
+  ],
+  "skills": [],
+  "files": {
+    "LICENSE": {
+      "sha256": "adc37366f403835c1470ab2df93d3837d4719372fc1ef8593d922e06f033f8b2",
+      "mode": "0644"
+    },
+    "agents/barista.agent.md": {
+      "sha256": "61a3ed94e22aac4204a94250b357742c76af6f10e2b1a8194a71322894411dd7",
+      "mode": "0644"
+    },
+    "scripts/hook.sh": {
+      "sha256": "306c6ca7407560340797866e077e053627ad409277d1b9da58106fce4cf717cb",
+      "mode": "0755"
+    }
+  }
+}
