@@ -232,7 +232,22 @@ func cachedTier(source, client string) (int, bool) {
 		return agentpakke.TierUnknown, false
 	}
 	entry, ok := cache[tierCacheKey(source, client)]
-	if !ok || time.Since(entry.LearnedAt) > tierCacheTTL {
+	if !ok {
+		return agentpakke.TierUnknown, false
+	}
+	// Well-formed JSON is not a trustworthy answer. A tier no nav-pilot writes
+	// (a hand-edited file, or a future binary with other tier semantics) would
+	// be neither TierPayload nor a known legacy tier, and the launch would skip
+	// the resolve and run legacy for a source that declares a payload. A
+	// learnedAt in the future — clock stepped back, or skew when it was written
+	// — makes the age negative, so the entry would outlive the TTL until
+	// wall-clock catches up. Both resolve normally, exactly like a corrupt file.
+	switch entry.Tier {
+	case agentpakke.TierUnknown, agentpakke.TierLayout, agentpakke.TierPayload:
+	default:
+		return agentpakke.TierUnknown, false
+	}
+	if age := time.Since(entry.LearnedAt); age < 0 || age > tierCacheTTL {
 		return agentpakke.TierUnknown, false
 	}
 	return entry.Tier, true

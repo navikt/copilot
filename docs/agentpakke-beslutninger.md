@@ -45,7 +45,7 @@ Avvikene er få og hver enkelt er begrunnet i koden der sjekken gjøres. Sammend
 | Ingen pin av `target`-navn | `payload.go`, `PayloadManifest.Target` | Digestkjeden |
 | `O_NOFOLLOW`/`O_NONBLOCK` + fstat på deskriptoren (referansen har ingen av delene) | `payload.go`, `openPayloadFile` | — (strengere enn referansen) |
 | Kopiering styres av manifestets `files`, ikke av en walk av kildetreet | `stage.go`, filhode | — (strengere enn referansen) |
-| `--no-audit` og `--project-dir` tas ikke i bruk | `staged_launch.go`, filhode | — (launcher-policy, ikke payload-kontrakt) |
+| `--project-dir` tas ikke i bruk (`--no-audit` tas i bruk, se [§2.5](#25-flagg-fra-referansen)) | `staged_launch.go`, filhode | Arbeidskatalogen *er* prosjektomfanget — ingen launch-sti setter `cmd.Dir` |
 
 ### 2.1 Modesjekk på kilden: subset pluss exec-bit
 
@@ -69,14 +69,14 @@ Referansen sjekker payload-manifestets `target` mot en hardkodet liste over sine
 
 Referansen kopierer med `shutil.copytree(symlinks=True)` — den walker kilden. nav-pilot kopierer fra manifestets `files`-map: manifestet, ikke katalogen, er autoriteten på hva payloaden inneholder. En fil som smugles inn i kilden mellom verifisering og staging blir dermed aldri kopiert, framfor å bli kopiert og så avvist. I tillegg re-hashes hver fil *mens* den skrives, slik at vinduet mellom kildeverifiseringen og lesingen som kopierer bytene er lukket (`stage.go`, filhode og `stageFile`).
 
-### 2.5 Flagg vi ikke tar i bruk
+### 2.5 Flagg fra referansen
 
-Fra referansens `build_launch_command` (`scripts/grillmester.py`, linje 647–689) utelates to cplt-flagg med vilje, som launcher-policy snarere enn payload-kontrakt:
+Fra referansens `build_launch_command` (`scripts/grillmester.py`, linje 647–689) tar vi ett av de to cplt-flaggene i bruk og utelater ett:
 
-- **`--no-audit`** (linje 663) — referansen dokumenterer det selv som en cplt-versjonsspesifikk workaround.
-- **`--project-dir`** (linje 666–667) — nav-pilot starter i arbeidskatalogen.
+- **`--no-audit`** (linje 663) — **tas i bruk** på den stagede stien, på referansens plass: først i cplt-vektoren, før `--agent`. Vi leste det først som launcher-policy og en versjonsspesifikk workaround, og utelot det. Team eSyfo korrigerte det i svaret på G4-spørsmålet ([kommentar i #437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)): på cplt-baselinen grillmester v0.3.0 er testet mot, kan cplts parent-side audit kjøre repo-kontrollerte Git-hjelpere *utenfor* sandboxen. Uten flagget er en staget Tier 2-launch dårligere isolert enn launcheren den skal være ekvivalent med. Å fjerne det igjen krever dokumentasjon på at en gjennomgått cplt-baseline retter oppførselen, pluss en minimumsversjonssperre som håndhever den — ikke at flagget ser overflødig ut.
+- **`--project-dir`** (linje 666–667) — **utelates fortsatt**. nav-pilot starter i arbeidskatalogen: ingen launch-sti setter `cmd.Dir`, så cplt og klienten arver brukerens cwd. eSyfo aksepterer utelatelsen på nøyaktig det vilkåret, og at differansetestene asserterer oppførselen.
 
-Begge er meldt til Team eSyfo som del av det åpne G4-spørsmålet om «equivalent invocation» ([§5.2](#52-grensen-for-equivalent-invocation-g4--eier-team-esyfo)). Til det er besvart, er dette vår beslutning, ikke en avtale.
+Beslutningen om `--no-audit` er altså endret, og den er Team eSyfos ([§5.2](#52-grensen-for-equivalent-invocation-g4--eier-team-esyfo), [§8](#8-der-kildene-er-uenige)); den om `--project-dir` er vår, nå med eSyfos aksept.
 
 ### 2.6 Annet vi ikke speiler
 
@@ -146,7 +146,7 @@ Referanselauncheren når `focused` bare gjennom `grillmester local` (loopback, m
 
 ### 5.2 Grensen for «equivalent invocation» (G4) — eier: Team eSyfo
 
-Vi planlegger å assertere config-plassering, persona inkludert `<pakke>:<agent>`-kvalifiseringen, modellhåndtering, `--pass-env OPENCODE_CONFIG_DIR`, `--allow-read <staged>` og cplt-agentvalg. Vi tar ikke i bruk `--no-audit` eller `--project-dir` ([§2.5](#25-flagg-vi-ikke-tar-i-bruk)), normaliserer modes ved staging ([§2.1](#21-modesjekk-på-kilden-subset-pluss-exec-bit)), og hopper over `.gitignore`-pre-seedingen ([§2.6](#26-annet-vi-ikke-speiler)). Spørsmålet til eSyfo er om noen av dem er bærende for deres guardrail-historie. Stilt samme sted som 5.1.
+Vi planlegger å assertere config-plassering, persona inkludert `<pakke>:<agent>`-kvalifiseringen, modellhåndtering, `--pass-env OPENCODE_CONFIG_DIR`, `--allow-read <staged>` og cplt-agentvalg. Vi tar i bruk `--no-audit` og utelater fortsatt `--project-dir` ([§2.5](#25-flagg-fra-referansen)), normaliserer modes ved staging ([§2.1](#21-modesjekk-på-kilden-subset-pluss-exec-bit)), og hopper over `.gitignore`-pre-seedingen ([§2.6](#26-annet-vi-ikke-speiler)). Spørsmålet til eSyfo var om noen av dem er bærende for deres guardrail-historie. **Besvart for flaggene:** `--no-audit` er bærende og tas i bruk, `--project-dir` kan utelates så lenge arbeidskatalogen er prosjektomfanget ([kommentar i #437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)). Resten av G4-ordlyden er fortsatt stilt samme sted som 5.1.
 
 ### 5.3 Skal en pakke kunne be om brukerens egen kontekst? — eier: nav-pilot
 
@@ -186,6 +186,7 @@ Tre valg var tatt uten at begrunnelsen fantes i kode, plan eller issue. De er sk
 - **Rekkefølgen på cplt-argumentene for opencode.** WP3-planen skrev `--pass-env` før `--allow-read`; referansen sender dem motsatt, og koden følger referansen ([§4](#4-launch-beslutningene)).
 - **Brukerens egne Copilot-instruksjoner.** #457 gjenbrukte `CopilotEnv` som den var, slik at brukerens `~/.copilot`-innhold ble blandet inn i en Tier 2-økt. #458 snur det: ingenting injiseres, og valget er samlet i ett kall ([§4](#4-launch-beslutningene), [§5.3](#53-skal-en-pakke-kunne-be-om-brukerens-egen-kontekst--eier-nav-pilot)). WP3-planens klassifisering av dette som «launcher policy» er dermed forlatt.
 - **Hva en resolve-feil gjør.** #457-teksten kaller den en akseptert regresjon for copilot-brukere med egen kilde; koden i #458 advarer og faller tilbake til legacy-stien, og #457-framstillingen var feil på to punkter ([§4](#4-launch-beslutningene)).
+- **`--no-audit` som launcher-policy.** #458 og en tidligere §2.5 klassifiserte flagget som launcher-policy vi ikke tok i bruk, med referansens egen kommentar som kilde. Team eSyfo svarte at det er bærende ved den testede cplt-baselinen ([kommentar i #437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)). Deres svar gjelder: den stagede stien sender `--no-audit`, og vår klassifisering er forlatt ([§2.5](#25-flagg-fra-referansen)).
 - **Omstokking av opencode-argumenter.** WP3-planen kuttet referansens `_opencode_client_arguments` som «legges inn hvis noen melder fra». #458 implementerer den ([§4](#4-launch-beslutningene)); planen er utdatert på dette punktet.
 
 ## Se også

@@ -62,6 +62,7 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 // at 3573b93cc8b7568516117263562d073cae9ee7fc, scripts/grillmester.py
 // build_launch_command:
 //
+//	line 663       --no-audit, first in the cplt vector, before --agent
 //	line 664-665   cplt --agent <client>
 //	line 668-669   --allow-read <payload>   (payload = plugin for copilot,
 //	               opencode_target for opencode; both clients read exactly the
@@ -76,10 +77,10 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 //	line 704       opencode client args, anything else: --agent <agent> …
 //	line 679-684   copilot client args: --plugin-dir <plugin> --agent grillmester:<agent>
 //
-// Not adopted, deliberately: --no-audit (line 663) and --project-dir (lines
-// 666-667), which are launcher policy rather than payload contract. No --model
-// either: the fixture declares "inherit", and the reference forwards no model
-// at all.
+// Not adopted, deliberately: --project-dir (lines 666-667) — nav-pilot treats
+// the working directory as the project scope, which is what the client inherits
+// anyway. No --model either: the fixture declares "inherit", and the reference
+// forwards no model at all.
 func TestStagedLaunchSpecs(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())
 	t.Cleanup(func() { SetActivePakke(nil) })
@@ -181,6 +182,12 @@ func TestStagedLaunchSpecs(t *testing.T) {
 			}
 			if !slices.Equal(spec.cpltArgs, tt.wantCpltArgs) {
 				t.Errorf("cpltArgs\n got: %q\nwant: %q", spec.cpltArgs, tt.wantCpltArgs)
+			}
+			// Reference line 663: every staged launch leads with --no-audit,
+			// before --agent, because cplt's parent-side audit can execute
+			// repository-controlled Git helpers outside the sandbox.
+			if argv := cpltArgv(spec); len(argv) == 0 || argv[0] != "--no-audit" {
+				t.Errorf("cplt vector must lead with --no-audit\n got: %q", argv)
 			}
 			if !slices.Equal(spec.agentArgs, tt.wantAgentArgs) {
 				t.Errorf("agentArgs\n got: %q\nwant: %q", spec.agentArgs, tt.wantAgentArgs)

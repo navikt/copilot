@@ -466,6 +466,61 @@ func TestTierCacheCorruptFileResolves(t *testing.T) {
 	}
 }
 
+// TestTierCacheRejectsUnknownTier: a well-formed entry can still hold a tier
+// no nav-pilot writes. Trusting it would skip the resolve for a source that
+// declares a payload and run legacy with the user's own ~/.copilot, which is
+// exactly the "assume legacy" this cache may never produce.
+func TestTierCacheRejectsUnknownTier(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	calls := countingResolveSource(t, tier2Source(t))
+
+	writeTierCache(t, map[string]tierCacheEntry{
+		tierCacheKey("navikt/grillmester", "copilot"): {Tier: 99, LearnedAt: time.Now()},
+	})
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err == nil {
+		t.Fatalf("tryPakkeLaunch over a nonsense tier = (%v, %v), want (true, staging error) — the Tier 2 source must be resolved", handled, err)
+	}
+	if *calls != 1 {
+		t.Errorf("resolveSource called %d times, want 1 — an unknown tier must resolve normally", *calls)
+	}
+}
+
+// TestTierCacheRejectsFutureEntry: a learnedAt in the future (clock stepped
+// back, or skewed when the entry was written) makes the age negative, so a
+// plain "older than the TTL?" test would trust the entry until wall-clock
+// catches up. Out of range is out of range in both directions.
+func TestTierCacheRejectsFutureEntry(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	calls := countingResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+	tier1Launch(t, "navikt/grillmester")
+	ageTierCache(t, -(tierCacheTTL + time.Hour)) // forward, not back
+	tier1Launch(t, "navikt/grillmester")
+
+	if *calls != 2 {
+		t.Errorf("resolveSource called %d times, want 2 — an entry learned in the future must resolve again", *calls)
+	}
+}
+
+// writeTierCache replaces the tier cache file with exactly these entries.
+func writeTierCache(t *testing.T, cache map[string]tierCacheEntry) {
+	t.Helper()
+	data, err := json.Marshal(cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(tierCachePath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tierCachePath(), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestPayloadContextAlwaysResolves: --payload-context asks about payloads only
 // the manifest declares, so it must resolve even when the cache holds a
 // non-payload answer for the same source.
