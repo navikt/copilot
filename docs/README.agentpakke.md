@@ -350,6 +350,7 @@ Hver payload-katalog må ha et payload-manifest: `plugin/manifest.json`, `target
 ## Se også
 
 - [JSON Schema: `cli/nav-pilot/schemas/agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json) — kontrakten selv
+- [Beslutninger](agentpakke-beslutninger.md) — hvorfor nav-pilot oppfører seg som den gjør: bevisste avvik, åpne spørsmål og aksepterte begrensninger
 - [nav-pilot](README.nav-pilot.md) — CLI-et som konsumerer agentpakker
 - [Samlinger](README.collections.md) — legacy-modellen en agentpakke erstatter
 - [Sync](README.sync.md) — hvordan installert innhold holdes oppdatert
