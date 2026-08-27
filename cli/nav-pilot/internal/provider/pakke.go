@@ -14,10 +14,15 @@ import (
 // about to be launched or materialized. WP3's single call site (the staged
 // launch branch in internal/cli) satisfies it by construction — it sets the
 // pakke only after Tier(client) == TierPayload, which requires a declared
-// entry, and schemas/agentpakke-v1.json requires primaryAgents (line 49) with
-// "minItems": 1 (line 56) on every declared client entry, checked by
-// agentpakke.Load before a manifest is ever attached to a source. That is what lets
-// [PrimaryAgent] be a pure manifest read with no fallback.
+// entry, and schemas/agentpakke-v1.json requires a "minItems": 1 primaryAgents
+// on every payload of a Tier 2 entry (and on every Tier 1 entry itself),
+// checked by agentpakke.Load before a manifest is ever attached to a source.
+// That is what lets [PrimaryAgent] and [PrimaryAgentFor] be pure manifest reads
+// with no fallback.
+//
+// The staged path additionally launches a context, so its invariant is that the
+// manifest declares the client *and* the launched context's roster — again by
+// construction: the context comes from the manifest's own payloads map.
 //
 // The manifest itself is held by internal/source, the lowest package both this
 // one and internal/artifacts import — artifacts materializes agent frontmatter
@@ -36,6 +41,24 @@ func SetActivePakke(m *agentpakke.Manifest) { source.SetActivePakke(m) }
 // declares the client it is launching (see [SetActivePakke]).
 func PrimaryAgent(client string) string {
 	agents := source.ActivePakke().PrimaryAgents(client)
+	if len(agents) == 0 {
+		return ""
+	}
+	return agents[0]
+}
+
+// PrimaryAgentFor returns the persona a Tier 2 launch of one client×context
+// starts: the first agent that payload declares.
+//
+// It reads the payload roster only. A Tier 2 client entry's own primaryAgents
+// is not consulted, and not a fallback: the payload trees for one client
+// differ in which agents they ship (grillmester's focused payloads contain
+// only barista and grill-inspektor while the client entry led with
+// grillmester), so a client-level answer is wrong for every context but one.
+// [PrimaryAgent] keeps serving Tier 1 materialization and the legacy launch,
+// where the client entry is the unit that carries the agents.
+func PrimaryAgentFor(client, context string) string {
+	agents := source.ActivePakke().PayloadPrimaryAgents(client, context)
 	if len(agents) == 0 {
 		return ""
 	}

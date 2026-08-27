@@ -21,12 +21,11 @@ const tier2LaunchManifestJSON = `{
   "description": "Grillmester agentpakke",
   "clients": {
     "copilot": {
-      "primaryAgents": ["grillmester", "barista"],
       "defaultModel": "inherit",
       "defaultContext": "full",
       "payloads": {
-        "full": {"path": "plugin"},
-        "focused": {"path": "targets/copilot-cli-focused-v1"}
+        "full": {"path": "plugin", "primaryAgents": ["grillmester", "barista"]},
+        "focused": {"path": "targets/copilot-cli-focused-v1", "primaryAgents": ["barista", "grill-inspektor"]}
       }
     }
   }

@@ -156,11 +156,16 @@ func hintFor(loc []string, msg string) string {
 		case len(loc) == 1:
 			return "declare at least one client entry"
 		case len(loc) == 2:
-			return "a client entry needs primaryAgents; add payloads for Tier 2, or rely on the top-level layout for Tier 1"
+			return `a Tier 1 client entry needs primaryAgents; a Tier 2 entry declares payloads instead, and each payload carries its own primaryAgents`
 		case loc[2] == "primaryAgents":
 			return "list at least one agent name selectable in this client"
 		case loc[2] == "payloads":
-			return `each context maps to {"path": "<dir>"}; its payload manifest resolves to <path>/manifest.json`
+			// len 4 is the payload object itself (a missing required field),
+			// len 5+ is one of its fields.
+			if len(loc) >= 5 && loc[4] == "primaryAgents" {
+				return "list at least one agent name launchable in this context; the first is the context's default persona"
+			}
+			return `each context maps to {"path": "<dir>", "primaryAgents": ["<agent>"]}; the first primaryAgent is that context's default persona, and the payload manifest resolves to <path>/manifest.json`
 		}
 	case "layout":
 		return "layout requires agents and skills as repo-relative paths"

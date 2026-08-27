@@ -274,7 +274,7 @@ const tier2ManifestJSON = `{
   "contractVersion": "1",
   "name": "grillmester",
   "description": "Grillmester agentpakke, pre-built",
-  "clients": {"copilot": {"primaryAgents": ["grillmester"], "payloads": {"full": {"path": "dist/copilot/full"}}}}
+  "clients": {"copilot": {"payloads": {"full": {"path": "dist/copilot/full", "primaryAgents": ["grillmester"]}}}}
 }`
 
 // tier2SourceTree builds a conforming Tier 2 agentpakke: payload tree present,

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -24,8 +25,8 @@ const grillmesterManifest = `{
       "defaultModel": "gpt-5.6-sol",
       "defaultContext": "full",
       "payloads": {
-        "full": { "path": "plugin" },
-        "focused": { "path": "targets/copilot-cli-focused-v1" }
+        "full": { "path": "plugin", "primaryAgents": ["grillmester", "barista", "designer", "doctor-who"] },
+        "focused": { "path": "targets/copilot-cli-focused-v1", "primaryAgents": ["barista", "grill-inspektor"] }
       }
     },
     "opencode": {
@@ -33,8 +34,8 @@ const grillmesterManifest = `{
       "compatibility": ">=1.18.20,<2",
       "defaultModel": "inherit",
       "payloads": {
-        "full": { "path": "targets/opencode-v1" },
-        "focused": { "path": "targets/opencode-v1-focused" }
+        "full": { "path": "targets/opencode-v1", "primaryAgents": ["grillmester", "barista", "designer", "doctor-who"] },
+        "focused": { "path": "targets/opencode-v1-focused", "primaryAgents": ["barista", "grill-inspektor"] }
       }
     }
   },
@@ -77,6 +78,20 @@ func TestParseValidManifest(t *testing.T) {
 	if got := m.DefaultContext("opencode"); got != DefaultContext {
 		t.Errorf("DefaultContext(opencode) = %q, want %q", got, DefaultContext)
 	}
+	// The roster is read from the payload, not the client entry: the focused
+	// payload ships only barista and grill-inspektor (#437, comment
+	// 5437575432), so its default persona is barista, not grillmester.
+	if got := m.PayloadPrimaryAgents("opencode", "focused"); !reflect.DeepEqual(got, []string{"barista", "grill-inspektor"}) {
+		t.Errorf("PayloadPrimaryAgents(opencode, focused) = %v, want [barista grill-inspektor]", got)
+	}
+	if got := m.PayloadPrimaryAgents("opencode", "full"); len(got) == 0 || got[0] != "grillmester" {
+		t.Errorf("PayloadPrimaryAgents(opencode, full) = %v, want grillmester first", got)
+	}
+	// No fallback: an undeclared context has no roster at all, even though the
+	// client entry carries one.
+	if got := m.PayloadPrimaryAgents("opencode", "nonesuch"); got != nil {
+		t.Errorf("PayloadPrimaryAgents(opencode, nonesuch) = %v, want nil (no fallback to the client entry)", got)
+	}
 	if got, ok := m.PayloadManifestPath("opencode", "focused"); !ok || got != "targets/opencode-v1-focused/manifest.json" {
 		t.Errorf("PayloadManifestPath(opencode, focused) = %q, %v; want conventional <path>/manifest.json", got, ok)
 	}
@@ -111,7 +126,9 @@ func TestParseIgnoresUnknownConstructs(t *testing.T) {
 			patch: func(doc map[string]any) {
 				clients := doc["clients"].(map[string]any)
 				oc := clients["opencode"].(map[string]any)
-				oc["payloads"].(map[string]any)["tiny"] = map[string]any{"path": "targets/tiny"}
+				oc["payloads"].(map[string]any)["tiny"] = map[string]any{
+					"path": "targets/tiny", "primaryAgents": []any{"barista"},
+				}
 			},
 			check: func(t *testing.T, m *Manifest) {
 				if _, ok := m.Payload("opencode", "tiny"); !ok {
@@ -175,18 +192,41 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			wantErrs: []string{"contractVersion"},
 		},
 		{
-			name: "missing primaryAgents",
+			// A Tier 1 entry (no payloads) is the unit that carries the
+			// agents, so its own roster is required.
+			name: "tier 1 entry without primaryAgents",
 			patch: func(doc map[string]any) {
-				delete(doc["clients"].(map[string]any)["opencode"].(map[string]any), "primaryAgents")
+				doc["clients"].(map[string]any)["opencode"] = map[string]any{}
+				doc["layout"] = map[string]any{"agents": "agents", "skills": "skills"}
 			},
-			wantErrs: []string{"clients.opencode", "primaryAgents"},
+			wantErrs: []string{"clients.opencode", "primaryAgents", "Tier 1"},
 		},
 		{
 			name: "empty primaryAgents",
 			patch: func(doc map[string]any) {
-				doc["clients"].(map[string]any)["opencode"].(map[string]any)["primaryAgents"] = []any{}
+				doc["clients"].(map[string]any)["opencode"] = map[string]any{"primaryAgents": []any{}}
+				doc["layout"] = map[string]any{"agents": "agents", "skills": "skills"}
 			},
 			wantErrs: []string{"primaryAgents"},
+		},
+		{
+			// A Tier 2 payload is the unit that carries the agents, so each
+			// payload's roster is required — the reference manifest at
+			// 3573b93cc8b7568516117263562d073cae9ee7fc fails exactly here.
+			name: "tier 2 payload without primaryAgents",
+			patch: func(doc map[string]any) {
+				oc := doc["clients"].(map[string]any)["opencode"].(map[string]any)
+				delete(oc["payloads"].(map[string]any)["focused"].(map[string]any), "primaryAgents")
+			},
+			wantErrs: []string{"clients.opencode.payloads.focused", "primaryAgents", "default persona"},
+		},
+		{
+			name: "tier 2 payload with an empty primaryAgents",
+			patch: func(doc map[string]any) {
+				oc := doc["clients"].(map[string]any)["opencode"].(map[string]any)
+				oc["payloads"].(map[string]any)["focused"].(map[string]any)["primaryAgents"] = []any{}
+			},
+			wantErrs: []string{"clients.opencode.payloads.focused.primaryAgents", "minItems"},
 		},
 		{
 			name: "no clients at all",
@@ -213,7 +253,7 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			name: "payload without path",
 			patch: func(doc map[string]any) {
 				oc := doc["clients"].(map[string]any)["opencode"].(map[string]any)
-				oc["payloads"].(map[string]any)["full"] = map[string]any{}
+				oc["payloads"].(map[string]any)["full"] = map[string]any{"primaryAgents": []any{"barista"}}
 			},
 			wantErrs: []string{"payloads", "path"},
 		},
@@ -221,7 +261,7 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			name: "absolute payload path",
 			patch: func(doc map[string]any) {
 				oc := doc["clients"].(map[string]any)["opencode"].(map[string]any)
-				oc["payloads"].(map[string]any)["full"] = map[string]any{"path": "/etc/passwd"}
+				oc["payloads"].(map[string]any)["full"] = map[string]any{"path": "/etc/passwd", "primaryAgents": []any{"barista"}}
 			},
 			wantErrs: []string{"clients.opencode.payloads.full.path", "absolute", "relative"},
 		},
@@ -229,7 +269,7 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			name: "escaping payload path",
 			patch: func(doc map[string]any) {
 				oc := doc["clients"].(map[string]any)["opencode"].(map[string]any)
-				oc["payloads"].(map[string]any)["full"] = map[string]any{"path": "../../elsewhere"}
+				oc["payloads"].(map[string]any)["full"] = map[string]any{"path": "../../elsewhere", "primaryAgents": []any{"barista"}}
 			},
 			wantErrs: []string{"clients.opencode.payloads.full.path", "escapes"},
 		},
@@ -238,8 +278,9 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			patch: func(doc map[string]any) {
 				oc := doc["clients"].(map[string]any)["opencode"].(map[string]any)
 				oc["payloads"].(map[string]any)["full"] = map[string]any{
-					"path":     "targets/opencode-v1",
-					"manifest": "../secrets/manifest.json",
+					"path":          "targets/opencode-v1",
+					"manifest":      "../secrets/manifest.json",
+					"primaryAgents": []any{"barista"},
 				}
 			},
 			wantErrs: []string{"clients.opencode.payloads.full.manifest", "escapes"},
