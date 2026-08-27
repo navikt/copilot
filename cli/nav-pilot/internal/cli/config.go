@@ -299,6 +299,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	if cli.Source != "" {
 		r.Source = cli.Source
 	}
+	if cli.PayloadContext != "" {
+		r.PayloadContext = cli.PayloadContext
+	}
 	if cli.Model != "" {
 		r.Model = cli.Model
 	}

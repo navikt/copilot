@@ -38,7 +38,12 @@ type ResolvedConfig struct {
 	Client string
 	// Source is the agentpakke content source: a git repo "owner/name" or an
 	// absolute path. Empty means the built-in default (navikt/copilot).
-	Source            string
+	Source string
+	// PayloadContext selects which Tier 2 payload context an agentpakke
+	// launch stages ("full", "focused", …). Empty means the context the
+	// manifest declares as default. Unrelated to ContextTier, which is
+	// Copilot's own long-context setting; the two coexist on one command line.
+	PayloadContext    string
 	Model             string // empty = use agent default
 	Mode              string
 	ReasoningEffort   string // empty = unset
@@ -59,7 +64,11 @@ type CLIOverrides struct {
 	Client string
 	// Source is the --source flag value (agentpakke repo "owner/name" or an
 	// absolute path). It takes precedence over the config file's source key.
-	Source          string
+	Source string
+	// PayloadContext is the --payload-context flag value (Tier 2 payload
+	// context id). It has no config-file key: the persistent default is the
+	// agentpakke manifest's defaultContext.
+	PayloadContext  string
 	Model           string
 	Mode            string
 	ReasoningEffort string

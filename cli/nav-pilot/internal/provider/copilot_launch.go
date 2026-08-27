@@ -80,6 +80,21 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	if resolved.Model != "" {
 		args = append(args, "--model", resolved.Model)
 	}
+	args = append(args, copilotResolvedFlags(resolved)...)
+	if cliName == "cplt" {
+		cpltArgs := append([]string{"--agent", "copilot", "--"}, args...)
+		return append(cpltArgs, resolved.ExtraArgs...)
+	}
+	return append(args, resolved.ExtraArgs...)
+}
+
+// copilotResolvedFlags returns the copilot CLI flags that follow the persona
+// and model: the resolved-config tail shared by the legacy launch
+// ([BuildCopilotArgs]) and the staged Tier 2 launch
+// (buildStagedCopilotSpec). Order and emit conditions are pinned by
+// golden_launch_test.go — do not reorder.
+func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
+	var args []string
 	if resolved.Mode != "" && resolved.Mode != "default" {
 		args = append(args, "--mode", resolved.Mode)
 	}
@@ -98,11 +113,7 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	if resolved.LogLevel != "" {
 		args = append(args, "--log-level", resolved.LogLevel)
 	}
-	if cliName == "cplt" {
-		cpltArgs := append([]string{"--agent", "copilot", "--"}, args...)
-		return append(cpltArgs, resolved.ExtraArgs...)
-	}
-	return append(args, resolved.ExtraArgs...)
+	return args
 }
 
 // LaunchCopilotResolved launches the Copilot CLI with the resolved launch config.
@@ -194,7 +205,19 @@ func PrintModelAvailabilityHint(model string) {
 // COPILOT_CUSTOM_INSTRUCTIONS_DIRS if user-scope customizations exist
 // (instructions and/or agents), and OTEL_LOG_LEVEL if otelLogLevel is set.
 func CopilotEnv(otelLogLevel string) []string {
+	return copilotEnv(otelLogLevel, true)
+}
+
+// copilotEnv is CopilotEnv with the user-instructions injection made optional.
+// injectUserInstructions is false for a staged Tier 2 launch, which must not
+// mix the user's own ~/.copilot content into a third-party pakke's session; an
+// exported COPILOT_CUSTOM_INSTRUCTIONS_DIRS is still inherited untouched from
+// os.Environ(), as the reference launcher does.
+func copilotEnv(otelLogLevel string, injectUserInstructions bool) []string {
 	copilotDir := userCopilotDir()
+	if !injectUserInstructions {
+		copilotDir = ""
+	}
 	env := os.Environ()
 	key := "COPILOT_CUSTOM_INSTRUCTIONS_DIRS"
 	if copilotDir != "" {

@@ -722,11 +722,56 @@ func installedAgents(state *StateFile) []string {
 }
 
 func launchClient(resolved ResolvedConfig) error {
+	return launchClientConfirming(resolved, false)
+}
+
+// launchClientConfirming is launchClient with the missing-sandbox
+// confirmation, which only the post-install interactive flow asks for.
+//
+// The question is asked here rather than by the caller because "would run
+// unsandboxed" is only true on the legacy path: a Tier 2 launch requires cplt
+// and refuses without it (fail-closed), and which of the two applies is not
+// known until tryPakkeLaunch has resolved the source and read the tier. Asking
+// first produced a confirmed "yes" that was then refused.
+func launchClientConfirming(resolved ResolvedConfig, confirmUnsandboxed bool) error {
+	handled, err := tryPakkeLaunch(resolved)
+	if err != nil {
+		return err
+	}
+	if handled {
+		return nil
+	}
+	if confirmUnsandboxed && !confirmUnsandboxedLaunch(resolved.Client) {
+		return nil
+	}
 	p, err := providerFor(resolved.Client)
 	if err != nil {
 		return err
 	}
 	return p.Launch(resolved)
+}
+
+// confirmUnsandboxedLaunch warns that cplt is missing and asks whether to
+// launch the client anyway. It reports whether the user agreed.
+func confirmUnsandboxedLaunch(client string) bool {
+	name := client
+	if p, err := providerFor(client); err == nil && p.DisplayName() != "" {
+		name = p.DisplayName()
+	}
+	fmt.Fprintf(os.Stderr, "%s The cplt sandbox was not found — %s would run unsandboxed.\n",
+		yellow("⚠"), name)
+	var ok bool
+	if err := huh.NewConfirm().
+		Title("Launch without the cplt sandbox?").
+		Value(&ok).
+		WithTheme(navTheme()).
+		Run(); err != nil {
+		return false
+	}
+	if ok {
+		fmt.Println()
+	}
+	return ok
 }
 
 // launchDecision is what offerLaunchCopilot should do about launching.
@@ -808,23 +853,15 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	case launchSkipOptedOut:
 		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", cmdName)))
 		return
-	case launchConfirmUnsandboxed:
-		fmt.Fprintf(os.Stderr, "%s The cplt sandbox was not found — %s would run unsandboxed.\n",
-			yellow("⚠"), p.DisplayName())
-		var ok bool
-		if err := huh.NewConfirm().
-			Title("Launch without the cplt sandbox?").
-			Value(&ok).
-			WithTheme(navTheme()).
-			Run(); err != nil || !ok {
-			return
-		}
-		fmt.Println()
 	}
+
+	// The missing-sandbox confirmation is deferred into the launch itself: see
+	// launchClientConfirming.
+	confirmUnsandboxed := decision == launchConfirmUnsandboxed
 
 	fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
 	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchClient(resolved)
+		return launchClientConfirming(resolved, confirmUnsandboxed)
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Launch failed: %v\n", yellow("⚠"), err)
 	}
