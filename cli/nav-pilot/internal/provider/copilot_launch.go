@@ -37,8 +37,12 @@ func FindCopilotCLI() (path, name string) {
 
 // isCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
 // its version output. Returns true if the binary identifies as cplt/sandbox.
+// The spawn is bounded: FindCopilotCLI runs it on every launch path where a
+// plain `copilot` binary is on PATH, and a hanging binary must not hang us.
 func isCplt(binPath string) bool {
-	out, err := exec.Command(binPath, "--version").CombinedOutput()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, binPath, "--version").CombinedOutput()
 	if err != nil {
 		return false
 	}

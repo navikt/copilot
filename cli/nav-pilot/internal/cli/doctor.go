@@ -1,13 +1,11 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
@@ -97,8 +95,6 @@ func cmdDoctor() error {
 
 	// 3. Client Agents
 	fmt.Printf("[i] Client Agents\n")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
 
 	// copilot (cplt)
 	fmt.Printf("    • copilot (cplt)\n")
@@ -108,7 +104,7 @@ func cmdDoctor() error {
 		fmt.Printf("      %s Binary not found on PATH\n", red("[✗]"))
 		fmt.Printf("          %s Install cplt via Homebrew: %s\n", red("Solution:"), bold("brew install navikt/tap/cplt"))
 	} else {
-		versionOut, err := exec.CommandContext(ctx, cpltPath, "--version").Output()
+		versionOut, err := runBounded(cpltPath, "--version")
 		version := strings.TrimSpace(string(versionOut))
 		if err != nil {
 			version = "unknown"
@@ -116,16 +112,18 @@ func cmdDoctor() error {
 		fmt.Printf("      %s Binary found: %s (%s)\n", green("✓"), cpltPath, version)
 
 		// Version skew is warn-only: nav-pilot never downloads or upgrades cplt,
-		// and a slow or offline GitHub must not fail the health check.
+		// and a slow or offline GitHub must not fail the health check. An
+		// unreadable installed version reports unknown, never "up to date".
 		installed := parseCpltVersion(version)
-		switch latest, lerr := latestCpltVersion(); {
-		case lerr != nil || latest == "":
-			fmt.Printf("      %s Could not check for a newer cplt release\n", dim("-"))
-		case versionNewer(latest, installed):
+		latest, lerr := latestCpltVersion()
+		switch classifyCpltSkew(installed, latest, lerr) {
+		case cpltVersionBehind:
 			fmt.Printf("      %s cplt %s is out of date (latest: %s)\n", yellow("⚠"), installed, latest)
 			fmt.Printf("          %s Run %s\n", yellow("Solution:"), bold("brew upgrade navikt/tap/cplt"))
-		default:
+		case cpltVersionCurrent:
 			fmt.Printf("      %s cplt is up to date\n", green("✓"))
+		default:
+			fmt.Printf("      %s Could not check for a newer cplt release\n", dim("-"))
 		}
 
 		// Security posture. A recommendation, not a failure — and an unknown
@@ -196,12 +194,21 @@ func cmdDoctor() error {
 	// 4. Project Security
 	fmt.Printf("[i] Project Security (.cplt.toml)\n")
 	if cpltPath != "" {
-		cfgOut, _ := exec.CommandContext(ctx, cpltPath, "config", "show").CombinedOutput()
-		if strings.Contains(string(cfgOut), "pending approval") || strings.Contains(string(cfgOut), "pending") {
+		// Its own deadline: an earlier slow check must not be able to starve
+		// this one into an empty read, which would print a false "trusted".
+		cfgOut, cfgErr := runBoundedCombined(cpltPath, "config", "show")
+		switch {
+		case strings.Contains(string(cfgOut), "pending"):
 			hasErrors = true
 			fmt.Printf("    %s Pending permissions detected!\n", red("[✗]"))
 			fmt.Printf("        %s Run %s in this directory to approve new sandbox rules.\n", red("Solution:"), bold("cplt trust"))
-		} else {
+		case cfgErr != nil:
+			// Unreadable config is unknown, not trusted: never print a green
+			// tick for rules we failed to look at.
+			hasErrors = true
+			fmt.Printf("    %s Could not read cplt config (%v)\n", yellow("⚠"), cfgErr)
+			fmt.Printf("        %s Run %s in this directory to check for pending sandbox rules.\n", yellow("Solution:"), bold("cplt trust"))
+		default:
 			if _, err := os.Stat(".cplt.toml"); err == nil {
 				fmt.Printf("    %s .cplt.toml rules are trusted\n", green("✓"))
 			} else {

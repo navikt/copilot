@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -167,7 +168,8 @@ func TestParseCpltVersion(t *testing.T) {
 	tests := []struct{ out, want string }{
 		{"cplt 2026.08.24-153138-0d1d66d", "2026.08.24-153138-0d1d66d"},
 		{"cplt 2026.08.24-153138-0d1d66d\n", "2026.08.24-153138-0d1d66d"},
-		{"unknown", "unknown"},
+		{"cplt dev", ""},
+		{"unknown", ""},
 		{"", ""},
 	}
 	for _, tc := range tests {
@@ -180,17 +182,78 @@ func TestParseCpltVersion(t *testing.T) {
 func TestCpltVersionSkew(t *testing.T) {
 	const latest = "2026.08.26-201133-2e78d25"
 	tests := []struct {
-		name, versionOut string
-		wantBehind       bool
+		name, versionOut, latest string
+		lookupErr                error
+		want                     cpltSkew
 	}{
-		{"older", "cplt 2026.08.24-153138-0d1d66d", true},
-		{"same", "cplt " + latest, false},
-		{"newer (local build)", "cplt 2026.09.01-090000-aaaaaaa", false},
-		{"unparseable version output", "unknown", false},
+		{"older", "cplt 2026.08.24-153138-0d1d66d", latest, nil, cpltVersionBehind},
+		{"same", "cplt " + latest, latest, nil, cpltVersionCurrent},
+		{"newer (local build)", "cplt 2026.09.01-090000-aaaaaaa", latest, nil, cpltVersionCurrent},
+		// An unreadable installed version must never read as up to date.
+		{"unparseable version output", "unknown", latest, nil, cpltVersionUnknown},
+		{"dev build", "cplt dev", latest, nil, cpltVersionUnknown},
+		{"lookup failed", "cplt " + latest, "", errors.New("no network"), cpltVersionUnknown},
+		{"empty latest", "cplt " + latest, "", nil, cpltVersionUnknown},
 	}
 	for _, tc := range tests {
-		if got := versionNewer(latest, parseCpltVersion(tc.versionOut)); got != tc.wantBehind {
-			t.Errorf("%s: behind = %v, want %v", tc.name, got, tc.wantBehind)
+		got := classifyCpltSkew(parseCpltVersion(tc.versionOut), tc.latest, tc.lookupErr)
+		if got != tc.want {
+			t.Errorf("%s: classifyCpltSkew = %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+// A GITHUB_TOKEN that is valid for packages but not for api.github.com answers
+// 401 here; the releases API is public, so the check must fall back to an
+// anonymous request instead of going dark for good.
+func TestFetchLatestRelease_RetriesAnonymouslyOn401(t *testing.T) {
+	var attempts []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts = append(attempts, r.Header.Get("Authorization"))
+		if r.Header.Get("Authorization") != "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `[{"tag_name": "2026.08.26-201133-2e78d25"}]`)
+	}))
+	defer srv.Close()
+
+	origClient := httpClient
+	httpClient = srv.Client()
+	defer func() { httpClient = origClient }()
+	t.Setenv("GITHUB_TOKEN", "packages-only-token")
+
+	ver, _, err := fetchLatestRelease(context.Background(), srv.URL, "")
+	if err != nil {
+		t.Fatalf("fetchLatestRelease: %v", err)
+	}
+	if ver != "2026.08.26-201133-2e78d25" {
+		t.Errorf("ver = %q, want the release from the anonymous retry", ver)
+	}
+	if len(attempts) != 2 || attempts[0] == "" || attempts[1] != "" {
+		t.Errorf("attempts = %q, want an authenticated request followed by an anonymous one", attempts)
+	}
+}
+
+// Without a token there is nothing to retry: a 401 stays an error.
+func TestFetchLatestRelease_NoRetryWithoutToken(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	origClient := httpClient
+	httpClient = srv.Client()
+	defer func() { httpClient = origClient }()
+	t.Setenv("GITHUB_TOKEN", "")
+
+	if _, _, err := fetchLatestRelease(context.Background(), srv.URL, ""); err == nil {
+		t.Fatal("fetchLatestRelease = nil error, want a failure")
+	}
+	if calls != 1 {
+		t.Errorf("calls = %d, want 1", calls)
 	}
 }
