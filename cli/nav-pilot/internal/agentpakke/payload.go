@@ -199,6 +199,27 @@ func isSHA256Hex(s string) bool {
 // nothing an agentpakke author gains from a full list of what else is wrong
 // with a tree that will not be staged either way.
 func VerifyPayload(payloadDir, manifestPath string) error {
+	return verifyPayload(payloadDir, manifestPath, false)
+}
+
+// VerifyPayloadExact is [VerifyPayload] with the reference's exact mode
+// comparison — every file's permission bits must equal what the manifest
+// declares, not merely be a subset of them.
+//
+// It is for a tree nav-pilot created itself and therefore controls: the staging
+// package copies a source payload file by file and chmods each file to its
+// declared mode, so the subset tolerance that a foreign checkout needs (see the
+// deviation note in [verifyPayloadFile]) is not only unnecessary there but
+// actively unwanted — on a tree we chmod'd, a mode that is merely a subset
+// means the chmod did not take, and that is a bug worth failing on.
+//
+// Do not point this at a source checkout: a clone made under umask 0077 is
+// content-identical and would be rejected.
+func VerifyPayloadExact(payloadDir, manifestPath string) error {
+	return verifyPayload(payloadDir, manifestPath, true)
+}
+
+func verifyPayload(payloadDir, manifestPath string, exact bool) error {
 	data, err := readPayloadManifestFile(manifestPath)
 	if err != nil {
 		return err
@@ -207,7 +228,7 @@ func VerifyPayload(payloadDir, manifestPath string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", manifestPath, err)
 	}
-	return m.verifyTree(payloadDir, manifestPath)
+	return m.verifyTree(payloadDir, manifestPath, exact)
 }
 
 // readPayloadManifestFile reads the payload manifest itself under the same
@@ -233,7 +254,7 @@ func readPayloadManifestFile(manifestPath string) ([]byte, error) {
 
 // verifyTree walks the payload directory and compares it against the manifest
 // in both directions.
-func (m *PayloadManifest) verifyTree(payloadDir, manifestPath string) error {
+func (m *PayloadManifest) verifyTree(payloadDir, manifestPath string, exact bool) error {
 	info, err := os.Lstat(payloadDir)
 	if err != nil {
 		return fmt.Errorf("payload directory %s is unavailable: %v", payloadDir, err)
@@ -280,7 +301,7 @@ func (m *PayloadManifest) verifyTree(payloadDir, manifestPath string) error {
 				"payload contains %q, which the payload manifest does not list; nav-pilot refuses to stage an unmanifested file", rel)
 		}
 		seen[rel] = true
-		return verifyPayloadFile(abs, rel, rec)
+		return verifyPayloadFile(abs, rel, rec, exact)
 	})
 	if walkErr != nil {
 		return walkErr
@@ -300,34 +321,38 @@ func (m *PayloadManifest) verifyTree(payloadDir, manifestPath string) error {
 	return nil
 }
 
-// verifyPayloadFile compares one file's content digest and mode against its
-// manifest record.
-func verifyPayloadFile(abs, rel string, rec FileRecord) error {
-	// The walk lstat'd this path as a regular file, but that lstat and this open
-	// are two syscalls apart, so both flags below defend against what can be
-	// swapped in during that window:
-	//
-	//   O_NOFOLLOW — without it a symlink swapped in is followed, and a link
-	//     whose target happens to match the digest verifies clean. The open
-	//     fails with ELOOP instead.
-	//   O_NONBLOCK — without it a fifo swapped in blocks this goroutine inside
-	//     open(2) forever, hanging `nav-pilot validate` on a hostile or merely
-	//     broken source. POSIX gives O_NONBLOCK no effect on regular files, so
-	//     it costs nothing on the path that actually matters.
-	//
-	// The reference implementation (which lstats, then read_bytes) has neither.
+// openPayloadFile opens one payload file for hashing and returns it together
+// with the stat of the descriptor itself.
+//
+// The caller lstat'd this path as a regular file, but that lstat and this open
+// are two syscalls apart, so both flags below defend against what can be
+// swapped in during that window:
+//
+//	O_NOFOLLOW — without it a symlink swapped in is followed, and a link
+//	  whose target happens to match the digest verifies clean. The open
+//	  fails with ELOOP instead.
+//	O_NONBLOCK — without it a fifo swapped in blocks this goroutine inside
+//	  open(2) forever, hanging `nav-pilot validate` on a hostile or merely
+//	  broken source. POSIX gives O_NONBLOCK no effect on regular files, so
+//	  it costs nothing on the path that actually matters.
+//
+// The reference implementation (which lstats, then read_bytes) has neither.
+//
+// Staging reads its source files through here too, so the same window is closed
+// on the copy as on the verification that precedes it.
+func openPayloadFile(abs, rel string) (*os.File, fs.FileInfo, error) {
 	f, err := os.OpenFile(abs, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
 	if err != nil {
-		return fmt.Errorf("reading payload file %q: %v", rel, err)
+		return nil, nil, fmt.Errorf("reading payload file %q: %v", rel, err)
 	}
-	defer f.Close()
 
 	// Stat the open descriptor rather than the path, so what is checked belongs
-	// to the same inode whose bytes are hashed below — a path-based stat could
-	// be redirected between the read and the stat.
+	// to the same inode whose bytes are hashed by the caller — a path-based stat
+	// could be redirected between the read and the stat.
 	info, err := f.Stat()
 	if err != nil {
-		return fmt.Errorf("inspecting payload file %q: %v", rel, err)
+		f.Close()
+		return nil, nil, fmt.Errorf("inspecting payload file %q: %v", rel, err)
 	}
 	// Re-check regularity on the descriptor, not just on the walk's lstat: that
 	// is what closes the swapped-in-fifo race rather than merely surviving it.
@@ -337,9 +362,22 @@ func verifyPayloadFile(abs, rel string, rec FileRecord) error {
 	// the entry changed type after the walk saw it, which is a different event
 	// from a payload that simply ships a fifo.
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf(
+		f.Close()
+		return nil, nil, fmt.Errorf(
 			"payload file %q is not a regular file; it changed type between the payload walk and the open", rel)
 	}
+	return f, info, nil
+}
+
+// verifyPayloadFile compares one file's content digest and mode against its
+// manifest record. exact selects the staged-tree mode rule (see
+// [VerifyPayloadExact]) over the source-tree one.
+func verifyPayloadFile(abs, rel string, rec FileRecord, exact bool) error {
+	f, info, err := openPayloadFile(abs, rel)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
 	digest := sha256.New()
 	if _, err := io.Copy(digest, f); err != nil {
@@ -378,15 +416,28 @@ func verifyPayloadFile(abs, rel string, rec FileRecord) error {
 	// FileMode.Perm() masks to 0777, so those bits are invisible to the subset
 	// comparison and a setuid 04755 file would otherwise verify clean.
 	//
-	// Exact modes are still enforced where they matter: the staging package
-	// chmods the staged tree to the manifest's modes and re-runs the full exact
-	// check on it before any client is pointed at it.
+	// Exact modes are still enforced where they matter: [StagePayload] chmods
+	// the staged tree to the manifest's modes and re-runs this check through
+	// [VerifyPayloadExact] before any client is pointed at it.
 	if special := info.Mode() & (os.ModeSetuid | os.ModeSetgid | os.ModeSticky); special != 0 {
 		return fmt.Errorf(
 			"payload file %q carries setuid/setgid/sticky bits (mode %v); nav-pilot refuses to stage a privileged file",
 			rel, info.Mode())
 	}
 	perm := info.Mode().Perm()
+	if exact {
+		// The staged tree was written and chmod'd by this process, so anything
+		// but an exact match means the chmod did not take (a filesystem that
+		// drops modes, a umask applied where we thought we had overridden it) —
+		// and a payload staged at modes nav-pilot did not choose is exactly what
+		// the manifest's mode field exists to prevent.
+		if perm != want {
+			return fmt.Errorf(
+				"staged payload file %q is mode %04o but the payload manifest declares %s; the staged tree must match the manifest's modes exactly",
+				rel, perm, rec.Mode)
+		}
+		return nil
+	}
 	if (perm&0o111 != 0) != (want&0o111 != 0) {
 		return fmt.Errorf(
 			"payload file %q is mode %04o but the payload manifest declares %s; the executable bit does not match",

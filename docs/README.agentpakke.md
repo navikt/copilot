@@ -106,6 +106,7 @@ Utover manifestets form sjekker `nav-pilot validate` (og install) innholdet:
 - Hver Tier 2 `payloads.<kontekst>.path` finnes som katalog.
 - Hver Tier 2-payload har et payload-manifest — `<path>/manifest.json`, eller filen `manifest` peker på. nav-pilot nekter å stage en payload uten manifest.
 - Hvert payload-tre stemmer eksakt med payload-manifestet sitt: `schemaVersion` er 1, hver oppføring i `files` har en gyldig sha256 (64 tegn, små bokstaver) og modus `0644` eller `0755`, hver deklarert fil finnes med riktig innhold, og treet inneholder ingen fil manifestet ikke lister. Symlinker og andre ikke-vanlige filer avvises. Modus sjekkes som kjørbit på kilden, slik at en streng `umask` i checkouten ikke gir falske avvik — eksakt modus settes og verifiseres når payloaden stages.
+- En payload kan ikke selv ha en fil som heter `manifest.json` i rota. Staging skriver payload-manifestet dit i det stagede treet, så navnet er opptatt. Dette kan bare oppstå når `manifest` peker på en fil utenfor payload-katalogen; ligger manifestet på konvensjonsplassen, er det manifestet.
 - `policies.opencodePermissions` finnes som fil hvis den er satt.
 - `profiles.dir` finnes som katalog, og `<dir>/<default>.json` finnes hvis `profiles.default` er satt.
 

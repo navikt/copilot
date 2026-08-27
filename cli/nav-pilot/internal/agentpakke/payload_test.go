@@ -469,7 +469,7 @@ func TestVerifyPayloadFileRefusesToFollowSymlink(t *testing.T) {
 	// The record matches what the link resolves to, so only O_NOFOLLOW can
 	// reject this.
 	rec := FileRecord{SHA256: sha256Hex("MIT\n"), Mode: "0644"}
-	err := verifyPayloadFile(link, "LICENSE", rec)
+	err := verifyPayloadFile(link, "LICENSE", rec, false)
 	if err == nil {
 		t.Fatal("verifyPayloadFile followed a symlink to a digest-matching target, want an open failure")
 	}
@@ -494,7 +494,7 @@ func TestVerifyPayloadFileRejectsNonRegularDescriptor(t *testing.T) {
 	rec := FileRecord{SHA256: sha256Hex(""), Mode: "0644"}
 
 	done := make(chan error, 1)
-	go func() { done <- verifyPayloadFile(pipe, "pipe", rec) }()
+	go func() { done <- verifyPayloadFile(pipe, "pipe", rec, false) }()
 	select {
 	case err := <-done:
 		if err == nil {
