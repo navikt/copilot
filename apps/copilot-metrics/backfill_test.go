@@ -109,3 +109,27 @@ func searchString(s, substr string) bool {
 	}
 	return false
 }
+
+// TestRunBackfill_HighWaterMarkSpansScopes pins the manual backfill to the same
+// cross-scope resume point as the nightly ingestMissing: when the newest entity
+// metrics landed under the org scope_id, an enterprise-only MAX(day) reads as
+// "no data", the loop restarts from the caller's start date, and every day it
+// walks over is re-ingested under whichever scope the fetch resolves to.
+func TestRunBackfill_HighWaterMarkSpansScopes(t *testing.T) {
+	store := newScopedStore()
+	store.seed(tableUsageMetrics, daysAgo(1), "navikt", 1)
+
+	// The enterprise endpoint has recovered, so a fetch would resolve to "nav".
+	fetcher := &supplementaryFetcher{scope: "enterprise", scopeID: "nav", records: 1}
+
+	if err := runBackfill(context.Background(), fetcher, store, supplementaryConfig(), daysAgo(3), false); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if fetcher.entityFetches != 0 {
+		t.Errorf("expected the org-scoped high-water mark to be seen, got %d entity fetches", fetcher.entityFetches)
+	}
+	if got := store.count(tableUsageMetrics, daysAgo(1), "nav"); got != 0 {
+		t.Errorf("expected no enterprise-scoped copy of the org-stored day, got %d rows", got)
+	}
+}

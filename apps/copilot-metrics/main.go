@@ -504,9 +504,31 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 // where supplementary reports weren't available when entity metrics were first
 // ingested (GitHub may take 24-48h to generate them).
 //
-// Existence is probed across every scope a report can be stored under, and the
-// write goes through upsertReport — see reportScopeIDs for why looking only at
-// the enterprise slug and inserting blindly duplicated rows on every run.
+// The existence probes below are deliberately not uniform, and what decides the
+// shape is the table's *consumer*, not which code path does the probing:
+//
+//   - Read through an enterprise-pinned filter — user_teams and user_metrics,
+//     whose every aggregate in copilot-api's bigquery_stats.go pins
+//     scope = 'enterprise'. Probe the enterprise scope ONLY. A report that
+//     landed under the org scope_id (the enterprise report endpoint was down
+//     that night and the fallback took over) is invisible to those aggregates,
+//     so a cross-scope probe would spot that copy, skip the day, and freeze it
+//     at zero users forever. Re-fetching stores the enterprise-scoped copy they
+//     need; upsertReport bounds the cost at one copy per scope, replacing its
+//     own rows on later runs rather than appending a fresh set.
+//
+//   - Read with no scope filter — repository_metrics, whose only consumer is
+//     views/v_repository_usage.sql, which groups by scope_id and filters on
+//     nothing else. Probe EVERY scope. An org-stored day is already fully
+//     visible there, so there is nothing to heal; a second copy would instead
+//     split each repo into two rows with split PR counts, each half measured
+//     against `HAVING pr_total_created >= 5` on its own, which drops borderline
+//     repos off the dashboard. runRepoMetricsBackfill probes the same way, for
+//     the same reason.
+//
+// The entity gate spans scopes too, but on a third ground: it only decides
+// whether the day is worth topping up at all, and a cross-scope answer is what
+// stops the day being ingested a second time under the other scope_id.
 func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config) {
 	scopeIDs := reportScopeIDs(cfg)
 	today := time.Now().UTC().Truncate(24 * time.Hour)
@@ -530,7 +552,7 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 		}
 
 		// Check and fill user-teams
-		teamsExists, err := dayExistsInAnyScope(ctx, bq.UserTeamsDayExists, day, scopeIDs)
+		teamsExists, err := bq.UserTeamsDayExists(ctx, day, cfg.EnterpriseSlug)
 		if err != nil {
 			slog.Warn("Failed to check user-teams existence", "day", dayStr, "error", err)
 		} else if !teamsExists {
@@ -544,11 +566,13 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 					// A streaming-buffer rejection is expected and self-healing,
 					// so it is logged at Info here and at the two sites below,
 					// matching ingestSupplementary and runRepoMetricsBackfill.
-					// Reaching it needs upsertReport to find rows under a
-					// scope_id the probe above did not cover, which the current
-					// reportScopeIDs makes unlikely — but a narrower scope list
-					// (or a third scope) puts it back in play, and a spurious
-					// warning out of the nightly job is not free.
+					// The enterprise-only probe above reads "missing" for a day
+					// whose rows sit under the org scope_id, so upsertReport
+					// routinely finds rows to delete here — and a DELETE inside
+					// the ~90-minute streaming buffer is rejected. (The
+					// cross-scope repo-metrics probe reaches it only when the
+					// fetch resolves to a scope reportScopeIDs does not list.)
+					// A spurious warning out of the nightly job is not free.
 					if errors.Is(storeErr, ErrStreamingBuffer) {
 						slog.Info("Skipping user-teams re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
 					} else {
@@ -562,7 +586,7 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 		}
 
 		// Check and fill per-user metrics
-		usersExists, err := dayExistsInAnyScope(ctx, bq.UserMetricsDayExists, day, scopeIDs)
+		usersExists, err := bq.UserMetricsDayExists(ctx, day, cfg.EnterpriseSlug)
 		if err != nil {
 			slog.Warn("Failed to check user-metrics existence", "day", dayStr, "error", err)
 		} else if !usersExists {

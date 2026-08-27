@@ -230,28 +230,46 @@ func TestIngestMissingSupplementary_RepeatedRunsDoNotDuplicate(t *testing.T) {
 		entityScope  string
 		reportScope  string
 		reportScopeI string
+		wantFetches  int
+		// repository_metrics is probed across scopes, so it stops re-fetching
+		// as soon as the day exists under any scope_id — unlike the
+		// enterprise-pinned tables, which keep healing an org-stored day.
+		wantRepoFetches int
 	}{
 		{
 			name:         "entity and reports both enterprise-scoped",
 			entityScope:  "nav",
 			reportScope:  "enterprise",
 			reportScopeI: "nav",
+			// The enterprise-only report probe sees the day it just wrote.
+			wantFetches:     1,
+			wantRepoFetches: 1,
 		},
 		{
 			// The duplicating combination: entity metrics came from the
 			// enterprise endpoint, the supplementary reports fell back to the
-			// org endpoint, so they were stored under a scope_id the gap-fill
-			// never looked at.
-			name:         "enterprise entity, org-scoped reports",
-			entityScope:  "nav",
-			reportScope:  "organization",
-			reportScopeI: "navikt",
+			// org endpoint, so they are stored under a scope_id the
+			// enterprise-pinned aggregates in copilot-api never read.
+			//
+			// The re-fetch on every run is what that buys: the moment the
+			// enterprise report endpoint recovers, the very next run stores an
+			// enterprise-scoped copy and the day stops reporting zero users.
+			// Skipping it instead would freeze the day permanently. upsertReport
+			// keeps the cost at one copy per scope no matter how often it runs.
+			name:            "enterprise entity, org-scoped reports",
+			entityScope:     "nav",
+			reportScope:     "organization",
+			reportScopeI:    "navikt",
+			wantFetches:     3,
+			wantRepoFetches: 1,
 		},
 		{
-			name:         "entity and reports both org-scoped",
-			entityScope:  "navikt",
-			reportScope:  "organization",
-			reportScopeI: "navikt",
+			name:            "entity and reports both org-scoped",
+			entityScope:     "navikt",
+			reportScope:     "organization",
+			reportScopeI:    "navikt",
+			wantFetches:     3,
+			wantRepoFetches: 1,
 		},
 	}
 
@@ -278,25 +296,68 @@ func TestIngestMissingSupplementary_RepeatedRunsDoNotDuplicate(t *testing.T) {
 					t.Errorf("%s: expected 3 rows after 3 runs, got %d (rows duplicated per run)", table, got)
 				}
 			}
-			if fetcher.teamsFetches != 1 {
-				t.Errorf("expected the user-teams report to be fetched once, got %d", fetcher.teamsFetches)
+			if fetcher.teamsFetches != tt.wantFetches {
+				t.Errorf("expected %d user-teams fetches over 3 runs, got %d", tt.wantFetches, fetcher.teamsFetches)
+			}
+			if fetcher.reposFetches != tt.wantRepoFetches {
+				t.Errorf("expected %d repo-metrics fetches over 3 runs, got %d", tt.wantRepoFetches, fetcher.reposFetches)
 			}
 		})
 	}
 }
 
-// TestIngestMissingSupplementary_SkipsDayStoredUnderOtherScope covers the same
-// day being present under one scope while the gap-fill runs with the other
-// configured: the day must not be ingested a second time under the other scope.
-func TestIngestMissingSupplementary_SkipsDayStoredUnderOtherScope(t *testing.T) {
+// TestIngestMissingSupplementary_ScopeMismatch pins what the gap-fill does when
+// a day's reports sit under one scope_id while the fetch resolves to the other.
+//
+// The answer differs per table, and the discriminator is the consumer:
+//
+//   - user_teams / user_metrics are read through an enterprise-pinned filter, so
+//     an org-stored day is invisible and must be HEALED: re-fetch once, write the
+//     enterprise-scoped copy, then leave it alone.
+//   - repository_metrics is read by a view that groups by scope_id with no
+//     filter, so an org-stored day is already visible and a second copy would
+//     SPLIT the repo across two rows. Skip it.
+//
+// Three runs, so healing is pinned as bounded: upsertReport replaces its own
+// rows, it never stacks a third set.
+func TestIngestMissingSupplementary_ScopeMismatch(t *testing.T) {
 	tests := []struct {
 		name         string
 		storedScope  string
 		fetchedScope string
 		fetchedID    string
+		// Rows expected per scope_id, for the enterprise-pinned tables and for
+		// repository_metrics respectively.
+		wantPinned       map[string]int
+		wantRepos        map[string]int
+		wantTeamsFetches int
+		wantReposFetches int
 	}{
-		{name: "stored enterprise, fetch resolves to org", storedScope: "nav", fetchedScope: "organization", fetchedID: "navikt"},
-		{name: "stored org, fetch resolves to enterprise", storedScope: "navikt", fetchedScope: "enterprise", fetchedID: "nav"},
+		{
+			// Stored under the scope every consumer already reads: nothing to
+			// do for any table.
+			name:             "stored enterprise, fetch resolves to org",
+			storedScope:      "nav",
+			fetchedScope:     "organization",
+			fetchedID:        "navikt",
+			wantPinned:       map[string]int{"nav": 4, "navikt": 0},
+			wantRepos:        map[string]int{"nav": 4, "navikt": 0},
+			wantTeamsFetches: 0,
+			wantReposFetches: 0,
+		},
+		{
+			// The case the two rules pull apart: the same org-stored day is a
+			// hole for the enterprise-pinned tables and a duplicate risk for
+			// repository_metrics.
+			name:             "stored org, fetch resolves to enterprise",
+			storedScope:      "navikt",
+			fetchedScope:     "enterprise",
+			fetchedID:        "nav",
+			wantPinned:       map[string]int{"navikt": 4, "nav": 4},
+			wantRepos:        map[string]int{"navikt": 4, "nav": 0},
+			wantTeamsFetches: 1,
+			wantReposFetches: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -313,18 +374,27 @@ func TestIngestMissingSupplementary_SkipsDayStoredUnderOtherScope(t *testing.T) 
 
 			fetcher := &supplementaryFetcher{scope: tt.fetchedScope, scopeID: tt.fetchedID, records: 4}
 
-			ingestMissingSupplementary(ctx, fetcher, store, cfg)
+			for range 3 {
+				ingestMissingSupplementary(ctx, fetcher, store, cfg)
+			}
 
-			for _, table := range []string{tableUserTeams, tableUserMetrics, tableRepoMetrics} {
-				if got := store.countAllScopes(table, day); got != 4 {
-					t.Errorf("%s: expected the day to stay at 4 rows, got %d across scopes", table, got)
-				}
-				if got := store.count(table, day, tt.fetchedID); got != 0 && tt.fetchedID != tt.storedScope {
-					t.Errorf("%s: expected no second copy under scope_id %q, got %d rows", table, tt.fetchedID, got)
+			wantByTable := map[string]map[string]int{
+				tableUserTeams:   tt.wantPinned,
+				tableUserMetrics: tt.wantPinned,
+				tableRepoMetrics: tt.wantRepos,
+			}
+			for table, want := range wantByTable {
+				for scopeID, n := range want {
+					if got := store.count(table, day, scopeID); got != n {
+						t.Errorf("%s: expected %d rows under scope_id %q, got %d", table, n, scopeID, got)
+					}
 				}
 			}
-			if fetcher.teamsFetches != 0 {
-				t.Errorf("expected no fetch for a day already stored, got %d", fetcher.teamsFetches)
+			if fetcher.teamsFetches != tt.wantTeamsFetches {
+				t.Errorf("expected %d user-teams fetches over 3 runs, got %d", tt.wantTeamsFetches, fetcher.teamsFetches)
+			}
+			if fetcher.reposFetches != tt.wantReposFetches {
+				t.Errorf("expected %d repo-metrics fetches over 3 runs, got %d", tt.wantReposFetches, fetcher.reposFetches)
 			}
 		})
 	}
@@ -750,16 +820,17 @@ func maxLevelMentioning(records []slog.Record, substr string) (slog.Level, bool)
 // an expected, self-healing condition, not something to warn the nightly job's
 // watchers about.
 //
-// The branch is reached by giving the probe a narrower scope list than the fetch
-// resolves to — enterprise and org slug set to the same value, so the day's rows
-// under the org scope_id are invisible to the existence probe but found by
-// upsertReport, which then has to delete them.
+// The branch is reached for all three reports at once by leaving the org slug
+// unset: the rows sit under a scope_id no probe covers — not the enterprise-only
+// ones, not the cross-scope repo-metrics one — so every probe reads "missing"
+// while upsertReport, keyed on the scope the fetch resolved to, finds the rows
+// and has to delete them first.
 func TestIngestMissingSupplementary_StreamingBufferLogsAtInfo(t *testing.T) {
 	logs := captureLogs(t)
 
 	ctx := context.Background()
 	day := daysAgo(1)
-	cfg := &Config{EnterpriseSlug: "nav", OrganizationSlug: "nav"}
+	cfg := &Config{EnterpriseSlug: "nav"}
 
 	store := newScopedStore()
 	store.seed(tableUsageMetrics, day, "nav", 1)

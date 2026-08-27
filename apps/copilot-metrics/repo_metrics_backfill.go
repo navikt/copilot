@@ -85,11 +85,23 @@ func runRepoMetricsBackfill(ctx context.Context, gh RepoMetricsFetcher, bq RepoM
 
 		dayStr := day.Format("2006-01-02")
 
-		// Cheap skip using the enterprise slug. If the report was stored under
-		// an org scope_id instead, this reports "not exists" and we fall
-		// through to upsertReport, which re-checks with the real scope.
+		// Skip a day that already has rows under ANY scope_id the report may
+		// have landed under. An enterprise-only probe reads "not exists" for an
+		// org-stored day, and upsertReport — correctly keyed on the scope the
+		// fetch resolved to — then writes a second copy under the enterprise
+		// scope_id. v_repository_usage groups by scope_id, so that splits every
+		// affected repo into two rows with split PR counts, and its
+		// `HAVING pr_total_created >= 5` guard is applied to each half on its
+		// own, dropping borderline repos off the dashboard entirely.
+		//
+		// This is the opposite call from the report probes in
+		// ingestMissingSupplementary, and for a reason that lives in the
+		// consumers: nothing reads repository_metrics through an
+		// enterprise-pinned filter, so an org-stored day is already visible and
+		// there is no wrong-scope day to heal here — only a split to avoid.
+		// Use --force to deliberately re-ingest.
 		if !force {
-			exists, err := bq.RepoMetricsDayExists(ctx, day, cfg.EnterpriseSlug)
+			exists, err := dayExistsInAnyScope(ctx, bq.RepoMetricsDayExists, day, reportScopeIDs(cfg))
 			if err != nil {
 				slog.Warn("Failed to check repo-metrics existence", "day", dayStr, "error", err)
 			} else if exists {
