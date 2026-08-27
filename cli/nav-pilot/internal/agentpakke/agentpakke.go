@@ -157,6 +157,13 @@ type Owner struct {
 type ClientEntry struct {
 	// PrimaryAgents are the agents selectable/launchable directly in the
 	// client (C1, C2). Every other agent materializes as a subagent.
+	//
+	// It is the Tier 1 roster: the entry's own layout content is what carries
+	// the agents there. A Tier 2 entry's roster lives on each [Payload]
+	// instead — see [Manifest.PayloadPrimaryAgents] — because different
+	// payload trees for the same client ship different agents. The schema
+	// requires this field only when the entry declares no payloads, and a
+	// Tier 2 entry that carries one anyway is ignored, never a fallback.
 	PrimaryAgents []string `json:"primaryAgents"`
 
 	// Compatibility is a client version range (e.g. ">=1.18.20,<2"). Exact
@@ -179,6 +186,11 @@ type ClientEntry struct {
 type Payload struct {
 	// Path is the repo-relative directory holding the payload tree.
 	Path string `json:"path"`
+
+	// PrimaryAgents are the agents launchable in this context, the first one
+	// being the context's default persona. Required by the schema with at
+	// least one element, so a loaded Tier 2 manifest cannot leave it absent.
+	PrimaryAgents []string `json:"primaryAgents"`
 
 	// Manifest optionally overrides the payload manifest location, which
 	// otherwise resolves by convention to <Path>/manifest.json.
@@ -303,6 +315,19 @@ func (m *Manifest) IsPrimaryAgent(client, agent string) bool {
 		}
 	}
 	return false
+}
+
+// PayloadPrimaryAgents returns the agents launchable in one client×context,
+// first being that context's default persona. It reads the payload and nothing
+// else: a Tier 2 client entry's own primaryAgents describes no payload tree in
+// particular, so falling back to it would hand a launch an agent the staged
+// tree may not ship. Unknown client or context returns nil.
+func (m *Manifest) PayloadPrimaryAgents(client, context string) []string {
+	p, ok := m.Payload(client, context)
+	if !ok {
+		return nil
+	}
+	return p.PrimaryAgents
 }
 
 // DefaultModel returns the client's default model id, or the empty string when

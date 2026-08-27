@@ -12,10 +12,19 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
-// stagedFixturePakke mirrors the shape of grillmester's manifest at the pinned
-// reference SHA 3573b93cc8b7568516117263562d073cae9ee7fc: both clients declare
-// the same primaries, defaultModel "inherit", defaultContext "full", and two
-// payload contexts. WP6 replaces the fixture with the vendored real manifest.
+// stagedFixturePakke mirrors the shape of grillmester's manifest as the
+// contract requires it after the WP7 roster correction: defaultModel
+// "inherit", defaultContext "full", two payload contexts, and a roster on each
+// *payload* rather than on the client entry. The rosters are the real ones —
+// the full payloads lead with grillmester, both focused payloads ship only
+// barista and grill-inspektor (#437, comment 5437575432) — which is exactly
+// why a client-level roster could not answer for both. WP6 replaces the
+// fixture with the vendored real manifest at the new pinned SHA.
+//
+// The client-level PrimaryAgents is left deliberately wrong here: it is the
+// old, full-context-only list, and no staged assertion in this file may match
+// it for the focused context. A fallback would show up as barista turning back
+// into grillmester.
 func stagedFixturePakke() *agentpakke.Manifest {
 	entry := func() agentpakke.ClientEntry {
 		return agentpakke.ClientEntry{
@@ -23,8 +32,14 @@ func stagedFixturePakke() *agentpakke.Manifest {
 			DefaultModel:   agentpakke.InheritModel,
 			DefaultContext: "full",
 			Payloads: map[string]agentpakke.Payload{
-				"full":    {Path: "plugin"},
-				"focused": {Path: "targets/copilot-cli-focused-v1"},
+				"full": {
+					Path:          "plugin",
+					PrimaryAgents: []string{"grillmester", "barista", "designer", "doctor-who"},
+				},
+				"focused": {
+					Path:          "targets/copilot-cli-focused-v1",
+					PrimaryAgents: []string{"barista", "grill-inspektor"},
+				},
 			},
 		}
 	}
@@ -77,6 +92,10 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 //	line 704       opencode client args, anything else: --agent <agent> …
 //	line 679-684   copilot client args: --plugin-dir <plugin> --agent grillmester:<agent>
 //
+// The persona itself is not transcribed from the reference: it is the first
+// entry of the launched context's own primaryAgents roster (WP7), which is why
+// the two focused rows expect barista where the full rows expect grillmester.
+//
 // Not adopted, deliberately: --project-dir (lines 666-667) — nav-pilot treats
 // the working directory as the project scope, which is what the client inherits
 // anyway. No --model either: the fixture declares "inherit", and the reference
@@ -107,12 +126,14 @@ func TestStagedLaunchSpecs(t *testing.T) {
 			wantAgentArgs: []string{"--plugin-dir", fullDir, "--agent", "grillmester:grillmester"},
 		},
 		{
+			// The focused payload ships no grillmester agent: its roster is
+			// barista first, so the persona is grillmester:barista.
 			name:          "copilot/focused",
 			client:        "copilot",
 			staged:        StagedLaunch{Dir: focusedDir, PakkeName: "grillmester", Context: "focused"},
 			wantCpltAgent: "copilot",
 			wantCpltArgs:  []string{"--allow-read", focusedDir},
-			wantAgentArgs: []string{"--plugin-dir", focusedDir, "--agent", "grillmester:grillmester"},
+			wantAgentArgs: []string{"--plugin-dir", focusedDir, "--agent", "grillmester:barista"},
 		},
 		{
 			name:          "opencode/full",
@@ -124,12 +145,13 @@ func TestStagedLaunchSpecs(t *testing.T) {
 			wantConfigDir: fullDir,
 		},
 		{
+			// Same for opencode: the focused roster's first element wins.
 			name:          "opencode/focused",
 			client:        "opencode",
 			staged:        StagedLaunch{Dir: focusedDir, PakkeName: "grillmester", Context: "focused"},
 			wantCpltAgent: "opencode",
 			wantCpltArgs:  []string{"--allow-read", focusedDir, "--pass-env", "OPENCODE_CONFIG_DIR"},
-			wantAgentArgs: []string{"--agent", "grillmester"},
+			wantAgentArgs: []string{"--agent", "barista"},
 			wantConfigDir: focusedDir,
 		},
 		{
@@ -337,6 +359,47 @@ func TestStagedSpecRequiresDeclaredPrimary(t *testing.T) {
 	}
 	if _, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{}, staged); err == nil {
 		t.Error("buildStagedOpenCodeSpec must fail when the pakke declares no opencode primary")
+	}
+}
+
+// TestStagedSpecDoesNotFallBackToClientRoster pins the WP7 rule that the
+// payload roster has no fallback: a client entry with a perfectly good
+// client-level primaryAgents, launched for a context it declares no payload
+// for, must refuse rather than launch the client-level persona against a tree
+// that may not ship it. The schema makes this unreachable for a loaded
+// manifest; this is the code-level guard behind it.
+func TestStagedSpecDoesNotFallBackToClientRoster(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "grillmester",
+		Clients: map[string]agentpakke.ClientEntry{
+			"copilot": {
+				PrimaryAgents: []string{"grillmester"},
+				Payloads:      map[string]agentpakke.Payload{"full": {Path: "plugin", PrimaryAgents: []string{"grillmester"}}},
+			},
+			"opencode": {
+				PrimaryAgents: []string{"grillmester"},
+				Payloads:      map[string]agentpakke.Payload{"full": {Path: "plugin", PrimaryAgents: []string{"grillmester"}}},
+			},
+		},
+	})
+
+	staged := StagedLaunch{Dir: "/staged/x", PakkeName: "grillmester", Context: "focused"}
+	for _, tc := range []struct {
+		client string
+		build  func(domain.ResolvedConfig, StagedLaunch) (cpltLaunch, error)
+	}{
+		{"copilot", buildStagedCopilotSpec},
+		{"opencode", buildStagedOpenCodeSpec},
+	} {
+		spec, err := tc.build(domain.ResolvedConfig{}, staged)
+		if err == nil {
+			t.Errorf("%s: undeclared context launched %q instead of failing", tc.client, spec.agentArgs)
+			continue
+		}
+		if !strings.Contains(err.Error(), "focused") {
+			t.Errorf("%s: error should name the context, got: %v", tc.client, err)
+		}
 	}
 }
 

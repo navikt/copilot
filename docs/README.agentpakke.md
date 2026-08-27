@@ -45,7 +45,7 @@ Nøkkelen er en identifikator (`^[a-z][a-z0-9-]*$`). Klientene denne binæren ka
 
 | Felt | Type | Påkrevd | Betydning |
 | --- | --- | --- | --- |
-| `primaryAgents` | array av string, minst ett element | ja | Agentene som er valgbare som primære personaer i klienten. Alt annet i `agents/` materialiseres som subagent. |
+| `primaryAgents` | array av string, minst ett element | påkrevd for Tier 1 | Agentene som er valgbare som primære personaer i klienten. Alt annet i `agents/` materialiseres som subagent. Gjelder Tier 1-oppføringer, der `layout`-innholdet *er* enheten som bærer agentene. Har oppføringen `payloads`, er feltet ikke påkrevd og **leses ikke**: da ligger rosteret på hver payload ([`payloads.<kontekst>.primaryAgents`](#clientsklientpayloadskontekst)). Blir det stående, valideres det fortsatt som et velformet ikke-tomt array — men det er bedre å fjerne det, se [korreksjonen](#én-korreksjon-før-første-konsument-august-2026). |
 | `compatibility` | string | nei | Støttet klientversjon som **range** (f.eks. `">=1.18.20,<2"`), ikke en eksakt pin. |
 | `defaultModel` | string | nei | Modell-id, eller literalen `"inherit"` (ikke pin noe; arv provider-/sesjonsvalget). |
 | `defaultContext` | identifikator | nei | Hvilken payload-kontekst som startes som standard. Uten verdi: `"full"`. |
@@ -58,6 +58,7 @@ Kontekstnøkkelen er en identifikator, og ukjente kontekstnøkler ignoreres på 
 | Felt | Type | Påkrevd | Betydning |
 | --- | --- | --- | --- |
 | `path` | repo-relativ sti | ja | Katalogen som holder det ferdigbygde payload-treet. |
+| `primaryAgents` | array av string, minst ett element | ja | Agentene som kan startes i denne konteksten. **Første element er kontekstens standardpersona** — det er den launch velger. Rosteret hører til payloaden fordi det er payload-treet som bærer agentene: to kontekster for samme klient kan inneholde ulike agenter, og da kan ikke klientoppføringen svare for begge. Det finnes ingen fallback til klientnivået. |
 | `manifest` | repo-relativ sti | nei | Overstyrer payload-manifestets plassering. Uten dette feltet er konvensjonen `<path>/manifest.json`. |
 
 ## Tier utledes av form
@@ -81,7 +82,7 @@ Add a layout with agents and skills paths, or declare payloads to make them Tier
 Regelen har to halvdeler, og de gjelder samtidig:
 
 - **Ukjente konstruksjoner ignoreres.** Ukjente klientnøkler, ukjente kontekstnøkler i `payloads`, og ekstra felt på ethvert nivå gjør ikke manifestet ugyldig. En eldre binær tilbyr bare ikke det den ikke kjenner navnet på. Dermed kan økosystemet vokse uten å ugyldiggjøre manifester som allerede er ute.
-- **Feilformede *kjente* konstruksjoner feiler lukket.** Er `primaryAgents` tom, er `layout` fraværende for en Tier 1-klient, er `contractVersion` en major nav-pilot ikke implementerer, eller er `minNavPilotVersion` skrevet på et format nav-pilot ikke kan sammenligne — så stopper det. Et repo som *har* et manifest må ha et gyldig et: install avbrytes før første filoperasjon, og ingenting skrives delvis.
+- **Feilformede *kjente* konstruksjoner feiler lukket.** Er `primaryAgents` tom eller fraværende der den kreves (på en Tier 1-oppføring, eller på en Tier 2-payload), er `layout` fraværende for en Tier 1-klient, er `contractVersion` en major nav-pilot ikke implementerer, eller er `minNavPilotVersion` skrevet på et format nav-pilot ikke kan sammenligne — så stopper det. Et repo som *har* et manifest må ha et gyldig et: install avbrytes før første filoperasjon, og ingenting skrives delvis.
 
 Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles som en legacy-samlingskilde (`collections/<navn>/manifest.json`) akkurat som før.
 
@@ -148,6 +149,18 @@ Kontrakten er bygget for at en agentpakke skal kunne vokse uten å knekke bruker
 - Å endre betydningen av et eksisterende felt.
 - Å gjøre et tidligere valgfritt felt påkrevd, eller å fjerne et felt konsumenter leser.
 - Å endre en konvensjon konsumenten har innebygget, for eksempel hvor payload-manifestet ligger.
+
+### Én korreksjon før første konsument (august 2026)
+
+`primaryAgents` for Tier 2 ble **flyttet** fra klientoppføringen til hver payload — en endring som etter reglene over krever bump av `contractVersion` (et tidligere valgfritt felt ble påkrevd et nytt sted, og et felt konsumenter leste sluttet å gjelde). `contractVersion` står likevel på `"1"`, og deprekeringsvinduet under ble **ikke** brukt. Det er verdt å skrive ned nøyaktig hvorfor, slik at ingen senere leser dette som et brudd på reglene:
+
+- Endringen ble gjort mens det ikke fantes én eneste konsument. Tier 2 kunne ikke installeres, ingen bruker hadde en Tier 2-kilde, og det eneste manifestet som eksisterte var [navikt/grillmester](https://github.com/navikt/grillmester) sitt — hvis eiere var med på å utforme korreksjonen. Den var altså avtalt, ikke påtvunget.
+- Hadde det funnes én konsument, ville dette krevd bump til major 2 **og** de 90 dagene. Maskineriet finnes for å beskytte utrullede konsumenter; med null konsumenter ville en bump bare tvunget binæren til å støtte to schemaer for ingen.
+- Vinduet gjelder fra det øyeblikket det finnes en konsument til. Neste gang noe tilsvarende dukker opp, er svaret bump og vindu — dette er ikke et presedens for at «kontrakten er ung nok».
+
+Årsaken til selve flyttingen står i [beslutningene](agentpakke-beslutninger.md): rosteret hører til enheten som faktisk bærer agentene, og for Tier 2 er det payload-treet, ikke klienten.
+
+**Flytter du et eksisterende Tier 2-manifest over, gjør begge deler:** legg `primaryAgents` på hver payload, *og* fjern det fra klientoppføringen. Blir begge stående, validerer manifestet også på en nav-pilot som er eldre enn korreksjonen — og den leser rosteret fra klientoppføringen, altså feil agent for enhver kontekst som har sitt eget. Sett samtidig `minNavPilotVersion` til første versjon som har korreksjonen, så blir en for gammel binær en tydelig feilmelding i stedet for en stille feil launch.
 
 ### Deprekeringsvindu
 
@@ -365,22 +378,32 @@ Formen en komponert pakke har. Denne validerer, men kan ennå ikke installeres a
   "owner": { "repo": "navikt/grillmester", "team": "Team eSyfo" },
   "clients": {
     "copilot": {
-      "primaryAgents": ["grillmester", "barista", "designer", "doctor-who"],
       "compatibility": ">=1.0.79,<2",
       "defaultModel": "gpt-5.6-sol",
       "defaultContext": "full",
       "payloads": {
-        "full": { "path": "plugin" },
-        "focused": { "path": "targets/copilot-cli-focused-v1" }
+        "full": {
+          "path": "plugin",
+          "primaryAgents": ["grillmester", "barista", "designer", "doctor-who"]
+        },
+        "focused": {
+          "path": "targets/copilot-cli-focused-v1",
+          "primaryAgents": ["barista", "grill-inspektor"]
+        }
       }
     },
     "opencode": {
-      "primaryAgents": ["grillmester", "barista", "designer", "doctor-who"],
       "compatibility": ">=1.18.20,<2",
       "defaultModel": "inherit",
       "payloads": {
-        "full": { "path": "targets/opencode-v1" },
-        "focused": { "path": "targets/opencode-v1-focused" }
+        "full": {
+          "path": "targets/opencode-v1",
+          "primaryAgents": ["grillmester", "barista", "designer", "doctor-who"]
+        },
+        "focused": {
+          "path": "targets/opencode-v1-focused",
+          "primaryAgents": ["barista", "grill-inspektor"]
+        }
       }
     }
   },
@@ -394,6 +417,8 @@ Formen en komponert pakke har. Denne validerer, men kan ennå ikke installeres a
 ```
 
 Hver payload-katalog må ha et payload-manifest: `plugin/manifest.json`, `targets/opencode-v1/manifest.json`, og så videre — eller en `manifest`-overstyring i oppføringen.
+
+Legg merke til at rosterne skiller seg per kontekst: `full` starter `grillmester`, mens `focused`-payloadene bare inneholder `barista` og `grill-inspektor` og derfor starter `barista`. Det er nettopp derfor `primaryAgents` ligger på payloaden og ikke på klientoppføringen.
 
 ## Se også
 
