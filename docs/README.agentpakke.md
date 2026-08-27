@@ -45,7 +45,7 @@ Nøkkelen er en identifikator (`^[a-z][a-z0-9-]*$`). Klientene denne binæren ka
 
 | Felt | Type | Påkrevd | Betydning |
 | --- | --- | --- | --- |
-| `primaryAgents` | array av string, minst ett element | påkrevd for Tier 1 | Agentene som er valgbare som primære personaer i klienten. Alt annet i `agents/` materialiseres som subagent. Gjelder Tier 1-oppføringer, der `layout`-innholdet *er* enheten som bærer agentene. Har oppføringen `payloads`, er feltet ikke påkrevd og **ignoreres**: da ligger rosteret på hver payload ([`payloads.<kontekst>.primaryAgents`](#clientsklientpayloadskontekst)). |
+| `primaryAgents` | array av string, minst ett element | påkrevd for Tier 1 | Agentene som er valgbare som primære personaer i klienten. Alt annet i `agents/` materialiseres som subagent. Gjelder Tier 1-oppføringer, der `layout`-innholdet *er* enheten som bærer agentene. Har oppføringen `payloads`, er feltet ikke påkrevd og **leses ikke**: da ligger rosteret på hver payload ([`payloads.<kontekst>.primaryAgents`](#clientsklientpayloadskontekst)). Blir det stående, valideres det fortsatt som et velformet ikke-tomt array — men det er bedre å fjerne det, se [korreksjonen](#én-korreksjon-før-første-konsument-august-2026). |
 | `compatibility` | string | nei | Støttet klientversjon som **range** (f.eks. `">=1.18.20,<2"`), ikke en eksakt pin. |
 | `defaultModel` | string | nei | Modell-id, eller literalen `"inherit"` (ikke pin noe; arv provider-/sesjonsvalget). |
 | `defaultContext` | identifikator | nei | Hvilken payload-kontekst som startes som standard. Uten verdi: `"full"`. |
@@ -159,6 +159,8 @@ Kontrakten er bygget for at en agentpakke skal kunne vokse uten å knekke bruker
 - Vinduet gjelder fra det øyeblikket det finnes en konsument til. Neste gang noe tilsvarende dukker opp, er svaret bump og vindu — dette er ikke et presedens for at «kontrakten er ung nok».
 
 Årsaken til selve flyttingen står i [beslutningene](agentpakke-beslutninger.md): rosteret hører til enheten som faktisk bærer agentene, og for Tier 2 er det payload-treet, ikke klienten.
+
+**Flytter du et eksisterende Tier 2-manifest over, gjør begge deler:** legg `primaryAgents` på hver payload, *og* fjern det fra klientoppføringen. Blir begge stående, validerer manifestet også på en nav-pilot som er eldre enn korreksjonen — og den leser rosteret fra klientoppføringen, altså feil agent for enhver kontekst som har sitt eget. Sett samtidig `minNavPilotVersion` til første versjon som har korreksjonen, så blir en for gammel binær en tydelig feilmelding i stedet for en stille feil launch.
 
 ### Deprekeringsvindu
 
