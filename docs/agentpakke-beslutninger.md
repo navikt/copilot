@@ -46,7 +46,8 @@ Avvikene er få og hver enkelt er begrunnet i koden der sjekken gjøres. Sammend
 | Ingen pin av `target`-navn | `payload.go`, `PayloadManifest.Target` | Digestkjeden |
 | `O_NOFOLLOW`/`O_NONBLOCK` + fstat på deskriptoren (referansen har ingen av delene) | `payload.go`, `openPayloadFile` | — (strengere enn referansen) |
 | Kopiering styres av manifestets `files`, ikke av en walk av kildetreet | `stage.go`, filhode | — (strengere enn referansen) |
-| `--project-dir` tas ikke i bruk (`--no-audit` tas i bruk, se [§2.5](#25-flagg-fra-referansen)) | `staged_launch.go`, filhode | Arbeidskatalogen *er* prosjektomfanget — ingen launch-sti setter `cmd.Dir` |
+| `--project-dir` tas ikke i bruk *på launchen* (`--no-audit` tas i bruk, se [§2.5](#25-flagg-fra-referansen)) | `staged_launch.go`, filhode | Arbeidskatalogen *er* prosjektomfanget — ingen launch-sti setter `cmd.Dir`. Versjonsproben er unntaket og setter det, se [§2.5](#25-flagg-fra-referansen) |
+| Copilots numeriske build-suffiks (`1.0.81-14`) godtas; referansen avviser det som prerelease | `runtime_gate.go`, `copilotBuildSuffixPattern` | Sammenligningen kjører på `major.minor.patch`; ekte prereleases (`-next.3`, `-beta`, `-rc.1`) avvises fortsatt |
 
 ### 2.1 Modesjekk på kilden: subset pluss exec-bit
 
@@ -75,7 +76,9 @@ Referansen kopierer med `shutil.copytree(symlinks=True)` — den walker kilden. 
 Fra referansens `build_launch_command` (`scripts/grillmester.py`, linje 647–689) tar vi ett av de to cplt-flaggene i bruk og utelater ett:
 
 - **`--no-audit`** (linje 663) — **tas i bruk** på den stagede stien, på referansens plass: først i cplt-vektoren, før `--agent`. Vi leste det først som launcher-policy og en versjonsspesifikk workaround, og utelot det. Team eSyfo korrigerte det i svaret på G4-spørsmålet ([kommentar i #437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)): på cplt-baselinen grillmester v0.3.0 er testet mot, kan cplts parent-side audit kjøre repo-kontrollerte Git-hjelpere *utenfor* sandboxen. Uten flagget er en staget Tier 2-launch dårligere isolert enn launcheren den skal være ekvivalent med. Å fjerne det igjen krever dokumentasjon på at en gjennomgått cplt-baseline retter oppførselen, pluss en minimumsversjonssperre som håndhever den — ikke at flagget ser overflødig ut.
-- **`--project-dir`** (linje 666–667) — **utelates fortsatt**. nav-pilot starter i arbeidskatalogen: ingen launch-sti setter `cmd.Dir`, så cplt og klienten arver brukerens cwd. eSyfo aksepterer utelatelsen på nøyaktig det vilkåret, og at differansetestene asserterer oppførselen.
+- **`--project-dir`** (linje 666–667) — **utelates fortsatt på launchen**. nav-pilot starter i arbeidskatalogen: ingen launch-sti setter `cmd.Dir`, så cplt og klienten arver brukerens cwd. eSyfo aksepterer utelatelsen på nøyaktig det vilkåret, og at differansetestene asserterer oppførselen.
+
+Ett unntak, og det er ikke en omgjøring: **versjonsproben** setter `--project-dir` mot en tom 0700-tempkatalog, slik referansen gjør i `_sandboxed_client_version` (linje 884–886). En launch er scopet til brukerens prosjekt med vilje; et `--version`-spørsmål skal ikke være scopet til noe. Uten flagget kjører proben i brukerens cwd, engasjerer repoets `.cplt.toml`-tillitsflyt og gir klienten lese- og skrivetilgang til repoet for å svare på et versjonsspørsmål. Proben setter også `--yes --quiet` på referansens plass (`_client_probe`, linje 879) — uten `--yes` stopper cplt på launch-bekreftelsen og proben feiler hver gang, på hver maskin.
 
 Beslutningen om `--no-audit` er altså endret, og den er Team eSyfos ([§5.2](#52-grensen-for-equivalent-invocation-g4--eier-team-esyfo), [§8](#8-der-kildene-er-uenige)); den om `--project-dir` er vår, nå med eSyfos aksept.
 

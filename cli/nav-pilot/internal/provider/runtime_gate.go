@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
@@ -48,9 +50,24 @@ import (
 // raise this stamp, drop the flag, attach the evidence.
 const minStagedCpltStamp = "2026.08.17-062831"
 
-// stagedProbeTimeout bounds every version probe a staged launch spawns. Same
-// cap as isCplt: a hanging binary must not hang the launch.
-const stagedProbeTimeout = 2 * time.Second
+// Probe budgets, adopted from the reference: 8 seconds for `cplt --version`
+// (_trusted_cplt_version_output, grillmester.py line 741) and 30 for the
+// sandboxed client probe (_bounded_command_output, line 770).
+//
+// The client budget is the loose one on purpose. cplt unpacks the Copilot
+// runtime into its cache on the first run after every cplt upgrade; a warm
+// probe answers in well under a second, but the first staged launch after
+// `brew upgrade cplt` does that extraction inside the probe. A 2-second cap —
+// what this gate shipped with — turns that one run into a fatal launch error
+// for a perfectly healthy install.
+const (
+	cpltProbeTimeout   = 8 * time.Second
+	clientProbeTimeout = 30 * time.Second
+)
+
+// stagedProbeWaitDelay is how long Wait keeps reading the probe's stdout after
+// the process group is killed, so a wedged pipe cannot outlive the deadline.
+const stagedProbeWaitDelay = 2 * time.Second
 
 // probeCpltVersion runs a bounded `cplt --version`. A package-level variable so
 // tests can exercise the gate without spawning a binary.
@@ -59,7 +76,7 @@ var probeCpltVersion = func() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return runStagedProbe(path, "--version")
+	return runStagedProbe(cpltProbeTimeout, path, "--version")
 }
 
 // probeClientVersion runs a bounded version probe for the client a staged
@@ -68,16 +85,45 @@ var probeCpltVersion = func() (string, error) {
 // opencode is probed directly: LaunchOpenCodeStaged already requires the binary
 // on PATH. copilot is not — only cplt is — so it is probed sandboxed, the way
 // the reference does in _sandboxed_client_version (grillmester.py lines
-// 883-905): one `cplt --no-audit --agent copilot -- --version`.
+// 883-905). Two parts of that vector are not decoration:
+//
+//   - --yes --quiet. The reference splices exactly these two in ahead of
+//     everything else (_client_probe, grillmester.py line 879:
+//     `command[1:1] = ["--yes", "--quiet"]`). A probe gets /dev/null on stdin
+//     and a pipe on stdout, and without --yes cplt stops on its launch
+//     confirmation — "No TTY available for confirmation. Use --yes for
+//     non-interactive runs." — and exits 1. Not sometimes: every run, on every
+//     machine, even in an empty directory with no .cplt.toml. Omitting them
+//     made the copilot arm of this gate fail 100% of the time (#462 review,
+//     finding 1).
+//
+//   - --project-dir <empty 0700 temp dir>. The reference probes inside a
+//     throwaway directory (_sandboxed_client_version, grillmester.py lines
+//     884-886, and _client_probe's project_dir at line 862). Asking a version
+//     question from the user's cwd instead engages that repository's .cplt.toml
+//     trust flow and hands the client read/write over the user's repo — for a
+//     `--version`. This is the first and only place --project-dir appears in
+//     nav-pilot, and it is not a reversal of the recorded decision to omit it
+//     on the launch (see staged_launch.go): a launch is scoped to the user's
+//     project on purpose, a version probe is scoped to nothing on purpose.
 var probeClientVersion = func(client string) (string, error) {
 	if client == "opencode" {
-		return runStagedProbe("opencode", "--version")
+		return runStagedProbe(clientProbeTimeout, "opencode", "--version")
 	}
 	path, err := stagedCpltPath()
 	if err != nil {
 		return "", err
 	}
-	return runStagedProbe(path, "--no-audit", "--agent", client, "--", "--version")
+	// os.MkdirTemp already creates the directory 0700, which is the mode the
+	// reference chmods to.
+	dir, err := os.MkdirTemp("", "nav-pilot-client-probe-")
+	if err != nil {
+		return "", fmt.Errorf("could not create an isolated probe directory: %w", err)
+	}
+	defer os.RemoveAll(dir)
+	return runStagedProbe(clientProbeTimeout, path,
+		"--yes", "--quiet", "--no-audit", "--agent", client,
+		"--project-dir", dir, "--", "--version")
 }
 
 func stagedCpltPath() (string, error) {
@@ -88,10 +134,50 @@ func stagedCpltPath() (string, error) {
 	return path, nil
 }
 
-func runStagedProbe(name string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), stagedProbeTimeout)
+// runStagedProbe runs one version probe under a deadline that actually bounds
+// it, and returns its stdout.
+//
+// The probe runs in its own process group and the deadline kills the group, not
+// just the direct child. exec.CommandContext's default cancel signals the
+// process it started and nothing else, while cplt hands its stdout pipe to a
+// sandboxed grandchild: SIGKILLing cplt alone leaves Output() blocked on a pipe
+// nobody is left to close, and the "timeout" bounds nothing at all (#462
+// review, finding 3 — a 30-second hang against a 2-second context). The
+// reference has the same shape for the same reason: start_new_session=True
+// (grillmester.py line 782) plus _terminate_process_group (lines 753-763),
+// which kills the group and falls back to the child.
+//
+// WaitDelay is the Go-native backstop for the same pipe: even if the group kill
+// finds nothing to kill, Wait stops waiting on the pipes shortly after and
+// returns. Both are one line each, so this takes both rather than choosing —
+// and they cover different cases. Measured against a 300ms deadline with a
+// grandchild holding the pipe for 30s: 0.3s with the group kill, 2.3s with only
+// WaitDelay. The remaining ceiling is the case where the probe process exits
+// before its grandchild: Go has already reaped it by then and never calls
+// Cancel, so WaitDelay bounds us but the grandchild is orphaned rather than
+// killed. cplt does not exit while its client runs, so that is not this probe.
+//
+// A package-level variable for the same reason the two probes above are: a test
+// can capture the exact argv a probe would run without spawning anything, which
+// is what keeps a broken probe vector from passing the suite on a machine with
+// no cplt installed.
+var runStagedProbe = func(timeout time.Duration, name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, name, args...).Output()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.WaitDelay = stagedProbeWaitDelay
+	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		// This gate is fatal, so the message has to carry both halves: what
+		// happened, and that retrying is the right move. cplt unpacks the client
+		// runtime on the first run after an upgrade, which is the one legitimate
+		// slow path (#462 review, finding 4).
+		return "", fmt.Errorf(
+			"the %s version probe was still running after %s and was stopped — the first probe after a cplt upgrade unpacks the client runtime and can be slow, so run the same command again; if it times out twice, check %s",
+			name, timeout, domain.Bold("cplt doctor"))
+	}
 	return string(out), err
 }
 
@@ -159,25 +245,39 @@ func cpltStamp(out string) string {
 	return stamp
 }
 
-// ParseCpltVersion pulls the bare version out of `cplt --version` output, which
+// cpltVersionPattern is the reference's CPLT_VERSION_PATTERN (grillmester.py
+// lines 94-96): a whole line, "cplt <stamp>-<commit>", anchored at both ends.
+var cpltVersionPattern = regexp.MustCompile(`^cplt (\d{4}\.\d{2}\.\d{2}-\d{6}-[0-9a-f]{7,40})$`)
+
+// ParseCpltVersion pulls the release out of `cplt --version` output, which
 // reads "cplt 2026.08.24-153138-0d1d66d". Anything that is not a comparable
 // version ("unknown", "dev", a future format) yields "" — unknown, so callers
 // cannot mistake it for "up to date".
+//
+// It matches the anchored pattern against the first line, where the version is.
+// It used to take the last whitespace-separated token of the entire output,
+// which trusts whatever cplt printed last: a future cplt that appends an update
+// hint ("newest release: 2027.01.01-000000-abcdef0") would hand that hint's
+// token back as the installed version, and an arbitrarily old binary would
+// clear the staged floor (#462 review, finding 6).
+//
+// Hardened here rather than at the staged call site because all three callers —
+// this gate's floor, the update skew check and doctor, both through aliases.go
+// — feed it the output of the same `cplt --version`. A strict parse local to
+// the gate would fix one of the three and leave the other two reading the last
+// token of anything.
 //
 // It lives here, not in internal/cli where the update/doctor skew checks first
 // needed it, because internal/cli imports internal/provider and not the other
 // way round: the staged gate could not have borrowed it in the other direction.
 // internal/cli keeps calling it under its old unexported name via aliases.go.
 func ParseCpltVersion(out string) string {
-	fields := strings.Fields(out)
-	if len(fields) == 0 {
+	first, _, _ := strings.Cut(out, "\n")
+	m := cpltVersionPattern.FindStringSubmatch(strings.TrimSpace(first))
+	if m == nil {
 		return ""
 	}
-	v := fields[len(fields)-1]
-	if !artifacts.VersionParseable(v) {
-		return ""
-	}
-	return v
+	return m[1]
 }
 
 // checkClientCompatibility refuses a staged launch whose client falls outside
@@ -320,9 +420,27 @@ func (r versionRange) contains(v semver3) bool {
 // do not match, which lands in the same fatal branch with less code.
 const semverCorePattern = `(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)`
 
+// copilotBuildSuffixPattern is a deliberate divergence from the reference.
+//
+// The copilot that cplt ships today prints "GitHub Copilot CLI 1.0.81-14." —
+// 1.0.81, build 14. Semver reads "-14" as a prerelease and the reference
+// refuses every prerelease outright (_semantic_version, grillmester.py lines
+// 941-947). Transcribed literally that makes the copilot arm of this gate
+// unsatisfiable: the contract's own documented example range for copilot,
+// ">=1.0.79,<2" (README.agentpakke.md), can never be met by the binary the
+// contract is about, so every copilot agentpakke declaring a range is a brick.
+//
+// So: a numeric-only suffix is accepted and ignored, and the comparison runs on
+// the major.minor.patch triple in front of it. A build number carries no
+// ordering information the range grammar can use, and dropping it cannot make
+// an out-of-range version look in-range. Genuine prereleases keep being refused
+// exactly as the reference refuses them — "-next.3", "-beta", "-rc.1" do not
+// match, and land in the same fatal branch.
+const copilotBuildSuffixPattern = `(?:-\d+)?`
+
 var (
 	openCodeVersionPattern = regexp.MustCompile(`(?i)^(?:OpenCode(?: version)? )?` + semverCorePattern + `$`)
-	copilotVersionPattern  = regexp.MustCompile(`(?i)^(?:GitHub Copilot CLI(?: version)? )?` + semverCorePattern + `\.?$`)
+	copilotVersionPattern  = regexp.MustCompile(`(?i)^(?:GitHub Copilot CLI(?: version)? )?` + semverCorePattern + copilotBuildSuffixPattern + `\.?$`)
 )
 
 // copilotUpdateHint is the one extra line the reference tolerates in copilot's
