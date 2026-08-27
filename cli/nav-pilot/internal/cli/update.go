@@ -243,22 +243,6 @@ func runBoundedCombined(name string, args ...string) ([]byte, error) {
 	return exec.CommandContext(ctx, name, args...).CombinedOutput()
 }
 
-// parseCpltVersion pulls the bare version out of `cplt --version` output, which
-// reads "cplt 2026.08.24-153138-0d1d66d". Anything that is not a comparable
-// version ("unknown", "dev", a future format) yields "" — unknown, so callers
-// cannot mistake it for "up to date".
-func parseCpltVersion(out string) string {
-	fields := strings.Fields(out)
-	if len(fields) == 0 {
-		return ""
-	}
-	v := fields[len(fields)-1]
-	if !versionParseable(v) {
-		return ""
-	}
-	return v
-}
-
 // cpltSkew is the three-way outcome of the cplt version-skew check.
 type cpltSkew int
 

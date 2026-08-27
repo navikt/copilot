@@ -71,6 +71,11 @@ var (
 	findCopilotCLI = providerpkg.FindCopilotCLI
 	launchPi       = providerpkg.LaunchPi
 
+	// parseCpltVersion moved to internal/provider when the staged launch path
+	// needed the same parse for its reviewed-cplt floor; internal/cli imports
+	// provider, not the reverse, so this is the only direction it could go.
+	parseCpltVersion = providerpkg.ParseCpltVersion
+
 	openCodeDefaultModel  = providerpkg.OpenCodeDefaultModel
 	isKnownCopilotModel   = providerpkg.IsKnownCopilotModel
 	knownCopilotModelIDs  = providerpkg.KnownCopilotModelIDs

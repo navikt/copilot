@@ -296,7 +296,8 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 - **Det stagede treet slettes når klienten avslutter.** Rester etter en krasjet økt ryddes av neste staged launch (eldre enn 24 timer).
 - **opencode** startes med `OPENCODE_CONFIG_DIR` mot det stagede treet. Den delte `~/.config/opencode/opencode.json` verken leses eller skrives på denne veien; OTel går fortsatt som miljøvariabler.
 - **copilot** startes med `--plugin-dir <staged>` og personaen kvalifisert med pakkenavnet: `--agent <pakke>:<agent>`.
-- **cplt er påkrevd.** En staged launch gir klienten et verifisert tre inne i sandkassen; uten cplt starter ingenting (`brew install navikt/tap/cplt`).
+- **cplt er påkrevd, og må være minst den gjennomgåtte baselinen.** En staged launch gir klienten et verifisert tre inne i sandkassen; uten cplt starter ingenting (`brew install navikt/tap/cplt`). En eldre cplt enn `2026.08.17-062831` — eller en cplt nav-pilot ikke får lest versjonen av — avvises også, med `brew upgrade cplt` i feilen.
+- **`compatibility` håndheves før launch.** Deklarerer klientoppføringa et versjonsområde, prober nav-pilot klienten og avviser en versjon utenfor området. Både en mislykket probe og uleselig versjonsutdata er fatalt: et område som ikke kan håndheves, er ikke håndhevet.
 - **Modell:** `defaultModel: "inherit"` sender ingen `--model` i det hele tatt. En konkret verdi sendes med. En modell brukeren har pinnet selv vinner over begge.
 
 ## Begrensninger i dag
@@ -305,7 +306,7 @@ Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 
 - **Tier 2 kan startes, men ikke installeres.** Staged launch er live (se [Slik starter brukerne klienten fra en Tier 2-pakke](#slik-starter-brukerne-klienten-fra-en-tier-2-pakke)): en pakke uten `layout` kan velges som kilde og startes direkte. `nav-pilot install` avvises fortsatt med sin egen begrunnelse — install av Tier 2 kommer i en senere release. En pakke som skal *installeres* i dag må ha Tier 1-innhold.
 - **`policies` og `profiles` parses og sti-sjekkes, men materialiseres ikke.** nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet ennå (M3).
-- **`compatibility` valideres, men håndheves ikke.** `primaryAgents`, `defaultModel` og `defaultContext` leses nå av launch og materialisering, men klientversjonsområdet sjekkes ikke mot klienten som faktisk er installert.
+- **`compatibility` håndheves bare på den stagede stien.** En Tier 2-launch prober klienten og avviser en versjon utenfor det deklarerte området. Legacy-stien — Tier 1-innhold materialisert inn i brukerens egen klient — leser ikke feltet.
 - **`nav-pilot export opencode` støtter bare kanoniske stier.** Export leser `agents/`, `skills/`, `instructions/` og `prompts/` direkte. En agentpakke som legger innholdet et annet sted avvises av export med en forklaring, framfor å skrive et tomt `.opencode/`-tre.
 - **Ferskhetssjekken i rot-TUI-en beskriver bare standardkilden.** Scope som ikke kommer fra `navikt/copilot` hoppes over der, fordi release-feeden til nav-pilot bare sier noe om standardkilden.
 - **`provenance` verifiseres ikke.** Feltet er metadata; nav-pilot sjekker ikke digest mot innholdet.
