@@ -484,7 +484,7 @@ func TestValidateSourceTier2(t *testing.T) {
 		"targets/opencode-v1", "targets/opencode-v1-focused",
 	} {
 		mkdirAll(t, filepath.Join(root, filepath.FromSlash(dir)))
-		writeFile(t, filepath.Join(root, filepath.FromSlash(dir), PayloadManifestFile), `{"schemaVersion":1}`)
+		writeFile(t, filepath.Join(root, filepath.FromSlash(dir), PayloadManifestFile), `{"schemaVersion":1,"files":{}}`)
 	}
 	mkdirAll(t, filepath.Join(root, "profiles", "opencode"))
 	writeFile(t, filepath.Join(root, "profiles", "opencode", "hybrid.json"), `{}`)

@@ -293,6 +293,17 @@ func (m *Manifest) validateContent(sourceRoot string) []error {
 				errs = append(errs, fmt.Errorf(
 					"%w; every Tier 2 payload must ship a payload manifest (A7) — nav-pilot refuses to stage an unmanifested payload",
 					err))
+				continue
+			}
+			// The payload manifest exists, so its files map can be verified
+			// against the tree it describes (G1). Only Tier 2 entries reach
+			// here: this loop iterates declared payloads, and a client without
+			// payloads is Tier 1 by definition.
+			if err := VerifyPayload(
+				filepath.Join(sourceRoot, filepath.FromSlash(p.Path)),
+				filepath.Join(sourceRoot, filepath.FromSlash(manifestRel)),
+			); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", field, err))
 			}
 		}
 	}
