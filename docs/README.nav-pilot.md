@@ -204,6 +204,12 @@ Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
 globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 `--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
 
+`--payload-context <id>` gjelder bare kilder som er en agentpakke med ferdigbygde
+payloads, og velger hvilken kontekst som stages ved launch. Den har ingen config-nøkkel
+— standarden er `defaultContext` i pakkas manifest — og er ikke det samme som
+`--context`, som fortsatt er Copilots long-context-nivå. Se
+[README.agentpakke.md](README.agentpakke.md).
+
 Etter synk/installasjon starter nav-pilot kodeagenten automatisk. Sett
 `auto_launch = false` (eller bruk `--no-auto-launch`) hvis du heller vil starte
 den selv — da skriver nav-pilot bare ut kommandoen du kan kjøre.

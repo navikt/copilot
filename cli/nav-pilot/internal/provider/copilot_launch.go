@@ -80,6 +80,21 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	if resolved.Model != "" {
 		args = append(args, "--model", resolved.Model)
 	}
+	args = append(args, copilotResolvedFlags(resolved)...)
+	if cliName == "cplt" {
+		cpltArgs := append([]string{"--agent", "copilot", "--"}, args...)
+		return append(cpltArgs, resolved.ExtraArgs...)
+	}
+	return append(args, resolved.ExtraArgs...)
+}
+
+// copilotResolvedFlags returns the copilot CLI flags that follow the persona
+// and model: the resolved-config tail shared by the legacy launch
+// ([BuildCopilotArgs]) and the staged Tier 2 launch
+// (buildStagedCopilotSpec). Order and emit conditions are pinned by
+// golden_launch_test.go — do not reorder.
+func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
+	var args []string
 	if resolved.Mode != "" && resolved.Mode != "default" {
 		args = append(args, "--mode", resolved.Mode)
 	}
@@ -98,11 +113,7 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	if resolved.LogLevel != "" {
 		args = append(args, "--log-level", resolved.LogLevel)
 	}
-	if cliName == "cplt" {
-		cpltArgs := append([]string{"--agent", "copilot", "--"}, args...)
-		return append(cpltArgs, resolved.ExtraArgs...)
-	}
-	return append(args, resolved.ExtraArgs...)
+	return args
 }
 
 // LaunchCopilotResolved launches the Copilot CLI with the resolved launch config.

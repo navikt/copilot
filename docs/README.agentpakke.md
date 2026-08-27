@@ -254,13 +254,31 @@ Et eksplisitt `--source` er overstyringen — da har brukeren sagt hvilken kilde
 
 Stiformede kilder sammenlignes symlink-oppløst, så en symlink og checkouten bak den regnes som samme kilde.
 
+## Slik starter brukerne klienten fra en Tier 2-pakke
+
+Peker kilden på en agentpakke som deklarerer `payloads` for klienten, verifiserer og stager nav-pilot payloaden ved hver launch og peker klienten på det stagede treet:
+
+```bash
+nav-pilot --client copilot                                # konteksten manifestet setter som standard
+nav-pilot --client copilot --payload-context focused      # en annen deklarert kontekst
+```
+
+- **`--payload-context <id>`** velger kontekst. Uten flagget brukes `defaultContext` fra klientoppføringa (`full` når feltet mangler). En kontekst pakka ikke deklarerer gir en feil som lister opp de som finnes. Det er ingen config-nøkkel for dette: den varige standarden er manifestets eget felt.
+- **`--payload-context` er ikke `--context`.** Sistnevnte er Copilots long-context-nivå og er uendret; de to er ortogonale og kan stå på samme kommandolinje.
+- **Verifisering før hver launch.** Payloaden sjekkes mot payload-manifestet (digest og modus), kopieres til et privat tre under `~/.nav-pilot/staged/`, og re-verifiseres eksakt der. Feiler noe av dette, starter ingenting — en Tier 2-launch faller aldri tilbake på Tier 1-veien.
+- **Det stagede treet slettes når klienten avslutter.** Rester etter en krasjet økt ryddes av neste staged launch (eldre enn 24 timer).
+- **opencode** startes med `OPENCODE_CONFIG_DIR` mot det stagede treet. Den delte `~/.config/opencode/opencode.json` verken leses eller skrives på denne veien; OTel går fortsatt som miljøvariabler.
+- **copilot** startes med `--plugin-dir <staged>` og personaen kvalifisert med pakkenavnet: `--agent <pakke>:<agent>`.
+- **cplt er påkrevd.** En staged launch gir klienten et verifisert tre inne i sandkassen; uten cplt starter ingenting (`brew install navikt/tap/cplt`).
+- **Modell:** `defaultModel: "inherit"` sender ingen `--model` i det hele tatt. En konkret verdi sendes med. En modell brukeren har pinnet selv vinner over begge.
+
 ## Begrensninger i dag
 
 Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 
-- **Tier 2 kan valideres, men ikke installeres.** En agentpakke uten `layout` der klientene har `payloads` validerer fint, men install avvises med sin egen begrunnelse: payload-staging kommer i en senere release (M2). En pakke som skal installeres i dag må ha Tier 1-innhold.
+- **Tier 2 kan startes, men ikke installeres.** Staged launch er live (se [Slik starter brukerne klienten fra en Tier 2-pakke](#slik-starter-brukerne-klienten-fra-en-tier-2-pakke)): en pakke uten `layout` kan velges som kilde og startes direkte. `nav-pilot install` avvises fortsatt med sin egen begrunnelse — install av Tier 2 kommer i en senere release. En pakke som skal *installeres* i dag må ha Tier 1-innhold.
 - **`policies` og `profiles` parses og sti-sjekkes, men materialiseres ikke.** nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet ennå (M3).
-- **Persona, modell og launch leser fortsatt Nav-defaults.** `primaryAgents`, `defaultModel`, `defaultContext` og `compatibility` valideres, men kallstedene i `internal/provider` og `internal/source` er ennå hardkodet. De flyttes over til manifestet i M2. En agentpakke bør deklarere feltene riktig nå, slik at oppførselen blir riktig når koden begynner å lese dem.
+- **`compatibility` valideres, men håndheves ikke.** `primaryAgents`, `defaultModel` og `defaultContext` leses nå av launch og materialisering, men klientversjonsområdet sjekkes ikke mot klienten som faktisk er installert.
 - **`nav-pilot export opencode` støtter bare kanoniske stier.** Export leser `agents/`, `skills/`, `instructions/` og `prompts/` direkte. En agentpakke som legger innholdet et annet sted avvises av export med en forklaring, framfor å skrive et tomt `.opencode/`-tre.
 - **Ferskhetssjekken i rot-TUI-en beskriver bare standardkilden.** Scope som ikke kommer fra `navikt/copilot` hoppes over der, fordi release-feeden til nav-pilot bare sier noe om standardkilden.
 - **`provenance` verifiseres ikke.** Feltet er metadata; nav-pilot sjekker ikke digest mot innholdet.

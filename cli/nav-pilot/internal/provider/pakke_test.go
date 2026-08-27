@@ -19,8 +19,10 @@ func TestSetActivePakke(t *testing.T) {
 		Clients: map[string]agentpakke.ClientEntry{
 			"copilot":  {PrimaryAgents: []string{"grillmester"}},
 			"opencode": {PrimaryAgents: []string{"grillmester", "sous"}, DefaultModel: "github-copilot/claude-opus-5"},
-			// No primaryAgents: falls back to the built-in default rather than
-			// launching with an empty --agent.
+			// No primaryAgents. There is no fallback to the built-in
+			// default's persona (WP3): the manifest is authoritative, and
+			// schemas/agentpakke-v1.json makes this shape unrepresentable in a
+			// loaded manifest anyway (primaryAgents is required, minItems 1).
 			"pi": {},
 		},
 	})
@@ -31,8 +33,8 @@ func TestSetActivePakke(t *testing.T) {
 	if got := PrimaryAgent("opencode"); got != "grillmester" {
 		t.Errorf("PrimaryAgent(opencode) = %q, want grillmester (first primary)", got)
 	}
-	if got := PrimaryAgent("pi"); got != "nav-pilot" {
-		t.Errorf("PrimaryAgent(pi) = %q, want the built-in fallback nav-pilot", got)
+	if got := PrimaryAgent("pi"); got != "" {
+		t.Errorf("PrimaryAgent(pi) = %q, want \"\" — no fallback to the built-in persona", got)
 	}
 	if got := ToOpenCodeModel(""); got != "github-copilot/claude-opus-5" {
 		t.Errorf("ToOpenCodeModel(\"\") = %q, want the active pakke's default model", got)

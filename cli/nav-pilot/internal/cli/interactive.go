@@ -722,6 +722,13 @@ func installedAgents(state *StateFile) []string {
 }
 
 func launchClient(resolved ResolvedConfig) error {
+	handled, err := tryPakkeLaunch(resolved)
+	if err != nil {
+		return err
+	}
+	if handled {
+		return nil
+	}
 	p, err := providerFor(resolved.Client)
 	if err != nil {
 		return err
