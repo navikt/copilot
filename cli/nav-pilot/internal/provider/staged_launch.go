@@ -26,7 +26,7 @@ import (
 //
 // --no-audit (line 663) is adopted, in the reference's position: first in the
 // cplt vector, before --agent. It was first read as launcher policy; team eSyfo
-// corrected that (#458, comment 5437575432): at the cplt baseline grillmester
+// corrected that (#437, comment 5437575432): at the cplt baseline grillmester
 // v0.3.0 is tested against, cplt's parent-side audit can execute
 // repository-controlled Git helpers *outside* the sandbox, so a staged launch
 // without it is less isolated than the launcher it is meant to be equivalent
