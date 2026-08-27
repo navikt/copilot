@@ -302,8 +302,13 @@ func main() {
 func ingestMissing(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config, slack *SlackNotifier) error {
 	yesterday := time.Now().UTC().AddDate(0, 0, -1)
 
-	// Check what we already have in BigQuery to fill gaps automatically
-	latestDay, err := bq.GetLatestDay(ctx, cfg.EnterpriseSlug)
+	// Check what we already have in BigQuery to fill gaps automatically.
+	// The high-water mark has to span every scope a day can be stored under: a
+	// day whose entity metrics fell back to the org endpoint is invisible to an
+	// enterprise-only MAX(day), so the loop would restart before it and — once
+	// the enterprise endpoint recovers — write the same day a second time under
+	// the enterprise scope_id. See reportScopeIDs.
+	latestDay, err := latestDayAcrossScopes(ctx, bq.GetLatestDay, reportScopeIDs(cfg))
 	if err != nil {
 		slog.Warn("Could not get latest day from BigQuery, ingesting yesterday only", "error", err)
 		return ingestDay(ctx, gh, bq, cfg, yesterday)
@@ -498,8 +503,34 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 // metrics but are missing user-teams or user-metrics data. This handles the case
 // where supplementary reports weren't available when entity metrics were first
 // ingested (GitHub may take 24-48h to generate them).
+//
+// The existence probes below are deliberately not uniform, and what decides the
+// shape is the table's *consumer*, not which code path does the probing:
+//
+//   - Read through an enterprise-pinned filter — user_teams and user_metrics,
+//     whose every aggregate in copilot-api's bigquery_stats.go pins
+//     scope = 'enterprise'. Probe the enterprise scope ONLY. A report that
+//     landed under the org scope_id (the enterprise report endpoint was down
+//     that night and the fallback took over) is invisible to those aggregates,
+//     so a cross-scope probe would spot that copy, skip the day, and freeze it
+//     at zero users forever. Re-fetching stores the enterprise-scoped copy they
+//     need; upsertReport bounds the cost at one copy per scope, replacing its
+//     own rows on later runs rather than appending a fresh set.
+//
+//   - Read with no scope filter — repository_metrics, whose only consumer is
+//     views/v_repository_usage.sql, which groups by scope_id and filters on
+//     nothing else. Probe EVERY scope. An org-stored day is already fully
+//     visible there, so there is nothing to heal; a second copy would instead
+//     split each repo into two rows with split PR counts, each half measured
+//     against `HAVING pr_total_created >= 5` on its own, which drops borderline
+//     repos off the dashboard. runRepoMetricsBackfill probes the same way, for
+//     the same reason.
+//
+// The entity gate spans scopes too, but on a third ground: it only decides
+// whether the day is worth topping up at all, and a cross-scope answer is what
+// stops the day being ingested a second time under the other scope_id.
 func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config) {
-	scopeID := cfg.EnterpriseSlug
+	scopeIDs := reportScopeIDs(cfg)
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 
 	// Check last 7 days — reports are typically available within 48h
@@ -511,7 +542,7 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 		dayStr := day.Format("2006-01-02")
 
 		// Only check days where entity metrics exist (otherwise ingestMissing handles it)
-		entityExists, err := bq.DayExists(ctx, day, scopeID)
+		entityExists, err := dayExistsInAnyScope(ctx, bq.DayExists, day, scopeIDs)
 		if err != nil {
 			slog.Warn("Failed to check entity data existence", "day", dayStr, "error", err)
 			continue
@@ -521,7 +552,7 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 		}
 
 		// Check and fill user-teams
-		teamsExists, err := bq.UserTeamsDayExists(ctx, day, scopeID)
+		teamsExists, err := bq.UserTeamsDayExists(ctx, day, cfg.EnterpriseSlug)
 		if err != nil {
 			slog.Warn("Failed to check user-teams existence", "day", dayStr, "error", err)
 		} else if !teamsExists {
@@ -530,8 +561,23 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 					slog.Warn("Failed to fetch missing user-teams", "day", dayStr, "error", fetchErr)
 				}
 			} else if len(teamsResult.Records) > 0 {
-				if insertErr := bq.InsertUserTeams(ctx, day, teamsResult.Scope, teamsResult.ScopeID, teamsResult.Records); insertErr != nil {
-					slog.Warn("Failed to insert missing user-teams", "day", dayStr, "error", insertErr)
+				if storeErr := upsertReport(ctx, bq.UserTeamsDayExists, bq.DeleteUserTeamsDay, bq.InsertUserTeams,
+					day, teamsResult); storeErr != nil {
+					// A streaming-buffer rejection is expected and self-healing,
+					// so it is logged at Info here and at the two sites below,
+					// matching ingestSupplementary and runRepoMetricsBackfill.
+					// The enterprise-only probe above reads "missing" for a day
+					// whose rows sit under the org scope_id, so upsertReport
+					// routinely finds rows to delete here — and a DELETE inside
+					// the ~90-minute streaming buffer is rejected. (The
+					// cross-scope repo-metrics probe reaches it only when the
+					// fetch resolves to a scope reportScopeIDs does not list.)
+					// A spurious warning out of the nightly job is not free.
+					if errors.Is(storeErr, ErrStreamingBuffer) {
+						slog.Info("Skipping user-teams re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
+					} else {
+						slog.Warn("Failed to insert missing user-teams", "day", dayStr, "error", storeErr)
+					}
 				} else {
 					slog.Info("Backfilled missing user-teams", "day", dayStr, "records", len(teamsResult.Records))
 					filled++
@@ -540,7 +586,7 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 		}
 
 		// Check and fill per-user metrics
-		usersExists, err := bq.UserMetricsDayExists(ctx, day, scopeID)
+		usersExists, err := bq.UserMetricsDayExists(ctx, day, cfg.EnterpriseSlug)
 		if err != nil {
 			slog.Warn("Failed to check user-metrics existence", "day", dayStr, "error", err)
 		} else if !usersExists {
@@ -549,8 +595,13 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 					slog.Warn("Failed to fetch missing user-metrics", "day", dayStr, "error", fetchErr)
 				}
 			} else if len(usersResult.Records) > 0 {
-				if insertErr := bq.InsertUserMetrics(ctx, day, usersResult.Scope, usersResult.ScopeID, usersResult.Records); insertErr != nil {
-					slog.Warn("Failed to insert missing user-metrics", "day", dayStr, "error", insertErr)
+				if storeErr := upsertReport(ctx, bq.UserMetricsDayExists, bq.DeleteUserMetricsDay, bq.InsertUserMetrics,
+					day, usersResult); storeErr != nil {
+					if errors.Is(storeErr, ErrStreamingBuffer) {
+						slog.Info("Skipping user-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
+					} else {
+						slog.Warn("Failed to insert missing user-metrics", "day", dayStr, "error", storeErr)
+					}
 				} else {
 					slog.Info("Backfilled missing user-metrics", "day", dayStr, "records", len(usersResult.Records))
 					filled++
@@ -559,7 +610,7 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 		}
 
 		// Check and fill per-repository metrics
-		reposExists, err := bq.RepoMetricsDayExists(ctx, day, scopeID)
+		reposExists, err := dayExistsInAnyScope(ctx, bq.RepoMetricsDayExists, day, scopeIDs)
 		if err != nil {
 			slog.Warn("Failed to check repo-metrics existence", "day", dayStr, "error", err)
 		} else if !reposExists {
@@ -568,8 +619,13 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 					slog.Warn("Failed to fetch missing repo-metrics", "day", dayStr, "error", fetchErr)
 				}
 			} else if len(reposResult.Records) > 0 {
-				if insertErr := bq.InsertRepoMetrics(ctx, day, reposResult.Scope, reposResult.ScopeID, reposResult.Records); insertErr != nil {
-					slog.Warn("Failed to insert missing repo-metrics", "day", dayStr, "error", insertErr)
+				if storeErr := upsertReport(ctx, bq.RepoMetricsDayExists, bq.DeleteRepoMetricsDay, bq.InsertRepoMetrics,
+					day, reposResult); storeErr != nil {
+					if errors.Is(storeErr, ErrStreamingBuffer) {
+						slog.Info("Skipping repo-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
+					} else {
+						slog.Warn("Failed to insert missing repo-metrics", "day", dayStr, "error", storeErr)
+					}
 				} else {
 					slog.Info("Backfilled missing repo-metrics", "day", dayStr, "records", len(reposResult.Records))
 					filled++
@@ -583,7 +639,79 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 	}
 }
 
+// reportScopeIDs lists every scope_id value a daily report may already be stored
+// under, most likely first.
+//
+// The daily report fetchers try the enterprise endpoint first and fall back to
+// the organization one (github.go FetchDailyMetrics / fetchDailyReport), so the
+// scope_id written for a day is the enterprise slug on some runs and the org
+// name on others. A gap-fill that probes only the enterprise slug therefore sees
+// "missing" for every org-stored day and re-ingests it on every run, appending a
+// fresh copy of the same rows each time.
+func reportScopeIDs(cfg *Config) []string {
+	scopeIDs := []string{cfg.EnterpriseSlug}
+	if cfg.OrganizationSlug != "" && cfg.OrganizationSlug != cfg.EnterpriseSlug {
+		scopeIDs = append(scopeIDs, cfg.OrganizationSlug)
+	}
+	return scopeIDs
+}
+
+// dayExistsInAnyScope reports whether a day is stored under any of the given
+// scope_ids. A probe error is returned rather than swallowed so callers can tell
+// "not stored" apart from "could not tell" — treating the latter as "missing"
+// is what turns a transient BigQuery failure into duplicate rows.
+func dayExistsInAnyScope(
+	ctx context.Context,
+	existsFn func(context.Context, time.Time, string) (bool, error),
+	day time.Time,
+	scopeIDs []string,
+) (bool, error) {
+	for _, scopeID := range scopeIDs {
+		exists, err := existsFn(ctx, day, scopeID)
+		if err != nil {
+			return false, err
+		}
+		if exists {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// latestDayAcrossScopes returns the most recent day stored under any of the
+// given scope_ids, or the zero time when none of them has data.
+//
+// Callers use this as a resume point: they ingest every day after it. Taking the
+// max across scopes is what makes that safe — a per-scope maximum sits before
+// days already stored under the other scope, so the caller re-ingests them and,
+// because the write is keyed on whatever scope the fetch resolves to that run,
+// leaves the day present under both scopes at once.
+//
+// The trade-off is deliberate: a day already stored under the org scope is never
+// revisited, so it will not be enriched with enterprise-scope rows later. The
+// gap is filled either way, and one copy of a day beats two.
+func latestDayAcrossScopes(
+	ctx context.Context,
+	latestFn func(context.Context, string) (time.Time, error),
+	scopeIDs []string,
+) (time.Time, error) {
+	var latest time.Time
+	for _, scopeID := range scopeIDs {
+		day, err := latestFn(ctx, scopeID)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if day.After(latest) {
+			latest = day
+		}
+	}
+	return latest, nil
+}
+
 // upsertReport handles idempotent insert for a report: check exists → delete → insert.
+// The exists/delete pair is keyed on the scope_id the fetch actually resolved to,
+// which is the same key the insert writes — never on a scope_id assumed by the
+// caller, or the delete misses the rows it is meant to replace.
 func upsertReport(
 	ctx context.Context,
 	existsFn func(context.Context, time.Time, string) (bool, error),
