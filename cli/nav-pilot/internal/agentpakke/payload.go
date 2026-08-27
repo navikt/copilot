@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"golang.org/x/sys/unix"
 )
 
 // Payload verification (G1).
@@ -27,8 +29,8 @@ import (
 // The semantics mirror grillmester's _verify_manifested_payload
 // (scripts/grillmester_local.py at 3573b93cc8b7568516117263562d073cae9ee7fc),
 // with two deliberate deviations documented at the checks that make them:
-// no target-name pin (see [PayloadManifest.Target]) and an exec-bit rather
-// than exact-mode comparison on the source tree (see [FileRecord.Mode]).
+// no target-name pin (see [PayloadManifest.Target]) and a subset-plus-exec-bit
+// rather than exact-mode comparison on the source tree (see [FileRecord.Mode]).
 
 const (
 	// PayloadSchemaVersion is the payload-manifest schemaVersion this binary
@@ -301,11 +303,43 @@ func (m *PayloadManifest) verifyTree(payloadDir, manifestPath string) error {
 // verifyPayloadFile compares one file's content digest and mode against its
 // manifest record.
 func verifyPayloadFile(abs, rel string, rec FileRecord) error {
-	f, err := os.Open(abs)
+	// The walk lstat'd this path as a regular file, but that lstat and this open
+	// are two syscalls apart, so both flags below defend against what can be
+	// swapped in during that window:
+	//
+	//   O_NOFOLLOW — without it a symlink swapped in is followed, and a link
+	//     whose target happens to match the digest verifies clean. The open
+	//     fails with ELOOP instead.
+	//   O_NONBLOCK — without it a fifo swapped in blocks this goroutine inside
+	//     open(2) forever, hanging `nav-pilot validate` on a hostile or merely
+	//     broken source. POSIX gives O_NONBLOCK no effect on regular files, so
+	//     it costs nothing on the path that actually matters.
+	//
+	// The reference implementation (which lstats, then read_bytes) has neither.
+	f, err := os.OpenFile(abs, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
 	if err != nil {
 		return fmt.Errorf("reading payload file %q: %v", rel, err)
 	}
 	defer f.Close()
+
+	// Stat the open descriptor rather than the path, so what is checked belongs
+	// to the same inode whose bytes are hashed below — a path-based stat could
+	// be redirected between the read and the stat.
+	info, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("inspecting payload file %q: %v", rel, err)
+	}
+	// Re-check regularity on the descriptor, not just on the walk's lstat: that
+	// is what closes the swapped-in-fifo race rather than merely surviving it.
+	// O_NONBLOCK got the open to return; this rejects the thing it opened
+	// before a single byte is read from it.
+	// Distinct wording from the walk's check on purpose: reaching this one means
+	// the entry changed type after the walk saw it, which is a different event
+	// from a payload that simply ships a fifo.
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf(
+			"payload file %q is not a regular file; it changed type between the payload walk and the open", rel)
+	}
 
 	digest := sha256.New()
 	if _, err := io.Copy(digest, f); err != nil {
@@ -316,31 +350,52 @@ func verifyPayloadFile(abs, rel string, rec FileRecord) error {
 			"payload file %q has sha256 %s but the payload manifest declares %s; the payload does not match its manifest", rel, got, rec.SHA256)
 	}
 
-	// Stat the open descriptor rather than the path: the file was already
-	// lstat'd as a regular file during the walk, and this cannot be redirected
-	// by a link swapped in between.
-	info, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("inspecting payload file %q: %v", rel, err)
-	}
 	want, err := rec.perm()
 	if err != nil {
 		// Unreachable: ParsePayloadManifest already rejected every other mode.
 		return fmt.Errorf("payload file %q: %w", rel, err)
 	}
 	// Deviation from the reference, which compares S_IMODE exactly. On the
-	// source side only the exec bit is compared: a checkout is created under
-	// the user's umask, so a restrictive umask (0077) yields 0600/0700 for
-	// files the manifest declares 0644/0755 — content-identical, and failing
-	// verification over it would reject every conforming payload on those
-	// machines. The exec bit is the part that carries meaning here, and the
-	// digest binds the content. Exact modes are enforced where they matter:
-	// the staging package chmods the staged tree to the manifest's modes and
-	// re-runs the full exact check on it before any client is pointed at it.
-	if (info.Mode().Perm()&0o111 != 0) != (want&0o111 != 0) {
+	// source side the on-disk permissions must be a *subset* of the declared
+	// ones, and the exec bit must match. That is narrower than "compare only
+	// the exec bit", which the previous revision used: a umask only ever
+	// *clears* permission bits, so it can justify tolerating fewer bits than
+	// declared and never more. A 0644 file found world-writable at 0666, or a
+	// 0755 file found 0777, is not a umask artifact — it is a tree someone
+	// widened, and it is refused.
+	//
+	// The umask case the deviation exists for is the clearing direction only:
+	// a checkout under umask 0077 yields 0600/0700 for files declared
+	// 0644/0755 — content-identical, and rejecting it would fail every
+	// conforming payload on those machines. Note that 0700 is still
+	// executable: clearing the exec bit off 0755 needs a umask containing
+	// 0111, which would also make every directory the user creates un-enterable
+	// and is not a configuration that occurs in practice. So a declared-0755
+	// file found without any exec bit is a real mismatch, not a umask artifact,
+	// and stays fatal.
+	//
+	// Setuid, setgid and sticky are rejected separately and explicitly: Go's
+	// FileMode.Perm() masks to 0777, so those bits are invisible to the subset
+	// comparison and a setuid 04755 file would otherwise verify clean.
+	//
+	// Exact modes are still enforced where they matter: the staging package
+	// chmods the staged tree to the manifest's modes and re-runs the full exact
+	// check on it before any client is pointed at it.
+	if special := info.Mode() & (os.ModeSetuid | os.ModeSetgid | os.ModeSticky); special != 0 {
+		return fmt.Errorf(
+			"payload file %q carries setuid/setgid/sticky bits (mode %v); nav-pilot refuses to stage a privileged file",
+			rel, info.Mode())
+	}
+	perm := info.Mode().Perm()
+	if (perm&0o111 != 0) != (want&0o111 != 0) {
 		return fmt.Errorf(
 			"payload file %q is mode %04o but the payload manifest declares %s; the executable bit does not match",
-			rel, info.Mode().Perm(), rec.Mode)
+			rel, perm, rec.Mode)
+	}
+	if perm&^want != 0 {
+		return fmt.Errorf(
+			"payload file %q is mode %04o but the payload manifest declares %s; it grants permissions the payload manifest does not, and a umask can only take permissions away",
+			rel, perm, rec.Mode)
 	}
 	return nil
 }

@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // refPayloadFiles is the payload tree that
@@ -264,6 +267,37 @@ func TestVerifyPayload(t *testing.T) {
 			wantErrs: []string{`"scripts/hook.sh"`, "executable bit does not match", "0755"},
 		},
 		{
+			name: "setuid added to a 0755 file",
+			// FileMode.Perm() masks to 0777, so setuid is invisible to a
+			// permission comparison and needs its own check.
+			mutate: func(t *testing.T, dir string, _ map[string]any) {
+				chmodSpecial(t, filepath.Join(dir, "scripts", "hook.sh"), os.ModeSetuid|0o755)
+			},
+			wantErrs: []string{`"scripts/hook.sh"`, "setuid/setgid/sticky"},
+		},
+		{
+			name: "setgid added to a 0644 file",
+			mutate: func(t *testing.T, dir string, _ map[string]any) {
+				chmodSpecial(t, filepath.Join(dir, "LICENSE"), os.ModeSetgid|0o644)
+			},
+			wantErrs: []string{`"LICENSE"`, "setuid/setgid/sticky"},
+		},
+		{
+			name: "world-writable where the manifest declares 0644",
+			// A umask only clears bits, so extra bits are never a umask artifact.
+			mutate: func(t *testing.T, dir string, _ map[string]any) {
+				chmod(t, filepath.Join(dir, "LICENSE"), 0o666)
+			},
+			wantErrs: []string{`"LICENSE"`, "0666", "0644", "does not"},
+		},
+		{
+			name: "world-writable where the manifest declares 0755",
+			mutate: func(t *testing.T, dir string, _ map[string]any) {
+				chmod(t, filepath.Join(dir, "scripts", "hook.sh"), 0o777)
+			},
+			wantErrs: []string{`"scripts/hook.sh"`, "0777", "0755", "does not"},
+		},
+		{
 			name: "malformed record",
 			mutate: func(_ *testing.T, _ string, doc map[string]any) {
 				doc["files"].(map[string]any)["LICENSE"] = "adc37366"
@@ -382,6 +416,112 @@ func TestVerifyPayloadRejectsSymlinkedPayloadDir(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "real directory") {
 		t.Fatalf("VerifyPayload(symlinked payload dir) = %v, want a real-directory error", err)
 	}
+}
+
+// TestVerifyPayloadRejectsFifo pins the walk's non-regular-file check. A fifo
+// is the case that makes the check load-bearing rather than tidy: without it
+// verification does not merely mis-verify the payload, it blocks forever in
+// open(2). The test therefore fails on a hang as well as on a nil error.
+func TestVerifyPayloadRejectsFifo(t *testing.T) {
+	dir := writePayloadTree(t, refPayloadFiles)
+	if err := unix.Mkfifo(filepath.Join(dir, "pipe"), 0o644); err != nil {
+		t.Skipf("mkfifo unsupported here: %v", err)
+	}
+	// The manifest lists the fifo, so the unmanifested-file check cannot shadow
+	// the non-regular-file check: with the latter removed, verification really
+	// does reach open(2) on the fifo and block there.
+	doc := payloadManifestDoc(refPayloadFiles)
+	doc["files"].(map[string]any)["pipe"] = fileRecordFor("")
+	manifestPath := filepath.Join(dir, PayloadManifestFile)
+	writeFile(t, manifestPath, string(payloadManifestBytes(t, doc)))
+
+	done := make(chan error, 1)
+	go func() { done <- VerifyPayload(dir, manifestPath) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("VerifyPayload = nil with a fifo in the tree, want a non-regular-file error")
+		}
+		// The walk's own wording, not the descriptor check's: this test is what
+		// gives the walk check teeth, and the two layers are worded apart so
+		// removing either one is visible here or in the direct test below.
+		assertErrMentions(t, err, []string{`payload contains "pipe", which is not a regular file`})
+	case <-time.After(30 * time.Second):
+		// Deliberately not t.Fatal from this goroutine's perspective: the
+		// verifier is stuck in open(2) and will never return.
+		t.Fatal("VerifyPayload hung on a fifo; the non-regular-file check is what prevents this")
+	}
+}
+
+// TestVerifyPayloadFileRefusesToFollowSymlink pins the O_NOFOLLOW on the open
+// in verifyPayloadFile. The walk rejects symlinks it sees, but the walk's lstat
+// and the open are two syscalls apart, so a link swapped in between would be
+// followed and — if its target's content matched the digest — would verify.
+// This calls verifyPayloadFile directly, which is the same state the race would
+// leave it in, without having to win a race to observe it.
+func TestVerifyPayloadFileRefusesToFollowSymlink(t *testing.T) {
+	dir := t.TempDir()
+	real := filepath.Join(dir, "real")
+	writeFile(t, real, "MIT\n")
+	link := filepath.Join(dir, "LICENSE")
+	symlink(t, real, link)
+
+	// The record matches what the link resolves to, so only O_NOFOLLOW can
+	// reject this.
+	rec := FileRecord{SHA256: sha256Hex("MIT\n"), Mode: "0644"}
+	err := verifyPayloadFile(link, "LICENSE", rec)
+	if err == nil {
+		t.Fatal("verifyPayloadFile followed a symlink to a digest-matching target, want an open failure")
+	}
+	assertErrMentions(t, err, []string{`"LICENSE"`})
+}
+
+// TestVerifyPayloadFileRejectsNonRegularDescriptor pins the regular-file check
+// on the fstat, which the walk's check would otherwise mask. It calls
+// verifyPayloadFile directly — the state a fifo swapped in between the walk's
+// lstat and the open would leave it in — and proves two things at once: the
+// open returns rather than blocking (O_NONBLOCK), and what it opened is
+// refused before a byte is read from it.
+func TestVerifyPayloadFileRejectsNonRegularDescriptor(t *testing.T) {
+	dir := t.TempDir()
+	pipe := filepath.Join(dir, "pipe")
+	if err := unix.Mkfifo(pipe, 0o644); err != nil {
+		t.Skipf("mkfifo unsupported here: %v", err)
+	}
+	// An empty-content record: without the type checks a reader-less fifo hashes
+	// as the empty file and verifies clean, so the record must not be what
+	// rejects it.
+	rec := FileRecord{SHA256: sha256Hex(""), Mode: "0644"}
+
+	done := make(chan error, 1)
+	go func() { done <- verifyPayloadFile(pipe, "pipe", rec) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("verifyPayloadFile = nil for a fifo, want a non-regular-file error")
+		}
+		assertErrMentions(t, err, []string{`"pipe"`, "changed type between the payload walk and the open"})
+	case <-time.After(30 * time.Second):
+		t.Fatal("verifyPayloadFile hung on a fifo; O_NONBLOCK is what prevents this")
+	}
+}
+
+// TestVerifyPayloadRejectsOversizedManifest pins the manifest size cap. The
+// oversized manifest is otherwise well-formed, so only the cap can reject it.
+func TestVerifyPayloadRejectsOversizedManifest(t *testing.T) {
+	dir := writePayloadTree(t, refPayloadFiles)
+	doc := payloadManifestDoc(refPayloadFiles)
+	// Padding in an ignored-unknown field keeps the manifest valid JSON that
+	// would parse and verify fine were it not for its size.
+	doc["padding"] = strings.Repeat("x", maxPayloadManifestBytes)
+	manifestPath := filepath.Join(dir, PayloadManifestFile)
+	writeFile(t, manifestPath, string(payloadManifestBytes(t, doc)))
+
+	err := VerifyPayload(dir, manifestPath)
+	if err == nil {
+		t.Fatal("VerifyPayload = nil for an oversized manifest, want a size-cap error")
+	}
+	assertErrMentions(t, err, []string{"payload manifest", "past the", "limit"})
 }
 
 // TestVerifyPayloadReferenceFixture runs the verifier against a vendored
@@ -574,6 +714,21 @@ func chmod(t *testing.T, path string, mode os.FileMode) {
 	t.Helper()
 	if err := os.Chmod(path, mode); err != nil {
 		t.Fatalf("chmod %s: %v", path, err)
+	}
+}
+
+// chmodSpecial chmods and then verifies the bits actually stuck: setuid and
+// setgid are silently dropped on some filesystems, and a test that asserts a
+// rejection must not pass because the bit was never there.
+func chmodSpecial(t *testing.T, path string, mode os.FileMode) {
+	t.Helper()
+	chmod(t, path, mode)
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatalf("lstat %s: %v", path, err)
+	}
+	if want := mode &^ os.ModePerm; info.Mode()&want != want {
+		t.Skipf("filesystem dropped %v on %s (mode is %v)", want, path, info.Mode())
 	}
 }
 
