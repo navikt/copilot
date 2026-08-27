@@ -271,8 +271,9 @@ func TestOpenCodeAgentMode(t *testing.T) {
 		{"research", "subagent"},
 		{"", "subagent"},
 	}
+	primaries := ActivePakke().PrimaryAgents("opencode")
 	for _, tt := range tests {
-		if got := OpenCodeAgentMode(tt.name); got != tt.want {
+		if got := OpenCodeAgentMode(tt.name, primaries); got != tt.want {
 			t.Errorf("OpenCodeAgentMode(%q) = %q, want %q", tt.name, got, tt.want)
 		}
 	}

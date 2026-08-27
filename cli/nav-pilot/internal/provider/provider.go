@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
@@ -56,11 +57,12 @@ type Provider interface {
 // Copilot provider, so the model id uses the github-copilot/<id> form.
 // Prefer Copilot Auto so default routing can follow the current
 // cost/quality frontier instead of a historically pinned model.
-const OpenCodeDefaultModel = "github-copilot/auto"
-
-// OpenCodeAgentPersona is the materialized opencode primary agent that loads
-// Nav's context and persona. Mirrors CopilotAgentPersona for the copilot client.
-const OpenCodeAgentPersona = "nav-pilot"
+// The value is the built-in agentpakke's declaration, so the model id is
+// written down in exactly one place (internal/agentpakke's legacy adapter).
+// It anchors the curated model list and the advisory messages; the model a
+// launch actually falls back to comes from the active agentpakke, via
+// openCodeDefaultModel.
+var OpenCodeDefaultModel = agentpakke.Default().DefaultModel("opencode")
 
 // openCodeProviderPrefix is the opencode provider that cplt authenticates
 // opencode against. Bare Copilot-style model ids are mapped under it.
@@ -114,7 +116,7 @@ var knownOpenCodeModels = func() []domain.ModelChoice {
 func ToOpenCodeModel(model string) string {
 	model = strings.TrimSpace(model)
 	if model == "" || model == "auto" {
-		return OpenCodeDefaultModel
+		return openCodeDefaultModel()
 	}
 	if strings.Contains(model, "/") {
 		return model
