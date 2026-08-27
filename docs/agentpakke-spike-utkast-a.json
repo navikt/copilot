@@ -1,0 +1,34 @@
+{
+  "contractVersion": "1",
+  "name": "nav-pilot",
+  "description": "Nav's default agents, skills, instructions, and prompts",
+  "owner": {
+    "repo": "navikt/copilot",
+    "team": "nav-pilot maintainers"
+  },
+  "clients": {
+    "copilot": {
+      "primaryAgents": [
+        "nav-pilot"
+      ]
+    },
+    "opencode": {
+      "primaryAgents": [
+        "nav-pilot",
+        "nav-pilot-opus"
+      ],
+      "defaultModel": "github-copilot/auto"
+    },
+    "pi": {
+      "primaryAgents": [
+        "nav-pilot"
+      ]
+    }
+  },
+  "layout": {
+    "agents": "agents",
+    "skills": "skills",
+    "instructions": "instructions",
+    "prompts": "prompts"
+  }
+}
