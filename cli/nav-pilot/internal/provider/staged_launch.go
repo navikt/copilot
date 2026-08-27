@@ -268,6 +268,9 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	if _, err := exec.LookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found in PATH — install it first: https://opencode.ai")
 	}
+	if err := checkStagedRuntime("opencode", pakkeCompatibility("opencode")); err != nil {
+		return err
+	}
 	spec, err := buildStagedOpenCodeSpec(r, s)
 	if err != nil {
 		return err
@@ -292,6 +295,9 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 				"A Tier 2 agentpakke ships pre-built payloads that nav-pilot only hands to a sandboxed client.\n\n"+
 				"  Install it: %s",
 			s.PakkeName, domain.Bold("brew install navikt/tap/cplt"))
+	}
+	if err := checkStagedRuntime("copilot", pakkeCompatibility("copilot")); err != nil {
+		return err
 	}
 	spec, err := buildStagedCopilotSpec(r, s)
 	if err != nil {

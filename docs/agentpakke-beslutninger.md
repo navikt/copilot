@@ -46,7 +46,8 @@ Avvikene er få og hver enkelt er begrunnet i koden der sjekken gjøres. Sammend
 | Ingen pin av `target`-navn | `payload.go`, `PayloadManifest.Target` | Digestkjeden |
 | `O_NOFOLLOW`/`O_NONBLOCK` + fstat på deskriptoren (referansen har ingen av delene) | `payload.go`, `openPayloadFile` | — (strengere enn referansen) |
 | Kopiering styres av manifestets `files`, ikke av en walk av kildetreet | `stage.go`, filhode | — (strengere enn referansen) |
-| `--project-dir` tas ikke i bruk (`--no-audit` tas i bruk, se [§2.5](#25-flagg-fra-referansen)) | `staged_launch.go`, filhode | Arbeidskatalogen *er* prosjektomfanget — ingen launch-sti setter `cmd.Dir` |
+| `--project-dir` tas ikke i bruk *på launchen* (`--no-audit` tas i bruk, se [§2.5](#25-flagg-fra-referansen)) | `staged_launch.go`, filhode | Arbeidskatalogen *er* prosjektomfanget — ingen launch-sti setter `cmd.Dir`. Versjonsproben er unntaket og setter det, se [§2.5](#25-flagg-fra-referansen) |
+| Copilots numeriske build-suffiks (`1.0.81-14`) godtas; referansen avviser det som prerelease | `runtime_gate.go`, `copilotBuildSuffixPattern` | Sammenligningen kjører på `major.minor.patch`; ekte prereleases (`-next.3`, `-beta`, `-rc.1`) avvises fortsatt |
 
 ### 2.1 Modesjekk på kilden: subset pluss exec-bit
 
@@ -75,7 +76,9 @@ Referansen kopierer med `shutil.copytree(symlinks=True)` — den walker kilden. 
 Fra referansens `build_launch_command` (`scripts/grillmester.py`, linje 647–689) tar vi ett av de to cplt-flaggene i bruk og utelater ett:
 
 - **`--no-audit`** (linje 663) — **tas i bruk** på den stagede stien, på referansens plass: først i cplt-vektoren, før `--agent`. Vi leste det først som launcher-policy og en versjonsspesifikk workaround, og utelot det. Team eSyfo korrigerte det i svaret på G4-spørsmålet ([kommentar i #437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)): på cplt-baselinen grillmester v0.3.0 er testet mot, kan cplts parent-side audit kjøre repo-kontrollerte Git-hjelpere *utenfor* sandboxen. Uten flagget er en staget Tier 2-launch dårligere isolert enn launcheren den skal være ekvivalent med. Å fjerne det igjen krever dokumentasjon på at en gjennomgått cplt-baseline retter oppførselen, pluss en minimumsversjonssperre som håndhever den — ikke at flagget ser overflødig ut.
-- **`--project-dir`** (linje 666–667) — **utelates fortsatt**. nav-pilot starter i arbeidskatalogen: ingen launch-sti setter `cmd.Dir`, så cplt og klienten arver brukerens cwd. eSyfo aksepterer utelatelsen på nøyaktig det vilkåret, og at differansetestene asserterer oppførselen.
+- **`--project-dir`** (linje 666–667) — **utelates fortsatt på launchen**. nav-pilot starter i arbeidskatalogen: ingen launch-sti setter `cmd.Dir`, så cplt og klienten arver brukerens cwd. eSyfo aksepterer utelatelsen på nøyaktig det vilkåret, og at differansetestene asserterer oppførselen.
+
+Ett unntak, og det er ikke en omgjøring: **versjonsproben** setter `--project-dir` mot en tom 0700-tempkatalog, slik referansen gjør i `_sandboxed_client_version` (linje 884–886). En launch er scopet til brukerens prosjekt med vilje; et `--version`-spørsmål skal ikke være scopet til noe. Uten flagget kjører proben i brukerens cwd, engasjerer repoets `.cplt.toml`-tillitsflyt og gir klienten lese- og skrivetilgang til repoet for å svare på et versjonsspørsmål. Proben setter også `--yes --quiet` på referansens plass (`_client_probe`, linje 879) — uten `--yes` stopper cplt på launch-bekreftelsen og proben feiler hver gang, på hver maskin.
 
 Beslutningen om `--no-audit` er altså endret, og den er Team eSyfos ([§5.2](#52-grensen-for-equivalent-invocation-g4--eier-team-esyfo), [§8](#8-der-kildene-er-uenige)); den om `--project-dir` er vår, nå med eSyfos aksept.
 
@@ -108,7 +111,7 @@ Kode: `cli/nav-pilot/internal/agentpakke/stage.go`, kallstedet i `cli/nav-pilot/
 
 ## 4. Launch-beslutningene
 
-Kode: `cli/nav-pilot/internal/provider/staged_launch.go`, `cli/nav-pilot/internal/provider/pakke.go`, `cli/nav-pilot/internal/cli/pakke_launch.go` ([#458](https://github.com/navikt/copilot/pull/458)).
+Kode: `cli/nav-pilot/internal/provider/staged_launch.go`, `cli/nav-pilot/internal/provider/pakke.go`, `cli/nav-pilot/internal/provider/runtime_gate.go`, `cli/nav-pilot/internal/cli/pakke_launch.go` ([#458](https://github.com/navikt/copilot/pull/458)).
 
 **Staged Copilot krever cplt — uten fallback og uten prompt.** Legacy-stien for copilot godtar fortsatt en vanlig, usandboxet `copilot`-binær. På Tier 2-stien gjør den det ikke: en payload-launch er *definert* av sandbox-flaggene (`--allow-read <staged>`), payloaden er tredjeparts konfigurasjon vi ikke har skrevet, og å falle tilbake til en usandboxet klient ville stille droppet nettopp den isolasjonen payloaden ble staget for. Referansen krever også cplt. Brukere uten cplt får en feil som navngir `brew install navikt/tap/cplt`. Dette er en innstramming målt mot dagens copilot-støtte, men bare på Tier 2-stien.
 
@@ -151,6 +154,12 @@ To alternativer ble vurdert og forkastet:
 **Fail-closed begynner ved tier-porten, ikke før den.** Kilden resolves ved hver launch, fordi det er slik nav-pilot får vite om denne launchen i det hele tatt er Tier 2. En resolve-feil lander *før* tier-porten, der ingenting ennå sier at det er en payload i bildet — kilden deklarerer kanskje ingen. Å være offline, eller ha et utdatert reponavn i config, skal derfor ikke blokkere en launch som virket før Tier 2-staging fantes: nav-pilot advarer og tar legacy-stien, slik `EnsureOpenCodeNavContext` alltid har gjort. Forbi tier-porten, der payloaden er kjent, er alt fail-closed uten fallback.
 
 Dette er en rettelse: #457 beskrev den fatale varianten som en akseptert konsekvens for copilot-brukere med egen kilde. Den framstillingen var feil på to punkter — legacy-opencode kloner den *state-registrerte* repoen, ikke den konfigurerte, og en feil der er bare en advarsel — og den fatale varianten rammet begge klienter, altså enhver offline bruker med `source` satt, inkludert `navikt/copilot` skrevet eksplisitt. Rettet i #458 framfor dokumentert.
+
+**Runtime-portene er nav-pilots, ikke kontraktens.** Kode: `cli/nav-pilot/internal/provider/runtime_gate.go`. Team eSyfo gjorde håndheving obligatorisk ([kommentar i #437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)): «Runtime client compatibility ranges and a reviewed cplt minimum should be enforced, not only validated as manifest syntax.» En staged launch kjører derfor to porter før den bygger noe som helst — cplt-gulvet alltid, `compatibility` når klientoppføringa deklarerer et område.
+
+**cplt-gulvet er en konstant i nav-pilot, ikke et manifestfelt.** `minStagedCpltStamp` er hentet fra referansens `SUPPORTED_CPLT_RELEASE` (`scripts/grillmester.py`, linje 27). Det kunne vært et felt i kontrakten, men da ville eieren blitt feil: hvilken cplt-versjon som er trygg nok til å kjøre en sandboxet payload, er *nav-pilots og cplts* vurdering, ikke pakkeforfatterens. En pakke kunne ellers senket gulvet under det nav-pilot har gjennomgått — presis den porten som skal beskytte brukeren mot pakka. Å flytte konstanten følger samme fellesbeslutningsregel som referansepinnen. Den er samtidig utgangsrampen for `--no-audit` ([§2.5](#25-flagg-fra-referansen)): den dagen en gjennomgått cplt-baseline retter parent-side audit, er endringen én diff — hev stempelet, fjern flagget, legg ved dokumentasjonen.
+
+**«Vet ikke» er fatalt, ikke en advarsel.** En probe som feiler, eller versjonsutdata nav-pilot ikke kan parse, avviser launchen på lik linje med en versjon som faktisk er utenfor området. Tre grunner: portene ligger *forbi* tier-porten, der alt er fail-closed uten fallback; referansen er fatal på samme sted (`check_cplt`, `_strict_client_version_output`); og en versjonssjekk som blir grønn på manglende data er nøyaktig feilmodusen [#452](https://github.com/navikt/copilot/pull/452) rettet i nav-pilots egen cplt-skew-sjekk. Et område som ikke kan håndheves, er ikke håndhevet — og da har eSyfos krav ikke noe innhold. Deklarerer manifestet ingen `compatibility`, er det ingenting å håndheve: da probes klienten ikke i det hele tatt.
 
 ## 5. Åpne spørsmål
 
