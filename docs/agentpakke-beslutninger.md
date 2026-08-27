@@ -15,9 +15,11 @@ Selve kontrakten — hva en agentpakke *er*, og hva nav-pilot krever av den — 
 | WP2 — datadrevne personaer | C1, C2, C3 | [#455](https://github.com/navikt/copilot/pull/455) | i main |
 | WP3a — staging | G2 (staging-halvdelen) | [#456](https://github.com/navikt/copilot/pull/456) | i main |
 | WP3b — staged launch | G2 (launch), G3, C4, deler av F1 | [#458](https://github.com/navikt/copilot/pull/458) | åpen |
-| WP4 — løfte install-sperren for Tier 2 | «not installable yet»-stoppen | — | planlagt |
-| WP7 — kontraktskorreksjon: roster per payload | G4 (P1, focused-persona) | — | åpen |
+| WP4 — løfte install-sperren for Tier 2, med revisjonspin | «not installable yet»-stoppen | — | planlagt |
+| WP7 — kontraktskorreksjon: roster per payload | G4 (P1, focused-persona) | [#461](https://github.com/navikt/copilot/pull/461) | i main |
 | WP5 / WP6 — `model`-frontmatter, differensialtest | F1-resten, G4 | — | ikke startet |
+
+**Rekkefølgen er bindende: revisjonspinnen ligger *inne i* WP4, ikke etter den.** Først runtime-gatene ([#462](https://github.com/navikt/copilot/issues/462)) og roster-rettelsen ([#461](https://github.com/navikt/copilot/issues/461)); så løftes install-sperren i samme arbeidspakke som pinnen. Grunnen er hele poenget: så lenge pinnen mangler, kloner hver Tier 2-launch den bevegelige standardbranchen, og en pakkeforfatter endrer hva som kjører ved brukerens neste launch uten noe samtykkepunkt ved install. Å løfte sperren først ville gjort det tilgjengelig for alle som installerer, framfor bare for dem som bevisst konfigurerer en kilde. Ikke stokk om på dette for å få noe merget raskere.
 
 [#458](https://github.com/navikt/copilot/pull/458) erstatter [#457](https://github.com/navikt/copilot/pull/457), som lå stablet på #456 og ikke kunne retargetes etter at den ble merget. Samme arbeid, pluss rettelsene fra gjennomgangen — der #457-teksten og koden er uenige, er det #458 som gjelder ([§8](#8-der-kildene-er-uenige)).
 
@@ -196,6 +198,7 @@ Ikke «fiks» disse ved et uhell — de er valgt, og de har begrunnelser.
 - **Ingen OTel-config-injeksjon i staged opencode-modus.** `experimental.openTelemetry` skrives ikke, fordi det ville betydd å redigere enten den delte configen eller den digestbundne payloaden. OTel-miljøvariablene settes fortsatt.
 - **To `Unreachable:`-grener** rundt `rec.perm()` i `payload.go` og `stage.go` er beholdt som defensiv feilretur, fordi `ParsePayloadManifest` allerede har avvist alle andre modes.
 - **Kosmetisk rest i `openCodeDefaultModel`:** kjøres `config setup` med en `inherit`-pakke aktiv, merkes den innebygde modell-id-en «Nav default». Ingen M2-flyt setter en pakke før setup, så ingenting når dit i dag (`internal/provider/pakke.go`).
+- **Tier-cachen er provisorisk og fjernes med WP4.** `tierCacheTTL` (6 timer, `internal/cli/pakke_launch.go`) finnes bare for å slippe en klone ved hver launch. Revisjonspinnen — en lokalt cachet, immutabel revisjon valgt av et install- eller update-steg, krevd av Team eSyfo ([kommentar i #437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)) — svarer på et strengere spørsmål for hver installerte kilde, og lar tier-cachen stå igjen bare for launch-før-install. Da slettes den, framfor å bli to cacher med hver sin TTL og ingen forklaring på hvorfor begge finnes.
 
 ## 7. Begrunnelser som ikke sto skrevet noe sted før dette dokumentet
 
