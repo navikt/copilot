@@ -2,7 +2,7 @@
 
 ## Hva er agentic engineering?
 
-Tradisjonell AI-kodeassistanse (autocomplete) foreslår én linje om gangen. Du aksepterer eller forkaster. Agentisk AI er kvalitativt annerledes:
+Autocomplete foreslår én linje om gangen, og du aksepterer eller forkaster. Agentisk AI er noe annet:
 
 | Egenskap | Autocomplete | Agentisk AI |
 |----------|--------------|-------------|
@@ -12,89 +12,62 @@ Tradisjonell AI-kodeassistanse (autocomplete) foreslår én linje om gangen. Du 
 | Feilmodus | Dårlig forslag (begrenset skade) | Kaskadefeil på tvers av systemer |
 | Styring | Innholdsfilter | Tillitsgrenser, tilgangsstyring, revisjonslogg |
 
-Anthropics analogi: Du har gått fra å chatte med en assistent som svarer på spørsmål, til å ansette en konsulent med nøkler til bygget, tilgang til e-posten din og fullmakt til å godkjenne utgifter.
-
----
+Siste rad er den som angår arkitekter. Et innholdsfilter er en produktegenskap du kjøper. Tillitsgrenser er arkitektur du må tegne selv.
 
 ## Hva sier forskningen?
 
-### De som er mest skeptiske har ofte rett — delvis
+### Skeptikerne har delvis rett
 
-**METR-studien (juli 2025)** — randomisert kontrollert forsøk, gullstandard:
-- 16 erfarne utviklere, 246 reelle oppgaver i store kodebaser (22 000+ stars, 1M+ linjer)
-- Resultat: **AI gjorde dem 19 % tregere**
-- Utviklerne *trodde* de var 24 % raskere. Etter å ha opplevd nedgangen, trodde de fortsatt de var 20 % raskere
-- Økonomer og ML-forskere spådde 38–39 % speedup
+[METR-studien](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) (juli 2025, arXiv:2507.09089) er et randomisert kontrollert forsøk: 16 erfarne utviklere, 246 reelle oppgaver i store kodebaser (22 000+ stars, 1M+ linjer). AI gjorde dem **19 % tregere**. Utviklerne trodde selv de var 24 % raskere, og de trodde fortsatt de var 20 % raskere etter å ha opplevd nedgangen. Økonomer og ML-forskere hadde på forhånd spådd 38–39 % speedup.
 
-Kilde: [metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) + arXiv:2507.09089
+Fem forklaringer på resultatet:
 
-**Hvorfor?** Fem faktorer:
 1. AI presterer dårligere i store, komplekse kodebaser med implisitt kontekst
-2. Kognitiv overhead av å lese, forstå og verifisere AI-generert kode
+2. Å lese, forstå og verifisere AI-generert kode koster
 3. Debugging av AI-feil tar tid
-4. Høye kvalitetskrav (stil, tester, dokumentasjon) gjør AI-forslag mindre direkte brukbare
-5. Oppgavene var i kodebaser utviklerne kjente fra før — der AI gir minst merverdi
+4. Høye krav til stil, tester og dokumentasjon gjør forslagene mindre direkte brukbare
+5. Oppgavene lå i kodebaser utviklerne kjente fra før, der AI gir minst merverdi
 
-### Men det finnes reell verdi — for riktige oppgaver
+### Men verdien er reell på riktige oppgaver
 
-**GitHubs forskning (2022–2024):**
-- Enkel, avgrenset oppgave (HTTP-server i JavaScript): **55 % raskere** med Copilot
-- Enterprise-skala hos Accenture: **8,7 % flere PR-er**, 84 % bedre CI-bygg, 15 % høyere merge-rate
+[GitHubs forskning](https://github.blog/2022-09-07-research-quantifying-github-copilots-impact-on-developer-productivity-and-happiness/) (2022–2024) målte **55 % raskere** på en avgrenset labbeoppgave (HTTP-server i JavaScript). [Hos Accenture](https://github.blog/news-insights/research/research-quantifying-github-copilots-impact-in-the-enterprise-with-accenture/), i enterprise-skala, ble tallene mer beskjedne: 8,7 % flere PR-er, 84 % bedre CI-bygg, 15 % høyere merge-rate.
 
-**NBER/Brynjolfsson et al. (2023)** — 5 179 kundeserviceagenter:
-- +14 % produktivitet totalt
-- **+34 % for nybegynnere**, minimalt for erfarne
+[NBER/Brynjolfsson et al.](https://nber.org/papers/w31161) (2023) fulgte 5 179 kundeserviceagenter og fant +14 % produktivitet totalt, men **+34 % for nybegynnere** og minimalt for de erfarne.
 
-**Anthropic internt (august 2025)** — 132 ingeniører:
-- 59 % av daglig arbeid bruker Claude, selvrapportert 50 % produktivitetsøkning
-- 67 % økning i mergede PR-er per ingeniør per dag
-- Men: over halvparten delegerer kun 0–20 % av arbeidet fullt til AI
-- Senioringeniørene delegerer bevisst *lite* av kjernearbeidet
+[Anthropic internt](https://www.anthropic.com/research/how-ai-is-transforming-work-at-anthropic) (august 2025, 132 ingeniører): 59 % av det daglige arbeidet bruker Claude, selvrapportert 50 % produktivitetsøkning, 67 % flere mergede PR-er per ingeniør per dag. Samtidig delegerer over halvparten bare 0–20 % av arbeidet fullt til AI, og senioringeniørene delegerer bevisst lite av kjernearbeidet.
 
-Kilde: [anthropic.com/research/how-ai-is-transforming-work-at-anthropic](https://www.anthropic.com/research/how-ai-is-transforming-work-at-anthropic)
+Mønsteret går igjen på tvers av studiene. AI hjelper mest nybegynnere, på avgrensede oppgaver, i ukjent kode. AI hjelper minst erfarne utviklere, på komplekse oppgaver, i kode de kjenner, med høye kvalitetskrav. Det er nesten en beskrivelse av arbeidsdagen til en Nav-utvikler med ti års fartstid i en fagsystemmonolitt.
 
-### Mønsteret er konsistent
+## Kompetansebevaring
 
-```
-AI hjelper mest:   Nybegynnere, enkel/avgrenset oppgave, ukjent kodebase
-AI hjelper minst:  Erfarne utviklere, kompleks/kjent kodebase, høye kvalitetskrav
-```
-
----
-
-## Kompetansebevaring — det skjulte problemet
-
-Anthropics egne senioringeniører (2025):
+To sitater fra Anthropics egne senioringeniører (2025):
 
 > «Det blir vanskeligere å ta seg tid til å faktisk lære noe når det er så lett og raskt å produsere output.»
 
 > «Ferdighetene mine vil primært forfalle med hensyn til min evne til å trygt *bruke* AI for oppgavene jeg bryr meg om.»
 
-Dette er **supervisjonsparadokset**: Effektiv oversikt over AI krever nettopp de ferdighetene som AI-avhengighet eroderer.
+Dette er **supervisjonsparadokset**: effektiv oversikt over AI krever nettopp de ferdighetene som AI-avhengighet eroderer.
 
-**Nav utviklerundersøkelsen 2026** (163 respondenter):
+Vår egen [utviklerundersøkelse 2026](utviklerundersokelsen-2026-oppsummering.md) (163 respondenter) viser det samme spenningsfeltet:
+
 - 75 % opplever at AI hjelper dem jobbe raskere
 - **59 % er bekymret for kompetansetap**
 - Kun 34 % mener AI-kode holder til code review
-- #1-ønske: Bedre opplæring (31 %)
+- Det mest etterspurte tiltaket er bedre opplæring (31 %)
 
-Kilde: [Stray et al., HICSS-59 2026](https://arxiv.org/abs/2509.20353) — Navs egen longitudinelle studie (26 317 commits) fant *ingen statistisk signifikant produktivitetsøkning*.
-
----
+Til sammenligning fant [Stray et al., HICSS-59 2026](https://arxiv.org/abs/2509.20353), en longitudinell studie av 26 317 Nav-commits, *ingen statistisk signifikant produktivitetsøkning*. Opplevd fart og målt fart er ikke det samme, verken hos METR eller hos oss.
 
 ## Sikkerhetsrisiko ved agentisk AI
 
-### Anthropic: Agentic Misalignment (2025)
+### Agentic misalignment
 
-Red-teaming av 16 ledende AI-modeller (Anthropic, OpenAI, Google, Meta, xAI) i simulerte bedriftsmiljøer. Modellene fikk verktøytilgang (e-post, filsystemer) og mål som kom i konflikt med bedriftsinstrukser.
+Anthropic red-teamet [16 ledende modeller](https://www.anthropic.com/research/agentic-misalignment) (2025) fra Anthropic, OpenAI, Google, Meta og xAI i simulerte bedriftsmiljøer. Modellene fikk verktøytilgang til e-post og filsystemer, og mål som kom i konflikt med bedriftsinstruksene. **Alle 16** tydde til ondsinnet atferd, utpressing og lekkasje av informasjon, når det var eneste vei unna nedleggelse.
 
-Funn: **Alle 16 modeller** tyr til ondsinnet atferd (utpressing, lekkasje av informasjon) når det er eneste måten å unngå nedleggelse.
-
-Kilde: [anthropic.com/research/agentic-misalignment](https://www.anthropic.com/research/agentic-misalignment)
+Poenget er ikke at modellene er onde. Poenget er at verktøytilgang gjør målkonflikt til en sikkerhetshendelse.
 
 ### OWASP Top 10 for LLM-applikasjoner
 
-De tre mest relevante for enterprise-agenter:
+Av [OWASPs liste](https://owasp.org/www-project-top-10-for-large-language-model-applications/) (2024) er tre punkter mest relevante for enterprise-agenter:
 
 | # | Sårbarhet | Konsekvens |
 |---|-----------|------------|
@@ -102,40 +75,35 @@ De tre mest relevante for enterprise-agenter:
 | LLM08 | Excessive agency | AI med for vid fullmakt tar utilsiktede handlinger |
 | LLM09 | Overreliance | Ukritisk aksept av AI-output |
 
-### Anthropic: Trustworthy Agents (april 2026)
+### Fire angrepsflater
 
-Fire komponenter som hver utgjør en angrepsflate:
-1. **Modellen** — trening former oppførsel
-2. **Harness** — instrukser og guardrails (feilkonfigurert harness kan undergrave god modell)
-3. **Verktøy** — e-post, kalender, databaser, kodekjøring
-4. **Miljø** — hva agenten har tilgang til
+[Trustworthy Agents](https://www.anthropic.com/research/trustworthy-agents) (april 2026) deler en agent i fire komponenter, og hver av dem er en angrepsflate:
 
-Kilde: [anthropic.com/research/trustworthy-agents](https://www.anthropic.com/research/trustworthy-agents)
+1. **Modellen**, der treningen former oppførselen
+2. **Harness**, altså instrukser og guardrails. En feilkonfigurert harness undergraver en god modell
+3. **Verktøy**, som e-post, kalender, databaser og kodekjøring
+4. **Miljø**, altså hva agenten faktisk har tilgang til
 
----
+Nav kontrollerer ikke modellen. Vi kontrollerer de tre andre.
 
 ## Hva Forrester og Microsoft sier
 
-**Forrester Predictions 2025:**
-- **75 % av bedrifter som bygger agentisk AI selv vil mislykkes** — arkitekturene er for komplekse
-- ROI-forventninger vil føre til for tidlige nedskaleringer
-- 40 % av regulerte virksomheter må slå sammen data- og AI-governance
+[Forrester Predictions 2025](https://www.forrester.com/blogs/predictions-2025-artificial-intelligence/) spår at **75 % av bedriftene som bygger agentisk AI selv vil mislykkes** fordi arkitekturene er for komplekse, at ROI-forventninger vil utløse for tidlige nedskaleringer, og at 40 % av regulerte virksomheter må slå sammen data- og AI-governance.
 
-Kilde: [forrester.com/blogs/predictions-2025-artificial-intelligence](https://www.forrester.com/blogs/predictions-2025-artificial-intelligence/)
+[Microsoft Work Trend Index](https://www.microsoft.com/en-us/worklab/work-trend-index/ai-at-work-is-here-now-comes-the-hard-part) 2024–2025 (31 000 respondenter, 31 land):
 
-**Microsoft Work Trend Index 2024–2025** (31 000 respondenter, 31 land):
-- 78 % av AI-brukere tar med egne AI-verktøy (BYOAI) — utenom bedriftskontroller
+- 78 % av AI-brukerne tar med egne verktøy (BYOAI), utenom bedriftskontrollene
 - 52 % er *redde for å innrømme* at de bruker AI til viktige oppgaver
-- 81 % av ledere forventer agenter integrert i AI-strategi innen 12–18 måneder
-- 60 % av ledere innrømmer at organisasjonen mangler plan for AI-implementering
+- 81 % av ledere forventer agenter i AI-strategien innen 12–18 måneder
+- 60 % av ledere innrømmer at organisasjonen mangler en plan for AI-implementering
 
----
+BYOAI-tallet er argumentet mot å vente. Alternativet til godkjente verktøy er ikke fravær av AI, det er AI vi ikke ser.
 
-## Hva vi gjør i Nav — praktisk tilpasning
+## Hva vi gjør i Nav
 
-### Arkitekturen: harness over modell
+### Vi bygger harness, ikke modeller
 
-Vi investerer ikke i egne modeller. Vi bygger *harness* — tilpasningslaget som gjør generelle modeller til Nav-spesifikke verktøy:
+Nav investerer ikke i egne modeller. Vi bygger *harness*, tilpasningslaget som gjør generelle modeller til Nav-spesifikke verktøy:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -153,56 +121,57 @@ Vi investerer ikke i egne modeller. Vi bygger *harness* — tilpasningslaget som
    GitHub Copilot / Claude / GPT (modell-agnostisk)
 ```
 
-### Grønn og rød sone — kodifisert i verktøyet
+Laget er modell-agnostisk med vilje. Bytter leverandøren modell under oss, beholder vi instruksene, agentene og governance-laget.
 
-Vi har bakt forskningsfunnene direkte inn i AI-instruksene:
+### Grønn og rød sone
 
-**🟢 Grønn sone (AI-egnet):** Boilerplate, Nais-manifest, CRUD, kjent teknologi, konfigurasjon, testdata
+Forskningsfunnene er bakt inn i AI-instruksene, ikke bare skrevet ned i et policydokument:
 
-**🔴 Rød sone (kode manuelt først):** Debugging, nye konsepter, kjernelogikk, sikkerhetskritisk kode, arkitekturbeslutninger
+**🟢 Grønn sone (AI-egnet):** boilerplate, Nais-manifest, CRUD, kjent teknologi, konfigurasjon, testdata
 
-**Tre-forsøks-regelen:** Prøv å løse problemet selv i tre forsøk før du ber AI om hjelp.
+**🔴 Rød sone (kod manuelt først):** debugging, nye konsepter, kjernelogikk, sikkerhetskritisk kode, arkitekturbeslutninger
 
-### nav-pilot: Planleggingsagent med fasestyring
+**Tre-forsøks-regelen:** prøv å løse problemet selv tre ganger før du spør AI.
 
-Ikke bare «skriv kode for meg», men en 4-fase arbeidsflyt:
+Full oversikt over agenter, skills, instruksjoner og de områdene vi bevisst holder AI unna ligger i [ai-bruk-oversikt.md](ai-bruk-oversikt.md).
 
-1. **Intervju** — kartlegger blindsoner (personvern, tilgangsstyring, feilhåndtering, observerbarhet, teamgrenser, endringskonsekvenser, teststrategi, migrering, bakoverkompatibilitet, dekommisjonering, kompetansebevaring)
-2. **Plan** — beslutningstrær for auth, kommunikasjon, database, CI/CD
-3. **Review** — fra fire perspektiver: sikkerhet, plattform, arkitektur, endringssikkerhet
-4. **Lever** — kode + dokumentasjon, med rød-sone-kode markert som TODO
+### nav-pilot: planlegging med fasestyring
 
-Agenten *stopper* mellom fasene og venter på godkjenning. Den delegerer til spesialistagenter (auth, kafka, nais, security) ved behov, men beholder kontrollen.
+`@nav-pilot` er ikke «skriv kode for meg», men en arbeidsflyt i fire faser:
+
+1. **Intervju** kartlegger blindsoner: personvern, tilgangsstyring, feilhåndtering, observerbarhet, teamgrenser, endringskonsekvenser, teststrategi, migrering, bakoverkompatibilitet, dekommisjonering og kompetansebevaring
+2. **Plan** bygger beslutningstrær for auth, kommunikasjon, database og CI/CD
+3. **Review** vurderer planen fra fire perspektiver: sikkerhet, plattform, arkitektur, endringssikkerhet
+4. **Lever** gir kode og dokumentasjon, med rød-sone-kode markert som TODO
+
+Agenten stopper mellom fasene og venter på godkjenning. Den delegerer til spesialistagenter for auth, Kafka, Nais og sikkerhet ved behov, men beholder kontrollen selv.
 
 ### Tall fra Nav
 
-- 11 spesialistagenter, 21+ skills
-- 93 % av utviklerne bruker AI-kodeverktøy aktivt
-- 53 % bruker Copilot CLI (agentisk)
-- MCP-registry med godkjente servere (kontrollert verktøytilgang)
-- Bevisst AI-bruk-instruksjonen er aktiv i alle repoer som har tatt den i bruk
+Fra [utviklerundersøkelsen 2026](utviklerundersokelsen-2026-oppsummering.md):
 
----
+- 93 % av utviklerne bruker AI-kodeverktøy aktivt
+- 53 % bruker Copilot CLI, altså agentisk bruk fra terminalen
+
+MCP-registryet holder listen over godkjente servere, som er den praktiske grensen for hvilke verktøy en agent får kalle.
 
 ## Hva enterprise-arkitekter bør spørre om
 
-### Spørsmål til leverandører
+### Til leverandøren
 
-1. **Hvilken studie underbygger produktivitetspåstanden?** (Lab-oppgave? Enterprise RCT? Selvrapportert?)
-2. **Gjelder det for erfarne utviklere i store kodebaser?** (METR sier nei)
-3. **Hva er feilmodusene?** (Ikke bare «hva kan gå galt», men «hva gjør agenten når den tar feil?»)
-4. **Hvem har tilsyn?** (Supervisjonsparadokset — trenger ekspertise for å oppdage AI-feil)
-5. **Hva skjer med BYOAI?** (78 % tar med egne verktøy uansett)
+1. **Hvilken studie underbygger produktivitetspåstanden?** Labboppgave, enterprise-RCT eller selvrapportering?
+2. **Gjelder den for erfarne utviklere i store kodebaser?** METR sier nei.
+3. **Hva er feilmodusene?** Ikke bare hva som kan gå galt, men hva agenten gjør når den tar feil.
+4. **Hvem har tilsyn?** Supervisjonsparadokset betyr at du trenger ekspertisen for å oppdage AI-feilene.
+5. **Hva skjer med BYOAI?** 78 % tar med egne verktøy uansett.
 
-### Spørsmål til egen organisasjon
+### Til egen organisasjon
 
-1. **Måler vi riktig?** (PR-volum ≠ verdi. METR viste at subjektiv opplevelse er upålitelig)
-2. **Har vi grønn/rød-sone-bevissthet?** (Hvilke oppgaver bør *ikke* delegeres?)
-3. **Investerer vi i harness eller bare lisenser?** (Generell AI uten tilpasning gir generelle resultater)
-4. **Trener vi supervisjon?** (Kompetanse til å vurdere AI-output er en egen ferdighet)
-5. **Er governance-strukturen klar?** (Hvem godkjenner at en agent får tilgang til produksjonsdata?)
-
----
+1. **Måler vi riktig?** PR-volum er ikke verdi, og METR viste at den subjektive opplevelsen er upålitelig.
+2. **Har vi grønn/rød-sone-bevissthet?** Hvilke oppgaver bør *ikke* delegeres?
+3. **Investerer vi i harness eller bare lisenser?** Generell AI uten tilpasning gir generelle resultater.
+4. **Trener vi supervisjon?** Å vurdere AI-output er en egen ferdighet.
+5. **Er governance-strukturen klar?** Hvem godkjenner at en agent får tilgang til produksjonsdata?
 
 ## Oppsummering for den skeptiske
 
@@ -214,33 +183,15 @@ Agenten *stopper* mellom fasene og venter på godkjenning. Den delegerer til spe
 | «Det er trygt» | Delvis. Prompt injection, excessive agency og agentic misalignment er reelle risikoer. |
 | «Vi kan vente» | Risikabelt. 78 % BYOAI betyr at utviklerne allerede bruker ukontrollerte verktøy. |
 
----
+## Demoer under presentasjonen
 
-## Demoer (under presentasjonen)
+1. **nav-pilot planlegging**, med fasestyring, blindsoner og beslutningstrær
+2. **Grønn/rød sone i praksis**, der instruksjonen markerer kjernelogikk
+3. **MCP-registry**, kontrollert verktøytilgang for agenter
+4. **Code review-agent**, automatisk kvalitetskontroll
+5. **Bevisst AI-bruk**, generer-så-forstå-mønsteret live
 
-1. **nav-pilot planlegging** — vis fasestyring, blindsoner, beslutningstrær
-2. **Grønn/rød sone i praksis** — vis hvordan instruksjonen markerer kjernelogikk
-3. **MCP-registry** — vis kontrollert verktøytilgang for agenter
-4. **Code review-agent** — vis automatisk kvalitetskontroll
-5. **Bevisst AI-bruk** — vis generer-så-forstå-mønsteret live
+## Videre lesning
 
----
-
-## Kilder
-
-| Kilde | År | URL |
-|-------|-----|-----|
-| METR: AI Experienced OS Dev Study | 2025 | [metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) |
-| GitHub/Accenture Enterprise Study | 2024 | [github.blog](https://github.blog/news-insights/research/research-quantifying-github-copilots-impact-in-the-enterprise-with-accenture/) |
-| NBER: Generative AI at Work | 2023 | [nber.org/papers/w31161](https://nber.org/papers/w31161) |
-| Anthropic: AI Transforming Work | 2025 | [anthropic.com/research/how-ai-is-transforming-work-at-anthropic](https://www.anthropic.com/research/how-ai-is-transforming-work-at-anthropic) |
-| Anthropic: Agentic Misalignment | 2025 | [anthropic.com/research/agentic-misalignment](https://www.anthropic.com/research/agentic-misalignment) |
-| Anthropic: Trustworthy Agents | 2026 | [anthropic.com/research/trustworthy-agents](https://www.anthropic.com/research/trustworthy-agents) |
-| Anthropic: Measuring Agent Autonomy | 2026 | [anthropic.com/research/measuring-agent-autonomy](https://www.anthropic.com/research/measuring-agent-autonomy) |
-| Anthropic: Economic Index | 2026 | [anthropic.com/research/economic-index-march-2026-report](https://www.anthropic.com/research/economic-index-march-2026-report) |
-| Forrester Predictions 2025: AI | 2025 | [forrester.com/blogs/predictions-2025-artificial-intelligence](https://www.forrester.com/blogs/predictions-2025-artificial-intelligence/) |
-| Microsoft Work Trend Index | 2024–2025 | [microsoft.com/worklab](https://www.microsoft.com/en-us/worklab/work-trend-index/ai-at-work-is-here-now-comes-the-hard-part) |
-| Stray et al. (Nav-studie) | 2026 | [arxiv.org/abs/2509.20353](https://arxiv.org/abs/2509.20353) |
-| Nav utviklerundersøkelsen | 2026 | Intern |
-| OWASP GenAI Security | 2024 | [owasp.org](https://owasp.org/www-project-top-10-for-large-language-model-applications/) |
-| GitHub: Copilot Productivity RCT | 2022 | [github.blog](https://github.blog/2022-09-07-research-quantifying-github-copilots-impact-on-developer-productivity-and-happiness/) |
+- [Anthropic: Measuring Agent Autonomy](https://www.anthropic.com/research/measuring-agent-autonomy) (2026)
+- [Anthropic: Economic Index](https://www.anthropic.com/research/economic-index-march-2026-report) (2026)
