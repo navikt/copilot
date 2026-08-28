@@ -9,7 +9,7 @@ Spesialiserte AI-assistenter for Nav-domener. Bruk med `@agent-name` i Copilot C
 ```bash
 mkdir -p .github/agents
 curl -sO --output-dir .github/agents \
-  https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/<filename>.agent.md
+  https://raw.githubusercontent.com/navikt/copilot/main/agents/<filename>.agent.md
 ```
 
 Eller bruk one-click install-knappene nedenfor (VS Code).

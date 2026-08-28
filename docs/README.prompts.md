@@ -9,7 +9,7 @@ Gjenbrukbare prompt-maler for vanlige Nav-utviklingsoppgaver. Bruk med `/prompt-
 ```bash
 mkdir -p .github/prompts
 curl -sO --output-dir .github/prompts \
-  https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/<filename>.prompt.md
+  https://raw.githubusercontent.com/navikt/copilot/main/prompts/<filename>.prompt.md
 ```
 
 ## Tilgjengelige prompts

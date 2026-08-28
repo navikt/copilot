@@ -1,10 +1,10 @@
-# AGENTS.md — navikt/copilot
+# AGENTS.md for navikt/copilot
 
 Minimal guide for agents working in this repository.
 
 ## What this repo is
 
-Monorepo for Nav’s Copilot ecosystem:
+Monorepo for Nav's Copilot ecosystem:
 
 - `apps/my-copilot` (Next.js/TypeScript web app)
 - `apps/copilot-api` (Go backend API)
@@ -12,19 +12,13 @@ Monorepo for Nav’s Copilot ecosystem:
 - `apps/mcp-onboarding` (Go MCP reference server)
 - `apps/mcp-registry` (Go MCP registry API)
 
-Security model and trust boundaries: see `SECURITY.md`.
+`SECURITY.md` has the security model and trust boundaries.
 
 ## Efficiency rule
 
-Keep tool output small: run targeted commands, avoid dumping whole files or full
-build logs into context, and prefer deterministic tools over asking the model to
-guess.
+Keep tool output small. Run targeted commands, do not dump whole files or full build logs into context, and reach for deterministic tools (`rg`, `git`, `gh`) before asking the model to guess.
 
-`rtk` is an optional CLI proxy that filters terminal output before it reaches the
-model. It is available if you want it (`rtk git status`), but it is not required
-and not assumed anywhere in this repo — public controlled measurement has not
-reproduced its advertised savings
-([JetBrains study](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/)).
+`rtk` is an optional CLI proxy that filters terminal output before it reaches the model. Use it if you want to (`rtk git status`). Nothing here requires or assumes it, and public controlled measurement has not reproduced its advertised savings ([JetBrains study](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/)).
 
 ## Standard commands
 
@@ -37,18 +31,12 @@ mise build
 mise all
 ```
 
-Per app: run `mise check` in the app directory after edits.
+After editing an app, run `mise check` in that app's directory. Run `mise all` when the change reaches across the repo.
 
-## Repo conventions that matter
+## Conventions
 
-- Keep diffs small and task-focused (minimal editing).
+- Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
-- In `my-copilot`, use Aksel spacing tokens (not Tailwind `p-*/m-*` utilities).
+- In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
 - Do not commit secrets.
 - Do not push unless explicitly asked.
-
-## When in doubt
-
-- Start with the smallest safe change.
-- Validate with existing checks (`mise check`, or `mise all` for cross-repo impact).
-- Prefer deterministic tools first (`rg`, `git`, `gh`), then LLM synthesis.

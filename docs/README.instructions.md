@@ -9,7 +9,7 @@ Kodestandarder og teknologispesifikke retningslinjer som påvirker Copilots oppf
 ```bash
 mkdir -p .github/instructions
 curl -sO --output-dir .github/instructions \
-  https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/<filename>.instructions.md
+  https://raw.githubusercontent.com/navikt/copilot/main/instructions/<filename>.instructions.md
 ```
 
 ## Tilgjengelige instruksjoner

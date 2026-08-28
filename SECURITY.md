@@ -1,64 +1,78 @@
-# Security Architecture
+# Security architecture
 
-This document describes the security boundaries, authentication flow, and trust zones for the navikt/copilot ecosystem. Read this before modifying authentication, authorization, network policies, or secret management.
+Security boundaries, authentication flow, and trust zones for the navikt/copilot ecosystem. Read this before you touch authentication, authorization, network policies or secret management.
 
-## System Overview
+## System overview
 
 ```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────────┐
+┌─────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐
 │   Browser   │───▶│  Wonderwall  │───▶│  my-copilot  │───▶│   copilot-api    │
 │  (User)     │    │  (Sidecar)   │    │  (Next.js)   │    │   (Go backend)   │
 └─────────────┘    └──────────────┘    └──────────────┘    └──────────────────┘
-                    Azure AD login      BFF (no secrets)    Holds all secrets:
-                    Sets Authorization  Token exchange       • GitHub App key
-                    header              via Texas sidecar    • BigQuery access
-                                                            • Azure AD validation
+                    Azure AD login      BFF (no secrets)    Holds all secrets
+                    Sets Authorization  Token exchange
+                    header              via Texas sidecar
 ```
 
-## Trust Zones
+## Trust zones
 
-### Zone 1: Public (no auth required)
+### Zone 1: public (no auth required)
 
-Pages served by Next.js that contain no sensitive data:
+Pages and redirect routes served by Next.js that contain no sensitive data:
 
-- `/` — Landing page
-- `/nyheter` — News
-- `/praksis` — Best practices
-- `/retningslinjer` — Guidelines
-- `/cplt` — CLI documentation
-- `/nav-pilot` — Agent documentation
+- `/`, landing page
+- `/nyheter`, news
+- `/praksis`, best practices
+- `/retningslinjer`, guidelines
+- `/verktoy`, catalog of Copilot customizations
+- `/ordbok`, glossary
+- `/ordliste`, permanent redirect to `/ordbok`
+- `/kom-i-gang`, getting started
+- `/cplt`, CLI documentation
+- `/nav-pilot`, agent documentation
+- `/install/*`, route handlers that redirect VS Code install badges to `vscode:` URLs
+- `/personvern`, privacy statement
+- `/tilgjengelighet`, accessibility statement
 
-**Enforcement:** Wonderwall `autoLoginIgnorePaths` + Next.js middleware passes through.
+Wonderwall lists these under `autoLoginIgnorePaths`, and the Next.js middleware lets them through.
 
-### Zone 2: Protected (Azure AD auth required)
+copilot-api serves an unauthenticated route group of its own, `/public/v1/`, registered on the mux outside `authMiddleware`:
+
+- `GET /public/v1/videos`, paginated feed of published videos
+- `GET /public/v1/videos/{id}`, metadata for one published video
+- `GET /public/v1/videos/{id}/play`, playback URL for the HLS master
+- `GET /public/v1/videos/{id}/captions`, caption track URL for one video
+
+The group serves published entries from the video manifest only, and no Copilot, billing or user data. The handlers validate their own input: the feed rejects a `limit` outside 1-50 and a `cursor` that is not a non-negative integer, every id must match `^[a-z0-9][a-z0-9-]{1,63}$`, and the detail and play endpoints are rate limited to 60 requests per minute per client IP.
+
+### Zone 2: protected (Azure AD auth required)
 
 Pages and API routes that show organization-level Copilot data:
 
-- `/statistikk` — Usage statistics (BigQuery)
-- `/adopsjon` — Adoption metrics (BigQuery)
-- `/kostnad` — Billing overview (GitHub API)
-- `/abonnement` — Seat management (GitHub API — **mutating**)
-- `/kalkulator` — Cost calculator (GitHub API)
-- `/api/copilot` — Seat management API route
+- `/statistikk`, usage statistics (BigQuery)
+- `/adopsjon`, adoption metrics (BigQuery)
+- `/kostnad`, billing overview (GitHub API)
+- `/abonnement`, seat management (GitHub API, **mutating**)
+- `/api/copilot`, seat management API route
 
-**Enforcement:** Wonderwall auto-login redirect → Azure AD → Authorization header → Texas introspection → OBO token exchange → copilot-api JWT validation.
+Wonderwall lists these paths under `autoLoginIgnorePaths` too, so the sidecar does not redirect them; the comment in that config says auth is handled in the application layer. `apps/my-copilot/src/proxy.ts` redirects unauthenticated page requests to `/oauth2/login` and answers the private API routes with 401, and the protected pages call `getUser()`, which redirects to the login endpoint when the `Authorization` header carries no valid token.
 
-### Zone 3: Backend API (OBO token required)
+### Zone 3: backend API (OBO token required)
 
-copilot-api endpoints that access external services:
+copilot-api endpoints that reach external services:
 
-- `GET /api/v1/copilot/billing` — Organization billing data
-- `GET /api/v1/copilot/seats/{username}` — Individual seat status
-- `POST /api/v1/copilot/seats` — Assign seat (**mutating**)
-- `DELETE /api/v1/copilot/seats/{username}` — Unassign seat (**mutating**)
-- `GET /api/v1/copilot/saml/{identity}` — SAML identity lookup
-- `GET /api/v1/copilot/usage/*` — BigQuery usage data
-- `GET /api/v1/copilot/adoption/*` — BigQuery adoption data
-- `GET /api/v1/copilot/customizations/*` — BigQuery customization data
+- `GET /api/v1/copilot/billing`, organization billing data
+- `GET /api/v1/copilot/seats/{username}`, individual seat status
+- `POST /api/v1/copilot/seats`, assign seat (**mutating**)
+- `DELETE /api/v1/copilot/seats/{username}`, unassign seat (**mutating**)
+- `GET /api/v1/copilot/saml/{identity}`, SAML identity lookup
+- `GET /api/v1/copilot/usage/*`, BigQuery usage data
+- `GET /api/v1/copilot/adoption/*`, BigQuery adoption data
+- `GET /api/v1/copilot/customizations/*`, BigQuery customization data
 
-**Enforcement:** Azure AD JWT validation (signature, issuer, audience, expiry) + `azp` claim validation against pre-authorized apps list. Fails closed if pre-authorized apps list is empty.
+copilot-api validates the Azure AD JWT (signature, issuer, audience, expiry) and checks the `azp` claim against the pre-authorized apps list. It fails closed if that list is empty.
 
-## Authentication Flow
+## Authentication flow
 
 ```
 1. Browser → Wonderwall: User navigates to protected page
@@ -71,14 +85,14 @@ copilot-api endpoints that access external services:
 8. copilot-api: Validates JWT signature via JWKS, checks iss/aud/exp/azp
 ```
 
-### Key Design Decisions
+### Key design decisions
 
-- **Wonderwall sets Authorization header** — with `autoLogin: true`, Wonderwall injects the bearer token on every request to the app. The Next.js middleware checks header presence for routing (not validation).
-- **Texas sidecar handles token exchange** — Next.js never sees client secrets. OBO exchange happens via `NAIS_TOKEN_EXCHANGE_ENDPOINT`.
-- **Azure AD OBO, NOT TokenX** — TokenX is for ID-porten (citizen-facing with BankID). This system uses Azure AD/Entra ID for Nav employees.
-- **azp validation is fail-closed** — If `AZURE_APP_PRE_AUTHORIZED_APPS` is empty or missing, copilot-api rejects ALL requests. No silent bypass.
+- **Wonderwall sets the Authorization header.** With `autoLogin: true` it injects the bearer token on every request to the app. The Next.js middleware only checks that the header is present, for routing. It does not validate it.
+- **Texas handles token exchange.** Next.js never sees client secrets. The OBO exchange goes through `NAIS_TOKEN_EXCHANGE_ENDPOINT`.
+- **Azure AD OBO, NOT TokenX.** TokenX is for ID-porten, which is citizen-facing with BankID. This system uses Azure AD/Entra ID for Nav employees.
+- **azp validation is fail-closed.** If `AZURE_APP_PRE_AUTHORIZED_APPS` is empty or missing, copilot-api rejects ALL requests. No silent bypass.
 
-## Secret Isolation
+## Secret isolation
 
 | Secret | Location | Access |
 |--------|----------|--------|
@@ -88,9 +102,9 @@ copilot-api endpoints that access external services:
 | BigQuery credentials | copilot-api pod (via GCP Workload Identity) | copilot-api only |
 | Azure AD client config | Both pods (injected by Nais) | Auto-managed |
 
-All external service credentials (GitHub App, BigQuery) live exclusively in the `copilot-api` pod. `my-copilot` holds no GitHub App credentials and reaches GitHub and BigQuery only through `copilot-api` via Azure AD OBO tokens.
+All external service credentials (GitHub App, BigQuery) live exclusively in the copilot-api pod. `my-copilot` holds none of them; it reaches Copilot billing, seat and BigQuery data through `copilot-api`, using Azure AD OBO tokens.
 
-## Network Policy
+## Network policy
 
 ### copilot-api (`apps/copilot-api/.nais/app.yaml`)
 
@@ -110,10 +124,9 @@ accessPolicy:
 
 ### my-copilot (`apps/my-copilot/.nais/app.yaml`)
 
-- Inbound: Public via ingress (Wonderwall enforces auth on protected routes)
-- Outbound: copilot-api (via Nais service discovery)
+Inbound is public via ingress, and Wonderwall enforces auth on the protected routes. Outbound goes to copilot-api through Nais service discovery.
 
-## Input Validation
+## Input validation
 
 | Input | Validation | File |
 |-------|-----------|------|
@@ -124,7 +137,7 @@ accessPolicy:
 | BigQuery table/view refs | Server-side only (from config, not user input) | `bigquery.go` |
 | BigQuery day filter | Parameterized query (`@days`) | `bigquery.go` |
 
-## Audit Logging
+## Audit logging
 
 All mutating operations log the actor:
 
@@ -137,13 +150,13 @@ slog.Info("Copilot seat assigned",
 )
 ```
 
-Debug logs use NAVident only (no email/PII at debug level).
+Debug logs use NAVident only, no email or other PII at debug level.
 
-## Error Handling
+## Error handling
 
-- **Client-facing errors** use RFC 7807 Problem Details (`application/problem+json`)
-- **Internal errors** are logged server-side with full details but return generic messages to clients
-- **No raw error strings** are forwarded to clients from upstream APIs (GitHub, BigQuery)
+- Client-facing errors use RFC 7807 Problem Details (`application/problem+json`).
+- Internal errors are logged server-side with full details, but clients get a generic message back.
+- No raw error strings from upstream APIs (GitHub, BigQuery) are forwarded to clients.
 
 ## Observability
 
@@ -153,27 +166,24 @@ Debug logs use NAVident only (no email/PII at debug level).
 | `/ready` | None | Kubernetes readiness probe |
 | `/metrics` | None (pod-level only) | Prometheus scraping |
 
-Metrics are NOT exposed via ingress — Prometheus scrapes the pod directly. The `/metrics` endpoint does not require auth because it contains only aggregate seat counts (no PII).
+These are not the whole unauthenticated surface; the `/public/v1/` video group in Zone 1 also needs no auth. Metrics are NOT exposed via ingress. Prometheus scrapes the pod directly. `/metrics` needs no auth because it contains only aggregate seat counts, no PII.
 
-## Development Mode
+## Development mode
 
 When `NAIS_CLUSTER_NAME` is unset (local development):
 
-- **copilot-api**: Skips Azure AD validation, injects mock user (`DEV001`)
-- **my-copilot**: Skips OBO token exchange, calls backend directly without auth
-- **Both**: Development bypass requires BOTH missing cluster name AND missing Azure config — cannot be accidentally triggered in production
+- copilot-api skips Azure AD validation and injects a mock user (`DEV001`).
+- my-copilot skips the OBO token exchange and calls the backend directly without auth.
+- In both apps the bypass requires BOTH a missing cluster name AND missing Azure config, so it cannot be triggered by accident in production.
 
 ## Boundaries
 
 ### ✅ Always
 
-- Validate `azp` claim on all backend API requests
 - Use parameterized queries for any data access
 - Log mutations with actor identity (NAVident)
-- Return generic error messages to clients
-- Keep GitHub App credentials in copilot-api only
 
-### ⚠️ Ask First
+### ⚠️ Ask first
 
 - Changing authentication mechanisms or token exchange
 - Modifying NAIS access policies
@@ -184,7 +194,7 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 
 - Commit secrets or credentials to git
 - Log PII (email, FNR) at INFO level or above, except the minimal actor identity required for audit logging of mutations
-- Forward raw upstream error messages to clients
+- Forward raw upstream error messages to clients, return a generic message instead
 - Skip input validation on external boundaries
-- Bypass `azp` validation (even for "internal" services)
-- Give my-copilot direct access to GitHub App credentials
+- Bypass `azp` validation on any backend API request, even for "internal" services
+- Give my-copilot, or any app other than copilot-api, access to GitHub App credentials
