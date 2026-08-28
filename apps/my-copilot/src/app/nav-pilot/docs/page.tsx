@@ -151,7 +151,7 @@ const COLLECTIONS = [
       skills:
         "api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
-        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, testing, testing-kotlin, github-actions, docker, database, security-owasp",
+        "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, testing, testing-kotlin, github-actions, docker, database, security-owasp",
       prompts: "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest",
     },
   },
@@ -166,7 +166,7 @@ const COLLECTIONS = [
       skills:
         "aksel-builder, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
-        "code-review, deliberate-ai-use, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
+        "code-review, deliberate-ai-use, output-style, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nais-manifest",
     },
   },
@@ -181,7 +181,7 @@ const COLLECTIONS = [
       skills:
         "aksel-builder, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
-        "code-review, deliberate-ai-use, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
+        "code-review, deliberate-ai-use, output-style, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nextjs-api-route, nais-manifest",
     },
   },
@@ -196,7 +196,7 @@ const COLLECTIONS = [
       skills:
         "aksel-builder, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, web-design-reviewer, nav-dekoratoren, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
-        "code-review, deliberate-ai-use, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database, security-owasp",
+        "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database, security-owasp",
       prompts:
         "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest, aksel-component, nextjs-api-route, golang-service",
     },
@@ -211,7 +211,8 @@ const COLLECTIONS = [
       agents: "code-review, research, security-champion, nav-pilot",
       skills:
         "conventional-commit, nais, observability-setup, observability-debugging, readme-review, rust-development, security-review, security-owasp, terse-mode, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions: "code-review, deliberate-ai-use, golang, testing, github-actions, docker, security-owasp",
+      instructions:
+        "code-review, deliberate-ai-use, output-style, golang, testing, github-actions, docker, security-owasp",
       prompts: "golang-service, nais-manifest",
     },
   },

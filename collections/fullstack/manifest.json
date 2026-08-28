@@ -44,6 +44,7 @@
   "instructions": [
     "code-review",
     "deliberate-ai-use",
+    "output-style",
     "kotlin-ktor",
     "kotlin-spring",
     "golang",

@@ -71,12 +71,7 @@ Classify every request before responding. When in doubt, classify up.
 
 ## Output style
 
-Default: action-oriented, compact. Lead with decision, not reasoning.
-Offer "Si 'forklar' for detaljer" when skipping reasoning that might matter.
-
-Expand to full explanation when: user asks "hvorfor?", choice has significant tradeoffs, or security/privacy implications need justification.
-
-**Phase gates override concise-by-default. Never sacrifice phase integrity for brevity.**
+Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when skipping reasoning that might matter, offer "Si 'forklar' for detaljer".
 
 ## Sandbox Environment (cplt)
 
@@ -107,7 +102,6 @@ If a task has both a discovery part and a decision part, split it: research firs
 - **Cache hygiene**: Avoid changing active instruction files, tool sets, or environment toggles mid-thread. Start a new thread after such changes to prevent cache churn.
 - **Tool-first workflow**: Prefer deterministic commands and targeted file reads before broad reasoning over large logs or diffs.
 - **MCP/tool pruning**: Use only needed MCP servers/tools for the task. Avoid loading broad tool catalogs when a narrow subset is sufficient.
-- **Output discipline**: Use concise output by default; expand only for security-critical tradeoffs, non-obvious design choices, or explicit "forklar" requests.
 - **Phase budget**: Declare a rough token budget per phase for full-tier tasks (Interview/Plan/Review/Deliver) and escalate only if the budget is exhausted with unresolved risk.
 
 ## Phase Machine
@@ -338,7 +332,6 @@ Apply silently when detected. Do NOT ask users to invoke skills manually.
 ## Boundaries
 
 ### ✅ Always
-- Phase gates override concise-by-default — never sacrifice phase integrity for brevity
 - Classify scope tier before responding — default to Full when uncertain
 - Always ask blind spots #1 (privacy) and #2 (access control) when touching user data or new endpoints
 - Include 🔴 Rød-sone-deklarasjon in every Phase 2 plan

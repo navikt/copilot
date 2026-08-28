@@ -59,7 +59,7 @@
         "security"
       ],
       "filePath": "agents/auth.agent.md",
-      "contentHash": "275b0d834d2a75f3fb9b04e741f1c2b28b306ef21b8cb316d6539b2c5cc99154",
+      "contentHash": "1c07123f47e47cf7f1420ebbf534612ffbe38629cf7104a64478f61233a430d4",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -100,7 +100,7 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "3dd47103e9bf04a8f92223e817d25077ba9e329de10389fc5f0bfb7f18e1cd99",
+      "contentHash": "2529faa6918e3520c0baf475e96c1e5d5d032cb3b5a199080ae98ef797270341",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -151,7 +151,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nais.agent.md",
-      "contentHash": "c5a977cd971007ef45d8d960a244d5e1d5e772df73f120e5653efa930992c97a",
+      "contentHash": "963b592c169037937657468c9fcc7774e87dc279f86b8c94ecada26185a94d61",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -176,7 +176,7 @@
       "displayName": "@nav-pilot-opus",
       "description": "Dyp analyse for høyrisiko planlegging, arkitekturvalg og kritisk review i Nav-prosjekter",
       "filePath": "agents/nav-pilot-opus.agent.md",
-      "contentHash": "6cce4129a7f3b5598ffa0f8c9d2e0132382f0864804558390cef1ab0dc2c8235",
+      "contentHash": "19b8f598f0672fce5cd0d6b5151695754b117f074951f2a84886533dd1b7c36a",
       "useCases": [
         "Network policies",
         "Secrets management",
@@ -198,7 +198,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "6ae2b1bab24669682fd1bb6e06d54c467c52617a3d6ef8ea6dc4f94e5aa50ea1",
+      "contentHash": "60fe5f103e7a8a0549aa881c4bd9a0d9c613481bd3c9627073844629c8a980a5",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -232,7 +232,7 @@
         "prometheus"
       ],
       "filePath": "agents/observability.agent.md",
-      "contentHash": "790f7e03f52e44d865b6703685f0dac4a100cb5f69455f7f688d2e80f3b72b64",
+      "contentHash": "7d860b6e5eed271683d2b59b5c97b608a8abd12a15257670646f3f5248531d7f",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -254,7 +254,7 @@
       "displayName": "@research-agent",
       "description": "Utforsker kodebaser, undersøker problemer og samler kontekst før implementering",
       "filePath": "agents/research.agent.md",
-      "contentHash": "90b7a1685788c5a46d504fbad171b2ef6b88e5e8fdd51d3325313d3c25cb043a",
+      "contentHash": "38d77b71bfb445012d905221a1968835b61aeea923ccfbb58e1962a0d1eaafb6",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -308,7 +308,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "5ccba48b66938fd01f18b762501bbea2cf2db4ae5d76d355bffa44b13ff6ffb0",
+      "contentHash": "dd606b26d7558cd529042b2cc4230beea9eca832b9089c4d8cf98fddbbea3e22",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -457,9 +457,19 @@
       "displayName": "Norsk tekstkvalitet",
       "description": "Klarspråk, AI-markører, anglismer, fagtermer og sammensatte ord i norsk markdown.",
       "filePath": "instructions/norwegian-text.instructions.md",
-      "contentHash": "890c8475efa051a50c510c2b6f0e219a2acbf603ecbb178e2a32abc3857afe9c",
+      "contentHash": "b392ea7a4a952a5d54cc841922ee2a200931c00eb2e37a54e5a5eeb0a1d12892",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md"
+    },
+    {
+      "type": "instruction",
+      "name": "output-style",
+      "displayName": "Output Style",
+      "description": "Felles skriveregler for output: lengde, tetthet, AI-markører og presedens over bevisst AI-bruk.",
+      "filePath": "instructions/output-style.instructions.md",
+      "contentHash": "37ea9304b8c48b462922ce696c8f5faf744b02bbdb87c5c09d6badebf65c0706",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md"
     },
     {
       "type": "instruction",
@@ -1078,7 +1088,7 @@
       "displayName": "terse-mode",
       "description": "Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet",
       "filePath": "skills/terse-mode/SKILL.md",
-      "contentHash": "26ec6b397bdd2e9611c00be143354bc76997102bfa7eea18b5483e69c01f1865",
+      "contentHash": "8e25f66ada3ce16df09418b18cb85b1e37416e0cf8ac408f9a6b53d8a1c095c3",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/terse-mode/SKILL.md"
     },

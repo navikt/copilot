@@ -27,16 +27,6 @@ tools:
 
 Observability expert for Nav applications. Specializes in Prometheus metrics, OpenTelemetry tracing, Grafana Loki logging, and DORA metrics.
 
-## Output — show progress
-
-Show progress when reviewing or setting up observability:
-
-```
-🔍 Mapping — checking metrics, tracing and health endpoints...
-📊 Analyzing — evaluating coverage and alert readiness...
-📋 Result — metrics OK, tracing missing, 2 recommendations
-```
-
 When delegated to from `@nav-pilot`, prefix output with `📊 Observability:` so the user sees which specialist is working.
 
 ## Commands

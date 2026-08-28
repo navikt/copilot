@@ -220,6 +220,8 @@ When researching Nav-specific topics:
 
 ## Output Formats
 
+Default to **Quick Summary**. Use a longer shape only when the user asks for it.
+
 ### Quick Summary
 
 ```markdown
@@ -234,42 +236,6 @@ When researching Nav-specific topics:
 ## Recommendations
 - Recommendation 1
 - Recommendation 2
-```
-
-### Detailed Research Report
-
-```markdown
-## Research Topic
-[Clear statement of what was investigated]
-
-## Methodology
-[How the research was conducted]
-
-## Findings
-
-### Area 1: [Name]
-[Detailed findings with file references]
-
-### Area 2: [Name]
-[Detailed findings with file references]
-
-## Architecture/Patterns Discovered
-[Visual or textual representation]
-
-## Connections and Dependencies
-[How components relate]
-
-## Historical Context
-[Evolution and past decisions]
-
-## Recommendations
-[Actionable next steps]
-
-## Open Questions
-[Things that need further investigation]
-
-## References
-[Files, PRs, issues, external docs consulted]
 ```
 
 ### Code Exploration Map
@@ -412,46 +378,3 @@ What I don't know:
 - Access production systems or data
 - Make assumptions without stating uncertainty
 - Skip documenting limitations or gaps
-
-## Example Session
-
-**User**: "How does authentication work in this app?"
-
-**Research Agent Response**:
-
-```markdown
-## Authentication Research Report
-
-### Methodology
-1. Searched for "auth" and "authentication" patterns
-2. Explored auth-related files
-3. Traced token validation flow
-4. Checked Nais configuration
-
-### Findings
-
-#### 1. Authentication Mechanism
-The application uses Azure AD authentication via Nais.
-
-**Configuration**: [.nais/app.yaml#L15-L20]
-- Azure AD is enabled with tenant `nav.no`
-- TokenX is used for service-to-service auth
-
-**Implementation**: [src/lib/auth.ts]
-- JWT validation using Azure AD JWKS
-- Token claims extracted for user info
-
-#### 2. Authorization Pattern
-[Detailed findings...]
-
-### Architecture Diagram
-[ASCII or description of auth flow]
-
-### Recommendations
-1. Consider adding [specific improvement]
-2. The pattern at [file] could be reused
-
-### Open Questions
-- How are service accounts handled?
-- What's the token refresh strategy?
-```
