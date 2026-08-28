@@ -4,35 +4,19 @@ Collections are curated bundles of agents, skills, instructions, and prompts org
 
 📖 **Full documentation:** [min-copilot.ansatt.nav.no/nav-pilot/docs](https://min-copilot.ansatt.nav.no/nav-pilot/docs)
 
-## Available Collections
+## Available collections
 
-| Collection | Description | Agents | Skills | Best for |
-| --- | --- | --- | --- | --- |
-| **kotlin-backend** | Kotlin/Ktor and Spring Boot on Nais | 6 | 10 | Backend API and event consumers |
-| **frontend** | Framework-agnostic frontend (Aksel, UU) | 4 | 7 | Astro, Remix, Vite and other non-Next.js frontends |
-| **nextjs-frontend** | Next.js with Aksel Design System | 4 | 7 | Innbygger- og saksbehandler-frontends |
-| **fullstack** | Complete stack (backend + frontend) | 10 | 13 | Teams that own the full stack |
-| **platform** | Nais, observability, security | 4 | 7 | Platform and DevOps teams |
+| Collection | Description | Best for |
+| --- | --- | --- |
+| **kotlin-backend** | Kotlin/Ktor and Spring Boot on Nais | Backend API and event consumers |
+| **frontend** | Framework-agnostic frontend (Aksel, UU, testing) | Astro, Remix, Vite and other non-Next.js frontends |
+| **nextjs-frontend** | Next.js with Aksel Design System | Innbygger- og saksbehandler-frontends |
+| **fullstack** | Complete stack (backend + frontend) | Teams that own the full stack |
+| **platform** | Nais, observability, security | Platform and DevOps teams |
 
-## Collection Structure
+Each collection is one `manifest.json` that references items by name. The CLI resolves those names to actual files from the repository. Read a collection's manifest to see exactly what it pulls in.
 
-```
-.github/collections/
-├── kotlin-backend/
-│   └── manifest.json       # Lists all agents, skills, instructions, prompts
-├── frontend/
-│   └── manifest.json       # Framework-agnostic (Aksel, UU, testing)
-├── nextjs-frontend/
-│   └── manifest.json
-├── fullstack/
-│   └── manifest.json
-└── platform/
-    └── manifest.json
-```
-
-Each `manifest.json` references items by name. The CLI resolves these to actual files from the repository.
-
-## Creating a New Collection
+## Creating a new collection
 
 1. Create a directory in `.github/collections/<name>/`
 2. Add a `manifest.json` listing the items:
@@ -51,18 +35,14 @@ Each `manifest.json` references items by name. The CLI resolves these to actual 
 3. Test with `nav-pilot install --dry-run <name>`
 4. Submit a PR
 
-## Modifying a Collection
-
-Edit the `manifest.json` in the collection directory. Items are referenced by name — ensure the referenced agents, skills, instructions, and prompts exist in the repository.
-
-After modifying, test with:
+Changing an existing collection is the same job. Edit its `manifest.json`, make sure every agent, skill, instruction and prompt you name exists in the repository, then:
 
 ```bash
 nav-pilot install --dry-run <collection>
 nav-pilot install --force <collection>
 ```
 
-## Exporting for Other Tools
+## Exporting for other tools
 
 If you use [OpenCode](https://github.com/anomalyco/opencode) or [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) instead of GitHub Copilot, you can export all Nav customizations to `.opencode/` format:
 
