@@ -1,71 +1,66 @@
-# Navs agent-harness — kartlegging og analyse
+# Navs agent-harness
 
 > Oversikt over hvordan navikt/copilot styrer AI-kodingsagenter med guides (feedforward) og sensors (feedback). Basert på [Martin Fowlers Harness Engineering](https://martinfowler.com/articles/harness-engineering.html).
 
 ## Hva er en harness?
 
-En *harness* er summen av mekanismer som styrer en kodingsagent mot ønsket atferd. Fowler deler disse i to akser:
+En *harness* er summen av mekanismer som styrer en kodingsagent mot ønsket atferd. Fowler deler dem langs to akser. Computational betyr deterministisk og regelbasert, med samme resultat uansett kontekst. Inferential betyr AI-basert, der modellen tolker intensjon og gir kontekstavhengig veiledning.
 
-| | **Computational** (deterministisk) | **Inferential** (AI-basert) |
+| | Computational | Inferential |
 |---|---|---|
-| **Guide** (feedforward — styrer *før* handling) | Lintere, typesjekk, codemods, CLI-verktøy | Instruksjonsfiler, agenter, skills, prompts |
-| **Sensor** (feedback — korrigerer *etter* handling) | Tester, CI-sjekker, helsesjekk | Code review-agenter, arkitekturreview |
-
-**Computational** = deterministisk, regelbasert, gir samme resultat uavhengig av kontekst.
-**Inferential** = AI-basert, tolker intensjon, gir kontekstavhengig veiledning.
+| **Guide** (feedforward, styrer *før* handling) | Lintere, typesjekk, codemods, CLI-verktøy | Instruksjonsfiler, agenter, skills, prompts |
+| **Sensor** (feedback, korrigerer *etter* handling) | Tester, CI-sjekker, helsesjekk | Code review-agenter, arkitekturreview |
 
 En moden harness dekker alle fire kvadranter og kobler dem sammen i automatiserte feedback-løkker.
 
 ### Scope og telleprinsipp
 
-Denne inventaren teller **konkrete artefakter** (filer, verktøy, endepunkter). Når vi skriver "15 instruksjoner" mener vi 15 `.instructions.md`-filer. Orkestrering (nav-pilot, CI-workflows) er lista separat — det er infrastruktur som *binder* kvadrantene sammen.
+Denne inventaren teller konkrete artefakter, altså filer, verktøy og endepunkter. Når vi skriver «16 instruksjoner» mener vi 16 `.instructions.md`-filer. Orkestrering (nav-pilot, CI-workflows) er lista separat, siden det er infrastruktur som *binder* kvadrantene sammen.
 
 ## Relasjon til bevisst AI-bruk (#187)
 
-Grønn/rød sone-rammeverket (`deliberate-ai-use.instructions.md`) er et **governance-lag** som styrer *utviklerens kompetanse*, ikke koden direkte. Det ligger over Fowlers harness-modell:
+Grønn/rød sone-rammeverket (`deliberate-ai-use.instructions.md`) styrer *utviklerens kompetanse*, ikke koden direkte. Det er et governance-lag som ligger over Fowlers harness-modell.
 
-- **Grønn sone** = feedforward guide for når AI-delegering er trygt
-- **Rød sone** = feedforward guide for når manuell koding bygger kritisk kompetanse
-- **Generer-så-forstå** = menneskelig refleksjonspraksis (ikke en teknisk sensor, men en organisatorisk feedback-mekanisme)
+- Grønn sone er en feedforward guide for når AI-delegering er trygt.
+- Rød sone er en feedforward guide for når manuell koding bygger kritisk kompetanse.
+- Generer-så-forstå er en menneskelig refleksjonspraksis. Ikke en teknisk sensor, men en organisatorisk feedback-mekanisme.
 
-Dette er utenfor Fowlers scope (som handler om å styre agenter), men er en forutsetning for at harnessen gir kompetanseverdi — ikke bare kodekvalitet.
-
----
+Dette faller utenfor Fowlers scope, som handler om å styre agenter. Det er likevel forutsetningen for at harnessen gir kompetanseverdi og ikke bare kodekvalitet.
 
 ## Inventar: Navs harness-komponenter
 
-### Computational Guides (5 kategorier)
+### Computational guides (5 kategorier)
 
-Deterministiske verktøy og konfigurasjoner som begrenser agentens handlingsrom *før* den handler — uavhengig av LLM-tolkning.
+Deterministiske verktøy og konfigurasjoner som begrenser agentens handlingsrom *før* den handler, uavhengig av LLM-tolkning.
 
 | Komponent | Hva den gjør | Livssyklus | Automatisert? |
 |-----------|-------------|------------|---------------|
-| `.mise.toml` + `hack/`-skript | Orkestrerer `mise check` (fmt, lint, typecheck), `mise test`, `mise build` | Pre-commit → CI | Automatisert |
+| `.mise.toml` + `hack/`-skript | Orkestrerer `mise check` (fmt, lint, typecheck), `mise test`, `mise build` | Pre-commit, CI | Automatisert |
 | `.nais/`-manifester | Kubernetes-konfigurasjon: ressursgrenser, helsesjekk, auth, tilgangspolicyer | Pre-deploy | Halvautomatisk (via CI) |
 | Dockerfile-standarder | Chainguard-baseimages, multi-stage builds | Pre-build | Manuell |
 | `ratchet:pin` / `ratchet:lint` | Pinner GitHub Actions til SHA (supply chain-sikkerhet) | Pre-commit | Manuell |
 | EditorConfig / Prettier / ESLint-konfig | Formatering og stilregler som håndheves deterministisk | In-session + CI | Automatisert |
 
-### Inferential Guides (52 artefakter)
+### Inferential guides (70 artefakter)
 
-AI-basert veiledning som former LLM-ens atferd gjennom naturlig språk. De er inferential fordi modellen *tolker* dem, ikke håndhever dem mekanisk.
+AI-basert veiledning som former LLM-ens atferd gjennom naturlig språk. De er inferential fordi modellen *tolker* dem framfor å håndheve dem mekanisk.
 
 | Komponent | Antall | Livssyklus | Automatisert? |
 |-----------|--------|------------|---------------|
 | `.github/copilot-instructions.md` | 1 global | Pre-session (Copilot leser automatisk) | Automatisk |
-| `.github/instructions/*.instructions.md` | 15 filer | In-session (pattern-matchet til filtype) | Automatisk |
-| `.github/prompts/*.prompt.md` | 7 maler | In-session (bruker velger) | Manuell |
+| `instructions/*.instructions.md` | 16 filer | In-session (pattern-matchet til filtype) | Automatisk |
+| `prompts/*.prompt.md` | 7 maler | In-session (bruker velger) | Manuell |
 | `AGENTS.md` | 1 global | Pre-session (Copilot leser automatisk) | Automatisk |
-| `.github/agents/*.agent.md` | 12 agenter | In-session (bruker nevner `@agent`) | Manuell |
-| `skills/*/SKILL.md` | 23 skills | In-session (agent delegerer) | Halvautomatisk |
+| `agents/*.agent.md` | 13 agenter | In-session (bruker nevner `@agent`) | Manuell |
+| `skills/*/SKILL.md` | 32 skills | In-session (agent delegerer) | Halvautomatisk |
 
-**Totalt:** 1 + 15 + 7 + 1 + 12 + 23 = **59 inferential guide-artefakter**
+**Totalt:** 1 + 16 + 7 + 1 + 13 + 32 = **70 inferential guide-artefakter**
 
-**Styrke:** 15:1-ratio mellom veiledende innhold og ren kodegenerering. Agentene forklarer *hvorfor*, ikke bare *hva*.
+**Styrke:** Agentene forklarer *hvorfor*, ikke bare *hva*.
 
-### Computational Sensors (9 artefakter)
+### Computational sensors (8 artefakter)
 
-Deterministiske sjekker som gir feedback *etter* handling — signalerer pass/fail uten AI-tolkning.
+Deterministiske sjekker som gir feedback *etter* handling. De signaliserer pass eller fail uten AI-tolkning.
 
 | Sensor | Hva den fanger | Livssyklus | Automatisert? |
 |--------|---------------|------------|---------------|
@@ -74,12 +69,11 @@ Deterministiske sjekker som gir feedback *etter* handling — signalerer pass/fa
 | `mise:skills:lint` | Token-budsjett og strukturvalidering av skills | Pre-publish | Manuell |
 | `mise:collections:lint` | Konsistens mellom manifest og filer | Pre-publish | Manuell |
 | `docs:check` | Generert dokumentasjon matcher kilde | Pre-commit | Manuell |
-| `scripts/sync-skills-dirs.sh` | Drift mellom `.github/skills/` og `skills/` | Pre-commit | Manuell |
 | Trivy / zizmor | CVE-skanning og GitHub Actions-sikkerhet | Pre-commit | Manuell |
 | Nais-helsesjekker | `.isalive`, `.isready`, `/metrics` | Post-deploy | Automatisert (plattformen) |
-| `copilot-customization-sync.yml` | Driftdeteksjon i downstream-repoer → PR | Ukentlig (schedule) | Automatisert |
+| `copilot-customization-sync.yml` | Driftdeteksjon i downstream-repoer, lager PR | Ukentlig (schedule) | Automatisert |
 
-### Inferential Sensors (8 artefakter)
+### Inferential sensors (8 artefakter)
 
 AI-baserte feedback-mekanismer som vurderer kvalitet kontekstuelt.
 
@@ -98,7 +92,7 @@ AI-baserte feedback-mekanismer som vurderer kvalitet kontekstuelt.
 
 ### Orkestrering (6 komponenter)
 
-Verktøy som binder systemet sammen.
+Infrastrukturen som binder kvadrantene sammen. Den telles for seg, siden den ikke er en guide eller sensor i seg selv.
 
 | Komponent | Funksjon |
 |-----------|----------|
@@ -109,8 +103,6 @@ Verktøy som binder systemet sammen.
 | `copilot-adoption` (Naisjob) | Ukentlig skanning av 700+ repoer for customization-adopsjon |
 | `my-copilot` (portal) | Selvbetjening, oppdagelse, statistikk, abonnement |
 
----
-
 ## Livssyklusposisjon
 
 Hvor i utviklerflyten harnessen griper inn:
@@ -118,13 +110,13 @@ Hvor i utviklerflyten harnessen griper inn:
 | Stadium | Computational | Inferential |
 |---------|--------------|-------------|
 | **Pre-session** | `mise.toml`-orkestrering, nav-pilot-installer, EditorConfig | AGENTS.md, `copilot-instructions.md` (automatisk lest av Copilot) |
-| **In-session** | Prettier/ESLint auto-fix | 15 instructions (pattern-matchet), 12 agenter + 23 skills on-demand, 7 prompt-maler |
+| **In-session** | Prettier/ESLint auto-fix | 16 instructions (pattern-matchet), 13 agenter + 32 skills on-demand, 7 prompt-maler |
 | **Pre-commit** | `ratchet:pin`, `docs:check`, `skills:lint` (manuelt) | `@code-review-agent` / `@security-champion-agent` (manuelt) |
 | **CI (post-commit)** | `mise check` + per-app workflows (format, lint, test, build) → PR-blokkering | Ingen agentbaserte sensors; menneskelig review er utenfor teknisk harness |
 | **Post-deploy** | Nais helsesjekker, readiness-prober | Ingen agentbasert feedback |
 | **Asynkront** | Copilot-metrikkinnsamling (daglig), adopsjonsskanning (ukentlig), sync-driftdeteksjon | Ingen automatisk agentdrevet analyse |
 
----
+Bare den computational siden er dekket etter commit.
 
 ## Koblingsstatus
 
@@ -141,75 +133,65 @@ Hvor i utviklerflyten harnessen griper inn:
 - ⚠️ `@code-review` + spesialistagenter: Bruker må eksplisitt nevne agenten
 - ⚠️ Trivy/zizmor-skanninger: Utvikler må kjøre manuelt
 - ⚠️ Skills (nav-plan, threat-model, nav-deep-interview): On-demand, aldri automatisk utløst
-- ⚠️ `mise check` in-session: Agenter *refererer* til den men kjører den ikke alltid selv
+- ⚠️ `mise check` in-session: Agenter *refererer* til den, men kjører den ikke alltid selv
 
-### Ikke koblet (gap / fremtidig)
-
-- 🔴 Ingen inferential sensors i CI — code-review-agenten kjører aldri automatisk på PR
-- 🔴 Ingen post-deploy inferential sensors — AI-analyse av produksjonslogger/hendelser
-- 🔴 Ingen drift-sensorer — dead code detection, test mutation quality, runtime SLO-feedback
-- 🔴 Ingen lukking av feedback-løkke mellom metrikkinnsamling og guide/sensor-tuning
-
----
+Det som ikke er koblet i det hele tatt, står som gap under.
 
 ## Identifiserte gap
 
-### Gap 1: Ingen inferential sensors i CI/PR-løpet
+### Gap 1: Ingen inferential sensors i CI, PR eller etter deploy
 
-**Status quo:** `@code-review-agent` og `@security-champion-agent` finnes, men kjører kun når en utvikler manuelt ber om det i en session. Ingen automatisk AI-basert review på PR-er.
+**Status quo:** `@code-review-agent` og `@security-champion-agent` finnes, men kjører bare når en utvikler ber om det i en session. Ingen automatisk AI-basert review på PR-er, og ingen AI-analyse av produksjonslogger eller hendelser etter deploy.
 
 **Konsekvens:** Kodekvalitetssjekker som krever kontekstuell vurdering (arkitekturbrudd, sikkerhetsimplikasjoner, aksessibilitetsproblemer) fanges bare opp hvis utvikleren husker å spørre.
 
-**Mulig tiltak:** CI-workflow som trigger `@code-review-agent` på PR-diff. Krever at agenten kan kjøre headless (uten VS Code).
+**Mulig tiltak:** En CI-workflow som trigger `@code-review-agent` på PR-diffen. Det krever at agenten kan kjøre headless, uten VS Code.
 
 ### Gap 2: `mise check` kjører ikke *inne i* agent-sessions
 
-**Status quo:** Alle agenter og instruksjoner *refererer* til `mise check` ("kjør etter endringer"), men agenten gjør det ikke alltid selv som selvkorrigering. Det er post-hoc feedback, ikke in-loop.
+**Status quo:** Alle agenter og instruksjoner *refererer* til `mise check` («kjør etter endringer»), men agenten gjør det ikke alltid selv som selvkorrigering. Det er post-hoc feedback, ikke in-loop.
 
-**Konsekvens:** Agenter kan generere kode med lint-feil som først fanges i CI (sent i løkken).
+**Konsekvens:** Agenter kan generere kode med lint-feil som først fanges i CI, sent i løkken.
 
-**Mulig tiltak:** Copilot CLI kjører allerede `mise check` via tool-loopen sin. Problemet er at instructions *oppfordrer*, men ikke *krever*. Fowlers anbefaling: gjør computational sensors til obligatoriske gates i agentens tool-execution.
+**Mulig tiltak:** Copilot CLI kjører allerede `mise check` via tool-loopen sin. Problemet er at instructions *oppfordrer* framfor å *kreve*. Fowlers anbefaling er å gjøre computational sensors til obligatoriske gates i agentens tool-execution.
 
 ### Gap 3: Ingen drift-sensorer
 
-**Status quo:** Ingen kontinuerlig overvåking av:
+**Status quo:** Ingenting overvåker kontinuerlig:
+
 - Dead code-akkumulering
 - Test mutation quality (er testene meningsfulle?)
 - Arkitektur-fitness (overholder koden definerte arkitekturregler over tid?)
-- Runtime SLO-brudd → agentforslag
+- Runtime SLO-brudd som grunnlag for agentforslag
 
-**Konsekvens:** Harnessen fanger problemer ved *endring* (CI-sensors), men ikke problemer som *akkumuleres* over tid.
+**Konsekvens:** Harnessen fanger problemer ved *endring*, gjennom CI-sensorene, men ikke problemer som *akkumuleres* over tid.
 
-**Mulig tiltak:** Periodiske Naisjobs som kjører statisk analyse og rapporterer drift. Lav prioritet — dette er avansert harness-modenhet.
+**Mulig tiltak:** Periodiske Naisjobs som kjører statisk analyse og rapporterer drift. Lav prioritet, dette er avansert harness-modenhet.
 
 ### Gap 4: Ingen lukket feedback-løkke mellom metrikk og guide-tuning
 
-**Status quo:** BigQuery samler inn bruksdata (DAU, språk, funksjoner) og adopsjonsskanneren kartlegger customization-bruk. Men ingen mekanisme bruker denne dataen til å *justere* guides/sensors automatisk.
+**Status quo:** BigQuery samler inn bruksdata (DAU, språk, funksjoner), og adopsjonsskanneren kartlegger customization-bruk. Ingen mekanisme bruker dataen til å *justere* guides eller sensors.
 
-**Konsekvens:** Vi vet *at* ting brukes, men ikke *om de hjelper*. Fowler: "If sensors never fire, is that high quality or inadequate detection?"
+**Konsekvens:** Vi vet *at* ting brukes, men ikke *om de hjelper*. Fowler stiller spørsmålet slik: «If sensors never fire, is that high quality or inadequate detection?»
 
-**Mulig tiltak:** Kvartalsvis manuell gjennomgang av metrikkdata → juster instruksjoner/skills. Automatisering her er prematur.
-
----
+**Mulig tiltak:** Kvartalsvis manuell gjennomgang av metrikkdataen, med justering av instruksjoner og skills. Automatisering her er prematur.
 
 ## Modenhetsvurdering
 
 | Kvadrant | Modenhet | Kommentar |
 |----------|----------|-----------|
-| Computational Guides | ⭐⭐⭐⭐ | Sterk dekning — lint, typesjekk, CI-pipeline på plass |
-| Inferential Guides | ⭐⭐⭐⭐⭐ | Svært sterk — 59 artefakter, bredt domenedekning |
-| Computational Sensors | ⭐⭐⭐⭐ | God CI, men mange manuelle steg som kunne automatiseres |
-| Inferential Sensors | ⭐⭐ | Finnes, men alle er manuelt aktiverte — ingen i CI/post-deploy |
+| Computational guides | ⭐⭐⭐⭐ | Sterk dekning, lint, typesjekk og CI-pipeline på plass |
+| Inferential guides | ⭐⭐⭐⭐⭐ | Svært sterk, 70 artefakter, bredt domenedekning |
+| Computational sensors | ⭐⭐⭐⭐ | God CI, men mange manuelle steg som kunne automatiseres |
+| Inferential sensors | ⭐⭐ | Finnes, men alle er manuelt aktiverte, ingen i CI eller etter deploy |
 
-**Overordnet:** Harnessen er sterk på feedforward (guides), men svak på automatisert feedback (sensors i loop). Neste steg ifølge Fowler: koble inferential sensors tettere til CI og post-deploy.
-
----
+Harnessen er altså sterk på feedforward og svak på automatisert feedback. Neste steg ifølge Fowler er å koble inferential sensors tettere til CI og post-deploy.
 
 ## Referanser
 
 - [Martin Fowler: Harness Engineering](https://martinfowler.com/articles/harness-engineering.html)
 - [Anthropic: Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
 - [OpenAI: Harness Engineering](https://openai.com/index/harness-engineering/)
-- [Stripe: Minions — one-shot end-to-end coding agents](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)
-- [navikt/copilot#213](https://github.com/navikt/copilot/issues/213) — Tracking issue
-- [navikt/copilot#209](https://github.com/navikt/copilot/issues/209) — Effektdokumentasjon
+- [Stripe: Minions, one-shot end-to-end coding agents](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)
+- [navikt/copilot#213](https://github.com/navikt/copilot/issues/213), tracking issue
+- [navikt/copilot#209](https://github.com/navikt/copilot/issues/209), effektdokumentasjon
