@@ -59,11 +59,11 @@ Vil du lese deg opp først, har hver type sin egen doc i tabellen under.
 
 | Type                | Beskrivelse                                                                                                                 | Dokumentasjon                                      |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 🤖 **Agenter**       | Spesialiserte AI-assistenter for Nav-domener, kalles med `@agent-name` i Copilot Chat. One-click i VS Code, JetBrains via coding agent | **[Agenter →](docs/README.agents.md)**             |
+| 🤖 **Agenter**       | Spesialiserte AI-assistenter for Nav-domener, kalles med `@agent-name` i Copilot Chat. VS Code, JetBrains, GitHub.com og Copilot CLI | **[Agenter →](docs/README.agents.md)**             |
 | 📋 **Instruksjoner** | Kodestandarder som aktiveres automatisk basert på filmønster (`*.kt`, `*.tsx`, `*.sql`). Alle editorer                       | **[Instruksjoner →](docs/README.instructions.md)** |
-| ⚡ **Prompts**       | Scaffolding-maler tilgjengelig via `#prompt-name` i Copilot Chat. VS Code og JetBrains                                       | **[Prompts →](docs/README.prompts.md)**            |
-| 🎯 **Skills**        | Produksjonsmønstre med innebygde maler og referanser, i VS Code. `security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js | **[Skills →](docs/README.skills.md)**              |
-| 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no). Alle editorer                                       | **[MCP-servere →](docs/README.mcp.md)**            |
+| ⚡ **Prompts**       | Scaffolding-maler tilgjengelig via `/prompt-name` i Copilot Chat. VS Code, JetBrains og Visual Studio                        | **[Prompts →](docs/README.prompts.md)**            |
+| 🎯 **Skills**        | Produksjonsmønstre med innebygde maler og referanser. VS Code, Copilot CLI og GitHub.com, JetBrains i preview. `security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js | **[Skills →](docs/README.skills.md)**              |
+| 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no). VS Code, JetBrains, Visual Studio, GitHub.com og Copilot CLI | **[MCP-servere →](docs/README.mcp.md)**            |
 | 🔄 **Sync**          | Hold tilpasninger oppdatert automatisk, som Dependabot                                                                      | **[Sync →](docs/README.sync.md)**                  |
 | 📦 **Samlinger**     | Installer en hel pakke med agenter, skills og instruksjoner på én gang                                                      | **[Samlinger →](docs/README.collections.md)**      |
 | 🧳 **Agentpakke**    | Teamets eget innholdsrepo med manifest, installeres med `nav-pilot install --source`                                        | **[Agentpakke →](docs/README.agentpakke.md)**      |
@@ -72,7 +72,7 @@ Vil du lese deg opp først, har hver type sin egen doc i tabellen under.
 
 ## 🛠️ Applikasjoner
 
-Monorepoet inneholder appene under. cplt bor i sitt eget repo.
+Monorepoet inneholder seks applikasjoner. cplt bor i sitt eget repo.
 
 ### cplt
 
@@ -107,7 +107,7 @@ Naisjob som henter daglige Copilot-bruksmetrikker fra GitHub API og lagrer dem i
 
 ### MCP Registry
 
-Offentlig register over Nav-godkjente MCP-servere, etter [MCP Registry v0.1-spesifikasjonen](https://github.com/modelcontextprotocol/registry).
+Offentlig register over Nav-godkjente MCP-servere. Implementerer [MCP Registry v0.1-spesifikasjonen](https://github.com/modelcontextprotocol/registry).
 
 **URL:** [mcp-registry.nav.no](https://mcp-registry.nav.no)
 
@@ -120,6 +120,8 @@ MCP-policyen er satt på organisasjonsnivå og håndheves automatisk for alle me
 - **Policy**: Registry only (kun servere fra registeret kan brukes)
 
 > **Håndhevelse**: Basert på server name/ID-matching. Lokale servere (som IntelliJ MCP) må ha en oppføring i registeret med ID som matcher nøyaktig det installerte server-ID-et. Se [GitHub docs: MCP allowlist enforcement](https://docs.github.com/en/copilot/reference/mcp-allowlist-enforcement).
+
+#### For IDE-brukere
 
 Registry-servere dukker automatisk opp i MCP-panelet i VS Code og JetBrains, uten oppsett per bruker.
 
@@ -174,11 +176,10 @@ Tilpasningene dekker Navs kjernestack:
 ## 📖 Mappestruktur
 
 ```plaintext
-├── .github/
-│   ├── agents/           # Custom GitHub Copilot agents (.agent.md)
-│   ├── instructions/     # File-pattern-based coding standards (.instructions.md)
-│   ├── prompts/          # Task-specific scaffolding templates (.prompt.md)
-│   └── skills/           # Production patterns with bundled resources
+├── agents/               # Custom GitHub Copilot agents (.agent.md)
+├── instructions/         # File-pattern-based coding standards (.instructions.md)
+├── prompts/              # Task-specific scaffolding templates (.prompt.md)
+├── skills/               # Production patterns with bundled resources
 ├── docs/                 # Detailed documentation for each customization type
 │   ├── README.agents.md
 │   ├── README.instructions.md
@@ -188,6 +189,7 @@ Tilpasningene dekker Navs kjernestack:
 │   ├── README.testing.md
 │   └── README.collections.md
 ├── apps/                 # Nav applications
+│   ├── copilot-adoption/ # Naisjob that scans navikt repos for customization files
 │   ├── copilot-api/      # Go backend API (BigQuery, GitHub API, seat management)
 │   ├── copilot-metrics/  # BigQuery data pipeline (Naisjob)
 │   ├── mcp-onboarding/   # MCP server for agent readiness
@@ -200,10 +202,10 @@ Tilpasningene dekker Navs kjernestack:
 
 ### Legg til tilpasninger
 
-1. **Agenter**: Legg til `*.agent.md` i `.github/agents/`, se [agent-dokumentasjonen](docs/README.agents.md)
-2. **Instruksjoner**: Legg til `*.instructions.md` i `.github/instructions/`
-3. **Prompts**: Legg til `*.prompt.md` i `.github/prompts/`
-4. **Skills**: Legg til mappe med `SKILL.md` i `.github/skills/`
+1. **Agenter**: Legg til `*.agent.md` i `agents/`, se [agent-dokumentasjonen](docs/README.agents.md)
+2. **Instruksjoner**: Legg til `*.instructions.md` i `instructions/`
+3. **Prompts**: Legg til `*.prompt.md` i `prompts/`
+4. **Skills**: Legg til mappe med `SKILL.md` i `skills/`
 
 Kjør `mise check` etter endringer for å validere alt.
 
