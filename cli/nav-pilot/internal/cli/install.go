@@ -57,9 +57,6 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 // counterpart to loadManifest: the agentpakke manifest supersedes
 // collections/<name>/manifest.json rather than declaring entries in it.
 func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
-	if err := guardTier2Only(src); err != nil {
-		return nil, err
-	}
 	pakke := src.Pakke
 	manifest, err := collectAllItemsWith(resolver)
 	if err != nil {
@@ -73,8 +70,14 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	if err := validateManifest(manifest); err != nil {
 		return nil, fmt.Errorf("agentpakke %q: %w", pakke.Name, err)
 	}
+	// A Tier 2-only agentpakke declares no layout, so shipping nothing at these
+	// paths is what it is *supposed* to look like: what it ships is payload
+	// trees, which the pin materializes. The zero-item manifest it returns here
+	// carries the name and description `nav-pilot list` prints. Only a manifest
+	// that declares a layout and then ships nothing at it is an error, and the
+	// message says exactly that.
 	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions) + len(manifest.Prompts)
-	if total == 0 {
+	if total == 0 && pakke.Layout != nil {
 		return nil, fmt.Errorf("agentpakke %q declares a layout but ships no agents, skills, instructions, or prompts.\n"+
 			"Check the layout paths in %s", pakke.Name, agentpakke.ManifestPath)
 	}
@@ -287,11 +290,14 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	pakke := pakkeFor(src, collection)
 	resolver := resolverFor(src.Dir, pakke)
 
+	// A payload-only agentpakke has no Tier 1 content to materialize into this
+	// scope; installing it means pinning a revision of its payloads.
+	if payloadOnly(src) {
+		return installPakkePin(scope, src, dryRun, jsonOutput)
+	}
+
 	// Fail closed before touching the filesystem (A3): a non-conforming
 	// agentpakke must not leave a partial install behind.
-	if err := guardTier2Only(src); err != nil {
-		return err
-	}
 	if err := validatePakkeSource(src); err != nil {
 		return err
 	}
@@ -567,6 +573,33 @@ func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 		if len(c.agents) > 0 {
 			fmt.Printf("  %-20s %s\n", "", dim("agents: "+strings.Join(c.agents, ", ")))
 		}
+		// A Tier 2 agentpakke lists 0 items because it materializes no
+		// user-visible files; what it ships is payload contexts.
+		//
+		// Every payload-bearing client is listed, launchable by this binary or
+		// not, because an install materializes every one of them (a filter
+		// would be a second client list to keep in step with the launch
+		// switch). A listing that hid the ones this binary cannot launch would
+		// hide content that is on disk; saying so is the useful half.
+		//
+		// What "launchable" means comes from [stagedLaunchers], the map the
+		// launch itself dispatches on. It is not the same set as
+		// agentpakke.IsKnownClient, which is every client id nav-pilot knows —
+		// a known client with no staged launcher is exactly the case this
+		// annotation is for.
+		if payloadOnly(src) {
+			for _, client := range src.Pakke.ClientIDs() {
+				ctxs := declaredContexts(src.Pakke, client)
+				if len(ctxs) == 0 {
+					continue
+				}
+				line := client + " payloads: " + strings.Join(ctxs, ", ")
+				if _, ok := stagedLaunchers[client]; !ok {
+					line += " (materialized on install; this nav-pilot cannot launch " + client + ")"
+				}
+				fmt.Printf("  %-20s %s\n", "", dim(line))
+			}
+		}
 	}
 	fmt.Println()
 	fmt.Printf("Install with: %s\n", bold("nav-pilot install <name>"))
@@ -680,10 +713,11 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	pakke := pakkeFor(src, CollectionAll)
 	resolver := resolverFor(src.Dir, pakke)
 
-	// Fail closed before touching the filesystem (A3).
-	if err := guardTier2Only(src); err != nil {
-		return err
+	if payloadOnly(src) {
+		return installPakkePin(scope, src, dryRun, jsonOutput)
 	}
+
+	// Fail closed before touching the filesystem (A3).
 	if err := validatePakkeSource(src); err != nil {
 		return err
 	}
@@ -959,6 +993,34 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 	}
 }
 
+// removePinnedRevisions removes every materialized revision of a pinned
+// install, printing one line each, and returns how many it removed — or, on a
+// dry run, how many it would remove.
+//
+// It reports rather than deletes silently because a pin tracks no files: these
+// trees are the whole of what uninstall removes, and a dry run that lists an
+// empty file loop and stops describes a command that does nothing.
+func removePinnedRevisions(repo string, dryRun bool) int {
+	dir := pakkeSourceDir(repo)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0
+	}
+	mark := red("×")
+	if dryRun {
+		mark = dim("×")
+	}
+	for _, e := range entries {
+		fmt.Printf("  %s %s\n", mark, filepath.Join(dir, e.Name()))
+	}
+	if !dryRun {
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Printf("  %s Could not remove %s: %v\n", yellow("⚠"), dir, err)
+		}
+	}
+	return len(entries)
+}
+
 func cmdUninstall(scope *InstallScope, dryRun bool) error {
 	state, err := readScopedState(scope)
 	if err != nil {
@@ -976,29 +1038,19 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 	}
 	fmt.Println()
 
-	removed := 0
-	for _, f := range state.Files {
-		path := filepath.Join(scope.RootDir, f.Path)
+	removed := removeStateFiles(scope, state, dryRun, false)
 
-		if dryRun {
-			fmt.Printf("  %s %s\n", dim("×"), f.Path)
-			removed++
-			continue
-		}
-
-		if strings.HasSuffix(f.Path, "/") {
-			if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) {
-				fmt.Printf("  %s Could not remove %s: %v\n", yellow("⚠"), f.Path, err)
-				continue
-			}
-		} else {
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				fmt.Printf("  %s Could not remove %s: %v\n", yellow("⚠"), f.Path, err)
-				continue
-			}
-		}
-		fmt.Printf("  %s %s\n", red("×"), f.Path)
-		removed++
+	// A pinned Tier 2 install keeps everything it materialized outside the
+	// scope, so the file loop above removed nothing and the revisions are the
+	// only thing this command actually deletes — which is exactly why the dry
+	// run has to name them too.
+	//
+	// Only a user-scope pin has revisions: [pinRevision] writes nowhere else,
+	// and the state shape it writes is what [pinnedState] recognizes. A
+	// repo-scope or Tier 1 state that happens to track no files is not a pin
+	// and must not take the user's revisions with it.
+	if scope.IsUser() && pinnedState(state) {
+		removed += removePinnedRevisions(state.SourceRepo, dryRun)
 	}
 
 	if !dryRun {

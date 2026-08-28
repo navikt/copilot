@@ -14,34 +14,176 @@ import (
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
-// stagedMaxAge is how long a staged payload tree may survive its launch before
-// the next staged launch sweeps it. A tree is normally removed when the client
-// exits; anything older than this was left behind by a crash.
-//
-// ponytail: naive age heuristic. A session running longer than a day would have
-// its config swept out from under it — visible at the next config read, not
-// unsafe. Upgrade to owner-pid files only if that turns out to happen.
-const stagedMaxAge = 24 * time.Hour
-
-// stagedRoot is where verified Tier 2 payloads are staged: ~/.nav-pilot/staged,
-// a sibling of config.toml. It follows configPath(), so NAV_PILOT_CONFIG
-// relocates it too.
-func stagedRoot() string {
-	return filepath.Join(filepath.Dir(configPath()), "staged")
-}
-
 // tryPakkeLaunch runs the Tier 2 (payload) launch path when — and only when —
-// the resolved source ships an agentpakke manifest that declares pre-built
-// payloads for the client being launched. It reports whether it handled the
-// launch; (false, nil) means the caller should launch the legacy way.
+// the agentpakke governing the resolved source declares pre-built payloads for
+// the client being launched. It reports whether it handled the launch; (false,
+// nil) means the caller should launch the legacy way.
 //
 // The first check is the no-regression gate: with no source selected (the
 // default for every user who has never run `config set source` or passed
 // --source) it returns immediately, having resolved nothing, read nothing, and
 // left the active agentpakke on the built-in default.
+//
+// Past that gate the launch is a lookup. A pinned revision — written once by
+// `nav-pilot install`, or by the first launch of an un-installed payload-only
+// source — is verified where it lies and handed to the client. Nothing is
+// cloned, copied or staged per launch, and no launch ever reads a moving
+// default branch: a new revision arrives through `nav-pilot sync`, never
+// through launching again.
 func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	if resolved.Source == "" {
 		return false, payloadContextUnsupported(resolved, defaultSourceRepo)
+	}
+
+	// The pin answers before anything is resolved. An error here is
+	// fail-closed rather than a fall-through: a revision whose manifest this
+	// binary cannot use must say "upgrade", never quietly re-clone the moving
+	// branch the pin exists to get away from.
+	rev, err := pinnedRevision(resolved.Source)
+	if err != nil {
+		return true, err
+	}
+
+	if rev != nil {
+		if err := mixedPakkeRefusal(rev.Pakke, resolved.Client); err != nil {
+			return true, err
+		}
+		if rev.Pakke.Tier(resolved.Client) != agentpakke.TierPayload {
+			// The pinned agentpakke declares no payload for this client, so
+			// there is nothing pinned to launch from: exactly today's legacy
+			// path, and reached without resolving anything.
+			return false, payloadContextUnsupported(resolved, resolved.Source)
+		}
+	} else {
+		var handled bool
+		rev, handled, err = resolveAndPin(resolved)
+		if rev == nil {
+			return handled, err
+		}
+	}
+
+	pakke := rev.Pakke
+	context := resolved.PayloadContext
+	if context == "" {
+		context = pakke.DefaultContext(resolved.Client)
+	}
+	if _, ok := pakke.Payload(resolved.Client, context); !ok {
+		return true, fmt.Errorf("agentpakke %q declares no %q payload for %s (declared contexts: %s)",
+			pakke.Name, context, resolved.Client, strings.Join(declaredContexts(pakke, resolved.Client), ", "))
+	}
+
+	// The tree has been sitting in ~/.nav-pilot/pakker since the pin was made,
+	// so it is verified again here rather than trusted: the exact hash walk
+	// checks every manifested file's digest and permission bits, rejects
+	// unmanifested extras, and refuses symlinks and non-regular files anywhere
+	// in it. Fail-closed — a Tier 2 launch never degrades to the legacy path.
+	dir := filepath.Join(rev.Dir, resolved.Client, context)
+	if err := agentpakke.VerifyPayloadExact(dir, filepath.Join(dir, agentpakke.PayloadManifestFile)); err != nil {
+		return true, fmt.Errorf("the pinned %q payload of agentpakke %q for %s does not match its manifest: %w",
+			context, pakke.Name, resolved.Client, err)
+	}
+
+	// The only SetActivePakke call site: past the tier gate the manifest is
+	// known to declare this client, which is the invariant provider.PrimaryAgent
+	// relies on. It is the manifest pinned with the payloads, so persona, model
+	// and the compatibility gate all read the revision that is about to run.
+	providerpkg.SetActivePakke(pakke)
+	fmt.Println(dim(fmt.Sprintf("Using agentpakke %s@%s (%s payload).", pakke.Name, rev.SHA, context)))
+
+	launch, ok := stagedLaunchers[resolved.Client]
+	if !ok {
+		return true, fmt.Errorf("agentpakke %q declares payloads for %s, but this nav-pilot cannot launch staged payloads for that client",
+			pakke.Name, resolved.Client)
+	}
+	return true, launch(resolved, providerpkg.StagedLaunch{Dir: dir, PakkeName: pakke.Name, Context: context})
+}
+
+// stagedLaunchers is the one list of clients this binary can hand a pinned
+// payload tree to.
+//
+// It is a map rather than a switch because it has a second reader: `nav-pilot
+// list` annotates the payload clients it cannot launch, and that annotation has
+// to mean the same thing as the refusal above. Keying the listing on
+// agentpakke.IsKnownClient instead is what let a `pi` payload be listed without
+// a warning and then refuse at launch — IsKnownClient is the wider set of
+// clients nav-pilot knows at all, and the clients the warning exists for are
+// precisely the ones in the gap. A client gaining a launcher must change one
+// list, here.
+var stagedLaunchers = map[string]func(ResolvedConfig, providerpkg.StagedLaunch) error{
+	"copilot":  providerpkg.LaunchCopilotStaged,
+	"opencode": providerpkg.LaunchOpenCodeStaged,
+}
+
+// pinnedRevision returns the revision this user has pinned for a source, or nil
+// when there is none. Nil is the ordinary answer for a Tier 1 install, a
+// manifest-less source, and a payload-only source nobody has installed yet.
+//
+// It reads user scope only, which is where every Tier 2 install records its pin
+// (guardPakkeScope refuses the others). The recorded repo must match the
+// configured one — otherwise a scope installed from one agentpakke would hand
+// its revision to a launch configured for another — and the revision directory
+// must actually exist, which is what makes an uninstalled or hand-deleted pin
+// fall through to a normal resolve rather than failing.
+//
+// A manifest that will not load is the one hard failure: [attachPakke]'s
+// fail-closed rule applies to the pinned manifest exactly as it does to a fresh
+// checkout.
+func pinnedRevision(sourceRepo string) (*Source, error) {
+	if !pinnable(sourceRepo) {
+		// A local path is the author's own working tree and is never pinned, so
+		// anything left under its placeholder SHA by an older binary is stale
+		// by construction: adopting it would hand back whatever the tree held
+		// the first time it was launched.
+		return nil, nil
+	}
+	scope, err := ScopeUser()
+	if err != nil {
+		return nil, nil //nolint:nilerr // no user scope means no pin, not a launch failure
+	}
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil, nil //nolint:nilerr // an unreadable state file is the install commands' error to report
+	}
+	if state.SourceSHA == "" || !sameSourceRepo(state.SourceRepo, sourceRepo) {
+		return nil, nil
+	}
+	dir := pakkeRevisionDir(state.SourceRepo, state.SourceSHA)
+	if _, err := os.Stat(dir); err != nil {
+		return nil, nil //nolint:nilerr // nothing materialized under this SHA: resolve as usual
+	}
+
+	src := &Source{Dir: dir, SHA: state.SourceSHA, Repo: state.SourceRepo}
+	if err := attachPakke(src); err != nil {
+		return nil, err
+	}
+	if src.Pakke == nil {
+		return nil, nil // a revision directory without a manifest is not a pin
+	}
+	return src, nil
+}
+
+// resolveAndPin is the un-pinned half of the launch: it resolves the source the
+// way every launch did before the pin existed, and — when what comes back is a
+// payload-only agentpakke declaring this client — pins it before running, so
+// this is the last launch that clones anything.
+//
+// A nil revision means this launch produced none. The bool that comes with it
+// is tryPakkeLaunch's "handled": false hands the launch to the legacy path
+// (with or without an error of its own), true means the Tier 2 path took it and
+// failed closed.
+func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
+	// Resolving a repo-shaped source clones it. A Tier 1 or manifest-less
+	// source has nothing to pin, so that launch never touched the source at
+	// all before Tier 2 existed; without a memory it would now clone on every
+	// launch to re-learn an answer it already had. A remembered non-payload
+	// tier skips the clone and takes exactly the legacy path.
+	//
+	// --payload-context is exempt on purpose: it asks about payloads the
+	// manifest declares, which only the manifest can answer.
+	if resolved.PayloadContext == "" {
+		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier != agentpakke.TierPayload {
+			return nil, false, nil
+		}
 	}
 
 	// The CLI's source funnel: applies source precedence and attaches the
@@ -60,94 +202,145 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// author never sanctioned, behind a stderr warning the client TUI wipes off
 	// the screen — and would silently strand every older binary the day a pakke
 	// adopts contract major 2. errUnusableManifest separates the two.
-	// Resolving a repo-shaped source clones it. A Tier 1 or manifest-less
-	// source has nothing to stage, so before this PR that launch never touched
-	// the source at all; without a memory it would now clone on every launch to
-	// re-learn an answer it already had. A remembered non-payload tier skips
-	// the clone and takes exactly the legacy path.
-	//
-	// --payload-context is exempt on purpose: it asks about payloads the
-	// manifest declares, which only the manifest can answer.
-	if resolved.PayloadContext == "" {
-		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier != agentpakke.TierPayload {
-			return false, nil
-		}
-	}
-
 	src, err := resolveSource("", resolved.Source)
 	if err != nil {
 		if errors.Is(err, errUnusableManifest) {
-			return true, err
+			return nil, true, err
 		}
 		fmt.Fprintf(os.Stderr, "%s Could not resolve source %s: %v — launching without agentpakke context.\n",
 			yellow("⚠"), resolved.Source, err)
-		return false, payloadContextUnsupported(resolved, resolved.Source)
+		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
 	}
+	defer src.Cleanup()
 
 	tier := agentpakke.TierUnknown
 	if src.Pakke != nil {
 		tier = src.Pakke.Tier(resolved.Client)
 	}
 	rememberTier(resolved.Source, resolved.Client, tier)
+	if err := mixedPakkeRefusal(src.Pakke, resolved.Client); err != nil {
+		return nil, true, err
+	}
 	if tier != agentpakke.TierPayload {
-		// Manifest-less or Tier 1: exactly today's path, built-in default
-		// agentpakke still active.
-		src.Cleanup()
-		return false, payloadContextUnsupported(resolved, resolved.Source)
+		// Manifest-less, Tier 1, or Tier 2 for a client this pakke does not
+		// declare: exactly today's path, built-in default agentpakke still
+		// active.
+		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
 	}
 
-	pakke := src.Pakke
-	context := resolved.PayloadContext
-	if context == "" {
-		context = pakke.DefaultContext(resolved.Client)
-	}
-	payload, ok := pakke.Payload(resolved.Client, context)
-	if !ok {
-		src.Cleanup()
-		return true, fmt.Errorf("agentpakke %q declares no %q payload for %s (declared contexts: %s)",
-			pakke.Name, context, resolved.Client, strings.Join(declaredContexts(pakke, resolved.Client), ", "))
+	// Past the tier gate the launch is Tier 2 and fails closed: it never
+	// degrades to the legacy path with the user's own ~/.copilot injected.
+	rev, err := autoPin(src)
+	return rev, true, err
+}
+
+// autoPin materializes and records a pin for a payload-only source that has
+// never been installed, so the launch it is part of is the last one to resolve.
+//
+// Materializing without recording the pin is not an option: the next launch
+// would clone again and the pin would never take. Which is exactly why an
+// install already in this scope is refused rather than overwritten — writing
+// the pin replaces that state, and [pinRevision] removes the files it tracked
+// and the revisions it left. An explicit install is the consent for that; a
+// launch has no consent gesture at all, so it stops and names the command that
+// does.
+func autoPin(src *Source) (*Source, error) {
+	scope, err := ScopeUser()
+	if err != nil {
+		return nil, fmt.Errorf("locating your user scope to pin agentpakke %q: %w", src.Pakke.Name, err)
 	}
 
-	root := stagedRoot()
-	// Best-effort sweep of trees a crashed session left behind. It costs one
-	// directory read on a path that is about to do far more I/O than that.
-	_ = agentpakke.GCStaged(root, stagedMaxAge)
-
-	stagedDir, stageErr := agentpakke.StagePayload(
-		filepath.Join(src.Dir, filepath.FromSlash(payload.Path)),
-		filepath.Join(src.Dir, filepath.FromSlash(payload.ManifestPath())),
-		root)
-	// The staged tree carries its own manifest, so the checkout — which may be
-	// a temp clone — is no longer needed either way.
-	src.Cleanup()
-	if stageErr != nil {
-		// Fail-closed (G2): a Tier 2 launch never falls back to the legacy path.
-		return true, fmt.Errorf("staging the %q payload of agentpakke %q for %s: %w",
-			context, pakke.Name, resolved.Client, stageErr)
-	}
-	defer func() {
-		// A tree that survives is verified config left on disk; say so, and
-		// let the 24h sweep pick it up.
-		if err := agentpakke.CleanupStaged(stagedDir); err != nil {
-			fmt.Fprintf(os.Stderr, "%s %v\n", yellow("⚠"), err)
+	// A local path is never pinned: it is re-materialized every launch, so an
+	// edit to the working tree shows up on the next one. Nothing is recorded,
+	// so nothing in this scope is replaced and the guard below does not apply.
+	//
+	// The prune is not optional here. A git-backed working tree resolves to its
+	// short HEAD, so every commit its author launches from lands under a new
+	// revision directory — and nothing else would ever remove them: the prune's
+	// other caller is [pinRevision], which a local source never reaches, and
+	// uninstall keys on a state entry a local source never writes. Only the
+	// revision this launch is about to hand over survives; a local source is
+	// rebuilt in place anyway (see [materializeRevision]), so there is no older
+	// revision here for a running session to still be reading.
+	if !pinnable(src.Repo) {
+		revDir, err := materializeRevision(src)
+		if err != nil {
+			return nil, err
 		}
-	}()
-
-	// The only SetActivePakke call site: past the tier gate the manifest is
-	// known to declare this client, which is the invariant provider.PrimaryAgent
-	// relies on.
-	providerpkg.SetActivePakke(pakke)
-
-	staged := providerpkg.StagedLaunch{Dir: stagedDir, PakkeName: pakke.Name, Context: context}
-	switch resolved.Client {
-	case "opencode":
-		return true, providerpkg.LaunchOpenCodeStaged(resolved, staged)
-	case "copilot":
-		return true, providerpkg.LaunchCopilotStaged(resolved, staged)
-	default:
-		return true, fmt.Errorf("agentpakke %q declares payloads for %s, but this nav-pilot cannot launch staged payloads for that client",
-			pakke.Name, resolved.Client)
+		prunePakkeRevisions(src.Repo, src.SHA)
+		return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
 	}
+
+	if state, err := readScopedState(scope); err == nil && state != nil {
+		// Files would be orphaned by the zero-item pin that replaces them, and
+		// a recorded pin on another source has whole materialized revision
+		// trees behind it that pinRevision removes. Either way a launch would
+		// be deleting content it was never asked to delete.
+		//
+		// This is len(Files) and not [installsContent], and the difference is
+		// deliberate: the two are answering different questions. pinnedState
+		// asks whether a state *is* a pin, and an ignore marker leaves it one.
+		// This asks whether writing a pin here would destroy something the user
+		// chose, and an ignore marker is exactly that — a deliberate choice,
+		// recorded nowhere else. The sequence is reachable: pin, `nav-pilot
+		// ignore <item> --user`, then the revision directory goes (hand-deleted,
+		// or a pakker/ wipe). The next launch finds no pin and lands here, and
+		// under the looser test it would materialize, write a fresh zero-item
+		// state and drop the markers without a word. So it refuses and names
+		// `install`, which discards them too — but only because the user asked.
+		foreign := !sameSourceRepo(state.SourceRepo, src.Repo)
+		if len(state.Files) > 0 || (foreign && state.SourceSHA != "") {
+			return nil, fmt.Errorf(
+				"launching from agentpakke %q means pinning it for your user, but %s is already installed from %s.\n"+
+					"nav-pilot will not remove another agentpakke's files or pinned revisions as a side effect of a launch.\n\n"+
+					"  Switch to it deliberately:  %s",
+				src.Pakke.Name, bold(state.Collection), bold(sourceLabelForRepo(state.SourceRepo)),
+				bold("nav-pilot install --user "+src.Pakke.Name))
+		}
+	}
+
+	// A launch has no JSON mode: everything it prints is for a person.
+	revDir, err := pinRevision(scope, src, false)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("%s Pinned %s at %s — future launches use the local copy; %s updates it.\n",
+		green("✓"), bold(src.Pakke.Name), src.SHA, bold("nav-pilot sync"))
+	return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
+}
+
+// sourceLabelForRepo names a recorded source repo in user-facing messages,
+// falling back to the default source for an install that predates source
+// tracking — which is where it must have come from.
+func sourceLabelForRepo(repo string) string {
+	if repo == "" {
+		return defaultSourceRepo
+	}
+	return repo
+}
+
+// mixedPakkeRefusal refuses a launch of a payload-bearing client belonging to a
+// pakke that also ships a layout, and returns nil for every other shape.
+//
+// Pinning does not cover mixed pakker this release: a pin replaces the scope's
+// state with a zero-item entry, which would throw away the record of the Tier 1
+// files that same pakke's install wrote. The alternative — quietly taking the
+// legacy path — is worse than refusing: the client's manifest declares a
+// verified payload, and materializing Tier 1 content into its config instead is
+// a downgrade the user never sees. So this fails closed, like every other Tier
+// 2 refusal.
+func mixedPakkeRefusal(pakke *agentpakke.Manifest, client string) error {
+	if pakke == nil || pakke.Layout == nil || pakke.Tier(client) != agentpakke.TierPayload {
+		return nil
+	}
+	return fmt.Errorf(
+		"agentpakke %q declares pre-built payloads for %s and a Tier 1 layout, and nav-pilot cannot pin a revision of a pakke that ships both.\n"+
+			"Nothing was launched — running it as Tier 1 instead would silently materialize layout content into %s's config in place of the payload the manifest declares.\n\n"+
+			"  Launch a client the pakke declares no payload for, which uses the layout:  %s\n"+
+			"  Or ask the agentpakke to split the payloads out, and tell us you need this: %s",
+		pakke.Name, client, client,
+		bold("nav-pilot --client <other>"),
+		bold("https://github.com/navikt/copilot/issues"))
 }
 
 // payloadContextUnsupported turns an explicit --payload-context into an error
@@ -182,19 +375,34 @@ func declaredContexts(m *agentpakke.Manifest, client string) []string {
 // unreadable or corrupt file all mean "resolve the source as usual"; none of
 // them may be read as "assume legacy".
 
+// Since the pin landed there is exactly one path left that this cache serves:
+// a custom source that resolves to Tier 1 or ships no manifest. tryPakkeLaunch
+// still runs for it — the gate above is an empty-source check, not a tier check
+// — purely to learn a tier it will not act on, and without the cache that is a
+// `git clone --depth 1` on every launch. Everything payload-shaped is answered
+// by the pin before the cache is consulted, and a first launch pins rather than
+// caching an answer it will not need again.
+//
+// So a remembered TierPayload entry is now write-only: recorded, never acted
+// on. Only the non-payload answer is still load-bearing, which is exactly what
+// the `tier != TierPayload` condition at the one read site says.
+//
+// Deletion trigger: when Tier 1 installs pin too (the default agentpakke
+// becoming navikt/copilot), the last caller goes and this file goes with it.
+//
 // tierCacheTTL bounds how long a remembered tier is trusted. A pakke that
 // changes tier — Tier 1 adopting payloads, or dropping them — must be picked up
 // without the user knowing a cache exists, and six hours means at worst one
 // working day's delay while a burst of launches costs a single clone.
 //
-// ponytail: like stagedMaxAge, an arbitrary-but-bounded number, not a measured
-// one. Nothing was timed to pick it; it is short enough that a stale answer
-// self-corrects the same day and long enough that a normal day's launches do
-// not re-clone. Shorten it if tier changes turn out to need faster pickup.
+// ponytail: an arbitrary-but-bounded number, not a measured one. Nothing was
+// timed to pick it; it is short enough that a stale answer self-corrects the
+// same day and long enough that a normal day's launches do not re-clone.
+// Shorten it if tier changes turn out to need faster pickup.
 const tierCacheTTL = 6 * time.Hour
 
 // tierCachePath is ~/.nav-pilot/tier-cache.json, a sibling of config.toml and
-// of stagedRoot(). It is nav-pilot's own state, not an OS cache directory that
+// of pakkerRoot(). It is nav-pilot's own state, not an OS cache directory that
 // may be swept between launches; NAV_PILOT_CONFIG relocates it too.
 func tierCachePath() string {
 	return filepath.Join(filepath.Dir(configPath()), "tier-cache.json")

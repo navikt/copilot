@@ -209,10 +209,18 @@ const (
 )
 
 var (
-	readState        = artifacts.ReadState
-	readScopedState  = artifacts.ReadScopedState
-	writeState       = artifacts.WriteState
-	writeScopedState = artifacts.WriteScopedState
+	readState       = artifacts.ReadState
+	readScopedState = artifacts.ReadScopedState
+	writeState      = artifacts.WriteState
+	// Every scoped state write goes through [releasePin] first. Replacing a
+	// Tier 2 pin with installed content is the moment the revision trees
+	// behind it become unreachable, and it happens on four separate install
+	// paths — a shared write is one place to get it right instead of four
+	// places to forget it.
+	writeScopedState = func(scope *InstallScope, state *StateFile) error {
+		releasePin(scope, state)
+		return artifacts.WriteScopedState(scope, state)
+	}
 )
 
 var (

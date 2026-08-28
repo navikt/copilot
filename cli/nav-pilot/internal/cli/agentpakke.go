@@ -108,29 +108,37 @@ func stateCollection(src *Source, collection string) string {
 	return collection
 }
 
-// guardTier2Only refuses an install from an agentpakke that ships only
-// pre-built payloads.
+// payloadOnly reports whether a source ships an agentpakke that declares
+// pre-built payloads and no layout — Tier 2 only.
 //
-// Tier is derived from shape: a manifest with no layout and payload-bearing
-// clients has no Tier 1 content for this binary to materialize. Installing it
-// would resolve the canonical agents//skills/ directories in a repo that ships
-// neither, and report "declares a layout but ships no agents" about a manifest
-// that declares no layout at all. Tier 2 staging arrives in a later milestone;
-// until then this says so.
-func guardTier2Only(src *Source) error {
-	if src == nil || src.Pakke == nil || src.Pakke.Layout != nil {
-		return nil
-	}
-	if !src.Pakke.HasTier(agentpakke.TierPayload) {
+// Tier is derived from shape: such a manifest has no Tier 1 content for this
+// binary to materialize into a scope, so the install paths route it to
+// [installPakkePin] instead of resolving the canonical agents//skills/
+// directories in a repo that ships neither.
+//
+// It is a predicate, not a policy: it says what the source is, and the caller
+// decides what to do about it. [guardPakkeScope] holds the one policy left.
+func payloadOnly(src *Source) bool {
+	return src != nil && src.Pakke != nil && src.Pakke.Layout == nil &&
+		src.Pakke.HasTier(agentpakke.TierPayload)
+}
+
+// guardPakkeScope refuses a Tier 2 install into any scope but the user's.
+//
+// A pin lives in the scope's state file, and every launch reads the pin from
+// user scope only. A repo-scope Tier 2 install would therefore write a
+// zero-file state under .github/ that nothing ever reads back — an install that
+// reports success and changes nothing.
+func guardPakkeScope(scope *InstallScope, src *Source) error {
+	if scope == nil || scope.IsUser() {
 		return nil
 	}
 	return fmt.Errorf(
-		"agentpakke %q in %s ships pre-built payloads (Tier 2), which this nav-pilot version cannot install yet.\n"+
-			"Nothing was installed — Tier 2 payload staging arrives in a later nav-pilot release.\n\n"+
-			"  Inspect what it declares:  %s\n"+
-			"  Or ask the agentpakke for a Tier 1 layout (agents/skills content nav-pilot materializes itself)",
-		src.Pakke.Name, sourceLabelFor(src),
-		bold("nav-pilot validate --source "+sourceLabelFor(src)))
+		"agentpakke %q in %s ships pre-built payloads (Tier 2), which nav-pilot pins per user rather than per repository.\n"+
+			"Nothing was installed — a pin recorded in the %s scope is one no launch would ever read.\n\n"+
+			"  Install it for your user:  %s",
+		src.Pakke.Name, sourceLabelFor(src), scope.Name,
+		bold("nav-pilot install --user "+src.Pakke.Name))
 }
 
 // validatePakkeSource runs the on-disk conformance checks before any file is
@@ -169,6 +177,21 @@ func pakkeInstallName(src *Source) string {
 		return ""
 	}
 	return src.Pakke.Name
+}
+
+// pakkeInstallTarget names what an install command would be given for a source:
+// the agentpakke's name when it ships a manifest, and a placeholder when it
+// does not.
+//
+// A manifest-less checkout has no single installable name — its names are the
+// collections it ships — and the refusals that print an install command reach a
+// source before anything has established that it ships a manifest at all.
+// Reading src.Pakke.Name there is a nil dereference, so this is what they use.
+func pakkeInstallTarget(src *Source) string {
+	if name := pakkeInstallName(src); name != "" {
+		return name
+	}
+	return "<name>"
 }
 
 // ─── B3: cross-source guard ──────────────────────────────────────────────────
