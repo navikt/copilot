@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/huh"
 )
 
 // ─── buildPickerDefaults tests ──────────────────────────────────────────────
@@ -540,10 +543,10 @@ func TestDecideLaunch(t *testing.T) {
 		{"client missing wins over opt-out", false, false, true, true, launchSkipUnavailable},
 		{"no terminal", true, true, true, false, launchSkipQuiet},
 		{"healthy and interactive launches without asking", true, true, true, true, launchGo},
-		{"no sandbox, interactive: confirm", true, true, false, true, launchConfirmUnsandboxed},
+		{"no sandbox, interactive: warn and launch", true, true, false, true, launchWarnUnsandboxed},
 		{"no sandbox, no terminal: nothing", true, true, false, false, launchSkipQuiet},
 		{"opt-out", true, false, true, true, launchSkipOptedOut},
-		{"opt-out wins over the unsandboxed confirmation", true, false, false, true, launchSkipOptedOut},
+		{"opt-out wins over the unsandboxed warning", true, false, false, true, launchSkipOptedOut},
 		{"no terminal wins over the opt-out notice", true, false, true, false, launchSkipQuiet},
 	}
 	for _, tt := range tests {
@@ -551,6 +554,30 @@ func TestDecideLaunch(t *testing.T) {
 			if got := decideLaunch(tt.available, tt.autoLaunch, tt.sandboxed, tt.interactive); got != tt.want {
 				t.Errorf("decideLaunch(%v, %v, %v, %v) = %v, want %v",
 					tt.available, tt.autoLaunch, tt.sandboxed, tt.interactive, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSyncPromptOutcome(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		choice    string
+		wantSync  bool
+		wantAbort bool
+	}{
+		{"yes syncs", nil, "yes", true, false},
+		{"no launches without syncing", nil, "no", false, false},
+		{"ctrl-c aborts", huh.ErrUserAborted, "", false, true},
+		{"other prompt error still launches", errors.New("no tty"), "", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sync, abort := syncPromptOutcome(tt.err, tt.choice)
+			if sync != tt.wantSync || abort != tt.wantAbort {
+				t.Errorf("syncPromptOutcome(%v, %q) = (%v, %v), want (%v, %v)",
+					tt.err, tt.choice, sync, abort, tt.wantSync, tt.wantAbort)
 			}
 		})
 	}
