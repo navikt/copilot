@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-28T16:09:00.343Z",
+  "generatedAt": "2026-08-28T16:38:53.220Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -367,7 +367,7 @@
       "domain": "general",
       "filePath": ".github/agents/research.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/research.agent.md",
-      "contentHash": "193185dc674902c3cf91ee13d988819d2038d5e282ebb63d25472775a8246aee",
+      "contentHash": "9c7d4bd4590a7cf973cd7a199c90a9173da87bf31e13f6cdde54ea7a15f72d7b",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fresearch.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fresearch.agent.md",
       "tools": [
@@ -442,7 +442,7 @@
       "domain": "general",
       "filePath": ".github/agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md",
-      "contentHash": "9281728358daacc0e5271b1845189c57078a94265cde606dc2f9f3b089e0b396",
+      "contentHash": "160b9c9cc7263b409e2dc9878eb69d8269e3f3a402811ae75913ccf3ff0c1e36",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -541,7 +541,7 @@
       "domain": "general",
       "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "a0999e3cc902f4f56bccac3d9c286cc248de6961d14b794537d48bc34393100e",
+      "contentHash": "68b3ca596e278482d36026b412895399e42f1882a21c6de2999db9f10ec737ad",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "applyTo": "**",
@@ -627,7 +627,7 @@
       "domain": "backend",
       "filePath": ".github/instructions/kotlin-spring.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-spring.instructions.md",
-      "contentHash": "05157f030a8bdfdfce75189312eb28e6b70dabea77b9e152fead22239b7f7d9d",
+      "contentHash": "db9355ee1afaeaeff8578552095991fa9c7c38b266f3a077359f17c3e4101996",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-spring.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-spring.instructions.md",
       "applyTo": "**/*.kt",
@@ -678,7 +678,7 @@
       "domain": "general",
       "filePath": ".github/instructions/output-style.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md",
-      "contentHash": "37ea9304b8c48b462922ce696c8f5faf744b02bbdb87c5c09d6badebf65c0706",
+      "contentHash": "6c2e1b5043096474e99cb311e865744ec9c0d9383c08a0a4c3221ddc10ef0649",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Foutput-style.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Foutput-style.instructions.md",
       "applyTo": "**",
@@ -1752,7 +1752,7 @@
       "domain": "general",
       "filePath": "skills/terse-mode/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/terse-mode/SKILL.md",
-      "contentHash": "8e25f66ada3ce16df09418b18cb85b1e37416e0cf8ac408f9a6b53d8a1c095c3",
+      "contentHash": "24608927791e22ae5dbc64aa7ac401acc13bcc5e6a080841f5dcd7a2bbd91563",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["token-optimization", "output", "conciseness", "communication-style"],

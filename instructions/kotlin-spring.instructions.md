@@ -255,4 +255,4 @@ class ResourceServiceTest {
 | Skill | [$ktor-scaffold](../skills/ktor-scaffold/) | Scaffolding a new Ktor project to replace a Spring service |
 | Skill | [$spring-boot-scaffold](../skills/spring-boot-scaffold/) | Scaffolding a new Spring Boot Kotlin project |
 | Skill | [$flyway-migration](../skills/flyway-migration/) | Database migration patterns |
-| Agent | $nav-auth | Authentication setup (TokenX, Azure AD) |
+| Skill | [$nav-auth](../skills/nav-auth/) | Authentication setup (TokenX, Azure AD) |

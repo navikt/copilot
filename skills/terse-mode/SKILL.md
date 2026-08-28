@@ -6,7 +6,7 @@ license: "MIT"
 
 # Terse Mode
 
-The compact-style rules (drop filler, politeness and hedging; keep code, error strings and technical terms exact; auto-clarity for security warnings, irreversible actions and multi-step sequences) are always applied via `output-style.instructions.md`. This skill only sets the intensity.
+The compact-style rules (drop filler, politeness and hedging; keep code, error strings and technical terms exact; auto-clarity for security warnings, irreversible actions and multi-step sequences) are always applied via `output-style.instructions.md`. This skill sets the intensity on top of them, and the **normal** and **ultra** levels add compression that is not on by default.
 
 ## Intensity levels
 

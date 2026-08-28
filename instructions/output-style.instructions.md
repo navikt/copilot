@@ -64,6 +64,7 @@ Language-neutral, applies to Norwegian and English alike. Norwegian-only rules l
 
 - No em dashes (—) in prose. Use a colon, comma, parentheses, or a second sentence.
 - Headings never end with a colon.
+- A colon in every bullet is a tell. Vary the structure.
 - No exclamation marks in technical text.
 - Semicolons sparingly.
 

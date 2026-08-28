@@ -10,7 +10,7 @@ Flag these in Norwegian markdown files:
 - Åpningsfraser: "det er verdt å merke seg", "i dagens verden", "la oss dykke ned i"
 - Avslutningsfraser: "oppsummert kan man si at", "kort sagt", "avslutningsvis"
 - Overgangsord som avsnittåpnere: "Videre", "Dessuten", "I tillegg"
-- Overskrifter som alle ender med kolon er et AI-tegn — varier
+- Overskrifter skal aldri slutte med kolon
 
 **Klarspråk:**
 

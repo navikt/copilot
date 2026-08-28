@@ -220,7 +220,7 @@ When researching Nav-specific topics:
 
 ## Output Formats
 
-Default to **Quick Summary**. Use a longer shape only when the user asks for it.
+Default to **Quick Summary**. Use **Code Exploration Map** only when the user asks for a structural walkthrough.
 
 ### Quick Summary
 

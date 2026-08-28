@@ -45,6 +45,8 @@ val eventsProcessed = Counter.builder("events_processed")
 
 Each unique combination of labels creates a new time series. High cardinality = memory exhaustion in Prometheus.
 
+## Metric types
+
 ### Gauge (Current Value)
 
 ```kotlin
@@ -68,6 +70,7 @@ responseSize.record(responseBytes.size.toDouble())
 
 ## Queue depth as a business gauge
 
+```kotlin
 val queueSize = Gauge.builder("event_queue_size") {
     eventQueue.size.toDouble()
 }
