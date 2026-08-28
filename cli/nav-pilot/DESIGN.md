@@ -783,13 +783,38 @@ Kjør den for hånd når du endrer personaen, og lim resultatet inn i PR-en.
 ./scripts/nav-pilot-golden.sh --only 2,5 # utvalgte
 ./scripts/nav-pilot-golden.sh --keep     # behold transkript for inspeksjon
 ./scripts/nav-pilot-golden.sh --json     # maskinlesbart sammendrag (krever jq)
+./scripts/nav-pilot-golden.sh --dry-run  # skriv ut arbeidsområdet, ingen modellkall
 ```
 
 Hver prompt kjøres i et engangsområde (`mktemp -d`) seedet med et minimalt
 Nav-repo, aldri mot dette checkoutet. Personaen kopieres dit fra arbeidstreet,
 så harnessen tester alltid filen du nettopp endret — ikke en installert kopi.
-Exit 0 = alt grønt, 1 = minst én assertion feilet, 2 = preflight feilet
-(ingen klient, ikke innlogget, persona mangler).
+Sammen med den legges `instructions/*.instructions.md` i
+`.github/instructions/`, slik `nav-pilot install --repo` gjør det, så en
+instruksjon med `applyTo: "**"` faktisk er i kontekst under kjøringen.
+`--no-instructions` gir persona alene (sammenlignbart med kjøringer før
+august 2026). Exit 0 = alt grønt, 1 = minst én assertion feilet, 2 = preflight
+feilet (ingen klient, ikke innlogget, persona mangler).
+
+### Måling av svarlengde
+
+Assertionene svarer på «gjorde den fortsatt det riktige», ikke «ble svaret
+kortere», som er spørsmålet en alltid-på instruksjon som output-style reiser.
+Harnessen måler derfor bytes/linjer/ord per transkript og rapporterer median
+med spredning. Målingene *asserteres aldri*: en lengdeendring feiler ikke
+kjøringen.
+
+```bash
+./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline docs/golden-baselines/2026-08-28-for.txt
+# gjør endringen
+./scripts/nav-pilot-golden.sh --repeat 5 --compare docs/golden-baselines/2026-08-28-for.txt
+```
+
+`--repeat N` kjører hver prompt N ganger (≈5 modellkall per runde, så
+`--repeat 5` ≈ 25 kall). En test er grønn bare hvis *ingen* av kjøringene
+feilet; «2/5 passed» er en feil, ikke en flaky assertion å myke opp.
+Baseline-filen er en observasjon, ikke et mål: den skriver dato, revisjon,
+modell og repetisjoner inn i sin egen header.
 
 ## Init (scaffolding av repo-lokale filer)
 
