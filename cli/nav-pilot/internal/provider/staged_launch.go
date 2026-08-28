@@ -16,9 +16,11 @@ import (
 // Tier 2 (payload) launch.
 //
 // A Tier 2 agentpakke ships pre-built, digest-pinned client configuration
-// instead of content nav-pilot materializes. internal/cli stages that payload
-// into a private tree (agentpakke.StagePayload) and hands the verified
-// directory here; these builders turn it into a cplt invocation.
+// instead of content nav-pilot materializes. internal/cli materializes that
+// payload once, at install or at first launch, into a content-addressed
+// revision under ~/.nav-pilot/pakker/, re-verifies the pinned tree exactly at
+// launch (agentpakke.VerifyPayloadExact) and hands the verified directory
+// here; these builders turn it into a cplt invocation.
 //
 // The invocation shape is transcribed from the reference launcher, grillmester
 // at 3573b93cc8b7568516117263562d073cae9ee7fc, scripts/grillmester.py

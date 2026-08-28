@@ -58,9 +58,13 @@ func repoTarget(t *testing.T) string {
 }
 
 // isolatedConfig points NAV_PILOT_CONFIG at a temp file so tests never read or
-// write the developer's own config.
+// write the developer's own config, and HOME at a temp directory so the user
+// scope they read — install state, and the pinned revisions the launch path
+// looks up — is this test's and not the developer's. A test that wants a
+// specific home sets HOME again after calling this.
 func isolatedConfig(t *testing.T) string {
 	t.Helper()
+	t.Setenv("HOME", t.TempDir())
 	path := filepath.Join(t.TempDir(), "config.toml")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 	return path
@@ -277,68 +281,117 @@ const tier2ManifestJSON = `{
   "clients": {"copilot": {"payloads": {"full": {"path": "dist/copilot/full", "primaryAgents": ["grillmester"]}}}}
 }`
 
-// tier2SourceTree builds a conforming Tier 2 agentpakke: payload tree present,
-// payload manifest present, no layout — so the only thing wrong with installing
-// it is that this binary cannot stage payloads yet.
+// tier2SourceTree builds a conforming Tier 2 agentpakke: one payload tree with
+// a real file at a real digest and a declared mode, its payload manifest, and
+// no layout. An empty files map would make every check below unfalsifiable —
+// nothing would be materialized and nothing could fail to verify.
 func tier2SourceTree(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	mustWrite(t, filepath.Join(dir, agentpakke.ManifestDir, agentpakke.ManifestFile), tier2ManifestJSON)
-	mustWrite(t, filepath.Join(dir, "dist", "copilot", "full", "manifest.json"), `{"files":[]}`)
+	writeTier2Payload(t, filepath.Join(dir, "dist", "copilot", "full"), "copilot-full")
 	return dir
 }
 
-func TestTier2OnlyPakkeIsRefusedWithItsOwnReason(t *testing.T) {
-	isolatedConfig(t)
-	src := &Source{Dir: tier2SourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/grillmester"}
-	if err := attachPakke(src); err != nil {
-		t.Fatalf("attachPakke on a conforming Tier 2 manifest: %v", err)
-	}
-	if src.Pakke == nil || src.Pakke.Layout != nil {
-		t.Fatalf("fixture is not Tier 2-only: %+v", src.Pakke)
-	}
-
-	target := repoTarget(t)
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	userScope, err := ScopeUser()
-	if err != nil {
-		t.Fatal(err)
+// TestTier2PakkeInstallsIntoUserScopeOnly is the inversion of the refusal this
+// test used to pin: every install path now routes a payload-only agentpakke to
+// the revision pin, `list` reports it as the zero-item install it is, and only
+// the scope that could not hold a pin still refuses.
+func TestTier2PakkeInstallsIntoUserScopeOnly(t *testing.T) {
+	newTier2Source := func(t *testing.T) *Source {
+		t.Helper()
+		src := &Source{Dir: tier2SourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/grillmester"}
+		if err := attachPakke(src); err != nil {
+			t.Fatalf("attachPakke on a conforming Tier 2 manifest: %v", err)
+		}
+		if !payloadOnly(src) {
+			t.Fatalf("fixture is not Tier 2-only: %+v", src.Pakke)
+		}
+		return src
 	}
 
 	forceNonInteractive = true
 	t.Cleanup(func() { forceNonInteractive = false })
 
-	tests := []struct {
+	installs := []struct {
 		name string
-		run  func() error
+		run  func(scope *InstallScope, src *Source) error
 	}{
-		{"collection install", func() error { return cmdInstallFromSource("grillmester", src, ScopeRepo(target), false, false, false) }},
-		{"install all", func() error { return installAllFromSource(userScope, src, nil, false, false, false) }},
-		{"interactive user install", func() error { return interactiveUserInstallFromSource(userScope, src, "") }},
-		{"list", func() error { return cmdList("", "", false, true) }},
+		{"collection install", func(scope *InstallScope, src *Source) error {
+			return cmdInstallFromSource("grillmester", src, scope, false, false, false)
+		}},
+		{"install all", func(scope *InstallScope, src *Source) error {
+			return installAllFromSource(scope, src, nil, false, false, false)
+		}},
+		{"interactive user install", func(scope *InstallScope, src *Source) error {
+			return interactiveUserInstallFromSource(scope, src, "")
+		}},
 	}
-	for _, tt := range tests {
+	for _, tt := range installs {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "list" {
-				stubResolveSource(t, src)
+			scope := pinEnv(t)
+			src := newTier2Source(t)
+
+			if err := tt.run(scope, src); err != nil {
+				t.Fatalf("%s of a Tier 2 agentpakke = %v, want a pinned install", tt.name, err)
 			}
-			err := tt.run()
-			if err == nil {
-				t.Fatal("Tier 2-only agentpakke was accepted, want a refusal")
+
+			state, err := readScopedState(scope)
+			if err != nil || state == nil {
+				t.Fatalf("readScopedState = (%v, %v), want the pin", state, err)
 			}
-			if !strings.Contains(err.Error(), "pre-built payloads (Tier 2), which this nav-pilot version cannot install yet") {
-				t.Errorf("error %q does not name the Tier 2 case", err)
+			if state.Collection != "grillmester" || state.SourceRepo != src.Repo || state.SourceSHA != src.SHA {
+				t.Errorf("state = %+v, want a pin on %s@%s named grillmester", state, src.Repo, src.SHA)
 			}
-			if strings.Contains(err.Error(), "declares a layout") || strings.Contains(err.Error(), "no agents, skills, or instructions found") {
-				t.Errorf("error %q is still the misleading layout/empty-source message", err)
+			if len(state.Files) != 0 {
+				t.Errorf("a Tier 2 install recorded %d files; it materializes none", len(state.Files))
+			}
+			dir := filepath.Join(pakkeRevisionDir(src.Repo, src.SHA), "copilot", "full")
+			if err := agentpakke.VerifyPayloadExact(dir, filepath.Join(dir, agentpakke.PayloadManifestFile)); err != nil {
+				t.Errorf("the pinned payload does not verify: %v", err)
 			}
 		})
 	}
 
-	if entries, _ := os.ReadDir(filepath.Join(target, ".github")); len(entries) > 0 {
-		t.Errorf("refused Tier 2 install left %d entries under .github/", len(entries))
-	}
+	t.Run("list", func(t *testing.T) {
+		pinEnv(t)
+		src := newTier2Source(t)
+		stubResolveSource(t, src)
+
+		if err := cmdList("", "", false, true); err != nil {
+			t.Fatalf("cmdList over a Tier 2 agentpakke = %v, want the zero-item listing", err)
+		}
+		m, err := pakkeContents(resolverFor(src.Dir, src.Pakke), src)
+		if err != nil {
+			t.Fatalf("pakkeContents = %v, want a zero-item manifest", err)
+		}
+		if n := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts); n != 0 {
+			t.Errorf("pakkeContents returned %d items, want 0", n)
+		}
+		if m.Name != "grillmester" {
+			t.Errorf("manifest name = %q, want grillmester", m.Name)
+		}
+	})
+
+	t.Run("repo scope is refused", func(t *testing.T) {
+		pinEnv(t)
+		src := newTier2Source(t)
+		target := repoTarget(t)
+
+		err := cmdInstallFromSource("grillmester", src, ScopeRepo(target), false, false, false)
+		if err == nil {
+			t.Fatal("a repo-scope Tier 2 install was accepted, want a refusal")
+		}
+		if !strings.Contains(err.Error(), "nav-pilot install --user") {
+			t.Errorf("error %q does not point at the scope that works", err)
+		}
+		if strings.Contains(err.Error(), "declares a layout") || strings.Contains(err.Error(), "no agents, skills, or instructions found") {
+			t.Errorf("error %q is still the misleading layout/empty-source message", err)
+		}
+		if entries, _ := os.ReadDir(filepath.Join(target, ".github")); len(entries) > 0 {
+			t.Errorf("refused Tier 2 install left %d entries under .github/", len(entries))
+		}
+	})
 }
 
 // ─── B4: sync says which source it actually used ─────────────────────────────

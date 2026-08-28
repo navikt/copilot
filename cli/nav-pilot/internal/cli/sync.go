@@ -88,6 +88,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// One resolver for the whole sync, built from the agentpakke manifest that
 	// governs this source (the legacy adapter when it ships none).
 	syncState, _ := readScopedState(scope)
+
+	// A pinned Tier 2 install has no files to diff — its update unit is the
+	// revision — so it leaves the file sync before the resolver is built.
+	if pinnedSync(syncState, src) {
+		return syncPakkePin(scope, src, syncState, apply, jsonOutput)
+	}
+
 	resolver := resolverForState(src, syncState)
 
 	// Determine which files to check
@@ -369,6 +376,171 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	}
 
 	reportNewItems(scope, resolver, src)
+	return nil
+}
+
+// pinnedState reports whether a scope's state has the shape [pinRevision]
+// writes: a source, a SHA, and no tracked files at all.
+//
+// The shape alone does not make it a pin — a state predating source tracking
+// wears the same one, which is why callers pair it with something that only a
+// pin can be true of.
+//
+// "No tracked files" means no *installed* files, not an empty list. `nav-pilot
+// ignore <item> --user` appends a zero-hash marker to whatever state is there,
+// pin included, and counting that as content splits the three places that ask
+// whether something is a pin: the launch would go on reading it (pinnedRevision
+// never looks at Files), while sync fell into a file diff with nothing to diff
+// — "No customization files found to sync.", exit 0, the pin frozen for good —
+// and uninstall removed the state file without the revisions behind it. One
+// question, [installsContent], asked in all three.
+func pinnedState(state *StateFile) bool {
+	return state != nil && state.SourceRepo != "" && state.SourceSHA != "" && !installsContent(state)
+}
+
+// pinnedRevisionOnDisk reports whether this state's pin was actually
+// materialized: a revision directory exists for its source and SHA.
+//
+// This is the unambiguous signal, and the one the launch path already keys on.
+// A revision directory exists only because something pinned it, so unlike the
+// state's field pattern (a pre-tracking install shares it) or the source's
+// current tier (upstream can change it under a pin that is still what every
+// launch reads), it cannot be true of anything else.
+func pinnedRevisionOnDisk(state *StateFile) bool {
+	if !pinnedState(state) {
+		return false
+	}
+	_, err := os.Stat(pakkeRevisionDir(state.SourceRepo, state.SourceSHA))
+	return err == nil
+}
+
+// pinnedSync reports whether a sync is over a pinned Tier 2 install.
+//
+// The revision on disk is the unambiguous signal, and neither the pakke's
+// display name nor the source's current shape can stand in for it: a pakke that
+// renames itself upstream is the same install, and one that grows a layout
+// upstream is still pinned to the payload-only revision every launch reads.
+//
+// But the disk check alone is not the whole answer either. A pin whose revision
+// directory is gone — ~/.nav-pilot/pakker wiped, a revision hand-deleted — is
+// still the pin recorded in state and still what the next launch acts on, and
+// dropping it into a file sync that tracks no files prints "No customization
+// files found to sync." and returns success. That is the same frozen-success
+// this branch exists to close, reached through a missing directory instead of a
+// missing branch. So a pin-shaped state is taken too when the source it names
+// still ships payloads only: the state's shape alone is ambiguous (a Tier 1
+// install can track no files), and the source's shape alone is ambiguous (see
+// above) — together they are not.
+func pinnedSync(state *StateFile, src *Source) bool {
+	return pinnedRevisionOnDisk(state) || (pinnedState(state) && payloadOnly(src))
+}
+
+// syncPakkePin updates a pinned Tier 2 install: it compares the pinned SHA to
+// the one the source resolved to and, with --apply, pins the new revision.
+//
+// Without this branch a zero-item pin state falls all the way through
+// resolveSyncFiles to the "No customization files found to sync." dead end and
+// returns nil — sync reporting success over an install that can never advance.
+//
+// --apply goes through [pinRevision], not [installPakkePin]: the work is
+// identical — validate, materialize, re-record the pin, prune — but the output
+// belongs to sync, which reports a revision rather than announcing an install.
+// That re-materialization is deliberate: an update re-verifies the payloads
+// rather than only moving the recorded SHA.
+func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jsonOutput bool) error {
+	// Sync updates the source a scope is pinned to; it does not switch to
+	// another one. An explicit --source bypasses the B3 guard (it is the
+	// consent gesture for an *install*), so without this a sync would compare
+	// this scope's pinned SHA against an unrelated repo's HEAD as though they
+	// were two revisions of one thing, and --apply would perform the switch.
+	//
+	// This runs before anything has looked at what --source ships, so it is the
+	// one refusal here that a manifest-less source reaches: hence
+	// [pakkeInstallTarget] rather than src.Pakke.Name. Every refusal below it
+	// is past the payloadOnly gate, which is false for a nil manifest.
+	if !sameSourceRepo(state.SourceRepo, src.Repo) {
+		return fmt.Errorf(
+			"the %s scope is pinned to %s at %s, and %s is a different agentpakke.\n"+
+				"sync updates the pinned source; switching sources is an install.\n\n"+
+				"  Update the pinned agentpakke:  %s\n"+
+				"  Switch this scope over:        %s",
+			scope.Name, bold(state.SourceRepo), state.SourceSHA, bold(src.Repo),
+			bold("nav-pilot sync --apply"),
+			bold("nav-pilot install --user --source "+src.Repo+" "+pakkeInstallTarget(src)))
+	}
+
+	// The pinned source stopped shipping payloads only. There is no revision
+	// bump to make: this release pins neither mixed pakker nor Tier 1 content,
+	// so --apply has nothing valid to materialize, and every launch would go on
+	// reading the payload-only revision already pinned. Reporting "up to date"
+	// or offering an update that can never apply is how an install stays frozen
+	// while every command says it is fine.
+	if !payloadOnly(src) {
+		return fmt.Errorf(
+			"%s is pinned at %s, a revision that ships pre-built payloads only, and %s no longer does.\n"+
+				"nav-pilot does not update a pin across that change, and launches keep reading the pinned revision.\n\n"+
+				"  Reinstall it:  %s",
+			bold(state.Collection), state.SourceSHA, bold(state.SourceRepo),
+			bold("nav-pilot install --user "+state.Collection))
+	}
+
+	// The recorded pin has no revision behind it any more. It is still the pin
+	// — the next launch re-materializes it — but nothing here can be reported
+	// as up to date, and the SHA comparison below would do exactly that
+	// whenever the source has not moved. --apply rebuilds it; a plain sync says
+	// what is wrong, which is the half the user needs.
+	if !pinnedRevisionOnDisk(state) {
+		if !apply {
+			if jsonOutput {
+				if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA}); err != nil {
+					return err
+				}
+				return errUpdatesAvailable
+			}
+			fmt.Printf("%s %s is pinned at %s, but that revision is no longer under %s.\n\n",
+				yellow("⚠"), bold(state.Collection), state.SourceSHA, bold(pakkerRoot()))
+			fmt.Printf("Run %s to materialize it again (from %s, what the source resolves to now).\n",
+				bold("nav-pilot sync --apply"), src.SHA)
+			return errUpdatesAvailable
+		}
+		if _, err := pinRevision(scope, src, jsonOutput); err != nil {
+			return err
+		}
+		if jsonOutput {
+			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
+		}
+		fmt.Printf("%s Restored %s at revision %s.\n", green("✓"), bold(src.Pakke.Name), src.SHA)
+		return nil
+	}
+
+	if src.SHA == state.SourceSHA {
+		if jsonOutput {
+			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
+		}
+		fmt.Printf("%s %s is up to date (pinned at %s).\n", green("✓"), bold(src.Pakke.Name), src.SHA)
+		return nil
+	}
+
+	if !apply {
+		if jsonOutput {
+			if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA}); err != nil {
+				return err
+			}
+			return errUpdatesAvailable
+		}
+		fmt.Printf("%s A newer revision of %s is available (pinned %s, source %s).\n\n",
+			yellow("⚠"), bold(src.Pakke.Name), state.SourceSHA, src.SHA)
+		fmt.Printf("Run %s to update.\n", bold("nav-pilot sync --apply"))
+		return errUpdatesAvailable
+	}
+
+	if _, err := pinRevision(scope, src, jsonOutput); err != nil {
+		return err
+	}
+	if jsonOutput {
+		return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
+	}
+	fmt.Printf("%s Updated %s to revision %s.\n", green("✓"), bold(src.Pakke.Name), src.SHA)
 	return nil
 }
 

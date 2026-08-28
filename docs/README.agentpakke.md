@@ -68,7 +68,7 @@ En klients konformanstier deklareres ikke — den utledes av formen på oppføri
 - **Tier 1 (layout):** klientoppføringen har ingen `payloads`. nav-pilot materialiserer innholdet selv fra stiene i `layout`. Da må `layout` finnes.
 - **Tier 2 (payloads):** klientoppføringen har `payloads`. nav-pilot verifiserer og stager ferdigbygde trær. Ingen `layout` kreves for slike klienter.
 
-En pakke kan blande: `copilot` på Tier 2 og `opencode` på Tier 1 i samme manifest er gyldig, forutsatt at `layout` finnes for Tier 1-klienten.
+En pakke kan blande: `copilot` på Tier 2 og `opencode` på Tier 1 i samme manifest er gyldig, forutsatt at `layout` finnes for Tier 1-klienten. Merk at nav-pilot ikke starter Tier 2-halvdelen av en slik pakke i dag (se [Begrensninger](#begrensninger-i-dag)).
 
 Mangler `layout` mens en *kjent* klient er Tier 1, avvises manifestet:
 
@@ -298,7 +298,7 @@ Stiformede kilder sammenlignes symlink-oppløst, så en symlink og checkouten ba
 
 ## Slik starter brukerne klienten fra en Tier 2-pakke
 
-Peker kilden på en agentpakke som deklarerer `payloads` for klienten, verifiserer og stager nav-pilot payloaden ved hver launch og peker klienten på det stagede treet:
+Peker kilden på en agentpakke som deklarerer `payloads` for klienten, kjører nav-pilot klienten fra en verifisert revisjon av pakka som ligger på maskinen:
 
 ```bash
 nav-pilot --client copilot                                # konteksten manifestet setter som standard
@@ -307,10 +307,13 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 
 - **`--payload-context <id>`** velger kontekst. Uten flagget brukes `defaultContext` fra klientoppføringa (`full` når feltet mangler). En kontekst pakka ikke deklarerer gir en feil som lister opp de som finnes. Det er ingen config-nøkkel for dette: den varige standarden er manifestets eget felt.
 - **`--payload-context` er ikke `--context`.** Sistnevnte er Copilots long-context-nivå og er uendret; de to er ortogonale og kan stå på samme kommandolinje.
-- **Verifisering før hver launch.** Payloaden sjekkes mot payload-manifestet (digest og modus), kopieres til et privat tre under `~/.nav-pilot/staged/`, og re-verifiseres eksakt der. Feiler noe av dette, starter ingenting — en Tier 2-launch faller aldri tilbake på Tier 1-veien.
-- **Det stagede treet slettes når klienten avslutter.** Rester etter en krasjet økt ryddes av neste staged launch (eldre enn 24 timer).
-- **opencode** startes med `OPENCODE_CONFIG_DIR` mot det stagede treet. Den delte `~/.config/opencode/opencode.json` verken leses eller skrives på denne veien; OTel går fortsatt som miljøvariabler.
-- **copilot** startes med `--plugin-dir <staged>` og personaen kvalifisert med pakkenavnet: `--agent <pakke>:<agent>`.
+- **Revisjonen ligger på maskinen, er immutabel og valgt av et install-steg.** `nav-pilot install --user <navn>` verifiserer pakka, materialiserer hver deklarerte kontekst under `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/` (repo-id-en småskrevet, slik nav-pilot ellers sammenligner den) og pinner SHA-en. Senere launcher leser den katalogen og kloner ingenting. Startes en payload-only kilde som ikke er installert, pinner første launch den på samme måte og sier fra med én linje.
+- **Verifisering før hver launch.** Det pinnede treet re-verifiseres eksakt mot payload-manifestet (digest og modus) før klienten startes: en fil som er endret, fjernet eller lagt til etter at revisjonen ble materialisert, stopper launchen. Feiler noe av dette, starter ingenting — en Tier 2-launch faller aldri tilbake på Tier 1-veien.
+- **Pinnen flyttes av `nav-pilot sync`, ikke av å starte klienten på nytt.** Uten `--apply` rapporterer sync hvilken revisjon som er tilgjengelig; med `--apply` verifiseres og materialiseres den nye revisjonen, og pinnen bytter. De to siste revisjonene beholdes, eldre fjernes. Er den pinnede revisjonen fjernet fra disk, sier sync det framfor å melde «up to date», og `--apply` bygger den opp igjen (`Restored …`). Sync oppdaterer den kilden scopet er pinnet til: peker du den mot et annet repo, nekter den og ber deg gjøre byttet med `install`.
+- **Revisjonene fjernes av `nav-pilot uninstall`, som navngir hver katalog den sletter, også i tørrkjøring.** De frigjøres også — uten utskrift — av en vanlig Tier 1-install som skriver over pinnen i samme scope, siden pin-staten da er borte og ingenting senere ville funnet trærne igjen.
+- **Utvikler du pakka lokalt, pinnes den ikke.** Er `source` en absolutt sti (`nav-pilot config set source /sti/til/pakke`), materialiseres og verifiseres payloadene på nytt ved hver launch, så en endring i arbeidstreet er med på neste start. `nav-pilot install` av en lokal Tier 2-kilde nektes: det finnes ingen immutabel revisjon å pinne, og meldingen navngir install fra repoet i stedet.
+- **opencode** startes med `OPENCODE_CONFIG_DIR` mot den pinnede revisjonen. Den delte `~/.config/opencode/opencode.json` verken leses eller skrives på denne veien; OTel går fortsatt som miljøvariabler.
+- **copilot** startes med `--plugin-dir <revisjon>` og personaen kvalifisert med pakkenavnet: `--agent <pakke>:<agent>`.
 - **cplt er påkrevd, og må være minst den gjennomgåtte baselinen.** En staged launch gir klienten et verifisert tre inne i sandkassen; uten cplt starter ingenting (`brew install navikt/tap/cplt`). En eldre cplt enn `2026.08.17-062831` — eller en cplt nav-pilot ikke får lest versjonen av — avvises også, med `brew upgrade cplt` i feilen.
 - **`compatibility` håndheves før launch.** Deklarerer klientoppføringa et versjonsområde, prober nav-pilot klienten og avviser en versjon utenfor området. Både en mislykket probe og uleselig versjonsutdata er fatalt: et område som ikke kan håndheves, er ikke håndhevet.
 - **Modell:** `defaultModel: "inherit"` sender ingen `--model` i det hele tatt. En konkret verdi sendes med. En modell brukeren har pinnet selv vinner over begge.
@@ -319,7 +322,10 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 
 Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 
-- **Tier 2 kan startes, men ikke installeres.** Staged launch er live (se [Slik starter brukerne klienten fra en Tier 2-pakke](#slik-starter-brukerne-klienten-fra-en-tier-2-pakke)): en pakke uten `layout` kan velges som kilde og startes direkte. `nav-pilot install` avvises fortsatt med sin egen begrunnelse — install av Tier 2 kommer i en senere release. En pakke som skal *installeres* i dag må ha Tier 1-innhold.
+- **Tier 2 installeres bare i brukerscope.** `nav-pilot install --user <navn>` validerer pakka, verifiserer hver deklarerte payload, materialiserer hver deklarerte kontekst og pinner revisjonen (se [Slik starter brukerne klienten fra en Tier 2-pakke](#slik-starter-brukerne-klienten-fra-en-tier-2-pakke)). Et forsøk i repo-scope avvises med en begrunnelse som navngir `--user`. Installasjonen skriver ingen filer brukeren ser: `nav-pilot list` viser 0 elementer for en payload-only pakke, men lister payload-kontekstene per klient — også for klienter denne nav-pilot ikke kan starte, siden install materialiserer dem alle. `nav-pilot sync` rapporterer revisjoner framfor fildiffer. En payload-only kilde som ikke er installert, pinnes ved første launch, med mindre brukerscopet allerede har en installasjon som ville mistet filene eller revisjonene sine — da nekter launchen og ber om en eksplisitt `install`.
+- **En blandet pakke starter ikke Tier 2-klienten sin.** Har manifestet både `layout` og `payloads`, pinnes pakka ikke i denne releasen, og en launch av en klient som deklarerer `payloads` stopper med en feil som sier nettopp det. Alternativet ville vært å starte klienten fra `layout`-innholdet i stedet, altså stille gi brukeren noe annet enn payloaden manifestet deklarerer. Tier 1-klientene i den samme pakka installeres og startes som før. Skal Tier 2-klienten kunne startes nå, må pakka være payload-only. Legger en pakke som allerede er pinnet hos brukere til en `layout` oppstrøms, nekter `sync` å oppdatere pinnen over den endringen og ber om en ny `install`; launcher fortsetter i mellomtiden å lese den pinnede revisjonen.
+- **Alle deklarerte kontekster materialiseres**, også de brukeren aldri starter, og kontekster som deler innhold lagrer det én gang hver.
+- **En kilde som er en absolutt sti pinnes ikke, og kan ikke installeres.** Den materialiseres og verifiseres på nytt ved hver launch, slik at forfatterens redigeringer er med fra neste start, og bare den revisjonen launchen bruker beholdes. Det er flyten for å utvikle en pakke; en pinnet installasjon krever et repo med en immutabel revisjon.
 - **`policies` og `profiles` parses og sti-sjekkes, men materialiseres ikke.** nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet ennå (M3).
 - **`compatibility` håndheves bare på den stagede stien.** En Tier 2-launch prober klienten og avviser en versjon utenfor det deklarerte området. Legacy-stien — Tier 1-innhold materialisert inn i brukerens egen klient — leser ikke feltet.
 - **`nav-pilot export opencode` støtter bare kanoniske stier.** Export leser `agents/`, `skills/`, `instructions/` og `prompts/` direkte. En agentpakke som legger innholdet et annet sted avvises av export med en forklaring, framfor å skrive et tomt `.opencode/`-tre.
@@ -370,7 +376,7 @@ grillmester/
 
 ### Tier 2 med ferdigbygde payloads
 
-Formen en komponert pakke har. Denne validerer, men kan ennå ikke installeres av nav-pilot (se [Begrensninger](#begrensninger-i-dag)):
+Formen en komponert pakke har. Den installeres i brukerscope og pinnes til en revisjon (se [Begrensninger](#begrensninger-i-dag)):
 
 ```json
 {

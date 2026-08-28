@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -153,12 +154,13 @@ func TestPayloadContextOnLegacyPath(t *testing.T) {
 	})
 }
 
-// TestPayloadContextUnknown: an unknown context lists what the manifest does
-// declare, sorted.
+// TestPayloadContextUnknown: an unknown context lists what the *pinned*
+// manifest declares, sorted — the manifest the revision was built with, not
+// whatever the default branch says today.
 func TestPayloadContextUnknown(t *testing.T) {
-	isolatedConfig(t)
-	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
-	stubResolveSource(t, tier2Source(t))
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, "sha-one"))
+	failingResolveSource(t)
 
 	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester", PayloadContext: "tiny"})
 	if !handled || err == nil {
@@ -170,10 +172,11 @@ func TestPayloadContextUnknown(t *testing.T) {
 	assertDefaultPakkeActive(t)
 }
 
-// TestPayloadContextSelection pins G3's defaulting: with no flag the manifest's
-// defaultContext is staged, and the flag overrides it. Both fixtures point at
-// payload paths that carry no payload manifest, so staging fails — after the
-// context has been selected, which is what the wrapped error names.
+// TestPayloadContextSelection pins G3's defaulting against a pinned revision:
+// with no flag the manifest's defaultContext is launched, and the flag
+// overrides it. The context selected is the subdirectory of the revision the
+// client is pointed at, so breaking exactly that tree is how the test observes
+// which one was chosen.
 func TestPayloadContextSelection(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -185,33 +188,31 @@ func TestPayloadContextSelection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isolatedConfig(t)
-			t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
-			stubResolveSource(t, tier2Source(t))
+			scope := pinEnv(t)
+			src := tier2PinSource(t, "sha-one")
+			installPin(t, scope, src)
+			failingResolveSource(t)
+
+			// Plant an unmanifested file in the context that must be chosen,
+			// so only a launch that reads that tree fails.
+			planted := filepath.Join(pakkeRevisionDir(src.Repo, src.SHA), "copilot", tt.wantContext, "planted.md")
+			if err := os.WriteFile(planted, []byte("x\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
 
 			handled, err := tryPakkeLaunch(ResolvedConfig{
 				Client: "copilot", Source: "navikt/grillmester", PayloadContext: tt.flag,
 			})
 			if !handled || err == nil {
-				t.Fatalf("tryPakkeLaunch = (%v, %v), want (true, staging error)", handled, err)
+				t.Fatalf("tryPakkeLaunch = (%v, %v), want (true, a verification error)", handled, err)
 			}
-			want := `staging the "` + tt.wantContext + `" payload`
-			if !strings.Contains(err.Error(), want) {
-				t.Errorf("error should report %s, got: %v", want, err)
+			if !strings.Contains(err.Error(), `the pinned "`+tt.wantContext+`" payload`) {
+				t.Errorf("error should report the %q context, got: %v", tt.wantContext, err)
 			}
-			// Fail-closed: a Tier 2 launch that could not stage never falls
+			// Fail-closed: a Tier 2 launch that could not verify never falls
 			// back to the legacy launch.
 			assertDefaultPakkeActive(t)
 		})
-	}
-}
-
-// TestStagedRootFollowsConfig keeps staged trees inside nav-pilot's own home,
-// and out of the developer's when tests redirect the config.
-func TestStagedRootFollowsConfig(t *testing.T) {
-	cfg := isolatedConfig(t)
-	if got, want := stagedRoot(), filepath.Join(filepath.Dir(cfg), "staged"); got != want {
-		t.Errorf("stagedRoot() = %q, want %q", got, want)
 	}
 }
 
@@ -549,4 +550,68 @@ func TestTierCacheLivesWithNavPilotState(t *testing.T) {
 	if got, want := tierCachePath(), filepath.Join(filepath.Dir(cfg), "tier-cache.json"); got != want {
 		t.Errorf("tierCachePath() = %q, want %q", got, want)
 	}
+}
+
+// mixedPakkeManifestJSON declares a layout *and* a payload: opencode is Tier 1
+// and reads the layout, copilot is Tier 2 and ships a pre-built payload.
+const mixedPakkeManifestJSON = `{
+  "contractVersion": "1",
+  "name": "grillmester",
+  "description": "Grillmester agentpakke, mixed",
+  "clients": {
+    "copilot": {"payloads": {"full": {"path": "plugin", "primaryAgents": ["grillmester"]}}},
+    "opencode": {"primaryAgents": ["grillmester"]}
+  },
+  "layout": {"agents": "plugin/agents", "skills": "plugin/skills"}
+}`
+
+// TestMixedPakkeRefusesItsPayloadClient: pinning does not cover a pakke that
+// ships both a layout and payloads, and the launch says so rather than quietly
+// materializing layout content into the config of a client whose manifest
+// declares a verified payload. Fail-closed, like every other Tier 2 refusal.
+func TestMixedPakkeRefusesItsPayloadClient(t *testing.T) {
+	mixedSource := func(t *testing.T) *Source {
+		t.Helper()
+		src := &Source{Dir: pakkeSourceTree(t, mixedPakkeManifestJSON), SHA: "def5678", Version: "dev", Repo: "navikt/grillmester"}
+		if err := attachPakke(src); err != nil {
+			t.Fatalf("attachPakke on the mixed fixture: %v", err)
+		}
+		if src.Pakke.Layout == nil || src.Pakke.Tier("copilot") != agentpakke.TierPayload {
+			t.Fatalf("fixture is not a mixed pakke: %+v", src.Pakke)
+		}
+		return src
+	}
+
+	t.Run("the Tier 2 client is refused", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		stubResolveSource(t, mixedSource(t))
+
+		handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+		if !handled || err == nil {
+			t.Fatalf("tryPakkeLaunch(mixed pakke, Tier 2 client) = (%v, %v), want (true, a refusal)", handled, err)
+		}
+		for _, want := range []string{"grillmester", "copilot", "ships both"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("refusal %q does not name %q", err, want)
+			}
+		}
+		// It never reached the pin, so nothing was materialized either.
+		if _, statErr := os.Stat(pakkeSourceDir("navikt/grillmester")); !os.IsNotExist(statErr) {
+			t.Errorf("the refused launch materialized a revision (stat err %v)", statErr)
+		}
+		assertDefaultPakkeActive(t)
+	})
+
+	t.Run("the Tier 1 client still takes the legacy path", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		stubResolveSource(t, mixedSource(t))
+
+		handled, err := tryPakkeLaunch(ResolvedConfig{Client: "opencode", Source: "navikt/grillmester"})
+		if handled || err != nil {
+			t.Errorf("tryPakkeLaunch(mixed pakke, Tier 1 client) = (%v, %v), want (false, nil)", handled, err)
+		}
+		assertDefaultPakkeActive(t)
+	})
 }

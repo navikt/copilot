@@ -3,15 +3,12 @@ package agentpakke
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
-	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -52,26 +49,20 @@ import (
 // O_EXCL — so there is no path by which one could appear. That is a stronger
 // guarantee than rejecting them after the fact, and it is why the exact
 // re-verification is a check on our own work rather than the trust boundary.
-const (
-	// stagedDirPrefix names every staged tree so a leftover one found in the
-	// staged root is obviously nav-pilot's and obviously disposable. It is also
-	// what [GCStaged] and [CleanupStaged] match on, so neither can be talked
-	// into deleting a directory nav-pilot did not create.
-	stagedDirPrefix = "nav-pilot-staged-"
 
-	// stagedDirMode is the mode of the staged root, every staged tree and every
-	// directory inside one. The payload manifest declares modes for files only,
-	// so nav-pilot picks this one: owner-only, because a staged tree is a
-	// private projection for one process and no other user has business
-	// traversing it. Consequently [VerifyPayloadExact] does not check directory
-	// modes — there is nothing to check them against.
-	//
-	// A umask can only clear bits, so under any sane umask these directories
-	// come out at 0700; under a umask that clears the owner bits the very next
-	// create inside them fails and staging aborts, which is the correct outcome
-	// for a machine configured that way.
-	stagedDirMode fs.FileMode = 0o700
-)
+// stagedDirMode is the mode of every directory [StagePayload] creates. The
+// payload manifest declares modes for files only, so nav-pilot picks this one:
+// owner-only, because a staged tree is nav-pilot's own content under its own
+// root and no other user has business traversing it. That is as true of a tree
+// that lives for the duration of one launch as of one that is kept until the
+// next revision replaces it. Consequently [VerifyPayloadExact] does not check
+// directory modes — there is nothing to check them against.
+//
+// A umask can only clear bits, so under any sane umask these directories come
+// out at 0700; under a umask that clears the owner bits the very next create
+// inside them fails and staging aborts, which is the correct outcome for a
+// machine configured that way.
+const stagedDirMode fs.FileMode = 0o700
 
 // stageCopyHook is a test seam: when non-nil it runs immediately before each
 // file is copied, in the order [StagePayload] copies them.
@@ -86,21 +77,25 @@ const (
 var stageCopyHook func(rel string)
 
 // StagePayload verifies the payload at payloadDir against the payload manifest
-// at manifestPath, copies it into a fresh private directory under stagedRoot
-// with the manifest's exact modes, and verifies that copy again, exactly. It
-// returns the staged directory, which the caller owns and must remove with
-// [CleanupStaged] once the client it was staged for has exited.
+// at manifestPath, copies it into destDir with the manifest's exact modes, and
+// verifies that copy again, exactly. It returns destDir.
 //
-// stagedRoot is created if absent. Each call stages into its own [os.MkdirTemp]
-// directory: two concurrent calls, even for the same source, produce two
-// independent trees and share nothing but the root they sit in. A fixed
-// per-pakke directory would be wrong here — wiping and rewriting it would pull
-// the config directory out from under a session already running against it.
+// destDir is created if absent, and belongs to this call alone: both
+// fail-closed paths below remove it wholesale, so it must not be a directory
+// anything else is using. The caller names it, which is what lets an install
+// stage several payloads into one tree and publish the lot with a single
+// rename.
+//
+// A fixed per-pakke directory would be wrong — wiping and rewriting it would
+// pull the config directory out from under a session already running against
+// it. A directory named after the revision's content is right for exactly that
+// reason: a new revision gets a new name, so nothing is ever rewritten in
+// place and a running session keeps the tree it was handed.
 //
 // It fails closed. Any error at any step leaves no staged tree behind and no
 // usable result: there is no partially-staged tree and no fallback to an
 // unverified one. A caller that gets an error must abort the launch.
-func StagePayload(payloadDir, manifestPath, stagedRoot string) (stagedDir string, err error) {
+func StagePayload(payloadDir, manifestPath, destDir string) (stagedDir string, err error) {
 	// Read and parse the manifest once. The bytes verified below are the same
 	// bytes written into the staged tree and re-verified against it, so no
 	// second read can slip a different manifest in between.
@@ -130,13 +125,10 @@ func StagePayload(payloadDir, manifestPath, stagedRoot string) (stagedDir string
 			PayloadManifestFile, PayloadManifestFile)
 	}
 
-	if err := os.MkdirAll(stagedRoot, stagedDirMode); err != nil {
-		return "", fmt.Errorf("creating the staged-payload root %s: %v", stagedRoot, err)
+	if err := os.MkdirAll(destDir, stagedDirMode); err != nil {
+		return "", fmt.Errorf("creating the staged payload directory %s: %v", destDir, err)
 	}
-	stagedDir, err = os.MkdirTemp(stagedRoot, stagedDirPrefix)
-	if err != nil {
-		return "", fmt.Errorf("creating a staged payload directory under %s: %v", stagedRoot, err)
-	}
+	stagedDir = destDir
 
 	if err := stageTree(m, data, payloadDir, stagedDir); err != nil {
 		os.RemoveAll(stagedDir)
@@ -210,11 +202,10 @@ func stageFile(srcPath, dstPath, rel string, rec FileRecord, perm fs.FileMode) e
 	defer src.Close()
 
 	// O_EXCL and O_NOFOLLOW on a path inside a directory this process created
-	// moments ago and no one else knows the name of: nothing can pre-exist
-	// there and nothing can have planted a link there. The flags are what make
-	// that an enforced property rather than an assumed one — if the assumption
-	// ever stops holding, staging fails instead of writing through whatever is
-	// in the way.
+	// moments ago: nothing should pre-exist there and nothing should have
+	// planted a link there. The flags are what make that an enforced property
+	// rather than an assumed one — if the assumption ever stops holding,
+	// staging fails instead of writing through whatever is in the way.
 	dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, perm)
 	if err != nil {
 		return fmt.Errorf("creating the staged file %q: %v", rel, err)
@@ -245,86 +236,4 @@ func stageFile(srcPath, dstPath, rel string, rec FileRecord, perm fs.FileMode) e
 		return fmt.Errorf("setting the mode of the staged file %q: %v", rel, err)
 	}
 	return dst.Close()
-}
-
-// CleanupStaged removes a staged tree. It is what the caller defers around the
-// client process: the tree is a disposable projection of the pakke repo, so
-// there is nothing to keep once the client that was reading it has exited.
-//
-// A tree that is already gone is not an error — the caller should be able to
-// defer this unconditionally. A path that is not a staged tree is: the argument
-// is fed to [os.RemoveAll], and a caller that passes an empty or wrong path
-// deserves an error rather than a recursive delete of whatever it named.
-func CleanupStaged(stagedDir string) error {
-	if !isStagedDir(stagedDir) {
-		return fmt.Errorf(
-			"refusing to remove %q: a staged payload directory is named %s* and nav-pilot will not recursively delete anything else",
-			stagedDir, stagedDirPrefix)
-	}
-	if err := os.RemoveAll(stagedDir); err != nil {
-		return fmt.Errorf("removing the staged payload %s: %v", stagedDir, err)
-	}
-	return nil
-}
-
-// GCStaged removes staged trees under stagedRoot that have not been modified
-// for maxAge, and is how a tree survives a crash by at most that long: the
-// happy path is [CleanupStaged] when the client exits, and this is the sweep
-// for the times there was no happy path.
-//
-// The age rule is deliberately naive. A tree's mtime is set when staging writes
-// the last file into it and nothing touches it afterwards, so "older than
-// maxAge" means "staged more than maxAge ago" — not "unused". With maxAge at
-// 24h that guarantees a leaked tree is collected within a day of the crash that
-// leaked it, and it guarantees nothing at all about a session still running
-// after maxAge: that session's tree is swept out from under it, and its client
-// starts failing to read its own config. It is a visible failure rather than an
-// unsafe one, and a day-long interactive session is not a case worth carrying
-// pid-liveness machinery for.
-//
-// ponytail: mtime heuristic; swap in an owner-pid file per tree if sessions
-// outliving maxAge turn out to be real.
-//
-// A missing stagedRoot is not an error — nothing has been staged yet. Trees
-// that cannot be removed are reported together rather than aborting the sweep,
-// so one stuck tree does not shield the rest.
-func GCStaged(stagedRoot string, maxAge time.Duration) error {
-	entries, err := os.ReadDir(stagedRoot)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("reading the staged-payload root %s: %v", stagedRoot, err)
-	}
-	cutoff := time.Now().Add(-maxAge)
-	var errs []error
-	for _, e := range entries {
-		// Only our own trees: the staged root is nav-pilot's, but a sweep that
-		// deletes by age alone is one misconfigured path away from deleting a
-		// user's directory.
-		if !isStagedDir(e.Name()) {
-			continue
-		}
-		info, err := e.Info()
-		if errors.Is(err, fs.ErrNotExist) {
-			continue // another process swept it first
-		}
-		if err != nil {
-			errs = append(errs, fmt.Errorf("inspecting the staged payload %s: %v", e.Name(), err))
-			continue
-		}
-		if !info.ModTime().Before(cutoff) {
-			continue
-		}
-		if err := os.RemoveAll(filepath.Join(stagedRoot, e.Name())); err != nil {
-			errs = append(errs, fmt.Errorf("removing the stale staged payload %s: %v", e.Name(), err))
-		}
-	}
-	return errors.Join(errs...)
-}
-
-// isStagedDir reports whether p names a directory [StagePayload] created.
-func isStagedDir(p string) bool {
-	base := filepath.Base(p)
-	return strings.HasPrefix(base, stagedDirPrefix) && len(base) > len(stagedDirPrefix)
 }

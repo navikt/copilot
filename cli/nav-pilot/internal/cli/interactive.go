@@ -317,11 +317,10 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 	if err := guardScopeSource(scope, flagSource); err != nil {
 		return err
 	}
-	// Before the item picker: a Tier 2-only agentpakke has nothing this binary
-	// can offer to select, and "no agents found in source" would be the wrong
-	// reason.
-	if err := guardTier2Only(src); err != nil {
-		return err
+	// Before the item picker: a payload-only agentpakke has nothing to select
+	// from — what it installs is a pinned revision of its payloads, not files.
+	if payloadOnly(src) {
+		return installPakkePin(scope, src, false, false)
 	}
 
 	manifest, err := collectAllItemsWith(resolverFor(src.Dir, pakkeFor(src, CollectionAll)))
