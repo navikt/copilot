@@ -1,14 +1,10 @@
 # Client Support Matrix
 
-Tracking document for customization install mechanisms and client compatibility across GitHub Copilot environments.
-
-**Last verified**: 2026-03-19
-
----
+Which customization types work in which GitHub Copilot clients, and how each one gets installed.
 
 ## References
 
-Sources used to compile this matrix. Re-check these when updating.
+Re-check these when you update the matrix.
 
 | #   | Topic                                            | URL                                                                                                      |
 | --- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
@@ -24,9 +20,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | 10  | Blog: Instructions, Prompts, Agents and Skills   | <https://devopsjournal.io/blog/2025/12/22/GitHub-Copilot-Custom-Instructions>                            |
 | 11  | Agent Skills specification                       | <https://agentskills.io/specification>                                                                   |
 
----
-
-## Support Matrix
+## Support matrix
 
 ### Legend
 
@@ -36,7 +30,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | ⚠️      | Partial / preview support (see notes) |
 | ❌      | Not supported                         |
 
-### Customization Types × Clients
+### Customization types × clients
 
 | Type                              | VS Code              | JetBrains            | GitHub.com              | Copilot CLI        | Visual Studio    | Eclipse        | Xcode          |
 | --------------------------------- | -------------------- | -------------------- | ----------------------- | ------------------ | ---------------- | -------------- | -------------- |
@@ -53,19 +47,17 @@ Sources used to compile this matrix. Re-check these when updating.
 
 > **Note**: "Agent" refers to Copilot coding agent (autonomous mode). "Chat" refers to interactive Copilot Chat.
 
----
-
-## Install Mechanisms per Type
+## Install mechanisms per type
 
 ### Instructions (.instructions.md)
 
 | Method                                 | Client  | Notes                                            |
 | -------------------------------------- | ------- | ------------------------------------------------ |
 | One-click install button               | VS Code | Via `vscode:chat-instructions/install?url=...`   |
-| Manual copy to `.github/instructions/` | All     | Works everywhere — universal format              |
+| Manual copy to `.github/instructions/` | All     | Universal format, works everywhere               |
 | curl from GitHub raw                   | All     | `curl -sO --output-dir .github/instructions ...` |
 
-**Status**: Most portable customization type. Works in all clients.
+**Status**: the most portable type. Every client reads it.
 
 ### Custom Agents (.agent.md)
 
@@ -77,7 +69,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | `/agent` command                 | Copilot CLI | Select agent in CLI session                 |
 | Configure Custom Agents menu     | JetBrains   | Create/select in JetBrains Chat UI          |
 
-**Status**: Now supported across all major clients. JetBrains added full Chat support (was previously coding agent only).
+**Status**: supported in every major client.
 
 ### Reusable Prompts (.prompt.md)
 
@@ -86,7 +78,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | One-click install button          | VS Code                           | Via `vscode:chat-prompt/install?url=...` |
 | Manual copy to `.github/prompts/` | VS Code, JetBrains, Visual Studio | Invoke with `/prompt-name` in Chat       |
 
-**Status**: IDE-only feature. Not supported in CLI or GitHub.com.
+**Status**: IDE only.
 
 ### Agent Skills (SKILL.md folders)
 
@@ -97,7 +89,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | `/skills list`, `/skills add`                      | Copilot CLI             | Full skill management commands |
 | Enable in Settings > GitHub Copilot > Chat > Agent | JetBrains               | Public preview, must opt in    |
 
-**Status**: Major expansion — CLI now has full skill support including `/skills list`, `/skills info`, `/skills add`, `/skills reload`, `/skills remove`. JetBrains Agent Mode preview added.
+**Status**: the CLI has the deepest support. JetBrains is still preview.
 
 ### MCP Servers
 
@@ -109,13 +101,13 @@ Sources used to compile this matrix. Re-check these when updating.
 | `gh copilot mcp add`        | Copilot CLI | Or edit `~/.config/github-copilot/mcp.json` |
 | Organization MCP config     | GitHub.com  | Org-level server configuration              |
 
-**Status**: Broad support across all major clients.
+**Status**: works in every major client.
 
----
+## Nav customization inventory
 
-## Nav Customization Inventory
+Per-file status. The client columns follow the type rows in the matrix above.
 
-### Agents (11 files)
+### Agents
 
 | Agent             | File                         | JetBrains | CLI |
 | ----------------- | ---------------------------- | --------- | --- |
@@ -131,7 +123,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | Rust              | `rust.agent.md`              | ✅         | ✅   |
 | Security Champion | `security-champion.agent.md` | ✅         | ✅   |
 
-### Instructions (8 files)
+### Instructions
 
 | Instruction    | File                             | JetBrains | CLI |
 | -------------- | -------------------------------- | --------- | --- |
@@ -144,7 +136,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | Next.js/Aksel  | `nextjs-aksel.instructions.md`   | ✅         | ✅   |
 | Testing        | `testing.instructions.md`        | ✅         | ✅   |
 
-### Prompts (5 files)
+### Prompts
 
 | Prompt               | File                             | JetBrains | CLI |
 | -------------------- | -------------------------------- | --------- | --- |
@@ -154,7 +146,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | Next.js API Route    | `nextjs-api-route.prompt.md`     | ✅         | ❌   |
 | Spring Boot Endpoint | `spring-boot-endpoint.prompt.md` | ✅         | ❌   |
 
-### Skills (14 folders)
+### Skills
 
 | Skill                | Folder                                 | JetBrains | CLI |
 | -------------------- | -------------------------------------- | --------- | --- |
@@ -173,11 +165,10 @@ Sources used to compile this matrix. Re-check these when updating.
 | tokenx-auth          | `.github/skills/tokenx-auth/`          | ⚠️ Preview | ✅   |
 | web-design-reviewer  | `.github/skills/web-design-reviewer/`  | ⚠️ Preview | ✅   |
 
----
 
-## Changes Since Last Review
+## Changes since last review
 
-### 2026-03-19: Major client support expansions
+### 2026-03-19: client support expansions
 
 | Change                                                       | Impact                                                                                      |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
@@ -190,7 +181,7 @@ Sources used to compile this matrix. Re-check these when updating.
 | **GitHub.com agents tab**                                    | Create and manage custom agents directly on github.com/copilot/agents.                      |
 | **rust.agent.md added**                                      | New agent without metadata.json yet.                                                        |
 
-### 2026-06-30: June 2026 updates (Microsoft Build & IDE releases)
+### 2026-06-30: Microsoft Build and IDE releases
 
 | Change | Impact |
 | ------ | ------ |
@@ -211,11 +202,9 @@ Sources used to compile this matrix. Re-check these when updating.
 | `docs/README.agents.md`  | Missing `rust.agent.md` in table                      | Add Rust Agent row                               |
 | `docs/README.skills.md`  | Missing `rust-development` skill in table             | Add (already commented out `ai-news-research`)   |
 
----
+## VS Code tasks issues
 
-## VS Code Tasks Issues
-
-The workspace task definitions (shown in Command Palette) reference old agent filenames that no longer exist:
+The workspace task definitions in the Command Palette point at agent filenames that no longer exist, and their file counts are out of date:
 
 | Task Label                               | References               | Actual File               |
 | ---------------------------------------- | ------------------------ | ------------------------- |
@@ -226,11 +215,9 @@ The workspace task definitions (shown in Command Palette) reference old agent fi
 | Install All Instructions                 | "4 instruction files"    | 8 instruction files exist |
 | Install All Prompts                      | "3 prompt files"         | 5 prompt files exist      |
 
-These tasks are local-only (`.vscode/tasks.json`) and not committed to the repo, so they only affect this workspace.
+These tasks live in `.vscode/tasks.json`, which is not committed, so they only affect this workspace.
 
----
-
-## Metadata Schema
+## Metadata schema
 
 Current metadata files (`.metadata.json`) contain:
 
@@ -242,8 +229,9 @@ Current metadata files (`.metadata.json`) contain:
 }
 ```
 
-Missing fields that could improve tracking:
-- `version` — for changelog tracking
-- `supportedClients` — explicit client compatibility
-- `minCopilotVersion` — minimum required Copilot version
-- `lastUpdated` — timestamp for staleness detection
+Fields that would improve tracking but are missing:
+
+- `version` for changelog tracking
+- `supportedClients` for explicit client compatibility
+- `minCopilotVersion` for the minimum required Copilot version
+- `lastUpdated` for staleness detection
