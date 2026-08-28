@@ -4,17 +4,17 @@
 
 Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og prompt, kriterier for å bytte modell og sjekkliste for nye modeller.
 
-## Agenter — domeneeksperter for utviklere
+## Agenter og domene-skills for utviklere
 
-| Agent | Formål | Domene | Sone |
-|-------|--------|--------|------|
+| Agent / skill | Formål | Domene | Sone |
+|---------------|--------|--------|------|
 | `@nav-pilot` | Planlegg, arkitekturer og bygg Nav-applikasjoner | Generalist (Nais, auth, Kafka, sikkerhet) | 🟢 |
 | `@code-review-agent` | Finn feil, sikkerhetsproblemer, konvensjonsbrudd | Kvalitetssikring | 🟢 |
 | `@security-champion-agent` | Trusselmodellering, GDPR, compliance | Sikkerhet | 🟢/🔴 |
 | `@accessibility-agent` | WCAG 2.1/2.2, universell utforming, UU-testing | Tilgjengelighet | 🟢 |
-| `@observability-agent` | Prometheus, OpenTelemetry, Grafana, varsling | Observerbarhet | 🟢 |
-| `@nais-agent` | Deployment, GCP-ressurser, plattformfeilsøking | Infrastruktur | 🟢 |
-| `@auth-agent` | Azure AD, TokenX, ID-porten, Maskinporten, JWT | Autentisering | 🔴 |
+| `$observability-setup` | Prometheus, OpenTelemetry, Grafana, varsling | Observerbarhet | 🟢 |
+| `$nais` | Deployment, GCP-ressurser, plattformfeilsøking | Infrastruktur | 🟢 |
+| `$nav-auth` | Azure AD, TokenX, ID-porten, Maskinporten, JWT | Autentisering | 🔴 |
 | `@kafka-agent` | Rapids & Rivers, eventdrevet arkitektur, schema | Meldingssystemer | 🟢/🔴 |
 | `@aksel-agent` | Aksel Design System — komponenter, tokens, layout | Frontend | 🟢 |
 | `@forfatter` | Norsk klarspråk, AI-markører, fagtermer, mikrotekst | Språk/innhold | 🟢 |
@@ -91,7 +91,7 @@ Områder der vi har valgt å ikke delegere til AI, med begrunnelse:
 | **Arkitekturbeslutninger** | Systemdesign, datamodeller og API-kontrakter har langvarige konsekvenser. AI mangler kontekst om organisasjonens begrensninger, teamstruktur og langsiktig retning. | `nav-plan` og `nav-architecture-review` brukes for å *utforske* alternativer og *challenge* beslutninger, men mennesker tar den endelige avgjørelsen. |
 | **Ny teknologi (første gangs bruk)** | Å lære et nytt rammeverk eller språk via AI-generert kode bygger ikke forståelse. Utvikleren bør kode manuelt først, deretter bruke AI for repetitive mønstre. | Tre-forsøks-regelen: prøv selv tre ganger, deretter bruk AI. |
 | **Personopplysninger og GDPR-vurderinger** | Juridiske vurderinger om databehandling krever presisjon og ansvarlighet som AI ikke kan garantere. | Mennesker gjør DPIA og personvernvurderinger. AI kan hjelpe med å *identifisere* potensielle personopplysninger i kode. |
-| **Produksjonsinfrastruktur (uten review)** | Nais-manifest og GCP-konfig kan genereres av AI, men deployes aldri uten menneskelig review. Ett feilkonfigurert felt kan eksponere data eller ta ned tjenester. | `@nais-agent` genererer config, men all infrastruktur går gjennom PR-review + CI-validering. |
+| **Produksjonsinfrastruktur (uten review)** | Nais-manifest og GCP-konfig kan genereres av AI, men deployes aldri uten menneskelig review. Ett feilkonfigurert felt kan eksponere data eller ta ned tjenester. | `$nais` genererer config, men all infrastruktur går gjennom PR-review + CI-validering. |
 
 ---
 

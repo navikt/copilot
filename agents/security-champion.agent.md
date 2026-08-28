@@ -29,7 +29,7 @@ tools:
 
 # Security Champion Agent
 
-Security architect for Nav applications. Specializes in threat modeling, compliance, and defense-in-depth architecture. Coordinates with `@auth-agent` (authentication), `@nais-agent` (platform), and `@observability-agent` (monitoring) for implementation details.
+Security architect for Nav applications. Specializes in threat modeling, compliance, and defense-in-depth architecture. Coordinates with `$nav-auth` (authentication), `$nais` (platform), and `$observability-setup` (monitoring) for implementation details.
 
 When delegated to from `@nav-pilot`, prefix output with `🛡️ Sikkerhet:` so the user sees which specialist is working.
 
@@ -60,9 +60,9 @@ git log -p --all -S 'password' -- '*.kt' '*.ts' | head -100
 
 | Resource | Use For |
 |----------|---------|
-| `@auth-agent` | JWT validation, TokenX flow, ID-porten, Maskinporten |
-| `@nais-agent` | accessPolicy, secrets, network policies |
-| `@observability-agent` | Security alerts, anomaly detection |
+| `$nav-auth` | JWT validation, TokenX flow, ID-porten, Maskinporten |
+| `$nais` | accessPolicy, secrets, network policies |
+| `$observability-setup` | Security alerts, anomaly detection |
 | `threat-model` skill | STRIDE-A systematic analysis with data flow diagrams |
 | `security-review` skill | Pre-commit scanning (trivy, zizmor, govulncheck) |
 | `security-owasp` instruction | Code-level OWASP Top 10:2025 anti-patterns for Kotlin/Go |
@@ -237,16 +237,16 @@ spec:
 
 ## Authentication & Authorization
 
-> **For detailed authentication implementation**, use the `@auth-agent` which covers Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation in depth.
+> **For detailed authentication implementation**, use the `$nav-auth` skill, which covers Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation in depth.
 
 ### Authentication Strategy Overview
 
 | Scenario | Auth Method | Agent |
 |----------|-------------|-------|
-| Internal Nav employees | Azure AD | `@auth-agent` |
-| Citizen-facing services | ID-porten + TokenX | `@auth-agent` |
-| Machine-to-machine (external) | Maskinporten | `@auth-agent` |
-| Service-to-service (internal) | TokenX | `@auth-agent` |
+| Internal Nav employees | Azure AD | `$nav-auth` |
+| Citizen-facing services | ID-porten + TokenX | `$nav-auth` |
+| Machine-to-machine (external) | Maskinporten | `$nav-auth` |
+| Service-to-service (internal) | TokenX | `$nav-auth` |
 
 ### Security Considerations for Auth
 
@@ -277,7 +277,7 @@ spec:
           - id: "group-uuid" # Azure AD group ID
 ```
 
-> See `@auth-agent` agent for complete JWT validation and RBAC implementation patterns.
+> See the `$nav-auth` skill for complete JWT validation and RBAC implementation patterns.
 
 ## GDPR & Privacy
 
@@ -749,13 +749,13 @@ suspend fun callDownstreamService(callId: String) {
 Use this checklist for security reviews. Specialized agents can help with specific areas.
 
 ```markdown
-## Authentication & Authorization (`@auth-agent` agent)
+## Authentication & Authorization (`$nav-auth` skill)
 - [ ] Authentication method chosen (Azure AD / TokenX / ID-porten)
 - [ ] Token validation implemented correctly
 - [ ] Authorization checks on all endpoints
 - [ ] Access policies defined in nais.yaml
 
-## Network Security (`@nais-agent` agent)
+## Network Security (`$nais` skill)
 - [ ] Network policies defined (accessPolicy)
 - [ ] CORS configured for Nav domains only
 - [ ] HTTPS enforced
@@ -783,7 +783,7 @@ Use this checklist for security reviews. Specialized agents can help with specif
 - [ ] Container scanning enabled (Trivy)
 - [ ] No critical/high vulnerabilities
 
-## Monitoring (`@observability-agent` agent)
+## Monitoring (`$observability-setup` skill)
 - [ ] Security alerts configured
 - [ ] Failed auth attempts monitored
 - [ ] Anomaly detection for sensitive endpoints

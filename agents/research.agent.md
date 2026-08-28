@@ -55,16 +55,16 @@ GitHub Research (via MCP):
 - get_file_contents(owner, repo, path)      # Read remote files
 ```
 
-## Related Agents
+## Related agents and skills
 
-| Agent | Delegate For |
+| Agent / skill | Delegate For |
 |-------|-------------|
-| `@auth-agent` | Authentication implementation details |
-| `@nais-agent` | Platform and deployment specifics |
+| `$nav-auth` | Authentication implementation details |
+| `$nais` | Platform and deployment specifics |
 | `@security-champion-agent` | Security patterns and vulnerabilities |
 | `@aksel-agent` | Design system patterns |
 | `@kafka-agent` | Event-driven architecture patterns |
-| `@observability-agent` | Monitoring and logging patterns |
+| `$observability-setup` | Monitoring and logging patterns |
 
 ## Core Philosophy
 

@@ -613,8 +613,8 @@ fun Route.userRoutes(service: UserService) {
 |----------|---------|
 | `kotlin-app-config` skill | Sealed class configuration pattern (Dev/Prod/Local) |
 | `ktor-scaffold` skill | Scaffolding new Ktor services with full stack |
-| `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
-| `@nais-agent` | Nais manifest, accessPolicy, secrets |
-| `@observability-agent` | Prometheus metrics, Grafana, tracing |
+| `$nav-auth` | JWT validation, TokenX, ID-porten implementation |
+| `$nais` | Nais manifest, accessPolicy, secrets |
+| `$observability-setup` | Prometheus metrics, Grafana, tracing |
 | `flyway-migration` skill | Database migration patterns |
 | `api-design` skill | REST API conventions (RFC 7807, versioning) |

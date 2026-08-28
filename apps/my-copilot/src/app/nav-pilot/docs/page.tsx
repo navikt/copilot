@@ -2235,7 +2235,7 @@ function ResourcesSection() {
               },
               {
                 label: "@nav-pilot agent",
-                desc: "Én inngangsport — ruter til riktig fase og skill. Delegerer til @auth, @nais, @kafka, @security-champion.",
+                desc: "Én inngangsport — ruter til riktig fase og skill. Delegerer til @kafka, @security-champion og laster $nav-auth, $nais.",
                 Icon: PersonGroupIcon,
                 bg: "#f5f3ff",
                 accent: "#7c3aed",
