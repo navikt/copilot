@@ -153,6 +153,21 @@ func scopeStaleness(scope *InstallScope, state *StateFile) string {
 	return ""
 }
 
+// syncPromptOutcome maps the sync prompt's result to what the run does next.
+//
+// Declining the sync skips the sync, not the launch. People run bare nav-pilot
+// to get their client started, and every install goes stale the moment a
+// release lands, so treating "No" as "stop" turned one release into "nav-pilot
+// does nothing" for every user at once. Only Ctrl-C, a real abort, stops the
+// run; any other prompt error falls through to the launch, which is what the
+// user came for.
+func syncPromptOutcome(err error, choice string) (sync, abort bool) {
+	if errors.Is(err, huh.ErrUserAborted) {
+		return false, true
+	}
+	return err == nil && choice == "yes", false
+}
+
 // interactiveSyncAndLaunch handles the case where at least one scope has an install.
 // Checks for staleness in all scopes and offers to sync, then launches Copilot.
 func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, userScope *InstallScope, userState *StateFile, resolved ResolvedConfig) error {
@@ -209,18 +224,20 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 			Value(&choice).
 			WithTheme(navTheme()).
 			Run()
-		if err != nil || choice != "yes" {
+		doSync, abort := syncPromptOutcome(err, choice)
+		if abort {
 			return nil
 		}
-
-		for _, s := range stale {
-			fmt.Println()
-			fmt.Printf("%s Syncing %s scope...\n", dim("→"), s.scope.Name)
-			ref := "nav-pilot/" + s.latest
-			if err := runWithCommandTelemetry("sync", "interactive", s.scope.Name, func() error {
-				return cmdSync(s.scope, ref, "", true, false)
-			}); err != nil {
-				fmt.Fprintf(os.Stderr, "%s Sync failed for %s scope: %v\n", yellow("⚠"), s.scope.Name, err)
+		if doSync {
+			for _, s := range stale {
+				fmt.Println()
+				fmt.Printf("%s Syncing %s scope...\n", dim("→"), s.scope.Name)
+				ref := "nav-pilot/" + s.latest
+				if err := runWithCommandTelemetry("sync", "interactive", s.scope.Name, func() error {
+					return cmdSync(s.scope, ref, "", true, false)
+				}); err != nil {
+					fmt.Fprintf(os.Stderr, "%s Sync failed for %s scope: %v\n", yellow("⚠"), s.scope.Name, err)
+				}
 			}
 		}
 	}
@@ -724,15 +741,22 @@ func launchClient(resolved ResolvedConfig) error {
 	return launchClientConfirming(resolved, false)
 }
 
-// launchClientConfirming is launchClient with the missing-sandbox
-// confirmation, which only the post-install interactive flow asks for.
+// launchClientConfirming is launchClient with the missing-sandbox warning,
+// which only the post-install interactive flow prints.
 //
-// The question is asked here rather than by the caller because "would run
+// The warning is printed here rather than by the caller because "would run
 // unsandboxed" is only true on the legacy path: a Tier 2 launch requires cplt
 // and refuses without it (fail-closed), and which of the two applies is not
-// known until tryPakkeLaunch has resolved the source and read the tier. Asking
-// first produced a confirmed "yes" that was then refused.
-func launchClientConfirming(resolved ResolvedConfig, confirmUnsandboxed bool) error {
+// known until tryPakkeLaunch has resolved the source and read the tier.
+// Warning first told people their launch was unsandboxed when it was about to
+// be refused instead.
+//
+// It warns and launches rather than asking. People run nav-pilot to get their
+// client started, and a confirmation whose only sensible answer is "yes" is a
+// keystroke, not a decision. Nobody who wants the sandbox gets one by
+// answering "no" here; they get it by installing cplt, which the warning names.
+// auto_launch = false is the setting for never launching at all.
+func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error {
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err
@@ -740,8 +764,8 @@ func launchClientConfirming(resolved ResolvedConfig, confirmUnsandboxed bool) er
 	if handled {
 		return nil
 	}
-	if confirmUnsandboxed && !confirmUnsandboxedLaunch(resolved.Client) {
-		return nil
+	if warnUnsandboxed {
+		warnUnsandboxedLaunch(resolved.Client)
 	}
 	p, err := providerFor(resolved.Client)
 	if err != nil {
@@ -750,43 +774,31 @@ func launchClientConfirming(resolved ResolvedConfig, confirmUnsandboxed bool) er
 	return p.Launch(resolved)
 }
 
-// confirmUnsandboxedLaunch warns that cplt is missing and asks whether to
-// launch the client anyway. It reports whether the user agreed.
-func confirmUnsandboxedLaunch(client string) bool {
+// warnUnsandboxedLaunch says that cplt is missing and the client is about to
+// run without the sandbox, and names the way to get it back.
+func warnUnsandboxedLaunch(client string) {
 	name := client
 	if p, err := providerFor(client); err == nil && p.DisplayName() != "" {
 		name = p.DisplayName()
 	}
-	fmt.Fprintf(os.Stderr, "%s The cplt sandbox was not found — %s would run unsandboxed.\n",
-		yellow("⚠"), name)
-	var ok bool
-	if err := huh.NewConfirm().
-		Title("Launch without the cplt sandbox?").
-		Value(&ok).
-		WithTheme(navTheme()).
-		Run(); err != nil {
-		return false
-	}
-	if ok {
-		fmt.Println()
-	}
-	return ok
+	fmt.Fprintf(os.Stderr, "%s The cplt sandbox was not found, so %s runs unsandboxed. %s installs it.\n",
+		yellow("⚠"), name, bold("nav-pilot config setup"))
 }
 
 // launchDecision is what offerLaunchCopilot should do about launching.
 type launchDecision int
 
 const (
-	launchSkipUnavailable    launchDecision = iota // client binary missing: warn, don't launch
-	launchSkipOptedOut                             // auto_launch = false: name the command, don't launch
-	launchSkipQuiet                                // no terminal: do nothing
-	launchGo                                       // launch
-	launchConfirmUnsandboxed                       // warn about the missing sandbox, ask, then launch
+	launchSkipUnavailable launchDecision = iota // client binary missing: warn, don't launch
+	launchSkipOptedOut                          // auto_launch = false: name the command, don't launch
+	launchSkipQuiet                             // no terminal: do nothing
+	launchGo                                    // launch
+	launchWarnUnsandboxed                       // warn about the missing sandbox, then launch
 )
 
 // decideLaunch maps the post-install state to a launch decision. autoLaunch is
 // the resolved auto_launch setting; false means the user opted out and nothing
-// is ever launched or confirmed, only the command to run is printed. sandboxed
+// is ever launched, only the command to run is printed. sandboxed
 // is false only when the copilot client resolved to the plain, unsandboxed CLI.
 // Without a terminal nothing is ever launched — and nothing is printed either,
 // so scripted runs stay as quiet as they were before the launch warnings.
@@ -801,13 +813,13 @@ func decideLaunch(available, autoLaunch, sandboxed, interactive bool) launchDeci
 	case sandboxed:
 		return launchGo
 	default:
-		return launchConfirmUnsandboxed
+		return launchWarnUnsandboxed
 	}
 }
 
-// offerLaunchCopilot launches the configured agent after install. A healthy
-// setup launches without asking; a missing binary is warned about, an
-// unsandboxed launch is confirmed interactively, and auto_launch = false
+// offerLaunchCopilot launches the configured agent after install. Nothing here
+// asks: a healthy setup launches, a missing sandbox launches behind a warning,
+// a missing binary is warned about and not launched, and auto_launch = false
 // prints the command to run instead of launching anything.
 func offerLaunchCopilot(resolved ResolvedConfig) {
 	p, err := providerFor(resolved.Client)
@@ -854,13 +866,13 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 		return
 	}
 
-	// The missing-sandbox confirmation is deferred into the launch itself: see
+	// The missing-sandbox warning is deferred into the launch itself: see
 	// launchClientConfirming.
-	confirmUnsandboxed := decision == launchConfirmUnsandboxed
+	warnUnsandboxed := decision == launchWarnUnsandboxed
 
 	fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
 	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchClientConfirming(resolved, confirmUnsandboxed)
+		return launchClientConfirming(resolved, warnUnsandboxed)
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Launch failed: %v\n", yellow("⚠"), err)
 	}
