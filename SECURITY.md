@@ -18,16 +18,32 @@ Security boundaries, authentication flow, and trust zones for the navikt/copilot
 
 ### Zone 1: public (no auth required)
 
-Pages served by Next.js that contain no sensitive data:
+Pages and redirect routes served by Next.js that contain no sensitive data:
 
 - `/`, landing page
 - `/nyheter`, news
 - `/praksis`, best practices
 - `/retningslinjer`, guidelines
+- `/verktoy`, catalog of Copilot customizations
+- `/ordbok`, glossary
+- `/ordliste`, permanent redirect to `/ordbok`
+- `/kom-i-gang`, getting started
 - `/cplt`, CLI documentation
 - `/nav-pilot`, agent documentation
+- `/install/*`, route handlers that redirect VS Code install badges to `vscode:` URLs
+- `/personvern`, privacy statement
+- `/tilgjengelighet`, accessibility statement
 
 Wonderwall lists these under `autoLoginIgnorePaths`, and the Next.js middleware lets them through.
+
+copilot-api serves an unauthenticated route group of its own, `/public/v1/`, registered on the mux outside `authMiddleware`:
+
+- `GET /public/v1/videos`, paginated feed of published videos
+- `GET /public/v1/videos/{id}`, metadata for one published video
+- `GET /public/v1/videos/{id}/play`, playback URL for the HLS master
+- `GET /public/v1/videos/{id}/captions`, caption track URL for one video
+
+The group serves published entries from the video manifest only, and no Copilot, billing or user data. The handlers validate their own input: the feed rejects a `limit` outside 1-50 and a `cursor` that is not a non-negative integer, every id must match `^[a-z0-9][a-z0-9-]{1,63}$`, and the detail and play endpoints are rate limited to 60 requests per minute per client IP.
 
 ### Zone 2: protected (Azure AD auth required)
 
@@ -37,7 +53,6 @@ Pages and API routes that show organization-level Copilot data:
 - `/adopsjon`, adoption metrics (BigQuery)
 - `/kostnad`, billing overview (GitHub API)
 - `/abonnement`, seat management (GitHub API, **mutating**)
-- `/kalkulator`, cost calculator (GitHub API)
 - `/api/copilot`, seat management API route
 
 Wonderwall lists these paths under `autoLoginIgnorePaths` too, so the sidecar does not redirect them; the comment in that config says auth is handled in the application layer. `apps/my-copilot/src/proxy.ts` redirects unauthenticated page requests to `/oauth2/login` and answers the private API routes with 401, and the protected pages call `getUser()`, which redirects to the login endpoint when the `Authorization` header carries no valid token.
@@ -151,7 +166,7 @@ Debug logs use NAVident only, no email or other PII at debug level.
 | `/ready` | None | Kubernetes readiness probe |
 | `/metrics` | None (pod-level only) | Prometheus scraping |
 
-Metrics are NOT exposed via ingress. Prometheus scrapes the pod directly. `/metrics` needs no auth because it contains only aggregate seat counts, no PII.
+These are not the whole unauthenticated surface; the `/public/v1/` video group in Zone 1 also needs no auth. Metrics are NOT exposed via ingress. Prometheus scrapes the pod directly. `/metrics` needs no auth because it contains only aggregate seat counts, no PII.
 
 ## Development mode
 
