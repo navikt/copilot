@@ -14,9 +14,9 @@ Nav-godkjente MCP-servere som utvider Copilot med eksterne verktøy.
 
 ## Installer
 
-### VS Code (anbefalt: MCP Registry)
+### VS Code
 
-1. Åpne Extensions (`Cmd+Shift+X`) → filtrer **MCP Registry** → søk og installer
+Enkleste vei er MCP Registry. Åpne Extensions (`Cmd+Shift+X`), filtrer på MCP Registry, søk opp serveren og installer.
 
 ### Manuell konfigurasjon
 
