@@ -190,7 +190,7 @@ nav-pilot varsler ingen om det, deaktiverer ingenting automatisk, og har ingen f
 
 **Referansepinning.** Der nav-pilot pinner en referanseimplementasjon for differensialtesting, står SHA-en i kildekommentarene i `cli/nav-pilot/internal/agentpakke`. Å flytte pinnen er en bevisst og reviewbar endring avtalt med eierne av pakka det måles mot, ikke stille drift.
 
-**Kompromittert innhold.** En byttet eller endret fil i et payload-tre verifiserer ikke, og stopper der ([Innholdssjekker på disk](#innholdssjekker-på-disk)). Tier 1-innhold er ikke digest-bundet, og der er git-historikken i pakkerepoet hele sporbarheten. Det finnes **ingen tilbakekalling**: nav-pilot har ingen liste over trukne pakker eller digester, og når ikke en installasjon som allerede står på en maskin. Meld fra i pakkerepoets eget issue-spor, og til `@navikt/copilot` for kontrakten eller nav-pilot selv. [SECURITY.md](../SECURITY.md) i rota beskriver sikkerhetsarkitekturen for copilot-tjenestene og har ingen varslingskanal for agentpakker.
+**Kompromittert innhold.** Et payload-tre er digest-bundet mot payload-manifestet sitt og verifiseres i sin helhet av `nav-pilot validate` og av install ([Innholdssjekker på disk](#innholdssjekker-på-disk)); en byttet eller endret fil verifiserer ikke, og stopper der. Tier 1-innhold er ikke digest-bundet, og der er git-historikken i pakkerepoet hele sporbarheten. Det finnes **ingen tilbakekalling**: nav-pilot har ingen liste over trukne pakker eller digester, og når ikke en installasjon som allerede står på en maskin. Meld fra i pakkerepoets eget issue-spor, og til `@navikt/copilot` for kontrakten eller nav-pilot selv. [SECURITY.md](../SECURITY.md) i rota beskriver sikkerhetsarkitekturen for copilot-tjenestene og har ingen varslingskanal for agentpakker.
 
 ## Validering i CI
 
@@ -300,7 +300,8 @@ nav-pilot --client copilot                                # konteksten manifeste
 nav-pilot --client copilot --payload-context focused      # en annen deklarert kontekst
 ```
 
-- **`--payload-context <id>`** velger kontekst. Uten flagget brukes `defaultContext` fra klientoppføringa (`full` når feltet mangler). En kontekst pakka ikke deklarerer gir en feil som lister opp de som finnes. Det er ingen config-nøkkel for dette: den varige standarden er manifestets eget felt. Flagget er ikke `--context`, som er Copilots long-context-nivå og er uendret. De to er ortogonale og kan stå på samme kommandolinje.
+- **`--payload-context <id>`** velger kontekst. Uten flagget brukes `defaultContext` fra klientoppføringa (`full` når feltet mangler). En kontekst pakka ikke deklarerer gir en feil som lister opp de som finnes. Det er ingen config-nøkkel for dette: den varige standarden er manifestets eget felt.
+- **`--payload-context` er ikke `--context`.** Sistnevnte er Copilots long-context-nivå og er uendret. De to er ortogonale og kan stå på samme kommandolinje.
 - **Revisjonen ligger på maskinen, er immutabel og valgt av et install-steg.** `nav-pilot install --user <navn>` verifiserer pakka, materialiserer hver deklarerte kontekst under `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/` (repo-id-en småskrevet, slik nav-pilot ellers sammenligner den) og pinner SHA-en. Senere launcher leser den katalogen og kloner ingenting. Startes en payload-only kilde som ikke er installert, pinner første launch den på samme måte og sier fra med én linje.
 - **Verifisering før hver launch.** Det pinnede treet re-verifiseres eksakt mot payload-manifestet (digest og modus) før klienten startes. En fil som er endret, fjernet eller lagt til etter at revisjonen ble materialisert, stopper launchen. Feiler noe av dette, starter ingenting, og en Tier 2-launch faller aldri tilbake på Tier 1-veien.
 - **Pinnen flyttes av `nav-pilot sync`, ikke av å starte klienten på nytt.** Uten `--apply` rapporterer sync hvilken revisjon som er tilgjengelig. Med `--apply` verifiseres og materialiseres den nye revisjonen, og pinnen bytter. De to siste revisjonene beholdes, eldre fjernes. Er den pinnede revisjonen fjernet fra disk, sier sync det framfor å melde «up to date», og `--apply` bygger den opp igjen (`Restored …`). Sync oppdaterer den kilden scopet er pinnet til: peker du den mot et annet repo, nekter den og ber deg gjøre byttet med `install`.
@@ -355,7 +356,17 @@ Alt en pakke trenger for å være installerbar i dag:
 }
 ```
 
-Repoet ser da ut som treet under [Repoform](#repoform), med `agents/grillmester.agent.md` og `agents/barista.agent.md` som de to agentfilene.
+Med repoform:
+
+```
+grillmester/
+├── .nav-pilot/agentpakke.json
+├── agents/grillmester.agent.md      # --- name: grillmester / description: … ---
+├── agents/barista.agent.md
+├── skills/nav-plan/SKILL.md
+├── instructions/kotlin.instructions.md
+└── prompts/ny-tjeneste.prompt.md
+```
 
 ### Tier 2 med ferdigbygde payloads
 
@@ -419,6 +430,3 @@ Legg merke til at rosterne skiller seg per kontekst. `full` starter `grillmester
 - [Samlinger](README.collections.md), legacy-modellen en agentpakke erstatter
 - [Sync](README.sync.md), hvordan installert innhold holdes oppdatert
 - [cli/nav-pilot/DESIGN.md](../cli/nav-pilot/DESIGN.md), internt design, sømmer og migrasjonsplan
-
-
-
