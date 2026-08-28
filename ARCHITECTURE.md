@@ -1,8 +1,8 @@
 # Copilot backend API architecture
 
 `copilot-api` is the Go service behind `my-copilot`, the Next.js portal at
-min-copilot.ansatt.nav.no. It holds every credential that reaches GitHub and BigQuery.
-The portal holds none, and reaches both only through this service.
+min-copilot.ansatt.nav.no. It holds the GitHub App and BigQuery credentials; my-copilot
+holds neither.
 
 This document covers the shape of the system and the reasoning behind it. The endpoint
 list, the full config table and the error-type catalogue live in
@@ -101,7 +101,7 @@ to be.
 
 ### Errors
 
-All errors are RFC 7807 Problem Details, served as `application/problem+json`.
+Client-facing errors are RFC 7807 Problem Details, served as `application/problem+json`.
 
 ```json
 {
@@ -112,11 +112,13 @@ All errors are RFC 7807 Problem Details, served as `application/problem+json`.
 }
 ```
 
-### What the backend refuses to trust
+## Security boundaries
+
+### What the backend MUST NOT trust
 
 - The user identity the BFF claims, without validating the token itself
-- Client-provided pagination parameters, whose ranges are checked
-- Date ranges for BigQuery, capped at 365 days
+- Client-provided pagination parameters (validate ranges)
+- Date ranges for BigQuery (enforce max 365 days)
 
 ## Metrics collection
 
@@ -125,8 +127,8 @@ every Prometheus scrape. That made scrape latency a function of GitHub's mood, a
 GitHub outage turned into a gap in the metrics.
 
 Now a background job in `copilot-api` polls GitHub every 5 minutes and writes into an
-in-memory struct. The scrape reads that struct and returns, so it takes about as long
-as a memory read and cannot fail because GitHub is down.
+in-memory struct. The scrape reads that struct and returns in <1ms, and cannot fail
+because GitHub is down.
 `github_metrics_last_success_timestamp` carries the freshness of the data, so a stale
 collector is visible in Prometheus rather than silently serving old numbers.
 
@@ -162,7 +164,8 @@ accessPolicy:
 ```
 
 `copilot-api` has no ingress. The inbound rule is the only way in. `/health` and
-`/ready` are unauthenticated because the Kubernetes probes hit them.
+`/ready` are unauthenticated so the Kubernetes probes can reach them, and so are
+`/metrics` and the `/public/v1/` routes.
 
 Against GitHub the service authenticates as a GitHub App. It signs a short-lived JWT
 with the app private key, trades it for an installation token, and reuses that token
@@ -175,8 +178,9 @@ Azure config (`AZURE_APP_CLIENT_ID`, `AZURE_OPENID_CONFIG_ISSUER`,
 NAIS secret. The rest of the variables and their defaults are tabulated in
 [`apps/copilot-api/README.md`](./apps/copilot-api/README.md#configuration).
 
-my-copilot needs two: `NAIS_TOKEN_EXCHANGE_ENDPOINT` for the Texas sidecar, and
-`COPILOT_API_URL`, which is the internal address `http://copilot-api`.
+my-copilot needs `NAIS_TOKEN_EXCHANGE_ENDPOINT` and
+`NAIS_TOKEN_INTROSPECTION_ENDPOINT` for the Texas sidecar, and `COPILOT_API_URL`, which
+is the internal address `http://copilot-api`.
 
 ## Testing
 
