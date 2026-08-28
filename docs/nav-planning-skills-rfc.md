@@ -100,6 +100,8 @@ $nav-deep-interview  →  $nav-plan  →  $nav-architecture-review  →  scaffol
                                                                      (evolve)
 ```
 
+Only `$nav-plan` is high complexity, because it needs the decision trees, manifest templates and access policy examples bundled with it. The other four are medium: a well-structured SKILL.md plus the reference files listed in Part 3.
+
 #### Skill 1: `$nav-deep-interview`, the clarification interview
 
 Expose Nav-specific blind spots _before_ implementation starts. Same idea as OMX's `$deep-interview`, tuned to what Nav developers actually miss.
@@ -180,8 +182,6 @@ Safe migration plans for the kinds of change teams get wrong.
 | Kafka schema | Backward compatible? → dual-write topics → migrate consumers → stop old → delete |
 | Auth         | From/to? → affected services → gradual rollout → rollback plan                  |
 
-Only `$nav-plan` is high complexity, because it needs the decision trees, manifest templates and access policy examples bundled with it. The other four are medium: a well-structured SKILL.md plus the reference files listed in Part 3.
-
 ---
 
 ### Part 2: skill packs, curated bundles
@@ -212,9 +212,9 @@ Each pack is a `manifest.json`:
 
 #### Distribution
 
-Three options, in order of preference. Whichever we pick, installing a pack must also configure the sync workflow so updates keep arriving.
+Three options, in order of preference. Whichever we pick, installing a pack should also configure the sync workflow so updates keep arriving.
 
-**Option A, the my-copilot web UI. Recommended.** A page where a team picks its stack, previews what it gets, and clicks Install, which opens a PR on their repo with the right files. It fits how Nav does self-service, it runs on portal infrastructure we already have, and it is the only option that can show us adoption numbers.
+**Option A, the my-copilot web UI. Recommended.** A page where a team picks its stack, previews what it gets, and clicks Install, which opens a PR on their repo with the right files. It fits how Nav does self-service, it runs on portal infrastructure we already have, and it can show us adoption numbers.
 
 **Option B, an install script.**
 
@@ -304,7 +304,7 @@ Three more things we are leaving alone. Multi-agent orchestration is being commo
 ## Open questions
 
 1. Which planning skill do we prototype first? `$nav-plan` is the recommendation. It has the most impact and we can iterate on it.
-2. Should the packs live in `.github/collections/` or `.github/skill-packs/`? `README.collections.md` already says "collections", so aligning on that is the obvious move, but it is worth a decision rather than a drift.
+2. Should the packs live in `.github/collections/` or `.github/skill-packs/`? The existing `README.collections.md` uses "collections" terminology. Should we align on that?
 3. Should planning skills invoke existing agents as critics? `$nav-plan` phase 4 calls `@security-champion` and `@nais-agent`, which creates agent-to-skill dependencies.
 4. How sophisticated should ambiguity scoring be? OMX's deep-interview scores weighted dimensions mathematically. Overkill for Nav, or the thing that stops developers from skipping the interview?
 5. What is the scope of the my-copilot install page? Only generate a PR, or also preview pack contents and show adoption metrics per team?
@@ -364,7 +364,7 @@ Resource sizing, taken from real manifests:
 | Standard web service | 25m         | 1024Mi         | 1024Mi       | min: 2, max: 4 |
 | Frontend (Next.js)   | 50m         | 256Mi          | 512Mi        | min: 2, max: 5 |
 
-Ingress follows a fixed shape. Dev internal is `https://{app}.intern.dev.nav.no`, prod internal is `https://{app}.intern.nav.no`, and anything public is `https://{app}.nav.no`.
+Ingress follows a fixed shape. Dev internal is `https://{app}.intern.dev.nav.no`, prod internal is `https://{app}.intern.nav.no`, and prod public is `https://{app}.nav.no`.
 
 Environment variables:
 
@@ -487,7 +487,7 @@ fun Application.configureExceptions() {
 }
 ```
 
-The dependency list is remarkably consistent across repos:
+Common dependencies, from real `build.gradle.kts` files:
 
 ```gradle
 // Database
@@ -694,7 +694,7 @@ spec:
       runtime: nodejs
 ```
 
-The same dependencies show up everywhere:
+Common dependencies:
 
 ```json
 {
@@ -731,9 +731,9 @@ Monorepos add `dorny/paths-filter`, a matrix strategy and one reusable workflow 
 | Anti-pattern                                        | Impact                                      | Fix                            |
 | --------------------------------------------------- | ------------------------------------------- | ------------------------------ |
 | Using Azure `client_credentials` with user context   | Breaks audit trail, no `sub` claim           | Use TokenX OBO                 |
-| Not setting `accessPolicy.inbound`                   | Service unreachable, network policy blocks   | List the callers explicitly    |
+| Not setting `accessPolicy.inbound`                   | Service unreachable, network policy blocks all | List the callers explicitly    |
 | Default HikariCP pool size (10)                      | OOM in containers with 512Mi memory          | Reduce to 3 to 5               |
-| Changing `POSTGRES_XX` version in Nais               | Data loss, it triggers a new instance        | Follow the upgrade procedure   |
+| Changing the `type: POSTGRES_XX` version in Nais     | Data loss, it triggers a new instance        | Follow the upgrade procedure   |
 | Forgetting `envVarPrefix` on Cloud SQL               | App can't connect, no env vars injected      | Add `envVarPrefix: DB`         |
 | Same path for liveness and readiness                 | Can't tell startup problems from runtime ones | Separate the probes            |
 | Outdated FSS rules in accessPolicy                   | Unnecessary access grants after GCP migration | Remove the stale rules         |
