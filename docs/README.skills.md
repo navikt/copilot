@@ -8,7 +8,6 @@ Skills er selvstendige mapper med instruksjoner og referansedata som gir Copilot
 
 ```bash
 mkdir -p .github/skills
-# Bruk nav-pilot CLI
 nav-pilot install <skill-name>
 ```
 
