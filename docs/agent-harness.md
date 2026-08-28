@@ -13,6 +13,10 @@ En *harness* er summen av mekanismer som styrer en kodingsagent mot ønsket atfe
 
 En moden harness dekker alle fire kvadranter og kobler dem sammen i automatiserte feedback-løkker.
 
+### Scope og telleprinsipp
+
+Denne inventaren teller konkrete artefakter, altså filer, verktøy og endepunkter. Når vi skriver «16 instruksjoner» mener vi 16 `.instructions.md`-filer. Orkestrering (nav-pilot, CI-workflows) er lista separat, siden det er infrastruktur som *binder* kvadrantene sammen.
+
 ## Relasjon til bevisst AI-bruk (#187)
 
 Grønn/rød sone-rammeverket (`deliberate-ai-use.instructions.md`) styrer *utviklerens kompetanse*, ikke koden direkte. Det er et governance-lag som ligger over Fowlers harness-modell.
@@ -25,7 +29,7 @@ Dette faller utenfor Fowlers scope, som handler om å styre agenter. Det er like
 
 ## Inventar: Navs harness-komponenter
 
-### Computational guides
+### Computational guides (5 kategorier)
 
 Deterministiske verktøy og konfigurasjoner som begrenser agentens handlingsrom *før* den handler, uavhengig av LLM-tolkning.
 
@@ -37,20 +41,24 @@ Deterministiske verktøy og konfigurasjoner som begrenser agentens handlingsrom 
 | `ratchet:pin` / `ratchet:lint` | Pinner GitHub Actions til SHA (supply chain-sikkerhet) | Pre-commit | Manuell |
 | EditorConfig / Prettier / ESLint-konfig | Formatering og stilregler som håndheves deterministisk | In-session + CI | Automatisert |
 
-### Inferential guides
+### Inferential guides (70 artefakter)
 
 AI-basert veiledning som former LLM-ens atferd gjennom naturlig språk. De er inferential fordi modellen *tolker* dem framfor å håndheve dem mekanisk.
 
-| Komponent | Livssyklus | Automatisert? |
-|-----------|------------|---------------|
-| `.github/copilot-instructions.md` | Pre-session (Copilot leser automatisk) | Automatisk |
-| `.github/instructions/*.instructions.md` | In-session (pattern-matchet til filtype) | Automatisk |
-| `.github/prompts/*.prompt.md` | In-session (bruker velger) | Manuell |
-| `AGENTS.md` | Pre-session (Copilot leser automatisk) | Automatisk |
-| `.github/agents/*.agent.md` | In-session (bruker nevner `@agent`) | Manuell |
-| `skills/*/SKILL.md` | In-session (agent delegerer) | Halvautomatisk |
+| Komponent | Antall | Livssyklus | Automatisert? |
+|-----------|--------|------------|---------------|
+| `.github/copilot-instructions.md` | 1 global | Pre-session (Copilot leser automatisk) | Automatisk |
+| `instructions/*.instructions.md` | 16 filer | In-session (pattern-matchet til filtype) | Automatisk |
+| `prompts/*.prompt.md` | 7 maler | In-session (bruker velger) | Manuell |
+| `AGENTS.md` | 1 global | Pre-session (Copilot leser automatisk) | Automatisk |
+| `agents/*.agent.md` | 13 agenter | In-session (bruker nevner `@agent`) | Manuell |
+| `skills/*/SKILL.md` | 32 skills | In-session (agent delegerer) | Halvautomatisk |
 
-### Computational sensors
+**Totalt:** 1 + 16 + 7 + 1 + 13 + 32 = **70 inferential guide-artefakter**
+
+**Styrke:** Agentene forklarer *hvorfor*, ikke bare *hva*.
+
+### Computational sensors (8 artefakter)
 
 Deterministiske sjekker som gir feedback *etter* handling. De signaliserer pass eller fail uten AI-tolkning.
 
@@ -61,12 +69,11 @@ Deterministiske sjekker som gir feedback *etter* handling. De signaliserer pass 
 | `mise:skills:lint` | Token-budsjett og strukturvalidering av skills | Pre-publish | Manuell |
 | `mise:collections:lint` | Konsistens mellom manifest og filer | Pre-publish | Manuell |
 | `docs:check` | Generert dokumentasjon matcher kilde | Pre-commit | Manuell |
-| `scripts/sync-skills-dirs.sh` | Drift mellom `.github/skills/` og `skills/` | Pre-commit | Manuell |
 | Trivy / zizmor | CVE-skanning og GitHub Actions-sikkerhet | Pre-commit | Manuell |
 | Nais-helsesjekker | `.isalive`, `.isready`, `/metrics` | Post-deploy | Automatisert (plattformen) |
 | `copilot-customization-sync.yml` | Driftdeteksjon i downstream-repoer, lager PR | Ukentlig (schedule) | Automatisert |
 
-### Inferential sensors
+### Inferential sensors (8 artefakter)
 
 AI-baserte feedback-mekanismer som vurderer kvalitet kontekstuelt.
 
@@ -81,9 +88,9 @@ AI-baserte feedback-mekanismer som vurderer kvalitet kontekstuelt.
 | nav-architecture-review skill | Arkitektur-ADR med flerperspektiv | In-session (on-demand) | Manuell |
 | security-review skill | Kodesjekk før commit/push/PR | In-session (on-demand) | Manuell |
 
-Menneskelig code review i PR-prosessen er også en feedback-mekanisme, men ligger utenfor denne tekniske inventaren.
+**Merk:** Menneskelig code review i PR-prosessen er også en feedback-mekanisme, men ligger utenfor denne tekniske inventaren.
 
-### Orkestrering
+### Orkestrering (6 komponenter)
 
 Infrastrukturen som binder kvadrantene sammen. Den telles for seg, siden den ikke er en guide eller sensor i seg selv.
 
@@ -98,7 +105,18 @@ Infrastrukturen som binder kvadrantene sammen. Den telles for seg, siden den ikk
 
 ## Livssyklusposisjon
 
-Livssyklus-kolonnene over gir posisjonen per komponent. Grovt sett: nav-pilot, `.mise.toml`, EditorConfig, `AGENTS.md` og `copilot-instructions.md` virker før økten; instructions, agenter, skills, prompt-maler og Prettier/ESLint auto-fix virker i økten; `ratchet:pin`, `docs:check` og `skills:lint` før commit; CI-workflowene etter commit; Nais-prober etter deploy; metrikk- og adopsjonsjobbene asynkront. Bare den computational siden er dekket etter commit.
+Hvor i utviklerflyten harnessen griper inn:
+
+| Stadium | Computational | Inferential |
+|---------|--------------|-------------|
+| **Pre-session** | `mise.toml`-orkestrering, nav-pilot-installer, EditorConfig | AGENTS.md, `copilot-instructions.md` (automatisk lest av Copilot) |
+| **In-session** | Prettier/ESLint auto-fix | 16 instructions (pattern-matchet), 13 agenter + 32 skills on-demand, 7 prompt-maler |
+| **Pre-commit** | `ratchet:pin`, `docs:check`, `skills:lint` (manuelt) | `@code-review-agent` / `@security-champion-agent` (manuelt) |
+| **CI (post-commit)** | `mise check` + per-app workflows (format, lint, test, build) → PR-blokkering | Ingen agentbaserte sensors; menneskelig review er utenfor teknisk harness |
+| **Post-deploy** | Nais helsesjekker, readiness-prober | Ingen agentbasert feedback |
+| **Asynkront** | Copilot-metrikkinnsamling (daglig), adopsjonsskanning (ukentlig), sync-driftdeteksjon | Ingen automatisk agentdrevet analyse |
+
+Bare den computational siden er dekket etter commit.
 
 ## Koblingsstatus
 
@@ -123,41 +141,47 @@ Det som ikke er koblet i det hele tatt, står som gap under.
 
 ### Gap 1: Ingen inferential sensors i CI, PR eller etter deploy
 
-`@code-review-agent` og `@security-champion-agent` finnes, men kjører bare når en utvikler ber om det i en session. Ingen automatisk AI-basert review på PR-er, og ingen AI-analyse av produksjonslogger eller hendelser etter deploy.
+**Status quo:** `@code-review-agent` og `@security-champion-agent` finnes, men kjører bare når en utvikler ber om det i en session. Ingen automatisk AI-basert review på PR-er, og ingen AI-analyse av produksjonslogger eller hendelser etter deploy.
 
-Konsekvensen er at kodekvalitetssjekker som krever kontekstuell vurdering (arkitekturbrudd, sikkerhetsimplikasjoner, aksessibilitetsproblemer) bare fanges opp hvis utvikleren husker å spørre.
+**Konsekvens:** Kodekvalitetssjekker som krever kontekstuell vurdering (arkitekturbrudd, sikkerhetsimplikasjoner, aksessibilitetsproblemer) fanges bare opp hvis utvikleren husker å spørre.
 
-Mulig tiltak: en CI-workflow som trigger `@code-review-agent` på PR-diffen. Det krever at agenten kan kjøre headless, uten VS Code.
+**Mulig tiltak:** En CI-workflow som trigger `@code-review-agent` på PR-diffen. Det krever at agenten kan kjøre headless, uten VS Code.
 
 ### Gap 2: `mise check` kjører ikke *inne i* agent-sessions
 
-Alle agenter og instruksjoner *refererer* til `mise check` («kjør etter endringer»), men agenten gjør det ikke alltid selv som selvkorrigering. Det er post-hoc feedback, ikke in-loop, så agenter kan generere kode med lint-feil som først fanges i CI.
+**Status quo:** Alle agenter og instruksjoner *refererer* til `mise check` («kjør etter endringer»), men agenten gjør det ikke alltid selv som selvkorrigering. Det er post-hoc feedback, ikke in-loop.
 
-Copilot CLI kjører allerede `mise check` via tool-loopen sin. Problemet er at instructions *oppfordrer* framfor å *kreve*. Fowlers anbefaling er å gjøre computational sensors til obligatoriske gates i agentens tool-execution.
+**Konsekvens:** Agenter kan generere kode med lint-feil som først fanges i CI, sent i løkken.
+
+**Mulig tiltak:** Copilot CLI kjører allerede `mise check` via tool-loopen sin. Problemet er at instructions *oppfordrer* framfor å *kreve*. Fowlers anbefaling er å gjøre computational sensors til obligatoriske gates i agentens tool-execution.
 
 ### Gap 3: Ingen drift-sensorer
 
-Ingenting overvåker kontinuerlig:
+**Status quo:** Ingenting overvåker kontinuerlig:
 
 - Dead code-akkumulering
 - Test mutation quality (er testene meningsfulle?)
 - Arkitektur-fitness (overholder koden definerte arkitekturregler over tid?)
 - Runtime SLO-brudd som grunnlag for agentforslag
 
-Harnessen fanger altså problemer ved *endring*, gjennom CI-sensorene, men ikke problemer som *akkumuleres*. Mulig tiltak er periodiske Naisjobs som kjører statisk analyse og rapporterer drift. Lav prioritet, dette er avansert harness-modenhet.
+**Konsekvens:** Harnessen fanger problemer ved *endring*, gjennom CI-sensorene, men ikke problemer som *akkumuleres* over tid.
+
+**Mulig tiltak:** Periodiske Naisjobs som kjører statisk analyse og rapporterer drift. Lav prioritet, dette er avansert harness-modenhet.
 
 ### Gap 4: Ingen lukket feedback-løkke mellom metrikk og guide-tuning
 
-BigQuery samler inn bruksdata (DAU, språk, funksjoner), og adopsjonsskanneren kartlegger customization-bruk. Ingen mekanisme bruker dataen til å *justere* guides eller sensors. Vi vet altså *at* ting brukes, men ikke *om de hjelper*. Fowler stiller spørsmålet slik: «If sensors never fire, is that high quality or inadequate detection?»
+**Status quo:** BigQuery samler inn bruksdata (DAU, språk, funksjoner), og adopsjonsskanneren kartlegger customization-bruk. Ingen mekanisme bruker dataen til å *justere* guides eller sensors.
 
-Mulig tiltak: kvartalsvis manuell gjennomgang av metrikkdataen, med justering av instruksjoner og skills. Automatisering her er prematur.
+**Konsekvens:** Vi vet *at* ting brukes, men ikke *om de hjelper*. Fowler stiller spørsmålet slik: «If sensors never fire, is that high quality or inadequate detection?»
+
+**Mulig tiltak:** Kvartalsvis manuell gjennomgang av metrikkdataen, med justering av instruksjoner og skills. Automatisering her er prematur.
 
 ## Modenhetsvurdering
 
 | Kvadrant | Modenhet | Kommentar |
 |----------|----------|-----------|
 | Computational guides | ⭐⭐⭐⭐ | Sterk dekning, lint, typesjekk og CI-pipeline på plass |
-| Inferential guides | ⭐⭐⭐⭐⭐ | Svært sterk, bredt domenedekning |
+| Inferential guides | ⭐⭐⭐⭐⭐ | Svært sterk, 70 artefakter, bredt domenedekning |
 | Computational sensors | ⭐⭐⭐⭐ | God CI, men mange manuelle steg som kunne automatiseres |
 | Inferential sensors | ⭐⭐ | Finnes, men alle er manuelt aktiverte, ingen i CI eller etter deploy |
 
