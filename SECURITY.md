@@ -20,12 +20,12 @@ Security boundaries, authentication flow, and trust zones for the navikt/copilot
 
 Pages served by Next.js that contain no sensitive data:
 
-- `/` landing page
-- `/nyheter` news
-- `/praksis` best practices
-- `/retningslinjer` guidelines
-- `/cplt` CLI documentation
-- `/nav-pilot` agent documentation
+- `/`, landing page
+- `/nyheter`, news
+- `/praksis`, best practices
+- `/retningslinjer`, guidelines
+- `/cplt`, CLI documentation
+- `/nav-pilot`, agent documentation
 
 Wonderwall lists these under `autoLoginIgnorePaths`, and the Next.js middleware lets them through.
 
@@ -33,27 +33,27 @@ Wonderwall lists these under `autoLoginIgnorePaths`, and the Next.js middleware 
 
 Pages and API routes that show organization-level Copilot data:
 
-- `/statistikk` usage statistics (BigQuery)
-- `/adopsjon` adoption metrics (BigQuery)
-- `/kostnad` billing overview (GitHub API)
-- `/abonnement` seat management (GitHub API, **mutating**)
-- `/kalkulator` cost calculator (GitHub API)
-- `/api/copilot` seat management API route
+- `/statistikk`, usage statistics (BigQuery)
+- `/adopsjon`, adoption metrics (BigQuery)
+- `/kostnad`, billing overview (GitHub API)
+- `/abonnement`, seat management (GitHub API, **mutating**)
+- `/kalkulator`, cost calculator (GitHub API)
+- `/api/copilot`, seat management API route
 
-Enforced by the full chain in [Authentication flow](#authentication-flow) below, from the Wonderwall auto-login redirect through to JWT validation in copilot-api.
+Wonderwall lists these paths under `autoLoginIgnorePaths` too, so the sidecar does not redirect them; the comment in that config says auth is handled in the application layer. `apps/my-copilot/src/proxy.ts` redirects unauthenticated page requests to `/oauth2/login` and answers the private API routes with 401, and the protected pages call `getUser()`, which redirects to the login endpoint when the `Authorization` header carries no valid token.
 
 ### Zone 3: backend API (OBO token required)
 
 copilot-api endpoints that reach external services:
 
-- `GET /api/v1/copilot/billing` organization billing data
-- `GET /api/v1/copilot/seats/{username}` individual seat status
-- `POST /api/v1/copilot/seats` assign seat (**mutating**)
-- `DELETE /api/v1/copilot/seats/{username}` unassign seat (**mutating**)
-- `GET /api/v1/copilot/saml/{identity}` SAML identity lookup
-- `GET /api/v1/copilot/usage/*` BigQuery usage data
-- `GET /api/v1/copilot/adoption/*` BigQuery adoption data
-- `GET /api/v1/copilot/customizations/*` BigQuery customization data
+- `GET /api/v1/copilot/billing`, organization billing data
+- `GET /api/v1/copilot/seats/{username}`, individual seat status
+- `POST /api/v1/copilot/seats`, assign seat (**mutating**)
+- `DELETE /api/v1/copilot/seats/{username}`, unassign seat (**mutating**)
+- `GET /api/v1/copilot/saml/{identity}`, SAML identity lookup
+- `GET /api/v1/copilot/usage/*`, BigQuery usage data
+- `GET /api/v1/copilot/adoption/*`, BigQuery adoption data
+- `GET /api/v1/copilot/customizations/*`, BigQuery customization data
 
 copilot-api validates the Azure AD JWT (signature, issuer, audience, expiry) and checks the `azp` claim against the pre-authorized apps list. It fails closed if that list is empty.
 
@@ -87,7 +87,7 @@ copilot-api validates the Azure AD JWT (signature, issuer, audience, expiry) and
 | BigQuery credentials | copilot-api pod (via GCP Workload Identity) | copilot-api only |
 | Azure AD client config | Both pods (injected by Nais) | Auto-managed |
 
-`my-copilot` holds no GitHub App credentials and reaches GitHub and BigQuery only through `copilot-api`, using Azure AD OBO tokens.
+All external service credentials (GitHub App, BigQuery) live exclusively in the copilot-api pod. `my-copilot` holds none of them; it reaches Copilot billing, seat and BigQuery data through `copilot-api`, using Azure AD OBO tokens.
 
 ## Network policy
 
