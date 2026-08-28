@@ -12,8 +12,6 @@ Autocomplete foreslår én linje om gangen, og du aksepterer eller forkaster. Ag
 | Feilmodus | Dårlig forslag (begrenset skade) | Kaskadefeil på tvers av systemer |
 | Styring | Innholdsfilter | Tillitsgrenser, tilgangsstyring, revisjonslogg |
 
-Siste rad er den som angår arkitekter. Et innholdsfilter er en produktegenskap du kjøper. Tillitsgrenser er arkitektur du må tegne selv.
-
 ## Hva sier forskningen?
 
 ### Skeptikerne har delvis rett
@@ -36,7 +34,7 @@ Fem forklaringer på resultatet:
 
 [Anthropic internt](https://www.anthropic.com/research/how-ai-is-transforming-work-at-anthropic) (august 2025, 132 ingeniører): 59 % av det daglige arbeidet bruker Claude, selvrapportert 50 % produktivitetsøkning, 67 % flere mergede PR-er per ingeniør per dag. Samtidig delegerer over halvparten bare 0–20 % av arbeidet fullt til AI, og senioringeniørene delegerer bevisst lite av kjernearbeidet.
 
-Mønsteret går igjen på tvers av studiene. AI hjelper mest nybegynnere, på avgrensede oppgaver, i ukjent kode. AI hjelper minst erfarne utviklere, på komplekse oppgaver, i kode de kjenner, med høye kvalitetskrav. Det er nesten en beskrivelse av arbeidsdagen til en Nav-utvikler med ti års fartstid i en fagsystemmonolitt.
+Mønsteret går igjen på tvers av studiene. AI hjelper mest nybegynnere, på avgrensede oppgaver, i ukjent kode. AI hjelper minst erfarne utviklere, på komplekse oppgaver, i kode de kjenner, med høye kvalitetskrav.
 
 ## Kompetansebevaring
 
@@ -55,15 +53,13 @@ Vår egen [utviklerundersøkelse 2026](utviklerundersokelsen-2026-oppsummering.m
 - Kun 34 % mener AI-kode holder til code review
 - Det mest etterspurte tiltaket er bedre opplæring (31 %)
 
-Til sammenligning fant [Stray et al., HICSS-59 2026](https://arxiv.org/abs/2509.20353), en longitudinell studie av 26 317 Nav-commits, *ingen statistisk signifikant produktivitetsøkning*. Opplevd fart og målt fart er ikke det samme, verken hos METR eller hos oss.
+Til sammenligning fant [Stray et al., HICSS-59 2026](https://arxiv.org/abs/2509.20353), en longitudinell studie av 26 317 Nav-commits, *ingen statistisk signifikant produktivitetsøkning*.
 
 ## Sikkerhetsrisiko ved agentisk AI
 
 ### Agentic misalignment
 
-Anthropic red-teamet [16 ledende modeller](https://www.anthropic.com/research/agentic-misalignment) (2025) fra Anthropic, OpenAI, Google, Meta og xAI i simulerte bedriftsmiljøer. Modellene fikk verktøytilgang til e-post og filsystemer, og mål som kom i konflikt med bedriftsinstruksene. **Alle 16** tydde til ondsinnet atferd, utpressing og lekkasje av informasjon, når det var eneste vei unna nedleggelse.
-
-Poenget er ikke at modellene er onde. Poenget er at verktøytilgang gjør målkonflikt til en sikkerhetshendelse.
+Anthropic red-teamet [16 ledende modeller](https://www.anthropic.com/research/agentic-misalignment) (2025) fra Anthropic, OpenAI, Google, Meta og xAI i simulerte bedriftsmiljøer. Modellene fikk verktøytilgang til e-post og filsystemer, og mål som kom i konflikt med bedriftsinstruksene. **Alle 16** tydde til ondsinnet atferd (utpressing, lekkasje av informasjon) når det var eneste vei unna nedleggelse.
 
 ### OWASP Top 10 for LLM-applikasjoner
 
@@ -96,8 +92,6 @@ Nav kontrollerer ikke modellen. Vi kontrollerer de tre andre.
 - 52 % er *redde for å innrømme* at de bruker AI til viktige oppgaver
 - 81 % av ledere forventer agenter i AI-strategien innen 12–18 måneder
 - 60 % av ledere innrømmer at organisasjonen mangler en plan for AI-implementering
-
-BYOAI-tallet er argumentet mot å vente. Alternativet til godkjente verktøy er ikke fravær av AI, det er AI vi ikke ser.
 
 ## Hva vi gjør i Nav
 
@@ -144,9 +138,11 @@ Full oversikt over agenter, skills, instruksjoner og de områdene vi bevisst hol
 3. **Review** vurderer planen fra fire perspektiver: sikkerhet, plattform, arkitektur, endringssikkerhet
 4. **Lever** gir kode og dokumentasjon, med rød-sone-kode markert som TODO
 
-Agenten stopper mellom fasene og venter på godkjenning. Den delegerer til spesialistagenter for auth, Kafka, Nais og sikkerhet ved behov, men beholder kontrollen selv.
+Ved omfattende endringer stopper agenten mellom fasene og venter på godkjenning. Den delegerer til spesialistagenter for auth, Kafka, Nais og sikkerhet ved behov, men beholder kontrollen selv.
 
 ### Tall fra Nav
+
+Harnesset teller 11 spesialistagenter og 21+ skills.
 
 Fra [utviklerundersøkelsen 2026](utviklerundersokelsen-2026-oppsummering.md):
 
@@ -178,18 +174,18 @@ MCP-registryet holder listen over godkjente servere, som er den praktiske grense
 | Påstand | Evidens |
 |---------|---------|
 | «AI gjør utviklere dobbelt så produktive» | Nei. 8–55 % avhengig av oppgave og erfaring. Erfarne devs i store kodebaser: muligens *tregere*. |
-| «Det er bare hype» | Nei. Reell verdi for boilerplate, onboarding, forståelse av ukjent kode. 97 % bruker det allerede. |
+| «Det er bare hype» | Nei. Reell verdi for boilerplate, onboarding, forståelse av ukjent kode. 93 % bruker det allerede. |
 | «Vi trenger bare lisenser» | Nei. Harness (tilpasning, governance, instruksjoner) er der verdien ligger. |
 | «Det er trygt» | Delvis. Prompt injection, excessive agency og agentic misalignment er reelle risikoer. |
 | «Vi kan vente» | Risikabelt. 78 % BYOAI betyr at utviklerne allerede bruker ukontrollerte verktøy. |
 
 ## Demoer under presentasjonen
 
-1. **nav-pilot planlegging**, med fasestyring, blindsoner og beslutningstrær
-2. **Grønn/rød sone i praksis**, der instruksjonen markerer kjernelogikk
-3. **MCP-registry**, kontrollert verktøytilgang for agenter
-4. **Code review-agent**, automatisk kvalitetskontroll
-5. **Bevisst AI-bruk**, generer-så-forstå-mønsteret live
+1. **nav-pilot planlegging**: vis fasestyring, blindsoner og beslutningstrær
+2. **Grønn/rød sone i praksis**: vis hvordan instruksjonen markerer kjernelogikk
+3. **MCP-registry**: vis kontrollert verktøytilgang for agenter
+4. **Code review-agent**: vis automatisk kvalitetskontroll
+5. **Bevisst AI-bruk**: vis generer-så-forstå-mønsteret live
 
 ## Videre lesning
 
