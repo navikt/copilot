@@ -1,139 +1,64 @@
-# Copilot Backend API Architecture
+# Copilot backend API architecture
 
-## Overview
+`copilot-api` is the Go service behind `my-copilot`, the Next.js portal at
+min-copilot.ansatt.nav.no. It holds every credential that reaches GitHub and BigQuery.
+The portal holds none, and reaches both only through this service.
 
-This document describes the architecture of the `copilot-api` backend service that powers `my-copilot` (Next.js frontend).
+This document covers the shape of the system and the reasoning behind it. The endpoint
+list, the full config table and the error-type catalogue live in
+[`apps/copilot-api/README.md`](./apps/copilot-api/README.md). Trust zones, input
+validation and audit logging live in [SECURITY.md](./SECURITY.md).
 
-## Implementation Status
-
-### ✅ Complete
-- Go backend service with 11 API endpoints
-- Azure AD On-Behalf-Of (OBO) token validation
-- JWKS caching with automatic refresh
-- Health and readiness endpoints
-- RFC 7807 Problem Details error handling
-- OpenTelemetry auto-instrumentation
-- NAIS deployment (dev + prod)
-- GitHub App authentication with JWT + installation tokens
-- Background metrics collector (5min interval)
-- BigQuery operations with in-memory caching (1h TTL)
-- GitHub API operations (billing, premium request usage, seat management, SAML lookup)
-- Frontend migration complete - all main flows use backend API
-
-### ⏳ Future Enhancements
-- Debug endpoint migration for raw BigQuery repo_scan queries
-
-## Architecture Diagram
+## Request path
 
 ```
-┌─────────────┐
-│   Browser   │
-└──────┬──────┘
-       │
-       │ HTTPS + Azure AD token
-       ▼
-┌─────────────────────────────────────────────────┐
-│  Wonderwall (Azure AD OAuth2 Proxy)             │
-└──────┬──────────────────────────────────────────┘
-       │
-       │ Authenticated request
-       ▼
-┌─────────────────────────────────────────────────┐
-│  my-copilot (Next.js BFF)                       │
-│  - Server-side rendering                        │
-│  - Token exchange via Texas sidecar             │
-│  - Presentation logic                           │
-│  - Client-specific data transformation          │
-└──────┬──────────────────────────────────────────┘
-       │
-       │ OBO token (via Texas)
-       ▼
-┌─────────────────────────────────────────────────┐
-│  Texas Sidecar                                  │
-│  - Token introspection                          │
-│  - Azure AD OBO exchange                        │
-└──────┬──────────────────────────────────────────┘
-       │
-       │ OBO token
-       ▼
-┌─────────────────────────────────────────────────┐
-│  copilot-api (Go Backend) - INTERNAL ONLY       │
-│  ┌───────────────────────────────────────────┐  │
-│  │ Auth Middleware                           │  │
-│  │ - Validate OBO token signature (JWKS)    │  │
-│  │ - Verify issuer, audience, expiry        │  │
-│  │ - Check azp (authorized party)           │  │
-│  │ - Extract user claims (email, NAVident)  │  │
-│  └───────────────────────────────────────────┘  │
-│                                                  │
-│  ┌───────────────────────────────────────────┐  │
-│  │ Business Logic                            │  │
-│  │ - BigQuery aggregations                   │  │
-│  │ - GitHub API operations                   │  │
-│  │ - Seat management with audit logging     │  │
-│  │ - Cache management                        │  │
-│  └───────────────────────────────────────────┘  │
-│                                                  │
-│  ┌───────────────────────────────────────────┐  │
-│  │ Background Jobs                           │  │
-│  │ - Metrics collector (5min interval)      │  │
-│  │ - Future: cache warming, cleanup         │  │
-│  └───────────────────────────────────────────┘  │
-└──────┬────────────┬────────────┬────────────────┘
-       │            │            │
-       │            │            │
-       ▼            ▼            ▼
-   ┌────────┐  ┌─────────┐  ┌─────────┐
-   │ GitHub │  │BigQuery │  │   MCP   │
-   │  API   │  │   GCP   │  │Registry │
-   └────────┘  └─────────┘  └─────────┘
+Browser
+  │  HTTPS
+  ▼
+Wonderwall (Azure AD OAuth2 proxy)
+  │  sets session cookie, injects Authorization: Bearer <Azure AD token>
+  ▼
+my-copilot (Next.js BFF)
+  │  server-side rendering, presentation logic, client-specific transforms
+  ▼
+Texas sidecar
+  │  introspects the user token, then exchanges it for an OBO token
+  ▼
+copilot-api (Go, internal only)
+  │
+  ├──▶ GitHub API
+  ├──▶ BigQuery (GCP)
+  └──▶ MCP Registry
 ```
 
-## Authentication Flow
+The BFF never validates a token itself and never holds a client secret. It asks Texas
+to introspect the incoming token, asks Texas again for an On-Behalf-Of token minted for
+the `copilot-api` audience, and forwards that. `copilot-api` then validates the OBO
+token from scratch. Nothing the BFF asserts about the user is trusted.
 
-### 1. User Login (Wonderwall)
-```
-Browser → Wonderwall → Azure AD → Wonderwall → Browser
-                                     (sets cookie)
-```
+## Token validation
 
-### 2. BFF Request
-```
-Browser → my-copilot → Texas introspection → User claims
-              ↓
-         Render page or API response
-```
+Every request to `/api/v1/` must clear five checks before a handler runs.
 
-### 3. Backend API Call (OBO)
-```
-my-copilot → Texas OBO exchange → copilot-api
-                                      ↓
-                          Validate token + Extract user
-                                      ↓
-                          Execute business logic
-                                      ↓
-                          Return canonical DTO
-```
+1. Signature, against the JWKS at `AZURE_OPENID_CONFIG_JWKS_URI` (cached, refreshed when the
+   TTL lapses or an unknown `kid` shows up)
+2. Issuer, must match `AZURE_OPENID_CONFIG_ISSUER`
+3. Audience, must be `AZURE_APP_CLIENT_ID` (the `aud` claim may be a string or an array)
+4. Authorized party, `azp` must appear in `AZURE_APP_PRE_AUTHORIZED_APPS`, which in
+   practice means my-copilot and nothing else
+5. Expiry
 
-## Token Validation (copilot-api)
+From the surviving token the service takes `preferred_username` (email), `NAVident`
+(employee ID), `name`, `groups` and `azp`. `azp` is kept for the audit trail so a
+mutation can be traced back to the calling application as well as the person.
 
-**Required checks:**
-1. **Signature** — JWKS from `AZURE_OPENID_CONFIG_JWKS_URI`
-2. **Issuer** — Must match `AZURE_OPENID_CONFIG_ISSUER`
-3. **Audience** — Must be `AZURE_APP_CLIENT_ID`
-4. **Authorized Party (azp)** — Must be in `AZURE_APP_PRE_AUTHORIZED_APPS` (my-copilot client ID)
-5. **Expiry** — Token not expired
+The `azp` check fails closed. An empty or missing pre-authorized apps list rejects
+everything rather than letting anything through.
 
-**Extracted claims:**
-- `preferred_username` → Email
-- `NAVident` → Employee ID
-- `name` → Display name
-- `groups` → Azure AD groups
-- `azp` → Calling app (audit trail)
+## API design
 
-## API Design Principles
+### Resource-oriented, not page-oriented
 
-### 1. Resource-Oriented
 ```
 GET  /api/v1/copilot/usage/summary      ← Aggregate metrics
 GET  /api/v1/copilot/usage/trends       ← Time-series
@@ -141,14 +66,14 @@ GET  /api/v1/copilot/seats/{username}   ← Single resource
 POST /api/v1/copilot/seats              ← Create
 ```
 
-Not page-oriented:
-```
-❌ GET /api/v1/dashboard-data
-❌ GET /api/v1/overview-stats
-```
+Endpoints name resources, not screens. There is deliberately no
+`GET /api/v1/dashboard-data` and no `GET /api/v1/overview-stats`. A page that needs
+three things makes three calls, and a new page needs no new backend endpoint.
 
-### 2. Canonical DTOs
-Backend returns stable, documented DTOs. Frontend transforms for UI needs:
+### Canonical DTOs
+
+The backend returns one stable documented shape per resource. The frontend reshapes it
+for whatever the chart library wants. Chart-shaped JSON never leaks into the API.
 
 ```go
 // Backend DTO (canonical, stable)
@@ -158,23 +83,25 @@ type UsageSummary struct {
     AcceptanceRate    int    `json:"acceptance_rate"`
     DateRange         string `json:"date_range"`
 }
-
-// Frontend transforms to chart-specific shapes
 ```
 
-### 3. Cache Strategy
+### Cache strategy
 
-| Data Type | Backend Cache | BFF Cache | Notes |
-|-----------|---------------|-----------|-------|
-| Seat status | 60s + invalidation | Optional | Frequent mutations |
-| Billing | 1h TTL | 1h stale | GitHub rate limit friendly |
-| BigQuery dashboards | 1h TTL | 1h stale | Expensive queries |
+| Data type | Backend cache | BFF cache | Why |
+|-----------|---------------|-----------|-----|
+| Seat status | 60s + invalidation | Optional | Mutates often |
+| Billing | 1h TTL | 1h stale | Friendly to the GitHub rate limit |
+| BigQuery dashboards | 1h TTL | 1h stale | Queries are expensive |
 | Seat mutations | None | None | Always fresh |
 | `/metrics` | Background (5min) | No | Prometheus scrape |
 
-Backend sets `Cache-Control` headers. BFF can layer additional caching.
+The backend owns the TTL and says so in a `Cache-Control` header. The BFF may layer its
+own caching on top, but it does not get to decide how stale org-wide data is allowed
+to be.
 
-### 4. Error Handling (RFC 7807)
+### Errors
+
+All errors are RFC 7807 Problem Details, served as `application/problem+json`.
 
 ```json
 {
@@ -185,47 +112,30 @@ Backend sets `Cache-Control` headers. BFF can layer additional caching.
 }
 ```
 
-## Security Boundaries
+### What the backend refuses to trust
 
-### Defense in Depth
-1. **Network isolation** — copilot-api only accessible from my-copilot (NAIS `accessPolicy.inbound.rules`)
-2. **Token validation** — Backend independently validates all tokens (zero trust)
-3. **Authorized party check** — `azp` claim ensures only my-copilot can call API
-4. **Audit logging** — All mutations logged with user identity
-5. **Rate limiting** — GitHub API calls respect rate limits
-6. **Secrets rotation** — GitHub App credentials stored in NAIS secrets
+- The user identity the BFF claims, without validating the token itself
+- Client-provided pagination parameters, whose ranges are checked
+- Date ranges for BigQuery, capped at 365 days
 
-### What Backend MUST NOT Trust
-- ❌ BFF-provided user identity without token validation
-- ❌ Client-provided pagination parameters (validate ranges)
-- ❌ Date ranges for BigQuery (enforce max 365 days)
+## Metrics collection
 
-## Metrics Architecture
+`/metrics` used to be served by my-copilot, which called `getCopilotBilling()` inline on
+every Prometheus scrape. That made scrape latency a function of GitHub's mood, and a
+GitHub outage turned into a gap in the metrics.
 
-### Problem: Prometheus Scraping Synchronously Calling GitHub
-**Old (my-copilot):**
-```
-Prometheus scrape → /metrics → getCopilotBilling() → GitHub API (slow, fragile)
-```
-
-**New (copilot-api):**
-```
-Background job (5min) → GitHub API → Update in-memory metrics
-                                              ↓
-Prometheus scrape → /metrics → Return cached metrics (fast, reliable)
-```
-
-**Benefits:**
-- Prometheus scrapes are <1ms (just reads memory)
-- GitHub API failures don't fail scrapes
-- `github_metrics_last_success_timestamp` tracks data freshness
+Now a background job in `copilot-api` polls GitHub every 5 minutes and writes into an
+in-memory struct. The scrape reads that struct and returns, so it takes about as long
+as a memory read and cannot fail because GitHub is down.
+`github_metrics_last_success_timestamp` carries the freshness of the data, so a stale
+collector is visible in Prometheus rather than silently serving old numbers.
 
 ## Deployment
 
-### NAIS Configuration
+Both apps deploy to NAIS in `dev-gcp` and `prod-gcp`.
 
-**copilot-api:**
 ```yaml
+# copilot-api
 azure:
   application:
     enabled: true
@@ -242,8 +152,8 @@ accessPolicy:
       - host: bigquery.googleapis.com
 ```
 
-**my-copilot:**
 ```yaml
+# my-copilot
 accessPolicy:
   outbound:
     rules:
@@ -251,72 +161,47 @@ accessPolicy:
         namespace: copilot
 ```
 
-### Environment Variables
+`copilot-api` has no ingress. The inbound rule is the only way in. `/health` and
+`/ready` are unauthenticated because the Kubernetes probes hit them.
 
-**copilot-api needs:**
-- `AZURE_APP_CLIENT_ID` (injected by NAIS)
-- `AZURE_OPENID_CONFIG_ISSUER` (injected)
-- `AZURE_OPENID_CONFIG_JWKS_URI` (injected)
-- `AZURE_APP_PRE_AUTHORIZED_APPS` (injected)
-- `GITHUB_APP_ID` (secret)
-- `GITHUB_APP_PRIVATE_KEY` (secret)
-- `GITHUB_APP_INSTALLATION_ID` (secret)
-- `GCP_TEAM_PROJECT_ID` (injected)
+Against GitHub the service authenticates as a GitHub App. It signs a short-lived JWT
+with the app private key, trades it for an installation token, and reuses that token
+until it nears expiry. Calls respect the GitHub rate limits.
 
-**my-copilot needs:**
-- `NAIS_TOKEN_EXCHANGE_ENDPOINT` (Texas sidecar)
-- `COPILOT_API_URL` (internal: `http://copilot-api`)
+Azure config (`AZURE_APP_CLIENT_ID`, `AZURE_OPENID_CONFIG_ISSUER`,
+`AZURE_OPENID_CONFIG_JWKS_URI`, `AZURE_APP_PRE_AUTHORIZED_APPS`) and
+`GCP_TEAM_PROJECT_ID` are injected by NAIS. The GitHub App credentials
+(`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID`) come from a
+NAIS secret. The rest of the variables and their defaults are tabulated in
+[`apps/copilot-api/README.md`](./apps/copilot-api/README.md#configuration).
 
-## Migration Status
+my-copilot needs two: `NAIS_TOKEN_EXCHANGE_ENDPOINT` for the Texas sidecar, and
+`COPILOT_API_URL`, which is the internal address `http://copilot-api`.
 
-### ✅ Completed
-1. **Backend skeleton** — Deployed internal API with all endpoints
-2. **Migrated /metrics** — Background collection pattern with 5min refresh
-3. **Migrated BigQuery reads** — 6 endpoints for usage and adoption metrics
-4. **Migrated GitHub billing** — Billing API through backend
-5. **Migrated seat management** — Assign/unassign seats with audit logging
-6. **Frontend updated** — All main flows use backend API via OBO token exchange
+## Testing
 
-### Remaining Edge Cases
-- **Debug endpoint** — Admin-only raw BigQuery queries (low priority)
-
-## Testing Strategy
-
-### Unit Tests (Go)
-- Token validation logic
-- GitHub API client
-- BigQuery client
-- Error handling
-
-### Integration Tests
-- End-to-end auth flow with test tokens
-- GitHub API mocking
-- BigQuery query correctness
-
-### Golden Tests
-- Compare old (my-copilot direct) vs new (via backend) outputs
-- Ensure data transformation is identical
-
-### Load Tests
-- Seat management under load
-- Cache invalidation behavior
-- Background collector resilience
+Unit tests cover token validation, the GitHub client, the BigQuery client and error
+handling. Integration tests cover the auth flow end to end with test tokens, GitHub API
+mocking and query correctness. Golden tests compare output from the old path
+(my-copilot calling GitHub directly) against the new one to prove the data survived the
+move unchanged. Load tests cover seat management under load, cache invalidation and the
+resilience of the background collector.
 
 ## Observability
 
-### Logs (Loki)
-- Structured JSON logs (slog)
-- Request/response logging for `/api/v1/`
-- Error logs with stack traces
+Logs go to Loki as structured JSON from `slog`. Requests to `/api/v1/` are logged;
+errors carry stack traces. Prometheus scrapes the seat gauges and the freshness
+timestamp from `/metrics`, plus the auto-instrumented HTTP request metrics. Traces go to
+Tempo through OpenTelemetry auto-instrumentation, and span the whole chain from BFF to
+backend to GitHub or BigQuery.
 
-### Metrics (Prometheus)
-- GitHub billing metrics (seats, active, inactive)
-- Metrics freshness timestamp
-- HTTP request metrics (auto-instrumented)
+## Status
 
-### Traces (Tempo)
-- OpenTelemetry auto-instrumentation
-- Distributed tracing across BFF → Backend → GitHub/BigQuery
+The backend is deployed with all endpoints, and every main flow in the frontend goes
+through it via OBO token exchange: `/metrics` on the background-collection pattern,
+BigQuery reads for usage and adoption, GitHub billing, and seat assignment and
+unassignment with audit logging. The one thing still to move is the admin-only debug
+endpoint for raw `repo_scan` BigQuery queries, which is low priority.
 
 ## References
 
