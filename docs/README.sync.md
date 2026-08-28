@@ -1,10 +1,10 @@
-# 🔄 Keeping Customizations Up to Date
+# 🔄 Keeping customizations up to date
 
-Teams that have installed customization files can use **nav-pilot sync** to check for updates — locally or via a GitHub Actions workflow that opens PRs automatically.
+Teams that have installed customization files run **nav-pilot sync** to check for updates, either locally or through a GitHub Actions workflow that opens the PRs for them.
 
 📖 **Full documentation:** [min-copilot.ansatt.nav.no/nav-pilot/docs](https://min-copilot.ansatt.nav.no/nav-pilot/docs)
 
-## Quick Reference
+## Quick reference
 
 ```bash
 nav-pilot sync              # Sync all scopes (repo + user)
@@ -15,7 +15,7 @@ nav-pilot sync --source navikt/my-team-copilot  # Sync from different source rep
 nav-pilot --sync            # Sync all scopes and launch Copilot (non-interactive)
 ```
 
-## Automated Sync (GitHub Actions)
+## Automated sync (GitHub Actions)
 
 Create `.github/workflows/copilot-sync.yml`:
 
@@ -33,26 +33,27 @@ jobs:
       pull-requests: write
 ```
 
-### Sync from a team repo
-
-To sync from a different source repository instead of `navikt/copilot`:
+To sync from somewhere other than `navikt/copilot`, add a `source_repo` input to the job:
 
 ```yaml
-jobs:
-  sync:
-    uses: navikt/copilot/.github/workflows/copilot-customization-sync.yml@main
     with:
       source_repo: navikt/my-team-copilot
-    permissions:
-      contents: write
-      pull-requests: write
 ```
 
-## How Detection Works
+The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) uses `nav-pilot sync` internally:
 
-**State-based repos** (used `nav-pilot install`): The state file (`.github/.nav-pilot-state.json`) tracks exactly which files were installed.
+1. Installs the `nav-pilot` CLI
+2. Runs `nav-pilot sync --json` to detect updates
+3. Applies them with `nav-pilot sync --apply` if it finds any
+4. Creates or updates a PR on the `copilot-customization-sync` branch
 
-**User-scope installs** (used `nav-pilot install --user`): The state file (`~/.copilot/.nav-pilot-state.json`) tracks installed agents, skills, and instructions. Paths are remapped during sync (`agents/x` ↔ `.github/agents/x` in source). Instructions use `.github/instructions/` in both local and source paths.
+It needs `contents: write` and `pull-requests: write` and nothing else, no tokens and no secrets, because it reads the public source files over `raw.githubusercontent.com`.
+
+## How detection works
+
+**State-based repos** (used `nav-pilot install`): the state file (`.github/.nav-pilot-state.json`) tracks exactly which files were installed.
+
+**User-scope installs** (used `nav-pilot install --user`): the state file (`~/.copilot/.nav-pilot-state.json`) tracks installed agents, skills, and instructions. Paths are remapped during sync (`agents/x` ↔ `.github/agents/x` in source). Instructions use `.github/instructions/` in both local and source paths.
 
 **Classic repos** (manually copied files): nav-pilot auto-detects files that also exist in the source repo:
 - `.github/agents/*.agent.md`
@@ -60,11 +61,11 @@ jobs:
 - `.github/prompts/*.prompt.md`
 - `.github/skills/*/` (entire directories)
 
-> `AGENTS.md` and `.github/copilot-instructions.md` are never synced — they are always repo-specific.
+> `AGENTS.md` and `.github/copilot-instructions.md` are never synced. They are always repo-specific.
 
 ## Overrides
 
-Teams that intentionally maintain their own versions of specific files can mark them as overrides. Overridden files are skipped during sync — no hash comparison, no PR diff.
+A team that deliberately maintains its own version of a file can mark it as an override. Overridden files are skipped during sync, with no hash comparison and no PR diff, and you can safely delete them from your repo without them being re-added. This works for both state-based and auto-detected repos.
 
 Create `.github/copilot-sync.json` in your repo:
 
@@ -78,13 +79,15 @@ Create `.github/copilot-sync.json` in your repo:
 }
 ```
 
-This works with both state-based and auto-detected repos.
+> **Important:** Sync only touches files whose names also exist in the source repo. If your team creates a file with the same name as a source file, say your own `kotlin-app-config` skill, sync sees a hash mismatch and proposes overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
 
-> **Important:** Sync only touches files whose names also exist in the source repo. If your team creates a file with the same name as a source file (e.g., your own `kotlin-app-config` skill), sync will detect a hash mismatch and propose overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
+Overrides are also how you opt out of framework-specific files. Teams on Astro, Remix, or anything else that isn't Next.js can override the Next.js files that the `nextjs-frontend` and `fullstack` collections install, such as `.github/instructions/nextjs-aksel.instructions.md`, `.github/instructions/performance.instructions.md` and `.github/prompts/nextjs-api-route.prompt.md`.
 
-## Suppressing New-Item Reminders (User Scope)
+> **Tip:** If you need no Next.js files at all, install the `frontend` collection instead. It only includes framework-agnostic tools (accessibility, testing, Aksel Design System, and so on).
 
-When using `nav-pilot install --user`, nav-pilot tracks all installed items and reminds you when new items are added to the source. If you don't want a specific item, use `nav-pilot ignore` to suppress the reminder without installing it:
+## Suppressing new-item reminders (user scope)
+
+With `nav-pilot install --user`, nav-pilot tracks every installed item and reminds you when new ones appear in the source. Use `nav-pilot ignore` to silence the reminder for an item you don't want, without installing it:
 
 ```bash
 nav-pilot ignore instruction nextjs-aksel --user
@@ -92,48 +95,19 @@ nav-pilot ignore agent security-champion --user
 nav-pilot ignore skill kotlin-app-config --user
 ```
 
-The item is recorded in your state file with `status: "ignored"` and will no longer appear in new-item reminders. Run `nav-pilot list --installed --user` to see a summary — excluded items are shown separately from auto-ignored (deleted) ones.
+The item is recorded in your state file with `status: "ignored"` and stops appearing in new-item reminders. `nav-pilot list --installed --user` prints a summary where excluded items are shown separately from auto-ignored (deleted) ones.
 
-> **Note:** `nav-pilot ignore` only applies to user-scope `(all)` installs. For repo-scope installs, use `copilot-sync.json` overrides instead (see section below).
+> **Note:** `nav-pilot ignore` only applies to user-scope `(all)` installs. For repo-scope installs, use `copilot-sync.json` overrides instead (see the section above).
 
-### Opting out of framework-specific files
+## Formatting tolerance
 
-Teams using Astro, Remix, or other non-Next.js frameworks can use overrides to skip Next.js-specific files installed by the `nextjs-frontend` or `fullstack` collection:
-
-```json
-{
-  "overrides": [
-    ".github/instructions/nextjs-aksel.instructions.md",
-    ".github/instructions/performance.instructions.md",
-    ".github/prompts/nextjs-api-route.prompt.md"
-  ]
-}
-```
-
-These files will be completely ignored during sync. You can also safely delete them from your repo — they will not be re-added.
-
-> **Tip:** If you don't need any Next.js files, consider installing the `frontend` collection instead, which only includes framework-agnostic tools (accessibility, testing, Aksel Design System, etc.).
-
-## Formatting Tolerance
-
-Markdown files (`.md`) are compared with formatting tolerance. The following differences are ignored:
+Markdown files (`.md`) are compared with formatting tolerance, so these differences are ignored:
 - Line endings: CRLF vs LF
 - Trailing whitespace per line
 - Consecutive blank lines (collapsed to single blank line)
 
-This means teams can run their own formatters (e.g. Prettier with different settings) without getting false-positive update PRs. JSON files (`.json`) are still compared byte-for-byte.
+Your team can therefore run its own formatters, Prettier with different settings for instance, without getting false-positive update PRs. JSON files (`.json`) are still compared byte-for-byte.
 
-## Staleness Tracking
+## Staleness tracking
 
-The [copilot-adoption](../apps/copilot-adoption/) scanner tracks whether each customization file across all `navikt` repos is in sync with the source. It compares git blob OIDs and stores an `in_sync` boolean per file in BigQuery, powering the staleness dashboard.
-
-## Workflow Implementation Details
-
-The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) uses the `nav-pilot sync` command internally:
-
-1. Installs `nav-pilot` CLI
-2. Runs `nav-pilot sync --json` to detect updates
-3. If updates found, applies them with `nav-pilot sync --apply`
-4. Creates/updates a PR on the `copilot-customization-sync` branch
-
-The workflow requires only `contents: write` and `pull-requests: write` permissions. No tokens or secrets needed — it reads public source files via `raw.githubusercontent.com`.
+The [copilot-adoption](../apps/copilot-adoption/) scanner tracks whether each customization file across all `navikt` repos is in sync with the source. It compares git blob OIDs and stores an `in_sync` boolean per file in BigQuery, which powers the staleness dashboard.
