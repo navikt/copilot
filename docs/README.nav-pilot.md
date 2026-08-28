@@ -61,8 +61,8 @@ eller ved å velge raden `cplt security posture` på innstillingssiden (`nav-pil
 som spør før den setter nøkkelen.
 
 `nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår
-`brew upgrade navikt/tap/cplt`. nav-pilot laster aldri ned eller oppgraderer cplt for deg,
-og svarer ikke GitHub, hopper den bare over versjonssjekken.
+`brew upgrade navikt/tap/cplt`. nav-pilot laster aldri ned eller oppgraderer cplt for deg.
+Svarer ikke GitHub, hopper den bare over versjonssjekken.
 
 ## Klienter
 
@@ -79,7 +79,7 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 > SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. `cplt` må
 > være installert for å starte `opencode` og `pi`, i tillegg til selve klient-binæren.
 
-### opencode og Nav-kontekst automatisk
+### opencode: Nav-kontekst automatisk
 
 Med `--client opencode` (eller `client = "opencode"` i konfig) gjør nav-pilot dette ved hver
 oppstart:
@@ -156,7 +156,7 @@ telemetry.
 Når nav-pilot starter `cplt`/`copilot`, setter den `OTEL_EXPORTER_OTLP_ENDPOINT` for Copilot
 CLI til samme collector-base (`https://collector-internet.nav.cloud.nais.io`, uten
 `/v1/metrics`), slik at Copilot kan sende både metrics og traces. Overstyr med
-`NAV_PILOT_COPILOT_OTEL_ENDPOINT`, som prioriteres over generell
+`NAV_PILOT_COPILOT_OTEL_ENDPOINT`. Den har forrang over generell
 `OTEL_EXPORTER_OTLP_ENDPOINT`. nav-pilot setter også `COPILOT_OTEL_ENABLED=true` hvis den
 ikke allerede er satt, og injiserer resource-attributtene `nav.pilot.launcher`,
 `nav.pilot.version` og `nav.pilot.device_id` i Copilots `OTEL_RESOURCE_ATTRIBUTES`
@@ -177,7 +177,7 @@ Støttede MVP-metrikker:
 - `nav_pilot_up_to_date`
 - `nav_pilot_version_skew_days`
 
-Metrikkene bærer også `execution_context`, som skiller organisk bruk fra CI (`organic`,
+Metrikkene bærer også `execution_context` for å skille organisk bruk fra CI (`organic`,
 `ci_github_actions`, `ci_other`, `unknown`).
 
 ## Konfigurasjon

@@ -40,7 +40,14 @@ To sync from somewhere other than `navikt/copilot`, add a `source_repo` input to
       source_repo: navikt/my-team-copilot
 ```
 
-The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) installs the `nav-pilot` CLI, runs `nav-pilot sync --json` to detect updates, applies them with `nav-pilot sync --apply` when it finds any, and creates or updates a PR on the `copilot-customization-sync` branch. It needs `contents: write` and `pull-requests: write` and nothing else, no tokens and no secrets, because it reads the public source files over `raw.githubusercontent.com`.
+The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) uses `nav-pilot sync` internally:
+
+1. Installs the `nav-pilot` CLI
+2. Runs `nav-pilot sync --json` to detect updates
+3. Applies them with `nav-pilot sync --apply` if it finds any
+4. Creates or updates a PR on the `copilot-customization-sync` branch
+
+It needs `contents: write` and `pull-requests: write` and nothing else, no tokens and no secrets, because it reads the public source files over `raw.githubusercontent.com`.
 
 ## How detection works
 
@@ -58,7 +65,7 @@ The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) insta
 
 ## Overrides
 
-A team that deliberately maintains its own version of a file can mark it as an override. Overridden files are skipped during sync, with no hash comparison and no PR diff. This works for both state-based and auto-detected repos.
+A team that deliberately maintains its own version of a file can mark it as an override. Overridden files are skipped during sync, with no hash comparison and no PR diff, and you can safely delete them from your repo without them being re-added. This works for both state-based and auto-detected repos.
 
 Create `.github/copilot-sync.json` in your repo:
 
@@ -74,7 +81,7 @@ Create `.github/copilot-sync.json` in your repo:
 
 > **Important:** Sync only touches files whose names also exist in the source repo. If your team creates a file with the same name as a source file, say your own `kotlin-app-config` skill, sync sees a hash mismatch and proposes overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
 
-Overrides are also how you opt out of framework-specific files. Teams on Astro, Remix, or anything else that isn't Next.js can override the Next.js files that the `nextjs-frontend` and `fullstack` collections install, such as `.github/instructions/nextjs-aksel.instructions.md`, `.github/instructions/performance.instructions.md` and `.github/prompts/nextjs-api-route.prompt.md`. Overridden files are completely ignored during sync, so you can safely delete them from your repo without them being re-added.
+Overrides are also how you opt out of framework-specific files. Teams on Astro, Remix, or anything else that isn't Next.js can override the Next.js files that the `nextjs-frontend` and `fullstack` collections install, such as `.github/instructions/nextjs-aksel.instructions.md`, `.github/instructions/performance.instructions.md` and `.github/prompts/nextjs-api-route.prompt.md`.
 
 > **Tip:** If you need no Next.js files at all, install the `frontend` collection instead. It only includes framework-agnostic tools (accessibility, testing, Aksel Design System, and so on).
 
