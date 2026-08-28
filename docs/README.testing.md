@@ -1,17 +1,17 @@
 # Testing nav-pilot
 
-nav-pilot har to testnivåer: strukturelle tester (raske, ingen avhengigheter) og E2E-tester (krever `copilot` CLI).
+nav-pilot har to testnivåer. Strukturelle tester leser agent-filene og krever ingenting installert. E2E-tester kjører `copilot` CLI mot ekte agenter og tar tid.
 
 ## Kjør tester
 
 ```bash
-# Strukturelle tester — validerer agent-filer (< 1 sek)
+# Strukturelle tester, validerer agent-filer (< 1 sek)
 ./scripts/test/test-agent-phases.sh
 
-# E2E-tester — kjører copilot CLI med agenter (~2-5 min per test)
+# E2E-tester, kjører copilot CLI med agenter (~2-5 min per test)
 ./scripts/test/test-agent-phases.sh --e2e
 
-# Verbose — viser agent-output for debugging
+# Verbose, viser agent-output for debugging
 ./scripts/test/test-agent-phases.sh --e2e -v
 ```
 
@@ -41,31 +41,18 @@ Kjører `copilot --agent <name> -p "prompt" --allow-all` og sjekker output:
 
 ## Fase-modellen
 
-nav-pilot bruker en 4-fase modell. Hver fase har et emoji-prefiks og en eksplisitt stopp:
+nav-pilot bruker fire faser. Hver fase har et emoji-prefiks, og alle utenom den siste stopper og venter på brukeren.
 
-```
-🔍 Fase 1: Intervju — kartlegger behov og blindsoner
-   Stiller spørsmål, identifiserer arketype
-   ─────────────────────────────────────────
-   ⏳ Venter på svar før Fase 2: Plan
-
-📐 Fase 2: Plan — arkitektur og beslutninger
-   Foreslår arkitektur, velger mønstre
-   ─────────────────────────────────────────
-   ⏳ Bekreft planen før Fase 3: Review
-
-🔎 Fase 3: Review — kvalitetssikring
-   Delegerer til @auth, @security-champion, @nais
-   ─────────────────────────────────────────
-   ⏳ Bekreft funn før Fase 4: Lever
-
-🚀 Fase 4: Lever — genererer kode og dokumentasjon
-   Implementerer basert på godkjent plan
-```
+| Fase | Gjør | Venter på |
+|------|------|-----------|
+| 🔍 Fase 1: Intervju | Stiller spørsmål, kartlegger behov og blindsoner, identifiserer arketype | Svar før Fase 2 |
+| 📐 Fase 2: Plan | Foreslår arkitektur, velger mønstre | Bekreftet plan før Fase 3 |
+| 🔎 Fase 3: Review | Delegerer til @auth, @security-champion, @nais | Bekreftede funn før Fase 4 |
+| 🚀 Fase 4: Lever | Genererer kode og dokumentasjon fra godkjent plan | Ingenting, siste fase |
 
 ## Hvordan fase-headers fungerer
 
-Fase-headers styres av `<response_format>` XML-tag i `nav-pilot.agent.md`. Vi prøvde flere tilnærminger:
+Fase-headers styres av `<response_format>` XML-tag i `nav-pilot.agent.md`. Vi prøvde tre tilnærminger:
 
 | Forsøk | Teknikk | Resultat |
 |--------|---------|----------|
@@ -73,13 +60,11 @@ Fase-headers styres av `<response_format>` XML-tag i `nav-pilot.agent.md`. Vi pr
 | 2 | `REGEL:` direktiv | ❌ Ignorert |
 | 3 | `<response_format>` XML-tag | ✅ Fungerer |
 
-**Lærdom**: Modellen behandler XML-tags (`<response_format>`, `<rules>`) som strukturelle krav med høyere prioritet enn fritekst-instruksjoner. Plasser dem tidlig i agent-filen, rett etter frontmatter.
+Lærdommen: modellen behandler XML-tags som `<response_format>` og `<rules>` som strukturelle krav med høyere prioritet enn fritekst. Plasser dem tidlig i agent-filen, rett etter frontmatter.
 
 ## Legge til nye tester
 
-### Strukturell test
-
-Legg til en `grep`-sjekk i seksjonen "Structural Tests":
+Strukturell test, legg til en `grep`-sjekk i seksjonen "Structural Tests":
 
 ```bash
 if grep -q "mitt_mønster" "$AGENT_FILE"; then
@@ -89,9 +74,7 @@ else
 fi
 ```
 
-### E2E-test
-
-Legg til et nytt `run_agent` + `check_file` par:
+E2E-test, legg til et nytt `run_agent` + `check_file` par:
 
 ```bash
 log "Test N: beskrivelse"
@@ -99,12 +82,12 @@ FILE=$(run_agent "test-name" "agent-name" "prompt til agenten")
 check_file "forventet oppførsel" "$FILE" "(regex|mønster)"
 ```
 
-Output lagres i temp-mappe for inspeksjon etter kjøring.
+Output lagres i en temp-mappe for inspeksjon etter kjøring.
 
 ## Feilsøking
 
-**E2E-tester feiler umiddelbart**: Sjekk at `copilot` CLI er installert og autentisert (`copilot --version`).
-
-**Fase-header mangler**: Sjekk at `<response_format>` tag er intakt i `nav-pilot.agent.md` — det er den eneste teknikken som fungerer pålitelig.
-
-**Output ser merkelig ut**: Bruk `-v` flagget og inspiser filene i temp-mappen som skrives ut på slutten.
+| Symptom | Sjekk |
+|---------|-------|
+| E2E-tester feiler umiddelbart | At `copilot` CLI er installert og autentisert (`copilot --version`) |
+| Fase-header mangler | At `<response_format>` tag er intakt i `nav-pilot.agent.md`. Det er den eneste teknikken som fungerer pålitelig |
+| Output ser merkelig ut | Kjør med `-v` og inspiser filene i temp-mappen som skrives ut på slutten |
