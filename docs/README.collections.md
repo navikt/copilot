@@ -18,7 +18,7 @@ Each collection is one `manifest.json` that references items by name. The CLI re
 
 ## Creating a new collection
 
-1. Create a directory in `.github/collections/<name>/`
+1. Create a directory in `collections/<name>/`
 2. Add a `manifest.json` listing the items:
 
 ```json
@@ -35,7 +35,9 @@ Each collection is one `manifest.json` that references items by name. The CLI re
 3. Test with `nav-pilot install --dry-run <name>`
 4. Submit a PR
 
-Changing an existing collection is the same job. Edit its `manifest.json`, make sure every agent, skill, instruction and prompt you name exists in the repository, then:
+## Modifying a collection
+
+Same job. Edit its `manifest.json`, make sure every agent, skill, instruction and prompt you name exists in the repository, then:
 
 ```bash
 nav-pilot install --dry-run <collection>

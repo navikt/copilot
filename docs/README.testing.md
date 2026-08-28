@@ -64,7 +64,9 @@ Lærdommen: modellen behandler XML-tags som `<response_format>` og `<rules>` som
 
 ## Legge til nye tester
 
-Strukturell test, legg til en `grep`-sjekk i seksjonen "Structural Tests":
+### Strukturell test
+
+Legg til en `grep`-sjekk i seksjonen "Structural Tests":
 
 ```bash
 if grep -q "mitt_mønster" "$AGENT_FILE"; then
@@ -74,7 +76,9 @@ else
 fi
 ```
 
-E2E-test, legg til et nytt `run_agent` + `check_file` par:
+### E2E-test
+
+Legg til et nytt `run_agent` + `check_file` par:
 
 ```bash
 log "Test N: beskrivelse"

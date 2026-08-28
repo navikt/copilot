@@ -52,10 +52,10 @@ nav-pilot install <skill-name>
 
 ## For bidragsytere
 
-Hver skill ligger i `.github/skills/<name>/`:
+Hver skill ligger i `skills/<name>/`:
 
 ```
-.github/skills/
+skills/
 └── skill-name/
     ├── SKILL.md              # Instruksjonsfil
     └── references/           # Referansedata (beslutningstrær, maler, sjekklister)
