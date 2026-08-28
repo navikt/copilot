@@ -32,11 +32,38 @@
 #   --allow-all-tools for non-interactive mode, so the agent can read/write/run
 #   inside that scratch directory. It is removed on exit unless you pass --keep.
 #
+#   The agent EDITS that workspace: t1 fixes a typo, t4 adds an endpoint, t6
+#   renames a variable across three files. So the workspace is rebuilt from a
+#   pristine template before EVERY prompt, not once per suite and not once per
+#   --repeat pass. Two samples of one prompt have to meet the same repo, or
+#   the median --repeat exists to produce is a median over a fixture that
+#   drifted: run 2 of t1 would find no typo left to fix, and run 2 of t6 no
+#   `maksAntall` left to rename.
+#
 # WHAT THE SCRATCH WORKSPACE CONTAINS
-#   The same thing `nav-pilot install --repo` gives a Copilot CLI user: the
-#   persona at .github/agents/, and every instructions/*.instructions.md at
-#   .github/instructions/. Repo scope copies instructions verbatim (see
-#   installArtifact() in cli/nav-pilot/internal/cli/install.go and DstPath() in
+#   ONE agent (the persona under test, at .github/agents/) plus every
+#   instructions/*.instructions.md at .github/instructions/.
+#
+#   That is NOT what `nav-pilot install --repo` gives a user. A real repo-scope
+#   install also brings the other 12 agents, all 32 skills and 7 prompts, and a
+#   collection install brings a different subset again. No real flow produces
+#   "one agent plus every instruction". The narrow selection is deliberate,
+#   because the harness tests the persona and everything else in a real install
+#   is context the persona did not write, but it has a consequence:
+#
+#     ⚠️  The absolute sizes this harness reports are NOT what a user sees. The
+#     persona routes to artifacts that are absent here: `## Related skills`,
+#     the contextual skill routing and the delegation tables all point at
+#     skills and agents this workspace does not contain, so a real answer is
+#     grounded in more material than these transcripts are. Test 5 is an auth
+#     question, and a real user would have the auth skills in scope. Only the
+#     with-versus-without DELTA between two runs made the same way means
+#     anything. A single absolute number off this harness is not a claim about
+#     what a user's answer costs.
+#
+#   The layout and the copying are real even though the selection is not: repo
+#   scope copies instructions verbatim (see installArtifact() in
+#   cli/nav-pilot/internal/cli/install.go and DstPath() in
 #   internal/domain/domain.go), so the harness copies them verbatim too. There
 #   is nothing to reimplement and therefore nothing to drift.
 #
@@ -71,10 +98,20 @@
 #   because nobody should mistake it for a threshold something must meet.
 #
 # PASS/FAIL ACROSS REPEATS
-#   A test passes only if *no* run of it failed. One failure in five runs is a
-#   failure, reported as "k/N passed": a canary that fails intermittently has
-#   still caught something. A test whose every run was un-evaluable stays
-#   "not evaluated" (exit 3). At --repeat 1 this is exactly the old behaviour.
+#   A test passes only if *every* run of it passed. One failure in five runs is
+#   a failure, reported as "k/N passed": a canary that fails intermittently has
+#   still caught something.
+#
+#   One un-evaluable run in five is likewise not a pass. A test with no failed
+#   run but at least one dead one (empty transcript, timeout, a response that
+#   never reached the phase under test) is "not evaluated" (exit 3), whether
+#   that is one run of five or all five. Same stance as a single dead run at
+#   --repeat 1: a test that did not run has proven nothing, so a flaky CLI must
+#   not be able to report green off whichever runs happened to survive. The
+#   size row's `n=` says how many transcripts the median was actually taken
+#   over, which is the same number.
+#
+#   At --repeat 1 all of this is exactly the old behaviour.
 #
 # COST
 #   One pass is up to 5 live model calls (tests 2 and 3 share one prompt).
@@ -123,16 +160,25 @@ SAVE_BASELINE=""
 COMPARE_TO=""
 DRY_RUN=false
 
+# A flag that takes a value must be given one. Without this guard `shift 2`
+# fails when the flag is the last argument ($# is 1), and with no `set -e` it
+# fails *silently* without shifting, so the loop below spins forever on the
+# same argument. One guard covers every value-taking flag; add it to any new
+# one. Called as `need_val "$@"`: $1 is the flag, $# the arguments left.
+need_val() {
+  [[ $# -ge 2 ]] || { echo "$1 needs a value (try --help)" >&2; exit 2; }
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --only)    ONLY="${2:-}"; shift 2 ;;
+    --only)    need_val "$@"; ONLY="$2"; shift 2 ;;
     --keep)    KEEP=true; shift ;;
-    --model)   MODEL="${2:-}"; shift 2 ;;
+    --model)   need_val "$@"; MODEL="$2"; shift 2 ;;
     --json)    JSON=true; shift ;;
-    --repeat)  REPEAT="${2:-}"; shift 2 ;;
+    --repeat)  need_val "$@"; REPEAT="$2"; shift 2 ;;
     --no-instructions) WITH_INSTRUCTIONS=false; shift ;;
-    --save-baseline)   SAVE_BASELINE="${2:-}"; shift 2 ;;
-    --compare)         COMPARE_TO="${2:-}"; shift 2 ;;
+    --save-baseline)   need_val "$@"; SAVE_BASELINE="$2"; shift 2 ;;
+    --compare)         need_val "$@"; COMPARE_TO="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -v|--verbose) VERBOSE=true; shift ;;
     -h|--help) sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//;$d'; exit 0 ;;
@@ -217,15 +263,18 @@ if $JSON && ! command -v jq >/dev/null 2>&1; then
 fi
 
 # ─── Throwaway workspace ─────────────────────────────────────────────────────
-# WORKDIR holds the harness's own files (transcripts, per-run rows). $WS below
-# is the fake repo the agent is pointed at, and holds nothing else: with
-# --repeat N the agent must not find run 1's transcript lying in the repo it is
-# exploring in Fase 1, or run 2 is measuring a different repo than run 1.
+# WORKDIR holds the harness's own files (transcripts, per-run rows) and the
+# pristine $TEMPLATE. $WS is the fake repo the agent is pointed at, and holds
+# nothing else: the agent explores it in Fase 1, so it must find neither run
+# 1's transcript nor the pristine copy of itself lying there, or run 2 is
+# measuring a different repo than run 1.
 #
-# $WS is seeded with just enough of a Nav repo that the prompts are grounded:
-# the persona infers archetype from nais.yaml / build.gradle.kts in Fase 1.
+# The template is seeded with just enough of a Nav repo that the prompts are
+# grounded: the persona infers archetype from nais.yaml / build.gradle.kts in
+# Fase 1. $WS is a fresh copy of it before every prompt (see seed_ws below).
 
 WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden.XXXXXX")"
+TEMPLATE="$WORKDIR/template"
 WS="$WORKDIR/repo"
 # shellcheck disable=SC2329  # invoked via trap
 cleanup() {
@@ -237,8 +286,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$WS/.github/agents" "$WS/src/main/kotlin/no/nav/demo"
-cp "$PERSONA" "$WS/.github/agents/$AGENT_NAME.agent.md"
+mkdir -p "$TEMPLATE/.github/agents" "$TEMPLATE/src/main/kotlin/no/nav/demo"
+cp "$PERSONA" "$TEMPLATE/.github/agents/$AGENT_NAME.agent.md"
 
 # Instructions, laid out the way `nav-pilot install --repo` lays them out:
 # .github/instructions/<name>.instructions.md, byte-for-byte from the checkout.
@@ -250,29 +299,61 @@ cp "$PERSONA" "$WS/.github/agents/$AGENT_NAME.agent.md"
 # is glob-scoped). It is printed because it is the number that decides whether
 # a before/after size measurement can see anything at all: with zero always-on
 # instructions, an output-style rule cannot have moved the numbers.
+
+# always_on <file> → 0 if the instruction is in scope for every prompt.
+#
+# Mirrors source.ExtractFrontmatterValue as export.go calls it: the value is
+# read from the *frontmatter block only* (a mention of applyTo down in prose
+# does not count), the first match wins, and one layer of surrounding quotes is
+# stripped, single as well as double, so `applyTo: '**'` counts as global too.
+# No frontmatter, or frontmatter without applyTo, means empty, means global.
+always_on() {
+  local in_fm=0 line val
+  while IFS= read -r line; do
+    if [[ "$line" == "---" ]]; then
+      [[ $in_fm -eq 1 ]] && break
+      in_fm=1
+      continue
+    fi
+    [[ $in_fm -eq 1 ]] || break
+    [[ "$line" == applyTo:* ]] || continue
+    val="$(printf '%s' "${line#applyTo:}" \
+      | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+            -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")"
+    [[ -z "$val" || "$val" == '**' ]] && return 0
+    return 1
+  done <"$1"
+  return 0
+}
+
 INSTR_COUNT=0
 ALWAYS_ON_COUNT=0
 if $WITH_INSTRUCTIONS && [[ -d "$REPO_ROOT/instructions" ]]; then
-  mkdir -p "$WS/.github/instructions"
+  mkdir -p "$TEMPLATE/.github/instructions"
   for instr in "$REPO_ROOT"/instructions/*.instructions.md; do
     [[ -f "$instr" ]] || continue
-    cp "$instr" "$WS/.github/instructions/"
+    cp "$instr" "$TEMPLATE/.github/instructions/"
     INSTR_COUNT=$((INSTR_COUNT + 1))
-    if ! grep -qE '^applyTo:' "$instr" \
-      || grep -qE '^applyTo:[[:space:]]*"?\*\*"?[[:space:]]*$' "$instr"; then
-      ALWAYS_ON_COUNT=$((ALWAYS_ON_COUNT + 1))
-    fi
+    always_on "$instr" && ALWAYS_ON_COUNT=$((ALWAYS_ON_COUNT + 1))
   done
 fi
 
-cat >"$WS/README.md" <<'EOF'
+# One string, used both in the --save-baseline header and in the --compare
+# compatibility check. They must be the same string or the check is a lie.
+if $WITH_INSTRUCTIONS; then
+  INSTR_DESC="$INSTR_COUNT installed, $ALWAYS_ON_COUNT always-on"
+else
+  INSTR_DESC="none (--no-instructions)"
+fi
+
+cat >"$TEMPLATE/README.md" <<'EOF'
 # demo-tjeneste
 
 En liten Ktor-tjeneste for demonstrasjon. Tjenesten eksponerer et REST-API
 og kjører på Nais. Dokumentasjonen er dessverre ikke helt komplet enda.
 EOF
 
-cat >"$WS/nais.yaml" <<'EOF'
+cat >"$TEMPLATE/nais.yaml" <<'EOF'
 apiVersion: nais.io/v1alpha1
 kind: Application
 metadata:
@@ -287,19 +368,33 @@ spec:
     path: /internal/isready
 EOF
 
-cat >"$WS/build.gradle.kts" <<'EOF'
+cat >"$TEMPLATE/build.gradle.kts" <<'EOF'
 plugins { kotlin("jvm") version "2.1.0" }
 dependencies { implementation("io.ktor:ktor-server-netty:3.0.0") }
 EOF
 
 for f in App Routes Config; do
-  cat >"$WS/src/main/kotlin/no/nav/demo/$f.kt" <<EOF
+  cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/$f.kt" <<EOF
 package no.nav.demo
 
 // bruker maksAntall flere steder
 val maksAntall = 100
 EOF
 done
+
+# The agent writes to $WS (t1 fixes the README typo, t4 adds an endpoint, t6
+# renames maksAntall), so $WS is thrown away and rebuilt from $TEMPLATE before
+# every prompt. Per prompt, not per --repeat pass: within one pass the prompts
+# also touch each other's files, and re-copying is cheap enough that the
+# stronger guarantee costs nothing.
+#
+# rm -rf, never a copy over the top: the agent may have *created* files, and a
+# file the template does not contain has nothing to overwrite it.
+seed_ws() {
+  rm -rf "$WS"
+  cp -R "$TEMPLATE" "$WS"
+}
+seed_ws
 
 # ─── Test runner ─────────────────────────────────────────────────────────────
 
@@ -340,6 +435,10 @@ run_prompt() {
   out="$(tx "$slug")"
   local -a args=(-p "$prompt" --agent "$AGENT_NAME" --allow-all-tools --no-color --log-level none)
   [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
+
+  # Fresh repo per prompt. Three of the prompts below tell the agent to edit
+  # this workspace, so without this the second sample of t1 finds no typo.
+  seed_ws
 
   echo "${DIM}  → $(run_tag)prompting ($slug)…${RESET}" >&2
   local -a runner=()
@@ -444,7 +543,7 @@ selected() {
 }
 
 echo "${BOLD}nav-pilot golden-prompt harness${RESET}"
-echo "${DIM}client: $CLI_NAME ($CLI_PATH)${RESET}"
+echo "${DIM}client: $CLI_NAME${CLI_PATH:+ ($CLI_PATH)}${RESET}"
 echo "${DIM}persona: $PERSONA${RESET}"
 if $WITH_INSTRUCTIONS; then
   echo "${DIM}instructions: $INSTR_COUNT in .github/instructions/, $ALWAYS_ON_COUNT always-on (applyTo \"**\")${RESET}"
@@ -659,9 +758,14 @@ for id in $(uniq_field "$RESULTS_FILE" 1); do
   # Any failing run fails the test. A model that emits the right answer four
   # times in five has still lost the invariant; hiding that behind a majority
   # vote would make the canary quieter exactly as it starts to matter.
+  #
+  # Any dead run is likewise not a pass. Two passes and one dead transcript is
+  # "not evaluated" (exit 3), not green. Same stance as a single dead run at
+  # --repeat 1: a test that did not run has proven nothing, and a CLI timing
+  # out four times in five must not report a green suite off the fifth.
   if [[ "$nf" -gt 0 ]]; then
     status="fail"; fail_count=$((fail_count + 1))
-  elif [[ "$np" -eq 0 ]]; then
+  elif [[ "$ne" -gt 0 || "$np" -eq 0 ]]; then
     status="error"; error_count=$((error_count + 1))
   else
     status="pass"; pass_count=$((pass_count + 1))
@@ -699,7 +803,7 @@ if [[ "$REPEAT" -gt 1 && -s "$AGG_TESTS" ]]; then
 fi
 
 if [[ -s "$AGG_SIZES" ]]; then
-  echo "${BOLD}Response size${RESET} ${DIM}(median of $REPEAT run(s), spread in brackets)${RESET}"
+  echo "${BOLD}Response size${RESET} ${DIM}(median per prompt over the n usable transcripts of $REPEAT, spread in brackets)${RESET}"
   printf '  %-6s %9s %8s %8s   %s\n' "prompt" "bytes" "lines" "words" "bytes min-max"
   while IFS='|' read -r slug n b_med b_min b_max l_med l_min l_max w_med w_min w_max; do
     printf '  %-6s %9s %8s %8s   %s\n' "$slug" "$b_med" "$l_med" "$w_med" "${DIM}$b_min-$b_max (n=$n)${RESET}"
@@ -722,7 +826,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# client:       $CLI_NAME"
     echo "# model:        ${MODEL:-CLI default}"
     echo "# repeats:      $REPEAT"
-    echo "# instructions: $($WITH_INSTRUCTIONS && echo "$INSTR_COUNT installed, $ALWAYS_ON_COUNT always-on" || echo "none (--no-instructions)")"
+    echo "# instructions: $INSTR_DESC"
     echo "# prompts:      ${ONLY:-all}"
     echo "#"
     echo "# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max"
@@ -732,11 +836,30 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   echo
 fi
 
+# compat_warn <header field> <this run's value>: shout when the baseline was
+# recorded under different conditions. Printing both headers next to each other
+# is disclosure, not a check. A baseline from another model, or with
+# instructions off, is not comparable, and nothing before this noticed. It warns
+# rather than refuses, and it deliberately does not touch the exit code: no
+# size path may decide whether the run is green.
+compat_warn() {
+  local field="$1" want="$2" got
+  got="$(sed -n "s/^# $field:[[:space:]]*//p" "$COMPARE_TO" | head -1)"
+  if [[ -n "$got" && "$got" != "$want" ]]; then
+    echo "  ${YELLOW}⚠ baseline $field: '$got', this run: '$want'. Not comparable.${RESET}"
+  fi
+  return 0
+}
+
 if [[ -n "$COMPARE_TO" ]]; then
   echo "${BOLD}Size vs baseline${RESET} ${DIM}$COMPARE_TO${RESET}"
   while IFS= read -r line; do
     echo "  ${DIM}$line${RESET}"
   done < <(grep -E '^# [a-z]+: ' "$COMPARE_TO")
+  compat_warn model "${MODEL:-CLI default}"
+  compat_warn instructions "$INSTR_DESC"
+  compat_warn repeats "$REPEAT"
+  compat_warn prompts "${ONLY:-all}"
   printf '  %-6s %10s %10s %10s %8s\n' "prompt" "baseline" "current" "delta" "pct"
   while IFS='|' read -r slug n b_med rest; do
     base="$(grep -m1 "^$slug|" "$COMPARE_TO" | cut -d'|' -f3)"

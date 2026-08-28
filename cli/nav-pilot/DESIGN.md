@@ -788,13 +788,34 @@ Kjør den for hånd når du endrer personaen, og lim resultatet inn i PR-en.
 
 Hver prompt kjøres i et engangsområde (`mktemp -d`) seedet med et minimalt
 Nav-repo, aldri mot dette checkoutet. Personaen kopieres dit fra arbeidstreet,
-så harnessen tester alltid filen du nettopp endret — ikke en installert kopi.
+så harnessen tester alltid filen du nettopp endret, ikke en installert kopi.
 Sammen med den legges `instructions/*.instructions.md` i
-`.github/instructions/`, slik `nav-pilot install --repo` gjør det, så en
-instruksjon med `applyTo: "**"` faktisk er i kontekst under kjøringen.
-`--no-instructions` gir persona alene (sammenlignbart med kjøringer før
-august 2026). Exit 0 = alt grønt, 1 = minst én assertion feilet, 2 = preflight
-feilet (ingen klient, ikke innlogget, persona mangler).
+`.github/instructions/`, på de samme stiene som `nav-pilot install --repo`
+bruker, så en instruksjon med `applyTo: "**"` faktisk er i kontekst under
+kjøringen. `--no-instructions` gir persona alene (sammenlignbart med kjøringer
+før august 2026).
+
+Agenten *skriver* i arbeidsområdet: test 1 fikser en skrivefeil, test 4 legger
+til et endepunkt, test 6 gjør en rename. Området bygges derfor på nytt fra en
+uberørt mal foran hver eneste prompt, ikke én gang per suite og ikke én gang
+per `--repeat`-runde. Ellers måler kjøring 2 et repo som kjøring 1 allerede har
+endret, og medianen `--repeat` finnes for å gi er en median over en fixture som
+har drevet.
+
+> **Arbeidsområdet er ikke en ekte installasjon.** Det inneholder én agent
+> (personaen som testes) pluss alle instruksjonene. En ekte `install --repo`
+> gir i tillegg de 12 andre agentene, alle 32 skills og 7 prompts, og en
+> samling gir enda et annet utvalg. Ingen ekte flyt gir «én agent pluss alle
+> instruksjoner». Utvalget er smalt med vilje, siden det er personaen som
+> testes, men det betyr at **de absolutte tallene harnessen rapporterer ikke er
+> det en bruker ser**: personaen ruter til skills som ikke finnes her
+> (`## Related skills`, kontekstuell skill-routing, delegeringstabellene), og
+> test 5 er et auth-spørsmål der en ekte bruker ville hatt auth-skillene i
+> kontekst. Bare *deltaet* mellom to kjøringer gjort på samme måte betyr noe.
+
+Exit 0 = alt grønt, 1 = minst én assertion feilet, 2 = preflight feilet (ingen
+klient, ikke innlogget, persona mangler), 3 = ingen assertion feilet, men minst
+én test kunne ikke evalueres.
 
 ### Måling av svarlengde
 
@@ -811,10 +832,17 @@ kjøringen.
 ```
 
 `--repeat N` kjører hver prompt N ganger (≈5 modellkall per runde, så
-`--repeat 5` ≈ 25 kall). En test er grønn bare hvis *ingen* av kjøringene
-feilet; «2/5 passed» er en feil, ikke en flaky assertion å myke opp.
+`--repeat 5` ≈ 25 kall). En test er grønn bare hvis *alle* kjøringene passerte:
+«2/5 passed» er en feil, ikke en flaky assertion å myke opp. En kjøring som
+ikke lot seg evaluere (tomt transkript, timeout) teller heller ikke som pass,
+så «2 passed, 1 not evaluated» gir exit 3, ikke 0. En test som ikke kjørte har
+ikke bevist noe.
+
 Baseline-filen er en observasjon, ikke et mål: den skriver dato, revisjon,
-modell og repetisjoner inn i sin egen header.
+modell, repetisjoner og instruksjonsmodus inn i sin egen header. `--compare`
+sammenligner de feltene med den pågående kjøringen og advarer høylytt hvis de
+spriker. Advarselen påvirker aldri exit-koden: ingen lengdemåling avgjør om en
+kjøring er grønn.
 
 ## Init (scaffolding av repo-lokale filer)
 
