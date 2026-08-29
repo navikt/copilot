@@ -292,7 +292,7 @@ func TestLocalOffTakesTheDispatchPolicyOutOfOpenCode(t *testing.T) {
 		t.Fatal("the embedded local-model manifest names no models")
 	}
 	local.SetEnabled(true)
-	if err := providerpkg.EnsureOpenCodeLocalPolicy(models[0].Model); err != nil {
+	if err := providerpkg.EnsureOpenCodeLocalPolicy(models[0]); err != nil {
 		t.Fatalf("provisioning the dispatch policy: %v", err)
 	}
 	policy := filepath.Join(dir, "nav-pilot-lokal-dispatch.md")

@@ -538,22 +538,19 @@ func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 // instructions entry upward from the project directory, not from the config
 // directory the file lives in — a relative name would resolve for nobody.
 //
-// Gated on [local.IsLocal], the same predicate as [startLoopGuard]. A hosted
-// launch unregisters rather than returns: the entry lives in a config file that
-// outlives the session that wrote it, so a developer who launches local once
-// and hosted afterwards would keep reading "costs no premium requests" about a
-// worker that is now billing every dispatch to their session model. The ~650
-// developers who never turn the alpha on have nothing to unregister, so their
-// launch stays byte-identical to the one they have.
+// It takes the worker's model, not the session's, and is called only once
+// [localWorker] has found one. Taking it back out is [RemoveOpenCodeLocalPolicy],
+// which [startLocalDispatch] calls whenever there is no worker: the entry lives
+// in a config file that outlives the session that wrote it, so a developer who
+// turns the alpha off — or launches with no server up — would otherwise keep
+// reading "costs no premium requests" about a worker that is not there. The
+// ~650 developers who never turn the alpha on have nothing to unregister, so
+// their launch stays byte-identical to the one they have.
 //
 // The binding goes in the same mutate as the entry, so the claim and the thing
 // that makes it true are one write: there is no config in which the fragment is
 // registered and the worker is not pinned to the local model.
-func EnsureOpenCodeLocalPolicy(model string) error {
-	if !local.IsLocal(model) {
-		return RemoveOpenCodeLocalPolicy()
-	}
-	m, _ := local.Lookup(model)
+func EnsureOpenCodeLocalPolicy(m local.Model) error {
 	path := localPolicyPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
@@ -627,22 +624,17 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 
-	guard, err := startLoopGuard(resolved.Model)
+	// Local dispatch, whether or not this session's own model is local: a cloud
+	// main agent handing focused tasks to a local worker is the case the
+	// feature exists for.
+	guard, err := startLocalDispatch(resolved.Model)
 	if err != nil {
 		return err
 	}
 	if guard != nil {
 		defer guard.Close()
-		fmt.Fprintf(os.Stderr, "%s Local model: nav-pilot ends a turn after %d identical tool calls in a row.\n",
+		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row.\n",
 			domain.Dim("ℹ"), local.LoopGuardRepeat())
-	}
-
-	// The main agent is told what the worker is for in the same session the
-	// worker becomes reachable. Non-fatal, like the Nav context above: a
-	// session without the policy dispatches badly, a refused launch dispatches
-	// nothing at all.
-	if err := EnsureOpenCodeLocalPolicy(resolved.Model); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 
 	suffix := ""
@@ -659,36 +651,118 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	})
 }
 
-// startLoopGuard puts nav-pilot's loop guard between the client and the local
-// server for the length of the session, and returns (nil, nil) for a hosted
-// launch — which is every launch for the ~650 developers who never turn local
-// on. launchViaCplt blocks until the client exits, so the guard lives exactly
-// as long as the dispatch it guards and needs no daemon.
+// ensureOwnServer is [local.EnsureOwnServer] behind a variable, the same seam
+// local/guard.go keeps for the same call and for the same reason: the proof
+// needs a recorded process that is still alive and still holding a fixed port,
+// which a test cannot arrange without taking that port on the machine it runs
+// on.
+var ensureOwnServer = local.EnsureOwnServer
+
+// localWorker resolves the model a dispatched task actually reaches on this
+// machine: the one the recorded server is serving. Not the session's model —
+// the point of the alpha is a cloud main agent handing focused tasks to a local
+// worker, so the session model is hosted in the normal case and says nothing
+// about what the worker runs.
 //
-// The client reaches it by address, not by environment: `nav-pilot alpha local
-// start` writes an opencode provider pointing at the guard's fixed port,
-// because opencode selects a backend through its provider config and has no
-// base-URL variable to override.
+// The zero Model with a nil error means local dispatch is off, which is the
+// state of every nav-pilot that never ran the alpha. A non-nil error means it
+// is on but there is nothing of nav-pilot's own to dispatch to, and says why.
+//
+// [local.EnsureOwnServer] is that proof, and it gates what the launch writes
+// and not only the guard because all of it is a claim about a server on this
+// machine. The guard forwards to a fixed 127.0.0.1:8080, so a server that died
+// hours ago and left the port to whatever bound it next would have the
+// session's dispatches proxied to a stranger with nothing on screen to say so.
+// Server.Start refuses a port nav-pilot does not own; this is the same rule
+// where the prompts actually flow. The guard re-proves it per completion behind
+// a short cache, because this call only covers the instant of the launch and
+// the session it starts runs for hours.
+func localWorker() (local.Model, error) {
+	if !local.Enabled() {
+		return local.Model{}, nil
+	}
+	if err := ensureOwnServer(); err != nil {
+		return local.Model{}, err
+	}
+	st, _, err := local.LoadState()
+	if err != nil {
+		return local.Model{}, err
+	}
+	m, found := local.Lookup(st.Model)
+	if !found {
+		// EnsureOwnServer proved the process. The manifest is what carries the
+		// limits the provider block declares and the prose the dispatch policy
+		// quotes, so a model it does not name is one nav-pilot cannot describe
+		// honestly to a main agent.
+		return local.Model{}, fmt.Errorf(
+			"the running local server serves %q, which this nav-pilot's model manifest does not name.\n\n  Start it again:\n\n    %s\n    %s",
+			st.Model, domain.Bold("nav-pilot alpha local stop"), domain.Bold("nav-pilot alpha local start"))
+	}
+	return m, nil
+}
+
+// startLocalDispatch sets local dispatch up for one session: the opencode
+// provider block, the worker agent's binding to the local model, the dispatch
+// policy that tells the main agent what the worker is for, and the loop guard
+// every completion passes through. launchViaCplt blocks until the client exits,
+// so the returned guard lives exactly as long as the dispatch it guards and
+// needs no daemon.
+//
+// The client reaches the guard by address, not by environment: the provider
+// block written here points at the guard's fixed port, because opencode selects
+// a backend through its provider config and has no base-URL variable to
+// override.
+//
+// Gated on [local.Enabled] — dispatch turned on and the environment
+// provisioned — and not on the session's model. Gating on the session model was
+// the defect: a hosted main agent is the normal case for this feature, so the
+// binding and the dispatch fragment were written only for a developer who had
+// at some point launched a local model themselves, and removed again by their
+// next hosted launch. Everyone else got a `lokal-arbeider` with no model of its
+// own, which opencode runs on the session's model — every "free" dispatch
+// billed to the cloud, beside a policy file saying it was free.
+//
+// A session with no worker refuses only when the session model is the local one,
+// because then there is nothing else for the prompts to run on. A hosted session
+// loses the worker and carries on: a developer who left dispatch on and has not
+// started a server today still has a session worth launching, and refusing it
+// would make `alpha local off` something you have to remember before every
+// cloud launch.
 //
 // The gate is a function rather than an `if` at the call site so a test can
 // hold it: with local disabled nothing here listens and nothing here writes,
 // pinned by TestHostedLaunchStartsNoLoopGuard, and moving the guard out from
 // behind the gate now fails a test instead of nothing.
-//
-// [local.EnsureOwnServer] first, and the launch is refused when it fails. The
-// guard forwards to a fixed 127.0.0.1:8080, so a recorded server that died
-// hours ago and left the port to whatever bound it next would have every prompt
-// of the session proxied to a stranger, with nothing on screen to say so.
-// Server.Start refuses a port nav-pilot does not own; this is the same rule
-// where the prompts actually flow. The guard re-proves it per completion behind
-// a short cache, because this call only covers the instant of the launch and
-// the session it starts runs for hours.
-func startLoopGuard(model string) (*local.Guard, error) {
-	if !local.IsLocal(model) {
+func startLocalDispatch(sessionModel string) (*local.Guard, error) {
+	worker, err := localWorker()
+	if err != nil {
+		if local.IsLocal(sessionModel) {
+			return nil, err
+		}
+		fmt.Fprintf(os.Stderr, "%s No local worker this session — %v\n", domain.Yellow("⚠"), err)
+	}
+	if worker.Model == "" {
+		// Off, or on with nothing behind it. Either way the dispatch policy
+		// goes: it tells every session the worker costs no premium requests,
+		// and there is now no worker for that to be true about. Nothing is
+		// written when there is nothing to remove, which is what keeps a launch
+		// with the alpha off byte-identical to the one it has always been.
+		if err := RemoveOpenCodeLocalPolicy(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local dispatch policy from opencode: %v\n", domain.Yellow("⚠"), err)
+		}
 		return nil, nil
 	}
-	if err := local.EnsureOwnServer(); err != nil {
-		return nil, err
+	// Both non-fatal, like the Nav context above: a session missing them
+	// dispatches badly, a refused launch dispatches nothing at all.
+	// `alpha local start` writes the provider block too — writing it here as
+	// well is what makes a launch self-healing when the developer's config was
+	// edited, or written by an older nav-pilot, since the block is what the
+	// binding below names.
+	if err := EnsureOpenCodeLocalProvider(worker); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not register the local model with opencode: %v\n", domain.Yellow("⚠"), err)
+	}
+	if err := EnsureOpenCodeLocalPolicy(worker); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 	return local.StartGuard(local.ServerURL())
 }

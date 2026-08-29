@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
@@ -82,7 +83,7 @@ func TestLocalDispatchPolicyIsByteIdenticalAcrossGenerations(t *testing.T) {
 func TestEnsureOpenCodeLocalPolicyRegistersItselfOnce(t *testing.T) {
 	dir := withOpenCodeConfig(t)
 	withLocalEnabled(t)
-	id := aLocalModelID(t)
+	m := aLocalModel(t)
 
 	// Something of the developer's own, in the same key.
 	mine := filepath.Join(dir, "min-egen.md")
@@ -91,7 +92,7 @@ func TestEnsureOpenCodeLocalPolicyRegistersItselfOnce(t *testing.T) {
 	}
 
 	for range 3 {
-		if err := EnsureOpenCodeLocalPolicy(id); err != nil {
+		if err := EnsureOpenCodeLocalPolicy(m); err != nil {
 			t.Fatalf("EnsureOpenCodeLocalPolicy: %v", err)
 		}
 	}
@@ -101,8 +102,8 @@ func TestEnsureOpenCodeLocalPolicyRegistersItselfOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the dispatch policy was not written: %v", err)
 	}
-	if !strings.Contains(string(body), id) {
-		t.Errorf("the written dispatch policy does not name %q:\n%s", id, body)
+	if !strings.Contains(string(body), m.Model) {
+		t.Errorf("the written dispatch policy does not name %q:\n%s", m.Model, body)
 	}
 
 	cfg := readOpenCodeConfig(t)
@@ -121,19 +122,46 @@ func TestEnsureOpenCodeLocalPolicyRegistersItselfOnce(t *testing.T) {
 	}
 }
 
-// TestLocalDisabledWritesNoDispatchPolicy is the no-op proof: with dispatch off
-// there is no file, no entry, and nothing in the config that was not already
-// there. It is gated on the same predicate as the loop guard, so this cannot
-// pass while the launch quietly writes one anyway.
-func TestLocalDisabledWritesNoDispatchPolicy(t *testing.T) {
+// TestLocalDisabledWritesNothingForACloudSession is the no-op proof, and the
+// half of the gap that must not move: with dispatch off, a launch on a hosted
+// model writes no policy file, starts no guard, and leaves the developer's
+// config byte-for-byte as it found it. This is every launch for the ~650
+// developers who never turn the alpha on.
+func TestLocalDisabledWritesNothingForACloudSession(t *testing.T) {
 	dir := withOpenCodeConfig(t)
 
-	if err := EnsureOpenCodeLocalPolicy(aLocalModelID(t)); err != nil {
-		t.Fatalf("EnsureOpenCodeLocalPolicy with local dispatch off: %v", err)
+	// A config of the developer's own, so "untouched" is something this can
+	// actually compare rather than an absence.
+	before := []byte(`{"theme":"tokyonight","instructions":["` + filepath.Join(dir, "min-egen.md") + `"]}`)
+	if err := os.WriteFile(ConfigPathOverride, before, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	if err != nil {
+		t.Fatalf("startLocalDispatch with local dispatch off: %v", err)
+	}
+	if guard != nil {
+		guard.Close()
+		t.Error("a loop guard was started with local dispatch off")
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, localPolicyFileName)); !os.IsNotExist(err) {
 		t.Error("a dispatch policy was written with local dispatch off")
+	}
+	after, err := os.ReadFile(ConfigPathOverride)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Errorf("local dispatch off rewrote the developer's opencode config:\n got: %s\nwant: %s", after, before)
+	}
+
+	// And on a machine that has no opencode config at all, it does not create
+	// one.
+	ConfigPathOverride = filepath.Join(t.TempDir(), "opencode.json")
+	if _, err := startLocalDispatch("github-copilot/claude-opus-5"); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := os.Stat(ConfigPathOverride); !os.IsNotExist(err) {
 		t.Error("an opencode config was created with local dispatch off")
@@ -150,7 +178,7 @@ func TestRemoveOpenCodeLocalPolicyLeavesTheDeveloperTheirOwn(t *testing.T) {
 	if err := os.WriteFile(ConfigPathOverride, []byte(`{"instructions":["`+mine+`"]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := EnsureOpenCodeLocalPolicy(aLocalModelID(t)); err != nil {
+	if err := EnsureOpenCodeLocalPolicy(aLocalModel(t)); err != nil {
 		t.Fatal(err)
 	}
 	if err := RemoveOpenCodeLocalPolicy(); err != nil {
@@ -184,7 +212,7 @@ func TestRemoveOpenCodeLocalPolicyDropsAnEmptyInstructionsKey(t *testing.T) {
 	withOpenCodeConfig(t)
 	withLocalEnabled(t)
 
-	if err := EnsureOpenCodeLocalPolicy(aLocalModelID(t)); err != nil {
+	if err := EnsureOpenCodeLocalPolicy(aLocalModel(t)); err != nil {
 		t.Fatal(err)
 	}
 	if err := RemoveOpenCodeLocalPolicy(); err != nil {
@@ -272,7 +300,7 @@ func TestDispatchPolicyAndBindingArriveTogether(t *testing.T) {
 	withLocalEnabled(t)
 	m := aLocalModel(t)
 
-	if err := EnsureOpenCodeLocalPolicy(m.Model); err != nil {
+	if err := EnsureOpenCodeLocalPolicy(m); err != nil {
 		t.Fatalf("EnsureOpenCodeLocalPolicy: %v", err)
 	}
 	entries, _ := readOpenCodeConfig(t)["instructions"].([]any)
@@ -284,28 +312,40 @@ func TestDispatchPolicyAndBindingArriveTogether(t *testing.T) {
 	}
 }
 
-// TestHostedLaunchUnregistersTheDispatchPolicy: the entry outlives the session
-// that wrote it. A developer who launches local once and hosted afterwards
-// would otherwise keep reading "koster ingen premium-forespørsler" about a
-// worker that now bills every dispatch to their session model.
-func TestHostedLaunchUnregistersTheDispatchPolicy(t *testing.T) {
+// TestTurningLocalOffUnregistersTheDispatchPolicy: the entry outlives the
+// session that wrote it, so a developer who turns the alpha off would otherwise
+// keep reading "koster ingen premium-forespørsler" about a worker nothing
+// dispatches to any more.
+//
+// What triggers it is local being off, not the session model being hosted. That
+// was the defect: a hosted session model is the normal case for this feature —
+// a cloud main agent dispatching to a local worker — so unregistering on it
+// took the fragment back out of exactly the session it was written for.
+func TestTurningLocalOffUnregistersTheDispatchPolicy(t *testing.T) {
 	dir := withOpenCodeConfig(t)
 	withLocalEnabled(t)
+	m := withOwnServer(t)
 
-	if err := EnsureOpenCodeLocalPolicy(aLocalModelID(t)); err != nil {
+	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	if err != nil {
 		t.Fatal(err)
 	}
+	guard.Close()
+	if _, found := readOpenCodeConfig(t)["instructions"]; !found {
+		t.Fatalf("a cloud session with local dispatch on did not register the dispatch policy for %s", m.Model)
+	}
 
-	// The same launch path, with a model that is not served locally.
-	if err := EnsureOpenCodeLocalPolicy("gpt-5"); err != nil {
-		t.Fatalf("EnsureOpenCodeLocalPolicy on a hosted launch: %v", err)
+	// The same launch path with the alpha turned off.
+	local.SetEnabled(false)
+	if _, err := startLocalDispatch("github-copilot/claude-opus-5"); err != nil {
+		t.Fatalf("startLocalDispatch with local dispatch off: %v", err)
 	}
 
 	if _, found := readOpenCodeConfig(t)["instructions"]; found {
-		t.Error("the dispatch policy is still registered after a hosted launch")
+		t.Error("the dispatch policy is still registered after local dispatch was turned off")
 	}
 	if _, err := os.Stat(filepath.Join(dir, localPolicyFileName)); !os.IsNotExist(err) {
-		t.Error("the dispatch policy file survived a hosted launch")
+		t.Error("the dispatch policy file survived local dispatch being turned off")
 	}
 }
 
@@ -319,5 +359,110 @@ func TestDispatchPolicyTimingMatchesTheConfiguredTimeout(t *testing.T) {
 	want := fmt.Sprintf("%d minutter", chunkTimeoutMS(m)/60000)
 	if !strings.Contains(got, want) {
 		t.Errorf("the dispatch policy does not name the configured timeout (%q):\n%s", want, got)
+	}
+}
+
+// withOwnServer stands in for a running local server and returns the model it
+// serves. The ownership proof shells out to ps and lsof against a fixed port,
+// which a test cannot arrange without taking that port on the machine it runs
+// on — so the proof itself is held at its seam and the record behind it is
+// real.
+func withOwnServer(t *testing.T) local.Model {
+	t.Helper()
+	m := aLocalModel(t)
+	t.Setenv("HOME", t.TempDir())
+	if err := local.SaveState(local.State{PID: os.Getpid(), Model: m.Model, Started: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	orig := ensureOwnServer
+	ensureOwnServer = func() error { return nil }
+	t.Cleanup(func() { ensureOwnServer = orig })
+	return m
+}
+
+// TestCloudSessionGetsTheLocalWorker is the gap this file was written around.
+//
+// The feature exists so a cloud main agent can hand focused tasks to a local
+// worker, and the setup used to be gated on the *session* model being local —
+// so the one session the worker is for got no provider block, no binding and no
+// dispatch policy. Manual testing missed it because a single earlier launch on
+// a local model left all three behind in a config file that outlives the
+// session; a developer who never ran one had them at no point.
+func TestCloudSessionGetsTheLocalWorker(t *testing.T) {
+	dir := withOpenCodeConfig(t)
+	withLocalEnabled(t)
+	m := withOwnServer(t)
+
+	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	if err != nil {
+		t.Fatalf("startLocalDispatch for a cloud session with local dispatch on: %v", err)
+	}
+	if guard == nil {
+		t.Fatal("no loop guard was started for a cloud session with local dispatch on; the worker's completions would go to the server unguarded")
+	}
+	defer guard.Close()
+
+	cfg := readOpenCodeConfig(t)
+	providers, _ := cfg["provider"].(map[string]any)
+	if _, found := providers[LocalProviderID]; !found {
+		t.Errorf("the local provider block is missing after a cloud session launch: %v", cfg)
+	}
+	if want := LocalProviderID + "/" + m.Model; workerModel(t) != want {
+		t.Errorf("the worker agent is bound to %q after a cloud session launch, want %q", workerModel(t), want)
+	}
+	policy := filepath.Join(dir, localPolicyFileName)
+	entries, _ := cfg["instructions"].([]any)
+	if len(entries) != 1 || entries[0] != policy {
+		t.Errorf("instructions = %v after a cloud session launch, want the dispatch policy %q", entries, policy)
+	}
+	body, err := os.ReadFile(policy)
+	if err != nil {
+		t.Fatalf("the dispatch policy was not written for a cloud session: %v", err)
+	}
+	if !strings.Contains(string(body), m.Model) {
+		t.Errorf("the dispatch policy names something other than the running model %q:\n%s", m.Model, body)
+	}
+}
+
+// TestNoLocalServerLeavesACloudSessionLaunchable pins the decision for dispatch
+// on with nothing running.
+//
+// A cloud session is not refused: it only loses the worker, and a developer who
+// left the alpha on and has not started a server today still has a session
+// worth launching — refusing would make `alpha local off` something to remember
+// before every cloud launch. What it does lose is the claim: no guard, and the
+// dispatch policy comes back out, because the fragment tells the main agent the
+// worker is free and there is no worker.
+//
+// A session running *on* the local model is refused, because there is nothing
+// else for its prompts to run on.
+func TestNoLocalServerLeavesACloudSessionLaunchable(t *testing.T) {
+	dir := withOpenCodeConfig(t)
+	withLocalEnabled(t)
+	m := aLocalModel(t)
+	t.Setenv("HOME", t.TempDir()) // nothing recorded, and no server to record
+
+	// What an earlier session, with a server up, left behind.
+	if err := EnsureOpenCodeLocalPolicy(m); err != nil {
+		t.Fatal(err)
+	}
+
+	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	if err != nil {
+		t.Fatalf("a cloud session with dispatch on and no server was refused: %v", err)
+	}
+	if guard != nil {
+		guard.Close()
+		t.Error("a loop guard was started with no server of nav-pilot's own behind it")
+	}
+	if _, found := readOpenCodeConfig(t)["instructions"]; found {
+		t.Error("the dispatch policy is still registered with no local server running")
+	}
+	if _, err := os.Stat(filepath.Join(dir, localPolicyFileName)); !os.IsNotExist(err) {
+		t.Error("the dispatch policy file survived a session with no local server")
+	}
+
+	if _, err := startLocalDispatch(m.Model); err == nil {
+		t.Error("a launch on the local model itself was allowed with no server running; every prompt of that session would fail")
 	}
 }

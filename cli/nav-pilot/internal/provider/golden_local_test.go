@@ -269,9 +269,9 @@ func TestHostedLaunchStartsNoLoopGuard(t *testing.T) {
 	ConfigPathOverride = cfg
 	t.Cleanup(func() { ConfigPathOverride = "" })
 
-	guard, err := startLoopGuard("claude-opus-5")
+	guard, err := startLocalDispatch("claude-opus-5")
 	if err != nil || guard != nil {
-		t.Fatalf("startLoopGuard for a hosted model = (%v, %v), want (nil, nil)", guard, err)
+		t.Fatalf("startLocalDispatch for a hosted model = (%v, %v), want (nil, nil)", guard, err)
 	}
 	if ln, lerr := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", local.GuardPort)); lerr != nil {
 		t.Errorf("a hosted launch left something listening on the loop guard's port %d", local.GuardPort)
@@ -284,9 +284,9 @@ func TestHostedLaunchStartsNoLoopGuard(t *testing.T) {
 
 	// And with local dispatch off, a local model id is a hosted launch too —
 	// which is the state of every nav-pilot that has not run init.
-	guard, err = startLoopGuard(aLocalModelID(t))
+	guard, err = startLocalDispatch(aLocalModelID(t))
 	if err != nil || guard != nil {
-		t.Fatalf("startLoopGuard for a local id with dispatch off = (%v, %v), want (nil, nil)", guard, err)
+		t.Fatalf("startLocalDispatch for a local id with dispatch off = (%v, %v), want (nil, nil)", guard, err)
 	}
 }
 
@@ -307,8 +307,8 @@ func TestLocalLaunchRefusesAServerNavPilotDidNotStart(t *testing.T) {
 	// Nothing recorded. Reachable on its own: the opencode provider block that
 	// `start` wrote is still in the developer's config the next morning, so the
 	// model is still selectable after the server is gone.
-	if _, err := startLoopGuard(id); err == nil {
-		t.Fatal("startLoopGuard with no recorded server succeeded; the guard would forward to whatever holds the port")
+	if _, err := startLocalDispatch(id); err == nil {
+		t.Fatal("startLocalDispatch with no recorded server succeeded; the guard would forward to whatever holds the port")
 	}
 
 	// Recorded, alive, and the process it says it is — but not the one holding
@@ -316,9 +316,9 @@ func TestLocalLaunchRefusesAServerNavPilotDidNotStart(t *testing.T) {
 	if err := local.SaveState(local.State{PID: os.Getpid(), Model: id, Started: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
-	_, err := startLoopGuard(id)
+	_, err := startLocalDispatch(id)
 	if err == nil || !strings.Contains(err.Error(), "not what is listening") {
-		t.Errorf("startLoopGuard for a recorded server that does not hold the port = %v, want a refusal naming the port", err)
+		t.Errorf("startLocalDispatch for a recorded server that does not hold the port = %v, want a refusal naming the port", err)
 	}
 
 	if ln, lerr := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", local.GuardPort)); lerr != nil {
