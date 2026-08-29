@@ -115,6 +115,16 @@
     },
     {
       "type": "agent",
+      "name": "lokal-arbeider",
+      "displayName": "@lokal-arbeider",
+      "description": "Kjører avgrensede oppgaver på en lokal modell, slik at de ikke bruker premium-forespørsler",
+      "filePath": "agents/lokal-arbeider.agent.md",
+      "contentHash": "5e17b9a42173ec8d0ec88761cb213aae7dc14aa998c70a2783b7367e8223fcb1",
+      "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/agents/lokal-arbeider.agent.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/lokal-arbeider.agent.md"
+    },
+    {
+      "type": "agent",
       "name": "nav-pilot-opus",
       "displayName": "@nav-pilot-opus",
       "description": "Dyp analyse for høyrisiko planlegging, arkitekturvalg og kritisk review i Nav-prosjekter",
