@@ -327,7 +327,14 @@ func cmdLocalStart() error {
 		_ = srv.Stop()
 		return err
 	}
+	// Record only what actually came up. A pid written for a server that is
+	// not ready is a pid `status` reports as crashed hours later, which reads
+	// as "it died" rather than "it never started".
 	status := srv.Status()
+	if status.Health != local.HealthReady || status.PID <= 0 {
+		_ = srv.Stop()
+		return fmt.Errorf("the local %s server did not come up (%s); nothing was recorded", model.Model, status.Health)
+	}
 	if err := local.SaveState(local.State{
 		PID:     status.PID,
 		Model:   model.Model,
@@ -344,14 +351,34 @@ func cmdLocalStart() error {
 		fmt.Fprintf(os.Stderr, "%s Could not register the local model with opencode: %v\n", yellow("⚠"), err)
 	}
 
-	fmt.Printf("\n%s %s is ready after %s.\n", green("✓"), bold(model.Name), timeNow().Sub(started).Round(time.Second))
-	fmt.Printf("  Serving  %s (pid %d)\n", local.ServerURL(), status.PID)
-	fmt.Printf("  Client   %s %s\n", local.GuardURL(), dim("(nav-pilot's loop guard, which every request goes through)"))
-	fmt.Printf("  Guard    ends a turn after %d identical tool calls in a row\n", local.LoopGuardRepeat())
-	fmt.Printf("  Wired    %d GB required, %d GB set\n\n", wired.RequiredGB, wired.CurrentGB)
-	fmt.Printf("  Launch:  %s\n", bold("nav-pilot --client opencode --model "+model.Model))
-	fmt.Printf("  Stop:    %s\n\n", bold("nav-pilot alpha local stop"))
+	fmt.Print(startSummary(model, srv.URL(), status.PID, wired, timeNow().Sub(started)))
 	return nil
+}
+
+// startSummary is what start reports once the server is up.
+//
+// It builds a string rather than printing as it goes so a test can hold it to
+// the rule it used to break: every address named here is one a client can
+// connect to right now. It named the loop guard's port, and the guard is
+// started by the launch — an in-process listener that lives exactly as long as
+// the client session, with no daemon to keep it up between commands. So the
+// address was never live when start printed it, and a developer who pasted it
+// into curl reached nothing, or worse, went to the unguarded server instead.
+//
+// The guard is still named, because a developer needs to know a turn can be
+// ended for them. It is named as something the launch does, which is what it
+// is.
+func startSummary(model local.Model, serverURL string, pid int, wired local.WiredLimit, took time.Duration) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n%s %s is ready after %s.\n", green("✓"), bold(model.Name), took.Round(time.Second))
+	fmt.Fprintf(&b, "  Serving  %s (pid %d)\n", serverURL, pid)
+	fmt.Fprintf(&b, "  Guard    %s\n", dim(wrapIndent(fmt.Sprintf(
+		"started by the launch below, not by this command: it ends a turn after %d identical tool calls in a row, and a client pointed straight at the address above goes unguarded",
+		local.LoopGuardRepeat()), "           ", 78)))
+	fmt.Fprintf(&b, "  Wired    %d GB required, %d GB set\n\n", wired.RequiredGB, wired.CurrentGB)
+	fmt.Fprintf(&b, "  Launch:  %s\n", bold("nav-pilot --client opencode --model "+model.Model))
+	fmt.Fprintf(&b, "  Stop:    %s\n\n", bold("nav-pilot alpha local stop"))
+	return b.String()
 }
 
 // currentWiredLabel names what the cap is now. Unset is the macOS default, not

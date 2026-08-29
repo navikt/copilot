@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -186,6 +189,17 @@ func stubStart(t *testing.T, p proc) *[]runCall {
 	}
 	t.Cleanup(func() { startProcess = orig })
 	return &calls
+}
+
+// stubPortInUse answers the pre-flight bind check without touching a real
+// port, so the lifecycle tests do not depend on what happens to be listening
+// on the machine running them — including, as it happens, the stale server
+// that made the check necessary.
+func stubPortInUse(t *testing.T, inUse bool) {
+	t.Helper()
+	orig := portInUse
+	portInUse = func(int) bool { return inUse }
+	t.Cleanup(func() { portInUse = orig })
 }
 
 // stubCompletion replaces the readiness/health probe. n counts the calls so a
@@ -443,6 +457,7 @@ func TestStartWaitsForARealCompletion(t *testing.T) {
 	stubDirs(t)
 	fastTimers(t)
 	p := newFakeProc()
+	stubPortInUse(t, false)
 	starts := stubStart(t, p)
 	// The port is open from the first probe, but nothing generates until the
 	// third: bind, then load, then answer.
@@ -481,6 +496,7 @@ func TestStartTimesOutWithoutACompletion(t *testing.T) {
 	stubDirs(t)
 	fastTimers(t)
 	p := newFakeProc()
+	stubPortInUse(t, false)
 	stubStart(t, p)
 	stubCompletion(t, func(context.Context, int) (int, error) {
 		return 0, errors.New("connection refused")
@@ -507,6 +523,7 @@ func TestZeroCompletionTokensAreNotReadiness(t *testing.T) {
 	stubDirs(t)
 	fastTimers(t)
 	p := newFakeProc()
+	stubPortInUse(t, false)
 	stubStart(t, p)
 	stubCompletion(t, func(context.Context, int) (int, error) { return 0, nil })
 
@@ -526,6 +543,104 @@ func TestZeroCompletionTokensAreNotReadiness(t *testing.T) {
 	if st.Health == HealthReady {
 		t.Error("Status().Health = ready after only zero-token answers")
 	}
+}
+
+// The failure this whole guard exists for, from the outside: a server nav-pilot
+// did not start already holds the port. It was found on a real machine, where a
+// stale mlx_lm.server from earlier work still held 8080 — the child could not
+// bind and exited in milliseconds, and the stranger answered the readiness
+// probe.
+//
+// Start must refuse before spawning anything, and must name what is there. A
+// matching model id would not change the answer: the wired-memory limit, the
+// MLX_* params and the context that server runs under are invisible over HTTP,
+// so adopting it on an id alone is a guess dressed as a check.
+func TestStartRefusesAPortItDoesNotOwn(t *testing.T) {
+	stubDirs(t)
+	fastTimers(t)
+
+	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/v1/models") {
+			fmt.Fprint(w, `{"data":[{"id":"someone-else/model"}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"usage":{"completion_tokens":1}}`)
+	}))
+	defer foreign.Close()
+	port := foreignPort(t, foreign.URL)
+
+	// The real bind check, against a real listener: the seam is left alone
+	// here on purpose, because what is being pinned is that a held port is
+	// noticed at all.
+	starts := stubStart(t, newFakeProc())
+	stubCompletion(t, func(context.Context, int) (int, error) { return 1, nil })
+
+	s := &Server{Port: port}
+	err := s.Start(context.Background(), testModel())
+	if err == nil {
+		t.Fatal("Start() returned nil with a foreign server on the port — it adopted a model nav-pilot did not choose")
+	}
+	for _, want := range []string{strconv.Itoa(port), "someone-else/model", "Refusing to start"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("Start() error = %q, want it to mention %q", err, want)
+		}
+	}
+	if len(*starts) != 0 {
+		t.Errorf("Start() spawned %d processes onto a port that was already in use", len(*starts))
+	}
+	// Nothing came up, so nothing may be recorded: a Status with a pid in it is
+	// what `stop` and `status` would later report as a crash.
+	if st := s.Status(); st.Health != HealthNotStarted || st.PID != 0 {
+		t.Errorf("Status() after a refused Start = %+v, want %q and no pid", st, HealthNotStarted)
+	}
+}
+
+// The same failure from the inside, for the case the pre-flight check cannot
+// see: the child exits during the probe — it lost a bind race, or died on
+// launch — and something else answers. A completion is evidence that a server
+// is on the port, never that it is ours.
+func TestStartDoesNotAcceptReadinessFromAStrangerWhenTheChildIsDead(t *testing.T) {
+	stubDirs(t)
+	fastTimers(t)
+	stubPortInUse(t, false)
+
+	p := newFakeProc()
+	p.die(exitInfo{Code: 1}) // could not bind; gone before the first probe
+	stubStart(t, p)
+
+	var s Server
+	stubCompletion(t, func(context.Context, int) (int, error) {
+		// The stranger answers only once the exit has been observed, so this
+		// pins the check after the probe rather than racing the one before it.
+		waitFor(t, func() bool { return s.exited() != nil })
+		return 1, nil
+	})
+
+	err := s.Start(context.Background(), testModel())
+	if err == nil {
+		t.Fatal("Start() reported ready from a probe answered while its own process was already dead")
+	}
+	if !strings.Contains(err.Error(), "exited before it was ready") {
+		t.Errorf("Start() error = %q, want it to say the server exited", err)
+	}
+	if got := s.Status().Health; got == HealthReady {
+		t.Errorf("Status().Health = %q after the process exited", got)
+	}
+}
+
+// foreignPort is the port of a test server, for a Server that has to be pointed
+// at it.
+func foreignPort(t *testing.T, rawURL string) int {
+	t.Helper()
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", rawURL, err)
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		t.Fatalf("no port in %s: %v", rawURL, err)
+	}
+	return port
 }
 
 // A signal death is unambiguous — the process is gone, restart it — and is
@@ -567,6 +682,7 @@ func TestCrashIsDetectedAsASignalDeath(t *testing.T) {
 			stubDirs(t)
 			fastTimers(t)
 			p := newFakeProc()
+			stubPortInUse(t, false)
 			stubStart(t, p)
 			stubCompletion(t, func(context.Context, int) (int, error) {
 				return 0, errors.New("connection refused")
@@ -698,6 +814,7 @@ func TestHealth(t *testing.T) {
 			stubDirs(t)
 			fastTimers(t)
 			p := newFakeProc()
+			stubPortInUse(t, false)
 			stubStart(t, p)
 
 			// Readiness first, then the case's own probe.
@@ -745,6 +862,7 @@ func TestStopSignalsAndIsIdempotent(t *testing.T) {
 	stubDirs(t)
 	fastTimers(t)
 	p := newFakeProc()
+	stubPortInUse(t, false)
 	stubStart(t, p)
 	stubCompletion(t, func(context.Context, int) (int, error) { return 1, nil })
 

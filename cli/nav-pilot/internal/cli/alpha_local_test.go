@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"net"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
@@ -235,6 +239,52 @@ func TestLocalStatusReportsACrashedServer(t *testing.T) {
 	})
 	if !strings.Contains(out, string(local.HealthCrashed)) {
 		t.Errorf("status of a pid that is gone does not report %q:\n%s", local.HealthCrashed, out)
+	}
+}
+
+// printedAddress finds every address start names, so the test below can hold
+// all of them to the same rule rather than the one that happened to be wrong.
+var printedAddress = regexp.MustCompile(`https?://[^\s)]+`)
+
+// TestStartSummaryNamesOnlyAddressesThatAnswer: start printed
+// "Client http://127.0.0.1:8081 (nav-pilot's loop guard, which every request
+// goes through)" while nothing was listening there — the guard is an
+// in-process listener the client launch starts, and it cannot outlive a
+// command without a daemon. So a developer who followed the printed
+// instructions by hand reached nothing, or reached the unguarded server on
+// 8080 instead.
+//
+// The rule, not the one line: every address this command prints is one a
+// client can connect to the moment it returns.
+func TestStartSummaryNamesOnlyAddressesThatAnswer(t *testing.T) {
+	localTestHome(t)
+	server := httptest.NewServer(nil)
+	defer server.Close()
+
+	out := startSummary(
+		local.Model{Name: "A Model", Model: "mlx-community/x"},
+		server.URL, 4242,
+		local.WiredLimit{RequiredGB: 36, CurrentGB: 36},
+		42*time.Second,
+	)
+
+	addrs := printedAddress.FindAllString(out, -1)
+	if len(addrs) == 0 {
+		t.Fatalf("start printed no address at all, so this test proves nothing:\n%s", out)
+	}
+	for _, addr := range addrs {
+		host := strings.TrimSuffix(strings.TrimPrefix(addr, "http://"), "/")
+		conn, err := net.DialTimeout("tcp", host, 5*time.Second)
+		if err != nil {
+			t.Errorf("start prints %s, but nothing is accepting connections there: %v\n%s", addr, err, out)
+			continue
+		}
+		conn.Close()
+	}
+	// The guard still has to be named — a turn being ended for you is not
+	// something to discover from silence — but as what the launch does.
+	if !strings.Contains(out, "Guard") || !strings.Contains(out, "launch") {
+		t.Errorf("start no longer says the launch runs the loop guard:\n%s", out)
 	}
 }
 

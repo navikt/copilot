@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -701,6 +702,59 @@ var probeCompletion = func(ctx context.Context, baseURL, model string) (int, err
 	return parsed.Usage.CompletionTokens, nil
 }
 
+// portInUse reports whether something already holds 127.0.0.1:port. A bind is
+// the only check that answers for every listener, including one owned by
+// another user that this process may not signal or inspect.
+//
+// A func var, like every other external interaction here, so the lifecycle
+// tests do not depend on which ports happen to be free on the machine running
+// them.
+var portInUse = func(port int) bool {
+	ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+	if err != nil {
+		return true
+	}
+	_ = ln.Close()
+	return false
+}
+
+// servedModel asks whatever is on a port which model it serves, so a refusal
+// can name it. "" for anything that does not answer as an OpenAI-compatible
+// server — which is itself worth printing.
+//
+// This identifies; it does not authorise. A stranger reporting the model id
+// nav-pilot wanted is still a stranger: the wired-memory limit it runs under,
+// the MLX_* params it was given and the context it was configured with are all
+// invisible over HTTP, so a matching id would only make an adoption look
+// justified. Hence [Server.Start] refuses either way and uses this for the
+// message alone.
+var servedModel = func(ctx context.Context, baseURL string) string {
+	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/v1/models", nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	var parsed struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &parsed); err != nil || len(parsed.Data) == 0 {
+		return ""
+	}
+	return parsed.Data[0].ID
+}
+
 // Server is one supervised mlx-lm process. Zero value is usable; Port 0 means
 // [DefaultPort].
 type Server struct {
@@ -731,7 +785,8 @@ func (s *Server) URL() string {
 
 // Start launches the mlx-lm server for a manifest model and returns when it has
 // answered a real completion — not when it has bound the port. A caller that
-// gets a nil error has a server that has loaded the model.
+// gets a nil error has a server that has loaded the model, and one this process
+// started.
 //
 // The manifest entry's MLX_* params go in as environment, unchanged and
 // untyped, so a knob the generator adds reaches the server without a nav-pilot
@@ -747,6 +802,26 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 		port = DefaultPort
 		s.Port = port
 	}
+	s.mu.Unlock()
+
+	// Refuse a port this process does not own, before anything is spawned.
+	//
+	// This is the failure that made the check exist: a stale mlx_lm.server from
+	// an earlier session still held the port, the child could not bind and
+	// exited within milliseconds, and the readiness probe below was answered by
+	// the stranger. Start reported ready, and every prompt for the rest of the
+	// day went to a model nav-pilot did not choose, under a memory cap it never
+	// checked, with nothing on screen to say so.
+	if portInUse(port) {
+		return fmt.Errorf(
+			"127.0.0.1:%d is in use, and nav-pilot did not start what is listening there%s.\n\n"+
+				"  Refusing to start: a server already on this port answers the readiness probe, so nav-pilot would report a model it did not launch and cannot vouch for.\n\n"+
+				"  Stop it, then start again:\n\n    %s",
+			port, describeForeignServer(ctx, fmt.Sprintf("http://127.0.0.1:%d", port)),
+			domain.Bold(fmt.Sprintf("lsof -ti tcp:%d | xargs kill", port)))
+	}
+
+	s.mu.Lock()
 	s.model, s.ready, s.exit, s.started = model.Model, false, nil, time.Now()
 	s.mu.Unlock()
 
@@ -793,7 +868,7 @@ func (s *Server) waitReady(ctx context.Context, model string) error {
 	var last error
 	for {
 		if info := s.exited(); info != nil {
-			return fmt.Errorf("the local %s server exited before it was ready: %s", model, describeExit(*info))
+			return exitedBeforeReady(model, *info)
 		}
 		probeCtx, cancel := context.WithTimeout(ctx, healthTimeout)
 		tokens, err := probeCompletion(probeCtx, s.URL(), model)
@@ -802,6 +877,14 @@ func (s *Server) waitReady(ctx context.Context, model string) error {
 		case err != nil:
 			last = err
 		case tokens > 0:
+			// An answer proves something is on the port, not that it is ours.
+			// The exit is re-checked here rather than only before the probe:
+			// a child that could not bind dies in the window the probe spends
+			// on the wire, and accepting this answer is how a stranger becomes
+			// nav-pilot's server.
+			if info := s.exited(); info != nil {
+				return exitedBeforeReady(model, *info)
+			}
 			s.mu.Lock()
 			s.ready = true
 			s.mu.Unlock()
@@ -944,6 +1027,22 @@ func (s *Server) exited() *exitInfo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.exit
+}
+
+// exitedBeforeReady is the one thing readiness can conclude from a dead child:
+// whatever answered, it was not this server.
+func exitedBeforeReady(model string, info exitInfo) error {
+	return fmt.Errorf(
+		"the local %s server exited before it was ready: %s.\n\n  Anything answering on its port now is not nav-pilot's server",
+		model, describeExit(info))
+}
+
+// describeForeignServer names what is on a port, for a refusal message.
+func describeForeignServer(ctx context.Context, baseURL string) string {
+	if id := servedModel(ctx, baseURL); id != "" {
+		return fmt.Sprintf(" — it serves %s", id)
+	}
+	return " — it does not answer /v1/models, so it is not an mlx-lm server at all"
 }
 
 func describeExit(info exitInfo) string {
