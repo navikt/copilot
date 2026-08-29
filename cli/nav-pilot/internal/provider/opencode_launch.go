@@ -271,7 +271,7 @@ func EnsureOpenCodeLocalProvider(m local.Model) error {
 				// through the thing that can stop a runaway loop.
 				"baseURL":      local.GuardURL() + "/v1",
 				"apiKey":       "nav-pilot",
-				"chunkTimeout": localParamInt(m, "MLX_OPENCODE_CHUNK_TIMEOUT", 600000),
+				"chunkTimeout": chunkTimeoutMS(m),
 				"timeout":      false,
 			},
 			"models": map[string]any{
@@ -284,8 +284,72 @@ func EnsureOpenCodeLocalProvider(m local.Model) error {
 			},
 		}
 		cfg["provider"] = providers
+		bindLocalWorker(cfg, m)
 		return true
 	})
+}
+
+// bindLocalWorker pins the worker subagent to the local model, and is the
+// difference between the alpha saving premium requests and spending more of
+// them. An opencode agent with no model of its own runs on the session's
+// model: with a cloud main agent, every task dispatched to `lokal-arbeider`
+// would have gone to the cloud, at cloud prices, while the dispatch policy
+// beside it told the main agent those tasks were free.
+//
+// The materialized agent file cannot carry it — transformAgent reduces every
+// agent's frontmatter to description and mode — and it should not: the model
+// id is the developer's resolved manifest entry, not a property of the agent
+// text, and the same file is synced to machines with no local model at all.
+//
+// `agent.<name>.model` is opencode's own per-agent selection (config.json
+// $defs.AgentConfig.model, "provider/model"), verified on opencode 1.18.23:
+// `opencode debug agent lokal-arbeider` resolves this block to
+// {"providerID": "mlx", "modelID": "<id>"}.
+//
+// Merging rather than replacing, for the same reason every other writer here
+// merges: a developer who set their own tools or permission on this agent
+// keeps them, and only the model is nav-pilot's.
+func bindLocalWorker(cfg map[string]any, m local.Model) bool {
+	agents, _ := cfg["agent"].(map[string]any)
+	if agents == nil {
+		agents = make(map[string]any)
+	}
+	worker, _ := agents[local.WorkerAgent].(map[string]any)
+	if worker == nil {
+		worker = make(map[string]any)
+	}
+	want := LocalProviderID + "/" + m.Model
+	if worker["model"] == want {
+		return false
+	}
+	worker["model"] = want
+	agents[local.WorkerAgent] = worker
+	cfg["agent"] = agents
+	return true
+}
+
+// unbindLocalWorker takes the binding back out, leaving anything else the
+// developer put on that agent — and the "agent" key itself when nav-pilot is
+// what emptied it.
+func unbindLocalWorker(cfg map[string]any) bool {
+	agents, _ := cfg["agent"].(map[string]any)
+	worker, found := agents[local.WorkerAgent].(map[string]any)
+	if !found {
+		return false
+	}
+	if _, hadModel := worker["model"]; !hadModel {
+		return false
+	}
+	delete(worker, "model")
+	if len(worker) == 0 {
+		delete(agents, local.WorkerAgent)
+	}
+	if len(agents) == 0 {
+		delete(cfg, "agent")
+	} else {
+		cfg["agent"] = agents
+	}
+	return true
 }
 
 // RemoveOpenCodeLocalProvider takes the local provider block back out of
@@ -302,9 +366,13 @@ func EnsureOpenCodeLocalProvider(m local.Model) error {
 // was never configured.
 func RemoveOpenCodeLocalProvider() error {
 	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		// The worker's binding goes with it: a subagent pinned to a provider
+		// that is no longer registered is a session that fails on dispatch
+		// rather than one that falls back.
+		unbound := unbindLocalWorker(cfg)
 		providers, _ := cfg["provider"].(map[string]any)
 		if _, found := providers[LocalProviderID]; !found {
-			return false
+			return unbound
 		}
 		delete(providers, LocalProviderID)
 		// An empty "provider": {} left behind is nav-pilot's litter in someone
@@ -350,10 +418,47 @@ func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 	if err != nil {
 		return fmt.Errorf("marshalling opencode config: %w", err)
 	}
-	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+	return writeConfigAtomically(path, append(out, '\n'))
+}
+
+// writeConfigAtomically replaces the developer's config in one step: a
+// temporary file in the same directory, then a rename.
+//
+// A plain write truncates first, so a crash, a full disk or a killed terminal
+// between truncate and write leaves a half-written opencode.json — a file
+// nav-pilot owns a few keys in and the developer owns the rest of, which
+// opencode then refuses to parse and nav-pilot's own merge refuses to touch.
+// Same directory because a rename is only atomic within a filesystem.
+func writeConfigAtomically(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".opencode.json.*")
+	if err != nil {
+		return fmt.Errorf("creating temporary opencode config: %w", err)
+	}
+	defer os.Remove(tmp.Name())
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		return fmt.Errorf("setting opencode config permissions: %w", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
 		return fmt.Errorf("writing opencode config: %w", err)
 	}
-	return os.Chmod(path, 0o600)
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("writing opencode config: %w", err)
+	}
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return fmt.Errorf("replacing opencode config: %w", err)
+	}
+	return nil
+}
+
+// chunkTimeoutMS is the gap opencode tolerates between streamed tokens, in
+// milliseconds. One function because two places state it: the provider block
+// configures it and [LocalDispatchPolicy] tells the main agent how long to
+// wait, and a dispatcher that gives up first can duplicate an edit that is
+// still in flight.
+func chunkTimeoutMS(m local.Model) int {
+	return localParamInt(m, "MLX_OPENCODE_CHUNK_TIMEOUT", 600000)
 }
 
 // localParamInt reads one MLX_ param as an integer, falling back to a
@@ -406,9 +511,9 @@ func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 	if m.Role != "" || m.Expect != "" {
 		b.WriteString("\n")
 	}
-	b.WriteString("Send dit: oppslag i koden, kommentarer, loggsetninger, omdøping av et symbol, en enkelt testfil.\n")
-	b.WriteString("Ikke send dit: endringer over flere filer, oppgaver som krever mange runder, endringer der en feil endring er dyr.\n\n")
-	b.WriteString("Den svarer på sekunder. Uteblir svaret i to minutter, har den feilet — den er ikke treg.\n\n")
+	b.WriteString("Send dit: oppslag i koden, kommentarer, loggsetninger, en enkelt testfil, og mekaniske endringer som følger ett mønster — en omdøping treffer kallstedene i flere filer og hører likevel hjemme her.\n")
+	b.WriteString("Ikke send dit: endringer som krever en egen vurdering per fil, oppgaver som krever mange runder, endringer der en feil endring er dyr.\n\n")
+	fmt.Fprintf(&b, "Den svarer som regel på sekunder, men ett enkelt token er målt til tre og et halvt minutt under last. Klienten gir opp av seg selv etter %d minutter uten svar — vent til den gjør det. Avbryter du før, kan du duplisere en endring som fortsatt er underveis.\n\n", max(1, chunkTimeoutMS(m)/60000))
 	b.WriteString("Den feiler på to måter, og begge betyr at du tar oppgaven selv i stedet for å sende den om igjen:\n")
 	b.WriteString("- Den sier ofte nei og endrer ingenting. Kontroller at filen faktisk er endret før du går videre.\n")
 	fmt.Fprintf(&b, "- Den kan gjenta samme verktøykall til nav-pilot avslutter turen etter %d like kall på rad.\n", loopGuard)
@@ -433,12 +538,20 @@ func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 // instructions entry upward from the project directory, not from the config
 // directory the file lives in — a relative name would resolve for nobody.
 //
-// Gated on [local.IsLocal], the same predicate as [startLoopGuard]: with local
-// dispatch off there is no file and no entry, and the ~650 developers who never
-// turn the alpha on get a launch that is byte-identical to the one they have.
+// Gated on [local.IsLocal], the same predicate as [startLoopGuard]. A hosted
+// launch unregisters rather than returns: the entry lives in a config file that
+// outlives the session that wrote it, so a developer who launches local once
+// and hosted afterwards would keep reading "costs no premium requests" about a
+// worker that is now billing every dispatch to their session model. The ~650
+// developers who never turn the alpha on have nothing to unregister, so their
+// launch stays byte-identical to the one they have.
+//
+// The binding goes in the same mutate as the entry, so the claim and the thing
+// that makes it true are one write: there is no config in which the fragment is
+// registered and the worker is not pinned to the local model.
 func EnsureOpenCodeLocalPolicy(model string) error {
 	if !local.IsLocal(model) {
-		return nil
+		return RemoveOpenCodeLocalPolicy()
 	}
 	m, _ := local.Lookup(model)
 	path := localPolicyPath()
@@ -449,9 +562,10 @@ func EnsureOpenCodeLocalPolicy(model string) error {
 		return fmt.Errorf("writing the local dispatch policy: %w", err)
 	}
 	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		bound := bindLocalWorker(cfg, m)
 		entries, _ := cfg["instructions"].([]any)
 		if slices.Contains(entries, any(path)) {
-			return false
+			return bound
 		}
 		cfg["instructions"] = append(entries, path)
 		return true

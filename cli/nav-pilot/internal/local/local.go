@@ -414,6 +414,13 @@ func Lookup(model string) (Model, bool) {
 // able to switch a stranger's launch onto a local model.
 var enabled bool
 
+// WorkerAgent is the Nav agent the main agent dispatches focused tasks to.
+// Named here rather than in the packages that use it because two of them need
+// the same string for opposite reasons: the launch binds it to the local model
+// in opencode's config, and the artifact sync refuses to materialize it at all
+// while [Enabled] is false.
+const WorkerAgent = "lokal-arbeider"
+
 // SetEnabled turns local dispatch on or off for this process. nav-pilot sets it
 // once at startup from the persisted config, and only true when local is both
 // installed ([Installed]) and enabled by the developer.

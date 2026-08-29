@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -714,5 +715,37 @@ func TestExportAllowsCanonicalAgentpakke(t *testing.T) {
 		if _, err2 := os.Stat(filepath.Join(outputDir, ".opencode")); err2 != nil {
 			t.Errorf("canonical agentpakke export wrote nothing: %v", err)
 		}
+	}
+}
+
+// TestWorkerAgentIsOnlyMaterializedForTheOptedIn: lokal-arbeider promises work
+// that costs no premium requests, and only a launch with local dispatch on can
+// keep that promise. For the ~650 developers who never run `nav-pilot alpha
+// local init` it would be a worker with nothing behind it, so the normal sync
+// does not ship it — and the sync's own pruning takes an already materialized
+// copy back out once local goes off.
+func TestWorkerAgentIsOnlyMaterializedForTheOptedIn(t *testing.T) {
+	sourceDir := t.TempDir()
+	mustWrite(t, filepath.Join(sourceDir, "agents", local.WorkerAgent+".agent.md"),
+		"---\nname: "+local.WorkerAgent+"\ndescription: Kjører avgrensede oppgaver på en lokal modell\n---\n\nDu kjører på en lokal modell.\n")
+	mustWrite(t, filepath.Join(sourceDir, "agents", "auth.agent.md"),
+		"---\nname: auth\ndescription: Authentication expert\n---\n\nYou handle auth.\n")
+
+	names := func() []string {
+		var got []string
+		for _, e := range agentEntries(sourceDir) {
+			got = append(got, e.Name)
+		}
+		return got
+	}
+
+	if got := names(); len(got) != 1 || got[0] != "auth" {
+		t.Errorf("agents materialized with local dispatch off = %v, want only [auth]", got)
+	}
+
+	local.SetEnabled(true)
+	t.Cleanup(func() { local.SetEnabled(false) })
+	if got := names(); len(got) != 2 {
+		t.Errorf("agents materialized with local dispatch on = %v, want both", got)
 	}
 }
