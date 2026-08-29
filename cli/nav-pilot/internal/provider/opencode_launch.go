@@ -290,7 +290,7 @@ func EnsureOpenCodeLocalProvider(m local.Model) error {
 }
 
 // bindLocalWorker pins the worker subagent to the local model, and is the
-// difference between the alpha saving premium requests and spending more of
+// difference between the alpha saving AI credits and spending more of
 // them. An opencode agent with no model of its own runs on the session's
 // model: with a cloud main agent, every task dispatched to `lokal-arbeider`
 // would have gone to the cloud, at cloud prices, while the dispatch policy
@@ -501,7 +501,7 @@ func localPolicyPath() string {
 func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 	var b strings.Builder
 	b.WriteString("# Lokal arbeider på denne maskinen\n\n")
-	fmt.Fprintf(&b, "Agenten `lokal-arbeider` kjører på %s her på maskinen og koster ingen premium-forespørsler. Avgrensede oppgaver hører hjemme der.\n\n", m.Model)
+	fmt.Fprintf(&b, "Agenten `lokal-arbeider` kjører på %s her på maskinen. Den trekker ingen AI-credits: alt den genererer er gratis, uansett hvor mange tokens det blir. Det er hele poenget med å sende noe dit.\n\n", m.Model)
 	if m.Role != "" {
 		fmt.Fprintf(&b, "Rollen modellen er valgt for: %s\n", m.Role)
 	}
@@ -512,10 +512,11 @@ func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 		b.WriteString("\n")
 	}
 	b.WriteString("Send dit: oppslag i koden, kommentarer, loggsetninger, en enkelt testfil, og mekaniske endringer som følger ett mønster — en omdøping treffer kallstedene i flere filer og hører likevel hjemme her.\n")
+	b.WriteString("Beskriv endringen ferdig når du sender: hvilken fil, hvilken linje, hva den skal bli. Modellen er god til å utføre en avgjørelse og dårlig til å ta den, så jo mindre den må gjette, jo oftere blir det riktig første gang.\n")
 	b.WriteString("Ikke send dit: endringer som krever en egen vurdering per fil, oppgaver som krever mange runder, endringer der en feil endring er dyr.\n\n")
 	fmt.Fprintf(&b, "Den svarer som regel på sekunder, men ett enkelt token er målt til tre og et halvt minutt under last. Klienten gir opp av seg selv etter %d minutter uten svar — vent til den gjør det. Avbryter du før, kan du duplisere en endring som fortsatt er underveis.\n\n", max(1, chunkTimeoutMS(m)/60000))
-	b.WriteString("Den feiler på to måter, og begge betyr at du tar oppgaven selv i stedet for å sende den om igjen:\n")
-	b.WriteString("- Den sier ofte nei og endrer ingenting. Kontroller at filen faktisk er endret før du går videre.\n")
+	b.WriteString("Den feiler på to måter. Begge er billige å oppdage, og begge betyr at du tar oppgaven selv i stedet for å sende den om igjen:\n")
+	b.WriteString("- Den sier ofte nei og endrer ingenting. Sjekk at filen faktisk er endret. Er den ikke det, har du tapt noen sekunder og ingen credits.\n")
 	fmt.Fprintf(&b, "- Den kan gjenta samme verktøykall til nav-pilot avslutter turen etter %d like kall på rad.\n", loopGuard)
 	return b.String()
 }
@@ -543,7 +544,7 @@ func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 // which [startLocalDispatch] calls whenever there is no worker: the entry lives
 // in a config file that outlives the session that wrote it, so a developer who
 // turns the alpha off — or launches with no server up — would otherwise keep
-// reading "costs no premium requests" about a worker that is not there. The
+// reading "draws no AI credits" about a worker that is not there. The
 // ~650 developers who never turn the alpha on have nothing to unregister, so
 // their launch stays byte-identical to the one they have.
 //
@@ -751,7 +752,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	}
 	if worker.Model == "" {
 		// Off, or on with nothing behind it. Either way the dispatch policy
-		// goes: it tells every session the worker costs no premium requests,
+		// goes: it tells every session the worker draws no AI credits,
 		// and there is now no worker for that to be true about. Nothing is
 		// written when there is nothing to remove, which is what keeps a launch
 		// with the alpha off byte-identical to the one it has always been.

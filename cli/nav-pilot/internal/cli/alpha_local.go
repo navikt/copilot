@@ -561,7 +561,7 @@ func cmdLocalOff() error {
 	// on. nav-pilot's own config only decides what nav-pilot launches; both of
 	// these live in a file opencode reads by itself, and they are two separate
 	// writes to it. The dispatch policy tells every session that the worker
-	// costs no premium requests, and only the binding taken out below makes
+	// draws no AI credits, and only the binding taken out below makes
 	// that true, so a crash between the two writes must not be able to leave
 	// the fragment registered with the worker unbound: that is a session still
 	// dispatching to a "free" worker that now bills every task to the session

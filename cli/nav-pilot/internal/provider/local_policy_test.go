@@ -249,7 +249,7 @@ func workerModel(t *testing.T) string {
 // TestLocalWorkerIsBoundToTheLocalModel is the alpha's cost premise, pinned. An
 // opencode subagent with no model of its own runs on the session's model, so
 // without this block a cloud main agent dispatching to `lokal-arbeider` spends
-// the premium requests the dispatch policy tells it are free.
+// the tokens the dispatch policy tells it are free.
 func TestLocalWorkerIsBoundToTheLocalModel(t *testing.T) {
 	withOpenCodeConfig(t)
 	withLocalEnabled(t)
@@ -292,7 +292,7 @@ func TestLocalWorkerIsBoundToTheLocalModel(t *testing.T) {
 }
 
 // TestDispatchPolicyAndBindingArriveTogether: the fragment says the worker
-// costs no premium requests, and only the binding makes that true. Registering
+// draws no AI credits, and only the binding makes that true. Registering
 // one without the other is the sentence surviving into a session where it is
 // false, so they are one write.
 func TestDispatchPolicyAndBindingArriveTogether(t *testing.T) {
@@ -314,7 +314,7 @@ func TestDispatchPolicyAndBindingArriveTogether(t *testing.T) {
 
 // TestTurningLocalOffUnregistersTheDispatchPolicy: the entry outlives the
 // session that wrote it, so a developer who turns the alpha off would otherwise
-// keep reading "koster ingen premium-forespørsler" about a worker nothing
+// keep reading "trekker ingen AI-credits" about a worker nothing
 // dispatches to any more.
 //
 // What triggers it is local being off, not the session model being hosted. That

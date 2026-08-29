@@ -280,7 +280,7 @@ func transformPrompt(data []byte) []byte {
 // It is [source.SourceResolver.List] minus [local.WorkerAgent] while local
 // dispatch is off, which is every launch for the ~650 developers who never run
 // `nav-pilot alpha local init`. That agent's description promises work that
-// costs no premium requests, and it can only keep that promise when the launch
+// draws no AI credits, and it can only keep that promise when the launch
 // has bound it to the local provider model — so shipping it to a machine with
 // no local model offers a worker that quietly runs on the session's own model
 // and bills for it.

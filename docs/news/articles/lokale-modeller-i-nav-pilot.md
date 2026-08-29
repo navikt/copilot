@@ -47,7 +47,9 @@ Vi valgte OptiQ-varianten nettopp derfor: den vanlige 4-bit-varianten løp løps
 
 ## Hva vi ikke vet
 
-**Vi vet ikke om dette sparer penger.** Hovedagenten bruker fortsatt en premium-forespørsel per oppgave den sender videre. Om regnestykket går opp, avhenger av forholdet mellom orkestrering og utsendte oppgaver, og det tallet har ingen målt. Det er derfor vi kjører en alfa.
+**På én oppgavetype sparer det penger, og vi har målt hvor mye.** Å tre et nytt felt gjennom en dataklasse, mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten, som median over 20 kjøringer på samme oppgave og samme commit. Testresultatet var det samme i begge armene. Det tok lengre tid: 156 sekunder mot 100.
+
+Det gjelder den oppgavetypen, ikke alle. To andre oppgaver vi målte sendte hovedagenten aldri videre i det hele tatt — den vurderte at den gjorde jobben raskere selv, og den hadde antakelig rett. Hvor ofte den velger å sende noe videre er tallet som avgjør om dette lønner seg i praksis, og det varierer med oppgaven.
 
 **Ingen har brukt dette en hel arbeidsdag.** Alle tallene over kommer fra kjøringer med elleve oppgaver, ikke fra noen som satt og gjorde jobben sin.
 
@@ -55,6 +57,6 @@ Vi valgte OptiQ-varianten nettopp derfor: den vanlige 4-bit-varianten løp løps
 
 ## Vil du være med?
 
-Meld deg hvis du har en Mac med 48 GB minne og treffer taket på premium-forespørsler. Vi vil særlig vite om noe henger i mer enn to minutter, om en løkke slipper forbi vakten på åtte kall, og om en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
+Meld deg hvis du har en Mac med 48 GB minne og bruker opp AI-creditsene dine. Vi vil særlig vite om noe henger i mer enn to minutter, om en løkke slipper forbi vakten på åtte kall, og om en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
 
 Alle målingene ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), inkludert de som gikk galt.
