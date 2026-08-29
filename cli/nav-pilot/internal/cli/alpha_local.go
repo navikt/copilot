@@ -566,6 +566,13 @@ func cmdLocalOff() error {
 		fmt.Fprintf(os.Stderr, "%s Could not remove the local model from opencode: %v\n", yellow("⚠"), err)
 	}
 
+	// And the dispatch policy the launch wrote beside it, for the same reason:
+	// it is registered in that same file, and left there it keeps telling every
+	// session to hand work to a worker that is no longer reachable.
+	if err := providerpkg.RemoveOpenCodeLocalPolicy(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not remove the local dispatch policy from opencode: %v\n", yellow("⚠"), err)
+	}
+
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
 		fmt.Printf("%s The server is still running (pid %d) — %s to free the memory.\n",
 			yellow("⚠"), st.PID, bold("nav-pilot alpha local stop"))

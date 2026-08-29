@@ -277,6 +277,51 @@ func TestLocalOffTakesTheModelOutOfOpenCode(t *testing.T) {
 
 // TestLocalOffWithNoOpenCodeConfigIsNotAnError: off has to work on a machine
 // where opencode was never configured.
+// TestLocalOffTakesTheDispatchPolicyOutOfOpenCode: off removes what the launch
+// provisioned, both halves of it. A policy left registered keeps telling every
+// session — hosted ones included — to hand work to a worker that is no longer
+// reachable.
+func TestLocalOffTakesTheDispatchPolicyOutOfOpenCode(t *testing.T) {
+	localTestHome(t)
+	dir := t.TempDir()
+	providerpkg.ConfigPathOverride = filepath.Join(dir, "opencode.json")
+	t.Cleanup(func() { providerpkg.ConfigPathOverride = "" })
+
+	models := local.Active().Models
+	if len(models) == 0 {
+		t.Fatal("the embedded local-model manifest names no models")
+	}
+	local.SetEnabled(true)
+	if err := providerpkg.EnsureOpenCodeLocalPolicy(models[0].Model); err != nil {
+		t.Fatalf("provisioning the dispatch policy: %v", err)
+	}
+	policy := filepath.Join(dir, "nav-pilot-lokal-dispatch.md")
+	if _, err := os.Stat(policy); err != nil {
+		t.Fatalf("the dispatch policy was not provisioned: %v", err)
+	}
+
+	captureStdout(func() {
+		if err := cmdLocalOff(); err != nil {
+			t.Fatalf("cmdLocalOff() errored: %v", err)
+		}
+	})
+
+	if _, err := os.Stat(policy); !os.IsNotExist(err) {
+		t.Error("`alpha local off` left the dispatch policy on disk")
+	}
+	raw, err := os.ReadFile(providerpkg.ConfigPathOverride)
+	if err != nil {
+		t.Fatalf("reading the opencode config back: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatalf("`alpha local off` left invalid JSON in the opencode config: %v", err)
+	}
+	if _, found := cfg["instructions"]; found {
+		t.Errorf("`alpha local off` left the dispatch policy registered: %v", cfg["instructions"])
+	}
+}
+
 func TestLocalOffWithNoOpenCodeConfig(t *testing.T) {
 	localTestHome(t)
 	providerpkg.ConfigPathOverride = filepath.Join(t.TempDir(), "absent.json")

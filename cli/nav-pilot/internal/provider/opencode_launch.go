@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -257,53 +258,34 @@ const LocalProviderID = "mlx"
 // minutes, and the default timeout drops the connection mid-generation and
 // returns an empty response the client does not report as a failure.
 func EnsureOpenCodeLocalProvider(m local.Model) error {
-	path := openCodeConfigPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("creating opencode config dir: %w", err)
-	}
-	cfg := map[string]any{"$schema": "https://opencode.ai/config.json"}
-	if data, err := os.ReadFile(path); err == nil {
-		if err := json.Unmarshal(data, &cfg); err != nil {
-			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		providers, _ := cfg["provider"].(map[string]any)
+		if providers == nil {
+			providers = make(map[string]any)
 		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("reading opencode config: %w", err)
-	}
-
-	providers, _ := cfg["provider"].(map[string]any)
-	if providers == nil {
-		providers = make(map[string]any)
-	}
-	providers[LocalProviderID] = map[string]any{
-		"npm":  "@ai-sdk/openai-compatible",
-		"name": "Local (nav-pilot)",
-		"options": map[string]any{
-			// The loop guard, not the server: every completion has to pass
-			// through the thing that can stop a runaway loop.
-			"baseURL":      local.GuardURL() + "/v1",
-			"apiKey":       "nav-pilot",
-			"chunkTimeout": localParamInt(m, "MLX_OPENCODE_CHUNK_TIMEOUT", 600000),
-			"timeout":      false,
-		},
-		"models": map[string]any{
-			m.Model: map[string]any{
-				"limit": map[string]any{
-					"context": localParamInt(m, "MLX_OPENCODE_CONTEXT", 32768),
-					"output":  localParamInt(m, "MLX_OPENCODE_OUTPUT", 8192),
+		providers[LocalProviderID] = map[string]any{
+			"npm":  "@ai-sdk/openai-compatible",
+			"name": "Local (nav-pilot)",
+			"options": map[string]any{
+				// The loop guard, not the server: every completion has to pass
+				// through the thing that can stop a runaway loop.
+				"baseURL":      local.GuardURL() + "/v1",
+				"apiKey":       "nav-pilot",
+				"chunkTimeout": localParamInt(m, "MLX_OPENCODE_CHUNK_TIMEOUT", 600000),
+				"timeout":      false,
+			},
+			"models": map[string]any{
+				m.Model: map[string]any{
+					"limit": map[string]any{
+						"context": localParamInt(m, "MLX_OPENCODE_CONTEXT", 32768),
+						"output":  localParamInt(m, "MLX_OPENCODE_OUTPUT", 8192),
+					},
 				},
 			},
-		},
-	}
-	cfg["provider"] = providers
-
-	out, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling opencode config: %w", err)
-	}
-	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
-		return fmt.Errorf("writing opencode config: %w", err)
-	}
-	return os.Chmod(path, 0o600)
+		}
+		cfg["provider"] = providers
+		return true
+	})
 }
 
 // RemoveOpenCodeLocalProvider takes the local provider block back out of
@@ -319,31 +301,51 @@ func EnsureOpenCodeLocalProvider(m local.Model) error {
 // nothing to do rather than errors: off must work on a machine where opencode
 // was never configured.
 func RemoveOpenCodeLocalProvider() error {
-	path := openCodeConfigPath()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
+	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		providers, _ := cfg["provider"].(map[string]any)
+		if _, found := providers[LocalProviderID]; !found {
+			return false
 		}
+		delete(providers, LocalProviderID)
+		// An empty "provider": {} left behind is nav-pilot's litter in someone
+		// else's file, so it goes too — but only when nav-pilot emptied it.
+		if len(providers) == 0 {
+			delete(cfg, "provider")
+		} else {
+			cfg["provider"] = providers
+		}
+		return true
+	})
+}
+
+// mutateOpenCodeConfig reads opencode's config, hands the parsed object to
+// mutate, and writes it back only when mutate reports it changed something.
+//
+// Every writer here needs the same merge, and for the same reason
+// [EnsureOpenCodeLocalProvider] states: the file is the developer's and
+// nav-pilot owns a few keys in it, not the file. A config that is not there is
+// one to create rather than an error, because `start` has to work on a machine
+// where opencode was never configured; a config that is there and unparseable
+// is an error, because guessing at it would overwrite whatever the developer
+// actually wrote.
+func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
+	path := openCodeConfigPath()
+	cfg := map[string]any{"$schema": "https://opencode.ai/config.json"}
+	data, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+		}
+	case !os.IsNotExist(err):
 		return fmt.Errorf("reading opencode config: %w", err)
 	}
-	var cfg map[string]any
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
-	}
-	providers, _ := cfg["provider"].(map[string]any)
-	if _, found := providers[LocalProviderID]; !found {
+	if !mutate(cfg) {
 		return nil
 	}
-	delete(providers, LocalProviderID)
-	// An empty "provider": {} left behind is nav-pilot's litter in someone
-	// else's file, so it goes too — but only when nav-pilot emptied it.
-	if len(providers) == 0 {
-		delete(cfg, "provider")
-	} else {
-		cfg["provider"] = providers
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
-
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshalling opencode config: %w", err)
@@ -362,6 +364,127 @@ func localParamInt(m local.Model, key string, fallback int) int {
 		return n
 	}
 	return fallback
+}
+
+// localPolicyFileName is the dispatch policy's name in opencode's config
+// directory. It is nav-pilot's file and nobody else's: nothing merges into it,
+// `alpha local off` deletes it, and it sits at the root of that directory
+// rather than under agents/ or instructions/ so the Nav context sync never
+// counts it as one of its own and never deletes it out from under a session.
+const localPolicyFileName = "nav-pilot-lokal-dispatch.md"
+
+func localPolicyPath() string {
+	return filepath.Join(filepath.Dir(openCodeConfigPath()), localPolicyFileName)
+}
+
+// LocalDispatchPolicy is what the main agent is told about the local worker:
+// that it exists, what it is good at, and how it fails.
+//
+// Generated rather than shipped as a file, because everything load-bearing in
+// it moves. The model id and the role and expect prose come from the resolved
+// manifest entry, which is a file in another repo; the threshold is the
+// developer's local_loop_guard. A hand-written copy is wrong the first time any
+// of them changes, and wrong in the direction that costs: what is safe to
+// dispatch is a property of the model behind the endpoint, and we have measured
+// two that fail in opposite directions — one declines to edit, the other loops.
+// Naming the model is also what makes a transcript readable later, when someone
+// reports an edit that went wrong.
+//
+// A pure function of its inputs, which is the point: opencode reads the file
+// into the system prompt, and the 99.3–99.5% prompt-cache reuse a local session
+// depends on holds only while that prefix is byte-identical from turn to turn.
+func LocalDispatchPolicy(m local.Model, loopGuard int) string {
+	var b strings.Builder
+	b.WriteString("# Lokal arbeider på denne maskinen\n\n")
+	fmt.Fprintf(&b, "Agenten `lokal-arbeider` kjører på %s her på maskinen og koster ingen premium-forespørsler. Avgrensede oppgaver hører hjemme der.\n\n", m.Model)
+	if m.Role != "" {
+		fmt.Fprintf(&b, "Rollen modellen er valgt for: %s\n", m.Role)
+	}
+	if m.Expect != "" {
+		fmt.Fprintf(&b, "Hva den faktisk leverer: %s\n", m.Expect)
+	}
+	if m.Role != "" || m.Expect != "" {
+		b.WriteString("\n")
+	}
+	b.WriteString("Send dit: oppslag i koden, kommentarer, loggsetninger, omdøping av et symbol, en enkelt testfil.\n")
+	b.WriteString("Ikke send dit: endringer over flere filer, oppgaver som krever mange runder, endringer der en feil endring er dyr.\n\n")
+	b.WriteString("Den svarer på sekunder. Uteblir svaret i to minutter, har den feilet — den er ikke treg.\n\n")
+	b.WriteString("Den feiler på to måter, og begge betyr at du tar oppgaven selv i stedet for å sende den om igjen:\n")
+	b.WriteString("- Den sier ofte nei og endrer ingenting. Kontroller at filen faktisk er endret før du går videre.\n")
+	fmt.Fprintf(&b, "- Den kan gjenta samme verktøykall til nav-pilot avslutter turen etter %d like kall på rad.\n", loopGuard)
+	return b.String()
+}
+
+// EnsureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
+// agent and points opencode at it, once per launch — not per turn, which is
+// what a stable prompt prefix requires.
+//
+// It writes its own file and registers it in the config's "instructions" array
+// rather than appending to AGENTS.md. opencode loads exactly one global
+// AGENTS.md, ~/.config/opencode/AGENTS.md, and that is the file
+// [EnsureOpenCodeNavContext] materializes Nav's own context into and refuses to
+// overwrite once the developer has edited it — so appending there would either
+// clobber someone's file or be dropped as a conflict. The instructions array is
+// the additive hook opencode does offer, it lives in the same config the
+// provider block already merges into, and it leaves the developer's own entries
+// alone.
+//
+// The registered path is absolute because opencode resolves a relative
+// instructions entry upward from the project directory, not from the config
+// directory the file lives in — a relative name would resolve for nobody.
+//
+// Gated on [local.IsLocal], the same predicate as [startLoopGuard]: with local
+// dispatch off there is no file and no entry, and the ~650 developers who never
+// turn the alpha on get a launch that is byte-identical to the one they have.
+func EnsureOpenCodeLocalPolicy(model string) error {
+	if !local.IsLocal(model) {
+		return nil
+	}
+	m, _ := local.Lookup(model)
+	path := localPolicyPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("creating opencode config dir: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.LoopGuardRepeat())), 0o600); err != nil {
+		return fmt.Errorf("writing the local dispatch policy: %w", err)
+	}
+	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		entries, _ := cfg["instructions"].([]any)
+		if slices.Contains(entries, any(path)) {
+			return false
+		}
+		cfg["instructions"] = append(entries, path)
+		return true
+	})
+}
+
+// RemoveOpenCodeLocalPolicy takes the dispatch policy back out, which is what
+// `alpha local off` owes the developer for the same reason
+// [RemoveOpenCodeLocalProvider] does: the instructions entry lives in a file
+// opencode reads on its own, so leaving it there keeps telling every session —
+// including a hosted one — to dispatch to a worker that is no longer reachable.
+// The next launch with local on writes both back.
+func RemoveOpenCodeLocalPolicy() error {
+	path := localPolicyPath()
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing the local dispatch policy: %w", err)
+	}
+	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		entries, _ := cfg["instructions"].([]any)
+		kept := slices.DeleteFunc(slices.Clone(entries), func(e any) bool { return e == any(path) })
+		if len(kept) == len(entries) {
+			return false
+		}
+		// An empty "instructions": [] left behind is nav-pilot's litter in
+		// someone else's file, so it goes too — but only when nav-pilot
+		// emptied it.
+		if len(kept) == 0 {
+			delete(cfg, "instructions")
+		} else {
+			cfg["instructions"] = kept
+		}
+		return true
+	})
 }
 
 // LaunchOpenCode launches opencode inside the cplt sandbox with the resolved config.
@@ -398,6 +521,14 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		defer guard.Close()
 		fmt.Fprintf(os.Stderr, "%s Local model: nav-pilot ends a turn after %d identical tool calls in a row.\n",
 			domain.Dim("ℹ"), local.LoopGuardRepeat())
+	}
+
+	// The main agent is told what the worker is for in the same session the
+	// worker becomes reachable. Non-fatal, like the Nav context above: a
+	// session without the policy dispatches badly, a refused launch dispatches
+	// nothing at all.
+	if err := EnsureOpenCodeLocalPolicy(resolved.Model); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 
 	suffix := ""
