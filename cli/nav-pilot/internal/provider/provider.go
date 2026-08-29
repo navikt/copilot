@@ -178,11 +178,17 @@ func (copilotProvider) Available() bool {
 
 func (copilotProvider) Launch(r domain.ResolvedConfig) error { return LaunchCopilotResolved(r) }
 func (copilotProvider) DefaultModel() string                 { return "" }
-func (copilotProvider) KnownModels() []domain.ModelChoice    { return knownCopilotModels }
-func (copilotProvider) ValidateModel(model string) error     { return domain.ValidateModelValue(model) }
+func (copilotProvider) KnownModels() []domain.ModelChoice {
+	return withLocalModels(knownCopilotModels)
+}
+func (copilotProvider) ValidateModel(model string) error { return domain.ValidateModelValue(model) }
 
 func (copilotProvider) ModelAdvisory(model string) string {
-	if domain.ValidateModelValue(model) != nil || isKnownCopilotModel(model) {
+	// A local model is recognised — by the manifest rather than by GitHub's
+	// catalogue — and the launch points the client at it. Advising the
+	// developer that the server may reject it would be advice about a server
+	// this session never talks to.
+	if domain.ValidateModelValue(model) != nil || isKnownCopilotModel(model) || local.IsLocal(model) {
 		return ""
 	}
 	return fmt.Sprintf(
@@ -222,13 +228,24 @@ func (openCodeProvider) Launch(r domain.ResolvedConfig) error { return LaunchOpe
 // never disagree.
 func (openCodeProvider) DefaultModel() string { return openCodeDefaultModel() }
 
-// KnownModels is the curated list plus, only when local inference is both
-// installed and enabled, the models this machine can serve itself. A developer
-// who has never run `nav-pilot alpha local init` sees exactly the list above,
-// which is the alpha's whole contract: [local.IsLocal] is false for them, so
-// this appends nothing and no launch path branches.
+// KnownModels is the curated list plus the models this machine can serve
+// itself. See [withLocalModels].
 func (openCodeProvider) KnownModels() []domain.ModelChoice {
-	models := knownOpenCodeModels
+	return withLocalModels(knownOpenCodeModels)
+}
+
+// withLocalModels appends the models this machine can serve itself, and only
+// when local inference is both installed and enabled. A developer who has never
+// run `nav-pilot alpha local init` sees exactly the curated list, which is the
+// alpha's whole contract: [local.IsLocal] is false for them, so this appends
+// nothing and no launch path branches.
+//
+// Both clients that can reach a local server offer them. opencode selects the
+// backend through a provider block, the Copilot CLI through the BYOK
+// environment ([copilotLocalEnv]), and neither is something a developer should
+// have to know to find the model in the picker.
+func withLocalModels(curated []domain.ModelChoice) []domain.ModelChoice {
+	models := curated
 	for _, m := range local.Active().Models {
 		if !local.IsLocal(m.Model) {
 			continue

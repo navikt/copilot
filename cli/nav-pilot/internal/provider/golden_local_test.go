@@ -249,9 +249,11 @@ func TestLocalBranchesTakeEffectWhenEnabled(t *testing.T) {
 	if !found {
 		t.Errorf("the opencode model picker does not offer %q with local enabled", id)
 	}
-	err := LaunchCopilotResolved(domain.ResolvedConfig{Model: id})
-	if err == nil || !strings.Contains(err.Error(), "cannot be pointed at a server on this machine") {
-		t.Errorf("LaunchCopilotResolved for a local model = %v, want a refusal naming the reason", err)
+	// The Copilot CLI is pointed at the loop guard rather than refused. Not
+	// LaunchCopilotResolved: on a machine that does have a local server
+	// recorded and running, that call launches a real client.
+	if got := telemetry.LookupEnvValue(copilotLocalEnv(nil, aLocalModel(t)), "COPILOT_PROVIDER_BASE_URL"); got != local.GuardURL()+"/v1" {
+		t.Errorf("copilotLocalEnv points the Copilot CLI at %q, want the loop guard at %q", got, local.GuardURL()+"/v1")
 	}
 }
 

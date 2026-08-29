@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -353,5 +355,33 @@ func TestGuardChecksOwnershipOnlyForCompletions(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/v1/models", nil))
 	if checks != 0 {
 		t.Errorf("GET /v1/models ran the ownership check %d times, want 0", checks)
+	}
+}
+
+// TestGuardReadsARealCopilotCLIRequest is the evidence that the loop guard
+// works for the Copilot CLI and not only for opencode.
+//
+// The two clients reach the same server, but nothing guaranteed they describe a
+// tool call the same way, and a guard that quietly forwards everything is worse
+// than no guard: the launch tells the developer a runaway loop will be stopped.
+//
+// testdata/copilot-cli-loop.json is a request captured from Copilot CLI 1.0.81
+// in BYOK mode (COPILOT_PROVIDER_BASE_URL at a recording proxy, wire API
+// "completions"), answered every time with the same `view` call so the client
+// looped for real. Only the parts the guard never reads were shortened — the
+// tool catalogue, and the system, user and tool-result contents. Every message
+// role, every tool_calls object and every argument string is what the client
+// sent.
+func TestGuardReadsARealCopilotCLIRequest(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("testdata", "copilot-cli-loop.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	call, n := repeatedToolCall(body)
+	if n != 6 {
+		t.Errorf("repeatedToolCall counted %d repeats in a real Copilot CLI request, want the 6 the client actually made", n)
+	}
+	if !strings.Contains(call, "view(") || !strings.Contains(call, "/work/calc.py") {
+		t.Errorf("the repeated call is named %q; a developer reading the refusal learns nothing from that", call)
 	}
 }

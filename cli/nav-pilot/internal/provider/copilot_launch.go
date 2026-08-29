@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -132,19 +133,21 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
-	// Local inference. The one branch on this path, and it is a refusal: the
-	// Copilot CLI gets its models from GitHub over an authenticated connection
-	// it opens itself, with no endpoint to redirect, so there is no honest way
-	// to point this launch at a server on this machine. Pretending otherwise
-	// would send the prompt to GitHub while the developer believed it stayed
-	// here — the one failure this whole feature exists to avoid.
+	// Local inference. The one branch on this path, and it used to be a
+	// refusal, on the belief that the Copilot CLI only ever resolves models
+	// through GitHub. It does not: `copilot help providers` documents BYOK,
+	// where COPILOT_PROVIDER_BASE_URL replaces GitHub's model routing outright.
+	// [copilotLocalWorker] is where that is set up, or refused for the reasons
+	// that are still true.
 	//
-	// False for everyone who has not opted in, so no existing launch reaches it.
-	if local.IsLocal(resolved.Model) {
-		return fmt.Errorf(
-			"%s is a local model, and the Copilot CLI cannot be pointed at a server on this machine — it resolves models through GitHub.\n\n  Launch it with opencode instead: %s",
-			resolved.Model, domain.Bold("nav-pilot --client opencode"))
+	// Nil guard for everyone who has not opted in, and for every hosted session
+	// of everyone who has, so no existing launch changes.
+	worker, guard, err := copilotLocalWorker(resolved.Model)
+	if err != nil {
+		return err
 	}
+	defer guard.Close()
+
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
@@ -153,7 +156,19 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	if cliName == "cplt" {
 		PrintCpltSandboxHint()
 	}
-	PrintModelAvailabilityHint(resolved.Model)
+	env := CopilotEnv(resolved.OtelLogLevel)
+	if guard == nil {
+		PrintModelAvailabilityHint(resolved.Model)
+	} else {
+		// Not PrintModelAvailabilityHint: it reads the publisher prefix as
+		// nav-pilot's provider-qualified spelling and tells the developer to
+		// drop it, which for a Hugging Face model id is the wrong advice.
+		env = copilotLocalEnv(env, worker)
+		fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
+			domain.Dim("ℹ"), domain.Bold(worker.Model))
+		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row.\n\n",
+			domain.Dim("ℹ"), local.LoopGuardRepeat())
+	}
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin))
 	displayName := CLIDisplayName(cliName)
 	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(PrimaryAgent("copilot")))
@@ -161,7 +176,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = CopilotEnv(resolved.OtelLogLevel)
+	cmd.Env = env
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) {
@@ -171,6 +186,100 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		return err
 	}
 	return nil
+}
+
+// copilotLocalWorker prepares a Copilot CLI session to run against the local
+// server, and is where the old refusal moved to for the cases it is still true
+// of.
+//
+// The mechanism is BYOK, the client's own documented one (`copilot help
+// providers`): COPILOT_PROVIDER_BASE_URL replaces GitHub's model routing for
+// the whole session, and GitHub authentication is not required while it is set.
+// There is no subcommand and no config file behind it — `providers` is a help
+// topic, not a command — so the environment is not the shortcut here, it is the
+// interface.
+//
+// That one provider is also the reason this gates on the *session* model and
+// not on [local.Enabled], which is where it differs from the opencode path.
+// opencode selects a backend per agent, so a cloud main agent can hand tasks to
+// a local worker and both run at once; the Copilot CLI points every request in
+// the session at one endpoint. Setting these variables for a developer who
+// asked for a hosted model would not add a local worker to their session, it
+// would move their session onto the local model without saying so.
+//
+// The returned guard is nil whenever there is nothing local about this launch,
+// and [local.Guard.Close] is nil-safe, so the caller defers it either way.
+func copilotLocalWorker(sessionModel string) (local.Model, *local.Guard, error) {
+	if !local.IsLocal(sessionModel) {
+		return local.Model{}, nil, nil
+	}
+	// Same proof the opencode path takes, and for the same reason: the guard
+	// forwards to a fixed 127.0.0.1 port, so a server that died and left that
+	// port to whatever bound it next would have the session proxied to a
+	// stranger with nothing on screen to say so.
+	worker, err := localWorker()
+	if err != nil {
+		return local.Model{}, nil, err
+	}
+	if worker.Model != sessionModel {
+		// Reachable the moment the manifest names more than one model: `alpha
+		// local start` records what it loaded, and the session model is a
+		// separate config value the developer can change afterwards. The
+		// server answers on the model it has loaded whatever the request
+		// names, so without this the session would run on a model nobody
+		// chose and nothing would say so.
+		return local.Model{}, nil, fmt.Errorf(
+			"the local server on this machine is serving %s, and this session is configured for %s.\n\n  Use what is running:\n\n    %s\n\n  Or load the other model:\n\n    %s\n    %s",
+			domain.Bold(worker.Model), domain.Bold(sessionModel),
+			domain.Bold("nav-pilot config set model "+worker.Model),
+			domain.Bold("nav-pilot alpha local stop"),
+			domain.Bold("nav-pilot alpha local start"))
+	}
+	guard, err := local.StartGuard(local.ServerURL())
+	if err != nil {
+		return local.Model{}, nil, err
+	}
+	return worker, guard, nil
+}
+
+// copilotLocalEnv points the Copilot CLI at the loop guard in front of the
+// local server. Pure, so the whole delta a local launch adds to the developer's
+// environment is one readable list rather than something to reconstruct from a
+// launch.
+//
+// The base URL is the guard's and never the server's, for the reason the
+// opencode provider block states: every completion has to pass through the
+// thing that can stop a runaway loop. The guard reads chat-completions
+// requests, which is what the client's default wire API sends — pinned here
+// rather than left to the default, because an exported
+// COPILOT_PROVIDER_WIRE_API=responses would send a shape the guard cannot read
+// and would silently forward.
+//
+// The token limits come from the manifest, under the keys the generator already
+// publishes them as. They are named MLX_OPENCODE_* and read by both clients:
+// they describe the context the model was measured at, which does not change
+// with the client asking. Without them the client falls back to defaults for a
+// model id its catalogue has never heard of.
+//
+// SetEnvValue rather than SetEnvIfAbsent: these decide where the prompt goes,
+// and an exported COPILOT_PROVIDER_BASE_URL left over from something else must
+// not quietly win.
+func copilotLocalEnv(env []string, m local.Model) []string {
+	for _, kv := range [][2]string{
+		{"COPILOT_PROVIDER_BASE_URL", local.GuardURL() + "/v1"},
+		{"COPILOT_PROVIDER_TYPE", "openai"},
+		{"COPILOT_PROVIDER_WIRE_API", "completions"},
+		// Optional for a local provider, per `copilot help providers`. Sent
+		// anyway so the value in the logs is nav-pilot's name and not a
+		// developer's real key picked up from the environment.
+		{"COPILOT_PROVIDER_API_KEY", "nav-pilot"},
+		{"COPILOT_MODEL", m.Model},
+		{"COPILOT_PROVIDER_MAX_PROMPT_TOKENS", strconv.Itoa(localParamInt(m, "MLX_OPENCODE_CONTEXT", 32768))},
+		{"COPILOT_PROVIDER_MAX_OUTPUT_TOKENS", strconv.Itoa(localParamInt(m, "MLX_OPENCODE_OUTPUT", 8192))},
+	} {
+		env, _ = telemetrypkg.SetEnvValue(env, kv[0], kv[1])
+	}
+	return env
 }
 
 // copilotLaunchArgs is the vector LaunchCopilot passes to the binary it
