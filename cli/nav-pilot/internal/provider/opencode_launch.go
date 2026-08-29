@@ -306,6 +306,54 @@ func EnsureOpenCodeLocalProvider(m local.Model) error {
 	return os.Chmod(path, 0o600)
 }
 
+// RemoveOpenCodeLocalProvider takes the local provider block back out of
+// opencode's config, which is what `alpha local off` owes the developer.
+//
+// Turning dispatch off in nav-pilot's own config only stops nav-pilot from
+// choosing the model. The block [EnsureOpenCodeLocalProvider] wrote stays in a
+// file opencode reads on its own, so a developer running opencode directly
+// could still pick the model and reach the guard's port — which after `off` is
+// whatever happens to be listening there. `start` writes the block back.
+//
+// A config with no local block, and a config that is not there at all, are both
+// nothing to do rather than errors: off must work on a machine where opencode
+// was never configured.
+func RemoveOpenCodeLocalProvider() error {
+	path := openCodeConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("reading opencode config: %w", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+	}
+	providers, _ := cfg["provider"].(map[string]any)
+	if _, found := providers[LocalProviderID]; !found {
+		return nil
+	}
+	delete(providers, LocalProviderID)
+	// An empty "provider": {} left behind is nav-pilot's litter in someone
+	// else's file, so it goes too — but only when nav-pilot emptied it.
+	if len(providers) == 0 {
+		delete(cfg, "provider")
+	} else {
+		cfg["provider"] = providers
+	}
+
+	out, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshalling opencode config: %w", err)
+	}
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		return fmt.Errorf("writing opencode config: %w", err)
+	}
+	return os.Chmod(path, 0o600)
+}
+
 // localParamInt reads one MLX_ param as an integer, falling back to a
 // conservative default. A malformed value is not fatal: the manifest's job is
 // to tune this, and a bad number should cost tuning, not the session.

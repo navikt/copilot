@@ -93,7 +93,7 @@ func launchViaCplt(spec cpltLaunch) error {
 		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
 	}
 
-	args := withCpltConfirmation(cpltArgv(spec), isTerminal(os.Stdin))
+	args := withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin))
 
 	fmt.Printf("Launching %s via %s%s...\n\n",
 		domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)

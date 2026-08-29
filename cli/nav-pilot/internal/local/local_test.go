@@ -402,3 +402,44 @@ func TestLookupAndIsLocal(t *testing.T) {
 		t.Error("SetActive(nil) left no models, want the embedded manifest")
 	}
 }
+
+// TestCachedNeverReachesTheNetwork is the "never blocking" promise in the
+// package doc, enforced rather than stated.
+//
+// Every nav-pilot invocation arms local dispatch at startup, so whatever it
+// calls there runs before `config get` prints a line. Resolve prefers the
+// network, and behind a captive portal "prefers" means five seconds on the
+// front of every command. Cached is what startup calls, and it must not so
+// much as open a socket.
+func TestCachedNeverReachesTheNetwork(t *testing.T) {
+	path := stubCache(t, nil)
+	// Any fetch at all is the failure, so the seam answers with the manifest a
+	// working network would return: a Cached() that reached for it would pass
+	// its own assertions and fail this one.
+	orig := fetchManifest
+	fetchManifest = func(string) ([]byte, error) {
+		t.Error("Cached() fetched the manifest over the network; startup calls it on every invocation")
+		return manifestJSON("1", modelJSON("served", okModel, true)), nil
+	}
+	t.Cleanup(func() { fetchManifest = orig })
+
+	m, src, err := Cached()
+	if m == nil {
+		t.Fatalf("Cached() returned no manifest: %v", err)
+	}
+	if src != SourceEmbedded {
+		t.Errorf("Cached() with no cache on disk = %q, want %q", src, SourceEmbedded)
+	}
+
+	cachedModel := "mlx-community/Cached-4bit"
+	if err := os.WriteFile(path, manifestJSON("1", modelJSON("cached", cachedModel, true)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, src, err = Cached()
+	if err != nil || src != SourceCache {
+		t.Fatalf("Cached() with a cache on disk = (%q, %v), want %q", src, err, SourceCache)
+	}
+	if m.Models[0].Model != cachedModel {
+		t.Errorf("Cached() returned %q, want the cached model", m.Models[0].Model)
+	}
+}

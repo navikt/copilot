@@ -185,15 +185,22 @@ func cmdLocalInit() error {
 	}
 	fmt.Println()
 
-	if download > 0 && isInteractive() {
-		var proceed bool
-		if err := huh.NewConfirm().
-			Title(fmt.Sprintf("Download about %d GB and provision the local-inference environment?", download)).
-			Value(&proceed).
-			WithTheme(navTheme()).
-			Run(); err != nil || !proceed {
-			fmt.Println(dim("Cancelled. Nothing was downloaded."))
-			return nil
+	// The kernel's answer, not the file mode's. isInteractive reads
+	// os.ModeCharDevice, which is set for /dev/null too — so a scripted init
+	// put its question to /dev/null, got an error back, printed "Cancelled" and
+	// exited 0. The caller was told nothing, and carried on against an
+	// environment that had never been provisioned.
+	if download > 0 && providerpkg.IsTerminal(os.Stdin) {
+		if err := confirmDownload(download, func() (bool, error) {
+			var proceed bool
+			err := huh.NewConfirm().
+				Title(fmt.Sprintf("Download about %d GB and provision the local-inference environment?", download)).
+				Value(&proceed).
+				WithTheme(navTheme()).
+				Run()
+			return proceed, err
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -235,6 +242,21 @@ func cmdLocalInit() error {
 	fmt.Printf("    %s\n", bold("nav-pilot config set model "+model.Model))
 	fmt.Printf("    %s\n", bold("nav-pilot alpha local start"))
 	fmt.Println()
+	return nil
+}
+
+// confirmDownload reports a refusal as an error rather than as a clean exit.
+// init used to print "Cancelled. Nothing was downloaded." and return nil, so a
+// script that ran init and carried on carried on regardless — and every command
+// after it behaved as though an environment existed that did not.
+//
+// ask is a parameter so a test can be the developer who says no, without a
+// terminal to say it from.
+func confirmDownload(gb int, ask func() (bool, error)) error {
+	proceed, err := ask()
+	if err != nil || !proceed {
+		return fmt.Errorf("cancelled — the %d GB was not downloaded and local inference was not enabled", gb)
+	}
 	return nil
 }
 
@@ -532,6 +554,15 @@ func cmdLocalOff() error {
 		}
 	}
 
+	// And out of opencode's config. nav-pilot's own config only decides what
+	// nav-pilot launches; the provider block start wrote lives in a file
+	// opencode reads by itself, so leaving it there leaves the model selectable
+	// and pointed at the guard's port — which after `off` is whatever is
+	// listening on it. start writes it back.
+	if err := providerpkg.RemoveOpenCodeLocalProvider(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not remove the local model from opencode: %v\n", yellow("⚠"), err)
+	}
+
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
 		fmt.Printf("%s The server is still running (pid %d) — %s to free the memory.\n",
 			yellow("⚠"), st.PID, bold("nav-pilot alpha local stop"))
@@ -568,7 +599,12 @@ func applyLocalConfig() {
 	if !r.LocalEnabled || !local.Installed() {
 		return
 	}
-	if m, _, _ := local.Resolve(); m != nil {
+	// Cached, never Resolve: this runs on every nav-pilot invocation, including
+	// `config get`, and the package doc's "never blocking" is a promise about
+	// exactly that. A fetch here put a connect timeout on the front of every
+	// command for anyone behind a captive portal. init and start act on the
+	// manifest and pay for a fresh one; nothing else does.
+	if m, _, _ := local.Cached(); m != nil {
 		local.SetActive(m)
 	}
 	local.SetEnabled(true)

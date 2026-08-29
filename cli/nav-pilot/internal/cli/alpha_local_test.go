@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http/httptest"
@@ -14,6 +16,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // localTestHome points HOME and the config file at temp dirs, so nothing here
@@ -164,6 +167,85 @@ func TestLocalOffDisablesDispatchAndResetsALocalModel(t *testing.T) {
 	if err := validateConfig(cfg); err != nil {
 		t.Errorf("`alpha local off` left an invalid config: %v", err)
 	}
+}
+
+// TestLocalOffTakesTheModelOutOfOpenCodeToo is finding 5: nav-pilot's own
+// config is not the only place the local model was registered.
+//
+// `start` writes an mlx provider block into ~/.config/opencode/opencode.json,
+// pointing at the loop guard's port. Turning dispatch off only stopped
+// nav-pilot from choosing the model — the block stayed, so a developer running
+// opencode directly could still select it and reach whatever was listening on
+// that port. The rest of the developer's config has to survive.
+func TestLocalOffTakesTheModelOutOfOpenCode(t *testing.T) {
+	localTestHome(t)
+	cfgPath := filepath.Join(t.TempDir(), "opencode.json")
+	providerpkg.ConfigPathOverride = cfgPath
+	t.Cleanup(func() { providerpkg.ConfigPathOverride = "" })
+
+	models := local.Active().Models
+	if len(models) == 0 {
+		t.Fatal("the embedded local-model manifest names no models")
+	}
+	if err := providerpkg.EnsureOpenCodeLocalProvider(models[0]); err != nil {
+		t.Fatalf("registering the local provider: %v", err)
+	}
+	// Something of the developer's own, which off must not take with it.
+	raw, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	cfg["provider"].(map[string]any)["anthropic"] = map[string]any{"name": "theirs"}
+	cfg["theme"] = "tokyonight"
+	if raw, err = json.Marshal(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfgPath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	captureStdout(func() {
+		if err := cmdLocalOff(); err != nil {
+			t.Fatalf("cmdLocalOff() errored: %v", err)
+		}
+	})
+
+	raw, err = os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("reading the opencode config back: %v", err)
+	}
+	cfg = nil
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatalf("`alpha local off` left invalid JSON in the opencode config: %v", err)
+	}
+	providers, _ := cfg["provider"].(map[string]any)
+	if _, found := providers[providerpkg.LocalProviderID]; found {
+		t.Errorf("`alpha local off` left the %q provider in %s; the model is still selectable and still points at the guard port",
+			providerpkg.LocalProviderID, cfgPath)
+	}
+	if _, found := providers["anthropic"]; !found {
+		t.Error("`alpha local off` removed a provider that was not nav-pilot's")
+	}
+	if cfg["theme"] != "tokyonight" {
+		t.Error("`alpha local off` did not leave the rest of the developer's opencode config alone")
+	}
+}
+
+// TestLocalOffWithNoOpenCodeConfigIsNotAnError: off has to work on a machine
+// where opencode was never configured.
+func TestLocalOffWithNoOpenCodeConfig(t *testing.T) {
+	localTestHome(t)
+	providerpkg.ConfigPathOverride = filepath.Join(t.TempDir(), "absent.json")
+	t.Cleanup(func() { providerpkg.ConfigPathOverride = "" })
+	captureStdout(func() {
+		if err := cmdLocalOff(); err != nil {
+			t.Errorf("cmdLocalOff() with no opencode config = %v, want nil", err)
+		}
+	})
 }
 
 // TestLocalOffLeavesAHostedModelAlone: off only resets a model that is local.
@@ -339,6 +421,47 @@ func TestStopDoesNotSignalAPidItDoesNotOwn(t *testing.T) {
 	case <-died:
 		t.Fatalf("`alpha local stop` killed pid %d, a process nav-pilot never started", stranger.Process.Pid)
 	case <-time.After(time.Second):
+	}
+}
+
+// TestInitOnlyAsksWhereSomethingCanAnswer is finding 3: `alpha local init`
+// exited 0 having done nothing at all.
+//
+// The confirmation was gated on isInteractive, which reads os.ModeCharDevice —
+// and /dev/null is a character device. So on a dispatched run stdin looked like
+// a terminal, huh put the question to /dev/null, the read errored, and init
+// printed "Cancelled. Nothing was downloaded." and returned nil. A script got a
+// successful exit for a machine with no environment on it.
+//
+// Two halves, and the bug needed both: ask only where an answer can come from,
+// and report a refusal as a failure.
+func TestInitOnlyAsksWhereSomethingCanAnswer(t *testing.T) {
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devnull.Close()
+
+	fi, err := devnull.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode()&os.ModeCharDevice == 0 {
+		t.Skip("this platform does not call /dev/null a character device, so the trap does not exist here")
+	}
+	if providerpkg.IsTerminal(devnull) {
+		t.Error("IsTerminal(/dev/null) = true — init would put its question to something that cannot answer")
+	}
+
+	// The other half: saying no is a failure, not a quiet success.
+	if err := confirmDownload(26, func() (bool, error) { return false, nil }); err == nil {
+		t.Error("a cancelled download reported success; a script would carry on as though the environment were provisioned")
+	}
+	if err := confirmDownload(26, func() (bool, error) { return false, errors.New("no terminal") }); err == nil {
+		t.Error("a confirmation that could not be shown reported success")
+	}
+	if err := confirmDownload(26, func() (bool, error) { return true, nil }); err != nil {
+		t.Errorf("confirmDownload after a yes = %v, want nil", err)
 	}
 }
 

@@ -289,7 +289,7 @@ func TestGoldenCopilotLaunchArgsNonInteractive(t *testing.T) {
 // TestIsTerminalRejectsDevNull pins the detection itself against the case that
 // makes this feature work at all: a dispatched run gets /dev/null on stdin,
 // /dev/null is a character device, and the os.ModeCharDevice check nav-pilot
-// uses elsewhere calls it a terminal. If isTerminal ever goes back to that
+// uses elsewhere calls it a terminal. If IsTerminal ever goes back to that
 // check, every non-interactive launch silently loses --yes again.
 func TestIsTerminalRejectsDevNull(t *testing.T) {
 	f, err := os.Open(os.DevNull)
@@ -298,8 +298,8 @@ func TestIsTerminalRejectsDevNull(t *testing.T) {
 	}
 	defer f.Close()
 
-	if isTerminal(f) {
-		t.Errorf("isTerminal(%s) = true, want false", os.DevNull)
+	if IsTerminal(f) {
+		t.Errorf("IsTerminal(%s) = true, want false", os.DevNull)
 	}
 	fi, err := f.Stat()
 	if err != nil {

@@ -293,22 +293,46 @@ func Resolve() (*Manifest, Source, error) {
 		}
 		err = perr
 	}
+	m, src, cerr := Cached()
+	if m == nil {
+		// Unreachable unless the embedded file was edited into something
+		// invalid, which TestEmbeddedManifestIsValid catches in CI.
+		return nil, src, errors.Join(err, cerr)
+	}
+	if src == SourceCache {
+		return m, src, fmt.Errorf("using the cached local-model manifest: %w", err)
+	}
+	return m, src, fmt.Errorf("using the local-model manifest built into nav-pilot: %w", errors.Join(err, cerr))
+}
+
+// Cached is [Resolve] without the network: the last-known-good cache,
+// otherwise the copy embedded in the binary.
+//
+// It exists because "never blocking" (see the package doc) is a promise about
+// startup, and [Resolve] only keeps it in the sense that it eventually gives
+// up. Every nav-pilot invocation arms local dispatch at startup, so a Resolve
+// there put a five-second connect on the front of `nav-pilot config get` for
+// anyone behind a captive portal. Only init and start act on the manifest, and
+// only they may pay for a fresh one.
+//
+// The error is advisory, and only ever explains a cache that was skipped. A nil
+// manifest means the embedded copy is broken, which is a defect in this repo.
+func Cached() (*Manifest, Source, error) {
+	var err error
 	if path := cachePath(); path != "" {
 		if cached, cerr := os.ReadFile(path); cerr == nil {
 			m, perr := Parse(cached)
 			if perr == nil {
-				return m, SourceCache, fmt.Errorf("using the cached local-model manifest: %w", err)
+				return m, SourceCache, nil
 			}
-			err = errors.Join(err, perr)
+			err = perr
 		}
 	}
 	m, perr := Parse(embeddedManifest)
 	if perr != nil {
-		// Unreachable unless the embedded file was edited into something
-		// invalid, which TestEmbeddedManifestIsValid catches in CI.
 		return nil, SourceEmbedded, errors.Join(err, perr)
 	}
-	return m, SourceEmbedded, fmt.Errorf("using the local-model manifest built into nav-pilot: %w", err)
+	return m, SourceEmbedded, err
 }
 
 // writeCache stores a validated manifest as the last-known-good copy. A write
