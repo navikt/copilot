@@ -780,31 +780,31 @@ var portInUse = func(port int) bool {
 // invisible over HTTP, so a matching id would only make an adoption look
 // justified. Hence [Server.Start] refuses either way and uses this for the
 // message alone.
-var servedModel = func(ctx context.Context, baseURL string) string {
+var servedModelCount = func(ctx context.Context, baseURL string) int {
 	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/v1/models", nil)
 	if err != nil {
-		return ""
+		return 0
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return ""
+		return 0
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil || resp.StatusCode != http.StatusOK {
-		return ""
+		return 0
 	}
 	var parsed struct {
 		Data []struct {
 			ID string `json:"id"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(data, &parsed); err != nil || len(parsed.Data) == 0 {
-		return ""
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return 0
 	}
-	return parsed.Data[0].ID
+	return len(parsed.Data)
 }
 
 // Server is one supervised mlx-lm process. Zero value is usable; Port 0 means
@@ -1090,9 +1090,15 @@ func exitedBeforeReady(model string, info exitInfo) error {
 }
 
 // describeForeignServer names what is on a port, for a refusal message.
+//
+// It does not claim which model the stranger serves. mlx-lm answers /v1/models
+// with every model in the Hugging Face cache rather than the one it loaded — a
+// machine with twelve downloaded gets twelve entries — so the first id is an
+// arbitrary pick from someone's disk. Naming it once sent a developer chasing a
+// model mismatch that did not exist.
 func describeForeignServer(ctx context.Context, baseURL string) string {
-	if id := servedModel(ctx, baseURL); id != "" {
-		return fmt.Sprintf(" — it serves %s", id)
+	if n := servedModelCount(ctx, baseURL); n > 0 {
+		return ""
 	}
 	return " — it does not answer /v1/models, so it is not an mlx-lm server at all"
 }
@@ -1196,8 +1202,16 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 // sysctlInt reads one integer sysctl. Shelling out rather than using the
 // syscall keeps this file free of build tags for a package the rest of the
 // binary compiles on every platform.
+//
+// The absolute path matters. sysctl lives in /usr/sbin, which a login shell has
+// on its PATH and a detached or launchd-started process often does not; looked up
+// by name it fails there with "executable file not found in $PATH", and the
+// wired-limit check it feeds then blocks the whole local setup for a reason that
+// has nothing to do with memory.
+const sysctlPath = "/usr/sbin/sysctl"
+
 func sysctlInt(ctx context.Context, name string) (int64, error) {
-	out, err := runCommand(ctx, "sysctl", []string{"-n", name}, nil)
+	out, err := runCommand(ctx, sysctlPath, []string{"-n", name}, nil)
 	if err != nil {
 		return 0, err
 	}

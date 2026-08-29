@@ -439,6 +439,24 @@ func Enabled() bool { return enabled }
 // because a call site that forgets it is a silent change of where a stranger's
 // prompt goes. [Lookup] is the ungated half, for the commands that must read
 // the manifest before anything is enabled.
+// DisabledLocalModel reports a model that this machine could serve locally but is
+// not configured to: it is in the manifest and local dispatch is off.
+//
+// Its own predicate because [IsLocal] folds the opt-in in and so cannot tell "not
+// a local model" from "a local model you have not enabled". Without the
+// distinction a launch configured for a local model with dispatch off falls
+// through to the cloud path, hands a Hugging Face model id to the client, and the
+// developer is told the model is not available — which is true of GitHub's
+// catalogue and useless as advice. A reboot that empties the config is enough to
+// reach this.
+func DisabledLocalModel(model string) bool {
+	if enabled {
+		return false
+	}
+	_, ok := Lookup(model)
+	return ok
+}
+
 func IsLocal(model string) bool {
 	if !enabled {
 		return false

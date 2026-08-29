@@ -734,6 +734,14 @@ func localWorker() (local.Model, error) {
 // pinned by TestHostedLaunchStartsNoLoopGuard, and moving the guard out from
 // behind the gate now fails a test instead of nothing.
 func startLocalDispatch(sessionModel string) (*local.Guard, error) {
+	// Same refusal the Copilot path makes, for the same reason: a session
+	// configured for a local model with dispatch off would otherwise be sent to
+	// the cloud provider under a Hugging Face model id.
+	if local.DisabledLocalModel(sessionModel) {
+		return nil, fmt.Errorf(
+			"%s runs on this machine, but local inference is off for this install.\n\n  Turn it on:\n\n    %s",
+			domain.Bold(sessionModel), domain.Bold("nav-pilot alpha local init"))
+	}
 	worker, err := localWorker()
 	if err != nil {
 		if local.IsLocal(sessionModel) {

@@ -200,10 +200,17 @@ func EnsureOwnServer() error {
 // and it is already the command nav-pilot's refusals tell a developer to run.
 // No answer means no proof of ownership, which [EnsureOwnServer] treats as a
 // refusal.
+// lsof lives in /usr/sbin, which a login shell has on its PATH and a detached or
+// launchd-started process often does not. Looked up by name it is simply not
+// found there, portListeners returns nothing, and EnsureOwnServer reads "no proof
+// of ownership" and refuses a server that is running perfectly well — telling the
+// developer to kill the process holding the port, which is their own.
+const lsofPath = "/usr/sbin/lsof"
+
 var portListeners = func(port int) []int {
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
-	out, err := runCommand(ctx, "lsof", []string{"-ti", "tcp:" + strconv.Itoa(port), "-sTCP:LISTEN"}, nil)
+	out, err := runCommand(ctx, lsofPath, []string{"-ti", "tcp:" + strconv.Itoa(port), "-sTCP:LISTEN"}, nil)
 	if err != nil {
 		return nil
 	}

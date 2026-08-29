@@ -131,16 +131,40 @@ func TestCopilotHostedSessionIsUntouchedWithLocalEnabled(t *testing.T) {
 	}
 }
 
-// TestCopilotLocalDisabledLaunchesNothingLocal: with dispatch off a manifest
-// model id is an ordinary unrecognised id, which is every launch for the ~650
-// developers who never run `nav-pilot alpha local init`.
-func TestCopilotLocalDisabledLaunchesNothingLocal(t *testing.T) {
+// TestCopilotLocalDisabledRefusesWithAdvice: with dispatch off a manifest model
+// id is refused, naming the command that turns local inference on.
+//
+// It used to be treated as an ordinary unrecognised id and passed through to
+// GitHub, which answers "model not available" — a true statement about its
+// catalogue and no help at all to someone whose config lost `local_enabled`.
+//
+// The ~650 developers who never opt in are unaffected: their session model is a
+// GitHub model, which is not in the manifest, so this predicate is false for
+// them. TestCopilotHostedModelStaysHosted is the other half of that.
+func TestCopilotLocalDisabledRefusesWithAdvice(t *testing.T) {
 	worker, guard, err := copilotLocalWorker(aLocalModelID(t))
+	if guard != nil {
+		guard.Close()
+		t.Error("a refused launch started a loop guard")
+	}
+	if err == nil {
+		t.Fatalf("copilotLocalWorker with local dispatch off = (%q, nil), want a refusal", worker.Model)
+	}
+	if !strings.Contains(err.Error(), "alpha local init") {
+		t.Errorf("refusal does not say how to turn local inference on: %v", err)
+	}
+}
+
+// TestCopilotHostedModelStaysHosted: a model that is not in the manifest is
+// untouched whether or not local dispatch is enabled. This is every launch for
+// everyone who never opted in, and the reason the refusal above is safe.
+func TestCopilotHostedModelStaysHosted(t *testing.T) {
+	worker, guard, err := copilotLocalWorker("claude-opus-5")
 	if err != nil || guard != nil || worker.Model != "" {
 		if guard != nil {
 			guard.Close()
 		}
-		t.Fatalf("copilotLocalWorker with local dispatch off = (%q, %v, %v), want nothing local", worker.Model, guard, err)
+		t.Fatalf("copilotLocalWorker for a hosted model = (%q, %v, %v), want nothing local", worker.Model, guard, err)
 	}
 }
 

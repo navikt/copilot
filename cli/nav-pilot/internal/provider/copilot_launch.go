@@ -210,6 +210,11 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 // The returned guard is nil whenever there is nothing local about this launch,
 // and [local.Guard.Close] is nil-safe, so the caller defers it either way.
 func copilotLocalWorker(sessionModel string) (local.Model, *local.Guard, error) {
+	if local.DisabledLocalModel(sessionModel) {
+		return local.Model{}, nil, fmt.Errorf(
+			"%s runs on this machine, but local inference is off for this install, so there is nothing to point the client at.\n\n  Turn it on:\n\n    %s",
+			domain.Bold(sessionModel), domain.Bold("nav-pilot alpha local init"))
+	}
 	if !local.IsLocal(sessionModel) {
 		return local.Model{}, nil, nil
 	}

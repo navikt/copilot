@@ -586,10 +586,17 @@ func TestStartRefusesAPortItDoesNotOwn(t *testing.T) {
 	if err == nil {
 		t.Fatal("Start() returned nil with a foreign server on the port — it adopted a model nav-pilot did not choose")
 	}
-	for _, want := range []string{strconv.Itoa(port), "someone-else/model", "Refusing to start"} {
+	for _, want := range []string{strconv.Itoa(port), "Refusing to start"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("Start() error = %q, want it to mention %q", err, want)
 		}
+	}
+	// It must NOT name the model the stranger reports. mlx-lm answers /v1/models
+	// with the whole Hugging Face cache rather than the loaded model, so that id
+	// is an arbitrary pick from someone's disk; naming it sent a developer
+	// chasing a model mismatch that did not exist.
+	if strings.Contains(err.Error(), "someone-else/model") {
+		t.Errorf("Start() error names a model read from /v1/models, which lists the cache: %q", err)
 	}
 	if len(*starts) != 0 {
 		t.Errorf("Start() spawned %d processes onto a port that was already in use", len(*starts))
@@ -966,7 +973,7 @@ func TestCheckWiredLimit(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			stubRun(t, func(name string, args []string) (string, error) {
-				if name != "sysctl" {
+				if name != sysctlPath {
 					return "", errors.New("unexpected command " + name)
 				}
 				switch args[len(args)-1] {

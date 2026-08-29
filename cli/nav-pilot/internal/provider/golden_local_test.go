@@ -284,11 +284,24 @@ func TestHostedLaunchStartsNoLoopGuard(t *testing.T) {
 		t.Errorf("a hosted launch wrote %s; a developer who never opted in owns that file", cfg)
 	}
 
-	// And with local dispatch off, a local model id is a hosted launch too —
-	// which is the state of every nav-pilot that has not run init.
+	// A local model id with dispatch off is refused, and says how to turn it on.
+	// It used to be treated as a hosted launch, which sent a Hugging Face model
+	// id to the cloud provider and got back "model not available" — true of
+	// GitHub's catalogue and useless as advice. A reboot that emptied the config
+	// was enough to reach this, and it cost an evening.
 	guard, err = startLocalDispatch(aLocalModelID(t))
-	if err != nil || guard != nil {
-		t.Fatalf("startLocalDispatch for a local id with dispatch off = (%v, %v), want (nil, nil)", guard, err)
+	if err == nil {
+		if guard != nil {
+			guard.Close()
+		}
+		t.Fatal("a local model id with dispatch off was launched as a hosted session")
+	}
+	if !strings.Contains(err.Error(), "alpha local init") {
+		t.Errorf("refusal does not say how to turn local inference on: %v", err)
+	}
+	if guard != nil {
+		guard.Close()
+		t.Error("a refused launch started a loop guard")
 	}
 }
 

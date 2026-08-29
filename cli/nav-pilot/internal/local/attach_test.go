@@ -299,9 +299,9 @@ func TestEnsureOwnServerRefusesAForeignServerOnThePort(t *testing.T) {
 	stubDirs(t)
 	stubOurProcess(t)
 	// The refusal names what is on the port; nothing here goes near a socket.
-	origServed := servedModel
-	servedModel = func(context.Context, string) string { return "" }
-	t.Cleanup(func() { servedModel = origServed })
+	origServed := servedModelCount
+	servedModelCount = func(context.Context, string) int { return 0 }
+	t.Cleanup(func() { servedModelCount = origServed })
 
 	if err := EnsureOwnServer(); err == nil || !strings.Contains(err.Error(), "alpha local start") {
 		t.Errorf("EnsureOwnServer() with nothing recorded = %v, want a refusal naming start", err)
