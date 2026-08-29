@@ -30,6 +30,16 @@ type Config struct {
 	RtkPromptedClient *string `toml:"rtk_prompted_client"`
 	RtkPromptedAt     *string `toml:"rtk_prompted_at"`
 	AutoUpdate        *bool   `toml:"auto_update"`
+	// LocalEnabled is the alpha opt-in for local inference. Unset and false
+	// both mean off, and off means a developer sees no trace of it anywhere:
+	// no local models in the picker, no branch taken on any launch path.
+	// `nav-pilot alpha local init` sets it; `alpha local off` clears it.
+	LocalEnabled *bool `toml:"local_enabled"`
+	// LocalLoopGuard is how many identical consecutive tool calls end a local
+	// turn. Unset means the built-in default. It is a knob because the right
+	// number depends on the model and the task, not because anyone should
+	// have to set it.
+	LocalLoopGuard *int `toml:"local_loop_guard"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -56,6 +66,8 @@ type ResolvedConfig struct {
 	RtkPromptedClient string   // comma-separated list of clients where the RTK setup was prompted
 	RtkPromptedAt     string   // RFC3339 timestamp of when the user was last prompted
 	AutoUpdate        bool     // true to bypass upgrade prompt
+	LocalEnabled      bool     // local inference opt-in (alpha)
+	LocalLoopGuard    int      // identical consecutive tool calls that end a local turn; 0 = built-in default
 	ExtraArgs         []string // pass-through arguments for the client
 }
 

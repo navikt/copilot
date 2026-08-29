@@ -60,7 +60,7 @@ func isKnownCommand(arg string) bool {
 	switch arg {
 	case "install", "init", "export", "add", "ignore", "sync", "list", "doctor",
 		"uninstall", "upgrade", "update", "config", "validate", "env", "feedback",
-		"models", "version", "--version", "-v", "-h", "--help", "help":
+		"models", "alpha", "version", "--version", "-v", "-h", "--help", "help":
 		return true
 	default:
 		return false
@@ -93,6 +93,7 @@ Commands:
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
+  alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
   version                 Show version information
 
 Flags:
@@ -670,6 +671,10 @@ func run(args []string) error {
 		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
 			return cmdModels(jsonOutput)
 		})
+	case "alpha":
+		return runWithCommandTelemetry("alpha", telemetryMode(), "none", func() error {
+			return cmdAlpha(positional)
+		})
 	case "version", "--version", "-v":
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
@@ -677,7 +682,7 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "version", "help"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}
@@ -718,6 +723,9 @@ func Main(info BuildInfo) {
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)
 	agentpakke.SetVersion(info.Version)
+	// Before any provider is consulted: the model picker and every launch path
+	// ask local.IsLocal, and it must already know whether local dispatch is on.
+	applyLocalConfig()
 	providerpkg.FetchLatestVersion = func() (string, string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

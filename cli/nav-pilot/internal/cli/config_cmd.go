@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
 
 // ─── Key definitions ─────────────────────────────────────────────────────────
@@ -136,6 +138,22 @@ var configKeyDefs = []configKeyDef{
 		flag:        "--otel-log-level",
 	},
 	{
+		name:        "local_enabled",
+		kind:        keyKindBool,
+		description: "Dispatch to a local model server instead of a hosted one (alpha). Set by 'nav-pilot alpha local init'; local models are hidden and never launched while this is false.",
+		allowed:     nil,
+		defaultVal:  "false",
+		flag:        "",
+	},
+	{
+		name:        "local_loop_guard",
+		kind:        keyKindInt,
+		description: "Identical consecutive tool calls that end a local turn. Local models get stuck repeating one call; this is where nav-pilot stops them.",
+		allowed:     nil,
+		defaultVal:  strconv.Itoa(local.DefaultLoopGuardRepeat),
+		flag:        "",
+	},
+	{
 		name:        "rtk_prompted_client",
 		kind:        keyKindString,
 		description: "Comma-separated list of clients where the RTK setup was prompted.",
@@ -250,6 +268,18 @@ version = 1
 # the OTLP endpoint is unreachable. A pre-existing OTEL_LOG_LEVEL in your shell
 # environment takes precedence.
 # otel_log_level = "none"
+
+# Dispatch to a local model server on this machine instead of a hosted one
+# (alpha). Set by 'nav-pilot alpha local init'; while this is false, local
+# models are hidden from the picker and never launched.
+# Default: false
+# local_enabled = false
+
+# Identical consecutive tool calls that end a local turn. Local models get
+# stuck repeating one call — we measured runs of 203 — and this is where
+# nav-pilot stops them. Minimum 2.
+# Default: 8
+# local_loop_guard = 8
 
 # Internal flag to track which client the user was last prompted to set up rtk for.
 # Default: unset
@@ -445,6 +475,10 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.LogLevel
 	case "otel_log_level":
 		return r.OtelLogLevel
+	case "local_enabled":
+		return strconv.FormatBool(r.LocalEnabled)
+	case "local_loop_guard":
+		return strconv.Itoa(localLoopGuard(r))
 	case "rtk_prompted_client":
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":
@@ -581,6 +615,11 @@ func validateKeyValue(kd *configKeyDef, value string) error {
 		case "true", "false", "1", "0", "yes", "no":
 		default:
 			return fmt.Errorf("key %q requires a boolean value (true/false), got: %q", kd.name, value)
+		}
+	}
+	if kd.name == "local_loop_guard" {
+		if n, err := strconv.Atoi(value); err == nil && n < 2 {
+			return fmt.Errorf("key %q must be at least 2 (got %d) — one tool call is not a loop", kd.name, n)
 		}
 	}
 	// Key-specific validation beyond the generic kind/allowlist checks.
@@ -749,6 +788,8 @@ func printKeyExplain(kd *configKeyDef, resolved ResolvedConfig) {
 		fmt.Printf("    Allowed:  %s\n", strings.Join(kd.allowed, ", "))
 	} else if kd.kind == keyKindBool {
 		fmt.Printf("    Allowed:  true, false\n")
+	} else if kd.kind == keyKindInt {
+		fmt.Printf("    Allowed:  a whole number\n")
 	} else if kd.name == "model" {
 		var ids []string
 		for _, p := range allProviders() {
