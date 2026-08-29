@@ -12,6 +12,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // The no-op proof for local inference.
@@ -93,35 +94,108 @@ func TestGoldenLocalDisabledLeavesLaunchArgsAlone(t *testing.T) {
 	}
 }
 
-// TestGoldenLaunchEnvIsUnchangedWithoutLocal is the environment half: the
-// variables a launch runs under carry nothing about local inference, and are
-// byte-identical to the same launch for a hosted model.
+// TestGoldenLaunchEnvIsUnchangedWithoutLocal is the environment half: with
+// local dispatch off, a launch adds nothing to the developer's own environment
+// beyond the OTel level it has always added.
 //
-// Byte-identical is checked against the same builder called with a hosted model
-// id rather than against a written-down list, because the environment also
-// carries the developer's own variables and OTel resource attributes. What must
-// not differ between the two is anything at all.
+// It is a snapshot of the delta over os.Environ(), not a comparison of the
+// builder against itself. The version before this compared CopilotEnv(otel)
+// with CopilotEnv(otel) — two identical calls to a function that takes no model
+// — so "byte-identical between a local and a hosted launch" was proved by
+// nothing at all, and what remained was two substring greps.
+//
+// The delta is the honest quantity: the environment carries the developer's own
+// variables and whatever OTel resolves to, and none of that is nav-pilot's to
+// pin. What a launch *adds* is, and with local off it is a written-down list
+// that a new variable — local or otherwise — would break.
 func TestGoldenLaunchEnvIsUnchangedWithoutLocal(t *testing.T) {
-	id := aLocalModelID(t)
+	// A home with no ~/.copilot customizations and no OTel endpoint, so the
+	// golden below is the launch's own doing and not the machine's.
+	t.Setenv("HOME", t.TempDir())
+	for _, key := range []string{
+		"COPILOT_CUSTOM_INSTRUCTIONS_DIRS", "OTEL_LOG_LEVEL",
+		"OTEL_EXPORTER_OTLP_ENDPOINT", "COPILOT_OTEL_ENDPOINT",
+	} {
+		unsetForTest(t, key)
+	}
 
-	for _, otel := range []string{"", "none", "debug"} {
-		hosted := CopilotEnv(otel)
-		withLocal := CopilotEnv(otel)
-		if !slices.Equal(hosted, withLocal) {
-			t.Errorf("CopilotEnv(%q) is not stable across calls; the comparison below is meaningless", otel)
+	// Keys, not values: the delta's values carry the device id and the repo
+	// this test happens to run in, and neither is nav-pilot's to pin. The keys
+	// are the whole claim — a local-inference variable would be one more.
+	otelKeys := []string{
+		"COPILOT_OTEL_ENABLED",
+		"OTEL_EXPORTER_OTLP_ENDPOINT",
+		"OTEL_LOGS_EXPORTER",
+		"OTEL_RESOURCE_ATTRIBUTES",
+	}
+	golden := map[string][]string{
+		"":      otelKeys,
+		"none":  append(slices.Clone(otelKeys), "OTEL_LOG_LEVEL"),
+		"debug": append(slices.Clone(otelKeys), "OTEL_LOG_LEVEL"),
+	}
+	for otel, want := range golden {
+		env := CopilotEnv(otel)
+		slices.Sort(want)
+		if got := envDelta(os.Environ(), env); !slices.Equal(got, want) {
+			t.Errorf("CopilotEnv(%q) changes %q in os.Environ(); want exactly %q", otel, got, want)
 		}
-		for _, kv := range withLocal {
-			if strings.Contains(strings.ToUpper(kv), "NAV_PILOT_LOCAL") || strings.Contains(kv, LocalProviderID+"://") {
-				t.Errorf("CopilotEnv(%q) carries a local-inference variable with local disabled: %q", otel, kv)
+		// The one value that is nav-pilot's, and the only one this argument
+		// decides.
+		if otel != "" {
+			if got := telemetry.LookupEnvValue(env, "OTEL_LOG_LEVEL"); got != otel {
+				t.Errorf("CopilotEnv(%q) set OTEL_LOG_LEVEL=%q", otel, got)
 			}
 		}
 	}
 
 	// And the launch refuses nothing: a local id with local off is an ordinary
 	// unrecognised model id, which the server rejects, not nav-pilot.
-	if local.IsLocal(id) {
+	if local.IsLocal(aLocalModelID(t)) {
 		t.Error("local.IsLocal answered true with local dispatch disabled")
 	}
+}
+
+// envDelta names the variables want adds to or changes from base, sorted. A
+// variable base holds and want drops is named with a leading "-", because a
+// launch that takes a variable out of the developer's environment is as much a
+// change as one that puts a variable in.
+func envDelta(base, want []string) []string {
+	had := make(map[string]string, len(base))
+	for _, kv := range base {
+		k, v, _ := strings.Cut(kv, "=")
+		had[k] = v
+	}
+	var delta []string
+	seen := make(map[string]bool, len(want))
+	for _, kv := range want {
+		k, v, _ := strings.Cut(kv, "=")
+		seen[k] = true
+		if old, ok := had[k]; !ok || old != v {
+			delta = append(delta, k)
+		}
+	}
+	for k := range had {
+		if !seen[k] {
+			delta = append(delta, "-"+k)
+		}
+	}
+	slices.Sort(delta)
+	return delta
+}
+
+// unsetForTest removes a variable for the length of a test and puts it back,
+// which t.Setenv cannot do — an empty value is still a variable, and the
+// builders under test treat the two differently.
+func unsetForTest(t *testing.T, key string) {
+	t.Helper()
+	old, had := os.LookupEnv(key)
+	if !had {
+		return
+	}
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Setenv(key, old) })
 }
 
 // TestGoldenStagedPayloadIsUnchangedWithoutLocal: a Tier 2 launch of a local

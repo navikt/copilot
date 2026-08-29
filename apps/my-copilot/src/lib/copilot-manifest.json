@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-31T07:20:23.919Z",
+  "generatedAt": "2026-08-31T07:20:25.792Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -256,7 +256,7 @@
       "domain": "general",
       "filePath": ".github/agents/lokal-arbeider.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/lokal-arbeider.agent.md",
-      "contentHash": "5e17b9a42173ec8d0ec88761cb213aae7dc14aa998c70a2783b7367e8223fcb1",
+      "contentHash": "73289cc29eecee58cc4e1981d2f34249f5f1d369afa9a62b97a3bd12e757cca7",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Flokal-arbeider.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Flokal-arbeider.agent.md",
       "tools": ["read", "edit", "search", "execute"],

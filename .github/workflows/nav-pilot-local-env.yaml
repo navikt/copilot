@@ -13,14 +13,14 @@ name: nav-pilot local env
 #
 # It does not download weights (25 GB) or start a server. Those stay manual.
 
+# Nightly and on demand, never per pull request: macOS runners bill at ten
+# times the Linux rate, and what this job catches — a pin that stopped
+# resolving upstream — goes stale on upstream's clock, not on ours.
+
 on:
   schedule:
     - cron: "0 5 * * 1-5"
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "cli/nav-pilot/internal/local/**"
-      - ".github/workflows/nav-pilot-local-env.yaml"
 
 permissions:
   contents: read

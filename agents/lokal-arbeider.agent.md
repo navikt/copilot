@@ -27,8 +27,9 @@ uten å ha kalt et redigeringsverktøy, har du feilet. Dette er den vanligste fe
 modellstørrelsen: å finne stedet, si hva som burde stå der, og stoppe.
 
 **Gjenta aldri et kall som ikke førte deg videre.** Endre argumentene, bruk et annet verktøy,
-eller stopp og si hva du fant. Nav-pilot avbryter turen etter åtte like kall på rad, så en
-løkke koster utvikleren tid og gir dem ingenting.
+eller stopp og si hva du fant. Nav-pilot avbryter turen når det samme kallet gjentas
+et gitt antall ganger på rad — terskelen settes av utvikleren — så en løkke koster
+utvikleren tid og gir dem ingenting.
 
 **Ett verktøykall om gangen, og les svaret før du kaller neste.**
 

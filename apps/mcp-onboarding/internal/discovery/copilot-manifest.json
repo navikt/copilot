@@ -119,7 +119,7 @@
       "displayName": "@lokal-arbeider",
       "description": "Kjører avgrensede oppgaver på en lokal modell, slik at de ikke bruker premium-forespørsler",
       "filePath": "agents/lokal-arbeider.agent.md",
-      "contentHash": "5e17b9a42173ec8d0ec88761cb213aae7dc14aa998c70a2783b7367e8223fcb1",
+      "contentHash": "73289cc29eecee58cc4e1981d2f34249f5f1d369afa9a62b97a3bd12e757cca7",
       "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/agents/lokal-arbeider.agent.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/lokal-arbeider.agent.md"
     },
