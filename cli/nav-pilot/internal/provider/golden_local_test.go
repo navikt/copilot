@@ -1,9 +1,14 @@
 package provider
 
 import (
+	"fmt"
+	"net"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
@@ -173,5 +178,78 @@ func TestLocalBranchesTakeEffectWhenEnabled(t *testing.T) {
 	err := LaunchCopilotResolved(domain.ResolvedConfig{Model: id})
 	if err == nil || !strings.Contains(err.Error(), "cannot be pointed at a server on this machine") {
 		t.Errorf("LaunchCopilotResolved for a local model = %v, want a refusal naming the reason", err)
+	}
+}
+
+// TestHostedLaunchStartsNoLoopGuard is finding 7: the disabled path of
+// LaunchOpenCode had nothing covering it, so moving StartGuard out from behind
+// its IsLocal gate failed no test at all.
+//
+// A hosted launch must start no listener and write no opencode config. Both are
+// checked here rather than asserted, because both are what a developer who
+// never opted in would notice: a port taken on their machine, and a provider
+// block appearing in a file they own.
+func TestHostedLaunchStartsNoLoopGuard(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	cfg := filepath.Join(t.TempDir(), "opencode.json")
+	ConfigPathOverride = cfg
+	t.Cleanup(func() { ConfigPathOverride = "" })
+
+	guard, err := startLoopGuard("claude-opus-5")
+	if err != nil || guard != nil {
+		t.Fatalf("startLoopGuard for a hosted model = (%v, %v), want (nil, nil)", guard, err)
+	}
+	if ln, lerr := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", local.GuardPort)); lerr != nil {
+		t.Errorf("a hosted launch left something listening on the loop guard's port %d", local.GuardPort)
+	} else {
+		ln.Close()
+	}
+	if _, serr := os.Stat(cfg); !os.IsNotExist(serr) {
+		t.Errorf("a hosted launch wrote %s; a developer who never opted in owns that file", cfg)
+	}
+
+	// And with local dispatch off, a local model id is a hosted launch too —
+	// which is the state of every nav-pilot that has not run init.
+	guard, err = startLoopGuard(aLocalModelID(t))
+	if err != nil || guard != nil {
+		t.Fatalf("startLoopGuard for a local id with dispatch off = (%v, %v), want (nil, nil)", guard, err)
+	}
+}
+
+// TestLocalLaunchRefusesAServerNavPilotDidNotStart is the launch half of the
+// ownership rule Server.Start keeps at the other end of the day.
+//
+// The guard proxies to a fixed 127.0.0.1:8080. Before this, the launch started
+// it without checking that the server nav-pilot recorded was still the process
+// holding that port — so a server that crashed and any other tool that then
+// bound 8080 meant every prompt of the session went to a stranger, silently.
+// Refusing is the answer, not adopting: a stranger reporting the right model id
+// is still a stranger.
+func TestLocalLaunchRefusesAServerNavPilotDidNotStart(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	withLocalEnabled(t)
+	id := aLocalModelID(t)
+
+	// Nothing recorded. Reachable on its own: the opencode provider block that
+	// `start` wrote is still in the developer's config the next morning, so the
+	// model is still selectable after the server is gone.
+	if _, err := startLoopGuard(id); err == nil {
+		t.Fatal("startLoopGuard with no recorded server succeeded; the guard would forward to whatever holds the port")
+	}
+
+	// Recorded, alive, and the process it says it is — but not the one holding
+	// the port. This test process is all three.
+	if err := local.SaveState(local.State{PID: os.Getpid(), Model: id, Port: local.DefaultPort, Started: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := startLoopGuard(id)
+	if err == nil || !strings.Contains(err.Error(), "not what is listening") {
+		t.Errorf("startLoopGuard for a recorded server that does not hold the port = %v, want a refusal naming the port", err)
+	}
+
+	if ln, lerr := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", local.GuardPort)); lerr != nil {
+		t.Errorf("a refused launch left the loop guard listening on %d", local.GuardPort)
+	} else {
+		ln.Close()
 	}
 }

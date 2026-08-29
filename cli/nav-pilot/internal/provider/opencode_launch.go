@@ -342,22 +342,11 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 
-	// Local inference. The one branch on this path: put nav-pilot's loop guard
-	// between the client and the local server for the length of the session.
-	// launchViaCplt blocks until the client exits, so the guard lives exactly as
-	// long as the dispatch it guards and needs no daemon.
-	//
-	// The client reaches it by address, not by environment: `nav-pilot alpha
-	// local start` writes an opencode provider pointing at the guard's fixed
-	// port, because opencode selects a backend through its provider config and
-	// has no base-URL variable to override. With local disabled IsLocal is
-	// false, nothing below runs, and the environment is the one every launch
-	// got before this existed — pinned by TestGoldenLaunchEnvIsUnchangedWithoutLocal.
-	if local.IsLocal(resolved.Model) {
-		guard, err := local.StartGuard(local.ServerURL())
-		if err != nil {
-			return err
-		}
+	guard, err := startLoopGuard(resolved.Model)
+	if err != nil {
+		return err
+	}
+	if guard != nil {
 		defer guard.Close()
 		fmt.Fprintf(os.Stderr, "%s Local model: nav-pilot ends a turn after %d identical tool calls in a row.\n",
 			domain.Dim("ℹ"), local.LoopGuardRepeat())
@@ -375,6 +364,38 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		displayName:   "opencode",
 		messageSuffix: suffix,
 	})
+}
+
+// startLoopGuard puts nav-pilot's loop guard between the client and the local
+// server for the length of the session, and returns (nil, nil) for a hosted
+// launch — which is every launch for the ~650 developers who never turn local
+// on. launchViaCplt blocks until the client exits, so the guard lives exactly
+// as long as the dispatch it guards and needs no daemon.
+//
+// The client reaches it by address, not by environment: `nav-pilot alpha local
+// start` writes an opencode provider pointing at the guard's fixed port,
+// because opencode selects a backend through its provider config and has no
+// base-URL variable to override.
+//
+// The gate is a function rather than an `if` at the call site so a test can
+// hold it: with local disabled nothing here listens and nothing here writes,
+// pinned by TestHostedLaunchStartsNoLoopGuard, and moving the guard out from
+// behind the gate now fails a test instead of nothing.
+//
+// [local.EnsureOwnServer] first, and the launch is refused when it fails. The
+// guard forwards to a fixed 127.0.0.1:8080, so a recorded server that died
+// hours ago and left the port to whatever bound it next would have every prompt
+// of the session proxied to a stranger, with nothing on screen to say so.
+// Server.Start refuses a port nav-pilot does not own; this is the same rule
+// where the prompts actually flow.
+func startLoopGuard(model string) (*local.Guard, error) {
+	if !local.IsLocal(model) {
+		return nil, nil
+	}
+	if err := local.EnsureOwnServer(); err != nil {
+		return nil, err
+	}
+	return local.StartGuard(local.ServerURL())
 }
 
 // LaunchPi launches pi inside the cplt sandbox. pi must also be installed on

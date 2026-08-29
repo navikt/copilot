@@ -28,11 +28,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // State is what start leaves behind for stop and status to find.
@@ -41,12 +44,24 @@ type State struct {
 	Model   string    `json:"model"`
 	Port    int       `json:"port"`
 	Started time.Time `json:"started"`
+
+	// Lstart is the kernel's start time for PID, verbatim from `ps -o lstart=`.
+	// It is the pid's identity, and the reason a pid alone is not one: this
+	// file outlives a reboot, after which the kernel has handed that number to
+	// whatever asked for it next. Without this, `stop` signals a stranger's
+	// process group and `status` reports it as the local server.
+	Lstart string `json:"lstart"`
 }
 
 func statePath() string { return filepath.Join(dataDir(), "server.json") }
 
-// SaveState records a running server.
+// SaveState records a running server. The process start time is read here
+// rather than passed in, so no caller can record a pid without the identity
+// that makes it safe to signal later.
 func SaveState(s State) error {
+	if s.Lstart == "" {
+		s.Lstart = processStart(s.PID)
+	}
 	data, err := json.Marshal(s)
 	if err != nil {
 		return err
@@ -98,15 +113,105 @@ var alive = func(pid int) bool {
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
+// processStart reads the kernel's start time for a pid, "" when it cannot be
+// read. `ps` for the same reason [ResidentMemoryMB] shells out: the
+// alternative on macOS is proc_pidinfo through cgo, for one string. A func var
+// so tests can retire a pid without a process.
+var processStart = func(pid int) string {
+	if pid <= 0 {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	out, err := runCommand(ctx, "ps", []string{"-o", "lstart=", "-p", strconv.Itoa(pid)}, nil)
+	if err != nil {
+		return ""
+	}
+	// Whitespace-normalised: the field is padded to a fixed width and the
+	// padding is not part of the identity.
+	return strings.Join(strings.Fields(out), " ")
+}
+
+// isRecorded reports whether pid is still the process whose start time was
+// recorded. An empty start time on either side is a mismatch, not a pass: this
+// proves identity, and "cannot tell" is not proof — a record written before
+// nav-pilot recorded start times is exactly the record that may predate a
+// reboot.
+func isRecorded(pid int, lstart string) bool {
+	return lstart != "" && alive(pid) && processStart(pid) == lstart
+}
+
+// EnsureOwnServer proves the server a launch is about to be pointed at is the
+// one nav-pilot started, and refuses the launch when it cannot.
+//
+// [Server.Start] refuses a port it does not own; this is that same rule at the
+// other end of the day. The loop guard proxies to a fixed address, so a server
+// that crashed hours ago and left port 8080 to whatever bound it next would
+// have every prompt of the session forwarded to a stranger, with nothing on
+// screen to say so.
+//
+// Three things have to hold: something is recorded, the recorded pid is still
+// that process, and it is the process holding the port. It refuses rather than
+// adopts — a stranger answering with the right model id is still a stranger,
+// for the reason [servedModel] states.
+func EnsureOwnServer() error {
+	st, ok, err := LoadState()
+	if err != nil {
+		return err
+	}
+	start := domain.Bold("nav-pilot alpha local start")
+	if !ok {
+		return fmt.Errorf("no local server is recorded as running.\n\n  Start one first:\n\n    %s", start)
+	}
+	if !isRecorded(st.PID, st.Lstart) {
+		return fmt.Errorf(
+			"the recorded local %s server (pid %d) is not running any more.\n\n"+
+				"  Refusing to launch: the loop guard forwards to %s, and nav-pilot cannot tell whether that is still its own server or whatever took the port after it died.\n\n"+
+				"  Start it again:\n\n    %s",
+			st.Model, st.PID, ServerURL(), start)
+	}
+	if !slices.Contains(portListeners(DefaultPort), st.PID) {
+		return fmt.Errorf(
+			"the recorded local %s server (pid %d) is not what is listening on 127.0.0.1:%d%s.\n\n"+
+				"  Refusing to launch: the loop guard forwards there, so every prompt in this session would go to a server nav-pilot did not start and cannot vouch for.\n\n"+
+				"  Stop it, then start again:\n\n    %s\n    %s",
+			st.Model, st.PID, DefaultPort,
+			describeForeignServer(context.Background(), ServerURL()),
+			domain.Bold(fmt.Sprintf("lsof -ti tcp:%d | xargs kill", DefaultPort)), start)
+	}
+	return nil
+}
+
+// portListeners reports the pids listening on a TCP port. `lsof` because it is
+// what answers "who holds this port" on macOS without a privileged interface,
+// and it is already the command nav-pilot's refusals tell a developer to run.
+// No answer means no proof of ownership, which [EnsureOwnServer] treats as a
+// refusal.
+var portListeners = func(port int) []int {
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	out, err := runCommand(ctx, "lsof", []string{"-ti", "tcp:" + strconv.Itoa(port), "-sTCP:LISTEN"}, nil)
+	if err != nil {
+		return nil
+	}
+	var pids []int
+	for _, f := range strings.Fields(out) {
+		if pid, err := strconv.Atoi(f); err == nil {
+			pids = append(pids, pid)
+		}
+	}
+	return pids
+}
+
 // Attach adopts a recorded server so [Server.Health], [Server.Status] and
 // [Server.Stop] work on it. A process that is already gone is adopted as
 // crashed, decided before returning: a caller must not be told "starting"
 // about a pid that no longer exists.
 func Attach(s State) *Server {
 	srv := &Server{Port: s.Port, model: s.Model, started: s.Started}
-	p := &attachedProc{pid: s.PID, done: make(chan struct{})}
+	p := &attachedProc{pid: s.PID, lstart: s.Lstart, done: make(chan struct{})}
 	srv.proc = p
-	if !alive(s.PID) {
+	if !p.live() {
 		info := exitInfo{Code: -1, Err: errors.New("the server process is gone")}
 		p.settle(info)
 		srv.exit = &info
@@ -122,19 +227,32 @@ var attachPollInterval = 200 * time.Millisecond
 // so death is observed by polling, and the exit carries no signal or code —
 // only the parent gets those, and the parent has exited.
 type attachedProc struct {
-	pid   int
-	watch sync.Once
-	once  sync.Once
-	info  exitInfo
-	done  chan struct{}
+	pid    int
+	lstart string
+	watch  sync.Once
+	once   sync.Once
+	info   exitInfo
+	done   chan struct{}
 }
 
 func (p *attachedProc) PID() int { return p.pid }
+
+// live reports whether the pid is still the process that was recorded, not
+// merely whether something answers to that number.
+func (p *attachedProc) live() bool { return isRecorded(p.pid, p.lstart) }
 
 func (p *attachedProc) Signal(sig os.Signal) error {
 	s, ok := sig.(syscall.Signal)
 	if !ok {
 		return fmt.Errorf("cannot send %v to an adopted process", sig)
+	}
+	// Identity before the signal, and before the negative pid in particular:
+	// server.json outlives a reboot, and the process group of a pid the kernel
+	// has since handed to something else belongs to a stranger.
+	if !p.live() {
+		return fmt.Errorf(
+			"refusing to send %v to pid %d: it is not the process nav-pilot recorded, so its process group is not nav-pilot's to signal",
+			sig, p.pid)
 	}
 	// Negative pid first: start put the server in its own process group, so
 	// this reaches whatever it spawned rather than orphaning it.
@@ -147,7 +265,7 @@ func (p *attachedProc) Signal(sig os.Signal) error {
 func (p *attachedProc) Wait() exitInfo {
 	p.watch.Do(func() {
 		go func() {
-			for alive(p.pid) {
+			for p.live() {
 				time.Sleep(attachPollInterval)
 			}
 			p.settle(exitInfo{Code: -1, Err: errors.New("the server process is gone")})

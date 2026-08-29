@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"fmt"
 	"net"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -285,6 +288,57 @@ func TestStartSummaryNamesOnlyAddressesThatAnswer(t *testing.T) {
 	// something to discover from silence — but as what the launch does.
 	if !strings.Contains(out, "Guard") || !strings.Contains(out, "launch") {
 		t.Errorf("start no longer says the launch runs the loop guard:\n%s", out)
+	}
+}
+
+// TestStopDoesNotSignalAPidItDoesNotOwn is the reboot, end to end and with a
+// real process.
+//
+// server.json survives a reboot; the pid in it does not survive as the same
+// process. Stop used to check liveness with kill(pid, 0) — which answers "some
+// process has this number", never "this is the server" — and then signal the
+// *negative* pid, so a developer whose machine had rebooted sent SIGTERM to the
+// entire process group of whatever the kernel had handed 8-odd-thousand to
+// next. This spawns a stranger, records it as the local server, and runs stop.
+//
+// The one test in this package that spawns anything, because the bug is about
+// what a signal reaches and nothing short of a real process proves that.
+func TestStopDoesNotSignalAPidItDoesNotOwn(t *testing.T) {
+	home := localTestHome(t)
+
+	stranger := exec.Command("sleep", "30")
+	// Its own process group, like the server start puts the server in: this is
+	// the group stop used to signal.
+	stranger.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := stranger.Start(); err != nil {
+		t.Fatalf("spawning a stranger: %v", err)
+	}
+	t.Cleanup(func() { _ = stranger.Process.Kill() })
+
+	dir := filepath.Join(home, ".nav-pilot", "local")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A record with no recorded start time is exactly what a pre-reboot
+	// nav-pilot left behind, and exactly the record that cannot be trusted.
+	record := fmt.Sprintf(`{"pid":%d,"model":"mlx-community/x","port":8080,"started":"2026-01-01T00:00:00Z"}`,
+		stranger.Process.Pid)
+	if err := os.WriteFile(filepath.Join(dir, "server.json"), []byte(record), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	captureStdout(func() {
+		if err := cmdLocalStop(); err != nil {
+			t.Errorf("cmdLocalStop() errored: %v", err)
+		}
+	})
+
+	died := make(chan struct{})
+	go func() { _ = stranger.Wait(); close(died) }()
+	select {
+	case <-died:
+		t.Fatalf("`alpha local stop` killed pid %d, a process nav-pilot never started", stranger.Process.Pid)
+	case <-time.After(time.Second):
 	}
 }
 
