@@ -1,6 +1,7 @@
 {
   "domain": "general",
   "tags": ["local", "alpha", "sub-agent", "cost"],
+  "excluded": true,
   "examples": [
     {
       "prompt": "Legg til en KDoc-kommentar på dagerMellomDatoer i DateUtil.kt",

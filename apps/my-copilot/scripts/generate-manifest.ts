@@ -178,14 +178,21 @@ function getAgents(): ManifestItem[] {
   const agentFiles = fs.readdirSync(dir).filter((f) => f.endsWith(".agent.md"));
 
   // Parse all agents in one pass, collecting names for reference validation
-  const parsed = agentFiles.map((file) => {
-    const filePath = path.join(dir, file);
-    const content = fs.readFileSync(filePath, "utf-8");
-    const { data, body } = parseFrontmatter(content);
-    const name = (data.name as string) || file.replace(".agent.md", "");
-    const meta = loadMetadata(path.join(dir, file.replace(".agent.md", ".metadata.json")));
-    return { file, filePath, data, body, name, meta };
-  });
+  const parsed = agentFiles
+    .map((file) => {
+      const filePath = path.join(dir, file);
+      const content = fs.readFileSync(filePath, "utf-8");
+      const { data, body } = parseFrontmatter(content);
+      const name = (data.name as string) || file.replace(".agent.md", "");
+      const meta = loadMetadata(path.join(dir, file.replace(".agent.md", ".metadata.json")));
+      return { file, filePath, data, body, name, meta };
+    })
+    // The gate skills already have, on the same metadata key. Every entry here
+    // becomes a `vscode:chat-agent/install` deep link, so an agent that cannot
+    // keep its description's promise inside VS Code Copilot is left out rather
+    // than described defensively — hedging the wording would still leave the
+    // one-click install, and the excluded agent out of the reference index too.
+    .filter(({ meta }) => !meta.excluded);
 
   const knownAgentIds = new Set(parsed.map((p) => p.name));
 

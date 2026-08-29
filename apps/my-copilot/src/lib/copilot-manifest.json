@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-31T07:20:25.792Z",
+  "generatedAt": "2026-08-31T07:20:27.689Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -247,34 +247,6 @@
       ],
       "deprecated": true,
       "deprecatedMessage": "Bruk /kafka skill i stedet. Agenten har ingen verktøybegrensning som rettferdiggjør agent-formatet."
-    },
-    {
-      "id": "lokal-arbeider",
-      "name": "lokal-arbeider",
-      "description": "Kjører avgrensede oppgaver på en lokal modell, slik at de ikke bruker premium-forespørsler",
-      "type": "agent",
-      "domain": "general",
-      "filePath": ".github/agents/lokal-arbeider.agent.md",
-      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/lokal-arbeider.agent.md",
-      "contentHash": "73289cc29eecee58cc4e1981d2f34249f5f1d369afa9a62b97a3bd12e757cca7",
-      "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Flokal-arbeider.agent.md",
-      "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Flokal-arbeider.agent.md",
-      "tools": ["read", "edit", "search", "execute"],
-      "tags": ["local", "alpha", "sub-agent", "cost"],
-      "examples": [
-        {
-          "prompt": "Legg til en KDoc-kommentar på dagerMellomDatoer i DateUtil.kt",
-          "scenario": "Avgrenset endring i én fil"
-        },
-        {
-          "prompt": "Hvilken fil og linje leser NAIS_TOKEN_EXCHANGE_ENDPOINT?",
-          "scenario": "Oppslag uten endring"
-        },
-        {
-          "prompt": "Døp om erOrgnrGyldig til isOrgnrValid overalt",
-          "scenario": "Omdøping på tvers av kallsteder"
-        }
-      ]
     },
     {
       "id": "nav-pilot-opus",

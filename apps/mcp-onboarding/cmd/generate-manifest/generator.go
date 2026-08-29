@@ -45,6 +45,23 @@ type SkillMetadata struct {
 	Excluded    bool     `json:"excluded"`
 }
 
+// metadataExcluded reports whether the metadata.json at path marks its artifact
+// as not for publication. A missing or unparseable file means "publish", which
+// is what every artifact without metadata already gets.
+//
+// Only the one key is read here: agents keep the rest of their catalog entry in
+// frontmatter, so this is the whole of what loadAgents needs from metadata.
+func metadataExcluded(path string) bool {
+	data, err := os.ReadFile(path) //nolint:gosec // Generator needs to read .github files
+	if err != nil {
+		return false
+	}
+	var meta struct {
+		Excluded bool `json:"excluded"`
+	}
+	return json.Unmarshal(data, &meta) == nil && meta.Excluded
+}
+
 // InstructionMetadata represents the optional metadata.json for an instruction
 type InstructionMetadata struct {
 	DisplayName string `json:"displayName"`
@@ -144,6 +161,14 @@ func (g *Generator) loadAgents(dir string) ([]discovery.Customization, error) {
 
 	var agents []discovery.Customization
 	for _, file := range files {
+		// The gate skills already have, on the same metadata key. Every agent
+		// in this manifest is offered as a one-click VS Code Copilot install,
+		// so one that cannot keep its description's promise there is left out
+		// rather than described defensively.
+		if metadataExcluded(strings.TrimSuffix(file, ".agent.md") + ".metadata.json") {
+			continue
+		}
+
 		content, err := os.ReadFile(file) //nolint:gosec // Generator needs to read .github files
 		if err != nil {
 			return nil, fmt.Errorf("failed to read %s: %w", file, err)

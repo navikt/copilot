@@ -557,20 +557,26 @@ func cmdLocalOff() error {
 		}
 	}
 
-	// And out of opencode's config. nav-pilot's own config only decides what
-	// nav-pilot launches; the provider block start wrote lives in a file
-	// opencode reads by itself, so leaving it there leaves the model selectable
-	// and pointed at the guard's port — which after `off` is whatever is
-	// listening on it. start writes it back.
-	if err := providerpkg.RemoveOpenCodeLocalProvider(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not remove the local model from opencode: %v\n", yellow("⚠"), err)
-	}
-
-	// And the dispatch policy the launch wrote beside it, for the same reason:
-	// it is registered in that same file, and left there it keeps telling every
-	// session to hand work to a worker that is no longer reachable.
+	// And out of opencode's config — the claim first, then the thing it rests
+	// on. nav-pilot's own config only decides what nav-pilot launches; both of
+	// these live in a file opencode reads by itself, and they are two separate
+	// writes to it. The dispatch policy tells every session that the worker
+	// costs no premium requests, and only the binding taken out below makes
+	// that true, so a crash between the two writes must not be able to leave
+	// the fragment registered with the worker unbound: that is a session still
+	// dispatching to a "free" worker that now bills every task to the session
+	// model. It is the state the launch's fused write exists to rule out, and
+	// unwinding in this order rules it out on the way back down. The reverse
+	// leftover — a binding with nothing pointing at it — costs nothing.
 	if err := providerpkg.RemoveOpenCodeLocalPolicy(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not remove the local dispatch policy from opencode: %v\n", yellow("⚠"), err)
+	}
+
+	// Then the provider block and the worker's binding that start wrote. Left
+	// there, the model stays selectable and pointed at the guard's port — which
+	// after `off` is whatever is listening on it. start writes it back.
+	if err := providerpkg.RemoveOpenCodeLocalProvider(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not remove the local model from opencode: %v\n", yellow("⚠"), err)
 	}
 
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
