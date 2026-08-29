@@ -44,7 +44,7 @@ const (
 	// directory. uv is a single static binary, so this needs no Homebrew, no
 	// admin rights and no system Python: a developer who has never installed
 	// Python gets a working environment from a tarball.
-	uvVersion = "0.9.7"
+	uvVersion = "0.12.6"
 
 	// pythonVersion is load-bearing, not hygiene. mlx ships macOS arm64
 	// wheels for cp310 through cp312 only. There is no cp313 wheel, and the
@@ -58,8 +58,8 @@ const (
 	// mlxLMVersion and mlxVersion pin the server and the array framework
 	// under it. Both are named explicitly rather than letting mlx-lm resolve
 	// mlx, so a benchmark number is attributable to a pair of versions.
-	mlxLMVersion = "0.30.1"
-	mlxVersion   = "0.30.0"
+	mlxLMVersion = "0.31.3"
+	mlxVersion   = "0.32.0"
 )
 
 // DefaultPort is where the local server listens when a caller names no port.
@@ -530,7 +530,7 @@ func DownloadWeights(ctx context.Context, model string, progress func(string)) e
 	// that mlx-lm will load the weights with, not whatever is on PATH.
 	if err := runStreaming(ctx, venvBin("hf"), []string{"download", model}, nil, progress); err != nil {
 		return fmt.Errorf(
-			"downloading %s: %w\n\n  The download needs %s, %s and %s reachable; behind a TLS-inspecting proxy the first works and the other two hang.",
+			"downloading %s: %w\n\n  The download needs %s, %s and %s reachable; behind a TLS-inspecting proxy the first works and the other two hang",
 			model, err, "huggingface.co", "cas-server.xethub.hf.co", "transfer.xethub.hf.co")
 	}
 	return nil
@@ -813,7 +813,7 @@ func (s *Server) waitReady(ctx context.Context, model string) error {
 		}
 		if time.Now().After(deadline) {
 			return fmt.Errorf(
-				"the local %s server did not answer a completion within %s: %w\n\n  It may still be loading weights; readiness is a real completion, not a port bind.",
+				"the local %s server did not answer a completion within %s: %w\n\n  It may still be loading weights; readiness is a real completion, not a port bind",
 				model, readyTimeout, last)
 		}
 		select {
@@ -1043,7 +1043,7 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 
 	if w.RequiredGB+minFreeGB > w.MachineRAMGB {
 		return w, fmt.Errorf(
-			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else — below the %d GB the rest of the system needs.\n\n  Pick a smaller model: a cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled.",
+			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else — below the %d GB the rest of the system needs.\n\n  Pick a smaller model: a cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled",
 			m.Model, w.RequiredGB, w.MachineRAMGB-w.RequiredGB, w.MachineRAMGB, minFreeGB)
 	}
 	return w, nil
