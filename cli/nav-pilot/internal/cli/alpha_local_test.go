@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http/httptest"
 	"os"
@@ -91,6 +92,45 @@ func TestApplyLocalConfigNeedsBothHalves(t *testing.T) {
 			t.Errorf("IsLocal(%q) = true with no provisioned environment", m.Model)
 		}
 	}
+}
+
+// TestApplyLocalConfigSaysWhenAnUpgradeDisarmedDispatch: local.Installed() pins
+// exact mlx and mlx-lm versions, so a nav-pilot upgrade that bumps a pin flips
+// it false on a machine that never changed. Config still says local_enabled
+// with a local model selected, the id goes down the hosted path, and it fails
+// with an error about something else — unless dispatch says so on the way past.
+func TestApplyLocalConfigSaysWhenAnUpgradeDisarmedDispatch(t *testing.T) {
+	localTestHome(t)
+	if _, err := writeConfigKey("local_enabled", "true"); err != nil {
+		t.Fatalf("writing local_enabled: %v", err)
+	}
+
+	out := captureStderr(applyLocalConfig)
+	if !strings.Contains(out, "nav-pilot alpha local init") {
+		t.Errorf("applyLocalConfig said %q on an unprovisioned machine with local_enabled=true, want the fix named", out)
+	}
+
+	// And silent for everyone who never asked, which is the promise the whole
+	// alpha is behind.
+	if _, err := writeConfigKey("local_enabled", "false"); err != nil {
+		t.Fatalf("writing local_enabled: %v", err)
+	}
+	if out := captureStderr(applyLocalConfig); out != "" {
+		t.Errorf("applyLocalConfig wrote %q with local dispatch off", out)
+	}
+}
+
+// captureStderr is captureStdout's other half; applyLocalConfig warns on
+// stderr because stdout is a command's answer.
+func captureStderr(f func()) string {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	f()
+	w.Close()
+	os.Stderr = old
+	out, _ := io.ReadAll(r)
+	return string(out)
 }
 
 // TestApplyLocalConfigCarriesTheLoopGuardThreshold: the threshold is read from

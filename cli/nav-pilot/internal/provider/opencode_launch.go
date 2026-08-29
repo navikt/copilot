@@ -435,7 +435,9 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 // hours ago and left the port to whatever bound it next would have every prompt
 // of the session proxied to a stranger, with nothing on screen to say so.
 // Server.Start refuses a port nav-pilot does not own; this is the same rule
-// where the prompts actually flow.
+// where the prompts actually flow. The guard re-proves it per completion behind
+// a short cache, because this call only covers the instant of the launch and
+// the session it starts runs for hours.
 func startLoopGuard(model string) (*local.Guard, error) {
 	if !local.IsLocal(model) {
 		return nil, nil

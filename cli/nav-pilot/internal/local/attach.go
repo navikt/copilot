@@ -39,10 +39,16 @@ import (
 )
 
 // State is what start leaves behind for stop and status to find.
+//
+// No port is recorded. [DefaultPort] is fixed, [GuardPort] is fixed beside it,
+// and the baseURL start writes into opencode's config is fixed too — so
+// [EnsureOwnServer] and the guard both hardcode it. A recorded port that no
+// reader honours reads as configuration and is not one; honouring it would mean
+// threading a port through the guard and a config file another process owns,
+// which is a feature nobody has asked for.
 type State struct {
 	PID     int       `json:"pid"`
 	Model   string    `json:"model"`
-	Port    int       `json:"port"`
 	Started time.Time `json:"started"`
 
 	// Lstart is the kernel's start time for PID, verbatim from `ps -o lstart=`.
@@ -89,7 +95,12 @@ func LoadState() (State, bool, error) {
 		return s, false, fmt.Errorf("reading %s: %w", statePath(), err)
 	}
 	if err := json.Unmarshal(data, &s); err != nil {
-		return s, false, fmt.Errorf("%s is not readable as a recorded server: %w", statePath(), err)
+		return s, false, fmt.Errorf(
+			"%s is not readable as a recorded server: %w.\n\n"+
+				"  That file is nav-pilot's record, not the server: deleting it gets start, stop and status working again and does not stop anything that is still running.\n\n    %s\n\n"+
+				"  If a server is still up, it is on 127.0.0.1:%d:\n\n    %s",
+			statePath(), err, domain.Bold("rm "+statePath()), DefaultPort,
+			domain.Bold(fmt.Sprintf("lsof -ti tcp:%d | xargs kill", DefaultPort)))
 	}
 	return s, s.PID > 0, nil
 }
@@ -141,14 +152,16 @@ func isRecorded(pid int, lstart string) bool {
 	return lstart != "" && alive(pid) && processStart(pid) == lstart
 }
 
-// EnsureOwnServer proves the server a launch is about to be pointed at is the
-// one nav-pilot started, and refuses the launch when it cannot.
+// EnsureOwnServer proves the server the guard forwards to is the one nav-pilot
+// started, and refuses when it cannot.
 //
 // [Server.Start] refuses a port it does not own; this is that same rule at the
 // other end of the day. The loop guard proxies to a fixed address, so a server
 // that crashed hours ago and left port 8080 to whatever bound it next would
 // have every prompt of the session forwarded to a stranger, with nothing on
-// screen to say so.
+// screen to say so. The launch calls it once; the guard calls it again per
+// completion behind a short cache, because a session outlives its launch by
+// hours and the crash it is looking for happens in the middle of one.
 //
 // Three things have to hold: something is recorded, the recorded pid is still
 // that process, and it is the process holding the port. It refuses rather than
@@ -166,14 +179,14 @@ func EnsureOwnServer() error {
 	if !isRecorded(st.PID, st.Lstart) {
 		return fmt.Errorf(
 			"the recorded local %s server (pid %d) is not running any more.\n\n"+
-				"  Refusing to launch: the loop guard forwards to %s, and nav-pilot cannot tell whether that is still its own server or whatever took the port after it died.\n\n"+
+				"  Refusing: the loop guard forwards to %s, and nav-pilot cannot tell whether that is still its own server or whatever took the port after it died.\n\n"+
 				"  Start it again:\n\n    %s",
 			st.Model, st.PID, ServerURL(), start)
 	}
 	if !slices.Contains(portListeners(DefaultPort), st.PID) {
 		return fmt.Errorf(
 			"the recorded local %s server (pid %d) is not what is listening on 127.0.0.1:%d%s.\n\n"+
-				"  Refusing to launch: the loop guard forwards there, so every prompt in this session would go to a server nav-pilot did not start and cannot vouch for.\n\n"+
+				"  Refusing: the loop guard forwards there, so every prompt in this session would go to a server nav-pilot did not start and cannot vouch for.\n\n"+
 				"  Stop it, then start again:\n\n    %s\n    %s",
 			st.Model, st.PID, DefaultPort,
 			describeForeignServer(context.Background(), ServerURL()),
@@ -208,7 +221,7 @@ var portListeners = func(port int) []int {
 // crashed, decided before returning: a caller must not be told "starting"
 // about a pid that no longer exists.
 func Attach(s State) *Server {
-	srv := &Server{Port: s.Port, model: s.Model, started: s.Started}
+	srv := &Server{Port: DefaultPort, model: s.Model, started: s.Started}
 	p := &attachedProc{pid: s.PID, lstart: s.Lstart, done: make(chan struct{})}
 	srv.proc = p
 	if !p.live() {

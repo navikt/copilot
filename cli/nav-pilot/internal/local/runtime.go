@@ -231,6 +231,50 @@ func venvBin(name string) string { return filepath.Join(venvPath(), "bin", name)
 
 func stampPath() string { return filepath.Join(dataDir(), "env.json") }
 
+// LogPath is where the server's stdout and stderr go. Without it mlx_lm.server
+// writes its tracebacks, bind errors and OOM messages to a pipe nobody reads,
+// and every failure report a maintainer inherits says only "crashed" — which is
+// the state the diagnosis has to start from, not end at.
+func LogPath() string {
+	// "" rather than a bare relative name: with no home directory
+	// [navPilotPath] gives "", and joining onto that would put the log in
+	// whatever directory nav-pilot happened to be run from.
+	if dataDir() == "" {
+		return ""
+	}
+	return filepath.Join(dataDir(), "server.log")
+}
+
+// maxLogBytes is when the log is started over rather than appended to. A server
+// left up for a day writes a request line per completion, and the interesting
+// bytes are always the most recent ones — so the cheapest bound that keeps them
+// is to truncate on start, not to rotate. One stat per launch, no second file,
+// nothing to clean up.
+const maxLogBytes = 4 << 20
+
+// openLog opens the server log for a launch, appending unless it has grown past
+// [maxLogBytes]. nil when it cannot be opened: a log is for diagnosing a
+// failure, and refusing to start the server because the log would not open
+// makes it the failure.
+func openLog() *os.File {
+	path := LogPath()
+	if path == "" {
+		return nil
+	}
+	flags := os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	if fi, err := os.Stat(path); err == nil && fi.Size() > maxLogBytes {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil
+	}
+	f, err := os.OpenFile(path, flags, 0o644)
+	if err != nil {
+		return nil
+	}
+	return f
+}
+
 // probeVersion runs `<bin> --version` and returns the version token after the
 // expected prefix, or "" for anything it cannot read — missing binary, wrong
 // binary, unreadable output. "" is never mistaken for "up to date", the same
@@ -606,6 +650,14 @@ type proc interface {
 var startProcess = func(ctx context.Context, name string, args []string, env []string) (proc, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Env = env
+	// Both streams to one file: mlx-lm splits its own output across them and
+	// which half a traceback landed on is not information anyone wants to
+	// reconstruct from two files. The parent's copy of the descriptor is closed
+	// once the child holds it.
+	if log := openLog(); log != nil {
+		cmd.Stdout, cmd.Stderr = log, log
+		defer log.Close()
+	}
 	// Its own process group, so Stop reaches the server and anything it
 	// spawned rather than orphaning them — the same reasoning as
 	// internal/provider's staged probe.
@@ -1033,8 +1085,8 @@ func (s *Server) exited() *exitInfo {
 // whatever answered, it was not this server.
 func exitedBeforeReady(model string, info exitInfo) error {
 	return fmt.Errorf(
-		"the local %s server exited before it was ready: %s.\n\n  Anything answering on its port now is not nav-pilot's server",
-		model, describeExit(info))
+		"the local %s server exited before it was ready: %s.\n\n  Anything answering on its port now is not nav-pilot's server.\n  What it printed on the way out is in %s",
+		model, describeExit(info), LogPath())
 }
 
 // describeForeignServer names what is on a port, for a refusal message.

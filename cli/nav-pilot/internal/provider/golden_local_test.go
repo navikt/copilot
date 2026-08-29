@@ -313,7 +313,7 @@ func TestLocalLaunchRefusesAServerNavPilotDidNotStart(t *testing.T) {
 
 	// Recorded, alive, and the process it says it is — but not the one holding
 	// the port. This test process is all three.
-	if err := local.SaveState(local.State{PID: os.Getpid(), Model: id, Port: local.DefaultPort, Started: time.Now()}); err != nil {
+	if err := local.SaveState(local.State{PID: os.Getpid(), Model: id, Started: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
 	_, err := startLoopGuard(id)

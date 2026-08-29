@@ -43,7 +43,7 @@ func stubOurProcess(t *testing.T) {
 // aRunningState is the record start leaves behind for a server stubOurProcess
 // vouches for.
 func aRunningState() State {
-	return State{PID: 4242, Model: "m", Port: 8080, Started: time.Now(), Lstart: aStartTime}
+	return State{PID: 4242, Model: "m", Started: time.Now(), Lstart: aStartTime}
 }
 
 func TestStateRoundTripsAndForgets(t *testing.T) {
@@ -55,7 +55,7 @@ func TestStateRoundTripsAndForgets(t *testing.T) {
 
 	stubProcessStart(t, func(int) string { return aStartTime })
 
-	want := State{PID: 4242, Model: "mlx-community/x", Port: 8080, Started: time.Now().Truncate(time.Second)}
+	want := State{PID: 4242, Model: "mlx-community/x", Started: time.Now().Truncate(time.Second)}
 	if err := SaveState(want); err != nil {
 		t.Fatalf("SaveState() errored: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestStateRoundTripsAndForgets(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("LoadState() = (%v, %v), want a recorded server", ok, err)
 	}
-	if got.PID != want.PID || got.Model != want.Model || got.Port != want.Port || !got.Started.Equal(want.Started) {
+	if got.PID != want.PID || got.Model != want.Model || !got.Started.Equal(want.Started) {
 		t.Errorf("LoadState() = %+v, want %+v", got, want)
 	}
 	// Recorded by SaveState itself, not by the caller: a pid without the start
@@ -95,8 +95,17 @@ func TestLoadStateReportsAnUnreadableRecord(t *testing.T) {
 	if err := os.WriteFile(statePath(), []byte("{ not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, err := LoadState(); err == nil || ok {
-		t.Errorf("LoadState() on a corrupt record = (%v, %v), want an error", ok, err)
+	_, ok, err := LoadState()
+	if err == nil || ok {
+		t.Fatalf("LoadState() on a corrupt record = (%v, %v), want an error", ok, err)
+	}
+	// This error is what start, stop and status all fail with, so it has to
+	// carry the way out. Without it the three commands are bricked and nothing
+	// on screen says the file is nav-pilot's own record and safe to delete.
+	for _, want := range []string{statePath(), "rm " + statePath()} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("LoadState() on a corrupt record = %q, want it to name %q", err, want)
+		}
 	}
 }
 

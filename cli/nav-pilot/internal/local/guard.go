@@ -33,6 +33,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -122,11 +123,6 @@ func StartGuard(target string) (*Guard, error) {
 	return g, nil
 }
 
-// URL is where the client sends its completions.
-func (g *Guard) URL() string {
-	return "http://" + g.ln.Addr().String()
-}
-
 // Close stops the guard. Safe on a nil Guard so a caller can defer it beside a
 // failed start.
 func (g *Guard) Close() error {
@@ -139,6 +135,45 @@ func (g *Guard) Close() error {
 	return nil
 }
 
+// ownershipCheck proves the fixed port still belongs to nav-pilot's own server.
+// A var so a test can drive the gate without a recorded server and an lsof that
+// agrees with it.
+var ownershipCheck = EnsureOwnServer
+
+// ownershipTTL is how long one proof is trusted for.
+//
+// The launch proves ownership once and the guard then proxies to a fixed
+// 127.0.0.1:8080 for the rest of the session, so a server that dies at noon and
+// leaves the port to whatever binds it next has every later prompt forwarded to
+// a stranger. Re-proving it per request would be right and costs two
+// subprocesses (ps, lsof); a few seconds of cache makes that free next to a
+// completion that takes seconds to minutes on local hardware.
+var ownershipTTL = 3 * time.Second
+
+// ownershipGate returns the cached ownership check for one guard. Per guard
+// rather than per package so the cache dies with the session it belongs to.
+//
+// ponytail: the window is the TTL — a server that dies just after a pass is
+// proxied to until the entry expires. No check closes it completely, since the
+// server can die between the proof and the write; shorten the TTL if seconds
+// are too many.
+func ownershipGate() func() error {
+	var (
+		mu      sync.Mutex
+		expires time.Time
+		err     error
+	)
+	return func() error {
+		mu.Lock()
+		defer mu.Unlock()
+		if now := time.Now(); !now.Before(expires) {
+			err = ownershipCheck()
+			expires = now.Add(ownershipTTL)
+		}
+		return err
+	}
+}
+
 // guardHandler inspects a completion request and either refuses it or forwards
 // it unchanged.
 //
@@ -147,9 +182,14 @@ func (g *Guard) Close() error {
 // one measured failure, and a guard that fails closed on a shape it did not
 // anticipate would break working sessions to protect them.
 func guardHandler(proxy http.Handler) http.Handler {
+	owned := ownershipGate()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
 			proxy.ServeHTTP(w, r)
+			return
+		}
+		if err := owned(); err != nil {
+			writeGuardError(w, "nav-pilot did not forward this request: "+err.Error(), "local_server_lost")
 			return
 		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody))
@@ -243,13 +283,19 @@ func writeLoopGuardError(w http.ResponseWriter, call string, n int) {
 			"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
 		n, shown, loopGuardRepeat)
 
+	writeGuardError(w, msg, "loop_guard")
+}
+
+// writeGuardError is the envelope both refusals answer in — the shape the
+// client already renders as a message rather than as a transport failure.
+func writeGuardError(w http.ResponseWriter, msg, code string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error": map[string]any{
 			"message": msg,
-			"type":    "nav_pilot_loop_guard",
-			"code":    "loop_guard",
+			"type":    "nav_pilot_" + code,
+			"code":    code,
 		},
 	})
 }

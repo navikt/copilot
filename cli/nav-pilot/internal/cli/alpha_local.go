@@ -355,12 +355,11 @@ func cmdLocalStart() error {
 	status := srv.Status()
 	if status.Health != local.HealthReady || status.PID <= 0 {
 		_ = srv.Stop()
-		return fmt.Errorf("the local %s server did not come up (%s); nothing was recorded", model.Model, status.Health)
+		return fmt.Errorf("the local %s server did not come up (%s); nothing was recorded.\n\n  What it printed is in %s", model.Model, status.Health, local.LogPath())
 	}
 	if err := local.SaveState(local.State{
 		PID:     status.PID,
 		Model:   model.Model,
-		Port:    status.Port,
 		Started: started,
 	}); err != nil {
 		return err
@@ -525,7 +524,11 @@ func healthMeaning(h local.Health) string {
 	case local.HealthReady:
 		return "answered a real completion"
 	case local.HealthCrashed:
-		return "the process is gone; start it again"
+		// The log path belongs here and not in a footnote: this is the one
+		// state where the developer has nothing else to go on, and a crash
+		// report that quotes only "the process is gone" is a report nobody can
+		// act on.
+		return "the process is gone; start it again — what it printed is in " + local.LogPath()
 	case local.HealthHung:
 		return "alive and accepting connections but not answering; it will not recover, restart it"
 	}
@@ -597,6 +600,15 @@ func applyLocalConfig() {
 	r := resolve(cfg, CLIOverrides{})
 	local.SetLoopGuardRepeat(localLoopGuard(r))
 	if !r.LocalEnabled || !local.Installed() {
+		// Said out loud, because the two halves come apart on their own: the
+		// stamp pins exact mlx and mlx-lm versions, so a nav-pilot upgrade that
+		// bumps a pin turns Installed() false while the config still says yes.
+		// Silence there sends a local model id down the hosted path, where it
+		// fails with an error about something else entirely.
+		if r.LocalEnabled {
+			fmt.Fprintf(os.Stderr, "%s Local dispatch is on but the environment is not provisioned to the versions this nav-pilot pins — local models are hidden and launches go hosted. Run %s.\n",
+				yellow("⚠"), bold("nav-pilot alpha local init"))
+		}
 		return
 	}
 	// Cached, never Resolve: this runs on every nav-pilot invocation, including

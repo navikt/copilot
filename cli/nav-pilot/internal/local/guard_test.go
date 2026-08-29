@@ -10,6 +10,17 @@ import (
 	"testing"
 )
 
+// stubOwnership replaces the guard's ownership proof. The real one needs a
+// recorded server and an lsof that agrees with it, which a unit test has no way
+// to arrange; every test below that is about the loop guard says "yes, it is
+// still ours" and moves on.
+func stubOwnership(t *testing.T, f func() error) {
+	t.Helper()
+	orig := ownershipCheck
+	ownershipCheck = f
+	t.Cleanup(func() { ownershipCheck = orig })
+}
+
 // assistantCall is one assistant turn that made a tool call.
 func assistantCall(name, args string) string {
 	return fmt.Sprintf(
@@ -115,6 +126,7 @@ func TestRepeatedToolCallIgnoresUnreadableBodies(t *testing.T) {
 // TestGuardAbortsTheTurnOnARunawayLoop is the whole point of the package: a
 // request that would extend a run of identical calls never reaches the server.
 func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
+	stubOwnership(t, func() error { return nil })
 	var forwarded int
 	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		forwarded++
@@ -167,6 +179,7 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 // TestGuardForwardsEverythingElse: the guard is not a filter. Only the one
 // request shape it understands is ever refused.
 func TestGuardForwardsEverythingElse(t *testing.T) {
+	stubOwnership(t, func() error { return nil })
 	var seen []string
 	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := json.Marshal(r.URL.Path)
@@ -193,6 +206,7 @@ func TestGuardForwardsEverythingElse(t *testing.T) {
 // TestGuardForwardsTheBodyItRead: reading the body to inspect it must not
 // consume it.
 func TestGuardForwardsTheBodyItRead(t *testing.T) {
+	stubOwnership(t, func() error { return nil })
 	body := conversation(`{"role":"user","content":"hei"}`)
 	var got []byte
 	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -229,6 +243,7 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 	}))
 	defer upstream.Close()
 
+	stubOwnership(t, func() error { return nil })
 	g, err := StartGuard(upstream.URL)
 	if err != nil {
 		t.Skipf("could not bind the guard port on this machine: %v", err)
@@ -236,12 +251,107 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 	defer g.Close()
 
 	body := conversation(`{"role":"user","content":"hei"}`)
-	resp, err := http.Post(g.URL()+"/v1/chat/completions", "application/json", strings.NewReader(string(body)))
+	resp, err := http.Post(GuardURL()+"/v1/chat/completions", "application/json", strings.NewReader(string(body)))
 	if err != nil {
 		t.Fatalf("POST through the guard: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("guard returned %s for a request that is not a loop", resp.Status)
+	}
+}
+
+// TestGuardRefusesAServerItCanNoLongerVouchFor is the hole the launch-time
+// check left open: it proved ownership once and the guard then proxied to a
+// fixed 127.0.0.1:8080 for the rest of the day, so a server that died at noon
+// and left the port to whatever bound it next had every later prompt forwarded
+// to a stranger, silently.
+func TestGuardRefusesAServerItCanNoLongerVouchFor(t *testing.T) {
+	origTTL := ownershipTTL
+	ownershipTTL = 0
+	t.Cleanup(func() { ownershipTTL = origTTL })
+
+	var lost error
+	stubOwnership(t, func() error { return lost })
+
+	var forwarded int
+	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		forwarded++
+	}))
+	post := func() *httptest.ResponseRecorder {
+		body := conversation(`{"role":"user","content":"hei"}`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := post(); rec.Code != http.StatusOK || forwarded != 1 {
+		t.Fatalf("a prompt to a server nav-pilot owns = %d (forwarded %d), want 200 and forwarded", rec.Code, forwarded)
+	}
+
+	// The server dies mid-session and something else takes the port.
+	lost = fmt.Errorf("the recorded local m server (pid 4242) is not what is listening on 127.0.0.1:%d", DefaultPort)
+
+	rec := post()
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("a prompt was forwarded to a server nav-pilot cannot vouch for: %d", rec.Code)
+	}
+	if forwarded != 1 {
+		t.Errorf("the guard forwarded a request it refused (%d forwarded, want 1)", forwarded)
+	}
+
+	// Same envelope as the loop guard, so the client renders a message rather
+	// than a transport failure.
+	var parsed struct {
+		Error struct {
+			Message string `json:"message"`
+			Type    string `json:"type"`
+			Code    string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &parsed); err != nil {
+		t.Fatalf("the refusal is not JSON the client can render: %v", err)
+	}
+	if parsed.Error.Type != "nav_pilot_local_server_lost" || parsed.Error.Code != "local_server_lost" {
+		t.Errorf("error type/code = %q/%q, want nav_pilot_local_server_lost/local_server_lost", parsed.Error.Type, parsed.Error.Code)
+	}
+	if !strings.Contains(parsed.Error.Message, lost.Error()) {
+		t.Errorf("the refusal does not say what went wrong: %q", parsed.Error.Message)
+	}
+}
+
+// TestGuardOwnershipCheckIsCachedBetweenPrompts is what makes the check
+// affordable: it shells out to ps and lsof, and a session sends many prompts.
+// One proof covers every prompt inside the TTL.
+func TestGuardOwnershipCheckIsCachedBetweenPrompts(t *testing.T) {
+	var checks int
+	stubOwnership(t, func() error {
+		checks++
+		return nil
+	})
+	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	for range 5 {
+		body := conversation(`{"role":"user","content":"hei"}`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
+		handler.ServeHTTP(httptest.NewRecorder(), req)
+	}
+	if checks != 1 {
+		t.Errorf("the ownership check ran %d times for five prompts inside the TTL, want 1", checks)
+	}
+}
+
+// TestGuardChecksOwnershipOnlyForCompletions: the check costs two subprocesses,
+// and everything the guard forwards untouched must stay free.
+func TestGuardChecksOwnershipOnlyForCompletions(t *testing.T) {
+	var checks int
+	stubOwnership(t, func() error {
+		checks++
+		return nil
+	})
+	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+	if checks != 0 {
+		t.Errorf("GET /v1/models ran the ownership check %d times, want 0", checks)
 	}
 }

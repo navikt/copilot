@@ -26,6 +26,17 @@
 // [allowedParamKey]) rather than in the served file: widening either is a
 // reviewable diff in this repo, not an edit to a JSON file in another one.
 //
+// The manifest itself is unsigned, and that is a decision rather than an
+// oversight: its integrity rests on TLS to raw.githubusercontent.com and on who
+// holds write access to navikt/mlx-workspace. Signing it was considered and
+// declined for the alpha — a signature needs a key, a place to keep it, a
+// rotation story and a verification path in every nav-pilot already shipped,
+// which is more machinery than an opt-in alpha behind a provisioning step can
+// carry. What bounds the blast radius in the meantime is the pair of
+// allow-lists above: whoever can edit the served file can choose among models
+// published by [allowedPublishers] and set variables matching
+// [allowedParamKey], and nothing else.
+//
 // # Never blocking
 //
 // [Resolve] prefers the network but never depends on it: a failed, slow or

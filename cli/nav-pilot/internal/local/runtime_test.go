@@ -1,6 +1,7 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -20,9 +21,14 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Fakes. Nothing in this file touches the network, spawns a process, or writes
-// outside a temp dir — the same rule local_test.go's stubFetch keeps, and the
-// reason every external call in runtime.go is a package-level func var.
+// Fakes. Nothing in this file touches the network or writes outside a temp dir
+// — the same rule local_test.go's stubFetch keeps, and the reason every
+// external call in runtime.go is a package-level func var.
+//
+// One exception spawns a process: [TestStartProcessSendsTheServerOutputToTheLog]
+// runs /bin/sh, because what it pins is that a real child's real stdout and
+// stderr land in a real file, and the seam that would let it fake that is the
+// exact line the test exists to protect.
 // ---------------------------------------------------------------------------
 
 // stubDirs points the data directory and the Hugging Face cache at temp dirs.
@@ -1070,5 +1076,75 @@ func TestVerifyUVDownloadRefusesAnUnpinnedAsset(t *testing.T) {
 	err := verifyUVDownload(path, "uv-some-future-target")
 	if err == nil || !strings.Contains(err.Error(), "no pinned sha256") {
 		t.Errorf("verifyUVDownload on an unpinned asset = %v, want a refusal", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The server log
+// ---------------------------------------------------------------------------
+
+// TestStartProcessSendsTheServerOutputToTheLog is the ship blocker: without it
+// mlx_lm.server's tracebacks, bind errors and OOM messages went nowhere, so
+// every crash a maintainer inherited said "crashed" and nothing else.
+func TestStartProcessSendsTheServerOutputToTheLog(t *testing.T) {
+	stubDirs(t)
+
+	p, err := startProcess(context.Background(), "/bin/sh", []string{"-c", "echo on-stdout; echo on-stderr >&2"}, os.Environ())
+	if err != nil {
+		t.Fatalf("startProcess: %v", err)
+	}
+	p.Wait()
+
+	data, err := os.ReadFile(LogPath())
+	if err != nil {
+		t.Fatalf("reading %s: %v", LogPath(), err)
+	}
+	for _, want := range []string{"on-stdout", "on-stderr"} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("the server log has no %q in it (%q); a crash report built from this has nothing to read", want, data)
+		}
+	}
+}
+
+// TestServerLogKeepsTheLastRunUntilItIsTooBig: a restart must not throw away
+// what the previous run printed on its way out — that is usually the whole
+// diagnosis — but the file cannot grow without bound either.
+func TestServerLogKeepsTheLastRunUntilItIsTooBig(t *testing.T) {
+	data, _ := stubDirs(t)
+	if err := os.MkdirAll(data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(LogPath(), []byte("what the crashed run printed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	f := openLog()
+	if f == nil {
+		t.Fatal("openLog() = nil with a writable data directory")
+	}
+	f.Close()
+	if got, _ := os.ReadFile(LogPath()); !strings.Contains(string(got), "what the crashed run printed") {
+		t.Errorf("a restart threw away the previous run's output: %q", got)
+	}
+
+	if err := os.WriteFile(LogPath(), bytes.Repeat([]byte("x"), maxLogBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if f := openLog(); f != nil {
+		f.Close()
+	}
+	if fi, err := os.Stat(LogPath()); err != nil || fi.Size() != 0 {
+		t.Errorf("the log was %d bytes after a start past the %d-byte cap, want it started over", fi.Size(), maxLogBytes)
+	}
+}
+
+// TestExitedBeforeReadyNamesTheLog: the message a failed start hands a
+// developer has to say where the process's own words are, or the supported way
+// to diagnose a crash is a macOS .ips file.
+func TestExitedBeforeReadyNamesTheLog(t *testing.T) {
+	stubDirs(t)
+	err := exitedBeforeReady("mlx-community/x", exitInfo{Signal: syscall.SIGSEGV})
+	if !strings.Contains(err.Error(), LogPath()) {
+		t.Errorf("exitedBeforeReady() = %q, want it to name %s", err, LogPath())
 	}
 }
