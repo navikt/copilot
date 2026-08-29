@@ -517,9 +517,14 @@ func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 	if err := LaunchPi(domain.ResolvedConfig{Client: "pi", Model: "claude-sonnet-4.6"}); err != nil {
 		t.Fatalf("LaunchPi error: %v", err)
 	}
+	// A test binary has no terminal on stdin, so this spawns the launch on the
+	// non-interactive path and is the one end-to-end proof that --yes actually
+	// reaches cplt. The interactive vector — without --yes — is pinned by the
+	// pure tests in golden_launch_test.go.
+	want := "cplt --yes --agent pi --"
 	got, _ := os.ReadFile(out)
-	if string(got) != "cplt --agent pi --" {
-		t.Errorf("cplt argv = %q, want %q", string(got), "cplt --agent pi --")
+	if string(got) != want {
+		t.Errorf("cplt argv = %q, want %q", string(got), want)
 	}
 }
 

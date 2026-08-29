@@ -130,6 +130,20 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	return args
 }
 
+// openCodeAgentArgs is what a legacy opencode launch passes the client:
+// [OpenCodeArgs], with the user's pass-through arguments forwarded through the
+// same rules the staged path uses (openCodeClientArgs), so `run` keeps its
+// place as the first argument opencode sees.
+//
+// Until this existed the pass-through arguments were parsed, resolved, and then
+// dropped on the floor: `nav-pilot -- run "…"` started the TUI with the request
+// discarded, which is a whole non-interactive dispatch thrown away in silence.
+// With none of them openCodeClientArgs returns the bind untouched, so every
+// launch that has ever worked is byte-identical (golden_launch_test.go).
+func openCodeAgentArgs(resolved domain.ResolvedConfig) []string {
+	return openCodeClientArgs(OpenCodeArgs(resolved), resolved.ExtraArgs)
+}
+
 // OpenCodeUnsupportedConfigWarnings returns informational warning strings for
 // config fields that are explicitly set to a non-default value but have no
 // opencode equivalent.
@@ -356,7 +370,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	return launchViaCplt(cpltLaunch{
 		agent:         "opencode",
-		agentArgs:     OpenCodeArgs(resolved),
+		agentArgs:     openCodeAgentArgs(resolved),
 		env:           launchEnv,
 		displayName:   "opencode",
 		messageSuffix: suffix,

@@ -55,6 +55,34 @@ func cpltArgv(spec cpltLaunch) []string {
 	return append(args, spec.agentArgs...)
 }
 
+// withCpltConfirmation prefixes cplt's --yes when no terminal can answer the
+// launch confirmation cplt asks before it starts an agent. Without it cplt
+// stops with "No TTY available for confirmation. Use --yes for non-interactive
+// runs." and exits 1, so every launch from a script, a pipe or a dispatched
+// task died before the agent ran. Detected rather than flagged: nav-pilot
+// already decides interactivity by looking at stdin everywhere it matters, and
+// a flag would make the supported path opt-in to something the process can see
+// for itself — while everyone who did not pass it kept the hard error.
+//
+// --yes and nothing else. It skips the prompt and changes nothing else: cplt
+// still prints the sandbox configuration summary, in its own words, "for
+// auditability", and every restriction — the gh guard, the git guard, the
+// filesystem and network policy — is untouched. The reference launcher splices
+// --yes and --quiet together (grillmester.py line 879), and nav-pilot's own
+// version probe copies that pair, but --quiet is wrong here: it suppresses the
+// post-session change audit (`cplt --help` under --no-audit: "The report is
+// also suppressed under --quiet") along with the configuration summary, and a
+// launch nobody is watching is the one whose audit is worth the most.
+//
+// Pure, and takes the terminal state rather than reading it, so a test can pin
+// both vectors — and so the interactive one stays exactly what it is today.
+func withCpltConfirmation(args []string, tty bool) []string {
+	if tty {
+		return args
+	}
+	return append([]string{"--yes"}, args...)
+}
+
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring
 // stdio to the current process. cplt is required: if it is not found on PATH the
 // launch fails with guidance instead of falling back to an unsandboxed binary.
@@ -65,7 +93,7 @@ func launchViaCplt(spec cpltLaunch) error {
 		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
 	}
 
-	args := cpltArgv(spec)
+	args := withCpltConfirmation(cpltArgv(spec), isTerminal(os.Stdin))
 
 	fmt.Printf("Launching %s via %s%s...\n\n",
 		domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)

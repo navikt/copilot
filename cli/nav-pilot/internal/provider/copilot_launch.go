@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
@@ -152,7 +154,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		PrintCpltSandboxHint()
 	}
 	PrintModelAvailabilityHint(resolved.Model)
-	args := BuildCopilotArgs(cliName, resolved)
+	args := copilotLaunchArgs(cliName, resolved, isTerminal(os.Stdin))
 	displayName := CLIDisplayName(cliName)
 	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(PrimaryAgent("copilot")))
 	cmd := exec.Command(cliPath, args...)
@@ -171,24 +173,45 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	return nil
 }
 
+// copilotLaunchArgs is the vector LaunchCopilot passes to the binary it
+// resolved: [BuildCopilotArgs], plus cplt's --yes when no terminal can answer
+// the confirmation cplt asks before it starts anything. This path builds its
+// own vector rather than going through cpltArgv, so it needs the same treatment
+// separately or it keeps dying on the prompt that the opencode and pi paths no
+// longer die on.
+//
+// The plain copilot CLI never gets it: --yes is cplt's flag and copilot has no
+// confirmation to skip.
+func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, tty bool) []string {
+	args := BuildCopilotArgs(cliName, resolved)
+	if cliName != "cplt" {
+		return args
+	}
+	return withCpltConfirmation(args, tty)
+}
+
 // cpltSandboxHintShown tracks whether the cplt sandbox hint has been shown this session.
 var cpltSandboxHintShown bool
 
-// isTerminal returns true when stdin is a terminal (not piped/redirected).
-// Used to suppress informational hints in non-interactive contexts.
-func isTerminal() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
+// isTerminal reports whether f is a terminal. Used to suppress informational
+// hints in non-interactive contexts, and to decide whether anything can answer
+// cplt's launch confirmation (see withCpltConfirmation).
+//
+// It asks the kernel rather than reading the file mode, because
+// os.ModeCharDevice — what isInteractive in internal/cli checks — is also set
+// for /dev/null, and /dev/null is exactly what stdin is on a dispatched,
+// non-interactive run. The cheap check answers "a human is there" for the one
+// case that most needs the answer to be no.
+func isTerminal(f *os.File) bool {
+	_, err := unix.IoctlGetWinsize(int(f.Fd()), unix.TIOCGWINSZ)
+	return err == nil
 }
 
 // PrintCpltSandboxHint prints a one-time tip about cplt sandbox configuration
 // for users who may not know how to configure cplt outside of nav-pilot.
 // Suppressed by NAV_PILOT_CPLT_HINT=0 or in non-interactive mode.
 func PrintCpltSandboxHint() {
-	if cpltSandboxHintShown || !isTerminal() {
+	if cpltSandboxHintShown || !isTerminal(os.Stdin) {
 		return
 	}
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("NAV_PILOT_CPLT_HINT")), "0") {
@@ -205,7 +228,7 @@ func PrintCpltSandboxHint() {
 // Warns on provider-qualified format (e.g. github-copilot/claude-sonnet-4.5)
 // and reminds users about org-level availability restrictions.
 func PrintModelAvailabilityHint(model string) {
-	if !isTerminal() {
+	if !isTerminal(os.Stdin) {
 		return
 	}
 	if model == "" || model == "auto" {
