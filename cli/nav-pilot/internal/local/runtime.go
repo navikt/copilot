@@ -19,6 +19,8 @@ package local
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -295,17 +297,74 @@ func EnsureEnv(ctx context.Context) error {
 // per target, which is what makes "install it ourselves" a tarball and not a
 // package manager.
 func uvAsset() (string, error) {
-	switch runtime.GOOS + "/" + runtime.GOARCH {
-	case "darwin/arm64":
-		return "uv-aarch64-apple-darwin", nil
-	case "darwin/amd64":
-		return "uv-x86_64-apple-darwin", nil
-	case "linux/arm64":
-		return "uv-aarch64-unknown-linux-gnu", nil
-	case "linux/amd64":
-		return "uv-x86_64-unknown-linux-gnu", nil
+	target := runtime.GOOS + "/" + runtime.GOARCH
+	if asset := uvAssetFor(target); asset != "" {
+		return asset, nil
 	}
-	return "", fmt.Errorf("no uv release for %s/%s", runtime.GOOS, runtime.GOARCH)
+	return "", fmt.Errorf("no uv release for %s", target)
+}
+
+// uvAssetFor maps a GOOS/GOARCH target to its uv release asset, "" for a
+// target uv does not publish. Split out so the checksum pin can be tested
+// against every target this binary can be built for, not just the one the test
+// happens to run on.
+func uvAssetFor(target string) string {
+	switch target {
+	case "darwin/arm64":
+		return "uv-aarch64-apple-darwin"
+	case "darwin/amd64":
+		return "uv-x86_64-apple-darwin"
+	case "linux/arm64":
+		return "uv-aarch64-unknown-linux-gnu"
+	case "linux/amd64":
+		return "uv-x86_64-unknown-linux-gnu"
+	}
+	return ""
+}
+
+// uvSHA256 pins the sha256 of every uv release asset for [uvVersion]. This is
+// the one thing this package fetches and then executes, and until now it did so
+// on the strength of a URL alone.
+//
+// The sums are written down here rather than fetched from the release: a
+// checksum served next to the file it describes is vouched for by whoever
+// served the file, so downloading both proves only that they match each other.
+// Bumping uvVersion means replacing every entry below, read once from
+// https://github.com/astral-sh/uv/releases/download/<version>/<asset>.tar.gz.sha256
+// and reviewed in the same diff as the version.
+var uvSHA256 = map[string]string{
+	"uv-aarch64-apple-darwin":      "14b459d51ea2e71eeba28c45a268c922bdf8607fc6455e3f40b4e082895d160d",
+	"uv-x86_64-apple-darwin":       "2a26ea71bbeff1c7e12c2cc40245c96a041deff276bc921e7038e304d5d3e04c",
+	"uv-aarch64-unknown-linux-gnu": "d58030acd26159499ac82f32da12d1b3c12a3a1bfc414232d9082070c03e128d",
+	"uv-x86_64-unknown-linux-gnu":  "8681d8921e7d520fb368991dcf5f9c1905b80f5bf2a265a0ed085c8d8e342477",
+}
+
+// verifyUVDownload refuses a uv tarball whose bytes are not the pinned ones.
+// It fails the whole install rather than falling back to an unverified copy:
+// the next two steps unpack this file, chmod it executable and run it, so
+// "could not verify" and "verified as wrong" have the same correct answer.
+func verifyUVDownload(path, asset string) error {
+	want, ok := uvSHA256[asset]
+	if !ok {
+		return fmt.Errorf(
+			"no pinned sha256 for uv asset %s at version %s, so the download cannot be verified — refusing to unpack and run it",
+			asset, uvVersion)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("verifying the uv %s download: %w", uvVersion, err)
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("verifying the uv %s download: %w", uvVersion, err)
+	}
+	if got := hex.EncodeToString(h.Sum(nil)); got != want {
+		return fmt.Errorf(
+			"the uv %s download for %s does not match its pinned checksum — refusing to unpack and run it.\n\n  want %s\n  got  %s",
+			uvVersion, asset, want, got)
+	}
+	return nil
 }
 
 // ensureUV installs the pinned uv into nav-pilot's own bin directory, or
@@ -333,6 +392,9 @@ func ensureUV(ctx context.Context) error {
 	tarball := filepath.Join(tmp, "uv.tar.gz")
 	if err := downloadFile(ctx, url, tarball); err != nil {
 		return fmt.Errorf("downloading uv %s: %w", uvVersion, err)
+	}
+	if err := verifyUVDownload(tarball, asset); err != nil {
+		return err
 	}
 	if out, err := runCommand(ctx, "tar", []string{"-xzf", tarball, "-C", tmp}, nil); err != nil {
 		return fmt.Errorf("unpacking uv %s: %w: %s", uvVersion, err, strings.TrimSpace(out))

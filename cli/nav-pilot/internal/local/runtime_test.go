@@ -2,7 +2,9 @@ package local
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -80,6 +82,13 @@ func fakeUVEnv(t *testing.T, pythonReports string) *[]runCall {
 		return os.WriteFile(dest, []byte("tarball"), 0o644)
 	}
 	t.Cleanup(func() { downloadFile = origDownload })
+
+	// The fake tarball is not the real release, so the pin has to describe the
+	// bytes this fake writes. The real sums are pinned by
+	// TestUVChecksumsArePinnedForEveryAsset.
+	origSums := uvSHA256
+	uvSHA256 = map[string]string{asset: fmt.Sprintf("%x", sha256.Sum256([]byte("tarball")))}
+	t.Cleanup(func() { uvSHA256 = origSums })
 
 	return stubRun(t, func(name string, args []string) (string, error) {
 		exists := func(p string) bool { _, err := os.Stat(p); return err == nil }
@@ -887,4 +896,61 @@ func TestCheckWiredLimit(t *testing.T) {
 // memsizeBytes renders a GB count as the byte string hw.memsize reports.
 func memsizeBytes(gb int) string {
 	return strconv.FormatInt(int64(gb)*gib, 10) + "\n"
+}
+
+// TestUVChecksumsArePinnedForEveryAsset keeps the pin and the asset list from
+// drifting apart: a new target in uvAsset with no sum here would fail at
+// install time on exactly the machine that has no other way to get uv.
+func TestUVChecksumsArePinnedForEveryAsset(t *testing.T) {
+	for _, target := range []string{"darwin/arm64", "darwin/amd64", "linux/arm64", "linux/amd64"} {
+		if _, ok := uvSHA256[uvAssetFor(target)]; !ok {
+			t.Errorf("no pinned sha256 for the uv asset on %s", target)
+		}
+	}
+	for _, sum := range uvSHA256 {
+		if len(sum) != 64 {
+			t.Errorf("pinned sha256 %q is not 64 hex characters", sum)
+		}
+	}
+}
+
+// TestEnsureUVRefusesATamperedDownload is the point of the pin: a tarball that
+// is not the release must never reach tar, chmod +x and exec.
+func TestEnsureUVRefusesATamperedDownload(t *testing.T) {
+	stubDirs(t)
+	origDownload := downloadFile
+	downloadFile = func(_ context.Context, _, dest string) error {
+		return os.WriteFile(dest, []byte("not the release"), 0o644)
+	}
+	t.Cleanup(func() { downloadFile = origDownload })
+	calls := stubRun(t, func(string, []string) (string, error) { return "", errors.New("nope") })
+
+	err := ensureUV(context.Background())
+	if err == nil {
+		t.Fatal("ensureUV accepted a tarball that does not match the pinned checksum")
+	}
+	if !strings.Contains(err.Error(), "pinned checksum") {
+		t.Errorf("error does not name the checksum mismatch: %v", err)
+	}
+	if ranWith(*calls, "tar") {
+		t.Error("ensureUV unpacked a tarball it had not verified")
+	}
+	if _, statErr := os.Stat(uvPath()); statErr == nil {
+		t.Error("ensureUV installed a uv binary from an unverified tarball")
+	}
+
+}
+
+// TestVerifyUVDownloadRefusesAnUnpinnedAsset: an asset with no entry is
+// unverifiable, which is refused rather than waved through.
+func TestVerifyUVDownloadRefusesAnUnpinnedAsset(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "uv.tar.gz")
+	if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := verifyUVDownload(path, "uv-some-future-target")
+	if err == nil || !strings.Contains(err.Error(), "no pinned sha256") {
+		t.Errorf("verifyUVDownload on an unpinned asset = %v, want a refusal", err)
+	}
 }
