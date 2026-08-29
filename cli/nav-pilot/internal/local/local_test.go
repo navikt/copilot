@@ -351,13 +351,35 @@ func TestEmbeddedManifestIsValid(t *testing.T) {
 	}
 }
 
+func TestIsLocalIsFalseUntilLocalIsEnabled(t *testing.T) {
+	m, err := Parse(embeddedManifest)
+	if err != nil {
+		t.Fatalf("embedded manifest: %v", err)
+	}
+	SetActive(m)
+	t.Cleanup(func() { SetActive(nil); SetEnabled(false) })
+
+	SetEnabled(false)
+	if IsLocal(m.Models[0].Model) {
+		t.Error("IsLocal answered true with local dispatch disabled — a developer who never opted in would be routed to a local model")
+	}
+	if _, ok := Lookup(m.Models[0].Model); !ok {
+		t.Error("Lookup must stay ungated: the commands that enable local have to read the manifest first")
+	}
+	SetEnabled(true)
+	if !IsLocal(m.Models[0].Model) {
+		t.Error("IsLocal answered false with local dispatch enabled")
+	}
+}
+
 func TestLookupAndIsLocal(t *testing.T) {
 	m, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true)))
 	if err != nil {
 		t.Fatalf("Parse() errored: %v", err)
 	}
 	SetActive(m)
-	t.Cleanup(func() { SetActive(nil) })
+	SetEnabled(true)
+	t.Cleanup(func() { SetActive(nil); SetEnabled(false) })
 
 	if !IsLocal(okModel) {
 		t.Errorf("IsLocal(%q) = false, want true", okModel)

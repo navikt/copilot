@@ -370,11 +370,37 @@ func Lookup(model string) (Model, bool) {
 	return Model{}, false
 }
 
-// IsLocal reports whether a model id is served locally. This is the single
-// predicate for that question: everything else in the binary asks it rather
-// than matching on the id itself, so the answer changes with the manifest and
-// not with a prefix check somewhere.
+// enabled is the opt-in gate, and it is off until something turns it on.
+//
+// Off by default is the whole design of the alpha: 650 people will never run
+// `nav-pilot alpha local init`, and for every one of them every call below must
+// answer exactly as it did before this package existed. A default of "on if the
+// manifest lists it" would have made the manifest — a file in another repo —
+// able to switch a stranger's launch onto a local model.
+var enabled bool
+
+// SetEnabled turns local dispatch on or off for this process. nav-pilot sets it
+// once at startup from the persisted config, and only true when local is both
+// installed ([Installed]) and enabled by the developer.
+func SetEnabled(on bool) { enabled = on }
+
+// Enabled reports whether local dispatch is on.
+func Enabled() bool { return enabled }
+
+// IsLocal reports whether a model id is served locally *and* local dispatch is
+// enabled. This is the single predicate for that question: everything else in
+// the binary asks it rather than matching on the id itself, so the answer
+// changes with the manifest and the opt-in, and not with a prefix check
+// somewhere.
+//
+// The opt-in is folded in here rather than checked beside every call site
+// because a call site that forgets it is a silent change of where a stranger's
+// prompt goes. [Lookup] is the ungated half, for the commands that must read
+// the manifest before anything is enabled.
 func IsLocal(model string) bool {
+	if !enabled {
+		return false
+	}
 	_, ok := Lookup(model)
 	return ok
 }
