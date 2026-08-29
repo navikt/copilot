@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -98,6 +100,13 @@ func ToOpenCodeModel(model string) string {
 	if model == "" || model == "auto" {
 		return openCodeDefaultModel()
 	}
+	// Before the provider-qualified pass-through below: a local model id is
+	// publisher/repo, so it already contains a slash and would otherwise be
+	// handed to opencode as a provider it does not have. False whenever local
+	// dispatch is off, which is what keeps every existing mapping intact.
+	if local.IsLocal(model) {
+		return LocalProviderID + "/" + model
+	}
 	if strings.Contains(model, "/") {
 		return model
 	}
@@ -128,6 +137,9 @@ func IsKnownCopilotModel(id string) bool { return isKnownCopilotModel(id) }
 func KnownCopilotModelIDs() string { return knownCopilotModelIDs() }
 
 func isKnownOpenCodeModel(id string) bool {
+	if local.IsLocal(id) {
+		return true
+	}
 	for _, m := range knownOpenCodeModels {
 		if strings.EqualFold(m.ID, id) {
 			return true
@@ -210,7 +222,21 @@ func (openCodeProvider) Launch(r domain.ResolvedConfig) error { return LaunchOpe
 // never disagree.
 func (openCodeProvider) DefaultModel() string { return openCodeDefaultModel() }
 
-func (openCodeProvider) KnownModels() []domain.ModelChoice { return knownOpenCodeModels }
+// KnownModels is the curated list plus, only when local inference is both
+// installed and enabled, the models this machine can serve itself. A developer
+// who has never run `nav-pilot alpha local init` sees exactly the list above,
+// which is the alpha's whole contract: [local.IsLocal] is false for them, so
+// this appends nothing and no launch path branches.
+func (openCodeProvider) KnownModels() []domain.ModelChoice {
+	models := knownOpenCodeModels
+	for _, m := range local.Active().Models {
+		if !local.IsLocal(m.Model) {
+			continue
+		}
+		models = append(slices.Clip(models), domain.ModelChoice{ID: m.Model, Label: m.Name + " (local)"})
+	}
+	return models
+}
 
 func (openCodeProvider) ValidateModel(model string) error {
 	if err := domain.ValidateModelValue(model); err != nil {

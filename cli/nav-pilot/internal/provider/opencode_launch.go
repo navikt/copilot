@@ -6,9 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -220,6 +223,85 @@ func EnsureOpenCodeOTelConfig() error {
 	return nil
 }
 
+// LocalProviderID is the opencode provider id the local server is registered
+// under. Shared with the generator in navikt/mlx-workspace, whose opencode-init
+// task writes the same block for its benchmark workspaces.
+const LocalProviderID = "mlx"
+
+// EnsureOpenCodeLocalProvider registers the local server as an opencode
+// provider, so `--model mlx/<id>` reaches this machine instead of GitHub.
+//
+// It is a config write rather than an environment variable because opencode
+// picks its backend from the provider block and has no base-URL variable to
+// override. It merges, like EnsureOpenCodeOTelConfig above and for the same
+// reason: the file is the developer's, not nav-pilot's.
+//
+// The three limits are the manifest's, not this package's. They were measured:
+// a context declared lower than the model's real one keeps each auto-compaction
+// small, and the chunk timeout is the gap opencode tolerates between streamed
+// tokens — at 96k tokens we measured a single token taking three and a half
+// minutes, and the default timeout drops the connection mid-generation and
+// returns an empty response the client does not report as a failure.
+func EnsureOpenCodeLocalProvider(m local.Model) error {
+	path := openCodeConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("creating opencode config dir: %w", err)
+	}
+	cfg := map[string]any{"$schema": "https://opencode.ai/config.json"}
+	if data, err := os.ReadFile(path); err == nil {
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("reading opencode config: %w", err)
+	}
+
+	providers, _ := cfg["provider"].(map[string]any)
+	if providers == nil {
+		providers = make(map[string]any)
+	}
+	providers[LocalProviderID] = map[string]any{
+		"npm":  "@ai-sdk/openai-compatible",
+		"name": "Local (nav-pilot)",
+		"options": map[string]any{
+			// The loop guard, not the server: every completion has to pass
+			// through the thing that can stop a runaway loop.
+			"baseURL":      local.GuardURL() + "/v1",
+			"apiKey":       "nav-pilot",
+			"chunkTimeout": localParamInt(m, "MLX_OPENCODE_CHUNK_TIMEOUT", 600000),
+			"timeout":      false,
+		},
+		"models": map[string]any{
+			m.Model: map[string]any{
+				"limit": map[string]any{
+					"context": localParamInt(m, "MLX_OPENCODE_CONTEXT", 32768),
+					"output":  localParamInt(m, "MLX_OPENCODE_OUTPUT", 8192),
+				},
+			},
+		},
+	}
+	cfg["provider"] = providers
+
+	out, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshalling opencode config: %w", err)
+	}
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		return fmt.Errorf("writing opencode config: %w", err)
+	}
+	return os.Chmod(path, 0o600)
+}
+
+// localParamInt reads one MLX_ param as an integer, falling back to a
+// conservative default. A malformed value is not fatal: the manifest's job is
+// to tune this, and a bad number should cost tuning, not the session.
+func localParamInt(m local.Model, key string, fallback int) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(m.Params[key])); err == nil && n > 0 {
+		return n
+	}
+	return fallback
+}
+
 // LaunchOpenCode launches opencode inside the cplt sandbox with the resolved config.
 // Before launching, it materializes Nav context into opencode's user config directory.
 // cplt sandboxes the opencode binary, so opencode must also be installed on PATH.
@@ -245,6 +327,27 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
+
+	// Local inference. The one branch on this path: put nav-pilot's loop guard
+	// between the client and the local server for the length of the session.
+	// launchViaCplt blocks until the client exits, so the guard lives exactly as
+	// long as the dispatch it guards and needs no daemon.
+	//
+	// The client reaches it by address, not by environment: `nav-pilot alpha
+	// local start` writes an opencode provider pointing at the guard's fixed
+	// port, because opencode selects a backend through its provider config and
+	// has no base-URL variable to override. With local disabled IsLocal is
+	// false, nothing below runs, and the environment is the one every launch
+	// got before this existed — pinned by TestGoldenLaunchEnvIsUnchangedWithoutLocal.
+	if local.IsLocal(resolved.Model) {
+		guard, err := local.StartGuard(local.ServerURL())
+		if err != nil {
+			return err
+		}
+		defer guard.Close()
+		fmt.Fprintf(os.Stderr, "%s Local model: nav-pilot ends a turn after %d identical tool calls in a row.\n",
+			domain.Dim("ℹ"), local.LoopGuardRepeat())
+	}
 
 	suffix := ""
 	if navSummary != "" {

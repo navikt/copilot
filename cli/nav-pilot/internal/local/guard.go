@@ -74,6 +74,16 @@ func LoopGuardRepeat() int { return loopGuardRepeat }
 // memory. A body over the cap is forwarded unread rather than refused.
 const maxRequestBody = 32 << 20
 
+// ServerURL is where the local model server listens. The address is fixed for
+// the same reason [GuardPort] is: it is written into a client configuration
+// file by one command and read by another process entirely.
+func ServerURL() string { return fmt.Sprintf("http://127.0.0.1:%d", DefaultPort) }
+
+// GuardURL is where the loop guard listens — the address a client is pointed
+// at, never the server's. Everything the client sends has to pass the thing
+// that can stop a runaway loop.
+func GuardURL() string { return fmt.Sprintf("http://127.0.0.1:%d", GuardPort) }
+
 // Guard is the proxy the client talks to instead of the server.
 type Guard struct {
 	ln  net.Listener

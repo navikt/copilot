@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
@@ -129,6 +130,19 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
+	// Local inference. The one branch on this path, and it is a refusal: the
+	// Copilot CLI gets its models from GitHub over an authenticated connection
+	// it opens itself, with no endpoint to redirect, so there is no honest way
+	// to point this launch at a server on this machine. Pretending otherwise
+	// would send the prompt to GitHub while the developer believed it stayed
+	// here — the one failure this whole feature exists to avoid.
+	//
+	// False for everyone who has not opted in, so no existing launch reaches it.
+	if local.IsLocal(resolved.Model) {
+		return fmt.Errorf(
+			"%s is a local model, and the Copilot CLI cannot be pointed at a server on this machine — it resolves models through GitHub.\n\n  Launch it with opencode instead: %s",
+			resolved.Model, domain.Bold("nav-pilot --client opencode"))
+	}
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
