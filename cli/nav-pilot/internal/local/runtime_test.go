@@ -216,12 +216,13 @@ func fastTimers(t *testing.T) {
 // wired-limit and launch paths read.
 func testModel() Model {
 	return Model{
-		Key:       "qwen",
-		Name:      "A Model",
-		Model:     okModel,
-		Backend:   "mlx-lm",
-		WeightsGB: 25,
-		MinRAMGB:  48,
+		Key:          "qwen",
+		Name:         "A Model",
+		Model:        okModel,
+		Backend:      "mlx-lm",
+		WeightsGB:    25,
+		MinRAMGB:     48,
+		WiredLimitGB: 36,
 		Params: map[string]string{
 			"MLX_MODEL":            okModel,
 			"MLX_OPENCODE_CONTEXT": "65536",
@@ -234,96 +235,6 @@ func testModel() Model {
 // Environment
 // ---------------------------------------------------------------------------
 
-func TestEnvStatus(t *testing.T) {
-	tests := []struct {
-		name string
-		// seed lays down whatever the case wants present before the probe.
-		seed        func(t *testing.T)
-		uv, python  string
-		wantReady   bool
-		wantMissing []string // substrings, one per expected Missing entry
-	}{
-		{
-			name:        "nothing is installed",
-			wantReady:   false,
-			wantMissing: []string{"uv", "virtual environment", "mlx-lm"},
-		},
-		{
-			// A uv that runs but is not the pinned one is a worse failure than
-			// a missing one, so it has to be named as missing.
-			name:        "a uv at the wrong version counts as missing",
-			uv:          "0.4.0",
-			wantMissing: []string{"uv", "virtual environment", "mlx-lm"},
-		},
-		{
-			name:        "a Python 3.13 environment counts as missing",
-			uv:          uvVersion,
-			python:      "3.13.1",
-			wantMissing: []string{"virtual environment", "mlx-lm"},
-		},
-		{
-			name:      "a fully provisioned environment is ready",
-			uv:        uvVersion,
-			python:    "3.12.8",
-			seed:      func(t *testing.T) { mustWriteStamp(t) },
-			wantReady: true,
-		},
-		{
-			// The interpreter is the gate, not the package stamp: a stamp
-			// written against a 3.12 environment says nothing once the
-			// environment is a 3.13 one.
-			name:        "packages installed but the interpreter moved",
-			uv:          uvVersion,
-			python:      "3.13.1",
-			seed:        func(t *testing.T) { mustWriteStamp(t) },
-			wantMissing: []string{"virtual environment"},
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			stubDirs(t)
-			stubRun(t, func(name string, args []string) (string, error) {
-				switch name {
-				case uvPath():
-					if tc.uv == "" {
-						return "", errors.New("no such file")
-					}
-					return "uv " + tc.uv + "\n", nil
-				case venvBin("python"):
-					if tc.python == "" {
-						return "", errors.New("no such file")
-					}
-					return "Python " + tc.python + "\n", nil
-				}
-				return "", errors.New("unexpected command " + name)
-			})
-			if tc.seed != nil {
-				tc.seed(t)
-			}
-
-			env := EnvStatus()
-			if env.Ready != tc.wantReady {
-				t.Errorf("EnvStatus().Ready = %t, want %t (missing: %v)", env.Ready, tc.wantReady, env.Missing)
-			}
-			if len(env.Missing) != len(tc.wantMissing) {
-				t.Fatalf("EnvStatus().Missing = %v, want %d entries %v", env.Missing, len(tc.wantMissing), tc.wantMissing)
-			}
-			for i, want := range tc.wantMissing {
-				if !strings.Contains(env.Missing[i], want) {
-					t.Errorf("EnvStatus().Missing[%d] = %q, want it to mention %q", i, env.Missing[i], want)
-				}
-			}
-		})
-	}
-}
-
-func mustWriteStamp(t *testing.T) {
-	t.Helper()
-	if err := writeStamp(); err != nil {
-		t.Fatalf("seeding the environment stamp: %v", err)
-	}
-}
-
 // EnsureEnv on a machine with no uv, no Python and no packages has to end with
 // all three, at the pinned versions, and must not need Homebrew or a system
 // Python to get there.
@@ -331,14 +242,8 @@ func TestEnsureEnvProvisionsAMissingEnvironment(t *testing.T) {
 	stubDirs(t)
 	calls := fakeUVEnv(t, "3.12.8")
 
-	if got := EnvStatus(); got.Ready {
-		t.Fatal("EnvStatus() was ready before EnsureEnv ran")
-	}
 	if err := EnsureEnv(context.Background()); err != nil {
 		t.Fatalf("EnsureEnv() errored: %v", err)
-	}
-	if got := EnvStatus(); !got.Ready {
-		t.Errorf("EnvStatus() after EnsureEnv = %+v, want ready", got)
 	}
 	// The pins are the point of the whole step, so they are asserted on the
 	// argument vectors and not only on the outcome.
@@ -700,8 +605,13 @@ func TestHealth(t *testing.T) {
 		ready bool
 		// dieWith ends the process before the health probe.
 		dieWith *exitInfo
-		probe   func(ctx context.Context) (int, error)
-		want    Health
+		// since is how long ago the server was started, stated rather than
+		// waited out: Start's own wait has already spent the readiness budget
+		// by the time it gives up, and the deadline is what tells a cold start
+		// from a hang.
+		since time.Duration
+		probe func(ctx context.Context) (int, error)
+		want  Health
 	}{
 		{
 			name: "nothing started",
@@ -726,6 +636,25 @@ func TestHealth(t *testing.T) {
 			name:  "alive, accepting, never answers",
 			start: true,
 			ready: true,
+			probe: func(ctx context.Context) (int, error) { <-ctx.Done(); return 0, ctx.Err() },
+			want:  HealthHung,
+		},
+		{
+			// The cold start that must not read as a hang: mlx-lm binds the
+			// port before it maps the weights, so a probe during loading is
+			// accepted and never answered. A supervisor that restarts on hung
+			// would kill-loop a healthy server on every start.
+			name:  "never ready, the probe times out while it loads",
+			start: true,
+			probe: func(ctx context.Context) (int, error) { <-ctx.Done(); return 0, ctx.Err() },
+			want:  HealthStarting,
+		},
+		{
+			// Past the readiness budget the same timeout is a hang: nothing is
+			// still loading after that long.
+			name:  "never ready, the probe still times out past the deadline",
+			start: true,
+			since: 2 * time.Minute,
 			probe: func(ctx context.Context) (int, error) { <-ctx.Done(); return 0, ctx.Err() },
 			want:  HealthHung,
 		},
@@ -775,6 +704,9 @@ func TestHealth(t *testing.T) {
 				if tc.ready && err != nil {
 					t.Fatalf("Start() errored: %v", err)
 				}
+				s.mu.Lock()
+				s.started = time.Now().Add(-tc.since)
+				s.mu.Unlock()
 			}
 			if tc.dieWith != nil {
 				p.die(*tc.dieWith)
@@ -843,65 +775,17 @@ func waitFor(t *testing.T, cond func() bool) {
 // Memory cap
 // ---------------------------------------------------------------------------
 
-func TestRequiredWiredLimitGB(t *testing.T) {
-	tests := []struct {
-		name    string
-		weights int
-		params  map[string]string
-		want    int
-	}{
-		{
-			// The manifest's own tuned entry: 25 GB of weights at 64k context.
-			name:    "the manifest entry",
-			weights: 25,
-			params:  map[string]string{"MLX_OPENCODE_CONTEXT": "65536"},
-			want:    36,
-		},
-		{
-			// Same weights, a quarter of the context: the KV budget is what
-			// moves, which is the reason this is computed and not a constant.
-			name:    "the same weights at 16k context",
-			weights: 25,
-			params:  map[string]string{"MLX_OPENCODE_CONTEXT": "16384"},
-			want:    30,
-		},
-		{
-			name:    "no context param falls back to the token cap",
-			weights: 25,
-			params:  map[string]string{"MLX_MAX_TOKENS": "32768"},
-			want:    32,
-		},
-		{
-			name:    "no params at all still yields a budget",
-			weights: 10,
-			want:    17,
-		},
+// The wired limit is a measured number the manifest carries, so an entry
+// without one is refused rather than run under a guess: the guess is what
+// decides whether the machine keeps its compositor.
+func TestCheckWiredLimitRefusesAnUnmeasuredModel(t *testing.T) {
+	w, err := CheckWiredLimit(Model{Model: okModel, WeightsGB: 25})
+	if err == nil {
+		t.Fatalf("CheckWiredLimit() = %+v, want a refusal", w)
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := RequiredWiredLimitGB(Model{WeightsGB: tc.weights, Params: tc.params})
-			if got != tc.want {
-				t.Errorf("RequiredWiredLimitGB() = %d, want %d", got, tc.want)
-			}
-		})
-	}
-}
-
-// The formula is calibrated against a value someone measured. If a manifest
-// entry's tuned wired_limit_gb and the computed requirement drift apart, one of
-// the two is wrong and this is where it shows up rather than on a workstation.
-func TestRequiredWiredLimitMatchesTheManifest(t *testing.T) {
-	m, err := Parse(embeddedManifest)
-	if err != nil {
-		t.Fatalf("Parse(embedded) errored: %v", err)
-	}
-	for _, model := range m.Models {
-		if model.WiredLimitGB == 0 {
-			continue
-		}
-		if got := RequiredWiredLimitGB(model); got != model.WiredLimitGB {
-			t.Errorf("RequiredWiredLimitGB(%s) = %d, but the manifest tuned it to %d",
-				model.Key, got, model.WiredLimitGB)
+	for _, want := range []string{"wired_limit_gb", "measured"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("CheckWiredLimit() error = %q, want it to mention %q", err, want)
 		}
 	}
 }
@@ -909,8 +793,7 @@ func TestRequiredWiredLimitMatchesTheManifest(t *testing.T) {
 func TestCheckWiredLimit(t *testing.T) {
 	tests := []struct {
 		name           string
-		weights        int
-		context        string
+		wiredLimitGB   int
 		ramGB          int
 		currentMB      string // "" means the sysctl does not exist
 		wantRefused    bool
@@ -920,30 +803,30 @@ func TestCheckWiredLimit(t *testing.T) {
 		{
 			// 36 GB required on a 64 GB machine leaves 28 GB. Fine, and the
 			// cap is already set.
-			name: "sufficient", weights: 25, context: "65536", ramGB: 64,
+			name: "sufficient", wiredLimitGB: 36, ramGB: 64,
 			currentMB: "36864", wantSufficient: true, wantCurrentGB: 36,
 		},
 		{
 			// The same machine with the cap still at the default: not
 			// refused, just not raised yet. Raising it needs sudo and is a
 			// command's job.
-			name: "insufficient but raisable", weights: 25, context: "65536", ramGB: 64,
+			name: "insufficient but raisable", wiredLimitGB: 36, ramGB: 64,
 			currentMB: "", wantSufficient: false, wantCurrentGB: 0,
 		},
 		{
 			// 36 GB on a 48 GB machine leaves 12, exactly the reserve.
-			name: "exactly at the reserve", weights: 25, context: "65536", ramGB: 48,
+			name: "exactly at the reserve", wiredLimitGB: 36, ramGB: 48,
 			currentMB: "36864", wantSufficient: true, wantCurrentGB: 36,
 		},
 		{
 			// The advice that wrecks workstations: a ~40 GB cap on a 48 GB
 			// machine. Refused here rather than discovered when the
 			// compositor dies.
-			name: "40 GB on a 48 GB machine is refused", weights: 30, context: "65536", ramGB: 48,
+			name: "40 GB on a 48 GB machine is refused", wiredLimitGB: 40, ramGB: 48,
 			wantRefused: true,
 		},
 		{
-			name: "a large model on a small machine is refused", weights: 25, context: "65536", ramGB: 32,
+			name: "a large model on a small machine is refused", wiredLimitGB: 36, ramGB: 32,
 			wantRefused: true,
 		},
 	}
@@ -965,11 +848,7 @@ func TestCheckWiredLimit(t *testing.T) {
 				return "", errors.New("unexpected sysctl")
 			})
 
-			m := Model{Model: okModel, WeightsGB: tc.weights}
-			if tc.context != "" {
-				m.Params = map[string]string{"MLX_OPENCODE_CONTEXT": tc.context}
-			}
-			w, err := CheckWiredLimit(m)
+			w, err := CheckWiredLimit(Model{Model: okModel, WeightsGB: 25, WiredLimitGB: tc.wiredLimitGB})
 			if tc.wantRefused {
 				if err == nil {
 					t.Fatalf("CheckWiredLimit() = %+v, want a refusal", w)
@@ -985,6 +864,9 @@ func TestCheckWiredLimit(t *testing.T) {
 			}
 			if err != nil {
 				t.Fatalf("CheckWiredLimit() errored: %v", err)
+			}
+			if w.RequiredGB != tc.wiredLimitGB {
+				t.Errorf("CheckWiredLimit().RequiredGB = %d, want the manifest's measured %d", w.RequiredGB, tc.wiredLimitGB)
 			}
 			if w.Sufficient != tc.wantSufficient {
 				t.Errorf("CheckWiredLimit().Sufficient = %t, want %t (%+v)", w.Sufficient, tc.wantSufficient, w)

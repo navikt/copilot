@@ -99,16 +99,9 @@ var (
 )
 
 // dataDir is where nav-pilot keeps the local-inference toolchain: its own uv
-// and its own venv, under the same ~/.nav-pilot directory the config file and
-// the pinned agentpakke trees already use rather than a second nav-pilot
-// directory. A func var so tests point it at a temp dir.
-var dataDir = func() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(home, ".nav-pilot", "local")
-}
+// and its own venv, under the same ~/.nav-pilot directory [navPilotPath]
+// states. A func var so tests point it at a temp dir.
+var dataDir = func() string { return navPilotPath("local") }
 
 // hfHome is the Hugging Face cache root the weights land in. It honours
 // HF_HOME, because a developer who moved that cache to an external disk did it
@@ -220,37 +213,7 @@ func scanLines(r io.Reader, onLine func(string)) {
 // 1. Environment
 // ---------------------------------------------------------------------------
 
-// Env is what [EnvStatus] found, without changing any of it.
-type Env struct {
-	// Dir is nav-pilot's local-inference data directory.
-	Dir string
-
-	// UVPath is the uv binary nav-pilot manages, and UVVersion what it
-	// reports. An empty version means it is not installed or did not answer.
-	UVPath    string
-	UVVersion string
-
-	// VenvPath is the virtual environment, PythonVersion the interpreter
-	// inside it.
-	VenvPath      string
-	PythonVersion string
-
-	// MLXLMVersion and MLXVersion are what the last successful provisioning
-	// installed, read from the stamp file rather than by importing the
-	// packages: a subprocess per status call is a poor trade for a number
-	// only this package writes.
-	MLXLMVersion string
-	MLXVersion   string
-
-	// Ready is true when every pin matches and nothing needs doing.
-	Ready bool
-
-	// Missing lists, in the order EnsureEnv would do them, what does not yet
-	// match. Empty exactly when Ready.
-	Missing []string
-}
-
-// envStamp records what provisioning installed, so EnvStatus can answer
+// envStamp records what provisioning installed, so a version check can answer
 // without importing mlx into a subprocess.
 type envStamp struct {
 	MLXLM string `json:"mlx_lm"`
@@ -264,31 +227,6 @@ func venvPath() string { return filepath.Join(dataDir(), "venv") }
 func venvBin(name string) string { return filepath.Join(venvPath(), "bin", name) }
 
 func stampPath() string { return filepath.Join(dataDir(), "env.json") }
-
-// EnvStatus reports what is present. It probes versions but changes nothing:
-// no download, no install, no directory created.
-func EnvStatus() Env {
-	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
-	defer cancel()
-
-	env := Env{Dir: dataDir(), UVPath: uvPath(), VenvPath: venvPath()}
-	env.UVVersion = probeVersion(ctx, env.UVPath, "uv")
-	if env.UVVersion != uvVersion {
-		env.Missing = append(env.Missing, fmt.Sprintf("uv %s", uvVersion))
-	}
-	env.PythonVersion = probeVersion(ctx, venvBin("python"), "Python")
-	if !matchesPythonPin(env.PythonVersion) {
-		env.Missing = append(env.Missing, fmt.Sprintf("a Python %s virtual environment", pythonVersion))
-	}
-	if stamp, err := readStamp(); err == nil {
-		env.MLXLMVersion, env.MLXVersion = stamp.MLXLM, stamp.MLX
-	}
-	if env.MLXLMVersion != mlxLMVersion || env.MLXVersion != mlxVersion {
-		env.Missing = append(env.Missing, fmt.Sprintf("mlx-lm %s and mlx %s", mlxLMVersion, mlxVersion))
-	}
-	env.Ready = len(env.Missing) == 0
-	return env
-}
 
 // probeVersion runs `<bin> --version` and returns the version token after the
 // expected prefix, or "" for anything it cannot read — missing binary, wrong
@@ -707,9 +645,13 @@ type Server struct {
 	// Port the server listens on. Read before Start; ignored after.
 	Port int
 
-	mu               sync.Mutex
-	model            string
-	proc             proc
+	mu    sync.Mutex
+	model string
+	proc  proc
+	// started is when the current process was launched. Health needs it: a
+	// probe that times out means one thing inside the readiness budget and
+	// another outside it.
+	started          time.Time
 	ready            bool
 	exit             *exitInfo
 	signalDeaths     int
@@ -743,7 +685,7 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 		port = DefaultPort
 		s.Port = port
 	}
-	s.model, s.ready, s.exit = model.Model, false, nil
+	s.model, s.ready, s.exit, s.started = model.Model, false, nil, time.Now()
 	s.mu.Unlock()
 
 	env := os.Environ()
@@ -829,7 +771,7 @@ func (s *Server) waitReady(ctx context.Context, model string) error {
 // needs and the port cannot make.
 func (s *Server) Health(ctx context.Context) Health {
 	s.mu.Lock()
-	p, exit, wasReady, model := s.proc, s.exit, s.ready, s.model
+	p, exit, wasReady, model, started := s.proc, s.exit, s.ready, s.model, s.started
 	s.mu.Unlock()
 
 	if p == nil {
@@ -850,6 +792,14 @@ func (s *Server) Health(ctx context.Context) Health {
 		return HealthCrashed
 	}
 	switch {
+	case err != nil && timedOut && !wasReady && time.Since(started) < readyTimeout:
+		// A cold start, not a hang. mlx-lm binds the port before it maps the
+		// weights, so a probe sent while it is loading is accepted and then
+		// left unanswered — identical to a hang from the outside, and only the
+		// clock tells them apart. Until the readiness budget is spent this is
+		// still startup; calling it hung makes a supervisor that restarts on
+		// hung kill-loop a healthy server on every cold start.
+		return HealthStarting
 	case err != nil && timedOut:
 		// Alive, accepting connections, not answering. An exact prompt-cache
 		// hit can kill the generation thread while the process stays up.
@@ -947,22 +897,15 @@ func describeExit(info exitInfo) string {
 
 const gib = 1 << 30
 
-// The wired-limit model. Weights alone do not predict the requirement: we
-// measured a model needing 27.0 GB resident run happily under a 36 GB cap, and
-// another at 28.9 GB refused by its own server before it produced a token. The
-// difference is the KV cache, which scales with the context the server is
-// configured for and not with the size of the weights.
+// The wired limit is measured, not derived. Weights alone do not predict it:
+// we measured a model needing 27.0 GB resident run happily under a 36 GB cap,
+// and another at 28.9 GB refused by its own server before it produced a token.
+// The difference is the KV cache, which moves with the attention shape and the
+// configured context. So the manifest carries the number the generator measured
+// per model (wired_limit_gb) and this file reads it — an arithmetic model
+// fitted here would only reproduce that measurement for the one model it was
+// calibrated against, and be confidently wrong for the next one.
 const (
-	// kvBytesPerToken is the measured order of magnitude for a 4-bit MoE of
-	// this class. It is the calibration knob: a model family with a different
-	// attention shape moves it, and it is stated per token so a context change
-	// in the manifest moves the requirement without a code change.
-	kvBytesPerToken = 128 << 10
-
-	// headroomGB covers the server's own allocations outside weights and KV —
-	// tokenizer, request buffers, the graph itself.
-	headroomGB = 3
-
 	// minFreeGB is what must be left for the rest of the machine. This is the
 	// number that stops the common advice from wrecking a workstation: "set
 	// the wired limit to 40 GB on a 48 GB machine" is widely repeated, and it
@@ -973,32 +916,11 @@ const (
 	minFreeGB = 12
 )
 
-// contextTokens is the context the manifest configures the server for, which
-// is what the KV budget scales with. Falls back through the params the
-// generator sets and finally to a conservative default.
-func contextTokens(m Model) int {
-	for _, key := range []string{"MLX_OPENCODE_CONTEXT", "MLX_MAX_TOKENS"} {
-		if v, err := strconv.Atoi(m.Params[key]); err == nil && v > 0 {
-			return v
-		}
-	}
-	return 32768
-}
-
-// RequiredWiredLimitGB is the wired-memory cap this model needs: its weights,
-// plus a KV budget for the context it is configured for, plus headroom.
-// Computed rather than constant, because the same weights at 64k context and
-// at 8k are different machines' worth of memory.
-func RequiredWiredLimitGB(m Model) int {
-	kvGB := (contextTokens(m)*kvBytesPerToken + gib - 1) / gib
-	return m.WeightsGB + kvGB + headroomGB
-}
-
 // WiredLimit is what [CheckWiredLimit] found. It reports; it never sets. The
 // sysctl needs sudo, and asking for a password belongs to a command a
 // developer typed, not to a library call on a launch path.
 type WiredLimit struct {
-	// RequiredGB is [RequiredWiredLimitGB] for the model.
+	// RequiredGB is the manifest entry's measured wired_limit_gb.
 	RequiredGB int
 
 	// CurrentGB is what iogpu.wired_limit_mb is set to now. Zero means unset,
@@ -1021,11 +943,20 @@ type WiredLimit struct {
 // outright a requirement that would not leave the machine enough to keep
 // running. A refusal is an error; a cap that is merely too low is not — that is
 // a fixable state the caller reports with Command.
+//
+// A model with no measured limit is refused rather than run under a guessed
+// one: the guess decides whether the machine keeps its compositor.
 func CheckWiredLimit(m Model) (WiredLimit, error) {
+	if m.WiredLimitGB <= 0 {
+		return WiredLimit{}, fmt.Errorf(
+			"the local-model manifest entry for %s carries no wired_limit_gb, and the wired-memory limit is measured per model, not derived from the weights.\n\n  The manifest must carry a measured limit for a model before nav-pilot will run it",
+			m.Model)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 
-	w := WiredLimit{RequiredGB: RequiredWiredLimitGB(m)}
+	w := WiredLimit{RequiredGB: m.WiredLimitGB}
 	w.Command = fmt.Sprintf("sudo sysctl -w iogpu.wired_limit_mb=%d", w.RequiredGB*1024)
 
 	ram, err := sysctlInt(ctx, "hw.memsize")

@@ -20,10 +20,11 @@
 // # Trust boundary
 //
 // The served file names weights that a developer's machine downloads and loads
-// into its own process. That makes the publisher of each model a trust
-// decision, not a formatting one, so it lives in code ([allowedPublishers])
-// rather than in the served file: widening the set is a reviewable diff in this
-// repo, not an edit to a JSON file in another one.
+// into its own process, and the environment that process runs under. That makes
+// the publisher of each model and the reach of that environment trust
+// decisions, not formatting ones, so both live in code ([allowedPublishers],
+// [allowedParamKey]) rather than in the served file: widening either is a
+// reviewable diff in this repo, not an edit to a JSON file in another one.
 //
 // # Never blocking
 //
@@ -37,9 +38,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -66,6 +69,16 @@ var SupportedSchemaMajors = []string{"1"}
 // those weights. Widening this set must be a code change here, reviewed like
 // any other, and never an edit to the served file.
 var allowedPublishers = []string{"mlx-community", "lmstudio-community"}
+
+// allowedParamKey is the other half of that boundary. A model's Params become
+// the server process's environment verbatim ([Server.Start]), and an
+// environment variable decides things the publisher allow-list cannot see:
+// PYTHONPATH runs manifest-chosen code at import, DYLD_INSERT_LIBRARIES loads a
+// library into the process, and HF_ENDPOINT keeps the allow-listed model *name*
+// while moving the host the bytes come from. Restricting keys to the
+// generator's own MLX_ namespace keeps a new knob a manifest change, and keeps
+// the manifest out of every variable the server itself does not read.
+var allowedParamKey = regexp.MustCompile(`^MLX_[A-Z0-9_]+$`)
 
 //go:embed models.json
 var embeddedManifest []byte
@@ -159,9 +172,9 @@ func (m *Manifest) checkSchemaVersion() error {
 		m.SchemaVersion.String(), strings.Join(SupportedSchemaMajors, ", "), domain.Bold("nav-pilot update"))
 }
 
-// checkModels enforces the three rules the served file cannot be trusted to
-// keep on its own: a usable model id, an allow-listed publisher, and exactly
-// one default.
+// checkModels enforces the four rules the served file cannot be trusted to
+// keep on its own: a usable model id, an allow-listed publisher, an environment
+// confined to the MLX_ namespace, and exactly one default.
 func (m *Manifest) checkModels() error {
 	var defaults []string
 	for i, model := range m.Models {
@@ -182,6 +195,18 @@ func (m *Manifest) checkModels() error {
 				"local-model manifest entry %q names model %q, which is not published by an allowed publisher (%s); "+
 					"the manifest names weights this machine downloads and runs, so allowing another publisher is a nav-pilot code change, not a manifest change",
 				where, model.Model, strings.Join(allowedPublishers, ", "))
+		}
+		// Same boundary as the publisher above: the allow-list decides which
+		// weights run, the environment decides where they come from and what
+		// is loaded alongside them. Sorted so a manifest with more than one
+		// offending key names the same one every run.
+		for _, key := range slices.Sorted(maps.Keys(model.Params)) {
+			if !allowedParamKey.MatchString(key) {
+				return fmt.Errorf(
+					"local-model manifest entry %q sets param %q on model %q, which is outside the MLX_ namespace (%s); "+
+						"params become the environment of the server process, so a key outside it can point the download at another host or load code into the process — allowing another key is a nav-pilot code change, not a manifest change",
+					where, key, model.Model, allowedParamKey)
+			}
 		}
 		if model.Default {
 			defaults = append(defaults, where)
@@ -230,19 +255,23 @@ var fetchManifest = func(url string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 }
 
-// cachePath is where the last-known-good manifest is kept. It follows the
-// config-file convention (~/.nav-pilot, internal/cli.configPath) rather than
-// inventing a second nav-pilot directory. A variable so tests can point it at
-// a temp dir.
-var cachePath = func() string {
+// navPilotPath joins a path under ~/.nav-pilot, the convention the config file
+// and the pinned agentpakke trees already follow. Stated once, so the manifest
+// cache and the runtime data directory cannot drift into two nav-pilot
+// directories. "" when there is no home directory; every caller treats that as
+// "no such file" rather than as an error.
+func navPilotPath(parts ...string) string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		// No home means no cache: Resolve falls through to the embedded copy
-		// rather than failing.
 		return ""
 	}
-	return filepath.Join(home, ".nav-pilot", "local-models.json")
+	return filepath.Join(append([]string{home, ".nav-pilot"}, parts...)...)
 }
+
+// cachePath is where the last-known-good manifest is kept. A variable so tests
+// can point it at a temp dir. No home means no cache: Resolve falls through to
+// the embedded copy rather than failing.
+var cachePath = func() string { return navPilotPath("local-models.json") }
 
 // Resolve returns the manifest to use: freshly fetched when the network
 // answers with something valid, otherwise the last-known-good cache, otherwise
@@ -300,9 +329,9 @@ func writeCache(data []byte) error {
 	return nil
 }
 
-// active is the manifest [IsLocal], [Lookup] and [Choices] answer from. It
-// defaults to the embedded copy, so no code path reads a file or a socket to
-// learn whether a model id is local; [SetActive] installs the resolved one.
+// active is the manifest [IsLocal] and [Lookup] answer from. It defaults to
+// the embedded copy, so no code path reads a file or a socket to learn whether
+// a model id is local; [SetActive] installs the resolved one.
 // Mirrors source.ActivePakke, which holds the agentpakke declarations the same
 // way and for the same reason.
 var active = embeddedOrEmpty()
@@ -348,15 +377,4 @@ func Lookup(model string) (Model, bool) {
 func IsLocal(model string) bool {
 	_, ok := Lookup(model)
 	return ok
-}
-
-// Choices renders the manifest as model-picker entries, so local models reach
-// the existing picker plumbing without a second model type.
-func Choices() []domain.ModelChoice {
-	models := Active().Models
-	choices := make([]domain.ModelChoice, 0, len(models))
-	for _, m := range models {
-		choices = append(choices, domain.ModelChoice{ID: m.Model, Label: m.Name})
-	}
-	return choices
 }

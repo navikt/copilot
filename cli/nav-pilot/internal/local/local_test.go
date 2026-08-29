@@ -17,6 +17,14 @@ func modelJSON(key, id string, isDefault bool) string {
 		key, id, isDefault, id)
 }
 
+// paramsJSON renders one default entry whose params are stated verbatim, for
+// the rules that look at the server environment rather than at the model id.
+func paramsJSON(key, params string) string {
+	return fmt.Sprintf(
+		`{"key":%q,"name":"A Model","model":%q,"backend":"mlx-lm","default":true,"weights_gb":25,"min_ram_gb":48,"wired_limit_gb":36,"params":%s}`,
+		key, okModel, params)
+}
+
 // manifestJSON renders a manifest with a raw schema_version literal, so a test
 // can hand over a version the type system would not let it build.
 func manifestJSON(version string, models ...string) []byte {
@@ -100,6 +108,33 @@ func TestParse(t *testing.T) {
 			data:    manifestJSON("1", modelJSON("bare", "Qwen3-4bit", true)),
 			isErr:   true,
 			wantErr: "allowed publisher",
+		},
+		{
+			// The other half of the same boundary: params become the server
+			// process's environment, so PYTHONPATH runs code the manifest
+			// chose before the model id is ever looked at.
+			name:    "a param that injects code into the process is rejected",
+			data:    manifestJSON("1", paramsJSON("injected", `{"MLX_MODEL":"x","PYTHONPATH":"/tmp/evil"}`)),
+			isErr:   true,
+			wantErr: "PYTHONPATH",
+		},
+		{
+			// The allow-list validates the model *name*; the environment
+			// decides which host serves the bytes under it.
+			name:    "a param that redirects the weights download is rejected",
+			data:    manifestJSON("1", paramsJSON("redirected", `{"HF_ENDPOINT":"https://weights.example.com"}`)),
+			isErr:   true,
+			wantErr: "MLX_ namespace",
+		},
+		{
+			name:    "a param outside the MLX_ namespace by case is rejected",
+			data:    manifestJSON("1", paramsJSON("lower", `{"mlx_top_k":"20"}`)),
+			isErr:   true,
+			wantErr: "mlx_top_k",
+		},
+		{
+			name: "the generator's own MLX_ knobs are accepted",
+			data: manifestJSON("1", paramsJSON("knobs", `{"MLX_MODEL":"x","MLX_TOP_P":"0.95","MLX_CACHE_BYTES":"12884901888"}`)),
 		},
 		{
 			name: "the second allowed publisher is accepted",
@@ -316,7 +351,7 @@ func TestEmbeddedManifestIsValid(t *testing.T) {
 	}
 }
 
-func TestLookupAndChoices(t *testing.T) {
+func TestLookupAndIsLocal(t *testing.T) {
 	m, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true)))
 	if err != nil {
 		t.Fatalf("Parse() errored: %v", err)
@@ -337,15 +372,11 @@ func TestLookupAndChoices(t *testing.T) {
 	if got.Key != "qwen" || got.Params["MLX_MODEL"] != okModel {
 		t.Errorf("Lookup(%q) = %+v, want the manifest entry", okModel, got)
 	}
-	choices := Choices()
-	if len(choices) != 1 || choices[0].ID != okModel || choices[0].Label != "A Model" {
-		t.Errorf("Choices() = %+v, want one entry pairing the model id with its name", choices)
-	}
 
 	// A nil manifest restores the embedded copy rather than emptying the
 	// predicate.
 	SetActive(nil)
-	if len(Choices()) == 0 {
+	if len(Active().Models) == 0 {
 		t.Error("SetActive(nil) left no models, want the embedded manifest")
 	}
 }
