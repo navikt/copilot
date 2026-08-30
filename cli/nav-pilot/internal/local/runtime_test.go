@@ -493,8 +493,56 @@ func TestStartWaitsForARealCompletion(t *testing.T) {
 	if !slices.Contains((*starts)[0].env, "MLX_OPENCODE_CONTEXT=65536") {
 		t.Error("Start() did not pass the manifest MLX_* params as environment")
 	}
-	if !slices.Contains((*starts)[0].args, "8080") {
-		t.Errorf("Start() args = %v, want the default port", (*starts)[0].args)
+	// The port is whatever the kernel handed out, not 8080: that is the port a
+	// developer's own Ktor or Spring service binds, and the two cannot both have
+	// it. What matters is that the number the child was given is the number the
+	// server reports, so every later reader looks in the right place.
+	if s.Port == 0 {
+		t.Fatal("Start() left Port unset; nothing downstream can find the server")
+	}
+	if s.Port == DefaultPort {
+		t.Errorf("Start() chose %d, the port a local web service binds", DefaultPort)
+	}
+	if !slices.Contains((*starts)[0].args, strconv.Itoa(s.Port)) {
+		t.Errorf("Start() args = %v, want the chosen port %d", (*starts)[0].args, s.Port)
+	}
+	if want := fmt.Sprintf("http://127.0.0.1:%d", s.Port); s.URL() != want {
+		t.Errorf("URL() = %q, want %q", s.URL(), want)
+	}
+}
+
+// TestStartRecordsThePortForOtherProcesses: the guard, the ownership check and
+// `status` all run in processes that did not start the server, so the port has to
+// survive in the state file or they look for it on 8080 and refuse a healthy
+// server.
+func TestStartRecordsThePortForOtherProcesses(t *testing.T) {
+	stubDirs(t)
+	stubStart(t, newFakeProc())
+	stubCompletion(t, func(context.Context, int) (int, error) { return 1, nil })
+
+	s := &Server{}
+	if err := s.Start(context.Background(), testModel()); err != nil {
+		t.Fatal(err)
+	}
+	// Start does not write the state file; the command that owns the lifecycle
+	// does. What is pinned here is that the port survives the round trip and
+	// that ServerURL, which every other process calls, reports it.
+	if err := SaveState(State{PID: s.Status().PID, Model: testModel().Model, Port: s.Port}); err != nil {
+		t.Fatal(err)
+	}
+	st, ok, err := LoadState()
+	if err != nil || !ok {
+		t.Fatalf("LoadState() = (%v, %v), want a recorded server", ok, err)
+	}
+	if st.ServerPort() != s.Port {
+		t.Errorf("recorded port %d, server is on %d", st.ServerPort(), s.Port)
+	}
+	if want := fmt.Sprintf("http://127.0.0.1:%d", s.Port); ServerURL() != want {
+		t.Errorf("ServerURL() = %q, want %q", ServerURL(), want)
+	}
+	// A file written before ports were recorded still means 8080.
+	if (State{}).ServerPort() != DefaultPort {
+		t.Errorf("an unrecorded port must mean %d, for a server started by an older nav-pilot", DefaultPort)
 	}
 }
 

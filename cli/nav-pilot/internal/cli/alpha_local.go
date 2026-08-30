@@ -343,7 +343,7 @@ func cmdLocalStart() error {
 	fmt.Printf("%s Starting %s…\n", dim("→"), bold(model.Name))
 	fmt.Printf("  %s\n", dim("Ready means it answered a real completion, not that the port is open — minutes on a cold cache."))
 	started := timeNow()
-	srv := &local.Server{Port: local.DefaultPort}
+	srv := &local.Server{} // Port 0: Start asks the kernel for a free one.
 	if err := srv.Start(ctx, model); err != nil {
 		// The process may be up but not answering; do not leave it behind.
 		_ = srv.Stop()
@@ -361,6 +361,9 @@ func cmdLocalStart() error {
 		PID:     status.PID,
 		Model:   model.Model,
 		Started: started,
+		// The port the kernel handed this server. Every other process that
+		// wants to reach it, the loop guard included, reads it from here.
+		Port: srv.Port,
 	}); err != nil {
 		return err
 	}

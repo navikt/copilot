@@ -40,16 +40,22 @@ import (
 
 // State is what start leaves behind for stop and status to find.
 //
-// No port is recorded. [DefaultPort] is fixed, [GuardPort] is fixed beside it,
-// and the baseURL start writes into opencode's config is fixed too — so
-// [EnsureOwnServer] and the guard both hardcode it. A recorded port that no
-// reader honours reads as configuration and is not one; honouring it would mean
-// threading a port through the guard and a config file another process owns,
-// which is a feature nobody has asked for.
+// The port is recorded because it is no longer fixed. It used to be 8080, which
+// is what a developer's own Ktor or Spring service binds, so the first alpha user
+// and their own application wanted the same number: one of them would refuse to
+// start, and the refusal nav-pilot printed told the developer to kill the process
+// holding it, which would have been their own. The server now asks the kernel for
+// a free port and writes it here, and every reader that already opens this file
+// to find the pid learns the port from the same read.
 type State struct {
 	PID     int       `json:"pid"`
 	Model   string    `json:"model"`
 	Started time.Time `json:"started"`
+
+	// Port the server is listening on. Zero in a file written by an older
+	// nav-pilot, which meant 8080 by convention; [State.ServerPort] applies
+	// that so an upgrade does not orphan a running server.
+	Port int `json:"port,omitempty"`
 
 	// Lstart is the kernel's start time for PID, verbatim from `ps -o lstart=`.
 	// It is the pid's identity, and the reason a pid alone is not one: this
@@ -57,6 +63,15 @@ type State struct {
 	// whatever asked for it next. Without this, `stop` signals a stranger's
 	// process group and `status` reports it as the local server.
 	Lstart string `json:"lstart"`
+}
+
+// ServerPort is the port this server listens on, honouring a file written before
+// the port was recorded.
+func (st State) ServerPort() int {
+	if st.Port == 0 {
+		return DefaultPort
+	}
+	return st.Port
 }
 
 func statePath() string { return filepath.Join(dataDir(), "server.json") }
@@ -156,10 +171,10 @@ func isRecorded(pid int, lstart string) bool {
 // started, and refuses when it cannot.
 //
 // [Server.Start] refuses a port it does not own; this is that same rule at the
-// other end of the day. The loop guard proxies to a fixed address, so a server
-// that crashed hours ago and left port 8080 to whatever bound it next would
-// have every prompt of the session forwarded to a stranger, with nothing on
-// screen to say so. The launch calls it once; the guard calls it again per
+// other end of the day. The loop guard proxies to the address recorded when the
+// server started, so a server that crashed hours ago and left that port to
+// whatever bound it next would have every prompt of the session forwarded to a
+// stranger, with nothing on screen to say so. The launch calls it once; the guard calls it again per
 // completion behind a short cache, because a session outlives its launch by
 // hours and the crash it is looking for happens in the middle of one.
 //
@@ -183,14 +198,14 @@ func EnsureOwnServer() error {
 				"  Start it again:\n\n    %s",
 			st.Model, st.PID, ServerURL(), start)
 	}
-	if !slices.Contains(portListeners(DefaultPort), st.PID) {
+	if !slices.Contains(portListeners(st.ServerPort()), st.PID) {
 		return fmt.Errorf(
 			"the recorded local %s server (pid %d) is not what is listening on 127.0.0.1:%d%s.\n\n"+
 				"  Refusing: the loop guard forwards there, so every prompt in this session would go to a server nav-pilot did not start and cannot vouch for.\n\n"+
 				"  Stop it, then start again:\n\n    %s\n    %s",
-			st.Model, st.PID, DefaultPort,
+			st.Model, st.PID, st.ServerPort(),
 			describeForeignServer(context.Background(), ServerURL()),
-			domain.Bold(fmt.Sprintf("lsof -ti tcp:%d | xargs kill", DefaultPort)), start)
+			domain.Bold("nav-pilot alpha local stop"), start)
 	}
 	return nil
 }

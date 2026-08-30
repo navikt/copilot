@@ -78,7 +78,16 @@ const maxRequestBody = 32 << 20
 // ServerURL is where the local model server listens. The address is fixed for
 // the same reason [GuardPort] is: it is written into a client configuration
 // file by one command and read by another process entirely.
-func ServerURL() string { return fmt.Sprintf("http://127.0.0.1:%d", DefaultPort) }
+func ServerURL() string {
+	st, ok, err := LoadState()
+	if err != nil || !ok {
+		// No recorded server. Callers reach this only when they are about to
+		// fail an ownership check anyway, and a wrong address fails more
+		// clearly than an empty one.
+		return fmt.Sprintf("http://127.0.0.1:%d", DefaultPort)
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", st.ServerPort())
+}
 
 // GuardURL is where the loop guard listens — the address a client is pointed
 // at, never the server's. Everything the client sends has to pass the thing

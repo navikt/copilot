@@ -65,8 +65,27 @@ const (
 	mlxVersion   = "0.32.0"
 )
 
-// DefaultPort is where the local server listens when a caller names no port.
+// DefaultPort is only the port a state file written before ports were recorded
+// is assumed to mean. Nothing chooses it any more: [Server.Start] asks the kernel
+// for a free one, because 8080 is what a developer's own Ktor or Spring service
+// binds and the two cannot both have it.
 const DefaultPort = 8080
+
+// freePort asks the kernel for a port nothing is using.
+//
+// Bind, read the number, close, and hand it to the child. That leaves a window
+// where something else could take it, which is why [Server.Start] spawns
+// immediately afterwards and still verifies that what answers is the process it
+// started. The window is milliseconds; the alternative is a fixed port and a
+// guaranteed collision with the developer's own service.
+func freePort() (int, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, fmt.Errorf("asking the kernel for a free port: %w", err)
+	}
+	defer ln.Close()
+	return ln.Addr().(*net.TCPAddr).Port, nil
+}
 
 // Budgets. Vars, not consts, so tests can shrink them without waiting on a
 // wall clock.
@@ -826,13 +845,13 @@ type Server struct {
 	zeroTokenReplies int
 }
 
-// URL is where the server answers.
+// URL is where the server answers. Empty before Start has chosen a port, because
+// there is no address to report yet and inventing one would be a guess.
 func (s *Server) URL() string {
-	port := s.Port
-	if port == 0 {
-		port = DefaultPort
+	if s.Port == 0 {
+		return ""
 	}
-	return fmt.Sprintf("http://127.0.0.1:%d", port)
+	return fmt.Sprintf("http://127.0.0.1:%d", s.Port)
 }
 
 // Start launches the mlx-lm server for a manifest model and returns when it has
@@ -851,7 +870,11 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 	}
 	port := s.Port
 	if port == 0 {
-		port = DefaultPort
+		var err error
+		if port, err = freePort(); err != nil {
+			s.mu.Unlock()
+			return err
+		}
 		s.Port = port
 	}
 	s.mu.Unlock()
