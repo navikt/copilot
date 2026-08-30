@@ -342,3 +342,25 @@ func TestLocalLaunchRefusesAServerNavPilotDidNotStart(t *testing.T) {
 		ln.Close()
 	}
 }
+
+// TestStagedOpenCodeRefusesALocalModel: both staged paths refuse local models,
+// and for the same reason.
+//
+// A pakke launches from a digest-verified payload built and tested against its
+// declared model. Before this, the opencode staged path did no local setup at all
+// and said nothing: a developer with local enabled got a session with no worker
+// binding, no dispatch fragment and no loop guard, which looks like a model that
+// has decided never to delegate.
+func TestStagedOpenCodeRefusesALocalModel(t *testing.T) {
+	withLocalEnabled(t)
+	r := domain.ResolvedConfig{Model: aLocalModelID(t)}
+	_, err := buildStagedOpenCodeSpec(r, StagedLaunch{PakkeName: "grillmester", Dir: t.TempDir()})
+	if err == nil {
+		t.Fatal("a staged opencode launch on a local model was allowed")
+	}
+	for _, want := range []string{"local model", "grillmester"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal = %q, want it to mention %q", err, want)
+		}
+	}
+}

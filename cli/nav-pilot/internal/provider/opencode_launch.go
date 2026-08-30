@@ -578,10 +578,12 @@ func EnsureOpenCodeLocalPolicy(m local.Model) error {
 // The next launch with local on writes both back.
 func RemoveOpenCodeLocalPolicy() error {
 	path := localPolicyPath()
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("removing the local dispatch policy: %w", err)
-	}
-	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+	// Deregister before deleting. The other order left a window where the file
+	// was gone and opencode's config still named it, so a crash in between, or a
+	// failure to write the config, left the developer's own opencode pointing at
+	// a path that does not exist. This order fails the other way: a file left
+	// behind that nothing reads, which the next launch overwrites.
+	if err := mutateOpenCodeConfig(func(cfg map[string]any) bool {
 		entries, _ := cfg["instructions"].([]any)
 		kept := slices.DeleteFunc(slices.Clone(entries), func(e any) bool { return e == any(path) })
 		if len(kept) == len(entries) {
@@ -596,7 +598,13 @@ func RemoveOpenCodeLocalPolicy() error {
 			cfg["instructions"] = kept
 		}
 		return true
-	})
+	}); err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing the local dispatch policy: %w", err)
+	}
+	return nil
 }
 
 // LaunchOpenCode launches opencode inside the cplt sandbox with the resolved config.

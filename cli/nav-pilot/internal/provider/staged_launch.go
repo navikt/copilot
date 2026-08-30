@@ -197,6 +197,18 @@ func stagedPrimaryAgent(client, context, pakkeName string) (string, error) {
 // OPENCODE_CONFIG_DIR pointing at the same payload, and --pass-env for it, with
 // the client receiving --agent <agent>.
 func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
+	// Same refusal the staged Copilot path makes, for the same reason: a pakke
+	// launches from a digest-verified payload built and tested against the model
+	// its manifest declares, and nobody reviewed it running on a 4-bit model on a
+	// laptop. This path did no local setup at all, so a staged launch with local
+	// enabled got no worker binding, no dispatch fragment and no loop guard, and
+	// said nothing about it — the developer saw a session that simply never
+	// dispatched.
+	if local.IsLocal(r.Model) {
+		return cpltLaunch{}, fmt.Errorf(
+			"%s is a local model, and agentpakke %q launches from a digest-verified payload that nav-pilot does not point at a server on this machine.\n\n  Launch the pakke on its declared model, or run a local session without it: %s",
+			r.Model, s.PakkeName, domain.Bold("nav-pilot --client opencode"))
+	}
 	if err := rejectReservedClientArgs("opencode", s.PakkeName, r.ExtraArgs); err != nil {
 		return cpltLaunch{}, err
 	}
