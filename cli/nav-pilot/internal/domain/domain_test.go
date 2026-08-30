@@ -3,6 +3,7 @@ package domain
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -368,5 +369,57 @@ func TestColorHelpers_NoColor(t *testing.T) {
 	}
 	if Red("msg") != "msg" {
 		t.Error("Red with UseColor=false should return plain msg")
+	}
+}
+
+// TestOpenCodeModelForLabel pins the frontmatter-name to opencode-id mapping
+// that materialization depends on. The unknown case is the important one: it
+// must resolve to nothing, so the caller writes no model line instead of an id
+// the client would reject.
+func TestOpenCodeModelForLabel(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "display name", in: "Claude Sonnet 4.6", want: "github-copilot/claude-sonnet-4.6"},
+		{name: "display name with digits and hyphens", in: "GPT-5.3-Codex", want: "github-copilot/gpt-5.3-codex"},
+		{name: "the id itself is accepted", in: "claude-opus-4.6", want: "github-copilot/claude-opus-4.6"},
+		{name: "case insensitive", in: "claude sonnet 4.6", want: "github-copilot/claude-sonnet-4.6"},
+		{name: "surrounding space", in: "  Claude Opus 5  ", want: "github-copilot/claude-opus-5"},
+		{name: "empty", in: "", want: ""},
+		{name: "unknown name resolves to nothing", in: "Claude Sonnet 9000", want: ""},
+		{name: "already qualified is not a known name", in: "github-copilot/claude-opus-5", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := OpenCodeModelForLabel(tt.in); got != tt.want {
+				t.Errorf("OpenCodeModelForLabel(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestAgentFrontmatterModelsAreKnown checks the repo's own agents against the
+// table: a display name nobody recognises materializes without a model line, so
+// a typo would silently disable per-agent model selection for that agent.
+func TestAgentFrontmatterModelsAreKnown(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join("..", "..", "..", "..", "agents", "*.agent.md"))
+	if err != nil || len(files) == 0 {
+		t.Skip("agents/ not reachable from this checkout")
+	}
+	re := regexp.MustCompile(`(?m)^model:\s*(.+?)\s*$`)
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatalf("reading %s: %v", f, err)
+		}
+		m := re.FindSubmatch(data)
+		if m == nil {
+			continue
+		}
+		if got := OpenCodeModelForLabel(string(m[1])); got == "" {
+			t.Errorf("%s declares model %q, which maps to no Copilot model", filepath.Base(f), m[1])
+		}
 	}
 }
