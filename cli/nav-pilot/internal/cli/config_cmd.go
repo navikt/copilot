@@ -283,6 +283,12 @@ version = 1
 # Default: false
 # local_enabled = false
 
+# Start the local server when a launch needs it and nothing is running. Off by
+# default: the first start on a cold cache takes minutes, and a launch that
+# starts a 21 GB process unasked is a surprise rather than a convenience.
+# Default: false
+# local_autostart = false
+
 # Identical consecutive tool calls that end a local turn. Local models get
 # stuck repeating one call — we measured runs of 203 — and this is where
 # nav-pilot stops them. Minimum 2.

@@ -214,6 +214,9 @@ func cmdLocalInit() error {
 	}
 
 	fmt.Printf("%s Provisioning the Python environment…\n", dim("→"))
+	if err := local.SupportedPlatform(); err != nil {
+		return err
+	}
 	if err := local.EnsureEnv(ctx); err != nil {
 		return err
 	}

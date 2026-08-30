@@ -393,16 +393,24 @@ func writeStamp() error {
 // EnsureEnv brings the local-inference environment up to the pins, doing only
 // the steps that are not already done. It is safe to call on every launch: a
 // provisioned machine spends three version probes and no network.
-func EnsureEnv(ctx context.Context) error {
-	// Refuse an Intel Mac in the first second rather than in the fourth minute.
-	// mlx is Apple Silicon only, so without this the developer downloads uv,
-	// creates a virtual environment and waits for pip to resolve before failing
-	// on a wheel error that names a package rather than the reason.
+// SupportedPlatform refuses a machine mlx has no build for, so `init` fails in its
+// first second rather than its fourth minute: without it the developer downloads
+// uv, creates a virtual environment and waits for pip to resolve before failing on
+// a wheel error that names a package rather than the reason.
+//
+// Checked by the command rather than inside [EnsureEnv], because EnsureEnv is
+// exercised by tests on whatever CI runs, and a library function that refuses to
+// run on the build machine is untestable there for no gain.
+func SupportedPlatform() error {
 	if runtime.GOARCH != "arm64" || runtime.GOOS != "darwin" {
 		return fmt.Errorf(
 			"local inference needs an Apple Silicon Mac, and this is %s/%s.\n\n  MLX runs on the GPU in an M-series chip; there is no build for anything else",
 			runtime.GOOS, runtime.GOARCH)
 	}
+	return nil
+}
+
+func EnsureEnv(ctx context.Context) error {
 	if dataDir() == "" {
 		return errors.New("could not determine a home directory for the local-inference environment")
 	}

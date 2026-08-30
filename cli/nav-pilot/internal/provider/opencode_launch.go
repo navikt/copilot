@@ -32,11 +32,25 @@ func openCodeConfigPath() string {
 	if ConfigPathOverride != "" {
 		return ConfigPathOverride
 	}
+	return filepath.Join(openCodeConfigDir(), "opencode.json")
+}
+
+// openCodeConfigDir is where opencode reads its own configuration.
+//
+// XDG_CONFIG_HOME is honoured because opencode honours it. Hardcoding
+// ~/.config/opencode meant that for a developer who sets it, every provider block
+// nav-pilot wrote, every dispatch policy it registered and every removal it made
+// went to a file opencode never reads: local inference silently did nothing, and
+// `off` cleaned a file that was never dirty.
+func openCodeConfigDir() string {
+	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" && filepath.IsAbs(x) {
+		return filepath.Join(x, "opencode")
+	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode", "opencode.json")
+		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode")
 	}
-	return filepath.Join(home, ".config", "opencode", "opencode.json")
+	return filepath.Join(home, ".config", "opencode")
 }
 
 // openCodeNavContextDir returns the directory for Nav context materialization.
@@ -703,13 +717,16 @@ func localWorker() (local.Model, error) {
 	if !local.Enabled() {
 		return local.Model{}, nil
 	}
-	// Start one if the developer asked launches to, and say so: a cold start is
-	// minutes of silence otherwise, which reads as a hang rather than as work.
-	if err := local.EnsureServerRunning(context.Background(), func(model string) {
-		fmt.Fprintf(os.Stderr, "%s Starting the local %s server. The first start after a reboot takes minutes.\n",
-			domain.Dim("ℹ"), domain.Bold(model))
-	}); err != nil {
-		return local.Model{}, err
+	// Only when the developer asked launches to start it. Off, this path does
+	// nothing and the ownership check below reports what is or is not running,
+	// which is also what keeps that check the single seam the tests stub.
+	if local.Autostart() {
+		if err := local.EnsureServerRunning(context.Background(), func(model string) {
+			fmt.Fprintf(os.Stderr, "%s Starting the local %s server. The first start after a reboot takes minutes.\n",
+				domain.Dim("ℹ"), domain.Bold(model))
+		}); err != nil {
+			return local.Model{}, err
+		}
 	}
 	if err := ensureOwnServer(); err != nil {
 		return local.Model{}, err
