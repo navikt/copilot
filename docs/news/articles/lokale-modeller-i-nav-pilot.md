@@ -36,11 +36,13 @@ Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar rundt 26 GB på disk med Pytho
 
 Å legge til et nytt felt i en dataklasse og oppdatere mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten. Testresultatet var likt. Det tok lengre tid: 156 sekunder mot 100. I en annen kjøring døpte modellen om 46 forekomster i 10 filer helt alene, uten skymodell inne i bildet, og prosjektet kompilerte etterpå.
 
+**Men den besparelsen følger ikke med over til Spring.** Vi kjørte den samme oppgaven mot en Spring-app til slutt, og der kostet lokal utsending mer enn å la være: 15 credits mot 9, og det tok lengre tid. Motsatt fortegn av Kotlin-tallene, med samme modell og samme oppsett. Fire kjøringer per arm, så størrelsen på forskjellen vet vi ikke, men retningen er tydelig nok til å si det høyt: besparelsen er ikke en egenskap ved modellen alene, den henger sammen med kodebasen. Kvaliteten holdt begge steder.
+
 Det nyttigste vi fant, er hvor skillet går: modellen er god til å gjennomføre en beslutning som allerede er tatt, og dårlig til å ta den selv. Ber du den skrive en ny testfil fra bunnen, gjør den ingenting.
 
 **Men dette er lab.** Alle tallene over kommer fra enkeltoppgaver i et rent repo, på én maskin, uten avbrytelser, uten halvferdig arbeid i repoet og uten en kollega som venter. Ingen har brukt dette en hel arbeidsdag på ekte kode. Vi vet ikke hvordan det oppfører seg når du har tre ting i gang samtidig, når repoet er stort og rotete, eller når du har dårlig tid.
 
-Vi har heller ikke tall som betyr noe for Spring, som utgjør mesteparten av det som står i produksjon i dag, eller for frontend.
+Vi har fire kjøringer på Spring og ingenting på frontend. Spring utgjør mesteparten av det som står i produksjon i dag, så det er der vi vet minst og trenger mest.
 
 ## En ting vi trodde, og tok feil om
 

@@ -151,7 +151,7 @@ oppgaver der modellen må finne ut hva som skal gjøres.
 
 ### Hva den er god og dårlig til
 
-Målt i et kontrollert testoppsett, på ett Kotlin-repo, på én maskin. Den utfører en avgjørelse godt og tar en
+Målt i et kontrollert testoppsett, på én maskin, og nesten alt på ett Ktor-repo. På den ene Spring-appen vi målte kostet lokal utsending mer enn å la være. Den utfører en avgjørelse godt og tar en
 avgjørelse dårlig.
 
 | Fungerer | Fungerer ikke |
