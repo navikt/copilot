@@ -339,6 +339,15 @@ func writeStamp() error {
 // the steps that are not already done. It is safe to call on every launch: a
 // provisioned machine spends three version probes and no network.
 func EnsureEnv(ctx context.Context) error {
+	// Refuse an Intel Mac in the first second rather than in the fourth minute.
+	// mlx is Apple Silicon only, so without this the developer downloads uv,
+	// creates a virtual environment and waits for pip to resolve before failing
+	// on a wheel error that names a package rather than the reason.
+	if runtime.GOARCH != "arm64" || runtime.GOOS != "darwin" {
+		return fmt.Errorf(
+			"local inference needs an Apple Silicon Mac, and this is %s/%s.\n\n  MLX runs on the GPU in an M-series chip; there is no build for anything else",
+			runtime.GOOS, runtime.GOARCH)
+	}
 	if dataDir() == "" {
 		return errors.New("could not determine a home directory for the local-inference environment")
 	}
@@ -933,7 +942,19 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 		}
 	}()
 
-	return s.waitReady(ctx, model.Model)
+	// An abandoned Start leaves no server behind, but a slow one does. The two
+	// look alike from here and are opposites: a caller who pressed Ctrl-C does
+	// not want 21 GB loading a model nobody is waiting for, while a readiness
+	// timeout on a cold cache is a server that is still doing the work and will
+	// be ready shortly. So cancellation stops the child and a timeout lets it
+	// carry on, which is what `status` then reports as starting.
+	if err := s.waitReady(ctx, model.Model); err != nil {
+		if ctx.Err() != nil {
+			_ = s.Stop()
+		}
+		return err
+	}
+	return nil
 }
 
 // waitReady polls until a completion comes back with tokens in it, the process

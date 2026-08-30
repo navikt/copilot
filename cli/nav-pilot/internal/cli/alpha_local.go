@@ -21,7 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -296,7 +298,14 @@ func wrapIndent(s, indent string, width int) string {
 // ─── start ───────────────────────────────────────────────────────────────────
 
 func cmdLocalStart() error {
-	ctx := context.Background()
+	// Interrupt has to reach the child. A cold start takes minutes, so an
+	// impatient Ctrl-C is the normal case rather than the unlucky one, and
+	// without this it killed nav-pilot while the server carried on loading: 21 GB
+	// of resident memory holding a port, with no state file written yet, so
+	// `stop` and `status` both reported nothing recorded. Cancelling here makes
+	// Start return, and the cleanup below was already there waiting for it.
+	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 	if !local.Installed() {
 		return fmt.Errorf("the local-inference environment is not provisioned — run %s first", bold("nav-pilot alpha local init"))
 	}
@@ -345,8 +354,12 @@ func cmdLocalStart() error {
 	started := timeNow()
 	srv := &local.Server{} // Port 0: Start asks the kernel for a free one.
 	if err := srv.Start(ctx, model); err != nil {
-		// The process may be up but not answering; do not leave it behind.
+		// The process may be up but not answering; do not leave it behind. This
+		// is also the interrupt path: a cancelled context lands here.
 		_ = srv.Stop()
+		if ctx.Err() != nil {
+			return fmt.Errorf("interrupted before the server was ready; it has been stopped")
+		}
 		return err
 	}
 	// Record only what actually came up. A pid written for a server that is

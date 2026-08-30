@@ -1203,3 +1203,36 @@ func TestExitedBeforeReadyNamesTheLog(t *testing.T) {
 		t.Errorf("exitedBeforeReady() = %q, want it to name %s", err, LogPath())
 	}
 }
+
+// TestStartStopsTheChildWhenInterrupted: a cancelled context must not leave a
+// server behind.
+//
+// A cold start takes minutes, so Ctrl-C during one is the normal case rather than
+// the unlucky one. The child runs in its own process group and does not receive
+// the signal, so before `alpha local start` handled it, an interrupt killed
+// nav-pilot and left 21 GB of resident memory loading a model nobody was waiting
+// for, holding a port, with no state file written for `stop` to find.
+func TestStartStopsTheChildWhenInterrupted(t *testing.T) {
+	stubDirs(t)
+	proc := newFakeProc()
+	starts := stubStart(t, proc)
+	// Never ready: readiness is what Start waits on, so this is the window an
+	// interrupt actually lands in.
+	stubCompletion(t, func(context.Context, int) (int, error) {
+		return 0, errors.New("not ready yet")
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	s := &Server{}
+	if err := s.Start(ctx, testModel()); err == nil {
+		t.Fatal("Start() with a cancelled context returned nil")
+	}
+	proc.mu.Lock()
+	signalled := len(proc.signals)
+	proc.mu.Unlock()
+	if len(*starts) > 0 && signalled == 0 {
+		t.Error("Start() left the child running after the context was cancelled")
+	}
+}
