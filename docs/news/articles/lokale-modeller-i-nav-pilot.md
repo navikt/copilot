@@ -32,7 +32,7 @@ Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar rundt 26 GB på disk med Pytho
 
 ## Hva vi har målt, og hvor lite det betyr
 
-146 gyldige målinger, på én maskin, mot ett Kotlin-repo. Kort fortalt: er arbeidet mekanisk og spesifisert på forhånd, gjør modellen det oftest, og det koster ingen credits.
+183 gyldige målinger, på én maskin, mot to Kotlin-repoer. Kort fortalt: er arbeidet mekanisk og spesifisert på forhånd, gjør modellen det oftest, og det koster ingen credits.
 
 Å legge til et nytt felt i en dataklasse og oppdatere mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten. Testresultatet var likt. Det tok lengre tid: 156 sekunder mot 100. I en annen kjøring døpte modellen om 46 forekomster i 10 filer helt alene, uten skymodell inne i bildet, og prosjektet kompilerte etterpå.
 
