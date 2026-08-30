@@ -33,3 +33,18 @@ description = "Prosa i copilot-instructions.md matchet av generic-api-key"
 condition = "AND"
 paths = ['''\.github/copilot-instructions\.md''']
 regexes = ['''billing/seat/SAML''']
+
+# Falsk positiv: modellmanifestet i nav-pilot har et felt som heter "key",
+# og generic-api-key-regelen slår ut på feltnavnet kombinert med entropien
+# i verdien. Verdien er profilnøkkelen fra mise, altså en slug av typen
+# "qwen3.6-35b-a3b-optiq" som også står i filnavn og i CLI-utskrift.
+# Filen genereres av 'mise run model-manifest' og inneholder kun modell-id,
+# minnekrav og MLX_-parametre. Ingen hemmeligheter kan ligge der: nav-pilot
+# avviser parameternøkler som ikke matcher ^MLX_[A-Z0-9_]+$, og modell-id-er
+# fra publishere utenfor tillatelseslisten.
+[[allowlists]]
+description = "Profilnøkkel i nav-pilots modellmanifest, ikke en API-nøkkel"
+condition = "AND"
+regexTarget = "line"
+paths = ['''cli/nav-pilot/internal/local/models\.json''']
+regexes = ['''"key":\s*"[a-z0-9][a-z0-9.\-]*"''']
