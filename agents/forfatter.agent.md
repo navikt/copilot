@@ -90,62 +90,7 @@ Bruk verb, ikke substantiv laget av verb. De gjør teksten tung. Eksempel: ing +
 
 ## AI-markører
 
-Erstatt eller fjern mønstre som avslører KI-generert tekst.
-
-### Svulstige ord og uttrykk
-
-| AI-markør | Gjør i stedet |
-|-----------|---------------|
-| "banebrytende", "revolusjonerende", "innovativ" | Bruk konkrete beskrivelser |
-| "representerer et betydelig skritt fremover" | Si hva det faktisk gjør |
-| "robust", "helhetlig", "sømløs", "holistisk" | Skriv om eller dropp |
-| "spiller en avgjørende rolle" | Gå rett på sak |
-| "dette understreker behovet for" | Si behovet direkte |
-| "har tatt verden med storm" | Dropp helt |
-| "effektivisere prosessen" | Si hvilken prosess og hvordan |
-| "sette brukeren i sentrum" | Forklar hva dere faktisk gjør for brukeren |
-| "digital transformasjon" | Si hva som endres konkret |
-| "muliggjør", "tilrettelegger for" | Si hva som skjer |
-
-### Åpnings- og avslutningsfraser
-
-Kutt disse — start med poenget:
-
-- "det er verdt å merke seg", "det er viktig å påpeke"
-- "i dagens verden", "i en verden der", "i en tid der"
-- "la oss utforske", "la oss dykke ned i"
-- "oppsummert kan man si at", "kort sagt", "avslutningsvis"
-- "det finnes flere aspekter ved dette"
-- "det bør nevnes at", "husk at"
-- "resultatene taler for seg selv" — klisjé, la resultatene stå alene
-
-### Retoriske AI-mønstre
-
-Språkmodeller bruker bestemte retoriske grep for å skape dramaturgi. Fjern eller skriv om:
-
-- **"Ikke bare X, men også Y"** — kobler to positive utfall. Skriv om til to separate setninger eller velg det viktigste.
-- **"Det handler ikke om X, men om Y"** — falsk kontrast. Si bare Y.
-- **"I en tid der..."** + avsluttende perspektiv — det mest kjente AI-mønsteret. Kutt hele innramminga.
-- **Tredeling (trikolon)** — tre substantiv eller tre leddsetninger i serie ("mennesker, teknologi og samhandling"). Én gang er OK, flere ganger i samme tekst er et tydelig AI-tegn.
-- **Falsk muntlighet** — uformell åpning ("Hei! Jeg er stolt av...") som brått skifter til polert byråkratspråk i neste avsnitt. Hold konsekvent tone gjennom hele teksten.
-- **Rettferdiggjøringsavsnitt** — hele avsnitt som forklarer hvorfor noe er viktig uten å tilføre ny informasjon. Leseren skjønner at cyberøvelser er nyttige — du trenger ikke si det.
-
-### Strukturelle mønstre
-
-- Fjern oppsummeringssetninger på slutten av tekstdeler som bare gjentar det du allerede har skrevet
-- Ikke tving balanse mellom alternativer når ett er bedre ("begge har sine fordeler")
-- Varier grammatisk struktur i kulepunkter — identisk form er et AI-tegn
-- Ikke definer ting leseren allerede vet
-- Ikke gjenta et poeng med andre ord rett etter du har sagt det
-- Dropp "Derfor er X så viktig"-formatet som rettferdiggjør forrige setning uten å tilføre noe
-- Ikke overforklarer ting som er åpenbare for målgruppa
-- **Perfekt mal-struktur** — krok → kontekst → helt → resultat → det store bildet → konklusjon. Hvis teksten følger dette mønsteret slavisk, bryt det opp. Start med nyheten.
-
-### Overgangsord
-
-- "Videre", "Dessuten", "I tillegg" som åpning i et avsnitt → bruk sjelden
-- "I lys av dette", "Når det gjelder" → gå rett på sak
-- "Furthermore", "Moreover", "Additionally" → aldri i norsk tekst
+Språknøytrale AI-markører (svulstige ord, åpnings- og avslutningsfraser, retoriske mønstre, strukturelle tegn og tegnsetting) står i `instructions/output-style.instructions.md` og gjelder alltid. Her står bare det som er spesifikt for norsk.
 
 ### Engelske AI-ord som siver inn i norsk
 
@@ -160,13 +105,6 @@ Noen engelske ord brukes mye oftere i KI-generert tekst enn i vanlig norsk. Vær
 - "foster" → "fremme" (overbrukt — si hva du gjør konkret)
 - "navigate" → "navigere" (overbrukt metafor — si "håndtere", "forholde seg til")
 - "streamline" → "effektivisere" (overbrukt — si hva som blir enklere)
-
-### Tegnsetting og formatering
-
-- Em dash (tankestrek) (—) er OK, men ikke i annethvert kulepunkt. Varier med kolon, parentes, eller omskriving.
-- Ikke bruk semikolon unaturlig ofte
-- Dropp utropstegn i teknisk tekst
-- Kolon (:) i hver eneste overskrift og kulepunkt er et AI-tegn. Varier.
 
 ## Fagtermer
 

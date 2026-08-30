@@ -6,6 +6,8 @@ applyTo: "**/*.md"
 
 Regler for norsk tekst i markdown-filer: agenter, instruksjoner, skills, dokumentasjon og README-er.
 
+Språknøytrale skriveregler (lengde, tetthet, AI-markører, tegnsetting) står i `output-style.instructions.md` og gjelder allerede. Denne instruksjonen dekker bare det som er spesifikt for norsk.
+
 For dypere tekstredaksjon, bruk `@forfatter`-agenten. Disse reglene gjelder automatisk ved redigering og code review.
 
 ## Klarspråk
@@ -18,50 +20,23 @@ Språkloven pålegger offentlige organer å bruke klart, korrekt språk tilpassa
 - **Kort over langt.** Vanlig ord over fancy ord. Kutt fyllord: "i bunn og grunn", "i stor grad", "på mange måter".
 - **Skriv for leseren.** Hva trenger leseren å gjøre etter å ha lest dette? Kutt alt som ikke hjelper dem.
 
-## AI-markører
+## Engelske AI-ord som siver inn i norsk
 
-Erstatt eller fjern mønstre som avslører KI-generert tekst.
+Direkte oversettelser fra engelsk som er langt vanligere i KI-generert norsk enn i vanlig norsk:
 
-### Svulstige ord — fjern eller skriv om
-
-"banebrytende", "revolusjonerende", "innovativ", "robust", "helhetlig", "sømløs", "holistisk", "spiller en avgjørende rolle", "representerer et betydelig skritt fremover", "digital transformasjon", "muliggjør", "tilrettelegger for", "effektivisere prosessen", "sette brukeren i sentrum".
-
-### Åpnings- og avslutningsfraser — kutt
-
-"Det er verdt å merke seg", "det er viktig å påpeke", "i dagens verden", "i en verden der", "i en tid der", "la oss utforske", "la oss dykke ned i", "oppsummert kan man si at", "kort sagt", "avslutningsvis", "det finnes flere aspekter ved dette", "resultatene taler for seg selv".
-
-### Retoriske AI-mønstre
-
-- **"Ikke bare X, men også Y"** — skriv om til to setninger eller velg det viktigste
-- **"Det handler ikke om X, men om Y"** — si bare Y
-- **"I en tid der..." + avsluttende perspektiv** — kutt innramminga
-- **Tredeling (trikolon)** i serie — én gang OK, gjentatt er AI-tegn
-- **Falsk muntlighet** — uformell åpning som brått skifter til polert byråkratspråk
-- **Rettferdiggjøringsavsnitt** — hele avsnitt som forklarer hvorfor noe er viktig uten ny informasjon
-
-### Strukturelle AI-tegn
-
-- Overgangsord som avsnittåpner ("Videre", "Dessuten", "I tillegg") — bruk sjelden
-- Overskrifter som alle ender med kolon — varier
-- Identisk grammatisk struktur i alle kulepunkter — varier
-- Oppsummeringssetning på slutten av seksjoner som gjentar det du allerede har skrevet — kutt
-- Tvungen balanse mellom alternativer ("begge har sine fordeler") — velg det beste
-- Overforklaring av ting målgruppa allerede vet
-- Perfekt mal-struktur (krok → kontekst → helt → resultat → det store bildet → konklusjon) — bryt opp, start med nyheten
-
-### Engelske AI-ord som siver inn i norsk
-
-- "fordype seg i" (delve into) — skriv bare innholdet
-- "utnytte" / "leverere" (leverage) — bruk "bruke"
-- "understreke" (underscore) — si poenget direkte
-- "avgjørende" (crucial) — overbrukt, si hvorfor det er viktig
-- "landskap" (landscape) — si "markedet", "feltet", "situasjonen"
-- "fremme" (foster) — si hva dere gjør konkret
-- "navigere" (navigate) — si "håndtere", "forholde seg til"
+- "fordype seg i" (delve into): skriv bare innholdet
+- "utnytte" / "leverere" (leverage): bruk "bruke"
+- "understreke" (underscore): si poenget direkte
+- "avgjørende" (crucial): overbrukt, si hvorfor det er viktig
+- "landskap" (landscape): si "markedet", "feltet", "situasjonen"
+- "fremme" (foster): si hva dere gjør konkret
+- "navigere" (navigate): si "håndtere", "forholde seg til"
+- "rike" / "sfære" (realm): si "område", "felt"
+- "effektivisere" (streamline): si hva som blir enklere
 
 ## Anglismer
 
-### Unødvendige anglismer — bruk norsk
+### Unødvendige anglismer, bruk norsk
 
 | Anglisme | Norsk alternativ |
 |----------|-----------------|
@@ -76,7 +51,9 @@ Erstatt eller fjern mønstre som avslører KI-generert tekst.
 
 ### Behold engelsk fagspråk
 
-Ikke oversett: image, cluster, node, container, deployment, release, pod, namespace, secret, bug, bugfix, hotfix, patch, edge case, rollback, failover, backup, pipeline, workflow, runtime, framework, middleware, pull request, merge, commit, branch, endpoint, token, scope.
+Ikke oversett: image, cluster, node, container, release, pod, namespace, secret, bug, bugfix, hotfix, patch, edge case, rollback, failover, backup, pipeline, workflow, runtime, framework, middleware, pull request, merge, commit, branch, endpoint, token, scope.
+
+`deployment` som substantiv beholdes på engelsk (ikke "utrulling"). Verbet `deploye` er OK, og "rulle ut" er OK som verb.
 
 ## Sammensatte ord
 
@@ -87,14 +64,13 @@ Bindestrek ved engelsk+norsk:
 ❌ Postgres operatoren, Kafka topicet, GitHub repoet (særskrivingsfeil)
 ```
 
-## Nav — ikke NAV
+## Nav, ikke NAV
 
 "Nav" med stor forbokstav og små bokstaver. Aldri "NAV" (gammelt akronym).
 
 ## Overskrifter
 
-- Bare første ord og egennavn med stor bokstav (ikke engelsk stil)
-- Dropp kolon på slutten av overskrifter
+Bare første ord og egennavn med stor bokstav, ikke engelsk tittelstil. (Kolon på slutten av overskrifter er forbudt av `output-style.instructions.md`.)
 
 ## Tone
 

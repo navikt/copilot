@@ -15,7 +15,7 @@
 
 ### Steg 2: Token-validering og exchange
 
-> **Implementasjon:** Bruk `@auth-agent` for komplett oppsett av token-validering.
+> **Implementasjon:** Bruk `$nav-auth` for komplett oppsett av token-validering.
 > For TokenX token exchange, bruk `$tokenx-auth` som har detaljerte Kotlin- og Node.js-eksempler
 > med caching, feilhåndtering og Ktor-integrasjon.
 

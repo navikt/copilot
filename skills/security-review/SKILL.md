@@ -249,6 +249,6 @@ npm audit fix
 | Resource | Use For |
 |----------|---------|
 | `@security-champion` | Threat modeling, compliance questions, Nav security architecture |
-| `@auth-agent` | JWT validation, TokenX, ID-porten, Maskinporten |
-| `@nais-agent` | Nais manifest, accessPolicy, secrets setup |
+| `$nav-auth` | JWT validation, TokenX, ID-porten, Maskinporten |
+| `$nais` | Nais manifest, accessPolicy, secrets setup |
 | [sikkerhet.nav.no](https://sikkerhet.nav.no) | Nav Golden Path, authoritative security guidance |

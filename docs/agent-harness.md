@@ -82,7 +82,7 @@ AI-baserte feedback-mekanismer som vurderer kvalitet kontekstuelt.
 | `@code-review-agent` | Feil, sikkerhet, Nav-konvensjoner | In-session | Manuell (bruker ber) |
 | `@security-champion-agent` | Trusselmodellering, GDPR, hemmeligheter | In-session | Manuell (delegert fra code-review) |
 | `@accessibility-agent` | WCAG 2.1/2.2, Aksel-mønstre, tastaturnavigasjon | In-session | Manuell (delegert) |
-| `@observability-agent` | Metrikk-instrumentering, tracing, varsling | In-session | Manuell (delegert) |
+| `$observability-setup` | Metrikk-instrumentering, tracing, varsling | In-session | Manuell (delegert) |
 | threat-model skill | STRIDE-A trusselanalyse | In-session (on-demand) | Manuell |
 | nav-deep-interview skill | Avdekker blindsoner i prosjekter | In-session (on-demand) | Manuell |
 | nav-architecture-review skill | Arkitektur-ADR med flerperspektiv | In-session (on-demand) | Manuell |

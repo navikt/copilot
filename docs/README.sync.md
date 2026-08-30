@@ -72,7 +72,7 @@ Create `.github/copilot-sync.json` in your repo:
 ```json
 {
   "overrides": [
-    ".github/agents/nais.agent.md",
+    ".github/agents/nav-pilot.agent.md",
     ".github/instructions/security.instructions.md",
     ".github/skills/api-design/"
   ]

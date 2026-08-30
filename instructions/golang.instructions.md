@@ -540,7 +540,7 @@ func TestDatabase(t *testing.T) {
 
 | Resource | Use For |
 |----------|---------|
-| `@nais-agent` | Nais manifest, GCP resources, accessPolicy |
-| `@observability-agent` | Prometheus metrics, Grafana dashboards |
+| `$nais` | Nais manifest, GCP resources, accessPolicy |
+| `$observability-setup` | Prometheus metrics, Grafana dashboards |
 | `security-owasp` instruction | OWASP Top 10:2025 patterns for Go |
 | `@security-champion-agent` | Threat modeling and security architecture |

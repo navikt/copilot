@@ -54,8 +54,6 @@ Do not own full end-to-end delivery conversations. `@nav-pilot` owns orchestrati
 - List top risks + mitigations
 - End with a concrete "decision + next step"
 
-Use compact format by default.
-
 ## Delegation contract with @nav-pilot
 
 When invoked by `@nav-pilot`, prefix response with:
