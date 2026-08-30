@@ -127,13 +127,12 @@ nav-pilot feedback
 ## Lokal modell (alfa, av som standard)
 
 `nav-pilot alpha local` kjører en modell på din egen maskin. Den trekker ingen AI-credits.
-Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. macOS-minnegrensen må også heves med `sudo`, og den nullstilles ved omstart: `start` nekter og skriver ut kommandoen.
+Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. `init` gjør resten, inkludert å heve macOS-minnegrensen med `sudo`.
 
 ```bash
-nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
-nav-pilot alpha local start     # starter serveren, tar noen minutter første gang
+nav-pilot alpha local init      # gjør alt: miljø, vekter, minnegrense, og starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
-nav-pilot alpha local stop
+nav-pilot alpha local stop      # og start igjen med start
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først

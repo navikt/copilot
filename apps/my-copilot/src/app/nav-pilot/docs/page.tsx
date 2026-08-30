@@ -2002,13 +2002,13 @@ nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir ligg
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
           <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fef2f2" }}>
-            <Label size="small">Minnegrensen må heves, og den nullstilles ved omstart</Label>
+            <Label size="small">Én kommando, men den ber om passordet ditt</Label>
             <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
-              macOS lar ikke GPU-en låse nok minne til en modell på denne størrelsen som standard.{" "}
-              <code className="font-mono text-xs">start</code> nekter til grensen er hevet, og skriver ut kommandoen du
-              trenger: <code className="font-mono text-xs">sudo sysctl -w iogpu.wired_limit_mb=36864</code>. Den
-              nullstilles hver gang du starter maskinen, så den må kjøres på nytt. Grensen er et tak og ikke en
-              reservasjon: den tar ikke minne fra andre programmer før modellen faktisk bruker det.
+              macOS lar ikke GPU-en låse nok minne til en modell på denne størrelsen som standard, så{" "}
+              <code className="font-mono text-xs">init</code> hever grensen for deg med{" "}
+              <code className="font-mono text-xs">sudo</code> og sier fra når den gjør det. Grensen er et tak og ikke en
+              reservasjon: den tar ikke minne fra andre programmer før modellen faktisk bruker det. Den nullstilles ved
+              omstart, og <code className="font-mono text-xs">start</code> hever den igjen når den trengs.
             </BodyLong>
           </Box>
           <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>

@@ -23,12 +23,12 @@ Det er den enkle motivasjonen. Den andre er at vi vil vite hva slike modeller fa
 En lokal modell som hovedagenten kan sende avgrensede oppgaver til: døpe om et symbol i mange filer, tre et felt gjennom en mapper og kallstedene. Små oppslag og enkeltkommentarer beholder hovedagenten selv, fordi den går raskere enn å sende dem videre. Den lokale modellen planlegger ikke, fører ingen samtale og velger ikke hva som skal gjøres.
 
 ```
-nav-pilot alpha local init      # laster ned og setter opp
-nav-pilot alpha local start
-nav-pilot alpha local status
+nav-pilot alpha local init
 ```
 
-Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar rundt 26 GB på disk med Python-miljøet, holder 21 GB i minnet mens den kjører, og krever en Mac med Apple Silicon og 48 GB minne. Du må også heve en minnegrense i macOS med `sudo`, og den nullstilles hver gang du starter maskinen.
+Det er hele oppsettet. Den laster ned modellen, setter opp miljøet, hever minnegrensen i macOS (den spør om passordet ditt) og starter serveren.
+
+Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar rundt 26 GB på disk med Python-miljøet, holder 21 GB i minnet mens den kjører, og krever en Mac med Apple Silicon og 48 GB minne. `init` hever en minnegrense i macOS underveis og spør om passordet ditt når den gjør det.
 
 ## Hva vi har målt, og hvor lite det betyr
 
