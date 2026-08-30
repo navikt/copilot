@@ -450,10 +450,31 @@ func TestPiUnsupportedConfigWarnings(t *testing.T) {
 		wantLen int
 		wantSub []string
 	}{
-		{name: "no model or mode", cfg: domain.ResolvedConfig{}, wantLen: 0},
-		{name: "default mode only", cfg: domain.ResolvedConfig{Mode: "default"}, wantLen: 0},
-		{name: "model set", cfg: domain.ResolvedConfig{Model: "claude-sonnet-4.6"}, wantLen: 1, wantSub: []string{"claude-sonnet-4.6", "not forwarded to pi"}},
-		{name: "model and mode", cfg: domain.ResolvedConfig{Model: "x", Mode: "plan"}, wantLen: 2, wantSub: []string{"model", "mode", "pi"}},
+		// AskUser: true is what resolve() produces for an untouched config
+		// (config.go's default), so it is the baseline "nothing set" case.
+		{name: "nothing set", cfg: domain.ResolvedConfig{AskUser: true}, wantLen: 0},
+		{name: "default mode and tier only", cfg: domain.ResolvedConfig{AskUser: true, Mode: "default", ContextTier: "default"}, wantLen: 0},
+		{name: "model set", cfg: domain.ResolvedConfig{AskUser: true, Model: "claude-sonnet-4.6"}, wantLen: 1, wantSub: []string{"claude-sonnet-4.6", "not forwarded to pi"}},
+		{name: "model and mode", cfg: domain.ResolvedConfig{AskUser: true, Model: "x", Mode: "plan"}, wantLen: 2, wantSub: []string{"model", "mode", "pi"}},
+		{name: "reasoning effort", cfg: domain.ResolvedConfig{AskUser: true, ReasoningEffort: "high"}, wantLen: 1, wantSub: []string{"reasoning_effort", "high"}},
+		{name: "context tier", cfg: domain.ResolvedConfig{AskUser: true, ContextTier: "long_context"}, wantLen: 1, wantSub: []string{"context_tier", "long_context"}},
+		{name: "allow all tools", cfg: domain.ResolvedConfig{AskUser: true, AllowAllTools: true}, wantLen: 1, wantSub: []string{"allow_all_tools"}},
+		{name: "ask user off", cfg: domain.ResolvedConfig{AskUser: false}, wantLen: 1, wantSub: []string{"ask_user"}},
+		{name: "log level", cfg: domain.ResolvedConfig{AskUser: true, LogLevel: "debug"}, wantLen: 1, wantSub: []string{"log_level", "debug"}},
+		{
+			name: "every dropped setting is named",
+			cfg: domain.ResolvedConfig{
+				Model:           "claude-opus-5",
+				Mode:            "autopilot",
+				ReasoningEffort: "high",
+				ContextTier:     "long_context",
+				AllowAllTools:   true,
+				AskUser:         false,
+				LogLevel:        "debug",
+			},
+			wantLen: 7,
+			wantSub: []string{"model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level"},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -498,5 +519,28 @@ func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 	got, _ := os.ReadFile(out)
 	if string(got) != "cplt --agent pi --" {
 		t.Errorf("cplt argv = %q, want %q", string(got), "cplt --agent pi --")
+	}
+}
+
+// TestLaunchPi_ForwardsExtraArgs pins the pass-through: everything after the
+// nav-pilot "--" reaches pi. Without it `nav-pilot --client pi -- run "fix the
+// flaky test"` started pi with an empty prompt and no error anywhere.
+func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "argv.txt")
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte("#!/bin/sh\nprintf 'cplt %s' \"$*\" > "+out+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pi"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	if err := LaunchPi(domain.ResolvedConfig{Client: "pi", ExtraArgs: []string{"run", "fix the flaky test"}}); err != nil {
+		t.Fatalf("LaunchPi error: %v", err)
+	}
+	got, _ := os.ReadFile(out)
+	want := "cplt --agent pi -- run fix the flaky test"
+	if string(got) != want {
+		t.Errorf("cplt argv = %q, want %q", string(got), want)
 	}
 }
