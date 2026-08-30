@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -52,6 +53,7 @@ hosted one. Off until you run init, and invisible everywhere until then.
   stop      Stop the server
   status    Model, health, resident memory and the wired-memory limit
   off       Stop dispatching to it; the weights stay on disk
+  purge     Remove the environment and the weights, after showing what and how big
 `)
 }
 
@@ -79,11 +81,13 @@ func cmdAlpha(args []string) error {
 		return cmdLocalStatus()
 	case "off":
 		return cmdLocalOff()
+	case "purge":
+		return cmdLocalPurge(args[1:])
 	case "", "help":
 		alphaUsage()
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "stop", "status", "off"}); hint != "" {
+		if hint := suggest(sub, []string{"init", "start", "stop", "status", "off", "purge"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Run %s for usage", sub, bold("nav-pilot alpha help"))
@@ -648,4 +652,77 @@ func applyLocalConfig() {
 		local.SetActive(m)
 	}
 	local.SetEnabled(true)
+}
+
+// ─── purge ───────────────────────────────────────────────────────────────────
+
+// cmdLocalPurge removes what init put on this machine, after saying what it is.
+//
+// It exists because `off` deliberately leaves the weights: turning dispatch off
+// and back on should not cost a 23 GB download. That is right for a developer
+// pausing and wrong for one leaving, who was otherwise left to find the Hugging
+// Face cache layout themselves and delete it by hand.
+//
+// Lists first and deletes only with --yes, because the weights live in a shared
+// cache that another MLX tool on the machine may be using.
+func cmdLocalPurge(args []string) error {
+	confirmed := slices.Contains(args, "--yes")
+
+	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
+		return fmt.Errorf("the local server is still running (pid %d).\n\n  Stop it first:\n\n    %s",
+			st.PID, bold("nav-pilot alpha local stop"))
+	}
+
+	// The recorded server names the model it loaded; the manifest names what
+	// this machine would load next. Either identifies the weights to remove, and
+	// a machine with neither has none to remove.
+	var model string
+	if st, ok, _ := local.LoadState(); ok {
+		model = st.Model
+	} else if m, _, err := local.Cached(); err == nil && m != nil && len(m.Models) > 0 {
+		model = m.Models[0].Model
+	}
+	items := local.Removables(model)
+	if len(items) == 0 {
+		fmt.Printf("%s Nothing to remove: local inference is not provisioned on this machine.\n", dim("ℹ"))
+		return nil
+	}
+
+	var total int64
+	for _, it := range items {
+		total += it.Bytes
+		fmt.Printf("  %s  %s\n      %s\n", bold(humanBytes(it.Bytes)), it.Path, dim(it.What))
+	}
+	fmt.Printf("\n  %s in total.\n\n", bold(humanBytes(total)))
+
+	if !confirmed {
+		fmt.Printf("%s Nothing was deleted. To go ahead:\n\n    %s\n\n",
+			dim("ℹ"), bold("nav-pilot alpha local purge --yes"))
+		return nil
+	}
+
+	if err := cmdLocalOff(); err != nil {
+		return err
+	}
+	for _, it := range items {
+		if err := os.RemoveAll(it.Path); err != nil {
+			return fmt.Errorf("removing %s: %w", it.Path, err)
+		}
+	}
+	fmt.Printf("%s Removed %s. %s puts it back.\n",
+		green("✓"), bold(humanBytes(total)), bold("nav-pilot alpha local init"))
+	return nil
+}
+
+// humanBytes is for a developer deciding whether to reclaim the space, so it is
+// the unit their disk is measured in rather than an exact count.
+func humanBytes(n int64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%d MB", n/(1<<20))
+	default:
+		return fmt.Sprintf("%d kB", n/(1<<10))
+	}
 }

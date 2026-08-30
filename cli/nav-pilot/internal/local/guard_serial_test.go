@@ -20,6 +20,10 @@ import (
 // without a restart. A cloud orchestrator asked to refactor ten files dispatched
 // ten subagents at once and wedged it on the first attempt.
 func TestGuardSerialisesCompletions(t *testing.T) {
+	// Independent of what ran before it: the ownership gate caches for a few
+	// seconds, so without these this passed only when another test had primed it.
+	stubDirs(t)
+	stubOwnership(t, func() error { return nil })
 	var inFlight, peak int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n := atomic.AddInt32(&inFlight, 1)

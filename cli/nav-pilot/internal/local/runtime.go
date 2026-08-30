@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand/v2"
 	"net"
 	"net/http"
@@ -32,6 +33,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -137,6 +139,59 @@ var hfHome = func() string {
 		return ""
 	}
 	return filepath.Join(home, ".cache", "huggingface")
+}
+
+// Removable is one thing local inference put on this machine, and how big it is.
+type Removable struct {
+	Path  string
+	Bytes int64
+	What  string
+}
+
+// Removables lists what `init` created, largest first, so a developer leaving the
+// alpha can see what they get back before anything is deleted.
+//
+// The weights are named separately from the toolchain because they are the 23 GB
+// and they live in the shared Hugging Face cache: another tool on the machine may
+// be using the same download, which is why removing them is a choice rather than
+// part of turning the feature off.
+func Removables(model string) []Removable {
+	var out []Removable
+	if d := dataDir(); d != "" {
+		if n, err := dirSize(d); err == nil && n > 0 {
+			out = append(out, Removable{Path: d, Bytes: n, What: "the Python environment, the uv binary and the server log"})
+		}
+	}
+	if h := hfHome(); h != "" && model != "" {
+		// The cache layout huggingface_hub writes: models--org--name.
+		dir := filepath.Join(h, "hub", "models--"+strings.ReplaceAll(model, "/", "--"))
+		if n, err := dirSize(dir); err == nil && n > 0 {
+			out = append(out, Removable{Path: dir, Bytes: n, What: "the model weights, shared with any other MLX tool on this machine"})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Bytes > out[j].Bytes })
+	return out
+}
+
+func dirSize(root string) (int64, error) {
+	var total int64
+	err := filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		// Follows no symlinks: WalkDir does not, and a cache full of them
+		// counted twice would overstate what a developer gets back.
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		total += info.Size()
+		return nil
+	})
+	return total, err
 }
 
 // runCommand runs one bounded command and returns its combined output. The
