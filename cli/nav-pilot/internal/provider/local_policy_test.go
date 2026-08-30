@@ -261,7 +261,7 @@ func TestLocalWorkerIsBoundToTheLocalModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := EnsureOpenCodeLocalProvider(m); err != nil {
+	if err := EnsureOpenCodeLocalProvider(m, testGuardURL); err != nil {
 		t.Fatalf("EnsureOpenCodeLocalProvider: %v", err)
 	}
 

@@ -368,12 +368,11 @@ func cmdLocalStart() error {
 		return err
 	}
 
-	// Register it with opencode. Non-fatal: the server is up either way, and a
-	// developer who keeps their own opencode config should be told rather than
-	// have their session refused.
-	if err := providerpkg.EnsureOpenCodeLocalProvider(model); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not register the local model with opencode: %v\n", yellow("⚠"), err)
-	}
+	// The opencode provider block is not written here any more. It carries the
+	// loop guard's address, and the guard now takes a port per session, so a
+	// block written at start time would name a port no guard is listening on by
+	// the time anyone launches. Every launch writes it, which is where the live
+	// address is known.
 
 	fmt.Print(startSummary(model, srv.URL(), status.PID, wired, timeNow().Sub(started)))
 	return nil

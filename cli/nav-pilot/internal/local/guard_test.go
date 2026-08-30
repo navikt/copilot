@@ -248,12 +248,12 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 	stubOwnership(t, func() error { return nil })
 	g, err := StartGuard(upstream.URL)
 	if err != nil {
-		t.Skipf("could not bind the guard port on this machine: %v", err)
+		t.Fatalf("StartGuard: %v", err)
 	}
 	defer g.Close()
 
 	body := conversation(`{"role":"user","content":"hei"}`)
-	resp, err := http.Post(GuardURL()+"/v1/chat/completions", "application/json", strings.NewReader(string(body)))
+	resp, err := http.Post(g.URL()+"/v1/chat/completions", "application/json", strings.NewReader(string(body)))
 	if err != nil {
 		t.Fatalf("POST through the guard: %v", err)
 	}

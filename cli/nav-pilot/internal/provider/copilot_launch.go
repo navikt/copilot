@@ -163,7 +163,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		// Not PrintModelAvailabilityHint: it reads the publisher prefix as
 		// nav-pilot's provider-qualified spelling and tells the developer to
 		// drop it, which for a Hugging Face model id is the wrong advice.
-		env = copilotLocalEnv(env, worker)
+		env = copilotLocalEnv(env, worker, guard.URL())
 		fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
 			domain.Dim("ℹ"), domain.Bold(worker.Model))
 		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row.\n\n",
@@ -269,9 +269,9 @@ func copilotLocalWorker(sessionModel string) (local.Model, *local.Guard, error) 
 // SetEnvValue rather than SetEnvIfAbsent: these decide where the prompt goes,
 // and an exported COPILOT_PROVIDER_BASE_URL left over from something else must
 // not quietly win.
-func copilotLocalEnv(env []string, m local.Model) []string {
+func copilotLocalEnv(env []string, m local.Model, guardURL string) []string {
 	for _, kv := range [][2]string{
-		{"COPILOT_PROVIDER_BASE_URL", local.GuardURL() + "/v1"},
+		{"COPILOT_PROVIDER_BASE_URL", guardURL + "/v1"},
 		{"COPILOT_PROVIDER_TYPE", "openai"},
 		{"COPILOT_PROVIDER_WIRE_API", "completions"},
 		// Optional for a local provider, per `copilot help providers`. Sent

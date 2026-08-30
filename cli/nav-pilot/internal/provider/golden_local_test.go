@@ -252,8 +252,8 @@ func TestLocalBranchesTakeEffectWhenEnabled(t *testing.T) {
 	// The Copilot CLI is pointed at the loop guard rather than refused. Not
 	// LaunchCopilotResolved: on a machine that does have a local server
 	// recorded and running, that call launches a real client.
-	if got := telemetry.LookupEnvValue(copilotLocalEnv(nil, aLocalModel(t)), "COPILOT_PROVIDER_BASE_URL"); got != local.GuardURL()+"/v1" {
-		t.Errorf("copilotLocalEnv points the Copilot CLI at %q, want the loop guard at %q", got, local.GuardURL()+"/v1")
+	if got := telemetry.LookupEnvValue(copilotLocalEnv(nil, aLocalModel(t), testGuardURL), "COPILOT_PROVIDER_BASE_URL"); got != testGuardURL+"/v1" {
+		t.Errorf("copilotLocalEnv points the Copilot CLI at %q, want the loop guard at %q", got, testGuardURL+"/v1")
 	}
 }
 

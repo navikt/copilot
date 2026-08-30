@@ -227,7 +227,7 @@ func TestLocalOffTakesTheModelOutOfOpenCode(t *testing.T) {
 	if len(models) == 0 {
 		t.Fatal("the embedded local-model manifest names no models")
 	}
-	if err := providerpkg.EnsureOpenCodeLocalProvider(models[0]); err != nil {
+	if err := providerpkg.EnsureOpenCodeLocalProvider(models[0], "http://127.0.0.1:54321"); err != nil {
 		t.Fatalf("registering the local provider: %v", err)
 	}
 	// Something of the developer's own, which off must not take with it.

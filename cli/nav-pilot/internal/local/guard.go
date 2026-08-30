@@ -24,6 +24,7 @@ package local
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,19 +33,25 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
-// GuardPort is where the guard listens. Fixed rather than ephemeral because the
-// client is pointed at it by a configuration file written when the server is
-// set up, not by this process — one number in one place beats a port handed
-// over at launch through a channel that does not exist yet.
+// GuardPort is only what a client configuration written by an older nav-pilot
+// points at. The guard now takes an ephemeral port per session, because it used
+// to be one listener per machine: a second concurrent session found the port
+// taken and the launch failed outright, and two terminal tabs in two
+// repositories is ordinary work rather than an edge case.
 //
-// ponytail: one guard per machine. Two concurrent local sessions is a second
-// listener on this port and a clear bind failure, not corruption. Give the
-// guard an ephemeral port and templated client config if anyone needs two.
+// The port reaches the client through the configuration each launch writes
+// anyway, which is why this could move: the Copilot CLI takes it in
+// COPILOT_PROVIDER_BASE_URL and opencode in the provider block, both written at
+// launch and removed at exit. The channel that did not exist when this was fixed
+// turned out to be the one already in use.
 const GuardPort = DefaultPort + 1
 
 // DefaultLoopGuardRepeat is how many identical consecutive tool calls end the
@@ -89,15 +96,20 @@ func ServerURL() string {
 	return fmt.Sprintf("http://127.0.0.1:%d", st.ServerPort())
 }
 
-// GuardURL is where the loop guard listens — the address a client is pointed
-// at, never the server's. Everything the client sends has to pass the thing
-// that can stop a runaway loop.
-func GuardURL() string { return fmt.Sprintf("http://127.0.0.1:%d", GuardPort) }
-
 // Guard is the proxy the client talks to instead of the server.
 type Guard struct {
 	ln  net.Listener
 	srv *http.Server
+}
+
+// URL is where this guard listens: the address a client is pointed at, never the
+// server's. Everything the client sends has to pass the thing that can stop a
+// runaway loop.
+func (g *Guard) URL() string {
+	if g == nil || g.ln == nil {
+		return ""
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", g.ln.Addr().(*net.TCPAddr).Port)
 }
 
 // StartGuard puts the guard in front of a local server and returns once it is
@@ -107,11 +119,12 @@ func StartGuard(target string) (*Guard, error) {
 	if err != nil {
 		return nil, fmt.Errorf("the local server address %q is not a URL: %w", target, err)
 	}
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", GuardPort))
+	// Port 0: one guard per session, not per machine. Several sessions share the
+	// one server behind them, and completions serialise at each guard, so they
+	// queue rather than reaching mlx-lm concurrently.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return nil, fmt.Errorf(
-			"could not listen on 127.0.0.1:%d for the local-inference loop guard: %w\n\n  Another nav-pilot session is probably already running one",
-			GuardPort, err)
+		return nil, fmt.Errorf("could not listen for the local-inference loop guard: %w", err)
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(u)
@@ -192,9 +205,10 @@ func ownershipGate() func() error {
 // anticipate would break working sessions to protect them.
 func guardHandler(proxy http.Handler) http.Handler {
 	owned := ownershipGate()
-	// One completion at a time. mlx-lm batches concurrent requests into shared
-	// attention, and with prompts of different lengths that batching raises
-	// [broadcast_shapes] and leaves the server hung — alive, accepting
+	// One completion at a time, across every session on this machine. mlx-lm
+	// batches concurrent requests into shared attention, and with prompts of
+	// different lengths that batching raises [broadcast_shapes] and leaves the
+	// server hung — alive, accepting
 	// connections, answering nothing, and unrecoverable without a restart. It is
 	// an upstream bug (ml-explore/mlx-lm #1139, #1256) and not one we can fix, but
 	// it is trivially reachable from here: a cloud orchestrator that fans a
@@ -206,6 +220,12 @@ func guardHandler(proxy http.Handler) http.Handler {
 	// Serialising costs nothing real. One local model on one GPU has no spare
 	// capacity for a second stream anyway; the requests were already going to
 	// queue, and now they queue somewhere that cannot corrupt a KV cache.
+	//
+	// The lock is a file rather than a channel because the guard is per session
+	// and the server is per machine: two nav-pilot sessions each hold their own
+	// guard and would otherwise send one request apiece, which is exactly the
+	// concurrency that wedges mlx-lm. A channel would serialise each session
+	// against itself and leave them racing each other.
 	oneAtATime := make(chan struct{}, 1)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
@@ -219,6 +239,15 @@ func guardHandler(proxy http.Handler) http.Handler {
 			// The client gave up while queued. Nothing to answer.
 			return
 		}
+		release, err := lockServer(r.Context())
+		if err != nil {
+			// Queued behind another session and the client gave up, or the lock
+			// file is unusable. Forwarding anyway risks the wedge this exists to
+			// prevent, so say so rather than gamble.
+			writeGuardError(w, "nav-pilot did not forward this request: "+err.Error(), "local_server_busy")
+			return
+		}
+		defer release()
 		if err := owned(); err != nil {
 			writeGuardError(w, "nav-pilot did not forward this request: "+err.Error(), "local_server_lost")
 			return
@@ -329,4 +358,37 @@ func writeGuardError(w http.ResponseWriter, msg, code string) {
 			"code":    code,
 		},
 	})
+}
+
+// lockServer takes the machine-wide lock on the local server, waiting until it is
+// free or the request is abandoned. The returned function releases it.
+//
+// flock on a file beside the recorded server, so the lock is held by the kernel
+// against the open descriptor: a session that crashes releases it, which a lock
+// written into a file's contents would not. Sessions are few and completions are
+// long, so polling once a second costs nothing measurable and avoids a blocking
+// flock that no context can interrupt.
+func lockServer(ctx context.Context) (func(), error) {
+	dir := filepath.Dir(statePath())
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("creating the local server directory: %w", err)
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "server.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("opening the local server lock: %w", err)
+	}
+	for {
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err == nil {
+			return func() {
+				_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+				_ = f.Close()
+			}, nil
+		}
+		select {
+		case <-ctx.Done():
+			_ = f.Close()
+			return nil, fmt.Errorf("gave up waiting for the local server: %w", ctx.Err())
+		case <-time.After(time.Second):
+		}
+	}
 }

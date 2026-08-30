@@ -12,6 +12,10 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
+// testGuardURL stands in for a session guard's address, which is an ephemeral
+// port now rather than a constant.
+const testGuardURL = "http://127.0.0.1:54321"
+
 // Local inference on the Copilot CLI.
 //
 // Nothing here calls LaunchCopilotResolved: on a machine that does have a local
@@ -53,7 +57,7 @@ func TestCopilotLocalSessionRunsOnTheGuardedLocalServer(t *testing.T) {
 	}
 
 	base := CopilotEnv("")
-	env := copilotLocalEnv(base, worker)
+	env := copilotLocalEnv(base, worker, testGuardURL)
 
 	want := []string{
 		"COPILOT_MODEL",
@@ -70,7 +74,7 @@ func TestCopilotLocalSessionRunsOnTheGuardedLocalServer(t *testing.T) {
 
 	// The one that decides where the prompt goes. The server's own address
 	// here would mean a session with no loop guard in front of it.
-	if got, wantURL := telemetry.LookupEnvValue(env, "COPILOT_PROVIDER_BASE_URL"), local.GuardURL()+"/v1"; got != wantURL {
+	if got, wantURL := telemetry.LookupEnvValue(env, "COPILOT_PROVIDER_BASE_URL"), testGuardURL+"/v1"; got != wantURL {
 		t.Errorf("COPILOT_PROVIDER_BASE_URL = %q, want the loop guard at %q", got, wantURL)
 	}
 	for _, kv := range env {
@@ -98,8 +102,8 @@ func TestCopilotLocalEnvOverridesAnExportedProvider(t *testing.T) {
 	m := aLocalModel(t)
 	base := []string{"COPILOT_PROVIDER_BASE_URL=https://somewhere.example.com/v1", "PATH=/usr/bin"}
 
-	env := copilotLocalEnv(base, m)
-	if got, want := telemetry.LookupEnvValue(env, "COPILOT_PROVIDER_BASE_URL"), local.GuardURL()+"/v1"; got != want {
+	env := copilotLocalEnv(base, m, testGuardURL)
+	if got, want := telemetry.LookupEnvValue(env, "COPILOT_PROVIDER_BASE_URL"), testGuardURL+"/v1"; got != want {
 		t.Errorf("COPILOT_PROVIDER_BASE_URL = %q with one already exported, want %q", got, want)
 	}
 	if n := strings.Count(strings.Join(env, "\n"), "COPILOT_PROVIDER_BASE_URL="); n != 1 {

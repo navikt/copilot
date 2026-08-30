@@ -257,7 +257,7 @@ const LocalProviderID = "mlx"
 // tokens — at 96k tokens we measured a single token taking three and a half
 // minutes, and the default timeout drops the connection mid-generation and
 // returns an empty response the client does not report as a failure.
-func EnsureOpenCodeLocalProvider(m local.Model) error {
+func EnsureOpenCodeLocalProvider(m local.Model, guardURL string) error {
 	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
 		providers, _ := cfg["provider"].(map[string]any)
 		if providers == nil {
@@ -269,7 +269,7 @@ func EnsureOpenCodeLocalProvider(m local.Model) error {
 			"options": map[string]any{
 				// The loop guard, not the server: every completion has to pass
 				// through the thing that can stop a runaway loop.
-				"baseURL":      local.GuardURL() + "/v1",
+				"baseURL":      guardURL + "/v1",
 				"apiKey":       "nav-pilot",
 				"chunkTimeout": chunkTimeoutMS(m),
 				"timeout":      false,
@@ -767,13 +767,19 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	// well is what makes a launch self-healing when the developer's config was
 	// edited, or written by an older nav-pilot, since the block is what the
 	// binding below names.
-	if err := EnsureOpenCodeLocalProvider(worker); err != nil {
+	// The guard comes up first now, because its address is what goes into the
+	// provider block and the port is this session's rather than a constant.
+	guard, err := local.StartGuard(local.ServerURL())
+	if err != nil {
+		return nil, err
+	}
+	if err := EnsureOpenCodeLocalProvider(worker, guard.URL()); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not register the local model with opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 	if err := EnsureOpenCodeLocalPolicy(worker); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
 	}
-	return local.StartGuard(local.ServerURL())
+	return guard, nil
 }
 
 // LaunchPi launches pi inside the cplt sandbox. pi must also be installed on
