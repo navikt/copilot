@@ -381,6 +381,16 @@ func run(args []string) error {
 
 	targetDir = "."
 
+	// `alpha local ask` takes a free-text question, and a question is not a
+	// flag. Parsing it here would reject -p as unknown and, worse, would eat a
+	// question that happens to begin with a dash. Everything after `ask` goes
+	// through untouched, the same courtesy `--` gives the launch clients.
+	if command == "alpha" && len(rest) >= 2 && rest[0] == "local" && rest[1] == "ask" {
+		return runWithCommandTelemetry("alpha", telemetryMode(), "none", func() error {
+			return cmdAlpha(rest)
+		})
+	}
+
 	for i := 0; i < len(rest); i++ {
 		switch rest[i] {
 		case "-n", "--dry-run":

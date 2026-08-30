@@ -303,8 +303,89 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 			writeLoopGuardError(w, call, n)
 			return
 		}
-		proxy.ServeHTTP(w, r)
+		started := time.Now()
+		tap := &usageTap{ResponseWriter: w}
+		proxy.ServeHTTP(tap, r)
+		in, out := tap.usage()
+		RecordCompletion(in, out, time.Since(started).Seconds())
 	})
+}
+
+// usageTap keeps the last few KB the server sent, so the guard can read the
+// usage block out of it once the response is done.
+//
+// The tail rather than the whole body, because a response here is a refactor's
+// worth of generated code and buffering it to count two integers would double
+// the memory for nothing. Both response shapes put usage at the end: a plain
+// JSON completion has it after choices, and a stream sends it in the final
+// data: frame. 8 KB covers both with room to spare.
+//
+// Writes pass straight through first. Flush is forwarded because the guard sets
+// FlushInterval to -1 precisely so tokens reach the client as they are
+// generated, and swallowing Flush here would undo that.
+type usageTap struct {
+	http.ResponseWriter
+	tail []byte
+}
+
+const usageTailBytes = 8 << 10
+
+func (t *usageTap) Write(b []byte) (int, error) {
+	n, err := t.ResponseWriter.Write(b)
+	if n > 0 {
+		t.tail = append(t.tail, b[:n]...)
+		if len(t.tail) > usageTailBytes {
+			t.tail = t.tail[len(t.tail)-usageTailBytes:]
+		}
+	}
+	return n, err
+}
+
+func (t *usageTap) Flush() {
+	if f, ok := t.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// usage finds the last usage block in the tail. Zero for both when there is
+// none, which is a real case rather than an error: a streaming client that did
+// not ask for stream_options.include_usage is never sent one.
+func (t *usageTap) usage() (int64, int64) {
+	i := bytes.LastIndex(t.tail, []byte(`"usage"`))
+	if i < 0 {
+		return 0, 0
+	}
+	var found struct {
+		PromptTokens     int64 `json:"prompt_tokens"`
+		CompletionTokens int64 `json:"completion_tokens"`
+	}
+	// From the opening brace after the key to the end of the tail: the decoder
+	// stops at the end of the object and ignores whatever follows it.
+	rest := t.tail[i:]
+	if j := bytes.IndexByte(rest, '{'); j >= 0 {
+		if json.Unmarshal(objectAt(rest[j:]), &found) == nil {
+			return found.PromptTokens, found.CompletionTokens
+		}
+	}
+	return 0, 0
+}
+
+// objectAt returns the JSON object beginning at b[0], or nil when the tail was
+// cut before it closed.
+func objectAt(b []byte) []byte {
+	depth := 0
+	for i, c := range b {
+		switch c {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return b[:i+1]
+			}
+		}
+	}
+	return nil
 }
 
 // chatRequest is the sliver of the request the guard reads. Every other field

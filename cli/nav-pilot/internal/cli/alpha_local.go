@@ -51,7 +51,8 @@ hosted one. Off until you run init, and invisible everywhere until then.
   init      Set it all up: environment, weights, memory limit, and a running server
   start     Start the server and wait until it answers a real completion
   stop      Stop the server
-  status    Model, health, resident memory and the wired-memory limit
+  status    Model, health, resident memory, the wired-memory limit and what it has done
+  ask       Put one question straight to the local model: ask -p "..." (or pipe stdin)
   on        Dispatch to it again after off, without downloading anything
   off       Stop dispatching to it; the weights stay on disk
   purge     Remove the environment and the weights, after showing what and how big
@@ -84,13 +85,15 @@ func cmdAlpha(args []string) error {
 		return cmdLocalOn()
 	case "off":
 		return cmdLocalOff()
+	case "ask":
+		return cmdLocalAsk(args[2:])
 	case "purge":
 		return cmdLocalPurge(args[1:])
 	case "", "help":
 		alphaUsage()
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "stop", "status", "on", "off", "purge"}); hint != "" {
+		if hint := suggest(sub, []string{"init", "start", "stop", "status", "ask", "on", "off", "purge"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Run %s for usage", sub, bold("nav-pilot alpha help"))
@@ -521,6 +524,9 @@ func cmdLocalStatus() error {
 
 	srv := local.Attach(st)
 	health := srv.Health(ctx)
+	if stats, err := local.ReadStats(); err == nil && stats.Requests > 0 {
+		defer printLocalStats(stats)
+	}
 	fmt.Printf("  Model        %s\n", bold(st.Model))
 	fmt.Printf("  Server       %s %s\n", healthColour(health), dim("— "+healthMeaning(health)))
 	fmt.Printf("  Process      pid %d, up %s, listening on %s\n",
@@ -796,4 +802,52 @@ func humanBytes(n int64) string {
 	default:
 		return fmt.Sprintf("%d kB", n/(1<<10))
 	}
+}
+
+// printLocalStats shows what the local model has actually done on this
+// machine. It is the developer's own number rather than the fleet's: how many
+// requests it took, how many tokens it generated at no cost, and how long it
+// spent.
+//
+// Requests without a usage block are named rather than hidden. A streaming
+// client that never asks for stream_options.include_usage reports no tokens,
+// and a token total that silently excluded those runs would read as "the model
+// has barely done anything" when it had done all of it.
+func printLocalStats(s local.Stats) {
+	fmt.Printf("\n  %s\n", bold("On this machine"))
+	fmt.Printf("  Requests     %d", s.Requests)
+	if !s.Since.IsZero() {
+		fmt.Printf(" %s", dim("since "+s.Since.Format("2 Jan 15:04")))
+	}
+	fmt.Println()
+	if s.TokensOut > 0 || s.TokensIn > 0 {
+		fmt.Printf("  Tokens       %s in, %s out %s\n",
+			thousands(s.TokensIn), thousands(s.TokensOut), dim("— none of them billed"))
+	}
+	if s.Seconds > 0 {
+		fmt.Printf("  Time         %s\n", dim(compactDuration(s.Seconds)))
+	}
+	if s.WithoutUsage > 0 {
+		fmt.Printf("  %s\n", dim(fmt.Sprintf("%d of those reported no token count, so the totals are a floor",
+			s.WithoutUsage)))
+	}
+}
+
+func thousands(n int64) string {
+	out := fmt.Sprintf("%d", n)
+	for i := len(out) - 3; i > 0; i -= 3 {
+		out = out[:i] + " " + out[i:]
+	}
+	return out
+}
+
+func compactDuration(seconds float64) string {
+	d := time.Duration(seconds * float64(time.Second)).Round(time.Second)
+	if d < time.Minute {
+		return d.String()
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%dm %ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh %dm", int(d.Hours()), int(d.Minutes())%60)
 }
