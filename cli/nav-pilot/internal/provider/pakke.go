@@ -1,7 +1,10 @@
 package provider
 
 import (
+	"fmt"
+
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -82,4 +85,43 @@ func openCodeDefaultModel() string {
 		return model
 	}
 	return OpenCodeDefaultModel
+}
+
+// ResolvedModelNotice returns the one-line launch notice naming the model a
+// launch will run on and where it came from, or "" when nothing names one and
+// the client picks for itself (pi, and copilot with no pin anywhere).
+//
+// Nothing told a user which model they were about to spend on: the model comes
+// from a config file, a flag, or an agentpakke declaration, and the launch said
+// none of that out loud. This mirrors the resolution the launch builders
+// already do rather than adding a second one, in the same order they use: the
+// user's own setting first, then the active agentpakke's declaration.
+func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
+	model, origin := resolvedModelOrigin(client, r)
+	if model == "" {
+		return ""
+	}
+	return fmt.Sprintf("Model: %s (%s)", model, origin)
+}
+
+// resolvedModelOrigin returns the model a launch resolves to and a short phrase
+// naming its source. The origin names the agentpakke that actually supplied the
+// model, which is not always the active one: an active pakke that declares
+// nothing (or "inherit") leaves opencode on the built-in default, and saying
+// that pakke's name would be a lie.
+func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin string) {
+	if r.Model != "" {
+		if client == "opencode" {
+			return ToOpenCodeModel(r.Model), "your setting"
+		}
+		return r.Model, "your setting"
+	}
+	declared := pakkeDeclaredModel(client)
+	if declared != "" {
+		return declared, source.ActivePakke().Name + " default"
+	}
+	if client == "opencode" {
+		return OpenCodeDefaultModel, agentpakke.DefaultName + " default"
+	}
+	return "", ""
 }

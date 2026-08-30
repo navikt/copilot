@@ -89,6 +89,7 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// and the compatibility gate all read the revision that is about to run.
 	providerpkg.SetActivePakke(pakke)
 	fmt.Println(dim(fmt.Sprintf("Using agentpakke %s@%s (%s payload).", pakke.Name, rev.SHA, context)))
+	printModelNotice(resolved)
 
 	launch, ok := stagedLaunchers[resolved.Client]
 	if !ok {
@@ -482,4 +483,25 @@ func rememberTier(source, client string, tier int) {
 		return
 	}
 	_ = os.WriteFile(tierCachePath(), data, 0o644)
+}
+
+// printModelNotice names the model this launch resolved to and where it came
+// from. A user could otherwise start a session with no idea which model was
+// about to bill them, since the model can come from a config file, a flag or an
+// agentpakke declaration and nothing said so.
+//
+// Two call sites rather than one, because the funnel has two exits: Tier 2
+// launches from inside tryPakkeLaunch, and its notice has to come after
+// SetActivePakke or it would read the wrong pakke's declaration. Tier 1 prints
+// from launchClientConfirming, just before the client starts.
+//
+// One line, on stderr, and only with a terminal, so scripted and piped runs are
+// byte-identical to what they were.
+func printModelNotice(resolved ResolvedConfig) {
+	if !isInteractive() {
+		return
+	}
+	if notice := providerpkg.ResolvedModelNotice(resolved.Client, resolved); notice != "" {
+		fmt.Fprintln(os.Stderr, dim(notice))
+	}
 }

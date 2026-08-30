@@ -107,3 +107,98 @@ func TestBuildCopilotArgsPakkeModel(t *testing.T) {
 		})
 	}
 }
+
+// TestResolvedModelNotice pins the launch line: which model, and where it came
+// from. The distinction that matters is a Nav default the user never chose
+// versus their own setting, since only one of those is theirs to change.
+func TestResolvedModelNotice(t *testing.T) {
+	navPakke := &agentpakke.Manifest{
+		Name: "nav-pilot",
+		Clients: map[string]agentpakke.ClientEntry{
+			"copilot":  {PrimaryAgents: []string{"nav-pilot"}, DefaultModel: agentpakke.InheritModel},
+			"opencode": {PrimaryAgents: []string{"nav-pilot"}, DefaultModel: OpenCodeDefaultModel},
+		},
+	}
+	pinningPakke := &agentpakke.Manifest{
+		Name: "grillmester",
+		Clients: map[string]agentpakke.ClientEntry{
+			"copilot":  {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5"},
+		},
+	}
+	inheritPakke := &agentpakke.Manifest{
+		Name: "grillmester",
+		Clients: map[string]agentpakke.ClientEntry{
+			"copilot":  {PrimaryAgents: []string{"grillmester"}, DefaultModel: agentpakke.InheritModel},
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: agentpakke.InheritModel},
+		},
+	}
+
+	tests := []struct {
+		name   string
+		pakke  *agentpakke.Manifest
+		client string
+		model  string
+		want   string
+	}{
+		{
+			name:   "opencode on the Nav default",
+			pakke:  navPakke,
+			client: "opencode",
+			want:   "Model: github-copilot/auto (nav-pilot default)",
+		},
+		{
+			name:   "opencode with the user's own model",
+			pakke:  navPakke,
+			client: "opencode",
+			model:  "claude-opus-5",
+			want:   "Model: github-copilot/claude-opus-5 (your setting)",
+		},
+		{
+			name:   "copilot with the user's own model",
+			pakke:  navPakke,
+			client: "copilot",
+			model:  "claude-opus-5",
+			want:   "Model: claude-opus-5 (your setting)",
+		},
+		{
+			// Nothing pinned anywhere: the client picks, and there is nothing
+			// meaningful to print.
+			name:   "copilot on inherit says nothing",
+			pakke:  navPakke,
+			client: "copilot",
+			want:   "",
+		},
+		{
+			name:   "a pakke's own declaration is named after that pakke",
+			pakke:  pinningPakke,
+			client: "copilot",
+			want:   "Model: claude-opus-5 (grillmester default)",
+		},
+		{
+			// The active pakke declares nothing, so the model is the built-in
+			// Nav one and the line must not credit grillmester for it.
+			name:   "an inherit pakke falls back to the Nav default by name",
+			pakke:  inheritPakke,
+			client: "opencode",
+			want:   "Model: github-copilot/auto (nav-pilot default)",
+		},
+		{
+			name:   "pi names no model",
+			pakke:  navPakke,
+			client: "pi",
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() { SetActivePakke(nil) })
+			SetActivePakke(tt.pakke)
+			got := ResolvedModelNotice(tt.client, domain.ResolvedConfig{Client: tt.client, Model: tt.model})
+			if got != tt.want {
+				t.Errorf("ResolvedModelNotice(%q, model=%q) = %q, want %q", tt.client, tt.model, got, tt.want)
+			}
+		})
+	}
+}
