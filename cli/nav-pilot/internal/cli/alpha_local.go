@@ -254,12 +254,15 @@ func cmdLocalInit() error {
 		fmt.Printf("%s Wired-memory limit raised.\n", green("✓"))
 	}
 
-	if cfg, err := readConfig(); err == nil && (cfg == nil || cfg.Client == nil || *cfg.Client != "opencode") {
-		if _, err := writeConfigKey("client", "opencode"); err != nil {
-			return err
-		}
-		fmt.Printf("%s Client set to opencode — local models run there; the Copilot CLI resolves models through GitHub.\n",
-			green("✓"))
+	// The client is reported, not set. Writing it looks like automation and is a
+	// trap: config validation requires an opencode model in provider/model form,
+	// so setting the client on a config whose model is a bare cloud id makes
+	// every launch fail validation until someone edits the file by hand. The
+	// launch converts bare ids on its own, so nothing needs writing here.
+	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.Client != nil && *cfg.Client == "copilot" {
+		fmt.Printf("%s Your client is the Copilot CLI, so a local session runs entirely on the local model.\n",
+			dim("ℹ"))
+		fmt.Printf("  %s\n", dim("For a cloud agent with a local worker, switch with: nav-pilot config set client opencode"))
 	}
 
 	fmt.Printf("%s Starting the server (the first start takes a few minutes)…\n", dim("→"))
