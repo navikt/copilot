@@ -52,6 +52,7 @@ hosted one. Off until you run init, and invisible everywhere until then.
   start     Start the server and wait until it answers a real completion
   stop      Stop the server
   status    Model, health, resident memory and the wired-memory limit
+  on        Dispatch to it again after off, without downloading anything
   off       Stop dispatching to it; the weights stay on disk
   purge     Remove the environment and the weights, after showing what and how big
 `)
@@ -79,6 +80,8 @@ func cmdAlpha(args []string) error {
 		return cmdLocalStop()
 	case "status":
 		return cmdLocalStatus()
+	case "on":
+		return cmdLocalOn()
 	case "off":
 		return cmdLocalOff()
 	case "purge":
@@ -87,7 +90,7 @@ func cmdAlpha(args []string) error {
 		alphaUsage()
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "stop", "status", "off", "purge"}); hint != "" {
+		if hint := suggest(sub, []string{"init", "start", "stop", "status", "on", "off", "purge"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Run %s for usage", sub, bold("nav-pilot alpha help"))
@@ -555,6 +558,30 @@ func healthMeaning(h local.Health) string {
 }
 
 // ─── off ─────────────────────────────────────────────────────────────────────
+
+// cmdLocalOn is the other half of off.
+//
+// `init` already brought dispatch back, and said so, but a developer who has just
+// run `off` reaches for `on` and had to be told that provisioning is how you
+// re-enable. Reprovisioning is a no-op on a machine that already has everything,
+// so this was only ever a naming problem, and the fix is the name.
+func cmdLocalOn() error {
+	if !local.Installed() {
+		return fmt.Errorf("local inference is not provisioned on this machine — run %s first",
+			bold("nav-pilot alpha local init"))
+	}
+	if _, err := writeConfigKey("local_enabled", "true"); err != nil {
+		return err
+	}
+	fmt.Printf("%s Local dispatch is on.\n", green("✓"))
+
+	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health == local.HealthReady {
+		fmt.Printf("%s The server is already up (pid %d).\n", dim("ℹ"), st.PID)
+		return nil
+	}
+	fmt.Printf("%s Start the server when you need it: %s\n", dim("ℹ"), bold("nav-pilot alpha local start"))
+	return nil
+}
 
 func cmdLocalOff() error {
 	if _, err := writeConfigKey("local_enabled", "false"); err != nil {
