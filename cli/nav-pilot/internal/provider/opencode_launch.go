@@ -912,3 +912,23 @@ func PiUnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string {
 	}
 	return warnings
 }
+
+// LocalWorkerAgentPath is where opencode looks for the worker agent, and
+// whether it is there.
+//
+// Dispatch needs two independent things and has only ever checked one. The
+// provider block and the model binding come from `alpha local`, so `status`
+// can prove them. The agent itself comes from the artifact sync, which
+// materializes it from whatever source the launch resolved — and when that
+// source does not carry it, every launch runs entirely in the cloud while
+// nav-pilot reports dispatch enabled and the policy fragment beside it tells
+// the main agent to hand work to an agent that is not there. Nothing fails.
+// The developer pays cloud prices for the tasks they were told were free.
+//
+// Seen on this machine: three sessions, dispatch enabled, zero local calls,
+// no error anywhere.
+func LocalWorkerAgentPath() (string, bool) {
+	path := filepath.Join(openCodeConfigDir(), "agents", local.WorkerAgent+".md")
+	info, err := os.Stat(path)
+	return path, err == nil && !info.IsDir()
+}

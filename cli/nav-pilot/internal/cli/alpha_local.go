@@ -498,6 +498,16 @@ func cmdLocalStatus() error {
 	enabled := cfg != nil && cfg.LocalEnabled != nil && *cfg.LocalEnabled
 	fmt.Printf("  Environment  %s\n", installedLabel())
 	fmt.Printf("  Dispatch     %s\n", enabledLabel(enabled))
+	// Dispatch enabled and no worker agent is the one broken state that costs
+	// money quietly: the launch runs entirely in the cloud and says nothing.
+	if enabled && resolve(cfg, CLIOverrides{}).Client == "opencode" {
+		if path, found := providerpkg.LocalWorkerAgentPath(); !found {
+			fmt.Printf("  Worker       %s %s\n", yellow("missing"),
+				dim("— every launch will run in the cloud"))
+			fmt.Printf("               %s\n", dim("expected at "+path))
+			fmt.Printf("               %s\n", dim("the artifact source has no "+local.WorkerAgent+" agent; run nav-pilot install"))
+		}
+	}
 
 	st, ok, err := local.LoadState()
 	if err != nil {
