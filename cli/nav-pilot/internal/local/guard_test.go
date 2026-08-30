@@ -131,7 +131,7 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	stubOwnership(t, func() error { return nil })
 	var forwarded int
-	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := guardHandler(&Guard{}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		forwarded++
 		body, _ := json.Marshal(map[string]any{"forwarded": true})
 		w.Write(body)
@@ -185,7 +185,7 @@ func TestGuardForwardsEverythingElse(t *testing.T) {
 	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	stubOwnership(t, func() error { return nil })
 	var seen []string
-	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := guardHandler(&Guard{}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := json.Marshal(r.URL.Path)
 		seen = append(seen, r.Method+" "+r.URL.Path)
 		w.Write(body)
@@ -214,7 +214,7 @@ func TestGuardForwardsTheBodyItRead(t *testing.T) {
 	stubOwnership(t, func() error { return nil })
 	body := conversation(`{"role":"user","content":"hei"}`)
 	var got []byte
-	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := guardHandler(&Guard{}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got, _ = io.ReadAll(r.Body)
 	}), "")
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
@@ -282,7 +282,7 @@ func TestGuardRefusesAServerItCanNoLongerVouchFor(t *testing.T) {
 	stubOwnership(t, func() error { return lost })
 
 	var forwarded int
-	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := guardHandler(&Guard{}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		forwarded++
 	}), "")
 	post := func() *httptest.ResponseRecorder {
@@ -338,7 +338,7 @@ func TestGuardOwnershipCheckIsCachedBetweenPrompts(t *testing.T) {
 		checks++
 		return nil
 	})
-	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "")
+	handler := guardHandler(&Guard{}, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "")
 	for range 5 {
 		body := conversation(`{"role":"user","content":"hei"}`)
 		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
@@ -357,7 +357,7 @@ func TestGuardChecksOwnershipOnlyForCompletions(t *testing.T) {
 		checks++
 		return nil
 	})
-	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "")
+	handler := guardHandler(&Guard{}, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "")
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/v1/models", nil))
 	if checks != 0 {
 		t.Errorf("GET /v1/models ran the ownership check %d times, want 0", checks)

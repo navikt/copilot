@@ -53,12 +53,18 @@ type Recorder interface {
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
 	RecordRtkSetup(client, choice, result string)
+	RecordLocalSession(client, model string, dispatches int64)
+	RecordLocalServer(model, event string)
+	RecordLocalReadySeconds(model string, seconds int64)
 	Shutdown(ctx context.Context) error
 }
 
 type NoopRecorder struct{}
 
 func (NoopRecorder) RecordCommand(string, string, string, string, string, time.Duration) {}
+func (NoopRecorder) RecordLocalSession(string, string, int64)                            {}
+func (NoopRecorder) RecordLocalServer(string, string)                                    {}
+func (NoopRecorder) RecordLocalReadySeconds(string, int64)                               {}
 func (NoopRecorder) RecordInstallItems(string, string, int64)                            {}
 func (NoopRecorder) RecordSyncUpdates(string, string, int64)                             {}
 func (NoopRecorder) RecordSyncConflicts(string, string, int64)                           {}
@@ -93,6 +99,9 @@ type otelTelemetry struct {
 	upToDate           metric.Int64Gauge
 	versionSkewDays    metric.Int64Histogram
 	rtkSetupTotal      metric.Int64Counter
+	localDispatches    metric.Int64Histogram
+	localServerTotal   metric.Int64Counter
+	localReadySeconds  metric.Int64Histogram
 
 	version          string
 	device           string
@@ -242,6 +251,22 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		return NoopRecorder{}, fmt.Errorf("create rtk setup counter: %w", err)
 	}
 
+	localDispatches, err := meter.Int64Histogram("nav_pilot_local_dispatches",
+		metric.WithDescription("Tasks a session handed to the local worker. Zero is a result: it means the orchestrator had a worker and chose not to use it."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create local dispatches histogram: %w", err)
+	}
+	localServerTotal, err := meter.Int64Counter("nav_pilot_local_server_total",
+		metric.WithDescription("Local server lifecycle events, including the hung state a developer would otherwise just restart past."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create local server counter: %w", err)
+	}
+	localReadySeconds, err := meter.Int64Histogram("nav_pilot_local_ready_seconds",
+		metric.WithDescription("Seconds from start to a real completion. We quote two to five minutes from one machine; this is the distribution."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create local ready histogram: %w", err)
+	}
+
 	tel := &otelTelemetry{
 		provider:           provider,
 		commandTotal:       commandTotal,
@@ -260,6 +285,9 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		upToDate:           upToDate,
 		versionSkewDays:    versionSkewDays,
 		rtkSetupTotal:      rtkSetupTotal,
+		localDispatches:    localDispatches,
+		localServerTotal:   localServerTotal,
+		localReadySeconds:  localReadySeconds,
 		version:            version,
 		device:             device,
 		executionContext:   execCtx,
@@ -273,7 +301,20 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	return tel, nil
 }
 
+// TelemetryEnabled reports whether anything may be sent.
+//
+// DO_NOT_TRACK first, because it is the answer a developer has already given.
+// It is the console convention (consoledonottrack.com), it is set once for every
+// tool on the machine rather than per tool, and a person who has set it should not
+// have to discover that each new CLI invented its own variable. Any value but "0"
+// counts as set, which is what the convention asks for and what other tools do.
+//
+// nav-pilot's own variable still works, for turning this off without touching a
+// machine-wide setting.
 func TelemetryEnabled() bool {
+	if dnt := strings.ToLower(strings.TrimSpace(os.Getenv("DO_NOT_TRACK"))); dnt != "" && dnt != "0" && dnt != "false" {
+		return false
+	}
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENABLED"))) {
 	case "0", "false", "no", "off":
 		return false
@@ -354,6 +395,56 @@ func (t *otelTelemetry) RecordConfig(client, configMode, model, reasoningEffort,
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// RecordLocalSession emits how many tasks a session handed to the local worker.
+//
+// Zero is the interesting value, not a missing one: it means the orchestrator had
+// a worker available and decided against using it, which is the ratio that decides
+// whether the feature saves anything. Measured because it cannot be measured any
+// other way: the saving turned out to depend on the codebase, 2.5x cheaper on one
+// and 1.8x dearer on another, so no amount of benchmarking here answers it for
+// someone else's repository.
+//
+// The model id is sent whole rather than collapsed to "custom" as the config gauge
+// does. During the alpha we would rather know which local model a developer is on
+// than protect a cardinality budget of at most a handful of manifest entries.
+func (t *otelTelemetry) RecordLocalSession(client, model string, dispatches int64) {
+	t.localDispatches.Record(context.Background(), dispatches, metric.WithAttributes(
+		attribute.String("client", orUnset(client)),
+		attribute.String("model", orUnset(model)),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+	))
+}
+
+// RecordLocalServer counts server lifecycle events: started, ready, hung, crashed,
+// stopped.
+//
+// `hung` is the one worth the instrument. It is unrecoverable, the developer's fix
+// is a restart, and a restart is exactly what makes it invisible to us: nobody
+// files a report for something they fixed in ten seconds. If serialising the guard
+// did not hold in real use, this is where it shows.
+func (t *otelTelemetry) RecordLocalServer(model, event string) {
+	t.localServerTotal.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("model", orUnset(model)),
+		attribute.String("event", orUnset(event)),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+	))
+}
+
+// RecordLocalReadySeconds emits how long a start took to answer a real completion.
+//
+// The documentation tells developers to expect two to five minutes, from one
+// machine with a warm page cache. This replaces that guess with a distribution
+// across the machines people actually have.
+func (t *otelTelemetry) RecordLocalReadySeconds(model string, seconds int64) {
+	t.localReadySeconds.Record(context.Background(), seconds, metric.WithAttributes(
+		attribute.String("model", orUnset(model)),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 	))
 }
 

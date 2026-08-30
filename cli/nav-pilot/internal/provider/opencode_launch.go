@@ -657,6 +657,20 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 	if guard != nil {
 		defer guard.Close()
+		// How much this session actually handed over, recorded when it ends. Zero
+		// is the value we most need: it means a worker was available and the
+		// orchestrator chose not to use it, and that ratio is what decides
+		// whether the feature pays for itself on a given codebase.
+		defer func() {
+			// The model from the recorded server rather than threaded down from
+			// the worker lookup: the guard proves it is that server's, and a
+			// session that outlived a restart should report what it talked to.
+			model := ""
+			if st, ok, err := local.LoadState(); err == nil && ok {
+				model = st.Model
+			}
+			telemetryRecorder.RecordLocalSession("opencode", model, guard.Completions())
+		}()
 		// The provider block names this session's guard port, and the port dies
 		// with the session. Left behind, it points opencode at a number the
 		// kernel will hand to something else: a developer running opencode

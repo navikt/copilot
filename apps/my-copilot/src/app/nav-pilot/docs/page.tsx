@@ -2001,6 +2001,17 @@ nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
+          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#f8fafc" }}>
+            <Label size="small">Vi måler dette tettere enn resten av nav-pilot mens det er alpha</Label>
+            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              Vi samler inn hvor mange oppgaver hver økt sender til den lokale modellen (også når svaret er null, som er
+              tallet vi lærer mest av), hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den
+              henger. Aldri spørsmålene dine, koden din, filnavnene dine eller det modellen svarer.{" "}
+              <code className="font-mono text-xs">DO_NOT_TRACK=1</code> skrur av alt sammen, det samme gjør{" "}
+              <code className="font-mono text-xs">NAV_PILOT_TELEMETRY_ENABLED=false</code> hvis du heller vil sette det
+              per verktøy.
+            </BodyLong>
+          </Box>
           <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fef2f2" }}>
             <Label size="small">Én kommando, men den ber om passordet ditt</Label>
             <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>

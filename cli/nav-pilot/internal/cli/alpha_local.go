@@ -194,6 +194,16 @@ func cmdLocalInit() error {
 	}
 	fmt.Println()
 
+	// Said before the confirmation, not after it, and before anything is
+	// downloaded. Collecting more than usual during an alpha is defensible only
+	// if the developer is told what "more" means while they can still decline.
+	fmt.Printf("  %s\n", bold("While this is alpha we measure it more closely than the rest of nav-pilot:"))
+	fmt.Printf("    %s\n", dim("how many tasks each session hands to the local model, including none"))
+	fmt.Printf("    %s\n", dim("which local model, how long it took to start, and when the server hangs"))
+	fmt.Printf("  %s\n", dim("Never your prompts, your code, your file names or the model's output."))
+	fmt.Printf("  %s\n", dim("DO_NOT_TRACK=1 turns all of it off, local included, as does"))
+	fmt.Printf("  %s\n\n", dim("NAV_PILOT_TELEMETRY_ENABLED=false if you would rather set it per tool."))
+
 	// The kernel's answer, not the file mode's. isInteractive reads
 	// os.ModeCharDevice, which is set for /dev/null too — so a scripted init
 	// put its question to /dev/null, got an error back, printed "Cancelled" and
@@ -394,6 +404,8 @@ func cmdLocalStart() error {
 	// not ready is a pid `status` reports as crashed hours later, which reads
 	// as "it died" rather than "it never started".
 	status := srv.Status()
+	telemetry.RecordLocalReadySeconds(model.Model, int64(timeNow().Sub(started).Seconds()))
+	telemetry.RecordLocalServer(model.Model, string(status.Health))
 	if status.Health != local.HealthReady || status.PID <= 0 {
 		_ = srv.Stop()
 		return fmt.Errorf("the local %s server did not come up (%s); nothing was recorded.\n\n  What it printed is in %s", model.Model, status.Health, local.LogPath())

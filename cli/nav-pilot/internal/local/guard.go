@@ -37,6 +37,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -100,6 +101,21 @@ func ServerURL() string {
 type Guard struct {
 	ln  net.Listener
 	srv *http.Server
+
+	// completions counts what actually reached the local server through this
+	// guard. Counted here rather than parsed out of the client's transcript
+	// because this is the only place that sees every one of them, and because a
+	// session that dispatched nothing has to be distinguishable from a session
+	// whose transcript we failed to parse.
+	completions atomic.Int64
+}
+
+// Completions is how many prompts this session sent to the local model.
+func (g *Guard) Completions() int64 {
+	if g == nil {
+		return 0
+	}
+	return g.completions.Load()
 }
 
 // URL is where this guard listens: the address a client is pointed at, never the
@@ -136,7 +152,7 @@ func StartGuard(target string) (*Guard, error) {
 
 	g := &Guard{ln: ln}
 	g.srv = &http.Server{
-		Handler:           guardHandler(proxy, target),
+		Handler:           guardHandler(g, proxy, target),
 		ReadHeaderTimeout: 30 * time.Second,
 		// No write timeout: a completion on a local model legitimately takes
 		// longer than any number that would be safe on a network service.
@@ -203,7 +219,7 @@ func ownershipGate() func() error {
 // not the JSON it expects — is forwarded untouched. The guard exists to stop
 // one measured failure, and a guard that fails closed on a shape it did not
 // anticipate would break working sessions to protect them.
-func guardHandler(proxy http.Handler, target string) http.Handler {
+func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 	owned := ownershipGate()
 	// One completion at a time, across every session on this machine. mlx-lm
 	// batches concurrent requests into shared attention, and with prompts of
@@ -239,6 +255,7 @@ func guardHandler(proxy http.Handler, target string) http.Handler {
 			// The client gave up while queued. Nothing to answer.
 			return
 		}
+		g.completions.Add(1)
 		release, err := lockServer(r.Context())
 		if err != nil {
 			// Queued behind another session and the client gave up, or the lock

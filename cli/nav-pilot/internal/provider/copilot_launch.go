@@ -147,6 +147,14 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		return err
 	}
 	defer guard.Close()
+	if guard != nil {
+		// The Copilot CLI runs the whole session locally, so this counts prompts
+		// rather than delegations. Same instrument, different meaning by client,
+		// which the client attribute keeps separable.
+		defer func() {
+			telemetryRecorder.RecordLocalSession("copilot", worker.Model, guard.Completions())
+		}()
+	}
 
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" {

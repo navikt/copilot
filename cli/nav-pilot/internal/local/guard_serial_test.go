@@ -39,7 +39,7 @@ func TestGuardSerialisesCompletions(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := guardHandler(&Guard{}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp, err := http.Post(upstream.URL, "application/json", strings.NewReader("{}"))
 		if err != nil {
 			t.Error(err)
@@ -103,7 +103,7 @@ func TestTwoGuardsStillReachTheServerOneAtATime(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	stubOwnership(t, func() error { return nil })
-	sessionA, sessionB := guardHandler(forward, ""), guardHandler(forward, "")
+	sessionA, sessionB := guardHandler(&Guard{}, forward, ""), guardHandler(&Guard{}, forward, "")
 
 	var wg sync.WaitGroup
 	for i := 0; i < 6; i++ {
@@ -115,5 +115,41 @@ func TestTwoGuardsStillReachTheServerOneAtATime(t *testing.T) {
 
 	if got := atomic.LoadInt32(&peak); got != 1 {
 		t.Errorf("two sessions put %d requests at the server at once, want 1", got)
+	}
+}
+
+// TestGuardCountsWhatItForwarded: the dispatch count has to come from the guard,
+// because zero is the value that matters and zero is unprovable from a transcript.
+//
+// A session that handed nothing to the local worker and a session whose transcript
+// we failed to parse look identical downstream. Counting here separates them: the
+// guard is the only thing that sees every completion, and it sees them whether or
+// not anything later can read the log.
+func TestGuardCountsWhatItForwarded(t *testing.T) {
+	stubDirs(t)
+	stubOwnership(t, func() error { return nil })
+	g := &Guard{}
+	handler := guardHandler(g, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), "")
+
+	if g.Completions() != 0 {
+		t.Errorf("a guard that has forwarded nothing counts %d", g.Completions())
+	}
+	for i := 0; i < 3; i++ {
+		body := `{"messages":[{"role":"user","content":"hei"}]}`
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(body))
+		handler.ServeHTTP(httptest.NewRecorder(), req)
+	}
+	// Anything that is not a completion is not a dispatch.
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+
+	if got := g.Completions(); got != 3 {
+		t.Errorf("Completions() = %d after three completions and one model list, want 3", got)
+	}
+	// A nil guard is what a hosted session has, and asking it must not panic.
+	var absent *Guard
+	if absent.Completions() != 0 {
+		t.Error("a nil guard reported completions")
 	}
 }
