@@ -1437,3 +1437,24 @@ func EnsureServerRunning(ctx context.Context, announce func(string)) error {
 	}
 	return SaveState(State{PID: status.PID, Model: m.Model, Started: time.Now(), Port: srv.Port})
 }
+
+// RaiseWiredLimit runs the sysctl that lets the GPU wire enough memory for the
+// model, prompting for a password the way any sudo does.
+//
+// nav-pilot runs it rather than printing it because setup is one command or it is
+// not automated: a developer who has just waited out a 25 GB download should not
+// then be handed a sysctl invocation to paste. It resets at reboot, which is the
+// kernel's behaviour and not something nav-pilot can persist without installing
+// something at boot, so `start` raises it again when it finds it low.
+func RaiseWiredLimit(ctx context.Context, w WiredLimit) error {
+	if w.Sufficient {
+		return nil
+	}
+	out, err := runCommand(ctx, "/usr/bin/sudo",
+		[]string{sysctlPath, "-w", fmt.Sprintf("iogpu.wired_limit_mb=%d", w.RequiredGB*1024)}, nil)
+	if err != nil {
+		return fmt.Errorf("raising the wired-memory limit: %w: %s\n\n  Run it yourself:\n\n    %s",
+			err, strings.TrimSpace(out), domain.Bold(w.Command))
+	}
+	return nil
+}

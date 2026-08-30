@@ -48,7 +48,7 @@ Usage:
 Local inference — run a model on this machine instead of sending prompts to a
 hosted one. Off until you run init, and invisible everywhere until then.
 
-  init      Provision the environment and download the weights
+  init      Set it all up: environment, weights, memory limit, and a running server
   start     Start the server and wait until it answers a real completion
   stop      Stop the server
   status    Model, health, resident memory and the wired-memory limit
@@ -238,22 +238,37 @@ func cmdLocalInit() error {
 	}
 	fmt.Printf("%s Local inference enabled.\n\n", green("✓"))
 
-	// Deliberately not set for you. init provisions and enables; which model a
-	// launch uses and which client runs it are the developer's settings, and
-	// silently rewriting them is how someone ends up wondering why every
-	// session got slower.
-	fmt.Println("  Next:")
+	// Setup is one command or it is not automated. The rest of this used to be a
+	// list of four more for the developer to paste, which is a worse experience
+	// than it looks: each one is a place to stop, and the sysctl in particular
+	// arrived after a 25 GB download with no explanation of why it was needed.
+	//
+	// Everything below is announced as it happens rather than done silently, and
+	// every part of it is reversible with `alpha local off` or `purge`.
 	if !wired.Sufficient {
-		fmt.Printf("    %s\n", bold(wired.Command))
-		fmt.Printf("      %s\n", dim("raises the wired-memory limit; it resets at reboot"))
+		fmt.Printf("%s Raising the wired-memory limit to %d GB (sudo; it resets at reboot)…\n",
+			dim("→"), wired.RequiredGB)
+		if err := local.RaiseWiredLimit(ctx, wired); err != nil {
+			return err
+		}
+		fmt.Printf("%s Wired-memory limit raised.\n", green("✓"))
 	}
+
 	if cfg, err := readConfig(); err == nil && (cfg == nil || cfg.Client == nil || *cfg.Client != "opencode") {
-		fmt.Printf("    %s\n", bold("nav-pilot config set client opencode"))
-		fmt.Printf("      %s\n", dim("local models run under opencode; the Copilot CLI resolves models through GitHub"))
+		if _, err := writeConfigKey("client", "opencode"); err != nil {
+			return err
+		}
+		fmt.Printf("%s Client set to opencode — local models run there; the Copilot CLI resolves models through GitHub.\n",
+			green("✓"))
 	}
-	fmt.Printf("    %s\n", bold("nav-pilot config set model "+model.Model))
-	fmt.Printf("    %s\n", bold("nav-pilot alpha local start"))
-	fmt.Println()
+
+	fmt.Printf("%s Starting the server (the first start takes a few minutes)…\n", dim("→"))
+	if err := cmdLocalStart(); err != nil {
+		return err
+	}
+
+	fmt.Printf("\n  %s\n", bold("Ready. Run nav-pilot in a repository and it will use the local worker."))
+	fmt.Printf("  %s\n\n", dim("nav-pilot alpha local status  ·  nav-pilot alpha local off  ·  nav-pilot alpha local purge"))
 	return nil
 }
 

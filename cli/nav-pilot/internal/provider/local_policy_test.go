@@ -44,10 +44,10 @@ func TestLocalDispatchPolicyNamesTheModelAndTheThreshold(t *testing.T) {
 	if !strings.Contains(got, m.Model) {
 		t.Errorf("the dispatch policy does not name the model %q:\n%s", m.Model, got)
 	}
-	if !strings.Contains(got, " 5 like kall") {
+	if !strings.Contains(got, " 5 identical calls") {
 		t.Errorf("the dispatch policy does not name the configured threshold 5:\n%s", got)
 	}
-	if strings.Contains(got, strconv.Itoa(local.DefaultLoopGuardRepeat)+" like kall") {
+	if strings.Contains(got, strconv.Itoa(local.DefaultLoopGuardRepeat)+" identical calls") {
 		t.Errorf("the dispatch policy names the built-in default instead of the configured threshold:\n%s", got)
 	}
 	if m.Role != "" && !strings.Contains(got, m.Role) {
@@ -356,7 +356,7 @@ func TestTurningLocalOffUnregistersTheDispatchPolicy(t *testing.T) {
 func TestDispatchPolicyTimingMatchesTheConfiguredTimeout(t *testing.T) {
 	m := aLocalModel(t)
 	got := LocalDispatchPolicy(m, 5)
-	want := fmt.Sprintf("%d minutter", chunkTimeoutMS(m)/60000)
+	want := fmt.Sprintf("%d minutes", chunkTimeoutMS(m)/60000)
 	if !strings.Contains(got, want) {
 		t.Errorf("the dispatch policy does not name the configured timeout (%q):\n%s", want, got)
 	}

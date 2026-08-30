@@ -515,24 +515,24 @@ func localPolicyPath() string {
 // depends on holds only while that prefix is byte-identical from turn to turn.
 func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 	var b strings.Builder
-	b.WriteString("# Lokal arbeider på denne maskinen\n\n")
-	fmt.Fprintf(&b, "Agenten `lokal-arbeider` kjører på %s her på maskinen. Den trekker ingen AI-credits: alt den genererer er gratis, uansett hvor mange tokens det blir. Det er hele poenget med å sende noe dit.\n\n", m.Model)
+	b.WriteString("# Local worker on this machine\n\n")
+	fmt.Fprintf(&b, "The `lokal-arbeider` agent runs on %s here on the machine. It draws no AI credits: everything it generates is free, however many tokens it takes. That is the whole reason to send anything to it.\n\n", m.Model)
 	if m.Role != "" {
-		fmt.Fprintf(&b, "Rollen modellen er valgt for: %s\n", m.Role)
+		fmt.Fprintf(&b, "What the model was chosen for: %s\n", m.Role)
 	}
 	if m.Expect != "" {
-		fmt.Fprintf(&b, "Hva den faktisk leverer: %s\n", m.Expect)
+		fmt.Fprintf(&b, "What it actually delivers: %s\n", m.Expect)
 	}
 	if m.Role != "" || m.Expect != "" {
 		b.WriteString("\n")
 	}
-	b.WriteString("Send dit: oppslag i koden, kommentarer, loggsetninger, en enkelt testfil, og mekaniske endringer som følger ett mønster — en omdøping treffer kallstedene i flere filer og hører likevel hjemme her.\n")
-	b.WriteString("Beskriv endringen ferdig når du sender: hvilken fil, hvilken linje, hva den skal bli. Modellen utfører en avgjørelse godt og tar den dårlig, så er du i tvil om den klarer oppgaven, ta den selv — målingene sier at du vurderer det riktig.\n")
-	b.WriteString("Ikke send dit: endringer som krever en egen vurdering per fil, oppgaver som krever mange runder, endringer der en feil endring er dyr.\n\n")
-	fmt.Fprintf(&b, "Den svarer som regel på sekunder, men ett enkelt token er målt til tre og et halvt minutt under last. Klienten gir opp av seg selv etter %d minutter uten svar — vent til den gjør det. Avbryter du før, kan du duplisere en endring som fortsatt er underveis.\n\n", max(1, chunkTimeoutMS(m)/60000))
-	b.WriteString("Den feiler på to måter. Begge er billige å oppdage, og begge betyr at du tar oppgaven selv i stedet for å sende den om igjen:\n")
-	b.WriteString("- Den sier ofte nei og endrer ingenting. Sjekk at filen faktisk er endret. Er den ikke det, har du tapt noen sekunder og ingen credits.\n")
-	fmt.Fprintf(&b, "- Den kan gjenta samme verktøykall til nav-pilot avslutter turen etter %d like kall på rad.\n", loopGuard)
+	b.WriteString("Send it: lookups in the code, comments, log lines, a single test file, and mechanical changes that follow one pattern. A rename hits call sites in several files and still belongs there.\n")
+	b.WriteString("Describe the change fully when you send it: which file, which line, what it becomes. The model carries out a decision well and makes one badly, so if you doubt it can do the task, do it yourself. The measurements say you judge this correctly.\n")
+	b.WriteString("Do not send it: changes needing a judgement per file, tasks needing many rounds, changes where a wrong edit is expensive.\n\n")
+	fmt.Fprintf(&b, "It usually answers in seconds, but a single token has been measured at three and a half minutes under load. The client gives up on its own after %d minutes without an answer, so wait for it. Interrupting earlier can duplicate a change that is still in flight. Send one task at a time: the model runs on one GPU, so concurrent calls get nothing done faster.\n\n", max(1, chunkTimeoutMS(m)/60000))
+	b.WriteString("It fails in two ways. Both are cheap to spot, and both mean you take the task yourself rather than sending it again:\n")
+	b.WriteString("- It often says no and changes nothing. Check the file actually changed. If it did not, you lost a few seconds and no credits.\n")
+	fmt.Fprintf(&b, "- It can repeat the same tool call until nav-pilot ends the turn after %d identical calls in a row.\n", loopGuard)
 	return b.String()
 }
 
