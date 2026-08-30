@@ -4,7 +4,7 @@ Levende referansedokument for hvilke modeller vi bruker, hvorfor, og hvordan vi 
 
 ## Gjeldende modellpinning
 
-Alle agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
+De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` og `local-worker` har det ikke: orkestratoren kjører på klientens egen standardmodell, og `local-worker` bindes til den lokale modellen ved oppstart og skal ikke pinnes. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
 
 ### Agenter
 
@@ -48,12 +48,12 @@ Hele modellflåten, ikke bare de som er pinnet i agenter.
 | Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6, lavere pris (kampanje t.o.m. 31. aug 2026) |
 | Claude Haiku 4.5 | Versatile | $1.00 | $5.00 | Sjekklister, maler, scaffold-prompts |
 | GPT-5.3-Codex | Powerful | $1.75 | $14.00 | Kodeforståelse, terminal, infrastruktur |
-| GPT-5.6 Luna | Lightweight | $1.00 | $6.00 | Raske rutineoppgaver, enkel autofullfør |
-| GPT-5.6 Terra | Versatile | $2.50 | $15.00 | Allround daglig koding i GPT-familien |
-| GPT-5.6 Sol | Powerful | $5.00 | $30.00 | Tung reasoning over store kodebaser (krever Pro+) |
-| Gemini 2.5 Pro | Powerful | $1.25 | $10.00 | ⚠️ Utfases 31. juli 2026. Bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
+| GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør |
+| GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
+| GPT-5.6 Sol | Powerful | $2.00 | $10.00 | Tung reasoning over store kodebaser (krever Pro+) |
+| Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026 og borte fra GitHubs prisliste. Bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
-| Gemini 3.6 Flash | Versatile | $1.50 | $7.50 | Agentiske workflows med parallell verktøybruk |
+| Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk |
 | Kimi K2.7 Code | Versatile | $0.95 | $4.00 | Rimeligste alternativ for kode-agent-løkker (open-weight) |
 
 Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
@@ -71,7 +71,7 @@ Vi bytter **ikke** modell automatisk når noe nytt lanseres. Et bytte krever at 
 | Kriterium | Status |
 |-----------|--------|
 | Bekreftet ID | ❌ Ikke verifisert i model picker |
-| Kostnad | ❌ Terra er 43 % dyrere på input ($2.50 vs $1.75) |
+| Kostnad | ⚖️ Terra koster $2.00 mot Codex $1.75 på input, men $12.00 mot $14.00 på output. Med 10:1 input mot output blir det 2,91 mot 2,86, altså under to prosent. Kostnad er ikke lenger et argument mot Terra |
 | Testet | ❌ Ikke testet |
 
 **Konklusjon:** ikke byttet. GPT-5.3-Codex beholdes inntil videre.
