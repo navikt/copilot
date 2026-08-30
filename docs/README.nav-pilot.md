@@ -141,7 +141,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
 uendret.
 
-**Under opencode** blir modellen en underagent (`lokal-arbeider`) som hovedagenten i skyen
+**Under opencode** blir modellen en underagent (`local-worker`) som hovedagenten i skyen
 kan sende avgrensede oppgaver til. Hovedagenten bestemmer fortsatt alt. Den sender videre
 det som er mekanisk og spesifisert, og gjør resten selv.
 

@@ -718,7 +718,7 @@ func TestExportAllowsCanonicalAgentpakke(t *testing.T) {
 	}
 }
 
-// TestWorkerAgentIsOnlyMaterializedForTheOptedIn: lokal-arbeider promises work
+// TestWorkerAgentIsOnlyMaterializedForTheOptedIn: local-worker promises work
 // that draws no AI credits, and only a launch with local dispatch on can
 // keep that promise. For the ~650 developers who never run `nav-pilot alpha
 // local init` it would be a worker with nothing behind it, so the normal sync

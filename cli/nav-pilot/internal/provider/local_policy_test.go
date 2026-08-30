@@ -248,7 +248,7 @@ func workerModel(t *testing.T) string {
 
 // TestLocalWorkerIsBoundToTheLocalModel is the alpha's cost premise, pinned. An
 // opencode subagent with no model of its own runs on the session's model, so
-// without this block a cloud main agent dispatching to `lokal-arbeider` spends
+// without this block a cloud main agent dispatching to `local-worker` spends
 // the tokens the dispatch policy tells it are free.
 func TestLocalWorkerIsBoundToTheLocalModel(t *testing.T) {
 	withOpenCodeConfig(t)

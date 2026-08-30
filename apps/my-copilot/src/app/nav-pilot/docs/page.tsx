@@ -2016,7 +2016,8 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             hvilken du kjører.
           </BodyLong>
           <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
-            Under <strong>opencode</strong> blir modellen en underagent som hovedagenten i skyen sender avgrensede
+            Under <strong>opencode</strong> blir modellen en underagent som heter{" "}
+            <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
             oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at den lokale modellen ikke
             klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
             modelleverandør om gangen.

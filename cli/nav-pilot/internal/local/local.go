@@ -476,7 +476,7 @@ var enabled bool
 // the same string for opposite reasons: the launch binds it to the local model
 // in opencode's config, and the artifact sync refuses to materialize it at all
 // while [Enabled] is false.
-const WorkerAgent = "lokal-arbeider"
+const WorkerAgent = "local-worker"
 
 // SetEnabled turns local dispatch on or off for this process. nav-pilot sets it
 // once at startup from the persisted config, and only true when local is both

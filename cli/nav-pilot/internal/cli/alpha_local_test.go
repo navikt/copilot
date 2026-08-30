@@ -295,7 +295,7 @@ func TestLocalOffTakesTheDispatchPolicyOutOfOpenCode(t *testing.T) {
 	if err := providerpkg.EnsureOpenCodeLocalPolicy(models[0]); err != nil {
 		t.Fatalf("provisioning the dispatch policy: %v", err)
 	}
-	policy := filepath.Join(dir, "nav-pilot-lokal-dispatch.md")
+	policy := filepath.Join(dir, "nav-pilot-local-dispatch.md")
 	if _, err := os.Stat(policy); err != nil {
 		t.Fatalf("the dispatch policy was not provisioned: %v", err)
 	}

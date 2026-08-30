@@ -307,7 +307,7 @@ func EnsureOpenCodeLocalProvider(m local.Model, guardURL string) error {
 // bindLocalWorker pins the worker subagent to the local model, and is the
 // difference between the alpha saving AI credits and spending more of
 // them. An opencode agent with no model of its own runs on the session's
-// model: with a cloud main agent, every task dispatched to `lokal-arbeider`
+// model: with a cloud main agent, every task dispatched to `local-worker`
 // would have gone to the cloud, at cloud prices, while the dispatch policy
 // beside it told the main agent those tasks were free.
 //
@@ -318,7 +318,7 @@ func EnsureOpenCodeLocalProvider(m local.Model, guardURL string) error {
 //
 // `agent.<name>.model` is opencode's own per-agent selection (config.json
 // $defs.AgentConfig.model, "provider/model"), verified on opencode 1.18.23:
-// `opencode debug agent lokal-arbeider` resolves this block to
+// `opencode debug agent local-worker` resolves this block to
 // {"providerID": "mlx", "modelID": "<id>"}.
 //
 // Merging rather than replacing, for the same reason every other writer here
@@ -491,7 +491,7 @@ func localParamInt(m local.Model, key string, fallback int) int {
 // `alpha local off` deletes it, and it sits at the root of that directory
 // rather than under agents/ or instructions/ so the Nav context sync never
 // counts it as one of its own and never deletes it out from under a session.
-const localPolicyFileName = "nav-pilot-lokal-dispatch.md"
+const localPolicyFileName = "nav-pilot-local-dispatch.md"
 
 func localPolicyPath() string {
 	return filepath.Join(filepath.Dir(openCodeConfigPath()), localPolicyFileName)
@@ -516,7 +516,7 @@ func localPolicyPath() string {
 func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 	var b strings.Builder
 	b.WriteString("# Local worker on this machine\n\n")
-	fmt.Fprintf(&b, "The `lokal-arbeider` agent runs on %s here on the machine. It draws no AI credits: everything it generates is free, however many tokens it takes. That is the whole reason to send anything to it.\n\n", m.Model)
+	fmt.Fprintf(&b, "The `local-worker` agent runs on %s here on the machine. It draws no AI credits: everything it generates is free, however many tokens it takes. That is the whole reason to send anything to it.\n\n", m.Model)
 	if m.Role != "" {
 		fmt.Fprintf(&b, "What the model was chosen for: %s\n", m.Role)
 	}
@@ -765,7 +765,7 @@ func localWorker() (local.Model, error) {
 // the defect: a hosted main agent is the normal case for this feature, so the
 // binding and the dispatch fragment were written only for a developer who had
 // at some point launched a local model themselves, and removed again by their
-// next hosted launch. Everyone else got a `lokal-arbeider` with no model of its
+// next hosted launch. Everyone else got a `local-worker` with no model of its
 // own, which opencode runs on the session's model — every "free" dispatch
 // billed to the cloud, beside a policy file saying it was free.
 //

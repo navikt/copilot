@@ -1,5 +1,5 @@
 ---
-name: lokal-arbeider
+name: local-worker
 description: Runs scoped tasks on a local model, so they draw no AI credits
 tools:
   - read
