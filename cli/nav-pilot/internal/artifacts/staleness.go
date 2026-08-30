@@ -19,6 +19,12 @@ type StalenessCache struct {
 	LastChecked   string `json:"last_checked"`
 	LatestVersion string `json:"latest_version"`
 	LastFailed    string `json:"last_failed,omitempty"`
+
+	// DefaultModels is the last known good defaultModels block of the
+	// published profile (see profile.go). It rides in this cache rather than
+	// one of its own because the profile is fetched in the same budget as the
+	// release check, and two writers of cache.json would clobber each other.
+	DefaultModels map[string]string `json:"default_models,omitempty"`
 }
 
 type StalenessAssessment struct {
@@ -124,23 +130,36 @@ func AssessStaleness(installedVersion string, fetchFn func() (string, string, er
 		}
 	}
 
+	var prevModels map[string]string
+	if cache != nil {
+		prevModels = cache.DefaultModels
+	}
+
 	latest, _, err := fetchFn()
 	if err != nil {
 		var prevLatest string
 		if cache != nil {
 			prevLatest = cache.LatestVersion
 		}
+		// The profile is not fetched here on purpose. A failed release lookup
+		// is the strongest available signal that there is no network, and a
+		// second request would only spend the launch's remaining budget
+		// waiting for the same timeout. The previous profile rides forward.
 		WriteCache(&StalenessCache{
 			LastChecked:   time.Now().UTC().Format(time.RFC3339),
 			LatestVersion: prevLatest,
 			LastFailed:    time.Now().UTC().Format(time.RFC3339),
+			DefaultModels: prevModels,
 		})
 		return StalenessAssessment{Result: "lookup_failed"}
 	}
 
+	// Same TTL, same launch, same 5 second budget as the release check that
+	// just succeeded: the profile refreshes exactly when this cache does.
 	WriteCache(&StalenessCache{
 		LastChecked:   time.Now().UTC().Format(time.RFC3339),
 		LatestVersion: latest,
+		DefaultModels: refreshProfile(prevModels),
 	})
 
 	return AssessFromLatest(installedVersion, latest, "")

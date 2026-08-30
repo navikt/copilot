@@ -12,7 +12,8 @@ import (
 // ─── Key listing (shared with config show) ───────────────────────────────────
 
 // configPageKeys lists the user-facing keys, in display order. Internal
-// bookkeeping keys (version, rtk_prompted_*) are deliberately left out.
+// bookkeeping keys (version, rtk_prompted_*, model_default_seen) are
+// deliberately left out.
 var configPageKeys = []string{
 	"client",
 	"source",

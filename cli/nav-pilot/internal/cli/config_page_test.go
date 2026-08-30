@@ -51,7 +51,7 @@ func TestBuildConfigPageEntries(t *testing.T) {
 	}
 
 	// Internal bookkeeping keys must not be offered on the page.
-	for _, hidden := range []string{"version", "rtk_prompted_client", "rtk_prompted_at"} {
+	for _, hidden := range []string{"version", "rtk_prompted_client", "rtk_prompted_at", "model_default_seen"} {
 		if _, ok := byKey[hidden]; ok {
 			t.Errorf("internal key %q must not be listed", hidden)
 		}

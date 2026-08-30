@@ -757,6 +757,7 @@ func launchClient(resolved ResolvedConfig) error {
 // answering "no" here; they get it by installing cplt, which the warning names.
 // auto_launch = false is the setting for never launching at all.
 func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error {
+	noticeModelDefaultChange(resolved)
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err
@@ -772,6 +773,46 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 		return err
 	}
 	return p.Launch(resolved)
+}
+
+// noticeModelDefaultChange mentions a moved Nav default model once, then never
+// again for that value.
+//
+// Most people have no model set, which already means "follow the Nav default",
+// so they adopt a new one silently and correctly: that is the point of
+// publishing it. The line exists so the change is not invisible, not so anyone
+// has to act on it.
+//
+// The first launch after upgrading records the current default without saying
+// anything. Nothing changed for that user, and greeting everyone once with a
+// notice about a default that has always been theirs is exactly the nagging
+// this key exists to avoid.
+//
+// Follow-up: a user with an explicit model set that differs gets one line here.
+// Offering to switch them interactively is a separate change.
+func noticeModelDefaultChange(resolved ResolvedConfig) {
+	p, err := providerFor(resolved.Client)
+	if err != nil {
+		return
+	}
+	def := p.DefaultModel()
+	if def == "" || def == resolved.ModelDefaultSeen {
+		return
+	}
+	// Record before printing: a write failure must not stop the launch, and it
+	// must not cost the user the notice either.
+	if _, err := writeConfigKey("model_default_seen", def); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not record the Nav default model: %v\n", yellow("⚠"), err)
+	}
+	if resolved.ModelDefaultSeen == "" {
+		return
+	}
+	if strings.TrimSpace(resolved.Model) != "" {
+		fmt.Fprintf(os.Stderr, "%s Nav's default model is now %s. You have model = %s set, so your launches are unchanged. Run %s to follow the Nav default instead.\n",
+			yellow("ℹ"), bold(def), bold(resolved.Model), bold(`nav-pilot config set model ""`))
+		return
+	}
+	fmt.Fprintf(os.Stderr, "%s Nav's default model is now %s.\n", yellow("ℹ"), bold(def))
 }
 
 // warnUnsandboxedLaunch says that cplt is missing and the client is about to

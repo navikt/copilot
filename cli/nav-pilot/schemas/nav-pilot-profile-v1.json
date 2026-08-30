@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navikt/copilot/cli/nav-pilot/schemas/nav-pilot-profile-v1.json",
+  "title": "nav-pilot profile",
+  "description": "Centrally published defaults that a released nav-pilot picks up without being rebuilt. Advisory only: nav-pilot falls back to its compiled-in defaults whenever the profile is missing, unreachable, or fails this schema.",
+  "type": "object",
+  "required": ["profileVersion", "defaultModels"],
+  "properties": {
+    "profileVersion": {
+      "description": "Profile contract version. A binary that does not know the version declared here ignores the whole profile and keeps its compiled-in defaults.",
+      "const": "1"
+    },
+    "note": {
+      "description": "Free text for whoever opens the file. Ignored by nav-pilot.",
+      "type": "string"
+    },
+    "defaultModels": {
+      "description": "Client id to model id, used only when the user has pinned no model of their own. A client absent here keeps nav-pilot's compiled-in default.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*$"},
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      }
+    }
+  }
+}

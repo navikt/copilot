@@ -1,0 +1,8 @@
+{
+  "$schema": "cli/nav-pilot/schemas/nav-pilot-profile-v1.json",
+  "profileVersion": "1",
+  "note": "Live configuration. Every nav-pilot in Nav re-reads this file from the default branch at most once a day, so editing it here changes the defaults for everyone without a new release. It is advisory only: if it is missing, unreachable or invalid, nav-pilot uses its compiled-in defaults instead.",
+  "defaultModels": {
+    "opencode": "github-copilot/auto"
+  }
+}

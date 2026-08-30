@@ -29,7 +29,11 @@ type Config struct {
 	OtelLogLevel      *string `toml:"otel_log_level"`
 	RtkPromptedClient *string `toml:"rtk_prompted_client"`
 	RtkPromptedAt     *string `toml:"rtk_prompted_at"`
-	AutoUpdate        *bool   `toml:"auto_update"`
+	// ModelDefaultSeen records the Nav default model this user was last told
+	// about, so a change is mentioned once instead of every launch. It holds
+	// the value, not a flag: a default that moves twice has to notify twice.
+	ModelDefaultSeen *string `toml:"model_default_seen"`
+	AutoUpdate       *bool   `toml:"auto_update"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -55,6 +59,7 @@ type ResolvedConfig struct {
 	OtelLogLevel      string   // always set; defaults to "none"
 	RtkPromptedClient string   // comma-separated list of clients where the RTK setup was prompted
 	RtkPromptedAt     string   // RFC3339 timestamp of when the user was last prompted
+	ModelDefaultSeen  string   // the Nav default model this user was last told about
 	AutoUpdate        bool     // true to bypass upgrade prompt
 	ExtraArgs         []string // pass-through arguments for the client
 }

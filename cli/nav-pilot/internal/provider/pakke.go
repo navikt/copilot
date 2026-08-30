@@ -2,6 +2,7 @@ package provider
 
 import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -66,20 +67,40 @@ func PrimaryAgentFor(client, context string) string {
 }
 
 // openCodeDefaultModel returns the model an opencode launch falls back to when
-// the user pins none: the active agentpakke's declaration, or the built-in
-// default when it pins nothing.
+// the user pins none.
+//
+// It is the single funnel for "what model when the user has pinned none", and
+// the whole precedence order lives here rather than in a second decision point
+// elsewhere:
+//
+//	--model flag        (handled upstream: only "" or "auto" reaches here)
+//	config file model   (same, via ToOpenCodeModel)
+//	agentpakke manifest (a foreign pakke that pins its own model wins)
+//	published profile   (nav-pilot-profile.json, refreshed on the release check)
+//	compiled-in default (OpenCodeDefaultModel)
 //
 // [agentpakke.InheritModel] counts as pinning nothing: consumers of this
 // function (ToOpenCodeModel, the setup label) need a concrete model id, and
 // "inherit" means "whatever the client would use anyway". The staged launch
-// path does not call this at all — it reads the declaration directly and omits
+// path does not call this at all: it reads the declaration directly and omits
 // --model entirely for inherit. Cosmetic residue: `config setup` run with an
 // inherit-pakke active labels the built-in id "Nav default"; no M2 flow sets a
 // pakke before setup, so nothing reaches it today.
+//
+// The active pakke declaring exactly OpenCodeDefaultModel is read as "no pakke
+// has an opinion", because that is what the built-in legacy adapter declares
+// and the built-in adapter is the active pakke on every default launch. A
+// foreign pakke that pins the same string as Nav's compiled-in default is
+// therefore also moved by the profile. Telling the two apart would need the
+// pakke to carry its own provenance, which is not worth a field until a pakke
+// actually does that on purpose.
 func openCodeDefaultModel() string {
 	model := source.ActivePakke().DefaultModel("opencode")
-	if model != "" && model != agentpakke.InheritModel {
+	if model != "" && model != agentpakke.InheritModel && model != OpenCodeDefaultModel {
 		return model
+	}
+	if profile := artifacts.ProfileDefaultModel("opencode"); profile != "" {
+		return profile
 	}
 	return OpenCodeDefaultModel
 }

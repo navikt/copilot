@@ -14,3 +14,10 @@ import _ "embed"
 //
 //go:embed agentpakke-v1.json
 var AgentpakkeV1 []byte
+
+// NavPilotProfileV1 is the schema for the centrally published nav-pilot
+// profile (nav-pilot-profile.json at the repo root), contract version 1.
+// Its $id is https://github.com/navikt/copilot/cli/nav-pilot/schemas/nav-pilot-profile-v1.json.
+//
+//go:embed nav-pilot-profile-v1.json
+var NavPilotProfileV1 []byte

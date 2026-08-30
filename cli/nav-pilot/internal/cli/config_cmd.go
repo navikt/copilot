@@ -151,6 +151,14 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "",
 		flag:        "",
 	},
+	{
+		name:        "model_default_seen",
+		kind:        keyKindString,
+		description: "Internal record of the Nav default model this user was last told about, so a change to it is mentioned once rather than every launch.",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+	},
 }
 
 func findKeyDef(name string) *configKeyDef {
@@ -258,6 +266,10 @@ version = 1
 # Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).
 # Default: unset
 # rtk_prompted_at = ""
+
+# Internal record of the Nav default model the user was last told about.
+# Default: unset
+# model_default_seen = ""
 `
 
 // ─── Subcommand dispatch ──────────────────────────────────────────────────────
@@ -449,6 +461,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":
 		return r.RtkPromptedAt
+	case "model_default_seen":
+		return r.ModelDefaultSeen
 	}
 	return ""
 }

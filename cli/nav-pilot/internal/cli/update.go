@@ -127,9 +127,17 @@ func doUpdate() (updated bool, err error) {
 	// Invalidate the staleness cache now that we're on the latest version,
 	// so a subsequent process doesn't see a stale "update available" entry
 	// (e.g. if this rename raced with a fresh release check elsewhere).
+	// The profile rides along: invalidating the version entry must not also
+	// drop the published default for a day, which is how long it would be
+	// before the fresh LastChecked lets the next check refetch it.
+	var models map[string]string
+	if prev := artifacts.ReadCache(); prev != nil {
+		models = prev.DefaultModels
+	}
 	artifacts.WriteCache(&artifacts.StalenessCache{
 		LastChecked:   time.Now().UTC().Format(time.RFC3339),
 		LatestVersion: latest,
+		DefaultModels: models,
 	})
 
 	fmt.Printf("✓ Updated to nav-pilot %s\n", latest)
@@ -304,6 +312,25 @@ func httpGet(url string) ([]byte, error) {
 		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
 	}
 	return io.ReadAll(resp.Body)
+}
+
+// fetchProfile downloads the published nav-pilot profile. The body is capped
+// because it is untrusted network input about to be parsed as JSON, and no
+// GITHUB_TOKEN is attached: the profile is public and lives on another host.
+func fetchProfile(ctx context.Context) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", artifacts.ProfileURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, artifacts.ProfileURL)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 }
 
 // verifyChecksum downloads SHA256SUMS and verifies the binary checksum.

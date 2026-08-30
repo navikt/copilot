@@ -290,6 +290,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.RtkPromptedAt != nil {
 			r.RtkPromptedAt = *file.RtkPromptedAt
 		}
+		if file.ModelDefaultSeen != nil {
+			r.ModelDefaultSeen = *file.ModelDefaultSeen
+		}
 	}
 
 	// Apply CLI overrides (higher precedence than file).

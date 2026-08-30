@@ -505,6 +505,44 @@ overgangen. Fasene er også dokumentert i pakkedokumentasjonen til
 `internal/agentpakke` (`go doc ./internal/agentpakke`), som er referansen på
 kodenivå; denne seksjonen er den kanoniske beskrivelsen for designet.
 
+## Profil (nav-pilot-profile.json)
+
+`nav-pilot-profile.json` i rota av `navikt/copilot` er sentralt oppdaterbare
+standardvalg. Den ligger i rota, ikke under `cli/nav-pilot/`, fordi den ikke er
+kildekode: den er levende konfigurasjon som virker uten at noen bygger og
+slipper en ny binary. Å endre `defaultModels.opencode` der endrer Nav-standarden
+for alle innen et døgn.
+
+Slik virker den:
+
+- **Henting.** Profilen leses rått fra default-branchen
+  (`artifacts.ProfileURL`) i samme kall, samme TTL og samme 5 sekunders budsjett
+  som utsjekken av nye releaser (`AssessStaleness`). Ingen ekstra nettverkskall
+  per launch: den hentes bare når release-oppslaget nettopp lyktes, altså
+  maksimalt én gang i døgnet.
+- **Cache.** Siste gyldige verdi ligger i `default_models` i
+  `~/.nav-pilot/cache.json`, ved siden av release-infoen, med samme
+  last-known-good-semantikk. Én skriver, ellers ville de to klobbet hverandre.
+- **Validering.** Bytene valideres mot `schemas/nav-pilot-profile-v1.json` før
+  de brukes.
+- **Feiler mykt.** Nettverksfeil, ugyldig JSON, skjemabrudd eller ukjent
+  `profileVersion`: nav-pilot beholder forrige gyldige verdi, ellers den
+  innkompilerte standarden, og launchen går videre. Dette er motsatt av
+  agentpakke-manifestets fail-closed-regel, og forskjellen er tilsiktet. Et
+  manifest styrer *hva som kjører*; en standard er bare en preferanse, og
+  forrige standard er alltid et trygt svar.
+- **Presedens.** `--model` > `model` i config > agentpakke-manifest > profil >
+  innkompilert standard. Hele rekkefølgen bor i
+  `provider.openCodeDefaultModel()`.
+- **Varsling.** `model_default_seen` i config husker hvilken standard brukeren
+  sist ble fortalt om, slik at en endring nevnes én gang og ikke ved hver
+  launch. Nøkkelen lagrer verdien, ikke et flagg: en standard som flytter seg to
+  ganger må varsle to ganger.
+
+Oppfølging: kill switch (#485) skal bruke samme transport, men må feile *lukket*
+og trenger sine egne policyavklaringer. Interaktiv prompt for brukere med en
+egen `model` som avviker fra ny standard er også utsatt.
+
 ## Sikkerhetsregler
 
 ### Symlinkbeskyttelse
