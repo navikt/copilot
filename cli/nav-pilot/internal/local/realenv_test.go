@@ -4,6 +4,7 @@ package local
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -29,6 +30,16 @@ func TestEnsureEnvAgainstTheRealToolchain(t *testing.T) {
 	defer cancel()
 
 	if err := EnsureEnv(ctx); err != nil {
+		// A network failure and pin rot look nothing alike and need different
+		// action, so say which this is. The first run of this test on a laptop
+		// behind a firewall reported "check the pinned versions" for what was a
+		// blocked connection, which is the wrong week of work.
+		if isNetworkFailure(err) {
+			t.Fatalf("EnsureEnv could not reach the network: %v\n\n"+
+				"This says nothing about the pinned versions. Check connectivity, a "+
+				"proxy, or a firewall prompt waiting for someone to approve it, then "+
+				"run this again.", err)
+		}
 		t.Fatalf("EnsureEnv against the real toolchain: %v\n\n"+
 			"One of the pinned versions no longer resolves, or mlx has dropped a wheel "+
 			"for the pinned interpreter. Check uvVersion, pythonVersion, mlxLMVersion "+
@@ -40,4 +51,20 @@ func TestEnsureEnvAgainstTheRealToolchain(t *testing.T) {
 	if err := EnsureEnv(ctx); err != nil {
 		t.Fatalf("EnsureEnv is not idempotent against a real environment: %v", err)
 	}
+}
+
+// isNetworkFailure reports a failure to reach the network rather than a failure of
+// what was fetched. Matched on the error text because the transport wraps these
+// several layers down and the concrete types are not worth reaching for in a test.
+func isNetworkFailure(err error) bool {
+	text := err.Error()
+	for _, s := range []string{
+		"i/o timeout", "no such host", "connection refused",
+		"network is unreachable", "TLS handshake timeout", "context deadline exceeded",
+	} {
+		if strings.Contains(text, s) {
+			return true
+		}
+	}
+	return false
 }

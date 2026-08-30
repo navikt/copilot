@@ -111,6 +111,15 @@ const DOC_SECTIONS: TocItem[] = [
     ],
   },
   {
+    id: "lokal-modell",
+    label: "Lokal modell (alfa)",
+    children: [
+      { id: "lokal-kom-i-gang", label: "Kom i gang" },
+      { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
+      { id: "lokal-feilsoking", label: "Når noe henger" },
+    ],
+  },
+  {
     id: "cli-referanse",
     label: "CLI-referanse",
     children: [
@@ -356,6 +365,7 @@ export default function NavPilotDocs() {
                 <CompetenceSection />
                 <SyncSection />
                 <CustomizationSection />
+                <LocalModelSection />
                 <CliReferenceSection />
                 <HowItWorksSection />
                 <ResourcesSection />
@@ -1951,6 +1961,105 @@ reasoning_effort = "high"
 /* ═══════════════════════════════════════════════════════════════
    Section 7: CLI-referanse
    ═══════════════════════════════════════════════════════════════ */
+
+function LocalModelSection() {
+  return (
+    <section id="lokal-modell">
+      <VStack gap="space-16">
+        <div>
+          <LinkableHeading size="medium" level="2">
+            Lokal modell{" "}
+            <Tag variant="warning" size="small">
+              alfa
+            </Tag>
+          </LinkableHeading>
+          <BodyLong className="mt-3" style={{ color: "#475569" }}>
+            nav-pilot kan kjøre en modell på din egen maskin. Den trekker ingen AI-credits, uansett hvor mye den
+            genererer. Til gjengjeld er den langsommere enn skyen, og den klarer bare en del av arbeidet.
+          </BodyLong>
+          <BodyLong className="mt-3" style={{ color: "#475569" }}>
+            Dette er alfa, og av som standard. Ingenting endres før du kjører{" "}
+            <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med 48 GB minne og rundt 23 GB ledig
+            disk.
+          </BodyLong>
+        </div>
+
+        <div id="lokal-kom-i-gang">
+          <LinkableHeading size="small" level="3">
+            Kom i gang
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Første <code className="font-mono text-xs">start</code> tar noen minutter mens modellen lastes inn i minnet.
+          </BodyShort>
+          <CodeBlock compact>
+            {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
+nav-pilot alpha local start     # starter serveren
+nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
+nav-pilot alpha local stop
+nav-pilot alpha local off       # skrur av utsending igjen`}
+          </CodeBlock>
+          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+            Under <strong>opencode</strong> blir modellen en underagent som hovedagenten i skyen sender avgrensede
+            oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at den lokale modellen ikke
+            klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
+            modelleverandør om gangen.
+          </BodyLong>
+        </div>
+
+        <div id="lokal-hva-den-klarer">
+          <LinkableHeading size="small" level="3">
+            Hva den klarer
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Målt i lab på ett Kotlin-repo, ikke i daglig bruk. Hovedregelen: den utfører en avgjørelse godt, og tar en
+            avgjørelse dårlig.
+          </BodyShort>
+          <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
+            <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
+              <Label size="small">Fungerer</Label>
+              <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+                Slå opp noe i koden. Legge til kommentarer og loggsetninger. Døpe om et symbol i mange filer. Tre et
+                felt gjennom en mapper når du har sagt hvilke filer det gjelder.
+              </BodyLong>
+            </Box>
+            <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
+              <Label size="small">Fungerer ikke</Label>
+              <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+                Skrive en ny fil fra bunnen. Finne ut hvilke filer en endring treffer. Endringer som krever en egen
+                vurdering per fil, eller der en feil endring er dyr.
+              </BodyLong>
+            </Box>
+          </HGrid>
+          <BodyLong className="mt-4" size="small" style={{ color: "#64748b" }}>
+            Regn med to til tre ganger så lang tid som i skyen på det den faktisk klarer.
+          </BodyLong>
+        </div>
+
+        <div id="lokal-feilsoking">
+          <LinkableHeading size="small" level="3">
+            Når noe henger
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">status</code> skiller «treg» fra «død».
+          </BodyShort>
+          <CodeBlock compact>
+            {`nav-pilot alpha local status
+# står det hung: nav-pilot alpha local stop && nav-pilot alpha local start`}
+          </CodeBlock>
+          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+            Serveren svarer på én forespørsel om gangen, så flere oppgaver står i kø framfor å kjøre parallelt. Det er
+            med vilje: samtidige forespørsler henger modellen.
+          </BodyLong>
+          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+            Si fra med <code className="font-mono text-xs">nav-pilot feedback</code> om noe henger, om en endring
+            kompilerer men er feil, eller om ventetiden ikke er verdt det. Negative erfaringer er like nyttige som
+            positive.
+          </BodyLong>
+        </div>
+      </VStack>
+    </section>
+  );
+}
 
 function CliReferenceSection() {
   return (
