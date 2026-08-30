@@ -57,6 +57,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	_ "embed"
 
@@ -74,11 +75,26 @@ const ManifestURL = "https://raw.githubusercontent.com/navikt/mlx-workspace/main
 // is worse than using the copy this binary was built against.
 var SupportedSchemaMajors = []string{"1"}
 
-// allowedPublishers is the trust boundary, not a style rule. Every model id in
-// the manifest must be published by one of these Hugging Face orgs, because
-// accepting the manifest means a developer's machine will fetch and execute
-// those weights. Widening this set must be a code change here, reviewed like
-// any other, and never an edit to the served file.
+// allowedPublishers is a trust boundary, and a weaker one than it looks. Every
+// model id in the manifest must be published by one of these Hugging Face orgs,
+// because accepting the manifest means a developer's machine will fetch and run
+// those weights. Widening the set must be a code change here, reviewed like any
+// other, and never an edit to the served file.
+//
+// What it does not do, stated plainly because a reviewer approving a future
+// manifest diff should know what they are approving: both orgs have open
+// membership. Anyone can publish under them, so this bounds the namespace rather
+// than vouching for the weights. Someone who controls the manifest can therefore
+// still name a backdoored model within an allowed org, of any size, under a
+// plausible name. What stops that becoming code execution is elsewhere: the
+// server is started without --trust-remote-code, so repository Python is never
+// imported, and the payload is limited to what a model can do by answering
+// prompts. That is not nothing when the answers become edits in a developer's
+// repository.
+//
+// Pinning specific repositories, or a weights digest, would close it properly.
+// That is a real change rather than a comment, and it is written down in
+// reports/alpha-status.md rather than implied by this list.
 var allowedPublishers = []string{"mlx-community", "lmstudio-community"}
 
 // allowedParamKey is the other half of that boundary. A model's Params become
@@ -183,9 +199,45 @@ func (m *Manifest) checkSchemaVersion() error {
 		m.SchemaVersion.String(), strings.Join(SupportedSchemaMajors, ", "), domain.Bold("nav-pilot update"))
 }
 
-// checkModels enforces the four rules the served file cannot be trusted to
-// keep on its own: a usable model id, an allow-listed publisher, an environment
-// confined to the MLX_ namespace, and exactly one default.
+// maxProseRunes bounds the manifest's free text. Role and Expect reach two places
+// that make length and content a security property rather than a style one: the
+// terminal, where control characters are escape sequences, and the dispatch
+// policy file, which opencode pastes into the system prompt of a cloud agent with
+// full tool access. A sentence of prose is what those fields are for; anything
+// longer is either a mistake or an instruction aimed at the main agent.
+const maxProseRunes = 600
+
+// checkProse rejects free text that would reach a terminal or a system prompt
+// carrying more than prose.
+//
+// Whoever controls the manifest already chooses which weights this machine runs,
+// so this is not the last line of defence. It is the difference between that and
+// also getting a persistent instruction into every session of every developer who
+// has local inference on, which is a quieter thing to notice.
+func checkProse(where, field, value string) error {
+	if len([]rune(value)) > maxProseRunes {
+		return fmt.Errorf(
+			"local-model manifest entry %q has a %s of %d characters (limit %d); "+
+				"that text is pasted into the main agent's system prompt, so it is prose about the model, not a place for instructions",
+			where, field, len([]rune(value)), maxProseRunes)
+	}
+	for _, r := range value {
+		if r == '\n' || r == '\t' {
+			continue
+		}
+		if unicode.IsControl(r) {
+			return fmt.Errorf(
+				"local-model manifest entry %q has a control character (%U) in its %s; "+
+					"that text is printed to the terminal and pasted into a system prompt, and control characters belong in neither",
+				where, r, field)
+		}
+	}
+	return nil
+}
+
+// checkModels enforces the rules the served file cannot be trusted to keep on
+// its own: a usable model id, an allow-listed publisher, an environment confined
+// to the MLX_ namespace, prose that stays prose, and exactly one default.
 func (m *Manifest) checkModels() error {
 	var defaults []string
 	for i, model := range m.Models {
@@ -217,6 +269,11 @@ func (m *Manifest) checkModels() error {
 					"local-model manifest entry %q sets param %q on model %q, which is outside the MLX_ namespace (%s); "+
 						"params become the environment of the server process, so a key outside it can point the download at another host or load code into the process — allowing another key is a nav-pilot code change, not a manifest change",
 					where, key, model.Model, allowedParamKey)
+			}
+		}
+		for field, value := range map[string]string{"role": model.Role, "expect": model.Expect} {
+			if err := checkProse(where, field, value); err != nil {
+				return err
 			}
 		}
 		if model.Default {
