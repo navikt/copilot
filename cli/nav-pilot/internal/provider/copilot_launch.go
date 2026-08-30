@@ -79,6 +79,15 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	args = append(args, copilotAgentArgs(persona)...)
 	if resolved.Model != "" {
 		args = append(args, "--model", resolved.Model)
+	} else if model := pakkeDeclaredModel("copilot"); model != "" {
+		// Same fallback the staged Tier 2 copilot path has
+		// (buildStagedCopilotSpec), and the same one Tier 1 opencode gets
+		// through ToOpenCodeModel. Without it copilot behaved differently by
+		// tier, and Tier 1 copilot, the default configuration, was the only
+		// launch path an agentpakke could not declare a model for.
+		// pakkeDeclaredModel already maps agentpakke.InheritModel to "", so a
+		// pakke that declares nothing still emits no --model.
+		args = append(args, "--model", model)
 	}
 	args = append(args, copilotResolvedFlags(resolved)...)
 	if cliName == "cplt" {
