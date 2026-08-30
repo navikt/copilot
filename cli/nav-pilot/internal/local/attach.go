@@ -182,6 +182,13 @@ func isRecorded(pid int, lstart string) bool {
 // that process, and it is the process holding the port. It refuses rather than
 // adopts — a stranger answering with the right model id is still a stranger,
 // for the reason [servedModel] states.
+// ErrNoServerRecorded is EnsureOwnServer's "nothing is running here". It is a
+// distinct error because it is the only one a caller may answer by starting a
+// server: every other failure means a server may well be running and this process
+// merely cannot prove it, and starting a second one then puts 42 GB of weights on
+// a 48 GB machine.
+var ErrNoServerRecorded = errors.New("no local server is recorded as running")
+
 func EnsureOwnServer() error {
 	st, ok, err := LoadState()
 	if err != nil {
@@ -189,7 +196,7 @@ func EnsureOwnServer() error {
 	}
 	start := domain.Bold("nav-pilot alpha local start")
 	if !ok {
-		return fmt.Errorf("no local server is recorded as running.\n\n  Start one first:\n\n    %s", start)
+		return fmt.Errorf("%w.\n\n  Start one first:\n\n    %s", ErrNoServerRecorded, start)
 	}
 	if !isRecorded(st.PID, st.Lstart) {
 		return fmt.Errorf(
@@ -243,7 +250,11 @@ var portListeners = func(port int) []int {
 // crashed, decided before returning: a caller must not be told "starting"
 // about a pid that no longer exists.
 func Attach(s State) *Server {
-	srv := &Server{Port: DefaultPort, model: s.Model, started: s.Started}
+	// The recorded port, not the old constant. Attaching on 8080 meant `status`
+	// health-probed whatever the developer had there, posted a chat completion at
+	// their own Ktor service, and reported a healthy local server as starting
+	// forever because a connection refusal classifies as still loading.
+	srv := &Server{Port: s.ServerPort(), model: s.Model, started: s.Started}
 	p := &attachedProc{pid: s.PID, lstart: s.Lstart, done: make(chan struct{})}
 	srv.proc = p
 	if !p.live() {

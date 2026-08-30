@@ -1236,3 +1236,20 @@ func TestStartStopsTheChildWhenInterrupted(t *testing.T) {
 		t.Error("Start() left the child running after the context was cancelled")
 	}
 }
+
+// seedWeights makes WeightsPresent true for a model, the way a machine that has
+// run init looks.
+func seedWeights(t *testing.T, model string) {
+	t.Helper()
+	// Both files: WeightsPresent wants a snapshot carrying weights and a config,
+	// because a metadata-only snapshot is what an interrupted download leaves.
+	snap := filepath.Join(modelCacheDir(model), "snapshots", "abc123")
+	if err := os.MkdirAll(snap, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"model.safetensors": "weights", "config.json": "{}"} {
+		if err := os.WriteFile(filepath.Join(snap, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

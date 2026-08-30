@@ -136,7 +136,7 @@ func StartGuard(target string) (*Guard, error) {
 
 	g := &Guard{ln: ln}
 	g.srv = &http.Server{
-		Handler:           guardHandler(proxy),
+		Handler:           guardHandler(proxy, target),
 		ReadHeaderTimeout: 30 * time.Second,
 		// No write timeout: a completion on a local model legitimately takes
 		// longer than any number that would be safe on a network service.
@@ -203,7 +203,7 @@ func ownershipGate() func() error {
 // not the JSON it expects — is forwarded untouched. The guard exists to stop
 // one measured failure, and a guard that fails closed on a shape it did not
 // anticipate would break working sessions to protect them.
-func guardHandler(proxy http.Handler) http.Handler {
+func guardHandler(proxy http.Handler, target string) http.Handler {
 	owned := ownershipGate()
 	// One completion at a time, across every session on this machine. mlx-lm
 	// batches concurrent requests into shared attention, and with prompts of
@@ -252,8 +252,29 @@ func guardHandler(proxy http.Handler) http.Handler {
 			writeGuardError(w, "nav-pilot did not forward this request: "+err.Error(), "local_server_lost")
 			return
 		}
-		body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody))
-		if err != nil {
+		// The ownership check proves the *recorded* server. This guard forwards to
+		// the address it captured when the session started, and a stop-and-start
+		// mid-session records a new port while this keeps sending to the old one:
+		// the check would pass for a server nothing here is talking to. Compare
+		// them, so the proof covers the address actually in use.
+		if target != "" {
+			if st, ok, err := LoadState(); err == nil && ok {
+				if now := fmt.Sprintf("http://127.0.0.1:%d", st.ServerPort()); now != target {
+					writeGuardError(w, "nav-pilot did not forward this request: the local server was restarted on "+
+						now+" and this session is bound to "+target+". Start a new session.", "local_server_moved")
+					return
+				}
+			}
+		}
+		// One byte past the cap, so a body at the limit is detectable rather than
+		// silently truncated. Reading exactly maxRequestBody returns no error at
+		// the boundary, and forwarding that prefix with a rewritten
+		// Content-Length is a corrupted request the server cannot parse.
+		body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody+1))
+		if err != nil || len(body) > maxRequestBody {
+			// Too big to inspect for a loop, so forward it unread, which is what
+			// the guard promises for anything it cannot parse.
+			r.Body = io.NopCloser(io.MultiReader(bytes.NewReader(body), r.Body))
 			proxy.ServeHTTP(w, r)
 			return
 		}

@@ -128,13 +128,14 @@ func TestRepeatedToolCallIgnoresUnreadableBodies(t *testing.T) {
 // TestGuardAbortsTheTurnOnARunawayLoop is the whole point of the package: a
 // request that would extend a run of identical calls never reaches the server.
 func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	stubOwnership(t, func() error { return nil })
 	var forwarded int
 	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		forwarded++
 		body, _ := json.Marshal(map[string]any{"forwarded": true})
 		w.Write(body)
-	}))
+	}), "")
 
 	post := func(body []byte) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
@@ -181,13 +182,14 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 // TestGuardForwardsEverythingElse: the guard is not a filter. Only the one
 // request shape it understands is ever refused.
 func TestGuardForwardsEverythingElse(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	stubOwnership(t, func() error { return nil })
 	var seen []string
 	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := json.Marshal(r.URL.Path)
 		seen = append(seen, r.Method+" "+r.URL.Path)
 		w.Write(body)
-	}))
+	}), "")
 
 	loop := conversation(repeat(loopGuardRepeat*3, "bash", `{"cmd":"ls"}`)...)
 	for _, req := range []*http.Request{
@@ -208,12 +210,13 @@ func TestGuardForwardsEverythingElse(t *testing.T) {
 // TestGuardForwardsTheBodyItRead: reading the body to inspect it must not
 // consume it.
 func TestGuardForwardsTheBodyItRead(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	stubOwnership(t, func() error { return nil })
 	body := conversation(`{"role":"user","content":"hei"}`)
 	var got []byte
 	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got, _ = io.ReadAll(r.Body)
-	}))
+	}), "")
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 	if string(got) != string(body) {
@@ -240,6 +243,7 @@ func TestSetLoopGuardRepeatRefusesAThresholdThatIsNotAGuard(t *testing.T) {
 // TestStartGuardProxiesToTheServer covers the wiring end to end: a real
 // listener, a real proxy, a real upstream.
 func TestStartGuardProxiesToTheServer(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"choices":[]}`))
 	}))
@@ -269,6 +273,7 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 // and left the port to whatever bound it next had every later prompt forwarded
 // to a stranger, silently.
 func TestGuardRefusesAServerItCanNoLongerVouchFor(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	origTTL := ownershipTTL
 	ownershipTTL = 0
 	t.Cleanup(func() { ownershipTTL = origTTL })
@@ -279,7 +284,7 @@ func TestGuardRefusesAServerItCanNoLongerVouchFor(t *testing.T) {
 	var forwarded int
 	handler := guardHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		forwarded++
-	}))
+	}), "")
 	post := func() *httptest.ResponseRecorder {
 		body := conversation(`{"role":"user","content":"hei"}`)
 		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
@@ -327,12 +332,13 @@ func TestGuardRefusesAServerItCanNoLongerVouchFor(t *testing.T) {
 // affordable: it shells out to ps and lsof, and a session sends many prompts.
 // One proof covers every prompt inside the TTL.
 func TestGuardOwnershipCheckIsCachedBetweenPrompts(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
 	var checks int
 	stubOwnership(t, func() error {
 		checks++
 		return nil
 	})
-	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "")
 	for range 5 {
 		body := conversation(`{"role":"user","content":"hei"}`)
 		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body)))
@@ -351,7 +357,7 @@ func TestGuardChecksOwnershipOnlyForCompletions(t *testing.T) {
 		checks++
 		return nil
 	})
-	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	handler := guardHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "")
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/v1/models", nil))
 	if checks != 0 {
 		t.Errorf("GET /v1/models ran the ownership check %d times, want 0", checks)

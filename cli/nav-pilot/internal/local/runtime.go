@@ -1333,6 +1333,13 @@ func sysctlInt(ctx context.Context, name string) (int64, error) {
 func EnsureServerRunning(ctx context.Context, announce func(string)) error {
 	if err := EnsureOwnServer(); err == nil {
 		return nil
+	} else if !errors.Is(err, ErrNoServerRecorded) {
+		// A server may well be running and this process cannot prove it: a
+		// corrupt state file, or lsof giving no answer under load. Starting one
+		// anyway would take a fresh port that portInUse cannot object to, orphan
+		// the running server beyond nav-pilot's reach, and put 42 GB of weights
+		// on a 48 GB machine. Surface it instead.
+		return err
 	}
 	if !Autostart() {
 		return fmt.Errorf("no local server is running.\n\n  Start one:\n\n    %s\n\n  Or have launches start it for you:\n\n    %s",
@@ -1350,6 +1357,8 @@ func EnsureServerRunning(ctx context.Context, announce func(string)) error {
 	// Checking again is what turns a race into a queue.
 	if err := EnsureOwnServer(); err == nil {
 		return nil
+	} else if !errors.Is(err, ErrNoServerRecorded) {
+		return err
 	}
 
 	// The manifest already in hand, not a fetch: this runs inside a launch, and
@@ -1363,8 +1372,34 @@ func EnsureServerRunning(ctx context.Context, announce func(string)) error {
 	if announce != nil {
 		announce(m.Model)
 	}
+	// The gates `alpha local start` enforces apply here too. Autostart runs
+	// unattended inside a launch, which makes skipping them worse rather than
+	// better: a reboot resets the wired limit, and starting into that condition
+	// is what takes the compositor with it.
+	if w, err := CheckWiredLimit(m); err != nil {
+		return err
+	} else if !w.Sufficient {
+		return fmt.Errorf(
+			"%s needs a %d GB wired-memory limit and this machine is at %d GB.\n\n  Raise it, then launch again (it resets at reboot):\n\n    %s",
+			m.Model, w.RequiredGB, w.CurrentGB, domain.Bold(w.Command))
+	}
+
+	// Autostart must not start a 23 GB download inside a launch. `alpha local
+	// start` checks this too; here it matters more, because the download would
+	// run invisibly while this holds the machine-wide lock.
+	if present, err := WeightsPresent(m.Model); err != nil {
+		return err
+	} else if !present {
+		return fmt.Errorf("the weights for %s are not on this machine.\n\n  Download them first:\n\n    %s",
+			m.Model, domain.Bold("nav-pilot alpha local init"))
+	}
+
 	srv := &Server{}
 	if err := srv.Start(ctx, m); err != nil {
+		// Unlike `alpha local start`, nothing here will report a half-started
+		// server to the developer, so leaving one behind means the next launch
+		// finds nothing recorded and starts another. Each retry is another 21 GB.
+		_ = srv.Stop()
 		return err
 	}
 	status := srv.Status()

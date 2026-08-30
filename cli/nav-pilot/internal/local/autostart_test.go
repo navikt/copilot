@@ -47,6 +47,16 @@ func TestConcurrentLaunchesStartOneServer(t *testing.T) {
 	// the test.
 	stubOurProcess(t)
 	stubPortListeners(t, func(int) []int { return []int{proc.PID()} })
+	// Autostart enforces the same gates as `alpha local start`, so the fixture
+	// has to satisfy them: weights on disk and a wired limit that covers the
+	// model. Both are what a developer who ran init already has.
+	seedWeights(t, testModel().Model)
+	stubRun(t, func(name string, args []string) (string, error) {
+		if len(args) > 0 && args[len(args)-1] == "hw.memsize" {
+			return "137438953472\n", nil // 128 GB
+		}
+		return "999999\n", nil // a wired limit far above the requirement
+	})
 
 	var wg sync.WaitGroup
 	errs := make([]error, 4)

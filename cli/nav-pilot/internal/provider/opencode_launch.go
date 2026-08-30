@@ -643,6 +643,18 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 	if guard != nil {
 		defer guard.Close()
+		// The provider block names this session's guard port, and the port dies
+		// with the session. Left behind, it points opencode at a number the
+		// kernel will hand to something else: a developer running opencode
+		// directly afterwards would send prompts, with whatever repository
+		// context they carry, to whatever had since bound it. Removed on the way
+		// out, so a stale address never outlives the guard that answered it.
+		defer func() {
+			if err := RemoveOpenCodeLocalProvider(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local provider from opencode's config: %v\n",
+					domain.Yellow("⚠"), err)
+			}
+		}()
 		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row.\n",
 			domain.Dim("ℹ"), local.LoopGuardRepeat())
 	}

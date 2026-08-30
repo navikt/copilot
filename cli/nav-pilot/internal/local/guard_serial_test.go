@@ -47,7 +47,7 @@ func TestGuardSerialisesCompletions(t *testing.T) {
 		}
 		resp.Body.Close()
 		w.WriteHeader(http.StatusOK)
-	}))
+	}), "")
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
@@ -103,7 +103,7 @@ func TestTwoGuardsStillReachTheServerOneAtATime(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	stubOwnership(t, func() error { return nil })
-	sessionA, sessionB := guardHandler(forward), guardHandler(forward)
+	sessionA, sessionB := guardHandler(forward, ""), guardHandler(forward, "")
 
 	var wg sync.WaitGroup
 	for i := 0; i < 6; i++ {
