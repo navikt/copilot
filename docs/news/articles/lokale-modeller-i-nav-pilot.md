@@ -12,7 +12,7 @@ tags:
   - alpha
 ---
 
-Vi bruker rundt 45 000 dollar i måneden på GitHub Copilot for 650 utviklere. Siden 1. juni betaler vi per token, i AI-credits, og de tyngste brukerne er tomme før måneden er det. En modell som kjører på din egen maskin trekker ingen credits. Ingen.
+Vi bruker rundt 45 000 dollar i måneden på GitHub Copilot for 650 utviklere. Siden 1. juni betaler vi per token, i AI-credits, og de tyngste brukerne har brukt opp creditsene sine før måneden er omme. En modell som kjører på din egen maskin trekker ingen credits. Ingen.
 
 Det er den enkle motivasjonen. Den andre er at vi vil vite hva slike modeller faktisk duger til, mens vi fortsatt kan velge selv. Maskinvaren står allerede på pultene, modellene blir bedre for hvert kvartal, og vi vil heller ha et svar fra våre egne målinger enn fra en leverandørs benchmark.
 
@@ -28,13 +28,13 @@ nav-pilot alpha local start
 nav-pilot alpha local status
 ```
 
-Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar 23 GB på disk, rundt 21 GB i minnet mens den kjører, og krever en Mac med 48 GB.
+Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar rundt 26 GB på disk med Python-miljøet, holder 21 GB i minnet mens den kjører, og krever en Mac med Apple Silicon og 48 GB minne. Du må også heve en minnegrense i macOS med `sudo`, og den nullstilles hver gang du starter maskinen.
 
 ## Hva vi har målt, og hvor lite det betyr
 
-146 målinger som besto validitetskontrollene, på én maskin, mot ett Kotlin-repo. Kort fortalt: er arbeidet mekanisk og spesifisert på forhånd, gjør modellen det oftest, og det koster ingen credits.
+146 gyldige målinger, på én maskin, mot ett Kotlin-repo. Kort fortalt: er arbeidet mekanisk og spesifisert på forhånd, gjør modellen det oftest, og det koster ingen credits.
 
-Å tre et nytt felt gjennom en dataklasse, mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten. Testresultatet var likt. Det tok lengre tid: 156 sekunder mot 100. I en annen kjøring døpte modellen om 46 forekomster i 10 filer helt alene, uten skymodell inne i bildet, og prosjektet kompilerte etterpå.
+Å legge til et nytt felt i en dataklasse og oppdatere mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten. Testresultatet var likt. Det tok lengre tid: 156 sekunder mot 100. I en annen kjøring døpte modellen om 46 forekomster i 10 filer helt alene, uten skymodell inne i bildet, og prosjektet kompilerte etterpå.
 
 Det nyttigste vi fant, er hvor skillet går: modellen er god til å gjennomføre en beslutning som allerede er tatt, og dårlig til å ta den selv. Ber du den skrive en ny testfil fra bunnen, gjør den ingenting.
 
@@ -54,7 +54,7 @@ Poenget med alfaen er ikke å bekrefte tallene over, men å finne ut hva som skj
 
 Vi vil særlig vite:
 
-- Om noe henger. Kjør `nav-pilot alpha local status` med en gang det skjer. Den kommandoen fant en hengt server riktig på første forsøk hos oss, og er det raskeste vi har for å skille «treg» fra «død».
+- Om noe henger. Kjør `nav-pilot alpha local status` med en gang det skjer. Hos oss har den skilt «treg» fra «død», men den har bare vært prøvd én gang.
 - Om en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
 - Om ventetiden er verdt det i praksis. Lokal kjøring er gratis, men langsommere, og bare du vet om det er en god byttehandel midt i en arbeidsdag.
 - Hva du prøvde å bruke det til som vi ikke har tenkt på.

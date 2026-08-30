@@ -1979,8 +1979,9 @@ function LocalModelSection() {
           </BodyLong>
           <BodyLong className="mt-3" style={{ color: "#475569" }}>
             Dette er alfa, og av som standard. Ingenting endres før du kjører{" "}
-            <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med 48 GB minne og rundt 23 GB ledig
-            disk.
+            <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med Apple Silicon og 48 GB minne, og
+            rundt 26 GB ledig disk: 25 GB vekter pluss Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes
+            for M-brikkene.
           </BodyLong>
         </div>
 
@@ -1996,8 +1997,20 @@ function LocalModelSection() {
 nav-pilot alpha local start     # starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
 nav-pilot alpha local stop
-nav-pilot alpha local off       # skrur av utsending igjen`}
+nav-pilot alpha local on        # skru på igjen etter off
+nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
+nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
+          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fef2f2" }}>
+            <Label size="small">Minnegrensen må heves, og den nullstilles ved omstart</Label>
+            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              macOS lar ikke GPU-en låse nok minne til en modell på denne størrelsen som standard.{" "}
+              <code className="font-mono text-xs">start</code> nekter til grensen er hevet, og skriver ut kommandoen du
+              trenger: <code className="font-mono text-xs">sudo sysctl -w iogpu.wired_limit_mb=36864</code>. Den
+              nullstilles hver gang du starter maskinen, så den må kjøres på nytt. Grensen er et tak og ikke en
+              reservasjon: den tar ikke minne fra andre programmer før modellen faktisk bruker det.
+            </BodyLong>
+          </Box>
           <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
             Klienten din avgjør hva du får. <code className="font-mono text-xs">nav-pilot config get client</code> sier
             hvilken du kjører.
@@ -2015,23 +2028,23 @@ nav-pilot alpha local off       # skrur av utsending igjen`}
             Hva den klarer
           </LinkableHeading>
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Målt i lab på ett Kotlin-repo, ikke i daglig bruk. Hovedregelen: den er god til å gjennomføre en beslutning
-            som allerede er tatt, og dårlig til å ta den selv.
+            Målt i et kontrollert testoppsett på ett Kotlin-repo, ikke i daglig bruk. Hovedregelen: den er god til å
+            gjennomføre en beslutning som allerede er tatt, og dårlig til å ta den selv.
           </BodyShort>
           <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
             <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
               <Label size="small">Fungerer</Label>
               <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
                 Slå opp noe i koden. Legge til en kommentar. Døpe om et symbol i mange filer. Tre et felt gjennom en
-                mapper og kallstedene. På de største endringene lykkes den omtrent to av tre ganger, og feilene fanges
-                av testene.
+                mapper og kallstedene. I våre kjøringer lyktes den omtrent to av tre ganger på de største endringene, og
+                der fanget testene feilene.
               </BodyLong>
             </Box>
             <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
               <Label size="small">Fungerer ikke</Label>
               <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
-                Skrive en ny fil fra bunnen: da gjør den ingenting i det hele tatt. Oppgaver der noe må vurderes
-                underveis, eller der en feil endring er dyr.
+                Skrive en ny fil fra bunnen: i våre forsøk gjorde den da ingenting i det hele tatt. Oppgaver der noe må
+                vurderes underveis, eller der en feil endring er dyr.
               </BodyLong>
             </Box>
           </HGrid>
@@ -2063,8 +2076,15 @@ nav-pilot alpha local off       # skrur av utsending igjen`}
 # står det hung: nav-pilot alpha local stop && nav-pilot alpha local start`}
           </CodeBlock>
           <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
-            Serveren svarer på én forespørsel om gangen, så flere oppgaver står i kø framfor å kjøre parallelt. Det er
-            med vilje: samtidige forespørsler får serveren til å henge.
+            nav-pilot slipper gjennom én forespørsel om gangen, så flere oppgaver står i kø framfor å kjøre parallelt.
+            Det er med vilje: serveren selv tar imot samtidige forespørsler og henger seg opp på dem, så ikke kall den
+            direkte utenom nav-pilot.
+          </BodyLong>
+          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+            To ting til, som du vil møte før noe dokument nevner dem. nav-pilot avslutter en tur hvis modellen gjentar
+            det samme verktøykallet åtte ganger på rad, og sier fra i økten: det er en vakt mot at den setter seg fast,
+            ikke en feil i koden din. Og starter du serveren på nytt midt i en økt, må økten startes på nytt også; den
+            gamle er bundet til serveren som forsvant.
           </BodyLong>
           <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
             Si fra med <code className="font-mono text-xs">nav-pilot feedback</code> om noe henger, om en endring

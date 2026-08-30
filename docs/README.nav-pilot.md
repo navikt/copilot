@@ -127,14 +127,16 @@ nav-pilot feedback
 ## Lokal modell (alfa, av som standard)
 
 `nav-pilot alpha local` kjører en modell på din egen maskin. Den trekker ingen AI-credits.
-Krever en Mac med 48 GB minne og rundt 23 GB ledig disk.
+Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. macOS-minnegrensen må også heves med `sudo`, og den nullstilles ved omstart: `start` nekter og skriver ut kommandoen.
 
 ```bash
 nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
 nav-pilot alpha local start     # starter serveren, tar noen minutter første gang
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
 nav-pilot alpha local stop
-nav-pilot alpha local off       # skrur av utsending igjen
+nav-pilot alpha local on        # skru på igjen etter off
+nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
+nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 ```
 
 Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
@@ -150,7 +152,7 @@ oppgaver der modellen må finne ut hva som skal gjøres.
 
 ### Hva den er god og dårlig til
 
-Målt i lab, på ett Kotlin-repo, på én maskin. Den utfører en avgjørelse godt og tar en
+Målt i et kontrollert testoppsett, på ett Kotlin-repo, på én maskin. Den utfører en avgjørelse godt og tar en
 avgjørelse dårlig.
 
 | Fungerer | Fungerer ikke |
@@ -158,9 +160,9 @@ avgjørelse dårlig.
 | Slå opp noe i koden | Skrive en ny fil fra bunnen |
 | Legge til kommentarer og loggsetninger | Finne ut hvilke filer en endring treffer |
 | Døpe om et symbol i mange filer | Endringer som krever en vurdering per fil |
-| Tre et felt gjennom en mapper | Oppgaver der en feil endring er dyr |
+| Legge til et felt og oppdatere mapperen | Oppgaver der en feil endring er dyr |
 
-Den er langsommere enn skyen. Regn med to til tre ganger så lang tid på det den klarer.
+Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På den største mekaniske endringen vi målte var den raskere enn skyen.
 
 ### Når noe henger
 
