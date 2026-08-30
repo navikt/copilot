@@ -1,9 +1,9 @@
 ---
-title: "Lokale modeller i nav-pilot — hva vi målte, og hva vi ikke vet"
-date: 2026-08-29
+title: "Lokale modeller i nav-pilot: hvorfor vi prøver, og hva vi trenger hjelp til"
+date: 2026-08-30
 author: starefossen
 category: praksis
-excerpt: "nav-pilot kan nå sende avgrensede oppgaver til en modell som kjører på din egen maskin. Her er hva vi målte over en uke med benchmarking: hva modellen klarer, hva den ikke klarer, og hvorfor vi ennå ikke vet om det sparer penger."
+excerpt: "nav-pilot kan nå sende avgrensede oppgaver til en modell som kjører på din egen maskin. Alt vi vet så langt kommer fra lab, ikke fra folk som gjør jobben sin. Det er derfor vi kjører en alfa."
 tags:
   - nav-pilot
   - local-models
@@ -12,13 +12,15 @@ tags:
   - alpha
 ---
 
-Vi bruker rundt 45 000 dollar i måneden på GitHub Copilot for 650 utviklere, og de tyngste brukerne treffer taket på 400 dollar før måneden er omme. Kan en modell som kjører på utviklerens egen maskin ta unna nok av de små oppgavene til at taket rekker lenger?
+Vi bruker rundt 45 000 dollar i måneden på GitHub Copilot for 650 utviklere. Siden 1. juni betaler vi per token, i AI-credits, og de tyngste brukerne er tomme før måneden er det. En modell som kjører på din egen maskin trekker ingen credits. Ingen.
 
-Det vet vi ikke ennå. Det vi vet, er at modellen løser en avgrenset del av arbeidet godt nok til at det er verdt å prøve. `nav-pilot alpha local` er nå ute til testing.
+Det er den enkle motivasjonen. Den andre er at vi vil vite hva slike modeller faktisk duger til, mens vi fortsatt kan velge selv. Maskinvaren står allerede på pultene, modellene blir bedre for hvert kvartal, og vi vil heller ha et svar fra våre egne målinger enn fra en leverandørs benchmark.
 
-## Hva du får
+`nav-pilot alpha local` er nå ute til testing.
 
-En lokal modell som hovedagenten sender avgrensede oppgaver til: les en fil og svar, legg til en kommentar, døp om et symbol, skriv en test. Den planlegger ikke, fører ingen samtale og velger ikke hva som skal gjøres. Hovedagenten kjører fortsatt i skyen.
+## Hva det er
+
+En lokal modell som hovedagenten kan sende avgrensede oppgaver til: slå opp noe i koden, legge til en kommentar, døpe om et symbol, tre et felt gjennom en mapper. Den planlegger ikke, fører ingen samtale og velger ikke hva som skal gjøres. Hovedagenten kjører fortsatt i skyen og bestemmer fortsatt alt.
 
 ```
 nav-pilot alpha local init      # laster ned og setter opp
@@ -26,37 +28,41 @@ nav-pilot alpha local start
 nav-pilot alpha local status
 ```
 
-## Hva vi målte
+Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar 23 GB på disk, rundt 21 GB i minnet mens den kjører, og krever en Mac med 48 GB.
 
-Vi kjørte elleve realistiske oppgaver mot `navikt/isoppfolgingstilfelle` og de samme elleve mot en Nav-frontend i TypeScript. Åtte av dem kan avgjøres maskinelt, ved å kompilere eller kjøre testsuiten; de tre siste er spørsmål som må leses av et menneske. Tabellen teller de åtte. Ingenting er verifisert ved å ta modellen på ordet.
+## Hva vi har målt, og hvor lite det betyr
 
-| | Kotlin | TypeScript |
-|---|---|---|
-| Median per oppgave | 21 sekunder | 15 sekunder |
-| Verifisert riktig | 4 av 8 | 6 av 8 |
+146 verifiserte målinger, på én maskin, mot ett Kotlin-repo. Kort fortalt: er arbeidet mekanisk og spesifisert på forhånd, gjør modellen det, og det koster ingenting.
 
-Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar 25 GB på disk og rundt 21 GB i minnet mens den kjører, og krever en maskin med 48 GB minne.
+Å tre et nytt felt gjennom en dataklasse, mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten. Testresultatet var likt. Det tok lengre tid: 156 sekunder mot 100. I en annen kjøring døpte modellen om 46 forekomster i 10 filer helt alene, uten skymodell inne i bildet, og prosjektet kompilerte etterpå.
 
-## Hva den ikke klarer
+Det nyttigste vi fant, er hvor skillet går: modellen utfører en avgjørelse godt og tar en avgjørelse dårlig. Ber du den skrive en ny testfil fra bunnen, gjør den ingenting.
 
-Den vanligste feilen er at den ikke gjør noe: den leser filene, forklarer hva som burde endres og stopper der. Det koster deg et minutt.
+**Men dette er lab.** Alle tallene over kommer fra enkeltoppgaver i et rent repo, på én maskin, uten avbrytelser, uten halvferdig arbeid liggende og uten en kollega som venter. Ingen har brukt dette en hel arbeidsdag på ekte kode. Vi vet ikke hvordan det oppfører seg når du har tre ting i gang samtidig, når repoet er stort og rotete, eller når du har dårlig tid.
 
-Den nest vanligste er verre. Omtrent én gang per elleve oppgaver gjentok modellen den samme kommandoen til noe stoppet den. Vi målte serier på 203 og 220 like kall. nav-pilot avbryter nå en tur etter åtte like kall på rad, så du skal få en feilmelding i stedet for en maskin som står og maler.
+Vi har heller ikke tall som betyr noe for Spring, som er mesteparten av det som står i produksjon i dag, eller for frontend.
 
-Vi valgte OptiQ-varianten nettopp derfor: den vanlige 4-bit-varianten løp løpsk i begge de fulle kjøringene våre, OptiQ i ingen av dem.
+## En ting vi trodde, og tok feil om
 
-## Hva vi ikke vet
+Vi så at hovedagenten aldri sendte visse oppgaver videre, og antok at den var for forsiktig. Så skrev vi om instruksjonen for å oppmuntre den til å sende mer. Den begynte å sende, og halvparten av de utsendte oppgavene ble feil.
 
-**På én oppgavetype sparer det penger, og vi har målt hvor mye.** Å tre et nytt felt gjennom en dataklasse, mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten, som median over 20 kjøringer på samme oppgave og samme commit. Testresultatet var det samme i begge armene. Det tok lengre tid: 156 sekunder mot 100.
+Hovedagenten hadde rett. Den vet bedre enn oss når den lokale modellen bør få en oppgave, og vi har rullet endringen tilbake. Vi nevner det fordi det sier noe om hvor mye vi vet: nok til at det er verdt å prøve, ikke nok til å overstyre verktøyet.
 
-Det gjelder den oppgavetypen, ikke alle. To andre oppgaver vi målte sendte hovedagenten aldri videre i det hele tatt — den vurderte at den gjorde jobben raskere selv, og den hadde antakelig rett. Hvor ofte den velger å sende noe videre er tallet som avgjør om dette lønner seg i praksis, og det varierer med oppgaven.
+## Det er derfor vi kjører en alfa
 
-**Ingen har brukt dette en hel arbeidsdag.** Alle tallene over kommer fra kjøringer med elleve oppgaver, ikke fra noen som satt og gjorde jobben sin.
+Poenget med alfaen er ikke å bekrefte tallene over, men å finne ut hva som skjer når folk bruker dette på ekte oppgaver, i repoer vi ikke har testet, med arbeidsvaner vi ikke har simulert.
 
-**Spring er ikke testet.** Kotlin-tallene våre er fra Ktor-kode, som er der nye Nav-apper havner. Spring er mesteparten av det som allerede står der ute.
+Vi vil særlig vite:
+
+- Om noe henger. Kjør `nav-pilot alpha local status` med en gang det skjer. Den kommandoen fant en hengt server riktig på første forsøk hos oss, og er det raskeste vi har for å skille «treg» fra «død».
+- Om en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
+- Om ventetiden er verdt det i praksis. Lokalt er gratis, men det er langsommere, og bare du vet om det er en god byttehandel midt i en arbeidsdag.
+- Hva du prøvde å bruke det til som vi ikke har tenkt på.
+
+Negative erfaringer er like nyttige som positive. Blir konklusjonen at dette ikke er verdt bryet i praksis, er det et helt greit svar, og bedre å få det nå enn om et år.
 
 ## Vil du være med?
 
-Meld deg hvis du har en Mac med 48 GB minne og bruker opp AI-creditsene dine. Vi vil særlig vite om noe henger i mer enn to minutter, om en løkke slipper forbi vakten på åtte kall, og om en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
+Meld deg hvis du har en Mac med 48 GB minne og bruker opp AI-creditsene dine.
 
-Alle målingene ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), inkludert de som gikk galt.
+Alle målingene og metoden ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), inkludert kjøringene som gikk galt og feilene vi gjorde i selve måleoppsettet.
