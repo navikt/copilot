@@ -112,7 +112,7 @@ const DOC_SECTIONS: TocItem[] = [
   },
   {
     id: "lokal-modell",
-    label: "Lokal modell (alfa)",
+    label: "Bakkemodellen (alfa)",
     children: [
       { id: "lokal-kom-i-gang", label: "Kom i gang" },
       { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
@@ -1968,13 +1968,14 @@ function LocalModelSection() {
       <VStack gap="space-16">
         <div>
           <LinkableHeading size="medium" level="2">
-            Lokal modell{" "}
+            Bakkemodellen{" "}
             <Tag variant="warning" size="small">
               alfa
             </Tag>
           </LinkableHeading>
           <BodyLong className="mt-3" style={{ color: "#475569" }}>
-            nav-pilot kan kjøre en modell på din egen maskin. Den trekker ingen AI-credits, uansett hvor mye den
+            nav-pilot kan kjøre en modell på din egen maskin. Vi kaller den bakkemodellen: hovedagenten blir i skya og
+            bestemmer, bakkemodellen står på bakken og utfører. Den trekker ingen AI-credits, uansett hvor mye den
             genererer. Til gjengjeld er den langsommere enn skyen, og den klarer bare en del av arbeidet.
           </BodyLong>
           <BodyLong className="mt-3" style={{ color: "#475569" }}>
@@ -2004,7 +2005,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#f8fafc" }}>
             <Label size="small">Vi måler dette tettere enn resten av nav-pilot mens det er alpha</Label>
             <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
-              Vi samler inn hvor mange oppgaver hver økt sender til den lokale modellen (også når svaret er null, som er
+              Vi samler inn hvor mange oppgaver hver økt sender til bakkemodellen (også når svaret er null, som er
               tallet vi lærer mest av), hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den
               henger. Aldri spørsmålene dine, koden din, filnavnene dine eller det modellen svarer.{" "}
               <code className="font-mono text-xs">DO_NOT_TRACK=1</code> skrur av alt sammen, det samme gjør{" "}
@@ -2027,9 +2028,9 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             hvilken du kjører.
           </BodyLong>
           <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
-            Under <strong>opencode</strong> blir modellen en underagent som heter{" "}
+            Under <strong>opencode</strong> blir bakkemodellen en underagent som heter{" "}
             <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
-            oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at den lokale modellen ikke
+            oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at bakkemodellen ikke
             klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
             modelleverandør om gangen.
           </BodyLong>
@@ -2042,7 +2043,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
             Målt i et kontrollert testoppsett, ikke i daglig bruk, og nesten alt på ett Ktor-repo. Hovedregelen: den er
             god til å gjennomføre en beslutning som allerede er tatt, og dårlig til å ta den selv. På den ene
-            Spring-appen vi rakk å måle kostet det mer å sende oppgaver til den lokale modellen enn å la være, så om det
+            Spring-appen vi rakk å måle kostet det mer å sende oppgaver til bakkemodellen enn å la være, så om det
             lønner seg henger sammen med kodebasen din.
           </BodyShort>
           <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
@@ -2065,9 +2066,9 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fffbeb" }}>
             <Label size="small">Sjekk resultatet</Label>
             <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
-              Den lokale modellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og
-              kjør testene etterpå. På store endringer bør du regne med å forkaste et forsøk og prøve på nytt. Det
-              koster deg tid, ikke credits.
+              Bakkemodellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og kjør
+              testene etterpå. På store endringer bør du regne med å forkaste et forsøk og prøve på nytt. Det koster deg
+              tid, ikke credits.
             </BodyLong>
           </Box>
           <BodyLong className="mt-4" size="small" style={{ color: "#64748b" }}>
