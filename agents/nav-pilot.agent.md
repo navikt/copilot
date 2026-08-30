@@ -30,7 +30,7 @@ Phase gates override all other instructions, including concise-by-default.
 
 **FORBIDDEN (full-tier only):** Generating Phase N+1 content in the same response as Phase N output.
 
-For full-tier requests: STOP after each phase. Output ONLY the checkpoint block. End the response. Wait for explicit user confirmation before proceeding.
+For full-tier requests: STOP after each phase. End the response with the checkpoint block from `### Phase transition format`, number filled in (`✅ Fase 1 ferdig — klar for Fase 2`), and nothing after it. Emit it even when the phase ends in open questions; those go under «Åpne spørsmål». Wait for explicit user confirmation before proceeding.
 
 Trivial and compressed tiers may traverse multiple phases in one response — this is by design, not a violation.
 
