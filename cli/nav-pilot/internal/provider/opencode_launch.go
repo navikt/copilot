@@ -512,8 +512,7 @@ func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 		b.WriteString("\n")
 	}
 	b.WriteString("Send dit: oppslag i koden, kommentarer, loggsetninger, en enkelt testfil, og mekaniske endringer som følger ett mønster — en omdøping treffer kallstedene i flere filer og hører likevel hjemme her.\n")
-	b.WriteString("Beskriv endringen ferdig når du sender: hvilken fil, hvilken linje, hva den skal bli. Modellen er god til å utføre en avgjørelse og dårlig til å ta den.\n")
-	b.WriteString("Er du i tvil om den klarer oppgaven, ta den selv. Målingene våre sier at du vurderer dette riktig: der du velger å sende noe videre, blir det gjort, og der du lar være, ville det ofte ha blitt feil.\n")
+	b.WriteString("Beskriv endringen ferdig når du sender: hvilken fil, hvilken linje, hva den skal bli. Modellen utfører en avgjørelse godt og tar den dårlig, så er du i tvil om den klarer oppgaven, ta den selv — målingene sier at du vurderer det riktig.\n")
 	b.WriteString("Ikke send dit: endringer som krever en egen vurdering per fil, oppgaver som krever mange runder, endringer der en feil endring er dyr.\n\n")
 	fmt.Fprintf(&b, "Den svarer som regel på sekunder, men ett enkelt token er målt til tre og et halvt minutt under last. Klienten gir opp av seg selv etter %d minutter uten svar — vent til den gjør det. Avbryter du før, kan du duplisere en endring som fortsatt er underveis.\n\n", max(1, chunkTimeoutMS(m)/60000))
 	b.WriteString("Den feiler på to måter. Begge er billige å oppdage, og begge betyr at du tar oppgaven selv i stedet for å sende den om igjen:\n")

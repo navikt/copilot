@@ -183,9 +183,31 @@ func ownershipGate() func() error {
 // anticipate would break working sessions to protect them.
 func guardHandler(proxy http.Handler) http.Handler {
 	owned := ownershipGate()
+	// One completion at a time. mlx-lm batches concurrent requests into shared
+	// attention, and with prompts of different lengths that batching raises
+	// [broadcast_shapes] and leaves the server hung — alive, accepting
+	// connections, answering nothing, and unrecoverable without a restart. It is
+	// an upstream bug (ml-explore/mlx-lm #1139, #1256) and not one we can fix, but
+	// it is trivially reachable from here: a cloud orchestrator that fans a
+	// refactor out across ten files dispatches ten subagents at once, which is
+	// exactly what an orchestrator asked to work file by file decided to do. It
+	// wedged the server on the first try and took local inference down for the
+	// whole machine.
+	//
+	// Serialising costs nothing real. One local model on one GPU has no spare
+	// capacity for a second stream anyway; the requests were already going to
+	// queue, and now they queue somewhere that cannot corrupt a KV cache.
+	oneAtATime := make(chan struct{}, 1)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
 			proxy.ServeHTTP(w, r)
+			return
+		}
+		select {
+		case oneAtATime <- struct{}{}:
+			defer func() { <-oneAtATime }()
+		case <-r.Context().Done():
+			// The client gave up while queued. Nothing to answer.
 			return
 		}
 		if err := owned(); err != nil {
