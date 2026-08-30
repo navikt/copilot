@@ -275,8 +275,10 @@ func TestEnsureEnvProvisionsAMissingEnvironment(t *testing.T) {
 		t.Fatalf("EnsureEnv() errored: %v", err)
 	}
 	// The pins are the point of the whole step, so they are asserted on the
-	// argument vectors and not only on the outcome.
-	for _, want := range []string{"--python " + pythonVersion, "mlx-lm==" + mlxLMVersion, "mlx==" + mlxVersion} {
+	// argument vectors and not only on the outcome. The install refuses anything
+	// whose bytes are not in the lockfile: without --require-hashes, mlx-lm and
+	// mlx are pinned and everything they pull is not.
+	for _, want := range []string{"--python " + pythonVersion, "--require-hashes", "requirements.txt"} {
 		if !ranWith(*calls, want) {
 			t.Errorf("EnsureEnv() ran %v, want a command carrying %q", *calls, want)
 		}
@@ -1251,5 +1253,24 @@ func seedWeights(t *testing.T, model string) {
 		if err := os.WriteFile(filepath.Join(snap, name), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// TestLockfilePinsTheVersionsTheCodeNames: the lockfile and the constants must
+// agree, or the stamp records a version the environment does not have.
+//
+// They drift silently. mlxLMVersion and mlxVersion decide what `Installed()`
+// compares against, and the lockfile decides what is actually installed; nothing
+// but this test connects them, and the recipe for regenerating one lives in the
+// other's header.
+func TestLockfilePinsTheVersionsTheCodeNames(t *testing.T) {
+	got := string(requirementsTxt)
+	for _, want := range []string{"mlx-lm==" + mlxLMVersion, "mlx==" + mlxVersion} {
+		if !strings.Contains(got, want) {
+			t.Errorf("requirements.txt does not pin %q; regenerate it with the recipe in its header", want)
+		}
+	}
+	if !strings.Contains(got, "--hash=sha256:") {
+		t.Error("requirements.txt carries no hashes, so --require-hashes buys nothing")
 	}
 }
