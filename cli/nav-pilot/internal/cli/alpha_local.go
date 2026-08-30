@@ -679,6 +679,7 @@ func applyLocalConfig() {
 		local.SetActive(m)
 	}
 	local.SetEnabled(true)
+	local.SetAutostart(r.LocalAutostart)
 }
 
 // ─── purge ───────────────────────────────────────────────────────────────────

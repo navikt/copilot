@@ -146,6 +146,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "",
 	},
 	{
+		name:        "local_autostart",
+		kind:        keyKindBool,
+		description: "Start the local server automatically when a launch needs it and nothing is running. Off by default: the first start on a cold cache takes minutes.",
+		allowed:     nil,
+		defaultVal:  "false",
+		flag:        "",
+	},
+	{
 		name:        "local_loop_guard",
 		kind:        keyKindInt,
 		description: "Identical consecutive tool calls that end a local turn. Local models get stuck repeating one call; this is where nav-pilot stops them.",

@@ -298,6 +298,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.RtkPromptedAt != nil {
 			r.RtkPromptedAt = *file.RtkPromptedAt
 		}
+		if file.LocalAutostart != nil {
+			r.LocalAutostart = *file.LocalAutostart
+		}
 		if file.LocalEnabled != nil {
 			r.LocalEnabled = *file.LocalEnabled
 		}

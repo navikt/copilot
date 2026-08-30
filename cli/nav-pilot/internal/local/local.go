@@ -429,6 +429,17 @@ func SetEnabled(on bool) { enabled = on }
 // Enabled reports whether local dispatch is on.
 func Enabled() bool { return enabled }
 
+var autostart bool
+
+// SetAutostart records whether a launch may start the server itself. nav-pilot
+// sets it from config at startup, beside [SetEnabled].
+func SetAutostart(on bool) { autostart = on }
+
+// Autostart reports whether a launch may start the server when none is running.
+// Off by default: starting a 21 GB process is not something to do unasked, and
+// the first start on a cold cache takes minutes that would read as a hang.
+func Autostart() bool { return autostart }
+
 // IsLocal reports whether a model id is served locally *and* local dispatch is
 // enabled. This is the single predicate for that question: everything else in
 // the binary asks it rather than matching on the id itself, so the answer

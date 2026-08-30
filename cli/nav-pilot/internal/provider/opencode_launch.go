@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -689,6 +690,14 @@ var ensureOwnServer = local.EnsureOwnServer
 func localWorker() (local.Model, error) {
 	if !local.Enabled() {
 		return local.Model{}, nil
+	}
+	// Start one if the developer asked launches to, and say so: a cold start is
+	// minutes of silence otherwise, which reads as a hang rather than as work.
+	if err := local.EnsureServerRunning(context.Background(), func(model string) {
+		fmt.Fprintf(os.Stderr, "%s Starting the local %s server. The first start after a reboot takes minutes.\n",
+			domain.Dim("ℹ"), domain.Bold(model))
+	}); err != nil {
+		return local.Model{}, err
 	}
 	if err := ensureOwnServer(); err != nil {
 		return local.Model{}, err

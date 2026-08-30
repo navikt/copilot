@@ -35,6 +35,11 @@ type Config struct {
 	// no local models in the picker, no branch taken on any launch path.
 	// `nav-pilot alpha local init` sets it; `alpha local off` clears it.
 	LocalEnabled *bool `toml:"local_enabled"`
+	// LocalAutostart starts the local server on demand at launch, when local
+	// dispatch is on and nothing is running. Off by default, because starting a
+	// 21 GB process is not something to do without being asked, and because the
+	// first start on a cold cache takes minutes that would look like a hang.
+	LocalAutostart *bool `toml:"local_autostart"`
 	// LocalLoopGuard is how many identical consecutive tool calls end a local
 	// turn. Unset means the built-in default. It is a knob because the right
 	// number depends on the model and the task, not because anyone should
@@ -67,6 +72,7 @@ type ResolvedConfig struct {
 	RtkPromptedAt     string   // RFC3339 timestamp of when the user was last prompted
 	AutoUpdate        bool     // true to bypass upgrade prompt
 	LocalEnabled      bool     // local inference opt-in (alpha)
+	LocalAutostart    bool     // start the local server on demand at launch
 	LocalLoopGuard    int      // identical consecutive tool calls that end a local turn; 0 = built-in default
 	ExtraArgs         []string // pass-through arguments for the client
 }

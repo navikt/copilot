@@ -1316,3 +1316,62 @@ func sysctlInt(ctx context.Context, name string) (int64, error) {
 	}
 	return strconv.ParseInt(strings.TrimSpace(out), 10, 64)
 }
+
+// EnsureServerRunning starts the local server if autostart is on and nothing is
+// running, and returns without doing anything when a server is already up.
+//
+// The server is one per machine: it holds 21 GB and a warm prompt cache, so a
+// second is not a fallback, it is a machine with no memory left. Two launches
+// starting at the same moment must therefore converge on one rather than race,
+// which is what the lock is for. The loser waits, then finds the winner's server
+// recorded and attaches to it, so the outcome does not depend on who got there
+// first.
+//
+// Nothing here stops the server afterwards. A launch that started it leaves it
+// running on purpose: the prompt cache is worth more than the memory, and the
+// developer stops it when they choose.
+func EnsureServerRunning(ctx context.Context, announce func(string)) error {
+	if err := EnsureOwnServer(); err == nil {
+		return nil
+	}
+	if !Autostart() {
+		return fmt.Errorf("no local server is running.\n\n  Start one:\n\n    %s\n\n  Or have launches start it for you:\n\n    %s",
+			domain.Bold("nav-pilot alpha local start"),
+			domain.Bold("nav-pilot config set local_autostart true"))
+	}
+
+	release, err := lockServer(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	// Someone else may have started one while this was queued behind the lock.
+	// Checking again is what turns a race into a queue.
+	if err := EnsureOwnServer(); err == nil {
+		return nil
+	}
+
+	// The manifest already in hand, not a fetch: this runs inside a launch, and
+	// a connect timeout here would sit in front of every session started on a
+	// train.
+	manifest := Active()
+	if manifest == nil || len(manifest.Models) == 0 {
+		return errors.New("no local model is available in this nav-pilot's manifest")
+	}
+	m := manifest.Models[0]
+	if announce != nil {
+		announce(m.Model)
+	}
+	srv := &Server{}
+	if err := srv.Start(ctx, m); err != nil {
+		return err
+	}
+	status := srv.Status()
+	if status.Health != HealthReady || status.PID <= 0 {
+		_ = srv.Stop()
+		return fmt.Errorf("the local %s server did not come up (%s); what it printed is in %s",
+			m.Model, status.Health, LogPath())
+	}
+	return SaveState(State{PID: status.PID, Model: m.Model, Started: time.Now(), Port: srv.Port})
+}
