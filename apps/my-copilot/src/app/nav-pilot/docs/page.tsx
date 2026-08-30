@@ -1999,6 +1999,10 @@ nav-pilot alpha local stop
 nav-pilot alpha local off       # skrur av utsending igjen`}
           </CodeBlock>
           <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+            Klienten din avgjør hva du får. <code className="font-mono text-xs">nav-pilot config get client</code> sier
+            hvilken du kjører.
+          </BodyLong>
+          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
             Under <strong>opencode</strong> blir modellen en underagent som hovedagenten i skyen sender avgrensede
             oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at den lokale modellen ikke
             klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
@@ -2011,27 +2015,39 @@ nav-pilot alpha local off       # skrur av utsending igjen`}
             Hva den klarer
           </LinkableHeading>
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Målt i lab på ett Kotlin-repo, ikke i daglig bruk. Hovedregelen: den utfører en avgjørelse godt, og tar en
-            avgjørelse dårlig.
+            Målt i lab på ett Kotlin-repo, ikke i daglig bruk. Hovedregelen: den er god til å gjennomføre en beslutning
+            som allerede er tatt, og dårlig til å ta den selv.
           </BodyShort>
           <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
             <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
               <Label size="small">Fungerer</Label>
               <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
-                Slå opp noe i koden. Legge til kommentarer og loggsetninger. Døpe om et symbol i mange filer. Tre et
-                felt gjennom en mapper når du har sagt hvilke filer det gjelder.
+                Slå opp noe i koden. Legge til en kommentar. Døpe om et symbol i mange filer. Tre et felt gjennom en
+                mapper og kallstedene. På de største endringene lykkes den omtrent to av tre ganger, og feilene fanges
+                av testene.
               </BodyLong>
             </Box>
             <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
               <Label size="small">Fungerer ikke</Label>
               <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
-                Skrive en ny fil fra bunnen. Finne ut hvilke filer en endring treffer. Endringer som krever en egen
-                vurdering per fil, eller der en feil endring er dyr.
+                Skrive en ny fil fra bunnen: da gjør den ingenting i det hele tatt. Oppgaver der noe må vurderes
+                underveis, eller der en feil endring er dyr.
               </BodyLong>
             </Box>
           </HGrid>
+          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fffbeb" }}>
+            <Label size="small">Sjekk resultatet</Label>
+            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              Den lokale modellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og
+              kjør testene etterpå. På store endringer bør du regne med å forkaste et forsøk og prøve på nytt. Det
+              koster deg tid, ikke credits.
+            </BodyLong>
+          </Box>
           <BodyLong className="mt-4" size="small" style={{ color: "#64748b" }}>
-            Regn med to til tre ganger så lang tid som i skyen på det den faktisk klarer.
+            Tiden varierer mye: fra omtrent likt med skyen på små endringer til rundt fire ganger så lenge på en
+            omdøping. På store mekaniske endringer kan den være raskere enn skyen. Kjør{" "}
+            <code className="font-mono text-xs">stop</code> når du ikke bruker den; den holder rundt 21 GB minne så
+            lenge den er oppe.
           </BodyLong>
         </div>
 
@@ -2048,7 +2064,7 @@ nav-pilot alpha local off       # skrur av utsending igjen`}
           </CodeBlock>
           <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
             Serveren svarer på én forespørsel om gangen, så flere oppgaver står i kø framfor å kjøre parallelt. Det er
-            med vilje: samtidige forespørsler henger modellen.
+            med vilje: samtidige forespørsler får serveren til å henge.
           </BodyLong>
           <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
             Si fra med <code className="font-mono text-xs">nav-pilot feedback</code> om noe henger, om en endring
