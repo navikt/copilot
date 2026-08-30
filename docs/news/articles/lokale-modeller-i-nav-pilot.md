@@ -1,9 +1,9 @@
 ---
-title: "Lokale modeller i nav-pilot: hvorfor vi prøver, og hva vi trenger hjelp til"
+title: "Lokal modell i nav-pilot: alfa"
 date: 2026-08-30
 author: starefossen
 category: praksis
-excerpt: "nav-pilot kan nå sende avgrensede oppgaver til en modell som kjører på din egen maskin. Alt vi vet så langt kommer fra lab, ikke fra folk som gjør jobben sin. Det er derfor vi kjører en alfa."
+excerpt: "Dere vil ha flere tokens. Vi har ikke mer budsjett i år. Dette er svaret i mellomtiden: en modell som kjører på din egen maskin, for det mekaniske arbeidet."
 tags:
   - nav-pilot
   - local-models
@@ -12,59 +12,52 @@ tags:
   - alpha
 ---
 
-Vi bruker rundt 45 000 dollar i måneden på GitHub Copilot for 650 utviklere. Siden 1. juni betaler vi per token, i AI-credits, og de tyngste brukerne har brukt opp creditsene sine før måneden er omme. En modell som kjører på din egen maskin trekker ingen credits. Ingen.
+Dere vil ha flere tokens. Vi har ikke mer budsjett i år.
 
-Det er den enkle motivasjonen. Den andre er at vi vil vite hva slike modeller faktisk duger til, mens vi fortsatt kan velge selv. Maskinvaren står allerede på pultene, modellene blir bedre for hvert kvartal, og vi vil heller ha et svar fra våre egne målinger enn fra en leverandørs benchmark.
-
-`nav-pilot alpha local` er nå klar til testing.
-
-## Hva det er
-
-En lokal modell som hovedagenten kan sende avgrensede oppgaver til: døpe om et symbol i mange filer, tre et felt gjennom en mapper og kallstedene. Små oppslag og enkeltkommentarer beholder hovedagenten selv, fordi den går raskere enn å sende dem videre. Den lokale modellen planlegger ikke, fører ingen samtale og velger ikke hva som skal gjøres.
+Dette er svaret i mellomtiden. `nav-pilot alpha local` kjører en modell på din egen maskin. Hovedagenten sender den mekaniske delen av jobben dit, og den delen koster ingenting.
 
 ```
 nav-pilot alpha local init
 ```
 
-Det er hele oppsettet. Den laster ned modellen, setter opp miljøet, hever minnegrensen i macOS (den spør om passordet ditt) og starter serveren.
+Det er hele oppsettet. Krever Mac med Apple Silicon og 48 GB minne. Modellen tar 26 GB på disk og 21 GB i minnet mens den kjører. `init` spør om passordet ditt for å heve en minnegrense i macOS.
 
-Modellen er `Qwen3.6-35B-A3B-OptiQ-4bit`. Den tar rundt 26 GB på disk med Python-miljøet, holder 21 GB i minnet mens den kjører, og krever en Mac med Apple Silicon og 48 GB minne. `init` hever en minnegrense i macOS underveis og spør om passordet ditt når den gjør det.
+## Hva det er
 
-## Hva vi har målt, og hvor lite det betyr
+Hovedagenten er den samme som før, i skyen. Den sender bort arbeid som allerede er bestemt: døpe om et symbol på tvers av filer, tre et nytt felt gjennom mapperen og kallstedene. Én kjøring døpte om 46 forekomster i 10 filer uten skymodell inne i bildet, og prosjektet kompilerte.
 
-183 gyldige målinger, på én maskin, mot to Kotlin-repoer. Kort fortalt: er arbeidet mekanisk og spesifisert på forhånd, gjør modellen det oftest, og det koster ingen credits.
+## Hva det ikke er
 
-Å legge til et nytt felt i en dataklasse og oppdatere mapperen og alle kallstedene kostet 13 AI-credits med lokal utsending mot 34 uten. Testresultatet var likt. Det tok lengre tid: 156 sekunder mot 100. I en annen kjøring døpte modellen om 46 forekomster i 10 filer helt alene, uten skymodell inne i bildet, og prosjektet kompilerte etterpå.
+Ikke en erstatning for skymodellen. Den lokale modellen planlegger ikke, tar ingen beslutninger og fører ingen samtale.
 
-**Men den besparelsen følger ikke med over til Spring.** Vi kjørte den samme oppgaven mot en Spring-app til slutt, og der kostet lokal utsending mer enn å la være: 15 credits mot 9, og det tok lengre tid. Motsatt fortegn av Kotlin-tallene, med samme modell og samme oppsett. Fire kjøringer per arm, så størrelsen på forskjellen vet vi ikke, men retningen er tydelig nok til å si det høyt: besparelsen er ikke en egenskap ved modellen alene, den henger sammen med kodebasen. Kvaliteten holdt begge steder.
+Ikke noe som skriver ny kode. Ber du om en ny testfil fra bunnen, gjør den ingenting. Den gjennomfører en beslutning godt og tar den dårlig.
 
-Det nyttigste vi fant, er hvor skillet går: modellen er god til å gjennomføre en beslutning som allerede er tatt, og dårlig til å ta den selv. Ber du den skrive en ny testfil fra bunnen, gjør den ingenting.
+Ikke raskere. Som regel tregere.
 
-**Men dette er lab.** Alle tallene over kommer fra enkeltoppgaver i et rent repo, på én maskin, uten avbrytelser, uten halvferdig arbeid i repoet og uten en kollega som venter. Ingen har brukt dette en hel arbeidsdag på ekte kode. Vi vet ikke hvordan det oppfører seg når du har tre ting i gang samtidig, når repoet er stort og rotete, eller når du har dårlig tid.
+Ikke prøvd av noen som har brukt den en hel arbeidsdag.
 
-Vi har fire kjøringer på Spring og ingenting på frontend. Spring utgjør mesteparten av det som står i produksjon i dag, så det er der vi vet minst og trenger mest.
+## Hva vi vet
 
-## En ting vi trodde, og tok feil om
+183 målinger, én maskin, to Kotlin-repoer.
 
-Vi så at hovedagenten aldri sendte visse oppgaver videre, og antok at den var for forsiktig. Så skrev vi om instruksjonen for å oppmuntre den til å sende mer. Den sendte to oppgaver videre, og den ene kom tilbake med en test som ikke lenger virket. De seks kjøringene der den lot være, gikk alle bra.
+I Ktor-repoet kostet en oppgave 13 AI-credits med lokal utsending mot 34 uten. Samme testresultat. Det tok 156 sekunder mot 100.
 
-I dette forsøket hadde hovedagenten rett, og vi rullet endringen tilbake. To utsendinger er et tynt grunnlag for en regel, og det er nettopp poenget: vi vet nok til at dette er verdt å prøve, ikke nok til å overstyre verktøyet.
+I Spring-repoet snudde det. 16 credits mot 9, altså dyrere lokalt, med samme modell og samme oppsett. Besparelsen henger sammen med kodebasen, ikke bare med modellen. Spring er mesteparten av det vi har i produksjon, så det er der vi vet minst.
 
-## Det er derfor vi kjører en alfa
+Alt dette er lab. Enkeltoppgaver, rent repo, ingen avbrytelser, ingen som venter.
 
-Poenget med alfaen er ikke å bekrefte tallene over, men å finne ut hva som skjer når folk bruker dette på ekte oppgaver, i repoer vi ikke har testet, med arbeidsvaner vi ikke har simulert.
+## Hva vi trenger fra deg
 
-Vi vil særlig vite:
+- Kjør `nav-pilot alpha local status` med en gang noe henger.
+- Si fra hvis en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
+- Si fra om ventetiden er verdt det midt i en arbeidsdag. Bare du vet det.
 
-- Om noe henger. Kjør `nav-pilot alpha local status` med en gang det skjer. Hos oss har den skilt «treg» fra «død», men den har bare vært prøvd én gang.
-- Om en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
-- Om ventetiden er verdt det i praksis. Lokal kjøring er gratis, men langsommere, og bare du vet om det er en god byttehandel midt i en arbeidsdag.
-- Hva du prøvde å bruke det til som vi ikke har tenkt på.
+At det ikke er verdt bryet er et like nyttig svar som det motsatte, og bedre å få nå enn om et år.
 
-Negative erfaringer er like nyttige som positive. Blir konklusjonen at dette ikke er verdt bryet i praksis, er det et helt greit svar, og bedre å få det nå enn om et år.
+Mens dette er alfa måler vi det tettere enn resten av nav-pilot: hvor mange oppgaver hver økt sender til modellen, hvilken modell, oppstartstid, og når serveren henger. Aldri koden din eller det du skriver. `DO_NOT_TRACK=1` skrur det av.
 
-## Vil du være med?
+## Bli med
 
-Meld deg i #nav-pilot på Slack hvis du har en Mac med 48 GB minne og bruker opp AI-creditsene dine. Vi tar inn én om gangen i starten, så vi rekker å følge opp ordentlig.
+Si fra i #nav-pilot. Vi tar inn én om gangen i starten.
 
-Alle målingene og metoden ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), inkludert kjøringene som gikk galt og feilene vi gjorde i selve måleoppsettet.
+Målinger og metode ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), inkludert kjøringene som gikk galt.
