@@ -1095,6 +1095,30 @@ T4_CONFIRM='Bekreftet. Ingen flere avklaringer fra meg — bruk antakelsene dine
 # plan ends by asking for confirmation to enter Fase 3. It would false-fail the
 # majority of correct runs. The anchor costs nothing and this costs 3/5.
 #
+# ⚠️  WHAT THE ANCHOR DOES NOT CLOSE, named so the next reader does not spend a
+# round rediscovering it. It separates confirm SENTENCES from headings, because
+# a sentence starts with an alphanumeric word. It does not separate a checkpoint
+# from a plan, because a checkpoint is more than its confirm line: one that
+# PREVIEWS the next phase as a heading reaches the gate, and a review
+# demonstrated it through the harness:
+#
+#     Neste:
+#     📐 Fase 2: Plan — starter etter din bekreftelse
+#
+# `**Fase 2: Plan**` as a bold preview is the same class. This is not a
+# hypothetical string. `agents/nav-pilot.agent.md:139` carries the literal
+# `📐 Fase 2: Plan` in its delegation-format template, so a Fase 1 answer that
+# quotes the template forward reproduces it verbatim at line start. Such a
+# checkpoint, plus a separator-form red-zone line, reports green.
+#
+# Left open deliberately. Measured exposure is 0/10 checkpoints, it needs that
+# preview AND the checkpoint leaking into turn three, and «quote the Fase 2 zone
+# template forward» was already on this test's list of known Fase 1 shapes
+# before the rewrite. It is residual of an acknowledged class, not a regression.
+# Closing it wants a marker a preview cannot carry, which is separate work and
+# needs its own measurements. Do not narrow this expression hoping to catch it:
+# that is the move that failed four times.
+#
 # ⚠️  DELIBERATELY INDEPENDENT OF THE ZONE DECLARATIONS. Zone presence is the
 # thing under test, so a gate that keys on it cannot say whether a plan exists
 # without assuming the answer.
