@@ -1,0 +1,19 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        accessibility
+# date:         2026-08-31
+# revision:     d0b33a01
+# client:       copilot
+# model:        gpt-5.6-luna
+# repeats:      5
+# instructions: 17 installed, 3 always-on
+# fixture:      2929655385
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max
+uu-review|5|1028|975|2550|29|25|64|137|124|300
+uu-ask|5|2090|1728|2765|48|34|60|240|218|306
+uu-trivial|5|830|703|969|25|22|33|104|87|142
+uu-fix|5|303|261|330|9|9|11|34|24|37

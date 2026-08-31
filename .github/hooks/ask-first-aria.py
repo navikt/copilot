@@ -21,9 +21,12 @@ Kontrakten er lest ut av GitHub Copilot CLI 1.0.82 sin egen bundle:
         (Claude Code-formen). CLI-en oppgir å godta begge dialektene.
 
 Merk: en skriving rutet gjennom `execute` og et heredoc går utenom både
-write() og hooks. `ws_fingerprint` i golden-harnesset fanger den likevel, så
-uu3 feiler fortsatt om modellen går rundt porten. Påstanden validerer altså
-porten i stedet for å forutsette den.
+write() og hooks. Det er ikke teoretisk. Med porten på plass er uu3 4/5 på
+begge modellene, og den ene røde kjøringen på Luna skrev fila med
+`cat > .../StatusPanel.tsx << EOF` etter først å ha blitt nektet gjennom
+edit-verktøyet. `ws_fingerprint` fanget den, så uu3 feilet som den skulle.
+Påstanden validerer altså porten i stedet for å forutsette den, og det er
+grunnen til at 4/5 er et ærligere tall enn 5/5 ville vært.
 """
 
 import json
