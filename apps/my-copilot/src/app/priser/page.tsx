@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
 import { MODEL_PRICING, PRICING_SOURCE_URL, PRICING_LAST_UPDATED } from "@/lib/model-pricing";
 import type { ModelPrice } from "@/lib/model-pricing";
+import { promotionFor } from "@/lib/model-promotions";
 import { PageHero } from "@/components/page-hero";
 import NextLink from "next/link";
 
@@ -126,6 +127,18 @@ export default function PriserPage() {
                                 {m.note}
                               </span>
                             )}
+                            {promotionFor(m.model) && (
+                              <span
+                                className="ml-2 inline-block rounded-full px-2 py-0.5 font-medium align-middle"
+                                style={{
+                                  fontSize: "0.6875rem",
+                                  color: "#92400e",
+                                  background: "rgba(245, 158, 11, 0.16)",
+                                }}
+                              >
+                                Kampanjepris t.o.m. {promotionFor(m.model)?.endsOn}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <span
@@ -195,6 +208,16 @@ export default function PriserPage() {
                   </li>
                   <li>
                     <strong>Code completions</strong> (ghost text) er gratis og teller ikke mot kvoten
+                  </li>
+                  <li>
+                    Rader merket <strong>Long context</strong> er ikke egne modeller, men en høyere sats som slår inn
+                    når konteksten passerer terskelen i navnet
+                  </li>
+                  <li>
+                    <strong>Kampanjepris</strong> betyr at prisen i tabellen gjelder til datoen som står i merket, og så
+                    går modellen tilbake til standardpris. GitHub oppgir ikke standardprisen. For GPT-5.6 Sol er
+                    kampanjen 50 % av standardpris, så fra 4. september 2026 blir prisen etter alt å dømme $4.00 input
+                    og $20.00 output.
                   </li>
                   <li>Opus er 67 % dyrere enn Sonnet — bruk Opus kun for komplekse arkitekturbeslutninger</li>
                 </ul>
