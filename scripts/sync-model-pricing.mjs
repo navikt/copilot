@@ -5,7 +5,12 @@
  *
  * Usage:
  *   node scripts/sync-model-pricing.mjs          # update the file
- *   node scripts/sync-model-pricing.mjs --check  # exit 1 if out of date (CI mode)
+ *   node scripts/sync-model-pricing.mjs --check  # CI mode, writes nothing
+ *
+ * --check exit codes: 0 up to date (only the timestamp would move), 2 prices
+ * moved, 1 the check could not be made (fetch failed, parse floor tripped, a
+ * model came back unpriced). 2 is separate from 1 so a caller can act on real
+ * drift without also acting on a check that never got an answer.
  */
 
 const PRICING_URL =
@@ -326,7 +331,10 @@ async function main() {
     if (normalize(current) !== normalize(newContent)) {
       console.error("\nERROR: model-pricing.ts is out of date!");
       console.error("Run: node scripts/sync-model-pricing.mjs");
-      process.exit(1);
+      // 2, not 1: this is the one outcome that means the prices really moved.
+      // Every other non-zero exit here is a check that failed to run, and a
+      // caller must not mistake one for the other.
+      process.exit(2);
     } else {
       console.log("\n✓ model-pricing.ts is up to date");
     }
