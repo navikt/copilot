@@ -51,11 +51,21 @@ func statsPath() string { return filepath.Join(filepath.Dir(statePath()), "stats
 // full disk or a read-only home must not fail the developer's actual work for
 // the sake of a counter.
 func RecordCompletion(in, out int64, seconds float64) {
+	recordCompletionAt(statsPath(), in, out, seconds)
+}
+
+// recordCompletionAt writes to a path the caller already resolved.
+//
+// The guard resolves it once when it starts rather than per request: the
+// request goroutine can outlive the thing that set the directories up, and
+// reading that global from a handler is a data race against a test's cleanup.
+// It is also simply less work per completion.
+func recordCompletionAt(path string, in, out int64, seconds float64) {
 	line, err := json.Marshal(statLine{At: time.Now(), In: in, Out: out, Seconds: seconds})
 	if err != nil {
 		return
 	}
-	f, err := openAppend(statsPath())
+	f, err := openAppend(path)
 	if err != nil {
 		return
 	}

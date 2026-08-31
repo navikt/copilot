@@ -102,6 +102,10 @@ type Guard struct {
 	ln  net.Listener
 	srv *http.Server
 
+	// statsPath is resolved when the guard starts, not per request. A handler
+	// runs on its own goroutine and can outlive whatever set the directories up.
+	statsPath string
+
 	// completions counts what actually reached the local server through this
 	// guard. Counted here rather than parsed out of the client's transcript
 	// because this is the only place that sees every one of them, and because a
@@ -150,7 +154,9 @@ func StartGuard(target string) (*Guard, error) {
 	// dropped connection mid-generation.
 	proxy.FlushInterval = -1
 
-	g := &Guard{ln: ln}
+	// Resolved once, here, because the handler runs on its own goroutine and
+	// must not read the directory globals while something else is changing them.
+	g := &Guard{ln: ln, statsPath: statsPath()}
 	g.srv = &http.Server{
 		Handler:           guardHandler(g, proxy, target),
 		ReadHeaderTimeout: 30 * time.Second,
@@ -309,7 +315,7 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 		proxy.ServeHTTP(tap, r)
 		if tap.ok() {
 			in, out := tap.usage()
-			RecordCompletion(in, out, time.Since(started).Seconds())
+			recordCompletionAt(g.statsPath, in, out, time.Since(started).Seconds())
 		}
 	})
 }
