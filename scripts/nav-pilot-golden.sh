@@ -67,7 +67,7 @@
 #   --allow-all-tools for non-interactive mode, so the agent can read/write/run
 #   inside that scratch directory. It is removed on exit unless you pass --keep.
 #
-#   The agent EDITS that workspace: t1 fixes a typo, t4 adds an endpoint, t6
+#   The agent EDITS that workspace: t1 fixes a typo, t4 extends a handler, t6
 #   renames a variable across three files. So the workspace is rebuilt from a
 #   pristine template before EVERY prompt, not once per suite and not once per
 #   --repeat pass. Two samples of one prompt have to meet the same repo, or
@@ -480,25 +480,102 @@ spec:
 EOF
 
 cat >"$TEMPLATE/build.gradle.kts" <<'EOF'
-plugins { kotlin("jvm") version "2.1.0" }
-dependencies { implementation("io.ktor:ktor-server-netty:3.0.0") }
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+}
 EOF
 
-for f in App Routes Config; do
-  cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/$f.kt" <<EOF
+# A minimal but real Ktor skeleton. It used to be three byte-identical files
+# containing only `val maksAntall = 100`, seeded for test 6's rename. That made
+# test 4's premises false: the prompt speaks of "den eksisterende Ktor-tjenesten"
+# and a "kjent mønster", and neither existed in the fixture (see #519). The
+# skeleton below makes both true, and keeps `maksAntall` in exactly three files
+# — declared in Config.kt, used in App.kt and Routes.kt — so test 6's "rename
+# variabelen maksAntall i tre filer" is still literally true, and is now a
+# declaration plus two call sites rather than three copies of one line.
+#
+# ⚠️  Baselines in docs/golden-baselines/ recorded before 2026-08-31 measured
+# the old placeholder fixture. NONE of their sizes are comparable with runs made
+# after this change — every prompt explores this repo in Fase 1, so a bigger
+# fixture moves t1 and t2 as surely as it moves t4 and t6, and --compare across
+# that boundary would report a fixture change as a persona change. This comment
+# is not the enforcement: FIXTURE_SUM below is, so that a --compare in six
+# months says it without anyone having read this.
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Config.kt" <<'EOF'
 package no.nav.demo
 
-// bruker maksAntall flere steder
-val maksAntall = 100
+// Maks antall oppgaver som returneres i én respons.
+const val maksAntall = 100
 EOF
-done
+
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Oppgave.kt" <<'EOF'
+package no.nav.demo
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class Oppgave(val id: String, val tittel: String)
+
+@Serializable
+data class OppgaveRespons(val oppgaver: List<Oppgave>)
+EOF
+
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Routes.kt" <<'EOF'
+package no.nav.demo
+
+import io.ktor.server.application.Application
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+
+private val oppgaver = listOf(
+    Oppgave("1", "Registrer søknad"),
+    Oppgave("2", "Send vedtaksbrev"),
+)
+
+fun Application.oppgaveRoutes() {
+    routing {
+        get("/api/oppgaver") {
+            call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+        }
+    }
+}
+EOF
+
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/App.kt" <<'EOF'
+package no.nav.demo
+
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+
+fun main() {
+    println("starter demo-tjeneste, maksAntall=$maksAntall")
+    embeddedServer(Netty, port = 8080) {
+        install(ContentNegotiation) { json() }
+        oppgaveRoutes()
+    }.start(wait = true)
+}
+EOF
 
 # ─── Fixtures for the review agents ──────────────────────────────────────────
-# Seeded ONLY when the agent under test needs them. The nav-pilot template stays
-# byte-for-byte what it was before --agent existed, because every baseline in
-# docs/golden-baselines/ was recorded against that template: two more files for
-# Fase 1 to explore would move the sizes those baselines record, and the
-# comparison would report the fixture change as a persona change.
+# Seeded ONLY when the agent under test needs them, and never for nav-pilot: two
+# more files for Fase 1 to explore would move the sizes the baselines in
+# docs/golden-baselines/ record, and the comparison would report the fixture
+# change as a persona change. (The nav-pilot template itself was byte-for-byte
+# unchanged from before --agent existed until #519 replaced the three
+# placeholder .kt files with the Ktor skeleton above; see the note there.)
 #
 # The review agents cannot be given a clean repo. code-review asserts on what it
 # reports, accessibility on which WCAG rules it names, and both need something
@@ -559,7 +636,14 @@ export function StatusPanel({ status, onSlett }) {
 EOF
 fi
 
-# The agent writes to $WS (t1 fixes the README typo, t4 adds an endpoint, t6
+# Fixture identity, for the --compare compatibility check below. The sizes this
+# harness reports are sizes of answers about this fake repo, so they move when
+# the repo moves. .github/ is excluded on purpose: the persona and the
+# instructions are the variables the harness exists to move, and folding them in
+# here would warn "not comparable" on exactly the comparison it is built to make.
+FIXTURE_SUM="$( (cd "$TEMPLATE" && find . -type f -not -path './.github/*' -exec cksum {} + 2>/dev/null) | sort | cksum | awk '{print $1}' )"
+
+# The agent writes to $WS (t1 fixes the README typo, t4 extends a handler, t6
 # renames maksAntall), so $WS is thrown away and rebuilt from $TEMPLATE before
 # every prompt. Per prompt, not per --repeat pass: within one pass the prompts
 # also touch each other's files, and re-copying is cheap enough that the
@@ -626,7 +710,15 @@ run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$R
 # a response. Every assertion below is either an absent() — which succeeds
 # trivially on an empty file — or a present() on a long structured block, so
 # without this floor a crashed or unauthenticated CLI reports green.
-MIN_TRANSCRIPT_BYTES=200
+#
+# It only has to catch an empty or crashed CLI. It must NOT try to judge whether
+# an answer is substantial: the persona answers trivial tier in two sentences by
+# design, and at 200 this floor sat above that length. It discarded a *passing*
+# test 5 canary — a correct 160B TokenX answer, exit 0, 5.84 credits — as an
+# error, and t6 came within seven bytes of the same trap (#519). The per-test
+# gates below do the real work; this one only asks whether there is a response
+# at all.
+MIN_TRANSCRIPT_BYTES=40
 LAST_PROMPT_DETAIL=""
 
 run_prompt() {
@@ -729,6 +821,7 @@ record_soft() {
 # behaviour is not.
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
+
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
 # Recommendation verbs, word-bounded on both sides. The boundaries matter:
@@ -806,6 +899,14 @@ RE_FASE1_REACHED='Fase[[:space:]]*1|Intervju'
 # Fase 2 or later *work*, the leak the stop invariant forbids. Two markers, both
 # with clean separation: t2 0/18, t4 18/18.
 #
+# Test 2's alone. Test 4 briefly shared it, and that was a mistake worth naming:
+# the two tests ask different questions. Test 2 asks "did anything past Fase 1
+# happen", for which a file mutation is perfect evidence. Test 4 asks "was a
+# Fase 2 plan produced", for which a file mutation is no evidence at all — a
+# full-tier Fase 1 turn that leaks one `● Update(...)` line has mutated without
+# planning, and every vacuous pass found in review came through that door. Test
+# 4 keys on RE_FASE2_PLAN below instead.
+#
 #   ^● Edit|Create|…  the client renders one line per file mutation. A full-tier
 #                     Fase 1 turn that writes files has run past its own gate.
 #   Grønn sone        the zone declaration belongs to a Fase 2 plan.
@@ -835,24 +936,49 @@ MIN_OPEN_QUESTIONS=3
 RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 
 # ── Test 4 vocabulary ───────────────────────────────────────────────────────
-# Fase 2 artifacts that do NOT appear in the Fase 1 checkpoint template.
-# (Note: "🔴 Rød sone" alone is a poor discriminator — the Fase 1 checkpoint
-# block lists it as a summary line — so we key on the green-zone block and on
-# accessPolicy, which the persona mandates in the Fase 2 Nais manifest.)
+# Test 4's presence gate is RE_FASE2_WORK, the same expression test 2 uses as
+# its leak detector. One expression, read in two directions: what test 2 must
+# not see is exactly what test 4 must see, and it is measured in both (t2 0/18,
+# t4 18/18).
 #
-# Deliberately NOT "apiVersion: nais": the seeded workspace ships a nais.yaml
-# whose first line is `apiVersion: nais.io/v1alpha1`, and Fase 1 reads that file
-# to infer the archetype. Echoing it back is correct behaviour, so keying on it
-# would false-fail on its own fixture.
+# It used to have its own regex, `Grønn sone|accessPolicy`, and the accessPolicy
+# half was the bug (#519). Two of eighteen *Fase 1* responses name accessPolicy,
+# reporting that the seeded nais.yaml lacks one. On those runs the gate opened
+# on a Fase 1 answer, and `present "$T4" 'Rød sone'` then matched the
+# `• 🔴 Rød sone: [liste, eller «ingen»]` line of the Fase 1 checkpoint template
+# — the vacuous pass the block comment at test 4 says must never happen.
 #
-# ONE direction only, as test 4's *presence* gate: Fase 2 content must be
-# present before the red-zone assertion means anything. It used to double as
-# test 2's leak detector, and that is why accessPolicy is still in here: two of
-# eighteen correct Fase 1 responses name it, reporting that the seeded nais.yaml
-# lacks one, so as a leak detector it false-failed the runs that behaved. Test 2
-# now keys the leak on RE_FASE2_WORK instead. Widening this regex is safe; do
-# not narrow it without re-checking test 4.
-RE_PHASE2_ARTIFACT='Grønn sone|accessPolicy'
+# This is not the false failure #491 removed. That one was accessPolicy used as
+# test 2's *leak* detector, firing on correct Fase 1 answers. Dropping it here
+# removes the same word from the other direction.
+# A Fase 2 plan was produced. Test 4's gate, and deliberately independent of the
+# zone declarations, because zone presence is the thing under test: using
+# `Grønn sone` as the plan detector conflated "a plan exists" with "a green zone
+# was declared", so a plan that dropped BOTH zones — the wholesale-trimming
+# regression this assertion exists to catch — was filed as "no plan" instead of
+# as the failure it is. `Grønn sone` stays as one alternative among several, but
+# it is no longer what decides whether a plan exists.
+#
+# The markers are the persona's own headings, all of which put a colon straight
+# after the number or the word «ferdig» after it:
+#
+#   📐 Fase 2: Plan         `### Delegation format` (agent file :139)
+#   ✅ Fase 2 ferdig        `### Phase transition format` (:120), filled for 2
+#   🟢 Grønn sone           the zone block of `### Fase 2: Plan` item 10 (:211)
+#
+# Deliberately NOT a bare `Fase 2`: two of eighteen Fase 1 answers refer forward
+# to it in prose («jeg bygger plan i Fase 2», «kommer i Fase 2-planen»), and
+# naming the next phase is what stopping before it looks like. Requiring the
+# colon or «ferdig» excludes both of those phrasings.
+#
+# ⚠️  PROVISIONAL, and known to be insufficient on its own. It is derived from
+# the persona file rather than from measured output, and every expression written
+# that way for this test has turned out to admit some Fase 1 shape: a response can
+# quote the Fase 2 zone template forward, pre-declare «🔴 Rød sone: ingen for
+# denne oppgaven», or simply name «Fase 2: Plan» in a sentence. That is why test
+# 4 cannot report green at all — see the calibration note at the test itself.
+# Do not widen this to a bare `Fase 2`, and do not narrow it hoping for a pass.
+RE_FASE2_PLAN='Fase[[:space:]]*2[[:space:]]*:|Fase[[:space:]]*2[[:space:]]+ferdig|Grønn sone'
 RE_OPUS='nav-pilot-opus'
 
 # One pass over the selected prompts. Called once per --repeat, so every
@@ -969,25 +1095,80 @@ run_pass_nav_pilot() {
   # in a single non-interactive call. "Rød sone: ingen" is a valid declaration —
   # the invariant is that the declaration exists, not that anything is red.
   #
-  # ⚠️  The red-zone assertion MUST be gated on Fase 2 output actually existing.
-  # The Fase 1 checkpoint template itself contains the line
-  # `• 🔴 Rød sone: [liste, eller «ingen»]`, so a bare present 'Rød sone' is
-  # satisfied by a response that stops at the Fase 1 checkpoint and never plans at
-  # all — i.e. it passes vacuously on exactly the regression it exists to catch.
-  # No Fase 2 output is "could not evaluate", never a pass.
+  # ⚠️  THE PROMPT MUST NOT ASK FOR A NEW ENDPOINT, NEW DATA OR NEW AUTH. It used
+  # to ask for "et nytt REST-endepunkt", and that prompt cannot reach Fase 2 by
+  # construction (#519): `### Fase 1: Intervju` marks blind spots #1 and #2
+  # "required regardless of scope tier if the change touches user data, new API
+  # endpoints, or any auth configuration", `### ✅ Always` repeats it, and
+  # `## Request scope classification` sends new API contracts to Full. All three
+  # samples of that prompt correctly stopped in Fase 1 with questions open.
+  #
+  # The prompt below extends an existing handler and an existing response model.
+  # Its tail restates the compressed-tier criteria from `## Request scope
+  # classification` — not verbatim: "no new service boundary, no new data flows"
+  # is given as "ingen nye endepunkter, ingen persondata", because those are the
+  # two blocking triggers at `### Fase 1: Intervju` that have to be defused for
+  # any tier to reach Fase 2 at all. The fixture backs the premise: the Ktor
+  # skeleton really does have /api/oppgaver, in Routes.kt, with its response
+  # model in Oppgave.kt.
+  #
+  # ⚠️  The prompt does tell the model most of its own classification criteria,
+  # which weakens test 4 as evidence that the persona classifies correctly. It
+  # is not evidence of that and never was — the assertion is about the red-zone
+  # rule, and the tier is a precondition for reaching it in one non-interactive
+  # call. Measuring classification wants its own assertion on a prompt that
+  # states only the shape of the change. Not done here; see #519.
+  #
+  # ⚠️  TEST 4 CANNOT REPORT GREEN. This is deliberate, and it is not a bug.
+  #
+  # The assertion needs to tell a Fase 2 plan apart from a Fase 1 stop. Four
+  # attempts derived that distinction from the persona file, and review broke
+  # every one of them, each time with a *different* Fase 1 shape:
+  #
+  #   present 'Rød sone'          the Fase 1 checkpoint template carries the words
+  #   + accessPolicy gate         a Fase 1 answer naming the seeded nais.yaml
+  #   + `● Edit` mutation gate    a Fase 1 stop that leaks one mutation line
+  #   + `[liste` placeholder      a compliant model FILLS the template in
+  #   + `•` bullet exclusion      the persona has TWO zone-bearing templates, and
+  #                               a Fase 1 stop may quote the Fase 2 one forward
+  #
+  # The pattern is not that the regexes were careless. It is that we have no
+  # ground truth: there is no measured Fase 2 transcript anywhere in this repo to
+  # derive from. All three kept t4 samples stop in Fase 1, and the 18/18 behind
+  # RE_FASE2_WORK was measured against the *old* prompt, which this PR replaced.
+  # #491 got its expressions right because it derived them from 36 measured
+  # transcripts. Guessing from the spec has now failed four times running.
+  #
+  # So the pass branch is disabled until it can be calibrated. What survives is
+  # the half that does not need ground truth: a response that reaches a plan and
+  # contains no red-zone wording at all has demonstrably lost the declaration,
+  # and that is still RED. Everything else is "not evaluated".
+  #
+  # An amber is honest when we cannot tell a pass from a vacuous one. A green is
+  # not: it launders a regression, and unlike an amber nobody ever reads it.
+  #
+  # TO CALIBRATE (and re-enable the pass branch):
+  #   1. ./scripts/nav-pilot-golden.sh --only 4 --repeat 5 --keep --model <pinned>
+  #   2. Read the kept t4 transcripts BY HAND. Do not skim for a keyword.
+  #   3. Derive two things from what the model actually emits: what marks a plan,
+  #      and what marks the red-zone declaration inside one. Record the hit rates
+  #      the way the test 2 vocabulary above does (`t2 0/18, t4 18/18`).
+  #   4. Only then restore `record 4 "$DESC4" 0` behind those expressions.
+  # Until step 3 has real numbers next to it, leave this branch alone.
   if selected 4; then
-    DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
+    DESC4="Fase 2 output contains a 🔴 Rød sone declaration  ${YELLOW}(uncalibrated)${RESET}"
     T4="$(tx t4)"
-    if ! run_prompt t4 "legg til et nytt REST-endepunkt i den eksisterende Ktor-tjenesten — flere filer, kjent mønster, ingen nye datastrømmer"; then
+    if ! run_prompt t4 "legg til feltet antall i responsen fra det eksisterende /api/oppgaver-endepunktet i Ktor-tjenesten — flere filer, kjent mønster, ingen nye endepunkter, ingen persondata, ingen endringer i auth"; then
       record_error 4 "$DESC4" "$LAST_PROMPT_DETAIL"
-    elif ! present "$T4" "$RE_PHASE2_ARTIFACT"; then
+    elif ! present "$T4" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
-        "no Fase 2 content in the response (no match for: $RE_PHASE2_ARTIFACT) — the red-zone assertion would pass vacuously off the Fase 1 checkpoint template, so it was not evaluated. Re-run with --keep and check whether compressed-tier traversal regressed."
-    elif present "$T4" 'Rød sone'; then
-      record 4 "$DESC4" 0
-    else
+        "no Fase 2 plan in the response (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the response stopped in Fase 1, or it took a trivial-tier single pass. Re-run with --keep and read the transcript."
+    elif ! present "$T4" 'Rød sone'; then
       record 4 "$DESC4" 1 \
-        "no red-zone declaration in a Fase 2 plan — mandatory per Boundaries → ✅ Always"
+        "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon anywhere in the response — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always"
+    else
+      record_error 4 "$DESC4" \
+        "UNCALIBRATED — the response reached a plan and mentions a red zone, but this harness cannot yet tell that apart from a Fase 1 stop that quotes the Fase 2 zone template forward, so it will not call it a pass. No measured Fase 2 transcript exists to derive the distinction from. Calibrate with: --only 4 --repeat 5 --keep --model <pinned>, read the transcripts by hand, then restore the pass branch behind expressions with real hit rates. See the note above this test."
     fi
   fi
 
@@ -1435,6 +1616,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# model:        ${MODEL:-CLI default}"
     echo "# repeats:      $REPEAT"
     echo "# instructions: $INSTR_DESC"
+    echo "# fixture:      $FIXTURE_SUM"
     echo "# prompts:      ${ONLY:-all}"
     echo "#"
     echo "# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max"
@@ -1508,6 +1690,14 @@ if [[ -n "$COMPARE_TO" ]]; then
   compat_note instructions "$INSTR_DESC"
   compat_warn repeats "$REPEAT"
   compat_warn prompts "${ONLY:-all}"
+  # Missing means old, not "no opinion" — same reasoning as the agent line above.
+  # The field was added with the Ktor fixture (#519), so a baseline without it
+  # measured the three placeholder .kt files and none of its sizes carry over.
+  if grep -q '^# fixture:' "$COMPARE_TO"; then
+    compat_warn fixture "$FIXTURE_SUM"
+  else
+    echo "  ${YELLOW}⚠ baseline has no fixture line, so it predates the Ktor fixture. Different repo, different answers. Not comparable.${RESET}"
+  fi
   printf '  %-6s %10s %10s %10s %8s\n' "prompt" "baseline" "current" "delta" "pct"
   while IFS='|' read -r slug n b_med rest; do
     base="$(grep -m1 "^$slug|" "$COMPARE_TO" | cut -d'|' -f3)"
