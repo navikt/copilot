@@ -695,14 +695,19 @@ func exists(path string) bool {
 // inline so a test can pin it. It is the one property that differs between the
 // local instruments that reach Mimir and the one that does not, so a change here
 // should be deliberate and visible in a diff.
-func temporalityFor(kind sdkmetric.InstrumentKind) metricdata.Temporality {
-	switch kind {
-	case sdkmetric.InstrumentKindCounter,
-		sdkmetric.InstrumentKindUpDownCounter,
-		sdkmetric.InstrumentKindObservableCounter,
-		sdkmetric.InstrumentKindObservableUpDownCounter:
-		return metricdata.DeltaTemporality
-	default:
-		return metricdata.CumulativeTemporality
-	}
+func temporalityFor(sdkmetric.InstrumentKind) metricdata.Temporality {
+	// Cumulative for everything, including counters.
+	//
+	// Delta was the reasonable default for a CLI: each invocation reports what
+	// it did and there is no series to reset. In practice every delta counter
+	// nav-pilot has ever emitted was lost. nav_pilot_command_total has one
+	// series in Mimir and it carries no device_id, while this machine ran
+	// commands all day and has none; the histograms from the same processes
+	// arrive every time, with device ids.
+	//
+	// A process that lives seconds has no reset problem for delta to solve, and
+	// a Prometheus-lineage backend ingests cumulative natively without a
+	// conversion step. So the temporality that was buying nothing was costing
+	// every counter we have.
+	return metricdata.CumulativeTemporality
 }

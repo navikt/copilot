@@ -632,11 +632,9 @@ func TestUserModelReachesEveryClient(t *testing.T) {
 	}
 }
 
-// TestNoServerWarningTellsThemWhatItCost: with dispatch on and no server, the
-// launch runs entirely in the cloud. That used to be one grey line in a
-// scrolling launch, which is the likeliest way for a developer to install this
-// and conclude it does nothing — autostart is off by default, so init, work,
-// reboot, launch lands here every time.
+// TestNoServerWarningTellsThemWhatItCost: the no-server path must name both
+// remedies, because a warning nobody can act on is not a warning. The reason it
+// matters is in startLocalDispatch, not repeated here.
 func TestNoServerWarningTellsThemWhatItCost(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // nothing recorded, so no server to find
 	local.SetEnabled(true)
@@ -648,7 +646,10 @@ func TestNoServerWarningTellsThemWhatItCost(t *testing.T) {
 	}
 	old := os.Stderr
 	os.Stderr = w
-	_, _ = startLocalDispatch("github-copilot/claude-sonnet-4.6")
+	guard, _ := startLocalDispatch("github-copilot/claude-sonnet-4.6")
+	if guard != nil {
+		t.Error("a guard was returned with no server running; nothing should be wired on this path")
+	}
 	os.Stderr = old
 	w.Close()
 	out, _ := io.ReadAll(r)

@@ -655,6 +655,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if err != nil {
 		return err
 	}
+	defer EchoCloudOnlyNotice()
 	if guard != nil {
 		defer guard.Close()
 		// How much this session actually handed over, recorded when it ends. Zero
@@ -794,6 +795,23 @@ func localWorker() (local.Model, error) {
 // hold it: with local disabled nothing here listens and nothing here writes,
 // pinned by TestHostedLaunchStartsNoLoopGuard, and moving the guard out from
 // behind the gate now fails a test instead of nothing.
+// cloudOnlyNotice is set when a launch found dispatch on and no server, so the
+// same fact can be repeated after the client exits and the terminal is legible.
+var cloudOnlyNotice bool
+
+// EchoCloudOnlyNotice repeats the cloud-only warning after the client returns.
+// Called on the way out of a launch; a no-op unless the launch actually took
+// that path.
+func EchoCloudOnlyNotice() {
+	if !cloudOnlyNotice {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "\n%s That session ran entirely in the cloud: local dispatch is on, but no server was running.\n",
+		domain.Yellow("⚠"))
+	fmt.Fprintf(os.Stderr, "  Start one:              %s\n", domain.Bold("nav-pilot alpha local start"))
+	fmt.Fprintf(os.Stderr, "  Or start it on demand:  %s\n", domain.Bold("nav-pilot config set local_autostart true"))
+}
+
 func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	// Same refusal the Copilot path makes, for the same reason: a session
 	// configured for a local model with dispatch off would otherwise be sent to
@@ -814,6 +832,12 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 		// ordinary path — init, work, reboot, launch — lands here every time,
 		// and the only signal used to be one grey line in a scrolling launch.
 		if local.Enabled() {
+			// Also on the way out. opencode takes the alternate screen the moment
+			// it draws, so anything printed here is gone before it can be read.
+			// The last line after the TUI returns is the one a developer actually
+			// sees, and this session is about to cost cloud credits for work the
+			// developer asked to run locally.
+			cloudOnlyNotice = true
 			fmt.Fprintf(os.Stderr, "\n%s Local dispatch is on, but no server is running: this session runs entirely in the cloud.\n",
 				domain.Yellow("⚠"))
 			fmt.Fprintf(os.Stderr, "  %v\n\n", err)
