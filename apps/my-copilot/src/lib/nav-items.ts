@@ -1,5 +1,6 @@
 import {
   BookIcon,
+  CurrencyExchangeIcon,
   InformationSquareIcon,
   LineGraphIcon,
   PieChartIcon,
@@ -24,6 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/retningslinjer", icon: ShieldLockIcon, label: "Retningslinjer" },
   { href: "/nav-pilot", icon: RocketIcon, label: "nav-pilot" },
   { href: "/cplt", icon: TerminalIcon, label: "cplt" },
+  { href: "/priser", icon: CurrencyExchangeIcon, label: "Modellpriser" },
   { href: "/statistikk", icon: LineGraphIcon, label: "Statistikk", requiresAuth: true },
   { href: "/adopsjon", icon: PieChartIcon, label: "Adopsjon", requiresAuth: true },
   { href: "/ordbok", icon: InformationSquareIcon, label: "Ordbok" },
