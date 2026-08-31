@@ -11,13 +11,16 @@ tags:
   - cost-optimization
 ---
 
-Vi bytter modell bak flere av agentene og fire av prompt-malene som lager stillas for ny kode. Kjør `nav-pilot sync`, så er du oppdatert. Du trenger ikke installere noe.
+Vi bytter modell bak flere av agentene og fire prompt-maler. Kjør `nav-pilot sync`, så er du oppdatert. Du trenger ikke installere noe.
 
-| Agent | Fra | Til |
+| Agent eller prompt | Fra | Til |
 |---|---|---|
 | `@research`, `@code-review` | GPT-5.3-Codex | GPT-5.6 Luna |
 | `@accessibility` | Claude Sonnet 4.6 | GPT-5.6 Luna |
+| Fire prompt-maler for nye tjenester | Claude Haiku 4.5 | GPT-5.6 Luna |
 | `@security-champion`, `@nav-pilot-opus` | Claude Opus 4.6 | GPT-5.6 Sol |
+
+Prompt-malene er `ktor-endpoint`, `spring-boot-endpoint`, `golang-service` og `nextjs-api-route`.
 
 `@forfatter` blir stående på Claude Sonnet 4.6. Jobben er norsk tekst, og vi har ingen måling som sier at en annen modell gjør den like godt.
 
@@ -44,16 +47,19 @@ Alle fire modellene overser personvernblindsonen noen få prosent av gangene, og
 
 ## Prisen
 
-Per million tokens i dollar, fra `apps/my-copilot/src/lib/model-pricing.ts`:
+Dollar per million tokens, slik GitHub publiserte dem 30. august 2026:
 
 | Modell | Input | Output |
 |---|---|---|
 | GPT-5.6 Luna | 0,20 | 1,20 |
+| Claude Haiku 4.5 | 1 | 5 |
+| GPT-5.6 Sol | 2 | 10 |
 | Claude Sonnet 4.6 | 3 | 15 |
 | Claude Opus 4.6 | 5 | 25 |
-| GPT-5.6 Sol | 5 | 30 |
 
-Luna koster rundt en tidel av Sonnet 4.6, og det er der gevinsten ligger. Sol er ikke billigere enn Opus 4.6 den erstatter: samme pris inn, og 30 mot 25 dollar ut. Det byttet sparer ingenting på tokenprisen.
+Luna koster rundt en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Sonnet 4.6 og 60 % mindre enn Opus 4.6, som er modellen de to tyngste agentene flytter fra.
+
+Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synket prisene 10. august, og falt til 2 og 10 i løpet av måneden. Prislista i `apps/my-copilot/src/lib/model-pricing.ts` er den vi regner ut fra.
 
 ## Hvis en agent svarer dårligere
 
