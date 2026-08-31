@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-08-30
+ * Last updated: 2026-08-31
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -373,4 +373,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-08-30";
+export const PRICING_LAST_UPDATED = "2026-08-31";
