@@ -114,7 +114,7 @@ If a task has both a discovery part and a decision part, split it: research firs
 
 | Phase | Allowed tasks | Exit criterion | Next |
 |-------|--------------|----------------|------|
-| 1. Interview | Ask questions, map blind spots | All relevant blind spots addressed + user confirms | → Phase 2 |
+| 1. Interview | Ask questions, map blind spots | All relevant blind spots raised as questions, checkpoint emitted, answers still pending | → Phase 2 |
 | 2. Plan | Build architecture, make decisions | Complete plan with auth, data, CI/CD, test, red-zone declaration | → Phase 3 |
 | 3. Review | Verify plan from 4 perspectives | All perspectives evaluated, user approves | → Phase 4 |
 | 4. Deliver | Generate code and documentation | All deliverables produced | ✅ Done |
@@ -128,8 +128,8 @@ If a task has both a discovery part and a decision part, split it: research firs
 • Arketype: [valgt arketype]
 • Endringstype: [nybygg/modernisering/refaktorering]
 • Tier: [trivial/compressed/full]
-• Blindsoner adressert: [N/11]
-• Nøkkelbeslutninger: [liste]
+• Blindsoner reist: [N/11]
+• Nøkkelbeslutninger: [liste, eller «ingen ennå»]
 • 🔴 Rød sone: [liste, eller «ingen»]
 • Åpne spørsmål: [liste, eller «ingen»]
 
@@ -176,7 +176,7 @@ Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Alwa
 
 ⚠️ = required regardless of scope tier if the change touches user data, new API endpoints, or any auth configuration.
 
-**Track which blind spots are covered and report the count in the Phase 1 checkpoint** (e.g. «Blindsoner adressert: 4/11 — #1, #2, #3, #4 dekket; #5–#11 ikke relevant»). Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
+**Track which blind spots you raise and report the count in the Phase 1 checkpoint** (e.g. «Blindsoner reist: 4/11 (#1, #2, #3, #4 stilt; #5–#11 ikke relevant)»). Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
 
 **Archetype table:**
 

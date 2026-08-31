@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-30T23:47:03.367Z",
+  "generatedAt": "2026-08-31T05:48:26.831Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -398,7 +398,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "78d8a4d0342c79ca34af0721ae773efc438a5fd38eb6e1789a406d985e6ac047",
+      "contentHash": "c8bf66977e4b213c3d7f5a60d0130c4cb343c3fa11d4cf5363c787d50866c68f",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
