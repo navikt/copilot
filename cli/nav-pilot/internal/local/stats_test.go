@@ -203,3 +203,36 @@ func appendRaw(t *testing.T, line string) {
 		t.Fatal(err)
 	}
 }
+
+// TestUsageTapIgnoresFailedCompletions: an upstream error writes a body and no
+// usage block. Counting it puts a request that generated nothing into the
+// developer's totals, where it is indistinguishable from a streaming client
+// that did not ask for usage.
+func TestUsageTapIgnoresFailedCompletions(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		want   bool
+	}{
+		{name: "never wrote a header", status: 0, want: true},
+		{name: "200", status: http.StatusOK, want: true},
+		{name: "204", status: http.StatusNoContent, want: true},
+		{name: "500 from the model server", status: http.StatusInternalServerError, want: false},
+		{name: "400 bad request", status: http.StatusBadRequest, want: false},
+		{name: "302", status: http.StatusFound, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			tap := &usageTap{ResponseWriter: rec}
+			if tc.status != 0 {
+				tap.WriteHeader(tc.status)
+			}
+			if got := tap.ok(); got != tc.want {
+				t.Errorf("ok() = %v for status %d, want %v", got, tc.status, tc.want)
+			}
+			if tc.status != 0 && rec.Code != tc.status {
+				t.Errorf("status %d did not reach the client (got %d)", tc.status, rec.Code)
+			}
+		})
+	}
+}

@@ -306,8 +306,10 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 		started := time.Now()
 		tap := &usageTap{ResponseWriter: w}
 		proxy.ServeHTTP(tap, r)
-		in, out := tap.usage()
-		RecordCompletion(in, out, time.Since(started).Seconds())
+		if tap.ok() {
+			in, out := tap.usage()
+			RecordCompletion(in, out, time.Since(started).Seconds())
+		}
 	})
 }
 
@@ -325,10 +327,25 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 // generated, and swallowing Flush here would undo that.
 type usageTap struct {
 	http.ResponseWriter
-	tail []byte
+	tail   []byte
+	status int
 }
 
 const usageTailBytes = 8 << 10
+
+// WriteHeader records the status so a failed completion is not counted as one.
+// An upstream 500 writes a body and no usage block, which would otherwise land
+// in the stats as a request that generated nothing — indistinguishable from a
+// streaming client that simply did not ask for usage.
+func (t *usageTap) WriteHeader(code int) {
+	t.status = code
+	t.ResponseWriter.WriteHeader(code)
+}
+
+func (t *usageTap) ok() bool {
+	// Zero means WriteHeader was never called, which net/http treats as 200.
+	return t.status == 0 || (t.status >= 200 && t.status < 300)
+}
 
 func (t *usageTap) Write(b []byte) (int, error) {
 	n, err := t.ResponseWriter.Write(b)
