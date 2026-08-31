@@ -1,0 +1,18 @@
+# nav-pilot golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one revision, on one model, on one day.
+# Only comparable with another run made the same way (--compare).
+# date:         2026-08-30
+# revision:     10a89ab4
+# client:       copilot
+# model:        claude-sonnet-4.6
+# repeats:      5
+# instructions: 17 installed, 3 always-on
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max
+t1|5|269|269|273|12|12|12|32|32|32
+t2|5|1036|842|1513|30|24|46|159|122|210
+t4|5|3085|1851|4186|97|68|108|327|227|353
+t5|5|481|434|818|24|22|39|67|55|98
+t6|5|310|226|350|8|8|8|31|23|37
