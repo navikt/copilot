@@ -141,17 +141,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	}
 
 	opts := []otlpmetrichttp.Option{
-		otlpmetrichttp.WithTemporalitySelector(func(kind sdkmetric.InstrumentKind) metricdata.Temporality {
-			switch kind {
-			case sdkmetric.InstrumentKindCounter,
-				sdkmetric.InstrumentKindUpDownCounter,
-				sdkmetric.InstrumentKindObservableCounter,
-				sdkmetric.InstrumentKindObservableUpDownCounter:
-				return metricdata.DeltaTemporality
-			default:
-				return metricdata.CumulativeTemporality
-			}
-		}),
+		otlpmetrichttp.WithTemporalitySelector(temporalityFor),
 	}
 	if endpoint != "" {
 		opts = append(opts, otlpmetrichttp.WithEndpointURL(endpoint))
@@ -699,4 +689,20 @@ func detectProjectType() string {
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// temporalityFor is the export shape per instrument kind, named rather than
+// inline so a test can pin it. It is the one property that differs between the
+// local instruments that reach Mimir and the one that does not, so a change here
+// should be deliberate and visible in a diff.
+func temporalityFor(kind sdkmetric.InstrumentKind) metricdata.Temporality {
+	switch kind {
+	case sdkmetric.InstrumentKindCounter,
+		sdkmetric.InstrumentKindUpDownCounter,
+		sdkmetric.InstrumentKindObservableCounter,
+		sdkmetric.InstrumentKindObservableUpDownCounter:
+		return metricdata.DeltaTemporality
+	default:
+		return metricdata.CumulativeTemporality
+	}
 }

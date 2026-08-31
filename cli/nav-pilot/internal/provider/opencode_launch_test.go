@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"io"
 )
 
 func TestToOpenCodeModel(t *testing.T) {
@@ -626,6 +628,38 @@ func TestUserModelReachesEveryClient(t *testing.T) {
 	for _, w := range PiUnsupportedConfigWarnings(unset) {
 		if strings.HasPrefix(w, "model ") {
 			t.Errorf("pi: warns about a model the user never set: %q", w)
+		}
+	}
+}
+
+// TestNoServerWarningTellsThemWhatItCost: with dispatch on and no server, the
+// launch runs entirely in the cloud. That used to be one grey line in a
+// scrolling launch, which is the likeliest way for a developer to install this
+// and conclude it does nothing — autostart is off by default, so init, work,
+// reboot, launch lands here every time.
+func TestNoServerWarningTellsThemWhatItCost(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // nothing recorded, so no server to find
+	local.SetEnabled(true)
+	t.Cleanup(func() { local.SetEnabled(false) })
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	_, _ = startLocalDispatch("github-copilot/claude-sonnet-4.6")
+	os.Stderr = old
+	w.Close()
+	out, _ := io.ReadAll(r)
+
+	for _, want := range []string{
+		"entirely in the cloud",
+		"alpha local start",
+		"local_autostart true",
+	} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("the warning never mentions %q; a developer cannot act on it.\ngot: %s", want, out)
 		}
 	}
 }

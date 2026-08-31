@@ -808,7 +808,20 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 		if local.IsLocal(sessionModel) {
 			return nil, err
 		}
-		fmt.Fprintf(os.Stderr, "%s No local worker this session — %v\n", domain.Yellow("⚠"), err)
+		// Say what this costs, not just what happened. Dispatch is on, so this
+		// developer asked for local inference and is about to run a whole
+		// session in the cloud without it. Autostart is off by default, so the
+		// ordinary path — init, work, reboot, launch — lands here every time,
+		// and the only signal used to be one grey line in a scrolling launch.
+		if local.Enabled() {
+			fmt.Fprintf(os.Stderr, "\n%s Local dispatch is on, but no server is running: this session runs entirely in the cloud.\n",
+				domain.Yellow("⚠"))
+			fmt.Fprintf(os.Stderr, "  %v\n\n", err)
+			fmt.Fprintf(os.Stderr, "  Start one:              %s\n", domain.Bold("nav-pilot alpha local start"))
+			fmt.Fprintf(os.Stderr, "  Or start it on demand:  %s\n\n", domain.Bold("nav-pilot config set local_autostart true"))
+		} else {
+			fmt.Fprintf(os.Stderr, "%s No local worker this session — %v\n", domain.Yellow("⚠"), err)
+		}
 	}
 	if worker.Model == "" {
 		// Off, or on with nothing behind it. Either way the dispatch policy
