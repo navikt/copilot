@@ -5,11 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -384,6 +386,112 @@ func TestConcurrentMaterializeShareOneRevision(t *testing.T) {
 	assertRevisionVerifies(t, want)
 	if got := revisionNames(t, src.Repo); len(got) != 1 || got[0] != src.SHA {
 		t.Errorf("revision directory holds %v, want exactly [%s]", got, src.SHA)
+	}
+}
+
+// TestLocalRematerializeNeverPublishesAHalfDeletedRevision: a local source is
+// rebuilt in place on every launch, and the revision directory it rebuilds is
+// what a running session was handed — provider/staged_launch.go passes the
+// payload directory as OPENCODE_CONFIG_DIR and to cplt as --allow-read. The old
+// tree was removed before the new one was renamed in, so a session started in
+// another window walked the first one's config directory file by file while it
+// was being emptied: the directory still there, its files going one by one
+// (#504, U9).
+//
+// Moving the outgoing tree aside instead makes every state the path is ever
+// observed in a complete one — the old revision, then the new one. It is not
+// gone at once: there is still one rename's worth of "not there yet" between
+// the two, since exchanging two directories atomically is not portable. That is
+// a moment, not the duration of a recursive delete, and "absent" is a state a
+// reader can retry, while "there but half empty" is one it cannot tell from a
+// broken pakke.
+//
+// The assertion is one-sided on purpose. The fixed code cannot publish a
+// partial tree — the only thing that ever appears at the path is a completed
+// rename — so the test cannot flake; the removal it replaced is many unlinks
+// long, so the watcher below sees it.
+func TestLocalRematerializeNeverPublishesAHalfDeletedRevision(t *testing.T) {
+	pinEnv(t)
+	tree := tier2PinSourceTree(t)
+	src := localPinSource(t, tree)
+
+	revDir, err := materializeRevision(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agentFile := filepath.Join(revDir, unlaunchableClient, "full", "agents", "grillmester.agent.md")
+
+	// What a completed revision holds at its root: one directory per client,
+	// plus the pinned manifest's.
+	entries, err := os.ReadDir(revDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantEntries := len(entries)
+
+	// The descriptor a live session holds on its config directory. It reads on
+	// through the republish, because the tree it was opened on is moved rather
+	// than deleted under it.
+	live, err := os.Open(agentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer live.Close()
+
+	// Each round is the author editing the working tree and starting a second
+	// window while the first session is still running.
+	for i := range 20 {
+		writeTier2Payload(t, filepath.Join(tree, "dist", unlaunchableClient, "full"), fmt.Sprintf("edit-%d", i))
+
+		var partial atomic.Bool
+		done := make(chan error, 1)
+		go func() {
+			_, err := materializeRevision(src)
+			done <- err
+		}()
+		for {
+			// One os.Open resolves the path once, so the listing that follows
+			// describes whatever directory was at revDir at that instant, even
+			// if it is renamed a moment later. Two stats would race the rename
+			// and report a partial tree that was never published.
+			if d, err := os.Open(revDir); err == nil {
+				names, _ := d.Readdirnames(-1)
+				d.Close()
+				if len(names) != wantEntries {
+					partial.Store(true)
+				}
+			}
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatalf("re-materializing a local source: %v", err)
+				}
+				if partial.Load() {
+					t.Fatalf("round %d: %s was published half deleted; a session reading it as OPENCODE_CONFIG_DIR sees its own config files disappear one by one", i, revDir)
+				}
+			default:
+				continue
+			}
+			break
+		}
+	}
+
+	body, err := io.ReadAll(live)
+	if err != nil {
+		t.Errorf("the live session's descriptor stopped reading after the republish: %v", err)
+	}
+	if !strings.Contains(string(body), unlaunchableClient+"-full") {
+		t.Errorf("the live descriptor read %q, want the revision it was opened on", body)
+	}
+	fresh, err := os.ReadFile(agentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(fresh), "edit-19") {
+		t.Errorf("the published revision is %q, want the last edit", fresh)
+	}
+	if names := revisionNames(t, src.Repo); len(names) != 1 || names[0] != src.SHA {
+		t.Errorf("the revision root holds %v, want exactly [%s]: no staging or set-aside tree may be left behind", names, src.SHA)
 	}
 }
 

@@ -205,10 +205,21 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 	// author never sanctioned, behind a stderr warning the client TUI wipes off
 	// the screen — and would silently strand every older binary the day a pakke
 	// adopts contract major 2. errUnusableManifest separates the two.
+	//
+	// The cache decides between them for the third case: a fetch failure over a
+	// source an earlier launch already resolved to TierPayload. "Nothing yet
+	// says this launch is Tier 2" is true of a source nav-pilot has never seen;
+	// it is not true here, because rememberTier wrote TierPayload for exactly
+	// this source and client. Warning and taking the legacy path there is the
+	// same silent downgrade mixedPakkeRefusal and errUnusableManifest exist to
+	// refuse, so it fails closed instead.
 	src, err := resolveSource("", resolved.Source)
 	if err != nil {
 		if errors.Is(err, errUnusableManifest) {
 			return nil, true, err
+		}
+		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier == agentpakke.TierPayload {
+			return nil, true, unresolvablePayloadRefusal(resolved, err)
 		}
 		fmt.Fprintf(os.Stderr, "%s Could not resolve source %s: %v — launching without agentpakke context.\n",
 			yellow("⚠"), resolved.Source, err)
@@ -262,9 +273,14 @@ func autoPin(src *Source) (*Source, error) {
 	// revision directory — and nothing else would ever remove them: the prune's
 	// other caller is [pinRevision], which a local source never reaches, and
 	// uninstall keys on a state entry a local source never writes. Only the
-	// revision this launch is about to hand over survives; a local source is
-	// rebuilt in place anyway (see [materializeRevision]), so there is no older
-	// revision here for a running session to still be reading.
+	// revision this launch is about to hand over survives.
+	//
+	// A running session can be reading the revision this one is about to
+	// rebuild — a local source is rebuilt in place on every launch, and its
+	// payload directory is a live session's OPENCODE_CONFIG_DIR — which is why
+	// [materializeRevision] renames the old tree aside instead of removing it.
+	// The prune below removes the SHA directories this launch left behind, not
+	// the tree a session already has open.
 	if !pinnable(src.Repo) {
 		revDir, err := materializeRevision(src)
 		if err != nil {
@@ -310,6 +326,40 @@ func autoPin(src *Source) (*Source, error) {
 	fmt.Printf("%s Pinned %s at %s — future launches use the local copy; %s updates it.\n",
 		green("✓"), bold(src.Pakke.Name), src.SHA, bold("nav-pilot sync"))
 	return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
+}
+
+// unresolvablePayloadRefusal refuses a launch of a source a previous launch
+// already learned declares pre-built payloads for this client, when this launch
+// cannot resolve it and has no pinned revision to fall back on: offline with
+// the revision directory gone, but equally a repo that was renamed or deleted,
+// a source identifier that no longer parses, or credentials that stopped
+// working. The branch keys on the resolve failing, not on why, so the message
+// says that and hands the resolve error's own text straight through — for
+// anything but the offline case that text is the only thing naming the real
+// problem, and the legacy fallback this replaces at least printed it.
+//
+// The legacy path is not an option here for the same reason it is not one past
+// the tier gate: it would materialize the user's own ~/.copilot into a launch
+// the manifest reserves for a verified payload tree, and say so only in a
+// stderr warning the client TUI wipes off the screen. The remembered tier is
+// what makes this knowable before the resolve succeeds.
+//
+// The two commands named recover this differently. sync rebuilds the missing
+// revision behind a pin that is still recorded, and can only do that once the
+// source resolves — which is a condition on the source, not on the network, and
+// is worded that way. Clearing the source is a local config write with no
+// condition at all: it empties resolved.Source, which tryPakkeLaunch
+// short-circuits on before resolving anything, so the next launch takes the
+// built-in default immediately, offline or not.
+func unresolvablePayloadRefusal(resolved ResolvedConfig, cause error) error {
+	return fmt.Errorf(
+		"source %s declares pre-built payloads for %s, and nav-pilot could not resolve it: %w.\n"+
+			"Nothing was launched — running it as before instead would materialize your own ~/.copilot into a launch the agentpakke reserves for a verified payload tree.\n\n"+
+			"  Rebuild the pinned revision, once the source resolves:  %s\n"+
+			"  Or go back to the built-in agentpakke:                  %s",
+		bold(resolved.Source), resolved.Client, cause,
+		bold("nav-pilot sync --apply"),
+		bold(`nav-pilot config set source ""`))
 }
 
 // sourceLabelForRepo names a recorded source repo in user-facing messages,
@@ -378,17 +428,22 @@ func declaredContexts(m *agentpakke.Manifest, client string) []string {
 // unreadable or corrupt file all mean "resolve the source as usual"; none of
 // them may be read as "assume legacy".
 
-// Since the pin landed there is exactly one path left that this cache serves:
-// a custom source that resolves to Tier 1 or ships no manifest. tryPakkeLaunch
-// still runs for it — the gate above is an empty-source check, not a tier check
-// — purely to learn a tier it will not act on, and without the cache that is a
-// `git clone --depth 1` on every launch. Everything payload-shaped is answered
-// by the pin before the cache is consulted, and a first launch pins rather than
-// caching an answer it will not need again.
+// Since the pin landed, the path this cache serves on the happy day is a custom
+// source that resolves to Tier 1 or ships no manifest. tryPakkeLaunch still
+// runs for it — the gate above is an empty-source check, not a tier check —
+// purely to learn a tier it will not act on, and without the cache that is a
+// `git clone --depth 1` on every launch. Everything payload-shaped is normally
+// answered by the pin before the cache is consulted, and a first launch pins
+// rather than caching an answer it will not need again.
 //
-// So a remembered TierPayload entry is now write-only: recorded, never acted
-// on. Only the non-payload answer is still load-bearing, which is exactly what
-// the `tier != TierPayload` condition at the one read site says.
+// The remembered TierPayload answer is not dead weight, though. It is the only
+// thing left saying "this is Tier 2" on the one launch where the pin is gone
+// and the source cannot be reached, and [unresolvablePayloadRefusal] reads it
+// there to refuse instead of degrading to legacy.
+//
+// There are therefore two read sites, and they ask opposite questions: the gate
+// in resolveAndPin skips the resolve on a remembered non-payload answer, and
+// the fetch-failure branch below it refuses on a remembered payload answer.
 //
 // Deletion trigger: when Tier 1 installs pin too (the default agentpakke
 // becoming navikt/copilot), the last caller goes and this file goes with it.

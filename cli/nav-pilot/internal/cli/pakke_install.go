@@ -131,18 +131,64 @@ func materializeRevision(src *Source) (string, error) {
 		os.RemoveAll(tmp)
 		return "", err
 	}
-	// Only a directory this call already found unusable is removed, so the
-	// ordinary "not there yet" case cannot delete a revision another process
+	// The outgoing revision is moved aside rather than removed, and only
+	// dropped once the new one is published. A local source is rebuilt in place
+	// on every launch, and its payload directory is what a running session was
+	// handed as OPENCODE_CONFIG_DIR and as cplt's --allow-read
+	// (provider/staged_launch.go), so a second window rebuilding it used to
+	// empty that directory file by file under the first. Every state the path
+	// is observed in is now a complete tree: the old revision, then the new
+	// one. It is not gone at once — one rename separates them, since exchanging
+	// two directories atomically is not portable — but "absent" is a state a
+	// reader can retry, and "there but half empty" is one it cannot tell from a
+	// broken pakke. Descriptors the session already holds read on either way,
+	// on the tree that was moved aside. os.Rename onto a non-empty directory
+	// fails, which is why the old tree has to go somewhere rather than be
+	// renamed over.
+	//
+	// The aside name wears revisionTmpPrefix, so the prune leaves it alone and
+	// a hard kill between the two renames leaks it exactly the way a staging
+	// tree leaks — the same bounded leak, not a new one.
+	//
+	// Only a directory this call already found unusable is touched, so the
+	// ordinary "not there yet" case cannot disturb a revision another process
 	// published while this one was staging.
+	aside := tmp + "-old"
 	if replace {
-		_ = os.RemoveAll(revDir)
+		if err := os.Rename(revDir, aside); err != nil {
+			os.RemoveAll(tmp)
+			return "", fmt.Errorf("moving the outgoing agentpakke revision %s aside: %v", src.SHA, err)
+		}
 	}
 	if err := os.Rename(tmp, revDir); err != nil {
 		os.RemoveAll(tmp)
 		if verifyRevision(src, revDir) == nil {
-			return revDir, nil // another process published it first
+			if replace {
+				os.RemoveAll(aside) // another process published it first
+			}
+			return revDir, nil
+		}
+		// Publishing failed, so the old tree goes back. If putting it back
+		// fails too, the revision path is left with nothing at it at all, which
+		// is worse than either the state before this call or the one it was
+		// aiming for — and it is the one outcome U9 exists to prevent. Nothing
+		// here can repair that: both renames are within one directory, so a
+		// failure means that directory itself is no longer writable, and a copy
+		// would fail for the same reason. So it is reported instead, naming the
+		// path that holds the only complete copy left, which is all a user
+		// needs to move it back by hand.
+		if replace {
+			if rollbackErr := os.Rename(aside, revDir); rollbackErr != nil {
+				return "", fmt.Errorf(
+					"publishing agentpakke revision %s failed (%v), and putting the previous revision back failed too (%v).\n"+
+						"%s no longer exists; the previous revision is intact and can be moved back to that path from %s",
+					src.SHA, err, rollbackErr, revDir, aside)
+			}
 		}
 		return "", fmt.Errorf("publishing agentpakke revision %s: %v", src.SHA, err)
+	}
+	if replace {
+		os.RemoveAll(aside)
 	}
 	return revDir, nil
 }
