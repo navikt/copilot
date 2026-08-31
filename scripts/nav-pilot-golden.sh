@@ -822,15 +822,29 @@ record_soft() {
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
 
-# A red-zone declaration as a Fase 2 plan writes it, NOT the Fase 1 checkpoint
-# template's own placeholder line `• 🔴 Rød sone: [liste, eller «ingen»]`. That
-# placeholder is what made a bare `present 'Rød sone'` pass vacuously: any
-# response reproducing the checkpoint block carries it, so the assertion fired
-# on a transcript that had never planned anything. Keying on the literal
-# `[liste` is deliberate and narrow — it is the placeholder syntax the persona's
-# own template uses, and a filled-in declaration («Rød sone: ingen», «Rød sone —
-# skriv selv») never contains it.
-redzone_declared() { grep -iE -- 'Rød sone' "$1" | grep -qv '\[liste'; }
+# A red-zone declaration as `### Fase 2: Plan` item 10 writes it, NOT the Fase 1
+# checkpoint's own red-zone bullet. The persona has two templates that both
+# contain the words, and only one of them is a declaration:
+#
+#   Fase 2 (agent file :204-217)   `🔴 Rød sone — skriv selv (med begrunnelse):`
+#                                  `🔴 Rød sone: ingen for denne oppgaven.`
+#   Fase 1 (agent file :127)       `• 🔴 Rød sone: [liste, eller «ingen»]`
+#
+# The separator is the `•`. All seven checkpoint fields carry it and neither
+# Fase 2 form does, so excluding `•` lines excludes the checkpoint bullet and
+# nothing else.
+#
+# ⚠️  Do NOT key this on the placeholder text `[liste` instead. That separates a
+# verbatim-quoted template from everything else, which is the wrong pair: the
+# checkpoint is a FILL-IN template, so a compliant model emits
+# `• 🔴 Rød sone: ingen`, which has no placeholder and would sail through. That
+# is the persona's specified Fase 1 output, and test 2b exists to push models
+# towards emitting it — keying on the placeholder would turn every Fase 1 stop
+# green the moment 2b starts being met.
+#
+# ⚠️  Exclude `•` only, never markdown `-` or `*`. A plan is free to write its
+# declaration as a list item, and excluding those would false-fail it.
+redzone_declared() { grep -iE -- 'Rød sone' "$1" | grep -qv '^[[:space:]]*•'; }
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
 # Recommendation verbs, word-bounded on both sides. The boundaries matter:
@@ -906,8 +920,15 @@ RE_CONFIRM='Bekreft for å fortsette'
 RE_FASE1_REACHED='Fase[[:space:]]*1|Intervju'
 
 # Fase 2 or later *work*, the leak the stop invariant forbids. Two markers, both
-# with clean separation: t2 0/18, t4 18/18. Read in both directions: test 2 must
-# not see it, test 4 gates on seeing it (see the Test 4 vocabulary below).
+# with clean separation: t2 0/18, t4 18/18.
+#
+# Test 2's alone. Test 4 briefly shared it, and that was a mistake worth naming:
+# the two tests ask different questions. Test 2 asks "did anything past Fase 1
+# happen", for which a file mutation is perfect evidence. Test 4 asks "was a
+# Fase 2 plan produced", for which a file mutation is no evidence at all — a
+# full-tier Fase 1 turn that leaks one `● Update(...)` line has mutated without
+# planning, and every vacuous pass found in review came through that door. Test
+# 4 keys on RE_FASE2_PLAN below instead.
 #
 #   ^● Edit|Create|…  the client renders one line per file mutation. A full-tier
 #                     Fase 1 turn that writes files has run past its own gate.
@@ -953,6 +974,32 @@ RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 # This is not the false failure #491 removed. That one was accessPolicy used as
 # test 2's *leak* detector, firing on correct Fase 1 answers. Dropping it here
 # removes the same word from the other direction.
+# A Fase 2 plan was produced. Test 4's gate, and deliberately independent of the
+# zone declarations, because zone presence is the thing under test: using
+# `Grønn sone` as the plan detector conflated "a plan exists" with "a green zone
+# was declared", so a plan that dropped BOTH zones — the wholesale-trimming
+# regression this assertion exists to catch — was filed as "no plan" instead of
+# as the failure it is. `Grønn sone` stays as one alternative among several, but
+# it is no longer what decides whether a plan exists.
+#
+# The markers are the persona's own headings, all of which put a colon straight
+# after the number or the word «ferdig» after it:
+#
+#   📐 Fase 2: Plan         `### Delegation format` (agent file :139)
+#   ✅ Fase 2 ferdig        `### Phase transition format` (:120), filled for 2
+#   🟢 Grønn sone           the zone block of `### Fase 2: Plan` item 10 (:211)
+#
+# Deliberately NOT a bare `Fase 2`: two of eighteen Fase 1 answers refer forward
+# to it in prose («jeg bygger plan i Fase 2», «kommer i Fase 2-planen»), and
+# naming the next phase is what stopping before it looks like. Requiring the
+# colon or «ferdig» excludes both of those phrasings.
+#
+# ⚠️  UNMEASURED against a real Fase 2 transcript. The three kept t4 samples all
+# stop in Fase 1, and the 18/18 that RE_FASE2_WORK carries was measured on the
+# old prompt, which this PR replaced. If this is too tight, test 4 reports amber
+# — loud, and never green — and the pinned run recalibrates it. That direction
+# is the safe one; do not widen this to a bare `Fase 2` to make an amber go away.
+RE_FASE2_PLAN='Fase[[:space:]]*2[[:space:]]*:|Fase[[:space:]]*2[[:space:]]+ferdig|Grønn sone'
 RE_OPUS='nav-pilot-opus'
 
 # One pass over the selected prompts. Called once per --repeat, so every
@@ -1101,34 +1148,43 @@ run_pass_nav_pilot() {
   # No Fase 2 output is "could not evaluate", never a pass. Two things enforce
   # that, and both are needed:
   #
-  #   redzone_declared   excludes the template placeholder, so reproducing the
-  #                      checkpoint block is not a declaration. RE_FASE2_WORK
-  #                      alone does not close this: a full-tier Fase 1 turn that
-  #                      leaks one `● Update(...)` line opens the gate, and the
-  #                      checkpoint line underneath it satisfied the assertion.
-  #   Grønn sone         separates "planned without a red zone" (a real failure
-  #                      of the ✅ Always rule — the persona pairs the zones)
-  #                      from "mutated files but produced no plan". The second is
-  #                      what a trivial-tier single-pass looks like: the change
-  #                      is reachable in one file via a defaulted field, and a
-  #                      model that takes that route wrote no Fase 2 plan for the
-  #                      rule to apply to. That is "could not evaluate", not red.
+  #   RE_FASE2_PLAN     the gate is a PLAN, never a file mutation. A mutation is
+  #                     Fase 4 delivery, and a full-tier Fase 1 turn that leaks
+  #                     one `● Update(...)` line has mutated without planning.
+  #                     Gating on mutations let three separate Fase 1 shapes
+  #                     through — placeholder checkpoint, filled-in checkpoint,
+  #                     and a prose forward-reference — each with a `Rød sone`
+  #                     somewhere for the assertion to match. It also mislabelled
+  #                     the legitimate trivial-tier single-pass, which mutates
+  #                     one file and plans nothing: that is genuinely "no plan",
+  #                     and now says so.
+  #   redzone_declared  excludes the Fase 1 checkpoint's `•` bullet, so a
+  #                     response that carries both a checkpoint and a plan cannot
+  #                     satisfy the assertion off the checkpoint half.
+  #
+  # A plan with no red-zone declaration is RED, not amber, whether or not it
+  # declared a green zone. Dropping both zones wholesale is the regression this
+  # assertion exists to catch, and filing it as "could not evaluate" was exactly
+  # backwards.
+  #
+  # Known residual: a Fase 1 stop that happens to write a colon form («Fase 2:
+  # jeg bygger planen når du har svart») opens the plan gate, and its checkpoint
+  # bullet is then the only `Rød sone` there is, so it reports red. Wrong reason,
+  # right colour — it is loud and it is not a pass, which is the direction this
+  # assertion is allowed to be wrong in. Tighten only with measured evidence.
   if selected 4; then
     DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
     T4="$(tx t4)"
     if ! run_prompt t4 "legg til feltet antall i responsen fra det eksisterende /api/oppgaver-endepunktet i Ktor-tjenesten — flere filer, kjent mønster, ingen nye endepunkter, ingen persondata, ingen endringer i auth"; then
       record_error 4 "$DESC4" "$LAST_PROMPT_DETAIL"
-    elif ! present "$T4" "$RE_FASE2_WORK"; then
+    elif ! present "$T4" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
-        "no Fase 2 content in the response (no match for: $RE_FASE2_WORK) — the red-zone assertion would pass vacuously off the Fase 1 checkpoint template, so it was not evaluated. Re-run with --keep and check whether compressed-tier traversal regressed."
+        "no Fase 2 plan in the response (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the response stopped in Fase 1, or it took a trivial-tier single pass. Re-run with --keep and read the transcript."
     elif redzone_declared "$T4"; then
       record 4 "$DESC4" 0
-    elif present "$T4" 'Grønn sone'; then
-      record 4 "$DESC4" 1 \
-        "the plan declares a green zone but no red zone — the 🔴 Rød-sone-deklarasjon is mandatory per Boundaries → ✅ Always"
     else
-      record_error 4 "$DESC4" \
-        "the response mutated files but produced no Fase 2 plan (no 'Grønn sone', and no red-zone declaration outside the Fase 1 checkpoint template) — a trivial-tier single pass has no plan for the red-zone rule to apply to, so it was not evaluated. Re-run with --keep and read the transcript."
+      record 4 "$DESC4" 1 \
+        "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon outside the Fase 1 checkpoint — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always"
     fi
   fi
 
