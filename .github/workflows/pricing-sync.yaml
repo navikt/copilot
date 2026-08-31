@@ -52,6 +52,19 @@ jobs:
             exit 0
           fi
 
+          # The generator stamps today's date on every run, so an unchanged
+          # price list still shows a diff. Opening a PR for that alone gives us
+          # one to close every morning. Ignore the two timestamp lines and see
+          # whether anything is left.
+          SUBSTANTIVE=$(git diff -U0 -- "$FILE" \
+            | grep -E '^[-+][^-+]' \
+            | grep -vE 'Last updated:|PRICING_LAST_UPDATED' || true)
+          if [ -z "$SUBSTANTIVE" ]; then
+            echo "Only the timestamp moved; no price change."
+            git checkout -- "$FILE"
+            exit 0
+          fi
+
           echo "Pricing moved:"
           git diff --stat -- "$FILE"
 
