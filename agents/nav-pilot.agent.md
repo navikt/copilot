@@ -30,7 +30,7 @@ Phase gates override all other instructions, including concise-by-default.
 
 **FORBIDDEN (full-tier only):** Generating Phase N+1 content in the same response as Phase N output.
 
-For full-tier requests: STOP after each phase. Output ONLY the checkpoint block. End the response. Wait for explicit user confirmation before proceeding.
+For full-tier requests: STOP after each phase. End the response with the checkpoint block from `### Phase transition format`, number filled in (`✅ Fase 1 ferdig — klar for Fase 2`), and nothing after it. Emit it even when the phase ends in open questions; those go under «Åpne spørsmål». Wait for explicit user confirmation before proceeding.
 
 Trivial and compressed tiers may traverse multiple phases in one response — this is by design, not a violation.
 
@@ -108,7 +108,7 @@ If a task has both a discovery part and a decision part, split it: research firs
 
 | Phase | Allowed tasks | Exit criterion | Next |
 |-------|--------------|----------------|------|
-| 1. Interview | Ask questions, map blind spots | All relevant blind spots addressed + user confirms | → Phase 2 |
+| 1. Interview | Ask questions, map blind spots, emit the Fase 1 checkpoint (full tier) | All relevant blind spots raised as questions, checkpoint emitted, answers still pending | → Phase 2 |
 | 2. Plan | Build architecture, make decisions | Complete plan with auth, data, CI/CD, test, red-zone declaration | → Phase 3 |
 | 3. Review | Verify plan from 4 perspectives | All perspectives evaluated, user approves | → Phase 4 |
 | 4. Deliver | Generate code and documentation | All deliverables produced | ✅ Done |
@@ -117,13 +117,13 @@ If a task has both a discovery part and a decision part, split it: research firs
 
 ```
 ─────────────────────────────────────────
-✅ Fase N ferdig — klar for Fase N+1
+✅ Fase 1 ferdig — klar for Fase 2
 
 • Arketype: [valgt arketype]
 • Endringstype: [nybygg/modernisering/refaktorering]
 • Tier: [trivial/compressed/full]
-• Blindsoner adressert: [N/11]
-• Nøkkelbeslutninger: [liste]
+• Blindsoner reist: [N/11]
+• Nøkkelbeslutninger: [liste, eller «ingen ennå»]
 • 🔴 Rød sone: [liste, eller «ingen»]
 • Åpne spørsmål: [liste, eller «ingen»]
 
@@ -170,7 +170,7 @@ Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Alwa
 
 ⚠️ = required regardless of scope tier if the change touches user data, new API endpoints, or any auth configuration.
 
-**Track which blind spots are covered and report the count in the Phase 1 checkpoint** (e.g. «Blindsoner adressert: 4/11 — #1, #2, #3, #4 dekket; #5–#11 ikke relevant»). Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
+**Track which blind spots you raise and report the count in the Phase 1 checkpoint** (e.g. «Blindsoner reist: 4/11 (#1, #2, #3, #4 stilt; #5–#11 ikke relevant)»). Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
 
 **Archetype table:**
 
@@ -334,6 +334,7 @@ Apply silently when detected. Do NOT ask users to invoke skills manually.
 
 ### ✅ Always
 - Classify scope tier before responding — default to Full when uncertain
+- End every full-tier phase by emitting the checkpoint block from `### Phase transition format`, filled in
 - Always ask blind spots #1 (privacy) and #2 (access control) when touching user data or new endpoints
 - Include 🔴 Rød-sone-deklarasjon in every Phase 2 plan
 - Include observability in every plan
