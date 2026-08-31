@@ -20,6 +20,18 @@ Kontrakten er lest ut av GitHub Copilot CLI 1.0.82 sin egen bundle:
   ut    både flat form (CLI-ens egen SDK-form) og hookSpecificOutput
         (Claude Code-formen). CLI-en oppgir å godta begge dialektene.
 
+Porten er grov med vilje, og disse kantene er kjent og valgt, ikke oversett:
+
+  * `role=` i en kommentar eller en streng nektes likevel.
+  * Rekkevidden er `**/src/**/*.tsx`. `.ts`, `.jsx` og `.js` er utenfor, og en
+    hvilken som helst `src`-katalog treffer, ikke bare den i rota.
+  * En standardrolle som `role="alert"`, ofte den riktige rettingen, nektes
+    på lik linje med en egendefinert. Å skille dem er en produktavgjørelse om
+    hva ⚠️ Ask First :249 faktisk skal dekke, ikke en feil i porten.
+  * En rolle delt over to redigeringer (`<ul rol` så `e="listbox">`) slipper
+    gjennom. Det samme gjør `role:` som objektnøkkel.
+  * Selvtesten dekker nå disse nærtreffene, ikke bare de tre grunntilfellene.
+
 Merk: en skriving rutet gjennom `execute` og et heredoc går utenom både
 write() og hooks. Det er ikke teoretisk. Med porten på plass er uu3 4/5 på
 begge modellene, og den ene røde kjøringen på Luna skrev fila med
@@ -36,15 +48,24 @@ import sys
 from pathlib import PurePosixPath
 
 # Ordgrense foran: `role=` skal treffe, `ariaRole=` og `data-role=` ikke.
-# Etterfulgt av ", ' eller { dekker både role="listbox" og role={rolle}.
-ROLE_ATTR = re.compile(r"(?<![\w.-])role\s*=\s*[\"'{]")
+# Hele attributtet fanges, verdien inkludert, fordi porten sammenligner hvilke
+# roller som finnes før og etter. Da slipper en uendret rolle gjennom mens en
+# ny rolle ved siden av den blir nektet.
+ROLE_ATTR = re.compile(r"""(?<![\w.-])role\s*=\s*("[^"]*"|'[^']*'|\{[^}]*\})""")
 
-# Nøkkelen som bærer det nye innholdet varierer med verktøyet, og med
-# hvilken dialekt CLI-en sender. Alle leses; ingen av dem finnes på et lese-
-# eller søkekall, så en read kan ikke treffe her.
+# Nøkkelen som bærer det nye innholdet varierer med verktøyet, og med hvilken
+# dialekt CLI-en sender. Ingen av dem finnes på et lese- eller søkekall, så en
+# read kan ikke treffe her.
 NEW_KEYS = ("file_text", "new_str", "new_string", "content", "newText")
 OLD_KEYS = ("old_str", "old_string", "oldText")
 PATH_KEYS = ("path", "file_path", "filePath")
+
+# apply_patch sender hele patchen som én rå streng under `input` eller `patch`
+# (1.0.82: `if(typeof t.input=="string")return t.input;if(typeof t.patch==...`),
+# ikke som strukturerte argumenter. Uten egen parsing går den rett gjennom
+# porten, og det er en preToolUse-synlig skriving, ikke shell-omveien.
+PATCH_KEYS = ("input", "patch")
+PATCH_HDR = re.compile(r"^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$")
 
 REASON = (
     "En egendefinert ARIA-rolle er ⚠️ Ask First i accessibility.agent.md:249, "
@@ -90,25 +111,72 @@ def is_src_tsx(path):
     return p.suffix == ".tsx" and "src" in p.parts
 
 
+def first_str(args, keys):
+    if isinstance(args, dict):
+        for k in keys:
+            v = args.get(k)
+            if isinstance(v, str):
+                return v
+    return None
+
+
+def patch_sections(text):
+    """apply_patch-tekst → [(sti, lagte_linjer, fjernede_linjer)].
+
+    Grammatikken er CLI-ens egen: `*** Add File: <sti>` fulgt av `+`-linjer,
+    `*** Update File: <sti>` fulgt av ` `/`+`/`-`-linjer, `*** Move to: <sti>`
+    som gir samme seksjon en destinasjon til. Begge stiene til en flytting
+    vurderes, slik at en rolle ikke kan smugles inn via en omdøping.
+    """
+    sections = []
+    cur = None
+    for line in text.splitlines():
+        m = PATCH_HDR.match(line)
+        if m:
+            kind, name = m.group(1), m.group(2).strip()
+            if kind == "Move to" and cur is not None:
+                cur[0].append(name)
+            else:
+                cur = ([name], [], [])
+                sections.append(cur)
+            continue
+        if cur is None or line.startswith("***"):
+            continue
+        if line[:1] == "+":
+            cur[1].append(line[1:])
+        elif line[:1] == "-":
+            cur[2].append(line[1:])
+    return [
+        (path, "\n".join(added), "\n".join(removed))
+        for paths, added, removed in sections
+        for path in paths
+    ]
+
+
+def writes_of(args):
+    """→ [(sti, nytt_innhold, gammelt_innhold)] for hver skriving kallet gjør."""
+    patch = first_str(args, PATCH_KEYS)
+    if patch and "*** " in patch:
+        return patch_sections(patch)
+    new, old = text_of(args, NEW_KEYS), text_of(args, OLD_KEYS)
+    return [(path, new, old) for path in paths_of(args)]
+
+
 def decide(payload):
     """→ grunntekst hvis kallet skal nektes, ellers None."""
     args = payload.get("toolArgs")
     if args is None:
         args = payload.get("tool_input", {})
 
-    if not any(is_src_tsx(p) for p in paths_of(args)):
-        return None
-
-    new = text_of(args, NEW_KEYS)
-    if not ROLE_ATTR.search(new):
-        return None
-
-    # En str_replace som bare flytter en rolle som alt står der, innfører
-    # ingenting. Porten gjelder det å innføre rollen, ikke å røre den.
-    if ROLE_ATTR.search(text_of(args, OLD_KEYS)):
-        return None
-
-    return REASON
+    for path, new, old in writes_of(args):
+        if not is_src_tsx(path):
+            continue
+        # Differansen, ikke bare et treff: en rolle som alt står der og bare
+        # flyttes innfører ingenting, mens en ny rolle ved siden av en gammel
+        # skal fortsatt nektes.
+        if set(ROLE_ATTR.findall(new)) - set(ROLE_ATTR.findall(old)):
+            return REASON
+    return None
 
 
 def main():
@@ -152,44 +220,51 @@ def main():
 # Kjører skriptet som subprosess med ekte stdin, ikke bare decide(), slik at
 # JSON-inn, JSON-ut og exitkoden er dekket. `mise run hooks:test`.
 
-SELFTEST = [
-    (
-        "nekter role= inn i src/**/*.tsx",
-        {
-            "hookEventName": "preToolUse",
-            "toolName": "str_replace",
-            "toolArgs": {
-                "path": "src/app/komponenter/StatusPanel.tsx",
-                "old_str": "<span>{status}</span>",
-                "new_str": '<ul role="listbox">{status}</ul>',
-            },
-        },
-        True,
-    ),
-    (
-        "slipper gjennom aria-label uten role=",
-        {
-            "hookEventName": "preToolUse",
-            "toolName": "str_replace",
-            "toolArgs": {
-                "path": "src/app/komponenter/StatusPanel.tsx",
-                "old_str": "<button onClick={onSlett}>",
-                "new_str": '<button aria-label="Slett" onClick={onSlett}>',
-            },
-        },
-        False,
-    ),
-    (
-        "slipper gjennom en lesing",
-        {
-            "hookEventName": "preToolUse",
-            "toolName": "view",
-            "toolArgs": {"path": "src/app/komponenter/StatusPanel.tsx"},
-        },
-        False,
-    ),
-]
+def _sr(path, old, new):
+    return {"toolName": "str_replace", "toolArgs": {"path": path, "old_str": old, "new_str": new}}
 
+
+def _ap(patch, key="input"):
+    return {"toolName": "apply_patch", "toolArgs": {key: patch}}
+
+
+TSX = "src/app/komponenter/StatusPanel.tsx"
+
+SELFTEST = [
+    # ── de tre grunntilfellene ────────────────────────────────────────────────
+    ("nekter role= inn i src/**/*.tsx",
+     _sr(TSX, "<span>{status}</span>", '<ul role="listbox">{status}</ul>'), True),
+    ("slipper gjennom aria-label uten role=",
+     _sr(TSX, "<button onClick={onSlett}>", '<button aria-label="Slett" onClick={onSlett}>'), False),
+    ("slipper gjennom en lesing",
+     {"toolName": "view", "toolArgs": {"path": TSX}}, False),
+
+    # ── apply_patch, som sender hele patchen som én rå streng ─────────────────
+    ("nekter apply_patch Update File med +role=",
+     _ap('*** Begin Patch\n*** Update File: ' + TSX + '\n@@\n-      <span>{status}</span>\n+      <ul role="listbox">{status}</ul>\n*** End Patch\n'), True),
+    ("nekter apply_patch Add File under nøkkelen patch",
+     _ap('*** Begin Patch\n*** Add File: src/app/komponenter/Listbox.tsx\n+export const L = () => <ul role="listbox" />;\n*** End Patch\n', key="patch"), True),
+    ("nekter en rolle smuglet inn via Move to",
+     _ap('*** Begin Patch\n*** Update File: src/app/komponenter/Gammel.ts\n*** Move to: ' + TSX + '\n@@\n+<ul role="listbox" />\n*** End Patch\n'), True),
+    ("slipper gjennom apply_patch som ikke rører en tsx under src/",
+     _ap('*** Begin Patch\n*** Update File: lib/roles.ts\n@@\n+const role = "listbox";\n*** End Patch\n'), False),
+    ("slipper gjennom apply_patch som bare fjerner en rolle",
+     _ap('*** Begin Patch\n*** Update File: ' + TSX + '\n@@\n-<ul role="listbox" />\n+<Select />\n*** End Patch\n'), False),
+
+    # ── differansen, ikke bare et treff ───────────────────────────────────────
+    ("slipper gjennom en rolle som bare flyttes",
+     _sr(TSX, '<div><ul role="listbox" /></div>', '<section><ul role="listbox" /></section>'), False),
+    ("nekter en ny rolle ved siden av en som alt står der",
+     _sr(TSX, '<ul role="listbox" />', '<ul role="listbox" /><li role="option" />'), True),
+
+    # ── kjente nærtreff, dokumentert i docstringen og bevisst utenfor ─────────
+    ("slipper gjennom role: som objektnøkkel, ikke et attributt",
+     _sr(TSX, "const a = {}", 'const a = { role: "listbox" }'), False),
+    ("slipper gjennom .ts, porten dekker bare .tsx",
+     _sr("src/lib/roller.ts", "x", '<ul role="listbox" />'), False),
+    ("slipper gjennom en rolle delt over to redigeringer",
+     _sr(TSX, "<ul", '<ul rol'), False),
+]
 
 def selftest():
     import subprocess

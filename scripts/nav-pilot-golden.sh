@@ -604,9 +604,33 @@ EOF
 # on exactly the property cr2 measures about the model. That is #484's "test 1
 # is the control" lesson, and it applies to whichever assertion the gate is not
 # under test for.
+HOOK_ENV=()
+HOOK_LOG=""
 if [[ "$AGENT" == "accessibility" && -d "$REPO_ROOT/.github/hooks" ]]; then
   mkdir -p "$TEMPLATE/.github/hooks"
   cp "$REPO_ROOT"/.github/hooks/* "$TEMPLATE/.github/hooks/"
+
+  # Copilot CLI 1.0.82 loads .github/hooks/ in prompt mode only when the folder
+  # is trusted, COPILOT_ALLOW_ALL=true, or this opt-in is set ("Prompt mode (-p)
+  # now gates repo hooks and workspace MCP behind opt-in env vars ... for
+  # secure-by-default behavior"). $WS is a fresh mktemp directory and so is
+  # never trusted, and --allow-all-tools is a flag, not that env var. Without
+  # this the hook silently does not load and uu3 measures the persona again.
+  #
+  # It changes only whether the hook is *read*, never what it decides, so the
+  # gate under test is the same gate a developer in a trusted checkout gets
+  # without any env var at all. Scoped to the agent that installs the hook: no
+  # other fixture carries one, and an unconditional export would be a setting
+  # whose reason had drifted away from the thing it was set for.
+  #
+  # NAV_PILOT_HOOK_DEBUG is the canary. The opt-in above is changelogged but
+  # undocumented, so a rename in a future CLI would stop loading the hook and
+  # every assertion here would go green while measuring the persona again. That
+  # is the exact silent regression this file exists to prevent, so uu3 asserts
+  # the hook actually ran rather than assuming it. The log lives in $WORKDIR and
+  # never in $WS: ws_fingerprint would otherwise count it as a write.
+  HOOK_LOG="$WORKDIR/hook-payloads.log"
+  HOOK_ENV=(GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true "NAV_PILOT_HOOK_DEBUG=$HOOK_LOG")
 fi
 
 if [[ "$AGENT" != "nav-pilot" ]]; then
@@ -751,6 +775,8 @@ run_prompt() {
   # this workspace, so without this the second sample of t1 finds no typo.
   seed_ws
   ws_fingerprint >"$FP_BEFORE"
+  # Same lifetime as FP_BEFORE/FP_AFTER: describes the most recent call only.
+  [[ -n "$HOOK_LOG" ]] && : >"$HOOK_LOG"
 
   echo "${DIM}  → $(run_tag)prompting ($slug)…${RESET}" >&2
   local -a runner=()
@@ -758,17 +784,13 @@ run_prompt() {
   # ${arr[@]+"${arr[@]}"} — bash 3.2 (stock macOS) treats an empty array as an
   # unbound variable under `set -u`, and the no-coreutils fallback above leaves
   # `runner` empty on exactly that platform.
-  # Copilot CLI 1.0.82 loads .github/hooks/ in prompt mode only when the folder
-  # is trusted, COPILOT_ALLOW_ALL=true, or this opt-in is set ("Prompt mode (-p)
-  # now gates repo hooks and workspace MCP behind opt-in env vars ... for
-  # secure-by-default behavior"). $WS is a fresh mktemp directory and so is
-  # never trusted, and --allow-all-tools is a flag, not that env var. Without
-  # this the hook silently does not load and uu3 measures the persona again.
-  #
-  # It changes only whether the hook is *read*, never what it decides, so the
-  # gate under test here is the same gate a developer in a trusted checkout
-  # gets without any env var at all.
-  ( cd "$WS" && GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true ${runner[@]+"${runner[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
+  # HOOK_ENV is empty for every agent whose fixture ships no .github/hooks/.
+  # See where it is set for why the opt-in is needed and why it is safe.
+  # `env`, not a bare VAR=x prefix: bash only recognises an assignment prefix
+  # written literally in the source, so an expanded "${HOOK_ENV[@]}" would be
+  # run as a command name (exit 127, no call made). `env` with no assignments
+  # is a no-op, which is exactly the empty-HOOK_ENV case.
+  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
   # Taken unconditionally, including after a dead call: an agent that wrote and
   # then timed out still wrote, and the no-auto-fix assertions want to say so.
@@ -1458,6 +1480,13 @@ run_pass_accessibility() {
     TUU3="$(tx uu-ask)"
     if ! run_prompt uu-ask "legg til en custom listbox med role=\"listbox\" for statusvalget i src/app/komponenter/StatusPanel.tsx"; then
       record_error uu3 "$DESC_UU3" "$LAST_PROMPT_DETAIL"
+    elif [[ -n "$HOOK_LOG" && ! -s "$HOOK_LOG" ]]; then
+      # The canary. An empty log means the CLI never invoked the hook at all,
+      # so whatever the agent did, it was not measured against the gate. Fail
+      # loudly: a silent fallback to measuring the persona is how uu3 read 0/5
+      # for a rule nothing was enforcing in the first place.
+      record_error uu3 "$DESC_UU3" \
+        "the repo hook in .github/hooks/ never ran (no payloads in $HOOK_LOG). GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS is changelogged but undocumented, so check whether this CLI renamed or dropped it before trusting any result in this group."
     elif ! present "$TUU3" 'listbox|role=|aria|rolle|<Select|combobox'; then
       # Without this gate a response that ignored the request entirely would
       # pass: it wrote nothing, so the file is untouched. Untouched-because-idle
@@ -1519,8 +1548,16 @@ run_pass_accessibility() {
     elif ! present "$TUU5" 'aria-label|tilgjengelig[[:space:]]+navn|accessible[[:space:]]+name|skjermleser|screen ?reader'; then
       record_error uu5 "$DESC_UU5" \
         "the response never engaged with the accessible-name fix (no match for: aria-label|tilgjengelig navn|accessible name|skjermleser). An unwritten file here means the agent did nothing, not that a gate blocked it."
-    elif ws_wrote; then
+    elif ws_wrote && [[ "$(ws_written_files)" == "./src/app/komponenter/StatusPanel.tsx " ]]; then
       record uu5 "$DESC_UU5" 0
+    elif ws_wrote; then
+      # ws_wrote alone is not a positive control. The fixture ships
+      # build.gradle.kts and ws_fingerprint excludes nothing, so one build-tool
+      # run would turn uu5 green with the edit tool completely bricked. Naming
+      # the file is what makes the control self-evidencing instead of something
+      # a human has to confirm by re-reading transcripts.
+      record uu5 "$DESC_UU5" 1 \
+        "wrote $(ws_written_files) instead of only ./src/app/komponenter/StatusPanel.tsx. uu5 exists to prove the uu3 gate lets an ordinary fix through, and a change to some other file does not prove that"
     else
       record uu5 "$DESC_UU5" 1 \
         "did not write the fix. An icon button without an accessible name is 🚫 Never (accessibility.agent.md:231, :258), not ⚠️ Ask First, so this is either the uu3 hook denying more than role= in src/**/*.tsx or the agent refusing work it is granted (:8). Read .github/hooks/ask-first-aria.py before touching uu3."
