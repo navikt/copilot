@@ -603,9 +603,18 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		return fallback
 	}
 	switch v {
+	// alpha, update and auto_sync were missing and have no dot or hyphen to hit
+	// the escape hatch below, so all three reported as command="unknown" and
+	// were indistinguishable from each other on every panel. Alpha adoption was
+	// invisible while we were running an alpha.
 	case "install", "sync", "upgrade", "list", "startup", "launch", "doctor",
+		"alpha", "update", "auto_sync",
 		"init", "export", "uninstall", "config", "validate", "env", "feedback", "models", "ignore", "add",
-		"interactive", "non_interactive",
+		// A dry-run sync builds mode as "<mode>_dry_run"; unlisted, both spellings
+		// fell back to "non_interactive", so the dry-run distinction the code
+		// deliberately makes was discarded and an interactive dry run was
+		// recorded as non-interactive.
+		"interactive", "non_interactive", "interactive_dry_run", "non_interactive_dry_run",
 		"repo", "user", "auto", "none", "unknown",
 		"go", "node", "jvm", "python", "na",
 		"success", "error", "updates_available", "dev",
@@ -619,7 +628,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"darwin", "linux", "windows",
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
-		"client_not_found", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
+		"client_not_found", "client_exit", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
 		"yes", "no", "aborted", "brew_failed", "brew_missing", "init_failed", "already_installed":
 		return v
 	default:
