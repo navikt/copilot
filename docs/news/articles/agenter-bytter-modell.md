@@ -3,7 +3,7 @@ title: "Flere agenter bytter modell: dette viser målingene"
 date: 2026-08-31
 author: starefossen
 category: nav
-excerpt: "@research-agent og fire prompt-maler går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. @code-review og @accessibility-agent er satt på vent til de er målt for seg. Målingene skiller ikke modellene fra hverandre på sikkerhet og kvalitet, og da er det prisen som avgjør. Alt oppdateres automatisk."
+excerpt: "@research-agent og fire prompt-maler går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. @code-review og @accessibility-agent er satt på vent til de er målt for seg. Målingene skiller ikke modellene fra hverandre på sikkerhet og kvalitet, og da er det prisen som avgjør. nav-pilot tilbyr oppdateringen neste gang du starter den."
 tags:
   - models
   - nav-pilot
@@ -11,7 +11,7 @@ tags:
   - cost-optimization
 ---
 
-Vi bytter modellene bak flere av Copilot-konfigurasjonene i nav-pilot basert på en rekke målinger (se lenger nede for detaljer). Oppdateringen skjer automatisk neste gang du starter `nav-pilot`, eller når du kjører `nav-pilot sync` manuelt.
+Vi bytter modellene bak flere av Copilot-konfigurasjonene i nav-pilot basert på en rekke målinger (se lenger nede for detaljer). Neste gang du starter `nav-pilot` spør den om du vil synke, og sier du ja er byttet inne. Du kan også kjøre `nav-pilot sync` selv.
 
 | Agent eller prompt | Fra | Til |
 |---|---|---|
@@ -64,7 +64,7 @@ Luna koster under en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Son
 > `@accessibility-agent` bytter ikke modell nå. Grunnen er verktøytilgangen
 > deres: `@code-review` har `execute`, og `@accessibility-agent` har `execute`,
 > `edit` og `runSubagent`, altså kjøre kommandoer, skrive filer og starte
-> subagenter. Målingen som bærer Luna-valget kjørte bare nav-pilot-personaen,
+> subagenter. Målingen som bærer Luna-valget kjørte bare nav-pilot-konfigurasjonen,
 > som ikke bruker verktøy i det hele tatt, så vi har ingen tall for en
 > verktøytung agent på Luna. Det er ikke det samme som at Luna er utrygg der.
 > Det er at vi ikke har målt det, og de to måles for seg før noen bestemmer noe.
