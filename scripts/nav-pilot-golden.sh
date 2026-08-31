@@ -484,6 +484,9 @@ plugins {
     kotlin("jvm") version "2.1.0"
     kotlin("plugin.serialization") version "2.1.0"
 }
+repositories {
+    mavenCentral()
+}
 dependencies {
     implementation("io.ktor:ktor-server-netty:3.0.0")
     implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
@@ -527,13 +530,12 @@ cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Routes.kt" <<'EOF'
 package no.nav.demo
 
 import io.ktor.server.application.Application
-import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 
 private val oppgaver = listOf(
-    Oppgave("1", "Registrer soknad"),
+    Oppgave("1", "Registrer søknad"),
     Oppgave("2", "Send vedtaksbrev"),
 )
 
