@@ -55,6 +55,16 @@ func Ask(ctx context.Context, prompt string) (answer string, in, out int64, err 
 	}
 	defer release()
 
+	// Prove the recorded server is still ours before sending a prompt to it.
+	// The guard does this on every completion it forwards; this path bypassed
+	// the guard entirely and trusted the port in the state file, so a server
+	// that died and left its port to whatever bound next would have been handed
+	// the developer's question. Under the lock, so the answer cannot go stale
+	// between the check and the request.
+	if err := EnsureOwnServer(); err != nil {
+		return "", 0, 0, err
+	}
+
 	url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", st.ServerPort())
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {

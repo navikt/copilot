@@ -113,9 +113,9 @@ func LoadState() (State, bool, error) {
 		return s, false, fmt.Errorf(
 			"%s is not readable as a recorded server: %w.\n\n"+
 				"  That file is nav-pilot's record, not the server: deleting it gets start, stop and status working again and does not stop anything that is still running.\n\n    %s\n\n"+
-				"  If a server is still up, it is on 127.0.0.1:%d:\n\n    %s",
-			statePath(), err, domain.Bold("rm "+statePath()), DefaultPort,
-			domain.Bold(fmt.Sprintf("lsof -ti tcp:%d | xargs kill", DefaultPort)))
+				"  If a server is still up, its port was recorded in that same unreadable file, so find it by process instead:\n\n    %s",
+			statePath(), err, domain.Bold("rm "+statePath()),
+			domain.Bold("pgrep -fl mlx_lm.server"))
 	}
 	return s, s.PID > 0, nil
 }

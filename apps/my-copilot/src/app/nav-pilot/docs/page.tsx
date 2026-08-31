@@ -2003,7 +2003,7 @@ nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir ligg
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
           <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#f8fafc" }}>
-            <Label size="small">Vi måler dette tettere enn resten av nav-pilot mens det er alpha</Label>
+            <Label size="small">Vi måler dette tettere enn resten av nav-pilot mens det er alfa</Label>
             <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
               Vi samler inn hvor mange oppgaver hver økt sender til bakkemodellen (også når svaret er null, som er
               tallet vi lærer mest av), hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den

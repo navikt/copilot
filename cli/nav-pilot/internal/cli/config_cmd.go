@@ -491,6 +491,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.OtelLogLevel
 	case "local_enabled":
 		return strconv.FormatBool(r.LocalEnabled)
+	case "local_autostart":
+		return strconv.FormatBool(r.LocalAutostart)
 	case "local_loop_guard":
 		return strconv.Itoa(localLoopGuard(r))
 	case "rtk_prompted_client":

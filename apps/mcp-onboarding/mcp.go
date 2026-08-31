@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
 	"github.com/navikt/copilot/mcp-onboarding/internal/readiness"
@@ -516,6 +517,30 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 	}
 }
 
+// logSafe makes a value from an untrusted request safe to put in a log line.
+//
+// The tool name arrives as JSON from whoever called the endpoint, and a name
+// containing a newline can forge a second log entry: everything after it reads
+// as its own record, with whatever severity and fields the caller chose.
+// Control characters can also reposition a terminal cursor for anyone tailing
+// the log.
+//
+// Bounded as well as sanitised, because an unbounded field lets a caller push
+// real entries out of a fixed-size buffer.
+func logSafe(v string) string {
+	const max = 128
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return '?'
+		}
+		return r
+	}, v)
+	if len(cleaned) > max {
+		return cleaned[:max] + "…"
+	}
+	return cleaned
+}
+
 func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (resp *JSONRPCResponse) {
 	var params CallToolParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
@@ -529,7 +554,7 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 		}
 	}
 
-	slog.Info("tool called", "tool", params.Name, "user", user.Login)
+	slog.Info("tool called", "tool", logSafe(params.Name), "user", user.Login)
 	defer func() {
 		status := "success"
 		if resp != nil && resp.Error != nil {

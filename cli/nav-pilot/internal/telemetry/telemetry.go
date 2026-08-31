@@ -306,8 +306,12 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 // DO_NOT_TRACK first, because it is the answer a developer has already given.
 // It is the console convention (consoledonottrack.com), it is set once for every
 // tool on the machine rather than per tool, and a person who has set it should not
-// have to discover that each new CLI invented its own variable. Any value but "0"
-// counts as set, which is what the convention asks for and what other tools do.
+// have to discover that each new CLI invented its own variable.
+//
+// "0" and "false" both count as not set. The convention says any value but "0",
+// but a variable explicitly set to "false" means the opposite of opting out, and
+// honouring it literally would silence telemetry for someone who wrote down that
+// they did not want it silenced.
 //
 // nav-pilot's own variable still works, for turning this off without touching a
 // machine-wide setting.

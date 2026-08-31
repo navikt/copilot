@@ -59,7 +59,11 @@ func RecordCompletion(in, out int64, seconds float64) {
 	if err != nil {
 		return
 	}
-	defer f.Close()
+	// Close's error is deliberately dropped, like the write's: a counter must
+	// never fail the developer's actual work. The write is a single short line
+	// opened O_APPEND, so there is no buffered state a failing Close could lose
+	// that the write itself did not already report.
+	defer func() { _ = f.Close() }()
 	_, _ = f.Write(append(line, '\n'))
 }
 

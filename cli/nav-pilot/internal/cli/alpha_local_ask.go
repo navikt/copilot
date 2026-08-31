@@ -85,7 +85,11 @@ func askPrompt(args []string) (string, error) {
 	// without redirecting stdin. It hung exactly that way the first time it
 	// ran. A question on the command line is unambiguous, so take it and do
 	// not touch the pipe.
-	if prompt == "" {
+	// Stdin only when it is a pipe and the arguments carried no question.
+	// Reading it whenever there is no prompt blocks an interactive terminal
+	// waiting for EOF, which looks like a hang; reading it whenever stdin is
+	// not a terminal blocks on any script's open pipe. Both were tried.
+	if prompt == "" && !isCharDevice(os.Stdin) {
 		piped, err := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
 		if err != nil {
 			return "", fmt.Errorf("reading the question from stdin: %w", err)
@@ -96,4 +100,12 @@ func askPrompt(args []string) (string, error) {
 		return "", fmt.Errorf("nothing to ask. Try: nav-pilot alpha local ask -p \"hva gjør denne funksjonen?\"")
 	}
 	return prompt, nil
+}
+
+// isCharDevice reports whether the file is a terminal rather than a pipe or a
+// redirect. os.ModeCharDevice is also set for /dev/null, which is why callers
+// that must distinguish a real terminal use the kernel's answer instead.
+func isCharDevice(f *os.File) bool {
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
