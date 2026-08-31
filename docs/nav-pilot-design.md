@@ -106,6 +106,8 @@ Modell er en egenskap ved hva en agent er til for, ikke ved sesjonen den kjører
 
 `BuildAgentFrontmatter` skriver nå en `model:`-linje, slik at en materialisert opencode-agent bærer modellen sin til klienten i stedet for å falle tilbake på sesjonens (#490). Samme endring ga copilot Tier 1 en pakke-erklæring, i dag `inherit`.
 
+Hvordan den linja rangeres mot et `--model` ved oppstart er klientens avgjørelse, ikke nav-pilots, og klientene svarer ulikt. Det er målt og registrert i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md` §4.3. Ikke skriv en felles presedensrekkefølge inn i dette dokumentet; det finnes ingen.
+
 Konkrete pinner står i `docs/modellvalg.md` og gjentas ikke her, fordi de flytter seg. Prinsippet er det som hører hjemme i dette dokumentet.
 
 Forbehold: per-agent-modell er en kvalitets- og kostnadspreferanse, ikke en sikkerhetskontroll. Målingene i august 2026 fant ingen signifikant forskjell i sikkerhetsatferd mellom modellene som ble testet.

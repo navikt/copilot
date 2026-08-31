@@ -136,14 +136,58 @@ vi ikke data til.
 
 ### 4.3 nav-pilot styrer standard klientkonfigurasjon
 
-Der det finnes en standard, setter nav-pilot den. Brukeren kan alltid overstyre.
-Der nav-pilot ikke kan sette en standard, får brukeren beskjed.
+Der det finnes en standard, setter nav-pilot den. Der nav-pilot ikke kan sette
+en standard, får brukeren beskjed.
 
 **Verifisert i koden:** `ResolvedModelNotice` i
 `cli/nav-pilot/internal/provider/pakke.go` skriver én linje som navngir modellen
 launchen kjører på og hvor den kommer fra, og returnerer tom streng nettopp der
 launchen ikke navngir noen modell. Rekkefølgen er brukerens egen innstilling
 først, deretter den aktive agentpakkas erklæring.
+
+#### Retting: det finnes ingen felles presedensrekkefølge
+
+Denne seksjonen sa tidligere at «brukeren kan alltid overstyre». Setningen er
+trukket. Den er riktig om nav-pilots egen del av kjeden og usann om hvilken
+modell brukeren faktisk ender opp på, og et dokument som lover én rekkefølge på
+tvers av klientene blir trodd.
+
+**Det nav-pilot styrer** er to ting, og bare to:
+
+1. Om kommandolinja navngir en modell i det hele tatt, og hvilken. `resolve()`
+   i `cli/nav-pilot/internal/cli/config.go` legger config-filas `model`
+   (linje 257) og `--model` fra kommandolinja (linje 305) inn i det *samme*
+   feltet, `ResolvedConfig.Model`, lenge før noen modellbeslutning tas.
+   Launch-byggerne ser derfor bare «brukeren sa noe» eller «brukeren sa
+   ingenting», aldri hvilken av de to som sa det. Sa brukeren ingenting, leser
+   `BuildCopilotArgs` pakkas erklæring
+   (`cli/nav-pilot/internal/provider/copilot_launch.go:82`), mens den gamle
+   opencode-stien sender `--model` uansett
+   (`cli/nav-pilot/internal/provider/opencode_launch.go:101`; tom verdi
+   normaliseres til Nav-standarden i `ToOpenCodeModel`).
+2. Hvilken `model:`-linje en materialisert agentfil bærer, gjennom
+   `openCodeAgentModel` i `cli/nav-pilot/internal/artifacts/export.go` (#490).
+
+**Det klienten styrer** er hvordan de to rangeres mot hverandre, og der er
+klientene uenige med hverandre:
+
+- copilot avgjør selv når `--model` ikke sendes, og med `inherit` på copilot
+  (4.7) er det dagens tilstand.
+- opencode 1.18.25, målt ved å lese binæren og bekreftet med `opencode debug`
+  ([#498](https://github.com/navikt/copilot/pull/498)): i TUI-en, som er den
+  nav-pilot faktisk starter, vinner agentens egen `model:` over `--model`. På
+  `opencode run` vinner flagget over frontmatteren.
+
+To ting følger. Det ubetingede `--model`-flagget på opencode-stien er allerede
+virkningsløst for enhver agent som har fått en `model:`-linje, og en modell
+brukeren pinner taper mot agentens erklæring i TUI-en. Det er opencodes
+oppførsel, ikke noe nav-pilot innfører, men det er grunnen til at «alt brukeren
+setter vinner» ikke kan stå som en påstand.
+
+Innledningen i #498 lovet «én regel på tvers av klientene». Målingen lenger nede
+i samme PR motsier den. Modellrekkefølgen i `docs/agentpakke-beslutninger.md`
+(brukerens pin, så pakkas `defaultModel`, ellers ingenting) er derimot riktig,
+fordi den bare sier hva nav-pilot selv gjør og stopper der.
 
 ### 4.4 Per-agent-modell, ikke én modell per sesjon
 
@@ -160,7 +204,7 @@ blindsone-feilen.
 En profil som klienten henter over nett ble implementert og deretter forkastet.
 Koden ligger på grenen `feat/model-default-profile` for den som vil se den.
 
-Tre grunner, alle strukturelle:
+Fire grunner, de tre første strukturelle:
 
 1. **En pin finnes for at en launch skal lese frosne byte.** En standard som må
    kunne endre seg uten brukerhandling er det stikk motsatte kravet. De to kan
@@ -170,6 +214,24 @@ Tre grunner, alle strukturelle:
    den modellen.
 3. **Innholdssynk-pipelinen bærer allerede agent-frontmatter sentralt.** Å legge
    til en andre distribusjonsvei for det samme er duplisering, ikke kapabilitet.
+4. **En samtykkebasert leveringsvei for endrede standarder finnes allerede.**
+   `cli/nav-pilot/internal/cli/interactive.go` (linje 205 til 243) tilbyr «Sync
+   now?» med Yes og No når et scope er utdatert, og
+   `cli/nav-pilot/internal/artifacts/staleness.go` har
+   `checkInterval = 24 * time.Hour` (linje 13). Agentenes `model:`-linjer er
+   installert innhold. En endret modellpin når derfor en bruker innen et døgn,
+   mot ett Yes-klikk, uten en linje ny kode.
+
+Punkt 4 er baseline-en enhver framtidig hentemekanisme må slå. Det eneste en
+slik mekanisme legger til, er å slippe klikket. Forbeholdet er
+`tracksDefaultSource`: staleness-sjekken gjelder installasjoner som følger
+standardkilden, ikke en installasjon som peker et annet sted.
+
+**Om reviewgaten for innhold hver klient henter:** repoet har en CODEOWNERS. Den
+ligger i rota og ikke i `.github/`, og består av én linje, `* @navikt/copilot`
+([#77](https://github.com/navikt/copilot/pull/77)). Hele teamet eier alt, så
+gaten er en vanlig PR med teamet som kodeeier, ikke en egen gate for innhold som
+distribueres videre.
 
 ### 4.6 `transformAgent` forblir allowlist-formet
 
@@ -206,6 +268,53 @@ Auto-routing-preferansen dokumentert på `OpenCodeDefaultModel` i
 `cli/nav-pilot/internal/provider/provider.go`. Å pinne en id der ville reversert
 den preferansen som en bivirkning.
 
+**Spaken er én linje, og den er ikke en hentemekanisme.** Erklæringen står på
+`cli/nav-pilot/internal/agentpakke/legacy.go:71`, og lesestedet #490 la til blir
+reelt nådd: `BuildCopilotArgs` i
+`cli/nav-pilot/internal/provider/copilot_launch.go:82` leser
+`pakkeDeclaredModel("copilot")` når brukeren ikke har pinnet noe. En konkret
+modell-id på den ene linja endrer altså standarden for standardklienten uten at
+noe hentes over nett. Kommentaren over erklæringen skyver valget til den som
+eier rutingsbeslutningen, og den beslutningen er ikke tatt.
+
+### 4.8 `--model` driver klientmodellen, ikke skriving i klientens config
+
+nav-pilot setter modellen klienten starter med ved å sende `--model` ved
+oppstart. Den skriver ikke inn i klientens egen konfigurasjonsfil.
+
+**Begrunnelsen:** nav-pilot rangerer over det brukeren har valgt inne i klienten
+sin, og oppstartsflagget uttrykker akkurat den rangeringen uten at nav-pilot
+strekker seg inn i filer utvikleren eier.
+
+Alternativet ble bygget og forkastet: Nav-standarden skrevet inn i
+`~/.config/opencode/opencode.json` som toppnivå-`model`, med fletting slik at
+utviklerens øvrige nøkler overlever
+([#498](https://github.com/navikt/copilot/pull/498), grenen
+`feat/align-model-semantics`). Den ble gjennomgått og ikke merget; `main` har
+aldri båret den. Grunnen er rekkevidden: å skrive i klientens egen konfigurasjon
+endrer standarden for *alle* opencode-økter på maskinen, også de nav-pilot aldri
+startet. Det er en større påstand enn «nav-pilot bestemmer hva nav-pilot starter
+med», og den rekker utenfor nav-pilots eget område.
+
+Hva som ville endret beslutningen står i
+[#500](https://github.com/navikt/copilot/issues/500): et behov for noe som ikke
+kan uttrykkes som et oppstartsflagg, der modeller per agent via
+`agent.<navn>.model` er det nærmeste eksempelet, eller et ønske om at
+Nav-standarden skal gjelde utenfor nav-pilot-startede økter. Issuet lister også
+det som må avklares før noen bygger det: eierskap av nøkler, reversering,
+formatering av utviklerens fil, og synlighet i brukerdokumentasjonen.
+
+## 5. Feller i koden, notert for den som utvider
+
+**`StalenessCache` rekonstrueres tre steder, ikke to.**
+`cli/nav-pilot/internal/artifacts/staleness.go` bygger et helt nytt
+`StalenessCache` på linje 133 (etter et mislykket oppslag) og på linje 141
+(etter et vellykket), og `cli/nav-pilot/internal/cli/update.go` gjør det samme
+på linje 130 etter en selvoppdatering. Ingen av dem leser det eksisterende
+objektet og endrer ett felt; alle tre setter feltene de bryr seg om og lar
+resten falle bort. Et nytt felt på structen blir derfor stille borte på det
+stedet man glemmer.
+
 ## Referanser
 
 - `scripts/nav-pilot-golden.sh`: harnesset, prompter og assertions
@@ -213,4 +322,8 @@ den preferansen som en bivirkning.
 - [`modellvalg.md`](modellvalg.md): gjeldende modelltabell
 - [`nav-pilot-design.md`](nav-pilot-design.md): designet og beslutningshistorikken
 - `cli/nav-pilot/internal/agentpakke/legacy.go`: `inherit`-erklæringen med begrunnelse
+- `cli/nav-pilot/internal/provider/copilot_launch.go`: lesestedet for pakkas
+  erklæring
+- [#500](https://github.com/navikt/copilot/issues/500): vilkårene for å skrive
+  klientkonfigurasjon
 - `cli/nav-pilot/internal/artifacts/export.go`: `transformAgent` og `openCodeAgentModel`
