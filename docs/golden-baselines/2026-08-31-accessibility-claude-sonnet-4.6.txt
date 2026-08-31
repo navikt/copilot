@@ -1,0 +1,17 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        accessibility
+# date:         2026-08-31
+# revision:     ecd2ef86
+# client:       copilot
+# model:        claude-sonnet-4.6
+# repeats:      5
+# instructions: 17 installed, 3 always-on
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max
+uu-review|5|1326|1181|2173|33|32|57|180|155|272
+uu-ask|5|2107|1268|2491|54|32|64|221|143|299
+uu-trivial|5|784|631|1277|28|21|35|111|93|179
