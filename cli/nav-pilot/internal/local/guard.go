@@ -106,6 +106,11 @@ type Guard struct {
 	// runs on its own goroutine and can outlive whatever set the directories up.
 	statsPath string
 
+	// requests counts everything the client sent through the guard, completions
+	// and model lists alike. Completions alone cannot tell a refusal from a
+	// wiring failure; this can.
+	requests atomic.Int64
+
 	// completions counts what actually reached the local server through this
 	// guard. Counted here rather than parsed out of the client's transcript
 	// because this is the only place that sees every one of them, and because a
@@ -115,6 +120,21 @@ type Guard struct {
 }
 
 // Completions is how many prompts this session sent to the local model.
+// SawTraffic reports whether the client sent the guard anything at all.
+//
+// False with zero completions means opencode never used the provider block:
+// the wiring did not reach it, which is a defect here. True with zero
+// completions means it saw the local worker and chose not to dispatch, which is
+// the orchestrator's judgement and the thing worth measuring.
+//
+// Safe on a nil Guard, like Completions, so a hosted session can ask.
+func (g *Guard) SawTraffic() bool {
+	if g == nil {
+		return false
+	}
+	return g.requests.Load() > 0
+}
+
 func (g *Guard) Completions() int64 {
 	if g == nil {
 		return 0
@@ -251,6 +271,13 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 	// against itself and leave them racing each other.
 	oneAtATime := make(chan struct{}, 1)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Counted before anything else, and for every request rather than only
+		// completions. A session that dispatched nothing is three different
+		// things, and this is what separates them: if the client asked for the
+		// model list and then never sent a completion, it saw the worker and
+		// declined. If nothing arrived at all, the wiring never reached it, and
+		// that is our bug rather than the orchestrator's judgement.
+		g.requests.Add(1)
 		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
 			proxy.ServeHTTP(w, r)
 			return

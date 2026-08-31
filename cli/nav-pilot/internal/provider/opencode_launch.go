@@ -670,7 +670,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 			if st, ok, err := local.LoadState(); err == nil && ok {
 				model = st.Model
 			}
-			telemetryRecorder.RecordLocalSession("opencode", model, guard.Completions())
+			telemetryRecorder.RecordLocalSession("opencode", model, guard.Completions(), guard.SawTraffic())
 		}()
 		// The provider block names this session's guard port, and the port dies
 		// with the session. Left behind, it points opencode at a number the

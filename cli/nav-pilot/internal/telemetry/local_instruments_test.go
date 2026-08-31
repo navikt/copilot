@@ -44,7 +44,9 @@ func TestRecorderEmitsEveryLocalInstrument(t *testing.T) {
 
 	// Zero dispatches is the value that matters most and the one most likely to
 	// be optimised away by a future "do not record empty sessions" change.
-	tel.RecordLocalSession("opencode", "some/model", 0)
+	// Zero dispatches with traffic: the client saw the worker and declined,
+	// which is the case the attribute exists to distinguish.
+	tel.RecordLocalSession("opencode", "some/model", 0, true)
 	tel.RecordLocalServer("some/model", "ready")
 	tel.RecordLocalReadySeconds("some/model", 4)
 

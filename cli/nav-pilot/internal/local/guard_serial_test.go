@@ -153,3 +153,64 @@ func TestGuardCountsWhatItForwarded(t *testing.T) {
 		t.Error("a nil guard reported completions")
 	}
 }
+
+// TestSawTrafficSeparatesARefusalFromBrokenWiring is the whole point of the
+// counter: a session that dispatched nothing is three different things, and
+// two of them are indistinguishable without this.
+//
+// Zero completions with traffic means the client asked the guard for something —
+// the model list, typically — and then chose not to dispatch. That is the
+// orchestrator's judgement, and the thing worth measuring.
+//
+// Zero completions with no traffic at all means the provider block never reached
+// the client. That is a defect here, and reading it as a refusal would blame the
+// model for our own wiring.
+func TestSawTrafficSeparatesARefusalFromBrokenWiring(t *testing.T) {
+	stubDirs(t)
+	stubOwnership(t, func() error { return nil })
+
+	t.Run("nothing ever arrived", func(t *testing.T) {
+		g := &Guard{}
+		if g.SawTraffic() {
+			t.Error("a guard that was never called reports traffic")
+		}
+		if g.Completions() != 0 {
+			t.Error("a guard that was never called counted a completion")
+		}
+	})
+
+	t.Run("the client looked and did not dispatch", func(t *testing.T) {
+		g := &Guard{}
+		handler := guardHandler(g, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}), "")
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+
+		if !g.SawTraffic() {
+			t.Error("a model-list request did not count as traffic, so a refusal is indistinguishable from broken wiring")
+		}
+		if g.Completions() != 0 {
+			t.Errorf("a model list counted as a dispatch (%d)", g.Completions())
+		}
+	})
+
+	t.Run("the client dispatched", func(t *testing.T) {
+		g := &Guard{}
+		handler := guardHandler(g, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}), "")
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions",
+			strings.NewReader(`{"messages":[{"role":"user","content":"hei"}]}`))
+		handler.ServeHTTP(httptest.NewRecorder(), req)
+
+		if !g.SawTraffic() || g.Completions() != 1 {
+			t.Errorf("traffic=%v completions=%d, want true and 1", g.SawTraffic(), g.Completions())
+		}
+	})
+
+	// A hosted session has no guard at all and must be able to ask.
+	var absent *Guard
+	if absent.SawTraffic() {
+		t.Error("a nil guard reported traffic")
+	}
+}
