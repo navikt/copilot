@@ -1,0 +1,16 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        code-review
+# date:         2026-08-31
+# revision:     e15c8b9b
+# client:       copilot
+# model:        gpt-5.3-codex
+# repeats:      5
+# instructions: 17 installed, 3 always-on
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max
+cr-kotlin|5|1758|1260|2192|40|26|51|211|179|286
+cr-tsx|5|2042|1948|2729|36|29|54|277|250|327
