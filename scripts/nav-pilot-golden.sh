@@ -176,8 +176,10 @@
 #   1  at least one assertion failed
 #   2  preflight failed (no client, not authenticated, agent file missing,
 #      an --agent with no assertion group, bad flag)
-#   3  no assertion failed, but at least one test could not be evaluated
-#      (empty transcript, or the response never reached the phase under test).
+#   3  nothing failed, but nothing was proven either: at least one test could
+#      not be evaluated (empty transcript, or the response never reached the
+#      phase under test), or the selection contained no assertion that can fail
+#      at all (--only naming only soft IDs, like `--only 2b`).
 #      This is deliberately NOT 0: a test that never ran has proven nothing.
 #
 #   Soft checks (ids like 2b) never change the exit code, in either direction.
@@ -269,7 +271,7 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
 # an ID added there and not here is rejected by --only.
 case "$AGENT" in
-  nav-pilot)     VALID_IDS="1 2 3 4 5 6" ;;
+  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6" ;;
   code-review)   VALID_IDS="cr1 cr2 cr3 cr4" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4" ;;
   *) fail_preflight \
@@ -889,7 +891,7 @@ run_pass_nav_pilot() {
   # N/11` with justification for the skipped ones is required by `### Fase 1:
   # Intervju`, it is the one field the prose ending does not replace in any run,
   # and it is a real audit loss for as long as it is missing.
-  if selected 2 || selected 3; then
+  if selected 2 || selected 2b || selected 3; then
     DESC2="full tier: response stops after Fase 1 with questions outstanding"
     DESC2B="full tier: Fase 1 checkpoint block emitted, with the blind-spot count"
     DESC3="full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised"
@@ -923,8 +925,10 @@ run_pass_nav_pilot() {
         fi
       fi
 
-      if selected 2; then
-        # SOFT. See the block comment above tests 2 + 2b. Each part is reported
+      if selected 2 || selected 2b; then
+        # SOFT. See the block comment above tests 2 + 2b. `--only 2` keeps
+        # reporting both parts of the split, and `--only 2b` asks for this part
+        # alone; an ID that preflight accepts has to reach the code that runs it. Each part is reported
         # separately: if the audit count starts showing up as prose while the block
         # still does not, that is progress and the next attempt should see it.
         missing=""
@@ -1548,6 +1552,18 @@ fi
 echo "─────────────────────────────────────────────"
 if [[ $soft_count -gt 0 ]]; then
   echo "${DIM}$soft_count soft check(s) reported above. Soft checks never move the exit code.${RESET}"
+fi
+if [[ $((pass_count + fail_count + error_count)) -eq 0 ]]; then
+  # Preflight rejects an --only that names nothing, but an --only naming only
+  # soft IDs passes it and still asserts nothing: a soft check reports and never
+  # fails, so `--only 2b` alone would reach the green line below with a count of
+  # zero. Same vacuous pass as an unknown ID, one step further down.
+  echo "${YELLOW}${BOLD}No hard assertion ran ⚠${RESET}"
+  if [[ $soft_count -gt 0 ]]; then
+    echo "${DIM}Only soft checks were selected, and a soft check cannot fail. This run proved nothing.${RESET}"
+  fi
+  echo "${DIM}Select at least one assertion that can fail: --only 2 runs the stop invariant and reports 2b with it.${RESET}"
+  exit 3
 fi
 if [[ $fail_count -eq 0 && $error_count -eq 0 ]]; then
   echo "${GREEN}${BOLD}All $pass_count assertions passed ✓${RESET}"
