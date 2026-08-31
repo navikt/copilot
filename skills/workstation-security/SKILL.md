@@ -318,6 +318,6 @@ End with an overall verdict: **CRITICAL** / **HIGH** / **MEDIUM** / **GOOD** bas
 |----------|---------|
 | `@security-champion` | Trusselmodellering, compliance, Navs sikkerhetsarkitektur |
 | `@security-review` | Sikkerhetssjekk av kodeendringer før commit/push |
-| `@auth-agent` | JWT-validering, TokenX, ID-porten, Maskinporten |
-| `@nais-agent` | Nais-manifest, accessPolicy, hemmeligheter |
+| `$nav-auth` | JWT-validering, TokenX, ID-porten, Maskinporten |
+| `$nais` | Nais-manifest, accessPolicy, hemmeligheter |
 | [sikkerhet.nav.no](https://sikkerhet.nav.no) | Navs Golden Path og autoritative sikkerhetsretningslinjer |

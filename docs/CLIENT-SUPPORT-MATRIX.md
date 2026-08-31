@@ -113,12 +113,9 @@ Per-file status. The client columns follow the type rows in the matrix above.
 | ----------------- | ---------------------------- | --------- | --- |
 | Accessibility     | `accessibility.agent.md`     | ✅         | ✅   |
 | Aksel             | `aksel.agent.md`             | ✅         | ✅   |
-| Auth              | `auth.agent.md`              | ✅         | ✅   |
 | Code Review       | `code-review.agent.md`       | ✅         | ✅   |
 | Forfatter         | `forfatter.agent.md`         | ✅         | ✅   |
 | Kafka             | `kafka.agent.md`             | ✅         | ✅   |
-| Nais              | `nais.agent.md`              | ✅         | ✅   |
-| Observability     | `observability.agent.md`     | ✅         | ✅   |
 | Research          | `research.agent.md`          | ✅         | ✅   |
 | Rust              | `rust.agent.md`              | ✅         | ✅   |
 | Security Champion | `security-champion.agent.md` | ✅         | ✅   |
@@ -208,10 +205,10 @@ The workspace task definitions in the Command Palette point at agent filenames t
 
 | Task Label                               | References               | Actual File               |
 | ---------------------------------------- | ------------------------ | ------------------------- |
-| Install Individual - Nais Platform Agent | `nais-platform.agent.md` | `nais.agent.md`           |
+| Install Individual - Nais Platform Agent | `nais-platform.agent.md` | removed, use the `nais` skill |
 | Install Individual - Kafka Events Agent  | `kafka-events.agent.md`  | `kafka.agent.md`          |
 | Install Individual - Aksel Design Agent  | `aksel-design.agent.md`  | `aksel.agent.md`          |
-| Install All Agents                       | "6 agent files"          | 11 agent files exist      |
+| Install All Agents                       | "6 agent files"          | 10 agent files exist      |
 | Install All Instructions                 | "4 instruction files"    | 8 instruction files exist |
 | Install All Prompts                      | "3 prompt files"         | 5 prompt files exist      |
 

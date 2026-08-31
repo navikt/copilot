@@ -183,14 +183,6 @@ else
   check_file "nav-pilot shows planning phase" "$FILE" \
     "(Fase [12]|Intervju|Plan|kartlegg|planlegg)"
 
-  # Test 3: auth-agent should produce auth-related output
-  log ""
-  log "Test 3: auth-agent produces auth content"
-  FILE=$(run_agent "auth-check" "auth-agent" \
-    "Gjør en rask sjekk av auth-oppsettet i dette repoet. Bare oppsummer, ikke endre noe.")
-  check_file "auth-agent shows auth content" "$FILE" \
-    "(auth|Auth|token|Token|Azure|azureAd|OAuth|JWT|🔐)"
-
   log ""
   log "Output files preserved in: $OUTPUT_DIR"
   # Don't clean up if E2E ran — user might want to inspect

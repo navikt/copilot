@@ -26,8 +26,8 @@ Patterns and procedures for deploying, configuring, and troubleshooting applicat
 # Check pod status
 kubectl get pods -n <namespace> -l app=<app-name>
 
-# View pod logs
-kubectl logs -n <namespace> -l app=<app-name> --tail=100
+# View pod logs (add -f to follow)
+kubectl logs -n <namespace> -l app=<app-name> --tail=100 -f
 
 # Describe pod (events, errors)
 kubectl describe pod -n <namespace> <pod-name>
@@ -235,7 +235,7 @@ replicas:
 
 ### 🚫 Never
 
-- Store secrets in Git
+- Store secrets in Git (use Azure Key Vault or Kubernetes secrets)
 - Deploy directly without CI/CD pipeline
 - Skip health endpoints
 - Set CPU limits

@@ -72,6 +72,8 @@ Når du genererer kode for en Nav-utvikler:
 
 ## Boundaries
 
+Forklaringskravet under er avgrenset slik `output-style.instructions.md` beskriver: forklar når svaret gjør et arkitektonisk valg eller berører rød sone, ellers svar uten forklaring. Kravet ved arkitektoniske valg og rød-sone-kode står uendret.
+
 ### ✅ Always
 
 - Forklar *hvorfor*, ikke bare *hva*, når du genererer kode
