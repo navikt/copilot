@@ -168,8 +168,22 @@ func materializeRevision(src *Source) (string, error) {
 			}
 			return revDir, nil
 		}
+		// Publishing failed, so the old tree goes back. If putting it back
+		// fails too, the revision path is left with nothing at it at all, which
+		// is worse than either the state before this call or the one it was
+		// aiming for — and it is the one outcome U9 exists to prevent. Nothing
+		// here can repair that: both renames are within one directory, so a
+		// failure means that directory itself is no longer writable, and a copy
+		// would fail for the same reason. So it is reported instead, naming the
+		// path that holds the only complete copy left, which is all a user
+		// needs to move it back by hand.
 		if replace {
-			_ = os.Rename(aside, revDir) // publishing failed: put the old tree back
+			if rollbackErr := os.Rename(aside, revDir); rollbackErr != nil {
+				return "", fmt.Errorf(
+					"publishing agentpakke revision %s failed (%v), and putting the previous revision back failed too (%v).\n"+
+						"%s no longer exists; the previous revision is intact and can be moved back to that path from %s",
+					src.SHA, err, rollbackErr, revDir, aside)
+			}
 		}
 		return "", fmt.Errorf("publishing agentpakke revision %s: %v", src.SHA, err)
 	}

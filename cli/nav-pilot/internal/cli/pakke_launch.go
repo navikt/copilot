@@ -330,8 +330,13 @@ func autoPin(src *Source) (*Source, error) {
 
 // unresolvablePayloadRefusal refuses a launch of a source a previous launch
 // already learned declares pre-built payloads for this client, when this launch
-// cannot reach it and has no pinned revision to fall back on — offline with the
-// revision directory gone, or a repo name that has moved.
+// cannot resolve it and has no pinned revision to fall back on: offline with
+// the revision directory gone, but equally a repo that was renamed or deleted,
+// a source identifier that no longer parses, or credentials that stopped
+// working. The branch keys on the resolve failing, not on why, so the message
+// says that and hands the resolve error's own text straight through — for
+// anything but the offline case that text is the only thing naming the real
+// problem, and the legacy fallback this replaces at least printed it.
 //
 // The legacy path is not an option here for the same reason it is not one past
 // the tier gate: it would materialize the user's own ~/.copilot into a launch
@@ -339,18 +344,19 @@ func autoPin(src *Source) (*Source, error) {
 // stderr warning the client TUI wipes off the screen. The remembered tier is
 // what makes this knowable before the resolve succeeds.
 //
-// The two commands named recover this differently, and only one of them needs
-// the network: sync rebuilds the missing revision behind a pin that is still
-// recorded, and waits for the source to be reachable again, while clearing the
-// source is a local config write that works offline. Clearing it empties
-// resolved.Source, which tryPakkeLaunch short-circuits on before resolving
-// anything, so the next launch takes the built-in default immediately.
+// The two commands named recover this differently. sync rebuilds the missing
+// revision behind a pin that is still recorded, and can only do that once the
+// source resolves — which is a condition on the source, not on the network, and
+// is worded that way. Clearing the source is a local config write with no
+// condition at all: it empties resolved.Source, which tryPakkeLaunch
+// short-circuits on before resolving anything, so the next launch takes the
+// built-in default immediately, offline or not.
 func unresolvablePayloadRefusal(resolved ResolvedConfig, cause error) error {
 	return fmt.Errorf(
-		"source %s declares pre-built payloads for %s, and nav-pilot could not reach it: %v.\n"+
+		"source %s declares pre-built payloads for %s, and nav-pilot could not resolve it: %w.\n"+
 			"Nothing was launched — running it as before instead would materialize your own ~/.copilot into a launch the agentpakke reserves for a verified payload tree.\n\n"+
-			"  Once the source is reachable, rebuild the pinned revision:  %s\n"+
-			"  Or go back to the built-in agentpakke:                      %s",
+			"  Rebuild the pinned revision, once the source resolves:  %s\n"+
+			"  Or go back to the built-in agentpakke:                  %s",
 		bold(resolved.Source), resolved.Client, cause,
 		bold("nav-pilot sync --apply"),
 		bold(`nav-pilot config set source ""`))
