@@ -3,7 +3,7 @@ title: "Flere agenter bytter modell: dette viser målingene"
 date: 2026-08-31
 author: starefossen
 category: nav
-excerpt: "@research-agent, @code-review og @accessibility-agent går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. Målingene skiller ikke modellene fra hverandre på sikkerhet, og da er det prisen som avgjør. Når byttet er merget, henter du det med nav-pilot sync."
+excerpt: "@research-agent, @code-review og @accessibility-agent går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. Målingene skiller ikke modellene fra hverandre på sikkerhet og kvalitet, og da er det prisen som avgjør. Alt oppdateres automatisk"
 tags:
   - models
   - nav-pilot
@@ -11,9 +11,7 @@ tags:
   - cost-optimization
 ---
 
-Vi bytter modell bak flere av agentene og fire prompt-maler. Byttet er én linje i
-frontmatteren til hver agent, og når den linjen er merget, henter du den med
-`nav-pilot sync`. Du trenger ikke installere noe.
+Vi bytter modellene bak flere av Copilot konfigurasjonene i nav-pilot basert på en rekke målinger (se lenger nede for detaljer). Oppdateringen skjer automatisk neste gang du starter `nav-pilot` eller kjøre `nav-pilot sync` manuelt.
 
 | Agent eller prompt | Fra | Til |
 |---|---|---|
@@ -22,13 +20,11 @@ frontmatteren til hver agent, og når den linjen er merget, henter du den med
 | Fire prompt-maler for nye tjenester | Claude Haiku 4.5 | GPT-5.6 Luna |
 | `@security-champion-agent`, `@nav-pilot-opus` | Claude Opus 4.6 | GPT-5.6 Sol |
 
-Prompt-malene er `ktor-endpoint`, `spring-boot-endpoint`, `golang-service` og `nextjs-api-route`.
-
-`@forfatter` blir stående på Claude Sonnet 4.6. Jobben er norsk tekst, og vi har ingen måling som sier at en annen modell gjør den like godt.
+`@forfatter` blir stående på Claude Sonnet 4.6. Jobben omfatter norsk tekst, og vi har ingen måling som sier at en annen modell gjør den like godt.
 
 ## Hva vi målte
 
-Vi kjørte nav-pilot-personaen mot fire modeller med samme golden prompt: en tjeneste som henter fødselsnummer fra ID-porten, der agenten skal si fra om en personvernblindsone. Rundt 195 kjøringer mot ekte modeller.
+Vi kjørte nav-pilot konfigurasjonen mot fire modeller med samme golden prompt: en tjeneste som henter fødselsnummer fra ID-porten, der agenten skal si fra om en personvernblindsone. Rundt 195 kjøringer med ekte modeller.
 
 | Modell | Bom | Andel |
 |---|---|---|
@@ -45,11 +41,11 @@ Målingen sier altså ikke at de nye modellene er tryggere. Den sier at vi ikke 
 
 ## Blindsonen bommer alle modellene på
 
-Alle fire modellene overser personvernblindsonen. Tre av dem bommer noen få prosent av gangene, Terra 11,1 prosent, og modellen vi kjører i dag er blant dem som bommer. Det er ikke et modellproblem, og ikke noe modellbytte fikser det. Vi følger det som en bug i instruksjonene til agenten selv.
+Alle de fire modellene overser personvernblindsonen. Tre av modellene bommer med noen få prosent, Terra 11,1 prosent, og modellen vi kjører i dag er blant dem som bommer. Det er ikke et modellproblem, og ikke noe modellbytte fikser for oss dessverre. Vi følger det som en bug i instruksjonene til agenten selv.
 
 ## Prisen
 
-Dollar per million tokens, slik GitHub publiserte dem 30. august 2026:
+Pris (USD) per million tokens, slik GitHub publiserte dem 30. august 2026:
 
 | Modell | Input | Output |
 |---|---|---|
@@ -65,4 +61,4 @@ Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synkronis
 
 ## Hvis en agent svarer dårligere
 
-Si fra i [discussions](https://github.com/navikt/copilot/discussions). Modellvalget står i frontmatteren til hver agent, så det er én linje å sette tilbake.
+Si fra i [#github-copilot]([https://github.com/navikt/copilot/discussions](https://nav-it.slack.com/archives/C055TNXBM17)). Modellvalget står i metadaten til hver agent, så det er én linje å sette tilbake hvis det skulle være behov.
