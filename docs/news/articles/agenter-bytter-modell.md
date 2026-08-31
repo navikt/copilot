@@ -3,7 +3,7 @@ title: "Flere agenter bytter modell: dette viser målingene"
 date: 2026-08-31
 author: starefossen
 category: nav
-excerpt: "@research-agent, @code-review og @accessibility-agent går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. Målingene skiller ikke modellene fra hverandre på sikkerhet, og da er det prisen som avgjør. Når byttet er merget, henter du det med nav-pilot sync."
+excerpt: "@research-agent og fire prompt-maler går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. @code-review og @accessibility-agent er satt på vent til de er målt for seg. Målingene skiller ikke modellene fra hverandre på sikkerhet, og da er det prisen som avgjør. Når byttet er merget, henter du det med nav-pilot sync."
 tags:
   - models
   - nav-pilot
@@ -17,10 +17,10 @@ frontmatteren til hver agent, og når den linjen er merget, henter du den med
 
 | Agent eller prompt | Fra | Til |
 |---|---|---|
-| `@research-agent`, `@code-review` | GPT-5.3-Codex | GPT-5.6 Luna |
-| `@accessibility-agent` | Claude Sonnet 4.6 | GPT-5.6 Luna |
+| `@research-agent` | GPT-5.3-Codex | GPT-5.6 Luna |
 | Fire prompt-maler for nye tjenester | Claude Haiku 4.5 | GPT-5.6 Luna |
 | `@security-champion-agent`, `@nav-pilot-opus` | Claude Opus 4.6 | GPT-5.6 Sol |
+| `@code-review`, `@accessibility-agent` | GPT-5.3-Codex, Claude Sonnet 4.6 | satt på vent, se rettingen under |
 
 Prompt-malene er `ktor-endpoint`, `spring-boot-endpoint`, `golang-service` og `nextjs-api-route`.
 
@@ -61,7 +61,21 @@ Dollar per million tokens, slik GitHub publiserte dem 30. august 2026:
 
 Luna koster under en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Sonnet 4.6 og 60 % mindre enn Opus 4.6, som er modellen de to tyngste agentene flytter fra.
 
-> **Retting 31. august 2026:** Sol-prisen på 2 og 10 dollar er en kampanjepris, 50
+> **Retting 31. august 2026.** To ting i artikkelen stemmer ikke, og begge ble
+> oppdaget samme dag.
+>
+> **1. To av de ni pinningene er satt på vent.** `@code-review` og
+> `@accessibility-agent` bytter ikke modell nå. Grunnen er verktøytilgangen
+> deres: `@code-review` har `execute`, og `@accessibility-agent` har `execute`,
+> `edit` og `runSubagent`, altså kjøre kommandoer, skrive filer og starte
+> subagenter. Målingen som bærer Luna-valget kjørte bare nav-pilot-personaen,
+> som ikke gjør noe av dette, så vi har ingen tall for en verktøytung agent på
+> Luna. Det er ikke det samme som at Luna er utrygg der. Det er at vi ikke har
+> målt det, og de to måles for seg før noen bestemmer noe. Harnesset må utvides
+> først. De fem andre Luna-pinningene står: `@research-agent`, som bare leser og
+> søker, og de fire prompt-malene.
+>
+> **2. Sol-prisen er en kampanjepris.** Prisen på 2 og 10 dollar er 50
 > prosent av standardprisen, og den varer ut 3. september 2026. Det står i en
 > fotnote i [GitHubs pristabell](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing)
 > som vi ikke fanget opp da vi skrev dette. Fotnoten oppgir ikke standardprisen,
