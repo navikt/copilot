@@ -45,7 +45,7 @@ Målingen sier altså ikke at de nye modellene er tryggere. Den sier at vi ikke 
 
 ## Blindsonen bommer alle modellene på
 
-Alle fire modellene overser personvernblindsonen noen få prosent av gangene, også den vi kjører i dag. Det er ikke et modellproblem, og ikke noe modellbytte fikser det. Vi følger det som en bug i instruksjonene til agenten selv.
+Alle fire modellene overser personvernblindsonen. Tre av dem bommer noen få prosent av gangene, Terra 11,1 prosent, og modellen vi kjører i dag er blant dem som bommer. Det er ikke et modellproblem, og ikke noe modellbytte fikser det. Vi følger det som en bug i instruksjonene til agenten selv.
 
 ## Prisen
 
@@ -59,7 +59,7 @@ Dollar per million tokens, slik GitHub publiserte dem 30. august 2026:
 | Claude Sonnet 4.6 | 3 | 15 |
 | Claude Opus 4.6 | 5 | 25 |
 
-Luna koster rundt en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Sonnet 4.6 og 60 % mindre enn Opus 4.6, som er modellen de to tyngste agentene flytter fra.
+Luna koster under en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Sonnet 4.6 og 60 % mindre enn Opus 4.6, som er modellen de to tyngste agentene flytter fra.
 
 Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synkroniserte prisene 10. august, og falt til 2 og 10 i løpet av måneden. Prislista i `apps/my-copilot/src/lib/model-pricing.ts` er den vi regner ut fra.
 
