@@ -9,7 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // stubOwnership replaces the guard's ownership proof. The real one needs a
@@ -254,7 +257,16 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StartGuard: %v", err)
 	}
-	defer g.Close()
+	// A defer and not a t.Cleanup, and it matters which: cleanups run after
+	// every defer in the test body, so this closes the guard, and waits for its
+	// handler goroutines, before stubDirs writes the directory overrides back.
+	// The handler reads those through statePath while it is serving, so without
+	// the wait the two overlap and -race says so.
+	defer func() {
+		if err := g.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	}()
 
 	body := conversation(`{"role":"user","content":"hei"}`)
 	resp, err := http.Post(g.URL()+"/v1/chat/completions", "application/json", strings.NewReader(string(body)))
@@ -264,6 +276,145 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("guard returned %s for a request that is not a loop", resp.Status)
+	}
+}
+
+// TestGuardCloseWaitsForItsHandlers pins what the loop-guard data race was
+// really about. http.Server.Close returns as soon as the connections are cut,
+// with the goroutines that were serving them still unwinding and still reading
+// the package-level directory overrides; a test's cleanup then writes those
+// back underneath a live reader, and a session's launch tears down around one.
+// Close has to outlast its handlers, so the read is finished rather than merely
+// unreported.
+//
+// The handler is held inside the ownership check rather than at the upstream,
+// because cutting the connection cancels the request context and a proxied call
+// unwinds on its own: what has to be proven is that Close waits even for work
+// no cancellation reaches.
+func TestGuardCloseWaitsForItsHandlers(t *testing.T) {
+	stubDirs(t)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"choices":[]}`))
+	}))
+	defer upstream.Close()
+
+	inHandler, release := make(chan struct{}), make(chan struct{})
+	var handlerDone atomic.Bool
+	stubOwnership(t, func() error {
+		close(inHandler)
+		<-release
+		handlerDone.Store(true)
+		return nil
+	})
+
+	g, err := StartGuard(upstream.URL)
+	if err != nil {
+		t.Fatalf("StartGuard: %v", err)
+	}
+	body := conversation(`{"role":"user","content":"hei"}`)
+	go func() {
+		resp, err := http.Post(g.URL()+"/v1/chat/completions", "application/json", strings.NewReader(string(body)))
+		if err == nil {
+			resp.Body.Close()
+		}
+	}()
+	<-inHandler
+
+	// The handshake is not decoration. Without it the goroutine below might not
+	// have been scheduled at all inside the window, and "Close has not returned
+	// yet" would pass for a Close that had never been called. Waiting for
+	// entering means the window times a Close that has actually begun.
+	entering, closed := make(chan struct{}), make(chan error, 1)
+	go func() {
+		close(entering)
+		closed <- g.Close()
+	}()
+	<-entering
+	select {
+	case err := <-closed:
+		t.Fatalf("Close returned while a handler was still running: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Close never returned after the handler finished")
+	}
+	if !handlerDone.Load() {
+		t.Error("Close returned before the handler had finished")
+	}
+}
+
+// TestGuardCloseDoesNotWaitForAnotherSessionsLock is the bound on that wait.
+//
+// Waiting for the handlers is only safe if something reliably tells them to
+// stop, and cutting the connection does not: net/http cancels a request context
+// on connection loss from the background read of the request body, and for a
+// body the handler has not read yet that read is deferred until EOF. The guard
+// queues on the machine-wide server lock well before it reads a body, so a
+// handler parked there when the session ends has a live context and a lock held
+// by somebody else.
+//
+// Two terminals is ordinary work: session A is mid-completion holding the lock,
+// session B has a prompt queued behind it and is interrupted. B's exit must not
+// wait for A, which may be minutes away, or forever if A is in the wedged state
+// the lock exists to guard against.
+func TestGuardCloseDoesNotWaitForAnotherSessionsLock(t *testing.T) {
+	data, _ := stubDirs(t)
+	stubOwnership(t, func() error { return nil })
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"choices":[]}`))
+	}))
+	defer upstream.Close()
+
+	// The other session, holding the lock for the whole test and never giving it
+	// up. lockServer polls for it once a second and would never be handed it.
+	held, err := os.OpenFile(filepath.Join(data, "server.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatalf("opening the lock: %v", err)
+	}
+	defer held.Close()
+	if err := syscall.Flock(int(held.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatalf("taking the lock: %v", err)
+	}
+
+	g, err := StartGuard(upstream.URL)
+	if err != nil {
+		t.Fatalf("StartGuard: %v", err)
+	}
+	body := conversation(`{"role":"user","content":"hei"}`)
+	go func() {
+		resp, err := http.Post(g.URL()+"/v1/chat/completions", "application/json", strings.NewReader(string(body)))
+		if err == nil {
+			resp.Body.Close()
+		}
+	}()
+	// Completions is incremented on the line before lockServer, so this says the
+	// handler is at the lock and nowhere earlier. The pause covers the few
+	// instructions between the two.
+	deadline := time.Now().Add(10 * time.Second)
+	for g.Completions() == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the request never reached the guard")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	time.Sleep(200 * time.Millisecond)
+
+	closed := make(chan error, 1)
+	go func() { closed <- g.Close() }()
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("Close blocked behind a lock held by another session")
 	}
 }
 

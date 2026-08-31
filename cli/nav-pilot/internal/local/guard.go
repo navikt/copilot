@@ -102,6 +102,17 @@ type Guard struct {
 	ln  net.Listener
 	srv *http.Server
 
+	// conns counts the connection goroutines the server has open, so [Guard.Close]
+	// can wait for them instead of merely cutting them loose. A handler that
+	// outlives its caller keeps reading package state the caller is already
+	// tearing down.
+	conns sync.WaitGroup
+
+	// cancelHandlers ends every request in flight. It is what makes the wait in
+	// [Guard.Close] bounded, and closing the connections is not a substitute for
+	// it: see the note there.
+	cancelHandlers context.CancelFunc
+
 	// statsPath is resolved when the guard starts, not per request. A handler
 	// runs on its own goroutine and can outlive whatever set the directories up.
 	statsPath string
@@ -133,7 +144,8 @@ func (g *Guard) URL() string {
 }
 
 // StartGuard puts the guard in front of a local server and returns once it is
-// listening. Close it when the session ends.
+// listening. Close it when the session ends: the guard's goroutines outlive the
+// call that started them, and only [Guard.Close] waits for them.
 func StartGuard(target string) (*Guard, error) {
 	u, err := url.Parse(target)
 	if err != nil {
@@ -154,26 +166,98 @@ func StartGuard(target string) (*Guard, error) {
 	// dropped connection mid-generation.
 	proxy.FlushInterval = -1
 
-	// Resolved once, here, because the handler runs on its own goroutine and
-	// must not read the directory globals while something else is changing them.
-	g := &Guard{ln: ln, statsPath: statsPath()}
+	// The parent of every request context this guard serves. net/http derives a
+	// connection context from BaseContext and the request context from that, so
+	// cancelling this one ends every handler in flight at whatever it is waiting
+	// on, without a second cancellation channel to thread through each of them.
+	handlerCtx, cancelHandlers := context.WithCancel(context.Background())
+
+	// statsPath is resolved here and not per request, because the handler runs
+	// on its own goroutine and must not read the directory globals while
+	// something else is changing them.
+	g := &Guard{ln: ln, statsPath: statsPath(), cancelHandlers: cancelHandlers}
 	g.srv = &http.Server{
 		Handler:           guardHandler(g, proxy, target),
 		ReadHeaderTimeout: 30 * time.Second,
 		// No write timeout: a completion on a local model legitimately takes
 		// longer than any number that would be safe on a network service.
+
+		BaseContext: func(net.Listener) context.Context { return handlerCtx },
+
+		// The counter [Guard.Close] waits on. ConnState and not a wrapper around
+		// the handler, because the wrapper's Add would race the Wait: a
+		// connection accepted just before Close could reach it after the counter
+		// had already fallen to zero, and joining a WaitGroup at zero while a
+		// Wait is running is the misuse its own documentation forbids.
+		//
+		// ConnState has no such window, which rests on two things inside
+		// net/http rather than on its documented API. Both are worth re-checking
+		// on a Go upgrade, and both are one grep away in server.go. Verified on
+		// go1.26.7:
+		//
+		//   - server.go:3463 sets StateNew on the accept loop's own goroutine,
+		//     immediately before `go c.serve(connCtx)`, and carries the literal
+		//     comment "before Serve can return". So every Add happens before
+		//     Serve returns.
+		//   - Server.Close calls listenerGroup.Wait() internally (server.go:3111),
+		//     so it returns only once Serve has.
+		//
+		// Close therefore cannot reach the Wait below until every Add is done.
+		ConnState: func(_ net.Conn, state http.ConnState) {
+			switch state {
+			case http.StateNew:
+				g.conns.Add(1)
+			case http.StateHijacked, http.StateClosed:
+				g.conns.Done()
+			}
+		},
 	}
-	go g.srv.Serve(ln)
+	go func() { _ = g.srv.Serve(ln) }()
 	return g, nil
 }
 
-// Close stops the guard. Safe on a nil Guard so a caller can defer it beside a
-// failed start.
+// Close stops the guard and returns once its goroutines have finished. Safe on
+// a nil Guard so a caller can defer it beside a failed start.
+//
+// The wait is the point. http.Server.Close returns as soon as the listener and
+// the connections are shut, while the goroutines that were serving them are
+// still unwinding, and one of those still reads the package-level directory
+// overrides through [statePath]. In a test that is a data race against the
+// cleanup that restores them; in a session it is a handler outliving the launch
+// that owns it. Waiting means the read is over before anything writes, rather
+// than merely unreported.
+//
+// The cancellation first is what keeps that wait short, and closing the
+// connections is emphatically not a substitute for it. net/http cancels a
+// request context on a lost connection only from the background read of the
+// request body, and for a request whose body the handler has not read yet that
+// read is deferred until the body hits EOF (server.go registers it through
+// registerOnHitEOF). This handler queues on [lockServer] long before it reads a
+// body, so a handler parked on the machine-wide lock while another session
+// completes would keep polling with a live context, and cutting its socket
+// would not tell it otherwise. Close would then block for as long as the other
+// session took. Cancelling the base context reaches it where closing the socket
+// does not.
+//
+// Not http.Server.Shutdown: that waits for the request in flight to answer, and
+// a completion on a local model runs for minutes. What is waited for here is
+// only the unwinding of requests already told to stop.
+//
+// No timeout on the wait, deliberately. A timeout that fired would let a live
+// handler run on past the caller's teardown, which is the race this exists to
+// remove, so it would trade a bounded wait for the original bug. The bound
+// comes from the cancellation instead. The one step it cannot reach is the
+// ownership probe, which takes no context: three subprocess and HTTP probes at
+// probeTimeout each, so a little under half a minute in the worst case, and in
+// practice zero because Close runs after the client process is gone.
 func (g *Guard) Close() error {
 	if g == nil {
 		return nil
 	}
-	if err := g.srv.Close(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	g.cancelHandlers()
+	err := g.srv.Close()
+	g.conns.Wait()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
