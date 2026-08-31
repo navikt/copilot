@@ -55,7 +55,7 @@ type Recorder interface {
 	RecordRtkSetup(client, choice, result string)
 	RecordLocalSession(client, model string, dispatches int64, sawTraffic bool)
 	RecordLocalServer(model, event string)
-	RecordLocalReadySeconds(model string, seconds int64)
+	RecordLocalReadySeconds(model, outcome string, seconds int64)
 	Shutdown(ctx context.Context) error
 }
 
@@ -64,7 +64,7 @@ type NoopRecorder struct{}
 func (NoopRecorder) RecordCommand(string, string, string, string, string, time.Duration) {}
 func (NoopRecorder) RecordLocalSession(string, string, int64, bool)                      {}
 func (NoopRecorder) RecordLocalServer(string, string)                                    {}
-func (NoopRecorder) RecordLocalReadySeconds(string, int64)                               {}
+func (NoopRecorder) RecordLocalReadySeconds(string, string, int64)                       {}
 func (NoopRecorder) RecordInstallItems(string, string, int64)                            {}
 func (NoopRecorder) RecordSyncUpdates(string, string, int64)                             {}
 func (NoopRecorder) RecordSyncConflicts(string, string, int64)                           {}
@@ -252,7 +252,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		return NoopRecorder{}, fmt.Errorf("create local server counter: %w", err)
 	}
 	localReadySeconds, err := meter.Int64Histogram("nav_pilot_local_ready_seconds",
-		metric.WithDescription("Seconds from start to a real completion. Recorded only for starts that came up, so the slow tail is missing."))
+		metric.WithDescription("Seconds a start took, split by outcome: ready, failed or interrupted."))
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local ready histogram: %w", err)
 	}
@@ -434,14 +434,18 @@ func (t *otelTelemetry) RecordLocalServer(model, event string) {
 	))
 }
 
-// RecordLocalReadySeconds emits how long a start took to answer a real completion.
+// RecordLocalReadySeconds emits how long a start took, and how it ended.
 //
-// The documentation tells developers to expect two to five minutes, from one
-// machine with a warm page cache. This replaces that guess with a distribution
-// across the machines people actually have.
-func (t *otelTelemetry) RecordLocalReadySeconds(model string, seconds int64) {
+// outcome is what makes the histogram readable. Recorded only on success, this
+// instrument cannot see the starts that hung: the slow tail is exactly what
+// goes missing, and a p95 read off it is a p95 of the starts that worked. The
+// documentation quoted minutes from one machine on that basis; the fleet says
+// under a minute, and that correction is only worth as much as the sample it
+// came from.
+func (t *otelTelemetry) RecordLocalReadySeconds(model, outcome string, seconds int64) {
 	t.localReadySeconds.Record(context.Background(), seconds, metric.WithAttributes(
 		attribute.String("model", orUnset(model)),
+		attribute.String("outcome", orUnset(outcome)),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 	))

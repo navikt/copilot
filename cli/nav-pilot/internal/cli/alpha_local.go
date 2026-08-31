@@ -410,6 +410,16 @@ func cmdLocalStart() error {
 		// The process may be up but not answering; do not leave it behind. This
 		// is also the interrupt path: a cancelled context lands here.
 		_ = srv.Stop()
+		// Recorded here as well as on the way out. Measuring only the starts
+		// that came up hides exactly the ones worth seeing: a start that runs
+		// into readyTimeout is the slow tail, and leaving it out turned the
+		// histogram into a distribution of the starts that worked, which is
+		// how the docs came to quote a startup time the fleet contradicts.
+		outcome := "failed"
+		if ctx.Err() != nil {
+			outcome = "interrupted"
+		}
+		telemetry.RecordLocalReadySeconds(model.Model, outcome, int64(timeNow().Sub(started).Seconds()))
 		if ctx.Err() != nil {
 			return fmt.Errorf("interrupted before the server was ready; it has been stopped")
 		}
@@ -419,7 +429,15 @@ func cmdLocalStart() error {
 	// not ready is a pid `status` reports as crashed hours later, which reads
 	// as "it died" rather than "it never started".
 	status := srv.Status()
-	telemetry.RecordLocalReadySeconds(model.Model, int64(timeNow().Sub(started).Seconds()))
+	// One closed vocabulary for the outcome: ready, failed, interrupted. The
+	// health value goes to RecordLocalServer, which is the instrument for it;
+	// letting it leak in here too would give the same panel two spellings of
+	// the same state.
+	readyOutcome := "ready"
+	if status.Health != local.HealthReady || status.PID <= 0 {
+		readyOutcome = "failed"
+	}
+	telemetry.RecordLocalReadySeconds(model.Model, readyOutcome, int64(timeNow().Sub(started).Seconds()))
 	telemetry.RecordLocalServer(model.Model, string(status.Health))
 	if status.Health != local.HealthReady || status.PID <= 0 {
 		_ = srv.Stop()
