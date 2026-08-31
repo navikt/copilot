@@ -615,3 +615,42 @@ func TestMixedPakkeRefusesItsPayloadClient(t *testing.T) {
 		assertDefaultPakkeActive(t)
 	})
 }
+
+// TestRefusedHandoverPrintsNoModelNotice pins the ordering: the model notice
+// announces the session a user is about to spend on, so it must not print for a
+// launch the handover then refuses. The refusal is provoked by taking the
+// opencode launcher away, which is the shape a payload for a client this binary
+// cannot stage-launch arrives in.
+func TestRefusedHandoverPrintsNoModelNotice(t *testing.T) {
+	forceInteractive(t)
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, "sha-one"))
+	failingResolveSource(t)
+
+	origLaunchers := stagedLaunchers
+	t.Cleanup(func() { stagedLaunchers = origLaunchers })
+	stagedLaunchers = map[string]func(ResolvedConfig, providerpkg.StagedLaunch) error{}
+
+	origStderr := os.Stderr
+	r, w, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		t.Fatalf("os.Pipe: %v", pipeErr)
+	}
+	os.Stderr = w
+
+	_, err := tryPakkeLaunch(ResolvedConfig{
+		Client: "opencode", Source: "navikt/grillmester", Model: "claude-opus-5",
+	})
+
+	w.Close()
+	os.Stderr = origStderr
+	var stderr strings.Builder
+	io.Copy(&stderr, r)
+
+	if err == nil || !strings.Contains(err.Error(), handoverErr) {
+		t.Fatalf("launch = %v, want the handover refusal", err)
+	}
+	if strings.Contains(stderr.String(), "Model:") {
+		t.Errorf("a refused launch announced a model: %q", stderr.String())
+	}
+}
