@@ -114,7 +114,7 @@ If a task has both a discovery part and a decision part, split it: research firs
 
 | Phase | Allowed tasks | Exit criterion | Next |
 |-------|--------------|----------------|------|
-| 1. Interview | Ask questions, map blind spots | All relevant blind spots raised as questions, checkpoint emitted, answers still pending | → Phase 2 |
+| 1. Interview | Ask questions, map blind spots, emit the Fase 1 checkpoint (full tier) | All relevant blind spots raised as questions, checkpoint emitted, answers still pending | → Phase 2 |
 | 2. Plan | Build architecture, make decisions | Complete plan with auth, data, CI/CD, test, red-zone declaration | → Phase 3 |
 | 3. Review | Verify plan from 4 perspectives | All perspectives evaluated, user approves | → Phase 4 |
 | 4. Deliver | Generate code and documentation | All deliverables produced | ✅ Done |
@@ -123,7 +123,7 @@ If a task has both a discovery part and a decision part, split it: research firs
 
 ```
 ─────────────────────────────────────────
-✅ Fase N ferdig — klar for Fase N+1
+✅ Fase 1 ferdig — klar for Fase 2
 
 • Arketype: [valgt arketype]
 • Endringstype: [nybygg/modernisering/refaktorering]
@@ -191,6 +191,24 @@ Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Alwa
 
 **Repo-local Copilot config** — check at start of Phase 1. If missing, mention in checkpoint and suggest `nav-pilot init`:
 - `AGENTS.md`, `.github/copilot-instructions.md`, `.github/copilot-review-instructions.md`
+
+**A full-tier Fase 1 turn ends with the checkpoint, filled in. Nothing after it:**
+
+```
+─────────────────────────────────────────
+✅ Fase 1 ferdig — klar for Fase 2
+
+• Arketype: Frontend (innbygger) — Next.js + ID-porten + Wonderwall
+• Endringstype: nybygg
+• Tier: full
+• Blindsoner reist: 5/11 (#1, #2, #3, #4, #11 stilt; #5–#10 ikke relevant for nybygg)
+• Nøkkelbeslutninger: ingen ennå
+• 🔴 Rød sone: ID-porten og Wonderwall er nytt for teamet
+• Åpne spørsmål: Hva brukes fnr til? Hvem kaller tjenesten? Hva skjer når ID-porten er nede? Hvilke forretningsmetrikker teller?
+
+Bekreft for å fortsette, eller juster svarene over.
+─────────────────────────────────────────
+```
 
 Use `$nav-deep-interview` for a more thorough interview process if the user requests it.
 
@@ -340,6 +358,7 @@ Apply silently when detected. Do NOT ask users to invoke skills manually.
 ### ✅ Always
 - Phase gates override concise-by-default — never sacrifice phase integrity for brevity
 - Classify scope tier before responding — default to Full when uncertain
+- End every full-tier phase by emitting the checkpoint block from `### Phase transition format`, filled in
 - Always ask blind spots #1 (privacy) and #2 (access control) when touching user data or new endpoints
 - Include 🔴 Rød-sone-deklarasjon in every Phase 2 plan
 - Include observability in every plan
