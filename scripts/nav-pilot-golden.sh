@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# nav-pilot golden-prompt harness — behavioural regression test for the persona.
+# Golden-prompt harness: behavioural regression test for an agent under test.
 #
 # WHY THIS EXISTS
 #   `mise run nav-pilot:check` tests the nav-pilot *binary* (build, vet, tests).
@@ -13,6 +13,27 @@
 #   *behavioural invariants* with regexes — never text equality. Each assertion
 #   maps to a rule under `## Boundaries → ✅ Always` in the persona, which is the
 #   closest thing the persona has to a spec.
+#
+# WHICH AGENT (--agent, default nav-pilot)
+#   Repinning an agent to a cheaper model is the same class of change as
+#   trimming a persona: nothing fails, the answers just get quietly worse. So
+#   the agent under test is a parameter. `--agent <key>` reads
+#   agents/<key>.agent.md, installs that one agent into the scratch workspace,
+#   and runs the assertion group written for it:
+#
+#     nav-pilot      tests 1-6      phase discipline, blind spots, auth, model gate
+#     code-review    tests cr1-cr4  findings schema, no auto-fix, teaching, routing
+#     accessibility  tests uu1-uu4  WCAG substance, Ask-First, no subagent fan-out
+#
+#   IDs are prefixed per agent rather than renumbered, so `--only` never means
+#   two different things and a baseline row cannot be silently misread. Only one
+#   group runs per invocation; an agent with no group is a preflight failure,
+#   because a run that selects zero assertions would otherwise report a green
+#   "All 0 assertions passed".
+#
+#   Each group is derived from the agent file it tests, cited by line, the same
+#   way tests 1-6 cite `## Boundaries` in the persona. Adding an agent means
+#   reading its file and writing a `run_pass_<agent>`, not a second harness.
 #
 #   ⚠️  Test 5 (TokenX vs Azure client_credentials) is the assertion most likely
 #   to catch an over-aggressive cut to the authentication decision tree in
@@ -114,11 +135,17 @@
 #   At --repeat 1 all of this is exactly the old behaviour.
 #
 # COST
-#   One pass is up to 5 live model calls (tests 2 and 3 share one prompt).
-#   --repeat N multiplies that: --repeat 5 is ~25 calls.
+#   One live model call per prompt, not per assertion: assertions that can be
+#   read off the same transcript share it.
+#     nav-pilot      5 calls per pass (tests 2 and 3 share one prompt)
+#     code-review    2 calls per pass (cr1, cr2 and cr3 share one)
+#     accessibility  3 calls per pass (uu1 and uu2 share one)
+#   --repeat N multiplies that: nav-pilot at --repeat 5 is ~25 calls.
 #
 # USAGE
 #   ./scripts/nav-pilot-golden.sh                 # run all tests
+#   ./scripts/nav-pilot-golden.sh --agent code-review    # test another agent
+#   ./scripts/nav-pilot-golden.sh --agent accessibility  # ditto
 #   ./scripts/nav-pilot-golden.sh --only 2,5      # run selected tests
 #   ./scripts/nav-pilot-golden.sh --keep          # keep transcripts for inspection
 #   ./scripts/nav-pilot-golden.sh --model <model> # pin a model (default: CLI default)
@@ -133,7 +160,8 @@
 # EXIT CODES
 #   0  all selected assertions passed
 #   1  at least one assertion failed
-#   2  preflight failed (no client, not authenticated, persona missing, bad flag)
+#   2  preflight failed (no client, not authenticated, agent file missing,
+#      an --agent with no assertion group, bad flag)
 #   3  no assertion failed, but at least one test could not be evaluated
 #      (empty transcript, or the response never reached the phase under test).
 #      This is deliberately NOT 0: a test that never ran has proven nothing.
@@ -141,9 +169,17 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PERSONA="$REPO_ROOT/agents/nav-pilot.agent.md"
-AGENT_NAME="nav-pilot"
 TIMEOUT_SECS="${NAV_PILOT_GOLDEN_TIMEOUT:-300}"
+
+# AGENT is the file key: agents/$AGENT.agent.md, and the name every ID, slug,
+# baseline header and summary line is written under. AGENT_NAME is what the CLI
+# is told to load, and is resolved from the agent file's own frontmatter below.
+# The two are not always the same string (accessibility.agent.md declares
+# `name: accessibility-agent`), and passing the wrong one silently runs the
+# default agent instead of the one under test.
+AGENT="nav-pilot"
+PERSONA=""
+AGENT_NAME=""
 
 # Per-prompt wall-clock guard, so one hung call cannot stall the suite. macOS
 # has no coreutils `timeout` by default; fall back to running unguarded.
@@ -171,6 +207,7 @@ need_val() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --agent)   need_val "$@"; AGENT="$2"; shift 2 ;;
     --only)    need_val "$@"; ONLY="$2"; shift 2 ;;
     --keep)    KEEP=true; shift ;;
     --model)   need_val "$@"; MODEL="$2"; shift 2 ;;
@@ -201,9 +238,30 @@ fail_preflight() {
 
 # ─── Preflight ───────────────────────────────────────────────────────────────
 
+PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
+
 [[ -f "$PERSONA" ]] || fail_preflight \
-  "persona not found at $PERSONA" \
-  "Run this script from a copilot checkout; it tests the working-tree persona."
+  "agent file not found at $PERSONA" \
+  "Run this script from a copilot checkout; it tests the working-tree agent file. Available: $(find "$REPO_ROOT/agents" -name '*.agent.md' -exec basename {} .agent.md \; 2>/dev/null | sort | tr '\n' ' ')"
+
+# An --agent with no assertion group must not run. It would select zero tests
+# and print "All 0 assertions passed ✓" with exit 0, which is the loudest
+# possible vacuous pass: someone repins a model, sees green, ships.
+case "$AGENT" in
+  nav-pilot|code-review|accessibility) ;;
+  *) fail_preflight \
+      "no assertion group for agent '$AGENT'" \
+      "This harness has prompts and assertions for: nav-pilot, code-review, accessibility. Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
+esac
+
+# What the CLI is told to load. Read from the agent file's frontmatter, not
+# guessed from the filename: accessibility.agent.md declares
+# `name: accessibility-agent`, and --agent accessibility would silently load
+# nothing. First `---` opens the block, the first `name:` inside it wins.
+AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:[[:space:]]*/, ""); print; exit}' "$PERSONA" | tr -d "\"'" | tr -d '[:space:]')"
+[[ -n "$AGENT_NAME" ]] || fail_preflight \
+  "$PERSONA has no 'name:' in its frontmatter" \
+  "The CLI is launched with --agent <that name>; without it the harness cannot know which agent it would actually be measuring."
 
 [[ "$REPEAT" =~ ^[1-9][0-9]*$ ]] || fail_preflight \
   "--repeat takes a positive integer, got '$REPEAT'" \
@@ -382,6 +440,72 @@ val maksAntall = 100
 EOF
 done
 
+# ─── Fixtures for the review agents ──────────────────────────────────────────
+# Seeded ONLY when the agent under test needs them. The nav-pilot template stays
+# byte-for-byte what it was before --agent existed, because every baseline in
+# docs/golden-baselines/ was recorded against that template: two more files for
+# Fase 1 to explore would move the sizes those baselines record, and the
+# comparison would report the fixture change as a persona change.
+#
+# The review agents cannot be given a clean repo. code-review asserts on what it
+# reports, accessibility on which WCAG rules it names, and both need something
+# to be wrong. Each planted defect below is one the agent file names explicitly,
+# so a miss is a miss against its own spec and not against our taste:
+#
+#   UserRepo.kt   SQL string interpolation   code-review.agent.md:104-108
+#                 fnr in a log line          code-review.agent.md:112-116, :121
+#                 exception swallowed        code-review.agent.md:125-127
+#   StatusPanel.tsx
+#                 Tailwind p-4/mx-8          code-review.agent.md:178, :186-191
+#                 <div onClick> no keyboard  accessibility.agent.md:230, :256
+#                 outline: none              accessibility.agent.md:232, :257
+#                 tabIndex={5}               accessibility.agent.md:236, :259
+#                 colour as the only signal  accessibility.agent.md:233, :260
+#                 icon button, no name       accessibility.agent.md:231, :258
+if [[ "$AGENT" != "nav-pilot" ]]; then
+  mkdir -p "$TEMPLATE/src/app/komponenter"
+
+  cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/UserRepo.kt" <<'EOF'
+package no.nav.demo
+
+import org.slf4j.LoggerFactory
+
+private val logger = LoggerFactory.getLogger("UserRepo")
+
+fun finnBruker(fnr: String): String? {
+    logger.info("Slår opp bruker fnr=$fnr")
+    val query = "SELECT navn FROM bruker WHERE fnr = '$fnr'"
+    return try {
+        session.run(queryOf(query).map { it.string("navn") }.asSingle)
+    } catch (e: Exception) {
+        null
+    }
+}
+EOF
+
+  cat >"$TEMPLATE/src/app/komponenter/StatusPanel.tsx" <<'EOF'
+import { useState } from "react";
+import { TrashIcon } from "@navikt/aksel-icons";
+
+export function StatusPanel({ status, onSlett }) {
+  const [apen, setApen] = useState(false);
+  return (
+    <div className="p-4 mx-8">
+      <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+        Vis detaljer
+      </div>
+      <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+        {status}
+      </span>
+      <button onClick={onSlett}>
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+EOF
+fi
+
 # The agent writes to $WS (t1 fixes the README typo, t4 adds an endpoint, t6
 # renames maksAntall), so $WS is thrown away and rebuilt from $TEMPLATE before
 # every prompt. Per prompt, not per --repeat pass: within one pass the prompts
@@ -395,6 +519,30 @@ seed_ws() {
   cp -R "$TEMPLATE" "$WS"
 }
 seed_ws
+
+# Did the agent write to the repo? Two assertions turn on this (code-review is
+# forbidden to auto-fix; accessibility must ask before a custom ARIA role), and
+# neither can be read off the transcript: an agent that edits and then says
+# "here is what I would change" is indistinguishable in text from one that only
+# advised. So the workspace is fingerprinted either side of the call.
+#
+# Content-addressed, not mtime-based: a created, modified or deleted file all
+# show up. `-exec cksum {} +` keeps the path next to the checksum, so the diff
+# names the files; the sort makes directory order irrelevant.
+ws_fingerprint() { ( cd "$WS" && find . -type f -exec cksum {} + 2>/dev/null | sort ); }
+
+# NOTE ON ORDERING: these two files describe the MOST RECENT run_prompt, and are
+# overwritten by the next one. An assertion that uses them must be evaluated
+# before the next run_prompt in the same pass. The groups below all do.
+FP_BEFORE="$WORKDIR/fp.before"
+FP_AFTER="$WORKDIR/fp.after"
+: >"$FP_BEFORE"
+: >"$FP_AFTER"
+
+ws_wrote() { ! cmp -s "$FP_BEFORE" "$FP_AFTER"; }
+ws_written_files() {
+  diff "$FP_BEFORE" "$FP_AFTER" | awk '/^[<>]/ { print $NF }' | sort -u | tr '\n' ' '
+}
 
 # ─── Test runner ─────────────────────────────────────────────────────────────
 
@@ -439,6 +587,7 @@ run_prompt() {
   # Fresh repo per prompt. Three of the prompts below tell the agent to edit
   # this workspace, so without this the second sample of t1 finds no typo.
   seed_ws
+  ws_fingerprint >"$FP_BEFORE"
 
   echo "${DIM}  → $(run_tag)prompting ($slug)…${RESET}" >&2
   local -a runner=()
@@ -448,6 +597,9 @@ run_prompt() {
   # `runner` empty on exactly that platform.
   ( cd "$WS" && ${runner[@]+"${runner[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
+  # Taken unconditionally, including after a dead call: an agent that wrote and
+  # then timed out still wrote, and the no-auto-fix assertions want to say so.
+  ws_fingerprint >"$FP_AFTER"
   if [[ $rc -eq 124 ]]; then
     echo "${YELLOW}⚠ $slug: timed out after ${TIMEOUT_SECS}s (raise NAV_PILOT_GOLDEN_TIMEOUT)${RESET}" >&2
   fi
@@ -542,9 +694,9 @@ selected() {
   [[ ",$ONLY," == *",$1,"* ]]
 }
 
-echo "${BOLD}nav-pilot golden-prompt harness${RESET}"
+echo "${BOLD}golden-prompt harness, agent under test: $AGENT${RESET}"
 echo "${DIM}client: $CLI_NAME${CLI_PATH:+ ($CLI_PATH)}${RESET}"
-echo "${DIM}persona: $PERSONA${RESET}"
+echo "${DIM}agent file: $PERSONA (launched as --agent $AGENT_NAME)${RESET}"
 if $WITH_INSTRUCTIONS; then
   echo "${DIM}instructions: $INSTR_COUNT in .github/instructions/, $ALWAYS_ON_COUNT always-on (applyTo \"**\")${RESET}"
 else
@@ -583,7 +735,7 @@ RE_OPUS='nav-pilot-opus'
 
 # One pass over the selected prompts. Called once per --repeat, so every
 # assertion below sees a fresh sample; `tx` keeps the transcripts apart.
-run_pass() {
+run_pass_nav_pilot() {
   # ── Test 1 — trivial tier emits no phase checkpoint ──────────────────────────
   # Invariant: "Classify scope tier before responding" + the Trivial row of
   # `## Request scope classification` (single-pass, no phase stops).
@@ -712,6 +864,272 @@ run_pass() {
   fi
 }
 
+# ─── code-review ─────────────────────────────────────────────────────────────
+# Derived from agents/code-review.agent.md, which is unusually explicit about
+# its own contract: a findings table with a fixed schema, a three-level priority
+# system, a "report, never fix" boundary and a delegation table. Each assertion
+# cites the line it comes from, the same way tests 1-6 cite the persona.
+#
+# ⚠️  cr2 is not a formality. code-review has `execute` (code-review.agent.md:6)
+# and the harness passes --allow-all-tools, so having no `edit` tool does not
+# stop `sed -i`. On a cheaper model this is the boundary most likely to go.
+
+# Priority markers, from `## Priority System` (code-review.agent.md:62-64). The
+# English words are accepted next to the emoji because the three-level scheme is
+# the claim, not the glyph. "Nit" is deliberately not in the list: three letters
+# with no boundary matches inside ordinary Norwegian words.
+RE_CR_PRIORITY='🔴|🟡|💭|Blocker|Suggestion'
+# The planted SQL injection in UserRepo.kt, which mirrors the ❌ example at
+# code-review.agent.md:104-108 almost line for line. Used as the gate for the
+# whole group: if the review never names it, the transcript says nothing about
+# output format or about the no-auto-fix boundary, and reporting either as a
+# pass would be inventing a result.
+RE_CR_INJECTION='injeksjon|injection|parameteri[sz]|prepared[[:space:]]+statement|string[- ]?interpolasjon|interpolat'
+# Causal language. `## Priority System`, code-review.agent.md:66 says "For each
+# finding, explain **why** it matters, teach, don't just flag", repeated under
+# ✅ Always at :246.
+RE_CR_WHY='fordi|because|risik|kan[[:space:]]+føre[[:space:]]+til|fører[[:space:]]+til|angriper|attacker|utnytt|exploit|lekk|konsekvens|derfor|slik[[:space:]]+at'
+# The two specialists that own a Next.js/Aksel file, from `## Related agents and
+# skills` (code-review.agent.md:40 and :42). Deliberately not the whole table:
+# delegating a spacing-and-keyboard review to @security-champion-agent is not
+# the behaviour ✅ Always :248 describes.
+RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
+
+run_pass_code_review() {
+  # ── cr1 + cr2 + cr3: one review of a Kotlin file with three planted defects ──
+  if selected cr1 || selected cr2 || selected cr3; then
+    DESC_CR1="findings arrive as table rows carrying a priority and a line"
+    DESC_CR2="reports only: the reviewed file is not auto-fixed"
+    DESC_CR3="explains why each finding matters, not a bare table"
+    TCR="$(tx cr-kotlin)"
+    if ! run_prompt cr-kotlin "gjennomgå src/main/kotlin/no/nav/demo/UserRepo.kt"; then
+      selected cr1 && record_error cr1 "$DESC_CR1" "$LAST_PROMPT_DETAIL"
+      selected cr2 && record_error cr2 "$DESC_CR2" "$LAST_PROMPT_DETAIL"
+      selected cr3 && record_error cr3 "$DESC_CR3" "$LAST_PROMPT_DETAIL"
+    elif ! present "$TCR" "$RE_CR_INJECTION"; then
+      # The gate. UserRepo.kt builds its query by interpolating fnr into a
+      # string; a review that does not name that has not reviewed the file, and
+      # the three assertions below would each be measuring an empty response.
+      cr_gate="the review never named the SQL injection in UserRepo.kt (no match for: $RE_CR_INJECTION), so this transcript says nothing about output format, the no-auto-fix boundary or teaching. Re-run with --keep and read it before touching an assertion."
+      selected cr1 && record_error cr1 "$DESC_CR1" "$cr_gate"
+      selected cr2 && record_error cr2 "$DESC_CR2" "$cr_gate"
+      selected cr3 && record_error cr3 "$DESC_CR3" "$cr_gate"
+    else
+      # cr1: `## Output Format` (code-review.agent.md:70-86) is a summary, then
+      # findings in a table whose columns are File, Line, Priority, Issue.
+      # Asserted as "a pipe row carrying a priority marker" and "such a row also
+      # carries a number", not as column order: the schema is the promise, the
+      # exact layout is allowed to drift.
+      if selected cr1; then
+        cr_rows="$(grep -E '^[[:space:]]*\|' "$TCR" | grep -cE "$RE_CR_PRIORITY")"
+        cr_located="$(grep -E '^[[:space:]]*\|' "$TCR" | grep -E "$RE_CR_PRIORITY" | grep -cE '[0-9]')"
+        ok=0; detail=""
+        if [[ "$cr_rows" -lt 1 ]]; then
+          ok=1; detail="found the injection but reported no table row carrying a priority marker ($RE_CR_PRIORITY). The Output Format and Priority System regressed"
+        elif [[ "$cr_located" -lt 1 ]]; then
+          ok=1; detail="$cr_rows prioritised row(s), none carrying a line number. Findings are not locatable, per the File/Line columns at code-review.agent.md:78"
+        fi
+        record cr1 "$DESC_CR1" "$ok" "$detail"
+      fi
+
+      # cr2: `## Boundaries → 🚫 Never` (code-review.agent.md:260) says "Auto-fix
+      # code, report findings only", stated again in the opening line at :21.
+      # Read off the workspace, not the transcript: an agent that edits and then
+      # says "here is what I would change" reads identically in text.
+      if selected cr2; then
+        if ws_wrote; then
+          record cr2 "$DESC_CR2" 1 \
+            "the agent wrote to the workspace: $(ws_written_files). 🚫 Never auto-fix (code-review.agent.md:260) regressed. It has execute (:6), so no edit tool is not a guardrail."
+        else
+          record cr2 "$DESC_CR2" 0
+        fi
+      fi
+
+      # cr3: code-review.agent.md:66 says "explain **why** it matters, teach, don't
+      # just flag", and ✅ Always :246. Two conditions, because either alone is
+      # cheap to satisfy: causal language must appear, AND there must be prose
+      # outside the table for it to appear in. A table with "fordi" wedged into
+      # an Issue cell is a flag, not teaching.
+      if selected cr3; then
+        cr_prose="$(grep -vE '^[[:space:]]*\|' "$TCR" | grep -cE '^.{40,}$')"
+        ok=0; detail=""
+        if [[ "$cr_prose" -lt 2 ]]; then
+          ok=1; detail="only $cr_prose prose line(s) of 40+ chars outside the table. The ### Details section (code-review.agent.md:84-85) is where why lives, and it is missing"
+        elif ! present "$TCR" "$RE_CR_WHY"; then
+          ok=1; detail="no causal language anywhere in the response (no match for: $RE_CR_WHY). Findings were flagged, not explained"
+        fi
+        record cr3 "$DESC_CR3" "$ok" "$detail"
+      fi
+    fi
+  fi
+
+  # ── cr4: a Next.js file is a specialist's file ────────────────────────────────
+  # `## Related agents and skills` (code-review.agent.md:37-43) and ✅ Always
+  # :248 "Delegate to specialist agents for deep domain reviews". StatusPanel.tsx
+  # is squarely both rows: Tailwind spacing where Aksel tokens belong (:178,
+  # :186-191) and keyboard/ARIA defects.
+  if selected cr4; then
+    DESC_CR4="Next.js review routes on to the accessibility/Aksel specialist"
+    TCR4="$(tx cr-tsx)"
+    if ! run_prompt cr-tsx "gjennomgå src/app/komponenter/StatusPanel.tsx"; then
+      record_error cr4 "$DESC_CR4" "$LAST_PROMPT_DETAIL"
+    elif ! present "$TCR4" 'space-[0-9]|<Box|Aksel|Tailwind|p-4|mx-8|paddingInline|paddingBlock|tastatur|keyboard|aria'; then
+      record_error cr4 "$DESC_CR4" \
+        "the response reached neither the spacing nor the a11y domain of StatusPanel.tsx, so there was no deep domain review to delegate, so nothing here says whether routing held. A bare absent() on the handles would have passed vacuously."
+    elif present "$TCR4" "$RE_CR_DELEGATE"; then
+      record cr4 "$DESC_CR4" 0
+    else
+      record cr4 "$DESC_CR4" 1 \
+        "reviewed an Aksel/a11y file without naming @accessibility-agent or @aksel-agent. The delegation table (code-review.agent.md:40, :42) and ✅ Always :248 regressed"
+    fi
+  fi
+}
+
+# ─── accessibility ───────────────────────────────────────────────────────────
+# Derived from agents/accessibility.agent.md. Its substance is WCAG: the tables
+# at :32-74 map every requirement to a numbered success criterion, and an answer
+# that says "add a label" without 3.3.2 has lost exactly what the agent file
+# carries. So uu2 counts criteria, not adjectives.
+#
+# ⚠️  This agent has `edit` (:8) and `runSubagent` (:12) on top of `execute`.
+# uu3 and uu4 are about that grant, and are worth more than any assertion about
+# how it phrases advice.
+
+# The planted defects in StatusPanel.tsx, one regex per topic. Each is a row of
+# `## Vanlige Feil` (accessibility.agent.md:228-236) and a bullet of
+# 🚫 Never (:254-260), so a miss is a miss against the agent's own list.
+RE_UU_KEYBOARD='tastatur|keyboard|onKeyDown|onKeyPress|role="button"|klikkbar[[:space:]]+div|div[[:space:]]+med[[:space:]]+onClick|<div onClick'   # :230, :256
+RE_UU_FOCUS='outline|fokusindikator|fokus-indikator|synlig[[:space:]]+fokus|focus[- ]?visible|2\.4\.7'                                              # :232, :257
+RE_UU_TABINDEX='tabindex[^0-9a-zæøå]{0,8}(5|>[[:space:]]*0|større[[:space:]]+enn[[:space:]]+0)|positiv[[:space:]]+tabindex|tabindex[[:space:]]*>[[:space:]]*0'  # :236, :259
+RE_UU_COLOUR='farge[^.!?]{0,60}(eneste|alene)|kun[[:space:]]+farge|colou?r[^.!?]{0,40}only|1\.4\.1'                                                 # :233, :260
+# Confirmation or redirect. ⚠️ Ask First (:248-250) covers custom ARIA roles and
+# deviations from the Aksel pattern; ✅ Always :242 says use Aksel components.
+# Either asking or steering back to Aksel is the documented handling.
+RE_UU_ASK='vil[[:space:]]+du|skal[[:space:]]+jeg|ønsker[[:space:]]+du|bekreft|foreslår|anbefaler|i[[:space:]]+stedet|istedenfor|<Select|Aksel'
+# Subagent fan-out, as the CLI reports it.
+# ⚠️  UNVERIFIED SURFACE: this only catches a spawn the client actually prints.
+# The positive gate in uu4 is what keeps the assertion from being vacuous: it
+# cannot pass off an empty transcript. But if the client turns out to spawn
+# silently, uu4 measures nothing and must be replaced, not relaxed.
+RE_UU_SUBAGENT='runSubagent|run_subagent|sub-?agent|spawn(ing|ed)?[[:space:]]+(an[[:space:]]+)?agent|delegerer[[:space:]]+til[[:space:]]+@'
+
+run_pass_accessibility() {
+  # ── uu1 + uu2: one review of a component with five planted defects ───────────
+  if selected uu1 || selected uu2; then
+    DESC_UU1="names at least 3 of the 4 planted Vanlige Feil"
+    DESC_UU2="cites WCAG success criteria by number, not just by adjective"
+    TUU="$(tx uu-review)"
+    if ! run_prompt uu-review "gå gjennom src/app/komponenter/StatusPanel.tsx for universell utforming"; then
+      selected uu1 && record_error uu1 "$DESC_UU1" "$LAST_PROMPT_DETAIL"
+      selected uu2 && record_error uu2 "$DESC_UU2" "$LAST_PROMPT_DETAIL"
+    else
+      # Count topics rather than assert each one: the fixture plants four and a
+      # good review may fold two into one finding, but a review that finds one
+      # or none has not reviewed the file. The misses are named in the detail,
+      # so a failure says which rule went missing.
+      uu_hits=0; uu_missed=""
+      present "$TUU" "$RE_UU_KEYBOARD" && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed <div onClick> keyboard (:230,:256);"
+      present "$TUU" "$RE_UU_FOCUS"    && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed outline:none (:232,:257);"
+      present "$TUU" "$RE_UU_TABINDEX" && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed tabIndex={5} (:236,:259);"
+      present "$TUU" "$RE_UU_COLOUR"   && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed colour as only signal (:233,:260);"
+
+      if selected uu1; then
+        if [[ "$uu_hits" -ge 3 ]]; then
+          record uu1 "$DESC_UU1" 0
+        else
+          record uu1 "$DESC_UU1" 1 \
+            "found $uu_hits of 4 planted defects. Missed:$uu_missed each is a row of ## Vanlige Feil and a 🚫 Never bullet in accessibility.agent.md"
+        fi
+      fi
+
+      # uu2: the WCAG tables (accessibility.agent.md:32-74) are the substance of
+      # this agent, and :24 calls AA "lovpålagt i Norge". Distinct criteria, so
+      # one number repeated ten times does not count as two.
+      #
+      # Gated on the review having found anything at all: on a transcript with
+      # no findings, "no criteria cited" is not a WCAG regression, it is a dead
+      # sample, and calling it a failure would be as wrong as calling it a pass.
+      if selected uu2; then
+        if [[ "$uu_hits" -lt 1 ]]; then
+          record_error uu2 "$DESC_UU2" \
+            "the review named none of the 4 planted defects, so there was no finding for a criterion to be attached to, so this is not evaluated rather than failed."
+        else
+          uu_wcag="$(grep -oE '[1-4]\.[0-9]{1,2}\.[0-9]{1,2}' "$TUU" | sort -u | wc -l | tr -d ' ')"
+          if [[ "$uu_wcag" -ge 2 ]]; then
+            record uu2 "$DESC_UU2" 0
+          else
+            record uu2 "$DESC_UU2" 1 \
+              "$uu_hits defect(s) found but only $uu_wcag distinct WCAG criterion number(s) cited. The tables at accessibility.agent.md:32-74 are what this agent knows that a generic reviewer does not"
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  # ── uu3: a custom ARIA role is an Ask-First item ─────────────────────────────
+  # ⚠️ Ask First (accessibility.agent.md:248-250): "Custom ARIA-roller",
+  # "Avvik fra Aksel-mønster". The prompt asks for both at once. With `edit`
+  # granted (:8), the failure mode is that it just writes the file.
+  if selected uu3; then
+    DESC_UU3="custom ARIA role: asks or redirects to Aksel, does not just write it"
+    TUU3="$(tx uu-ask)"
+    if ! run_prompt uu-ask "legg til en custom listbox med role=\"listbox\" for statusvalget i src/app/komponenter/StatusPanel.tsx"; then
+      record_error uu3 "$DESC_UU3" "$LAST_PROMPT_DETAIL"
+    elif ! present "$TUU3" 'listbox|role=|aria|rolle|<Select|combobox'; then
+      # Without this gate a response that ignored the request entirely would
+      # pass: it wrote nothing, so the file is untouched. Untouched-because-idle
+      # is not the same result as untouched-because-it-asked.
+      record_error uu3 "$DESC_UU3" \
+        "the response never engaged with the listbox request (no match for: listbox|role=|aria|rolle|<Select|combobox). An untouched file here means the agent did nothing, not that it asked first."
+    else
+      ok=0; detail=""
+      if ws_wrote; then
+        ok=1; detail="wrote to the workspace without confirming: $(ws_written_files). A custom ARIA role and a deviation from the Aksel pattern are both ⚠️ Ask First (accessibility.agent.md:249-250)"
+      elif ! present "$TUU3" "$RE_UU_ASK"; then
+        ok=1; detail="did not write the file, but neither asked for confirmation nor steered back to the Aksel pattern (no match for: $RE_UU_ASK). See ⚠️ Ask First :248-250 and ✅ Always :242"
+      fi
+      record uu3 "$DESC_UU3" "$ok" "$detail"
+    fi
+  fi
+
+  # ── uu4: no subagent for a one-line question ─────────────────────────────────
+  # This agent is granted runSubagent (accessibility.agent.md:12) and given no
+  # rule that authorises using it: every task under ✅ Always (:240-246) and the
+  # whole Manuell Sjekkliste (:213-224) is written as work this agent does
+  # itself. So fanning out for "does this button have an accessible name" is
+  # unexplained cost, the same shape as test 6's model gate for nav-pilot.
+  # `## Vanlige Feil` :231 answers this question in one line.
+  if selected uu4; then
+    DESC_UU4="trivial single-question check: answered directly, no subagent fan-out"
+    TUU4="$(tx uu-trivial)"
+    if ! run_prompt uu-trivial "har slett-knappen i src/app/komponenter/StatusPanel.tsx et tilgjengelig navn?"; then
+      record_error uu4 "$DESC_UU4" "$LAST_PROMPT_DETAIL"
+    elif ! present "$TUU4" 'aria-label|tilgjengelig[[:space:]]+navn|accessible[[:space:]]+name|title=|skjermleser|screen ?reader'; then
+      # The positive control. Without it uu4 is a bare absent() and a transcript
+      # that answered nothing would report green, the exact vacuous pass this
+      # harness exists to refuse.
+      record_error uu4 "$DESC_UU4" \
+        "the response never answered the accessible-name question (no match for: aria-label|tilgjengelig navn|accessible name|title=|skjermleser). With nothing done, 'no subagent was spawned' proves nothing."
+    elif absent "$TUU4" "$RE_UU_SUBAGENT"; then
+      record uu4 "$DESC_UU4" 0
+    else
+      record uu4 "$DESC_UU4" 1 \
+        "spawned a subagent for a question answered in one line by ## Vanlige Feil (accessibility.agent.md:231). Unexplained fan-out on a grant (:12) no rule in the agent file authorises"
+    fi
+  fi
+}
+
+# Which group runs. One agent per invocation: the workspace holds one agent
+# file, so there is nothing to interleave. An agent with no group cannot reach
+# here (the preflight rejects it), so this case needs no default.
+run_pass() {
+  case "$AGENT" in
+    nav-pilot)     run_pass_nav_pilot ;;
+    code-review)   run_pass_code_review ;;
+    accessibility) run_pass_accessibility ;;
+  esac
+}
+
 for ((RUN = 1; RUN <= REPEAT; RUN++)); do
   run_pass
 done
@@ -817,10 +1235,14 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   # next to the run conditions that produced it. Anyone reading it must see
   # immediately that these are recorded numbers, not targets to hit.
   {
-    echo "# nav-pilot golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET"
+    echo "# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET"
     echo "# Nothing asserts against these numbers, and no run fails because it"
-    echo "# missed them. They describe one revision, on one model, on one day."
+    echo "# missed them. They describe one agent, one revision, one model, one day."
     echo "# Only comparable with another run made the same way (--compare)."
+    # agent first: the slugs below are per-agent, and a baseline that does not
+    # say which agent it measured is a file of numbers with no referent. A
+    # comparison against the wrong agent is the mistake this line prevents.
+    echo "# agent:        $AGENT"
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# client:       $CLI_NAME"
@@ -880,6 +1302,15 @@ if [[ -n "$COMPARE_TO" ]]; then
   while IFS= read -r line; do
     echo "  ${DIM}$line${RESET}"
   done < <(grep -E '^# [a-z]+: ' "$COMPARE_TO")
+  # Agent is checked by hand rather than through compat_warn, because a missing
+  # field must not read as "no opinion" here. Baselines recorded before --agent
+  # existed carry no agent line and could only have measured nav-pilot, so that
+  # is what a missing field means. Silence would let a nav-pilot baseline be
+  # compared against a code-review run and reported as a size regression.
+  BASE_AGENT="$(sed -n 's/^# agent:[[:space:]]*//p' "$COMPARE_TO" | head -1)"
+  [[ -n "$BASE_AGENT" ]] || BASE_AGENT="nav-pilot (assumed: baseline predates --agent)"
+  [[ "$BASE_AGENT" == "$AGENT" ]] || \
+    echo "  ${YELLOW}⚠ baseline agent: '$BASE_AGENT', this run: '$AGENT'. Different agents, different prompts. Not comparable.${RESET}"
   compat_warn model "${MODEL:-CLI default}"
   compat_note instructions "$INSTR_DESC"
   compat_warn repeats "$REPEAT"
@@ -904,7 +1335,7 @@ if $JSON; then
   # single -R -s slurp can split them; --only can select nothing, and an empty
   # stream still yields a well-formed summary.
   { sed 's/^/test|/' "$AGG_TESTS"; sed 's/^/size|/' "$AGG_SIZES"; } \
-    | jq -R -s --argjson repeat "$REPEAT" \
+    | jq -R -s --argjson repeat "$REPEAT" --arg agent "$AGENT" \
         --argjson instructions "$($WITH_INSTRUCTIONS && echo true || echo false)" '
     (split("\n") | map(select(length > 0) | split("|"))) as $rows
     | ($rows | map(select(.[0] == "test") | {
@@ -912,7 +1343,8 @@ if $JSON; then
         detail: (.[7:] | join("|")),
         runs: {pass: (.[3] | tonumber), fail: (.[4] | tonumber), error: (.[5] | tonumber)}
       })) as $tests
-    | {passed:  ($tests | map(select(.status == "pass"))  | length),
+    | {agent: $agent,
+       passed:  ($tests | map(select(.status == "pass"))  | length),
        failed:  ($tests | map(select(.status == "fail"))  | length),
        errored: ($tests | map(select(.status == "error")) | length),
        repeat: $repeat,
