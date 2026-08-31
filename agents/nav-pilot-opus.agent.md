@@ -1,7 +1,7 @@
 ---
 name: nav-pilot-opus
 description: Dyp analyse for høyrisiko planlegging, arkitekturvalg og kritisk review i Nav-prosjekter
-model: Claude Opus 4.6
+model: GPT-5.6 Sol
 tools:
   - execute
   - read

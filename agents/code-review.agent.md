@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner
-model: GPT-5.3-Codex
+model: GPT-5.6 Luna
 tools:
   - execute
   - read

@@ -1,7 +1,7 @@
 ---
 name: spring-boot-endpoint
 description: Scaffold et Spring Boot REST-endepunkt med Controller, Service, Repository, Test og Nais-konfig
-model: Claude Haiku 4.5
+model: GPT-5.6 Luna
 ---
 
 # Spring Boot Endpoint
