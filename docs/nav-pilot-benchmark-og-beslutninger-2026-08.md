@@ -43,10 +43,10 @@ usikkerheten dekker hele spennet.
 
 Denne kostet ekte penger å lære, så den står her eksplisitt.
 
-Ved **n = 5** er én observert feil forenlig med en sann feilrate mellom omtrent
-**1 og 70 prosent**. En tidlig n = 5-runde fikk Terra til å se utrygg ut og Luna
-til å se ren ut. Ved høyere n feilet Luna også én gang, og Terras ulempe ble
-liggende innenfor støyen.
+Ved **n = 5** er én observert feil forenlig med en sann feilrate mellom
+**3,6 og 62,4 prosent** (Wilson, samme metode som tabellen over). En tidlig
+n = 5-runde fikk Terra til å se utrygg ut og Luna til å se ren ut. Ved høyere n
+feilet Luna også én gang, og Terras ulempe ble liggende innenfor støyen.
 
 Konsekvenser for framtidige sammenligninger på en sjelden hendelse:
 
@@ -65,12 +65,13 @@ filene alene. Gjentas benchmarken, bør rådataene for assertions logges også.
 
 ## 2. Funnet som betyr mer enn modellvalget
 
-**Den påkrevde personvern-blindsonen blir oversett 2 til 4 prosent av gangene på
-alle modeller som ble testet.** Terra ligger høyere, men ikke signifikant høyere.
+**Den påkrevde personvern-blindsonen blir oversett på alle modeller som ble
+testet: 2 til 4 prosent av gangene på de tre andre, og 11,1 prosent på Terra.**
+Terra ligger høyere, men ikke signifikant høyere.
 
 Ingen modellbytte fikser dette. Feilen ligger ikke i modellen; den ligger i
 personaen. En prompt som eksplisitt sier at tjenesten leser fødselsnummer fra
-ID-porten, skal reise personvern hver eneste gang, ikke i 96 til 98 prosent av
+ID-porten, skal reise personvern hver eneste gang, ikke i 89 til 98 prosent av
 tilfellene.
 
 Dette trenger et eget issue og en egen fiks i `agents/nav-pilot.agent.md`. Det er
@@ -114,15 +115,15 @@ Hver beslutning står med begrunnelsen sin og med hva den hviler på.
 
 ### 4.1 Modellpinner flyttes: Luna for lesing, Sol for resonnering
 
-Lese- og mønsteranvendende agenter går til Luna. Resonneringssjiktet går til Sol.
-`forfatter` blir på Claude Sonnet 4.6 for norsk tekst.
+Lese- og mønsteranvendende agenter skal til Luna. Resonneringssjiktet skal til
+Sol. `forfatter` blir stående på Claude Sonnet 4.6 for norsk tekst.
 
 **Hviler på:** kostnad. Ikke på sikkerhet, som ikke skilte kandidatene
 (seksjon 1). `forfatter`-unntaket hviler på norsk språkkvalitet, ikke på
 benchmarken, som ikke målte norsk tekst.
 
-Den gjeldende tabellen står i [`modellvalg.md`](modellvalg.md). Den gjentas ikke
-her, fordi den flytter seg.
+Tabellen i [`modellvalg.md`](modellvalg.md) viser fortsatt de gamle pinnene og
+oppdateres når byttet er merget. Den gjentas ikke her, fordi den flytter seg.
 
 ### 4.2 Terra tas ikke i bruk
 
@@ -184,8 +185,10 @@ copilot sender en liste av MCP-kvalifiserte strenger.
 Det avgjørende er hvem som rammes: **opencode re-materialiserer ved hver
 launch**. En dårlig transform når hver eneste bruker umiddelbart, uten kanari og
 uten utrulling å stanse. Det er derfor pass-through ikke er verdt bekvemmelig-
-heten. Begrunnelsen ligger i funksjonsdokumentasjonen i koden, slik at den ikke
-blir «forenklet» bort igjen.
+heten. Begrunnelsen står foreløpig bare her. `transformAgent` har ingen
+doc-kommentar i koden i dag, så det finnes ikke noe vern mot at formen blir
+«forenklet» bort igjen. Den bør inn i funksjonsdokumentasjonen, som en egen
+kodeendring.
 
 ### 4.7 Copilots pakke-erklæring er `inherit`
 
