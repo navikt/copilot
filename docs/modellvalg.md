@@ -71,8 +71,12 @@ Vi bytter **ikke** modell automatisk når noe nytt lanseres. Et bytte krever at 
 | Kriterium | Status |
 |-----------|--------|
 | Bekreftet ID | ❌ Ikke verifisert i model picker |
-| Kostnad | ⚖️ Terra koster $2.00 mot Codex $1.75 på input, men $12.00 mot $14.00 på output. Med 10:1 input mot output blir det 2,91 mot 2,86, altså under to prosent. Kostnad er ikke lenger et argument mot Terra |
+| Kostnad | ⚖️ Jevnt, se regnestykket under |
 | Testet | ❌ Ikke testet |
+
+Terra koster $2.00 mot Codex $1.75 på input, men $12.00 mot $14.00 på output, så hvilken som er billigst avhenger av blandingen. Terra er billigere ved alt under åtte input-tokens per output-token, og 1,6 % dyrere ved 10:1 ($2,91 mot $2,86 per million tokens). **Forholdet 10:1 er et anslag, ikke noe vi har målt.** Konklusjonen tåler hele spennet uansett: forskjellen er noen få prosent i begge retninger, og kostnad er ikke lenger et argument mot Terra.
+
+Regnestykket ser bort fra cachet input, der Codex ligger på $0.175 mot Terras $0.20. Cachet input dominerer agentiske løkker, så det trekker i motsatt retning av output-prisen. Skal noen bytte på kostnad alene, er det den blandingen som må måles først.
 
 **Konklusjon:** ikke byttet. GPT-5.3-Codex beholdes inntil videre.
 
