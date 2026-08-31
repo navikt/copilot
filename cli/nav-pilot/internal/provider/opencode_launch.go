@@ -739,6 +739,11 @@ func localWorker() (local.Model, error) {
 		if err := local.EnsureServerRunning(context.Background(), func(model string) {
 			fmt.Fprintf(os.Stderr, "%s Starting the local %s server. Measured starts have been under a minute.\n",
 				domain.Dim("ℹ"), domain.Bold(model))
+		}, func(model, outcome string, seconds int64) {
+			// The common path. Until this existed the ready-time histogram was
+			// drawn only from hand-typed `alpha local start`, and a failed
+			// autostart appeared nowhere at all.
+			telemetryRecorder.RecordLocalReadySeconds(model, outcome, seconds)
 		}); err != nil {
 			return local.Model{}, err
 		}

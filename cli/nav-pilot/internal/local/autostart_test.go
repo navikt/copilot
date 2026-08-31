@@ -15,7 +15,7 @@ func TestAutostartOffRefusesAndSaysHowToTurnItOn(t *testing.T) {
 	SetAutostart(false)
 	t.Cleanup(func() { SetAutostart(false) })
 
-	err := EnsureServerRunning(context.Background(), nil)
+	err := EnsureServerRunning(context.Background(), nil, nil)
 	if err == nil {
 		t.Fatal("EnsureServerRunning with autostart off returned nil and started nothing")
 	}
@@ -64,7 +64,7 @@ func TestConcurrentLaunchesStartOneServer(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			errs[i] = EnsureServerRunning(context.Background(), nil)
+			errs[i] = EnsureServerRunning(context.Background(), nil, nil)
 		}(i)
 	}
 	wg.Wait()
@@ -90,4 +90,44 @@ func indexOf(s, sub string) int {
 		}
 	}
 	return -1
+}
+
+// TestAutostartRecordsNothingWhenNoStartWasAttempted guards the boundary the
+// callback sits on.
+//
+// Autostart refuses before it spawns anything for several reasons — the feature
+// is off, the wired-memory limit is too low, the weights are not downloaded.
+// None of those is a start that failed, and recording them as one would put
+// configuration problems into a histogram of how long servers take to come up,
+// which is the mirror image of the bug that made this callback necessary: the
+// instrument measuring the wrong population.
+func TestAutostartRecordsNothingWhenNoStartWasAttempted(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		setup func(t *testing.T)
+	}{
+		{"autostart is off", func(t *testing.T) { SetAutostart(false) }},
+		{"weights are not on the machine", func(t *testing.T) {
+			SetAutostart(true)
+			SetActive(&Manifest{Models: []Model{testModel()}})
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			stubDirs(t)
+			t.Cleanup(func() { SetAutostart(false) })
+			tt.setup(t)
+
+			var recorded []string
+			err := EnsureServerRunning(context.Background(), nil,
+				func(model, outcome string, seconds int64) {
+					recorded = append(recorded, outcome)
+				})
+			if err == nil {
+				t.Fatal("expected a refusal, got nil")
+			}
+			if len(recorded) != 0 {
+				t.Errorf("recorded %v for a refusal that never reached Start; want nothing", recorded)
+			}
+		})
+	}
 }

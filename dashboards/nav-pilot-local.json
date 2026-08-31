@@ -833,7 +833,7 @@
             "transformations": []
           }
         },
-        "description": "ready, failed eller interrupted. Fram til denne fantes ble bare vellykkede oppstarter registrert, så den trege halen manglet per konstruksjon.\n\nVENTER PÅ DATA: outcome kom inn etter forrige release og fylles etter hvert som folk oppdaterer.",
+        "description": "ready, failed eller interrupted. Fram til denne fantes ble bare vellykkede oppstarter registrert, så den trege halen manglet per konstruksjon.\n\nVENTER PÅ DATA: outcome kom inn etter forrige release og fylles etter hvert som folk oppdaterer. Fra samme release teller også autostart, som er den vanlige veien inn — tidligere målte histogrammet bare oppstarter noen skrev inn for hånd.",
         "id": 21,
         "links": [],
         "title": "Hvordan oppstarter endte",
