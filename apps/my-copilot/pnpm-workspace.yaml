@@ -7,9 +7,21 @@ allowBuilds:
 # Security overrides for transitive dependencies pinned by their parents —
 # scoped to the vulnerable ranges so they become no-ops once parents catch up.
 overrides:
-  # Dependabot alert #92: postcss XSS via unescaped </style>; next@16.2.7 pins postcss 8.4.31 exactly
-  "postcss@<8.5.10": "8.5.15"
   # Dependabot alert #130: esbuild dev-server file read on Windows; storybook@10.4.5 caps esbuild at ^0.27.0
   "esbuild@>=0.27.3 <0.28.1": "0.28.1"
   # Dependabot alert #133: @opentelemetry/core unbounded memory in W3C Baggage propagation; @opentelemetry 0.218.0 packages pin core 2.7.1 exactly
   "@opentelemetry/core@<2.8.0": "2.8.0"
+  # Dependabot alert #143: sharp arver libvips-sårbarheter (CVE-2026-33327 m.fl.); next@16.2.12 pinner sharp til ^0.34.5, og next 16.3 har selv gått over til ^0.35.3
+  "sharp@<0.35.0": "0.35.4"
+  # Dependabot alert #162 og #171: postcss leser vilkårlige .map-filer via sourceMappingURL; @tailwindcss/postcss@4.3.1 pinner postcss til 8.5.15 eksakt
+  "postcss@<8.5.23": "8.5.26"
+  # Dependabot alert #173: js-yaml kvadratisk CPU-bruk i !!omap; gray-matter@4.0.3 tillater ^3.13.1, men pnpm løfter ikke låsen av seg selv
+  "js-yaml@<3.15.1": "3.15.2"
+  # Dependabot alert #172: samme !!omap-sak i 4.x; cosmiconfig tillater ^4.1.0
+  "js-yaml@>=4.0.0 <4.3.1": "4.3.2"
+  # Dependabot alert #141, #142 og #167: fast-uri host confusion; ajv@8.20.0 tillater ^3.0.1
+  "fast-uri@<3.1.5": "3.1.6"
+  # Dependabot alert #136: brace-expansion eksponentiell ekspansjon; minimatch@3.1.5 tillater ^1.1.7
+  "brace-expansion@<1.1.16": "1.1.18"
+  # Dependabot alert #135: samme sak i 5.x; minimatch@10.2.5 tillater ^5.0.5
+  "brace-expansion@>=3.0.0 <5.0.7": "5.0.9"
