@@ -231,6 +231,9 @@ func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 	data, err := os.ReadFile(path)
 	switch {
 	case err == nil:
+		// The seeded defaults above are for a file that does not exist yet. An
+		// existing one is the developer's, so it replaces them outright rather
+		// than having nav-pilot's opinions merged underneath it.
 		cfg = nil
 		if err := json.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
