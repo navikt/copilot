@@ -37,8 +37,7 @@ type Config struct {
 	LocalEnabled *bool `toml:"local_enabled"`
 	// LocalAutostart starts the local server on demand at launch, when local
 	// dispatch is on and nothing is running. Off by default, because starting a
-	// 21 GB process is not something to do without being asked, and because the
-	// first start on a cold cache takes minutes that would look like a hang.
+	// 21 GB process is not something to do without being asked.
 	LocalAutostart *bool `toml:"local_autostart"`
 	// LocalLoopGuard is how many identical consecutive tool calls end a local
 	// turn. Unset means the built-in default. It is a knob because the right

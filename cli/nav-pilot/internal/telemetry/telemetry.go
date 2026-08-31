@@ -252,7 +252,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		return NoopRecorder{}, fmt.Errorf("create local server counter: %w", err)
 	}
 	localReadySeconds, err := meter.Int64Histogram("nav_pilot_local_ready_seconds",
-		metric.WithDescription("Seconds from start to a real completion. We quote two to five minutes from one machine; this is the distribution."))
+		metric.WithDescription("Seconds from start to a real completion. Recorded only for starts that came up, so the slow tail is missing."))
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local ready histogram: %w", err)
 	}

@@ -707,7 +707,7 @@ const (
 
 	// HealthStarting: the process is alive but has not yet answered a
 	// completion. mlx-lm binds the port before it maps the weights, so this
-	// state can last minutes on a large model and is not a fault.
+	// state outlasts the bind on a large model and is not a fault.
 	HealthStarting Health = "starting"
 
 	// HealthReady: a real completion came back with tokens in it.
@@ -1414,6 +1414,9 @@ func EnsureServerRunning(ctx context.Context, announce func(string)) error {
 	// Autostart must not start a 23 GB download inside a launch. `alpha local
 	// start` checks this too; here it matters more, because the download would
 	// run invisibly while this holds the machine-wide lock.
+	//
+	// That claim about `start` was false until it was made true: the guard was
+	// only ever here, and start reached mlx-lm without it.
 	if present, err := WeightsPresent(m.Model); err != nil {
 		return err
 	} else if !present {

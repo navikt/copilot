@@ -9,7 +9,8 @@ package cli
 //
 // The five commands split along what each one costs. init spends an afternoon
 // of bandwidth and says so first. start loads the weights and blocks until the
-// server has answered a real completion, because a port bind proves nothing. status spends one probe. stop and off spend nothing.
+// server has answered a real completion, because a port bind proves nothing.
+// status spends one probe. stop and off spend nothing.
 //
 // Nothing here runs sudo. Raising the wired-memory limit is the one privileged
 // action in the neighbourhood and it stays a command the developer types:
@@ -277,7 +278,7 @@ func cmdLocalInit() error {
 		fmt.Printf("  %s\n", dim("For a cloud agent with a local worker, switch with: nav-pilot config set client opencode"))
 	}
 
-	fmt.Printf("%s Starting the server (loading the weights takes seconds)…\n", dim("→"))
+	fmt.Printf("%s Starting the server (measured starts have been under a minute)…\n", dim("→"))
 	if err := cmdLocalStart(); err != nil {
 		return err
 	}
@@ -338,8 +339,8 @@ func wrapIndent(s, indent string, width int) string {
 // ─── start ───────────────────────────────────────────────────────────────────
 
 func cmdLocalStart() error {
-	// Interrupt has to reach the child. A cold start takes minutes, so an
-	// impatient Ctrl-C is the normal case rather than the unlucky one, and
+	// Interrupt has to reach the child. A start that wedges sits until the ten
+	// minute readyTimeout, so an impatient Ctrl-C is the normal case, and
 	// without this it killed nav-pilot while the server carried on loading: 21 GB
 	// of resident memory holding a port, with no state file written yet, so
 	// `stop` and `status` both reported nothing recorded. Cancelling here makes
@@ -373,6 +374,18 @@ func cmdLocalStart() error {
 		if err := local.ClearState(); err != nil {
 			return err
 		}
+	}
+
+	// mlx-lm fetches a model it does not find, so without this `start` on a
+	// machine that never ran init begins a 23 GB download with nothing on
+	// screen saying so, and either finishes inside readyTimeout as a start that
+	// looks pathologically slow or dies at ten minutes naming neither cause.
+	// The autostart path has always refused this; `start` only claimed to.
+	if present, err := local.WeightsPresent(model.Model); err != nil {
+		return err
+	} else if !present {
+		return fmt.Errorf("the weights for %s are not on this machine.\n\n  Download them first:\n\n    %s",
+			model.Model, bold("nav-pilot alpha local init"))
 	}
 
 	wired, err := local.CheckWiredLimit(model)
