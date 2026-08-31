@@ -837,16 +837,40 @@ if [[ -n "$SAVE_BASELINE" ]]; then
 fi
 
 # compat_warn <header field> <this run's value>: shout when the baseline was
-# recorded under different conditions. Printing both headers next to each other
-# is disclosure, not a check. A baseline from another model, or with
-# instructions off, is not comparable, and nothing before this noticed. It warns
-# rather than refuses, and it deliberately does not touch the exit code: no
-# size path may decide whether the run is green.
+# recorded under conditions that make the numbers incomparable. Printing both
+# headers next to each other is disclosure, not a check.
+#
+# Model, repeat count and prompt selection are controls: if one of those moved,
+# the two runs are measuring different things and the delta is meaningless.
+#
+# The instruction set is NOT a control. It is the independent variable this
+# harness exists to move: the whole point of a before and after is that one arm
+# has an instruction the other does not. Warning "not comparable" there fired on
+# every comparison the tool was built to make, which trains the reader to ignore
+# the line that matters. Reported as the measured change instead.
 compat_warn() {
   local field="$1" want="$2" got
   got="$(sed -n "s/^# $field:[[:space:]]*//p" "$COMPARE_TO" | head -1)"
   if [[ -n "$got" && "$got" != "$want" ]]; then
     echo "  ${YELLOW}⚠ baseline $field: '$got', this run: '$want'. Not comparable.${RESET}"
+  fi
+  return 0
+}
+
+# compat_note is compat_warn for the variable under test: it says what changed
+# without claiming the run is invalid, and says so when nothing changed, because
+# an unchanged instruction set across a before and after means the experiment
+# did not actually happen.
+compat_note() {
+  local field="$1" want="$2" got
+  got="$(sed -n "s/^# $field:[[:space:]]*//p" "$COMPARE_TO" | head -1)"
+  if [[ -z "$got" ]]; then
+    return 0
+  fi
+  if [[ "$got" != "$want" ]]; then
+    echo "  ${DIM}$field under test: baseline '$got', this run '$want'.${RESET}"
+  else
+    echo "  ${YELLOW}⚠ $field identical in both runs ('$got'). Nothing was varied, so any delta here is drift.${RESET}"
   fi
   return 0
 }
@@ -857,7 +881,7 @@ if [[ -n "$COMPARE_TO" ]]; then
     echo "  ${DIM}$line${RESET}"
   done < <(grep -E '^# [a-z]+: ' "$COMPARE_TO")
   compat_warn model "${MODEL:-CLI default}"
-  compat_warn instructions "$INSTR_DESC"
+  compat_note instructions "$INSTR_DESC"
   compat_warn repeats "$REPEAT"
   compat_warn prompts "${ONLY:-all}"
   printf '  %-6s %10s %10s %10s %8s\n' "prompt" "baseline" "current" "delta" "pct"
