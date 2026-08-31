@@ -39,6 +39,14 @@ else
   echo ""
 fi
 
+echo "🪝 hooks:"
+if mise run hooks:test; then
+  echo ""
+else
+  failed+=("hooks")
+  echo ""
+fi
+
 echo "💰 pricing:"
 if mise run pricing:test && mise run pricing:check; then
   echo ""
