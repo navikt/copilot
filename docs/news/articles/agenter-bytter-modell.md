@@ -3,7 +3,7 @@ title: "Flere agenter bytter modell: dette viser målingene"
 date: 2026-08-31
 author: starefossen
 category: nav
-excerpt: "@research, @code-review og @accessibility går over til GPT-5.6 Luna, @security-champion og @nav-pilot-opus til GPT-5.6 Sol. Målingene skiller ikke modellene fra hverandre på sikkerhet, og da er det prisen som avgjør. Du får endringen med nav-pilot sync."
+excerpt: "@research-agent, @code-review og @accessibility-agent går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. Målingene skiller ikke modellene fra hverandre på sikkerhet, og da er det prisen som avgjør. Når byttet er merget, henter du det med nav-pilot sync."
 tags:
   - models
   - nav-pilot
@@ -11,14 +11,16 @@ tags:
   - cost-optimization
 ---
 
-Vi bytter modell bak flere av agentene og fire prompt-maler. Kjør `nav-pilot sync`, så er du oppdatert. Du trenger ikke installere noe.
+Vi bytter modell bak flere av agentene og fire prompt-maler. Byttet er én linje i
+frontmatteren til hver agent, og når den linjen er merget, henter du den med
+`nav-pilot sync`. Du trenger ikke installere noe.
 
 | Agent eller prompt | Fra | Til |
 |---|---|---|
-| `@research`, `@code-review` | GPT-5.3-Codex | GPT-5.6 Luna |
-| `@accessibility` | Claude Sonnet 4.6 | GPT-5.6 Luna |
+| `@research-agent`, `@code-review` | GPT-5.3-Codex | GPT-5.6 Luna |
+| `@accessibility-agent` | Claude Sonnet 4.6 | GPT-5.6 Luna |
 | Fire prompt-maler for nye tjenester | Claude Haiku 4.5 | GPT-5.6 Luna |
-| `@security-champion`, `@nav-pilot-opus` | Claude Opus 4.6 | GPT-5.6 Sol |
+| `@security-champion-agent`, `@nav-pilot-opus` | Claude Opus 4.6 | GPT-5.6 Sol |
 
 Prompt-malene er `ktor-endpoint`, `spring-boot-endpoint`, `golang-service` og `nextjs-api-route`.
 
@@ -37,13 +39,13 @@ Vi kjørte nav-pilot-personaen mot fire modeller med samme golden prompt: en tje
 
 ## Ingen av modellene kom bedre ut
 
-Fisher eksakt test mot Claude gir p = 1,00 for Sol, p = 1,00 for Luna og p = 0,25 for Terra. Alle konfidensintervallene overlapper.
+Fishers eksakte test mot Claude gir p = 1,00 for Sol, p = 1,00 for Luna og p = 0,25 for Terra. Alle konfidensintervallene overlapper.
 
 Målingen sier altså ikke at de nye modellene er tryggere. Den sier at vi ikke klarer å skille dem fra den vi kjører i dag. Det er nettopp derfor prisen får avgjøre.
 
 ## Blindsonen bommer alle modellene på
 
-Alle fire modellene overser personvernblindsonen noen få prosent av gangene, også den vi kjører i dag. Det er ikke et modellproblem, og ingen modellbytte fikser det. Vi følger det som en bug i instruksjonene til agenten selv.
+Alle fire modellene overser personvernblindsonen noen få prosent av gangene, også den vi kjører i dag. Det er ikke et modellproblem, og ikke noe modellbytte fikser det. Vi følger det som en bug i instruksjonene til agenten selv.
 
 ## Prisen
 
@@ -59,7 +61,7 @@ Dollar per million tokens, slik GitHub publiserte dem 30. august 2026:
 
 Luna koster rundt en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Sonnet 4.6 og 60 % mindre enn Opus 4.6, som er modellen de to tyngste agentene flytter fra.
 
-Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synket prisene 10. august, og falt til 2 og 10 i løpet av måneden. Prislista i `apps/my-copilot/src/lib/model-pricing.ts` er den vi regner ut fra.
+Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synkroniserte prisene 10. august, og falt til 2 og 10 i løpet av måneden. Prislista i `apps/my-copilot/src/lib/model-pricing.ts` er den vi regner ut fra.
 
 ## Hvis en agent svarer dårligere
 
