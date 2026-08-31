@@ -1319,13 +1319,13 @@ run_pass_code_review() {
   # Tailwind spacing where Aksel tokens belong (:178, :186-191) and keyboard/ARIA
   # defects. Naming that owner is worth measuring. It cannot be a hard assertion:
   #
-  #   1. code-review has no `runSubagent` in its frontmatter (:5-15; compare
+  #   1. code-review has no `runSubagent` in its frontmatter (:5-16; compare
   #      accessibility.agent.md:12, which has it). The agent cannot hand a file to
   #      another agent. The only thing it can do is type the handle, so this check
   #      pins wording while describing behaviour, which is what BEHAVIOUR VS FORMAT
   #      above forbids. The ✅ Always bullet that promised delegation was removed
   #      rather than reworded: #484 is three failed rewordings of a sibling rule.
-  #   2. One agent is installed per invocation (:401). The delegation target is not
+  #   2. One agent is installed per invocation (:402). The delegation target is not
   #      in the workspace where the delegation is measured.
   #
   # Measured 0/5 on GPT-5.3-Codex and 0/5 on GPT-5.6 Luna (#514). All ten runs did
@@ -1333,17 +1333,25 @@ run_pass_code_review() {
   # is scoped `applyTo: "src/**/*.{tsx,jsx}"`, which covers StatusPanel.tsx, so the
   # user is not underserved by the miss. Hence reported, not failed.
   #
-  # A dead transcript stays record_error rather than becoming a soft miss: "could
-  # not tell" and "the want went unmet" are different answers, and the first is
-  # about the CLI, not about this check.
+  # Every path below records a soft row, the two that cannot reach a verdict
+  # included. `record_error` would aggregate to error and flip an otherwise green
+  # run to exit 3, and for the off-domain path that is backwards: a review that
+  # ignores both domains is worse behaviour than one that reaches them and names
+  # no owner, so letting the worse case harden the suite while the closer miss
+  # stays soft inverts the point of demoting this at all. The header above, :186,
+  # the `record_soft` doc and the printed summary all say a soft check never moves
+  # the exit code in either direction, and cr4 keeps that literally rather than
+  # carving out an exception. The two unevaluable paths say "not evaluated:" in
+  # their detail so the distinction stays readable, and cr1-cr3 still carry CLI
+  # health on their own prompt, which is where a flaky CLI shows up first.
   if selected cr4; then
     DESC_CR4="Next.js review routes on to the accessibility/Aksel specialist"
     TCR4="$(tx cr-tsx)"
     if ! run_prompt cr-tsx "gjennomgå src/app/komponenter/StatusPanel.tsx"; then
-      record_error cr4 "$DESC_CR4" "$LAST_PROMPT_DETAIL"
+      record_soft cr4 "$DESC_CR4" 1 "not evaluated: $LAST_PROMPT_DETAIL"
     elif ! present "$TCR4" 'space-[0-9]|<Box|Aksel|Tailwind|p-4|mx-8|paddingInline|paddingBlock|tastatur|keyboard|aria'; then
-      record_error cr4 "$DESC_CR4" \
-        "the response reached neither the spacing nor the a11y domain of StatusPanel.tsx, so there was no deep domain review to delegate, so nothing here says whether routing held. A bare absent() on the handles would have passed vacuously."
+      record_soft cr4 "$DESC_CR4" 1 \
+        "not evaluated: the response reached neither the spacing nor the a11y domain of StatusPanel.tsx, so there was no domain review to route and nothing here says whether an owner would have been named. Not counted as met: a bare absent() on the handles would pass vacuously."
     elif present "$TCR4" "$RE_CR_DELEGATE"; then
       record_soft cr4 "$DESC_CR4" 0
     else
