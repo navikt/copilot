@@ -131,12 +131,22 @@ Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. `init
 
 ```bash
 nav-pilot alpha local init      # gjør alt: miljø, vekter, minnegrense, og starter serveren
-nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
+nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
+nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
 nav-pilot alpha local stop      # og start igjen med start
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 ```
+
+Vil du slippe å starte serveren selv, kan en vanlig `nav-pilot` gjøre det når den trenger den:
+
+```bash
+nav-pilot config set local_autostart true
+```
+
+Av som standard, med vilje: å starte en 21 GB prosess uten å bli bedt om det er ikke greit, og
+første oppstart på kald cache tar minutter som ser ut som om noe har hengt seg.
 
 Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
 uendret.

@@ -1645,6 +1645,24 @@ const CONFIG_KEYS = [
     values: "none · error · warning · info · debug",
     desc: "Loggnivå for OpenTelemetry-eksport.",
   },
+  {
+    key: "local_enabled",
+    flag: "—",
+    values: "true · false",
+    desc: "Send avgrensede oppgaver til bakkemodellen (alfa). Settes av 'alpha local init', nullstilles av 'alpha local off'. Så lenge den er false finnes ingen lokale modeller i nav-pilot i det hele tatt.",
+  },
+  {
+    key: "local_autostart",
+    flag: "—",
+    values: "true · false",
+    desc: "La en vanlig 'nav-pilot' starte serveren selv når den trengs og ingen kjører. Av som standard: å starte en 21 GB prosess uten å bli bedt om det er ikke greit, og første oppstart på kald cache tar minutter som ser ut som en heng.",
+  },
+  {
+    key: "local_loop_guard",
+    flag: "—",
+    values: "et tall, standard 8",
+    desc: "Hvor mange identiske tool calls på rad som avslutter en lokal tur. Lokale modeller setter seg fast og gjentar det samme kallet; vi har målt serier på 203.",
+  },
 ];
 
 function KlienterOgKonfigurasjonSection() {
@@ -2003,6 +2021,16 @@ nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
+          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+            Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
+            gjøre det for deg:
+          </BodyLong>
+          <CodeBlock compact>{`nav-pilot config set local_autostart true`}</CodeBlock>
+          <BodyLong className="mt-2" size="small" style={{ color: "#475569" }}>
+            Den er av som standard, og det er med vilje: å starte en 21 GB prosess uten å bli bedt om det er ikke greit,
+            og første oppstart på kald cache tar minutter som ser ut som om noe har hengt seg. Med den på venter
+            launchen på at serveren er klar. To samtidige launcher starter ikke to servere.
+          </BodyLong>
           <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#f8fafc" }}>
             <Label size="small">Vi måler dette tettere enn resten av nav-pilot mens det er alfa</Label>
             <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
