@@ -225,8 +225,7 @@ ikke allerede er satt, og injiserer resource-attributtene `nav.pilot.launcher`,
 
 Støttede MVP-metrikker:
 
-- `nav_pilot_command_total`
-- `nav_pilot_command_duration_ms`
+- `nav_pilot_command_duration_ms` (`_count` er også antall kommandoer)
 - `nav_pilot_command_error_total`
 - `nav_pilot_install_items_total`
 - `nav_pilot_sync_updates_total`

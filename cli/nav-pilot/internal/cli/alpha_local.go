@@ -429,16 +429,16 @@ func cmdLocalStart() error {
 	// not ready is a pid `status` reports as crashed hours later, which reads
 	// as "it died" rather than "it never started".
 	status := srv.Status()
-	// One closed vocabulary for the outcome: ready, failed, interrupted. The
-	// health value goes to RecordLocalServer, which is the instrument for it;
-	// letting it leak in here too would give the same panel two spellings of
-	// the same state.
+	// One closed vocabulary for the outcome: ready, failed, interrupted. This
+	// is now the only record of how a start ended — nav_pilot_local_server_total
+	// carried the same event from the same call site and was removed, since its
+	// one distinctive value, `hung`, could never arrive here: Status() cannot
+	// return it, only Health(ctx) produces it, and that is never fed in.
 	readyOutcome := "ready"
 	if status.Health != local.HealthReady || status.PID <= 0 {
 		readyOutcome = "failed"
 	}
 	telemetry.RecordLocalReadySeconds(model.Model, readyOutcome, int64(timeNow().Sub(started).Seconds()))
-	telemetry.RecordLocalServer(model.Model, string(status.Health))
 	if status.Health != local.HealthReady || status.PID <= 0 {
 		_ = srv.Stop()
 		return fmt.Errorf("the local %s server did not come up (%s); nothing was recorded.\n\n  What it printed is in %s", model.Model, status.Health, local.LogPath())

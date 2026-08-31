@@ -8,8 +8,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 
 | Metrikk | Type | Beskrivelse | Eksempler på dimensjoner |
 |---------|------|-------------|--------------------------|
-| `nav_pilot_command_total` | Counter | Antall kommandoer kjørt | `command=install`, `mode=interactive`, `scope=repo`, `result=success` |
-| `nav_pilot_command_duration_ms` | Histogram | Kjøringstid per kommando (ms) | Samme som over |
+| `nav_pilot_command_duration_ms` | Histogram | Kjøringstid per kommando (ms). `_count` er også antallet kommandoer kjørt | `command=install`, `mode=interactive`, `scope=repo`, `result=success` |
 | `nav_pilot_command_error_total` | Counter | Antall kommandoer som feilet | `command=sync`, `scope=user` |
 | `nav_pilot_launch_error_total` | Counter | Klient-oppstart som feilet | `client=copilot`, `error_type=launch_failed` |
 | `nav_pilot_rtk_setup_total` | Counter | Resultat av interaktiv RTK-prompt | `client=copilot`, `choice=yes`, `result=success` |
@@ -31,7 +30,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 
 **Merk om `nav_pilot_config_info`:**
 - `config_mode` er konfig-modus (`default`/`plan`/`autopilot`) — ikke å forveksle
-  med `mode` på `nav_pilot_command_total` som er kjøremodus (`interactive`/`non_interactive`).
+  med `mode` på `nav_pilot_command_duration_ms` som er kjøremodus (`interactive`/`non_interactive`).
 - `model` baseres på konfigurert/CLI modell-id (ikke launch-normalisert med
   `ToOpenCodeModel`) og kollapses til kjent klient-modell-id, `custom`
   (ukjent/egendefinert) eller `unset` for å holde kardinaliteten lav. For
@@ -240,8 +239,8 @@ histogram_quantile(0.95, sum by (command, le) (increase(nav_pilot_command_durati
 
 **Feiltakt (% feil av alle kommandoer):**
 ```promql
-100 * sum(increase(nav_pilot_command_error_total[$__range]))
-    / clamp_min(sum(increase(nav_pilot_command_total[$__range])), 1)
+100 * sum(sum_over_time(nav_pilot_command_error_total[$__range]))
+    / clamp_min(sum(sum_over_time(nav_pilot_command_duration_ms_count[$__range])), 1)
 ```
 
 **Sync-konflikter (totalt) per scope:**
@@ -251,8 +250,25 @@ sum by (scope) (increase(nav_pilot_sync_conflicts_total[$__range]))
 
 **Antall kommandokjøringer per versjon:**
 ```promql
-sum by (version) (increase(nav_pilot_command_total[$__range]))
+sum by (version) (sum_over_time(nav_pilot_command_duration_ms_count[$__range]))
 ```
+
+## Metrikker som er fjernet
+
+`nav_pilot_command_total` og `nav_pilot_local_server_total` finnes ikke lenger.
+
+`command_total` var label for label identisk med `nav_pilot_command_duration_ms_count`:
+samme funksjon, samme `attrs`-slice, ett `Add` og ett `Record`. Histogrammets `_count`
+*er* antallet kommandoer. Bruk den. De så forskjellige ut en periode fordi tellere ble
+sendt som delta og forkastet, mens histogrammer kom fram hele tiden.
+
+`local_server_total` skrev samme hendelse fra samme kallsted som
+`nav_pilot_local_ready_seconds`, som nå har `outcome`. Den ene verdien den hadde for seg
+selv, `hung`, kunne aldri komme fram: kallstedet sender `Status()`, og bare `Health(ctx)`
+produserer `hung`. Den har rapportert `ready` og ingenting annet.
+
+**En måling per spørsmål.** To metrikker som svarer på det samme er ikke redundans,
+det er to tall som kan bli uenige.
 
 > En ferdig Grafana-dashboard ligger i [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
 > (uid tildeles ved import). Spørringene er robuste mot manglende data under utrulling

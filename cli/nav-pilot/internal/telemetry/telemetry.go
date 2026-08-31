@@ -54,7 +54,6 @@ type Recorder interface {
 	RecordLaunchError(client, errorType string)
 	RecordRtkSetup(client, choice, result string)
 	RecordLocalSession(client, model string, dispatches int64, sawTraffic bool)
-	RecordLocalServer(model, event string)
 	RecordLocalReadySeconds(model, outcome string, seconds int64)
 	Shutdown(ctx context.Context) error
 }
@@ -63,7 +62,6 @@ type NoopRecorder struct{}
 
 func (NoopRecorder) RecordCommand(string, string, string, string, string, time.Duration) {}
 func (NoopRecorder) RecordLocalSession(string, string, int64, bool)                      {}
-func (NoopRecorder) RecordLocalServer(string, string)                                    {}
 func (NoopRecorder) RecordLocalReadySeconds(string, string, int64)                       {}
 func (NoopRecorder) RecordInstallItems(string, string, int64)                            {}
 func (NoopRecorder) RecordSyncUpdates(string, string, int64)                             {}
@@ -83,7 +81,6 @@ func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 type otelTelemetry struct {
 	provider *sdkmetric.MeterProvider
 
-	commandTotal       metric.Int64Counter
 	commandDurationMS  metric.Int64Histogram
 	commandErrorTotal  metric.Int64Counter
 	launchErrorTotal   metric.Int64Counter
@@ -100,7 +97,6 @@ type otelTelemetry struct {
 	versionSkewDays    metric.Int64Histogram
 	rtkSetupTotal      metric.Int64Counter
 	localDispatches    metric.Int64Histogram
-	localServerTotal   metric.Int64Counter
 	localReadySeconds  metric.Int64Histogram
 
 	version          string
@@ -174,10 +170,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	)
 
 	meter := provider.Meter("github.com/navikt/copilot/cli/nav-pilot")
-	commandTotal, err := meter.Int64Counter("nav_pilot_command_total")
-	if err != nil {
-		return NoopRecorder{}, fmt.Errorf("create command total counter: %w", err)
-	}
 	commandDurationMS, err := meter.Int64Histogram("nav_pilot_command_duration_ms")
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create command duration histogram: %w", err)
@@ -246,11 +238,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local dispatches histogram: %w", err)
 	}
-	localServerTotal, err := meter.Int64Counter("nav_pilot_local_server_total",
-		metric.WithDescription("Local server lifecycle events, including the hung state a developer would otherwise just restart past."))
-	if err != nil {
-		return NoopRecorder{}, fmt.Errorf("create local server counter: %w", err)
-	}
 	localReadySeconds, err := meter.Int64Histogram("nav_pilot_local_ready_seconds",
 		metric.WithDescription("Seconds a start took, split by outcome: ready, failed or interrupted."))
 	if err != nil {
@@ -259,7 +246,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 
 	tel := &otelTelemetry{
 		provider:           provider,
-		commandTotal:       commandTotal,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
 		launchErrorTotal:   launchErrorTotal,
@@ -276,7 +262,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		versionSkewDays:    versionSkewDays,
 		rtkSetupTotal:      rtkSetupTotal,
 		localDispatches:    localDispatches,
-		localServerTotal:   localServerTotal,
 		localReadySeconds:  localReadySeconds,
 		version:            version,
 		device:             device,
@@ -418,22 +403,6 @@ func (t *otelTelemetry) RecordLocalSession(client, model string, dispatches int6
 	))
 }
 
-// RecordLocalServer counts server lifecycle events: started, ready, hung, crashed,
-// stopped.
-//
-// `hung` is the one worth the instrument. It is unrecoverable, the developer's fix
-// is a restart, and a restart is exactly what makes it invisible to us: nobody
-// files a report for something they fixed in ten seconds. If serialising the guard
-// did not hold in real use, this is where it shows.
-func (t *otelTelemetry) RecordLocalServer(model, event string) {
-	t.localServerTotal.Add(context.Background(), 1, metric.WithAttributes(
-		attribute.String("model", orUnset(model)),
-		attribute.String("event", orUnset(event)),
-		attribute.String("version", t.version),
-		attribute.String("device_id", t.device),
-	))
-}
-
 // RecordLocalReadySeconds emits how long a start took, and how it ended.
 //
 // outcome is what makes the histogram readable. Recorded only on success, this
@@ -476,7 +445,6 @@ func (t *otelTelemetry) RecordCommand(command, mode, scope, result, errorType st
 		attribute.String("execution_context", t.executionContext),
 	}
 
-	t.commandTotal.Add(context.Background(), 1, metric.WithAttributes(attrs...))
 	t.commandDurationMS.Record(context.Background(), maxInt64(0, duration.Milliseconds()), metric.WithAttributes(attrs...))
 
 	if result == "error" {
@@ -722,10 +690,16 @@ func temporalityFor(sdkmetric.InstrumentKind) metricdata.Temporality {
 	//
 	// Delta was the reasonable default for a CLI: each invocation reports what
 	// it did and there is no series to reset. In practice every delta counter
-	// nav-pilot has ever emitted was lost. nav_pilot_command_total has one
-	// series in Mimir and it carries no device_id, while this machine ran
-	// commands all day and has none; the histograms from the same processes
-	// arrive every time, with device ids.
+	// nav-pilot has ever emitted was lost, while cumulative histograms from the
+	// same processes arrived every time. That is the evidence, and it is the
+	// whole of it.
+	//
+	// An earlier version of this comment also blamed delta for those counters
+	// carrying no device_id. Wrong, and worth recording because it sent the
+	// next reader down the wrong path: device_id is attached per instrument, by
+	// hand, and seventeen metrics simply never had it typed in — including
+	// nav_pilot_command_duration_ms, a histogram recorded from the same call
+	// that arrived perfectly well without it.
 	//
 	// A process that lives seconds has no reset problem for delta to solve, and
 	// a Prometheus-lineage backend ingests cumulative natively without a
