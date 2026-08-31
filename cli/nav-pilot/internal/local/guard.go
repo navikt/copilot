@@ -180,10 +180,11 @@ var ownershipCheck = EnsureOwnServer
 
 // ownershipTTL is how long one proof is trusted for.
 //
-// The launch proves ownership once and the guard then proxies to a fixed
-// 127.0.0.1:8080 for the rest of the session, so a server that dies at noon and
-// leaves the port to whatever binds it next has every later prompt forwarded to
-// a stranger. Re-proving it per request would be right and costs two
+// The launch proves ownership once and the guard then proxies to the port it
+// captured at session start for the rest of the session, so a server that dies
+// at noon and leaves the port to whatever binds it next has every later prompt
+// forwarded to a stranger. (The port is ephemeral now rather than a fixed 8080,
+// which narrows who can squat it but does not close the window.) Re-proving it per request would be right and costs two
 // subprocesses (ps, lsof); a few seconds of cache makes that free next to a
 // completion that takes seconds to minutes on local hardware.
 var ownershipTTL = 3 * time.Second
