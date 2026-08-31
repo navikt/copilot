@@ -1,6 +1,7 @@
 ---
 title: "Nav-pilot lander på bakken"
 date: 2026-08-30
+featured: true
 author: starefossen
 category: praksis
 excerpt: "En AI-modell på din egen maskin tar de mekaniske oppgavene. Den bruker ingen kreditter, men den er tregere, og den tar ingen avgjørelser."

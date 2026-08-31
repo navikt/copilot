@@ -5,6 +5,7 @@ export interface NewsItem {
   title: string;
   date: string;
   draft: boolean;
+  featured?: boolean;
   category: NewsCategory;
   excerpt: string;
   tags: string[];
