@@ -45,7 +45,7 @@ Hele modellflåten, ikke bare de som er pinnet i agenter.
 | Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen |
 | Claude Haiku 4.5 | Versatile | $1.00 | $5.00 | Sjekklister, maler, scaffold-prompts |
 | GPT-5.3-Codex | Powerful | $1.75 | $14.00 | Kodeforståelse, terminal, infrastruktur |
-| GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør |
+| GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort |
 | GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
 | GPT-5.6 Sol | Powerful | $2.00 | $10.00 | Tung reasoning over store kodebaser (krever Pro+). ⚠️ Kampanjepris t.o.m. 3. sep 2026, antatt standardpris $4.00 / $20.00. Se noten under tabellen |
 | Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026 og borte fra GitHubs prisliste. Bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
@@ -72,11 +72,13 @@ gjelder det:
   pristabell viser fortsatt $2.00 / $10.00 og har ingen fotnote for Sonnet 5, så
   vi kan hverken bekrefte kampanjen eller finne standardprisen. Tallet skal
   verifiseres mot kilden før det brukes i et regnestykke.
-- **GPT-5.6 Luna:** ingen kampanjefotnote, så $0.20 / $1.20 er standardpris.
-  Sjekket særskilt fordi tallet er 80 % under de $1.00 / $6.00 som stod i
-  juli-artiklene våre: den genererte pristabellen har hatt $0.20 / $1.20 gjennom
-  de to siste synkroniseringene, og GitHubs side har bare to kampanjefotnoter,
-  Sol og Gemini Flash. Eneste beviset er altså at fotnoten mangler.
+- **GPT-5.6 Luna: ikke kampanjepris.** Sjekket særskilt fordi $0.20 / $1.20 er
+  80 % under de $1.00 / $6.00 som stod i juli-artiklene våre, og fordi sju
+  pinninger hviler på tallet. OpenAIs egen modellside for `gpt-5.6-luna` oppgir
+  $0.20 input, $0.02 cachet input og $1.20 output som listepris, uten
+  kampanjeformuleringer. GitHubs pristabell, som er kilden vi synkroniserer fra,
+  har ingen fotnote på Luna-raden. Ingen av Luna-pinningene har altså en
+  utløpsdato.
 
 Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
 

@@ -72,7 +72,7 @@ Luna koster under en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Son
 > 4. september er Sol 33 prosent dyrere enn Sonnet 4.6 og 20 prosent billigere
 > enn Opus 4.6, ikke 60 prosent. Byttet står: de to agentene det gjelder flytter
 > fra Opus 4.6, og Sol er billigere enn Opus 4.6 også til standardpris. Luna er
-> ikke berørt, den raden har ingen kampanjefotnote.
+> ikke berørt: OpenAI oppgir 0,20 og 1,20 dollar som listepris, ikke kampanje.
 
 Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synkroniserte prisene 10. august, og falt til 2 og 10 i løpet av måneden. Prislista i `apps/my-copilot/src/lib/model-pricing.ts` er den vi regner ut fra.
 

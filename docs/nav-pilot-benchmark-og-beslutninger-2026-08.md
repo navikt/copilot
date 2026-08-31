@@ -154,8 +154,9 @@ Gevinsten er 20 prosent, ikke de 60 prosentene kampanjeprisen ga, og fra
 billigste Powerful-alternativet til standardpris: GPT-5.3-Codex ligger på 2,86
 blandet.
 
-Luna er ikke berørt. Den raden har ingen kampanjefotnote, og $0.20 / $1.20 har
-stått i den genererte pristabellen gjennom de to siste synkroniseringene.
+Luna er ikke berørt. OpenAIs modellside for `gpt-5.6-luna` oppgir $0.20 og
+$1.20 som listepris uten kampanjeformuleringer, og GitHubs pristabell har ingen
+fotnote på raden. Luna-pinningene har derfor ingen utløpsdato.
 
 ### 4.2 Terra tas ikke i bruk
 
