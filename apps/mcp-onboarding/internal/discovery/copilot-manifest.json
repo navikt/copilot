@@ -167,7 +167,7 @@
       "displayName": "@research-agent",
       "description": "Utforsker kodebaser, undersøker problemer og samler kontekst før implementering",
       "filePath": "agents/research.agent.md",
-      "contentHash": "9c7d4bd4590a7cf973cd7a199c90a9173da87bf31e13f6cdde54ea7a15f72d7b",
+      "contentHash": "57973bb865dfdd9de5f023351b72280e61afe794e96ee87b6607c98fb8970009",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -495,7 +495,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/golang-service.prompt.md",
-      "contentHash": "42a507250b011dbd7947a4729bcaf4baf8a9c8d6a72ba0904153051ee8939bf4",
+      "contentHash": "6b0b8487f8cc481e1632f2888e331e2cda331a0bbd0c6a3c3f2682967741aab7",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md"
     },
@@ -521,7 +521,7 @@
       "displayName": "#ktor-endpoint",
       "description": "Generer ein Ktor-rute med autentisering, validering og feilhåndtering",
       "filePath": "prompts/ktor-endpoint.prompt.md",
-      "contentHash": "e5a24e1b9e9bc398ffbd697757c2974d7ea60ee3adf2ab38b3163f3729d4b469",
+      "contentHash": "78a11bb6d225b6646f2588f5b3efa69126f47826d490ca0cdcb32d0b94adfa93",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/ktor-endpoint.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/ktor-endpoint.prompt.md"
     },
@@ -553,7 +553,7 @@
         "react"
       ],
       "filePath": "prompts/nextjs-api-route.prompt.md",
-      "contentHash": "691c380aa1e47757211de51ca1b54ca2ff72e8a8e78de1b05acb9c4d29353d2a",
+      "contentHash": "5f65db6b410ea3e63988772a1af8fcacec54c13daafc91339ee304a32c698053",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/nextjs-api-route.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nextjs-api-route.prompt.md"
     },
@@ -569,7 +569,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "3e68aab2f5cbe4027b7b11faf928d1f179a6a2882f8d5c6358707caf28c98894",
+      "contentHash": "82404ec13b5fd880203d06fed3e98965bcee18ac205fd8b86bc56b8036e04f71",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md"
     }
