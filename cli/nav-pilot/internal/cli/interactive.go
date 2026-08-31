@@ -771,6 +771,7 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	if err != nil {
 		return err
 	}
+	printModelNotice(resolved)
 	return p.Launch(resolved)
 }
 
