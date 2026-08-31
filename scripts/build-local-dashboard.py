@@ -92,7 +92,9 @@ def panels():
         (21, "Hvordan oppstarter endte", "timeseries",
          "ready, failed eller interrupted. Fram til denne fantes ble bare vellykkede oppstarter "
          "registrert, så den trege halen manglet per konstruksjon.\n\n"
-         "VENTER PÅ DATA: outcome kom inn etter forrige release og fylles etter hvert som folk oppdaterer.",
+         "VENTER PÅ DATA: outcome kom inn etter forrige release og fylles etter hvert som folk "
+         "oppdaterer. Fra samme release teller også autostart, som er den vanlige veien inn — "
+         "tidligere målte histogrammet bare oppstarter noen skrev inn for hånd.",
          [(f'sum by (outcome) (sum_over_time(nav_pilot_local_ready_seconds_count{SEL}[$__interval]))', "{{outcome}}")]),
         (22, "Modeller i bruk", "piechart",
          "Skal være én. Flere betyr at noen kjører noe vi ikke har målt.",

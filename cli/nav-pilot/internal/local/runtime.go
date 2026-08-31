@@ -1357,7 +1357,18 @@ func sysctlInt(ctx context.Context, name string) (int64, error) {
 // Nothing here stops the server afterwards. A launch that started it leaves it
 // running on purpose: the prompt cache is worth more than the memory, and the
 // developer stops it when they choose.
-func EnsureServerRunning(ctx context.Context, announce func(string)) error {
+// RecordStart is how a caller learns what an autostart cost and how it ended.
+// internal/local deliberately imports no telemetry package — that would pull
+// the OTel SDK into the runtime — so the recording happens on the far side of
+// this callback, in the package that already holds a recorder.
+//
+// It exists because autostart is the common path: a launch starts the server,
+// not a developer typing `alpha local start`. Only the typed command was
+// instrumented, so the ready-time histogram was drawn entirely from the rarer
+// population, and no failed autostart appeared anywhere at all.
+type RecordStart func(model, outcome string, seconds int64)
+
+func EnsureServerRunning(ctx context.Context, announce func(string), record RecordStart) error {
 	if err := EnsureOwnServer(); err == nil {
 		return nil
 	} else if !errors.Is(err, ErrNoServerRecorded) {
@@ -1424,20 +1435,34 @@ func EnsureServerRunning(ctx context.Context, announce func(string)) error {
 			m.Model, domain.Bold("nav-pilot alpha local init"))
 	}
 
+	started := time.Now()
+	report := func(outcome string) {
+		if record != nil {
+			record(m.Model, outcome, int64(time.Since(started).Seconds()))
+		}
+	}
+
 	srv := &Server{}
 	if err := srv.Start(ctx, m); err != nil {
 		// Unlike `alpha local start`, nothing here will report a half-started
 		// server to the developer, so leaving one behind means the next launch
 		// finds nothing recorded and starts another. Each retry is another 21 GB.
 		_ = srv.Stop()
+		if ctx.Err() != nil {
+			report("interrupted")
+		} else {
+			report("failed")
+		}
 		return err
 	}
 	status := srv.Status()
 	if status.Health != HealthReady || status.PID <= 0 {
 		_ = srv.Stop()
+		report("failed")
 		return fmt.Errorf("the local %s server did not come up (%s); what it printed is in %s",
 			m.Model, status.Health, LogPath())
 	}
+	report("ready")
 	return SaveState(State{PID: status.PID, Model: m.Model, Started: time.Now(), Port: srv.Port})
 }
 
