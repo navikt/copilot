@@ -1,9 +1,9 @@
 ---
-title: "Flere agenter bytter modell: dette viser målingene"
+title: "Flere agenter bytter modell: hva målingene viser, og hva de ikke dekker"
 date: 2026-08-31
 author: starefossen
 category: nav
-excerpt: "@research-agent og fire prompt-maler går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. @code-review og @accessibility-agent er satt på vent til de er målt for seg. Målingene skiller ikke modellene fra hverandre på sikkerhet og kvalitet, og da er det prisen som avgjør. nav-pilot tilbyr oppdateringen neste gang du starter den."
+excerpt: "@research-agent og fire prompt-maler går over til GPT-5.6 Luna, @security-champion-agent og @nav-pilot-opus til GPT-5.6 Sol. @code-review og @accessibility-agent er satt på vent til de er målt for seg. Målingene skiller ikke modellene på sikkerhet og kvalitet, og Opus 4.6 var ikke med i dem, så Sol-byttet hviler på pris. nav-pilot tilbyr oppdateringen neste gang du starter den."
 tags:
   - models
   - nav-pilot
@@ -59,7 +59,7 @@ Pris (USD) per million tokens, slik GitHub publiserte dem 30. august 2026:
 | Claude Sonnet 4.6 | 3 | 15 |
 | Claude Opus 4.6 | 5 | 25 |
 
-Luna koster under en tidel av Sonnet 4.6. Sol-prisen er en kampanjepris; fra 4. september er den 4 og 20 dollar, og da ligger Sol rundt 20 prosent under Opus 4.6, som er modellen de to tyngste agentene flytter fra. Den gevinsten gjelder kontekster under 272K tokens. Over 272K koster Sol 8 og 30 dollar og er dyrere enn Opus 4.6.
+Luna koster under en tidel av Sonnet 4.6. Sol-prisen er en kampanjepris, og GitHub oppgir bare «50 % avslag», ikke standardprisen, så prisene etter kampanjen er våre anslag. Fra 4. september blir Sol trolig 4 og 20 dollar, rundt 20 prosent under Opus 4.6, som er modellen de to tyngste agentene flytter fra. Den gevinsten gjelder kontekster under 272K tokens. Over 272K koster Sol nå 4 og 15, også under Opus 4.6, men trolig 8 og 30 etter kampanjen, og da dyrere.
 
 Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synkroniserte prisene 10. august, og falt til 2 og 10 i løpet av måneden. Prislista i `apps/my-copilot/src/lib/model-pricing.ts` er den vi regner ut fra.
 

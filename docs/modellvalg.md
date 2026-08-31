@@ -11,7 +11,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | Agent | Modell | Begrunnelse |
 |-------|--------|-------------|
 | `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
-| `@nav-pilot-opus` | GPT-5.6 Sol | Tung resonnering for høy-risiko beslutninger. Billigere enn Opus 4.6 på begge akser under 272K kontekst, dyrere over. Agenten er ikke målt mot Opus 4.6 |
+| `@nav-pilot-opus` | GPT-5.6 Sol | Tung resonnering for høy-risiko beslutninger. Billigere enn Opus 4.6 på begge akser under 272K kontekst; over 272K også billigere til kampanjepris, men dyrere til antatt standardpris etter 3. sep 2026. Agenten er ikke målt mot Opus 4.6 |
 | `@security-champion` | GPT-5.6 Sol | Sikkerhetskritiske vurderinger. Agenten er ikke målt mot Opus 4.6 eller mot noen annen modell. Byttet hviler på pris |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
@@ -228,7 +228,7 @@ Regnestykket ser bort fra cachet input, der Codex ligger på $0.175 mot Terras $
 
 ## Sjekkliste for nye modeller
 
-> **Notat (24. juli 2026, oppdatert 30. august 2026):** Claude Opus 5 (`claude-opus-5`) er lansert av Anthropic og var kandidat til å erstatte Opus 4.6-pinningene på `@nav-pilot-opus` og `@security-champion`. Listeprisen er identisk med Opus 4.8 ($5.00/$25.00), og Anthropic oppgir vesentlig sterkere resonnering (mer enn dobling av Opus 4.8 på Frontier-Bench v0.1). Begge agentene står nå på GPT-5.6 Sol, som er billigere enn Opus 4.6 på begge akser under 272K kontekst også etter at kampanjeprisen løper ut 3. september 2026; over 272K er Sol til antatt standardpris dyrere enn Opus 4.6 på begge akser. Opus 5 er fortsatt aktuell hvis en måling viser at den tyngre resonneringen er verdt prisforskjellen, men den er ikke testet mot vår egen golden-prompt. Utrullingen i Copilot er gradvis (GA for Pro+/Max/Business/Enterprise 24. juli), så modellen kan mangle i model picker en periode.
+> **Notat (24. juli 2026, oppdatert 31. august 2026):** Claude Opus 5 (`claude-opus-5`) er lansert av Anthropic og var kandidat til å erstatte Opus 4.6-pinningene på `@nav-pilot-opus` og `@security-champion`. Listeprisen er identisk med Opus 4.8 ($5.00/$25.00), og Anthropic oppgir vesentlig sterkere resonnering (mer enn dobling av Opus 4.8 på Frontier-Bench v0.1). Begge agentene står nå på GPT-5.6 Sol, som er billigere enn Opus 4.6 på begge akser under 272K kontekst også etter at kampanjeprisen løper ut 3. september 2026; over 272K er Sol til antatt standardpris dyrere enn Opus 4.6 på begge akser. Opus 5 er fortsatt aktuell hvis en måling viser at den tyngre resonneringen er verdt prisforskjellen, men den er ikke testet mot vår egen golden-prompt. Utrullingen i Copilot er gradvis (GA for Pro+/Max/Business/Enterprise 24. juli), så modellen kan mangle i model picker en periode.
 
 Når nye modeller slås på (som nå med Claude Opus 5, GPT-5.6-familien, Kimi K2.7 og Gemini 3.6 Flash):
 
