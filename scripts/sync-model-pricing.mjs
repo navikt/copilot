@@ -21,7 +21,7 @@ const TARGET_FILE = new URL(
 );
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // --- Fetch and parse ---
 
@@ -37,6 +37,7 @@ async function fetchPricingPage() {
  */
 function parsePricingTables(html) {
   const models = [];
+  const footnotes = parseFootnotes(html);
 
   // Extract provider sections by matching h3 headers followed by tables
   const sections = [
@@ -82,9 +83,8 @@ function parsePricingTables(html) {
     }
 
     for (let i = 1; i < rows.length; i++) {
-      const cells = [...rows[i][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map(
-       (m) => stripHtml(m[1]).trim()
-      );
+      const rawCells = [...rows[i][1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) => m[1]);
+      const cells = rawCells.map((c) => stripHtml(c).trim());
       const model = getCell(cells, requiredColumns.model);
       if (!model) continue;
 
@@ -113,6 +113,17 @@ function parsePricingTables(html) {
 
       if (cacheWrite !== undefined) {
         entry.cacheWrite = cacheWrite;
+      }
+
+      // Promotional prices live in footnotes the model cell links to. The
+      // price itself parses fine without them, but it is the promotional one,
+      // so a row without its footnote reads as permanent when it is not.
+      const footnoteId = findFootnoteId(getCell(rawCells, requiredColumns.model));
+      const note = footnoteId ? footnotes.get(footnoteId) : undefined;
+      if (note) {
+        entry.note = note;
+        const endsOn = parsePromotionEndDate(note);
+        if (endsOn) entry.promotionEndsOn = endsOn;
       }
 
       models.push(entry);
@@ -148,6 +159,50 @@ function findHeaderIndex(headerMap, names) {
 function getCell(cells, index) {
   if (index < 0 || index >= cells.length) return undefined;
   return cells[index];
+}
+
+/** Footnote id a model cell references, e.g. "gpt-56-sol-promo". */
+function findFootnoteId(rawCell) {
+  return rawCell?.match(/#user-content-fn-([\w-]+)/)?.[1];
+}
+
+/** Map of footnote id to plain text from the page's <section data-footnotes>. */
+function parseFootnotes(html) {
+  const notes = new Map();
+  const section = html.match(/<section[^>]*data-footnotes[\s\S]*?<\/section>/)?.[0];
+  if (!section) return notes;
+  for (const [, id, body] of section.matchAll(/<li id="user-content-fn-([\w-]+)">([\s\S]*?)<\/li>/g)) {
+    // stripHtml drops the backref anchors along with the rest of the markup.
+    const text = stripHtml(body).replace(/\s+/g, " ").trim();
+    if (text) notes.set(id, text);
+  }
+  return notes;
+}
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/**
+ * ISO date from a footnote's "through September 3, 2026". Date.parse is
+ * avoided on purpose: it reads the date as local midnight, which toISOString
+ * then shifts a day backwards east of UTC.
+ */
+function parsePromotionEndDate(note) {
+  const match = note.match(new RegExp(`through (${MONTHS.join("|")}) (\\d{1,2}), (\\d{4})`, "i"));
+  if (!match) return undefined;
+  const month = MONTHS.findIndex((m) => m.toLowerCase() === match[1].toLowerCase()) + 1;
+  return `${match[3]}-${String(month).padStart(2, "0")}-${match[2].padStart(2, "0")}`;
+}
+
+/**
+ * Rows carrying a footnote we could not date. The price is promotional, and
+ * shipping it without an end date is the silent wrong answer, so the caller
+ * must fail rather than publish it.
+ */
+function findUndatedPromotions(models) {
+  return models.filter((m) => m.note && !m.promotionEndsOn);
 }
 
 function stripHtml(html) {
@@ -243,6 +298,9 @@ function generateTypeScript(models) {
         entries += `    cacheWrite: ${m.cacheWrite},\n`;
       }
       entries += `    output: ${m.output},\n`;
+      if (m.promotionEndsOn) {
+        entries += `    promotionEndsOn: ${JSON.stringify(m.promotionEndsOn)},\n`;
+      }
       if (m.note) {
         entries += `    note: ${JSON.stringify(m.note)},\n`;
       }
@@ -270,6 +328,8 @@ export interface ModelPrice {
   cachedInput: number;
   cacheWrite?: number;
   output: number;
+  /** ISO date the promotional price in the note runs through, if any. */
+  promotionEndsOn?: string;
   note?: string;
 }
 
@@ -302,6 +362,15 @@ async function main() {
       `ERROR: parsed ${models.length} models, down from ${currentCount} in the generated file.`,
     );
     console.error("The page structure may have changed. Manual update required.");
+    process.exit(1);
+  }
+
+  const undatedPromotions = findUndatedPromotions(models);
+  if (undatedPromotions.length > 0) {
+    console.error("ERROR: models with a footnote whose end date could not be parsed:");
+    for (const m of undatedPromotions) {
+      console.error(`  ${m.provider}/${m.model}: ${m.note}`);
+    }
     process.exit(1);
   }
 
@@ -344,7 +413,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Failed:", err.message);
-  process.exit(1);
-});
+export { parsePricingTables, parseFootnotes, parsePromotionEndDate, findFootnoteId, findUndatedPromotions };
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error("Failed:", err.message);
+    process.exit(1);
+  });
+}
