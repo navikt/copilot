@@ -53,7 +53,7 @@ type Recorder interface {
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
 	RecordRtkSetup(client, choice, result string)
-	RecordLocalSession(client, model string, dispatches int64)
+	RecordLocalSession(client, model string, dispatches int64, sawTraffic bool)
 	RecordLocalServer(model, event string)
 	RecordLocalReadySeconds(model string, seconds int64)
 	Shutdown(ctx context.Context) error
@@ -62,7 +62,7 @@ type Recorder interface {
 type NoopRecorder struct{}
 
 func (NoopRecorder) RecordCommand(string, string, string, string, string, time.Duration) {}
-func (NoopRecorder) RecordLocalSession(string, string, int64)                            {}
+func (NoopRecorder) RecordLocalSession(string, string, int64, bool)                      {}
 func (NoopRecorder) RecordLocalServer(string, string)                                    {}
 func (NoopRecorder) RecordLocalReadySeconds(string, int64)                               {}
 func (NoopRecorder) RecordInstallItems(string, string, int64)                            {}
@@ -404,9 +404,14 @@ func (t *otelTelemetry) RecordConfig(client, configMode, model, reasoningEffort,
 // The model id is sent whole rather than collapsed to "custom" as the config gauge
 // does. During the alpha we would rather know which local model a developer is on
 // than protect a cardinality budget of at most a handful of manifest entries.
-func (t *otelTelemetry) RecordLocalSession(client, model string, dispatches int64) {
+func (t *otelTelemetry) RecordLocalSession(client, model string, dispatches int64, sawTraffic bool) {
 	t.localDispatches.Record(context.Background(), dispatches, metric.WithAttributes(
 		attribute.String("client", orUnset(client)),
+		// Whether the client sent this guard anything at all. Zero dispatches
+		// with traffic is the orchestrator declining; zero without is wiring
+		// that never reached it. Reported as an attribute rather than a second
+		// metric so a single query can separate them.
+		attribute.Bool("saw_traffic", sawTraffic),
 		attribute.String("model", orUnset(model)),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),

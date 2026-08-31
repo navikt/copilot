@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
 import { MODEL_PRICING, PRICING_SOURCE_URL, PRICING_LAST_UPDATED } from "@/lib/model-pricing";
 import type { ModelPrice } from "@/lib/model-pricing";
-import { promotionFor } from "@/lib/model-promotions";
 import { PageHero } from "@/components/page-hero";
 import NextLink from "next/link";
 
@@ -24,6 +23,16 @@ export const metadata: Metadata = {
 };
 
 const PROVIDER_ORDER = ["OpenAI", "Anthropic", "Google", "GitHub", "Moonshot AI", "Microsoft"] as const;
+
+// `promotionEndsOn` er en ren dato uten klokkeslett, og `new Date("2026-09-03")`
+// blir midnatt UTC. Uten `timeZone` her ville formateringen falle tilbake på
+// leserens sone, og vest for UTC viser 3. september seg da som 2. september.
+const promotionEndFormat = new Intl.DateTimeFormat("nb-NO", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 function formatPrice(price: number): string {
   if (price < 0.1) return `$${price.toFixed(3)}`;
@@ -122,12 +131,7 @@ export default function PriserPage() {
                             <span className="font-medium" style={{ color: "#1e293b" }}>
                               {m.model}
                             </span>
-                            {m.note && (
-                              <span className="ml-2" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
-                                {m.note}
-                              </span>
-                            )}
-                            {promotionFor(m.model) && (
+                            {m.promotionEndsOn && (
                               <span
                                 className="ml-2 inline-block rounded-full px-2 py-0.5 font-medium align-middle"
                                 style={{
@@ -135,8 +139,9 @@ export default function PriserPage() {
                                   color: "#92400e",
                                   background: "rgba(245, 158, 11, 0.16)",
                                 }}
+                                title={m.note}
                               >
-                                Kampanjepris t.o.m. {promotionFor(m.model)?.endsOn}
+                                Kampanjepris t.o.m. {promotionEndFormat.format(new Date(m.promotionEndsOn))}
                               </span>
                             )}
                           </td>
