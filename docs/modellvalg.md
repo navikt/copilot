@@ -42,16 +42,41 @@ Hele modellflåten, ikke bare de som er pinnet i agenter.
 | Claude Opus 5 | Powerful | $5.00 | $25.00 | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026 |
 | Claude Opus 4.6 / 4.8 | Powerful | $5.00 | $25.00 | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur |
 | Claude Sonnet 4.6 | Versatile | $3.00 | $15.00 | Daglig koding, norsk tekst, planlegging |
-| Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6, lavere pris (kampanje t.o.m. 31. aug 2026) |
+| Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen |
 | Claude Haiku 4.5 | Versatile | $1.00 | $5.00 | Sjekklister, maler, scaffold-prompts |
 | GPT-5.3-Codex | Powerful | $1.75 | $14.00 | Kodeforståelse, terminal, infrastruktur |
 | GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør |
 | GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
-| GPT-5.6 Sol | Powerful | $2.00 | $10.00 | Tung reasoning over store kodebaser (krever Pro+) |
+| GPT-5.6 Sol | Powerful | $2.00 | $10.00 | Tung reasoning over store kodebaser (krever Pro+). ⚠️ Kampanjepris t.o.m. 3. sep 2026, antatt standardpris $4.00 / $20.00. Se noten under tabellen |
 | Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026 og borte fra GitHubs prisliste. Bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
-| Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk |
+| Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026 |
 | Kimi K2.7 Code | Versatile | $0.95 | $4.00 | Rimeligste alternativ for kode-agent-løkker (open-weight) |
+
+**Kampanjepriser.** GitHub merker enkelte rader med kampanjepris i fotnoter, og
+fotnotene følger ikke med når vi synkroniserer pristabellen
+([#503](https://github.com/navikt/copilot/issues/503)). Per 31. august 2026
+gjelder det:
+
+- **GPT-5.6 Sol:** 50 % av standardpris t.o.m. 3. september 2026. Fotnoten
+  oppgir ikke standardprisen. Doblet kampanjepris gir $4.00 input og $20.00
+  output ($8.00 / $30.00 for lang kontekst over 272K), og det er utregning fra
+  «50 % off», ikke en pris vi har sett publisert. Sol lå på $5.00 / $30.00 i
+  pristabellen vår fram til synkroniseringen 30. august, så listeprisen ser ut
+  til å ha blitt satt ned og deretter fått en kampanje på toppen. Verifiser
+  mot kilden 4. september.
+- **Gemini 3.6 Flash og Gemini 3.7 Flash:** $0.75 input og $3.75 output t.o.m.
+  31. desember 2026. Standardprisen står ikke i fotnoten. Gemini 3.7 Flash er
+  ikke pinnet noe sted hos oss og står derfor ikke i tabellen over.
+- **Claude Sonnet 5:** notatet vårt sa kampanje t.o.m. 31. august 2026. GitHubs
+  pristabell viser fortsatt $2.00 / $10.00 og har ingen fotnote for Sonnet 5, så
+  vi kan hverken bekrefte kampanjen eller finne standardprisen. Tallet skal
+  verifiseres mot kilden før det brukes i et regnestykke.
+- **GPT-5.6 Luna:** ingen kampanjefotnote, så $0.20 / $1.20 er standardpris.
+  Sjekket særskilt fordi tallet er 80 % under de $1.00 / $6.00 som stod i
+  juli-artiklene våre: den genererte pristabellen har hatt $0.20 / $1.20 gjennom
+  de to siste synkroniseringene, og GitHubs side har bare to kampanjefotnoter,
+  Sol og Gemini Flash. Eneste beviset er altså at fotnoten mangler.
 
 Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
 

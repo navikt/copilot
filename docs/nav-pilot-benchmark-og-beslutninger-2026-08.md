@@ -125,6 +125,38 @@ benchmarken, som ikke målte norsk tekst.
 Tabellen i [`modellvalg.md`](modellvalg.md) viser fortsatt de gamle pinnene og
 oppdateres når byttet er merget. Den gjentas ikke her, fordi den flytter seg.
 
+#### Retting 31. august 2026: Sol-prisen var en kampanjepris
+
+Kostnadsargumentet over hviler på Sol til $2.00 input og $10.00 output. Det er
+kampanjepris, 50 prosent av standardpris, og den varer ut 3. september 2026.
+Det står i fotnoten `gpt-56-sol-promo` i [GitHubs pristabell](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing).
+Fotnoten oppgir ikke standardprisen selv. Doblet kampanjepris gir $4.00 og
+$20.00, og det tallet er utregnet fra «50 % off», ikke lest av en publisert
+tabell. `scripts/sync-model-pricing.mjs` kaster fotnotene når den genererer
+`model-pricing.ts`, som er grunnen til at ingen av dokumentene våre visste dette
+([#503](https://github.com/navikt/copilot/issues/503)).
+
+Blandet 10:1 mellom input og output. **Forholdet 10:1 er et anslag, ikke noe vi
+har målt**, samme forbehold som i `modellvalg.md`:
+
+| Modell | Blandet $ per million tokens (10:1) |
+|---|---|
+| GPT-5.6 Sol, kampanje t.o.m. 3. sep | 2,73 |
+| GPT-5.6 Terra | 2,91 |
+| Claude Sonnet 4.6 | 4,09 |
+| GPT-5.6 Sol, antatt standardpris fra 4. sep | 5,45 |
+| Claude Opus 4.6 | 6,82 |
+
+**Pinnen står.** `@security-champion` og `@nav-pilot-opus` flytter fra Opus 4.6,
+og Sol til antatt standardpris er fortsatt 20 prosent billigere enn den.
+Gevinsten er 20 prosent, ikke de 60 prosentene kampanjeprisen ga, og fra
+4. september er Sol dyrere enn både Sonnet 4.6 og Terra. Sol er heller ikke det
+billigste Powerful-alternativet til standardpris: GPT-5.3-Codex ligger på 2,86
+blandet.
+
+Luna er ikke berørt. Den raden har ingen kampanjefotnote, og $0.20 / $1.20 har
+stått i den genererte pristabellen gjennom de to siste synkroniseringene.
+
 ### 4.2 Terra tas ikke i bruk
 
 Terra er **ikke bevist dårligere**: p = 0,25 er ikke et bevis på noe. Men Sol er
@@ -133,6 +165,13 @@ Terra, og det holder til å la være.
 
 Dette er ikke det samme som å konkludere at Terra er utrygg. Den konklusjonen har
 vi ikke data til.
+
+**Retting 31. august 2026:** «Sol er billigere» gjaldt kampanjeprisen. Fra
+4. september er Terra billigere enn Sol ved 10:1 (2,91 mot 5,45), så
+kostnadsbeinet i argumentet over faller bort. Beslutningen blir stående som den
+er: den ble tatt på det grunnlaget som stod her, og punktestimatene i seksjon 1
+er ikke en rangering. Om prisen alene nå taler for Terra, er det en ny
+beslutning som må tas for seg, ikke en omskriving av denne.
 
 ### 4.3 nav-pilot styrer standard klientkonfigurasjon
 
