@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-31T06:20:53.714Z",
+  "generatedAt": "2026-08-31T06:56:37.263Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -256,7 +256,7 @@
       "domain": "general",
       "filePath": ".github/agents/nav-pilot-opus.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot-opus.agent.md",
-      "contentHash": "19b8f598f0672fce5cd0d6b5151695754b117f074951f2a84886533dd1b7c36a",
+      "contentHash": "30ac4257c5a30df0b6ca6c8524881e7095af48d7c2ce73179f5eca58742c8e2e",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot-opus.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot-opus.agent.md",
       "tools": [
@@ -279,7 +279,7 @@
         "io.github.navikt/github-mcp/get_latest_release",
         "io.github.navikt/github-mcp/list_releases"
       ],
-      "model": ["Claude Opus 4.6"],
+      "model": ["GPT-5.6 Sol"],
       "tags": ["planning", "architecture", "review", "security", "nav-pilot"],
       "examples": [
         {
@@ -442,7 +442,7 @@
       "domain": "general",
       "filePath": ".github/agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md",
-      "contentHash": "160b9c9cc7263b409e2dc9878eb69d8269e3f3a402811ae75913ccf3ff0c1e36",
+      "contentHash": "a209e3ce5d93746d09abdafe3d5aa91adc3eae51790dc1ac7bbf46d01708df92",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -469,7 +469,7 @@
         "io.github.navikt/github-mcp/list_tags",
         "io.github.navikt/github-mcp/list_branches"
       ],
-      "model": ["Claude Opus 4.6"],
+      "model": ["GPT-5.6 Sol"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
         {
