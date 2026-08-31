@@ -125,6 +125,7 @@ for Copilot CLI til collector-base uten `/v1/metrics`, slik at Copilot kan sende
 både metrics og traces. Egen override for Copilot er `NAV_PILOT_COPILOT_OTEL_ENDPOINT`
 (den har høyere prioritet enn en generell `OTEL_EXPORTER_OTLP_ENDPOINT`).
 nav-pilot setter også `COPILOT_OTEL_ENABLED=true` hvis den ikke allerede er satt.
+Alt dette er betinget av at telemetri er på; se avsnittet om opt-out under.
 
 I tillegg injiserer nav-pilot egne resource-attributter i Copilots
 `OTEL_RESOURCE_ATTRIBUTES`, slik at Copilot-traces kan attribueres tilbake til
@@ -137,8 +138,17 @@ nav-pilot. Eksisterende nøkler beholdes (append-merge, ingen overskriving):
 | `nav.pilot.device_id` | pseudonymt `nav-pilot-<hash>` | Join (på verdi) mot nav-pilots egen `device_id`-attributt |
 | `nav.repo` | `navikt/<repo>`-slug fra `origin`-remote | Join (server-side, ved spørring) mot repo→team-mapping, slik at sessionsdata kan aggregeres per team (issue #344) |
 
-`nav.pilot.device_id` injiseres kun når nav-pilot-telemetri er aktiv; med
-`NAV_PILOT_TELEMETRY_ENABLED=false` utelates den (launcher/version beholdes).
+Er nav-pilot-telemetri av, injiseres **ingenting av dette**. Med
+`NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` setter nav-pilot verken
+endepunkt, `COPILOT_OTEL_ENABLED` eller resource-attributter, og klienten startes
+med miljøet den ellers ville hatt. Det gjelder også når `NAV_PILOT_COPILOT_OTEL_ENDPOINT`
+er satt eksplisitt: har du sagt begge deler, er det opt-out som gjelder.
+
+Tidligere gjaldt dette bare `nav.pilot.device_id`. Resten ble injisert uansett, med
+den begrunnelsen at launcher og versjon ikke identifiserer noen. Det stemmer, og det
+dekker ikke `nav.repo`, som gikk ut ved siden av. En bruker som hadde reservert seg
+havnet dermed i dataene som rader med repo og uten device_id — ikke til å skille fra
+et oppslag som feilet, og dermed heller ikke til å filtrere bort i ettertid.
 
 `nav.repo` settes kun når nav-pilot startes inne i et git-repo hvis
 `origin`-remote peker på GitHub-organisasjonen `navikt` (både ssh-formen

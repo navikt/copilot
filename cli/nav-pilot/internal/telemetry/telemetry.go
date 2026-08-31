@@ -460,6 +460,7 @@ func (t *otelTelemetry) RecordClientAvailable(client string, available bool) {
 	t.clientAvailable.Record(context.Background(), v, metric.WithAttributes(
 		attribute.String("client", client),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -471,6 +472,7 @@ func (t *otelTelemetry) RecordCommand(command, mode, scope, result, errorType st
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("result", normalizeTelemetryDimension(result, "error")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	}
 
@@ -484,6 +486,7 @@ func (t *otelTelemetry) RecordCommand(command, mode, scope, result, errorType st
 			attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 			attribute.String("error_type", normalizeTelemetryDimension(errorType, "unknown")),
 			attribute.String("version", t.version),
+			attribute.String("device_id", t.device),
 			attribute.String("execution_context", t.executionContext),
 		))
 	}
@@ -498,6 +501,7 @@ func (t *otelTelemetry) RecordInstallItems(scope, mode string, count int64) {
 		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -511,6 +515,7 @@ func (t *otelTelemetry) RecordSyncUpdates(scope, mode string, count int64) {
 		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -524,6 +529,7 @@ func (t *otelTelemetry) RecordSyncConflicts(scope, mode string, count int64) {
 		attribute.String("mode", normalizeTelemetryDimension(mode, "non_interactive")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -537,6 +543,7 @@ func (t *otelTelemetry) RecordInstallPresent(scope, collection string, present b
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("collection", normalizeTelemetryDimension(collection, "other")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -550,6 +557,7 @@ func (t *otelTelemetry) RecordInstalledItems(scope, itemType, status string, cou
 		attribute.String("type", normalizeTelemetryDimension(itemType, "unknown")),
 		attribute.String("status", normalizeTelemetryDimension(status, "active")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -560,6 +568,7 @@ func (t *otelTelemetry) RecordStalenessCheck(component, scope, result string) {
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("result", normalizeTelemetryDimension(result, "error")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -573,6 +582,7 @@ func (t *otelTelemetry) RecordUpToDate(component, scope string, upToDate bool) {
 		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -585,6 +595,7 @@ func (t *otelTelemetry) RecordVersionSkewDays(component, scope string, days int6
 		attribute.String("component", normalizeTelemetryDimension(component, "unknown")),
 		attribute.String("scope", normalizeTelemetryDimension(scope, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -601,6 +612,7 @@ func (t *otelTelemetry) RecordLaunchError(client, errorType string) {
 		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
 		attribute.String("error_type", normalizeTelemetryDimension(errorType, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }
@@ -612,6 +624,7 @@ func (t *otelTelemetry) RecordRtkSetup(client, choice, result string) {
 		attribute.String("choice", normalizeTelemetryDimension(choice, "unknown")),
 		attribute.String("result", normalizeTelemetryDimension(result, "unknown")),
 		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
 	))
 }

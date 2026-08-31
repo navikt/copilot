@@ -11,6 +11,8 @@ import (
 )
 
 func TestTelemetryEnabled(t *testing.T) {
+	t.Setenv("DO_NOT_TRACK", "")
+
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 	if !TelemetryEnabled() {
 		t.Fatal("expected TelemetryEnabled to return true by default")

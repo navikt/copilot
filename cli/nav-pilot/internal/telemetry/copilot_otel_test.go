@@ -59,6 +59,8 @@ func TestCopilotOTelEndpointPrecedence(t *testing.T) {
 }
 
 func TestApplyCopilotOTelEnv(t *testing.T) {
+	telemetryOn(t)
+
 	t.Run("sets endpoint and enabled when absent", func(t *testing.T) {
 		env, changed := ApplyCopilotOTelEnv([]string{}, "dev")
 		if !changed {
@@ -319,4 +321,18 @@ func TestEncodeResourceAttrValue(t *testing.T) {
 			t.Fatalf("encodeResourceAttrValue(%q) = %q, want %q", tt.in, got, tt.want)
 		}
 	}
+}
+
+// telemetryOn neutralises both opt-out variables for a test that asserts
+// injection happens.
+//
+// Without it the suite depends on the developer's own environment: since the
+// opt-out began covering the whole injection rather than just the device id,
+// a machine with DO_NOT_TRACK set correctly injects nothing, and every test
+// asserting an injected value fails for a reason that is not a bug. The people
+// most likely to hit that are the ones who set DO_NOT_TRACK on purpose.
+func telemetryOn(t *testing.T) {
+	t.Helper()
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 }

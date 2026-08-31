@@ -219,6 +219,8 @@ func TestCopilotOTelEndpointConfigured(t *testing.T) {
 }
 
 func TestApplyOpenCodeOTelEnv(t *testing.T) {
+	telemetryOn(t)
+
 	env, changed := ApplyOpenCodeOTelEnv([]string{}, "dev")
 	if !changed {
 		t.Fatal("expected env to be changed")
