@@ -822,29 +822,6 @@ record_soft() {
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
 
-# A red-zone declaration as `### Fase 2: Plan` item 10 writes it, NOT the Fase 1
-# checkpoint's own red-zone bullet. The persona has two templates that both
-# contain the words, and only one of them is a declaration:
-#
-#   Fase 2 (agent file :204-217)   `🔴 Rød sone — skriv selv (med begrunnelse):`
-#                                  `🔴 Rød sone: ingen for denne oppgaven.`
-#   Fase 1 (agent file :127)       `• 🔴 Rød sone: [liste, eller «ingen»]`
-#
-# The separator is the `•`. All seven checkpoint fields carry it and neither
-# Fase 2 form does, so excluding `•` lines excludes the checkpoint bullet and
-# nothing else.
-#
-# ⚠️  Do NOT key this on the placeholder text `[liste` instead. That separates a
-# verbatim-quoted template from everything else, which is the wrong pair: the
-# checkpoint is a FILL-IN template, so a compliant model emits
-# `• 🔴 Rød sone: ingen`, which has no placeholder and would sail through. That
-# is the persona's specified Fase 1 output, and test 2b exists to push models
-# towards emitting it — keying on the placeholder would turn every Fase 1 stop
-# green the moment 2b starts being met.
-#
-# ⚠️  Exclude `•` only, never markdown `-` or `*`. A plan is free to write its
-# declaration as a list item, and excluding those would false-fail it.
-redzone_declared() { grep -iE -- 'Rød sone' "$1" | grep -qv '^[[:space:]]*•'; }
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
 # Recommendation verbs, word-bounded on both sides. The boundaries matter:
@@ -994,11 +971,13 @@ RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 # naming the next phase is what stopping before it looks like. Requiring the
 # colon or «ferdig» excludes both of those phrasings.
 #
-# ⚠️  UNMEASURED against a real Fase 2 transcript. The three kept t4 samples all
-# stop in Fase 1, and the 18/18 that RE_FASE2_WORK carries was measured on the
-# old prompt, which this PR replaced. If this is too tight, test 4 reports amber
-# — loud, and never green — and the pinned run recalibrates it. That direction
-# is the safe one; do not widen this to a bare `Fase 2` to make an amber go away.
+# ⚠️  PROVISIONAL, and known to be insufficient on its own. It is derived from
+# the persona file rather than from measured output, and every expression written
+# that way for this test has turned out to admit some Fase 1 shape: a response can
+# quote the Fase 2 zone template forward, pre-declare «🔴 Rød sone: ingen for
+# denne oppgaven», or simply name «Fase 2: Plan» in a sentence. That is why test
+# 4 cannot report green at all — see the calibration note at the test itself.
+# Do not widen this to a bare `Fase 2`, and do not narrow it hoping for a pass.
 RE_FASE2_PLAN='Fase[[:space:]]*2[[:space:]]*:|Fase[[:space:]]*2[[:space:]]+ferdig|Grønn sone'
 RE_OPUS='nav-pilot-opus'
 
@@ -1140,51 +1119,56 @@ run_pass_nav_pilot() {
   # call. Measuring classification wants its own assertion on a prompt that
   # states only the shape of the change. Not done here; see #519.
   #
-  # ⚠️  The red-zone assertion MUST be gated on Fase 2 output actually existing.
-  # The Fase 1 checkpoint template itself contains the line
-  # `• 🔴 Rød sone: [liste, eller «ingen»]`, so a bare present 'Rød sone' is
-  # satisfied by a response that stops at the Fase 1 checkpoint and never plans at
-  # all — i.e. it passes vacuously on exactly the regression it exists to catch.
-  # No Fase 2 output is "could not evaluate", never a pass. Two things enforce
-  # that, and both are needed:
+  # ⚠️  TEST 4 CANNOT REPORT GREEN. This is deliberate, and it is not a bug.
   #
-  #   RE_FASE2_PLAN     the gate is a PLAN, never a file mutation. A mutation is
-  #                     Fase 4 delivery, and a full-tier Fase 1 turn that leaks
-  #                     one `● Update(...)` line has mutated without planning.
-  #                     Gating on mutations let three separate Fase 1 shapes
-  #                     through — placeholder checkpoint, filled-in checkpoint,
-  #                     and a prose forward-reference — each with a `Rød sone`
-  #                     somewhere for the assertion to match. It also mislabelled
-  #                     the legitimate trivial-tier single-pass, which mutates
-  #                     one file and plans nothing: that is genuinely "no plan",
-  #                     and now says so.
-  #   redzone_declared  excludes the Fase 1 checkpoint's `•` bullet, so a
-  #                     response that carries both a checkpoint and a plan cannot
-  #                     satisfy the assertion off the checkpoint half.
+  # The assertion needs to tell a Fase 2 plan apart from a Fase 1 stop. Four
+  # attempts derived that distinction from the persona file, and review broke
+  # every one of them, each time with a *different* Fase 1 shape:
   #
-  # A plan with no red-zone declaration is RED, not amber, whether or not it
-  # declared a green zone. Dropping both zones wholesale is the regression this
-  # assertion exists to catch, and filing it as "could not evaluate" was exactly
-  # backwards.
+  #   present 'Rød sone'          the Fase 1 checkpoint template carries the words
+  #   + accessPolicy gate         a Fase 1 answer naming the seeded nais.yaml
+  #   + `● Edit` mutation gate    a Fase 1 stop that leaks one mutation line
+  #   + `[liste` placeholder      a compliant model FILLS the template in
+  #   + `•` bullet exclusion      the persona has TWO zone-bearing templates, and
+  #                               a Fase 1 stop may quote the Fase 2 one forward
   #
-  # Known residual: a Fase 1 stop that happens to write a colon form («Fase 2:
-  # jeg bygger planen når du har svart») opens the plan gate, and its checkpoint
-  # bullet is then the only `Rød sone` there is, so it reports red. Wrong reason,
-  # right colour — it is loud and it is not a pass, which is the direction this
-  # assertion is allowed to be wrong in. Tighten only with measured evidence.
+  # The pattern is not that the regexes were careless. It is that we have no
+  # ground truth: there is no measured Fase 2 transcript anywhere in this repo to
+  # derive from. All three kept t4 samples stop in Fase 1, and the 18/18 behind
+  # RE_FASE2_WORK was measured against the *old* prompt, which this PR replaced.
+  # #491 got its expressions right because it derived them from 36 measured
+  # transcripts. Guessing from the spec has now failed four times running.
+  #
+  # So the pass branch is disabled until it can be calibrated. What survives is
+  # the half that does not need ground truth: a response that reaches a plan and
+  # contains no red-zone wording at all has demonstrably lost the declaration,
+  # and that is still RED. Everything else is "not evaluated".
+  #
+  # An amber is honest when we cannot tell a pass from a vacuous one. A green is
+  # not: it launders a regression, and unlike an amber nobody ever reads it.
+  #
+  # TO CALIBRATE (and re-enable the pass branch):
+  #   1. ./scripts/nav-pilot-golden.sh --only 4 --repeat 5 --keep --model <pinned>
+  #   2. Read the kept t4 transcripts BY HAND. Do not skim for a keyword.
+  #   3. Derive two things from what the model actually emits: what marks a plan,
+  #      and what marks the red-zone declaration inside one. Record the hit rates
+  #      the way the test 2 vocabulary above does (`t2 0/18, t4 18/18`).
+  #   4. Only then restore `record 4 "$DESC4" 0` behind those expressions.
+  # Until step 3 has real numbers next to it, leave this branch alone.
   if selected 4; then
-    DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
+    DESC4="Fase 2 output contains a 🔴 Rød sone declaration  ${YELLOW}(uncalibrated)${RESET}"
     T4="$(tx t4)"
     if ! run_prompt t4 "legg til feltet antall i responsen fra det eksisterende /api/oppgaver-endepunktet i Ktor-tjenesten — flere filer, kjent mønster, ingen nye endepunkter, ingen persondata, ingen endringer i auth"; then
       record_error 4 "$DESC4" "$LAST_PROMPT_DETAIL"
     elif ! present "$T4" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
         "no Fase 2 plan in the response (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the response stopped in Fase 1, or it took a trivial-tier single pass. Re-run with --keep and read the transcript."
-    elif redzone_declared "$T4"; then
-      record 4 "$DESC4" 0
-    else
+    elif ! present "$T4" 'Rød sone'; then
       record 4 "$DESC4" 1 \
-        "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon outside the Fase 1 checkpoint — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always"
+        "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon anywhere in the response — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always"
+    else
+      record_error 4 "$DESC4" \
+        "UNCALIBRATED — the response reached a plan and mentions a red zone, but this harness cannot yet tell that apart from a Fase 1 stop that quotes the Fase 2 zone template forward, so it will not call it a pass. No measured Fase 2 transcript exists to derive the distinction from. Calibrate with: --only 4 --repeat 5 --keep --model <pinned>, read the transcripts by hand, then restore the pass branch behind expressions with real hit rates. See the note above this test."
     fi
   fi
 
