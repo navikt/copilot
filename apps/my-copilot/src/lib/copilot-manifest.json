@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-31T06:23:03.942Z",
+  "generatedAt": "2026-08-31T06:56:37.263Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -367,7 +367,7 @@
       "domain": "general",
       "filePath": ".github/agents/research.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/research.agent.md",
-      "contentHash": "9c7d4bd4590a7cf973cd7a199c90a9173da87bf31e13f6cdde54ea7a15f72d7b",
+      "contentHash": "57973bb865dfdd9de5f023351b72280e61afe794e96ee87b6607c98fb8970009",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fresearch.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fresearch.agent.md",
       "tools": [
@@ -391,7 +391,7 @@
         "io.github.navikt/github-mcp/list_tags",
         "io.github.navikt/github-mcp/list_branches"
       ],
-      "model": ["GPT-5.3-Codex"],
+      "model": ["GPT-5.6 Luna"],
       "agentReferences": ["aksel-agent", "kafka-agent", "security-champion-agent"],
       "tags": ["research", "analysis", "codebase-exploration"],
       "examples": [
@@ -811,11 +811,11 @@
       "domain": "general",
       "filePath": ".github/prompts/golang-service.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md",
-      "contentHash": "42a507250b011dbd7947a4729bcaf4baf8a9c8d6a72ba0904153051ee8939bf4",
+      "contentHash": "6b0b8487f8cc481e1632f2888e331e2cda331a0bbd0c6a3c3f2682967741aab7",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "invocation": "#golang-service",
-      "model": ["Claude Haiku 4.5"],
+      "model": ["GPT-5.6 Luna"],
       "collections": ["fullstack", "platform"]
     },
     {
@@ -843,11 +843,11 @@
       "domain": "general",
       "filePath": ".github/prompts/ktor-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/ktor-endpoint.prompt.md",
-      "contentHash": "e5a24e1b9e9bc398ffbd697757c2974d7ea60ee3adf2ab38b3163f3729d4b469",
+      "contentHash": "78a11bb6d225b6646f2588f5b3efa69126f47826d490ca0cdcb32d0b94adfa93",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fktor-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fktor-endpoint.prompt.md",
       "invocation": "#ktor-endpoint",
-      "model": ["Claude Haiku 4.5"],
+      "model": ["GPT-5.6 Luna"],
       "collections": ["fullstack", "kotlin-backend"]
     },
     {
@@ -875,11 +875,11 @@
       "domain": "frontend",
       "filePath": ".github/prompts/nextjs-api-route.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nextjs-api-route.prompt.md",
-      "contentHash": "691c380aa1e47757211de51ca1b54ca2ff72e8a8e78de1b05acb9c4d29353d2a",
+      "contentHash": "5f65db6b410ea3e63988772a1af8fcacec54c13daafc91339ee304a32c698053",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnextjs-api-route.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnextjs-api-route.prompt.md",
       "invocation": "#nextjs-api-route",
-      "model": ["Claude Haiku 4.5"],
+      "model": ["GPT-5.6 Luna"],
       "tags": ["nextjs", "api-route", "app-router", "scaffold"],
       "examples": ["#api-route Lag en API-route for å hente brukerdata fra BigQuery"],
       "collections": ["fullstack", "nextjs-frontend"]
@@ -892,11 +892,11 @@
       "domain": "backend",
       "filePath": ".github/prompts/spring-boot-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "3e68aab2f5cbe4027b7b11faf928d1f179a6a2882f8d5c6358707caf28c98894",
+      "contentHash": "82404ec13b5fd880203d06fed3e98965bcee18ac205fd8b86bc56b8036e04f71",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "invocation": "#spring-boot-endpoint",
-      "model": ["Claude Haiku 4.5"],
+      "model": ["GPT-5.6 Luna"],
       "tags": ["spring-boot", "kotlin", "rest", "endpoint", "scaffold"],
       "examples": ["#spring-boot-endpoint Lag et CRUD-endepunkt for vedtak med PostgreSQL"],
       "collections": ["fullstack", "kotlin-backend"]

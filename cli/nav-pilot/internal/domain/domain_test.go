@@ -404,9 +404,20 @@ func TestOpenCodeModelForLabel(t *testing.T) {
 // table: a display name nobody recognises materializes without a model line, so
 // a typo would silently disable per-agent model selection for that agent.
 func TestAgentFrontmatterModelsAreKnown(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join("..", "..", "..", "..", "agents", "*.agent.md"))
-	if err != nil || len(files) == 0 {
-		t.Skip("agents/ not reachable from this checkout")
+	root := filepath.Join("..", "..", "..", "..")
+	var files []string
+	for _, pat := range []string{
+		filepath.Join(root, "agents", "*.agent.md"),
+		filepath.Join(root, "prompts", "*.prompt.md"),
+	} {
+		found, err := filepath.Glob(pat)
+		if err != nil {
+			t.Fatalf("globbing %s: %v", pat, err)
+		}
+		files = append(files, found...)
+	}
+	if len(files) == 0 {
+		t.Skip("agents/ and prompts/ not reachable from this checkout")
 	}
 	re := regexp.MustCompile(`(?m)^model:\s*(.+?)\s*$`)
 	for _, f := range files {

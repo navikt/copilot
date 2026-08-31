@@ -1,7 +1,7 @@
 ---
 name: research-agent
 description: Utforsker kodebaser, undersøker problemer og samler kontekst før implementering
-model: GPT-5.3-Codex
+model: GPT-5.6 Luna
 tools:
   - read
   - search
