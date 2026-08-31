@@ -297,7 +297,10 @@ fi
 # guessed from the filename: accessibility.agent.md declares
 # `name: accessibility-agent`, and --agent accessibility would silently load
 # nothing. First `---` opens the block, the first `name:` inside it wins.
-AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:[[:space:]]*/, ""); print; exit}' "$PERSONA" | tr -d "\"'" | tr -d '[:space:]')"
+# The value is only trimmed and unquoted one layer, never squeezed: deleting
+# every space would turn `name: a b` into the plausible-looking `ab` and walk
+# it straight past the check below, launching an agent the file never declared.
+AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:[[:space:]]*/, ""); print; exit}' "$PERSONA" | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")"
 [[ -n "$AGENT_NAME" ]] || fail_preflight \
   "$PERSONA has no 'name:' in its frontmatter" \
   "The CLI is launched with --agent <that name>; without it the harness cannot know which agent it would actually be measuring."
@@ -306,8 +309,9 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
 # nobody has read yet. It is interpolated straight into a destination path
 # ($TEMPLATE/.github/agents/$AGENT_NAME.agent.md), so a `name: ../../../etc/x`
 # would have cp write outside the scratch workspace. Check it looks like a
-# filename before using it as one. Every name in agents/ matches: they are all
-# lowercase words joined by hyphens.
+# filename before using it as one: letters, digits, '-' and '_', nothing else.
+# Every name in agents/ matches; they happen to be lowercase and hyphenated,
+# but the check does not require that.
 [[ "$AGENT_NAME" =~ ^[A-Za-z0-9_-]+$ ]] || fail_preflight \
   "$PERSONA declares an unusable agent name: '$AGENT_NAME'" \
   "It becomes a filename and a --agent argument, so it must be letters, digits, '-' or '_' only."
@@ -1562,7 +1566,7 @@ if [[ $((pass_count + fail_count + error_count)) -eq 0 ]]; then
   if [[ $soft_count -gt 0 ]]; then
     echo "${DIM}Only soft checks were selected, and a soft check cannot fail. This run proved nothing.${RESET}"
   fi
-  echo "${DIM}Select at least one assertion that can fail: --only 2 runs the stop invariant and reports 2b with it.${RESET}"
+  echo "${DIM}Select at least one assertion that can fail. Assertion IDs for $AGENT: $VALID_IDS${RESET}"
   exit 3
 fi
 if [[ $fail_count -eq 0 && $error_count -eq 0 ]]; then
