@@ -148,7 +148,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "local_autostart",
 		kind:        keyKindBool,
-		description: "Start the local server automatically when a launch needs it and nothing is running. Off by default: the first start on a cold cache takes minutes.",
+		description: "Start the local server automatically when a launch needs it and nothing is running. Off by default: a launch that starts a 21 GB process unasked is a surprise rather than a convenience.",
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "",
@@ -284,8 +284,8 @@ version = 1
 # local_enabled = false
 
 # Start the local server when a launch needs it and nothing is running. Off by
-# default: the first start on a cold cache takes minutes, and a launch that
-# starts a 21 GB process unasked is a surprise rather than a convenience.
+# default: a launch that starts a 21 GB process unasked is a surprise rather
+# than a convenience.
 # Default: false
 # local_autostart = false
 

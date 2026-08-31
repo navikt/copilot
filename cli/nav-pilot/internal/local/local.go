@@ -493,8 +493,7 @@ var autostart bool
 func SetAutostart(on bool) { autostart = on }
 
 // Autostart reports whether a launch may start the server when none is running.
-// Off by default: starting a 21 GB process is not something to do unasked, and
-// the first start on a cold cache takes minutes that would read as a hang.
+// Off by default: starting a 21 GB process is not something to do unasked.
 func Autostart() bool { return autostart }
 
 // IsLocal reports whether a model id is served locally *and* local dispatch is

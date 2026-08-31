@@ -145,8 +145,7 @@ Vil du slippe å starte serveren selv, kan en vanlig `nav-pilot` gjøre det når
 nav-pilot config set local_autostart true
 ```
 
-Av som standard, med vilje: å starte en 21 GB prosess uten å bli bedt om det er ikke greit, og
-første oppstart på kald cache tar minutter som ser ut som om noe har hengt seg.
+Av som standard, med vilje: å starte en 21 GB prosess uten å bli bedt om det er ikke greit.
 
 Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
 uendret.

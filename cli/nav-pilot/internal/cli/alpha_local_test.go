@@ -557,3 +557,39 @@ func TestWrapIndent(t *testing.T) {
 		t.Errorf("wrapIndent()\n got: %q\nwant: %q", got, want)
 	}
 }
+
+// markProvisioned writes the environment stamp `local.Installed` looks for, so
+// a test can reach the checks that come after it without provisioning anything.
+// The pins are duplicated from internal/local deliberately: they are unexported,
+// and a test that silently stopped exercising the code below the Installed check
+// would be worse than one that fails loudly when the pin moves.
+func markProvisioned(t *testing.T) {
+	t.Helper()
+	dir := filepath.Join(os.Getenv("HOME"), ".nav-pilot", "local")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stamp := `{"mlx_lm":"0.31.3","mlx":"0.32.0"}`
+	if err := os.WriteFile(filepath.Join(dir, "env.json"), []byte(stamp), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !local.Installed() {
+		t.Fatalf("markProvisioned did not satisfy local.Installed(); the version pins in "+
+			"internal/local/runtime.go have moved and this helper still writes %s", stamp)
+	}
+}
+
+// TestLocalStartRefusesMissingWeights: start must not reach mlx-lm without the
+// weights on disk. mlx-lm downloads whatever it cannot find, so this guard is
+// the only thing between `start` and a silent 23 GB fetch inside readyTimeout,
+// which surfaces either as a start that looks pathologically slow or as a
+// timeout naming neither cause. Autostart has always refused it; start's own
+// comment claimed it did too, and did not.
+func TestLocalStartRefusesMissingWeights(t *testing.T) {
+	localTestHome(t)
+	markProvisioned(t)
+	err := cmdLocalStart()
+	if err == nil || !strings.Contains(err.Error(), "not on this machine") {
+		t.Errorf("cmdLocalStart() without weights = %v, want an error naming the missing weights", err)
+	}
+}
