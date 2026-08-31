@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui,-apple-system,sans-serif" font-size="12">
+<rect width="640" height="360" fill="#ffffff"/>
+<line x1="70" y1="177.8" x2="616" y2="177.8" stroke="#c2410c" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="616" y="170.8" text-anchor="end" fill="#c2410c">break-even: dispatch costs what the cloud costs alone</text>
+<line x1="70" y1="28" x2="70" y2="308" stroke="#94a3b8"/>
+<line x1="70" y1="308" x2="616" y2="308" stroke="#94a3b8"/>
+<text x="62" y="246.9" text-anchor="end" fill="#475569">0.5x</text>
+<text x="62" y="181.8" text-anchor="end" fill="#475569">1.0x</text>
+<text x="62" y="116.8" text-anchor="end" fill="#475569">1.5x</text>
+<text x="62" y="51.7" text-anchor="end" fill="#475569">2.0x</text>
+<text x="70.0" y="326" text-anchor="middle" fill="#475569">0</text>
+<text x="194.9" y="326" text-anchor="middle" fill="#475569">5</text>
+<text x="319.9" y="326" text-anchor="middle" fill="#475569">10</text>
+<text x="444.8" y="326" text-anchor="middle" fill="#475569">15</text>
+<text x="569.8" y="326" text-anchor="middle" fill="#475569">20</text>
+<polyline points="120.0,74.7 194.9,203.4 394.9,238.4 544.8,256.8" fill="none" stroke="#1d4ed8" stroke-width="1.5" opacity="0.45"/>
+<circle cx="120.0" cy="74.7" r="5" fill="#b91c1c"/>
+<text x="130.0" y="78.7" text-anchor="start" fill="#0f172a">Spring, rung 6 — 1.79x</text>
+<circle cx="194.9" cy="203.4" r="5" fill="#15803d"/>
+<text x="204.9" y="207.4" text-anchor="start" fill="#0f172a">Ktor, rung 3 — 0.80x</text>
+<circle cx="394.9" cy="238.4" r="5" fill="#15803d"/>
+<text x="404.9" y="242.4" text-anchor="start" fill="#0f172a">Frontend, rung 3 — 0.53x</text>
+<circle cx="544.8" cy="256.8" r="5" fill="#15803d"/>
+<text x="534.8" y="260.8" text-anchor="end" fill="#0f172a">Ktor, rung 6 — 0.39x</text>
+<text x="343" y="348" text-anchor="middle" fill="#0f172a">steps the cloud-only arm needed</text>
+<text x="16" y="168" text-anchor="middle" fill="#0f172a" transform="rotate(-90 16 168)">cost with dispatch ÷ without</text>
+</svg>

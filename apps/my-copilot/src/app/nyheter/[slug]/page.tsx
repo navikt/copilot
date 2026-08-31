@@ -9,6 +9,16 @@ import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { formatDate } from "@/lib/format";
 
 const markdownComponents: Components = {
+  // No article has used an image before this one, so react-markdown's bare <img>
+  // was never styled: it would render at its intrinsic width and overflow a phone.
+  // A figure in an article is data, so the alt text has to carry what the picture
+  // says rather than name it, and the table beside it stays as the readable form
+  // of the same numbers.
+  img: ({ src, alt }) =>
+    typeof src === "string" ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%", height: "auto", margin: "1.5rem 0" }} />
+    ) : null,
   h2: ({ children }) => (
     <Heading size="medium" level="2" spacing>
       {children}

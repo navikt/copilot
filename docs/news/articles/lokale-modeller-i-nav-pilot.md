@@ -60,6 +60,8 @@ I Spring-repoet snudde det: 16 credits mot 9. Der ble det dyrere å kjøre lokal
 
 Vi trodde en stund det var kodebasen som avgjorde. Det er det ikke. Det som avgjør, er hvor mange steg skymodellen trenger når den gjør jobben alene:
 
+![Jo flere steg skymodellen trenger alene, jo mer sparer du på å sende arbeidet til bakkemodellen. 19 steg sparer 61 prosent, 13 steg sparer 47 prosent, 5 steg sparer 20 prosent, og på 2 steg koster utsendingen 79 prosent mer enn den sparer.](/images/nav-pilot-step-count.svg)
+
 | Skymodellen alene | Med bakkemodellen |
 |---|---|
 | 19 steg | sparer 61 % |
