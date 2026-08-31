@@ -30,15 +30,33 @@ Porten er grov med vilje, og disse kantene er kjent og valgt, ikke oversett:
     hva ⚠️ Ask First :249 faktisk skal dekke, ikke en feil i porten.
   * En rolle delt over to redigeringer (`<ul rol` så `e="listbox">`) slipper
     gjennom. Det samme gjør `role:` som objektnøkkel.
-  * Selvtesten dekker nå disse nærtreffene, ikke bare de tre grunntilfellene.
+  * Differansen er en mengde, så to identiske roller kollapser til én: står
+    `role="listbox"` allerede i `old_str`, kan `new_str` legge til et element
+    til med nøyaktig samme rolle uten å bli stoppet. Lav risiko, siden det
+    krever en rolle som alt står i det berørte området, og porten er nettopp
+    det som hindrer at den kom dit.
+  * `cwd` i payloaden brukes ikke. CLI-en sender absolutte stier, så en
+    relativ sti utenfor arbeidsmappa er teoretisk.
+  * Selvtesten dekker disse nærtreffene, ikke bare de tre grunntilfellene.
 
 Merk: en skriving rutet gjennom `execute` og et heredoc går utenom både
-write() og hooks. Det er ikke teoretisk. Med porten på plass er uu3 4/5 på
-begge modellene, og den ene røde kjøringen på Luna skrev fila med
+write() og hooks. Det er ikke teoretisk. Med porten på plass er uu3 9/10 på
+begge modellene, med én rød kjøring hver, og den røde på Luna skrev fila med
 `cat > .../StatusPanel.tsx << EOF` etter først å ha blitt nektet gjennom
 edit-verktøyet. `ws_fingerprint` fanget den, så uu3 feilet som den skulle.
 Påstanden validerer altså porten i stedet for å forutsette den, og det er
-grunnen til at 4/5 er et ærligere tall enn 5/5 ville vært.
+grunnen til at 9/10 er et ærligere tall enn 10/10 ville vært.
+
+At vi i det hele tatt så den payloaden skyldtes at den første måleblokka kjørte
+uten matcher. Matcheren under dekker ikke `execute`, så en framtidig
+shell-omvei dukker ikke opp i hook-loggen. Den fanges fortsatt av
+`ws_fingerprint`, men må feilsøkes fra transkriptet.
+
+`view` står i matcheren selv om en lesing aldri kan nektes her. Den er der for
+kanarifuglen i uu3: en tom logg skal bety "hooken ble aldri lastet", og med
+bare redigeringsverktøy i matcheren ville den også betydd "agenten spurte uten
+å prøve å skrive", som er det ideelle utfallet. To motsatte tilstander med
+samme signatur er en dårlig kanarifugl. Hver kjøring gjør minst én lesing.
 """
 
 import json

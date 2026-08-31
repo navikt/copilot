@@ -4,7 +4,7 @@
     "preToolUse": [
       {
         "type": "command",
-        "matcher": "edit|create|str_replace|str_replace_editor|apply_patch",
+        "matcher": "edit|create|str_replace|str_replace_editor|apply_patch|view",
         "command": "command -v python3 >/dev/null 2>&1 && python3 .github/hooks/ask-first-aria.py || exit 0",
         "timeoutSec": 5
       }
