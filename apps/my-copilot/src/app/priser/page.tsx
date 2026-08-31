@@ -173,7 +173,7 @@ export default function PriserPage() {
                               className="px-4 py-3 text-right font-mono"
                               style={{ color: "#64748b", fontSize: "0.8125rem" }}
                             >
-                              {m.cacheWrite ? formatPrice(m.cacheWrite) : "—"}
+                              {m.cacheWrite !== undefined ? formatPrice(m.cacheWrite) : "—"}
                             </td>
                           )}
                           <td
