@@ -361,7 +361,7 @@ RE_CONFIRM='Bekreft for å fortsette'
 # Hit rate: t2 18/18, t4 1/18.
 RE_FASE1_REACHED='Fase[[:space:]]*1|Intervju'
 
-# Fase 2 or later *work* — the leak the stop invariant forbids. Two markers, both
+# Fase 2 or later *work*, the leak the stop invariant forbids. Two markers, both
 # with clean separation: t2 0/18, t4 18/18.
 #
 #   ^● Edit|Create|…  the client renders one line per file mutation. A full-tier
@@ -422,7 +422,7 @@ if selected 1; then
   fi
 fi
 
-# ── Tests 2 + 2b + 3 — full tier stops after Fase 1, raises blind spots 1 and 2 ─
+# ── Tests 2 + 2b + 3: full tier stops after Fase 1, raises blind spots 1 and 2 ──
 # One model call, three independent checks (the prompt is identical, so
 # re-running it would only pay three times for the same sample).
 #
@@ -458,21 +458,21 @@ if selected 2 || selected 3; then
       # user confirmation", and Boundaries → 🚫 Never, "Do work belonging to a
       # later phase in the same response when on full-tier".
       # Order matters. The leak is checked before the Fase 1 gate, because the
-      # worst regression — a full-tier response that skips the interview and goes
-      # straight to writing files — has no Fase 1 output to gate on. Gating first
+      # worst regression, a full-tier response that skips the interview and goes
+      # straight to writing files, has no Fase 1 output to gate on. Gating first
       # reports that as amber "not evaluated" instead of red. Only a response that
       # did neither Fase 1 nor Fase 2 work is genuinely unevaluable.
       q="$(count_of "$T2" '[?]')"
       ok=0; detail=""
       if ! absent "$T2" "$RE_FASE2_WORK"; then
         record 2 "$DESC2" 1 \
-          "response did Fase 2 work (matched: $RE_FASE2_WORK) — PHASE INTEGRITY rule regressed"
+          "response did Fase 2 work (matched: $RE_FASE2_WORK): PHASE INTEGRITY rule regressed"
       elif ! present "$T2" "$RE_FASE1_REACHED"; then
         record_error 2 "$DESC2" \
-          "no Fase 1 output and no Fase 2 work (no match for: $RE_FASE1_REACHED) — the stop invariant was never exercised, so it was not evaluated. Re-run with --keep and check whether tier classification regressed."
+          "no Fase 1 output and no Fase 2 work (no match for: $RE_FASE1_REACHED): the stop invariant was never exercised, so it was not evaluated. Re-run with --keep and check whether tier classification regressed."
       else
         if [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
-          ok=1; detail="only $q question mark(s), need ≥$MIN_OPEN_QUESTIONS — the turn did not end with questions outstanding, so it did not stop for the user"
+          ok=1; detail="only $q question mark(s), need ≥$MIN_OPEN_QUESTIONS: the turn did not end with questions outstanding, so it did not stop for the user"
         fi
         record 2 "$DESC2" "$ok" "$detail"
       fi
