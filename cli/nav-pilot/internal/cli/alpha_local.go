@@ -8,9 +8,8 @@ package cli
 // everywhere and no other command behaves differently.
 //
 // The five commands split along what each one costs. init spends an afternoon
-// of bandwidth and says so first. start spends minutes loading weights and
-// blocks until the server has answered a real completion, because a port bind
-// proves nothing. status spends one probe. stop and off spend nothing.
+// of bandwidth and says so first. start loads the weights and blocks until the
+// server has answered a real completion, because a port bind proves nothing. status spends one probe. stop and off spend nothing.
 //
 // Nothing here runs sudo. Raising the wired-memory limit is the one privileged
 // action in the neighbourhood and it stays a command the developer types:
@@ -278,7 +277,7 @@ func cmdLocalInit() error {
 		fmt.Printf("  %s\n", dim("For a cloud agent with a local worker, switch with: nav-pilot config set client opencode"))
 	}
 
-	fmt.Printf("%s Starting the server (the first start takes a few minutes)…\n", dim("→"))
+	fmt.Printf("%s Starting the server (loading the weights takes seconds)…\n", dim("→"))
 	if err := cmdLocalStart(); err != nil {
 		return err
 	}
@@ -391,7 +390,7 @@ func cmdLocalStart() error {
 	}
 
 	fmt.Printf("%s Starting %s…\n", dim("→"), bold(model.Name))
-	fmt.Printf("  %s\n", dim("Ready means it answered a real completion, not that the port is open — minutes on a cold cache."))
+	fmt.Printf("  %s\n", dim("Ready means it answered a real completion, not that the port is open."))
 	started := timeNow()
 	srv := &local.Server{} // Port 0: Start asks the kernel for a free one.
 	if err := srv.Start(ctx, model); err != nil {

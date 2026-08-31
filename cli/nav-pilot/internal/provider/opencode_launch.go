@@ -737,7 +737,7 @@ func localWorker() (local.Model, error) {
 	// which is also what keeps that check the single seam the tests stub.
 	if local.Autostart() {
 		if err := local.EnsureServerRunning(context.Background(), func(model string) {
-			fmt.Fprintf(os.Stderr, "%s Starting the local %s server. The first start after a reboot takes minutes.\n",
+			fmt.Fprintf(os.Stderr, "%s Starting the local %s server. Loading the weights takes seconds.\n",
 				domain.Dim("ℹ"), domain.Bold(model))
 		}); err != nil {
 			return local.Model{}, err
