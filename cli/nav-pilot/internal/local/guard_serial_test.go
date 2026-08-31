@@ -208,6 +208,21 @@ func TestSawTrafficSeparatesARefusalFromBrokenWiring(t *testing.T) {
 		}
 	})
 
+	t.Run("something that is not the client probed the port", func(t *testing.T) {
+		g := &Guard{}
+		handler := guardHandler(g, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}), "")
+		// A browser, a security agent, a stray curl. One of these must not flip
+		// saw_traffic, or broken wiring is permanently misread as a refusal.
+		for _, path := range []string{"/", "/favicon.ico", "/health", "/v1"} {
+			handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
+		}
+		if g.SawTraffic() {
+			t.Error("a localhost probe counted as the client having seen the worker")
+		}
+	})
+
 	// A hosted session has no guard at all and must be able to ask.
 	var absent *Guard
 	if absent.SawTraffic() {

@@ -119,7 +119,13 @@ type Guard struct {
 	completions atomic.Int64
 }
 
-// Completions is how many prompts this session sent to the local model.
+// isProviderAPIPath reports whether a path is one the provider config would make
+// a client ask for. Anything else reaching this port came from something that is
+// not the client, and must not count as the client having seen the worker.
+func isProviderAPIPath(p string) bool {
+	return strings.HasSuffix(p, "/chat/completions") || strings.HasSuffix(p, "/models")
+}
+
 // SawTraffic reports whether the client sent the guard anything at all.
 //
 // False with zero completions means opencode never used the provider block:
@@ -135,6 +141,7 @@ func (g *Guard) SawTraffic() bool {
 	return g.requests.Load() > 0
 }
 
+// Completions is how many prompts this session sent to the local model.
 func (g *Guard) Completions() int64 {
 	if g == nil {
 		return 0
@@ -271,13 +278,19 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 	// against itself and leave them racing each other.
 	oneAtATime := make(chan struct{}, 1)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Counted before anything else, and for every request rather than only
-		// completions. A session that dispatched nothing is three different
-		// things, and this is what separates them: if the client asked for the
-		// model list and then never sent a completion, it saw the worker and
-		// declined. If nothing arrived at all, the wiring never reached it, and
-		// that is our bug rather than the orchestrator's judgement.
-		g.requests.Add(1)
+		// Counted for API-shaped requests only, not for everything that reaches
+		// the port. A session that dispatched nothing is three different things,
+		// and this is what separates them: a client that asked for the model list
+		// and then sent no completion saw the worker and declined, while nothing
+		// at all means the wiring never reached it.
+		//
+		// The filter matters. This listens on localhost, and localhost ports get
+		// probed by browsers, security agents and stray curls. One of those would
+		// flip this to true and permanently misclassify broken wiring as an
+		// orchestrator refusal — the exact confusion the counter exists to end.
+		if isProviderAPIPath(r.URL.Path) {
+			g.requests.Add(1)
+		}
 		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
 			proxy.ServeHTTP(w, r)
 			return
