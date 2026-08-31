@@ -67,12 +67,16 @@
 #   --allow-all-tools for non-interactive mode, so the agent can read/write/run
 #   inside that scratch directory. It is removed on exit unless you pass --keep.
 #
-#   The agent EDITS that workspace: t1 fixes a typo, t4 extends a handler, t6
-#   renames a variable across three files. So the workspace is rebuilt from a
-#   pristine template before EVERY prompt, not once per suite and not once per
-#   --repeat pass. Two samples of one prompt have to meet the same repo, or
-#   the median --repeat exists to produce is a median over a fixture that
-#   drifted: run 2 of t1 would find no typo left to fix, and run 2 of t6 no
+#   The agent EDITS that workspace: t1 fixes a typo and t6 renames a variable
+#   across three files. So the workspace is rebuilt from a pristine template
+#   before EVERY prompt, not once per suite and not once per --repeat pass.
+#   The one exception is a continuation turn (test 4's second and third), which
+#   answers questions asked about the workspace as turn one found it and would
+#   be describing a repo that no longer exists if it were reseeded.
+#
+#   Per prompt, not per pass: two samples of one prompt have to meet the same
+#   repo, or the median --repeat exists to produce is a median over a fixture
+#   that drifted: run 2 of t1 would find no typo left to fix, and run 2 of t6 no
 #   `maksAntall` left to rename.
 #
 # WHAT THE SCRATCH WORKSPACE CONTAINS
@@ -150,11 +154,14 @@
 #
 # COST
 #   One live model call per prompt, not per assertion: assertions that can be
-#   read off the same transcript share it.
-#     nav-pilot      5 calls per pass (tests 2 and 3 share one prompt)
+#   read off the same transcript share it. Test 4 is the exception in the other
+#   direction: it is one assertion over three turns, because no single prompt
+#   reaches a Fase 2 plan (see the note at the test, and #534).
+#     nav-pilot      7 calls per pass (tests 2 and 3 share one prompt, test 4
+#                    spends three: an interview, its answers, a confirmation)
 #     code-review    2 calls per pass (cr1, cr2 and cr3 share one)
 #     accessibility  3 calls per pass (uu1 and uu2 share one)
-#   --repeat N multiplies that: nav-pilot at --repeat 5 is ~25 calls.
+#   --repeat N multiplies that: nav-pilot at --repeat 5 is ~35 calls.
 #
 # USAGE
 #   ./scripts/nav-pilot-golden.sh                 # run all tests
@@ -506,7 +513,7 @@ EOF
 # ⚠️  Baselines in docs/golden-baselines/ recorded before 2026-08-31 measured
 # the old placeholder fixture. NONE of their sizes are comparable with runs made
 # after this change — every prompt explores this repo in Fase 1, so a bigger
-# fixture moves t1 and t2 as surely as it moves t4 and t6, and --compare across
+# fixture moves t1 and t2 as surely as it moves t4a and t6, and --compare across
 # that boundary would report a fixture change as a persona change. This comment
 # is not the enforcement: FIXTURE_SUM below is, so that a --compare in six
 # months says it without anyone having read this.
@@ -643,9 +650,9 @@ fi
 # here would warn "not comparable" on exactly the comparison it is built to make.
 FIXTURE_SUM="$( (cd "$TEMPLATE" && find . -type f -not -path './.github/*' -exec cksum {} + 2>/dev/null) | sort | cksum | awk '{print $1}' )"
 
-# The agent writes to $WS (t1 fixes the README typo, t4 extends a handler, t6
-# renames maksAntall), so $WS is thrown away and rebuilt from $TEMPLATE before
-# every prompt. Per prompt, not per --repeat pass: within one pass the prompts
+# The agent writes to $WS (t1 fixes the README typo, t6 renames maksAntall), so
+# $WS is thrown away and rebuilt from $TEMPLATE before every prompt (except a
+# continuation turn — see run_prompt). Per prompt, not per --repeat pass: within one pass the prompts
 # also touch each other's files, and re-copying is cheap enough that the
 # stronger guarantee costs nothing.
 #
@@ -721,18 +728,46 @@ run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$R
 MIN_TRANSCRIPT_BYTES=40
 LAST_PROMPT_DETAIL=""
 
+# Sessions this pass has already opened, as a space-padded list of ids. It is
+# what tells run_prompt whether a given --session-id is turn one of a
+# conversation or a later turn of one already under way, so no caller has to
+# pass that fact in and get the order wrong. Reset per pass by the caller
+# generating a fresh id (see test 4): an id reused across --repeat would make
+# run 2 continue run 1's conversation instead of sampling a new one.
+SESSIONS_SEEN=" "
+
 run_prompt() {
-  # run_prompt <slug> <prompt> → writes transcript to $(tx <slug>)
+  # run_prompt <slug> <prompt> [session-id] → writes transcript to $(tx <slug>)
   # Returns 0 if the transcript is usable, 1 if it is missing/too short to
   # assert against. Callers MUST branch on this — see record_error.
-  local slug="$1" prompt="$2" out
+  #
+  # SESSION-ID (optional) makes a prompt part of a multi-turn conversation. The
+  # first call carrying a given id opens the session; every later call carrying
+  # the same id is another turn in it, and the client replays the earlier turns
+  # as context. Omit it and the call is a standalone one-turn prompt, which is
+  # what every test but 4 wants and byte-for-byte what they got before.
+  #
+  # A continuation does NOT reseed the workspace. The point of turn two is to
+  # answer the questions turn one asked about this repo; resetting the files
+  # underneath the conversation would leave the client describing a workspace
+  # that no longer exists. Turn one of a session reseeds like any other prompt.
+  local slug="$1" prompt="$2" session="${3:-}" out
   out="$(tx "$slug")"
   local -a args=(-p "$prompt" --agent "$AGENT_NAME" --allow-all-tools --no-color --log-level none)
   [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
 
-  # Fresh repo per prompt. Three of the prompts below tell the agent to edit
+  local continuing=false
+  if [[ -n "$session" ]]; then
+    args+=(--session-id "$session")
+    case "$SESSIONS_SEEN" in
+      *" $session "*) continuing=true ;;
+      *) SESSIONS_SEEN="$SESSIONS_SEEN$session " ;;
+    esac
+  fi
+
+  # Fresh repo per prompt. Several of the prompts below tell the agent to edit
   # this workspace, so without this the second sample of t1 finds no typo.
-  seed_ws
+  $continuing || seed_ws
   ws_fingerprint >"$FP_BEFORE"
 
   echo "${DIM}  → $(run_tag)prompting ($slug)…${RESET}" >&2
@@ -936,49 +971,145 @@ MIN_OPEN_QUESTIONS=3
 RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 
 # ── Test 4 vocabulary ───────────────────────────────────────────────────────
-# Test 4's presence gate is RE_FASE2_WORK, the same expression test 2 uses as
-# its leak detector. One expression, read in two directions: what test 2 must
-# not see is exactly what test 4 must see, and it is measured in both (t2 0/18,
-# t4 18/18).
+# Test 4 is the only multi-turn test in this harness. The reason is #534: no
+# single non-interactive prompt reaches a Fase 2 plan. A prompt weak enough to
+# clear the blocking interview triggers at `### Fase 1: Intervju` is classified
+# trivial and simply done — the calibration run in #534 put five samples of a
+# compressed-tier prompt through the persona and all five went straight to
+# edits, 901-1075B, zero occurrences of «fase» and zero of «sone». A prompt
+# strong enough to be worth planning is Full tier, and Full tier stops in Fase 1
+# by design, which is what test 2 asserts on 18 of 18 transcripts. There is no
+# prompt in the gap, and looking for one was the third design of this test to
+# fail.
 #
-# It used to have its own regex, `Grønn sone|accessPolicy`, and the accessPolicy
-# half was the bug (#519). Two of eighteen *Fase 1* responses name accessPolicy,
-# reporting that the seeded nais.yaml lacks one. On those runs the gate opened
-# on a Fase 1 answer, and `present "$T4" 'Rød sone'` then matched the
-# `• 🔴 Rød sone: [liste, eller «ingen»]` line of the Fase 1 checkpoint template
-# — the vacuous pass the block comment at test 4 says must never happen.
+# So the plan is reached the way a user reaches it: by finishing the interview.
 #
-# This is not the false failure #491 removed. That one was accessPolicy used as
-# test 2's *leak* detector, firing on correct Fase 1 answers. Dropping it here
-# removes the same word from the other direction.
-# A Fase 2 plan was produced. Test 4's gate, and deliberately independent of the
-# zone declarations, because zone presence is the thing under test: using
-# `Grønn sone` as the plan detector conflated "a plan exists" with "a green zone
-# was declared", so a plan that dropped BOTH zones — the wholesale-trimming
-# regression this assertion exists to catch — was filed as "no plan" instead of
-# as the failure it is. `Grønn sone` stays as one alternative among several, but
-# it is no longer what decides whether a plan exists.
+#   turn 1 (t4a)  test 2's prompt, verbatim. The only prompt in this harness
+#                 with a measured stop rate, and the stop is the precondition.
+#   turn 2 (t4b)  T4_ANSWERS. The persona answers this with the Fase 1
+#                 checkpoint and stops again — `### Phase transition format`
+#                 ends "Bekreft for å fortsette", and the phase machine's exit
+#                 criterion for Fase 1 is "answers still pending".
+#   turn 3 (t4c)  T4_CONFIRM. The confirmation the checkpoint asks for.
 #
-# The markers are the persona's own headings, all of which put a colon straight
-# after the number or the word «ferdig» after it:
+# ⚠️  #534 proposed two turns. Three is what the persona actually needs, and the
+# third is not padding: answering the questions ENDS Fase 1, it does not enter
+# Fase 2. The first live run of the two-turn version got a complete, correct
+# `✅ Fase 1 ferdig` block in turn two, with `• 🔴 Rød sone:` filled in as a
+# checkpoint summary line, and no plan. That transcript is also the reason the
+# plan gate below cannot key on red-zone wording: a Fase 1 checkpoint carries it.
 #
-#   📐 Fase 2: Plan         `### Delegation format` (agent file :139)
-#   ✅ Fase 2 ferdig        `### Phase transition format` (:120), filled for 2
-#   🟢 Grønn sone           the zone block of `### Fase 2: Plan` item 10 (:211)
+# All three turns run in one client session (`--session-id`, see run_prompt), so
+# turn two does not have to restate the interview it is answering.
 #
-# Deliberately NOT a bare `Fase 2`: two of eighteen Fase 1 answers refer forward
-# to it in prose («jeg bygger plan i Fase 2», «kommer i Fase 2-planen»), and
-# naming the next phase is what stopping before it looks like. Requiring the
-# colon or «ferdig» excludes both of those phrasings.
+# The turns are a separate session from test 2's, not a fourth assertion hung
+# off test 2's transcript. That costs two extra model calls per pass (7, not 5),
+# and buys `--only 4` as a self-contained test plus a test 2 whose sample
+# nothing else perturbs. Test 2 and test 4 have shared machinery before, and the
+# note above RE_FASE2_WORK is what that cost.
+
+# The answers to Fase 1, fixed and written down rather than generated. A
+# generated answer would make each run measure the answer as much as the
+# persona, and two runs would not be samples of the same thing.
 #
-# ⚠️  PROVISIONAL, and known to be insufficient on its own. It is derived from
-# the persona file rather than from measured output, and every expression written
-# that way for this test has turned out to admit some Fase 1 shape: a response can
-# quote the Fase 2 zone template forward, pre-declare «🔴 Rød sone: ingen for
-# denne oppgaven», or simply name «Fase 2: Plan» in a sentence. That is why test
-# 4 cannot report green at all — see the calibration note at the test itself.
-# Do not widen this to a bare `Fase 2`, and do not narrow it hoping for a pass.
-RE_FASE2_PLAN='Fase[[:space:]]*2[[:space:]]*:|Fase[[:space:]]*2[[:space:]]+ferdig|Grønn sone'
+# Keyed to the blind-spot table at `### Fase 1: Intervju` rather than to any one
+# run's phrasing, because the persona's numbering is fixed and its wording is
+# not. All eleven are answered, and every answer is a decision rather than a
+# deferral: an answer that leaves a choice open ("det har vi ikke bestemt") is
+# an invitation to ask again, and the turn after it would be a second interview
+# instead of a plan. The two follow-ups the first live run still came back with
+# — which downstream service is called, and whether the frontend exists — are
+# answered here for the same reason.
+#
+# Note #11: new technology is a red-zone candidate by the persona's own table,
+# so this plan has something to declare. The assertion does not require that —
+# «🔴 Rød sone: ingen for denne oppgaven» is a valid declaration per
+# `### Fase 2: Plan` item 10, and RE_T4_RED_ZONE below accepts it. What the
+# answer does is make the interesting branch the one that gets exercised.
+#
+# Deliberately absent from both texts: «plan», «Fase 2», «sone», «grønn», «rød».
+# The transcript holds the model's output and not the prompt, so an echo cannot
+# reach an assertion, but a prompt that hands the model the words the assertion
+# greps for is measuring the prompt.
+T4_ANSWERS='Her er svarene på spørsmålene fra intervjuet:
+
+1. Personvern: ja, vi behandler fødselsnummer og navn. Behandlingsgrunnlaget er lovhjemmel, ikke samtykke.
+2. Tilgangskontroll: innbygger kaller tjenesten selv fra nettleser, innlogget med ID-porten. Ingen saksbehandlere og ingen eksterne parter.
+3. Feilhåndtering: tjenesten kaller PDL nedstrøms for navn. Er PDL nede skal kallet feile med 503 og bli logget. Ingen kø og ingen dead-letter.
+4. Observabilitet: antall oppslag per minutt og andel feilende kall.
+5. Teamgrenser: vi eier hele flyten selv. PDL er den eneste avhengigheten.
+6. Endringsomfang: eneste konsument er vår egen Next.js-frontend, og den finnes allerede.
+7. Teststrategi: ingen tester i dag, tjenesten finnes ikke enda.
+8, 9 og 10. Nybygg. Ingen gammel løsning, ingen bakoverkompatibilitet og ingenting som skal avvikles.
+11. Kompetanse: TokenX og Wonderwall er nytt for teamet.
+
+Det er alle svarene.'
+
+# The confirmation the Fase 1 checkpoint asks for, and the whole of turn three.
+# «Bekreftet» is the persona's own word («Bekreft for å fortsette»). The second
+# sentence exists because the checkpoint may still list open questions even when
+# every blind spot has been answered — the first live run listed two — and a
+# turn that answers those instead of confirming is another interview turn.
+T4_CONFIRM='Bekreftet. Ingen flere avklaringer fra meg — bruk antakelsene dine der noe er uavklart, og gå videre.'
+
+# A Fase 2 plan was produced in turn three. Test 4's gate.
+#
+# MEASURED, over the fifteen transcripts of the five-run calibration below, and
+# read across all three turns because the interesting question is what separates
+# a plan from the two Fase 1 shapes that precede it:
+#
+#   t4a 0/5, t4b 0/5, t4c 5/5
+#
+# Two markers, each independently 0/5, 0/5, 5/5, so neither is carrying the
+# other:
+#
+#   Fase 2:        the plan's own heading. Every one of the five opened with
+#                  `## Fase 2: Plan`, one of them `## 📐 Fase 2: Plan`, which is
+#                  `### Delegation format` (agent file :139).
+#   Fase 2 ferdig  `### Phase transition format` (:120), filled in for phase 2.
+#                  Every one of the five closed with it.
+#
+# A bare `Fase 2` is deliberately not accepted, and this run says why as loudly
+# as #491's did: all five Fase 1 turns name the next phase, in prose («klar for
+# Fase 2», «så går jeg videre til Fase 2»). Naming the next phase is what
+# stopping before it looks like. The colon and «ferdig» are what exclude it.
+#
+# ⚠️  DELIBERATELY INDEPENDENT OF THE ZONE DECLARATIONS, and the calibration is
+# what turns that from a principle into a measurement. `Grønn sone` — the old
+# gate's other half — is 4/5 on t4c: run 1 produced a complete plan with a red
+# zone and wrote the green half as «🟢 Genereres av nav-pilot» without the word
+# «sone». A zone-keyed gate would have filed that plan as «no plan». That is the
+# wholesale-trimming regression this assertion exists to catch, filed as amber.
+#
+# The other half of the old gate was `accessPolicy`, and that was the #519 bug:
+# a Fase 1 answer that reports the seeded nais.yaml has none opened the gate on
+# an interview turn. Neither word decides whether a plan exists any more.
+RE_FASE2_PLAN='Fase[[:space:]]*2[[:space:]]*:|Fase[[:space:]]*2[[:space:]]+ferdig'
+
+# The red-zone declaration itself, inside a plan. The second of the two things
+# #534 says to derive separately, and it is derived separately: the gate above
+# shares no alternative with it.
+#
+#   t4a 0/5, t4b 3/5, t4c 5/5
+#
+# The 3/5 on t4b is the whole reason this test is gated and not a bare grep, and
+# it is the trap that broke four attempts: a Fase 1 checkpoint carries
+# `• 🔴 Rød sone:` as a summary line, so red-zone wording alone says nothing
+# about whether a plan was produced. Bare `Rød sone` measures t4b 5/5. What
+# separates the two turns is RE_FASE2_PLAN, not this expression, and this
+# expression is not asked to do that job.
+#
+# What it does ask for is the declaration's shape: the label followed by the
+# separator that introduces its list. All five plans wrote
+# `🔴 Rød sone — skriv selv`, which is `### Fase 2: Plan` item 10 (:211). The
+# colon covers the mandatory empty form, «🔴 Rød sone: ingen for denne
+# oppgaven», which is a valid declaration and must pass.
+#
+# The separator is what rejects a passing mention: «se rød sone under» and a
+# `# 🔴 rød sone` annotation in a file-tree listing both appeared in these
+# transcripts, and neither is a declaration. A plan that annotated a tree and
+# then dropped the block would pass on a bare `Rød sone` and fails here.
+RE_T4_RED_ZONE='Rød sone[[:space:]]*(—|–|:)'
 RE_OPUS='nav-pilot-opus'
 
 # One pass over the selected prompts. Called once per --repeat, so every
@@ -1090,85 +1221,66 @@ run_pass_nav_pilot() {
 
   # ── Test 4 — every Fase 2 plan declares a red zone ───────────────────────────
   # Invariant: Boundaries → ✅ Always, "Include 🔴 Rød-sone-deklarasjon in every
-  # Phase 2 plan". A compressed-tier prompt is used because compressed tier
-  # traverses all phases in one response by design, so Fase 2 output is reachable
-  # in a single non-interactive call. "Rød sone: ingen" is a valid declaration —
-  # the invariant is that the declaration exists, not that anything is red.
+  # Phase 2 plan", and `### Fase 2: Plan` item 10, which calls it MANDATORY.
   #
-  # ⚠️  THE PROMPT MUST NOT ASK FOR A NEW ENDPOINT, NEW DATA OR NEW AUTH. It used
-  # to ask for "et nytt REST-endepunkt", and that prompt cannot reach Fase 2 by
-  # construction (#519): `### Fase 1: Intervju` marks blind spots #1 and #2
-  # "required regardless of scope tier if the change touches user data, new API
-  # endpoints, or any auth configuration", `### ✅ Always` repeats it, and
-  # `## Request scope classification` sends new API contracts to Full. All three
-  # samples of that prompt correctly stopped in Fase 1 with questions open.
+  # THREE TURNS, one session: the full-tier prompt, the answers to the interview
+  # it opens, and the confirmation its checkpoint asks for. Why it cannot be one
+  # turn, and why it cannot be two, is in the vocabulary block above.
   #
-  # The prompt below extends an existing handler and an existing response model.
-  # Its tail restates the compressed-tier criteria from `## Request scope
-  # classification` — not verbatim: "no new service boundary, no new data flows"
-  # is given as "ingen nye endepunkter, ingen persondata", because those are the
-  # two blocking triggers at `### Fase 1: Intervju` that have to be defused for
-  # any tier to reach Fase 2 at all. The fixture backs the premise: the Ktor
-  # skeleton really does have /api/oppgaver, in Routes.kt, with its response
-  # model in Oppgave.kt.
+  # WHAT THE EARLY TURNS GATE ON. Turn one must reach Fase 1 and must not have
+  # done Fase 2 work, checked with test 2's own two expressions. A turn one that
+  # skipped the interview never asked the questions turn two answers, so the plan
+  # turn three produced would not be the one under test: that is "not evaluated",
+  # neither a pass nor a failure, and it is test 2's failure to report.
   #
-  # ⚠️  The prompt does tell the model most of its own classification criteria,
-  # which weakens test 4 as evidence that the persona classifies correctly. It
-  # is not evidence of that and never was — the assertion is about the red-zone
-  # rule, and the tier is a precondition for reaching it in one non-interactive
-  # call. Measuring classification wants its own assertion on a prompt that
-  # states only the shape of the change. Not done here; see #519.
+  # CALIBRATED 2026-08-31, `--only 4 --repeat 5 --keep --model claude-sonnet-4.6`
+  # against the fixture and persona of this commit. Fifteen transcripts, five of
+  # each turn, read by hand. The model is pinned because the persona is the one
+  # agent file with no `model:` field, and it is the model of
+  # docs/golden-baselines/2026-08-31-persona-checkpoint-fix-v3.txt so the sizes
+  # sit next to something. Result 5/5, with the two expressions above measured
+  # at t4a 0/5, t4b 0/5, t4c 5/5 and t4a 0/5, t4b 3/5, t4c 5/5. Medians:
+  # t4a 1073B (907-1173), t4b 1274B (1251-1647), t4c 6318B (4599-7366).
   #
-  # ⚠️  TEST 4 CANNOT REPORT GREEN. This is deliberate, and it is not a bug.
+  # The pass branch is restored on that basis, and it is not vacuous: replaying
+  # the same fifteen transcripts with every red-zone declaration line stripped
+  # out of t4c reports the test RED, and replaying them with the two plan
+  # markers stripped reports it "not evaluated". Neither degrades to green.
   #
-  # The assertion needs to tell a Fase 2 plan apart from a Fase 1 stop. Four
-  # attempts derived that distinction from the persona file, and review broke
-  # every one of them, each time with a *different* Fase 1 shape:
-  #
-  #   present 'Rød sone'          the Fase 1 checkpoint template carries the words
-  #   + accessPolicy gate         a Fase 1 answer naming the seeded nais.yaml
-  #   + `● Edit` mutation gate    a Fase 1 stop that leaks one mutation line
-  #   + `[liste` placeholder      a compliant model FILLS the template in
-  #   + `•` bullet exclusion      the persona has TWO zone-bearing templates, and
-  #                               a Fase 1 stop may quote the Fase 2 one forward
-  #
-  # The pattern is not that the regexes were careless. It is that we have no
-  # ground truth: there is no measured Fase 2 transcript anywhere in this repo to
-  # derive from. All three kept t4 samples stop in Fase 1, and the 18/18 behind
-  # RE_FASE2_WORK was measured against the *old* prompt, which this PR replaced.
-  # #491 got its expressions right because it derived them from 36 measured
-  # transcripts. Guessing from the spec has now failed four times running.
-  #
-  # So the pass branch is disabled until it can be calibrated. What survives is
-  # the half that does not need ground truth: a response that reaches a plan and
-  # contains no red-zone wording at all has demonstrably lost the declaration,
-  # and that is still RED. Everything else is "not evaluated".
-  #
-  # An amber is honest when we cannot tell a pass from a vacuous one. A green is
-  # not: it launders a regression, and unlike an amber nobody ever reads it.
-  #
-  # TO CALIBRATE (and re-enable the pass branch):
-  #   1. ./scripts/nav-pilot-golden.sh --only 4 --repeat 5 --keep --model <pinned>
-  #   2. Read the kept t4 transcripts BY HAND. Do not skim for a keyword.
-  #   3. Derive two things from what the model actually emits: what marks a plan,
-  #      and what marks the red-zone declaration inside one. Record the hit rates
-  #      the way the test 2 vocabulary above does (`t2 0/18, t4 18/18`).
-  #   4. Only then restore `record 4 "$DESC4" 0` behind those expressions.
-  # Until step 3 has real numbers next to it, leave this branch alone.
+  # SLUGS. The turns are recorded as t4a, t4b and t4c, and the t4 slug is
+  # retired. Baselines key on slugs, so a baseline recorded before this change
+  # has a t4 row and no t4a/t4b/t4c rows: `--compare` prints the new slugs
+  # against a "-" baseline instead of silently comparing a one-turn
+  # compressed-tier answer against turn three of a full-tier conversation. All
+  # three turns are measured, because they are different lengths of different
+  # things and one median over them would describe none of them. t4c is the
+  # plan; t4a is an interview turn and should track t2, which is the same prompt.
   if selected 4; then
-    DESC4="Fase 2 output contains a 🔴 Rød sone declaration  ${YELLOW}(uncalibrated)${RESET}"
-    T4="$(tx t4)"
-    if ! run_prompt t4 "legg til feltet antall i responsen fra det eksisterende /api/oppgaver-endepunktet i Ktor-tjenesten — flere filer, kjent mønster, ingen nye endepunkter, ingen persondata, ingen endringer i auth"; then
-      record_error 4 "$DESC4" "$LAST_PROMPT_DETAIL"
-    elif ! present "$T4" "$RE_FASE2_PLAN"; then
+    DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
+    T4A="$(tx t4a)"; T4C="$(tx t4c)"
+    # One session id per pass, generated fresh so that --repeat samples separate
+    # conversations rather than piling fifteen turns into one.
+    S4="$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+    if ! run_prompt t4a "ny tjeneste som leser fnr fra ID-porten" "$S4"; then
+      record_error 4 "$DESC4" "turn 1 (intervju): $LAST_PROMPT_DETAIL"
+    elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
-        "no Fase 2 plan in the response (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the response stopped in Fase 1, or it took a trivial-tier single pass. Re-run with --keep and read the transcript."
-    elif ! present "$T4" 'Rød sone'; then
+        "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turns 2 and 3 answered and confirmed an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
+    elif ! present "$T4A" "$RE_FASE1_REACHED"; then
+      record_error 4 "$DESC4" \
+        "turn 1 produced no Fase 1 output (no match for: $RE_FASE1_REACHED) and no Fase 2 work either, so there is no interview for turn 2 to answer. Re-run with --keep and read t4a before touching anything here."
+    elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
+      record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
+    elif ! run_prompt t4c "$T4_CONFIRM" "$S4"; then
+      record_error 4 "$DESC4" "turn 3 (bekreftelse): $LAST_PROMPT_DETAIL"
+    elif ! present "$T4C" "$RE_FASE2_PLAN"; then
+      record_error 4 "$DESC4" \
+        "turn 3 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close in turn 2 and the persona asked again, or the session did not carry the earlier turns. Re-run with --keep and read t4b and t4c in order."
+    elif ! present "$T4C" "$RE_T4_RED_ZONE"; then
       record 4 "$DESC4" 1 \
-        "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon anywhere in the response — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always"
+        "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: $RE_T4_RED_ZONE) — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not."
     else
-      record_error 4 "$DESC4" \
-        "UNCALIBRATED — the response reached a plan and mentions a red zone, but this harness cannot yet tell that apart from a Fase 1 stop that quotes the Fase 2 zone template forward, so it will not call it a pass. No measured Fase 2 transcript exists to derive the distinction from. Calibrate with: --only 4 --repeat 5 --keep --model <pinned>, read the transcripts by hand, then restore the pass branch behind expressions with real hit rates. See the note above this test."
+      record 4 "$DESC4" 0
     fi
   fi
 
