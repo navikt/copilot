@@ -257,6 +257,44 @@ func TestUnresolvableSourceFallsBackToLegacy(t *testing.T) {
 	assertDefaultPakkeActive(t)
 }
 
+// TestUnresolvableSourceRefusesWhenPayloadIsRemembered is the third case beside
+// TestUnresolvableSourceFallsBackToLegacy and TestUnusableManifestAbortsLaunch:
+// the source cannot be reached, but an earlier launch already learned that it
+// declares payloads for this client. "Nothing yet says this is Tier 2" is not
+// true then, so warning and taking the legacy path would inject the user's own
+// ~/.copilot behind a warning the client TUI wipes off the screen (#504, U8).
+func TestUnresolvableSourceRefusesWhenPayloadIsRemembered(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+
+	// What rememberTier wrote on the launch that pinned the revision the user
+	// has since deleted.
+	writeTierCache(t, map[string]tierCacheEntry{
+		tierCacheKey("navikt/grillmester", "copilot"): {Tier: agentpakke.TierPayload, LearnedAt: time.Now()},
+	})
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err == nil {
+		t.Fatalf("tryPakkeLaunch(offline over a remembered payload source) = (%v, %v), want (true, error) — the launch must refuse, not degrade", handled, err)
+	}
+	for _, want := range []string{
+		"navikt/grillmester",
+		"no route to host",
+		"nav-pilot sync --apply",
+		`nav-pilot config set source ""`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not mention %q, got: %v", want, err)
+		}
+	}
+	assertDefaultPakkeActive(t)
+}
+
 // TestTier2LaunchIsNotOfferedUnsandboxed pins the flow fix: a Tier 2 launch is
 // refused before the "Launch without the cplt sandbox?" question is asked, so
 // the user is never talked into a confirmation that is then overruled. If the
