@@ -176,8 +176,10 @@
 #   1  at least one assertion failed
 #   2  preflight failed (no client, not authenticated, agent file missing,
 #      an --agent with no assertion group, bad flag)
-#   3  no assertion failed, but at least one test could not be evaluated
-#      (empty transcript, or the response never reached the phase under test).
+#   3  nothing failed, but nothing was proven either: at least one test could
+#      not be evaluated (empty transcript, or the response never reached the
+#      phase under test), or the selection contained no assertion that can fail
+#      at all (--only naming only soft IDs, like `--only 2b`).
 #      This is deliberately NOT 0: a test that never ran has proven nothing.
 #
 #   Soft checks (ids like 2b) never change the exit code, in either direction.
@@ -196,6 +198,7 @@ TIMEOUT_SECS="${NAV_PILOT_GOLDEN_TIMEOUT:-300}"
 AGENT="nav-pilot"
 PERSONA=""
 AGENT_NAME=""
+VALID_IDS=""
 
 # Per-prompt wall-clock guard, so one hung call cannot stall the suite. macOS
 # has no coreutils `timeout` by default; fall back to running unguarded.
@@ -263,21 +266,55 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # An --agent with no assertion group must not run. It would select zero tests
 # and print "All 0 assertions passed ✓" with exit 0, which is the loudest
 # possible vacuous pass: someone repins a model, sees green, ships.
+#
+# VALID_IDS is that list made explicit, so --only can be checked against it.
+# Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
+# an ID added there and not here is rejected by --only.
 case "$AGENT" in
-  nav-pilot|code-review|accessibility) ;;
+  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6" ;;
+  code-review)   VALID_IDS="cr1 cr2 cr3 cr4" ;;
+  accessibility) VALID_IDS="uu1 uu2 uu3 uu4" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
       "This harness has prompts and assertions for: nav-pilot, code-review, accessibility. Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
 esac
 
+# --only is the same trap one level down. IDs are prefixed per agent, so
+# `--agent code-review --only 2` matches no cr* ID: every `selected` call
+# returns false, nothing runs, and the summary reads "All 0 assertions
+# passed ✓" with exit 0. An ID the selected agent does not have is a typo
+# or a stale command line, never a request to assert nothing.
+if [[ -n "$ONLY" ]]; then
+  IFS=',' read -r -a only_ids <<<"$ONLY"
+  for only_id in "${only_ids[@]}"; do
+    [[ " $VALID_IDS " == *" $only_id "* ]] || fail_preflight \
+      "--only '$only_id' is not an assertion ID for agent '$AGENT'" \
+      "Assertion IDs for $AGENT: $VALID_IDS"
+  done
+fi
+
 # What the CLI is told to load. Read from the agent file's frontmatter, not
 # guessed from the filename: accessibility.agent.md declares
 # `name: accessibility-agent`, and --agent accessibility would silently load
 # nothing. First `---` opens the block, the first `name:` inside it wins.
-AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:[[:space:]]*/, ""); print; exit}' "$PERSONA" | tr -d "\"'" | tr -d '[:space:]')"
+# The value is only trimmed and unquoted one layer, never squeezed: deleting
+# every space would turn `name: a b` into the plausible-looking `ab` and walk
+# it straight past the check below, launching an agent the file never declared.
+AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:[[:space:]]*/, ""); print; exit}' "$PERSONA" | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")"
 [[ -n "$AGENT_NAME" ]] || fail_preflight \
   "$PERSONA has no 'name:' in its frontmatter" \
   "The CLI is launched with --agent <that name>; without it the harness cannot know which agent it would actually be measuring."
+
+# The name is frontmatter, and frontmatter is untrusted input on a branch
+# nobody has read yet. It is interpolated straight into a destination path
+# ($TEMPLATE/.github/agents/$AGENT_NAME.agent.md), so a `name: ../../../etc/x`
+# would have cp write outside the scratch workspace. Check it looks like a
+# filename before using it as one: letters, digits, '-' and '_', nothing else.
+# Every name in agents/ matches; they happen to be lowercase and hyphenated,
+# but the check does not require that.
+[[ "$AGENT_NAME" =~ ^[A-Za-z0-9_-]+$ ]] || fail_preflight \
+  "$PERSONA declares an unusable agent name: '$AGENT_NAME'" \
+  "It becomes a filename and a --agent argument, so it must be letters, digits, '-' or '_' only."
 
 [[ "$REPEAT" =~ ^[1-9][0-9]*$ ]] || fail_preflight \
   "--repeat takes a positive integer, got '$REPEAT'" \
@@ -858,7 +895,7 @@ run_pass_nav_pilot() {
   # N/11` with justification for the skipped ones is required by `### Fase 1:
   # Intervju`, it is the one field the prose ending does not replace in any run,
   # and it is a real audit loss for as long as it is missing.
-  if selected 2 || selected 3; then
+  if selected 2 || selected 2b || selected 3; then
     DESC2="full tier: response stops after Fase 1 with questions outstanding"
     DESC2B="full tier: Fase 1 checkpoint block emitted, with the blind-spot count"
     DESC3="full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised"
@@ -892,8 +929,10 @@ run_pass_nav_pilot() {
         fi
       fi
 
-      if selected 2; then
-        # SOFT. See the block comment above tests 2 + 2b. Each part is reported
+      if selected 2 || selected 2b; then
+        # SOFT. See the block comment above tests 2 + 2b. `--only 2` keeps
+        # reporting both parts of the split, and `--only 2b` asks for this part
+        # alone; an ID that preflight accepts has to reach the code that runs it. Each part is reported
         # separately: if the audit count starts showing up as prose while the block
         # still does not, that is progress and the next attempt should see it.
         missing=""
@@ -1455,7 +1494,14 @@ if [[ -n "$COMPARE_TO" ]]; then
   # is what a missing field means. Silence would let a nav-pilot baseline be
   # compared against a code-review run and reported as a size regression.
   BASE_AGENT="$(sed -n 's/^# agent:[[:space:]]*//p' "$COMPARE_TO" | head -1)"
-  [[ -n "$BASE_AGENT" ]] || BASE_AGENT="nav-pilot (assumed: baseline predates --agent)"
+  if [[ -z "$BASE_AGENT" ]]; then
+    # The assumption is a note, not part of the compared value. Folding it into
+    # BASE_AGENT made the string never equal "nav-pilot", so every valid
+    # nav-pilot-to-nav-pilot comparison against an older baseline warned about
+    # a mismatch that was not there.
+    BASE_AGENT="nav-pilot"
+    echo "  ${DIM}baseline has no agent line, so it predates --agent and can only have measured nav-pilot. Compared as nav-pilot.${RESET}"
+  fi
   [[ "$BASE_AGENT" == "$AGENT" ]] || \
     echo "  ${YELLOW}⚠ baseline agent: '$BASE_AGENT', this run: '$AGENT'. Different agents, different prompts. Not comparable.${RESET}"
   compat_warn model "${MODEL:-CLI default}"
@@ -1510,6 +1556,18 @@ fi
 echo "─────────────────────────────────────────────"
 if [[ $soft_count -gt 0 ]]; then
   echo "${DIM}$soft_count soft check(s) reported above. Soft checks never move the exit code.${RESET}"
+fi
+if [[ $((pass_count + fail_count + error_count)) -eq 0 ]]; then
+  # Preflight rejects an --only that names nothing, but an --only naming only
+  # soft IDs passes it and still asserts nothing: a soft check reports and never
+  # fails, so `--only 2b` alone would reach the green line below with a count of
+  # zero. Same vacuous pass as an unknown ID, one step further down.
+  echo "${YELLOW}${BOLD}No hard assertion ran ⚠${RESET}"
+  if [[ $soft_count -gt 0 ]]; then
+    echo "${DIM}Only soft checks were selected, and a soft check cannot fail. This run proved nothing.${RESET}"
+  fi
+  echo "${DIM}Select at least one assertion that can fail. Assertion IDs for $AGENT: $VALID_IDS${RESET}"
+  exit 3
 fi
 if [[ $fail_count -eq 0 && $error_count -eq 0 ]]; then
   echo "${GREEN}${BOLD}All $pass_count assertions passed ✓${RESET}"

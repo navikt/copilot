@@ -38,19 +38,46 @@ jobs:
         with:
           node-version: 22
 
-      - name: Regenerate pricing data
-        run: node scripts/sync-model-pricing.mjs
-
       - name: Open a PR when prices moved
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           FILE=apps/my-copilot/src/lib/model-pricing.ts
-          if git diff --quiet -- "$FILE"; then
-            echo "Pricing unchanged."
+
+          # The generator stamps today's date into the file on every run, so an
+          # unchanged price list still produces a diff, and we used to open a PR
+          # to close every morning. `--check` compares with both timestamps
+          # normalised out and writes nothing, so ask it whether anything real
+          # moved before regenerating.
+          #
+          # It has three answers and they are not interchangeable. 0: only the
+          # date would change. 2: a price actually moved. 1: the check never got
+          # an answer, because the fetch failed, the parse floor tripped, or a
+          # model came back unpriced. Reading that 1 as drift is how the
+          # timestamp-only PR came back: the check dies, the regeneration's own
+          # fetch then succeeds with unchanged prices, and the only thing left in
+          # the diff is today's date. So an error stops the run instead, loudly.
+          #
+          # GH_TOKEN is set for the whole step because the `gh` calls below need
+          # it. The generator does not, so it is cleared for these invocations
+          # rather than handed a credential it has no use for.
+          check_pricing() {
+            local rc=0
+            GH_TOKEN='' node scripts/sync-model-pricing.mjs --check || rc=$?
+            if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then
+              echo "Pricing check failed (exit $rc). Not treating that as a price change." >&2
+              exit 1
+            fi
+            return "$rc"
+          }
+
+          if check_pricing; then
+            echo "Only the timestamp would move; no price change."
             exit 0
           fi
+
+          GH_TOKEN='' node scripts/sync-model-pricing.mjs
 
           echo "Pricing moved:"
           git diff --stat -- "$FILE"
@@ -77,6 +104,17 @@ jobs:
             # tomorrow's run picks it up.
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" FETCH_HEAD
+
+            # The check above ran against main, and main stays stale for as long
+            # as this PR is open, so it reports drift every morning until the PR
+            # merges. Ask the same question again now that the branch's own file
+            # is the one on disk: exit 0 here means the branch already matches
+            # the page apart from timestamps, so the only thing a push would add
+            # is today's date. That is the commit this workflow exists to avoid.
+            if check_pricing; then
+              echo "The open PR already carries these prices. Nothing to push."
+              exit 0
+            fi
             PUSH_OPTS=""
           else
             git checkout -B "$BRANCH"
