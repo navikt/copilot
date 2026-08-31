@@ -4,13 +4,13 @@ Levende referansedokument for hvilke modeller vi bruker, hvorfor, og hvordan vi 
 
 ## Gjeldende modellpinning
 
-De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` og `local-worker` har det ikke: orkestratoren kjører på klientens egen standardmodell, og `local-worker` bindes til den lokale modellen ved oppstart og skal ikke pinnes. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
+De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke: orkestratoren kjører på klientens egen standardmodell. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
 
 ### Agenter
 
 | Agent | Modell | Begrunnelse |
 |-------|--------|-------------|
-| `@nav-pilot` | Claude Sonnet 4.6 | Sterk på norsk, god på planlegging og arkitektur |
+| `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
 | `@nav-pilot-opus` | Claude Opus 4.6 | Dypest resonnering for høy-risiko beslutninger |
 | `@security-champion` | Claude Opus 4.6 | Sikkerhetskritiske vurderinger krever høyeste presisjon |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
@@ -69,7 +69,7 @@ Vi bytter **ikke** modell automatisk når noe nytt lanseres. Et bytte krever at 
 |-----------|--------|
 | Bekreftet ID | ❌ Ikke verifisert i model picker |
 | Kostnad | ⚖️ Jevnt, se regnestykket under |
-| Testet | ❌ Ikke testet |
+| Testet | ⚠️ Testet på nav-pilot-personaen (45 kjøringer), ikke på en kodegjennomgangsoppgave |
 
 Terra koster $2.00 mot Codex $1.75 på input, men $12.00 mot $14.00 på output, så hvilken som er billigst avhenger av blandingen. Terra er billigere ved alt under åtte input-tokens per output-token, og 1,6 % dyrere ved 10:1 ($2,91 mot $2,86 per million tokens). **Forholdet 10:1 er et anslag, ikke noe vi har målt.** Konklusjonen tåler hele spennet uansett: forskjellen er noen få prosent i begge retninger, og kostnad er ikke lenger et argument mot Terra.
 
