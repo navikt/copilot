@@ -84,7 +84,7 @@ modellsammenligningen over.
 Den alltid-på output-style-instruksjonen fra #481 ble målt før og etter, med
 5 gjentak på én modell (`claude-sonnet-4.6`, klient `copilot`). Baselines:
 `docs/golden-baselines/2026-08-28-before-output-style.txt` og
-`2026-08-28-after-output-style.txt`.
+`docs/golden-baselines/2026-08-28-after-output-style.txt`.
 
 Median byte per prompt:
 
