@@ -528,15 +528,15 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 // Bounded as well as sanitised, because an unbounded field lets a caller push
 // real entries out of a fixed-size buffer.
 func logSafe(v string) string {
-	const max = 128
+	const maxLogged = 128
 	cleaned := strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
 			return '?'
 		}
 		return r
 	}, v)
-	if len(cleaned) > max {
-		return cleaned[:max] + "…"
+	if len(cleaned) > maxLogged {
+		return cleaned[:maxLogged] + "…"
 	}
 	return cleaned
 }
