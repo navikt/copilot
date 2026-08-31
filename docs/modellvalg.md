@@ -11,8 +11,8 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | Agent | Modell | Begrunnelse |
 |-------|--------|-------------|
 | `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
-| `@nav-pilot-opus` | GPT-5.6 Sol | Tung resonnering for høy-risiko beslutninger, billigere enn Opus 4.6 på begge akser |
-| `@security-champion` | GPT-5.6 Sol | Sikkerhetskritiske vurderinger, uten målbart tap mot Opus 4.6 |
+| `@nav-pilot-opus` | GPT-5.6 Sol | Tung resonnering for høy-risiko beslutninger. Billigere enn Opus 4.6 på begge akser under 272K kontekst; over 272K også billigere til kampanjepris, men dyrere til antatt standardpris etter 3. sep 2026. Agenten er ikke målt mot Opus 4.6 |
+| `@security-champion` | GPT-5.6 Sol | Sikkerhetskritiske vurderinger. Agenten er ikke målt mot Opus 4.6 eller mot noen annen modell. Byttet hviler på pris |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
 | `@research` | GPT-5.6 Luna | Leser og søker uten å skrive kode, og Luna koster omtrent en tiendedel av Codex |
@@ -135,13 +135,17 @@ Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
 ## Grunnlaget for Sol-byttet (august 2026)
 
 `@security-champion` og `@nav-pilot-opus` går fra Claude Opus 4.6 til GPT-5.6
-Sol. Golden-prompt-harnessen kjørte nav-pilot-personaen mot fire modeller, og
-Sol skilte seg ikke signifikant fra Claude Sonnet 4.6 på den ene påkrevde
-påstanden som ble målt. Tall, metode og forbehold står i
+Sol. **Byttet hviler på pris. Disse to agentene er ikke målt mot noen modell,
+heller ikke mot den de flytter fra.**
+
+Golden-prompt-harnessen kjørte nav-pilot-personaen mot Claude Sonnet 4.6,
+GPT-5.6 Sol, GPT-5.6 Luna og GPT-5.6 Terra. Opus 4.6, modellen disse to
+agentene faktisk kjører på i dag, var ikke med i målingen, og harnessen tester
+personaen til `nav-pilot`, ikke `@security-champion` og ikke `@nav-pilot-opus`.
+Det som ble målt er én regex-påstand på én prompt, og der skilte Sol seg ikke
+fra Claude Sonnet 4.6 (Fisher p = 1,00). Det betyr umulig å skille, ikke
+likeverdig. Tall, metode og forbehold står i
 [benchmarken og beslutningene fra august 2026](nav-pilot-benchmark-og-beslutninger-2026-08.md).
-Målingen viser ikke at Sol er tryggere enn de andre, bare at kandidatene ikke
-lot seg skille med dette utvalget. Når sikkerhet ikke skiller dem, avgjør
-kostnad.
 
 ### Prisen er en kampanjepris
 
@@ -166,20 +170,37 @@ med oppgaven.
 ### Hva byttet faktisk sparer
 
 Den riktige sammenlikningen er mot Claude Opus 4.6, som er modellen disse to
-agentene kjører på i dag. Sol er billigere enn Opus 4.6 på begge akser både med
-og uten kampanje: $2.00 mot $5.00 og $10.00 mot $25.00 nå, og $4.00 mot $5.00
-og $20.00 mot $25.00 etter 3. september. Det er omtrent 20 prosent billigere på
-begge akser når kampanjen er over, og gevinsten overlever altså kampanjeslutt.
+agentene kjører på i dag. **Under 272K kontekst** er Sol billigere enn Opus 4.6
+på begge akser både med og uten kampanje: $2.00 mot $5.00 og $10.00 mot $25.00
+nå, og $4.00 mot $5.00 og $20.00 mot $25.00 etter 3. september. Det er omtrent
+20 prosent billigere på begge akser når kampanjen er over, og den delen av
+gevinsten overlever kampanjeslutt.
+
+**Over 272K snur det.** Sol har et eget prisnivå for lang kontekst, Opus 4.6 har
+ikke det og koster $5.00 / $25.00 uansett kontekstlengde. Til kampanjepris
+ligger Sol fortsatt under ($4.00 mot $5.00 og $15.00 mot $25.00), men til antatt
+standardpris, $8.00 / $30.00 (se noten om kampanjepriser over), er Sol dyrere
+enn Opus 4.6 på begge akser. Begge disse to agentene er pitchet mot tung
+resonnering over store kodebaser, altså nettopp arbeidslasten som oftest krysser
+272K. Prisgevinsten gjelder korte kontekster, ikke lange.
 
 Mot Claude Sonnet 4.6 er bildet et annet, og det skal ikke brukes som
 begrunnelse. Til kampanjepris ligger Sol 33 prosent under Sonnet 4.6 blandet,
 men til full pris ligger Sol 33 prosent **over**. Sonnet 4.6 er heller ikke
 modellen disse agentene erstatter.
 
-Sol er ikke det billigste Powerful-alternativet. Til full pris ligger både
-GPT-5.3-Codex (2,86 blandet) og Gemini 3.1 Pro (2,91 blandet) under. Valget av
-Sol hviler på at den er nærmeste erstatter for Opus 4.6 i resonneringssjiktet
-og målte likt med de andre kandidatene, ikke på at den er billigst i klassen.
+### Kostnadsregelen peker ikke på Sol
+
+Regelen «når sikkerhet ikke skiller dem, avgjør kostnad» velger ikke Sol. Til
+antatt standardpris ligger Sol på 5,45 blandet, mens GPT-5.3-Codex ligger på
+2,86 og Gemini 3.1 Pro på 2,91. Begge er Powerful-modeller, og begge er
+billigere enn Sol. Fulgt bokstavelig peker regelen på en av dem, ikke på Sol.
+
+Sol er valgt fordi den er nærmeste erstatter for Opus 4.6 i resonneringssjiktet.
+**Det er en vurdering, ikke en måling.** Vi har ingen tall som viser at Sol
+resonnerer bedre enn GPT-5.3-Codex eller Gemini 3.1 Pro på oppgavene disse to
+agentene gjør, og ingen som viser at den holder Opus 4.6-nivået. Argumentet er
+ubelagt, og skal leses som det.
 
 Merk at Sol krever Copilot Pro+ eller høyere plan.
 
@@ -207,7 +228,7 @@ Regnestykket ser bort fra cachet input, der Codex ligger på $0.175 mot Terras $
 
 ## Sjekkliste for nye modeller
 
-> **Notat (24. juli 2026, oppdatert 30. august 2026):** Claude Opus 5 (`claude-opus-5`) er lansert av Anthropic og var kandidat til å erstatte Opus 4.6-pinningene på `@nav-pilot-opus` og `@security-champion`. Listeprisen er identisk med Opus 4.8 ($5.00/$25.00), og Anthropic oppgir vesentlig sterkere resonnering (mer enn dobling av Opus 4.8 på Frontier-Bench v0.1). Begge agentene står nå på GPT-5.6 Sol, som er billigere enn Opus 4.6 på begge akser også etter at kampanjeprisen løper ut 3. september 2026. Opus 5 er fortsatt aktuell hvis en måling viser at den tyngre resonneringen er verdt prisforskjellen, men den er ikke testet mot vår egen golden-prompt. Utrullingen i Copilot er gradvis (GA for Pro+/Max/Business/Enterprise 24. juli), så modellen kan mangle i model picker en periode.
+> **Notat (24. juli 2026, oppdatert 31. august 2026):** Claude Opus 5 (`claude-opus-5`) er lansert av Anthropic og var kandidat til å erstatte Opus 4.6-pinningene på `@nav-pilot-opus` og `@security-champion`. Listeprisen er identisk med Opus 4.8 ($5.00/$25.00), og Anthropic oppgir vesentlig sterkere resonnering (mer enn dobling av Opus 4.8 på Frontier-Bench v0.1). Begge agentene står nå på GPT-5.6 Sol, som er billigere enn Opus 4.6 på begge akser under 272K kontekst også etter at kampanjeprisen løper ut 3. september 2026; over 272K er Sol til antatt standardpris dyrere enn Opus 4.6 på begge akser. Opus 5 er fortsatt aktuell hvis en måling viser at den tyngre resonneringen er verdt prisforskjellen, men den er ikke testet mot vår egen golden-prompt. Utrullingen i Copilot er gradvis (GA for Pro+/Max/Business/Enterprise 24. juli), så modellen kan mangle i model picker en periode.
 
 Når nye modeller slås på (som nå med Claude Opus 5, GPT-5.6-familien, Kimi K2.7 og Gemini 3.6 Flash):
 
