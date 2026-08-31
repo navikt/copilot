@@ -106,12 +106,39 @@ type Guard struct {
 	// runs on its own goroutine and can outlive whatever set the directories up.
 	statsPath string
 
+	// requests counts everything the client sent through the guard, completions
+	// and model lists alike. Completions alone cannot tell a refusal from a
+	// wiring failure; this can.
+	requests atomic.Int64
+
 	// completions counts what actually reached the local server through this
 	// guard. Counted here rather than parsed out of the client's transcript
 	// because this is the only place that sees every one of them, and because a
 	// session that dispatched nothing has to be distinguishable from a session
 	// whose transcript we failed to parse.
 	completions atomic.Int64
+}
+
+// isProviderAPIPath reports whether a path is one the provider config would make
+// a client ask for. Anything else reaching this port came from something that is
+// not the client, and must not count as the client having seen the worker.
+func isProviderAPIPath(p string) bool {
+	return strings.HasSuffix(p, "/chat/completions") || strings.HasSuffix(p, "/models")
+}
+
+// SawTraffic reports whether the client sent the guard anything at all.
+//
+// False with zero completions means opencode never used the provider block:
+// the wiring did not reach it, which is a defect here. True with zero
+// completions means it saw the local worker and chose not to dispatch, which is
+// the orchestrator's judgement and the thing worth measuring.
+//
+// Safe on a nil Guard, like Completions, so a hosted session can ask.
+func (g *Guard) SawTraffic() bool {
+	if g == nil {
+		return false
+	}
+	return g.requests.Load() > 0
 }
 
 // Completions is how many prompts this session sent to the local model.
@@ -251,6 +278,19 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 	// against itself and leave them racing each other.
 	oneAtATime := make(chan struct{}, 1)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Counted for API-shaped requests only, not for everything that reaches
+		// the port. A session that dispatched nothing is three different things,
+		// and this is what separates them: a client that asked for the model list
+		// and then sent no completion saw the worker and declined, while nothing
+		// at all means the wiring never reached it.
+		//
+		// The filter matters. This listens on localhost, and localhost ports get
+		// probed by browsers, security agents and stray curls. One of those would
+		// flip this to true and permanently misclassify broken wiring as an
+		// orchestrator refusal — the exact confusion the counter exists to end.
+		if isProviderAPIPath(r.URL.Path) {
+			g.requests.Add(1)
+		}
 		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
 			proxy.ServeHTTP(w, r)
 			return
