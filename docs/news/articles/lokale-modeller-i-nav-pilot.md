@@ -49,7 +49,7 @@ Først prøvde vi åtte modeller og bygg på det samme oppgavesettet: elleve opp
 - **Qwen3.6-35B-A3B, vanlig 4-bit.** Samme modell, annet bygg. Gikk i tool-loop og brukte 220 kall på én oppgave.
 - **KAT-Coder V2.5.** Løste like mange, men trengte flere kall på å komme dit.
 - **Qwen3.6-27B.** For treg. Median 113 sekunder mot 18.
-- **Qwen3.8-27B i 4-, 6- og 8-bit.** Verre jo høyere presisjon. 6-bit brukte median 284 sekunder, og 8-bit gikk i timeout på 8 av 11 oppgaver.
+- **Qwen3.8-27B i 4-, 6- og 8-bit.** Verre jo høyere presisjon. 6-bit brukte median 284 sekunder, og 8-bit gikk i timeout på 8 av 11 oppgaver. **Rettelse 31. august:** de målingene gikk gjennom en chat-mal vi skrev selv, og den kodet verktøyargumenter om slik at modellen leste sin egen historikk feil. Det er den eneste malen i sammenligningen som skilte seg fra det alle de andre modellene fikk. Vi har rettet malen og skal måle på nytt. Til det er gjort: Qwen3.8 er ikke valgt, men grunnen er under ny vurdering.
 - **Granite 4.1 8B.** For liten. Løste 1 av 8.
 
 Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
