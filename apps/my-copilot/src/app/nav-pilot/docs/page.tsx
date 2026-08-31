@@ -2022,6 +2022,28 @@ nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
+          <LinkableHeading size="small" level="3">
+            Bytte modell
+          </LinkableHeading>
+          <BodyLong className="mt-2" size="small" style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">nav-pilot models</code> viser hva som er tilgjengelig; de lokale står
+            merket <code className="font-mono text-xs">(local)</code>. Listen oppdateres når du kjører{" "}
+            <code className="font-mono text-xs">init</code> eller <code className="font-mono text-xs">start</code>, ikke
+            ved hver kommando — et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør.
+          </BodyLong>
+          <CodeBlock compact>
+            {`nav-pilot models
+nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot alpha local init      # laster ned vektene for den nye modellen
+nav-pilot alpha local start`}
+          </CodeBlock>
+          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+            Qwen 3.6 er standard, og det er ikke tilfeldig. De to Qwen 3.8-modellene ligger der fordi folk spør etter
+            dem, ikke fordi de er bedre her. På våre egne oppgaver er 3.8 tregere og mye mer ujevn: to kjøringer av de
+            samme åtte oppgavene, samme profil og samme maskin, ga median 88 og 906 sekunder. 3.6 ligger på 12–21
+            sekunder uten timeouts over åtte kjøringer. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8
+            4-bit, 30 GB for 8-bit.
+          </BodyLong>
           <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
             gjøre det for deg:

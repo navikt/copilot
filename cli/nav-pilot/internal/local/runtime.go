@@ -1406,7 +1406,10 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	if manifest == nil || len(manifest.Models) == 0 {
 		return errors.New("no local model is available in this nav-pilot's manifest")
 	}
-	m := manifest.Models[0]
+	m, ok := Chosen(manifest)
+	if !ok {
+		return errors.New("the local-model manifest names no model this machine can start")
+	}
 	if announce != nil {
 		announce(m.Model)
 	}
