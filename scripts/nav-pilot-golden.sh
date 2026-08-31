@@ -67,7 +67,7 @@
 #   --allow-all-tools for non-interactive mode, so the agent can read/write/run
 #   inside that scratch directory. It is removed on exit unless you pass --keep.
 #
-#   The agent EDITS that workspace: t1 fixes a typo, t4 adds an endpoint, t6
+#   The agent EDITS that workspace: t1 fixes a typo, t4 extends a handler, t6
 #   renames a variable across three files. So the workspace is rebuilt from a
 #   pristine template before EVERY prompt, not once per suite and not once per
 #   --repeat pass. Two samples of one prompt have to meet the same repo, or
@@ -480,25 +480,97 @@ spec:
 EOF
 
 cat >"$TEMPLATE/build.gradle.kts" <<'EOF'
-plugins { kotlin("jvm") version "2.1.0" }
-dependencies { implementation("io.ktor:ktor-server-netty:3.0.0") }
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+}
 EOF
 
-for f in App Routes Config; do
-  cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/$f.kt" <<EOF
+# A minimal but real Ktor skeleton. It used to be three byte-identical files
+# containing only `val maksAntall = 100`, seeded for test 6's rename. That made
+# test 4's premises false: the prompt speaks of "den eksisterende Ktor-tjenesten"
+# and a "kjent mønster", and neither existed in the fixture (see #519). The
+# skeleton below makes both true, and keeps `maksAntall` in exactly three files
+# — declared in Config.kt, used in App.kt and Routes.kt — so test 6's "rename
+# variabelen maksAntall i tre filer" is still literally true, and is now a
+# declaration plus two call sites rather than three copies of one line.
+#
+# ⚠️  Baselines in docs/golden-baselines/ recorded before 2026-08-31 measured
+# the old placeholder fixture. Their t4 and t6 sizes are not comparable with
+# runs made after this change; --compare across that boundary reports a fixture
+# change as a persona change.
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Config.kt" <<'EOF'
 package no.nav.demo
 
-// bruker maksAntall flere steder
-val maksAntall = 100
+// Maks antall oppgaver som returneres i én respons.
+const val maksAntall = 100
 EOF
-done
+
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Oppgave.kt" <<'EOF'
+package no.nav.demo
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class Oppgave(val id: String, val tittel: String)
+
+@Serializable
+data class OppgaveRespons(val oppgaver: List<Oppgave>)
+EOF
+
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Routes.kt" <<'EOF'
+package no.nav.demo
+
+import io.ktor.server.application.Application
+import io.ktor.server.application.call
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+
+private val oppgaver = listOf(
+    Oppgave("1", "Registrer soknad"),
+    Oppgave("2", "Send vedtaksbrev"),
+)
+
+fun Application.oppgaveRoutes() {
+    routing {
+        get("/api/oppgaver") {
+            call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+        }
+    }
+}
+EOF
+
+cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/App.kt" <<'EOF'
+package no.nav.demo
+
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+
+fun main() {
+    println("starter demo-tjeneste, maksAntall=$maksAntall")
+    embeddedServer(Netty, port = 8080) {
+        install(ContentNegotiation) { json() }
+        oppgaveRoutes()
+    }.start(wait = true)
+}
+EOF
 
 # ─── Fixtures for the review agents ──────────────────────────────────────────
-# Seeded ONLY when the agent under test needs them. The nav-pilot template stays
-# byte-for-byte what it was before --agent existed, because every baseline in
-# docs/golden-baselines/ was recorded against that template: two more files for
-# Fase 1 to explore would move the sizes those baselines record, and the
-# comparison would report the fixture change as a persona change.
+# Seeded ONLY when the agent under test needs them, and never for nav-pilot: two
+# more files for Fase 1 to explore would move the sizes the baselines in
+# docs/golden-baselines/ record, and the comparison would report the fixture
+# change as a persona change. (The nav-pilot template itself was byte-for-byte
+# unchanged from before --agent existed until #519 replaced the three
+# placeholder .kt files with the Ktor skeleton above; see the note there.)
 #
 # The review agents cannot be given a clean repo. code-review asserts on what it
 # reports, accessibility on which WCAG rules it names, and both need something
@@ -559,7 +631,7 @@ export function StatusPanel({ status, onSlett }) {
 EOF
 fi
 
-# The agent writes to $WS (t1 fixes the README typo, t4 adds an endpoint, t6
+# The agent writes to $WS (t1 fixes the README typo, t4 extends a handler, t6
 # renames maksAntall), so $WS is thrown away and rebuilt from $TEMPLATE before
 # every prompt. Per prompt, not per --repeat pass: within one pass the prompts
 # also touch each other's files, and re-copying is cheap enough that the
@@ -626,7 +698,15 @@ run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$R
 # a response. Every assertion below is either an absent() — which succeeds
 # trivially on an empty file — or a present() on a long structured block, so
 # without this floor a crashed or unauthenticated CLI reports green.
-MIN_TRANSCRIPT_BYTES=200
+#
+# It only has to catch an empty or crashed CLI. It must NOT try to judge whether
+# an answer is substantial: the persona answers trivial tier in two sentences by
+# design, and at 200 this floor sat above that length. It discarded a *passing*
+# test 5 canary — a correct 160B TokenX answer, exit 0, 5.84 credits — as an
+# error, and t6 came within seven bytes of the same trap (#519). The per-test
+# gates below do the real work; this one only asks whether there is a response
+# at all.
+MIN_TRANSCRIPT_BYTES=40
 LAST_PROMPT_DETAIL=""
 
 run_prompt() {
@@ -804,7 +884,8 @@ RE_CONFIRM='Bekreft for å fortsette'
 RE_FASE1_REACHED='Fase[[:space:]]*1|Intervju'
 
 # Fase 2 or later *work*, the leak the stop invariant forbids. Two markers, both
-# with clean separation: t2 0/18, t4 18/18.
+# with clean separation: t2 0/18, t4 18/18. Read in both directions: test 2 must
+# not see it, test 4 gates on seeing it (see the Test 4 vocabulary below).
 #
 #   ^● Edit|Create|…  the client renders one line per file mutation. A full-tier
 #                     Fase 1 turn that writes files has run past its own gate.
@@ -835,24 +916,21 @@ MIN_OPEN_QUESTIONS=3
 RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 
 # ── Test 4 vocabulary ───────────────────────────────────────────────────────
-# Fase 2 artifacts that do NOT appear in the Fase 1 checkpoint template.
-# (Note: "🔴 Rød sone" alone is a poor discriminator — the Fase 1 checkpoint
-# block lists it as a summary line — so we key on the green-zone block and on
-# accessPolicy, which the persona mandates in the Fase 2 Nais manifest.)
+# Test 4's presence gate is RE_FASE2_WORK, the same expression test 2 uses as
+# its leak detector. One expression, read in two directions: what test 2 must
+# not see is exactly what test 4 must see, and it is measured in both (t2 0/18,
+# t4 18/18).
 #
-# Deliberately NOT "apiVersion: nais": the seeded workspace ships a nais.yaml
-# whose first line is `apiVersion: nais.io/v1alpha1`, and Fase 1 reads that file
-# to infer the archetype. Echoing it back is correct behaviour, so keying on it
-# would false-fail on its own fixture.
+# It used to have its own regex, `Grønn sone|accessPolicy`, and the accessPolicy
+# half was the bug (#519). Two of eighteen *Fase 1* responses name accessPolicy,
+# reporting that the seeded nais.yaml lacks one. On those runs the gate opened
+# on a Fase 1 answer, and `present "$T4" 'Rød sone'` then matched the
+# `• 🔴 Rød sone: [liste, eller «ingen»]` line of the Fase 1 checkpoint template
+# — the vacuous pass the block comment at test 4 says must never happen.
 #
-# ONE direction only, as test 4's *presence* gate: Fase 2 content must be
-# present before the red-zone assertion means anything. It used to double as
-# test 2's leak detector, and that is why accessPolicy is still in here: two of
-# eighteen correct Fase 1 responses name it, reporting that the seeded nais.yaml
-# lacks one, so as a leak detector it false-failed the runs that behaved. Test 2
-# now keys the leak on RE_FASE2_WORK instead. Widening this regex is safe; do
-# not narrow it without re-checking test 4.
-RE_PHASE2_ARTIFACT='Grønn sone|accessPolicy'
+# This is not the false failure #491 removed. That one was accessPolicy used as
+# test 2's *leak* detector, firing on correct Fase 1 answers. Dropping it here
+# removes the same word from the other direction.
 RE_OPUS='nav-pilot-opus'
 
 # One pass over the selected prompts. Called once per --repeat, so every
@@ -969,6 +1047,22 @@ run_pass_nav_pilot() {
   # in a single non-interactive call. "Rød sone: ingen" is a valid declaration —
   # the invariant is that the declaration exists, not that anything is red.
   #
+  # ⚠️  THE PROMPT MUST NOT ASK FOR A NEW ENDPOINT, NEW DATA OR NEW AUTH. It used
+  # to ask for "et nytt REST-endepunkt", and that prompt cannot reach Fase 2 by
+  # construction (#519): `### Fase 1: Intervju` marks blind spots #1 and #2
+  # "required regardless of scope tier if the change touches user data, new API
+  # endpoints, or any auth configuration", `### ✅ Always` repeats it, and
+  # `## Request scope classification` sends new API contracts to Full. All three
+  # samples of that prompt correctly stopped in Fase 1 with questions open.
+  #
+  # The prompt below extends an existing handler and an existing response model,
+  # and spells out the compressed-tier criteria from `## Request scope
+  # classification` verbatim: multi-file, known pattern, no new service boundary,
+  # no new data flows, no auth changes. Nothing on the default-to-Full list (PII,
+  # auth, Kafka topics, new API contracts, unclear scope) applies. The fixture
+  # backs it: the Ktor skeleton really does have /api/oppgaver, in Routes.kt,
+  # with its response model in Oppgave.kt, so the change really is multi-file.
+  #
   # ⚠️  The red-zone assertion MUST be gated on Fase 2 output actually existing.
   # The Fase 1 checkpoint template itself contains the line
   # `• 🔴 Rød sone: [liste, eller «ingen»]`, so a bare present 'Rød sone' is
@@ -978,11 +1072,11 @@ run_pass_nav_pilot() {
   if selected 4; then
     DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
     T4="$(tx t4)"
-    if ! run_prompt t4 "legg til et nytt REST-endepunkt i den eksisterende Ktor-tjenesten — flere filer, kjent mønster, ingen nye datastrømmer"; then
+    if ! run_prompt t4 "legg til feltet antall i responsen fra det eksisterende /api/oppgaver-endepunktet i Ktor-tjenesten — flere filer, kjent mønster, ingen nye endepunkter, ingen persondata, ingen endringer i auth"; then
       record_error 4 "$DESC4" "$LAST_PROMPT_DETAIL"
-    elif ! present "$T4" "$RE_PHASE2_ARTIFACT"; then
+    elif ! present "$T4" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
-        "no Fase 2 content in the response (no match for: $RE_PHASE2_ARTIFACT) — the red-zone assertion would pass vacuously off the Fase 1 checkpoint template, so it was not evaluated. Re-run with --keep and check whether compressed-tier traversal regressed."
+        "no Fase 2 content in the response (no match for: $RE_FASE2_WORK) — the red-zone assertion would pass vacuously off the Fase 1 checkpoint template, so it was not evaluated. Re-run with --keep and check whether compressed-tier traversal regressed."
     elif present "$T4" 'Rød sone'; then
       record 4 "$DESC4" 0
     else
