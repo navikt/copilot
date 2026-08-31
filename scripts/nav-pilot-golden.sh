@@ -1074,17 +1074,46 @@ T4_CONFIRM='Bekreftet. Ingen flere avklaringer fra meg — bruk antakelsene dine
 # Fase 2», «så går jeg videre til Fase 2»). Naming the next phase is what
 # stopping before it looks like. The colon and «ferdig» are what exclude it.
 #
-# ⚠️  DELIBERATELY INDEPENDENT OF THE ZONE DECLARATIONS, and the calibration is
-# what turns that from a principle into a measurement. `Grønn sone` — the old
-# gate's other half — is 4/5 on t4c: run 1 produced a complete plan with a red
-# zone and wrote the green half as «🟢 Genereres av nav-pilot» without the word
-# «sone». A zone-keyed gate would have filed that plan as «no plan». That is the
-# wholesale-trimming regression this assertion exists to catch, filed as amber.
+# ⚠️  BOTH MARKERS ARE LINE-ANCHORED, and the anchor is load-bearing rather than
+# tidiness. Unanchored, the gate separated a plan from a checkpoint on one
+# punctuation mark inside a line the model paraphrases freely. The ten measured
+# Fase 1 checkpoints close with three distinct paraphrases of the persona's
+# «Bekreft for å fortsette», including «…til Fase 2 (arkitektur og plan)» and
+# «…til Fase 2 (plan)». A fourth paraphrase writing «…til Fase 2: Plan» is one
+# colon away, and a checkpoint carrying it plus the template's `• 🔴 Rød sone:`
+# summary line passes the unanchored gate: a review built exactly that and got
+# green. Measured exposure is 0/10 and it also requires a checkpoint to leak
+# into turn three, so it is residual rather than observed — but this test has
+# now died four times on «some Fase 1 shape admits the regex», so it is closed
+# rather than noted. Both markers head their own line in all five plans
+# (`## Fase 2: Plan`, `✅ Fase 2 ferdig`); a confirm line never does.
+# `[^[:alnum:]]*` rather than a character list, so `##`, `•`, `✅` and `📐` all
+# pass without this depending on how a locale classifies an emoji.
 #
-# The other half of the old gate was `accessPolicy`, and that was the #519 bug:
+# The other closure on offer was «t4c must not match `Bekreft for å fortsette`».
+# Rejected, and measured: 3 of the 5 real plans contain that line, because a
+# plan ends by asking for confirmation to enter Fase 3. It would false-fail the
+# majority of correct runs. The anchor costs nothing and this costs 3/5.
+#
+# ⚠️  DELIBERATELY INDEPENDENT OF THE ZONE DECLARATIONS. Zone presence is the
+# thing under test, so a gate that keys on it cannot say whether a plan exists
+# without assuming the answer.
+#
+# The calibration shows the independence is not theoretical: `Grønn sone` is
+# 4/5 on t4c, because run 1 produced a complete plan carrying a full red-zone
+# declaration and wrote the green half as «🟢 Genereres av nav-pilot», without
+# the word «sone». Be precise about what that does and does not prove. It does
+# NOT mean any shipped gate would have misfiled run 1: main's gate carried the
+# `Fase 2:` alternatives, which are 5/5 on run 1, and the older
+# `Grønn sone|accessPolicy` gate matches run 1's four `accessPolicy` hits. The
+# justification here is independence, not a measured misfiling. What the 4/5
+# does show is that the word is not reliably present even in a good plan, so it
+# could not carry the gate on its own.
+#
+# `accessPolicy` was the other half of that older gate, and it was the #519 bug:
 # a Fase 1 answer that reports the seeded nais.yaml has none opened the gate on
 # an interview turn. Neither word decides whether a plan exists any more.
-RE_FASE2_PLAN='Fase[[:space:]]*2[[:space:]]*:|Fase[[:space:]]*2[[:space:]]+ferdig'
+RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig'
 
 # The red-zone declaration itself, inside a plan. The second of the two things
 # #534 says to derive separately, and it is derived separately: the gate above
@@ -1109,6 +1138,16 @@ RE_FASE2_PLAN='Fase[[:space:]]*2[[:space:]]*:|Fase[[:space:]]*2[[:space:]]+ferdi
 # `# 🔴 rød sone` annotation in a file-tree listing both appeared in these
 # transcripts, and neither is a declaration. A plan that annotated a tree and
 # then dropped the block would pass on a bare `Rød sone` and fails here.
+#
+# ⚠️  THE SEPARATOR SET IS NARROW, AND FAILS IN THE SAFE DIRECTION. It takes an
+# em dash, an en dash or a colon, and not an ASCII hyphen or a parenthetical.
+# That shape is in the model's vocabulary: t4b runs 2 and 4 wrote
+# `• 🔴 Rød sone (nytt for teamet):` and `• 🔴 Rød sone (foreløpig):`, where the
+# label is followed by a paren rather than the separator. No t4c did, so the
+# measurement stands at 5/5 — but a plan whose ONLY declaration used that shape
+# would be reported red, not green. A red is a human read of a kept transcript,
+# so this errs the right way. It is written down so the first such red is
+# recognised as this, and not investigated from scratch as a persona regression.
 RE_T4_RED_ZONE='Rød sone[[:space:]]*(—|–|:)'
 RE_OPUS='nav-pilot-opus'
 
@@ -1261,7 +1300,18 @@ run_pass_nav_pilot() {
     # One session id per pass, generated fresh so that --repeat samples separate
     # conversations rather than piling fifteen turns into one.
     S4="$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]')"
-    if ! run_prompt t4a "ny tjeneste som leser fnr fra ID-porten" "$S4"; then
+    # Checked, not assumed. The script runs without `set -e`, so a missing
+    # uuidgen fails silently: S4 is empty, run_prompt omits --session-id, and
+    # the three turns become three UNLINKED calls in which turn two answers an
+    # interview nobody held and turn three confirms nothing. That reports on
+    # whatever those three strangers happened to say, and it bills for three
+    # live calls to do it. uuidgen is on macOS and in util-linux, so this is a
+    # slim container rather than a likely path, which is exactly the kind that
+    # goes unnoticed. Cheaper to refuse than to spend the calls and wonder.
+    if [[ -z "$S4" ]]; then
+      record_error 4 "$DESC4" \
+        "could not generate a session id (is uuidgen on PATH?). Test 4 is three turns of one conversation, and without an id they would be three unlinked calls, so the run is refused before it bills for them."
+    elif ! run_prompt t4a "ny tjeneste som leser fnr fra ID-porten" "$S4"; then
       record_error 4 "$DESC4" "turn 1 (intervju): $LAST_PROMPT_DETAIL"
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
