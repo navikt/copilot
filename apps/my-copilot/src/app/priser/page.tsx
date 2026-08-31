@@ -139,6 +139,7 @@ export default function PriserPage() {
                                   color: "#92400e",
                                   background: "rgba(245, 158, 11, 0.16)",
                                 }}
+                                title={m.note}
                               >
                                 Kampanjepris t.o.m. {promotionEndFormat.format(new Date(m.promotionEndsOn))}
                               </span>
