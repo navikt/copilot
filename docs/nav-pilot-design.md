@@ -48,6 +48,18 @@ Uten en fast modell blir det lett:
 
 Faser skal være eksplisitte. Det skal være lett å se om man er i kartlegging, vurdering, planlegging, endring eller verifisering. Dette er en sentral mekanisme for å unngå at utforskning glir over i handling for tidlig.
 
+#### Kjent avvik: fase-checkpointen sendes ikke
+
+Designet krever at `@nav-pilot` sender en checkpoint-blokk ved hver fasegrense på full tier. **Det skjer ikke i praksis.** Golden-test 2 finner null checkpoints, reproduserbart, på modellene som er testet.
+
+Dette er ikke en regresjon. `scripts/nav-pilot-golden.sh` ble aldri kjørt mot levende modeller før august 2026, og avviket har ligget der siden `badb737c` (#273, juni 2026).
+
+Årsaken er en selvmotsigelse i `agents/nav-pilot.agent.md`. Checkpointen påstår `Fase N ferdig`, mens filas eget utgangskriterium for Fase 1 er «All relevant blind spots addressed + user confirms». Modellen avslutter turen med å *stille* de spørsmålene, så fasen er ikke ferdig etter filas egen definisjon. På samme sted sto i tillegg «Output ONLY the checkpoint block», mot tre andre steder i fila som krever at Fase 1 stiller spørsmål. Modellen fulgte flertallet og droppet blokka.
+
+Status: [issue #484](https://github.com/navikt/copilot/issues/484). En én-linjes fiks ligger i PR #491, på grenen `fix/persona-phase-checkpoint`. Den er ikke merget og ikke verifisert med en harness-kjøring i skrivende stund.
+
+Fasegaten står som designintensjon. Den er ikke en mekanisme du kan stole på i dag.
+
 ### Rød/grønn-sone
 
 Rød sone brukes for usikkerhet, risiko, avklaringer og vurderinger. Grønn sone brukes for utførte, avgrensede og verifiserte endringer. Sonene er et styringsverktøy, ikke pynt.
@@ -81,6 +93,26 @@ Docs-strukturen ble viktig for å holde beslutninger, retningslinjer og praksis 
 ### 6. OpenCode-export optimalisering
 
 Eksport til OpenCode ble optimalisert for å gjøre innhold mer nyttig i praksis, uten å endre den underliggende modellen. Fokus var representasjon og brukbarhet, ikke ny logikk.
+
+### 7. Spesialister kan være skills, ikke bare agenter
+
+I august 2026 ble `auth`, `nais` og `observability` utfaset som agenter og erstattet av skills (#481). Hver av dem bar et Deprecated-banner som navnga erstatningen, og innholdet ble migrert før filene ble slettet, ikke etterpå.
+
+Beslutningen endrer ikke spesialistruting som prinsipp. Den endrer hvilken form en spesialist kan ha: der behovet er kunnskap og mønstre framfor en egen rolle med eget kontekstvindu, er en skill riktig form.
+
+### 8. Modellvalg per agent
+
+Modell er en egenskap ved hva en agent er til for, ikke ved sesjonen den kjører i. Derfor pinnes modellen per agent framfor per sesjon.
+
+`BuildAgentFrontmatter` skriver nå en `model:`-linje, slik at en materialisert opencode-agent bærer modellen sin til klienten i stedet for å falle tilbake på sesjonens (#490). Samme endring ga copilot Tier 1 en pakke-erklæring, i dag `inherit`.
+
+Konkrete pinner står i `docs/modellvalg.md` og gjentas ikke her, fordi de flytter seg. Prinsippet er det som hører hjemme i dette dokumentet.
+
+Forbehold: per-agent-modell er en kvalitets- og kostnadspreferanse, ikke en sikkerhetskontroll. Målingene i august 2026 fant ingen signifikant forskjell i sikkerhetsatferd mellom modellene som ble testet.
+
+### 9. Målinger skilles ut i eget dokument
+
+Benchmark-tall, konfidensintervaller og beslutningene de bærer ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`. Dette dokumentet beskriver designet; det andre registrerer hva som ble målt og hvor usikkert det er. De to skal ikke duplisere hverandre.
 
 ## Låste beslutninger / invariants
 
@@ -154,6 +186,12 @@ Spesialistagenter skal være **leaf-only**: de skal løse sitt smale delproblem 
 - **Ny implementer-agent:** ikke nødvendig nå. Hvis det oppstår smerte her, er en smal delivery-/scaffold-skill bedre enn en ny bred agent.
 - **Ny review-agent:** ikke nødvendig. Review-behovet er allerede delt mellom fase 3, `code-review` og `security-champion`.
 
+### Utfasede spesialistagenter
+
+`auth`, `nais` og `observability` er fjernet (#481, august 2026) og erstattet av skills. Ruting som tidligere gikk til disse agentene går nå til `nav-auth` og `tokenx-auth`, `nais`, `observability-setup` og `observability-debugging`.
+
+Konsekvensen for rutingsmodellen er at «spesialist» ikke er det samme som «agent». Vurderingen står: hva er oppgaven, hva er risikoen, hvilken kompetanse trengs. Svaret kan være en skill.
+
 ## Forholdet mellom docs, changelog og prompts
 
 ### Docs
@@ -192,13 +230,18 @@ Noen tips fra den opprinnelige Copilot-bruksanalysen skal brukes som inspirasjon
 
 Behold disse som aktive referanser når nav-pilot videreutvikles:
 
-- `.github/agents/nav-pilot.agent.md` – styrende agentpolicy, fase-maskin og routing
-- `.github/agents/nav-pilot-opus.agent.md` – smal, høyrisiko spesialist
+- `agents/nav-pilot.agent.md` – styrende agentpolicy, fase-maskin og routing
+- `agents/nav-pilot-opus.agent.md` – smal, høyrisiko spesialist
 - `docs/README.nav-pilot.md` – operativ inngangsside for brukere og bidragsytere
 - `docs/nav-pilot-changelog.md` – sporbar historikk over endringer
-- `cli/nav-pilot/export.go` – OpenCode-export og instruksjonssplitting
-- `cli/nav-pilot/export_test.go` – regresjonsdekning for eksporten
+- `docs/modellvalg.md` – gjeldende modellpinner per agent og prompt
+- `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md` – målinger og beslutningsgrunnlag fra august 2026
+- `cli/nav-pilot/internal/artifacts/export.go` – OpenCode-export og instruksjonssplitting
+- `cli/nav-pilot/internal/artifacts/export_test.go` – regresjonsdekning for eksporten
+- `scripts/nav-pilot-golden.sh` – golden-prompt-harness mot levende modeller
 - `https://ki-utvikling.nav.no/nav-pilot` – primær dokumentasjon for brukere
+
+Merk at customization-artefaktene ble flyttet fra `.github/` til rotmappa i juni 2026 (#330). Eldre referanser til `.github/agents/` i changeloggen gjelder den gamle plasseringen, ikke dagens.
 
 ## Praktisk veiledning for framtidige endringer
 
