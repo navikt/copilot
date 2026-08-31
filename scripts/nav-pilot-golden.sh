@@ -196,6 +196,7 @@ TIMEOUT_SECS="${NAV_PILOT_GOLDEN_TIMEOUT:-300}"
 AGENT="nav-pilot"
 PERSONA=""
 AGENT_NAME=""
+VALID_IDS=""
 
 # Per-prompt wall-clock guard, so one hung call cannot stall the suite. macOS
 # has no coreutils `timeout` by default; fall back to running unguarded.
@@ -263,12 +264,32 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # An --agent with no assertion group must not run. It would select zero tests
 # and print "All 0 assertions passed ✓" with exit 0, which is the loudest
 # possible vacuous pass: someone repins a model, sees green, ships.
+#
+# VALID_IDS is that list made explicit, so --only can be checked against it.
+# Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
+# an ID added there and not here is rejected by --only.
 case "$AGENT" in
-  nav-pilot|code-review|accessibility) ;;
+  nav-pilot)     VALID_IDS="1 2 3 4 5 6" ;;
+  code-review)   VALID_IDS="cr1 cr2 cr3 cr4" ;;
+  accessibility) VALID_IDS="uu1 uu2 uu3 uu4" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
       "This harness has prompts and assertions for: nav-pilot, code-review, accessibility. Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
 esac
+
+# --only is the same trap one level down. IDs are prefixed per agent, so
+# `--agent code-review --only 2` matches no cr* ID: every `selected` call
+# returns false, nothing runs, and the summary reads "All 0 assertions
+# passed ✓" with exit 0. An ID the selected agent does not have is a typo
+# or a stale command line, never a request to assert nothing.
+if [[ -n "$ONLY" ]]; then
+  IFS=',' read -r -a only_ids <<<"$ONLY"
+  for only_id in "${only_ids[@]}"; do
+    [[ " $VALID_IDS " == *" $only_id "* ]] || fail_preflight \
+      "--only '$only_id' is not an assertion ID for agent '$AGENT'" \
+      "Assertion IDs for $AGENT: $VALID_IDS"
+  done
+fi
 
 # What the CLI is told to load. Read from the agent file's frontmatter, not
 # guessed from the filename: accessibility.agent.md declares
@@ -278,6 +299,16 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
 [[ -n "$AGENT_NAME" ]] || fail_preflight \
   "$PERSONA has no 'name:' in its frontmatter" \
   "The CLI is launched with --agent <that name>; without it the harness cannot know which agent it would actually be measuring."
+
+# The name is frontmatter, and frontmatter is untrusted input on a branch
+# nobody has read yet. It is interpolated straight into a destination path
+# ($TEMPLATE/.github/agents/$AGENT_NAME.agent.md), so a `name: ../../../etc/x`
+# would have cp write outside the scratch workspace. Check it looks like a
+# filename before using it as one. Every name in agents/ matches: they are all
+# lowercase words joined by hyphens.
+[[ "$AGENT_NAME" =~ ^[A-Za-z0-9_-]+$ ]] || fail_preflight \
+  "$PERSONA declares an unusable agent name: '$AGENT_NAME'" \
+  "It becomes a filename and a --agent argument, so it must be letters, digits, '-' or '_' only."
 
 [[ "$REPEAT" =~ ^[1-9][0-9]*$ ]] || fail_preflight \
   "--repeat takes a positive integer, got '$REPEAT'" \
@@ -1455,7 +1486,14 @@ if [[ -n "$COMPARE_TO" ]]; then
   # is what a missing field means. Silence would let a nav-pilot baseline be
   # compared against a code-review run and reported as a size regression.
   BASE_AGENT="$(sed -n 's/^# agent:[[:space:]]*//p' "$COMPARE_TO" | head -1)"
-  [[ -n "$BASE_AGENT" ]] || BASE_AGENT="nav-pilot (assumed: baseline predates --agent)"
+  if [[ -z "$BASE_AGENT" ]]; then
+    # The assumption is a note, not part of the compared value. Folding it into
+    # BASE_AGENT made the string never equal "nav-pilot", so every valid
+    # nav-pilot-to-nav-pilot comparison against an older baseline warned about
+    # a mismatch that was not there.
+    BASE_AGENT="nav-pilot"
+    echo "  ${DIM}baseline has no agent line, so it predates --agent and can only have measured nav-pilot. Compared as nav-pilot.${RESET}"
+  fi
   [[ "$BASE_AGENT" == "$AGENT" ]] || \
     echo "  ${YELLOW}⚠ baseline agent: '$BASE_AGENT', this run: '$AGENT'. Different agents, different prompts. Not comparable.${RESET}"
   compat_warn model "${MODEL:-CLI default}"
