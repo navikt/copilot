@@ -618,6 +618,14 @@ if [[ "$AGENT" == "accessibility" && -d "$REPO_ROOT/.github/hooks" ]]; then
   compgen -G "$TEMPLATE/.github/hooks/*.json" >/dev/null || fail_preflight \
     "no hook config reached $TEMPLATE/.github/hooks/" \
     "$REPO_ROOT/.github/hooks/ has no *.json to copy. uu3 asserts against a gate that has to be in the workspace; without it the assertion measures the persona again."
+  # The hook command is `command -v python3 ... || exit 0`, which allows the
+  # write when python3 is missing. That is the right posture for the gate (a
+  # broken gate must not deny everything) but it is indistinguishable from a
+  # gate that never loaded: the log stays empty either way, and uu3's canary
+  # would blame the env var for a missing interpreter. Say it here instead.
+  command -v python3 >/dev/null 2>&1 || fail_preflight \
+    "python3 not found, and the uu3 gate is a python script" \
+    "The hook fails open without it, so uu3 would measure the persona and report it as a hook that never loaded. Install python3 or run with --only uu1,uu2,uu4."
 
   # Copilot CLI 1.0.82 loads .github/hooks/ in prompt mode only when the folder
   # is trusted, COPILOT_ALLOW_ALL=true, or this opt-in is set ("Prompt mode (-p)
