@@ -57,7 +57,7 @@ Pris (USD) per million tokens, slik GitHub publiserte dem 30. august 2026:
 
 Luna koster under en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Sonnet 4.6 og 60 % mindre enn Opus 4.6, som er modellen de to tyngste agentene flytter fra.
 
-> **Retting 31. august 2026.** To ting i artikkelen stemmer ikke, og begge ble
+> **Retting 31. august 2026.** Tre ting i artikkelen stemmer ikke, og alle ble
 > oppdaget samme dag.
 >
 > **1. To av de ni pinningene er satt på vent.** `@code-review` og
@@ -85,6 +85,16 @@ Luna koster under en tidel av Sonnet 4.6. Sol koster en tredjedel mindre enn Son
 > regnestykket som endrer seg. Luna er ikke berørt: OpenAIs egen modellside
 > oppgir 0,20 og 1,20 dollar som listepris, og GitHub har ingen fotnote på
 > Luna-raden. Gemini Flash-radene er også kampanjepris, ut 31. desember 2026.
+>
+> **3. Opus 4.6 var ikke med i målingen.** Tabellen over sammenlikner fire
+> modeller, og Opus 4.6, som `@security-champion-agent` og `@nav-pilot-opus`
+> faktisk kjører på, er ikke en av dem. Harnesset kjørte dessuten
+> nav-pilot-konfigurasjonen, ikke disse to agentene. Vi har altså ingen måling
+> som sier at Sol holder nivået til Opus 4.6 for dem, og byttet hviler på prisen
+> alene. Prisgevinsten gjelder i tillegg bare kontekster under 272K tokens: Sol
+> har et eget prisnivå for lang kontekst, Opus 4.6 har ikke det, og over 272K er
+> Sol til antatt standardpris (8 og 30 dollar) dyrere enn Opus 4.6 på begge
+> akser.
 
 Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synkroniserte prisene 10. august, og falt til 2 og 10 i løpet av måneden. Prislista i `apps/my-copilot/src/lib/model-pricing.ts` er den vi regner ut fra.
 
