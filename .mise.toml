@@ -80,6 +80,10 @@ run = "bash scripts/lint-skills.sh"
 
 
 
+[tasks."hooks:test"]
+description = "Selvtest for .github/hooks/ (preToolUse-porten for egendefinerte ARIA-roller)"
+run = "python3 .github/hooks/ask-first-aria.py --selftest"
+
 [tasks."collections:lint"]
 description = "Verify docs page COLLECTIONS data matches manifest.json files"
 run = "bash scripts/lint-collections.sh"
