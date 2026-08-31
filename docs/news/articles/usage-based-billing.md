@@ -42,6 +42,8 @@ Cached input koster **90 % mindre** enn vanlig input. Eksempel:
 
 Anthropic-modeller har i tillegg en **cache write**-kostnad (25 % over vanlig input) første gang konteksten skrives.
 
+Tabellen over er et utsnitt fra april 2026. [Modellpriser](/priser) har hele tabellen og synkroniseres mot GitHub-dokumentasjonen.
+
 ## Token cache — hva vi vet
 
 - Cachen gjelder **innenfor sesjonen** — lukker du sesjonen, betaler du full pris igjen
