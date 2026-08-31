@@ -4,7 +4,25 @@ import "strings"
 
 const copilotOTelEndpointOverride = "NAV_PILOT_COPILOT_OTEL_ENDPOINT"
 
+// clientTelemetryOptedOut reports whether nav-pilot must not configure a
+// launched client's telemetry at all.
+//
+// The opt-out used to gate only the device id, on the reasoning that launcher
+// and version are non-identifying. Two things were wrong with that. The repo
+// slug went in beside them and is not non-identifying, and an opted-out
+// developer's Copilot session was still pointed at Nav's collector and still
+// exported — arriving as rows with a repo and no device id, indistinguishable
+// from a device-id lookup failure. Opting out produced worse data than either
+// keeping it on or leaving it off.
+//
+// An explicit endpoint override does not survive the opt-out. Someone who sets
+// both has said "do not track" second, and that is the one to honour.
+func clientTelemetryOptedOut() bool { return !TelemetryEnabled() }
+
 func ApplyCopilotOTelEnv(env []string, cliVersion string) ([]string, bool) {
+	if clientTelemetryOptedOut() {
+		return env, false
+	}
 	changed := false
 	endpoint := copilotOTelEndpoint(env)
 	if endpoint == "" {
@@ -23,10 +41,9 @@ func ApplyCopilotOTelEnv(env []string, cliVersion string) ([]string, bool) {
 	env, updated = SetEnvIfAbsent(env, "COPILOT_OTEL_ENABLED", "true")
 	changed = changed || updated
 
-	// device_id is the only pseudonymous identifier we inject; honour the
-	// nav-pilot telemetry opt-out so an opted-out user is not re-identified
-	// through Copilot's telemetry. launcher/version are non-identifying and
-	// are always included.
+	// Kept as a second line of defence rather than simplified away: this
+	// function is exported, and a future caller reaching it past the guard
+	// above should still not inject an identifier.
 	deviceID := ""
 	if TelemetryEnabled() {
 		deviceID = CopilotDeviceID()
@@ -40,6 +57,9 @@ func ApplyCopilotOTelEnv(env []string, cliVersion string) ([]string, bool) {
 // ApplyOpenCodeOTelEnv injects OTel env vars for opencode, reusing the same
 // approach as ApplyCopilotOTelEnv. Also sets OPENCODE_CLIENT=nav-pilot.
 func ApplyOpenCodeOTelEnv(env []string, cliVersion string) ([]string, bool) {
+	if clientTelemetryOptedOut() {
+		return env, false
+	}
 	changed := false
 	endpoint := copilotOTelEndpoint(env)
 	if endpoint == "" {

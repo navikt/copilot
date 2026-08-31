@@ -124,17 +124,42 @@ func TestApplyCopilotOTelEnv(t *testing.T) {
 		}
 	})
 
-	t.Run("omits device_id when telemetry is opted out", func(t *testing.T) {
-		t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
-		envOut, _ := ApplyCopilotOTelEnv([]string{}, "dev")
-		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
-		if strings.Contains(got, "nav.pilot.device_id=") {
-			t.Fatalf("device_id should be omitted when opted out: %q", got)
-		}
-		if !strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
-			t.Fatalf("launcher should still be present: %q", got)
-		}
-	})
+	// Opting out used to drop the device id and inject everything else, which
+	// still pointed the client at Nav's collector and still tagged the export
+	// with the repository. The result was a population of repo-labelled rows
+	// with no device id, indistinguishable from a lookup failure — worse data
+	// than either honouring the opt-out or ignoring it.
+	for _, optOut := range []struct{ name, key, value string }{
+		{"NAV_PILOT_TELEMETRY_ENABLED=false", "NAV_PILOT_TELEMETRY_ENABLED", "false"},
+		{"DO_NOT_TRACK=1", "DO_NOT_TRACK", "1"},
+	} {
+		t.Run("injects nothing when opted out via "+optOut.name, func(t *testing.T) {
+			stubDetectNavRepo(t, "navikt/foo")
+			t.Setenv(optOut.key, optOut.value)
+			for _, fn := range []struct {
+				name string
+				run  func([]string, string) ([]string, bool)
+			}{
+				{"ApplyCopilotOTelEnv", ApplyCopilotOTelEnv},
+				{"ApplyOpenCodeOTelEnv", ApplyOpenCodeOTelEnv},
+			} {
+				envOut, changed := fn.run([]string{}, "dev")
+				if changed || len(envOut) != 0 {
+					t.Errorf("%s while opted out returned changed=%v env=%v, want no changes at all",
+						fn.name, changed, envOut)
+				}
+				for _, key := range []string{
+					"OTEL_EXPORTER_OTLP_ENDPOINT",
+					"OTEL_RESOURCE_ATTRIBUTES",
+					"COPILOT_OTEL_ENABLED",
+				} {
+					if v := LookupEnvValue(envOut, key); v != "" {
+						t.Errorf("%s while opted out set %s=%q", fn.name, key, v)
+					}
+				}
+			}
+		})
+	}
 
 	t.Run("injects nav.repo when launched inside a navikt repo", func(t *testing.T) {
 		stubDetectNavRepo(t, "navikt/foo")
