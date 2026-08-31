@@ -222,7 +222,9 @@ Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klie
 
 **opencode-mapping:** `client = "opencode"` mappes til opencode-flagg. `mode = plan` gir
 `--agent plan` (ellers `--agent nav-pilot`), `model` gir `--model` (prefikses med
-`github-copilot/` for bare id-er), `reasoning_effort` gir `--variant`, `allow_all_tools` gir
+`github-copilot/` for bare id-er) kun når du selv har satt en modell — er den ikke satt,
+skriver nav-pilot Nav-standarden inn som `model` i opencodes egen config, slik at hver
+agents eget `model:`-felt styrer agenten sin, `reasoning_effort` gir `--variant`, `allow_all_tools` gir
 `--dangerously-skip-permissions`, og `log_level` oversettes til opencodes sett
 (`DEBUG`/`INFO`/`WARN`/`ERROR`). Felt uten opencode-ekvivalent (`mode = autopilot`,
 `context_tier`, `ask_user = false`) gir en ⚠-advarsel ved oppstart.
