@@ -87,7 +87,12 @@ export function isExternalExcerptFresh(item: NewsItem, now: Date = new Date()): 
 
 export function selectNewsItems(items: NewsItem[], options: GetNewsItemsOptions = {}): NewsItem[] {
   const visibleItems = options.frontPage ? items.filter((item) => isExternalExcerptFresh(item, options.now)) : items;
-  return visibleItems.sort((a, b) => b.date.localeCompare(a.date));
+  // A festet sak outranks the date so an item can be lifted back to the top
+  // without back-dating it. Only the flag is consulted; among festede saker,
+  // and among the rest, the ordinary date order still applies.
+  return visibleItems.sort(
+    (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false) || b.date.localeCompare(a.date)
+  );
 }
 
 function resolveArticlesDir(): string {
@@ -112,6 +117,7 @@ function parseNewsFile(fileName: string): NewsItem {
     title: data.title,
     date: toDateOnly(data.date),
     draft: data.draft === true,
+    featured: data.featured === true,
     category: parseCategory(data.category, slug),
     excerpt: data.excerpt ?? "",
     tags: data.tags ?? [],
@@ -145,6 +151,7 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
     title: data.title,
     date: toDateOnly(data.date),
     draft: data.draft === true,
+    featured: data.featured === true,
     category: parseCategory(data.category, slug),
     excerpt: data.excerpt ?? "",
     tags: data.tags ?? [],

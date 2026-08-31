@@ -102,6 +102,58 @@ describe("CATEGORY_CONFIG", () => {
       },
     ];
 
+    it("puts a festet sak above newer items", () => {
+      const featured: NewsItem = {
+        slug: "festet",
+        title: "Festet",
+        date: "2026-05-01",
+        draft: false,
+        featured: true,
+        category: "nav-pilot",
+        excerpt: "",
+        tags: [],
+        type: "article",
+      };
+      const newer: NewsItem = { ...featured, slug: "nyere", title: "Nyere", date: "2026-06-01", featured: false };
+
+      expect(selectNewsItems([newer, featured]).map((i) => i.slug)).toEqual(["festet", "nyere"]);
+    });
+
+    it("orders festede saker among themselves by date", () => {
+      const base: NewsItem = {
+        slug: "",
+        title: "",
+        date: "",
+        draft: false,
+        featured: true,
+        category: "nav-pilot",
+        excerpt: "",
+        tags: [],
+        type: "article",
+      };
+      const older = { ...base, slug: "eldre", date: "2026-05-01" };
+      const newer = { ...base, slug: "nyere", date: "2026-06-01" };
+
+      expect(selectNewsItems([older, newer]).map((i) => i.slug)).toEqual(["nyere", "eldre"]);
+    });
+
+    it("leaves date order alone when nothing is festet", () => {
+      const base: NewsItem = {
+        slug: "",
+        title: "",
+        date: "",
+        draft: false,
+        category: "nav-pilot",
+        excerpt: "",
+        tags: [],
+        type: "article",
+      };
+      const older = { ...base, slug: "eldre", date: "2026-05-01" };
+      const newer = { ...base, slug: "nyere", date: "2026-06-01" };
+
+      expect(selectNewsItems([older, newer]).map((i) => i.slug)).toEqual(["nyere", "eldre"]);
+    });
+
     it("keeps old external excerpts when not rendering front page", () => {
       const result = selectNewsItems(items, { now });
       expect(result.map((item) => item.slug)).toEqual(["fresh-link", "old-link", "old-article"]);
