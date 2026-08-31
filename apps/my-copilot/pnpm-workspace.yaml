@@ -25,3 +25,7 @@ overrides:
   "brace-expansion@<1.1.16": "1.1.18"
   # Dependabot alert #135: samme sak i 5.x; minimatch@10.2.5 tillater ^5.0.5
   "brace-expansion@>=3.0.0 <5.0.7": "5.0.9"
+  # GHSA-3jxr-9vmj-r5cp dekker et tredje område, >=2.0.0 <2.1.2, som ingen
+  # forelder trekker inn i dag. Tatt med så en framtidig forelder som pinner 2.x
+  # ikke kommer inn upatchet uten at noen legger merke til det.
+  "brace-expansion@>=2.0.0 <2.1.2": "2.1.2"

@@ -30,6 +30,16 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["pino", "thread-stream", "@google-cloud/bigquery"],
+  // sharp 0.35 flyttet lasteren fra lib/*.js til dist/*.cjs og rullet ut
+  // plattformvalget til en switch med literale `@img/sharp-<plattform>/sharp.node`.
+  // Next sin filsporing finner da .node-bindingen, men aldri søsterpakken
+  // `@img/sharp-libvips-*` som den lenker mot, fordi den lenken er en native
+  // dyld-lenke og ikke en require. Uten dette havner standalone-utdataene uten
+  // libvips, sharp kaster ERR_DLOPEN_FAILED, og Next serverer stille
+  // originalbildene i stedet for å skalere dem. Se PR #525.
+  outputFileTracingIncludes: {
+    "/**/*": ["./node_modules/**/@img/**"],
+  },
   images: {
     remotePatterns: [{ hostname: "avatars.githubusercontent.com" }, { hostname: "storage.googleapis.com" }],
   },
