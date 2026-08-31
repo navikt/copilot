@@ -108,9 +108,10 @@ func TestBuildCopilotArgsPakkeModel(t *testing.T) {
 	}
 }
 
-// TestResolvedModelNotice pins the launch line: which model, and where it came
-// from. The distinction that matters is a Nav default the user never chose
-// versus their own setting, since only one of those is theirs to change.
+// TestResolvedModelNotice pins the launch line: which model the launch sets for
+// the session, and where it came from. The distinction that matters is a Nav
+// default the user never chose versus their own setting, since only one of
+// those is theirs to change.
 func TestResolvedModelNotice(t *testing.T) {
 	navPakke := &agentpakke.Manifest{
 		Name: "nav-pilot",
@@ -146,21 +147,21 @@ func TestResolvedModelNotice(t *testing.T) {
 			name:   "opencode on the Nav default",
 			pakke:  navPakke,
 			client: "opencode",
-			want:   "Model: github-copilot/auto (nav-pilot default)",
+			want:   "Session model: github-copilot/auto (nav-pilot default)",
 		},
 		{
 			name:   "opencode with the user's own model",
 			pakke:  navPakke,
 			client: "opencode",
 			model:  "claude-opus-5",
-			want:   "Model: github-copilot/claude-opus-5 (your setting)",
+			want:   "Session model: github-copilot/claude-opus-5 (your setting)",
 		},
 		{
 			name:   "copilot with the user's own model",
 			pakke:  navPakke,
 			client: "copilot",
 			model:  "claude-opus-5",
-			want:   "Model: claude-opus-5 (your setting)",
+			want:   "Session model: claude-opus-5 (your setting)",
 		},
 		{
 			// Nothing pinned anywhere: the client picks, and there is nothing
@@ -174,7 +175,7 @@ func TestResolvedModelNotice(t *testing.T) {
 			name:   "a pakke's own declaration is named after that pakke",
 			pakke:  pinningPakke,
 			client: "copilot",
-			want:   "Model: claude-opus-5 (grillmester default)",
+			want:   "Session model: claude-opus-5 (grillmester default)",
 		},
 		{
 			// "inherit" means the staged launch passes no --model at all, and

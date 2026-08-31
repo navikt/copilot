@@ -98,6 +98,13 @@ func EnsureOpenCodeNavContext() (string, error) {
 // Maps resolved config fields to opencode flags; omits unset/default fields.
 func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	var args []string
+	// The model nav-pilot sets for the session. The flag outranks opencode's own
+	// config and its recent-model list, and on `opencode run` it outranks an
+	// agent's frontmatter too, because there it is the request model. In the TUI,
+	// which is what nav-pilot launches, an agent that declares its own `model:`
+	// uses that instead (verified against opencode 1.18.25). So the order is
+	// agent specialisation, then nav-pilot's session model, then whatever the
+	// client would have picked on its own.
 	args = append(args, "--model", ToOpenCodeModel(resolved.Model))
 	if resolved.Mode == "plan" {
 		// opencode's built-in read-only planning agent. Nav context still loads
@@ -179,6 +186,13 @@ func EnsureOpenCodeOTelConfig() error {
 	} else {
 		if err := json.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+		}
+		// A file holding the literal `null` parses without error and leaves cfg
+		// nil, and assigning into a nil map panics. Erroring for the same reason
+		// unparseable content does: the file is the developer's, and replacing it
+		// with a fresh object loses whatever they meant by it.
+		if cfg == nil {
+			return fmt.Errorf("opencode config is not a JSON object (%s): remove or fix the file", path)
 		}
 	}
 

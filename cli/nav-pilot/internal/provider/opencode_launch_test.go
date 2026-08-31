@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -542,5 +543,79 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 	want := "cplt --agent pi -- run fix the flaky test"
 	if string(got) != want {
 		t.Errorf("cplt argv = %q, want %q", string(got), want)
+	}
+}
+
+// TestEnsureOpenCodeOTelConfigNonObject covers configs that parse as valid JSON
+// but are not objects. `null` is the dangerous one: json.Unmarshal into a
+// map[string]any accepts it, leaves the map nil, and the write into
+// cfg["experimental"] then panics. Arrays, strings and numbers already fail the
+// unmarshal; they are here so the whole class stays covered.
+func TestEnsureOpenCodeOTelConfigNonObject(t *testing.T) {
+	for _, content := range []string{"null", "[1, 2, 3]", `"a string"`, "42", "true"} {
+		t.Run(content, func(t *testing.T) {
+			configFile := filepath.Join(t.TempDir(), "opencode.json")
+			ConfigPathOverride = configFile
+			defer func() { ConfigPathOverride = "" }()
+
+			if err := os.WriteFile(configFile, []byte(content+"\n"), 0o600); err != nil {
+				t.Fatalf("seeding config: %v", err)
+			}
+
+			err := EnsureOpenCodeOTelConfig()
+			if err == nil {
+				t.Fatal("expected an error for a non-object config, got nil")
+			}
+			if !strings.Contains(err.Error(), configFile) {
+				t.Errorf("error does not name the file: %v", err)
+			}
+
+			after, readErr := os.ReadFile(configFile)
+			if readErr != nil {
+				t.Fatalf("config file gone: %v", readErr)
+			}
+			if string(after) != content+"\n" {
+				t.Errorf("config was rewritten: %s", after)
+			}
+		})
+	}
+}
+
+// TestUserModelReachesEveryClient asserts what the launch builders control: a
+// model the user pinned reaches the client, on the command line for copilot and
+// opencode and in a warning for pi, which forwards no nav-pilot config at all.
+//
+// Reaching the client is not the same as winning. On `opencode run` the flag is
+// the request model and does outrank an agent's frontmatter, but in the TUI an
+// agent declaring its own `model:` overrides the flag. What this test pins is
+// the part nav-pilot owns: the pin is never silently dropped on the way out.
+// One table keeps the three clients from drifting apart.
+func TestUserModelReachesEveryClient(t *testing.T) {
+	pinned := domain.ResolvedConfig{Model: "claude-opus-5"}
+
+	if got := BuildCopilotArgs("copilot", pinned); !slices.Contains(got, "claude-opus-5") {
+		t.Errorf("copilot: %q does not carry the pinned model", got)
+	}
+	if got := OpenCodeArgs(pinned); !slices.Contains(got, "github-copilot/claude-opus-5") {
+		t.Errorf("opencode: %q does not carry the pinned model", got)
+	}
+	// The warning is pi's whole contract: if it ever stops naming the model, a
+	// pi user has no way to learn their pin was dropped.
+	warnings := strings.Join(PiUnsupportedConfigWarnings(pinned), "\n")
+	if !strings.Contains(warnings, `model "claude-opus-5"`) {
+		t.Errorf("pi: warnings do not name the dropped model: %q", warnings)
+	}
+
+	// With nothing pinned, opencode still gets the Nav default on the flag
+	// (TestOpenCodeArgs), copilot names no model, and pi has nothing to warn
+	// about.
+	unset := domain.ResolvedConfig{}
+	if got := BuildCopilotArgs("copilot", unset); slices.Contains(got, "--model") {
+		t.Errorf("copilot: %q passes --model with nothing pinned", got)
+	}
+	for _, w := range PiUnsupportedConfigWarnings(unset) {
+		if strings.HasPrefix(w, "model ") {
+			t.Errorf("pi: warns about a model the user never set: %q", w)
+		}
 	}
 }

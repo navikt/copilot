@@ -87,22 +87,27 @@ func openCodeDefaultModel() string {
 	return OpenCodeDefaultModel
 }
 
-// ResolvedModelNotice returns the one-line launch notice naming the model a
-// launch will run on and where it came from, or "" when nothing names one and
-// the client picks for itself: pi, which is launched with no model at all,
-// copilot with no pin anywhere, and an agentpakke declaring "inherit".
+// ResolvedModelNotice returns the one-line launch notice naming the model the
+// launch sets for the session and where it came from, or "" when nothing names
+// one and the client picks for itself: pi, which is launched with no model at
+// all, copilot with no pin anywhere, and an agentpakke declaring "inherit".
 //
 // Nothing told a user which model they were about to spend on: the model comes
 // from a config file, a flag, or an agentpakke declaration, and the launch said
 // none of that out loud. This mirrors the resolution the launch builders
 // already do rather than adding a second one, in the same order they use: the
 // user's own setting first, then the active agentpakke's declaration.
+//
+// It says "session model" rather than "model" because that is as far as the
+// launch can honestly promise. In the opencode TUI an agent that declares its
+// own model: overrides the flag for its own turns, and the launch cannot know
+// at that point which agent the user will pick.
 func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 	model, origin := resolvedModelOrigin(client, r)
 	if model == "" {
 		return ""
 	}
-	return fmt.Sprintf("Model: %s (%s)", model, origin)
+	return fmt.Sprintf("Session model: %s (%s)", model, origin)
 }
 
 // resolvedModelOrigin returns the model a launch resolves to and a short phrase
