@@ -111,6 +111,15 @@ const DOC_SECTIONS: TocItem[] = [
     ],
   },
   {
+    id: "lokal-modell",
+    label: "Bakkemodellen (alfa)",
+    children: [
+      { id: "lokal-kom-i-gang", label: "Kom i gang" },
+      { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
+      { id: "lokal-feilsoking", label: "Når noe henger" },
+    ],
+  },
+  {
     id: "cli-referanse",
     label: "CLI-referanse",
     children: [
@@ -356,6 +365,7 @@ export default function NavPilotDocs() {
                 <CompetenceSection />
                 <SyncSection />
                 <CustomizationSection />
+                <LocalModelSection />
                 <CliReferenceSection />
                 <HowItWorksSection />
                 <ResourcesSection />
@@ -1951,6 +1961,156 @@ reasoning_effort = "high"
 /* ═══════════════════════════════════════════════════════════════
    Section 7: CLI-referanse
    ═══════════════════════════════════════════════════════════════ */
+
+function LocalModelSection() {
+  return (
+    <section id="lokal-modell">
+      <VStack gap="space-16">
+        <div>
+          <LinkableHeading size="medium" level="2">
+            Bakkemodellen{" "}
+            <Tag variant="warning" size="small">
+              alfa
+            </Tag>
+          </LinkableHeading>
+          <BodyLong className="mt-3" style={{ color: "#475569" }}>
+            nav-pilot kan kjøre en modell på din egen maskin. Vi kaller den bakkemodellen: hovedagenten blir i skya og
+            bestemmer, bakkemodellen står på bakken og utfører. Den trekker ingen AI-credits, uansett hvor mye den
+            genererer. Til gjengjeld er den langsommere enn skyen, og den klarer bare en del av arbeidet.
+          </BodyLong>
+          <BodyLong className="mt-3" style={{ color: "#475569" }}>
+            Dette er alfa, og av som standard. Ingenting endres før du kjører{" "}
+            <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med Apple Silicon og 48 GB minne, og
+            rundt 26 GB ledig disk: 25 GB vekter pluss Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes
+            for M-brikkene.
+          </BodyLong>
+        </div>
+
+        <div id="lokal-kom-i-gang">
+          <LinkableHeading size="small" level="3">
+            Kom i gang
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Første <code className="font-mono text-xs">start</code> tar noen minutter mens modellen lastes inn i minnet.
+          </BodyShort>
+          <CodeBlock compact>
+            {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
+nav-pilot alpha local start     # starter serveren
+nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
+nav-pilot alpha local stop
+nav-pilot alpha local on        # skru på igjen etter off
+nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
+nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
+          </CodeBlock>
+          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#f8fafc" }}>
+            <Label size="small">Vi måler dette tettere enn resten av nav-pilot mens det er alfa</Label>
+            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              Vi samler inn hvor mange oppgaver hver økt sender til bakkemodellen (også når svaret er null, som er
+              tallet vi lærer mest av), hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den
+              henger. Aldri spørsmålene dine, koden din, filnavnene dine eller det modellen svarer.{" "}
+              <code className="font-mono text-xs">DO_NOT_TRACK=1</code> skrur av alt sammen, det samme gjør{" "}
+              <code className="font-mono text-xs">NAV_PILOT_TELEMETRY_ENABLED=false</code> hvis du heller vil sette det
+              per verktøy.
+            </BodyLong>
+          </Box>
+          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fef2f2" }}>
+            <Label size="small">Én kommando, men den ber om passordet ditt</Label>
+            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              macOS lar ikke GPU-en låse nok minne til en modell på denne størrelsen som standard, så{" "}
+              <code className="font-mono text-xs">init</code> hever grensen for deg med{" "}
+              <code className="font-mono text-xs">sudo</code> og sier fra når den gjør det. Grensen er et tak og ikke en
+              reservasjon: den tar ikke minne fra andre programmer før modellen faktisk bruker det. Den nullstilles ved
+              omstart, og <code className="font-mono text-xs">start</code> hever den igjen når den trengs.
+            </BodyLong>
+          </Box>
+          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+            Klienten din avgjør hva du får. <code className="font-mono text-xs">nav-pilot config get client</code> sier
+            hvilken du kjører.
+          </BodyLong>
+          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+            Under <strong>opencode</strong> blir bakkemodellen en underagent som heter{" "}
+            <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
+            oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at bakkemodellen ikke
+            klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
+            modelleverandør om gangen.
+          </BodyLong>
+        </div>
+
+        <div id="lokal-hva-den-klarer">
+          <LinkableHeading size="small" level="3">
+            Hva den klarer
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Målt i et kontrollert testoppsett, ikke i daglig bruk. Hovedregelen: den er god til å gjennomføre en
+            beslutning som allerede er tatt, og dårlig til å ta den selv. Om det lønner seg avhenger av hvor mange steg
+            skymodellen trenger når den gjør oppgaven alene: bruker den mange, sparer du mye på å sende det mekaniske
+            til bakkemodellen, og går oppgaven unna på to steg koster utsendingen mer enn den sparer.
+          </BodyShort>
+          <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
+            <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
+              <Label size="small">Fungerer</Label>
+              <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+                Slå opp noe i koden. Legge til en kommentar. Døpe om et symbol i mange filer. Tre et felt gjennom en
+                mapper og kallstedene. I våre kjøringer lyktes den omtrent to av tre ganger på de største endringene, og
+                der fanget testene feilene.
+              </BodyLong>
+            </Box>
+            <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
+              <Label size="small">Fungerer ikke</Label>
+              <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+                Skrive en ny fil fra bunnen: i våre forsøk gjorde den da ingenting i det hele tatt. Oppgaver der noe må
+                vurderes underveis, eller der en feil endring er dyr.
+              </BodyLong>
+            </Box>
+          </HGrid>
+          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fffbeb" }}>
+            <Label size="small">Sjekk resultatet</Label>
+            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              Bakkemodellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og kjør
+              testene etterpå. På store endringer bør du regne med å forkaste et forsøk og prøve på nytt. Det koster deg
+              tid, ikke credits.
+            </BodyLong>
+          </Box>
+          <BodyLong className="mt-4" size="small" style={{ color: "#64748b" }}>
+            Tiden varierer mye: fra omtrent likt med skyen på små endringer til rundt fire ganger så lenge på en
+            omdøping. På store mekaniske endringer kan den være raskere enn skyen. Kjør{" "}
+            <code className="font-mono text-xs">stop</code> når du ikke bruker den; den holder rundt 21 GB minne så
+            lenge den er oppe.
+          </BodyLong>
+        </div>
+
+        <div id="lokal-feilsoking">
+          <LinkableHeading size="small" level="3">
+            Når noe henger
+          </LinkableHeading>
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">status</code> skiller «treg» fra «død».
+          </BodyShort>
+          <CodeBlock compact>
+            {`nav-pilot alpha local status
+# står det hung: nav-pilot alpha local stop && nav-pilot alpha local start`}
+          </CodeBlock>
+          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+            nav-pilot slipper gjennom én forespørsel om gangen, så flere oppgaver står i kø framfor å kjøre parallelt.
+            Det er med vilje: serveren selv tar imot samtidige forespørsler og henger seg opp på dem, så ikke kall den
+            direkte utenom nav-pilot.
+          </BodyLong>
+          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+            To ting til, som du vil møte før noe dokument nevner dem. nav-pilot avslutter en tur hvis modellen gjentar
+            det samme verktøykallet åtte ganger på rad, og sier fra i økten: det er en vakt mot at den setter seg fast,
+            ikke en feil i koden din. Og starter du serveren på nytt midt i en økt, må økten startes på nytt også; den
+            gamle er bundet til serveren som forsvant.
+          </BodyLong>
+          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+            Si fra med <code className="font-mono text-xs">nav-pilot feedback</code> om noe henger, om en endring
+            kompilerer men er feil, eller om ventetiden ikke er verdt det. Negative erfaringer er like nyttige som
+            positive.
+          </BodyLong>
+        </div>
+      </VStack>
+    </section>
+  );
+}
 
 function CliReferenceSection() {
   return (

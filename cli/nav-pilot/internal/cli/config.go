@@ -153,6 +153,14 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf("log_level %q is not valid (allowed: %s)",
 			*cfg.LogLevel, strings.Join(validLogLevels, ", ")))
 	}
+	// A threshold below 2 is not a loop guard: one tool call is not a loop, and
+	// tripping on the first call disables local dispatch rather than guarding
+	// it. Caught here rather than clamped silently, so the config says what the
+	// binary does.
+	if cfg.LocalLoopGuard != nil && *cfg.LocalLoopGuard < 2 {
+		problems = append(problems, fmt.Sprintf(
+			"local_loop_guard must be at least 2 (got %d) — one tool call is not a loop", *cfg.LocalLoopGuard))
+	}
 	if cfg.OtelLogLevel != nil && !containsStr(validOtelLogLevels, *cfg.OtelLogLevel) {
 		problems = append(problems, fmt.Sprintf("otel_log_level %q is not valid (allowed: %s)",
 			*cfg.OtelLogLevel, strings.Join(validOtelLogLevels, ", ")))
@@ -289,6 +297,15 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.RtkPromptedAt != nil {
 			r.RtkPromptedAt = *file.RtkPromptedAt
+		}
+		if file.LocalAutostart != nil {
+			r.LocalAutostart = *file.LocalAutostart
+		}
+		if file.LocalEnabled != nil {
+			r.LocalEnabled = *file.LocalEnabled
+		}
+		if file.LocalLoopGuard != nil {
+			r.LocalLoopGuard = *file.LocalLoopGuard
 		}
 	}
 

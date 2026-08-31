@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "note": "Generated from profiles/ by 'mise run model-manifest'. Do not edit by hand.",
+  "models": [
+    {
+      "key": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "role": "Sub-agent worker for focused tasks",
+      "expect": "Takes a scoped task from the main agent and returns in seconds. Reads, renames, small edits and single-file changes. Not for work that needs many turns: it is unreliable past the point where a task stops being focused. The OptiQ build is chosen over the plain 4-bit because the plain one produced a roughly 200-call runaway tool loop in both passes at the 36 GB memory cap.",
+      "weights_gb": 25,
+      "min_ram_gb": 48,
+      "wired_limit_gb": 36,
+      "params": {
+        "MLX_MODEL": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+        "MLX_SERVER_TYPE": "mlx-lm",
+        "MLX_CACHE_SIZE": "3",
+        "MLX_CACHE_BYTES": "12884901888",
+        "MLX_MAX_TOKENS": "32768",
+        "MLX_OPENCODE_CONTEXT": "65536",
+        "MLX_OPENCODE_OUTPUT": "16384",
+        "MLX_OPENCODE_CHUNK_TIMEOUT": "600000",
+        "MLX_CHAT_TEMPLATE_ARGS": "{\"enable_thinking\": false}",
+        "MLX_TOP_K": "20",
+        "MLX_TOP_P": "0.95",
+        "MLX_MIN_P": "0.0"
+      }
+    }
+  ]
+}

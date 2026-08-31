@@ -124,6 +124,58 @@ nav-pilot upgrade
 nav-pilot feedback
 ```
 
+## Lokal modell (alfa, av som standard)
+
+`nav-pilot alpha local` kjører en modell på din egen maskin. Den trekker ingen AI-credits.
+Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. `init` gjør resten, inkludert å heve macOS-minnegrensen med `sudo`.
+
+```bash
+nav-pilot alpha local init      # gjør alt: miljø, vekter, minnegrense, og starter serveren
+nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
+nav-pilot alpha local stop      # og start igjen med start
+nav-pilot alpha local on        # skru på igjen etter off
+nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
+nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
+```
+
+Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
+uendret.
+
+**Under opencode** blir modellen en underagent (`local-worker`) som hovedagenten i skyen
+kan sende avgrensede oppgaver til. Hovedagenten bestemmer fortsatt alt. Den sender videre
+det som er mekanisk og spesifisert, og gjør resten selv.
+
+**Under Copilot CLI** kjører hele økten lokalt, fordi klienten bare håndterer én
+modelleverandør om gangen. Det passer til arbeid som allerede er spesifisert, ikke til
+oppgaver der modellen må finne ut hva som skal gjøres.
+
+### Hva den er god og dårlig til
+
+Målt i et kontrollert testoppsett, på én maskin, og nesten alt på ett Ktor-repo. På den ene Spring-appen vi målte kostet lokal utsending mer enn å la være. Den utfører en avgjørelse godt og tar en
+avgjørelse dårlig.
+
+| Fungerer | Fungerer ikke |
+|---|---|
+| Slå opp noe i koden | Skrive en ny fil fra bunnen |
+| Legge til kommentarer og loggsetninger | Finne ut hvilke filer en endring treffer |
+| Døpe om et symbol i mange filer | Endringer som krever en vurdering per fil |
+| Legge til et felt og oppdatere mapperen | Oppgaver der en feil endring er dyr |
+
+Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På den største mekaniske endringen vi målte var den raskere enn skyen.
+
+### Når noe henger
+
+```bash
+nav-pilot alpha local status
+```
+
+Den skiller «treg» fra «død». Sier den `hung`, restart med `stop` og `start`. Serveren
+svarer på én forespørsel om gangen, så flere samtidige oppgaver står i kø framfor å kjøre
+parallelt.
+
+Dette er alfa. Si fra om noe henger, om en endring kompilerer men er feil, eller om
+ventetiden ikke er verdt det: `nav-pilot feedback`.
+
 ## Personlig installasjon (valgfritt)
 
 ```bash

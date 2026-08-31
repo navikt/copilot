@@ -1,0 +1,47 @@
+name: nav-pilot local env
+
+# The local-inference environment is the one part of nav-pilot that cannot be
+# tested on the runners the rest of the CLI uses. Its unit tests deliberately
+# run with no uv, no Python, no weights and no server, so they prove the logic
+# and nothing about the platform.
+#
+# What breaks in the real world is pin rot: mlx ships macOS arm64 wheels for
+# cp310 to cp312 only, and the pinned uv, mlx-lm and mlx versions are three
+# strings in source. When one of them stops resolving, EnsureEnv fails on a
+# developer's machine and nowhere else. This job provisions the environment for
+# real, on Apple Silicon, and fails when a pin goes stale.
+#
+# It does not download weights (25 GB) or start a server. Those stay manual.
+
+# Nightly and on demand, never per pull request: macOS runners bill at ten
+# times the Linux rate, and what this job catches — a pin that stopped
+# resolving upstream — goes stale on upstream's clock, not on ours.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    name: Provision the local inference environment
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: cli/nav-pilot/go.mod
+          cache: true
+
+      - name: Build
+        run: cd cli/nav-pilot && go build -o nav-pilot .
+
+      - name: Provision, for real
+        run: cd cli/nav-pilot && go test -run TestEnsureEnvAgainstTheRealToolchain -tags realenv -v ./internal/local/...

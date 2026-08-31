@@ -9,6 +9,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -196,6 +197,18 @@ func stagedPrimaryAgent(client, context, pakkeName string) (string, error) {
 // OPENCODE_CONFIG_DIR pointing at the same payload, and --pass-env for it, with
 // the client receiving --agent <agent>.
 func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
+	// Same refusal the staged Copilot path makes, for the same reason: a pakke
+	// launches from a digest-verified payload built and tested against the model
+	// its manifest declares, and nobody reviewed it running on a 4-bit model on a
+	// laptop. This path did no local setup at all, so a staged launch with local
+	// enabled got no worker binding, no dispatch fragment and no loop guard, and
+	// said nothing about it — the developer saw a session that simply never
+	// dispatched.
+	if local.IsLocal(r.Model) {
+		return cpltLaunch{}, fmt.Errorf(
+			"%s is a local model, and agentpakke %q launches from a digest-verified payload that nav-pilot does not point at a server on this machine.\n\n  Launch the pakke on its declared model, or run a local session without it: %s",
+			r.Model, s.PakkeName, domain.Bold("nav-pilot --client opencode"))
+	}
 	if err := rejectReservedClientArgs("opencode", s.PakkeName, r.ExtraArgs); err != nil {
 		return cpltLaunch{}, err
 	}
@@ -245,11 +258,26 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 		return cpltLaunch{}, err
 	}
 
+	model := r.Model
+	if model == "" {
+		model = pakkeDeclaredModel("copilot")
+	}
+	// The refusal the legacy path no longer needs, kept where it is still true.
+	// A local session is BYOK: COPILOT_PROVIDER_BASE_URL replaces the model
+	// routing for the whole session, and GitHub authentication stops being
+	// required with it. A Tier 2 launch is defined by a digest-verified payload
+	// built and tested against the model its manifest declares, and nobody
+	// reviewed it running on a 4-bit model on a laptop — so this is refused
+	// rather than redirected. LaunchCopilotStaged reached the old refusal at no
+	// point, which is why a staged launch on a local model id went to GitHub.
+	if local.IsLocal(model) {
+		return cpltLaunch{}, fmt.Errorf(
+			"%s is a local model, and agentpakke %q launches from a digest-verified payload that nav-pilot does not point at a server on this machine.\n\n  Launch the pakke on its declared model, or run a local session without it: %s",
+			model, s.PakkeName, domain.Bold("nav-pilot --client copilot"))
+	}
 	agentArgs := []string{"--plugin-dir", s.Dir, "--agent", s.PakkeName + ":" + primary}
 	agentArgs = append(agentArgs, copilotResolvedFlags(r)...)
-	if r.Model != "" {
-		agentArgs = append(agentArgs, "--model", r.Model)
-	} else if model := pakkeDeclaredModel("copilot"); model != "" {
+	if model != "" {
 		agentArgs = append(agentArgs, "--model", model)
 	}
 	agentArgs = append(agentArgs, r.ExtraArgs...)

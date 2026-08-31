@@ -148,7 +148,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 		commands++
 	}
 
-	for _, entry := range resolver.List(source.KindAgent) {
+	for _, entry := range agentEntries(sourceDir) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 		if isConflict(relPath, dstPath, false) {

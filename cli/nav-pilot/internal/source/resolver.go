@@ -1,6 +1,7 @@
 package source
 
 import (
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"os"
 	"path"
 	"path/filepath"
@@ -224,10 +225,24 @@ func (r *SourceResolver) GetFile(typeDir, fileName string) (absPath, relPath str
 }
 
 // List discovers all artifacts of a kind.
+//
+// The local worker agent is not listed while local dispatch is off, which is
+// every machine that has never run `nav-pilot alpha local init`. Its description
+// promises work that draws no AI credits, and it can only keep that promise once
+// a launch has bound it to the local provider; offered anywhere else it is a
+// worker that quietly runs on the session's own model and bills for it.
+//
+// Filtered here rather than at each caller because there are several: the
+// materializer, `install --all`, `list`, and the sync that reports what is new.
+// A gate in one of them is a gate in none, which is how the agent reached
+// machines that never opted in.
 func (r *SourceResolver) List(kind *ArtifactKind) []Resolved {
 	names := r.discoverNames(kind)
 	var results []Resolved
 	for _, name := range names {
+		if kind == KindAgent && name == local.WorkerAgent && !local.Enabled() {
+			continue
+		}
 		if art, ok := r.Get(kind, name); ok {
 			results = append(results, art)
 		}

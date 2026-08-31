@@ -7,10 +7,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -273,8 +275,31 @@ func transformPrompt(data []byte) []byte {
 	return source.Reassemble(fm, body)
 }
 
+// agentEntries lists the agents to materialize.
+//
+// It is [source.SourceResolver.List] minus [local.WorkerAgent] while local
+// dispatch is off, which is every launch for the ~650 developers who never run
+// `nav-pilot alpha local init`. That agent's description promises work that
+// draws no AI credits, and it can only keep that promise when the launch
+// has bound it to the local provider model — so shipping it to a machine with
+// no local model offers a worker that quietly runs on the session's own model
+// and bills for it.
+//
+// Filtered at the listing rather than at each write because both the export
+// command and the launch-time sync materialize from this same list, and a gate
+// in one of them is a gate in neither. Turning local off takes an already
+// materialized copy back out: the sync deletes what its state file names and
+// the new listing does not.
+func agentEntries(sourceDir string) []source.Resolved {
+	entries := source.NewSourceResolver(sourceDir).List(source.KindAgent)
+	if local.Enabled() {
+		return entries
+	}
+	return slices.DeleteFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent })
+}
+
 func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
-	agents := source.NewSourceResolver(sourceDir).List(source.KindAgent)
+	agents := agentEntries(sourceDir)
 	if len(agents) == 0 {
 		return 0, nil
 	}

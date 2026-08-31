@@ -1,0 +1,19 @@
+{
+  "domain": "general",
+  "tags": ["local", "alpha", "sub-agent", "cost"],
+  "excluded": true,
+  "examples": [
+    {
+      "prompt": "Legg til en KDoc-kommentar på dagerMellomDatoer i DateUtil.kt",
+      "scenario": "Avgrenset endring i én fil"
+    },
+    {
+      "prompt": "Hvilken fil og linje leser NAIS_TOKEN_EXCHANGE_ENDPOINT?",
+      "scenario": "Oppslag uten endring"
+    },
+    {
+      "prompt": "Døp om erOrgnrGyldig til isOrgnrValid overalt",
+      "scenario": "Omdøping på tvers av kallsteder"
+    }
+  ]
+}

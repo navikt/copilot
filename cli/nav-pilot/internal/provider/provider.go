@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -98,6 +100,13 @@ func ToOpenCodeModel(model string) string {
 	if model == "" || model == "auto" {
 		return openCodeDefaultModel()
 	}
+	// Before the provider-qualified pass-through below: a local model id is
+	// publisher/repo, so it already contains a slash and would otherwise be
+	// handed to opencode as a provider it does not have. False whenever local
+	// dispatch is off, which is what keeps every existing mapping intact.
+	if local.IsLocal(model) {
+		return LocalProviderID + "/" + model
+	}
 	if strings.Contains(model, "/") {
 		return model
 	}
@@ -128,6 +137,9 @@ func IsKnownCopilotModel(id string) bool { return isKnownCopilotModel(id) }
 func KnownCopilotModelIDs() string { return knownCopilotModelIDs() }
 
 func isKnownOpenCodeModel(id string) bool {
+	if local.IsLocal(id) {
+		return true
+	}
 	for _, m := range knownOpenCodeModels {
 		if strings.EqualFold(m.ID, id) {
 			return true
@@ -166,11 +178,17 @@ func (copilotProvider) Available() bool {
 
 func (copilotProvider) Launch(r domain.ResolvedConfig) error { return LaunchCopilotResolved(r) }
 func (copilotProvider) DefaultModel() string                 { return "" }
-func (copilotProvider) KnownModels() []domain.ModelChoice    { return knownCopilotModels }
-func (copilotProvider) ValidateModel(model string) error     { return domain.ValidateModelValue(model) }
+func (copilotProvider) KnownModels() []domain.ModelChoice {
+	return withLocalModels(knownCopilotModels)
+}
+func (copilotProvider) ValidateModel(model string) error { return domain.ValidateModelValue(model) }
 
 func (copilotProvider) ModelAdvisory(model string) string {
-	if domain.ValidateModelValue(model) != nil || isKnownCopilotModel(model) {
+	// A local model is recognised — by the manifest rather than by GitHub's
+	// catalogue — and the launch points the client at it. Advising the
+	// developer that the server may reject it would be advice about a server
+	// this session never talks to.
+	if domain.ValidateModelValue(model) != nil || isKnownCopilotModel(model) || local.IsLocal(model) {
 		return ""
 	}
 	return fmt.Sprintf(
@@ -210,7 +228,32 @@ func (openCodeProvider) Launch(r domain.ResolvedConfig) error { return LaunchOpe
 // never disagree.
 func (openCodeProvider) DefaultModel() string { return openCodeDefaultModel() }
 
-func (openCodeProvider) KnownModels() []domain.ModelChoice { return knownOpenCodeModels }
+// KnownModels is the curated list plus the models this machine can serve
+// itself. See [withLocalModels].
+func (openCodeProvider) KnownModels() []domain.ModelChoice {
+	return withLocalModels(knownOpenCodeModels)
+}
+
+// withLocalModels appends the models this machine can serve itself, and only
+// when local inference is both installed and enabled. A developer who has never
+// run `nav-pilot alpha local init` sees exactly the curated list, which is the
+// alpha's whole contract: [local.IsLocal] is false for them, so this appends
+// nothing and no launch path branches.
+//
+// Both clients that can reach a local server offer them. opencode selects the
+// backend through a provider block, the Copilot CLI through the BYOK
+// environment ([copilotLocalEnv]), and neither is something a developer should
+// have to know to find the model in the picker.
+func withLocalModels(curated []domain.ModelChoice) []domain.ModelChoice {
+	models := curated
+	for _, m := range local.Active().Models {
+		if !local.IsLocal(m.Model) {
+			continue
+		}
+		models = append(slices.Clip(models), domain.ModelChoice{ID: m.Model, Label: m.Name + " (local)"})
+	}
+	return models
+}
 
 func (openCodeProvider) ValidateModel(model string) error {
 	if err := domain.ValidateModelValue(model); err != nil {

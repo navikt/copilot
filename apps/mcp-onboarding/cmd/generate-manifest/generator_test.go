@@ -245,3 +245,41 @@ description: Excluded
 		t.Errorf("expected included-skill, got %q", skills[0].Name)
 	}
 }
+
+// TestLoadAgents_ExcludedAgentsFiltered: every agent in this manifest is
+// published to VS Code Copilot as a one-click `vscode:chat-agent/install` deep
+// link, carrying its own description. An agent that cannot do there what its
+// description promises — one that needs a runtime only nav-pilot provides — is
+// marked excluded in its metadata and must not reach the catalog at all.
+func TestLoadAgents_ExcludedAgentsFiltered(t *testing.T) {
+	dir := t.TempDir()
+	agentsDir := filepath.Join(dir, "agents")
+	if err := os.MkdirAll(agentsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(agentsDir, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write("included.agent.md", "---\nname: included\ndescription: Included\n---\n\n# Included\n")
+	write("included.metadata.json", `{"domain": "general"}`)
+	write("excluded.agent.md", "---\nname: excluded\ndescription: Excluded\n---\n\n# Excluded\n")
+	write("excluded.metadata.json", `{"domain": "general", "excluded": true}`)
+
+	gen := NewGenerator("navikt", "copilot", "main")
+	agents, err := gen.loadAgents(agentsDir)
+	if err != nil {
+		t.Fatalf("loadAgents() error: %v", err)
+	}
+
+	if len(agents) != 1 {
+		t.Fatalf("expected 1 agent (excluded filtered), got %d", len(agents))
+	}
+	if agents[0].Name != "included" {
+		t.Errorf("expected included, got %q", agents[0].Name)
+	}
+}

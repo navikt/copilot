@@ -1,6 +1,7 @@
 package source
 
 import (
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"os"
 	"path/filepath"
 	"testing"
@@ -409,5 +410,39 @@ func TestResolverAllowsSymlinkedDirInsideCheckout(t *testing.T) {
 	r := NewSourceResolver(tmp)
 	if _, ok := r.Get(KindAgent, "nais"); !ok {
 		t.Error("agents/ symlinked to a directory inside the checkout should still resolve")
+	}
+}
+
+// TestListHidesTheLocalWorkerWhileLocalIsOff: the worker agent is not offered to
+// a machine that never opted in.
+//
+// Its description promises work that draws no AI credits, which is only true once
+// a launch has bound it to the local provider. Listed anywhere else it is a worker
+// that quietly runs on the session's own model and bills for it. There are several
+// listing callers, so the gate is at the listing: in one of them it would be in
+// none, which is how the agent reached machines that had never run init.
+func TestListHidesTheLocalWorkerWhileLocalIsOff(t *testing.T) {
+	dir := t.TempDir()
+	agents := filepath.Join(dir, "agents")
+	if err := os.MkdirAll(agents, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{local.WorkerAgent, "grillmester"} {
+		body := "---\nname: " + name + "\ndescription: x\n---\n"
+		if err := os.WriteFile(filepath.Join(agents, name+".agent.md"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("HOME", t.TempDir()) // no local config: dispatch is off
+
+	var names []string
+	for _, e := range NewSourceResolver(dir).List(KindAgent) {
+		names = append(names, e.Name)
+		if e.Name == local.WorkerAgent {
+			t.Errorf("List() offered %q on a machine with local dispatch off", e.Name)
+		}
+	}
+	if len(names) != 1 {
+		t.Errorf("List() = %v, want only the agent unrelated to local inference", names)
 	}
 }

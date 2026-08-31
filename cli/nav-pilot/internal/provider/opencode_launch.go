@@ -1,14 +1,19 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -27,11 +32,25 @@ func openCodeConfigPath() string {
 	if ConfigPathOverride != "" {
 		return ConfigPathOverride
 	}
+	return filepath.Join(openCodeConfigDir(), "opencode.json")
+}
+
+// openCodeConfigDir is where opencode reads its own configuration.
+//
+// XDG_CONFIG_HOME is honoured because opencode honours it. Hardcoding
+// ~/.config/opencode meant that for a developer who sets it, every provider block
+// nav-pilot wrote, every dispatch policy it registered and every removal it made
+// went to a file opencode never reads: local inference silently did nothing, and
+// `off` cleaned a file that was never dirty.
+func openCodeConfigDir() string {
+	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" && filepath.IsAbs(x) {
+		return filepath.Join(x, "opencode")
+	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode", "opencode.json")
+		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode")
 	}
-	return filepath.Join(home, ".config", "opencode", "opencode.json")
+	return filepath.Join(home, ".config", "opencode")
 }
 
 // openCodeNavContextDir returns the directory for Nav context materialization.
@@ -127,6 +146,20 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	return args
 }
 
+// openCodeAgentArgs is what a legacy opencode launch passes the client:
+// [OpenCodeArgs], with the user's pass-through arguments forwarded through the
+// same rules the staged path uses (openCodeClientArgs), so `run` keeps its
+// place as the first argument opencode sees.
+//
+// Until this existed the pass-through arguments were parsed, resolved, and then
+// dropped on the floor: `nav-pilot -- run "…"` started the TUI with the request
+// discarded, which is a whole non-interactive dispatch thrown away in silence.
+// With none of them openCodeClientArgs returns the bind untouched, so every
+// launch that has ever worked is byte-identical (golden_launch_test.go).
+func openCodeAgentArgs(resolved domain.ResolvedConfig) []string {
+	return openCodeClientArgs(OpenCodeArgs(resolved), resolved.ExtraArgs)
+}
+
 // OpenCodeUnsupportedConfigWarnings returns informational warning strings for
 // config fields that are explicitly set to a non-default value but have no
 // opencode equivalent.
@@ -220,6 +253,375 @@ func EnsureOpenCodeOTelConfig() error {
 	return nil
 }
 
+// LocalProviderID is the opencode provider id the local server is registered
+// under. Shared with the generator in navikt/mlx-workspace, whose opencode-init
+// task writes the same block for its benchmark workspaces.
+const LocalProviderID = "mlx"
+
+// EnsureOpenCodeLocalProvider registers the local server as an opencode
+// provider, so `--model mlx/<id>` reaches this machine instead of GitHub.
+//
+// It is a config write rather than an environment variable because opencode
+// picks its backend from the provider block and has no base-URL variable to
+// override. It merges, like EnsureOpenCodeOTelConfig above and for the same
+// reason: the file is the developer's, not nav-pilot's.
+//
+// The three limits are the manifest's, not this package's. They were measured:
+// a context declared lower than the model's real one keeps each auto-compaction
+// small, and the chunk timeout is the gap opencode tolerates between streamed
+// tokens — at 96k tokens we measured a single token taking three and a half
+// minutes, and the default timeout drops the connection mid-generation and
+// returns an empty response the client does not report as a failure.
+func EnsureOpenCodeLocalProvider(m local.Model, guardURL string) error {
+	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		providers, _ := cfg["provider"].(map[string]any)
+		if providers == nil {
+			providers = make(map[string]any)
+		}
+		providers[LocalProviderID] = map[string]any{
+			"npm":  "@ai-sdk/openai-compatible",
+			"name": "Local (nav-pilot)",
+			"options": map[string]any{
+				// The loop guard, not the server: every completion has to pass
+				// through the thing that can stop a runaway loop.
+				"baseURL":      guardURL + "/v1",
+				"apiKey":       "nav-pilot",
+				"chunkTimeout": chunkTimeoutMS(m),
+				"timeout":      false,
+			},
+			"models": map[string]any{
+				m.Model: map[string]any{
+					"limit": map[string]any{
+						"context": localParamInt(m, "MLX_OPENCODE_CONTEXT", 32768),
+						"output":  localParamInt(m, "MLX_OPENCODE_OUTPUT", 8192),
+					},
+				},
+			},
+		}
+		cfg["provider"] = providers
+		bindLocalWorker(cfg, m)
+		return true
+	})
+}
+
+// bindLocalWorker pins the worker subagent to the local model, and is the
+// difference between the alpha saving AI credits and spending more of
+// them. An opencode agent with no model of its own runs on the session's
+// model: with a cloud main agent, every task dispatched to `local-worker`
+// would have gone to the cloud, at cloud prices, while the dispatch policy
+// beside it told the main agent those tasks were free.
+//
+// The materialized agent file cannot carry it — transformAgent reduces every
+// agent's frontmatter to description and mode — and it should not: the model
+// id is the developer's resolved manifest entry, not a property of the agent
+// text, and the same file is synced to machines with no local model at all.
+//
+// `agent.<name>.model` is opencode's own per-agent selection (config.json
+// $defs.AgentConfig.model, "provider/model"), verified on opencode 1.18.23:
+// `opencode debug agent local-worker` resolves this block to
+// {"providerID": "mlx", "modelID": "<id>"}.
+//
+// Merging rather than replacing, for the same reason every other writer here
+// merges: a developer who set their own tools or permission on this agent
+// keeps them, and only the model is nav-pilot's.
+func bindLocalWorker(cfg map[string]any, m local.Model) bool {
+	agents, _ := cfg["agent"].(map[string]any)
+	if agents == nil {
+		agents = make(map[string]any)
+	}
+	worker, _ := agents[local.WorkerAgent].(map[string]any)
+	if worker == nil {
+		worker = make(map[string]any)
+	}
+	want := LocalProviderID + "/" + m.Model
+	if worker["model"] == want {
+		return false
+	}
+	worker["model"] = want
+	agents[local.WorkerAgent] = worker
+	cfg["agent"] = agents
+	return true
+}
+
+// unbindLocalWorker takes the binding back out, leaving anything else the
+// developer put on that agent — and the "agent" key itself when nav-pilot is
+// what emptied it.
+func unbindLocalWorker(cfg map[string]any) bool {
+	agents, _ := cfg["agent"].(map[string]any)
+	worker, found := agents[local.WorkerAgent].(map[string]any)
+	if !found {
+		return false
+	}
+	if _, hadModel := worker["model"]; !hadModel {
+		return false
+	}
+	delete(worker, "model")
+	if len(worker) == 0 {
+		delete(agents, local.WorkerAgent)
+	}
+	if len(agents) == 0 {
+		delete(cfg, "agent")
+	} else {
+		cfg["agent"] = agents
+	}
+	return true
+}
+
+// RemoveOpenCodeLocalProvider takes the local provider block back out of
+// opencode's config, which is what `alpha local off` owes the developer.
+//
+// Turning dispatch off in nav-pilot's own config only stops nav-pilot from
+// choosing the model. The block [EnsureOpenCodeLocalProvider] wrote stays in a
+// file opencode reads on its own, so a developer running opencode directly
+// could still pick the model and reach the guard's port — which after `off` is
+// whatever happens to be listening there. `start` writes the block back.
+//
+// A config with no local block, and a config that is not there at all, are both
+// nothing to do rather than errors: off must work on a machine where opencode
+// was never configured.
+func RemoveOpenCodeLocalProvider() error {
+	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		// The worker's binding goes with it: a subagent pinned to a provider
+		// that is no longer registered is a session that fails on dispatch
+		// rather than one that falls back.
+		unbound := unbindLocalWorker(cfg)
+		providers, _ := cfg["provider"].(map[string]any)
+		if _, found := providers[LocalProviderID]; !found {
+			return unbound
+		}
+		delete(providers, LocalProviderID)
+		// An empty "provider": {} left behind is nav-pilot's litter in someone
+		// else's file, so it goes too — but only when nav-pilot emptied it.
+		if len(providers) == 0 {
+			delete(cfg, "provider")
+		} else {
+			cfg["provider"] = providers
+		}
+		return true
+	})
+}
+
+// mutateOpenCodeConfig reads opencode's config, hands the parsed object to
+// mutate, and writes it back only when mutate reports it changed something.
+//
+// Every writer here needs the same merge, and for the same reason
+// [EnsureOpenCodeLocalProvider] states: the file is the developer's and
+// nav-pilot owns a few keys in it, not the file. A config that is not there is
+// one to create rather than an error, because `start` has to work on a machine
+// where opencode was never configured; a config that is there and unparseable
+// is an error, because guessing at it would overwrite whatever the developer
+// actually wrote.
+func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
+	path := openCodeConfigPath()
+	cfg := map[string]any{"$schema": "https://opencode.ai/config.json"}
+	data, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+		}
+	case !os.IsNotExist(err):
+		return fmt.Errorf("reading opencode config: %w", err)
+	}
+	if !mutate(cfg) {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("creating opencode config dir: %w", err)
+	}
+	out, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshalling opencode config: %w", err)
+	}
+	return writeConfigAtomically(path, append(out, '\n'))
+}
+
+// writeConfigAtomically replaces the developer's config in one step: a
+// temporary file in the same directory, then a rename.
+//
+// A plain write truncates first, so a crash, a full disk or a killed terminal
+// between truncate and write leaves a half-written opencode.json — a file
+// nav-pilot owns a few keys in and the developer owns the rest of, which
+// opencode then refuses to parse and nav-pilot's own merge refuses to touch.
+// Same directory because a rename is only atomic within a filesystem.
+func writeConfigAtomically(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".opencode.json.*")
+	if err != nil {
+		return fmt.Errorf("creating temporary opencode config: %w", err)
+	}
+	defer os.Remove(tmp.Name())
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		return fmt.Errorf("setting opencode config permissions: %w", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("writing opencode config: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("writing opencode config: %w", err)
+	}
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return fmt.Errorf("replacing opencode config: %w", err)
+	}
+	return nil
+}
+
+// chunkTimeoutMS is the gap opencode tolerates between streamed tokens, in
+// milliseconds. One function because two places state it: the provider block
+// configures it and [LocalDispatchPolicy] tells the main agent how long to
+// wait, and a dispatcher that gives up first can duplicate an edit that is
+// still in flight.
+func chunkTimeoutMS(m local.Model) int {
+	return localParamInt(m, "MLX_OPENCODE_CHUNK_TIMEOUT", 600000)
+}
+
+// localParamInt reads one MLX_ param as an integer, falling back to a
+// conservative default. A malformed value is not fatal: the manifest's job is
+// to tune this, and a bad number should cost tuning, not the session.
+func localParamInt(m local.Model, key string, fallback int) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(m.Params[key])); err == nil && n > 0 {
+		return n
+	}
+	return fallback
+}
+
+// localPolicyFileName is the dispatch policy's name in opencode's config
+// directory. It is nav-pilot's file and nobody else's: nothing merges into it,
+// `alpha local off` deletes it, and it sits at the root of that directory
+// rather than under agents/ or instructions/ so the Nav context sync never
+// counts it as one of its own and never deletes it out from under a session.
+const localPolicyFileName = "nav-pilot-local-dispatch.md"
+
+func localPolicyPath() string {
+	return filepath.Join(filepath.Dir(openCodeConfigPath()), localPolicyFileName)
+}
+
+// LocalDispatchPolicy is what the main agent is told about the local worker:
+// that it exists, what it is good at, and how it fails.
+//
+// Generated rather than shipped as a file, because everything load-bearing in
+// it moves. The model id and the role and expect prose come from the resolved
+// manifest entry, which is a file in another repo; the threshold is the
+// developer's local_loop_guard. A hand-written copy is wrong the first time any
+// of them changes, and wrong in the direction that costs: what is safe to
+// dispatch is a property of the model behind the endpoint, and we have measured
+// two that fail in opposite directions — one declines to edit, the other loops.
+// Naming the model is also what makes a transcript readable later, when someone
+// reports an edit that went wrong.
+//
+// A pure function of its inputs, which is the point: opencode reads the file
+// into the system prompt, and the 99.3–99.5% prompt-cache reuse a local session
+// depends on holds only while that prefix is byte-identical from turn to turn.
+func LocalDispatchPolicy(m local.Model, loopGuard int) string {
+	var b strings.Builder
+	b.WriteString("# Local worker on this machine\n\n")
+	fmt.Fprintf(&b, "The `local-worker` agent runs on %s here on the machine. It draws no AI credits: everything it generates is free, however many tokens it takes. That is the whole reason to send anything to it.\n\n", m.Model)
+	if m.Role != "" {
+		fmt.Fprintf(&b, "What the model was chosen for: %s\n", m.Role)
+	}
+	if m.Expect != "" {
+		fmt.Fprintf(&b, "What it actually delivers: %s\n", m.Expect)
+	}
+	if m.Role != "" || m.Expect != "" {
+		b.WriteString("\n")
+	}
+	b.WriteString("Send it: lookups in the code, comments, log lines, a single test file, and mechanical changes that follow one pattern. A rename hits call sites in several files and still belongs there.\n")
+	b.WriteString("Describe the change fully when you send it: which file, which line, what it becomes. The model carries out a decision well and makes one badly, so if you doubt it can do the task, do it yourself. The measurements say you judge this correctly.\n")
+	b.WriteString("Do not send it: changes needing a judgement per file, tasks needing many rounds, changes where a wrong edit is expensive.\n\n")
+	fmt.Fprintf(&b, "It usually answers in seconds, but a single token has been measured at three and a half minutes under load. The client gives up on its own after %d minutes without an answer, so wait for it. Interrupting earlier can duplicate a change that is still in flight. Send one task at a time: the model runs on one GPU, so concurrent calls get nothing done faster.\n\n", max(1, chunkTimeoutMS(m)/60000))
+	b.WriteString("It fails in two ways. Both are cheap to spot, and both mean you take the task yourself rather than sending it again:\n")
+	b.WriteString("- It often says no and changes nothing. Check the file actually changed. If it did not, you lost a few seconds and no credits.\n")
+	fmt.Fprintf(&b, "- It can repeat the same tool call until nav-pilot ends the turn after %d identical calls in a row.\n", loopGuard)
+	return b.String()
+}
+
+// EnsureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
+// agent and points opencode at it, once per launch — not per turn, which is
+// what a stable prompt prefix requires.
+//
+// It writes its own file and registers it in the config's "instructions" array
+// rather than appending to AGENTS.md. opencode loads exactly one global
+// AGENTS.md, ~/.config/opencode/AGENTS.md, and that is the file
+// [EnsureOpenCodeNavContext] materializes Nav's own context into and refuses to
+// overwrite once the developer has edited it — so appending there would either
+// clobber someone's file or be dropped as a conflict. The instructions array is
+// the additive hook opencode does offer, it lives in the same config the
+// provider block already merges into, and it leaves the developer's own entries
+// alone.
+//
+// The registered path is absolute because opencode resolves a relative
+// instructions entry upward from the project directory, not from the config
+// directory the file lives in — a relative name would resolve for nobody.
+//
+// It takes the worker's model, not the session's, and is called only once
+// [localWorker] has found one. Taking it back out is [RemoveOpenCodeLocalPolicy],
+// which [startLocalDispatch] calls whenever there is no worker: the entry lives
+// in a config file that outlives the session that wrote it, so a developer who
+// turns the alpha off — or launches with no server up — would otherwise keep
+// reading "draws no AI credits" about a worker that is not there. The
+// ~650 developers who never turn the alpha on have nothing to unregister, so
+// their launch stays byte-identical to the one they have.
+//
+// The binding goes in the same mutate as the entry, so the claim and the thing
+// that makes it true are one write: there is no config in which the fragment is
+// registered and the worker is not pinned to the local model.
+func EnsureOpenCodeLocalPolicy(m local.Model) error {
+	path := localPolicyPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("creating opencode config dir: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.LoopGuardRepeat())), 0o600); err != nil {
+		return fmt.Errorf("writing the local dispatch policy: %w", err)
+	}
+	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		bound := bindLocalWorker(cfg, m)
+		entries, _ := cfg["instructions"].([]any)
+		if slices.Contains(entries, any(path)) {
+			return bound
+		}
+		cfg["instructions"] = append(entries, path)
+		return true
+	})
+}
+
+// RemoveOpenCodeLocalPolicy takes the dispatch policy back out, which is what
+// `alpha local off` owes the developer for the same reason
+// [RemoveOpenCodeLocalProvider] does: the instructions entry lives in a file
+// opencode reads on its own, so leaving it there keeps telling every session —
+// including a hosted one — to dispatch to a worker that is no longer reachable.
+// The next launch with local on writes both back.
+func RemoveOpenCodeLocalPolicy() error {
+	path := localPolicyPath()
+	// Deregister before deleting. The other order left a window where the file
+	// was gone and opencode's config still named it, so a crash in between, or a
+	// failure to write the config, left the developer's own opencode pointing at
+	// a path that does not exist. This order fails the other way: a file left
+	// behind that nothing reads, which the next launch overwrites.
+	if err := mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		entries, _ := cfg["instructions"].([]any)
+		kept := slices.DeleteFunc(slices.Clone(entries), func(e any) bool { return e == any(path) })
+		if len(kept) == len(entries) {
+			return false
+		}
+		// An empty "instructions": [] left behind is nav-pilot's litter in
+		// someone else's file, so it goes too — but only when nav-pilot
+		// emptied it.
+		if len(kept) == 0 {
+			delete(cfg, "instructions")
+		} else {
+			cfg["instructions"] = kept
+		}
+		return true
+	}); err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing the local dispatch policy: %w", err)
+	}
+	return nil
+}
+
 // LaunchOpenCode launches opencode inside the cplt sandbox with the resolved config.
 // Before launching, it materializes Nav context into opencode's user config directory.
 // cplt sandboxes the opencode binary, so opencode must also be installed on PATH.
@@ -246,6 +648,45 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 
+	// Local dispatch, whether or not this session's own model is local: a cloud
+	// main agent handing focused tasks to a local worker is the case the
+	// feature exists for.
+	guard, err := startLocalDispatch(resolved.Model)
+	if err != nil {
+		return err
+	}
+	if guard != nil {
+		defer guard.Close()
+		// How much this session actually handed over, recorded when it ends. Zero
+		// is the value we most need: it means a worker was available and the
+		// orchestrator chose not to use it, and that ratio is what decides
+		// whether the feature pays for itself on a given codebase.
+		defer func() {
+			// The model from the recorded server rather than threaded down from
+			// the worker lookup: the guard proves it is that server's, and a
+			// session that outlived a restart should report what it talked to.
+			model := ""
+			if st, ok, err := local.LoadState(); err == nil && ok {
+				model = st.Model
+			}
+			telemetryRecorder.RecordLocalSession("opencode", model, guard.Completions())
+		}()
+		// The provider block names this session's guard port, and the port dies
+		// with the session. Left behind, it points opencode at a number the
+		// kernel will hand to something else: a developer running opencode
+		// directly afterwards would send prompts, with whatever repository
+		// context they carry, to whatever had since bound it. Removed on the way
+		// out, so a stale address never outlives the guard that answered it.
+		defer func() {
+			if err := RemoveOpenCodeLocalProvider(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local provider from opencode's config: %v\n",
+					domain.Yellow("⚠"), err)
+			}
+		}()
+		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row.\n",
+			domain.Dim("ℹ"), local.LoopGuardRepeat())
+	}
+
 	suffix := ""
 	if navSummary != "" {
 		suffix = fmt.Sprintf(" with Nav context (%s)", navSummary)
@@ -253,11 +694,152 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	return launchViaCplt(cpltLaunch{
 		agent:         "opencode",
-		agentArgs:     OpenCodeArgs(resolved),
+		agentArgs:     openCodeAgentArgs(resolved),
 		env:           launchEnv,
 		displayName:   "opencode",
 		messageSuffix: suffix,
 	})
+}
+
+// ensureOwnServer is [local.EnsureOwnServer] behind a variable, the same seam
+// local/guard.go keeps for the same call and for the same reason: the proof
+// needs a recorded process that is still alive and still holding a fixed port,
+// which a test cannot arrange without taking that port on the machine it runs
+// on.
+var ensureOwnServer = local.EnsureOwnServer
+
+// localWorker resolves the model a dispatched task actually reaches on this
+// machine: the one the recorded server is serving. Not the session's model —
+// the point of the alpha is a cloud main agent handing focused tasks to a local
+// worker, so the session model is hosted in the normal case and says nothing
+// about what the worker runs.
+//
+// The zero Model with a nil error means local dispatch is off, which is the
+// state of every nav-pilot that never ran the alpha. A non-nil error means it
+// is on but there is nothing of nav-pilot's own to dispatch to, and says why.
+//
+// [local.EnsureOwnServer] is that proof, and it gates what the launch writes
+// and not only the guard because all of it is a claim about a server on this
+// machine. The guard forwards to a fixed 127.0.0.1:8080, so a server that died
+// hours ago and left the port to whatever bound it next would have the
+// session's dispatches proxied to a stranger with nothing on screen to say so.
+// Server.Start refuses a port nav-pilot does not own; this is the same rule
+// where the prompts actually flow. The guard re-proves it per completion behind
+// a short cache, because this call only covers the instant of the launch and
+// the session it starts runs for hours.
+func localWorker() (local.Model, error) {
+	if !local.Enabled() {
+		return local.Model{}, nil
+	}
+	// Only when the developer asked launches to start it. Off, this path does
+	// nothing and the ownership check below reports what is or is not running,
+	// which is also what keeps that check the single seam the tests stub.
+	if local.Autostart() {
+		if err := local.EnsureServerRunning(context.Background(), func(model string) {
+			fmt.Fprintf(os.Stderr, "%s Starting the local %s server. The first start after a reboot takes minutes.\n",
+				domain.Dim("ℹ"), domain.Bold(model))
+		}); err != nil {
+			return local.Model{}, err
+		}
+	}
+	if err := ensureOwnServer(); err != nil {
+		return local.Model{}, err
+	}
+	st, _, err := local.LoadState()
+	if err != nil {
+		return local.Model{}, err
+	}
+	m, found := local.Lookup(st.Model)
+	if !found {
+		// EnsureOwnServer proved the process. The manifest is what carries the
+		// limits the provider block declares and the prose the dispatch policy
+		// quotes, so a model it does not name is one nav-pilot cannot describe
+		// honestly to a main agent.
+		return local.Model{}, fmt.Errorf(
+			"the running local server serves %q, which this nav-pilot's model manifest does not name.\n\n  Start it again:\n\n    %s\n    %s",
+			st.Model, domain.Bold("nav-pilot alpha local stop"), domain.Bold("nav-pilot alpha local start"))
+	}
+	return m, nil
+}
+
+// startLocalDispatch sets local dispatch up for one session: the opencode
+// provider block, the worker agent's binding to the local model, the dispatch
+// policy that tells the main agent what the worker is for, and the loop guard
+// every completion passes through. launchViaCplt blocks until the client exits,
+// so the returned guard lives exactly as long as the dispatch it guards and
+// needs no daemon.
+//
+// The client reaches the guard by address, not by environment: the provider
+// block written here points at the guard's fixed port, because opencode selects
+// a backend through its provider config and has no base-URL variable to
+// override.
+//
+// Gated on [local.Enabled] — dispatch turned on and the environment
+// provisioned — and not on the session's model. Gating on the session model was
+// the defect: a hosted main agent is the normal case for this feature, so the
+// binding and the dispatch fragment were written only for a developer who had
+// at some point launched a local model themselves, and removed again by their
+// next hosted launch. Everyone else got a `local-worker` with no model of its
+// own, which opencode runs on the session's model — every "free" dispatch
+// billed to the cloud, beside a policy file saying it was free.
+//
+// A session with no worker refuses only when the session model is the local one,
+// because then there is nothing else for the prompts to run on. A hosted session
+// loses the worker and carries on: a developer who left dispatch on and has not
+// started a server today still has a session worth launching, and refusing it
+// would make `alpha local off` something you have to remember before every
+// cloud launch.
+//
+// The gate is a function rather than an `if` at the call site so a test can
+// hold it: with local disabled nothing here listens and nothing here writes,
+// pinned by TestHostedLaunchStartsNoLoopGuard, and moving the guard out from
+// behind the gate now fails a test instead of nothing.
+func startLocalDispatch(sessionModel string) (*local.Guard, error) {
+	// Same refusal the Copilot path makes, for the same reason: a session
+	// configured for a local model with dispatch off would otherwise be sent to
+	// the cloud provider under a Hugging Face model id.
+	if local.DisabledLocalModel(sessionModel) {
+		return nil, fmt.Errorf(
+			"%s runs on this machine, but local inference is off for this install.\n\n  Turn it on:\n\n    %s",
+			domain.Bold(sessionModel), domain.Bold("nav-pilot alpha local init"))
+	}
+	worker, err := localWorker()
+	if err != nil {
+		if local.IsLocal(sessionModel) {
+			return nil, err
+		}
+		fmt.Fprintf(os.Stderr, "%s No local worker this session — %v\n", domain.Yellow("⚠"), err)
+	}
+	if worker.Model == "" {
+		// Off, or on with nothing behind it. Either way the dispatch policy
+		// goes: it tells every session the worker draws no AI credits,
+		// and there is now no worker for that to be true about. Nothing is
+		// written when there is nothing to remove, which is what keeps a launch
+		// with the alpha off byte-identical to the one it has always been.
+		if err := RemoveOpenCodeLocalPolicy(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local dispatch policy from opencode: %v\n", domain.Yellow("⚠"), err)
+		}
+		return nil, nil
+	}
+	// Both non-fatal, like the Nav context above: a session missing them
+	// dispatches badly, a refused launch dispatches nothing at all.
+	// `alpha local start` writes the provider block too — writing it here as
+	// well is what makes a launch self-healing when the developer's config was
+	// edited, or written by an older nav-pilot, since the block is what the
+	// binding below names.
+	// The guard comes up first now, because its address is what goes into the
+	// provider block and the port is this session's rather than a constant.
+	guard, err := local.StartGuard(local.ServerURL())
+	if err != nil {
+		return nil, err
+	}
+	if err := EnsureOpenCodeLocalProvider(worker, guard.URL()); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not register the local model with opencode: %v\n", domain.Yellow("⚠"), err)
+	}
+	if err := EnsureOpenCodeLocalPolicy(worker); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
+	}
+	return guard, nil
 }
 
 // LaunchPi launches pi inside the cplt sandbox. pi must also be installed on
