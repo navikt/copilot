@@ -504,9 +504,12 @@ EOF
 # declaration plus two call sites rather than three copies of one line.
 #
 # ⚠️  Baselines in docs/golden-baselines/ recorded before 2026-08-31 measured
-# the old placeholder fixture. Their t4 and t6 sizes are not comparable with
-# runs made after this change; --compare across that boundary reports a fixture
-# change as a persona change.
+# the old placeholder fixture. NONE of their sizes are comparable with runs made
+# after this change — every prompt explores this repo in Fase 1, so a bigger
+# fixture moves t1 and t2 as surely as it moves t4 and t6, and --compare across
+# that boundary would report a fixture change as a persona change. This comment
+# is not the enforcement: FIXTURE_SUM below is, so that a --compare in six
+# months says it without anyone having read this.
 cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/Config.kt" <<'EOF'
 package no.nav.demo
 
@@ -632,6 +635,13 @@ export function StatusPanel({ status, onSlett }) {
 }
 EOF
 fi
+
+# Fixture identity, for the --compare compatibility check below. The sizes this
+# harness reports are sizes of answers about this fake repo, so they move when
+# the repo moves. .github/ is excluded on purpose: the persona and the
+# instructions are the variables the harness exists to move, and folding them in
+# here would warn "not comparable" on exactly the comparison it is built to make.
+FIXTURE_SUM="$( (cd "$TEMPLATE" && find . -type f -not -path './.github/*' -exec cksum {} + 2>/dev/null) | sort | cksum | awk '{print $1}' )"
 
 # The agent writes to $WS (t1 fixes the README typo, t4 extends a handler, t6
 # renames maksAntall), so $WS is thrown away and rebuilt from $TEMPLATE before
@@ -811,6 +821,16 @@ record_soft() {
 # behaviour is not.
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
+
+# A red-zone declaration as a Fase 2 plan writes it, NOT the Fase 1 checkpoint
+# template's own placeholder line `• 🔴 Rød sone: [liste, eller «ingen»]`. That
+# placeholder is what made a bare `present 'Rød sone'` pass vacuously: any
+# response reproducing the checkpoint block carries it, so the assertion fired
+# on a transcript that had never planned anything. Keying on the literal
+# `[liste` is deliberate and narrow — it is the placeholder syntax the persona's
+# own template uses, and a filled-in declaration («Rød sone: ingen», «Rød sone —
+# skriv selv») never contains it.
+redzone_declared() { grep -iE -- 'Rød sone' "$1" | grep -qv '\[liste'; }
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
 # Recommendation verbs, word-bounded on both sides. The boundaries matter:
@@ -1057,20 +1077,42 @@ run_pass_nav_pilot() {
   # `## Request scope classification` sends new API contracts to Full. All three
   # samples of that prompt correctly stopped in Fase 1 with questions open.
   #
-  # The prompt below extends an existing handler and an existing response model,
-  # and spells out the compressed-tier criteria from `## Request scope
-  # classification` verbatim: multi-file, known pattern, no new service boundary,
-  # no new data flows, no auth changes. Nothing on the default-to-Full list (PII,
-  # auth, Kafka topics, new API contracts, unclear scope) applies. The fixture
-  # backs it: the Ktor skeleton really does have /api/oppgaver, in Routes.kt,
-  # with its response model in Oppgave.kt, so the change really is multi-file.
+  # The prompt below extends an existing handler and an existing response model.
+  # Its tail restates the compressed-tier criteria from `## Request scope
+  # classification` — not verbatim: "no new service boundary, no new data flows"
+  # is given as "ingen nye endepunkter, ingen persondata", because those are the
+  # two blocking triggers at `### Fase 1: Intervju` that have to be defused for
+  # any tier to reach Fase 2 at all. The fixture backs the premise: the Ktor
+  # skeleton really does have /api/oppgaver, in Routes.kt, with its response
+  # model in Oppgave.kt.
+  #
+  # ⚠️  The prompt does tell the model most of its own classification criteria,
+  # which weakens test 4 as evidence that the persona classifies correctly. It
+  # is not evidence of that and never was — the assertion is about the red-zone
+  # rule, and the tier is a precondition for reaching it in one non-interactive
+  # call. Measuring classification wants its own assertion on a prompt that
+  # states only the shape of the change. Not done here; see #519.
   #
   # ⚠️  The red-zone assertion MUST be gated on Fase 2 output actually existing.
   # The Fase 1 checkpoint template itself contains the line
   # `• 🔴 Rød sone: [liste, eller «ingen»]`, so a bare present 'Rød sone' is
   # satisfied by a response that stops at the Fase 1 checkpoint and never plans at
   # all — i.e. it passes vacuously on exactly the regression it exists to catch.
-  # No Fase 2 output is "could not evaluate", never a pass.
+  # No Fase 2 output is "could not evaluate", never a pass. Two things enforce
+  # that, and both are needed:
+  #
+  #   redzone_declared   excludes the template placeholder, so reproducing the
+  #                      checkpoint block is not a declaration. RE_FASE2_WORK
+  #                      alone does not close this: a full-tier Fase 1 turn that
+  #                      leaks one `● Update(...)` line opens the gate, and the
+  #                      checkpoint line underneath it satisfied the assertion.
+  #   Grønn sone         separates "planned without a red zone" (a real failure
+  #                      of the ✅ Always rule — the persona pairs the zones)
+  #                      from "mutated files but produced no plan". The second is
+  #                      what a trivial-tier single-pass looks like: the change
+  #                      is reachable in one file via a defaulted field, and a
+  #                      model that takes that route wrote no Fase 2 plan for the
+  #                      rule to apply to. That is "could not evaluate", not red.
   if selected 4; then
     DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
     T4="$(tx t4)"
@@ -1079,11 +1121,14 @@ run_pass_nav_pilot() {
     elif ! present "$T4" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
         "no Fase 2 content in the response (no match for: $RE_FASE2_WORK) — the red-zone assertion would pass vacuously off the Fase 1 checkpoint template, so it was not evaluated. Re-run with --keep and check whether compressed-tier traversal regressed."
-    elif present "$T4" 'Rød sone'; then
+    elif redzone_declared "$T4"; then
       record 4 "$DESC4" 0
-    else
+    elif present "$T4" 'Grønn sone'; then
       record 4 "$DESC4" 1 \
-        "no red-zone declaration in a Fase 2 plan — mandatory per Boundaries → ✅ Always"
+        "the plan declares a green zone but no red zone — the 🔴 Rød-sone-deklarasjon is mandatory per Boundaries → ✅ Always"
+    else
+      record_error 4 "$DESC4" \
+        "the response mutated files but produced no Fase 2 plan (no 'Grønn sone', and no red-zone declaration outside the Fase 1 checkpoint template) — a trivial-tier single pass has no plan for the red-zone rule to apply to, so it was not evaluated. Re-run with --keep and read the transcript."
     fi
   fi
 
@@ -1531,6 +1576,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# model:        ${MODEL:-CLI default}"
     echo "# repeats:      $REPEAT"
     echo "# instructions: $INSTR_DESC"
+    echo "# fixture:      $FIXTURE_SUM"
     echo "# prompts:      ${ONLY:-all}"
     echo "#"
     echo "# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max"
@@ -1604,6 +1650,14 @@ if [[ -n "$COMPARE_TO" ]]; then
   compat_note instructions "$INSTR_DESC"
   compat_warn repeats "$REPEAT"
   compat_warn prompts "${ONLY:-all}"
+  # Missing means old, not "no opinion" — same reasoning as the agent line above.
+  # The field was added with the Ktor fixture (#519), so a baseline without it
+  # measured the three placeholder .kt files and none of its sizes carry over.
+  if grep -q '^# fixture:' "$COMPARE_TO"; then
+    compat_warn fixture "$FIXTURE_SUM"
+  else
+    echo "  ${YELLOW}⚠ baseline has no fixture line, so it predates the Ktor fixture. Different repo, different answers. Not comparable.${RESET}"
+  fi
   printf '  %-6s %10s %10s %10s %8s\n' "prompt" "baseline" "current" "delta" "pct"
   while IFS='|' read -r slug n b_med rest; do
     base="$(grep -m1 "^$slug|" "$COMPARE_TO" | cut -d'|' -f3)"
