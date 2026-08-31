@@ -315,8 +315,35 @@ func transformAgent(data []byte, name string) []byte {
 	}
 
 	mode := source.OpenCodeAgentMode(name, source.ActivePakke().PrimaryAgents("opencode"))
-	newFM := source.BuildAgentFrontmatter(description, mode)
+	newFM := source.BuildAgentFrontmatter(description, mode, openCodeAgentModel(fm, name))
 	return source.Reassemble(newFM, body)
+}
+
+// openCodeAgentModel resolves an agent's frontmatter model to the
+// provider-qualified id opencode wants, or "" when there is nothing safe to
+// write.
+//
+// Nav agents declare a display name ("Claude Sonnet 4.6"); opencode wants
+// "github-copilot/claude-sonnet-4.6". Before this, the rebuilt frontmatter
+// carried description and mode only, so the model line on most Nav agents
+// never reached opencode and per-agent model selection was inert there.
+//
+// An unrecognised name writes no model line rather than a guessed id, and says
+// so on stderr: the agent still works on the session's model, and the author of
+// the source repo is the one who has to fix the name. The warning goes to
+// whoever runs the sync, which is the only place it can be noticed, since
+// materialization has no other output channel.
+func openCodeAgentModel(fm []byte, name string) string {
+	declared, ok := source.ExtractFrontmatterValue(fm, "model")
+	if !ok || strings.TrimSpace(declared) == "" {
+		return ""
+	}
+	model := domain.OpenCodeModelForLabel(declared)
+	if model == "" {
+		fmt.Fprintf(os.Stderr, "%s agent %s declares model %q, which is not a known Copilot model. Materializing it without a model line; it will run on the session default. Fix the name in the source repo, or add the model to domain.KnownCopilotModels.\n",
+			domain.Yellow("⚠"), name, declared)
+	}
+	return model
 }
 
 // InstructionSection holds global instruction content to be inlined into AGENTS.md.

@@ -181,14 +181,28 @@ func OpenCodeAgentMode(name string, primaries []string) string {
 }
 
 // BuildAgentFrontmatter generates OpenCode-compatible agent frontmatter.
-// mode must be a valid opencode agent mode ("primary" or "subagent").
-func BuildAgentFrontmatter(description, mode string) []byte {
+// mode must be a valid opencode agent mode ("primary" or "subagent"). model is
+// an opencode model id, already provider-qualified; empty writes no model line,
+// which is how an agent inherits the session's model.
+//
+// This is an allowlist, deliberately, and it must stay one. opencode rejects
+// copilot's tools: key outright (it wants a name-to-boolean map, copilot ships
+// a YAML list of MCP-qualified strings), and a rejected key does not degrade:
+// the whole agent file fails to load. Since opencode re-materializes its agents
+// on every launch, a transform that let a copilot-only key through would reach
+// every user on their next launch with nothing in between to catch it. Adding a
+// key here is a decision; passing keys through by stripping known-bad ones is
+// not the same decision.
+func BuildAgentFrontmatter(description, mode, model string) []byte {
 	if mode == "" {
 		mode = "subagent"
 	}
 	var buf bytes.Buffer
 	buf.WriteString("description: " + yamlQuoteIfNeeded(description) + "\n")
 	buf.WriteString("mode: " + mode + "\n")
+	if model != "" {
+		buf.WriteString("model: " + model + "\n")
+	}
 	return buf.Bytes()
 }
 

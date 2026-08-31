@@ -90,10 +90,69 @@ var (
 )
 
 // ModelChoice pairs a model id (the --model value) with a human-readable label.
-// The concrete lists (knownCopilotModels, knownOpenCodeModels) live in provider.go.
 type ModelChoice struct {
 	ID    string
 	Label string
+}
+
+// OpenCodeProviderPrefix is the opencode provider that cplt authenticates
+// opencode against. Bare Copilot-style model ids are qualified under it.
+const OpenCodeProviderPrefix = "github-copilot/"
+
+// KnownCopilotModels is the curated Copilot model list. Source of truth for
+// ids: models.dev github-copilot provider. Keep pinned (no dynamic fetch):
+// update it when Copilot ships new models.
+//
+// It lives here rather than in internal/provider because two packages need the
+// same pairing and cannot import each other: provider builds the launch flags
+// and the pickers from it, and internal/artifacts resolves an agent's
+// frontmatter model label against it while materializing opencode agents.
+// provider imports artifacts, so domain, which both import, is the only home
+// that keeps one table instead of two.
+var KnownCopilotModels = []ModelChoice{
+	{ID: "auto", Label: "Auto (let Copilot pick)"},
+	{ID: "claude-opus-5", Label: "Claude Opus 5"},
+	{ID: "claude-fable-5", Label: "Claude Fable 5"},
+	{ID: "claude-sonnet-5", Label: "Claude Sonnet 5"},
+	{ID: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
+	{ID: "claude-haiku-4.5", Label: "Claude Haiku 4.5"},
+	{ID: "claude-opus-4.8", Label: "Claude Opus 4.8"},
+	{ID: "claude-opus-4.6", Label: "Claude Opus 4.6"},
+	{ID: "gpt-5.6-sol", Label: "GPT-5.6 Sol"},
+	{ID: "gpt-5.6-terra", Label: "GPT-5.6 Terra"},
+	{ID: "gpt-5.6-luna", Label: "GPT-5.6 Luna"},
+	{ID: "gpt-5.5", Label: "GPT-5.5"},
+	{ID: "gpt-5.4", Label: "GPT-5.4"},
+	{ID: "gpt-5.3-codex", Label: "GPT-5.3-Codex"},
+	{ID: "gpt-5.4-mini", Label: "GPT-5.4 mini"},
+	{ID: "gpt-5-mini", Label: "GPT-5 mini"},
+	{ID: "gemini-3.6-flash", Label: "Gemini 3.6 Flash"},
+	{ID: "gemini-3.1-pro-preview", Label: "Gemini 3.1 Pro (Preview)"},
+	{ID: "gemini-3.5-flash", Label: "Gemini 3.5 Flash"},
+	{ID: "kimi-k2.7-code", Label: "Kimi K2.7 Code"},
+	{ID: "kimi-k3", Label: "Kimi K3"},
+}
+
+// OpenCodeModelForLabel maps a model name as written in Nav agent frontmatter
+// to the provider-qualified opencode model id. Frontmatter carries display
+// names ("Claude Sonnet 4.6"); opencode needs "github-copilot/claude-sonnet-4.6".
+// A known id is accepted in the same position, so an agent author who writes
+// the id instead of the label is not silently ignored.
+//
+// It returns "" for anything not in [KnownCopilotModels]. That is the point:
+// the caller must then emit no model line at all rather than guess an id that
+// the client would reject at launch.
+func OpenCodeModelForLabel(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	for _, m := range KnownCopilotModels {
+		if strings.EqualFold(m.Label, name) || strings.EqualFold(m.ID, name) {
+			return OpenCodeProviderPrefix + m.ID
+		}
+	}
+	return ""
 }
 
 // ModelValuePattern restricts model identifiers to a sane character set that
