@@ -121,9 +121,12 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		want     []string
 	}{
 		{
-			name:     "zero config",
+			// No model pinned means no --model: the Nav default reaches
+			// opencode through its config (EnsureOpenCodeSessionModel), below
+			// each agent's own model line rather than above it.
+			name:     "zero config emits no model flag",
 			resolved: domain.ResolvedConfig{},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot"},
 		},
 		{
 			name:     "explicit auto model",
@@ -143,7 +146,7 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		{
 			name:     "plan mode selects opencode's built-in plan agent",
 			resolved: domain.ResolvedConfig{Mode: "plan"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "plan"},
+			want:     []string{"--agent", "plan"},
 		},
 		{
 			name: "every field set",
@@ -168,7 +171,7 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		{
 			name:     "warning log level maps to WARN",
 			resolved: domain.ResolvedConfig{LogLevel: "warning"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot", "--log-level", "WARN"},
+			want:     []string{"--agent", "nav-pilot", "--log-level", "WARN"},
 		},
 	}
 

@@ -40,8 +40,8 @@ func TestSetActivePakke(t *testing.T) {
 	if got := ToOpenCodeModel(""); got != "github-copilot/claude-opus-5" {
 		t.Errorf("ToOpenCodeModel(\"\") = %q, want the active pakke's default model", got)
 	}
-	if got := OpenCodeArgs(domain.ResolvedConfig{}); got[3] != "grillmester" {
-		t.Errorf("OpenCodeArgs persona = %q, want grillmester", got[3])
+	if got := OpenCodeArgs(domain.ResolvedConfig{}); got[1] != "grillmester" {
+		t.Errorf("OpenCodeArgs persona = %q, want grillmester", got[1])
 	}
 
 	SetActivePakke(nil)
