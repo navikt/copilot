@@ -23,11 +23,15 @@ Kontrakten er lest ut av GitHub Copilot CLI 1.0.82 sin egen bundle:
 Porten er grov med vilje, og disse kantene er kjent og valgt, ikke oversett:
 
   * `role=` i en kommentar eller en streng nektes likevel.
-  * Rekkevidden er `**/src/**/*.tsx`. `.ts`, `.jsx` og `.js` er utenfor, og en
-    hvilken som helst `src`-katalog treffer, ikke bare den i rota.
-  * En standardrolle som `role="alert"`, ofte den riktige rettingen, nektes
-    på lik linje med en egendefinert. Å skille dem er en produktavgjørelse om
-    hva ⚠️ Ask First :249 faktisk skal dekke, ikke en feil i porten.
+  * Rekkevidden er `src/**/*.tsx` regnet fra `cwd` i payloaden. Uten `cwd`,
+    eller for en sti utenfor den, faller den tilbake på den bredere formen
+    `**/src/**/*.tsx`. `.ts`, `.jsx` og `.js` er utenfor uansett.
+  * `writes_of` parer hver funne sti med det samlede innholdet i payloaden.
+    Ingen verktøyform i 1.0.82 bærer flere stier inn hit: redigeringsschemaene
+    har nøyaktig én `path` hver, `apply_patch` sender rå patch-tekst som
+    parses for seg, og `grep`/`glob` sine `paths` er både utenfor PATH_KEYS og
+    uten innholdsnøkkel. Skulle en slik form dukke opp, over-nekter paringen
+    heller enn å under-nekte, som er den trygge retningen her.
   * En rolle delt over to redigeringer (`<ul rol` så `e="listbox">`) slipper
     gjennom. Det samme gjør `role:` som objektnøkkel.
   * Differansen er en mengde, så to identiske roller kollapser til én: står
@@ -85,6 +89,23 @@ PATH_KEYS = ("path", "file_path", "filePath")
 PATCH_KEYS = ("input", "patch")
 PATCH_HDR = re.compile(r"^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$")
 
+# Hvilke roller porten faktisk gjelder. :249 sier "Custom ARIA-roller" og :250
+# "Avvik fra Aksel-mønster", og ingen av dem betyr "enhver role=". Personaen
+# anbefaler selv `role="button"` som rettingen for `<div onClick>` (:230), og
+# den feilen er plantet i fixturet. En port som nekter alle roller ville altså
+# blokkert agentens egen dokumenterte retting.
+#
+# Derfor en allowlist av enkle roller som aldri er "bygg en widget Aksel
+# allerede har": knappen og lenka, landemerkene, og de to live-region-rollene.
+# Alt annet nektes, og det dekker begge halvdelene av regelen på én gang.
+# Sammensatte widget-roller (listbox, combobox, dialog, tab, menu, grid, tree,
+# slider) er avvik fra Aksel-mønsteret, og en ukjent eller oppdiktet token er en
+# egendefinert rolle i ordets egentlige forstand.
+SAFE_ROLES = frozenset(
+    """button link presentation none img alert status
+    banner main navigation contentinfo complementary search form region""".split()
+)
+
 REASON = (
     "En egendefinert ARIA-rolle er ⚠️ Ask First i accessibility.agent.md:249, "
     "og et avvik fra Aksel-mønsteret er det samme på :250. Ikke skriv endringen "
@@ -124,9 +145,32 @@ def paths_of(args):
     return out
 
 
-def is_src_tsx(path):
+def role_names(text):
+    """→ mengden rolletokens i teksten. None står for "kunne ikke avgjøres"."""
+    out = set()
+    for raw in ROLE_ATTR.findall(text):
+        inner = raw[1:-1].strip()
+        # role={uttrykk} kan ikke leses statisk. Ask First er da det trygge
+        # svaret, så den regnes som en rolle utenfor allowlista.
+        out.add(inner.lower() if raw[0] in "\"'" else None)
+    return out
+
+
+def is_src_tsx(path, cwd=None):
     p = PurePosixPath(path.replace("\\", "/"))
-    return p.suffix == ".tsx" and "src" in p.parts
+    if p.suffix != ".tsx":
+        return False
+    if cwd:
+        try:
+            # Relativt til arbeidsmappa er `src/` rota og ikke en hvilken som
+            # helst katalog med det navnet. CLI-en sender `cwd` og `path` med
+            # samme symlink-oppløsning, bekreftet mot ekte payloader.
+            return PurePosixPath(p).relative_to(cwd.replace("\\", "/")).parts[:1] == ("src",)
+        except ValueError:
+            pass
+    # Ingen cwd, eller en sti utenfor den: fall tilbake på den brede formen.
+    # Bredere er den trygge retningen for en Ask-First-port.
+    return "src" in p.parts
 
 
 def first_str(args, keys):
@@ -186,13 +230,14 @@ def decide(payload):
     if args is None:
         args = payload.get("tool_input", {})
 
+    cwd = payload.get("cwd") or payload.get("workingDirectory")
     for path, new, old in writes_of(args):
-        if not is_src_tsx(path):
+        if not is_src_tsx(path, cwd):
             continue
         # Differansen, ikke bare et treff: en rolle som alt står der og bare
         # flyttes innfører ingenting, mens en ny rolle ved siden av en gammel
         # skal fortsatt nektes.
-        if set(ROLE_ATTR.findall(new)) - set(ROLE_ATTR.findall(old)):
+        if (role_names(new) - role_names(old)) - SAFE_ROLES:
             return REASON
     return None
 
@@ -238,8 +283,11 @@ def main():
 # Kjører skriptet som subprosess med ekte stdin, ikke bare decide(), slik at
 # JSON-inn, JSON-ut og exitkoden er dekket. `mise run hooks:test`.
 
-def _sr(path, old, new):
-    return {"toolName": "str_replace", "toolArgs": {"path": path, "old_str": old, "new_str": new}}
+def _sr(path, old, new, cwd=None):
+    p = {"toolName": "str_replace", "toolArgs": {"path": path, "old_str": old, "new_str": new}}
+    if cwd:
+        p["cwd"] = cwd
+    return p
 
 
 def _ap(patch, key="input"):
@@ -274,6 +322,26 @@ SELFTEST = [
      _sr(TSX, '<div><ul role="listbox" /></div>', '<section><ul role="listbox" /></section>'), False),
     ("nekter en ny rolle ved siden av en som alt står der",
      _sr(TSX, '<ul role="listbox" />', '<ul role="listbox" /><li role="option" />'), True),
+
+    # ── allowlista: personaen anbefaler selv noen av disse rollene ───────────
+    ("slipper gjennom role=\"button\", som :230 selv gir som rettingen",
+     _sr(TSX, "<div onClick={f}>", '<div role="button" tabIndex={0} onKeyDown={k} onClick={f}>'), False),
+    ("slipper gjennom role=\"alert\"",
+     _sr(TSX, "<p>{feil}</p>", '<p role="alert">{feil}</p>'), False),
+    ("slipper gjennom et landemerke",
+     _sr(TSX, "<div>", '<div role="navigation">'), False),
+    ("nekter en ukjent eller oppdiktet rolle",
+     _sr(TSX, "<div>", '<div role="doc-subtitle">'), True),
+    ("nekter role={uttrykk}, som ikke kan leses statisk",
+     _sr(TSX, "<div>", "<div role={rolle}>"), True),
+    ("nekter en sammensatt widget-rolle Aksel har komponent for",
+     _sr(TSX, "<div>", '<div role="combobox">'), True),
+
+    # ── rekkevidde relativt til cwd ──────────────────────────────────────────
+    ("nekter absolutt sti under cwd/src",
+     _sr("/repo/src/app/StatusPanel.tsx", "<ul>", '<ul role="listbox">', cwd="/repo"), True),
+    ("slipper gjennom src-katalog som ikke ligger i rota",
+     _sr("/repo/apps/nettside/src/A.tsx", "<ul>", '<ul role="listbox">', cwd="/repo"), False),
 
     # ── kjente nærtreff, dokumentert i docstringen og bevisst utenfor ─────────
     ("slipper gjennom role: som objektnøkkel, ikke et attributt",

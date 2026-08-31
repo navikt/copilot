@@ -608,7 +608,16 @@ HOOK_ENV=()
 HOOK_LOG=""
 if [[ "$AGENT" == "accessibility" && -d "$REPO_ROOT/.github/hooks" ]]; then
   mkdir -p "$TEMPLATE/.github/hooks"
-  cp "$REPO_ROOT"/.github/hooks/* "$TEMPLATE/.github/hooks/"
+  # `/.` and not `/*`: the glob skips dotfiles and, on an empty directory,
+  # stays literal and makes cp fail. Either way the template would end up
+  # without hooks, uu3 would fail for a reason that has nothing to do with the
+  # agent, and the canary below would blame the env var for it.
+  cp -R "$REPO_ROOT/.github/hooks/." "$TEMPLATE/.github/hooks/"
+  # And prove it landed. A gate that silently did not get installed is the one
+  # failure mode this whole file is built to refuse.
+  compgen -G "$TEMPLATE/.github/hooks/*.json" >/dev/null || fail_preflight \
+    "no hook config reached $TEMPLATE/.github/hooks/" \
+    "$REPO_ROOT/.github/hooks/ has no *.json to copy. uu3 asserts against a gate that has to be in the workspace; without it the assertion measures the persona again."
 
   # Copilot CLI 1.0.82 loads .github/hooks/ in prompt mode only when the folder
   # is trusted, COPILOT_ALLOW_ALL=true, or this opt-in is set ("Prompt mode (-p)
