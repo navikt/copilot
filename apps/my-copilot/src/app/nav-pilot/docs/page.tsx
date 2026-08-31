@@ -1996,7 +1996,8 @@ function LocalModelSection() {
           <CodeBlock compact>
             {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
 nav-pilot alpha local start     # starter serveren
-nav-pilot alpha local status    # kjører den? svarer den? hvilken modell?
+nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
+nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
 nav-pilot alpha local stop
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
