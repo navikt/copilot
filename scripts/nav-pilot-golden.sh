@@ -47,7 +47,8 @@
 #   the exit code. It exists so an unmet want stays visible without a permanently
 #   red suite, which is the fastest way to teach people that red means nothing.
 #   Test 2b is the worked example, and its history is in git: three persona
-#   revisions across four models, 18 transcripts, zero checkpoint blocks.
+#   revisions across four models, 18 transcripts, zero checkpoint blocks. cr4 is
+#   the second, and the plainer one: it greps for an agent handle in prose.
 #
 #   ⚠️  Test 5 (TokenX vs Azure client_credentials) is the assertion most likely
 #   to catch an over-aggressive cut to the authentication decision tree in
@@ -1240,8 +1241,8 @@ RE_CR_INJECTION='injeksjon|injection|parameteri[sz]|prepared[[:space:]]+statemen
 RE_CR_WHY='fordi|because|risik|kan[[:space:]]+føre[[:space:]]+til|fører[[:space:]]+til|angriper|attacker|utnytt|exploit|lekk|konsekvens|derfor|slik[[:space:]]+at'
 # The two specialists that own a Next.js/Aksel file, from `## Related agents and
 # skills` (code-review.agent.md:40 and :42). Deliberately not the whole table:
-# delegating a spacing-and-keyboard review to @security-champion-agent is not
-# the behaviour ✅ Always :248 describes.
+# routing a spacing-and-keyboard review to @security-champion-agent would name
+# the wrong owner. Read by cr4, which is soft; see the block above it.
 RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 
 run_pass_code_review() {
@@ -1281,14 +1282,14 @@ run_pass_code_review() {
         record cr1 "$DESC_CR1" "$ok" "$detail"
       fi
 
-      # cr2: `## Boundaries → 🚫 Never` (code-review.agent.md:260) says "Auto-fix
+      # cr2: `## Boundaries → 🚫 Never` (code-review.agent.md:259) says "Auto-fix
       # code, report findings only", stated again in the opening line at :21.
       # Read off the workspace, not the transcript: an agent that edits and then
       # says "here is what I would change" reads identically in text.
       if selected cr2; then
         if ws_wrote; then
           record cr2 "$DESC_CR2" 1 \
-            "the agent wrote to the workspace: $(ws_written_files). 🚫 Never auto-fix (code-review.agent.md:260) regressed. It has execute (:6), so no edit tool is not a guardrail."
+            "the agent wrote to the workspace: $(ws_written_files). 🚫 Never auto-fix (code-review.agent.md:259) regressed. It has execute (:6), so no edit tool is not a guardrail."
         else
           record cr2 "$DESC_CR2" 0
         fi
@@ -1313,10 +1314,28 @@ run_pass_code_review() {
   fi
 
   # ── cr4: a Next.js file is a specialist's file ────────────────────────────────
-  # `## Related agents and skills` (code-review.agent.md:37-43) and ✅ Always
-  # :248 "Delegate to specialist agents for deep domain reviews". StatusPanel.tsx
-  # is squarely both rows: Tailwind spacing where Aksel tokens belong (:178,
-  # :186-191) and keyboard/ARIA defects.
+  # SOFT. `## Related agents and skills` (code-review.agent.md:37-43) names the
+  # owner of an Aksel/a11y file, and StatusPanel.tsx is squarely two of its rows:
+  # Tailwind spacing where Aksel tokens belong (:178, :186-191) and keyboard/ARIA
+  # defects. Naming that owner is worth measuring. It cannot be a hard assertion:
+  #
+  #   1. code-review has no `runSubagent` in its frontmatter (:5-15; compare
+  #      accessibility.agent.md:12, which has it). The agent cannot hand a file to
+  #      another agent. The only thing it can do is type the handle, so this check
+  #      pins wording while describing behaviour, which is what BEHAVIOUR VS FORMAT
+  #      above forbids. The ✅ Always bullet that promised delegation was removed
+  #      rather than reworded: #484 is three failed rewordings of a sibling rule.
+  #   2. One agent is installed per invocation (:401). The delegation target is not
+  #      in the workspace where the delegation is measured.
+  #
+  # Measured 0/5 on GPT-5.3-Codex and 0/5 on GPT-5.6 Luna (#514). All ten runs did
+  # reach the accessibility domain anyway: instructions/accessibility.instructions.md
+  # is scoped `applyTo: "src/**/*.{tsx,jsx}"`, which covers StatusPanel.tsx, so the
+  # user is not underserved by the miss. Hence reported, not failed.
+  #
+  # A dead transcript stays record_error rather than becoming a soft miss: "could
+  # not tell" and "the want went unmet" are different answers, and the first is
+  # about the CLI, not about this check.
   if selected cr4; then
     DESC_CR4="Next.js review routes on to the accessibility/Aksel specialist"
     TCR4="$(tx cr-tsx)"
@@ -1326,10 +1345,10 @@ run_pass_code_review() {
       record_error cr4 "$DESC_CR4" \
         "the response reached neither the spacing nor the a11y domain of StatusPanel.tsx, so there was no deep domain review to delegate, so nothing here says whether routing held. A bare absent() on the handles would have passed vacuously."
     elif present "$TCR4" "$RE_CR_DELEGATE"; then
-      record cr4 "$DESC_CR4" 0
+      record_soft cr4 "$DESC_CR4" 0
     else
-      record cr4 "$DESC_CR4" 1 \
-        "reviewed an Aksel/a11y file without naming @accessibility-agent or @aksel-agent. The delegation table (code-review.agent.md:40, :42) and ✅ Always :248 regressed"
+      record_soft cr4 "$DESC_CR4" 1 \
+        "reviewed an Aksel/a11y file without naming @accessibility-agent or @aksel-agent, the owners at code-review.agent.md:40 and :42. Soft: the agent has no runSubagent and the target is not installed, so this is a want, not a regression"
     fi
   fi
 }
