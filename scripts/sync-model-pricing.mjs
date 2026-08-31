@@ -9,8 +9,9 @@
  *
  * --check exit codes: 0 up to date (only the timestamp would move), 2 prices
  * moved, 1 the check could not be made (fetch failed, parse floor tripped, a
- * model came back unpriced). 2 is separate from 1 so a caller can act on real
- * drift without also acting on a check that never got an answer.
+ * model came back unpriced, or a promotion footnote did not resolve to an end
+ * date). 2 is separate from 1 so a caller can act on real drift without also
+ * acting on a check that never got an answer.
  */
 
 const PRICING_URL =
@@ -119,11 +120,16 @@ function parsePricingTables(html) {
       // price itself parses fine without them, but it is the promotional one,
       // so a row without its footnote reads as permanent when it is not.
       const footnoteId = findFootnoteId(getCell(rawCells, requiredColumns.model));
-      const note = footnoteId ? footnotes.get(footnoteId) : undefined;
-      if (note) {
-        entry.note = note;
-        const endsOn = parsePromotionEndDate(note);
-        if (endsOn) entry.promotionEndsOn = endsOn;
+      if (footnoteId) {
+        // Kept on the record even when the footnote does not resolve, so the
+        // guard below can see the reference and refuse to publish the row.
+        entry.footnoteId = footnoteId;
+        const note = footnotes.get(footnoteId);
+        if (note) {
+          entry.note = note;
+          const endsOn = parsePromotionEndDate(note);
+          if (endsOn) entry.promotionEndsOn = endsOn;
+        }
       }
 
       models.push(entry);
@@ -197,12 +203,14 @@ function parsePromotionEndDate(note) {
 }
 
 /**
- * Rows carrying a footnote we could not date. The price is promotional, and
- * shipping it without an end date is the silent wrong answer, so the caller
- * must fail rather than publish it.
+ * Rows whose footnote reference did not turn into an end date, either because
+ * the footnote body is missing from the page or because its date would not
+ * parse. Both mean the price is promotional and we cannot say until when, and
+ * shipping that is the silent wrong answer, so the caller must fail rather
+ * than publish the row.
  */
-function findUndatedPromotions(models) {
-  return models.filter((m) => m.note && !m.promotionEndsOn);
+function findUnresolvedPromotions(models) {
+  return models.filter((m) => m.footnoteId && !m.promotionEndsOn);
 }
 
 function stripHtml(html) {
@@ -365,11 +373,13 @@ async function main() {
     process.exit(1);
   }
 
-  const undatedPromotions = findUndatedPromotions(models);
-  if (undatedPromotions.length > 0) {
-    console.error("ERROR: models with a footnote whose end date could not be parsed:");
-    for (const m of undatedPromotions) {
-      console.error(`  ${m.provider}/${m.model}: ${m.note}`);
+  const unresolvedPromotions = findUnresolvedPromotions(models);
+  if (unresolvedPromotions.length > 0) {
+    console.error("ERROR: models with a footnote that did not yield a promotion end date:");
+    for (const m of unresolvedPromotions) {
+      console.error(
+        `  ${m.provider}/${m.model}: ${m.note ?? `footnote #${m.footnoteId} not found on the page`}`,
+      );
     }
     process.exit(1);
   }
@@ -413,7 +423,7 @@ async function main() {
   }
 }
 
-export { parsePricingTables, parseFootnotes, parsePromotionEndDate, findFootnoteId, findUndatedPromotions };
+export { parsePricingTables, parseFootnotes, parsePromotionEndDate, findFootnoteId, findUnresolvedPromotions };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => {

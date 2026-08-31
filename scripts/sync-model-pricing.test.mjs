@@ -15,8 +15,13 @@ import {
   parsePricingTables,
   parseFootnotes,
   parsePromotionEndDate,
-  findUndatedPromotions,
+  findUnresolvedPromotions,
 } from "./sync-model-pricing.mjs";
+
+// The fixtures carry two provider tables, not all six, and the parser warns
+// once per missing section. Silenced so a green `mise run check` stays green
+// looking.
+console.warn = () => {};
 
 // Verbatim from docs.github.com, 2026-08-31.
 const FOOTNOTES = `<section data-footnotes="" class="footnotes"><h2 class="sr-only" id="footnote-label" tabindex="-1">Footnotes</h2>
@@ -86,16 +91,36 @@ test("models without a footnote get neither field", () => {
   }
 });
 
+const SOL_ROWS = ["GPT-5.6 Sol (Default, ≤ 272K)", "GPT-5.6 Sol (Long context, 272K)"];
+
 test("an undatable footnote is flagged, not silently dropped", () => {
   const broken = PAGE.replace("through September 3, 2026", "through the end of the promotion");
-  const models = parsePricingTables(broken);
-  const undated = findUndatedPromotions(models);
-  assert.deepEqual(
-    undated.map((m) => m.model),
-    ["GPT-5.6 Sol (Default, ≤ 272K)", "GPT-5.6 Sol (Long context, 272K)"],
-  );
+  const unresolved = findUnresolvedPromotions(parsePricingTables(broken));
+  assert.deepEqual(unresolved.map((m) => m.model), SOL_ROWS);
   // The note survives so the error message can name what went unparsed.
-  assert.match(undated[0].note, /through the end of the promotion/);
+  assert.match(unresolved[0].note, /through the end of the promotion/);
+});
+
+test("a reference to a footnote that is not on the page is flagged too", () => {
+  // The whole footnotes section fails to match, which is what an upstream
+  // markup change looks like. Every reference is then dangling.
+  const unresolved = findUnresolvedPromotions(parsePricingTables(OPENAI_TABLE + GOOGLE_TABLE));
+  assert.deepEqual(unresolved.map((m) => m.model), [
+    ...SOL_ROWS,
+    "Gemini 3.6 Flash (Default)",
+    "Gemini 3.7 Flash (Default)",
+  ]);
+  assert.equal(unresolved[0].note, undefined);
+  assert.equal(unresolved[0].footnoteId, "gpt-56-sol-promo");
+});
+
+test("a reference to a footnote id missing from the list is flagged", () => {
+  const renamed = PAGE.replace('<li id="user-content-fn-gpt-56-sol-promo">', '<li id="user-content-fn-sol-promo-2027">');
+  const unresolved = findUnresolvedPromotions(parsePricingTables(renamed));
+  assert.deepEqual(unresolved.map((m) => m.model), SOL_ROWS);
+  // Gemini still resolves, so the guard is not just firing on everything.
+  const gemini = parsePricingTables(renamed).find((m) => m.model === "Gemini 3.6 Flash (Default)");
+  assert.equal(gemini.promotionEndsOn, "2026-12-31");
 });
 
 test("date parsing handles the shapes the page uses", () => {
