@@ -1,9 +1,9 @@
 ---
-title: "Lokal modell i nav-pilot: alfa"
+title: "Nav-pilot lander på bakken"
 date: 2026-08-30
 author: starefossen
 category: praksis
-excerpt: "Dere vil ha flere tokens. Vi har ikke mer budsjett i år. Dette er svaret i mellomtiden: en modell som kjører på din egen maskin, for det mekaniske arbeidet."
+excerpt: "En AI-modell på din egen maskin tar de mekaniske oppgavene. Den bruker ingen kreditter, men den er tregere, og den tar ingen avgjørelser."
 tags:
   - nav-pilot
   - local-models
@@ -12,9 +12,11 @@ tags:
   - alpha
 ---
 
-Dere vil ha flere tokens. Vi har ikke mer budsjett i år.
+For å få Nav sitt KI-token-budsjett til å strekke lenger, og for at de ivrigste brukerne ikke skal gå tom før måneden er omme, lanserer vi nå `nav-pilot` på bakken.
 
-Dette er svaret i mellomtiden. `nav-pilot alpha local` kjører en modell på din egen maskin. Hovedagenten sender den mekaniske delen av jobben dit, og den delen koster ingenting.
+`nav-pilot alpha local` lar deg kjøre en KI-modell på din egen maskin basert på Qwen-familien etter en lang prosess med testing KI-labben vår. Hovedagenten sender konkrete oppgaver som en del av arbeidet, for at de skal utføres lokalt.
+
+Vi kaller den bakkemodellen. Hovedagenten blir i skya og bestemmer, bakkemodellen utfører. I logger og konfigurasjon heter den `local-worker`.
 
 ```
 nav-pilot alpha local init
@@ -24,40 +26,64 @@ Det er hele oppsettet. Krever Mac med Apple Silicon og 48 GB minne. Modellen tar
 
 ## Hva det er
 
-Hovedagenten er den samme som før, i skyen. Den sender bort arbeid som allerede er bestemt: døpe om et symbol på tvers av filer, tre et nytt felt gjennom mapperen og kallstedene. Én kjøring døpte om 46 forekomster i 10 filer uten skymodell inne i bildet, og prosjektet kompilerte.
+Bakkemodellen får oppgaver der beslutningen allerede er tatt: rename av et symbol på tvers av filer, eller et nytt felt som skal gjennom en mapper og alle call sites.
+
+Vi har også kjørt den alene, uten hovedagent over seg. Den klarte en rename av 46 references i 10 filer i begge forsøkene, og prosjektet kompilerte alle gangene.
 
 ## Hva det ikke er
 
-Ikke en erstatning for skymodellen. Den lokale modellen planlegger ikke, tar ingen beslutninger og fører ingen samtale.
+Ikke en erstatning. Bakkemodellen planlegger ikke, tar ingen avgjørelser, og du kan ikke diskutere med den.
 
-Ikke noe som skriver ny kode. Ber du om en ny testfil fra bunnen, gjør den ingenting. Den gjennomfører en beslutning godt og tar den dårlig.
+Ikke noe som skriver ny kode. Ber du om en ny testfil fra bunnen, gjør den ingenting. Den er god til å gjennomføre en beslutning og dårlig til å ta den.
 
 Ikke raskere. Som regel tregere.
 
-Ikke prøvd av noen som har brukt den en hel arbeidsdag.
+Og ingen har brukt den en hel arbeidsdag ennå.
 
 ## Hva vi vet
 
-183 målinger, én maskin, to Kotlin-repoer.
+Først prøvde vi åtte modeller og bygg på det samme oppgavesettet: elleve oppgaver med oppslag, redigering og endringer over flere filer.
 
-I Ktor-repoet kostet en oppgave 13 AI-credits med lokal utsending mot 34 uten. Samme testresultat. Det tok 156 sekunder mot 100.
+- **Qwen3.6-35B-A3B, OptiQ 4-bit.** Den vi valgte. Løste flest oppgaver, og gikk aldri i loop.
+- **Qwen3.6-35B-A3B, vanlig 4-bit.** Samme modell, annet bygg. Gikk i tool-loop og brukte 220 kall på én oppgave.
+- **KAT-Coder V2.5.** Løste like mange, men trengte flere kall på å komme dit.
+- **Qwen3.6-27B.** For treg. Median 113 sekunder mot 18.
+- **Qwen3.8-27B i 4-, 6- og 8-bit.** Verre jo høyere presisjon. 6-bit brukte median 284 sekunder, og 8-bit gikk i timeout på 8 av 11 oppgaver.
+- **Granite 4.1 8B.** For liten. Løste 1 av 8.
 
-I Spring-repoet snudde det. 16 credits mot 9, altså dyrere lokalt, med samme modell og samme oppsett. Besparelsen henger sammen med kodebasen, ikke bare med modellen. Spring er mesteparten av det vi har i produksjon, så det er der vi vet minst.
+Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
 
-Alt dette er lab. Enkeltoppgaver, rent repo, ingen avbrytelser, ingen som venter.
+I Ktor-repoet kostet oppgaven 13 AI-credits med lokal utsending, mot 34 uten. Testene ga samme resultat. Til gjengjeld tok det 156 sekunder mot 100.
+
+I Spring-repoet snudde det: 16 credits mot 9. Der ble det dyrere å kjøre lokalt, med samme modell og samme oppsett.
+
+Vi trodde en stund det var kodebasen som avgjorde. Det er det ikke. Det som avgjør, er hvor mange steg skymodellen trenger når den gjør jobben alene:
+
+| Skymodellen alene | Med bakkemodellen |
+|---|---|
+| 19 steg | sparer 61 % |
+| 13 steg | sparer 47 % |
+| 5 steg | sparer 20 % |
+| 2 steg | **koster 79 % mer** |
+
+Jo mer skymodellen må rote seg fram, jo mer sparer du på å sende det mekaniske ned på bakken. Går oppgaven unna på to steg, koster utsendingen mer enn den sparer.
+
+Frontend-tallet, det på 13 steg, er det eneste vi målte etter at vi hadde skrevet ned hva vi trodde ville skje. Vi bommet ikke.
+
+Alt dette er målt i lab: enkeltoppgaver, rent repo, ingen avbrytelser, ingen som venter på deg.
 
 ## Hva vi trenger fra deg
 
 - Kjør `nav-pilot alpha local status` med en gang noe henger.
-- Si fra hvis en endring kompilerer, men er feil på en måte du ikke ville ventet av en slurvete kollega.
-- Si fra om ventetiden er verdt det midt i en arbeidsdag. Bare du vet det.
+- Si fra hvis en endring kompilerer, men er feil på en måte selv en slurvete kollega ikke ville levert.
+- Si fra om ventetiden er verdt det midt i arbeidsdagen. Det er det bare du som vet.
 
-At det ikke er verdt bryet er et like nyttig svar som det motsatte, og bedre å få nå enn om et år.
+«Ikke verdt bryet» er et like nyttig svar som det motsatte, og bedre å få nå enn om et år.
 
-Mens dette er alfa måler vi det tettere enn resten av nav-pilot: hvor mange oppgaver hver økt sender til modellen, hvilken modell, oppstartstid, og når serveren henger. Aldri koden din eller det du skriver. `DO_NOT_TRACK=1` skrur det av.
+Så lenge dette er alfa, måler vi tettere enn i resten av nav-pilot: hvor mange oppgaver hver økt sender til bakkemodellen, hvilken modell som kjører, oppstartstid og når serveren henger. Vi samler aldri inn koden din eller det du skriver. `DO_NOT_TRACK=1` skrur alt av.
 
 ## Bli med
 
-Si fra i #nav-pilot. Vi tar inn én om gangen i starten.
+Meld deg i #nav-pilot. Vi tar inn én og én i starten.
 
-Målinger og metode ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), inkludert kjøringene som gikk galt.
+Målinger og metode ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), også kjøringene som gikk galt.

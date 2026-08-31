@@ -2041,10 +2041,10 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             Hva den klarer
           </LinkableHeading>
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Målt i et kontrollert testoppsett, ikke i daglig bruk, og nesten alt på ett Ktor-repo. Hovedregelen: den er
-            god til å gjennomføre en beslutning som allerede er tatt, og dårlig til å ta den selv. På den ene
-            Spring-appen vi rakk å måle kostet det mer å sende oppgaver til bakkemodellen enn å la være, så om det
-            lønner seg henger sammen med kodebasen din.
+            Målt i et kontrollert testoppsett, ikke i daglig bruk. Hovedregelen: den er god til å gjennomføre en
+            beslutning som allerede er tatt, og dårlig til å ta den selv. Om det lønner seg avhenger av hvor mange steg
+            skymodellen trenger når den gjør oppgaven alene: bruker den mange, sparer du mye på å sende det mekaniske
+            til bakkemodellen, og går oppgaven unna på to steg koster utsendingen mer enn den sparer.
           </BodyShort>
           <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
             <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
