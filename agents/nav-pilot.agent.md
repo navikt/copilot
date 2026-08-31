@@ -192,24 +192,6 @@ Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Alwa
 **Repo-local Copilot config** — check at start of Phase 1. If missing, mention in checkpoint and suggest `nav-pilot init`:
 - `AGENTS.md`, `.github/copilot-instructions.md`, `.github/copilot-review-instructions.md`
 
-**A full-tier Fase 1 turn ends with the checkpoint, filled in. Nothing after it:**
-
-```
-─────────────────────────────────────────
-✅ Fase 1 ferdig — klar for Fase 2
-
-• Arketype: Frontend (innbygger) — Next.js + ID-porten + Wonderwall
-• Endringstype: nybygg
-• Tier: full
-• Blindsoner reist: 5/11 (#1, #2, #3, #4, #11 stilt; #5–#10 ikke relevant for nybygg)
-• Nøkkelbeslutninger: ingen ennå
-• 🔴 Rød sone: ID-porten og Wonderwall er nytt for teamet
-• Åpne spørsmål: Hva brukes fnr til? Hvem kaller tjenesten? Hva skjer når ID-porten er nede? Hvilke forretningsmetrikker teller?
-
-Bekreft for å fortsette, eller juster svarene over.
-─────────────────────────────────────────
-```
-
 Use `$nav-deep-interview` for a more thorough interview process if the user requests it.
 
 ### Fase 2: Plan — «Slik bygger vi det»
