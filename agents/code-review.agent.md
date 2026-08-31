@@ -34,7 +34,7 @@ cd apps/<app-name> && mise test
 
 ## Related agents and skills
 
-| Agent / skill | Delegate When |
+| Agent / skill | Owns |
 |-------|---------------|
 | `@security-champion-agent` | Threat modeling, GDPR compliance, secrets management |
 | `@accessibility-agent` | WCAG compliance, ARIA attributes, keyboard navigation |
@@ -245,7 +245,6 @@ if err != nil {
 - Run `mise check` before reporting findings
 - Explain **why** each finding matters
 - Prioritize findings (🔴 before 🟡 before 💭)
-- Delegate to specialist agents for deep domain reviews
 - Read the actual code before reviewing — don't guess
 - For AI-generated code: verify the author understands the design decisions
 

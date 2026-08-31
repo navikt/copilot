@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-31T07:20:27.689Z",
+  "generatedAt": "2026-08-31T21:35:46.513Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -122,7 +122,7 @@
       "domain": "general",
       "filePath": ".github/agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/code-review.agent.md",
-      "contentHash": "035725f511ba6f5b49be6712653179c1a85b3b4437bc1c9e4fa5754c53ac8d9c",
+      "contentHash": "3406168d68a9470ae6e1f87f1f689a3465e799fef3dda068ed100c3dce0df86f",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "tools": [
