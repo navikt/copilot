@@ -63,12 +63,12 @@ function categoryBg(category: ModelPrice["category"]): string {
 }
 
 export default function PriserPage() {
-  const grouped = PROVIDER_ORDER.map((provider) => ({
-    provider,
-    models: MODEL_PRICING.filter((m) => m.provider === provider),
-  })).filter((g) => g.models.length > 0);
-
-  const hasAnthropicCacheWrite = MODEL_PRICING.some((m) => m.cacheWrite !== undefined);
+  const grouped = PROVIDER_ORDER.map((provider) => {
+    const models = MODEL_PRICING.filter((m) => m.provider === provider);
+    // Cache write gjelder ikke bare Anthropic: OpenAI-radene har det også, og
+    // kolonnen var gjemt bak et leverandørnavn i stedet for bak dataene.
+    return { provider, models, showCacheWrite: models.some((m) => m.cacheWrite !== undefined) };
+  }).filter((g) => g.models.length > 0);
 
   return (
     <main>
@@ -82,14 +82,14 @@ export default function PriserPage() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap={{ xs: "space-24", md: "space-32" }}>
-            {grouped.map(({ provider, models }) => (
+            {grouped.map(({ provider, models, showCacheWrite }) => (
               <Box key={provider}>
                 <Heading size="small" level="2" className="mb-4">
                   {provider}
                 </Heading>
-                {provider === "Anthropic" && hasAnthropicCacheWrite && (
+                {showCacheWrite && (
                   <BodyShort size="small" className="mb-3" style={{ color: "#64748b" }}>
-                    Anthropic-modeller har en ekstra «cache write»-kostnad i tillegg til cached input.
+                    «Cache write» er kostnaden for å skrive kontekst til cache, og kommer i tillegg til cached input.
                   </BodyShort>
                 )}
                 <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
@@ -111,7 +111,7 @@ export default function PriserPage() {
                         <th className="text-right px-4 py-3 font-semibold" style={{ color: "#475569" }}>
                           Cached
                         </th>
-                        {provider === "Anthropic" && (
+                        {showCacheWrite && (
                           <th className="text-right px-4 py-3 font-semibold" style={{ color: "#475569" }}>
                             Cache write
                           </th>
@@ -168,7 +168,7 @@ export default function PriserPage() {
                           >
                             {formatPrice(m.cachedInput)}
                           </td>
-                          {provider === "Anthropic" && (
+                          {showCacheWrite && (
                             <td
                               className="px-4 py-3 text-right font-mono"
                               style={{ color: "#64748b", fontSize: "0.8125rem" }}
