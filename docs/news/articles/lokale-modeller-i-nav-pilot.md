@@ -87,4 +87,4 @@ Så lenge dette er alfa, måler vi tettere enn i resten av nav-pilot: hvor mange
 
 Meld deg i #nav-pilot. Vi tar inn én og én i starten.
 
-Målinger og metode ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), også kjøringene som gikk galt.
+Hele rapporten, med metode og alle tallene: [local-inference-findings.md](https://github.com/navikt/mlx-workspace/blob/main/reports/local-inference-findings.md). Hvorfor akkurat denne modellen, og hva vi forkastet: [alpha-model-decision.md](https://github.com/navikt/mlx-workspace/blob/main/reports/alpha-model-decision.md). Rådataene ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), også kjøringene som gikk galt.
