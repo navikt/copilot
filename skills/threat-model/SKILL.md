@@ -461,8 +461,8 @@ Document risks that are accepted, transferred, or cannot be fully mitigated:
 |----------|---------|
 | `@security-champion-agent` | Security architecture, compliance, Nav security culture |
 | `security-review` skill | Pre-commit scanning (trivy, zizmor, secrets) |
-| `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
-| `@nais-agent` | accessPolicy, network policy, secrets management |
+| `$nav-auth` | JWT validation, TokenX, ID-porten implementation |
+| `$nais` | accessPolicy, network policy, secrets management |
 | `nav-architecture-review` skill | Architecture Decision Records with security perspective |
 | [sikkerhet.nav.no](https://sikkerhet.nav.no) | Nav Golden Path, authoritative security guidance |
 

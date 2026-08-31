@@ -319,5 +319,5 @@ class MigrationTest {
 | Resource | Use For |
 |----------|---------|
 | `flyway-migration` skill | Flyway migration patterns and best practices |
-| `@nais-agent` | GCP Cloud SQL configuration in Nais manifests |
+| `$nais` | GCP Cloud SQL configuration in Nais manifests |
 | `postgresql-review` skill | Query optimization and indexing strategy |

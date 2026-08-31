@@ -409,7 +409,19 @@ See [references/grafana-queries.md](references/grafana-queries.md) for PromQL da
 - [ ] Grafana dashboard created
 - [ ] No sensitive data in logs or metrics (verify in Grafana)
 - [ ] High-cardinality labels avoided (no user_ids, transaction_ids)
+- [ ] Metric names are snake_case with unit suffix, counters end in `_total`
+- [ ] Label values are bounded (no free-text, no unbounded ids)
+- [ ] Logs go to stdout as JSON, never to files
 
 ## Production Patterns & DORA Metrics
 
 See [references/production-patterns.md](references/production-patterns.md) for real-world patterns from navikt repositories and DORA metric implementation examples.
+
+## More references
+
+- [references/metric-conventions.md](references/metric-conventions.md): Prometheus naming rules (snake_case, unit suffixes, `_total`), label cardinality rules, and the Gauge and Histogram patterns.
+- [references/tracing-and-logging.md](references/tracing-and-logging.md): trace context propagation (W3C, Kafka headers, DB), log levels, logging practice, and fixing broken log-to-trace correlation.
+- [references/auto-instrumentation.md](references/auto-instrumentation.md): what Nais auto-instrumentation actually covers, `runtime: sdk`, sensitive-data masking, and the filtered noisy paths.
+- [references/alerting.md](references/alerting.md): raw Prometheus alert-rule schema, alerting practice, and the common Nais alert catalogue (availability, memory, DB pool, Kafka lag, DORA).
+- [references/rapids-rivers.md](references/rapids-rivers.md): event metrics, Kafka consumer-lag gauge, and event tracing for Rapids & Rivers rivers.
+- [references/typescript.md](references/typescript.md): Grafana Faro for frontends and `prom-client` metrics in Next.js API routes.

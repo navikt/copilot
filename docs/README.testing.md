@@ -37,7 +37,6 @@ Kjører `copilot --agent <name> -p "prompt" --allow-all` og sjekker output:
 |------|-------|-----------|
 | Phase header | nav-pilot | Output inneholder `Fase 1` eller `Fase 2` med emoji |
 | Planning phase | nav-pilot | Output inneholder `Intervju` eller `Plan` |
-| Auth content | auth-agent | Output inneholder auth-relatert innhold (`Auth`, `token`, `OAuth`, `🔐`) |
 
 ## Fase-modellen
 
@@ -47,7 +46,7 @@ nav-pilot bruker fire faser. Hver fase har et emoji-prefiks, og alle utenom den 
 |------|------|-----------|
 | 🔍 Fase 1: Intervju | Stiller spørsmål, kartlegger behov og blindsoner, identifiserer arketype | Svar før Fase 2 |
 | 📐 Fase 2: Plan | Foreslår arkitektur, velger mønstre | Bekreftet plan før Fase 3 |
-| 🔎 Fase 3: Review | Delegerer til @auth, @security-champion, @nais | Bekreftede funn før Fase 4 |
+| 🔎 Fase 3: Review | Delegerer til @security-champion, laster $nav-auth og $nais | Bekreftede funn før Fase 4 |
 | 🚀 Fase 4: Lever | Genererer kode og dokumentasjon fra godkjent plan | Ingenting, siste fase |
 
 ## Hvordan fase-headers fungerer
