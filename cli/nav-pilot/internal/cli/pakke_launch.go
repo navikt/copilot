@@ -339,10 +339,12 @@ func autoPin(src *Source) (*Source, error) {
 // stderr warning the client TUI wipes off the screen. The remembered tier is
 // what makes this knowable before the resolve succeeds.
 //
-// Nothing recovers this offline, so both commands named are for once the source
-// is reachable again: sync rebuilds the missing revision behind a pin that is
-// still recorded, and clearing the source is the deliberate way back to the
-// built-in default.
+// The two commands named recover this differently, and only one of them needs
+// the network: sync rebuilds the missing revision behind a pin that is still
+// recorded, and waits for the source to be reachable again, while clearing the
+// source is a local config write that works offline. Clearing it empties
+// resolved.Source, which tryPakkeLaunch short-circuits on before resolving
+// anything, so the next launch takes the built-in default immediately.
 func unresolvablePayloadRefusal(resolved ResolvedConfig, cause error) error {
 	return fmt.Errorf(
 		"source %s declares pre-built payloads for %s, and nav-pilot could not reach it: %v.\n"+
