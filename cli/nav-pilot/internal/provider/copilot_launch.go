@@ -152,7 +152,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		// rather than delegations. Same instrument, different meaning by client,
 		// which the client attribute keeps separable.
 		defer func() {
-			telemetryRecorder.RecordLocalSession("copilot", worker.Model, guard.Completions())
+			telemetryRecorder.RecordLocalSession("copilot", worker.Model, guard.Completions(), guard.SawTraffic())
 		}()
 	}
 
