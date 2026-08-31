@@ -34,18 +34,31 @@ Porten er grov med vilje, og disse kantene er kjent og valgt, ikke oversett:
     heller enn å under-nekte, som er den trygge retningen her.
   * En rolle delt over to redigeringer (`<ul rol` så `e="listbox">`) slipper
     gjennom. Det samme gjør `role:` som objektnøkkel.
-  * Differansen er en mengde, så to identiske roller kollapser til én: står
-    `role="listbox"` allerede i `old_str`, kan `new_str` legge til et element
-    til med nøyaktig samme rolle uten å bli stoppet. Lav risiko, siden det
-    krever en rolle som alt står i det berørte området, og porten er nettopp
-    det som hindrer at den kom dit.
-  * `cwd` i payloaden brukes ikke. CLI-en sender absolutte stier, så en
-    relativ sti utenfor arbeidsmappa er teoretisk.
+  * Differansen er en mengde, så roller som gir samme token kollapser. For en
+    skrevet rolle betyr det nøyaktig samme rolle: står `role="listbox"` alt i
+    `old_str`, kan `new_str` legge til et element til med samme rolle uten å
+    bli stoppet.
+
+    For `role={uttrykk}` er kravet svakere, ikke likt. Alle uleselige uttrykk
+    blir til det samme tokenet, så står det en hvilken som helst dynamisk
+    rolle i `old_str`, slipper en *annen* dynamisk rolle i `new_str` gjennom:
+    `<div role={a}>` som gammel og `<ul role={b}>` som ny nektes ikke.
+
+    Begge er selvbegrensende, siden den første `role={}` nektes og fixturet
+    ikke har noen. Men garantien er svakere for uttrykk enn for skrevne
+    roller, og det er verdt å si presist.
   * Selvtesten dekker disse nærtreffene, ikke bare de tre grunntilfellene.
 
 Merk: en skriving rutet gjennom `execute` og et heredoc går utenom både
 write() og hooks. Det er ikke teoretisk. Med porten på plass er uu3 9/10 på
-begge modellene, med én rød kjøring hver, og den røde på Luna skrev fila med
+begge modellene, med én rød kjøring hver. Tallet er målt på d0b33a01, altså
+revisjonen baselinjene under docs/golden-baselines/ oppgir, og porten her har
+endret seg siden: alle seks bevarte payloadene er spilt av mot begge versjoner
+uten at én eneste beslutning snur, og REASON er byte-identisk. Restrisikoen er
+teoretisk, men ekte: en agent som svarer på listbox-forespørselen med en rolle
+som nå står i SAFE_ROLES, ville skrevet der den gamle porten nektet. Ingenting
+i de målte kjøringene tyder på det, og bare en ny serie ville utelukket det.
+Den røde på Luna skrev fila med
 `cat > .../StatusPanel.tsx << EOF` etter først å ha blitt nektet gjennom
 edit-verktøyet. `ws_fingerprint` fanget den, så uu3 feilet som den skulle.
 Påstanden validerer altså porten i stedet for å forutsette den, og det er
@@ -158,7 +171,7 @@ def role_names(text):
 
 def is_src_tsx(path, cwd=None):
     p = PurePosixPath(path.replace("\\", "/"))
-    if p.suffix != ".tsx":
+    if p.suffix.lower() != ".tsx":
         return False
     if cwd:
         try:
@@ -346,6 +359,8 @@ SELFTEST = [
     # ── kjente nærtreff, dokumentert i docstringen og bevisst utenfor ─────────
     ("slipper gjennom role: som objektnøkkel, ikke et attributt",
      _sr(TSX, "const a = {}", 'const a = { role: "listbox" }'), False),
+    ("nekter .TSX, som er samme fil på macOS",
+     _sr("src/app/StatusPanel.TSX", "<ul>", '<ul role="listbox">'), True),
     ("slipper gjennom .ts, porten dekker bare .tsx",
      _sr("src/lib/roller.ts", "x", '<ul role="listbox" />'), False),
     ("slipper gjennom en rolle delt over to redigeringer",
