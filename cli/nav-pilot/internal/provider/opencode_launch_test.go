@@ -739,3 +739,43 @@ func TestUserModelWinsOnEveryClient(t *testing.T) {
 		}
 	}
 }
+
+// TestMutateOpenCodeConfigNonObject covers configs that parse as valid JSON but
+// are not objects. `null` is the dangerous one: json.Unmarshal into a
+// map[string]any accepts it, leaves the map nil, and the mutate callbacks then
+// assign into a nil map, which panics. Arrays, strings and numbers already fail
+// the unmarshal; they are here so the whole class stays covered.
+func TestMutateOpenCodeConfigNonObject(t *testing.T) {
+	for _, content := range []string{"null", "[1, 2, 3]", `"a string"`, "42", "true"} {
+		t.Run(content, func(t *testing.T) {
+			dir := t.TempDir()
+			configFile := filepath.Join(dir, "opencode.json")
+			ConfigPathOverride = configFile
+			defer func() { ConfigPathOverride = "" }()
+
+			if err := os.WriteFile(configFile, []byte(content+"\n"), 0o600); err != nil {
+				t.Fatalf("seeding config: %v", err)
+			}
+
+			for name, fn := range map[string]func() error{
+				"EnsureOpenCodeOTelConfig":   EnsureOpenCodeOTelConfig,
+				"EnsureOpenCodeSessionModel": EnsureOpenCodeSessionModel,
+			} {
+				err := fn()
+				if err == nil {
+					t.Errorf("%s: expected an error for a non-object config, got nil", name)
+				} else if !strings.Contains(err.Error(), configFile) {
+					t.Errorf("%s: error does not name the file: %v", name, err)
+				}
+			}
+
+			after, readErr := os.ReadFile(configFile)
+			if readErr != nil {
+				t.Fatalf("config file gone: %v", readErr)
+			}
+			if string(after) != content+"\n" {
+				t.Errorf("config was rewritten: %s", after)
+			}
+		})
+	}
+}

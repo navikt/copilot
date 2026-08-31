@@ -217,7 +217,8 @@ func EnsureOpenCodeSessionModel() error {
 // the developer's and nav-pilot owns a few keys in it, not the file. A config
 // that is not there is one to create rather than an error, because a launch has
 // to work on a machine where opencode was never configured; a config that is
-// there and unparseable is an error, because guessing at it would overwrite
+// there but is not a JSON object — unparseable, or valid JSON that is null, an
+// array or a scalar — is an error, because guessing at it would overwrite
 // whatever the developer actually wrote.
 func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 	path := openCodeConfigPath()
@@ -237,6 +238,13 @@ func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 		cfg = nil
 		if err := json.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+		}
+		// A file holding the literal `null` parses without error and leaves cfg
+		// nil, and every mutate callback assigns into it. Erroring here for the
+		// same reason unparseable errors above: the file is the developer's, and
+		// replacing it with a fresh object loses whatever they meant by it.
+		if cfg == nil {
+			return fmt.Errorf("opencode config is not a JSON object (%s): remove or fix the file", path)
 		}
 	case !os.IsNotExist(err):
 		return fmt.Errorf("reading opencode config: %w", err)
