@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"io"
 )
 
 func TestToOpenCodeModel(t *testing.T) {
@@ -626,6 +628,39 @@ func TestUserModelReachesEveryClient(t *testing.T) {
 	for _, w := range PiUnsupportedConfigWarnings(unset) {
 		if strings.HasPrefix(w, "model ") {
 			t.Errorf("pi: warns about a model the user never set: %q", w)
+		}
+	}
+}
+
+// TestNoServerWarningTellsThemWhatItCost: the no-server path must name both
+// remedies, because a warning nobody can act on is not a warning. The reason it
+// matters is in startLocalDispatch, not repeated here.
+func TestNoServerWarningTellsThemWhatItCost(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // nothing recorded, so no server to find
+	local.SetEnabled(true)
+	t.Cleanup(func() { local.SetEnabled(false) })
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	guard, _ := startLocalDispatch("github-copilot/claude-sonnet-4.6")
+	if guard != nil {
+		t.Error("a guard was returned with no server running; nothing should be wired on this path")
+	}
+	os.Stderr = old
+	w.Close()
+	out, _ := io.ReadAll(r)
+
+	for _, want := range []string{
+		"entirely in the cloud",
+		"alpha local start",
+		"local_autostart true",
+	} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("the warning never mentions %q; a developer cannot act on it.\ngot: %s", want, out)
 		}
 	}
 }
