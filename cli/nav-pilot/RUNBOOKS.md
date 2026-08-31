@@ -10,7 +10,6 @@ nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/telemetry.go`)
 
 | Metrikk | Type | Datapunkt-dimensjoner |
 |---------|------|-----------------------|
-| `nav_pilot_command_total` | Counter | `command`, `mode`, `scope`, `result`, `version`, `execution_context` |
 | `nav_pilot_command_duration_ms` | Histogram | `command`, `mode`, `scope`, `result`, `version`, `execution_context` |
 | `nav_pilot_command_error_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
 | `nav_pilot_rtk_setup_total` | Counter | `client`, `choice`, `result`, `version`, `execution_context` |
@@ -44,9 +43,9 @@ Pluss resource-attributtene `service.name`, `service.version`, `os`, `arch`, `de
 > **Avledet metrikk** — `install_success_rate` emitteres ikke direkte. Bygg den fra dagens metrikker, f.eks.:
 > ```promql
 > 1 - (
->   sum(increase(nav_pilot_command_error_total{command="install"}[1h]))
+>   sum(sum_over_time(nav_pilot_command_error_total{command="install"}[1h]))
 >   /
->   sum(increase(nav_pilot_command_total{command="install"}[1h]))
+>   sum(sum_over_time(nav_pilot_command_duration_ms_count{command="install"}[1h]))
 > )
 > ```
 

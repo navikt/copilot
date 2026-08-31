@@ -26,10 +26,6 @@ func TestRecorderEmitsEveryLocalInstrument(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverTotal, err := meter.Int64Counter("nav_pilot_local_server_total")
-	if err != nil {
-		t.Fatal(err)
-	}
 	ready, err := meter.Int64Histogram("nav_pilot_local_ready_seconds")
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +33,6 @@ func TestRecorderEmitsEveryLocalInstrument(t *testing.T) {
 	tel := &otelTelemetry{
 		provider:          provider,
 		localDispatches:   dispatches,
-		localServerTotal:  serverTotal,
 		localReadySeconds: ready,
 		version:           "test",
 		device:            "device-under-test",
@@ -48,7 +43,6 @@ func TestRecorderEmitsEveryLocalInstrument(t *testing.T) {
 	// Zero dispatches with traffic: the client saw the worker and declined,
 	// which is the case the attribute exists to distinguish.
 	tel.RecordLocalSession("opencode", "some/model", 0, true)
-	tel.RecordLocalServer("some/model", "ready")
 	// Both outcomes, because the failing one is the reason the attribute
 	// exists: recorded only on success, this histogram cannot see the starts
 	// that hung, and its slow tail is missing by construction.
@@ -67,7 +61,6 @@ func TestRecorderEmitsEveryLocalInstrument(t *testing.T) {
 	}
 	for _, want := range []string{
 		"nav_pilot_local_dispatches",
-		"nav_pilot_local_server_total",
 		"nav_pilot_local_ready_seconds",
 	} {
 		if !seen[want] {
