@@ -22,12 +22,12 @@ const FILE_TREE: FileEntry[] = [
     when: "Når du skriver @nav-pilot i Copilot Chat",
   },
   {
-    name: "agents/nais.agent.md",
-    type: "agent",
-    description: "Nais-spesialist for deploy og plattform",
+    name: "skills/nais/SKILL.md",
+    type: "skill",
+    description: "Nais-kunnskap for deploy og plattform",
     detail:
-      "Kjenner Nais-manifestformat, GCP-ressurser og kubectl-kommandoer. Brukes via @nais eller delegert fra @nav-pilot.",
-    when: "Når du skriver @nais eller spør nav-pilot om deploy",
+      "Kjenner Nais-manifestformat, GCP-ressurser og kubectl-kommandoer. Lastes av nav-pilot når du spør om deploy, eller med $nais.",
+    when: "Når du spør nav-pilot om deploy, eller skriver $nais",
   },
   {
     name: "skills/nav-plan/SKILL.md",

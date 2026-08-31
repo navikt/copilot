@@ -407,7 +407,7 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 					},
 					"name": {
 						"type": "string",
-						"description": "Customization name (e.g., 'nais-agent', 'kotlin-ktor')"
+						"description": "Customization name (e.g., 'nav-pilot', 'kotlin-ktor')"
 					}
 				},
 				"required": ["type", "name"]

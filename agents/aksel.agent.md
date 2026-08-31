@@ -84,9 +84,9 @@ invent them; the MCP wins over memory. If the `aksel_*` tools are unavailable (o
 Anything deeper (full APIs, token catalog, Tailwind classes, setup/SSR, codemods) lives in the
 skill's references and the MCP — these are just the high-frequency traps.
 
-## Related agents
+## Related agents and skills
 
-| Agent         | Use for                                  |
+| Agent / skill | Use for                                  |
 | ------------- | ---------------------------------------- |
 | `@research`   | Deep pattern-finding across navikt repos |
-| `@nais-agent` | Deployment and environment config        |
+| `$nais` | Deployment and environment config        |

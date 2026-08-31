@@ -8,8 +8,8 @@ describe("getOfficialFileNames", () => {
 
   it("includes agent file basenames", () => {
     const names = getOfficialFileNames();
-    // Agent files use basename like "nais.agent.md"
-    expect(names.has("nais.agent.md")).toBe(true);
+    // Agent files use basename like "nav-pilot.agent.md"
+    expect(names.has("nav-pilot.agent.md")).toBe(true);
   });
 
   it("includes skill directory names, not SKILL.md", () => {

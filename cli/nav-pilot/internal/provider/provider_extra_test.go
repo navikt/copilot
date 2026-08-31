@@ -118,13 +118,15 @@ func TestPiProvider_ValidateModel(t *testing.T) {
 
 func TestPiProvider_UnsupportedConfigWarnings(t *testing.T) {
 	var p Provider = piProvider{}
-	// Mode "autopilot" is not forwarded to pi yet, so it warns.
-	r := domain.ResolvedConfig{Mode: "autopilot", ContextTier: "long_context"}
-	if w := p.UnsupportedConfigWarnings(r); len(w) != 1 {
-		t.Errorf("piProvider.UnsupportedConfigWarnings() = %v, want 1 warning about mode", w)
+	// Both are dropped by LaunchPi, so both warn. This case used to expect one
+	// warning: context_tier was dropped in silence, and the test pinned the
+	// silence rather than the behaviour.
+	r := domain.ResolvedConfig{AskUser: true, Mode: "autopilot", ContextTier: "long_context"}
+	if w := p.UnsupportedConfigWarnings(r); len(w) != 2 {
+		t.Errorf("piProvider.UnsupportedConfigWarnings() = %v, want warnings for mode and context_tier", w)
 	}
-	// No model and default mode → no warnings.
-	if w := p.UnsupportedConfigWarnings(domain.ResolvedConfig{Mode: "default"}); len(w) != 0 {
+	// Nothing set beyond the resolved defaults → no warnings.
+	if w := p.UnsupportedConfigWarnings(domain.ResolvedConfig{AskUser: true, Mode: "default"}); len(w) != 0 {
 		t.Errorf("piProvider.UnsupportedConfigWarnings(default) = %v, want empty", w)
 	}
 }

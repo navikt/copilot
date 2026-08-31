@@ -247,7 +247,7 @@ fun process(data: String): Result {
 |----------|---------|
 | `security-review` skill | Pre-commit scanning (trivy, zizmor, govulncheck) |
 | `@security-champion-agent` | Threat modeling, compliance, Nav security architecture |
-| `@auth-agent` | JWT validation, TokenX, ID-porten implementation |
+| `$nav-auth` | JWT validation, TokenX, ID-porten implementation |
 | `threat-model` skill | STRIDE-A analysis for new services |
 | [OWASP Top 10:2025](https://owasp.org/Top10/2025/) | Official category descriptions |
 | [OWASP Go SCP](https://owasp.org/www-project-go-secure-coding-practices/) | Go-specific secure coding guide |

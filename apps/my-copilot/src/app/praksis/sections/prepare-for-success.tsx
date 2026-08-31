@@ -148,7 +148,7 @@ export default function PrepareForSuccess() {
                 <strong>Aktivering:</strong> @agent-name
               </BodyShort>
               <BodyShort size="small" className="text-gray-600">
-                <strong>Eksempel:</strong> @nais-agent, @aksel-agent, @kafka-agent
+                <strong>Eksempel:</strong> @aksel-agent, @kafka-agent, @code-review-agent
               </BodyShort>
               <BodyShort size="small" className="text-gray-600">
                 <strong>Filformat:</strong>{" "}

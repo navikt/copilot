@@ -4,24 +4,21 @@ Levende referansedokument for hvilke modeller vi bruker, hvorfor, og hvordan vi 
 
 ## Gjeldende modellpinning
 
-Alle agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
+De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke: orkestratoren kjører på klientens egen standardmodell. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
 
 ### Agenter
 
 | Agent | Modell | Begrunnelse |
 |-------|--------|-------------|
-| `@nav-pilot` | Claude Sonnet 4.6 | Sterk på norsk, god på planlegging og arkitektur |
+| `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
 | `@nav-pilot-opus` | Claude Opus 4.6 | Dypest resonnering for høy-risiko beslutninger |
 | `@security-champion` | Claude Opus 4.6 | Sikkerhetskritiske vurderinger krever høyeste presisjon |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
-| `@nais` | GPT-5.3-Codex | God på infrastruktur og YAML-konfigurasjon |
 | `@research` | GPT-5.3-Codex | Effektiv på bred kodebase-søk og oppsummering |
 | `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
-| `@auth` | Claude Sonnet 4.6 | Nyansert på sikkerhetsmønstre og token-flyt |
 | `@aksel` | Claude Sonnet 4.6 | Sterk på komponentstruktur og designsystem-konvensjoner |
 | `@accessibility` | Claude Sonnet 4.6 | God på WCAG-tolkning og semantisk HTML |
-| `@observability` | Claude Sonnet 4.6 | Presis på metrikk-mønstre og PromQL |
 | `@forfatter` | Claude Sonnet 4.6 | Anthropic-modellene er best på norsk klarspråk |
 
 ### Prompts
@@ -29,7 +26,7 @@ Alle agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. Valg
 | Prompt | Modell | Begrunnelse |
 |--------|--------|-------------|
 | `kafka-topic` | GPT-5.3-Codex | Konsistent med kafka-agenten |
-| `nais-manifest` | GPT-5.3-Codex | Konsistent med nais-agenten |
+| `nais-manifest` | GPT-5.3-Codex | God på infrastruktur og YAML-konfigurasjon |
 | `aksel-component` | Gemini 3.6 Flash | Rask og billig for scaffolding av Aksel-komponenter |
 | `ktor-endpoint` | Claude Haiku 4.5 | Enkel strukturert mal, trenger ikke tung modell |
 | `nextjs-api-route` | Claude Haiku 4.5 | Enkel strukturert mal |
@@ -48,12 +45,12 @@ Hele modellflåten, ikke bare de som er pinnet i agenter.
 | Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6, lavere pris (kampanje t.o.m. 31. aug 2026) |
 | Claude Haiku 4.5 | Versatile | $1.00 | $5.00 | Sjekklister, maler, scaffold-prompts |
 | GPT-5.3-Codex | Powerful | $1.75 | $14.00 | Kodeforståelse, terminal, infrastruktur |
-| GPT-5.6 Luna | Lightweight | $1.00 | $6.00 | Raske rutineoppgaver, enkel autofullfør |
-| GPT-5.6 Terra | Versatile | $2.50 | $15.00 | Allround daglig koding i GPT-familien |
-| GPT-5.6 Sol | Powerful | $5.00 | $30.00 | Tung reasoning over store kodebaser (krever Pro+) |
-| Gemini 2.5 Pro | Powerful | $1.25 | $10.00 | ⚠️ Utfases 31. juli 2026. Bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
+| GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør |
+| GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
+| GPT-5.6 Sol | Powerful | $2.00 | $10.00 | Tung reasoning over store kodebaser (krever Pro+) |
+| Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026 og borte fra GitHubs prisliste. Bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
-| Gemini 3.6 Flash | Versatile | $1.50 | $7.50 | Agentiske workflows med parallell verktøybruk |
+| Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk |
 | Kimi K2.7 Code | Versatile | $0.95 | $4.00 | Rimeligste alternativ for kode-agent-løkker (open-weight) |
 
 Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
@@ -71,8 +68,12 @@ Vi bytter **ikke** modell automatisk når noe nytt lanseres. Et bytte krever at 
 | Kriterium | Status |
 |-----------|--------|
 | Bekreftet ID | ❌ Ikke verifisert i model picker |
-| Kostnad | ❌ Terra er 43 % dyrere på input ($2.50 vs $1.75) |
-| Testet | ❌ Ikke testet |
+| Kostnad | ⚖️ Jevnt, se regnestykket under |
+| Testet | ⚠️ Testet på nav-pilot-personaen (45 kjøringer), ikke på en kodegjennomgangsoppgave |
+
+Terra koster $2.00 mot Codex $1.75 på input, men $12.00 mot $14.00 på output, så hvilken som er billigst avhenger av blandingen. Terra er billigere ved alt under åtte input-tokens per output-token, og 1,6 % dyrere ved 10:1 ($2,91 mot $2,86 per million tokens). **Forholdet 10:1 er et anslag, ikke noe vi har målt.** Konklusjonen tåler hele spennet uansett: forskjellen er noen få prosent i begge retninger, og kostnad er ikke lenger et argument mot Terra.
+
+Regnestykket ser bort fra cachet input, der Codex ligger på $0.175 mot Terras $0.20. Cachet input dominerer agentiske løkker, så det trekker i motsatt retning av output-prisen. Skal noen bytte på kostnad alene, er det den blandingen som må måles først.
 
 **Konklusjon:** ikke byttet. GPT-5.3-Codex beholdes inntil videre.
 

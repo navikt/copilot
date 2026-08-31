@@ -323,11 +323,11 @@ func SuggestCustomizations(contents *RepoContents, manifest *discovery.Customiza
 	suggestions = appendMatching(suggestions, manifest, "agent", "security-champion",
 		"Security review agent for all Nav repos — OWASP, dependency scanning, secrets management")
 
-	suggestions = appendMatching(suggestions, manifest, "agent", "nais-platform",
-		"Platform agent for Nais deployment, resource configuration, and infrastructure guidance")
+	suggestions = appendMatching(suggestions, manifest, "skill", "nais",
+		"Platform skill for Nais deployment, resource configuration, and infrastructure guidance")
 
-	suggestions = appendMatching(suggestions, manifest, "agent", "observability",
-		"Observability agent for Prometheus metrics, OpenTelemetry tracing, and health endpoints")
+	suggestions = appendMatching(suggestions, manifest, "skill", "observability-setup",
+		"Observability skill for Prometheus metrics, OpenTelemetry tracing, and health endpoints")
 
 	if langs["Kotlin"] || langs["Java"] || langs["TypeScript"] || langs["JavaScript"] {
 		suggestions = appendMatching(suggestions, manifest, "instruction", "database",

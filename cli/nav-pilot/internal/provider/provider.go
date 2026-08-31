@@ -66,34 +66,14 @@ var OpenCodeDefaultModel = agentpakke.Default().DefaultModel("opencode")
 
 // openCodeProviderPrefix is the opencode provider that cplt authenticates
 // opencode against. Bare Copilot-style model ids are mapped under it.
-const openCodeProviderPrefix = "github-copilot/"
+const openCodeProviderPrefix = domain.OpenCodeProviderPrefix
 
-// Curated model lists. Source of truth for ids: models.dev github-copilot
-// provider. Keep pinned (no dynamic fetch) — update when Copilot ships new
-// models.
-var knownCopilotModels = []domain.ModelChoice{
-	{ID: "auto", Label: "Auto (let Copilot pick)"},
-	{ID: "claude-opus-5", Label: "Claude Opus 5"},
-	{ID: "claude-fable-5", Label: "Claude Fable 5"},
-	{ID: "claude-sonnet-5", Label: "Claude Sonnet 5"},
-	{ID: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
-	{ID: "claude-haiku-4.5", Label: "Claude Haiku 4.5"},
-	{ID: "claude-opus-4.8", Label: "Claude Opus 4.8"},
-	{ID: "claude-opus-4.6", Label: "Claude Opus 4.6"},
-	{ID: "gpt-5.6-sol", Label: "GPT-5.6 Sol"},
-	{ID: "gpt-5.6-terra", Label: "GPT-5.6 Terra"},
-	{ID: "gpt-5.6-luna", Label: "GPT-5.6 Luna"},
-	{ID: "gpt-5.5", Label: "GPT-5.5"},
-	{ID: "gpt-5.4", Label: "GPT-5.4"},
-	{ID: "gpt-5.3-codex", Label: "GPT-5.3-Codex"},
-	{ID: "gpt-5.4-mini", Label: "GPT-5.4 mini"},
-	{ID: "gpt-5-mini", Label: "GPT-5 mini"},
-	{ID: "gemini-3.6-flash", Label: "Gemini 3.6 Flash"},
-	{ID: "gemini-3.1-pro-preview", Label: "Gemini 3.1 Pro (Preview)"},
-	{ID: "gemini-3.5-flash", Label: "Gemini 3.5 Flash"},
-	{ID: "kimi-k2.7-code", Label: "Kimi K2.7 Code"},
-	{ID: "kimi-k3", Label: "Kimi K3"},
-}
+// knownCopilotModels is the curated model list. It lives in internal/domain
+// rather than here because internal/artifacts needs the same Label-to-ID
+// pairing when it materializes an agent's model line, and artifacts cannot
+// import this package (provider imports artifacts). domain is the leaf both
+// already depend on, and it is where domain.ModelChoice is declared.
+var knownCopilotModels = domain.KnownCopilotModels
 
 // knownOpenCodeModels mirrors knownCopilotModels under the github-copilot
 // provider prefix, so a bare Copilot id never triggers the opencode advisory

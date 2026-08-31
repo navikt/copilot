@@ -161,6 +161,10 @@ export default function CostOptimization() {
                 Dypdykk og kilder:{" "}
                 <NextLink href="/nyheter/token-forbruk-verktoy-teknikker" className="text-blue-600 hover:underline">
                   Slik holder du token-forbruket nede
+                </NextLink>{" "}
+                og{" "}
+                <NextLink href="/priser" className="text-blue-600 hover:underline">
+                  Modellpriser
                 </NextLink>
               </BodyShort>
             </HStack>

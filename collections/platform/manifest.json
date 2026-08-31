@@ -28,6 +28,7 @@
   "instructions": [
     "code-review",
     "deliberate-ai-use",
+    "output-style",
     "golang",
     "testing",
     "github-actions",

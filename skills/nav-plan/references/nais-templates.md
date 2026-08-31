@@ -1,11 +1,11 @@
 # Nais-planleggingsguide per arketype
 
-> **Maler:** For fullstendige, vedlikeholdte Nais-manifest-maler, bruk `@nais-agent`.
+> **Maler:** For fullstendige, vedlikeholdte Nais-manifest-maler, bruk `$nais`.
 > Denne guiden hjelper deg velge riktig arketype og planlegge konfigurasjonen.
 
 ## Arketype-oversikt
 
-| Arketype | Port | Auth | Lagring | Bruk `@nais-agent` for |
+| Arketype | Port | Auth | Lagring | Bruk `$nais` for |
 |----------|------|------|---------|----------------------|
 | Backend API (Kotlin/Ktor) | 8080 | Azure AD + TokenX | PostgreSQL | Komplett manifest med auth, GCP SQL, accessPolicy |
 | Hendelsekonsument (Kafka) | 8080 | — | PostgreSQL + Kafka | Manifest med kafka pool, topic-definisjon |
@@ -21,7 +21,7 @@ Se [decision-trees.md](./decision-trees.md) Steg 1 for komplett auth-beslutnings
 
 ### 2. Tilgangsstyring (accessPolicy)
 
-Alltid eksplisitt — bruk `@nais-agent` for å generere riktig accessPolicy:
+Alltid eksplisitt — bruk `$nais` for å generere riktig accessPolicy:
 
 - **Inbound:** Hvem kan kalle tjenesten din? (frontend, andre tjenester)
 - **Outbound:** Hvem kaller tjenesten din? (PDL, andre APIer)
