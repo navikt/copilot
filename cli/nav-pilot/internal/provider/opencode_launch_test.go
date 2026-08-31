@@ -302,6 +302,8 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 }
 
 func TestApplyOpenCodeOTelEnvInjectsClientWhenEndpointSet(t *testing.T) {
+	telemetryOn(t)
+
 	env := []string{"OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318"}
 	result, changed := telemetrypkg.ApplyOpenCodeOTelEnv(env, cliVersion)
 	if !changed {
@@ -663,4 +665,14 @@ func TestNoServerWarningTellsThemWhatItCost(t *testing.T) {
 			t.Errorf("the warning never mentions %q; a developer cannot act on it.\ngot: %s", want, out)
 		}
 	}
+}
+
+// telemetryOn neutralises both opt-out variables for a test that asserts the
+// launcher injected something. The opt-out now covers the whole injection, so
+// without this the suite fails on any machine with DO_NOT_TRACK set — which is
+// exactly the machine whose owner cares most that it behaves correctly.
+func telemetryOn(t *testing.T) {
+	t.Helper()
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 }

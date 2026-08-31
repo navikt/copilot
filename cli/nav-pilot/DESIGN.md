@@ -184,7 +184,7 @@ flagget (opencode bruker sin egen standard). opencode aksepterer bare store boks
 
 Når et OTel-endepunkt er konfigurert (via `OTEL_EXPORTER_OTLP_ENDPOINT` eller `NAV_PILOT_COPILOT_OTEL_ENDPOINT`), gjør nav-pilot:
 1. Kaller `ensureOpenCodeOTelConfig()` for å sette `experimental.openTelemetry = true` i `~/.config/opencode/opencode.json`
-2. Injiserer `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` og `OPENCODE_CLIENT=nav-pilot` i opencodes miljø
+2. Injiserer `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` og `OPENCODE_CLIENT=nav-pilot` i opencodes miljø — men ingenting av det hvis telemetri er slått av (`DO_NOT_TRACK=1` eller `NAV_PILOT_TELEMETRY_ENABLED=false`)
 
 OTel-konfigurasjonssammenslåingen er dyp (beholder eksisterende `experimental.*`-nøkler) og idempotent.
 

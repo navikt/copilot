@@ -109,6 +109,8 @@ func TestGoldenLocalDisabledLeavesLaunchArgsAlone(t *testing.T) {
 // pin. What a launch *adds* is, and with local off it is a written-down list
 // that a new variable — local or otherwise — would break.
 func TestGoldenLaunchEnvIsUnchangedWithoutLocal(t *testing.T) {
+	telemetryOn(t)
+
 	// A home with no ~/.copilot customizations and no OTel endpoint, so the
 	// golden below is the launch's own doing and not the machine's.
 	t.Setenv("HOME", t.TempDir())
