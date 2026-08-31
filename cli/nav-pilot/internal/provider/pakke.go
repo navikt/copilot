@@ -89,7 +89,8 @@ func openCodeDefaultModel() string {
 
 // ResolvedModelNotice returns the one-line launch notice naming the model a
 // launch will run on and where it came from, or "" when nothing names one and
-// the client picks for itself (pi, and copilot with no pin anywhere).
+// the client picks for itself: pi, which is launched with no model at all,
+// copilot with no pin anywhere, and an agentpakke declaring "inherit".
 //
 // Nothing told a user which model they were about to spend on: the model comes
 // from a config file, a flag, or an agentpakke declaration, and the launch said
@@ -105,23 +106,31 @@ func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 }
 
 // resolvedModelOrigin returns the model a launch resolves to and a short phrase
-// naming its source. The origin names the agentpakke that actually supplied the
-// model, which is not always the active one: an active pakke that declares
-// nothing (or "inherit") leaves opencode on the built-in default, and saying
-// that pakke's name would be a lie.
+// naming its source, or ("", "") when the launch names no model. The origin
+// names the agentpakke that supplied it, so an empty answer is the only honest
+// one wherever the launch itself passes no model:
+//
+//   - a client that forwards no model at all (see [clientForwardsModel]) never
+//     runs on the user's setting or on any declaration, whatever they say;
+//   - a pakke declaring "inherit" makes the staged launch builders omit --model
+//     entirely, and the staged opencode launch points OPENCODE_CONFIG_DIR at
+//     the payload, whose own config then picks. Naming the built-in Nav default
+//     would announce a model that launch never asks for. The legacy opencode
+//     path does substitute the built-in default for an empty model, but it only
+//     ever runs under the built-in agentpakke, which declares a model rather
+//     than "inherit": only the staged path sets another one.
 func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin string) {
+	if !clientForwardsModel(client) {
+		return "", ""
+	}
 	if r.Model != "" {
 		if client == "opencode" {
 			return ToOpenCodeModel(r.Model), "your setting"
 		}
 		return r.Model, "your setting"
 	}
-	declared := pakkeDeclaredModel(client)
-	if declared != "" {
+	if declared := pakkeDeclaredModel(client); declared != "" {
 		return declared, source.ActivePakke().Name + " default"
-	}
-	if client == "opencode" {
-		return OpenCodeDefaultModel, agentpakke.DefaultName + " default"
 	}
 	return "", ""
 }

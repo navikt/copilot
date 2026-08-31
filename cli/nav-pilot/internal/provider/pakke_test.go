@@ -124,6 +124,7 @@ func TestResolvedModelNotice(t *testing.T) {
 		Clients: map[string]agentpakke.ClientEntry{
 			"copilot":  {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
 			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5"},
+			"pi":       {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
 		},
 	}
 	inheritPakke := &agentpakke.Manifest{
@@ -176,16 +177,34 @@ func TestResolvedModelNotice(t *testing.T) {
 			want:   "Model: claude-opus-5 (grillmester default)",
 		},
 		{
-			// The active pakke declares nothing, so the model is the built-in
-			// Nav one and the line must not credit grillmester for it.
-			name:   "an inherit pakke falls back to the Nav default by name",
+			// "inherit" means the staged launch passes no --model at all, and
+			// OPENCODE_CONFIG_DIR points at the payload, whose own config picks.
+			// Naming the built-in Nav model here would announce a model the
+			// launch never asks for.
+			name:   "an inherit pakke names no model",
 			pakke:  inheritPakke,
 			client: "opencode",
-			want:   "Model: github-copilot/auto (nav-pilot default)",
+			want:   "",
 		},
 		{
 			name:   "pi names no model",
 			pakke:  navPakke,
+			client: "pi",
+			want:   "",
+		},
+		{
+			// pi is launched with no nav-pilot config on the command line, so
+			// naming the user's model would contradict the warning the launch
+			// prints one line later.
+			name:   "pi names no model even when the user set one",
+			pakke:  navPakke,
+			client: "pi",
+			model:  "claude-opus-5",
+			want:   "",
+		},
+		{
+			name:   "pi names no model even when the pakke declares one",
+			pakke:  pinningPakke,
 			client: "pi",
 			want:   "",
 		},
@@ -200,5 +219,53 @@ func TestResolvedModelNotice(t *testing.T) {
 				t.Errorf("ResolvedModelNotice(%q, model=%q) = %q, want %q", tt.client, tt.model, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestPiNoticeDoesNotContradictItsWarning pins the pair that made the notice
+// wrong: pi's launch forwards no model and says so, so the notice must not name
+// one. Both lines print on the same launch, one after the other.
+func TestPiNoticeDoesNotContradictItsWarning(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	r := domain.ResolvedConfig{Client: "pi", Model: "claude-opus-5", AskUser: true}
+	if w := PiUnsupportedConfigWarnings(r); len(w) == 0 {
+		t.Fatal("pi should warn that the model is dropped")
+	}
+	if got := ResolvedModelNotice("pi", r); got != "" {
+		t.Errorf("ResolvedModelNotice(pi) = %q, want \"\" while the launch warns that model is dropped", got)
+	}
+}
+
+// TestInheritPakkeNoticeMatchesTheStagedLaunch pins the other half: an inherit
+// declaration makes the staged opencode launch pass no --model, so the notice
+// has no model to name either.
+func TestInheritPakkeNoticeMatchesTheStagedLaunch(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "grillmester",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {
+				DefaultModel: agentpakke.InheritModel,
+				Payloads: map[string]agentpakke.Payload{
+					"full": {Path: "dist/opencode/full", PrimaryAgents: []string{"grillmester"}},
+				},
+			},
+		},
+	})
+
+	spec, err := buildStagedOpenCodeSpec(
+		domain.ResolvedConfig{Client: "opencode"},
+		StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"},
+	)
+	if err != nil {
+		t.Fatalf("buildStagedOpenCodeSpec: %v", err)
+	}
+	if slices.Contains(spec.agentArgs, "--model") {
+		t.Fatalf("the staged launch passed a model: %v", spec.agentArgs)
+	}
+	if got := ResolvedModelNotice("opencode", domain.ResolvedConfig{Client: "opencode"}); got != "" {
+		t.Errorf("ResolvedModelNotice = %q, want \"\" when the launch passes no --model", got)
 	}
 }

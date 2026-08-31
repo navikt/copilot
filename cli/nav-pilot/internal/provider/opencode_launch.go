@@ -270,6 +270,16 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 	})
 }
 
+// clientForwardsModel reports whether launching a client puts the resolved
+// model on its command line. Only pi does not: [LaunchPi] passes no nav-pilot
+// config at all, so a launch notice naming a model for pi would contradict the
+// warning [PiUnsupportedConfigWarnings] prints one line later, and would name a
+// model the session does not run on.
+//
+// One place, next to the launch that does the dropping, so the predicate cannot
+// drift from it.
+func clientForwardsModel(client string) bool { return client != "pi" }
+
 // PiUnsupportedConfigWarnings reports nav-pilot config that a pi launch drops,
 // so users understand pi will use its own defaults instead.
 //
