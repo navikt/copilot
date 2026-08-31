@@ -217,6 +217,7 @@ func TestBuildAgentFrontmatter(t *testing.T) {
 		name        string
 		description string
 		mode        string
+		model       string
 		want        string
 	}{
 		{
@@ -249,10 +250,24 @@ func TestBuildAgentFrontmatter(t *testing.T) {
 			mode:        "subagent",
 			want:        "description: \"Review code # quality\"\nmode: subagent\n",
 		},
+		{
+			name:        "model is written when one is resolved",
+			description: "Plan and build Nav apps",
+			mode:        "subagent",
+			model:       "github-copilot/claude-sonnet-4.6",
+			want:        "description: Plan and build Nav apps\nmode: subagent\nmodel: github-copilot/claude-sonnet-4.6\n",
+		},
+		{
+			name:        "no model means no model line",
+			description: "Plan and build Nav apps",
+			mode:        "primary",
+			model:       "",
+			want:        "description: Plan and build Nav apps\nmode: primary\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildAgentFrontmatter(tt.description, tt.mode)
+			got := BuildAgentFrontmatter(tt.description, tt.mode, tt.model)
 			if string(got) != tt.want {
 				t.Errorf("buildAgentFrontmatter:\ngot:  %q\nwant: %q", string(got), tt.want)
 			}

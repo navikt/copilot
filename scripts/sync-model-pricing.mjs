@@ -285,9 +285,27 @@ async function main() {
   const html = await fetchPricingPage();
   const models = parsePricingTables(html);
 
-  if (models.length === 0) {
-    console.error("ERROR: Could not parse any models from the pricing page.");
+  const targetPath = fileURLToPath(TARGET_FILE);
+  const current = readFileSync(targetPath, "utf-8");
+  const currentCount = (current.match(/^ {4}model: /gm) ?? []).length;
+
+  // A docs reshuffle past the parser looks like a partial parse, not a crash,
+  // and the workflow commits whatever comes out. Models do get retired, so the
+  // floor is generous: half the models we already know about.
+  if (models.length === 0 || models.length * 2 < currentCount) {
+    console.error(
+      `ERROR: parsed ${models.length} models, down from ${currentCount} in the generated file.`,
+    );
     console.error("The page structure may have changed. Manual update required.");
+    process.exit(1);
+  }
+
+  const unpriced = models.filter((m) => !(m.input > 0) || !(m.output > 0));
+  if (unpriced.length > 0) {
+    console.error("ERROR: models parsed without a positive input and output price:");
+    for (const m of unpriced) {
+      console.error(`  ${m.provider}/${m.model}: in=${m.input} out=${m.output}`);
+    }
     process.exit(1);
   }
 
@@ -297,10 +315,8 @@ async function main() {
   }
 
   const newContent = generateTypeScript(models);
-  const targetPath = fileURLToPath(TARGET_FILE);
 
   if (checkOnly) {
-    const current = readFileSync(targetPath, "utf-8");
     // Compare ignoring the date line (last-updated changes daily)
     const normalize = (s) =>
       s

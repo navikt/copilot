@@ -15,13 +15,10 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@security-champion` | Claude Opus 4.6 | Sikkerhetskritiske vurderinger krever høyeste presisjon |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
-| `@nais` | GPT-5.3-Codex | God på infrastruktur og YAML-konfigurasjon |
 | `@research` | GPT-5.3-Codex | Effektiv på bred kodebase-søk og oppsummering |
 | `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
-| `@auth` | Claude Sonnet 4.6 | Nyansert på sikkerhetsmønstre og token-flyt |
 | `@aksel` | Claude Sonnet 4.6 | Sterk på komponentstruktur og designsystem-konvensjoner |
 | `@accessibility` | Claude Sonnet 4.6 | God på WCAG-tolkning og semantisk HTML |
-| `@observability` | Claude Sonnet 4.6 | Presis på metrikk-mønstre og PromQL |
 | `@forfatter` | Claude Sonnet 4.6 | Anthropic-modellene er best på norsk klarspråk |
 
 ### Prompts
@@ -29,7 +26,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | Prompt | Modell | Begrunnelse |
 |--------|--------|-------------|
 | `kafka-topic` | GPT-5.3-Codex | Konsistent med kafka-agenten |
-| `nais-manifest` | GPT-5.3-Codex | Konsistent med nais-agenten |
+| `nais-manifest` | GPT-5.3-Codex | God på infrastruktur og YAML-konfigurasjon |
 | `aksel-component` | Gemini 3.6 Flash | Rask og billig for scaffolding av Aksel-komponenter |
 | `ktor-endpoint` | Claude Haiku 4.5 | Enkel strukturert mal, trenger ikke tung modell |
 | `nextjs-api-route` | Claude Haiku 4.5 | Enkel strukturert mal |

@@ -143,8 +143,13 @@ func TestDefaultMirrorsCurrentBehavior(t *testing.T) {
 	if got := m.DefaultModel("opencode"); got != "github-copilot/auto" {
 		t.Errorf("opencode defaultModel = %q, want github-copilot/auto (OpenCodeDefaultModel)", got)
 	}
-	if got := m.DefaultModel("copilot"); got != "" {
-		t.Errorf("copilot defaultModel = %q, want empty — copilot pins no default today", got)
+	// InheritModel, not empty: copilot now has a declaration point like
+	// opencode, and it declares "pin nothing". Both readers
+	// (provider.pakkeDeclaredModel and provider.openCodeDefaultModel) map
+	// InheritModel back to "pin nothing", so no copilot launch emits a --model
+	// it did not emit before.
+	if got := m.DefaultModel("copilot"); got != InheritModel {
+		t.Errorf("copilot defaultModel = %q, want %q (declared, and declaring no pin)", got, InheritModel)
 	}
 	if m.IsPrimaryAgent("opencode", "kafka") {
 		t.Error("kafka is a subagent in opencode today, not a primary agent")

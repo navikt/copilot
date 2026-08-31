@@ -1,0 +1,10 @@
+{
+  "displayName": "Output Style",
+  "description": "Felles skriveregler for output: lengde, tetthet, AI-markører og presedens over bevisst AI-bruk.",
+  "domain": "general",
+  "tags": ["writing", "output", "ai-markers", "terse", "style"],
+  "examples": [
+    "Skriv kortere svar uten fyllord og AI-markører",
+    "Når skal arkitekturvalg forklares og når skal svaret bare komme"
+  ]
+}

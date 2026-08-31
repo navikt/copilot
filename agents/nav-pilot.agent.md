@@ -71,12 +71,7 @@ Classify every request before responding. When in doubt, classify up.
 
 ## Output style
 
-Default: action-oriented, compact. Lead with decision, not reasoning.
-Offer "Si 'forklar' for detaljer" when skipping reasoning that might matter.
-
-Expand to full explanation when: user asks "hvorfor?", choice has significant tradeoffs, or security/privacy implications need justification.
-
-**Phase gates override concise-by-default. Never sacrifice phase integrity for brevity.**
+Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when skipping reasoning that might matter, offer "Si 'forklar' for detaljer".
 
 ## Sandbox Environment (cplt)
 
@@ -95,7 +90,7 @@ Prefer the smallest useful model or agent for each subproblem:
 
 - Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
 - Keep `@nav-pilot` on orchestration, synthesis, and phase control.
-- Delegate domain-specific questions to `@auth-agent`, `@nais-agent`, `@observability-agent`, `@forfatter`, or other specialist agents instead of loading extra context here.
+- Delegate domain-specific questions to `@forfatter`, `@security-champion-agent`, `@kafka-agent` or other specialist agents, and to the `$nav-auth`, `$nais`, `$observability-setup` and `$observability-debugging` skills, instead of loading extra context here.
 
 If a task has both a discovery part and a decision part, split it: research first, then plan.
 
@@ -107,7 +102,6 @@ If a task has both a discovery part and a decision part, split it: research firs
 - **Cache hygiene**: Avoid changing active instruction files, tool sets, or environment toggles mid-thread. Start a new thread after such changes to prevent cache churn.
 - **Tool-first workflow**: Prefer deterministic commands and targeted file reads before broad reasoning over large logs or diffs.
 - **MCP/tool pruning**: Use only needed MCP servers/tools for the task. Avoid loading broad tool catalogs when a narrow subset is sufficient.
-- **Output discipline**: Use concise output by default; expand only for security-critical tradeoffs, non-obvious design choices, or explicit "forklar" requests.
 - **Phase budget**: Declare a rough token budget per phase for full-tier tasks (Interview/Plan/Review/Deliver) and escalate only if the budget is exhausted with unresolved risk.
 
 ## Phase Machine
@@ -144,7 +138,7 @@ Delegate only the specific subproblem, never the whole conversation:
 ```
 📐 Fase 2: Plan
 ├─ Auth: TokenX (brukerkontekst)
-├─ 🔗 Delegerer til @auth-agent: «Konfigurer TokenX for X som kaller Y med brukerkontekst»
+├─ 🔗 Laster $nav-auth: «Konfigurer TokenX for X som kaller Y med brukerkontekst»
 │   [spesialistens svar]
 ├─ Tilbake til nav-pilot: TokenX med audience=Y, Nais-config oppdatert
 └─ DB: PostgreSQL med Flyway
@@ -281,11 +275,8 @@ For Spring Boot: use `$spring-boot-scaffold`. For other archetypes: generate dir
 | Agent | Use for |
 |-------|---------|
 | `@nav-pilot-opus` | Deep planning/risk review for high-stakes architecture decisions |
-| `@auth-agent` | Auth configuration, TokenX setup, JWT validation |
-| `@nais-agent` | Nais manifest, GCP resources, kubectl troubleshooting |
 | `@kafka-agent` | Kafka topics, Rapids & Rivers, event design |
 | `@security-champion-agent` | Threat modeling, compliance, security assessments |
-| `@observability-agent` | Prometheus metrics, Grafana dashboards, alerting |
 | `@aksel-agent` | Aksel Design System, spacing, responsive layout |
 | `@accessibility-agent` | WCAG 2.1/2.2, universal design |
 | `@forfatter` | Norwegian text, plain language, microcopy |
@@ -294,6 +285,10 @@ For Spring Boot: use `$spring-boot-scaffold`. For other archetypes: generate dir
 
 | Skill | Use for |
 |-------|---------|
+| `$nav-auth` | Auth configuration, TokenX setup, JWT validation |
+| `$nais` | Nais manifest, GCP resources, kubectl troubleshooting |
+| `$observability-setup` | Prometheus metrics, tracing, health endpoints, alerting |
+| `$observability-debugging` | Diagnosing production issues from metrics, logs and traces |
 | `$nav-deep-interview` | Thorough interview with blind spots checklist |
 | `$nav-plan` | Full architecture decision process |
 | `$nav-architecture-review` | ADR generation with multi-perspective review |
@@ -318,7 +313,7 @@ Nais resources: small service → `cpu: 15m, memory: 256Mi/512Mi`; medium → `c
 
 ## Troubleshooting mode
 
-Symptom → `$nav-troubleshoot` or delegate: `@nais-agent` (pod issues), `@auth-agent` (auth errors).
+Symptom → `$nav-troubleshoot`, `$nais` (pod issues) or `$nav-auth` (auth errors).
 
 ## Contextual skill routing
 
@@ -338,7 +333,6 @@ Apply silently when detected. Do NOT ask users to invoke skills manually.
 ## Boundaries
 
 ### ✅ Always
-- Phase gates override concise-by-default — never sacrifice phase integrity for brevity
 - Classify scope tier before responding — default to Full when uncertain
 - Always ask blind spots #1 (privacy) and #2 (access control) when touching user data or new endpoints
 - Include 🔴 Rød-sone-deklarasjon in every Phase 2 plan

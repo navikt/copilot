@@ -95,6 +95,9 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 		return true, fmt.Errorf("agentpakke %q declares payloads for %s, but this nav-pilot cannot launch staged payloads for that client",
 			pakke.Name, resolved.Client)
 	}
+	// After the handover gate: the notice announces a session that is about to
+	// start, and this is the last point that can still refuse to start one.
+	printModelNotice(resolved)
 	return true, launch(resolved, providerpkg.StagedLaunch{Dir: dir, PakkeName: pakke.Name, Context: context})
 }
 
@@ -482,4 +485,26 @@ func rememberTier(source, client string, tier int) {
 		return
 	}
 	_ = os.WriteFile(tierCachePath(), data, 0o644)
+}
+
+// printModelNotice names the model this launch resolved to and where it came
+// from. A user could otherwise start a session with no idea which model was
+// about to bill them, since the model can come from a config file, a flag or an
+// agentpakke declaration and nothing said so.
+//
+// Two call sites rather than one, because the funnel has two exits: Tier 2
+// launches from inside tryPakkeLaunch, and its notice has to come after
+// SetActivePakke or it would read the wrong pakke's declaration, and after the
+// handover gate or it would announce a launch that is then refused. Tier 1
+// prints from launchClientConfirming, just before the client starts.
+//
+// One line, on stderr, and only with a terminal, so scripted and piped runs are
+// byte-identical to what they were.
+func printModelNotice(resolved ResolvedConfig) {
+	if !isInteractive() {
+		return
+	}
+	if notice := providerpkg.ResolvedModelNotice(resolved.Client, resolved); notice != "" {
+		fmt.Fprintln(os.Stderr, dim(notice))
+	}
 }

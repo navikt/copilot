@@ -55,8 +55,20 @@ func SynthesizeLegacy(collection string) *Manifest {
 		Clients: map[string]ClientEntry{
 			// Copilot CLI loads a single Nav persona; every other agent is
 			// reachable through it rather than selectable directly.
+			//
+			// DefaultModel is [InheritModel] rather than a model id, and that
+			// is a decision, not a placeholder. Copilot's routing comment in
+			// internal/provider (OpenCodeDefaultModel) prefers letting Copilot
+			// Auto follow the current cost/quality frontier over pinning a
+			// model, and a Tier 1 copilot launch has always emitted no --model
+			// at all when the user pinned none. "inherit" is the value that
+			// says exactly that: the declaration point now exists for both
+			// tiers and for both clients, and no launch argument changes.
+			// Picking a concrete id belongs to whoever owns the routing
+			// decision, in a commit that is about the routing decision.
 			"copilot": {
 				PrimaryAgents: []string{"nav-pilot"},
+				DefaultModel:  InheritModel,
 			},
 			// opencode's picker offers both Nav personas; everything else
 			// materializes as a subagent. The first entry is the persona
