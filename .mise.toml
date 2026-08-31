@@ -90,6 +90,10 @@ run = "bash scripts/lint-collections.sh"
 description = "Check if model pricing data is in sync with GitHub docs"
 run = "node scripts/sync-model-pricing.mjs --check"
 
+[tasks."pricing:test"]
+description = "Test the pricing parser, including the promotion footnotes"
+run = "node --test scripts/sync-model-pricing.test.mjs"
+
 [tasks."pricing:sync"]
 description = "Fetch latest model pricing from GitHub docs and update data file"
 run = "node scripts/sync-model-pricing.mjs"

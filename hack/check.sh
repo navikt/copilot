@@ -40,7 +40,7 @@ else
 fi
 
 echo "💰 pricing:"
-if mise run pricing:check; then
+if mise run pricing:test && mise run pricing:check; then
   echo ""
 else
   failed+=("pricing")
