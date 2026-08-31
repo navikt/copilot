@@ -529,12 +529,18 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 // real entries out of a fixed-size buffer.
 func logSafe(v string) string {
 	const maxLogged = 128
-	cleaned := strings.Map(func(r rune) rune {
+	// The newline and carriage return are replaced explicitly, before the general
+	// pass, because they are the two that forge a log entry and because a static
+	// analyser recognises this shape as a sanitiser where a strings.Map over
+	// unicode.IsControl reads to it as an unrelated transformation.
+	cleaned := strings.ReplaceAll(v, "\n", "?")
+	cleaned = strings.ReplaceAll(cleaned, "\r", "?")
+	cleaned = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
 			return '?'
 		}
 		return r
-	}, v)
+	}, cleaned)
 	if len(cleaned) > maxLogged {
 		return cleaned[:maxLogged] + "…"
 	}
