@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
@@ -109,21 +110,44 @@ func launchViaCplt(spec cpltLaunch) error {
 		if !errors.As(err, &exitErr) {
 			fmt.Fprintf(os.Stderr, "%s Could not launch %s via cplt: %v\n", domain.Yellow("⚠"), spec.displayName, err)
 		}
-		telemetryRecorder.RecordLaunchError(spec.agent, classifyLaunchError(err))
+		if kind := classifyLaunchError(err); kind != "" {
+			telemetryRecorder.RecordLaunchError(spec.agent, kind)
+		}
 		return err
 	}
 	return nil
 }
 
-// classifyLaunchError maps a launch error to a normalized error_type label
-// used in nav_pilot_launch_error_total telemetry. Keeps cardinality bounded.
+// classifyLaunchError maps a launch error to a normalized error_type label for
+// nav_pilot_launch_error_total. "" means do not record this at all.
+//
+// The distinction that matters: did the client start? cmd.Run returns an
+// *exec.ExitError whenever the launched client exits non-zero, and that
+// includes a developer pressing Ctrl-C. Classifying every ExitError as
+// launch_failed made a counter described as "client launch failures" mostly a
+// count of normal session endings, so the panel measured how much people used
+// the tool and called it a failure rate.
+//
+// A signalled exit is the developer quitting, which is not an event worth a
+// data point at all. Any other non-zero exit is the client failing after it
+// started, which is worth knowing and is not a launch failure either — the real
+// launch failure is the one where nothing ever ran.
 func classifyLaunchError(err error) string {
 	if err == nil {
 		return ""
 	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
-		return "launch_failed"
+		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+			return ""
+		}
+		// 128+n is how a shell reports a signalled child, and some clients pass
+		// their own child's status through that way rather than being signalled
+		// themselves. 130 is SIGINT, 143 is SIGTERM.
+		if code := exitErr.ExitCode(); code == 130 || code == 143 {
+			return ""
+		}
+		return "client_exit"
 	}
 	if errors.Is(err, exec.ErrNotFound) {
 		return "client_not_found"
