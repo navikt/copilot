@@ -190,7 +190,9 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		if !errors.As(err, &exitErr) {
 			fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", domain.Yellow("⚠"), displayName, err)
 		}
-		telemetryRecorder.RecordLaunchError("copilot", classifyLaunchError(err))
+		if kind := classifyLaunchError(err); kind != "" {
+			telemetryRecorder.RecordLaunchError("copilot", kind)
+		}
 		return err
 	}
 	return nil

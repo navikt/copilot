@@ -1903,7 +1903,12 @@ func TestDetectNewItems_Instructions(t *testing.T) {
 // ─── copilotEnv tests ───────────────────────────────────────────────────────
 
 func TestCopilotEnv_NoInstructions(t *testing.T) {
-	// Even without instructions, copilotEnv injects OTel defaults for launched copilot/cplt.
+	// Even without instructions, copilotEnv injects OTel defaults for launched
+	// copilot/cplt — as long as telemetry is on. The opt-out now suppresses the
+	// whole injection, so the environment has to be pinned or this asserts the
+	// developer's own DO_NOT_TRACK setting rather than the code.
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 	env := copilotEnv("none")
 	if env == nil {
 		t.Fatal("expected non-nil env from copilotEnv")
