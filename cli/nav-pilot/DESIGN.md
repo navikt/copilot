@@ -164,7 +164,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 
 | nav-pilot konfig | opencode-flagg | Merknad |
 |---|---|---|
-| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-sonnet-4.6`). Flagget sendes kun når brukeren har satt en modell; er den ikke satt, skriver nav-pilot Nav-standarden (`github-copilot/auto`) inn som `model` i opencodes egen config. opencode løser modell som forespørsel → agentens eget `model:` → config-standarden, så en standard på flagget ville overstyrt hver agents modellvalg |
+| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-sonnet-4.6`); Nav-standard er `github-copilot/auto` når unset. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
 | `allow_all_tools` | `--dangerously-skip-permissions` | |

@@ -37,13 +37,9 @@ func TestLaunchOpenCode_RequiresCplt(t *testing.T) {
 		t.Fatalf("writing fake opencode: %v", err)
 	}
 	t.Setenv("PATH", dir)
-	// Avoid writing Nav context into the real ~/.config/opencode, and the same
-	// for opencode.json: the launch writes the Nav default model into it before
-	// it discovers cplt is missing, and a test run must not edit the config of
-	// the developer running it.
+	// Avoid writing Nav context into the real ~/.config/opencode.
 	NavContextDirOverride = t.TempDir()
-	ConfigPathOverride = filepath.Join(t.TempDir(), "opencode.json")
-	t.Cleanup(func() { NavContextDirOverride = ""; ConfigPathOverride = "" })
+	t.Cleanup(func() { NavContextDirOverride = "" })
 
 	err := LaunchOpenCode(domain.ResolvedConfig{Client: "opencode", Mode: "default"})
 	if err == nil {

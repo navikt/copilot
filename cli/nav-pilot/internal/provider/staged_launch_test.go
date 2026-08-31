@@ -458,7 +458,7 @@ func TestStagedOpenCodeLeavesSharedConfigAlone(t *testing.T) {
 // vector.
 func TestGoldenCpltArgvWithoutCpltArgs(t *testing.T) {
 	spec := cpltLaunch{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})}
-	want := []string{"--agent", "opencode", "--", "--agent", "nav-pilot"}
+	want := []string{"--agent", "opencode", "--", "--model", "github-copilot/auto", "--agent", "nav-pilot"}
 	if got := cpltArgv(spec); !slices.Equal(got, want) {
 		t.Errorf("cpltArgv\n got: %q\nwant: %q", got, want)
 	}

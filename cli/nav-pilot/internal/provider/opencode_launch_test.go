@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
@@ -37,15 +36,16 @@ func TestToOpenCodeModel(t *testing.T) {
 }
 
 func TestOpenCodeArgs(t *testing.T) {
+	def := OpenCodeDefaultModel
 	tests := []struct {
 		name     string
 		resolved domain.ResolvedConfig
 		want     []string
 	}{
 		{
-			name:     "no model pinned emits no model flag",
+			name:     "empty resolved applies Nav default model",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--model", def, "--agent", "nav-pilot"},
 		},
 		{
 			name:     "explicit model overrides default",
@@ -53,29 +53,29 @@ func TestOpenCodeArgs(t *testing.T) {
 			want:     []string{"--model", "anthropic/claude-3-5-sonnet", "--agent", "nav-pilot"},
 		},
 		{
-			name:     "plan mode maps to --agent plan",
+			name:     "plan mode maps to --agent plan (default model still emitted)",
 			resolved: domain.ResolvedConfig{Mode: "plan", AskUser: true},
-			want:     []string{"--agent", "plan"},
+			want:     []string{"--model", def, "--agent", "plan"},
 		},
 		{
-			name:     "default mode not emitted",
+			name:     "default mode not emitted (only default model)",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--model", def, "--agent", "nav-pilot"},
 		},
 		{
 			name:     "reasoning effort maps to --variant",
 			resolved: domain.ResolvedConfig{Mode: "default", ReasoningEffort: "high", AskUser: true},
-			want:     []string{"--agent", "nav-pilot", "--variant", "high"},
+			want:     []string{"--model", def, "--agent", "nav-pilot", "--variant", "high"},
 		},
 		{
 			name:     "allow_all_tools maps to --dangerously-skip-permissions",
 			resolved: domain.ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
-			want:     []string{"--agent", "nav-pilot", "--dangerously-skip-permissions"},
+			want:     []string{"--model", def, "--agent", "nav-pilot", "--dangerously-skip-permissions"},
 		},
 		{
 			name:     "log level",
 			resolved: domain.ResolvedConfig{Mode: "default", LogLevel: "debug", AskUser: true},
-			want:     []string{"--agent", "nav-pilot", "--log-level", "DEBUG"},
+			want:     []string{"--model", def, "--agent", "nav-pilot", "--log-level", "DEBUG"},
 		},
 		{
 			name: "all fields",
@@ -92,7 +92,7 @@ func TestOpenCodeArgs(t *testing.T) {
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: false},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--model", def, "--agent", "nav-pilot"},
 		},
 	}
 	for _, tt := range tests {
@@ -546,210 +546,15 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 	}
 }
 
-// TestEnsureOpenCodeSessionModel covers the channel the Nav default now travels
-// on for opencode. The --model flag used to carry it; it does not any more
-// (TestOpenCodeArgs), so if this write stops happening the default silently
-// becomes opencode's rather than Nav's.
-func TestEnsureOpenCodeSessionModel(t *testing.T) {
-	t.Run("creates the config when absent, carrying the Nav default", func(t *testing.T) {
-		configFile := filepath.Join(t.TempDir(), "opencode.json")
-		ConfigPathOverride = configFile
-		defer func() { ConfigPathOverride = "" }()
-
-		if err := EnsureOpenCodeSessionModel(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		cfg := readOpenCodeConfig(t, configFile)
-		if cfg["model"] != OpenCodeDefaultModel {
-			t.Errorf("model = %v, want %q", cfg["model"], OpenCodeDefaultModel)
-		}
-	})
-
-	t.Run("follows the active agentpakke's declaration", func(t *testing.T) {
-		configFile := filepath.Join(t.TempDir(), "opencode.json")
-		ConfigPathOverride = configFile
-		defer func() { ConfigPathOverride = "" }()
-
-		SetActivePakke(&agentpakke.Manifest{
-			Name: "grillmester",
-			Clients: map[string]agentpakke.ClientEntry{
-				"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5"},
-			},
-		})
-		t.Cleanup(func() { SetActivePakke(nil) })
-
-		if err := EnsureOpenCodeSessionModel(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		cfg := readOpenCodeConfig(t, configFile)
-		if cfg["model"] != "github-copilot/claude-opus-5" {
-			t.Errorf("model = %v, want the active pakke's declaration", cfg["model"])
-		}
-	})
-
-	t.Run("merges: the developer's own keys survive", func(t *testing.T) {
-		configFile := filepath.Join(t.TempDir(), "opencode.json")
-		ConfigPathOverride = configFile
-		defer func() { ConfigPathOverride = "" }()
-
-		existing := map[string]any{
-			"theme":        "dark",
-			"share":        "manual",
-			"experimental": map[string]any{"someOtherFlag": true},
-			"agent":        map[string]any{"mine": map[string]any{"model": "anthropic/claude-opus-5"}},
-		}
-		data, _ := json.MarshalIndent(existing, "", "  ")
-		if err := os.WriteFile(configFile, data, 0o600); err != nil {
-			t.Fatal(err)
-		}
-
-		if err := EnsureOpenCodeSessionModel(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		cfg := readOpenCodeConfig(t, configFile)
-		if cfg["theme"] != "dark" {
-			t.Errorf("theme changed: %v", cfg["theme"])
-		}
-		if cfg["share"] != "manual" {
-			t.Errorf("share changed: %v", cfg["share"])
-		}
-		exp, _ := cfg["experimental"].(map[string]any)
-		if exp == nil || exp["someOtherFlag"] != true {
-			t.Errorf("experimental lost: %v", cfg["experimental"])
-		}
-		agents, _ := cfg["agent"].(map[string]any)
-		mine, _ := agents["mine"].(map[string]any)
-		if mine == nil || mine["model"] != "anthropic/claude-opus-5" {
-			t.Errorf("the developer's per-agent model was not preserved: %v", cfg["agent"])
-		}
-		if cfg["model"] != OpenCodeDefaultModel {
-			t.Errorf("model = %v, want %q", cfg["model"], OpenCodeDefaultModel)
-		}
-	})
-
-	t.Run("updates the model key in place rather than duplicating it", func(t *testing.T) {
-		configFile := filepath.Join(t.TempDir(), "opencode.json")
-		ConfigPathOverride = configFile
-		defer func() { ConfigPathOverride = "" }()
-
-		data, _ := json.MarshalIndent(map[string]any{"model": "github-copilot/some-old-id", "theme": "dark"}, "", "  ")
-		if err := os.WriteFile(configFile, data, 0o600); err != nil {
-			t.Fatal(err)
-		}
-
-		if err := EnsureOpenCodeSessionModel(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		raw, err := os.ReadFile(configFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if n := strings.Count(string(raw), `"model"`); n != 1 {
-			t.Errorf("%d model keys in the config, want exactly 1:\n%s", n, raw)
-		}
-		cfg := readOpenCodeConfig(t, configFile)
-		if cfg["model"] != OpenCodeDefaultModel {
-			t.Errorf("model = %v, want %q", cfg["model"], OpenCodeDefaultModel)
-		}
-	})
-
-	t.Run("idempotent: a second call rewrites nothing", func(t *testing.T) {
-		configFile := filepath.Join(t.TempDir(), "opencode.json")
-		ConfigPathOverride = configFile
-		defer func() { ConfigPathOverride = "" }()
-
-		if err := EnsureOpenCodeSessionModel(); err != nil {
-			t.Fatalf("first call failed: %v", err)
-		}
-		first, _ := os.ReadFile(configFile)
-		if err := EnsureOpenCodeSessionModel(); err != nil {
-			t.Fatalf("second call failed: %v", err)
-		}
-		second, _ := os.ReadFile(configFile)
-		if string(first) != string(second) {
-			t.Errorf("not idempotent:\nfirst:  %s\nsecond: %s", first, second)
-		}
-	})
-
-	t.Run("fails on invalid JSON rather than overwriting it", func(t *testing.T) {
-		configFile := filepath.Join(t.TempDir(), "opencode.json")
-		ConfigPathOverride = configFile
-		defer func() { ConfigPathOverride = "" }()
-
-		if err := os.WriteFile(configFile, []byte("{not valid json"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if err := EnsureOpenCodeSessionModel(); err == nil {
-			t.Error("expected an error on invalid JSON, got nil")
-		}
-		raw, _ := os.ReadFile(configFile)
-		if string(raw) != "{not valid json" {
-			t.Errorf("the developer's unparseable config was overwritten: %s", raw)
-		}
-	})
-}
-
-func readOpenCodeConfig(t *testing.T, path string) map[string]any {
-	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("config not written: %v", err)
-	}
-	var cfg map[string]any
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		t.Fatalf("config is not valid JSON: %v", err)
-	}
-	return cfg
-}
-
-// TestUserModelWinsOnEveryClient is the one rule all three clients share after
-// this change: a model the user pinned reaches the client, whatever any
-// agentpakke or agent file declares. Per client the shape differs: copilot and
-// opencode put it on the command line, pi cannot and says so. One table keeps
-// the three from drifting apart again.
-func TestUserModelWinsOnEveryClient(t *testing.T) {
-	pinned := domain.ResolvedConfig{Model: "claude-opus-5"}
-
-	if got := BuildCopilotArgs("copilot", pinned); !slices.Contains(got, "claude-opus-5") {
-		t.Errorf("copilot: %q does not carry the pinned model", got)
-	}
-	if got := OpenCodeArgs(pinned); !slices.Contains(got, "github-copilot/claude-opus-5") {
-		t.Errorf("opencode: %q does not carry the pinned model", got)
-	}
-	// pi forwards no nav-pilot config at all, so the pin can only be reported.
-	// The warning is the whole contract: if it ever stops naming the model, a
-	// pi user has no way to learn their pin was dropped.
-	warnings := strings.Join(PiUnsupportedConfigWarnings(pinned), "\n")
-	if !strings.Contains(warnings, `model "claude-opus-5"`) {
-		t.Errorf("pi: warnings do not name the dropped model: %q", warnings)
-	}
-
-	// And with nothing pinned, neither command line names a model: each agent's
-	// own declaration governs, and pi has nothing to warn about.
-	unset := domain.ResolvedConfig{}
-	if got := OpenCodeArgs(unset); slices.Contains(got, "--model") {
-		t.Errorf("opencode: %q passes --model with nothing pinned", got)
-	}
-	if got := BuildCopilotArgs("copilot", unset); slices.Contains(got, "--model") {
-		t.Errorf("copilot: %q passes --model with nothing pinned", got)
-	}
-	for _, w := range PiUnsupportedConfigWarnings(unset) {
-		if strings.HasPrefix(w, "model ") {
-			t.Errorf("pi: warns about a model the user never set: %q", w)
-		}
-	}
-}
-
-// TestMutateOpenCodeConfigNonObject covers configs that parse as valid JSON but
-// are not objects. `null` is the dangerous one: json.Unmarshal into a
-// map[string]any accepts it, leaves the map nil, and the mutate callbacks then
-// assign into a nil map, which panics. Arrays, strings and numbers already fail
-// the unmarshal; they are here so the whole class stays covered.
-func TestMutateOpenCodeConfigNonObject(t *testing.T) {
+// TestEnsureOpenCodeOTelConfigNonObject covers configs that parse as valid JSON
+// but are not objects. `null` is the dangerous one: json.Unmarshal into a
+// map[string]any accepts it, leaves the map nil, and the write into
+// cfg["experimental"] then panics. Arrays, strings and numbers already fail the
+// unmarshal; they are here so the whole class stays covered.
+func TestEnsureOpenCodeOTelConfigNonObject(t *testing.T) {
 	for _, content := range []string{"null", "[1, 2, 3]", `"a string"`, "42", "true"} {
 		t.Run(content, func(t *testing.T) {
-			dir := t.TempDir()
-			configFile := filepath.Join(dir, "opencode.json")
+			configFile := filepath.Join(t.TempDir(), "opencode.json")
 			ConfigPathOverride = configFile
 			defer func() { ConfigPathOverride = "" }()
 
@@ -757,16 +562,12 @@ func TestMutateOpenCodeConfigNonObject(t *testing.T) {
 				t.Fatalf("seeding config: %v", err)
 			}
 
-			for name, fn := range map[string]func() error{
-				"EnsureOpenCodeOTelConfig":   EnsureOpenCodeOTelConfig,
-				"EnsureOpenCodeSessionModel": EnsureOpenCodeSessionModel,
-			} {
-				err := fn()
-				if err == nil {
-					t.Errorf("%s: expected an error for a non-object config, got nil", name)
-				} else if !strings.Contains(err.Error(), configFile) {
-					t.Errorf("%s: error does not name the file: %v", name, err)
-				}
+			err := EnsureOpenCodeOTelConfig()
+			if err == nil {
+				t.Fatal("expected an error for a non-object config, got nil")
+			}
+			if !strings.Contains(err.Error(), configFile) {
+				t.Errorf("error does not name the file: %v", err)
 			}
 
 			after, readErr := os.ReadFile(configFile)
@@ -777,5 +578,44 @@ func TestMutateOpenCodeConfigNonObject(t *testing.T) {
 				t.Errorf("config was rewritten: %s", after)
 			}
 		})
+	}
+}
+
+// TestUserModelReachesEveryClient asserts what the launch builders control: a
+// model the user pinned reaches the client, on the command line for copilot and
+// opencode and in a warning for pi, which forwards no nav-pilot config at all.
+//
+// Reaching the client is not the same as winning. On `opencode run` the flag is
+// the request model and does outrank an agent's frontmatter, but in the TUI an
+// agent declaring its own `model:` overrides the flag. What this test pins is
+// the part nav-pilot owns: the pin is never silently dropped on the way out.
+// One table keeps the three clients from drifting apart.
+func TestUserModelReachesEveryClient(t *testing.T) {
+	pinned := domain.ResolvedConfig{Model: "claude-opus-5"}
+
+	if got := BuildCopilotArgs("copilot", pinned); !slices.Contains(got, "claude-opus-5") {
+		t.Errorf("copilot: %q does not carry the pinned model", got)
+	}
+	if got := OpenCodeArgs(pinned); !slices.Contains(got, "github-copilot/claude-opus-5") {
+		t.Errorf("opencode: %q does not carry the pinned model", got)
+	}
+	// The warning is pi's whole contract: if it ever stops naming the model, a
+	// pi user has no way to learn their pin was dropped.
+	warnings := strings.Join(PiUnsupportedConfigWarnings(pinned), "\n")
+	if !strings.Contains(warnings, `model "claude-opus-5"`) {
+		t.Errorf("pi: warnings do not name the dropped model: %q", warnings)
+	}
+
+	// With nothing pinned, opencode still gets the Nav default on the flag
+	// (TestOpenCodeArgs), copilot names no model, and pi has nothing to warn
+	// about.
+	unset := domain.ResolvedConfig{}
+	if got := BuildCopilotArgs("copilot", unset); slices.Contains(got, "--model") {
+		t.Errorf("copilot: %q passes --model with nothing pinned", got)
+	}
+	for _, w := range PiUnsupportedConfigWarnings(unset) {
+		if strings.HasPrefix(w, "model ") {
+			t.Errorf("pi: warns about a model the user never set: %q", w)
+		}
 	}
 }

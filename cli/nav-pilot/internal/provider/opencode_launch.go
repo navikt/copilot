@@ -98,16 +98,14 @@ func EnsureOpenCodeNavContext() (string, error) {
 // Maps resolved config fields to opencode flags; omits unset/default fields.
 func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	var args []string
-	if resolved.Model != "" {
-		// Only a model the user actually pinned. With nothing pinned the flag
-		// used to carry the Nav default, and that default then outranked every
-		// agent's own model line on the "opencode run" path, where a request
-		// model wins over the agent's. The Nav default now reaches opencode
-		// through its config instead (EnsureOpenCodeSessionModel), which sits
-		// below the agent in the same resolution, so each agent governs itself
-		// and a pinned model still wins.
-		args = append(args, "--model", ToOpenCodeModel(resolved.Model))
-	}
+	// The model nav-pilot sets for the session. The flag outranks opencode's own
+	// config and its recent-model list, and on `opencode run` it outranks an
+	// agent's frontmatter too, because there it is the request model. In the TUI,
+	// which is what nav-pilot launches, an agent that declares its own `model:`
+	// uses that instead (verified against opencode 1.18.25). So the order is
+	// agent specialisation, then nav-pilot's session model, then whatever the
+	// client would have picked on its own.
+	args = append(args, "--model", ToOpenCodeModel(resolved.Model))
 	if resolved.Mode == "plan" {
 		// opencode's built-in read-only planning agent. Nav context still loads
 		// via AGENTS.md regardless of the active agent.
@@ -163,100 +161,51 @@ func openCodeLogLevel(level string) string {
 	}
 }
 
-// EnsureOpenCodeOTelConfig sets experimental.openTelemetry=true in opencode's
-// config without clobbering other keys.
+// EnsureOpenCodeOTelConfig reads ~/.config/opencode/opencode.json (or creates it),
+// sets experimental.openTelemetry=true without clobbering other keys, and writes back.
 func EnsureOpenCodeOTelConfig() error {
-	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
-		experimental, _ := cfg["experimental"].(map[string]any)
-		if experimental == nil {
-			experimental = make(map[string]any)
-		}
-		if v, ok := experimental["openTelemetry"]; ok && v == true {
-			return false
-		}
-		experimental["openTelemetry"] = true
-		cfg["experimental"] = experimental
-		return true
-	})
-}
-
-// EnsureOpenCodeSessionModel writes the Nav default model into opencode's own
-// config, as the model a session falls back to when nothing else names one.
-//
-// It replaces the --model flag [OpenCodeArgs] used to pass unconditionally.
-// The flag and the config key are not the same lever: opencode resolves a
-// message's model as request model, then the agent's own model, then this
-// config key (Provider.defaultModel reads "model" before anything else, and
-// SessionPrompt.createUserMessage chains the three in that order; verified by
-// reading opencode 1.18.25's bundle and by `opencode debug config`, which
-// reports a written "model" as a top-level key). A default carried on the flag
-// therefore outranked the model line each materialized agent now carries; a
-// default carried here sits below it, which is where a default belongs.
-//
-// The Nav default still comes from nav-pilot rather than from opencode: what
-// changes is which of nav-pilot's two channels delivers it.
-//
-// Merged, not replaced, like every other writer into this file: nav-pilot owns
-// the "model" key and the developer owns the rest of their config.
-func EnsureOpenCodeSessionModel() error {
-	want := openCodeDefaultModel()
-	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
-		if cfg["model"] == want {
-			return false
-		}
-		cfg["model"] = want
-		return true
-	})
-}
-
-// mutateOpenCodeConfig reads ~/.config/opencode/opencode.json, hands the parsed
-// object to mutate, and writes it back only when mutate reports it changed
-// something.
-//
-// Every writer here needs the same merge, and for the same reason: the file is
-// the developer's and nav-pilot owns a few keys in it, not the file. A config
-// that is not there is one to create rather than an error, because a launch has
-// to work on a machine where opencode was never configured; a config that is
-// there but is not a JSON object — unparseable, or valid JSON that is null, an
-// array or a scalar — is an error, because guessing at it would overwrite
-// whatever the developer actually wrote.
-func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 	path := openCodeConfigPath()
-	cfg := map[string]any{
-		"$schema":    "https://opencode.ai/config.json",
-		"autoupdate": "notify",
-		"share":      "disabled",
-		"logLevel":   "INFO",
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
 
+	var cfg map[string]any
+
 	data, err := os.ReadFile(path)
-	switch {
-	case err == nil:
-		// The seeded defaults above are for a file that does not exist yet. An
-		// existing one is the developer's, so it replaces them outright rather
-		// than having nav-pilot's opinions merged underneath it.
-		cfg = nil
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("reading opencode config: %w", err)
+		}
+		cfg = map[string]any{
+			"$schema":    "https://opencode.ai/config.json",
+			"autoupdate": "notify",
+			"share":      "disabled",
+			"logLevel":   "INFO",
+		}
+	} else {
 		if err := json.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
 		}
 		// A file holding the literal `null` parses without error and leaves cfg
-		// nil, and every mutate callback assigns into it. Erroring here for the
-		// same reason unparseable errors above: the file is the developer's, and
-		// replacing it with a fresh object loses whatever they meant by it.
+		// nil, and assigning into a nil map panics. Erroring for the same reason
+		// unparseable content does: the file is the developer's, and replacing it
+		// with a fresh object loses whatever they meant by it.
 		if cfg == nil {
 			return fmt.Errorf("opencode config is not a JSON object (%s): remove or fix the file", path)
 		}
-	case !os.IsNotExist(err):
-		return fmt.Errorf("reading opencode config: %w", err)
 	}
 
-	if !mutate(cfg) {
+	experimental, _ := cfg["experimental"].(map[string]any)
+	if experimental == nil {
+		experimental = make(map[string]any)
+	}
+	if v, ok := experimental["openTelemetry"]; ok && v == true {
 		return nil
 	}
+	experimental["openTelemetry"] = true
+	cfg["experimental"] = experimental
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("creating opencode config dir: %w", err)
-	}
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshalling opencode config: %w", err)
@@ -284,12 +233,6 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		if err := EnsureOpenCodeOTelConfig(); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Warning: could not configure opencode OTel: %v\n", domain.Yellow("⚠"), err)
 		}
-	}
-
-	if err := EnsureOpenCodeSessionModel(); err != nil {
-		// Warned rather than fatal, like the OTel write above: the session still
-		// runs, but say out loud that opencode is picking the default now.
-		fmt.Fprintf(os.Stderr, "%s Warning: could not set opencode's default model, opencode will use its own: %v\n", domain.Yellow("⚠"), err)
 	}
 
 	navSummary, ctxErr := EnsureOpenCodeNavContext()
