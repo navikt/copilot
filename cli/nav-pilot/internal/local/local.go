@@ -453,6 +453,45 @@ func SetActive(m *Manifest) {
 func Active() *Manifest { return active }
 
 // Lookup returns the manifest entry for a model id.
+// selectedModel is the model id the developer configured, empty for "whatever
+// the manifest calls default". nav-pilot pushes it in the same place it pushes
+// enabled and autostart.
+var selectedModel string
+
+// SetSelectedModel records the configured model id. An id that is not in the
+// manifest is kept rather than rejected: the manifest is refetched, and a model
+// that is missing today can be offered tomorrow. [Chosen] falls back to the
+// default whenever the id does not resolve.
+func SetSelectedModel(id string) { selectedModel = id }
+
+// Chosen returns the model a start would load: the configured one when the
+// manifest offers it, otherwise the manifest's default.
+//
+// It exists because the manifest carried exactly one model until 1 September
+// 2026, which made `Models[0]` correct by accident in two places. Adding a
+// second entry made both wrong on the same day — autostart would have started
+// the default no matter what the developer configured, and purge would have
+// offered to remove the wrong weights. Neither is a bug anyone reports; they
+// are a bug people quietly work around.
+func Chosen(m *Manifest) (Model, bool) {
+	if m == nil || len(m.Models) == 0 {
+		return Model{}, false
+	}
+	if selectedModel != "" {
+		for _, e := range m.Models {
+			if e.Model == selectedModel {
+				return e, true
+			}
+		}
+	}
+	for _, e := range m.Models {
+		if e.Default {
+			return e, true
+		}
+	}
+	return Model{}, false
+}
+
 func Lookup(model string) (Model, bool) {
 	for _, m := range Active().Models {
 		if m.Model == model {

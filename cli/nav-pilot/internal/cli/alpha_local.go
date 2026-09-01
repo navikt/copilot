@@ -56,6 +56,13 @@ hosted one. Off until you run init, and invisible everywhere until then.
   on        Dispatch to it again after off, without downloading anything
   off       Stop dispatching to it; the weights stay on disk
   purge     Remove the environment and the weights, after showing what and how big
+
+Switching model:
+  nav-pilot models                                  what is offered; local ones say (local)
+  nav-pilot config set model <id>                   pick one
+  nav-pilot alpha local init                        download its weights, then start
+
+The list refreshes on init and start, not on every command.
 `)
 }
 
@@ -128,14 +135,10 @@ func activeManifest() (*local.Manifest, error) {
 // needs to read the manifest.
 func localModel(m *local.Manifest) (local.Model, error) {
 	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.Model != nil {
-		if entry, ok := local.Lookup(*cfg.Model); ok {
-			return entry, nil
-		}
+		local.SetSelectedModel(*cfg.Model)
 	}
-	for _, entry := range m.Models {
-		if entry.Default {
-			return entry, nil
-		}
+	if entry, ok := local.Chosen(m); ok {
+		return entry, nil
 	}
 	// Unreachable: Parse refuses a manifest without exactly one default.
 	return local.Model{}, errors.New("the local-model manifest names no default model")
@@ -749,6 +752,9 @@ func applyLocalConfig() {
 	}
 	local.SetEnabled(true)
 	local.SetAutostart(r.LocalAutostart)
+	if cfg.Model != nil {
+		local.SetSelectedModel(*cfg.Model)
+	}
 }
 
 // ─── purge ───────────────────────────────────────────────────────────────────
@@ -776,8 +782,10 @@ func cmdLocalPurge(args []string) error {
 	var model string
 	if st, ok, _ := local.LoadState(); ok {
 		model = st.Model
-	} else if m, _, err := local.Cached(); err == nil && m != nil && len(m.Models) > 0 {
-		model = m.Models[0].Model
+	} else if m, _, err := local.Cached(); err == nil && m != nil {
+		if chosen, ok := local.Chosen(m); ok {
+			model = chosen.Model
+		}
 	}
 	items := local.Removables(model)
 	if len(items) == 0 {

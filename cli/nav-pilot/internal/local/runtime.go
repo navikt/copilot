@@ -1462,7 +1462,14 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	if manifest == nil || len(manifest.Models) == 0 {
 		return errors.New("no local model is available in this nav-pilot's manifest")
 	}
-	m := manifest.Models[0]
+	m, ok := Chosen(manifest)
+	if !ok {
+		// Not "this machine cannot run it": Chosen only fails when the manifest
+		// is empty or names no default, which is a broken manifest rather than
+		// anything about the hardware. Parse refuses such a file, so reaching
+		// here means one was hand-assembled or the embedded copy is damaged.
+		return errors.New("the local-model manifest names no default model; it is empty or malformed")
+	}
 	if announce != nil {
 		announce(m.Model)
 	}

@@ -139,6 +139,31 @@ nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir ligg
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 ```
 
+### Bytte modell
+
+`nav-pilot models` viser hva som er tilgjengelig. De lokale står merket `(local)`.
+
+```bash
+nav-pilot models
+nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot alpha local init      # laster ned vektene for den nye modellen
+nav-pilot alpha local start
+```
+
+Listen oppdateres når du kjører `init` eller `start` — ikke ved hver kommando, fordi
+et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nettopp hørt
+om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
+
+**Qwen 3.6 er standard, og det er ikke tilfeldig.** De to Qwen 3.8-modellene ligger der
+fordi folk spør etter dem, ikke fordi de er bedre her. På våre egne oppgaver er 3.8
+tregere og mye mer ujevn: to kjøringer av de samme åtte oppgavene, samme profil og samme
+maskin, ga median 88 og 906 sekunder. 3.6 ligger på 12–21 sekunder uten timeouts over
+åtte kjøringer. `nav-pilot config explain model` sier det samme kortere, og
+[MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md) har tallene.
+
+Bytter du modell, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for
+8-bit. `purge` fjerner det du ikke vil beholde.
+
 Vil du slippe å starte serveren selv, kan en vanlig `nav-pilot` gjøre det når den trenger den:
 
 ```bash

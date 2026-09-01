@@ -443,3 +443,44 @@ func TestCachedNeverReachesTheNetwork(t *testing.T) {
 		t.Errorf("Cached() returned %q, want the cached model", m.Models[0].Model)
 	}
 }
+
+// TestChosenHonoursTheConfiguredModel is the regression test for a bug that was
+// invisible while the manifest had one entry.
+//
+// Autostart picked Models[0] and purge picked Models[0]. Both were correct by
+// accident until 1 September 2026, when two Qwen3.8 builds were offered
+// alongside the default. From that moment a developer who configured a
+// non-default model and relied on autostart would have got the default started
+// instead, with nothing on screen to say so.
+func TestChosenHonoursTheConfiguredModel(t *testing.T) {
+	m := &Manifest{Models: []Model{
+		{Key: "default-one", Model: "org/Default", Default: true},
+		{Key: "other", Model: "org/Other"},
+	}}
+	t.Cleanup(func() { SetSelectedModel("") })
+
+	SetSelectedModel("")
+	if got, ok := Chosen(m); !ok || got.Model != "org/Default" {
+		t.Errorf("with nothing configured, Chosen = %q/%v, want org/Default", got.Model, ok)
+	}
+
+	SetSelectedModel("org/Other")
+	if got, ok := Chosen(m); !ok || got.Model != "org/Other" {
+		t.Errorf("with org/Other configured, Chosen = %q/%v, want org/Other", got.Model, ok)
+	}
+
+	// A configured id the manifest does not offer falls back rather than
+	// failing: the manifest is refetched, so an id can become valid later, and
+	// refusing to start is a worse answer than starting the default.
+	SetSelectedModel("org/NotOffered")
+	if got, ok := Chosen(m); !ok || got.Model != "org/Default" {
+		t.Errorf("with an unknown model configured, Chosen = %q/%v, want the default", got.Model, ok)
+	}
+
+	// The default is not required to be first, and Models[0] was the old bug.
+	reordered := &Manifest{Models: []Model{{Key: "other", Model: "org/Other"}, {Key: "d", Model: "org/Default", Default: true}}}
+	SetSelectedModel("")
+	if got, _ := Chosen(reordered); got.Model != "org/Default" {
+		t.Errorf("with the default second, Chosen = %q, want org/Default", got.Model)
+	}
+}

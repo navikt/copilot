@@ -245,10 +245,14 @@ func fastTimers(t *testing.T) {
 // wired-limit and launch paths read.
 func testModel() Model {
 	return Model{
-		Key:          "qwen",
-		Name:         "A Model",
-		Model:        okModel,
-		Backend:      "mlx-lm",
+		Key:     "qwen",
+		Name:    "A Model",
+		Model:   okModel,
+		Backend: "mlx-lm",
+		// Parse refuses a manifest without exactly one default, so a fixture
+		// without one is a shape production never sees. It went unnoticed while
+		// selection was Models[0] and every fixture had exactly one model.
+		Default:      true,
 		WeightsGB:    25,
 		MinRAMGB:     48,
 		WiredLimitGB: 36,
