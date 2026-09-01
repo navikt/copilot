@@ -57,13 +57,18 @@ Først prøvde vi åtte modeller og bygg på det samme oppgavesettet: elleve opp
 Vi skrev først at Qwen3.8 ikke ble valgt fordi den gikk i loop. Etter å ha kjørt testene på nytt
 holder ikke den beskrivelsen, og den nye er mer interessant.
 
-To kjøringer av det samme oppgavesettet, samme maskin, to timer fra hverandre: Qwen3.8-27B 4-bit
-løste **1 av 8** i den første og **5 av 8** i den andre. Den andre er det beste enkeltresultatet
-noen modell har fått på dette settet. Qwen3.6 ligger på 3–6 av 8 over åtte kjøringer, og bruker
-omtrent en sjuendedel så lang tid.
+Fire rene kjøringer av det samme oppgavesettet på samme maskin: Qwen3.8-27B 4-bit løste **5, 5, 6
+og 7 av 8**, mot standardmodellens **3, 3, 3, 4 og 4** over fem. De to settene overlapper ikke i
+det hele tatt.
 
-Qwen3.8 er altså ikke en svakere modell. Den er en mer uforutsigbar en. Derfor kan du velge den,
-men den er ikke standard:
+**Qwen3.8 er altså ikke en svakere modell — den løser mer.** Til gjengjeld bruker den omtrent sju
+ganger så lang tid, median 65 sekunder mot 9, og treffer sju-minutterstaket på rundt én av fem
+oppgaver der standarden nesten aldri gjør det. En femte kjøring er holdt utenfor: den løste 1 av 8
+uten å endre en eneste fil på noen oppgave, som er en feil i testoppsettet vårt og ikke i
+modellen.
+
+Valget står altså mellom dybde og hastighet. Leser du gjennom det modellen lager og kan vente, er
+3.8 verdt å prøve. Vil du ha svar på ti sekunder, behold standarden:
 
 ```bash
 nav-pilot models
@@ -73,7 +78,10 @@ nav-pilot alpha local init
 
 Det vi selv lærte av dette er verdt mer enn modellvalget: **én kjøring er ikke en måling.** Alle
 konklusjonene som snudde, snudde fordi det fantes en kjøring til — ikke fordi vi tenkte oss om en
-gang til. Tabellen over var bygget på enkeltkjøringer.
+gang til. Tabellen over var bygget på enkeltkjøringer. Denne konklusjonen snudde tre ganger: fra
+«3.8 går i loop», til «3.8 er uforutsigbar», til «3.8 løser mer enn standarden». Den siste snuen
+kom av at én kjøring viste seg å være en feil i testoppsettet og ikke i modellen. Vi krever nå
+minst fem kjøringer før et tall får styre en anbefaling.
 
 Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
 

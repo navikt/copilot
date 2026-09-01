@@ -154,13 +154,18 @@ Listen oppdateres når du kjører `init` eller `start` — ikke ved hver kommand
 et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nettopp hørt
 om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
 
-**Qwen 3.6 er standard, og det er ikke tilfeldig.** De to Qwen 3.8-modellene ligger der
-fordi folk spør etter dem, ikke fordi de er bedre her. 3.8 er ikke svakere, den er mindre
-forutsigbar: to kjøringer av de samme åtte oppgavene, samme profil og samme maskin to timer
-fra hverandre, løste **1 av 8** og deretter **5 av 8**. Den andre er det beste enkeltresultatet
-vi har målt. 3.6 ligger på 3–6 av 8 over åtte kjøringer og er omtrent sju ganger raskere.
-Vi oppgir spenn og ikke median, fordi for en modell som spenner fra 1 til 5 av 8 beskriver
-medianen ingen kjøring som faktisk har skjedd. `nav-pilot config explain model` sier det samme kortere, og
+**Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest.** Over fem
+kjøringer av de samme åtte oppgavene løser den 3, 3, 3, 4 og 4. Qwen 3.8 4-bit løser 5, 5, 6 og 7
+over fire rene kjøringer — de to settene overlapper ikke i det hele tatt. Til gjengjeld bruker 3.8
+omtrent sju ganger så lang tid, median 65 sekunder mot 9, og treffer sju-minutterstaket på rundt
+én av fem oppgaver der standarden nesten aldri gjør det.
+
+En femte 3.8-kjøring er holdt utenfor: den løste 1 av 8 uten å endre en eneste fil på noen
+oppgave, som er en feil i testoppsettet vårt og ikke i modellen. Kriteriet står skrevet ned i
+[MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md).
+
+Valget er altså dybde mot hastighet, ikke bedre mot dårligere. `nav-pilot config explain model`
+sier det samme kortere, og
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md) har tallene.
 
 Bytter du modell, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for
