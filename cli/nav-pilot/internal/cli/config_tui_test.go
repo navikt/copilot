@@ -227,14 +227,36 @@ func TestFixedLines(t *testing.T) {
 // is the reflex in a terminal, and a settings page you cannot leave with it
 // reads as a hung program.
 func TestConfigPageCtrlCAlwaysQuits(t *testing.T) {
-	for _, filtering := range []bool{false, true} {
-		m := configPageModel{rows: buildPageRows(nil, ""), filterOn: filtering}
+	// Three states, because the bug moved. Filter input mode swallowed ctrl+c
+	// first; once that was fixed, normal mode with an active filter still ate
+	// it — ctrl+c was grouped with esc and q, which clear the filter before
+	// they quit. esc and q should do that. ctrl+c should not.
+	for _, tc := range []struct {
+		name     string
+		filterOn bool
+		filter   string
+	}{
+		{"normal mode", false, ""},
+		{"normal mode with an active filter", false, "loop"},
+		{"filter input mode", true, "loo"},
+	} {
+		m := configPageModel{rows: buildPageRows(nil, ""), filterOn: tc.filterOn, filter: tc.filter}
 		got, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 		if cmd == nil {
-			t.Errorf("filterOn=%v: ctrl+c produced no command, want tea.Quit", filtering)
+			t.Errorf("%s: ctrl+c produced no command, want tea.Quit", tc.name)
 		}
 		if c := got.(configPageModel).choice; c != configPageDone {
-			t.Errorf("filterOn=%v: choice = %q, want %q", filtering, c, configPageDone)
+			t.Errorf("%s: choice = %q, want %q", tc.name, c, configPageDone)
 		}
+	}
+
+	// esc keeps its filter-clearing behaviour; that is the difference.
+	m := configPageModel{rows: buildPageRows(nil, ""), filter: "loop"}
+	got, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if cmd != nil {
+		t.Error("esc with an active filter quit; it should clear the filter first")
+	}
+	if f := got.(configPageModel).filter; f != "" {
+		t.Errorf("esc left filter = %q, want it cleared", f)
 	}
 }

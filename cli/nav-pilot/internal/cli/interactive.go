@@ -136,10 +136,19 @@ func promptModel(p Provider, title, description, current string) (string, error)
 			return p.ValidateModel(s)
 		}
 	}
+	// The picker calls the empty choice "Nav default" when the provider has
+	// one, so this prompt has to say the same thing. Saying "agent default"
+	// under a list that just said "Nav default" reads as two different
+	// fallbacks, and a developer choosing between them cannot tell which they
+	// are about to get.
+	blankMeans := "Leave blank for the agent default."
+	if def := p.DefaultModel(); def != "" {
+		blankMeans = "Leave blank for the Nav default (" + def + ")."
+	}
 	value := current
 	err := huh.NewInput().
 		Title("Custom model id").
-		Description("Leave blank for the agent default.").
+		Description(blankMeans).
 		Value(&value).
 		Validate(validator).
 		WithTheme(navTheme()).

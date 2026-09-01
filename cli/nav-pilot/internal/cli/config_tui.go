@@ -140,7 +140,6 @@ type configPageModel struct {
 	filter   string
 	filterOn bool
 	cursor   int // index into the visible selectable rows
-	offset   int // first visible row line
 	width    int
 	height   int
 	choice   string // set on enter; read after the program quits
@@ -221,7 +220,15 @@ func (m configPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg.String() {
-		case "esc", "q", "ctrl+c":
+		// ctrl+c leaves, always and from anywhere. esc and q first clear an
+		// active filter, because narrowing a list and then backing out of the
+		// narrowing is a thing people do. ctrl+c is not that key: it is the one
+		// you press when you want the program to stop, and a settings page that
+		// answers it by clearing a filter has ignored you.
+		case "ctrl+c":
+			m.choice = configPageDone
+			return m, tea.Quit
+		case "esc", "q":
 			if m.filter != "" {
 				m.filter = ""
 				m.cursor = 0
@@ -297,7 +304,11 @@ func (m configPageModel) View() string {
 	}
 	lines := m.renderRows()
 	cursorLine := m.cursorLine()
-	offset := m.offset
+	// Derived per render rather than stored. There was an offset field here
+	// that View read and never wrote back, which read as scroll state and was
+	// not: View takes a value receiver, so nothing it assigns survives. The
+	// window is a function of the cursor, so compute it and keep no state.
+	offset := 0
 	if cursorLine < offset {
 		offset = cursorLine
 	}
