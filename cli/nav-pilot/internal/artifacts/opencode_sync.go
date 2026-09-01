@@ -67,6 +67,22 @@ func ValidateOpenCodeStatePath(p string) error {
 	return fmt.Errorf("path outside allowed opencode directories: %s", p)
 }
 
+// navPilotOwns reports whether a tracked file is still byte-for-byte what
+// nav-pilot wrote, and is therefore nav-pilot's to remove. A conflicted entry
+// never is: its recorded hash is the user's own copy, so a hash comparison
+// would call it untouched.
+func navPilotOwns(outputDir string, f domain.InstalledFile) bool {
+	if f.Status == domain.FileStatusConflict {
+		return false
+	}
+	rel := filepath.Join(outputDir, f.Path)
+	current, err := source.RawArtifactHash(rel, strings.HasSuffix(f.Path, "/"))
+	if err != nil {
+		return true // already gone; removing it is a no-op
+	}
+	return current == f.Hash
+}
+
 // withScopeExtras appends the artifacts of a kind that the installed scope has
 // and the source checkout does not. Names already present in entries are left
 // alone, so the source stays authoritative and the order of the source entries
@@ -100,8 +116,12 @@ func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.Ar
 //
 // Instructions are deliberately not merged from the scope. outputDir is the
 // user's global opencode config, and AGENTS.md is always-on context: a repo's
-// instructions would follow the user into every other repo. Skills, commands
-// and agents are only loaded when invoked, so the same objection does not hold.
+// instructions would be in every prompt in every other repo until the next sync.
+// A skill or an agent from another repo is visible there too, by name and
+// description in the tool listing and the agent picker, but its body is only
+// read when it is invoked. That is a smaller price than always-on prose, which
+// is why the two are treated differently. [ExportOpenCode] writes project-local
+// files instead, and merges instructions for that reason.
 func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
 	existingState, _ := ReadOpenCodeState(outputDir)
 	stateHashes := map[string]string{}
@@ -254,16 +274,23 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		newFilesMap[f.Path] = true
 	}
 
-	// Delete old files that are not in the new file set
+	// Delete old files that are not in the new file set, but only the ones
+	// nav-pilot still owns: an entry marked conflict, or one whose bytes have
+	// changed since nav-pilot wrote them, belongs to the user now. The set
+	// shrinks for two reasons, and only one of them is a removal upstream. The
+	// other is a scope that is no longer there, which happens on every switch to
+	// another repo, so deleting on hash-blind absence would throw away a locally
+	// edited file for no better reason than the working directory.
 	if existingState != nil {
 		for _, f := range existingState.Files {
-			if !newFilesMap[f.Path] {
-				dst := filepath.Join(outputDir, f.Path)
-				if strings.HasSuffix(f.Path, "/") {
-					os.RemoveAll(dst)
-				} else {
-					os.Remove(dst)
-				}
+			if newFilesMap[f.Path] || !navPilotOwns(outputDir, f) {
+				continue
+			}
+			dst := filepath.Join(outputDir, f.Path)
+			if strings.HasSuffix(f.Path, "/") {
+				os.RemoveAll(dst)
+			} else {
+				os.Remove(dst)
 			}
 		}
 	}

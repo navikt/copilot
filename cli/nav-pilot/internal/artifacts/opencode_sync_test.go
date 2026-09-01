@@ -390,9 +390,17 @@ func TestSyncOpenCodeArtifacts_ScopeExtras(t *testing.T) {
 	}
 }
 
-// An empty scope must produce byte-for-byte what no scope produces.
-func TestSyncOpenCodeArtifacts_EmptyScopeUnchanged(t *testing.T) {
+// A scope that holds nothing but an install of the same source must produce
+// byte-for-byte what no scope at all produces. An empty .github/ would pass
+// this trivially, so the scope is populated with a copy of the source: every
+// name collides, and the source has to win all of them.
+func TestSyncOpenCodeArtifacts_InstalledScopeUnchanged(t *testing.T) {
 	sourceDir := setupTestSource(t)
+
+	installedScope := filepath.Join(t.TempDir(), ".github")
+	if err := copyDirSimple(sourceDir, installedScope); err != nil {
+		t.Fatalf("populating scope: %v", err)
+	}
 	emptyScope := filepath.Join(t.TempDir(), ".github")
 	mustMkdir(t, emptyScope)
 
@@ -419,7 +427,45 @@ func TestSyncOpenCodeArtifacts_EmptyScopeUnchanged(t *testing.T) {
 		return files
 	}
 
-	if got, want := tree(emptyScope), tree(""); !reflect.DeepEqual(got, want) {
-		t.Errorf("empty scope changed the output: got %d files, want %d", len(got), len(want))
+	baseline := tree("")
+	if len(baseline) == 0 {
+		t.Fatal("baseline output is empty; the comparison would prove nothing")
+	}
+	for _, scopeDir := range []string{emptyScope, installedScope} {
+		if got := tree(scopeDir); !reflect.DeepEqual(got, baseline) {
+			t.Errorf("scope %q changed the output: got %d files, want %d", scopeDir, len(got), len(baseline))
+		}
+	}
+}
+
+// Switching repos shrinks the file set, and the delete loop must not take a
+// locally edited file with it.
+func TestSyncOpenCodeArtifacts_KeepsEditedFileOnScopeSwitch(t *testing.T) {
+	sourceDir := setupTestSource(t)
+	scopeDir := setupTestScope(t)
+	outputDir := t.TempDir()
+
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc", ""); err != nil {
+		t.Fatalf("first sync: %v", err)
+	}
+
+	edited := filepath.Join(outputDir, "skills", "watson-setup", "SKILL.md")
+	mustWrite(t, edited, "---\nname: watson-setup\ndescription: Edited by hand\n---\n\nMine now.\n")
+	untouched := filepath.Join(outputDir, "agents", "watson.md")
+
+	// Second run from another repo: the extras are no longer in the file set.
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "abc", ""); err != nil {
+		t.Fatalf("second sync: %v", err)
+	}
+
+	data, err := os.ReadFile(edited)
+	if err != nil {
+		t.Fatalf("locally edited file was deleted on a scope switch: %v", err)
+	}
+	if !strings.Contains(string(data), "Mine now") {
+		t.Error("locally edited file was overwritten")
+	}
+	if _, err := os.Stat(untouched); err == nil {
+		t.Error("an untouched extra was kept; only user-modified files should survive")
 	}
 }

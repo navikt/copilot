@@ -113,27 +113,35 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 	}
 
 	sourceDir := src.Dir
+	// A repo-scope export writes <repo>/.opencode/, which only that repo reads,
+	// so what the team added by hand under .github/ belongs in it — instructions
+	// included, unlike the global materialization in [SyncOpenCodeArtifacts].
+	// The deprecated --user export writes the global config, and does not.
+	scopeDir := ""
+	if !scope.IsUser() {
+		scopeDir = scope.DstPath()
+	}
 	var totalSkills, totalCommands, totalAgents, totalInstructions int
 
-	n, err := exportSkills(sourceDir, outputDir, dryRun)
+	n, err := exportSkills(sourceDir, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting skills: %w", err)
 	}
 	totalSkills = n
 
-	n, err = exportPrompts(sourceDir, outputDir, dryRun)
+	n, err = exportPrompts(sourceDir, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting prompts: %w", err)
 	}
 	totalCommands = n
 
-	n, err = exportAgents(sourceDir, outputDir, dryRun)
+	n, err = exportAgents(sourceDir, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting agents: %w", err)
 	}
 	totalAgents = n
 
-	n, err = exportInstructions(sourceDir, outputDir, dryRun)
+	n, err = exportInstructions(sourceDir, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting instructions: %w", err)
 	}
@@ -200,8 +208,8 @@ func ExportSummary(skills, commands, agents, instructions int) string {
 	return strings.Join(parts, ", ")
 }
 
-func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
-	skills := source.NewSourceResolver(sourceDir).List(source.KindSkill)
+func exportSkills(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
+	skills := withScopeExtras(source.NewSourceResolver(sourceDir).List(source.KindSkill), scopeDir, source.KindSkill)
 	if len(skills) == 0 {
 		return 0, nil
 	}
@@ -232,8 +240,8 @@ func exportSkills(sourceDir, outputDir string, dryRun bool) (int, error) {
 	return count, nil
 }
 
-func exportPrompts(sourceDir, outputDir string, dryRun bool) (int, error) {
-	entries := source.NewSourceResolver(sourceDir).List(source.KindPrompt)
+func exportPrompts(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
+	entries := withScopeExtras(source.NewSourceResolver(sourceDir).List(source.KindPrompt), scopeDir, source.KindPrompt)
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -298,8 +306,8 @@ func agentEntries(sourceDir string) []source.Resolved {
 	return slices.DeleteFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent })
 }
 
-func exportAgents(sourceDir, outputDir string, dryRun bool) (int, error) {
-	agents := agentEntries(sourceDir)
+func exportAgents(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
+	agents := withScopeExtras(agentEntries(sourceDir), scopeDir, source.KindAgent)
 	if len(agents) == 0 {
 		return 0, nil
 	}
@@ -385,20 +393,32 @@ type InstructionRef struct {
 	Body    []byte
 }
 
-func collectInstructionData(sourceDir string) ([]InstructionSection, []InstructionRef, error) {
-	instrEntries := source.NewSourceResolver(sourceDir).List(source.KindInstruction)
-
+// collectInstructionData gathers the instruction content for AGENTS.md. dirs is
+// the source checkout first, then any further directory whose instructions
+// belong in the same file — the installed scope, for an export that writes
+// project-local files. An empty entry is skipped, and a name the source already
+// has is not read twice, so passing only the source is what it always was.
+func collectInstructionData(dirs ...string) ([]InstructionSection, []InstructionRef, error) {
+	var instrEntries []source.Resolved
 	var globalSections []InstructionSection
-	globalInstr := filepath.Join(sourceDir, "copilot-instructions.md")
-	if data, err := os.ReadFile(globalInstr); err == nil {
+	for i, dir := range dirs {
+		if dir == "" {
+			continue
+		}
+		instrEntries = withScopeExtras(instrEntries, dir, source.KindInstruction)
+		data, err := os.ReadFile(filepath.Join(dir, "copilot-instructions.md"))
+		if err != nil {
+			continue
+		}
 		_, body, hasFM := source.SplitFrontmatter(data)
 		if !hasFM {
 			body = data
 		}
-		globalSections = append(globalSections, InstructionSection{
-			Name: "Global Instructions",
-			Body: body,
-		})
+		name := "Global Instructions"
+		if i > 0 {
+			name = "Repository Instructions"
+		}
+		globalSections = append(globalSections, InstructionSection{Name: name, Body: body})
 	}
 
 	var scopedRefs []InstructionRef
@@ -436,8 +456,8 @@ func collectInstructionData(sourceDir string) ([]InstructionSection, []Instructi
 	return globalSections, scopedRefs, nil
 }
 
-func exportInstructions(sourceDir, outputDir string, dryRun bool) (int, error) {
-	globalSections, scopedRefs, err := collectInstructionData(sourceDir)
+func exportInstructions(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
+	globalSections, scopedRefs, err := collectInstructionData(sourceDir, scopeDir)
 	if err != nil {
 		return 0, err
 	}

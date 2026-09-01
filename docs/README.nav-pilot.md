@@ -101,6 +101,28 @@ nav-pilot config set client opencode  # sett permanent
 `nav-pilot status` og `nav-pilot list --installed` viser opencode-artefaktene og om de er
 oppdaterte.
 
+##### Hva scopet ditt bidrar med
+
+Skills, prompts og agenter du har lagt inn for hånd i `.github/` i repoet du står i,
+materialiseres sammen med Nav-artefaktene. Det er slik et hub-repo får med sine egne
+skills i opencode, ikke bare de nav-pilot har installert.
+
+To ting følger ikke med, og det er med vilje:
+
+- **Instruksjoner fra `.github/`** slås ikke sammen med `AGENTS.md`. Utmappa er den
+  globale opencode-konfigurasjonen din, og `AGENTS.md` er alltid i kontekst, så
+  instruksjonene fra ett repo ville ligget i hver eneste prompt i alle andre repoer.
+  Trenger teamet dem i opencode, er `nav-pilot export opencode` veien: den skriver
+  `<repo>/.opencode/`, som bare det repoet leser, og tar instruksjonene med.
+- **Lokale endringer i en installert artefakt.** Redigerer du en installert skill i
+  `.github/`, honorerer Copilot endringen mens opencode får kildeversjonen. Kilden
+  vinner ved navnekollisjon. Vil du at opencode skal se den, gi den et eget navn.
+
+Artefakter fra et annet repo blir liggende i den globale konfigurasjonen til neste sync,
+og er synlige ved navn og beskrivelse der. De ryddes bort ved neste oppstart, med mindre
+du har endret dem selv: nav-pilot sletter bare det den selv har skrevet og som fortsatt
+er uendret.
+
 #### `export opencode` vs. automatisk materialisering
 
 Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
