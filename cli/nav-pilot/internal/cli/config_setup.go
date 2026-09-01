@@ -142,78 +142,16 @@ func runConfigSetup() error {
 	// Model picker: providers with a curated model list get a select widget;
 	// others (pi, unknown future providers) get a free-text input.
 	p, _ := providerFor(answers.Client)
-	if p != nil && len(p.KnownModels()) > 0 {
-		const customModelSentinel = "\x00custom"
-		defLabel := "Unset (agent default)"
-		if def := p.DefaultModel(); def != "" {
-			defLabel = "Unset (Nav default: " + def + ")"
-		}
-		modelOpts := []huh.Option[string]{
-			huh.NewOption(defLabel, ""),
-		}
-		for _, m := range p.KnownModels() {
-			modelOpts = append(modelOpts, huh.NewOption(m.Label, m.ID))
-		}
-		modelOpts = append(modelOpts, huh.NewOption("Custom (type manually)…", customModelSentinel))
-
-		var modelChoiceVal string
-		desc := "Pick a model, or leave unset to use the agent default."
-		if p.DefaultModel() != "" {
-			desc = "Pick a model (provider/model format), or leave unset to use the Nav default."
-		}
-		err = huh.NewSelect[string]().
-			Title("Model").
-			Description(desc).
-			Options(modelOpts...).
-			Value(&modelChoiceVal).
-			WithTheme(navTheme()).
-			Run()
-		if err != nil {
-			fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-			return nil
-		}
-		if modelChoiceVal == customModelSentinel {
-			customValidator := validateOptionalModel
-			if p.DefaultModel() != "" {
-				// Use provider-specific validator so opencode gets provider/model shape check.
-				customValidator = func(s string) error {
-					s = strings.TrimSpace(s)
-					if s == "" {
-						return nil
-					}
-					return p.ValidateModel(s)
-				}
-			}
-			err = huh.NewInput().
-				Title("Custom model id").
-				Description("Leave blank for the agent default.").
-				Value(&answers.Model).
-				Validate(customValidator).
-				WithTheme(navTheme()).
-				Run()
-			if err != nil {
-				fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-				return nil
-			}
-			answers.Model = strings.TrimSpace(answers.Model)
-		} else {
-			answers.Model = modelChoiceVal
-		}
-	} else {
-		err = huh.NewInput().
-			Title("Model (leave blank for agent default)").
-			Description("Enter the model id for this client.").
-			Placeholder("model-id").
-			Value(&answers.Model).
-			Validate(validateOptionalModel).
-			WithTheme(navTheme()).
-			Run()
-		if err != nil {
-			fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-			return nil
-		}
-		answers.Model = strings.TrimSpace(answers.Model)
+	modelDesc := "Pick a model, or leave unset to use the agent default."
+	if p != nil && p.DefaultModel() != "" {
+		modelDesc = "Pick a model (provider/model format), or leave unset to use the Nav default."
 	}
+	model, err := promptModel(p, "Model", modelDesc, "")
+	if err != nil {
+		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
+		return nil
+	}
+	answers.Model = model
 
 	err = huh.NewSelect[string]().
 		Title("Reasoning effort").
