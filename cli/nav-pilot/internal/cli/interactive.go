@@ -49,6 +49,104 @@ func navTheme() *huh.Theme {
 	return t
 }
 
+// customModelSentinel marks the "type it yourself" entry in the model picker.
+// No real model id can collide with it.
+const customModelSentinel = "\x00custom"
+
+// Select layout constants for pickers with long option lists: huh grows the
+// field to fit every option when no height is set, which pushes the list past
+// the terminal height. selectChromeLines accounts for the title and
+// description lines that huh subtracts from WithHeight to size the viewport.
+const (
+	maxVisibleSelectOptions = 14
+	selectChromeLines       = 2
+)
+
+// modelPickerOptions builds the curated model picker for a provider: unset
+// first, then the known models, then a custom entry for anything else.
+func modelPickerOptions(p Provider) []huh.Option[string] {
+	defLabel := "Unset (agent default)"
+	if def := p.DefaultModel(); def != "" {
+		defLabel = "Unset (Nav default: " + def + ")"
+	}
+	opts := []huh.Option[string]{huh.NewOption(defLabel, "")}
+	for _, m := range p.KnownModels() {
+		opts = append(opts, huh.NewOption(m.Label+"  "+dim(m.ID), m.ID))
+	}
+	return append(opts, huh.NewOption("Custom (type manually)…", customModelSentinel))
+}
+
+// promptModel asks for a provider's model: a curated picker when the provider
+// ships a known-model list, free text otherwise. A non-empty current
+// preselects the matching option, or the custom entry when the id is unknown.
+// Returns the chosen model id; "" means unset (agent/Nav default). Cancel
+// propagates as huh.ErrUserAborted so callers can treat it as a no-op.
+func promptModel(p Provider, title, description, current string) (string, error) {
+	if p == nil || len(p.KnownModels()) == 0 {
+		value := current
+		err := huh.NewInput().
+			Title(title).
+			Description(description).
+			Placeholder("model-id").
+			Value(&value).
+			Validate(validateOptionalModel).
+			WithTheme(navTheme()).
+			Run()
+		return strings.TrimSpace(value), err
+	}
+
+	opts := modelPickerOptions(p)
+	choice := current
+	if current != "" {
+		known := false
+		for _, m := range p.KnownModels() {
+			if m.ID == current {
+				known = true
+				break
+			}
+		}
+		if !known {
+			choice = customModelSentinel
+		}
+	}
+
+	sel := huh.NewSelect[string]().
+		Title(title).
+		Description(description).
+		Options(opts...).
+		Value(&choice).
+		WithTheme(navTheme())
+	if len(opts) > maxVisibleSelectOptions {
+		sel = sel.WithHeight(maxVisibleSelectOptions + selectChromeLines)
+	}
+	if err := sel.Run(); err != nil {
+		return "", err
+	}
+	if choice != customModelSentinel {
+		return choice, nil
+	}
+
+	validator := validateOptionalModel
+	if p.DefaultModel() != "" {
+		// Provider-specific validation so opencode gets the provider/model shape check.
+		validator = func(s string) error {
+			if strings.TrimSpace(s) == "" {
+				return nil
+			}
+			return p.ValidateModel(s)
+		}
+	}
+	value := current
+	err := huh.NewInput().
+		Title("Custom model id").
+		Description("Leave blank for the agent default.").
+		Value(&value).
+		Validate(validator).
+		WithTheme(navTheme()).
+		Run()
+	return strings.TrimSpace(value), err
+}
+
 // isGitRepo returns true if dir contains a .git directory.
 func isGitRepo(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, ".git"))

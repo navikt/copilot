@@ -30,6 +30,8 @@ type configKeyDef struct {
 	allowed     []string // nil = any non-empty string
 	defaultVal  string   // empty = no default / unset
 	flag        string   // corresponding Copilot CLI flag
+	internal    bool     // bookkeeping key, hidden from the settings page
+	group       string   // settings-page section; empty = "General"
 }
 
 var configKeyDefs = []configKeyDef{
@@ -40,6 +42,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     []string{"1"},
 		defaultVal:  "",
 		flag:        "",
+		internal:    true,
 	},
 	{
 		name:        "client",
@@ -128,6 +131,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     validLogLevels,
 		defaultVal:  "",
 		flag:        "--log-level",
+		group:       "Logging",
 	},
 	{
 		name:        "otel_log_level",
@@ -136,6 +140,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     validOtelLogLevels,
 		defaultVal:  "none",
 		flag:        "--otel-log-level",
+		group:       "Logging",
 	},
 	{
 		name:        "local_enabled",
@@ -144,6 +149,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "",
+		group:       "Local models (alpha)",
 	},
 	{
 		name:        "local_autostart",
@@ -152,6 +158,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "",
+		group:       "Local models (alpha)",
 	},
 	{
 		name:        "local_loop_guard",
@@ -160,6 +167,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     nil,
 		defaultVal:  strconv.Itoa(local.DefaultLoopGuardRepeat),
 		flag:        "",
+		group:       "Local models (alpha)",
 	},
 	{
 		name:        "rtk_prompted_client",
@@ -168,6 +176,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     nil,
 		defaultVal:  "",
 		flag:        "",
+		internal:    true,
 	},
 	{
 		name:        "rtk_prompted_at",
@@ -176,6 +185,7 @@ var configKeyDefs = []configKeyDef{
 		allowed:     nil,
 		defaultVal:  "",
 		flag:        "",
+		internal:    true,
 	},
 }
 

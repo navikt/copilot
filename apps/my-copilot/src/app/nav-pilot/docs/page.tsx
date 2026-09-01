@@ -2009,8 +2009,8 @@ function LocalModelSection() {
             Kom i gang
           </LinkableHeading>
           <BodyShort size="small" textColor="subtle">
-            Første <code className="font-mono text-xs">start</code> laster modellen inn i minnet. Ti målte oppstarter på seks
-            maskiner lå alle under 50 sekunder, seks av dem under ti.
+            Første <code className="font-mono text-xs">start</code> laster modellen inn i minnet. Ti målte oppstarter på
+            seks maskiner lå alle under 50 sekunder, seks av dem under ti.
           </BodyShort>
           <CodeBlock compact>
             {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
@@ -2027,8 +2027,8 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               Modeller i alfa
             </LinkableHeading>
             <BodyLong size="small" textColor="subtle">
-              Tre modeller er tilgjengelige. Én er standard, de to andre kan velges. Tallene er fra vårt eget sett
-              på åtte oppgaver, og oppgis som spenn fordi det er spennet som skiller dem.
+              Tre modeller er tilgjengelige. Én er standard, de to andre kan velges. Tallene er fra vårt eget sett på
+              åtte oppgaver, og oppgis som spenn fordi det er spennet som skiller dem.
             </BodyLong>
             <div className="overflow-x-auto">
               <Table size="small" className="w-full">
@@ -2045,12 +2045,17 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     <Table.DataCell>
                       <VStack gap="space-2">
                         <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
-                        <div className="text-xs" style={{ color: "#0f6d6a" }}>standard</div>
+                        <div className="text-xs" style={{ color: "#0f6d6a" }}>
+                          standard
+                        </div>
                       </VStack>
                     </Table.DataCell>
                     <Table.DataCell>25 GB</Table.DataCell>
                     <Table.DataCell>3–6 av 8</Table.DataCell>
-                    <Table.DataCell>Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha med mindre du har en grunn til noe annet.</Table.DataCell>
+                    <Table.DataCell>
+                      Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha
+                      med mindre du har en grunn til noe annet.
+                    </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
                     <Table.DataCell>
@@ -2058,7 +2063,10 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     </Table.DataCell>
                     <Table.DataCell>16 GB</Table.DataCell>
                     <Table.DataCell>1–5 av 8</Table.DataCell>
-                    <Table.DataCell>Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.</Table.DataCell>
+                    <Table.DataCell>
+                      Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom
+                      seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.
+                    </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
                     <Table.DataCell>
@@ -2066,14 +2074,20 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     </Table.DataCell>
                     <Table.DataCell>30 GB</Table.DataCell>
                     <Table.DataCell>ikke målt</Table.DataCell>
-                    <Table.DataCell>Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.</Table.DataCell>
+                    <Table.DataCell>
+                      Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi
+                      selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.
+                    </Table.DataCell>
                   </Table.Row>
                 </Table.Body>
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
               Én kjøring er ikke en måling — derfor spenn og ikke median. Alle kjøringene ligger i{" "}
-              <a href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md" style={{ textDecoration: "underline" }}>
+              <a
+                href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md"
+                style={{ textDecoration: "underline" }}
+              >
                 MODELS.md
               </a>
               .
@@ -2112,7 +2126,9 @@ nav-pilot alpha local start`}
             Med den på venter launchen på at serveren er klar. To samtidige launcher starter ikke to servere.
           </BodyLong>
           <Box padding="space-16" borderRadius="8" style={{ background: "#f8fafc" }}>
-            <Label size="small" spacing>Vi måler dette tettere enn resten av nav-pilot mens det er alfa</Label>
+            <Label size="small" spacing>
+              Vi måler dette tettere enn resten av nav-pilot mens det er alfa
+            </Label>
             <BodyLong size="small" textColor="subtle">
               Vi samler inn hvor mange oppgaver hver økt sender til bakkemodellen (også når svaret er null, som er
               tallet vi lærer mest av), hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den
@@ -2123,7 +2139,9 @@ nav-pilot alpha local start`}
             </BodyLong>
           </Box>
           <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
-            <Label size="small" spacing>Én kommando, men den ber om passordet ditt</Label>
+            <Label size="small" spacing>
+              Én kommando, men den ber om passordet ditt
+            </Label>
             <BodyLong size="small" textColor="subtle">
               macOS lar ikke GPU-en låse nok minne til en modell på denne størrelsen som standard, så{" "}
               <code className="font-mono text-xs">init</code> hever grensen for deg med{" "}
@@ -2157,7 +2175,9 @@ nav-pilot alpha local start`}
           </BodyShort>
           <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
             <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
-              <Label size="small" spacing>Fungerer</Label>
+              <Label size="small" spacing>
+                Fungerer
+              </Label>
               <BodyLong size="small" textColor="subtle">
                 Slå opp noe i koden. Legge til en kommentar. Døpe om et symbol i mange filer. Tre et felt gjennom en
                 mapper og kallstedene. I våre kjøringer lyktes den omtrent to av tre ganger på de største endringene, og
@@ -2165,7 +2185,9 @@ nav-pilot alpha local start`}
               </BodyLong>
             </Box>
             <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
-              <Label size="small" spacing>Fungerer ikke</Label>
+              <Label size="small" spacing>
+                Fungerer ikke
+              </Label>
               <BodyLong size="small" textColor="subtle">
                 Skrive en ny fil fra bunnen: i våre forsøk gjorde den da ingenting i det hele tatt. Oppgaver der noe må
                 vurderes underveis, eller der en feil endring er dyr.
@@ -2173,7 +2195,9 @@ nav-pilot alpha local start`}
             </Box>
           </HGrid>
           <Box padding="space-16" borderRadius="8" style={{ background: "#fffbeb" }}>
-            <Label size="small" spacing>Sjekk resultatet</Label>
+            <Label size="small" spacing>
+              Sjekk resultatet
+            </Label>
             <BodyLong size="small" textColor="subtle">
               Bakkemodellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og kjør
               testene etterpå. På store endringer bør du regne med å forkaste et forsøk og prøve på nytt. Det koster deg

@@ -65,7 +65,7 @@ func TestBuildConfigPageEntries(t *testing.T) {
 	}{
 		{"client", "copilot", "default"},
 		{"source", defaultSourceRepo, "default"},
-		{"model", "gpt-5.5", "file"},
+		{"model", "GPT-5.5 (gpt-5.5)", "file"},
 		{"mode", "default", "default"},
 		{"reasoning_effort", "", "unset"},
 		{"context_tier", "", "unset"},
@@ -73,6 +73,9 @@ func TestBuildConfigPageEntries(t *testing.T) {
 		{"allow_all_tools", "false", "default"},
 		{"log_level", "", "unset"},
 		{"otel_log_level", "none", "default"},
+		{"local_enabled", "false", "default"},
+		{"local_autostart", "false", "default"},
+		{"local_loop_guard", findKeyDef("local_loop_guard").defaultVal, "default"},
 	}
 	for _, tc := range tests {
 		e, ok := byKey[tc.key]
@@ -89,17 +92,84 @@ func TestBuildConfigPageEntries(t *testing.T) {
 	}
 }
 
-func TestConfigPageEntryLabel(t *testing.T) {
+func TestModelValueLabel(t *testing.T) {
+	writeTestConfig(t, "version = 1\n")
+
 	tests := []struct {
-		entry configPageEntry
-		want  string
+		model, want string
 	}{
-		{configPageEntry{Key: "model", Value: "gpt-5.5", Source: "file"}, "model = gpt-5.5  (file)"},
-		{configPageEntry{Key: "log_level", Value: "", Source: "unset"}, "log_level = (unset)  (unset)"},
+		{"gpt-5.5", "GPT-5.5 (gpt-5.5)"},
+		{"some-unknown-model", "some-unknown-model"},
+		{"", ""},
 	}
 	for _, tc := range tests {
-		if got := tc.entry.label(); got != tc.want {
-			t.Errorf("label() = %q, want %q", got, tc.want)
+		r := resolve(nil, CLIOverrides{})
+		r.Client = "copilot"
+		r.Model = tc.model
+		if got := modelValueLabel(r); got != tc.want {
+			t.Errorf("modelValueLabel(%q) = %q, want %q", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestWordWrap(t *testing.T) {
+	got := wordWrap("one two three four five", 11)
+	if got != "one two\nthree four\nfive" {
+		t.Errorf("wordWrap = %q", got)
+	}
+	// Long words overflow rather than being split.
+	if got := wordWrap("supercalifragilistic", 5); got != "supercalifragilistic" {
+		t.Errorf("wordWrap long word = %q", got)
+	}
+}
+
+func TestModelPickerOptions(t *testing.T) {
+	p, err := providerFor("copilot")
+	if err != nil {
+		t.Fatalf("providerFor: %v", err)
+	}
+	opts := modelPickerOptions(p)
+
+	if len(opts) != len(p.KnownModels())+2 {
+		t.Fatalf("got %d options, want %d known models + unset + custom", len(opts), len(p.KnownModels()))
+	}
+	if opts[0].Value != "" {
+		t.Errorf("first option = %q, want unset (empty value)", opts[0].Value)
+	}
+	if last := opts[len(opts)-1]; last.Value != customModelSentinel {
+		t.Errorf("last option = %q, want the custom sentinel", last.Value)
+	}
+	for i, m := range p.KnownModels() {
+		if opts[i+1].Value != m.ID {
+			t.Errorf("option %d = %q, want %q", i+1, opts[i+1].Value, m.ID)
+		}
+		if !strings.Contains(opts[i+1].Key, m.Label) {
+			t.Errorf("option %d label %q missing %q", i+1, opts[i+1].Key, m.Label)
+		}
+	}
+}
+
+// TestConfigPageCoversAllKeys is the drift guard: a user-facing key added to
+// configKeyDefs must show up on the settings page with a description, and an
+// internal key must never appear. Deriving the page from configKeyDefs makes
+// this hold by construction; the test fails the build if that ever changes.
+func TestConfigPageCoversAllKeys(t *testing.T) {
+	page := make(map[string]bool, len(configPageKeys))
+	for _, k := range configPageKeys {
+		page[k] = true
+	}
+	for _, kd := range configKeyDefs {
+		if kd.internal {
+			if page[kd.name] {
+				t.Errorf("internal key %q must not be listed on the settings page", kd.name)
+			}
+			continue
+		}
+		if !page[kd.name] {
+			t.Errorf("user-facing key %q missing from the settings page", kd.name)
+		}
+		if strings.TrimSpace(kd.description) == "" {
+			t.Errorf("user-facing key %q has no description for the settings page", kd.name)
 		}
 	}
 }
@@ -134,17 +204,17 @@ func TestClearConfigKey(t *testing.T) {
 	}
 }
 
-func TestCpltPostureLabel(t *testing.T) {
+func TestCpltPostureValue(t *testing.T) {
 	tests := []struct {
 		preset, want string
 	}{
-		{"strict", "cplt security posture   strict"},
-		{"standard", "cplt security posture   standard  (recommended: strict)"},
-		{"", "cplt security posture   unknown  (could not read it from cplt)"},
+		{"strict", "strict"},
+		{"standard", "standard (recommended: strict)"},
+		{"", "(unknown — could not read it from cplt)"},
 	}
 	for _, tc := range tests {
-		if got := cpltPostureLabel(tc.preset); got != tc.want {
-			t.Errorf("cpltPostureLabel(%q) = %q, want %q", tc.preset, got, tc.want)
+		if got := cpltPostureValue(tc.preset); got != tc.want {
+			t.Errorf("cpltPostureValue(%q) = %q, want %q", tc.preset, got, tc.want)
 		}
 	}
 }
