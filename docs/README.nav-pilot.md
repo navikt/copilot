@@ -51,8 +51,9 @@ tilstandsfila `.github/.nav-pilot-state.json`.
 Dette får du bare her:
 
 - **Prompts.** Brukerscopet støtter `agent`, `skill` og `instruction`, ikke `prompt`
-  (`ScopeUser()` i `cli/nav-pilot/internal/domain/domain.go`). Ber du om prompts med
-  `--user`, hopper installasjonen over dem og rapporterer dem som ikke støttet.
+  (`ScopeUser()` i `cli/nav-pilot/internal/domain/domain.go`). Installerer du en samling med
+  `--user`, hoppes promptene over og rapporteres som ikke støttet. Ber du om én enkelt prompt
+  med `--type prompt --user`, er det en feilmelding.
 - **Copilot på github.com.** Filene er sjekket inn, så det som kjører på GitHub-siden leser
   dem. Det forutsetter at du committer og pusher, og nav-pilot gjør ingen av delene.
 - **Automatisk oppdatering uten at noen kjører CLI-et.** Den gjenbrukbare workflowen
@@ -87,10 +88,12 @@ Dette får du bare her:
 Dette når den ikke:
 
 - **Prompts.** Se over.
-- **Instruksjoner uten miljøvariabel.** De havner i `~/.copilot/.github/instructions/`, og
-  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på `~/.copilot`. Det er
-  `eval "$(nav-pilot env)"` som setter den, og det virker i Copilot CLI. Agenter og skills
-  plukkes opp uten. `nav-pilot env` sier fra hvis ingen instruksjoner er installert.
+- **Instruksjoner utenfor nav-pilot.** De havner i `~/.copilot/.github/instructions/`, og
+  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på `~/.copilot`. Starter du
+  klienten med `nav-pilot`, settes den for deg (`copilotEnv` i
+  `cli/nav-pilot/internal/provider/copilot_launch.go`). Starter du `copilot` eller `cplt`
+  direkte, må du sette den selv: `eval "$(nav-pilot env)"`. Agenter og skills plukkes opp
+  uansett. En staged Tier 2-pakke setter den bevisst ikke.
 - **GitHub-siden.** Filene ligger på din maskin, ikke i repoet.
 - **Resten av teamet.** En personlig installasjon er personlig.
 - **opencode.** Nav-konteksten til opencode materialiseres fra kilden pluss `.github/` i
