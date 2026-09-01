@@ -2099,13 +2099,16 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           </LinkableHeading>
           <BodyLong size="small" textColor="subtle">
             <code className="font-mono text-xs">nav-pilot models</code> viser hva som er tilgjengelig; de lokale står
-            merket <code className="font-mono text-xs">(local)</code>. Listen oppdateres når du kjører{" "}
+            merket <code className="font-mono text-xs">(local)</code>.{" "}
+            <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
+            <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
+            seg. Listen oppdateres når du kjører{" "}
             <code className="font-mono text-xs">init</code> eller <code className="font-mono text-xs">start</code>, ikke
             ved hver kommando — et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models
-nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
 
 // validateModelForClient validates a model identifier by delegating to the
@@ -189,6 +191,14 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 	if cfg.Model == nil || validateModelValue(*cfg.Model) != nil {
 		return nil
 	}
+	// model naming a local id is legal and means "run the session locally".
+	// It is also the mistake people make when they meant to pick which model
+	// the worker loads, so it is said out loud rather than guessed at.
+	if _, ok := local.Lookup(*cfg.Model); ok {
+		return []string{fmt.Sprintf(
+			"model %q runs this session on the local model. To choose which model the local server loads, set %s instead.",
+			*cfg.Model, bold("local_model"))}
+	}
 	clientID := "copilot"
 	if cfg.Client != nil {
 		clientID = *cfg.Client
@@ -306,6 +316,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.LocalLoopGuard != nil {
 			r.LocalLoopGuard = *file.LocalLoopGuard
+		}
+		if file.LocalModel != nil {
+			r.LocalModel = strings.TrimSpace(*file.LocalModel)
 		}
 	}
 
