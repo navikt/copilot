@@ -1,4 +1,4 @@
-import { Heading, BodyShort, BodyLong, Box, HGrid, Label, VStack, Tag } from "@navikt/ds-react";
+import { Heading, BodyShort, BodyLong, Box, HGrid, Label, Table, VStack, Tag } from "@navikt/ds-react";
 import { CodeBlock } from "@/components/code-block";
 import { AltInstall } from "@/components/alt-install";
 import { FileExplorer } from "@/components/file-explorer";
@@ -115,7 +115,6 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Bakkemodellen (alfa)",
     children: [
       { id: "lokal-kom-i-gang", label: "Kom i gang" },
-      { id: "lokal-modeller", label: "Modeller i alfa" },
       { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
       { id: "lokal-feilsoking", label: "Når noe henger" },
     ],
@@ -1985,31 +1984,31 @@ function LocalModelSection() {
   return (
     <section id="lokal-modell">
       <VStack gap="space-16">
-        <div>
+        <VStack gap="space-12">
           <LinkableHeading size="medium" level="2">
             Bakkemodellen{" "}
             <Tag variant="warning" size="small">
               alfa
             </Tag>
           </LinkableHeading>
-          <BodyLong className="mt-3" style={{ color: "#475569" }}>
+          <BodyLong textColor="subtle">
             nav-pilot kan kjøre en modell på din egen maskin. Vi kaller den bakkemodellen: hovedagenten blir i skya og
             bestemmer, bakkemodellen står på bakken og utfører. Den trekker ingen AI-credits, uansett hvor mye den
             genererer. Til gjengjeld er den langsommere enn skyen, og den klarer bare en del av arbeidet.
           </BodyLong>
-          <BodyLong className="mt-3" style={{ color: "#475569" }}>
+          <BodyLong textColor="subtle">
             Dette er alfa, og av som standard. Ingenting endres før du kjører{" "}
             <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med Apple Silicon og 48 GB minne, og
             rundt 26 GB ledig disk: 25 GB vekter pluss Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes
             for M-brikkene.
           </BodyLong>
-        </div>
+        </VStack>
 
-        <div id="lokal-kom-i-gang">
+        <VStack id="lokal-kom-i-gang" gap="space-12">
           <LinkableHeading size="small" level="3">
             Kom i gang
           </LinkableHeading>
-          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+          <BodyShort size="small" textColor="subtle">
             Første <code className="font-mono text-xs">start</code> laster modellen inn i minnet. Ti målte oppstarter på seks
             maskiner lå alle under 50 sekunder, seks av dem under ti.
           </BodyShort>
@@ -2023,66 +2022,68 @@ nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
-          <div id="lokal-modeller">
+          <VStack id="lokal-modeller" gap="space-12">
             <LinkableHeading size="small" level="3">
               Modeller i alfa
             </LinkableHeading>
-            <BodyLong className="mt-2 mb-4" size="small" style={{ color: "#475569" }}>
+            <BodyLong size="small" textColor="subtle">
               Tre modeller er tilgjengelige. Én er standard, de to andre kan velges. Tallene er fra vårt eget sett
               på åtte oppgaver, og oppgis som spenn fordi det er spennet som skiller dem.
             </BodyLong>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <th scope="col" className="text-left py-2 pr-4 font-medium">Modell</th>
-                    <th scope="col" className="text-left py-2 pr-4 font-medium">Vekter</th>
-                    <th scope="col" className="text-left py-2 pr-4 font-medium">Løser</th>
-                    <th scope="col" className="text-left py-2 font-medium">Kort sagt</th>
-                  </tr>
-                </thead>
-                <tbody style={{ color: "#475569" }}>
-                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td className="py-2 pr-4 align-top">
-                      <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
-                      <div className="text-xs mt-1" style={{ color: "#0f6d6a" }}>standard</div>
-                    </td>
-                    <td className="py-2 pr-4 align-top">25 GB</td>
-                    <td className="py-2 pr-4 align-top">3–6 av 8</td>
-                    <td className="py-2 align-top">Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha med mindre du har en grunn til noe annet.</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td className="py-2 pr-4 align-top">
+              <Table size="small" className="w-full">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell scope="col">Modell</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Vekter</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Løser</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Kort sagt</Table.HeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  <Table.Row>
+                    <Table.DataCell>
+                      <VStack gap="space-2">
+                        <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
+                        <div className="text-xs" style={{ color: "#0f6d6a" }}>standard</div>
+                      </VStack>
+                    </Table.DataCell>
+                    <Table.DataCell>25 GB</Table.DataCell>
+                    <Table.DataCell>3–6 av 8</Table.DataCell>
+                    <Table.DataCell>Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha med mindre du har en grunn til noe annet.</Table.DataCell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.DataCell>
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
-                    </td>
-                    <td className="py-2 pr-4 align-top">16 GB</td>
-                    <td className="py-2 pr-4 align-top">1–5 av 8</td>
-                    <td className="py-2 align-top">Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td className="py-2 pr-4 align-top">
+                    </Table.DataCell>
+                    <Table.DataCell>16 GB</Table.DataCell>
+                    <Table.DataCell>1–5 av 8</Table.DataCell>
+                    <Table.DataCell>Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.</Table.DataCell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.DataCell>
                       <code className="font-mono text-xs">Qwen3.8-27B-8bit</code>
-                    </td>
-                    <td className="py-2 pr-4 align-top">30 GB</td>
-                    <td className="py-2 pr-4 align-top">ikke målt</td>
-                    <td className="py-2 align-top">Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.</td>
-                  </tr>
-                </tbody>
-              </table>
+                    </Table.DataCell>
+                    <Table.DataCell>30 GB</Table.DataCell>
+                    <Table.DataCell>ikke målt</Table.DataCell>
+                    <Table.DataCell>Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.</Table.DataCell>
+                  </Table.Row>
+                </Table.Body>
+              </Table>
             </div>
-            <BodyShort size="small" className="mt-3" style={{ color: "#64748b" }}>
+            <BodyShort size="small" textColor="subtle">
               Én kjøring er ikke en måling — derfor spenn og ikke median. Alle kjøringene ligger i{" "}
               <a href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md" style={{ textDecoration: "underline" }}>
                 MODELS.md
               </a>
               .
             </BodyShort>
-          </div>
+          </VStack>
 
           <LinkableHeading size="small" level="3">
             Bytte modell
           </LinkableHeading>
-          <BodyLong className="mt-2" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             <code className="font-mono text-xs">nav-pilot models</code> viser hva som er tilgjengelig; de lokale står
             merket <code className="font-mono text-xs">(local)</code>. Listen oppdateres når du kjører{" "}
             <code className="font-mono text-xs">init</code> eller <code className="font-mono text-xs">start</code>, ikke
@@ -2094,25 +2095,25 @@ nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>
-          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             Qwen 3.6 er standard, og det er ikke tilfeldig. De to Qwen 3.8-modellene ligger der fordi folk spør etter
             dem, ikke fordi de er bedre her. På våre egne oppgaver er 3.8 tregere og mye mer ujevn: to kjøringer av de
             samme åtte oppgavene, samme profil og samme maskin, ga median 88 og 906 sekunder. 3.6 ligger på 12–21
             sekunder uten timeouts over åtte kjøringer. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8
             4-bit, 30 GB for 8-bit.
           </BodyLong>
-          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
             gjøre det for deg:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set local_autostart true`}</CodeBlock>
-          <BodyLong className="mt-2" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             Den er av som standard, og det er med vilje: å starte en 21 GB prosess uten å bli bedt om det er ikke greit.
             Med den på venter launchen på at serveren er klar. To samtidige launcher starter ikke to servere.
           </BodyLong>
-          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#f8fafc" }}>
-            <Label size="small">Vi måler dette tettere enn resten av nav-pilot mens det er alfa</Label>
-            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+          <Box padding="space-16" borderRadius="8" style={{ background: "#f8fafc" }}>
+            <Label size="small" spacing>Vi måler dette tettere enn resten av nav-pilot mens det er alfa</Label>
+            <BodyLong size="small" textColor="subtle">
               Vi samler inn hvor mange oppgaver hver økt sender til bakkemodellen (også når svaret er null, som er
               tallet vi lærer mest av), hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den
               henger. Aldri spørsmålene dine, koden din, filnavnene dine eller det modellen svarer.{" "}
@@ -2121,9 +2122,9 @@ nav-pilot alpha local start`}
               per verktøy.
             </BodyLong>
           </Box>
-          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fef2f2" }}>
-            <Label size="small">Én kommando, men den ber om passordet ditt</Label>
-            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+          <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
+            <Label size="small" spacing>Én kommando, men den ber om passordet ditt</Label>
+            <BodyLong size="small" textColor="subtle">
               macOS lar ikke GPU-en låse nok minne til en modell på denne størrelsen som standard, så{" "}
               <code className="font-mono text-xs">init</code> hever grensen for deg med{" "}
               <code className="font-mono text-xs">sudo</code> og sier fra når den gjør det. Grensen er et tak og ikke en
@@ -2131,24 +2132,24 @@ nav-pilot alpha local start`}
               omstart, og <code className="font-mono text-xs">start</code> hever den igjen når den trengs.
             </BodyLong>
           </Box>
-          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             Klienten din avgjør hva du får. <code className="font-mono text-xs">nav-pilot config get client</code> sier
             hvilken du kjører.
           </BodyLong>
-          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             Under <strong>opencode</strong> blir bakkemodellen en underagent som heter{" "}
             <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
             oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at bakkemodellen ikke
             klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
             modelleverandør om gangen.
           </BodyLong>
-        </div>
+        </VStack>
 
-        <div id="lokal-hva-den-klarer">
+        <VStack id="lokal-hva-den-klarer" gap="space-12">
           <LinkableHeading size="small" level="3">
             Hva den klarer
           </LinkableHeading>
-          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+          <BodyShort size="small" textColor="subtle">
             Målt i et kontrollert testoppsett, ikke i daglig bruk. Hovedregelen: den er god til å gjennomføre en
             beslutning som allerede er tatt, og dårlig til å ta den selv. Om det lønner seg avhenger av hvor mange steg
             skymodellen trenger når den gjør oppgaven alene: bruker den mange, sparer du mye på å sende det mekaniske
@@ -2156,65 +2157,65 @@ nav-pilot alpha local start`}
           </BodyShort>
           <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
             <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
-              <Label size="small">Fungerer</Label>
-              <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              <Label size="small" spacing>Fungerer</Label>
+              <BodyLong size="small" textColor="subtle">
                 Slå opp noe i koden. Legge til en kommentar. Døpe om et symbol i mange filer. Tre et felt gjennom en
                 mapper og kallstedene. I våre kjøringer lyktes den omtrent to av tre ganger på de største endringene, og
                 der fanget testene feilene.
               </BodyLong>
             </Box>
             <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
-              <Label size="small">Fungerer ikke</Label>
-              <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+              <Label size="small" spacing>Fungerer ikke</Label>
+              <BodyLong size="small" textColor="subtle">
                 Skrive en ny fil fra bunnen: i våre forsøk gjorde den da ingenting i det hele tatt. Oppgaver der noe må
                 vurderes underveis, eller der en feil endring er dyr.
               </BodyLong>
             </Box>
           </HGrid>
-          <Box padding="space-16" borderRadius="8" className="mt-4" style={{ background: "#fffbeb" }}>
-            <Label size="small">Sjekk resultatet</Label>
-            <BodyLong size="small" className="mt-2" style={{ color: "#475569" }}>
+          <Box padding="space-16" borderRadius="8" style={{ background: "#fffbeb" }}>
+            <Label size="small" spacing>Sjekk resultatet</Label>
+            <BodyLong size="small" textColor="subtle">
               Bakkemodellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og kjør
               testene etterpå. På store endringer bør du regne med å forkaste et forsøk og prøve på nytt. Det koster deg
               tid, ikke credits.
             </BodyLong>
           </Box>
-          <BodyLong className="mt-4" size="small" style={{ color: "#64748b" }}>
+          <BodyLong size="small" textColor="subtle">
             Tiden varierer mye: fra omtrent likt med skyen på små endringer til rundt fire ganger så lenge på en
             omdøping. På store mekaniske endringer kan den være raskere enn skyen. Kjør{" "}
             <code className="font-mono text-xs">stop</code> når du ikke bruker den; den holder rundt 21 GB minne så
             lenge den er oppe.
           </BodyLong>
-        </div>
+        </VStack>
 
-        <div id="lokal-feilsoking">
+        <VStack id="lokal-feilsoking" gap="space-12">
           <LinkableHeading size="small" level="3">
             Når noe henger
           </LinkableHeading>
-          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+          <BodyShort size="small" textColor="subtle">
             <code className="font-mono text-xs">status</code> skiller «treg» fra «død».
           </BodyShort>
           <CodeBlock compact>
             {`nav-pilot alpha local status
 # står det hung: nav-pilot alpha local stop && nav-pilot alpha local start`}
           </CodeBlock>
-          <BodyLong className="mt-4" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             nav-pilot slipper gjennom én forespørsel om gangen, så flere oppgaver står i kø framfor å kjøre parallelt.
             Det er med vilje: serveren selv tar imot samtidige forespørsler og henger seg opp på dem, så ikke kall den
             direkte utenom nav-pilot.
           </BodyLong>
-          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             To ting til, som du vil møte før noe dokument nevner dem. nav-pilot avslutter en tur hvis modellen gjentar
             det samme verktøykallet åtte ganger på rad, og sier fra i økten: det er en vakt mot at den setter seg fast,
             ikke en feil i koden din. Og starter du serveren på nytt midt i en økt, må økten startes på nytt også; den
             gamle er bundet til serveren som forsvant.
           </BodyLong>
-          <BodyLong className="mt-3" size="small" style={{ color: "#475569" }}>
+          <BodyLong size="small" textColor="subtle">
             Si fra med <code className="font-mono text-xs">nav-pilot feedback</code> om noe henger, om en endring
             kompilerer men er feil, eller om ventetiden ikke er verdt det. Negative erfaringer er like nyttige som
             positive.
           </BodyLong>
-        </div>
+        </VStack>
       </VStack>
     </section>
   );
