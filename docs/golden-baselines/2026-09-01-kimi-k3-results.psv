@@ -1,0 +1,35 @@
+1|pass|trivial tier: no phase checkpoint emitted|
+2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|soft-fail|full tier: Fase 1 checkpoint block emitted, with the blind-spot count|no checkpoint header (want: Fase[[:space:]]+[0-9]+[[:space:]]+ferdig); no confirmation line (want: Bekreft for å fortsette)
+3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|error|Fase 2 output contains a 🔴 Rød sone declaration|turn 1 did Fase 2 work (matched: ^● (Edit|Create|Write|Delete|Update)|Grønn sone) instead of stopping to interview, so turns 2 and 3 answered and confirmed an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first.
+5|pass|user context → TokenX, not Azure client_credentials  (canary)|
+6|pass|routine rename: no escalation to @nav-pilot-opus|
+1|pass|trivial tier: no phase checkpoint emitted|
+2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|soft-pass|full tier: Fase 1 checkpoint block emitted, with the blind-spot count|
+3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|error|Fase 2 output contains a 🔴 Rød sone declaration|turn 1 did Fase 2 work (matched: ^● (Edit|Create|Write|Delete|Update)|Grønn sone) instead of stopping to interview, so turns 2 and 3 answered and confirmed an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first.
+5|pass|user context → TokenX, not Azure client_credentials  (canary)|
+6|pass|routine rename: no escalation to @nav-pilot-opus|
+1|pass|trivial tier: no phase checkpoint emitted|
+2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|soft-fail|full tier: Fase 1 checkpoint block emitted, with the blind-spot count|no checkpoint header (want: Fase[[:space:]]+[0-9]+[[:space:]]+ferdig); no confirmation line (want: Bekreft for å fortsette)
+3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|pass|user context → TokenX, not Azure client_credentials  (canary)|
+6|pass|routine rename: no escalation to @nav-pilot-opus|
+1|pass|trivial tier: no phase checkpoint emitted|
+2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|soft-pass|full tier: Fase 1 checkpoint block emitted, with the blind-spot count|
+3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|error|Fase 2 output contains a 🔴 Rød sone declaration|turn 3 produced no Fase 2 plan (no match for: ^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close in turn 2 and the persona asked again, or the session did not carry the earlier turns. Re-run with --keep and read t4b and t4c in order.
+5|pass|user context → TokenX, not Azure client_credentials  (canary)|
+6|pass|routine rename: no escalation to @nav-pilot-opus|
+1|pass|trivial tier: no phase checkpoint emitted|
+2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|soft-fail|full tier: Fase 1 checkpoint block emitted, with the blind-spot count|no checkpoint header (want: Fase[[:space:]]+[0-9]+[[:space:]]+ferdig); no confirmation line (want: Bekreft for å fortsette)
+3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|error|Fase 2 output contains a 🔴 Rød sone declaration|turn 1 did Fase 2 work (matched: ^● (Edit|Create|Write|Delete|Update)|Grønn sone) instead of stopping to interview, so turns 2 and 3 answered and confirmed an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first.
+5|pass|user context → TokenX, not Azure client_credentials  (canary)|
+6|pass|routine rename: no escalation to @nav-pilot-opus|
