@@ -237,6 +237,11 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		fmt.Println()
 	}
 
+	// Counts in the summary describe what this source was asked about. A file
+	// from another agentpakke was skipped above without being compared, so
+	// counting it as "up to date" claims a check that never happened.
+	checked := len(files) - len(foreignPaths)
+
 	result := syncResult{
 		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && (apply || len(conflictPaths) == 0),
 		Source:    src.SHA,
@@ -271,7 +276,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 
 	if result.UpToDate {
 		fmt.Printf("%s All %d files up to date (source: %s)\n",
-			green("✓"), len(files), src.SHA)
+			green("✓"), checked, src.SHA)
 		// Bump state version so staleness check won't re-trigger for this release
 		if src.Version != "" {
 			if state, err := readScopedState(scope); err == nil && state != nil {
@@ -291,7 +296,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// Report updates
 	if len(updates) > 0 {
 		fmt.Printf("%s %d of %d files have updates available (source: %s)\n\n",
-			yellow("⚠"), len(updates), len(files), src.SHA)
+			yellow("⚠"), len(updates), checked, src.SHA)
 		for _, u := range updates {
 			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
 		}
