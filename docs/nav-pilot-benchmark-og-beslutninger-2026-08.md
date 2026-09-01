@@ -39,6 +39,66 @@ sikkerhet ikke skiller kandidatene, er det ingenting igjen som gjør det.
 Ikke les tabellen som en rangering. Punktestimatene ser ut som en rangering, men
 usikkerheten dekker hele spennet.
 
+### Ikke-underlegenhet, regnet i etterkant
+
+Seksjon 1 sier at ingen forskjell er signifikant. Det er et fravær av bevis for en
+forskjell, og det er ikke det samme som bevis for at kandidatene er gode nok. Det
+spørsmålet stilles med en ikke-underlegenhetstest, og det er den [#584](https://github.com/navikt/copilot/issues/584)
+setter først i køen fordi den ikke koster et eneste kall: dataene finnes allerede.
+
+**Spørsmålet:** er kandidatens passrate på test 3 dårligere enn den sittende
+modellens med mer enn en margin vi på forhånd sier vi kan leve med? Marginen er
+satt til **δ = 0,10**, altså ti prosentpoeng. Kandidaten er ikke-underlegen hvis
+den **nedre** grensen for differansen `kandidat − referanse` ligger over **−δ**.
+
+**Metode:** Newcombe hybrid score-intervall for differansen mellom to andeler,
+bygget på Wilson-intervallene for hver arm, altså samme metode som tabellen over.
+Ensidig 95 prosent, `z = 1,6449`. Ensidig, fordi hypotesen bare handler om én
+retning: vi bryr oss om at kandidaten er *dårligere*, ikke om at den er bedre.
+Regnestykket ligger i [`scripts/ikke-underlegenhet.py`](../scripts/ikke-underlegenhet.py)
+og kjøres uten nettverk.
+
+Inndata er tabellen over, snudd fra feil til bestått:
+
+| Arm | Bestått | Kjøringer | Passrate | Wilson, ensidig 95 % |
+|---|---|---|---|---|
+| Claude Sonnet 4.6 (referanse) | 48 | 50 | 96,0 % | 88,6 til 98,7 % |
+| GPT-5.6 Sol | 49 | 50 | 98,0 % | 91,5 til 99,6 % |
+| GPT-5.6 Luna | 49 | 50 | 98,0 % | 91,5 til 99,6 % |
+| GPT-5.6 Terra | 40 | 45 | 88,9 % | 78,9 til 94,5 % |
+
+Resultatet:
+
+| Kandidat | Differanse | Newcombe-intervall | Nedre grense mot −δ | Ikke-underlegen? |
+|---|---|---|---|---|
+| GPT-5.6 Sol | +2,0 pp | −5,0 til +9,6 pp | −5,0 > −10,0 | **ja** |
+| GPT-5.6 Luna | +2,0 pp | −5,0 til +9,6 pp | −5,0 > −10,0 | **ja** |
+| GPT-5.6 Terra | −7,1 pp | −17,5 til +2,2 pp | −17,5 < −10,0 | **nei** |
+
+Sol og Luna er altså ikke-underlegne den sittende modellen på test 3 ved
+δ = 0,10. Terra er det ikke: intervallet strekker seg til 17,5 prosentpoeng
+dårligere, og det er mer enn marginen tillater.
+
+**Tre presiseringer, fordi denne testen er lett å lese feil.**
+
+Tallene −5,0, −5,0 og −17,5 er **negative nedre grenser**, ikke gevinster. En
+tidligere muntlig gjengivelse av dette resultatet oppga dem uten fortegn, som
+«Sol +5,0, Luna +5,0, Terra +17,5». Det er samme tall, men motsatt fortegn, og med
+fortegnet borte gir Terra-raden ingen mening: en kandidat som ligger 17,5
+prosentpoeng *over* referansen kan ikke stryke på en ikke-underlegenhetstest.
+Fortegnet er hele testen.
+
+At Terra ikke består, er **ikke** det samme som at Terra er underlegen. Testen
+har ett utfall til, og det er Terras: *ubesluttet*. Intervallet dekker både −10 og
+0. Dataene utelukker verken at Terra er like god eller at den er ti prosentpoeng
+dårligere. Det svarer til Fisher p = 0,25 i tabellen over og motsier ikke
+seksjon 4.2: Terra er fortsatt ikke bevist dårligere, den er nå også ikke bevist
+god nok. Det er 45 kjøringer som er for få, ikke Terra som er avslørt.
+
+Testen gjelder **én påstand**, blindsone-assertionen i test 3, og ikke suiten som
+helhet. Se avsnittet under: test 3 er den eneste påstanden i suiten som har n nok
+til at et slikt regnestykke betyr noe.
+
 ### Den metodiske lærdommen
 
 Denne kostet ekte penger å lære, så den står her eksplisitt.
@@ -56,12 +116,47 @@ Konsekvenser for framtidige sammenligninger på en sjelden hendelse:
 - En liten runde kan avkrefte at noe er *veldig* galt. Den kan ikke rangere
   kandidater som ligger nær hverandre, og den skal ikke brukes til det.
 
+Gjennomgangen av hele conformance-suiten i
+[#583](https://github.com/navikt/copilot/issues/583) satte to tall på det samme,
+og begge hører hjemme i et beslutningsdokument.
+
+**Styrken ved n = 5 per arm til å oppdage 0,95 mot 0,75 etterlevelse er 0,01.**
+Det er ikke et svakt eksperiment, det er ikke noe eksperiment. Nitti-ni av hundre
+ganger ville en reell forskjell av den størrelsen gå upåaktet hen. Vi har likevel
+argumentert pinningsbeslutninger fra 4 av 5 mot 5 av 5. For 80 prosent styrke på
+den samme forskjellen trengs rundt 50 kjøringer per arm, som for nav-pilot er 140
+til 350 kall per modell.
+
+**Suiten har aldri skilt to modeller på noen påstand, unntatt gjennom
+artefakter.** Hver gang den så ut til å gjøre det, ble forskjellen sporet tilbake
+til noe annet enn modellen: cr2 4/5 mot 5/5 var byggeartefakter i
+fingeravtrykket ([#578](https://github.com/navikt/copilot/pull/578)), cr3-hellingen
+i [#554](https://github.com/navikt/copilot/pull/554) var regnet på et regex som
+måler norsk ordforråd og ikke forklaring, og uu3-forskjellen etter hooken måler
+hooken. Tre av seks nav-pilot-påstander kan ikke feile mot noen modell vi har
+observert.
+
+Test 3 er unntaket, og det er derfor ikke-underlegenhetstesten over kunne regnes i
+det hele tatt: n = 50 per arm er den eneste tilstrekkelig kraftige sammenligningen
+i repoet. Den skal ikke generaliseres til de øvrige påstandene, og et grønt
+suite-resultat er fortsatt en røyktest på at personaen framkaller den grove formen
+av oppførselen, ikke et belegg for at modell X er like god som modell Y for Nav.
+
 ### Forbehold om sporbarhet
 
 Baseline-filene under `docs/golden-baselines/` inneholder
 **størrelsesmålinger**, ikke bestått/ikke-bestått per kjøring. Tallene i tabellen
 over er talt opp under selve kjøringen og er ikke gjenskapbare fra de commitede
 filene alene. Gjentas benchmarken, bør rådataene for assertions logges også.
+
+Dette gjelder ikke-underlegenhetstesten over med. Passtallene 48/50, 49/50, 49/50
+og 40/45 er de samme tallene som feiltabellen, snudd. Regnestykket er
+reproduserbart fra tallene, og skriptet ligger i repoet; **tallene er ikke
+reproduserbare fra de commitede filene**. Fra og med
+[#590](https://github.com/navikt/copilot/pull/590) skriver `--save-baseline` også
+en `*-results.psv` med rader per kjøring og per påstand. Skal denne testen kjøres
+mot nye data, er det den fila som må ligge ved siden av baselinen; uten den er
+neste analyse like uetterrettelig som denne.
 
 ## 2. Funnet som betyr mer enn modellvalget
 
@@ -173,6 +268,12 @@ kostnadsbeinet i argumentet over faller bort. Beslutningen blir stående som den
 er: den ble tatt på det grunnlaget som stod her, og punktestimatene i seksjon 1
 er ikke en rangering. Om prisen alene nå taler for Terra, er det en ny
 beslutning som må tas for seg, ikke en omskriving av denne.
+
+**Tillegg:** ikke-underlegenhetstesten i seksjon 1 gir beslutningen et bein til.
+Terra er den eneste kandidaten som ikke består den ved δ = 0,10. Det er fortsatt
+ikke et bevis på at Terra er dårligere — utfallet er *ubesluttet*, ikke
+*underlegen* — men det er heller ikke et belegg for at den er god nok, og et
+argument *for* Terra må i så fall komme fra en måling som finnes.
 
 ### 4.3 nav-pilot styrer standard klientkonfigurasjon
 
@@ -367,3 +468,10 @@ stedet man glemmer.
 - [#500](https://github.com/navikt/copilot/issues/500): vilkårene for å skrive
   klientkonfigurasjon
 - `cli/nav-pilot/internal/artifacts/export.go`: `transformAgent` og `openCodeAgentModel`
+- `scripts/ikke-underlegenhet.py`: ikke-underlegenhetstesten for test 3
+- [#583](https://github.com/navikt/copilot/issues/583): hva conformance-suiten
+  faktisk måler, styrke og ikke-separasjon
+- [#584](https://github.com/navikt/copilot/issues/584): arbeidskøen som følger av
+  #583, der ikke-underlegenhet stod først
+- [#590](https://github.com/navikt/copilot/pull/590): `results.psv` ved siden av
+  hver baseline
