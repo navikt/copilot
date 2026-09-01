@@ -992,3 +992,121 @@ func TestSync_DirectoryPromptAndLocalSource(t *testing.T) {
 		t.Fatalf("sync check failed: %v", err)
 	}
 }
+
+// TestSync_ForeignSourceFileSurvivesApply is #571: `add --source <other>`
+// installed a file the scope's own source has never had, and the next
+// `sync --apply` read that absence as an upstream deletion and removed it.
+func TestSync_ForeignSourceFileSurvivesApply(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	ownSource := t.TempDir()
+	otherSource := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(ownSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(ownSource, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(otherSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(otherSource, "agents", "teamting.agent.md"), []byte("# Teamting"), 0o644)
+
+	scope := ScopeRepo(dir)
+	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	ownHash, _ := fileHash(filepath.Join(dir, ".github", "agents", "nais.agent.md"))
+	writeState(dir, &StateFile{
+		Collection: "kotlin-backend",
+		SourceRepo: "navikt/copilot",
+		Files:      []InstalledFile{{Path: ".github/agents/nais.agent.md", Hash: ownHash}},
+	})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: otherSource, SHA: "other-sha", Repo: "team/agentpakke"}, nil
+	}
+	if err := cmdAdd("agent", "teamting", scope, "", "team/agentpakke", false, false, false); err != nil {
+		t.Fatalf("add --source: %v", err)
+	}
+
+	added := filepath.Join(dir, ".github", "agents", "teamting.agent.md")
+	if _, err := os.Stat(added); err != nil {
+		t.Fatalf("add did not install the file: %v", err)
+	}
+	state, _ := readScopedState(scope)
+	var foreign string
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/teamting.agent.md" {
+			foreign = f.Source
+		}
+	}
+	if foreign != "team/agentpakke" {
+		t.Fatalf("state records source %q, want %q", foreign, "team/agentpakke")
+	}
+
+	origSync := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = origSync })
+	resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: ownSource, SHA: "own-sha", Repo: "navikt/copilot"}, nil
+	}
+	if err := cmdSync(scope, "", "", true, false); err != nil {
+		t.Fatalf("sync --apply: %v", err)
+	}
+
+	if _, err := os.Stat(added); err != nil {
+		t.Fatalf("sync deleted a file from another source: %v", err)
+	}
+	state, _ = readScopedState(scope)
+	found := false
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/teamting.agent.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("sync dropped the foreign file from state")
+	}
+}
+
+// TestSync_StatePredatingPerFileSource is the upgrade path: a state file
+// written before InstalledFile had a source records none for any file, which
+// must keep meaning "this scope's source" rather than "belongs to nothing".
+func TestSync_StatePredatingPerFileSource(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	hash, _ := fileHash(filepath.Join(dir, ".github", "agents", "nais.agent.md"))
+
+	// Written by hand in the pre-change shape: no "source" key anywhere.
+	statePath := ScopeRepo(dir).StatePath()
+	os.MkdirAll(filepath.Dir(statePath), 0o755)
+	os.WriteFile(statePath, []byte(`{
+  "collection": "kotlin-backend",
+  "version": "2026.06",
+  "source_repo": "navikt/copilot",
+  "source_sha": "old-sha",
+  "installed_at": "2026-06-01T00:00:00Z",
+  "files": [{"path": ".github/agents/nais.agent.md", "hash": "`+hash+`"}]
+}`), 0o644)
+
+	origSync := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = origSync })
+	resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: sourceDir, SHA: "new-sha", Repo: "navikt/copilot"}, nil
+	}
+
+	scope := ScopeRepo(dir)
+	if err := cmdSync(scope, "", "", true, false); err != nil {
+		t.Fatalf("sync --apply over a pre-source state: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".github", "agents", "nais.agent.md")); err != nil {
+		t.Fatalf("sync deleted a file from a state that predates per-file sources: %v", err)
+	}
+	state, _ := readScopedState(scope)
+	if state == nil || len(state.Files) != 1 {
+		t.Fatalf("state after sync = %+v, want the one file kept", state)
+	}
+}

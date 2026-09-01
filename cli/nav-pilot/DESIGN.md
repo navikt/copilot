@@ -459,6 +459,15 @@ Konsekvenser:
   sammenlignes symlink-oppløst (`resolvedSourcePath`), så en symlink og
   checkouten bak den er én kilde. Ferskhetssjekken i rot-TUI-en hopper over
   scope som ikke kommer fra `navikt/copilot`: release-feeden beskriver bare den.
+- **Opphav per fil (#571):** `InstalledFile.source` navngir agentpakken en fil kom
+  fra når det ikke er scopets egen. `add`/`install` av ett artefakt med `--source`
+  stempler fila og sier fra i utskriften; sync hopper over slike filer i stedet
+  for å lese fraværet i scopets kilde som «slettet oppstrøms», som er det som
+  slettet det `add --source` nettopp installerte. Tomt felt betyr «scopets egen
+  kilde», som er det alle state-filer skrevet før dette sier om alle filene sine —
+  derfor synker de nøyaktig som før. En fremmed fil oppdateres ved å legges til på
+  nytt fra sin egen kilde; sync trenger aldri å nå den, så offline sletter ingenting.
+
 - **Tier 2 ennå ikke støttet:** en agentpakke uten `layout`, med klienter som har
   `payloads`, avvises med sin egen begrunnelse i stedet for en misvisende
   «mangler agenter»-feil.

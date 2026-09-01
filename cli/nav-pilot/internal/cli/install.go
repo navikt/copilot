@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -452,52 +453,13 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, d
 		return nil
 	}
 
-	// Append to state file if one exists, otherwise create a minimal one
-	state, err := readScopedState(scope)
+	foreign, err := recordAddedFiles(scope, src, result)
 	if err != nil {
-		return fmt.Errorf("reading existing state: %w", err)
-	}
-	if state == nil {
-		state = &StateFile{
-			Collection:  "(à la carte)",
-			Scope:       scope.Name,
-			Version:     src.Version,
-			SourceRepo:  src.Repo,
-			SourceSHA:   src.SHA,
-			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
-		}
-	}
-	state.SourceSHA = src.SHA
-	if state.SourceRepo == "" {
-		state.SourceRepo = src.Repo
-	}
-	if state.Version == "" {
-		state.Version = src.Version
-	}
-
-	// Merge new files into state, avoiding duplicates
-	existing := make(map[string]bool)
-	for _, f := range state.Files {
-		existing[f.Path] = true
-	}
-	for _, f := range result.Files {
-		if !existing[f.Path] {
-			state.Files = append(state.Files, f)
-		} else {
-			for i, sf := range state.Files {
-				if sf.Path == f.Path {
-					state.Files[i].Hash = f.Hash
-					state.Files[i].Status = ""
-					break
-				}
-			}
-		}
-	}
-	if err := writeScopedState(scope, state); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
+		return err
 	}
 
 	fmt.Printf("\n%s Installed %s %q.\n", green("✓"), itemType, name)
+	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot install %s --type %s --source %s", name, itemType, foreign))
 	return nil
 }
 
@@ -953,6 +915,26 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 	return nil
 }
 
+// foreignFileCounts counts a scope's files per agentpakke they came from,
+// leaving out the scope's own (which record no source). A file that sync
+// deliberately skips should say so somewhere the user looks before wondering
+// why it never updates.
+func foreignFileCounts(state *StateFile) ([]string, map[string]int) {
+	counts := map[string]int{}
+	var sources []string
+	for _, f := range state.Files {
+		if f.Source == "" {
+			continue
+		}
+		if counts[f.Source] == 0 {
+			sources = append(sources, f.Source)
+		}
+		counts[f.Source]++
+	}
+	sort.Strings(sources)
+	return sources, counts
+}
+
 func printStatusBlock(scope *InstallScope, state *StateFile) {
 	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
 
@@ -977,6 +959,12 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 
 	for _, p := range modifiedPaths {
 		fmt.Printf("  %s %s (modified locally)\n", yellow("~"), p)
+	}
+
+	foreignSources, foreignCounts := foreignFileCounts(state)
+	for _, fs := range foreignSources {
+		fmt.Printf("  %s %d file(s) from %s (synced with its own source, not this one)\n",
+			dim("↗"), foreignCounts[fs], fs)
 	}
 
 	statusLine := fmt.Sprintf("\n  %s %d ok, %s %d modified, %s %d missing",
