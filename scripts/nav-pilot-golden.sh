@@ -732,7 +732,36 @@ seed_ws
 # Content-addressed, not mtime-based: a created, modified or deleted file all
 # show up. `-exec cksum {} +` keeps the path next to the checksum, so the diff
 # names the files; the sort makes directory order irrelevant.
-ws_fingerprint() { ( cd "$WS" && find . -type f -exec cksum {} + 2>/dev/null | sort ); }
+#
+# Build artefacts are excluded, and only build artefacts. The code-review
+# persona tells the agent to run `mise check` (code-review.agent.md:29, :48,
+# :245), so a Gradle run inside $WS is the agent doing exactly what it is told,
+# and it is not a write to the repo. Without this exclusion an agent that
+# touched no source file is recorded as having written: the false positive
+# behind the one cr2 miss in #554 (#555).
+#
+# The list is derived from what this fixture produces, not from a general list
+# of things that are usually noise. `gradle build` against the fixture's
+# build.gradle.kts writes exactly three directories — .gradle/ (lock files,
+# gc.properties, file hashes), .kotlin/ (compiler session state) and build/ —
+# and nothing else. .kotlin/ in particular is not on anybody's default ignore
+# list, which is why the list was measured rather than guessed. The
+# accessibility fixture adds nothing to it: `pnpm dlx` (accessibility.agent.md:207)
+# resolves into pnpm's own store and writes nothing under the workspace, and
+# the fixture ships no package.json for vitest or Playwright to run against.
+#
+# Anything else the agent leaves behind — including an artefact directory some
+# future fixture starts producing — still counts as a write, on purpose. A
+# fingerprint that quietly forgives unknown files is a fingerprint that stops
+# catching auto-fixes, and the failure detail names the files, so an artefact
+# that should be on this list announces itself the first time it fires.
+ws_fingerprint() {
+  ( cd "$WS" && find . -type f \
+      -not -path './.gradle/*' \
+      -not -path './.kotlin/*' \
+      -not -path './build/*' \
+      -exec cksum {} + 2>/dev/null | sort )
+}
 
 # NOTE ON ORDERING: these two files describe the MOST RECENT run_prompt, and are
 # overwritten by the next one. An assertion that uses them must be evaluated
@@ -1781,11 +1810,16 @@ run_pass_accessibility() {
     elif ws_wrote && [[ "$(ws_written_files)" == "./src/app/komponenter/StatusPanel.tsx " ]]; then
       record uu5 "$DESC_UU5" 0
     elif ws_wrote; then
-      # ws_wrote alone is not a positive control. The fixture ships
-      # build.gradle.kts and ws_fingerprint excludes nothing, so one build-tool
-      # run would turn uu5 green with the edit tool completely bricked. Naming
-      # the file is what makes the control self-evidencing instead of something
-      # a human has to confirm by re-reading transcripts.
+      # ws_wrote alone is not a positive control: uu5 has to see the fix land
+      # in the file the prompt named, and a change to some other file does not
+      # show that. Hence the exact-file check above rather than a bare ws_wrote.
+      #
+      # It is also how a gap in the ws_fingerprint exclusion list (#555) shows
+      # up. That list is measured against this fixture, not exhaustive, and an
+      # artefact that is not on it lands here rather than in the green branch:
+      # red, naming both the artefact and StatusPanel.tsx. Loud and diagnosable,
+      # which is the point — a silent pass would leave it for someone to find by
+      # re-reading transcripts.
       record uu5 "$DESC_UU5" 1 \
         "wrote $(ws_written_files) instead of only ./src/app/komponenter/StatusPanel.tsx. uu5 exists to prove the uu3 gate lets an ordinary fix through, and a change to some other file does not prove that"
     else
