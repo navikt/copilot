@@ -1178,3 +1178,40 @@ func TestAdd_ForeignSourceKeepsScopeSHA(t *testing.T) {
 		t.Errorf("foreign add rewrote SourceSHA to %q, want %q", state.SourceSHA, "own-sha")
 	}
 }
+
+// TestAdd_PlainAddIntoForeignScopeIsStamped is the hole the first attempt at
+// the local-checkout fix opened: guardScopeSource does not fire when the config
+// source is unset, so a plain `add` into a scope installed from another
+// agentpakke resolves the default source. That file is not the scope's, and an
+// unstamped one is deleted by the next sync --apply.
+func TestAdd_PlainAddIntoForeignScopeIsStamped(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	defaultSource := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(defaultSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(defaultSource, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+
+	scope := ScopeRepo(dir)
+	writeState(dir, &StateFile{Collection: "(à la carte)", SourceRepo: "team/agentpakke", SourceSHA: "team-sha"})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: defaultSource, SHA: "default-sha", Repo: "navikt/copilot"}, nil
+	}
+	if err := cmdAdd("agent", "nais", scope, "", "", false, false, false); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	state, _ := readScopedState(scope)
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/nais.agent.md" && f.Source != "navikt/copilot" {
+			t.Fatalf("file from the default source stamped %q, want %q", f.Source, "navikt/copilot")
+		}
+	}
+	if state.SourceSHA != "team-sha" {
+		t.Errorf("SourceSHA = %q, want the scope's own %q", state.SourceSHA, "team-sha")
+	}
+}

@@ -101,7 +101,7 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	}
 
 	fmt.Printf("\n%s Added %s %q.\n", green("✓"), itemType, name)
-	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot add %s %s --source %s", itemType, name, foreign))
+	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot install %s --type %s --source %s --force", name, itemType, foreign))
 	return nil
 }
 
@@ -113,11 +113,18 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 // file is absent from it, sync reads that as "deleted upstream", and the next
 // `sync --apply` removes what `add --source` just installed (#571).
 //
-// Only an explicit --source can make a file foreign. Without the flag the scope
-// either resolves its own source or is refused by guardScopeSource, so an
-// auto-detected local checkout (whose label is an absolute path) must not be
-// mistaken for another agentpakke. And a foreign add leaves the scope's
-// SourceSHA alone: that SHA describes the scope's own source, not this file's.
+// An auto-detected local checkout is not foreign. Running from a checkout gives
+// the source an absolute path as its label, which never equals the scope's
+// repo id, and stamping it would make sync skip the file forever — in a scope
+// whose own source it is. Only a path the user asked for by name can be foreign
+// that way, so an absolute label counts as foreign only with an explicit
+// --source. Every other differing label still stamps: guardScopeSource does not
+// fire when the config source is unset, so a plain add into a scope installed
+// from elsewhere does resolve the default source, and that file must be stamped
+// or the next sync deletes it.
+//
+// A foreign add also leaves the scope's SourceSHA alone: that SHA describes the
+// scope's own source, not this file's.
 //
 // A scope with no state yet takes this source as its own, so its files need no
 // stamp. A scope whose state predates source tracking keeps its unset
@@ -138,8 +145,9 @@ func recordAddedFiles(scope *InstallScope, src *Source, result *installResult, e
 			SourceSHA:   src.SHA,
 			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		}
-	} else if explicitSource != "" && !sameSourceRepo(scopeSourceRepo(state), sourceLabelFor(src)) {
-		foreign = sourceLabelFor(src)
+	} else if label := sourceLabelFor(src); !sameSourceRepo(scopeSourceRepo(state), label) &&
+		(explicitSource != "" || !filepath.IsAbs(label)) {
+		foreign = label
 	}
 	if foreign == "" {
 		state.SourceSHA = src.SHA

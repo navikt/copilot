@@ -155,14 +155,22 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 // actually succeeded (and validated, which resolveSource does). A cancelled
 // prompt installed nothing, so it persists nothing — and it is still a clean
 // exit, not an error the user has to read.
-func finishInstall(err error, flagSource string, dryRun bool) error {
+//
+// Only a scope-defining install persists. `install <name> --type <t> --source X`
+// pulls one artifact out of another agentpakke; it does not make X the scope's
+// agentpakke, and writing it to the config would refuse every later plain add
+// (B3) and let sync adopt X for a pre-tracking scope. The file is stamped with
+// its origin instead, which is what keeps it current.
+func finishInstall(err error, flagSource string, dryRun, scopeDefining bool) error {
 	if errors.Is(err, errInstallCancelled) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	persistInstalledSource(flagSource, dryRun)
+	if scopeDefining {
+		persistInstalledSource(flagSource, dryRun)
+	}
 	return nil
 }
 
@@ -459,7 +467,7 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 	}
 
 	fmt.Printf("\n%s Installed %s %q.\n", green("✓"), itemType, name)
-	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot add %s %s --source %s", itemType, name, foreign))
+	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot install %s --type %s --source %s --force", name, itemType, foreign))
 	return nil
 }
 
