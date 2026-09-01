@@ -97,7 +97,7 @@ var SupportedSchemaMajors = []string{"1"}
 // reports/alpha-status.md rather than implied by this list.
 var allowedPublishers = []string{"mlx-community", "lmstudio-community"}
 
-// allowedBackends is which inference server a manifest entry may ask for.
+// allowedBackends lists the inference servers a manifest entry may ask for.
 //
 // The field has shipped on every entry since the schema was written, always
 // "mlx-lm", and until now nothing read it and nothing checked it. That is a
