@@ -1274,3 +1274,58 @@ func TestLockfilePinsTheVersionsTheCodeNames(t *testing.T) {
 		t.Error("requirements.txt carries no hashes, so --require-hashes buys nothing")
 	}
 }
+
+// TestServerFlagsCarryTheTunedKnobs pins the fix for a silent production bug.
+//
+// The manifest's params were passed to mlx_lm.server as environment variables,
+// and mlx-lm reads exactly one variable in its whole package. So every profile
+// shipped {"enable_thinking": false} and a tuned sampler, and the server ran
+// with thinking on and mlx-lm's own defaults — including --temp 0.0, greedy
+// decoding, which is what makes a local model repeat a tool call forever. The
+// benchmarks that produced those values ran through a harness that translates
+// the same variables into flags, so the numbers described a configuration no
+// developer was running.
+func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
+	got := serverFlags(map[string]string{
+		"MLX_MODEL":              "org/Model",
+		"MLX_SERVER_TYPE":        "mlx-lm",
+		"MLX_TEMP":               "0.6",
+		"MLX_TOP_K":              "20",
+		"MLX_TOP_P":              "0.95",
+		"MLX_MAX_TOKENS":         "32768",
+		"MLX_CACHE_SIZE":         "3",
+		"MLX_CHAT_TEMPLATE_ARGS": `{"enable_thinking": false}`,
+		"MLX_OPENCODE_CONTEXT":   "65536",
+	})
+	// Exact equality rather than substring matching. serverFlags is
+	// deterministic, so the order is part of the contract, and a substring
+	// check would pass on a duplicated flag — which is how a doubled
+	// device_id attribute reached a commit earlier the same week.
+	want := []string{
+		"--temp", "0.6",
+		"--top-p", "0.95",
+		"--top-k", "20",
+		"--max-tokens", "32768",
+		"--prompt-cache-size", "3",
+		"--chat-template-args", `{"enable_thinking": false}`,
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("serverFlags =\n  %v\nwant\n  %v", got, want)
+	}
+
+	joined := strings.Join(got, " ")
+
+	// Keys the server does not take must not become flags. Params come from a
+	// file fetched over the network, so a generic key-to-flag loop would let
+	// that file pass arbitrary arguments to a process on the developer's
+	// machine. Failing closed means an unknown key stays inert.
+	for _, unwanted := range []string{"MLX_MODEL", "MLX_SERVER_TYPE", "MLX_OPENCODE_CONTEXT", "org/Model"} {
+		if strings.Contains(joined, unwanted) {
+			t.Errorf("serverFlags leaked %q into the command line: %v", unwanted, got)
+		}
+	}
+
+	if len(serverFlags(map[string]string{})) != 0 {
+		t.Error("no params should mean no flags, so a manifest can still say nothing")
+	}
+}

@@ -950,9 +950,60 @@ func (s *Server) URL() string {
 // gets a nil error has a server that has loaded the model, and one this process
 // started.
 //
-// The manifest entry's MLX_* params go in as environment, unchanged and
-// untyped, so a knob the generator adds reaches the server without a nav-pilot
-// release.
+// The manifest entry's MLX_* params reach the server as command-line flags, and
+// only the ones [serverFlags] names. A key outside that list is still exported
+// into the environment, where mlx-lm will not read it — so a genuinely new knob
+// does need a nav-pilot release, which is the opposite of what this comment
+// claimed until the flags existed.
+
+// serverFlags turns manifest params into mlx_lm.server command-line flags.
+//
+// This exists because passing them as environment variables did nothing. mlx-lm
+// reads exactly one variable in its entire package, MLXLM_USE_MODELSCOPE
+// (utils.py:27), so every tuned knob in the manifest was inert in the field
+// while the benchmarks that produced those knobs ran through a harness that
+// translates the same variables into flags. The two were never the same
+// configuration, and the comment above this function used to claim they were.
+//
+// The most expensive one was silent: without --chat-template-args the
+// {"enable_thinking": false} in every profile never applied, so served models
+// ran with thinking on. The second was worse in kind: mlx-lm defaults --temp to
+// 0.0, which is greedy decoding, and greedy is what makes a local model repeat
+// a tool call until something outside it intervenes. The loop guard was built
+// for runs of 203 and 220 identical calls measured in exactly this state.
+//
+// The mapping is explicit rather than generic on purpose. Params come from a
+// file fetched over the network, and a loop that turned any key into a flag
+// would let that file pass arbitrary arguments to a process on the developer's
+// machine. A key that is not on this list reaches the server only as an
+// environment variable, which is inert, which is the safe direction to fail.
+func serverFlags(params map[string]string) []string {
+	// Fixed order, so two launches of the same profile produce the same command
+	// line and a difference in behaviour is never a difference in argument
+	// order. Values are passed as the manifest states them, including ones that
+	// match an mlx-lm default: restating a default costs nothing and keeps the
+	// launch readable in `ps` without cross-referencing mlx-lm's own defaults.
+	spec := []struct{ key, flag string }{
+		{"MLX_TEMP", "--temp"},
+		{"MLX_TOP_P", "--top-p"},
+		{"MLX_TOP_K", "--top-k"},
+		{"MLX_MIN_P", "--min-p"},
+		{"MLX_MAX_TOKENS", "--max-tokens"},
+		{"MLX_CACHE_SIZE", "--prompt-cache-size"},
+		{"MLX_CACHE_BYTES", "--prompt-cache-bytes"},
+		{"MLX_CHAT_TEMPLATE_ARGS", "--chat-template-args"},
+	}
+	var args []string
+	for _, s := range spec {
+		v := strings.TrimSpace(params[s.key])
+		if v == "" {
+			continue
+		}
+		args = append(args, s.flag, v)
+	}
+	return args
+}
+
 func (s *Server) Start(ctx context.Context, model Model) error {
 	s.mu.Lock()
 	if s.proc != nil && s.exit == nil {
@@ -995,11 +1046,16 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 	for k, v := range model.Params {
 		env = append(env, k+"="+v)
 	}
-	p, err := startProcess(ctx, venvBin("mlx_lm.server"), []string{
+	// Env as well as flags: MLX_OPENCODE_* are read by nav-pilot itself rather
+	// than by the server, and a future param may be picked up by mlx-lm without
+	// a nav-pilot release. Flags are what actually configure this process.
+	args := []string{
 		"--model", model.Model,
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),
-	}, env)
+	}
+	args = append(args, serverFlags(model.Params)...)
+	p, err := startProcess(ctx, venvBin("mlx_lm.server"), args, env)
 	if err != nil {
 		return fmt.Errorf("starting the local %s server: %w", model.Model, err)
 	}
