@@ -54,6 +54,13 @@ if __name__ == "__main__":
     # Referansearmen leses fra REFERANSE, ikke skrevet inn paa nytt: ellers er
     # den ene armen hvis tall ogsaa staar i dokumentets inndatatabell den ene
     # armen selvsjekken ikke dekker.
+    # raise, ikke assert: `python -O` fjerner assert, og en selvsjekk som
+    # forsvinner under et flagg er verre enn ingen selvsjekk.
     _, x_ref, n_ref = REFERANSE
-    assert (x_ref, n_ref) == (48, 50)
-    assert [round(newcombe(x, n, x_ref, n_ref)[1] * 100, 1) for _, x, n in KANDIDATER] == [-5.0, -5.0, -17.5]
+    dokumentert = [-5.0, -5.0, -17.5]
+    regnet = [round(newcombe(x, n, x_ref, n_ref)[1] * 100, 1) for _, x, n in KANDIDATER]
+    if (x_ref, n_ref) != (48, 50) or regnet != dokumentert:
+        raise SystemExit(
+            f"selvsjekk feilet: referanse {x_ref}/{n_ref} (dok: 48/50), "
+            f"nedre grenser {regnet} (dok: {dokumentert})"
+        )
