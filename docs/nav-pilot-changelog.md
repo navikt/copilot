@@ -8,7 +8,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Scopet materialiseres nå sammen med kilden**: Opencode-artefaktene ble laget kun fra kildesjekkouten, aldri fra `.github/`. Copilot leser scopet direkte og så alt, opencode fikk bare det nav-pilot selv hadde levert. Et hub-repo med 25 installerte skills og 3 egne fikk 25, uten varsel og uten spor i tilstandsfila. Skills, prompts og agenter fra scopet blir nå med, både ved oppstart, `nav-pilot sync` og `nav-pilot export opencode` (#579).
 - **Instruksjoner slås bevisst ikke sammen ved oppstart**: Utmappa er den globale opencode-konfigurasjonen og `AGENTS.md` er alltid-på kontekst, så ett repos instruksjoner ville fulgt brukeren inn i alle andre. `export opencode` skriver `<repo>/.opencode/` og tar dem med, siden den innvendingen ikke gjelder der (#579).
-- **Slettelogikken sjekker nå hash**: Den fjernet alt som ikke lenger var i filsettet, uten å se på innholdet. Med scopet som input krymper settet hver gang du bytter repo, og en fil du selv hadde redigert i opencode-konfigurasjonen ville forsvunnet. Nav-pilot sletter nå bare det den selv har skrevet og som fortsatt er uendret (#579).
+- **Slettelogikken sjekker nå hash**: Den fjernet alt som ikke lenger var i filsettet, uten å se på innholdet. Med scopet som input krymper settet hver gang du bytter repo, og en fil du selv hadde redigert i opencode-konfigurasjonen ville forsvunnet. Nav-pilot sletter nå bare det den selv har skrevet og som fortsatt er uendret. En fil som blir stående fordi du har redigert den, forblir sporet, slik at neste sync i repoet den kom fra melder konflikt framfor å overskrive den (#579).
 
 ## 2026-08-31
 

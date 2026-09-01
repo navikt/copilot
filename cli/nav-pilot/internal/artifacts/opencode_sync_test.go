@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -391,9 +392,11 @@ func TestSyncOpenCodeArtifacts_ScopeExtras(t *testing.T) {
 }
 
 // A scope that holds nothing but an install of the same source must produce
-// byte-for-byte what no scope at all produces. An empty .github/ would pass
-// this trivially, so the scope is populated with a copy of the source: every
-// name collides, and the source has to win all of them.
+// byte-for-byte what no scope at all produces, which is the ordinary user with
+// nothing hand-added. An empty .github/ would pass trivially, so the scope is
+// populated with a copy of the source: the merge has to add nothing and drop
+// nothing across every kind. The copy is byte-identical, so this cannot observe
+// which side won a name collision; that is what ScopeExtras is for.
 func TestSyncOpenCodeArtifacts_InstalledScopeUnchanged(t *testing.T) {
 	sourceDir := setupTestSource(t)
 
@@ -467,5 +470,22 @@ func TestSyncOpenCodeArtifacts_KeepsEditedFileOnScopeSwitch(t *testing.T) {
 	}
 	if _, err := os.Stat(untouched); err == nil {
 		t.Error("an untouched extra was kept; only user-modified files should survive")
+	}
+
+	// Back in the first repo. The kept file must still be the user's: keeping it
+	// on the way out is worthless if the return trip overwrites it.
+	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc", "")
+	if err != nil {
+		t.Fatalf("third sync: %v", err)
+	}
+	data, err = os.ReadFile(edited)
+	if err != nil {
+		t.Fatalf("locally edited file was deleted on the way back: %v", err)
+	}
+	if !strings.Contains(string(data), "Mine now") {
+		t.Error("locally edited file was overwritten by the scope copy on the way back")
+	}
+	if !slices.Contains(conflicts, "skills/watson-setup/") {
+		t.Errorf("conflicts = %v, want the edited skill reported", conflicts)
 	}
 }

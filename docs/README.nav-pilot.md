@@ -116,12 +116,15 @@ To ting følger ikke med, og det er med vilje:
   `<repo>/.opencode/`, som bare det repoet leser, og tar instruksjonene med.
 - **Lokale endringer i en installert artefakt.** Redigerer du en installert skill i
   `.github/`, honorerer Copilot endringen mens opencode får kildeversjonen. Kilden
-  vinner ved navnekollisjon. Vil du at opencode skal se den, gi den et eget navn.
+  vinner ved navnekollisjon. Vil du at opencode skal se den, kopier den til et eget
+  navn: både katalognavnet og `name:` i frontmatter må endres, og opencode får da både
+  originalen fra kilden og din kopi.
 
 Artefakter fra et annet repo blir liggende i den globale konfigurasjonen til neste sync,
 og er synlige ved navn og beskrivelse der. De ryddes bort ved neste oppstart, med mindre
 du har endret dem selv: nav-pilot sletter bare det den selv har skrevet og som fortsatt
-er uendret.
+er uendret. En fil du har redigert blir stående, og forblir sporet, slik at neste sync i
+repoet den kom fra melder konflikt framfor å overskrive den.
 
 #### `export opencode` vs. automatisk materialisering
 

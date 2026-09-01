@@ -71,14 +71,24 @@ func ValidateOpenCodeStatePath(p string) error {
 // nav-pilot wrote, and is therefore nav-pilot's to remove. A conflicted entry
 // never is: its recorded hash is the user's own copy, so a hash comparison
 // would call it untouched.
+//
+// Note that the write path disagrees about a conflicted entry: stateHashes in
+// [SyncOpenCodeArtifacts] leaves it out, so the sync after a conflict is
+// reported treats the path as untracked and overwrites it. This function treats
+// it as the user's for good. The write path is the older half and the wrong
+// one, but it is a separate bug with its own issue, not something to change
+// under a fix for what the scope materializes.
 func navPilotOwns(outputDir string, f domain.InstalledFile) bool {
 	if f.Status == domain.FileStatusConflict {
 		return false
 	}
 	rel := filepath.Join(outputDir, f.Path)
 	current, err := source.RawArtifactHash(rel, strings.HasSuffix(f.Path, "/"))
-	if err != nil {
+	if os.IsNotExist(err) {
 		return true // already gone; removing it is a no-op
+	}
+	if err != nil {
+		return false // unreadable is not permission to delete
 	}
 	return current == f.Hash
 }
@@ -281,9 +291,20 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 	// other is a scope that is no longer there, which happens on every switch to
 	// another repo, so deleting on hash-blind absence would throw away a locally
 	// edited file for no better reason than the working directory.
+	//
+	// A file that survives stays in the state, with the hash and status it had.
+	// Dropping it would leave an untracked orphan that the next sync from the
+	// scope it came from overwrites without a word, since isConflict only knows
+	// paths the state names. Kept in state, that same sync sees the hash differ
+	// and reports a conflict instead. The state therefore grows only by files
+	// the user has edited, and `nav-pilot status` can show them.
 	if existingState != nil {
 		for _, f := range existingState.Files {
-			if newFilesMap[f.Path] || !navPilotOwns(outputDir, f) {
+			if newFilesMap[f.Path] {
+				continue
+			}
+			if !navPilotOwns(outputDir, f) {
+				files = append(files, f)
 				continue
 			}
 			dst := filepath.Join(outputDir, f.Path)
