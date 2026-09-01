@@ -244,9 +244,10 @@ func copilotLocalWorker(sessionModel string) (local.Model, *local.Guard, error) 
 		// names, so without this the session would run on a model nobody
 		// chose and nothing would say so.
 		return local.Model{}, nil, fmt.Errorf(
-			"the local server on this machine is serving %s, and this session is configured for %s.\n\n  Use what is running:\n\n    %s\n\n  Or load the other model:\n\n    %s\n    %s",
+			"the local server on this machine is serving %s, and this session is configured for %s.\n\n  Use what is running:\n\n    %s\n\n  Or load the other model:\n\n    %s\n    %s\n    %s",
 			domain.Bold(worker.Model), domain.Bold(sessionModel),
 			domain.Bold("nav-pilot config set model "+worker.Model),
+			domain.Bold("nav-pilot config set local_model "+sessionModel),
 			domain.Bold("nav-pilot alpha local stop"),
 			domain.Bold("nav-pilot alpha local start"))
 	}

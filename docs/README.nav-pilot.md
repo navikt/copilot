@@ -167,10 +167,12 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 ### Bytte modell
 
 `nav-pilot models` viser hva som er tilgjengelig. De lokale står merket `(local)`.
+`local_model` velger hvilken av dem serveren laster; `model` er modellen økten selv kjører på,
+og de settes hver for seg.
 
 ```bash
 nav-pilot models
-nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start
 ```

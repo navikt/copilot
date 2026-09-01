@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -591,5 +592,90 @@ func TestLocalStartRefusesMissingWeights(t *testing.T) {
 	err := cmdLocalStart()
 	if err == nil || !strings.Contains(err.Error(), "not on this machine") {
 		t.Errorf("cmdLocalStart() without weights = %v, want an error naming the missing weights", err)
+	}
+}
+
+// TestLocalModelKeySelectsTheServedModel pins the split between the two keys:
+// `model` is the session model, `local_model` is what the local server loads.
+// While they were one key, a developer running a cloud main agent with a local
+// worker could not name a non-default local model at all — `model` held a cloud
+// id, Chosen found no match, and start silently loaded the manifest default.
+func TestLocalModelKeySelectsTheServedModel(t *testing.T) {
+	localTestHome(t)
+	t.Cleanup(func() { local.SetSelectedModel("") })
+
+	m := &local.Manifest{Models: []local.Model{
+		{Key: "default-one", Model: "org/Default", Default: true},
+		{Key: "other", Model: "org/Other"},
+	}}
+
+	// Nothing configured: the manifest default.
+	if got, err := localModel(m); err != nil || got.Model != "org/Default" {
+		t.Errorf("with no local_model, localModel = %q/%v, want org/Default", got.Model, err)
+	}
+
+	// A cloud session model must not steer the served model.
+	if _, err := writeConfigKey("model", "claude-opus-4.8"); err != nil {
+		t.Fatalf("writing model: %v", err)
+	}
+	if _, err := writeConfigKey("local_model", "org/Other"); err != nil {
+		t.Fatalf("writing local_model: %v", err)
+	}
+	if got, err := localModel(m); err != nil || got.Model != "org/Other" {
+		t.Errorf("with local_model = org/Other, localModel = %q/%v, want org/Other", got.Model, err)
+	}
+
+	// An id this manifest does not offer falls back to the default, and says so
+	// — silence there is how someone spends an afternoon wondering why their
+	// choice did nothing.
+	if _, err := writeConfigKey("local_model", "org/NotOffered"); err != nil {
+		t.Fatalf("writing local_model: %v", err)
+	}
+	var got local.Model
+	out := captureStderr(func() {
+		var err error
+		if got, err = localModel(m); err != nil {
+			t.Errorf("localModel: %v", err)
+		}
+	})
+	if got.Model != "org/Default" {
+		t.Errorf("with an unknown local_model, localModel = %q, want the default", got.Model)
+	}
+	if !strings.Contains(out, "org/NotOffered") || !strings.Contains(out, "org/Default") {
+		t.Errorf("no advisory naming the fallback, got: %q", out)
+	}
+}
+
+// TestLocalModelAdvisoryForASessionOnALocalModel: `model` set to a local id
+// still means "run this session locally" — it is the only way to say that — but
+// it is also what people set when they meant local_model.
+func TestLocalModelAdvisoryForASessionOnALocalModel(t *testing.T) {
+	localTestHome(t)
+	m := &local.Manifest{Models: []local.Model{{Key: "d", Model: "org/Default", Default: true}}}
+	local.SetActive(m)
+	t.Cleanup(func() { local.SetActive(nil) })
+
+	id := "org/Default"
+	warnings := configAdvisories(&Config{Version: 1, Model: &id}, toml.MetaData{})
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "local_model") {
+		t.Errorf("configAdvisories = %v, want one naming local_model", warnings)
+	}
+}
+
+// TestLocalOffLeavesLocalModelAlone: off leaves the weights on disk, and the
+// key naming which weights to load belongs with them. Resetting it would make
+// `off` then `on` quietly forget the developer's choice.
+func TestLocalOffLeavesLocalModelAlone(t *testing.T) {
+	localTestHome(t)
+	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.8-27B-4bit"); err != nil {
+		t.Fatalf("writing local_model: %v", err)
+	}
+	captureStderr(func() { captureStdout(func() { _ = cmdLocalOff() }) })
+	cfg, err := readConfig()
+	if err != nil {
+		t.Fatalf("readConfig: %v", err)
+	}
+	if cfg.LocalModel == nil || *cfg.LocalModel != "mlx-community/Qwen3.8-27B-4bit" {
+		t.Errorf("local_model = %v after off, want it untouched", cfg.LocalModel)
 	}
 }
