@@ -328,9 +328,18 @@ export function StepResult({
       </VStack>
 
       {currentResult.code && (
-        <Box background="default" borderRadius="8" padding="space-16">
-          <CodeBlock compact>{currentResult.code}</CodeBlock>
-        </Box>
+        <>
+          <Box background="default" borderRadius="8" padding="space-16">
+            <CodeBlock compact>{currentResult.code}</CodeBlock>
+          </Box>
+          <BodyShort textColor="subtle" size="small">
+            Oppskriften installerer i dette repoet. Vil du heller ha agenter og skills på tvers av alle repoer, bytt
+            siste linje til <code>nav-pilot install --user --all</code>. Den tar ikke med prompts.{" "}
+            <Link href="/nav-pilot/docs#hvor-installere" className="text-blue-600">
+              Hvor skal artefaktene installeres?
+            </Link>
+          </BodyShort>
+        </>
       )}
 
       <HStack justify="center" gap="space-16" marginBlock="space-16">

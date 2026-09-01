@@ -28,9 +28,104 @@ nav-pilot
 nav-pilot install kotlin-backend
 ```
 
-`install` spør hvor den skal installere, i repoet (`.github/`) eller i hjemmekatalogen
-(`~/.copilot/`). Svar på forhånd med `--repo`, `--user` eller `--target <mappe>` for å hoppe
-over spørsmålet.
+## Hvor skal artefaktene installeres?
+
+Tre former er i bruk i Nav, og de løser ulike problemer. `install` spør hvor den skal
+installere, i repoet (`.github/`) eller i hjemmekatalogen (`~/.copilot/`). Svar på forhånd
+med `--repo`, `--user` eller `--target <mappe>` for å hoppe over spørsmålet.
+
+| Form | Hvor | Kort sagt |
+|---|---|---|
+| Repo (`--repo`) | `<repo>/.github/` | Hele teamet får det samme, og Copilot på github.com ser det |
+| Personlig (`--user`) | `~/.copilot/` | Følger deg på tvers av alle repoer, ingenting sjekkes inn |
+| Hub-repo | ett repo med `.github/` pluss egne artefakter | Ett sted å vedlikeholde teamets egne skills |
+
+De utelukker ikke hverandre. `nav-pilot sync` uten scope-flagg synker alle scope som har en
+tilstandsfil, og de spores hver for seg.
+
+### Repo-installasjon
+
+Skriver til `<repo>/.github/`: `agents/`, `skills/`, `instructions/`, `prompts/` og
+tilstandsfila `.github/.nav-pilot-state.json`.
+
+Dette får du bare her:
+
+- **Prompts.** Brukerscopet støtter `agent`, `skill` og `instruction`, ikke `prompt`
+  (`ScopeUser()` i `cli/nav-pilot/internal/domain/domain.go`). Ber du om prompts med
+  `--user`, hopper installasjonen over dem og rapporterer dem som ikke støttet.
+- **Copilot på github.com.** Filene er sjekket inn, så det som kjører på GitHub-siden leser
+  dem. Det forutsetter at du committer og pusher, og nav-pilot gjør ingen av delene.
+- **Automatisk oppdatering uten at noen kjører CLI-et.** Den gjenbrukbare workflowen
+  `copilot-customization-sync.yml` kjører `nav-pilot sync` i Actions og åpner PR med
+  oppdateringene. Se [README.sync.md](README.sync.md).
+- **Alle på teamet, også de som ikke har nav-pilot.** Filene ligger der uansett.
+
+Hva det koster: innholdet blir liggende i repoet og dukker opp i differ og
+kodegjennomgang. `kotlin-backend` er 93 filer og rundt 490 KB målt på artefaktene i denne
+kilden. Filer teamet vil eie selv kan merkes som overrides i `.github/copilot-sync.json`,
+og blir da hoppet over ved sync.
+
+### Personlig installasjon (`--user`)
+
+```bash
+nav-pilot install --user --all
+eval "$(nav-pilot env)"
+```
+
+Skriver til `~/.copilot/`. Ingenting sjekkes inn noe sted.
+
+Dette får du bare her:
+
+- **Alle repoer på maskinen på én gang**, også repoer der du ikke vil eller kan endre
+  `.github/`.
+- **Ett sted å synce.** Repo-scopet er alltid det repoet du står i. Med repo-installasjon i
+  40 repoer må noen innom alle 40, eller sette opp sync-workflowen i alle 40. Med `--user`
+  er det én installasjon å holde fersk.
+- **`nav-pilot ignore <type> <name> --user`** for å slippe varsler om komponenter du ikke
+  vil ha. Kommandoen avviser repo-scope.
+
+Dette når den ikke:
+
+- **Prompts.** Se over.
+- **Instruksjoner uten miljøvariabel.** De havner i `~/.copilot/.github/instructions/`, og
+  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på `~/.copilot`. Det er
+  `eval "$(nav-pilot env)"` som setter den, og det virker i Copilot CLI. Agenter og skills
+  plukkes opp uten. `nav-pilot env` sier fra hvis ingen instruksjoner er installert.
+- **GitHub-siden.** Filene ligger på din maskin, ikke i repoet.
+- **Resten av teamet.** En personlig installasjon er personlig.
+- **opencode.** Nav-konteksten til opencode materialiseres fra kilden pluss `.github/` i
+  repoet du står i, ikke fra `~/.copilot/` (`repoScopeDir()` i
+  `cli/nav-pilot/internal/provider/opencode_launch.go`).
+
+### Hub-repo
+
+Mekanisk er et hub-repo en vanlig repo-installasjon i et repo som ikke er en applikasjon,
+pluss teamets egne agenter, skills og prompts lagt inn for hånd i det samme `.github/`. Du
+kjører nav-pilot fra hub-repoet og jobber derfra.
+
+Det virker fordi begge klientene leser scopet fra arbeidskatalogen:
+
+- Copilot leser `.github/` i repoet direkte, uansett hvem som la fila der.
+- opencode materialiserer både kildeartefaktene og det som bare finnes i scopet. Det siste
+  kom med [#579](https://github.com/navikt/copilot/pull/579). Før den fikk opencode bare
+  det nav-pilot selv hadde installert: et hub-repo med 25 installerte og 3 håndlagde skills
+  så 25, uten varsel og uten feilmelding. Kjører teamet en eldre nav-pilot, mangler de tre
+  fortsatt.
+
+Skarpe kanter:
+
+- **Konteksten følger arbeidskatalogen.** nav-pilot sender ingen prosjektkatalog med til
+  cplt, så klienten arver katalogen du står i. Står du i hub-repoet, har du hub-repoets
+  artefakter og hub-repoets filer. Går du til applikasjonsrepoet for å endre kode der, har
+  du ikke lenger hub-repoets egne skills i scopet.
+- **Kilden vinner ved navnekollisjon.** En håndlagd skill med samme navn som en installert
+  taper i opencode. Se «Hva scopet ditt bidrar med» under opencode-avsnittet.
+- **Instruksjoner fra `.github/` slås ikke sammen med opencodes globale `AGENTS.md`.**
+  `nav-pilot export opencode` er veien når teamet trenger dem der.
+- **Sync i hub-repoet oppdaterer hub-repoet.** De andre repoene har fortsatt sitt eget.
+
+`AGENTS.md` og `.github/copilot-instructions.md` synces aldri, uansett form. De er alltid
+repo-spesifikke, og er stedet for det som bare gjelder ett repo.
 
 ## Sandboxing og isolasjon er påkrevd
 
@@ -243,13 +338,6 @@ parallelt.
 
 Dette er alfa. Si fra om noe henger, om en endring kompilerer men er feil, eller om
 ventetiden ikke er verdt det: `nav-pilot feedback`.
-
-## Personlig installasjon (valgfritt)
-
-```bash
-nav-pilot install --user --all
-eval "$(nav-pilot env)"
-```
 
 ## Agentpakker fra andre team
 
