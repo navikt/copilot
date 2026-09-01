@@ -960,7 +960,7 @@ func TestSync_DirectoryPromptAndLocalSource(t *testing.T) {
 
 	// 2. Install directory prompt to target
 	targetScope := ScopeRepo(dir)
-	err = cmdAddFromSource("prompt", "my-prompt", src, targetScope, false, false, false)
+	err = cmdAddFromSource("prompt", "my-prompt", src, targetScope, src.Repo, false, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -990,5 +990,228 @@ func TestSync_DirectoryPromptAndLocalSource(t *testing.T) {
 	err = cmdSync(targetScope, "", "", false, false)
 	if err != nil && err != errUpdatesAvailable {
 		t.Fatalf("sync check failed: %v", err)
+	}
+}
+
+// TestSync_ForeignSourceFileSurvivesApply is #571: `add --source <other>`
+// installed a file the scope's own source has never had, and the next
+// `sync --apply` read that absence as an upstream deletion and removed it.
+func TestSync_ForeignSourceFileSurvivesApply(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	ownSource := t.TempDir()
+	otherSource := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(ownSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(ownSource, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(otherSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(otherSource, "agents", "teamting.agent.md"), []byte("# Teamting"), 0o644)
+
+	scope := ScopeRepo(dir)
+	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	ownHash, _ := fileHash(filepath.Join(dir, ".github", "agents", "nais.agent.md"))
+	writeState(dir, &StateFile{
+		Collection: "kotlin-backend",
+		SourceRepo: "navikt/copilot",
+		Files:      []InstalledFile{{Path: ".github/agents/nais.agent.md", Hash: ownHash}},
+	})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: otherSource, SHA: "other-sha", Repo: "team/agentpakke"}, nil
+	}
+	if err := cmdAdd("agent", "teamting", scope, "", "team/agentpakke", false, false, false); err != nil {
+		t.Fatalf("add --source: %v", err)
+	}
+
+	added := filepath.Join(dir, ".github", "agents", "teamting.agent.md")
+	if _, err := os.Stat(added); err != nil {
+		t.Fatalf("add did not install the file: %v", err)
+	}
+	state, _ := readScopedState(scope)
+	var foreign string
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/teamting.agent.md" {
+			foreign = f.Source
+		}
+	}
+	if foreign != "team/agentpakke" {
+		t.Fatalf("state records source %q, want %q", foreign, "team/agentpakke")
+	}
+
+	origSync := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = origSync })
+	resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: ownSource, SHA: "own-sha", Repo: "navikt/copilot"}, nil
+	}
+	if err := cmdSync(scope, "", "", true, false); err != nil {
+		t.Fatalf("sync --apply: %v", err)
+	}
+
+	if _, err := os.Stat(added); err != nil {
+		t.Fatalf("sync deleted a file from another source: %v", err)
+	}
+	state, _ = readScopedState(scope)
+	found := false
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/teamting.agent.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("sync dropped the foreign file from state")
+	}
+}
+
+// TestSync_StatePredatingPerFileSource is the upgrade path: a state file
+// written before InstalledFile had a source records none for any file, which
+// must keep meaning "this scope's source" rather than "belongs to nothing".
+func TestSync_StatePredatingPerFileSource(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	sourceDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	os.WriteFile(filepath.Join(sourceDir, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+	hash, _ := fileHash(filepath.Join(dir, ".github", "agents", "nais.agent.md"))
+
+	// Written by hand in the pre-change shape: no "source" key anywhere.
+	statePath := ScopeRepo(dir).StatePath()
+	os.MkdirAll(filepath.Dir(statePath), 0o755)
+	os.WriteFile(statePath, []byte(`{
+  "collection": "kotlin-backend",
+  "version": "2026.06",
+  "source_repo": "navikt/copilot",
+  "source_sha": "old-sha",
+  "installed_at": "2026-06-01T00:00:00Z",
+  "files": [{"path": ".github/agents/nais.agent.md", "hash": "`+hash+`"}]
+}`), 0o644)
+
+	origSync := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = origSync })
+	resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: sourceDir, SHA: "new-sha", Repo: "navikt/copilot"}, nil
+	}
+
+	scope := ScopeRepo(dir)
+	if err := cmdSync(scope, "", "", true, false); err != nil {
+		t.Fatalf("sync --apply over a pre-source state: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".github", "agents", "nais.agent.md")); err != nil {
+		t.Fatalf("sync deleted a file from a state that predates per-file sources: %v", err)
+	}
+	state, _ := readScopedState(scope)
+	if state == nil || len(state.Files) != 1 {
+		t.Fatalf("state after sync = %+v, want the one file kept", state)
+	}
+}
+
+// TestAdd_LocalCheckoutIsNotForeign guards the other half of #571: without an
+// explicit --source, an add resolves the scope's own source, and a dev running
+// from a local checkout gets an absolute path as the source label. Stamping
+// that as foreign would make sync skip the file forever, in a scope whose own
+// source it actually is.
+func TestAdd_LocalCheckoutIsNotForeign(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	checkout := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(checkout, "agents"), 0o755)
+	os.WriteFile(filepath.Join(checkout, "agents", "teamting.agent.md"), []byte("# Teamting"), 0o644)
+
+	scope := ScopeRepo(dir)
+	writeState(dir, &StateFile{Collection: "kotlin-backend", SourceRepo: "navikt/copilot"})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: checkout, SHA: "local-sha", Repo: checkout}, nil
+	}
+	if err := cmdAdd("agent", "teamting", scope, "", "", false, false, false); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	state, _ := readScopedState(scope)
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/teamting.agent.md" && f.Source != "" {
+			t.Fatalf("local checkout stamped as foreign source %q", f.Source)
+		}
+	}
+	if state.SourceSHA != "local-sha" {
+		t.Errorf("SourceSHA = %q, want the scope's own %q", state.SourceSHA, "local-sha")
+	}
+}
+
+// TestAdd_ForeignSourceKeepsScopeSHA is the Copilot review comment on #586: a
+// foreign add must not overwrite the scope's SourceSHA with another repo's,
+// which would leave status and the Tier 2 launch pin pointing at a revision
+// this scope's source has never had.
+func TestAdd_ForeignSourceKeepsScopeSHA(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	otherSource := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(otherSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(otherSource, "agents", "teamting.agent.md"), []byte("# Teamting"), 0o644)
+
+	scope := ScopeRepo(dir)
+	writeState(dir, &StateFile{Collection: "kotlin-backend", SourceRepo: "navikt/copilot", SourceSHA: "own-sha"})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: otherSource, SHA: "other-sha", Repo: "team/agentpakke"}, nil
+	}
+	if err := cmdAdd("agent", "teamting", scope, "", "team/agentpakke", false, false, false); err != nil {
+		t.Fatalf("add --source: %v", err)
+	}
+
+	state, _ := readScopedState(scope)
+	if state.SourceSHA != "own-sha" {
+		t.Errorf("foreign add rewrote SourceSHA to %q, want %q", state.SourceSHA, "own-sha")
+	}
+}
+
+// TestAdd_PlainAddIntoForeignScopeIsStamped is the hole the first attempt at
+// the local-checkout fix opened: guardScopeSource does not fire when the config
+// source is unset, so a plain `add` into a scope installed from another
+// agentpakke resolves the default source. That file is not the scope's, and an
+// unstamped one is deleted by the next sync --apply.
+func TestAdd_PlainAddIntoForeignScopeIsStamped(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	defaultSource := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(defaultSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(defaultSource, "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
+
+	scope := ScopeRepo(dir)
+	writeState(dir, &StateFile{Collection: "(à la carte)", SourceRepo: "team/agentpakke", SourceSHA: "team-sha"})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: defaultSource, SHA: "default-sha", Repo: "navikt/copilot"}, nil
+	}
+	if err := cmdAdd("agent", "nais", scope, "", "", false, false, false); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	state, _ := readScopedState(scope)
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/nais.agent.md" && f.Source != "navikt/copilot" {
+			t.Fatalf("file from the default source stamped %q, want %q", f.Source, "navikt/copilot")
+		}
+	}
+	if state.SourceSHA != "team-sha" {
+		t.Errorf("SourceSHA = %q, want the scope's own %q", state.SourceSHA, "team-sha")
 	}
 }

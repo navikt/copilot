@@ -1198,7 +1198,7 @@ func TestCancelledInteractiveInstallDoesNotPersistSource(t *testing.T) {
 
 	// finishInstall is what run() wraps every install in: it must turn the
 	// sentinel into a clean exit and persist nothing.
-	if err := finishInstall(err, "navikt/grillmester", false); err != nil {
+	if err := finishInstall(err, "navikt/grillmester", false, true); err != nil {
 		t.Errorf("finishInstall(cancelled) = %v, want nil (clean exit)", err)
 	}
 	if got, _ := configuredSourceRepo(); got != "" {
@@ -1431,4 +1431,26 @@ func captureStdoutFor(t *testing.T, fn func()) string {
 	out := <-done
 	r.Close()
 	return out
+}
+
+// TestFinishInstall_SingleArtifactDoesNotPersistSource: pulling one artifact
+// out of another agentpakke with `install <name> --type <t> --source X` does
+// not make X the scope's agentpakke. Persisting it would refuse every later
+// plain add (B3) and let sync adopt X for a pre-tracking scope.
+func TestFinishInstall_SingleArtifactDoesNotPersistSource(t *testing.T) {
+	isolatedConfig(t)
+
+	if err := finishInstall(nil, "navikt/grillmester", false, false); err != nil {
+		t.Fatalf("finishInstall = %v, want nil", err)
+	}
+	if got, _ := configuredSourceRepo(); got != "" {
+		t.Errorf("single-artifact install persisted source = %q, want none", got)
+	}
+
+	if err := finishInstall(nil, "navikt/grillmester", false, true); err != nil {
+		t.Fatalf("finishInstall = %v, want nil", err)
+	}
+	if got, _ := configuredSourceRepo(); got != "navikt/grillmester" {
+		t.Errorf("scope-defining install persisted %q, want %q", got, "navikt/grillmester")
+	}
 }

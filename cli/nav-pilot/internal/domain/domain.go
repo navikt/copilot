@@ -430,6 +430,11 @@ type InstalledFile struct {
 	Path   string `json:"path"`
 	Hash   string `json:"hash"`
 	Status string `json:"status,omitempty"` // "" = active, FileStatusIgnored = intentionally excluded, FileStatusConflict = exists with local modifications
+	// Source names the agentpakke this file came from, when that is not the
+	// scope's own SourceRepo. Empty means "this scope's source", which is what
+	// every state file written before per-file origins says about all of its
+	// files — so they keep syncing exactly as they did.
+	Source string `json:"source,omitempty"`
 }
 
 // FileStatusIgnored marks a file as intentionally excluded by the user.
