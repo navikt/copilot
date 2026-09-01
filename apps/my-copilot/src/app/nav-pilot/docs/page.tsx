@@ -51,7 +51,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Kom i gang",
     children: [
       { id: "installasjon", label: "Installasjon (5 min)" },
-      { id: "personlig-installasjon", label: "Personlig installasjon (valgfritt)" },
+      { id: "hvor-installere", label: "Hvor skal artefaktene installeres?" },
       { id: "vanlige-oppgaver", label: "Vanlige oppgaver" },
     ],
   },
@@ -741,13 +741,47 @@ nav-pilot`}
           </div>
         </div>
 
-        <div id="personlig-installasjon">
+        <div id="hvor-installere">
           <LinkableHeading size="small" level="3">
-            Personlig installasjon (valgfritt)
+            Hvor skal artefaktene installeres?
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Du kan også installere agenter, skills og instruksjoner til hjemmemappen. De blir da tilgjengelige i{" "}
-            <em>alle</em> repoer uten å endre hvert enkelt.
+            Tre former er i bruk i Nav, og de løser ulike problemer.{" "}
+            <code className="font-mono text-xs">install</code> spør hvis du ikke svarer på forhånd med{" "}
+            <code className="font-mono text-xs">--repo</code> eller <code className="font-mono text-xs">--user</code>.
+          </BodyLong>
+          <ul className="mt-3 space-y-2 list-disc pl-5" style={{ color: "#475569" }}>
+            <li>
+              <strong>Repo</strong> (<code className="font-mono text-xs">--repo</code>, skriver til{" "}
+              <code className="font-mono text-xs">.github/</code>): hele teamet får det samme, prompts virker, og
+              Copilot på github.com ser filene fordi de er sjekket inn. Til gjengjeld ligger de i repoet og i hver
+              diff.
+            </li>
+            <li>
+              <strong>Personlig</strong> (<code className="font-mono text-xs">--user</code>, skriver til{" "}
+              <code className="font-mono text-xs">~/.copilot/</code>): følger deg på tvers av alle repoer, og
+              ingenting sjekkes inn. Den tar ikke med prompts, og når verken github.com eller resten av teamet.
+            </li>
+            <li>
+              <strong>Hub-repo</strong>: en repo-installasjon i et repo som ikke er en applikasjon, pluss teamets
+              egne skills lagt inn for hånd i det samme <code className="font-mono text-xs">.github/</code>. Konteksten
+              følger arbeidskatalogen, så den gjelder mens du står i hub-repoet.
+            </li>
+          </ul>
+          <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
+            Formene utelukker ikke hverandre, og{" "}
+            <code className="font-mono text-xs">nav-pilot sync</code> uten scope-flagg synker alle scope som har en
+            tilstandsfil. Avveiningene i sin helhet står i{" "}
+            <a
+              href="https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#hvor-skal-artefaktene-installeres"
+              className="text-blue-600 hover:underline"
+            >
+              README.nav-pilot.md
+            </a>
+            .
+          </BodyLong>
+          <BodyLong className="mt-4" style={{ color: "#475569" }}>
+            Personlig installasjon:
           </BodyLong>
           <div className="mt-4">
             <CodeBlock compact>{`nav-pilot install --user`}</CodeBlock>
