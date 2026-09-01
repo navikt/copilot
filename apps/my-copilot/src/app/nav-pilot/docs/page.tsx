@@ -2035,10 +2035,10 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <th className="text-left py-2 pr-4 font-medium">Modell</th>
-                    <th className="text-left py-2 pr-4 font-medium">Vekter</th>
-                    <th className="text-left py-2 pr-4 font-medium">Løser</th>
-                    <th className="text-left py-2 font-medium">Kort sagt</th>
+                    <th scope="col" className="text-left py-2 pr-4 font-medium">Modell</th>
+                    <th scope="col" className="text-left py-2 pr-4 font-medium">Vekter</th>
+                    <th scope="col" className="text-left py-2 pr-4 font-medium">Løser</th>
+                    <th scope="col" className="text-left py-2 font-medium">Kort sagt</th>
                   </tr>
                 </thead>
                 <tbody style={{ color: "#475569" }}>
@@ -2049,7 +2049,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     </td>
                     <td className="py-2 pr-4 align-top">25 GB</td>
                     <td className="py-2 pr-4 align-top">3–6 av 8</td>
-                    <td className="py-2 align-top">Rask og forutsigbar. Median rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha med mindre du har en grunn til noe annet.</td>
+                    <td className="py-2 align-top">Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha med mindre du har en grunn til noe annet.</td>
                   </tr>
                   <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
                     <td className="py-2 pr-4 align-top">
