@@ -115,6 +115,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Bakkemodellen (alfa)",
     children: [
       { id: "lokal-kom-i-gang", label: "Kom i gang" },
+      { id: "lokal-modeller", label: "Modeller i alfa" },
       { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
       { id: "lokal-feilsoking", label: "Når noe henger" },
     ],
@@ -2022,6 +2023,62 @@ nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
           </CodeBlock>
+          <div id="lokal-modeller">
+            <LinkableHeading size="small" level="3">
+              Modeller i alfa
+            </LinkableHeading>
+            <BodyLong className="mt-2 mb-4" size="small" style={{ color: "#475569" }}>
+              Tre modeller er tilgjengelige. Én er standard, de to andre kan velges. Tallene er fra vårt eget sett
+              på åtte oppgaver, og oppgis som spenn fordi det er spennet som skiller dem.
+            </BodyLong>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <th className="text-left py-2 pr-4 font-medium">Modell</th>
+                    <th className="text-left py-2 pr-4 font-medium">Vekter</th>
+                    <th className="text-left py-2 pr-4 font-medium">Løser</th>
+                    <th className="text-left py-2 font-medium">Kort sagt</th>
+                  </tr>
+                </thead>
+                <tbody style={{ color: "#475569" }}>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td className="py-2 pr-4 align-top">
+                      <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
+                      <div className="text-xs mt-1" style={{ color: "#0f6d6a" }}>standard</div>
+                    </td>
+                    <td className="py-2 pr-4 align-top">25 GB</td>
+                    <td className="py-2 pr-4 align-top">3–6 av 8</td>
+                    <td className="py-2 align-top">Rask og forutsigbar. Median rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha med mindre du har en grunn til noe annet.</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td className="py-2 pr-4 align-top">
+                      <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
+                    </td>
+                    <td className="py-2 pr-4 align-top">16 GB</td>
+                    <td className="py-2 pr-4 align-top">1–5 av 8</td>
+                    <td className="py-2 align-top">Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td className="py-2 pr-4 align-top">
+                      <code className="font-mono text-xs">Qwen3.8-27B-8bit</code>
+                    </td>
+                    <td className="py-2 pr-4 align-top">30 GB</td>
+                    <td className="py-2 pr-4 align-top">ikke målt</td>
+                    <td className="py-2 align-top">Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <BodyShort size="small" className="mt-3" style={{ color: "#64748b" }}>
+              Én kjøring er ikke en måling — derfor spenn og ikke median. Alle kjøringene ligger i{" "}
+              <a href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md" style={{ textDecoration: "underline" }}>
+                MODELS.md
+              </a>
+              .
+            </BodyShort>
+          </div>
+
           <LinkableHeading size="small" level="3">
             Bytte modell
           </LinkableHeading>

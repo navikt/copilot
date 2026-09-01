@@ -49,8 +49,31 @@ Først prøvde vi åtte modeller og bygg på det samme oppgavesettet: elleve opp
 - **Qwen3.6-35B-A3B, vanlig 4-bit.** Samme modell, annet bygg. Gikk i tool-loop og brukte 220 kall på én oppgave.
 - **KAT-Coder V2.5.** Løste like mange, men trengte flere kall på å komme dit.
 - **Qwen3.6-27B.** For treg. Median 113 sekunder mot 18.
-- **Qwen3.8-27B i 4-, 6- og 8-bit.** Ikke valgt. 6-bit brukte median 284 sekunder. Tallet vi publiserte for 8-bit kom fra en kjøring som stille erstattet en tidligere kjøring med et annet resultat, og vi vet ennå ikke hvilken av dem som gjelder.
+- **Qwen3.8-27B i 4-, 6- og 8-bit.** Ikke standard, men 4-bit og 8-bit kan nå velges. Se under.
 - **Granite 4.1 8B.** For liten. Løste 1 av 8.
+
+### Oppdatering 1. september: Qwen 3.8 kan velges
+
+Vi skrev først at Qwen3.8 ikke ble valgt fordi den gikk i loop. Etter å ha kjørt testene på nytt
+holder ikke den beskrivelsen, og den nye er mer interessant.
+
+To kjøringer av det samme oppgavesettet, samme maskin, to timer fra hverandre: Qwen3.8-27B 4-bit
+løste **1 av 8** i den første og **5 av 8** i den andre. Den andre er det beste enkeltresultatet
+noen modell har fått på dette settet. Qwen3.6 ligger på 3–6 av 8 over åtte kjøringer, og bruker
+omtrent en sjuendedel så lang tid.
+
+Qwen3.8 er altså ikke en svakere modell. Den er en mer uforutsigbar en. Derfor kan du velge den,
+men den er ikke standard:
+
+```bash
+nav-pilot models
+nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot alpha local init
+```
+
+Det vi selv lærte av dette er verdt mer enn modellvalget: **én kjøring er ikke en måling.** Alle
+konklusjonene som snudde, snudde fordi det fantes en kjøring til — ikke fordi vi tenkte oss om en
+gang til. Tabellen over var bygget på enkeltkjøringer.
 
 Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
 
