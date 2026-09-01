@@ -2053,8 +2053,8 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     <Table.DataCell>25 GB</Table.DataCell>
                     <Table.DataCell>3–4 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Rask og forutsigbar. Rundt 10 sekunder per oppgave. Over fem kjøringer løser den 3, 3, 3, 4 og
-                      4 av 8 — den svakere modellen, men den du kan stole på uten å se etter.
+                      Rask og forutsigbar. Median 9 sekunder per oppgave, og 3, 3, 3, 4 og 4 av 8 over fem kjøringer.
+                      Løser mindre enn 3.8, men svarer med én gang og gjør sjelden noe uventet.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
@@ -2062,12 +2062,12 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
                     </Table.DataCell>
                     <Table.DataCell>16 GB</Table.DataCell>
-                    <Table.DataCell>1–7 av 8</Table.DataCell>
+                    <Table.DataCell>5–7 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Sterkere enn standard, og mye mindre pålitelig. Over fem kjøringer løser den 1, 5, 5, 6 og 7 av
-                      8 — i snitt 4,8 mot standardens 3,4, altså rundt 41 % flere oppgaver. Den er også omtrent sju
-                      ganger tregere, og timet ut 11 ganger der standarden timet ut 2. Velg den hvis du leser gjennom
-                      det den lager.
+                      Løser mer enn standard og bruker mye lengre tid på det. Fire rene kjøringer ga 5, 5, 6 og 7 av
+                      8, mot standardens 3, 3, 3, 4 og 4 — settene overlapper ikke. Omtrent sju ganger tregere, og
+                      treffer sju-minutterstaket på rundt én av fem oppgaver. En femte kjøring er holdt utenfor fordi
+                      den ikke endret en eneste fil; det var testoppsettet, ikke modellen.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
@@ -2085,7 +2085,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
-              Én kjøring er ikke en måling — derfor spenn og ikke median. Alle kjøringene ligger i{" "}
+              Én kjøring er ikke en måling — derfor står alle kjøringene der, ikke bare et snitt. De ligger i{" "}
               <a
                 href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md"
                 style={{ textDecoration: "underline" }}
@@ -2112,11 +2112,8 @@ nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
-            Qwen 3.6 er standard, og det er ikke tilfeldig. De to Qwen 3.8-modellene ligger der fordi folk spør etter
-            dem, ikke fordi de er bedre her. På våre egne oppgaver er 3.8 tregere og mye mer ujevn: to kjøringer av de
-            samme åtte oppgavene, samme profil og samme maskin, ga median 88 og 906 sekunder. 3.6 ligger på 12–21
-            sekunder uten timeouts over åtte kjøringer. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8
-            4-bit, 30 GB for 8-bit.
+            Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Tallene står i tabellen
+            over. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for 8-bit.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
