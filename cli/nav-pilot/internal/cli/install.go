@@ -255,7 +255,7 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	}
 
 	if len(matchedKinds) == 1 {
-		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, dryRun, force, jsonOutput)
+		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
 	}
 
 	// Not found — suggest closest match
@@ -400,7 +400,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 
 // cmdAddFromSource installs a single artifact from an already-resolved source.
 // It preserves the à-la-carte state semantics from cmdAdd.
-func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
+func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, explicitSource string, dryRun, force bool, jsonOutput bool) error {
 	if !scope.SupportsType(itemType) {
 		return fmt.Errorf("type %q is not supported in user scope. Only agents, skills, and instructions can be installed to ~/.copilot", itemType)
 	}
@@ -453,13 +453,13 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, d
 		return nil
 	}
 
-	foreign, err := recordAddedFiles(scope, src, result)
+	foreign, err := recordAddedFiles(scope, src, result, explicitSource)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("\n%s Installed %s %q.\n", green("✓"), itemType, name)
-	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot install %s --type %s --source %s", name, itemType, foreign))
+	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot add %s %s --source %s", itemType, name, foreign))
 	return nil
 }
 
@@ -963,7 +963,7 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 
 	foreignSources, foreignCounts := foreignFileCounts(state)
 	for _, fs := range foreignSources {
-		fmt.Printf("  %s %d file(s) from %s (synced with its own source, not this one)\n",
+		fmt.Printf("  %s %d file(s) from %s (`sync` leaves these alone — re-add to update)\n",
 			dim("↗"), foreignCounts[fs], fs)
 	}
 

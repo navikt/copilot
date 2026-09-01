@@ -95,7 +95,7 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 		return nil
 	}
 
-	foreign, err := recordAddedFiles(scope, src, result)
+	foreign, err := recordAddedFiles(scope, src, result, sourceRepo)
 	if err != nil {
 		return err
 	}
@@ -113,11 +113,17 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 // file is absent from it, sync reads that as "deleted upstream", and the next
 // `sync --apply` removes what `add --source` just installed (#571).
 //
+// Only an explicit --source can make a file foreign. Without the flag the scope
+// either resolves its own source or is refused by guardScopeSource, so an
+// auto-detected local checkout (whose label is an absolute path) must not be
+// mistaken for another agentpakke. And a foreign add leaves the scope's
+// SourceSHA alone: that SHA describes the scope's own source, not this file's.
+//
 // A scope with no state yet takes this source as its own, so its files need no
 // stamp. A scope whose state predates source tracking keeps its unset
 // SourceRepo — sync's adoption path owns that question — and its files are
 // compared against the default source, which is where they must have come from.
-func recordAddedFiles(scope *InstallScope, src *Source, result *installResult) (string, error) {
+func recordAddedFiles(scope *InstallScope, src *Source, result *installResult, explicitSource string) (string, error) {
 	state, err := readScopedState(scope)
 	if err != nil {
 		return "", fmt.Errorf("reading existing state: %w", err)
@@ -132,10 +138,12 @@ func recordAddedFiles(scope *InstallScope, src *Source, result *installResult) (
 			SourceSHA:   src.SHA,
 			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		}
-	} else if !sameSourceRepo(scopeSourceRepo(state), sourceLabelFor(src)) {
+	} else if explicitSource != "" && !sameSourceRepo(scopeSourceRepo(state), sourceLabelFor(src)) {
 		foreign = sourceLabelFor(src)
 	}
-	state.SourceSHA = src.SHA
+	if foreign == "" {
+		state.SourceSHA = src.SHA
+	}
 	if state.Version == "" {
 		state.Version = src.Version
 	}

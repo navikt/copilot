@@ -960,7 +960,7 @@ func TestSync_DirectoryPromptAndLocalSource(t *testing.T) {
 
 	// 2. Install directory prompt to target
 	targetScope := ScopeRepo(dir)
-	err = cmdAddFromSource("prompt", "my-prompt", src, targetScope, false, false, false)
+	err = cmdAddFromSource("prompt", "my-prompt", src, targetScope, src.Repo, false, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1108,5 +1108,73 @@ func TestSync_StatePredatingPerFileSource(t *testing.T) {
 	state, _ := readScopedState(scope)
 	if state == nil || len(state.Files) != 1 {
 		t.Fatalf("state after sync = %+v, want the one file kept", state)
+	}
+}
+
+// TestAdd_LocalCheckoutIsNotForeign guards the other half of #571: without an
+// explicit --source, an add resolves the scope's own source, and a dev running
+// from a local checkout gets an absolute path as the source label. Stamping
+// that as foreign would make sync skip the file forever, in a scope whose own
+// source it actually is.
+func TestAdd_LocalCheckoutIsNotForeign(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	checkout := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(checkout, "agents"), 0o755)
+	os.WriteFile(filepath.Join(checkout, "agents", "teamting.agent.md"), []byte("# Teamting"), 0o644)
+
+	scope := ScopeRepo(dir)
+	writeState(dir, &StateFile{Collection: "kotlin-backend", SourceRepo: "navikt/copilot"})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: checkout, SHA: "local-sha", Repo: checkout}, nil
+	}
+	if err := cmdAdd("agent", "teamting", scope, "", "", false, false, false); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	state, _ := readScopedState(scope)
+	for _, f := range state.Files {
+		if f.Path == ".github/agents/teamting.agent.md" && f.Source != "" {
+			t.Fatalf("local checkout stamped as foreign source %q", f.Source)
+		}
+	}
+	if state.SourceSHA != "local-sha" {
+		t.Errorf("SourceSHA = %q, want the scope's own %q", state.SourceSHA, "local-sha")
+	}
+}
+
+// TestAdd_ForeignSourceKeepsScopeSHA is the Copilot review comment on #586: a
+// foreign add must not overwrite the scope's SourceSHA with another repo's,
+// which would leave status and the Tier 2 launch pin pointing at a revision
+// this scope's source has never had.
+func TestAdd_ForeignSourceKeepsScopeSHA(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	otherSource := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(otherSource, "agents"), 0o755)
+	os.WriteFile(filepath.Join(otherSource, "agents", "teamting.agent.md"), []byte("# Teamting"), 0o644)
+
+	scope := ScopeRepo(dir)
+	writeState(dir, &StateFile{Collection: "kotlin-backend", SourceRepo: "navikt/copilot", SourceSHA: "own-sha"})
+
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		return &source.Source{Dir: otherSource, SHA: "other-sha", Repo: "team/agentpakke"}, nil
+	}
+	if err := cmdAdd("agent", "teamting", scope, "", "team/agentpakke", false, false, false); err != nil {
+		t.Fatalf("add --source: %v", err)
+	}
+
+	state, _ := readScopedState(scope)
+	if state.SourceSHA != "own-sha" {
+		t.Errorf("foreign add rewrote SourceSHA to %q, want %q", state.SourceSHA, "own-sha")
 	}
 }
