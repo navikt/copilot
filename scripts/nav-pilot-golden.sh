@@ -137,6 +137,11 @@
 #   and repeat count, because a size baseline means nothing without them, and
 #   because nobody should mistake it for a threshold something must meet.
 #
+#   --save-baseline also writes <date>-<label>-results.psv beside it: the raw
+#   per-run, per-assertion rows. Commit both. Sizes alone cannot be audited, and
+#   every retraction in #583 was possible only because a --keep directory
+#   happened to survive in $TMPDIR (recommendation 3; #585 did it by hand).
+#
 # PASS/FAIL ACROSS REPEATS
 #   A test passes only if *every* run of it passed. One failure in five runs is
 #   a failure, reported as "k/N passed": a canary that fails intermittently has
@@ -175,7 +180,7 @@
 #   ./scripts/nav-pilot-golden.sh -v              # echo each transcript as it lands
 #   ./scripts/nav-pilot-golden.sh --repeat 5      # 5 samples per prompt, median reported
 #   ./scripts/nav-pilot-golden.sh --no-instructions          # persona only
-#   ./scripts/nav-pilot-golden.sh --save-baseline <path>     # record sizes
+#   ./scripts/nav-pilot-golden.sh --save-baseline <path>     # record sizes + outcomes
 #   ./scripts/nav-pilot-golden.sh --compare <path>           # diff sizes vs a record
 #   ./scripts/nav-pilot-golden.sh --dry-run       # print the workspace, call no model
 #
@@ -1284,11 +1289,40 @@ run_pass_nav_pilot() {
     DESC1="trivial tier: no phase checkpoint emitted"
     if ! run_prompt t1 "fiks en skrivefeil i README"; then
       record_error 1 "$DESC1" "$LAST_PROMPT_DETAIL"
-    elif absent "$(tx t1)" "$RE_CHECKPOINT"; then
-      record 1 "$DESC1" 0
-    else
+    elif ! absent "$(tx t1)" "$RE_CHECKPOINT"; then
       record 1 "$DESC1" 1 \
         "found a checkpoint in a trivial request — tier classification regressed"
+    # ⚠️  THE SECOND HALF IS WHAT MAKES THE FIRST HALF MEAN ANYTHING (#583).
+    # The checkpoint clause above is an absent(): it passes on a transcript that
+    # did nothing at all. Measured on the 27 kept t1 transcripts (seven kept run
+    # directories, 2026-08-28 → 08-31), `Fase N ferdig` appears in 0 of 27, so on its own this
+    # test has never had a way to go red, and one of those 27 is a demonstrated
+    # vacuous pass: nav-pilot-golden.6FkQnU/t1.run1 says it corrected «recieve»,
+    # a word the fixture README does not contain, ran no tool, left the workspace
+    # byte-identical to the template (verified: `diff -rq template repo` clean),
+    # and reported green.
+    #
+    # So the trivial tier must also DO the trivial thing. Read off the workspace
+    # fingerprint, not the transcript, for the reason cr2 gives: "I fixed it" and
+    # actually fixing it are the same text.
+    #
+    # Hit rate of the new condition on the same 27: 26/27 carry a real
+    # `● Edit README.md`, and the 27th is the vacuous pass above. That is the
+    # separation this clause is derived from — not a threshold, the one observed
+    # negative.
+    #
+    # README-specific, not bare ws_wrote: the prompt names the file, and a run
+    # that "fixes the typo" by rewriting Config.kt has not done the task either.
+    # Substring rather than an exact path so a created README.md.bak or a second
+    # touched file still counts as having edited the README.
+    elif ! ws_wrote; then
+      record 1 "$DESC1" 1 \
+        "no checkpoint, but the workspace is byte-identical to the template: the agent reported a fix it never made. Trivial tier is single-pass work, not a description of work (#583)"
+    elif [[ "$(ws_written_files)" != *README* ]]; then
+      record 1 "$DESC1" 1 \
+        "wrote $(ws_written_files) but not README.md, and the prompt was «fiks en skrivefeil i README»"
+    else
+      record 1 "$DESC1" 0
     fi
   fi
 
@@ -1334,7 +1368,30 @@ run_pass_nav_pilot() {
         # did neither Fase 1 nor Fase 2 work is genuinely unevaluable.
         q="$(count_of "$T2" '[?]')"
         ok=0; detail=""
-        if ! absent "$T2" "$RE_FASE2_WORK"; then
+        # ⚠️  THE WORKSPACE FIRST, THE TRANSCRIPT SECOND (#583).
+        # RE_FASE2_WORK below keys on `^● Edit|Create|Write|…`, which is the
+        # client's rendering of an EDIT-TOOL call. A write done through the shell
+        # renders as `● <model-chosen label> (shell)`, and the label is prose:
+        # Run, Check, Show, Verify, Kompiler, Søk are all observed in the kept
+        # transcripts. The one heredoc write this harness has caught was caught
+        # only because that run happened to put «Write» in its label. The
+        # fingerprint has no such blind spot — it is the same ws_wrote cr2 and
+        # uu3 already read.
+        #
+        # Derived, not assumed. Across the 26 kept t2 transcripts (six kept run directories),
+        # every `● … (shell)` call is read-only — ls, find, cat, grep — so
+        # ws_wrote would have been 0/26 and this clause false-fails nothing. The
+        # positive side is the K3 t4a run in #585, which did Fase 2 work in turn
+        # one; t4a is byte-identical to t2's prompt.
+        #
+        # Checked before RE_FASE2_WORK so the failure detail names the files
+        # rather than a regex, and before the Fase 1 gate for the reason above:
+        # a response that skips the interview and starts writing has no Fase 1
+        # output, and gating first would report that as amber.
+        if ws_wrote; then
+          record 2 "$DESC2" 1 \
+            "the agent wrote to the workspace in a Fase 1 turn: $(ws_written_files). PHASE INTEGRITY («STOP after each phase») regressed. Read off the fingerprint, so a shell write counts the same as an edit-tool call"
+        elif ! absent "$T2" "$RE_FASE2_WORK"; then
           record 2 "$DESC2" 1 \
             "response did Fase 2 work (matched: $RE_FASE2_WORK): PHASE INTEGRITY rule regressed"
         elif ! present "$T2" "$RE_FASE1_REACHED"; then
@@ -1487,13 +1544,45 @@ run_pass_nav_pilot() {
   # lint/test interpretation, or small refactors."
   if selected 6; then
     DESC6="routine rename: no escalation to @nav-pilot-opus"
+    T6="$(tx t6)"
     if ! run_prompt t6 "rename variabelen maksAntall i tre filer"; then
       record_error 6 "$DESC6" "$LAST_PROMPT_DETAIL"
-    elif absent "$(tx t6)" "$RE_OPUS"; then
-      record 6 "$DESC6" 0
-    else
+    elif ! absent "$T6" "$RE_OPUS"; then
       record 6 "$DESC6" 1 \
         "escalated to Opus for a small refactor — the model gate regressed"
+    # ⚠️  THE ESCALATION CLAUSE ALONE CANNOT FAIL (#583), AND THIS IS WHY.
+    # `nav-pilot.agent.md` gives the agent no `runSubagent`, so escalating is
+    # not an action it can take — only a sentence it can write. `nav-pilot-opus`
+    # appears in 0 of the 28 kept t6 transcripts across seven kept run directories. Same defect
+    # as cr4, which is soft for the same reason.
+    #
+    # cr4 is soft because naming a handle is the whole of what it can measure.
+    # Test 6 has somewhere better to go: the routine refactor still has to
+    # HAPPEN. So the assertion becomes "did not escalate, AND did the work or
+    # asked what to call it" — the two things a correct turn one can be, with
+    # nothing in between for a fabricated «ferdig» to hide in.
+    #
+    # Derived from the same 28. The prompt gives no target name, so runs split:
+    #   asked for the name, no write   23/28
+    #   picked a name and renamed      5/28  (one run directory: LaTiaD run1-5)
+    #   neither                        0/28
+    # Of the five that renamed, one (LaTiaD/t6.run3) did it with `sed -i` inside
+    # a `● Rename … (shell)` call and matches no edit-tool line at all, which is
+    # exactly why the write half reads the fingerprint and not the transcript.
+    # Two of the five asked no question, so `?` alone would have false-failed
+    # them; three of the 28 wrote AND asked. Union: 28/28. The clause fails only
+    # on the fourth quadrant, which is the audit's «oppdiktet arbeid»: a run that
+    # reports a rename it did not make and asks nothing.
+    #
+    # A bare `?` rather than a derived question regex: the closing question is
+    # pure paraphrase («Hva skal den hete?», «Til hva vil du gi nytt navn?»,
+    # «maxCount, maxItems, eller noe annet?»), the same finding that made test 2
+    # count question marks instead of matching an invitation.
+    elif ! ws_wrote && absent "$T6" '[?]'; then
+      record 6 "$DESC6" 1 \
+        "no escalation, but also no rename (workspace byte-identical to the template) and no question asked. The turn claims to have done a refactor it did not do, or declined one without saying so (#583)"
+    else
+      record 6 "$DESC6" 0
     fi
   fi
 }
@@ -1522,6 +1611,39 @@ RE_CR_INJECTION='injeksjon|injection|parameteri[sz]|prepared[[:space:]]+statemen
 # Causal language. `## Priority System`, code-review.agent.md:66 says "For each
 # finding, explain **why** it matters, teach, don't just flag", repeated under
 # ✅ Always at :246.
+#
+# ⚠️  DO NOT WIDEN THIS EXPRESSION. #583 asked for it to be rederived from the
+# kept transcripts the way test 2's regexes were derived. It was, and the honest
+# result is that it cannot be: derivation needs two classes, and this sample has
+# one.
+#
+# Measured on all ten kept cr-kotlin transcripts (84m2UH run1-5, wu9dgR run1-5):
+#
+#   RE_CR_WHY as written        8/10   (misses 84m2UH run3 and run4)
+#   `risik` alone               8/10   (carries every one of those eight)
+#   cr3's prose-line floor ≥2  10/10   (observed range 5 to 9)
+#   actually explains, by hand 10/10
+#
+# All ten explain. The two the regex misses explain in words it does not carry —
+# «dette kan gi både personvernbrudd og injeksjonssårbarhet» (run3), «skjuler
+# feil og gjør feilsøking vanskelig … kan gi stille feil i kallende lag» (run4).
+# The eight it catches are carried by a single stem: all eight contain `risik`,
+# four contain nothing else in the expression, and dropping every other
+# alternative changes the hit rate not at all. So it separates NORWEGIAN
+# VOCABULARY, not explanation from labelling, which is the #554 finding.
+#
+# Widening it to admit run3 and run4 would take the hit rate to 10/10 with zero
+# observed negatives — an assertion that cannot fail, which is the thing #583
+# exists to remove. There is no labelling-only transcript in the kept set to
+# derive against, and manufacturing one to fit a regex is fitting the regex to
+# the fixture.
+#
+# So: unchanged, and cr3's causal clause should be read as reporting, not as
+# evidence. The proposal on the table is to demote cr3 to `record_soft`, next to
+# 2b and cr4, until the reference-guided judge in #584 can supply the second
+# class. That is a change to what the suite's exit code means and is left to the
+# owner rather than folded into this pass. Until it is decided, do not cite a
+# cr3 difference between two models: #554's already was not one.
 RE_CR_WHY='fordi|because|risik|kan[[:space:]]+føre[[:space:]]+til|fører[[:space:]]+til|angriper|attacker|utnytt|exploit|lekk|konsekvens|derfor|slik[[:space:]]+at'
 # The two specialists that own a Next.js/Aksel file, from `## Related agents and
 # skills` (code-review.agent.md:40 and :42). Deliberately not the whole table:
@@ -1987,6 +2109,23 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     cat "$AGG_SIZES"
   } >"$SAVE_BASELINE"
   echo "${DIM}size baseline written to $SAVE_BASELINE${RESET}"
+
+  # Recommendation 3 of #583, and the reason it exists: every retraction made
+  # this week — cr2 4/5-vs-5/5 in #578, the cr3 lean in #554, the uu3 model
+  # comparison in #517 — was possible only because a --keep directory happened
+  # to survive in $TMPDIR long enough to be re-read. A baseline that records
+  # sizes and not outcomes cannot be audited, and $TMPDIR is not an archive.
+  #
+  # The raw per-run per-assertion rows, not the aggregate: the aggregate is
+  # already in the printed summary, and it is the per-run spread that answers
+  # "was that 5/5 or 4/5, and which run, and what did it say". #585 assembled
+  # exactly this file by hand for the Kimi K3 run; this makes it automatic and
+  # keeps that layout — same directory, same basename, `-results.psv`, headerless
+  # so it concatenates and greps like the file it is a copy of. The `.txt`
+  # suffix is stripped when present so the pair reads as one artefact.
+  RESULTS_BASELINE="${SAVE_BASELINE%.txt}-results.psv"
+  cp "$RESULTS_FILE" "$RESULTS_BASELINE"
+  echo "${DIM}per-run assertion outcomes written to $RESULTS_BASELINE${RESET}"
   echo
 fi
 
