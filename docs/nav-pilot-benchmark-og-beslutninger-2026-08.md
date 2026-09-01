@@ -46,14 +46,23 @@ forskjell, og det er ikke det samme som bevis for at kandidatene er gode nok. De
 spørsmålet stilles med en ikke-underlegenhetstest, og det er den [#584](https://github.com/navikt/copilot/issues/584)
 setter først i køen fordi den ikke koster et eneste kall: dataene finnes allerede.
 
+**Marginen er satt i etterkant, og det må stå her.** Overskriften sier «regnet i
+etterkant», og δ ble valgt etter at tallene forelå. Det betyr at δ, ikke dataene,
+avgjør den ene omstridte armen: Terra stryker ved δ = 0,10 og består ved
+δ ≥ 0,175. En protokoll som fastsetter δ, ensidig nivå og minste n *før* neste
+måling er oppgaven i #584, og til den finnes skal denne testen leses som en
+etterhåndsanalyse.
+
 **Spørsmålet:** er kandidatens passrate på test 3 dårligere enn den sittende
 modellens med mer enn en margin vi på forhånd sier vi kan leve med? Marginen er
 satt til **δ = 0,10**, altså ti prosentpoeng. Kandidaten er ikke-underlegen hvis
 den **nedre** grensen for differansen `kandidat − referanse` ligger over **−δ**.
 
 **Metode:** Newcombe hybrid score-intervall for differansen mellom to andeler,
-bygget på Wilson-intervallene for hver arm, altså samme metode som tabellen over.
-Ensidig 95 prosent, `z = 1,6449`. Ensidig, fordi hypotesen bare handler om én
+bygget på Wilson-intervallene for hver arm, altså samme metode som tabellen over,
+men ikke samme konstant: tabellen i seksjon 1 er tosidig 95 prosent
+(`z = 1,96`), denne er ensidig 95 prosent (`z = 1,6449`). Snur du seksjon 1
+bokstavelig, får du 86,5 til 98,9 prosent for referansen, ikke 88,6 til 98,7. Ensidig, fordi hypotesen bare handler om én
 retning: vi bryr oss om at kandidaten er *dårligere*, ikke om at den er bedre.
 Regnestykket ligger i [`scripts/ikke-underlegenhet.py`](../scripts/ikke-underlegenhet.py)
 og kjøres uten nettverk.
@@ -90,7 +99,9 @@ Fortegnet er hele testen.
 
 At Terra ikke består, er **ikke** det samme som at Terra er underlegen. Testen
 har ett utfall til, og det er Terras: *ubesluttet*. Intervallet dekker både −10 og
-0. Dataene utelukker verken at Terra er like god eller at den er ti prosentpoeng
+0. (Å bruke den øvre grensen slik er strengt tatt en tosidig 90 prosent-uttalelse,
+siden bare den nedre grensen bærer den ensidige garantien. Konklusjonen står
+uansett: ved tosidig 95 prosent er intervallet −19,8 til +4,2, som dekker begge.) Dataene utelukker verken at Terra er like god eller at den er ti prosentpoeng
 dårligere. Det svarer til Fisher p = 0,25 i tabellen over og motsier ikke
 seksjon 4.2: Terra er fortsatt ikke bevist dårligere, den er nå også ikke bevist
 god nok. Det er 45 kjøringer som er for få, ikke Terra som er avslørt.
@@ -124,8 +135,15 @@ og begge hører hjemme i et beslutningsdokument.
 Det er ikke et svakt eksperiment, det er ikke noe eksperiment. Nitti-ni av hundre
 ganger ville en reell forskjell av den størrelsen gå upåaktet hen. Vi har likevel
 argumentert pinningsbeslutninger fra 4 av 5 mot 5 av 5. For 80 prosent styrke på
-den samme forskjellen trengs rundt 50 kjøringer per arm, som for nav-pilot er 140
-til 350 kall per modell.
+den samme forskjellen trengs rundt 50 kjøringer per arm. For nav-pilot er det 350
+kall per modell: `scripts/nav-pilot-golden.sh` bruker sju levende kall per
+gjennomkjøring. (#583 oppgir spennet «140 til 350». Den nedre enden er ikke
+utledet noe sted og svarer ikke til noen agent i harnesset — accessibility bruker
+fire kall, code-review to — så den bør ikke siteres videre uten et regnestykke.)
+
+Tallet er dessuten en nedre grense på Fishers eksakte test: normaltilnærmingen
+gir 48,8 per arm, mens Fisher krysser 80 prosent styrke først et sted mellom
+n = 50 (0,748) og n = 60 (0,845).
 
 **Suiten har aldri skilt to modeller på noen påstand, unntatt gjennom
 artefakter.** Hver gang den så ut til å gjøre det, ble forskjellen sporet tilbake
@@ -133,8 +151,9 @@ til noe annet enn modellen: cr2 4/5 mot 5/5 var byggeartefakter i
 fingeravtrykket ([#578](https://github.com/navikt/copilot/pull/578)), cr3-hellingen
 i [#554](https://github.com/navikt/copilot/pull/554) var regnet på et regex som
 måler norsk ordforråd og ikke forklaring, og uu3-forskjellen etter hooken måler
-hooken. Tre av seks nav-pilot-påstander kan ikke feile mot noen modell vi har
-observert.
+hooken. Tre av seks nav-pilot-påstander kunne ikke feile mot noen modell vi hadde
+observert; [#590](https://github.com/navikt/copilot/pull/590) rettet test 1, 2 og
+6, som var de tre.
 
 Test 3 er unntaket, og det er derfor ikke-underlegenhetstesten over kunne regnes i
 det hele tatt: n = 50 per arm er den eneste tilstrekkelig kraftige sammenligningen

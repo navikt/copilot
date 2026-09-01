@@ -51,4 +51,9 @@ def main():
 if __name__ == "__main__":
     main()
     # Selvsjekk: tallene som staar i benchmark-dokumentet.
-    assert [round(newcombe(x, n, 48, 50)[1] * 100, 1) for _, x, n in KANDIDATER] == [-5.0, -5.0, -17.5]
+    # Referansearmen leses fra REFERANSE, ikke skrevet inn paa nytt: ellers er
+    # den ene armen hvis tall ogsaa staar i dokumentets inndatatabell den ene
+    # armen selvsjekken ikke dekker.
+    _, x_ref, n_ref = REFERANSE
+    assert (x_ref, n_ref) == (48, 50)
+    assert [round(newcombe(x, n, x_ref, n_ref)[1] * 100, 1) for _, x, n in KANDIDATER] == [-5.0, -5.0, -17.5]
