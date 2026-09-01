@@ -950,9 +950,12 @@ func (s *Server) URL() string {
 // gets a nil error has a server that has loaded the model, and one this process
 // started.
 //
-// The manifest entry's MLX_* params go in as environment, unchanged and
-// untyped, so a knob the generator adds reaches the server without a nav-pilot
-// release.
+// The manifest entry's MLX_* params reach the server as command-line flags, and
+// only the ones [serverFlags] names. A key outside that list is still exported
+// into the environment, where mlx-lm will not read it — so a genuinely new knob
+// does need a nav-pilot release, which is the opposite of what this comment
+// claimed until the flags existed.
+
 // serverFlags turns manifest params into mlx_lm.server command-line flags.
 //
 // This exists because passing them as environment variables did nothing. mlx-lm
@@ -975,8 +978,11 @@ func (s *Server) URL() string {
 // machine. A key that is not on this list reaches the server only as an
 // environment variable, which is inert, which is the safe direction to fail.
 func serverFlags(params map[string]string) []string {
-	// param name, flag, and whether a value equal to the mlx-lm default is
-	// worth passing anyway. Order is fixed so a launch is reproducible.
+	// Fixed order, so two launches of the same profile produce the same command
+	// line and a difference in behaviour is never a difference in argument
+	// order. Values are passed as the manifest states them, including ones that
+	// match an mlx-lm default: restating a default costs nothing and keeps the
+	// launch readable in `ps` without cross-referencing mlx-lm's own defaults.
 	spec := []struct{ key, flag string }{
 		{"MLX_TEMP", "--temp"},
 		{"MLX_TOP_P", "--top-p"},

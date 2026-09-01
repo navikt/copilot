@@ -1297,16 +1297,23 @@ func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
 		"MLX_CHAT_TEMPLATE_ARGS": `{"enable_thinking": false}`,
 		"MLX_OPENCODE_CONTEXT":   "65536",
 	})
-	joined := strings.Join(got, " ")
-
-	for _, want := range []string{
-		"--temp 0.6", "--top-k 20", "--top-p 0.95", "--max-tokens 32768",
-		"--prompt-cache-size 3", `--chat-template-args {"enable_thinking": false}`,
-	} {
-		if !strings.Contains(joined, want) {
-			t.Errorf("serverFlags omitted %q; got %v", want, got)
-		}
+	// Exact equality rather than substring matching. serverFlags is
+	// deterministic, so the order is part of the contract, and a substring
+	// check would pass on a duplicated flag — which is how a doubled
+	// device_id attribute reached a commit earlier the same week.
+	want := []string{
+		"--temp", "0.6",
+		"--top-p", "0.95",
+		"--top-k", "20",
+		"--max-tokens", "32768",
+		"--prompt-cache-size", "3",
+		"--chat-template-args", `{"enable_thinking": false}`,
 	}
+	if !slices.Equal(got, want) {
+		t.Errorf("serverFlags =\n  %v\nwant\n  %v", got, want)
+	}
+
+	joined := strings.Join(got, " ")
 
 	// Keys the server does not take must not become flags. Params come from a
 	// file fetched over the network, so a generic key-to-flag loop would let
