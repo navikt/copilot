@@ -484,3 +484,40 @@ func TestChosenHonoursTheConfiguredModel(t *testing.T) {
 		t.Errorf("with the default second, Chosen = %q, want org/Default", got.Model)
 	}
 }
+
+// TestManifestRefusesAnUnknownBackend closes the widest hole in the manifest
+// contract.
+//
+// The backend field shipped on every entry from the start, always "mlx-lm", and
+// nothing read it or checked it. It is a bigger boundary than the publisher
+// list beside it: a publisher decides which weights are downloaded, a backend
+// decides which binary nav-pilot starts — and the manifest comes over the
+// network from a repository outside this one.
+func TestManifestRefusesAnUnknownBackend(t *testing.T) {
+	entry := func(backend string) []byte {
+		return []byte(`{"schema_version":1,"channel":"alpha","models":[{
+			"key":"m","name":"M","model":"mlx-community/Thing-4bit","backend":"` + backend + `",
+			"default":true,"role":"r","expect":"e","weights_gb":1,"min_ram_gb":48,"wired_limit_gb":36,
+			"params":{"MLX_MODEL":"mlx-community/Thing-4bit"}}]}`)
+	}
+
+	for _, backend := range []string{"mlx-lm", ""} {
+		if _, err := Parse(entry(backend)); err != nil {
+			t.Errorf("Parse with backend %q = %v, want accepted", backend, err)
+		}
+	}
+
+	// An empty backend stays valid on purpose: entries predate the field being
+	// meaningful, and refusing them would make a forward-compatible schema
+	// breaking. Anything else is refused rather than defaulted.
+	for _, backend := range []string{"omlx", "vllm", "/bin/sh", "mlx-lm; rm -rf /"} {
+		_, err := Parse(entry(backend))
+		if err == nil {
+			t.Errorf("Parse accepted backend %q; a manifest must not choose which binary starts", backend)
+			continue
+		}
+		if !strings.Contains(err.Error(), "not a manifest change") {
+			t.Errorf("backend %q rejected with %q, want the message to say why widening it is a code change", backend, err)
+		}
+	}
+}
