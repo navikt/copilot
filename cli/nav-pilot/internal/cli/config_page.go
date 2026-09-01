@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
 
 // ─── Key listing (shared with config show) ───────────────────────────────────
@@ -206,6 +208,10 @@ func editConfigKey(key string, r ResolvedConfig) error {
 		return editModelKey(r, resolvedFieldStr(r, "model"))
 	}
 
+	if key == "local_model" {
+		return editLocalModelKey(r.LocalModel)
+	}
+
 	value := current
 
 	var opts []huh.Option[string]
@@ -257,6 +263,31 @@ func editModelKey(r ResolvedConfig, current string) error {
 		return err
 	}
 	return persistConfigValue("model", value)
+}
+
+// editLocalModelKey prompts for the served local model from the manifest's own
+// entries rather than free text: the ids are long enough that typing one from
+// memory is how you end up on the default without noticing. "(default)" clears
+// the key.
+func editLocalModelKey(current string) error {
+	kd := findKeyDef("local_model")
+	opts := []huh.Option[string]{huh.NewOption("(manifest default)", "")}
+	for _, m := range local.Active().Models {
+		label := m.Model
+		if m.Name != "" {
+			label = m.Name + " (" + m.Model + ")"
+		}
+		opts = append(opts, huh.NewOption(label, m.Model))
+	}
+	value := current
+	field := huh.NewSelect[string]().Title("local_model").Description(kd.description).Options(opts...).Value(&value)
+	if err := field.WithTheme(navTheme()).Run(); err != nil {
+		if errors.Is(err, huh.ErrUserAborted) {
+			return nil
+		}
+		return err
+	}
+	return persistConfigValue("local_model", strings.TrimSpace(value))
 }
 
 // persistConfigValue writes value for key, clearing the key when value is

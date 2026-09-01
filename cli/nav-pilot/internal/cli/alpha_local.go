@@ -59,7 +59,7 @@ hosted one. Off until you run init, and invisible everywhere until then.
 
 Switching model:
   nav-pilot models                                  what is offered; local ones say (local)
-  nav-pilot config set model <id>                   pick one
+  nav-pilot config set local_model <id>             pick one
   nav-pilot alpha local init                        download its weights, then start
 
 The list refreshes on init and start, not on every command.
@@ -134,10 +134,16 @@ func activeManifest() (*local.Manifest, error) {
 // IsLocal — this runs before anything is enabled, which is exactly when init
 // needs to read the manifest.
 func localModel(m *local.Manifest) (local.Model, error) {
-	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.Model != nil {
-		local.SetSelectedModel(*cfg.Model)
+	configured := ""
+	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.LocalModel != nil {
+		configured = strings.TrimSpace(*cfg.LocalModel)
+		local.SetSelectedModel(configured)
 	}
 	if entry, ok := local.Chosen(m); ok {
+		if configured != "" && entry.Model != configured {
+			fmt.Fprintf(os.Stderr, "%s local_model is %s, which this manifest does not offer — using the default %s instead.\n",
+				yellow("⚠"), bold(configured), bold(entry.Model))
+		}
 		return entry, nil
 	}
 	// Unreachable: Parse refuses a manifest without exactly one default.
@@ -752,8 +758,8 @@ func applyLocalConfig() {
 	}
 	local.SetEnabled(true)
 	local.SetAutostart(r.LocalAutostart)
-	if cfg.Model != nil {
-		local.SetSelectedModel(*cfg.Model)
+	if cfg.LocalModel != nil {
+		local.SetSelectedModel(strings.TrimSpace(*cfg.LocalModel))
 	}
 }
 
