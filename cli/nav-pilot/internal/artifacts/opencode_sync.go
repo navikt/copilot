@@ -67,9 +67,42 @@ func ValidateOpenCodeStatePath(p string) error {
 	return fmt.Errorf("path outside allowed opencode directories: %s", p)
 }
 
+// withScopeExtras appends the artifacts of a kind that the installed scope has
+// and the source checkout does not. Names already present in entries are left
+// alone, so the source stays authoritative and the order of the source entries
+// is unchanged.
+func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.ArtifactKind) []source.Resolved {
+	if scopeDir == "" {
+		return entries
+	}
+	seen := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		seen[e.Name] = true
+	}
+	for _, e := range source.NewSourceResolver(scopeDir).List(kind) {
+		if !seen[e.Name] {
+			entries = append(entries, e)
+		}
+	}
+	return entries
+}
+
 // SyncOpenCodeArtifacts materializes Nav context into outputDir with conflict detection
 // and state tracking. It is the state-aware counterpart to MaterializeOpenCode.
-func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
+//
+// scopeDir is the installed scope the session runs against (a repo's .github/),
+// or "" when there is none. Skills, prompts and agents that live in the scope
+// but not in the source checkout are materialized too: a team that adds a skill
+// by hand under .github/skills/ gets it in Copilot because Copilot reads the
+// scope directly, and used to lose it in opencode because only the source was
+// read here. The source still wins on a name collision, so a scope with nothing
+// hand-added produces exactly what it did before.
+//
+// Instructions are deliberately not merged from the scope. outputDir is the
+// user's global opencode config, and AGENTS.md is always-on context: a repo's
+// instructions would follow the user into every other repo. Skills, commands
+// and agents are only loaded when invoked, so the same objection does not hold.
+func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
 	existingState, _ := ReadOpenCodeState(outputDir)
 	stateHashes := map[string]string{}
 	if existingState != nil {
@@ -98,7 +131,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 	var files []domain.InstalledFile
 	resolver := source.NewSourceResolver(sourceDir)
 
-	for _, skill := range resolver.List(source.KindSkill) {
+	for _, skill := range withScopeExtras(resolver.List(source.KindSkill), scopeDir, source.KindSkill) {
 		relPath := "skills/" + skill.Name + "/"
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
 		if isConflict(relPath, dstDir, true) {
@@ -121,7 +154,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 		skills++
 	}
 
-	for _, entry := range resolver.List(source.KindPrompt) {
+	for _, entry := range withScopeExtras(resolver.List(source.KindPrompt), scopeDir, source.KindPrompt) {
 		if entry.IsDir {
 			continue
 		}
@@ -148,7 +181,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 		commands++
 	}
 
-	for _, entry := range agentEntries(sourceDir) {
+	for _, entry := range withScopeExtras(agentEntries(sourceDir), scopeDir, source.KindAgent) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 		if isConflict(relPath, dstPath, false) {
