@@ -787,7 +787,7 @@ ws_written_files() {
 # ─── Test runner ─────────────────────────────────────────────────────────────
 
 # Per-run rows, one file each, aggregated after the last run:
-#   RESULTS_FILE  id|status|assertion|detail          (one row per test per run)
+#   RESULTS_FILE  id|run|status|assertion|detail      (one row per test per run)
 #   MEASURES      slug|bytes|lines|words              (one row per transcript)
 # Files rather than arrays because the aggregation reads them repeatedly, and
 # because bash 3.2 (stock macOS) makes an empty array an unbound-variable error
@@ -914,11 +914,11 @@ record() {
   local id="$1" desc="$2" ok="$3" detail="${4:-}"
   if [[ "$ok" == "0" ]]; then
     echo "  ${GREEN}✓${RESET} ${BOLD}$id${RESET} $(run_tag)$desc"
-    printf '%s|pass|%s|\n' "$id" "$desc" >>"$RESULTS_FILE"
+    printf '%s|%s|pass|%s|\n' "$id" "$RUN" "$desc" >>"$RESULTS_FILE"
   else
     echo "  ${RED}✗${RESET} ${BOLD}$id${RESET} $(run_tag)$desc"
     [[ -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
-    printf '%s|fail|%s|%s\n' "$id" "$desc" "$detail" >>"$RESULTS_FILE"
+    printf '%s|%s|fail|%s|%s\n' "$id" "$RUN" "$desc" "$detail" >>"$RESULTS_FILE"
   fi
 }
 
@@ -931,7 +931,7 @@ record_error() {
   local id="$1" desc="$2" detail="${3:-}"
   echo "  ${YELLOW}⚠${RESET} ${BOLD}$id${RESET} $(run_tag)$desc ${YELLOW}(not evaluated)${RESET}"
   [[ -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
-  printf '%s|error|%s|%s\n' "$id" "$desc" "$detail" >>"$RESULTS_FILE"
+  printf '%s|%s|error|%s|%s\n' "$id" "$RUN" "$desc" "$detail" >>"$RESULTS_FILE"
 }
 
 record_soft() {
@@ -947,11 +947,11 @@ record_soft() {
   local id="$1" desc="$2" ok="$3" detail="${4:-}"
   if [[ "$ok" == "0" ]]; then
     echo "  ${GREEN}✓${RESET} ${BOLD}$id${RESET} $(run_tag)$desc ${DIM}(soft)${RESET}"
-    printf '%s|soft-pass|%s|\n' "$id" "$desc" >>"$RESULTS_FILE"
+    printf '%s|%s|soft-pass|%s|\n' "$id" "$RUN" "$desc" >>"$RESULTS_FILE"
   else
     echo "  ${YELLOW}○${RESET} ${BOLD}$id${RESET} $(run_tag)$desc ${YELLOW}(soft, not met)${RESET}"
     [[ -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
-    printf '%s|soft-fail|%s|%s\n' "$id" "$desc" "$detail" >>"$RESULTS_FILE"
+    printf '%s|%s|soft-fail|%s|%s\n' "$id" "$RUN" "$desc" "$detail" >>"$RESULTS_FILE"
   fi
 }
 
@@ -1295,7 +1295,7 @@ run_pass_nav_pilot() {
     # ⚠️  THE SECOND HALF IS WHAT MAKES THE FIRST HALF MEAN ANYTHING (#583).
     # The checkpoint clause above is an absent(): it passes on a transcript that
     # did nothing at all. Measured on the 27 kept t1 transcripts (seven kept run
-    # directories, 2026-08-28 → 08-31), `Fase N ferdig` appears in 0 of 27, so on its own this
+    # directories, 2026-08-30 → 09-01), `Fase N ferdig` appears in 0 of 27, so on its own this
     # test has never had a way to go red, and one of those 27 is a demonstrated
     # vacuous pass: nav-pilot-golden.6FkQnU/t1.run1 says it corrected «recieve»,
     # a word the fixture README does not contain, ran no tool, left the workspace
@@ -1320,7 +1320,7 @@ run_pass_nav_pilot() {
         "no checkpoint, but the workspace is byte-identical to the template: the agent reported a fix it never made. Trivial tier is single-pass work, not a description of work (#583)"
     elif [[ "$(ws_written_files)" != *README* ]]; then
       record 1 "$DESC1" 1 \
-        "wrote $(ws_written_files) but not README.md, and the prompt was «fiks en skrivefeil i README»"
+        "wrote $(ws_written_files | sed "s/ $//") but not README.md, and the prompt was «fiks en skrivefeil i README»"
     else
       record 1 "$DESC1" 0
     fi
@@ -1378,9 +1378,14 @@ run_pass_nav_pilot() {
         # fingerprint has no such blind spot — it is the same ws_wrote cr2 and
         # uu3 already read.
         #
-        # Derived, not assumed. Across the 26 kept t2 transcripts (six kept run directories),
-        # every `● … (shell)` call is read-only — ls, find, cat, grep — so
-        # ws_wrote would have been 0/26 and this clause false-fails nothing. The
+        # Across the 26 kept t2 transcripts (six kept run directories), all 19
+        # distinct `● … (shell)` labels are read-only — Read, List, Explore,
+        # Inspect, Check — so ws_wrote would have been 0/26 and this clause
+        # false-fails nothing. Stated as the inference it is: a transcript
+        # renders the model's prose label and a summary line, never the command
+        # body, and the kept fingerprints describe each run's LAST prompt rather
+        # than t2. Nothing in the kept set contradicts it; nothing in the kept
+        # set can prove it either. The
         # positive side is the K3 t4a run in #585, which did Fase 2 work in turn
         # one; t4a is byte-identical to t2's prompt.
         #
@@ -1553,7 +1558,7 @@ run_pass_nav_pilot() {
     # ⚠️  THE ESCALATION CLAUSE ALONE CANNOT FAIL (#583), AND THIS IS WHY.
     # `nav-pilot.agent.md` gives the agent no `runSubagent`, so escalating is
     # not an action it can take — only a sentence it can write. `nav-pilot-opus`
-    # appears in 0 of the 28 kept t6 transcripts across seven kept run directories. Same defect
+    # appears in 0 of the 28 kept t6 transcripts across eight kept run directories. Same defect
     # as cr4, which is soft for the same reason.
     #
     # cr4 is soft because naming a handle is the whole of what it can measure.
@@ -1997,19 +2002,19 @@ stats() {
 uniq_field() { cut -d'|' -f"$2" "$1" | awk '!seen[$0]++'; }
 
 for id in $(uniq_field "$RESULTS_FILE" 1); do
-  np="$(grep -c "^$id|pass|" "$RESULTS_FILE")"
-  nf="$(grep -c "^$id|fail|" "$RESULTS_FILE")"
-  ne="$(grep -c "^$id|error|" "$RESULTS_FILE")"
-  nsp="$(grep -c "^$id|soft-pass|" "$RESULTS_FILE")"
-  nsf="$(grep -c "^$id|soft-fail|" "$RESULTS_FILE")"
-  desc="$(grep -m1 "^$id|" "$RESULTS_FILE" | cut -d'|' -f3)"
-  # -f4- , not -f4: a detail can itself contain a pipe. Test 4 quotes the
+  np="$(grep -c "^$id|[0-9]*|pass|" "$RESULTS_FILE")"
+  nf="$(grep -c "^$id|[0-9]*|fail|" "$RESULTS_FILE")"
+  ne="$(grep -c "^$id|[0-9]*|error|" "$RESULTS_FILE")"
+  nsp="$(grep -c "^$id|[0-9]*|soft-pass|" "$RESULTS_FILE")"
+  nsf="$(grep -c "^$id|[0-9]*|soft-fail|" "$RESULTS_FILE")"
+  desc="$(grep -m1 "^$id|" "$RESULTS_FILE" | cut -d'|' -f4)"
+  # -f5- , not -f5: a detail can itself contain a pipe. Test 4 quotes the
   # regex "Grønn sone|accessPolicy" in its message, and cutting that at the
   # pipe silently changes what the failure says. Detail is the last field in
   # every row below for the same reason.
-  detail="$(grep -m1 "^$id|fail|" "$RESULTS_FILE" | cut -d'|' -f4-)"
-  [[ -z "$detail" ]] && detail="$(grep -m1 "^$id|error|" "$RESULTS_FILE" | cut -d'|' -f4-)"
-  [[ -z "$detail" ]] && detail="$(grep -m1 "^$id|soft-fail|" "$RESULTS_FILE" | cut -d'|' -f4-)"
+  detail="$(grep -m1 "^$id|[0-9]*|fail|" "$RESULTS_FILE" | cut -d'|' -f5-)"
+  [[ -z "$detail" ]] && detail="$(grep -m1 "^$id|[0-9]*|error|" "$RESULTS_FILE" | cut -d'|' -f5-)"
+  [[ -z "$detail" ]] && detail="$(grep -m1 "^$id|[0-9]*|soft-fail|" "$RESULTS_FILE" | cut -d'|' -f5-)"
 
   # Any failing run fails the test. A model that emits the right answer four
   # times in five has still lost the invariant; hiding that behind a majority
@@ -2118,13 +2123,36 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   #
   # The raw per-run per-assertion rows, not the aggregate: the aggregate is
   # already in the printed summary, and it is the per-run spread that answers
-  # "was that 5/5 or 4/5, and which run, and what did it say". #585 assembled
-  # exactly this file by hand for the Kimi K3 run; this makes it automatic and
-  # keeps that layout — same directory, same basename, `-results.psv`, headerless
-  # so it concatenates and greps like the file it is a copy of. The `.txt`
-  # suffix is stripped when present so the pair reads as one artefact.
+  # "was that 5/5 or 4/5, and which run, and what did it say" — which is why the
+  # run number is a column and not left to line order. #585 assembled this by
+  # hand for the Kimi K3 run, but that file is not in the repo, so this is the
+  # layout going forward rather than a copy of one: same directory, same
+  # basename, `-results.psv`. The `.txt` suffix is stripped when present so the
+  # pair reads as one artefact.
   RESULTS_BASELINE="${SAVE_BASELINE%.txt}-results.psv"
-  cp "$RESULTS_FILE" "$RESULTS_BASELINE"
+  {
+    # Same provenance header as the size file beside it, for the same reason:
+    # separated from its .txt this file would be rows with no referent, and the
+    # first question anyone asks of a red row is which agent, model and revision
+    # produced it. The lines are `#`-prefixed, so grep and concatenation still
+    # work the way #585 used them by hand.
+    echo "# golden-prompt PER-RUN ASSERTION OUTCOMES"
+    echo "# agent:        $AGENT"
+    echo "# date:         $(date -u +%Y-%m-%d)"
+    echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    echo "# model:        ${MODEL:-default}"
+    echo "# instructions: $INSTR_DESC"
+    echo "# repeat:       $REPEAT"
+    echo "# fixture:      $FIXTURE_SUM"
+    echo "# prompts:      ${ONLY:-all}"
+    echo "#"
+    # detail last, and only last: it can itself contain a pipe (test 4 quotes
+    # the regex «Grønn sone|accessPolicy» in its message), so a reader must
+    # split on the first four delimiters and take the rest verbatim. Field
+    # counts vary by row for that reason, by design.
+    echo "# id|run|status|assertion|detail"
+    cat "$RESULTS_FILE"
+  } >"$RESULTS_BASELINE"
   echo "${DIM}per-run assertion outcomes written to $RESULTS_BASELINE${RESET}"
   echo
 fi
