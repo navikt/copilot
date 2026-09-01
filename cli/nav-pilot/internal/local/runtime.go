@@ -1408,7 +1408,11 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	}
 	m, ok := Chosen(manifest)
 	if !ok {
-		return errors.New("the local-model manifest names no model this machine can start")
+		// Not "this machine cannot run it": Chosen only fails when the manifest
+		// is empty or names no default, which is a broken manifest rather than
+		// anything about the hardware. Parse refuses such a file, so reaching
+		// here means one was hand-assembled or the embedded copy is damaged.
+		return errors.New("the local-model manifest names no default model; it is empty or malformed")
 	}
 	if announce != nil {
 		announce(m.Model)
