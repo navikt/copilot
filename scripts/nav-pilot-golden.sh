@@ -755,12 +755,15 @@ seed_ws
 # fingerprint that quietly forgives unknown files is a fingerprint that stops
 # catching auto-fixes, and the failure detail names the files, so an artefact
 # that should be on this list announces itself the first time it fires.
+# -prune, not -not -path: -prune skips the subtree, while a path filter still
+# descends into a real Gradle cache and evaluates the predicate against every
+# file in it. This walk runs twice per prompt and a run is --repeat N prompts,
+# so that is paid for repeatedly, and a slow step here surfaces as a timeout
+# that gets blamed on the client.
 ws_fingerprint() {
-  ( cd "$WS" && find . -type f \
-      -not -path './.gradle/*' \
-      -not -path './.kotlin/*' \
-      -not -path './build/*' \
-      -exec cksum {} + 2>/dev/null | sort )
+  ( cd "$WS" && find . \
+      \( -path ./.gradle -o -path ./.kotlin -o -path ./build \) -prune -o \
+      -type f -exec cksum {} + 2>/dev/null | sort )
 }
 
 # NOTE ON ORDERING: these two files describe the MOST RECENT run_prompt, and are
