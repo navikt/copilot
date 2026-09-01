@@ -157,10 +157,11 @@ om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
 **Qwen 3.6 er standard, og det er ikke tilfeldig.** De to Qwen 3.8-modellene ligger der
 fordi folk spør etter dem, ikke fordi de er bedre her. 3.8 er ikke svakere, den er mindre
 forutsigbar: to kjøringer av de samme åtte oppgavene, samme profil og samme maskin to timer
-fra hverandre, løste **1 av 8** og deretter **5 av 8**. Den andre er det beste enkeltresultatet
-vi har målt. 3.6 ligger på 3–6 av 8 over åtte kjøringer og er omtrent sju ganger raskere.
-Vi oppgir spenn og ikke median, fordi for en modell som spenner fra 1 til 5 av 8 beskriver
-medianen ingen kjøring som faktisk har skjedd. `nav-pilot config explain model` sier det samme kortere, og
+løste den **1, 5, 5, 6 og 7 av 8** over fem kjøringer — i snitt 4,8 mot standardens 3,4, altså
+rundt 41 % flere oppgaver. Standarden er ikke den sterkeste modellen; den er den mest
+forutsigbare, og ligger på 3–4 av 8. 3.8 er også omtrent sju ganger tregere og timet ut 11
+ganger der standarden timet ut 2. Vi oppgir spenn og ikke median, fordi for en modell som
+spenner fra 1 til 7 av 8 beskriver medianen ingen kjøring som faktisk har skjedd. `nav-pilot config explain model` sier det samme kortere, og
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md) har tallene.
 
 Bytter du modell, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for

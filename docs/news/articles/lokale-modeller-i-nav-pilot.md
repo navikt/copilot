@@ -57,13 +57,15 @@ Først prøvde vi åtte modeller og bygg på det samme oppgavesettet: elleve opp
 Vi skrev først at Qwen3.8 ikke ble valgt fordi den gikk i loop. Etter å ha kjørt testene på nytt
 holder ikke den beskrivelsen, og den nye er mer interessant.
 
-To kjøringer av det samme oppgavesettet, samme maskin, to timer fra hverandre: Qwen3.8-27B 4-bit
-løste **1 av 8** i den første og **5 av 8** i den andre. Den andre er det beste enkeltresultatet
-noen modell har fått på dette settet. Qwen3.6 ligger på 3–6 av 8 over åtte kjøringer, og bruker
-omtrent en sjuendedel så lang tid.
+Fem kjøringer av det samme oppgavesettet på samme maskin: Qwen3.8-27B 4-bit løste **1, 5, 5, 6 og
+7 av 8**. I snitt 4,8 mot standardmodellens 3,4 — rundt 41 % flere oppgaver. Standarden løser 3–4
+av 8 og er omtrent sju ganger raskere.
 
-Qwen3.8 er altså ikke en svakere modell. Den er en mer uforutsigbar en. Derfor kan du velge den,
-men den er ikke standard:
+**Qwen3.8 er altså ikke en svakere modell. Den er den sterkere, og den mer upålitelige.** Den
+timet ut 11 ganger over de fem kjøringene der standarden timet ut 2, og spennet fra 1 til 7 er på
+identisk oppsett. Valget står ikke mellom bedre og dårligere, men mellom sterkere og ujevn, eller
+svakere og forutsigbar. Leser du gjennom det modellen lager, er 3.8 verdt å prøve. Vil du stole på
+den uten å se etter, behold standarden. Derfor kan du velge den, men den er ikke standard:
 
 ```bash
 nav-pilot models
@@ -73,7 +75,9 @@ nav-pilot alpha local init
 
 Det vi selv lærte av dette er verdt mer enn modellvalget: **én kjøring er ikke en måling.** Alle
 konklusjonene som snudde, snudde fordi det fantes en kjøring til — ikke fordi vi tenkte oss om en
-gang til. Tabellen over var bygget på enkeltkjøringer.
+gang til. Tabellen over var bygget på enkeltkjøringer. Denne konklusjonen snudde to ganger: først
+fra «3.8 går i loop» til «3.8 er uforutsigbar», og så ved fem kjøringer til «3.8 er den sterkeste
+modellen vi har». Vi krever nå minst fem kjøringer før et tall får styre en anbefaling.
 
 Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
 

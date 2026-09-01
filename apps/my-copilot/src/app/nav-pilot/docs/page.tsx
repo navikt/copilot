@@ -2051,10 +2051,10 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                       </VStack>
                     </Table.DataCell>
                     <Table.DataCell>25 GB</Table.DataCell>
-                    <Table.DataCell>3–6 av 8</Table.DataCell>
+                    <Table.DataCell>3–4 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha
-                      med mindre du har en grunn til noe annet.
+                      Rask og forutsigbar. Rundt 10 sekunder per oppgave. Over fem kjøringer løser den 3, 3, 3, 4 og
+                      4 av 8 — den svakere modellen, men den du kan stole på uten å se etter.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
@@ -2062,10 +2062,12 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
                     </Table.DataCell>
                     <Table.DataCell>16 GB</Table.DataCell>
-                    <Table.DataCell>1–5 av 8</Table.DataCell>
+                    <Table.DataCell>1–7 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom
-                      seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.
+                      Sterkere enn standard, og mye mindre pålitelig. Over fem kjøringer løser den 1, 5, 5, 6 og 7 av
+                      8 — i snitt 4,8 mot standardens 3,4, altså rundt 41 % flere oppgaver. Den er også omtrent sju
+                      ganger tregere, og timet ut 11 ganger der standarden timet ut 2. Velg den hvis du leser gjennom
+                      det den lager.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
