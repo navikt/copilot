@@ -374,3 +374,40 @@ func TestMalformedDeclarationRefusesInstall(t *testing.T) {
 		t.Error("a malformed declaration fell through to the default source instead of refusing")
 	}
 }
+
+// TestMalformedDeclarationRefusesSync is the case the review comment on
+// syncScope named, and the one my first answer to it got wrong. A scope with a
+// recorded source keeps syncing that source, so the broken declaration never
+// gets a say. A scope *without* one — a fresh clone, or an install predating
+// source tracking — falls through to the declaration, and swallowing the error
+// there syncs from the default agentpakke and lets adoptSyncSource record it.
+func TestMalformedDeclarationRefusesSync(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(dir, ".nav-pilot"), 0o755)
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"),
+		[]byte(`{"contractVersion": "1", "source": `), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	scope := ScopeRepo(dir)
+	// No recorded source: this is the scope shape that consults the declaration.
+	writeState(dir, &StateFile{Collection: "(à la carte)"})
+
+	called := false
+	origSync := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = origSync })
+	resolveSourceForSync = func(ref, sourceRepo string) (*Source, error) {
+		called = true
+		return nil, nil
+	}
+
+	err := syncScope(scope, "", "", false, false)
+	if err == nil {
+		t.Fatal("sync accepted a malformed declaration")
+	}
+	if called {
+		t.Errorf("sync fell through to source %q instead of refusing", "the default")
+	}
+}

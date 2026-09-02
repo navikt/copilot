@@ -86,7 +86,18 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// job is to find out what moved, and resolving the revision the repo is
 	// already pinned to would make `sync` always report "up to date".
 	if sourceRepo == "" {
-		sourceRepo = declaredSourceRepo(scope)
+		// The erroring form, not declaredSourceRepo: a scope with no recorded
+		// source is exactly where a broken declaration does damage. Swallowing
+		// the error would sync from the default agentpakke instead, and
+		// adoptSyncSource would then write that into the scope's state — so a
+		// repo that committed a pin ends up recorded against a pakke nobody
+		// chose. The guards may swallow, because a guard only advises; the
+		// command that resolves content may not.
+		declared, _, declErr := declaredPin(scope, "", ref)
+		if declErr != nil {
+			return declErr
+		}
+		sourceRepo = declared
 	}
 	src, err := resolveSourceForSync(ref, sourceRepo)
 	if err != nil {
