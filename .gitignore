@@ -71,7 +71,14 @@ apps/copilot-api/copilot-api
 
 # Local test directories
 .local/
+.scratch/
+.tmp/
 
 # Guardrails mot utilsiktede commits (#343)
 # *.pem, secret*.yaml og .DS_Store dekkes allerede lenger opp i filen.
 *.log
+NEXT-STEPS.md
+
+# Developer-local editor/agent config (not portable across contributors)
+.claude/settings.local.json
+.mcp.json
