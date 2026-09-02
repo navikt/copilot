@@ -190,7 +190,10 @@ func TestFrozenPrecheckRefusals(t *testing.T) {
 	}
 }
 
-// User scope never reads a declaration, so there is nothing to freeze against.
+// User scope never reads a declaration, so there is nothing to freeze against
+// — and it is a usage error with one exit code, whichever door it comes
+// through: run() refuses the flag combination, and this refuses the callers
+// that do not go through run(). Both exit 1.
 func TestFrozenRefusesUserScope(t *testing.T) {
 	isolatedConfig(t)
 	frozenMode(t)
@@ -198,8 +201,16 @@ func TestFrozenRefusesUserScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := frozenPrecheck(scope); err == nil || exitCodeFor(err) != ExitFrozen {
-		t.Fatalf("a frozen install into user scope was not refused: %v", err)
+	err = frozenPrecheck(scope)
+	if err == nil {
+		t.Fatal("a frozen install into user scope was not refused")
+	}
+	if code := exitCodeFor(err); code != ExitError {
+		t.Fatalf("user scope exited %d here and %d from run(): one mistake, two answers", code, ExitError)
+	}
+	if cliErr := run([]string{"install", "grillmester", "--frozen", "--user"}); exitCodeFor(cliErr) != exitCodeFor(err) {
+		t.Errorf("run() exits %d for --frozen --user, frozenPrecheck %d",
+			exitCodeFor(cliErr), exitCodeFor(err))
 	}
 }
 
@@ -209,11 +220,21 @@ func TestFrozenRefusesUserScope(t *testing.T) {
 // wrong and the pin has proven nothing either way.
 func TestFrozenContradictoryFlags(t *testing.T) {
 	isolatedConfig(t)
+	// A repository the install could actually complete in: a declaration, a
+	// resolvable source, and a cwd that is a git checkout. Without it every
+	// case fails on the way to the flag it is about — "not a git repository",
+	// or a source that will not resolve — and the test would report the
+	// refusal as working with the refusal deleted.
+	target := repoTarget(t)
+	writeDeclaration(t, ScopeRepo(target), `{"contractVersion":"1","source":"`+defaultSourceRepo+`","sha":"`+ghostPin+`"}`)
+	stubResolveSource(t, ghostCollectionSource(t, ghostPin))
+	t.Chdir(target)
+
 	for _, args := range [][]string{
-		{"install", "grillmester", "--frozen", "--source", "navikt/other"},
-		{"install", "grillmester", "--frozen", "--ref", "main"},
-		{"install", "grillmester", "--frozen", "--user"},
-		{"install", "grillmester", "--frozen", "--type", "agent"},
+		{"install", "test", "--frozen", "--source", "navikt/other"},
+		{"install", "test", "--frozen", "--ref", "main"},
+		{"install", "test", "--frozen", "--user"},
+		{"install", "test-a", "--frozen", "--type", "agent"},
 		{"sync", "--frozen"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
@@ -304,6 +325,157 @@ func TestFrozenRefusesResolvedRevisionMismatch(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("a frozen install accepted a revision the declaration does not name")
+	}
+	if code := exitCodeFor(err); code != ExitFrozen {
+		t.Errorf("exited %d, want ExitFrozen (%d): %v", code, ExitFrozen, err)
+	}
+	if _, statErr := os.Stat(filepath.Join(scope.RootDir, ".github", "agents")); statErr == nil {
+		t.Error("the refusal still installed content")
+	}
+}
+
+// ─── the gaps the first review found ─────────────────────────────────────────
+
+// ghostCollectionSource is a collections-style source whose manifest names an
+// agent it does not ship — the shape a manifest drifts into when an artifact is
+// renamed or removed upstream. installArtifact warns and skips it, which is the
+// third way an install lands incomplete.
+func ghostCollectionSource(t *testing.T, sha string) *Source {
+	t.Helper()
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "collections", "test", "manifest.json"),
+		`{"name":"test","description":"T","agents":["test-a","ghost"]}`)
+	mustWrite(t, filepath.Join(dir, "agents", "test-a.agent.md"), "---\nname: test-a\ndescription: A\n---\nBody A\n")
+	return &Source{Dir: dir, SHA: sha, Version: "dev", Repo: defaultSourceRepo}
+}
+
+const ghostPin = "0123456789abcdef0123456789abcdef01234567"
+
+// A name the source does not ship is a partial install exactly as a conflict
+// is: 1 of 2 agents on disk, and a pin that would claim the whole revision.
+// It is reachable on the default source, which has collections/ and no
+// agentpakke manifest, so the manifest names are not resolver-derived.
+func TestFrozenRefusesMissingArtifact(t *testing.T) {
+	isolatedConfig(t)
+	frozenMode(t)
+	stubResolveSource(t, ghostCollectionSource(t, ghostPin))
+
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"`+defaultSourceRepo+`","sha":"`+ghostPin+`"}`)
+
+	var err error
+	captureStdoutFor(t, func() {
+		err = cmdInstallAuto("test", "", scope, "", "", false, false, false)
+	})
+	if err == nil {
+		t.Fatal("a frozen install landed 1 of 2 agents and reported success")
+	}
+	if code := exitCodeFor(err); code != ExitFrozen {
+		t.Errorf("exited %d, want ExitFrozen (%d): %v", code, ExitFrozen, err)
+	}
+	if !strings.Contains(err.Error(), "ghost") {
+		t.Errorf("the refusal does not name what was missing:\n%v", err)
+	}
+}
+
+// The JSON path is the one CI reads: it must not print a success document over
+// an incomplete tree, and when the install does succeed it must report the
+// skipped count rather than omit the key.
+func TestSkippedIsVisibleInJSON(t *testing.T) {
+	isolatedConfig(t)
+
+	t.Run("frozen refuses before the document", func(t *testing.T) {
+		frozenMode(t)
+		stubResolveSource(t, ghostCollectionSource(t, ghostPin))
+		scope := ScopeRepo(repoTarget(t))
+		writeDeclaration(t, scope, `{"contractVersion":"1","source":"`+defaultSourceRepo+`","sha":"`+ghostPin+`"}`)
+
+		var err error
+		out := captureStdoutFor(t, func() {
+			err = cmdInstallAuto("test", "", scope, "", "", false, false, true)
+		})
+		if err == nil || exitCodeFor(err) != ExitFrozen {
+			t.Fatalf("--json --frozen did not refuse the partial install: err=%v", err)
+		}
+		if strings.Contains(out, `"installed"`) {
+			t.Errorf("--json printed a success document over an incomplete tree:\n%s", out)
+		}
+	})
+
+	t.Run("a plain install reports it", func(t *testing.T) {
+		stubResolveSource(t, ghostCollectionSource(t, ghostPin))
+		scope := ScopeRepo(repoTarget(t))
+
+		var err error
+		out := captureStdoutFor(t, func() {
+			err = cmdInstallAuto("test", "", scope, "", "", false, false, true)
+		})
+		if err != nil {
+			t.Fatalf("plain --json install: %v", err)
+		}
+		if !strings.Contains(out, `"skipped": 1`) {
+			t.Errorf("--json does not report what it skipped:\n%s", out)
+		}
+	})
+}
+
+// A Tier 2 agentpakke is pinned per user, not per repository: the declaration
+// --frozen holds is a repo-scope file, and there is no repo-scope Tier 2
+// install to hold it to. The refusal has to say that, rather than repeat
+// guardPakkeScope's advice to run `--user` — a flag --frozen itself rejects.
+func TestFrozenRefusesTier2(t *testing.T) {
+	isolatedConfig(t)
+	frozenMode(t)
+	src := &Source{Dir: tier2SourceTree(t), SHA: ghostPin, Version: "dev", Repo: "navikt/grillmester"}
+	if err := attachPakke(src); err != nil {
+		t.Fatal(err)
+	}
+	stubResolveSource(t, src)
+
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"`+ghostPin+`"}`)
+
+	var err error
+	captureStdoutFor(t, func() {
+		err = cmdInstallAuto("grillmester", "", scope, "", "", false, false, false)
+	})
+	if err == nil {
+		t.Fatal("a frozen install of a Tier 2 agentpakke was accepted")
+	}
+	if code := exitCodeFor(err); code != ExitFrozen {
+		t.Errorf("exited %d, want ExitFrozen (%d): %v", code, ExitFrozen, err)
+	}
+	// The old refusal came from guardPakkeScope: a scope complaint that told
+	// the user to add --user, which --frozen rejects as a usage error. The
+	// refusal has to be about --frozen, and it has to say to drop it.
+	if strings.Contains(err.Error(), "no launch would ever read") {
+		t.Errorf("the refusal is still guardPakkeScope's scope complaint:\n%v", err)
+	}
+	for _, want := range []string{"Tier 2", "does not cover", "without"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q:\n%v", want, err)
+		}
+	}
+}
+
+// --type is refused at the flag layer, so nothing below it is normally
+// reached. That makes the flag check load-bearing on its own: delete it and a
+// frozen install goes straight to cmdAdd with no precheck, no pin match and no
+// completeness check. This asserts the check underneath, on the path run()
+// cannot reach — the defence that makes the flag layer a convenience.
+func TestFrozenRefusesTypeUnderneathTheFlagLayer(t *testing.T) {
+	isolatedConfig(t)
+	frozenMode(t)
+	stubResolveSource(t, ghostCollectionSource(t, ghostPin))
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"`+defaultSourceRepo+`","sha":"`+ghostPin+`"}`)
+
+	var err error
+	captureStdoutFor(t, func() {
+		err = cmdInstallAuto("test-a", "agent", scope, "", "", false, false, false)
+	})
+	if err == nil {
+		t.Fatal("a frozen a-la-carte install landed with no precheck at all")
 	}
 	if code := exitCodeFor(err); code != ExitFrozen {
 		t.Errorf("exited %d, want ExitFrozen (%d): %v", code, ExitFrozen, err)

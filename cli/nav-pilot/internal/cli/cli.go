@@ -122,7 +122,7 @@ Exit Codes:
   0   Success
   1   Error / Updates available (sync)
   2   Sync failed
-  3   Frozen install refused (no declaration, no usable pin, or a partial install)
+  3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
 
 Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch Copilot

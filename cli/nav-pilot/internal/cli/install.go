@@ -12,8 +12,11 @@ import (
 )
 
 type installResult struct {
-	Installed   int
-	Skipped     int
+	Installed int
+	// Missing names every artifact the manifest listed and the source does not
+	// ship. installArtifact warns and moves on, so the count is the third way
+	// an install lands incomplete — beside a conflict and an unsupported kind.
+	Missing     []string
 	Conflicts   int
 	Unsupported []string
 	Files       []InstalledFile
@@ -95,7 +98,7 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 	art, found := resolver.Get(kind, name)
 	if !found {
 		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
-		result.Skipped++
+		result.Missing = append(result.Missing, name)
 		return nil
 	}
 
@@ -180,6 +183,14 @@ func finishInstall(err error, flagSource string, dryRun, scopeDefining bool) err
 func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	// If explicit --type given, go straight to single-artifact install
 	if itemType != "" {
+		// run() already refuses --frozen --type as a usage error, so this is
+		// unreachable from the CLI. It is here so that refusal is a
+		// convenience rather than the only thing standing between --frozen and
+		// an install with no precheck, no pin match and no completeness check.
+		if installFrozen {
+			return frozenf("%s installs the agentpakke %s names, and %s takes one item regardless of what it says",
+				bold("--frozen"), agentpakke.DeclarationPath, bold("--type "+itemType))
+		}
 		if _, ok := kindByName[itemType]; !ok {
 			return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt", itemType)
 		}
@@ -335,6 +346,9 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// A payload-only agentpakke has no Tier 1 content to materialize into this
 	// scope; installing it means pinning a revision of its payloads.
 	if payloadOnly(src) {
+		if err := frozenTier2(src); err != nil {
+			return err
+		}
 		return installPakkePin(scope, src, dryRun, jsonOutput)
 	}
 
@@ -394,6 +408,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 			"source_sha":  src.SHA,
 			"version":     src.Version,
 			"installed":   result.Installed,
+			"skipped":     len(result.Missing),
 			"conflicts":   result.Conflicts,
 			"unsupported": result.Unsupported,
 			"dry_run":     dryRun,

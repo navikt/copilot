@@ -68,8 +68,12 @@ func frozenPrecheck(scope *InstallScope) error {
 	if !installFrozen {
 		return nil
 	}
+	// One answer for user scope, not two: run() already refuses --frozen
+	// --user as a usage error, and a second exit code for the same mistake
+	// reached through a different door is a distinction CI cannot act on. This
+	// is the same refusal, for the callers run() does not go through.
 	if scope == nil || scope.IsUser() {
-		return frozenf("--frozen needs a repository: user scope never reads %s, so there is no pin to hold",
+		return fmt.Errorf("--frozen and --user are mutually exclusive: user scope has no repository and never reads %s",
 			agentpakke.DeclarationPath)
 	}
 	d, err := scopeDeclaration(scope)
@@ -117,6 +121,30 @@ func frozenPinMatches(scope *InstallScope, src *Source) error {
 	return nil
 }
 
+// frozenTier2 refuses a frozen install of a payload-bearing agentpakke.
+//
+// --frozen holds a repo-scope file, and a Tier 2 install is a per-user pin:
+// guardPakkeScope refuses every other scope, so the two can never meet. Rather
+// than make them, this says so — a Tier 2 install is already what --frozen
+// exists to produce. It resolves one immutable revision, digest-verifies every
+// declared payload tree against its manifest, and materializes it under that
+// SHA. There is no unpinned route in and no half-landed tree to report green.
+//
+// Refusing here rather than in frozenPrecheck costs one resolve: the tier is a
+// property of the source's manifest, which the precheck runs before fetching.
+// The alternative is a precheck that guesses, and a guess is what this flag is
+// for refusing.
+func frozenTier2(src *Source) error {
+	if !installFrozen || !payloadOnly(src) {
+		return nil
+	}
+	return frozenf("agentpakke %q ships pre-built payloads (Tier 2), and %s does not cover those.\n"+
+		"Nothing was installed. A Tier 2 install pins one revision per user and digest-verifies every payload tree against its manifest, so it is already frozen by construction — %s has no repository-scoped install to hold it to.\n\n"+
+		"  Install it once, without %s:  %s",
+		src.Pakke.Name, bold("--frozen"), bold("--frozen"), bold("--frozen"),
+		bold("nav-pilot install --user "+src.Pakke.Name))
+}
+
 // frozenComplete refuses an install that only partly landed.
 //
 // Without --frozen a skipped conflict and an unsupported kind are warnings,
@@ -132,6 +160,11 @@ func frozenComplete(result *installResult, scope *InstallScope) error {
 		return frozenf("%d file(s) already exist and differ from %s, so the tree is not the pinned revision.\n"+
 			"Pass %s to make it match, or resolve the differences",
 			result.Conflicts, agentpakke.DeclarationPath, bold("--force"))
+	}
+	if len(result.Missing) > 0 {
+		return frozenf("the source does not ship %s, which the manifest names, so %d of %d item(s) landed and the tree is not the pinned revision.\n"+
+			"The pinned revision's manifest has gone stale — fix it there, or pin a revision where those names exist",
+			strings.Join(result.Missing, ", "), result.Installed, result.Installed+len(result.Missing))
 	}
 	if len(result.Unsupported) > 0 {
 		return frozenf("the agentpakke ships %s, which %s scope cannot hold, so the install is incomplete.\n"+
