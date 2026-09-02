@@ -40,6 +40,12 @@ const (
 	ExitError            = 1
 	ExitUpdatesAvailable = 1 // Specific exit code for sync updates available
 	ExitSyncFailed       = 2
+
+	// ExitFrozen: `install --frozen` did not fail — it refused. The repository
+	// declared no pin, pinned nothing usable, resolved another revision, or the
+	// install landed only partly. A CI job reads this apart from ExitError to
+	// tell "the pin is not what the repo says" from "the install broke".
+	ExitFrozen = 3
 )
 
 // ─── CLI ────────────────────────────────────────────────────────────────────
@@ -106,6 +112,7 @@ Flags:
   --repo                  Install to this repository's .github/ (opposite of --user; skips the scope question)
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
   --all                   Install everything (use with --user)
+  --frozen                Install only what .nav-pilot/agentpakke.lock.json declares: never prompts, never moves the pin (install only)
   --apply                 Apply available updates (sync only)
   --sync                  Sync all scopes and launch Copilot (non-interactive)
   --json                  Output results as JSON
@@ -115,6 +122,7 @@ Exit Codes:
   0   Success
   1   Error / Updates available (sync)
   2   Sync failed
+  3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
 
 Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch Copilot
@@ -127,6 +135,7 @@ Get started:
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
   nav-pilot install --source navikt/x    # Install another team's agentpakke (and remember it)
   nav-pilot validate --source navikt/x   # Check an agentpakke repo against the contract
+  nav-pilot install grillmester --frozen --force  # CI: install exactly the pinned revision, or fail
 
 After installing, use @nav-pilot in GitHub Copilot Chat.
 `)
@@ -375,7 +384,7 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen bool
 	var targetDir, ref, sourceRepo, installType string
 	var positional []string
 
@@ -407,6 +416,8 @@ func run(args []string) error {
 			listInstalled = true
 		case "--all":
 			installAll = true
+		case "--frozen":
+			frozen = true
 		case "-F", "--feature":
 			featureRequest = true
 		case "-u", "--user":
@@ -459,6 +470,24 @@ func run(args []string) error {
 		}
 	}
 
+	// --frozen means "install exactly what this repository declares, or fail".
+	// Every flag that reaches past the declaration contradicts it outright, so
+	// it says so rather than quietly winning or quietly losing. These are usage
+	// errors (exit 1): the invocation is wrong, the pin has proven nothing.
+	if frozen {
+		switch {
+		case command != "install":
+			return fmt.Errorf("--frozen is only supported for the install command")
+		case userScope:
+			return fmt.Errorf("--frozen and --user are mutually exclusive: user scope has no repository and never reads %s", agentpakke.DeclarationPath)
+		case sourceRepo != "":
+			return fmt.Errorf("--frozen and --source are mutually exclusive: --frozen installs the agentpakke %s declares", agentpakke.DeclarationPath)
+		case ref != "":
+			return fmt.Errorf("--frozen and --ref are mutually exclusive: --frozen installs the revision %s pins", agentpakke.DeclarationPath)
+		case installType != "":
+			return fmt.Errorf("--frozen and --type are mutually exclusive: an a-la-carte install is not what the declaration names")
+		}
+	}
 	if userScope && targetProvided {
 		return fmt.Errorf("--user and --target are mutually exclusive")
 	}
@@ -507,7 +536,9 @@ func run(args []string) error {
 		wellFormed := (command == "install" && len(positional) == 1) ||
 			(command == "add" && len(positional) >= 2)
 		switch {
-		case !(wellFormed && !scopeProvided && !jsonOutput && !dryRun && isInteractive()):
+		// --frozen never prompts: a CI job has no one to answer, and the
+		// declaration is a repository file, so repo scope is the only answer.
+		case !(wellFormed && !scopeProvided && !jsonOutput && !dryRun && !frozen && isInteractive()):
 			scope = ScopeRepo(targetDir)
 		case gitRoot == "":
 			// Outside a git repo the repo answer fails later on, so don't ask.
@@ -557,12 +588,20 @@ func run(args []string) error {
 
 	switch command {
 	case "install":
+		installFrozen = frozen
+		defer func() { installFrozen = false }()
 		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
 			install := func(err error) error {
 				return finishInstall(err, sourceRepo, dryRun, installType == "")
 			}
 			if userScope && (len(positional) == 0 || installAll) {
 				return install(cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput))
+			}
+			if len(positional) == 0 && frozen {
+				// The declaration names a source, not a collection; the name
+				// stays on the command line so the invocation itself says what
+				// it expects to install.
+				return fmt.Errorf("install --frozen requires a name — it will not open a picker. Run 'nav-pilot list' to see what %s ships", agentpakke.DeclarationPath)
 			}
 			if len(positional) == 0 {
 				// No args: launch interactive flow if in a terminal
@@ -785,6 +824,10 @@ func exitCodeFor(err error) int {
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		return exitErr.ExitCode()
+	}
+	if isFrozenRefusal(err) {
+		fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Frozen:"), err)
+		return ExitFrozen
 	}
 	fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
 	return ExitError

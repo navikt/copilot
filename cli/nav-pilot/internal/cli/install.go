@@ -12,8 +12,11 @@ import (
 )
 
 type installResult struct {
-	Installed   int
-	Skipped     int
+	Installed int
+	// Missing names every artifact the manifest listed and the source does not
+	// ship. installArtifact warns and moves on, so the count is the third way
+	// an install lands incomplete — beside a conflict and an unsupported kind.
+	Missing     []string
 	Conflicts   int
 	Unsupported []string
 	Files       []InstalledFile
@@ -95,7 +98,7 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 	art, found := resolver.Get(kind, name)
 	if !found {
 		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
-		result.Skipped++
+		result.Missing = append(result.Missing, name)
 		return nil
 	}
 
@@ -180,6 +183,20 @@ func finishInstall(err error, flagSource string, dryRun, scopeDefining bool) err
 func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	// If explicit --type given, go straight to single-artifact install
 	if itemType != "" {
+		// run() already refuses --frozen --type as a usage error, so this is
+		// unreachable from the CLI. It is here so that refusal is a
+		// convenience rather than the only thing standing between --frozen and
+		// an install with no precheck, no pin match and no completeness check.
+		//
+		// A plain error, not frozenf: contradictory flags are a usage mistake
+		// and exit 1 from either door. Exit 3 means the pin was not honoured,
+		// which is a different thing for CI to branch on, and one mistake must
+		// not have two answers depending on which door it came through — the
+		// same reason --user answers 1 in both places.
+		if installFrozen {
+			return fmt.Errorf("%s installs the agentpakke %s names, and %s takes one item regardless of what it says",
+				bold("--frozen"), agentpakke.DeclarationPath, bold("--type "+itemType))
+		}
 		if _, ok := kindByName[itemType]; !ok {
 			return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt", itemType)
 		}
@@ -196,6 +213,12 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		return err
 	}
 
+	// --frozen refuses every repo state it cannot be frozen against before a
+	// single byte is fetched or written.
+	if err := frozenPrecheck(scope); err != nil {
+		return err
+	}
+
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
@@ -204,6 +227,10 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		return err
 	}
 	defer src.Cleanup()
+
+	if err := frozenPinMatches(scope, src); err != nil {
+		return err
+	}
 
 	// A source that ships an agentpakke manifest supersedes the collection
 	// model: its single installable name is the agentpakke identity, and that
@@ -263,6 +290,14 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	}
 
 	if len(matchedKinds) == 1 {
+		// A single artifact is an a-la-carte install: it writes no declaration
+		// (a documented limitation) and installs one name regardless of what
+		// the declaration lists, so there is nothing for --frozen to hold.
+		if installFrozen {
+			return frozenf("%q is a single %s, not the agentpakke %s declares.\n"+
+				"--frozen installs what the declaration names; drop the flag to take one item",
+				name, matchedKinds[0].Name, agentpakke.DeclarationPath)
+		}
 		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
 	}
 
@@ -314,6 +349,13 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		return err
 	}
 
+	// Before the tier split, not inside it: a mixed pakke — layout plus
+	// payloads — takes the Tier 1 route below, so a check on the payload-only
+	// branch would let it install its layout half and report green.
+	if err := frozenTier2(src); err != nil {
+		return err
+	}
+
 	// A payload-only agentpakke has no Tier 1 content to materialize into this
 	// scope; installing it means pinning a revision of its payloads.
 	if payloadOnly(src) {
@@ -362,6 +404,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		telemetry.RecordInstallItems(scope.Name, telemetryMode(), int64(result.Installed))
 	}
 
+	// Before the JSON output, so the machine-readable path cannot report a
+	// partial install as a success either.
+	if err := frozenComplete(result, scope); err != nil {
+		return err
+	}
+
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
 			"command":     "install",
@@ -370,6 +418,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 			"source_sha":  src.SHA,
 			"version":     src.Version,
 			"installed":   result.Installed,
+			"skipped":     len(result.Missing),
 			"conflicts":   result.Conflicts,
 			"unsupported": result.Unsupported,
 			"dry_run":     dryRun,
@@ -411,7 +460,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
-	recordDeclaration(scope, src)
+	// --frozen never moves the pin, not even to rewrite it as the value it
+	// already holds: a CI job must not produce a diff in a file it was only
+	// meant to obey.
+	if !installFrozen {
+		recordDeclaration(scope, src)
+	}
 
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
 		green("✓"), result.Installed, collection, stateVersion, shortSHA(src.SHA))
