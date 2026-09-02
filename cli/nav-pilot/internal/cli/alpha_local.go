@@ -300,7 +300,15 @@ func cmdLocalInit() error {
 		return err
 	}
 
-	fmt.Printf("\n  %s\n", bold("Ready. Run nav-pilot in a repository and it will use the local worker."))
+	// "the local worker" is only true on a client that has one. On the Copilot
+	// CLI the session either runs on the local model or does not, and telling
+	// that developer about a worker is the promise this whole change exists to
+	// stop making.
+	ready := "Ready. Run nav-pilot in a repository and it will use the local worker."
+	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.Client != nil && *cfg.Client == "copilot" {
+		ready = "Ready. Run nav-pilot with a local model to put the whole session on it."
+	}
+	fmt.Printf("\n  %s\n", bold(ready))
 	fmt.Printf("  %s\n\n", dim("nav-pilot alpha local status  ·  nav-pilot alpha local off  ·  nav-pilot alpha local purge"))
 	return nil
 }
