@@ -48,7 +48,11 @@
 #   red suite, which is the fastest way to teach people that red means nothing.
 #   Test 2b is the worked example, and its history is in git: three persona
 #   revisions across four models, 18 transcripts, zero checkpoint blocks. cr4 is
-#   the second, and the plainer one: it greps for an agent handle in prose.
+#   the second, and the plainer one: it greps for an agent handle in prose. cr3
+#   is the third, demoted after #583 forced its regex to be rederived from the
+#   kept transcripts: the measurement is in the block above RE_CR_WHY, and it
+#   says the expression separates Norwegian vocabulary, not explanation from
+#   labelling. A check that cannot tell those apart reports; it does not gate.
 #
 #   ⚠️  Test 5 (TokenX vs Azure client_credentials) is the assertion most likely
 #   to catch an over-aggressive cut to the authentication decision tree in
@@ -195,7 +199,9 @@
 #      at all (--only naming only soft IDs, like `--only 2b`).
 #      This is deliberately NOT 0: a test that never ran has proven nothing.
 #
-#   Soft checks (ids like 2b) never change the exit code, in either direction.
+#   Soft checks (2b, cr3, cr4) never change the exit code, in either direction.
+#   Softness is decided by the record function called, never by the ID: the IDs
+#   are stable so committed baselines stay comparable across the demotion.
 #
 set -uo pipefail
 
@@ -1643,12 +1649,19 @@ RE_CR_INJECTION='injeksjon|injection|parameteri[sz]|prepared[[:space:]]+statemen
 # derive against, and manufacturing one to fit a regex is fitting the regex to
 # the fixture.
 #
-# So: unchanged, and cr3's causal clause should be read as reporting, not as
-# evidence. The proposal on the table is to demote cr3 to `record_soft`, next to
-# 2b and cr4, until the reference-guided judge in #584 can supply the second
-# class. That is a change to what the suite's exit code means and is left to the
-# owner rather than folded into this pass. Until it is decided, do not cite a
-# cr3 difference between two models: #554's already was not one.
+# So: unchanged, deliberately. The expression stays exactly as written — not
+# because it is right, but because every alternative on the evidence available
+# is worse, and rewriting it would only hide that. The measurement above is the
+# evidence for the decision below and must not be deleted with it.
+#
+# DECIDED: the owner accepted the proposal this block used to leave open, and
+# cr3 is now `record_soft`, next to 2b and cr4. It reports every run and never
+# moves the exit code, in either direction. The ID is unchanged so the committed
+# baselines stay comparable. It goes back to `record` when the reference-guided
+# judge in #584 supplies the second class this sample lacks — a transcript that
+# labels without explaining — and the assertion can be rederived against it.
+# Until then, do not cite a cr3 difference between two models: #554's already
+# was not one.
 RE_CR_WHY='fordi|because|risik|kan[[:space:]]+føre[[:space:]]+til|fører[[:space:]]+til|angriper|attacker|utnytt|exploit|lekk|konsekvens|derfor|slik[[:space:]]+at'
 # The two specialists that own a Next.js/Aksel file, from `## Related agents and
 # skills` (code-review.agent.md:40 and :42). Deliberately not the whole table:
@@ -1666,7 +1679,7 @@ run_pass_code_review() {
     if ! run_prompt cr-kotlin "gjennomgå src/main/kotlin/no/nav/demo/UserRepo.kt"; then
       selected cr1 && record_error cr1 "$DESC_CR1" "$LAST_PROMPT_DETAIL"
       selected cr2 && record_error cr2 "$DESC_CR2" "$LAST_PROMPT_DETAIL"
-      selected cr3 && record_error cr3 "$DESC_CR3" "$LAST_PROMPT_DETAIL"
+      selected cr3 && record_soft cr3 "$DESC_CR3" 1 "not evaluated: $LAST_PROMPT_DETAIL"
     elif ! present "$TCR" "$RE_CR_INJECTION"; then
       # The gate. UserRepo.kt builds its query by interpolating fnr into a
       # string; a review that does not name that has not reviewed the file, and
@@ -1674,7 +1687,7 @@ run_pass_code_review() {
       cr_gate="the review never named the SQL injection in UserRepo.kt (no match for: $RE_CR_INJECTION), so this transcript says nothing about output format, the no-auto-fix boundary or teaching. Re-run with --keep and read it before touching an assertion."
       selected cr1 && record_error cr1 "$DESC_CR1" "$cr_gate"
       selected cr2 && record_error cr2 "$DESC_CR2" "$cr_gate"
-      selected cr3 && record_error cr3 "$DESC_CR3" "$cr_gate"
+      selected cr3 && record_soft cr3 "$DESC_CR3" 1 "not evaluated: $cr_gate"
     else
       # cr1: `## Output Format` (code-review.agent.md:70-86) is a summary, then
       # findings in a table whose columns are File, Line, Priority, Issue.
@@ -1711,6 +1724,14 @@ run_pass_code_review() {
       # cheap to satisfy: causal language must appear, AND there must be prose
       # outside the table for it to appear in. A table with "fordi" wedged into
       # an Issue cell is a flag, not teaching.
+      #
+      # SOFT, per the DECIDED note above RE_CR_WHY: the causal half of this
+      # check was measured to track Norwegian vocabulary rather than teaching,
+      # so it reports and never gates. Every path records a soft row, the two
+      # unevaluable ones above included, for the same reason cr4 does: a
+      # `record_error` here would flip an otherwise green run to exit 3 off a
+      # check that cannot fail it. cr1 and cr2 still carry CLI health on this
+      # shared prompt, which is where a dead transcript shows up first.
       if selected cr3; then
         cr_prose="$(grep -vE '^[[:space:]]*\|' "$TCR" | grep -cE '^.{40,}$')"
         ok=0; detail=""
@@ -1719,7 +1740,7 @@ run_pass_code_review() {
         elif ! present "$TCR" "$RE_CR_WHY"; then
           ok=1; detail="no causal language anywhere in the response (no match for: $RE_CR_WHY). Findings were flagged, not explained"
         fi
-        record cr3 "$DESC_CR3" "$ok" "$detail"
+        record_soft cr3 "$DESC_CR3" "$ok" "$detail"
       fi
     fi
   fi
@@ -1753,8 +1774,10 @@ run_pass_code_review() {
   # the `record_soft` doc and the printed summary all say a soft check never moves
   # the exit code in either direction, and cr4 keeps that literally rather than
   # carving out an exception. The two unevaluable paths say "not evaluated:" in
-  # their detail so the distinction stays readable, and cr1-cr3 still carry CLI
-  # health on their own prompt, which is where a flaky CLI shows up first.
+  # their detail so the distinction stays readable, and cr1 and cr2 still carry CLI
+  # health on their own prompt, which is where a flaky CLI shows up first. Not
+  # cr3 any more: it is soft as of this commit, for the reason recorded above
+  # RE_CR_WHY.
   if selected cr4; then
     DESC_CR4="Next.js review routes on to the accessibility/Aksel specialist"
     TCR4="$(tx cr-tsx)"
@@ -2025,7 +2048,7 @@ for id in $(uniq_field "$RESULTS_FILE" 1); do
   # --repeat 1: a test that did not run has proven nothing, and a CLI timing
   # out four times in five must not report a green suite off the fifth.
   #
-  # Soft checks (test 2b) are collapsed the same way but kept out of every
+  # Soft checks (2b, cr3, cr4) are collapsed the same way but kept out of every
   # count that feeds the exit code. They have no pass/fail/error rows at all,
   # so without this branch a soft test would land in the `np -eq 0` arm below
   # and report the suite as "not evaluated", which is the one thing a soft
