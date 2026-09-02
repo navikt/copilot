@@ -240,13 +240,19 @@ func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 			yellow("⚠"), agentpakke.DeclarationPath, err)
 		return
 	}
-	// A declaration written before #597 pins seven characters, which is not a
-	// revision git can fetch — installing that repo's own pin fails. Writing it
-	// out in full is the repair, and this is where it happens, but it is not a
-	// bump: reporting it as one printed the same seven characters either side
-	// of an arrow (#605). Say what actually changed instead.
+	// An abbreviated pin is not a revision git can fetch, so installing that
+	// repo's own pin fails. No released binary ever wrote one — the declaration
+	// and the full-length SHA arrived in the same commit (#597) — but the file
+	// is documented as hand-editable and `status` prints seven characters, so a
+	// human copying one in is the reachable case. Writing it out in full is the
+	// repair, and this is where it happens. It is not a bump, and reporting it
+	// as one printed the same seven characters either side of an arrow (#605).
+	//
+	// The match is a prefix, not proof of sameness: the declared value could be
+	// any prefix a human typed. It does not matter here — the resolved revision
+	// is already on disk in full by this point, either way.
 	if sameSHA(previous, src.SHA) {
-		fmt.Printf("%s Wrote the full revision id in %s (%s). Same revision — an abbreviated one cannot be fetched. Commit it.\n",
+		fmt.Printf("%s Wrote the full revision id in %s (%s). An abbreviated pin cannot be fetched. Commit it.\n",
 			green("✓"), bold(agentpakke.DeclarationPath), shortSHA(src.SHA))
 		return
 	}

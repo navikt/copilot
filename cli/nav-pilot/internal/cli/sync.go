@@ -568,7 +568,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 		return nil
 	}
 
-	// [sameSHA], not ==: a pin recorded before #597 holds seven characters and
+	// [sameSHA], not ==: a state file written before #597 holds seven characters and
 	// this one holds forty. Comparing those byte for byte reported a newer
 	// revision that does not exist, in a sentence that printed the same seven
 	// characters on both sides, and --apply then re-fetched and re-materialized

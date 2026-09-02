@@ -107,11 +107,13 @@ func shortSHA(sha string) string { return domain.ShortSHA(sha) }
 // them is abbreviated.
 //
 // #597 lengthened every recorded revision from seven characters to forty,
-// because git will not fetch an abbreviated object id. But the state files and
-// declarations already on disk still hold the short form, and comparing those
-// byte for byte made every pre-upgrade pin look one revision behind — with a
-// message that printed the same seven characters on both sides and a re-fetch
-// of the revision already installed (#605).
+// because git will not fetch an abbreviated object id. But the state files
+// already on disk still hold the short form — they have since #306 — and
+// comparing those byte for byte made every pre-upgrade pin look one revision
+// behind, with a message that printed the same seven characters on both sides
+// and a re-fetch of the revision already installed (#605). A declaration can
+// hold a short one too, though only by hand: it arrived in the same commit as
+// the full-length SHA.
 //
 // The shorter side is treated as a prefix of the longer, which is what git
 // itself does with an abbreviated id. That can in principle hide a real
