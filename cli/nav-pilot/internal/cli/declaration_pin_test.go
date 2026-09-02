@@ -344,6 +344,13 @@ func TestSyncSilentWhenDeclarationAgrees(t *testing.T) {
 	if strings.Contains(out, "declares") {
 		t.Errorf("sync warned about a declaration that agrees:\n%s", out)
 	}
+	// An absence proves nothing on its own: a sync that fell over before it
+	// reached the declaration would produce no output at all and pass this
+	// test. The bump line is the proof it got there — it comes from the same
+	// code whose silence is being asserted above.
+	if !strings.Contains(out, agentpakke.DeclarationPath) {
+		t.Errorf("sync never touched the declaration, so the silence above proves nothing:\n%s", out)
+	}
 }
 
 // TestMalformedDeclarationRefusesInstall: the declaration is fail-closed on
