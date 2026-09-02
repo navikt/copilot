@@ -1,0 +1,70 @@
+Jeg undersøker deploy- og runtime-konfigurasjonen for å finne hva som dreper poden etter oppstart.
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "dp-soknad|liveness|readiness|startup|health|probe|OOM|memory|termination|exit"
+  └ 16 lines found
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Read SKILL.md
+  │ .github/skills/nais-manifest/SKILL.md
+  └ L1:220 (195 lines read)
+
+● Show manifest with line numbers (shell)
+  │ rtk nl -ba .nais/app.yaml
+  └ 29 lines…
+
+Hovedårsaken er ressurskonfigurasjonen i `.nais/app.yaml`:
+
+```yaml
+requests:
+  memory: 256Mi
+limits:
+  memory: 64Mi
+```
+
+Poden får altså bare bruke **64 MiB**, selv om den reserverer **256 MiB**. Når applikasjonen bruker mer enn 64 MiB, blir containeren drept av Kubernetes med `OOMKilled`. Den starter på nytt, bruker minnet igjen og havner i en restart-loop (`CrashLoopBackOff`).
+
+I tillegg er health-checkene svært aggressive:
+
+```yaml
+liveness:
+  initialDelay: 1
+  timeout: 1
+```
+
+Hvis `/internal/health` ikke svarer innen ett sekund, allerede ett sekund etter oppstart, blir poden også drept av liveness-proben. Dette kan gi samme symptom selv uten OOM.
+
+Rett først til noe i denne retningen:
+
+```yaml
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+liveness:
+  path: /internal/health
+  initialDelay: 5
+  timeout: 1
+```
+
+Sjekk deretter pod-status for å skille årsaken:
+
+```bash
+kubectl -n team-dagpenger describe pod <pod>
+kubectl -n team-dagpenger logs <pod> --previous
+```
+
+- `Reason: OOMKilled` → minnegrensen på `64Mi` er årsaken.
+- `Liveness probe failed` → `/internal/health` svarer ikke raskt nok, eller endpointet finnes ikke.
+- `Exit Code` fra applikasjonen → applikasjonen avslutter selv under oppstart.
+

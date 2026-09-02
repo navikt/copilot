@@ -5,13 +5,19 @@
 # dato:        2026-09-03
 # revisjon:    fd6e7f76
 # klient:      GitHub Copilot CLI 1.0.83-3
-# modeller:    claude-sonnet-5, gpt-5.6-luna
-# subjekt:     prompts/aksel-component.prompt.md, kroppen uendret som SKILL.md
+# modeller:    claude-sonnet-5, gpt-5.6-luna (probe 1); gpt-5.6-luna (probe 2)
+# subjekt:     probe 1 — prompts/aksel-component.prompt.md (stillasgenerator)
+#              probe 2 — prompts/nais-manifest.prompt.md (manifestredigerer)
+#              begge med kroppen uendret som SKILL.md
 # harness:     scripts/skill-selvutlosning-probe.sh (egen probe, ikke nav-pilot-golden.sh)
-# repeats:     5 per arm per prompt (positivkontroll: 3)
-# kall:        52 live modellkall
-# rådata:      2026-09-03-604-skill-selvutlosning-results.psv
-# transkript:  2026-09-03-604-skill-selvutlosning/<modell>/<arm>-<prompt>-run<N>.txt
+# repeats:     probe 1: 5 per arm per prompt (positivkontroll 3)
+#              probe 2: 4 per arm på borderline, 1 per arm på positivkontrollen
+# kall:        52 + 10 = 62 live modellkall
+# rådata:      2026-09-03-604-skill-selvutlosning-results.psv (subject-kolonne skiller probene)
+# transkript:  2026-09-03-604-skill-selvutlosning/<modell>/<arm>-<prompt>-run<N>.txt (probe 1)
+#              2026-09-03-604-skill-selvutlosning/nais-manifest-gpt-5.6-luna/… (probe 2)
+
+PROBE 1 — aksel-component (stillasgenerator)
 
 DESIGN
 
@@ -92,3 +98,113 @@ HVA MÅLINGEN IKKE STØTTER
   - Selve kroppen er uendret prompt-tekst. Den sier «Ask the user first», så en
     skill som fyrer feil er i praksis fire spørsmål, ikke et stillas rett i repoet.
     Skaden av en feilutløsning er derfor mindre for akkurat denne enn navnet antyder.
+
+
+PROBE 2 — nais-manifest (manifestredigerer), 2026-09-03
+
+  HVORFOR EN TIL: probe 1 målte en generator. Faren der er et stillas som dukker
+  opp ubedt. `nais-manifest` og `kafka-topic` er en annen form — de REDIGERER et
+  manifest som allerede finnes, og borderline-tilfellet deres er ikke «endre denne
+  komponenten», det er FEILSØKING: «hvorfor feiler deployen». En skill som fyrer
+  der kan komme til å skrive i manifestet i stedet for å svare på spørsmålet.
+  Resultatet fra probe 1 overføres derfor ikke, og guard-ordlyden måtte endres.
+
+  DESIGN
+    Arm A (uguardet)  «Generer et produksjonsklart Nais-applikasjonsmanifest for
+                      Kubernetes-deployment» (promptfilas egen description, ordrett)
+    Arm B (guardet)   samme + «Bruk KUN når brukeren eksplisitt ber om å opprette
+                      eller generere et nytt Nais-manifest. Ikke bruk for å forklare,
+                      gjennomgå eller feilsøke et eksisterende manifest eller en
+                      deploy som feiler — svar da på spørsmålet uten å endre
+                      manifestet.» (ordrett i SKILL-arm-B-nais-manifest.md)
+                      Merk forskjellen fra probe 1: guarden må nevne FEILSØKING,
+                      ikke bare scaffolding. «med mindre brukeren ber om å scaffolde»
+                      treffer ikke en misfyring som utløses av et spørsmål.
+
+    Fixture: `.nais/app.yaml` for dp-soknad som ALLEREDE finnes, med en plausibel
+    årsak til restart-loop (memory limit 64Mi under requests 256Mi, liveness på
+    /internal/health med initialDelay 1).
+
+    borderline  «deployen av dp-soknad feiler — poden starter og blir drept igjen
+                 og igjen kort tid etter oppstart. hvorfor skjer det?»
+    positive    «lag et nais-manifest for en ny app dp-vedtak i team-dagpenger»
+
+    NY MÅLING I TILLEGG TIL FYRING: `wrote` — endret kjøringen fixture-manifestet
+    på disk (shasum før/etter)? Fyring er ikke i seg selv skade; spørsmålet er om
+    en fyrende kjøring skriver i `.nais/app.yaml` eller bare svarer med skillen lastet.
+
+  RESULTAT (gpt-5.6-luna, den mest utløsningsvillige modellen i probe 1)
+
+    arm  prompt      fyrte  skrev i manifestet
+    A    borderline  2/4    0/4
+    B    borderline  0/4    0/4
+    A    positive    1/1    1/1
+    B    positive    1/1    1/1
+
+    Fishers eksakte tosidig på borderline: p = 0.43. IKKE signifikant.
+    Ingen døde transkripter, 10/10 evaluerbare.
+
+  HVA PROBE 2 FAKTISK VISER
+
+  1. Selvutløsning på et feilsøkingsspørsmål er reell, men svakere enn på
+     generatorens borderline: 2/4 her mot 5/5 for samme modell i probe 1.
+  2. FYRING VAR IKKE SKADE. Begge de to fyrende kjøringene (A-borderline-run2 og
+     run4) leste manifestet, lastet skillen — og svarte deretter på spørsmålet.
+     Begge pekte riktig på `limits.memory: 64Mi` under `requests: 256Mi` som
+     OOMKilled-årsak og på den aggressive liveness-proben som sekundær. Ingen av
+     dem rørte `.nais/app.yaml`. Den fryktede feilmodusen — skriver i infrastruktur-
+     konfigurasjon utvikleren bare spurte om — ble IKKE observert i 4 kjøringer.
+  3. Guarden er forenlig med 0/4, men 4 kjøringer skiller ikke 0 % fra 60 %.
+  4. Positivkontrollen overlever guarden: 1/1 i begge armer, og begge SKREV.
+     Verdt å merke seg som en egen risiko, uavhengig av selvutløsning: bedt om et
+     manifest for en NY app (dp-vedtak) redigerte begge armer det EKSISTERENDE
+     `.nais/app.yaml` for dp-soknad i stedet for å opprette en ny fil, og skrev
+     dermed over et annet team-manifest. Det er en feil i selve kroppen
+     (prompts/nais-manifest.prompt.md sier «you are creating a Nais application
+     manifest in .nais/app.yaml» uten å si hva som skjer når fila finnes), ikke i
+     description-en, og den finnes i promptfila i dag også.
+
+  HVA PROBE 2 IKKE STØTTER
+
+  - n=4 per celle, én modell, én borderline-prompt. p = 0.43 betyr at 2/4 mot 0/4
+    er fullt forenlig med ren tilfeldighet. 0/4 i arm B er forenlig med en sann
+    selvutløsningsrate på opptil 60 % (95 % Clopper-Pearson). Dette er en
+    ORIENTERENDE måling, ikke en bekreftelse: den viser at hazarden finnes og at
+    guarden ikke bryter positivkontrollen, ikke at guarden virker.
+  - «Skrev ikke i manifestet» er målt i 4 kjøringer av arm A. 0/4 er forenlig med
+    opptil 60 % skriverate. Fravær av skade her er svakt bevis, ikke en garanti.
+  - `kafka-topic` er ikke målt i det hele tatt; den antas å ha samme form som
+    `nais-manifest`, og den antakelsen er ikke testet.
+
+ANBEFALING PER PROMPTFIL (spørsmål 4 i #604)
+
+  MÅLT
+    aksel-component   probe 1, 52 kall, to modeller. Guardet description tar
+                      selvutløsning fra 7/10 til 0/10 uten å drepe påkallingen.
+                      → konverter med guard, ordlyd som SKILL-arm-B.md.
+    nais-manifest     probe 2, 10 kall, én modell, orienterende. Hazarden finnes
+                      (2/4 uguardet), skaden ble ikke observert (0/4 skrev), guarden
+                      er forenlig med 0/4 men ikke bevist (p = 0.43).
+                      → konverter med FEILSØKINGS-guard, og fiks kroppen så den ikke
+                        overskriver et eksisterende .nais/app.yaml (se punkt 4 over).
+
+  OVERFØRT FRA PROBE 1 (samme form, ikke målt hver for seg)
+    golang-service        oppretter nye filer, samme form som aksel-component.
+    spring-boot-endpoint  Guard-ordlyd: «bruk kun når brukeren eksplisitt ber om å
+    nextjs-api-route      opprette/scaffolde …; ikke bruk for å forklare, gjennomgå,
+    ktor-endpoint         feilsøke eller endre eksisterende kode».
+                          golang-service er dyrest å ta feil på (helt tjenestestillas).
+
+  OVERFØRT FRA PROBE 2 (samme form, ikke målt)
+    kafka-topic       redigerer eksisterende konfigurasjon, som nais-manifest.
+                      → samme feilsøkings-guard. Ikke målt; antakelsen står åpen.
+
+  Fellesnevner: valget står per fil, men guard-ORDLYDEN følger formen. En generator
+  skal guardes mot «endre eksisterende kode», en manifestredigerer mot «forklare
+  eller feilsøke et eksisterende manifest». Å bruke generatorens ordlyd på
+  nais-manifest ville latt feilsøkingsspørsmålet slippe gjennom.
+
+  MODELLVALG I PROBE 2: gpt-5.6-luna alene, ikke begge modellene. Budsjettet var
+  ~10 kall; luna fyrte 5/5 mot sonnet-5s 2/5 på probe 1s borderline og er dermed
+  den som lettest avslører hazarden. En arm A som ikke fyrer i det hele tatt gjør
+  arm B utolkbar (#583), så kallene gikk til den modellen som mest sannsynlig fyrer.

@@ -1,0 +1,49 @@
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "dp-soknad|liveness|readiness|startup|probe|health|nais"
+  └ 14 lines found
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Read SKILL.md
+  │ .github/skills/nais-manifest/SKILL.md
+  └ 195 lines read
+
+Det mest sannsynlige er at poden blir **OOMKilled** på grunn av en feil i ressursgrensene:
+
+```yaml
+resources:
+  requests:
+    memory: 256Mi
+  limits:
+    memory: 64Mi
+```
+
+Containeren får altså bare bruke **64 MiB**, selv om den reserverer 256 MiB. En JVM-/Node-/Go-applikasjon bruker ofte mer enn dette allerede under oppstart, og Kubernetes dreper containeren når minnegrensen overskrides. Sett minnegrensen til minst forventet oppstartsforbruk, for eksempel:
+
+```yaml
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+```
+
+Det finnes også en mulig sekundær årsak: begge probene starter etter bare **1 sekund**, og liveness bruker `/internal/health`. Hvis applikasjonen ikke har denne endepunktet eller ikke rekker å starte innen ett sekund, feiler liveness-proben og Kubernetes restarter poden. Readiness-feil alene dreper ikke poden.
+
+Bekreft årsaken med:
+
+```bash
+kubectl describe pod <pod> -n team-dagpenger
+kubectl get pod <pod> -n team-dagpenger \
+  -o jsonpath='{.status.containerStatuses[0].lastState.terminated.reason}'
+```
+
+`OOMKilled` bekrefter minneproblemet; `Liveness probe failed` peker på probe-konfigurasjonen.
+

@@ -1,0 +1,56 @@
+Jeg undersøker deploy-/runtime-konfigurasjonen og oppstartsbanen for `dp-soknad`, med fokus på health probes, secrets/config og årsaker til restart-loop.
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "dp-soknad|liveness|readiness|startupProbe|health|probe|NAIS|nais"
+  └ 14 lines found
+
+● Inspect repository status and top-level files (shell)
+  │ rtk git status --short --branch && printf '\nTop-level:\n' && rtk find . -maxdepth 2 -type f |
+  │ sort | head -100
+  └ 2 lines…
+
+● skill(nais-manifest)
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Read SKILL.md
+  │ .github/skills/nais-manifest/SKILL.md
+  └ L1:220 (195 lines read)
+
+Hovedårsaken er ressurskonfigurasjonen i `.nais/app.yaml`:
+
+```yaml
+resources:
+  requests:
+    memory: 256Mi
+  limits:
+    memory: 64Mi
+```
+
+Podden får dermed lov til å bruke maksimalt **64 MiB**, selv om den ber om 256 MiB. En JVM-/Node-/Go-applikasjon kan enkelt overstige dette under oppstart. Kubernetes dreper da containeren med `OOMKilled`, starter den på nytt, og etter flere runder havner den i `CrashLoopBackOff`.
+
+Det finnes også en mulig sekundær årsak:
+
+```yaml
+liveness:
+  path: /internal/health
+  initialDelay: 1
+```
+
+Hvis `/internal/health` ikke finnes, ikke lytter på port 8080 ennå, eller bruker mer enn ett sekund på å svare, feiler liveness-proben og Kubernetes dreper poden. `initialDelay: 1` er svært aggressivt for oppstart.
+
+Sett minnelimitet til et realistisk nivå, for eksempel:
+
+```yaml
+limits:
+  memory: 512Mi
+```
+
+og kontroller at applikasjonen faktisk eksponerer `GET /internal/health` på port 8080. `kubectl describe pod` vil skille årsakene: `Reason: OOMKilled` bekrefter minneproblemet, mens `Liveness probe failed` bekrefter probe-problemet.
+

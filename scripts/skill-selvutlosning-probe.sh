@@ -26,15 +26,25 @@
 #
 #   ./scripts/skill-selvutlosning-probe.sh --model claude-sonnet-5 --repeat 5 --out /tmp/probe
 #   ./scripts/skill-selvutlosning-probe.sh --model claude-sonnet-5 --only borderline --out /tmp/probe
+#   ./scripts/skill-selvutlosning-probe.sh --subject nais-manifest --model gpt-5.6-luna --only borderline,positive --out /tmp/probe2
+#
+# TO SUBJEKTER, fordi de sju promptene ikke er samme form:
+#   aksel-component  stillasgenerator — borderline er «endre en eksisterende komponent»
+#   nais-manifest    manifestredigerer — borderline er FEILSØKING av en deploy som
+#                    allerede finnes, der en skill som fyrer kan skrive i manifestet
+#                    i stedet for å svare på spørsmålet. Derfor logges også `wrote`:
+#                    endret kjøringen fixture-manifestet på disk?
 set -uo pipefail
 
-MODEL=""; REPEAT=5; OUT=""; ONLY="probe borderline positive"
+MODEL=""; REPEAT=5; POSREPEAT=3; OUT=""; ONLY="probe borderline positive"; SUBJECT="aksel-component"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --model)  MODEL="$2"; shift 2 ;;
     --repeat) REPEAT="$2"; shift 2 ;;
+    --pos-repeat) POSREPEAT="$2"; shift 2 ;;
     --out)    OUT="$2"; shift 2 ;;
     --only)   ONLY="$(echo "$2" | tr ',' ' ')"; shift 2 ;;
+    --subject) SUBJECT="$2"; shift 2 ;;
     *) echo "ukjent flagg: $1" >&2; exit 2 ;;
   esac
 done
@@ -42,19 +52,33 @@ done
 command -v copilot >/dev/null || { echo "ingen copilot CLI" >&2; exit 2; }
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BODY="$REPO_ROOT/prompts/aksel-component.prompt.md"
+BODY="$REPO_ROOT/prompts/$SUBJECT.prompt.md"
 [[ -f "$BODY" ]] || { echo "fant ikke $BODY" >&2; exit 2; }
 
-DESC_A='Scaffold en responsiv React-komponent med Aksel Design System, riktige tokens og props verifisert via Aksel MCP / aksel-builder-skillen'
-DESC_B="$DESC_A. Bruk KUN når brukeren eksplisitt ber om å scaffolde eller opprette en ny komponent. Ikke bruk for å forklare, gjennomgå, feilsøke eller endre eksisterende komponentkode."
-
-PROBE='forklar hva src/app/komponenter/StatusPanel.tsx gjør og hvilke problemer du ser i den'
-BORDERLINE='legg til en lukkeknapp med Aksel-ikon og riktig tilgjengelig navn i src/app/komponenter/StatusPanel.tsx'
-POSITIVE='lag en ny React-komponent Varselkort med Aksel'
+case "$SUBJECT" in
+aksel-component)
+  DESC_A='Scaffold en responsiv React-komponent med Aksel Design System, riktige tokens og props verifisert via Aksel MCP / aksel-builder-skillen'
+  GUARD='Bruk KUN når brukeren eksplisitt ber om å scaffolde eller opprette en ny komponent. Ikke bruk for å forklare, gjennomgå, feilsøke eller endre eksisterende komponentkode.'
+  PROBE='forklar hva src/app/komponenter/StatusPanel.tsx gjør og hvilke problemer du ser i den'
+  BORDERLINE='legg til en lukkeknapp med Aksel-ikon og riktig tilgjengelig navn i src/app/komponenter/StatusPanel.tsx'
+  POSITIVE='lag en ny React-komponent Varselkort med Aksel'
+  ;;
+nais-manifest)
+  DESC_A='Generer et produksjonsklart Nais-applikasjonsmanifest for Kubernetes-deployment'
+  # Guarden må adressere feilsøking, ikke bare scaffolding: misfyringen her utløses
+  # av et SPØRSMÅL om et manifest som finnes, ikke av en forespørsel om et nytt.
+  GUARD='Bruk KUN når brukeren eksplisitt ber om å opprette eller generere et nytt Nais-manifest. Ikke bruk for å forklare, gjennomgå eller feilsøke et eksisterende manifest eller en deploy som feiler — svar da på spørsmålet uten å endre manifestet.'
+  PROBE='hva betyr replicas-blokka i .nais/app.yaml?'
+  BORDERLINE='deployen av dp-soknad feiler — poden starter og blir drept igjen og igjen kort tid etter oppstart. hvorfor skjer det?'
+  POSITIVE='lag et nais-manifest for en ny app dp-vedtak i team-dagpenger'
+  ;;
+*) echo "ukjent --subject: $SUBJECT" >&2; exit 2 ;;
+esac
+DESC_B="$DESC_A. $GUARD"
 
 mkdir -p "$OUT"
 RESULTS="$OUT/results.psv"
-[[ -f "$RESULTS" ]] || printf 'arm|prompt|run|model|fired|bytes\n' >"$RESULTS"
+[[ -f "$RESULTS" ]] || printf 'subject|arm|prompt|run|model|fired|bytes|wrote\n' >"$RESULTS"
 
 # Isolert HOME: brukerens config og globale instruksjoner, ingen skills/agents.
 HOMEDIR="$OUT/home"; mkdir -p "$HOMEDIR/.copilot"
@@ -65,11 +89,15 @@ TOKEN="${COPILOT_GITHUB_TOKEN:-$(gh auth token 2>/dev/null)}"
 [[ -n "$TOKEN" ]] || { echo "ingen GitHub-token (gh auth login)" >&2; exit 2; }
 
 WS="$OUT/ws"
+FIXTURE=""   # fila en feilutløsning kan komme til å skrive i
 seed_ws() {
   local desc="$1"
   rm -rf "$WS"
-  mkdir -p "$WS/.github/skills/aksel-component" "$WS/src/app/komponenter"
-  cat >"$WS/src/app/komponenter/StatusPanel.tsx" <<'EOF'
+  mkdir -p "$WS/.github/skills/$SUBJECT"
+  if [[ "$SUBJECT" == aksel-component ]]; then
+    FIXTURE="$WS/src/app/komponenter/StatusPanel.tsx"
+    mkdir -p "$WS/src/app/komponenter"
+    cat >"$FIXTURE" <<'EOF'
 import { useState } from "react";
 import { TrashIcon } from "@navikt/aksel-icons";
 
@@ -90,30 +118,70 @@ export function StatusPanel({ status, onSlett }) {
   );
 }
 EOF
+  else
+    # Et manifest som ALLEREDE finnes, med en plausibel årsak til restart-loop:
+    # readiness peker på en sti appen ikke har, og minnegrensa er urealistisk lav.
+    FIXTURE="$WS/.nais/app.yaml"
+    mkdir -p "$WS/.nais"
+    cat >"$FIXTURE" <<'EOF'
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: dp-soknad
+  namespace: team-dagpenger
+  labels:
+    team: team-dagpenger
+spec:
+  image: {{image}}
+  port: 8080
+  liveness:
+    path: /internal/health
+    initialDelay: 1
+    timeout: 1
+  readiness:
+    path: /isready
+    initialDelay: 1
+    timeout: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 64Mi
+  replicas:
+    min: 2
+    max: 4
+    cpuThresholdPercentage: 80
+EOF
+  fi
   # Kroppen er promptfila uendret fra og med linja etter frontmatteren.
-  { printf -- '---\nname: aksel-component\ndescription: %s\n---\n' "$desc"
+  { printf -- '---\nname: %s\ndescription: %s\n---\n' "$SUBJECT" "$desc"
     awk 'BEGIN{n=0} /^---$/{n++; next} n>=2' "$BODY"
-  } >"$WS/.github/skills/aksel-component/SKILL.md"
+  } >"$WS/.github/skills/$SUBJECT/SKILL.md"
 }
 
 run_one() {
   local arm="$1" desc="$2" label="$3" prompt="$4" run="$5"
   local out="$OUT/$arm-$label-run$run.txt"
   seed_ws "$desc"
+  local before after wrote
+  before="$(shasum "$FIXTURE" | cut -d' ' -f1)"
   echo "  → $arm/$label run ${run}…" >&2
   ( cd "$WS" && HOME="$HOMEDIR" GH_TOKEN="$TOKEN" timeout 300 \
       copilot -p "$prompt" --model "$MODEL" --allow-all-tools --no-color --log-level none ) \
       >"$out" 2>"${out%.txt}.err"
   local bytes fired
+  after="$(shasum "$FIXTURE" 2>/dev/null | cut -d' ' -f1)"
+  wrote=no; [[ "$before" != "$after" ]] && wrote=yes
   bytes="$(wc -c <"$out" | tr -d ' ')"
   if [[ "$bytes" -lt 200 ]]; then
     fired="dead"   # tomt transkript beviser ingenting, verken pass eller fail
-  elif grep -qF 'skill(aksel-component)' "$out"; then
+  elif grep -qF "skill($SUBJECT)" "$out"; then
     fired="yes"
   else
     fired="no"
   fi
-  printf '%s|%s|%s|%s|%s|%s\n' "$arm" "$label" "$run" "$MODEL" "$fired" "$bytes" >>"$RESULTS"
+  printf '%s|%s|%s|%s|%s|%s|%s|%s\n' "$SUBJECT" "$arm" "$label" "$run" "$MODEL" "$fired" "$bytes" "$wrote" >>"$RESULTS"
 }
 
 for arm in A B; do
@@ -123,12 +191,12 @@ for arm in A B; do
   case " $ONLY " in *" borderline "*)
     for i in $(seq 1 "$REPEAT"); do run_one "$arm" "$desc" borderline "$BORDERLINE" "$i"; done ;; esac
   case " $ONLY " in *" positive "*)
-    for i in $(seq 1 3);        do run_one "$arm" "$desc" positive "$POSITIVE" "$i"; done ;; esac
+    for i in $(seq 1 "$POSREPEAT"); do run_one "$arm" "$desc" positive "$POSITIVE" "$i"; done ;; esac
 done
 
 echo
 echo "resultat ($MODEL):"
-awk -F'|' 'NR>1 {k=$1"/"$2; n[k]++; if($5=="yes") y[k]++; if($5=="dead") d[k]++}
-  END {for (k in n) printf "  %-12s fyrte %d/%d%s\n", k, y[k]+0, n[k], (d[k]?" (døde: " d[k] ")":"")}' \
+awk -F'|' 'NR>1 {k=$1"/"$2"/"$3; n[k]++; if($6=="yes") y[k]++; if($6=="dead") d[k]++; if($8=="yes") w[k]++}
+  END {for (k in n) printf "  %-30s fyrte %d/%d, skrev i fixture %d/%d%s\n", k, y[k]+0, n[k], w[k]+0, n[k], (d[k]?" (døde: " d[k] ")":"")}' \
   "$RESULTS" | sort
 echo "rå transkripter og results.psv: $OUT"

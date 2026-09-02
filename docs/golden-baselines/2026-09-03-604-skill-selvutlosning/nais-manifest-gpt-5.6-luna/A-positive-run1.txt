@@ -1,0 +1,32 @@
+● skill(nais-manifest)
+
+● List directory .github/skills/nais-manifest
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Edit
+  └ Edit .nais/app.yaml
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 31 lines read
+
+Opprettet `.nais/app.yaml` for **dp-vedtak** i `team-dagpenger`.
+
+Manifestet inkluderer port 8080, Prometheus på `/metrics`, helseendepunktene `/isalive` og `/isready`, ressursgrenser og autoskalering fra 2 til 4 replikaer. Database, Kafka, innlogging, TokenX og ingress er ikke konfigurert siden dette ikke var spesifisert.
+
+Husk at applikasjonen må eksponere:
+
+- `GET /isalive` → `Alive`
+- `GET /isready` → `Ready`
+- `GET /metrics` → Prometheus-metrikker
+
+`accessPolicy` er ikke satt, så Nais’ standard nettverkspolicy gjelder. Legg til eksplisitte `outbound.rules` dersom appen skal kontakte andre tjenester. Azure AD passer for maskin-til-maskin-autentisering, TokenX for videreføring av bruker­kontekst, og ID-porten for innlogging av innbyggere.
+
