@@ -806,7 +806,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	}
 
 	fmt.Printf("%s Installed %d items to %s (v%s, %s).\n",
-		green("✓"), result.Installed, scope.Label(), stateVersion, src.SHA)
+		green("✓"), result.Installed, scope.Label(), stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	fmt.Println(dim("Agents and skills are now available across all your repos."))
 	fmt.Println(dim("Use @nav-pilot in Copilot Chat or copilot --agent nav-pilot"))
