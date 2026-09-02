@@ -187,8 +187,14 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		// unreachable from the CLI. It is here so that refusal is a
 		// convenience rather than the only thing standing between --frozen and
 		// an install with no precheck, no pin match and no completeness check.
+		//
+		// A plain error, not frozenf: contradictory flags are a usage mistake
+		// and exit 1 from either door. Exit 3 means the pin was not honoured,
+		// which is a different thing for CI to branch on, and one mistake must
+		// not have two answers depending on which door it came through — the
+		// same reason --user answers 1 in both places.
 		if installFrozen {
-			return frozenf("%s installs the agentpakke %s names, and %s takes one item regardless of what it says",
+			return fmt.Errorf("%s installs the agentpakke %s names, and %s takes one item regardless of what it says",
 				bold("--frozen"), agentpakke.DeclarationPath, bold("--type "+itemType))
 		}
 		if _, ok := kindByName[itemType]; !ok {

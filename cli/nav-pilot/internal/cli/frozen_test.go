@@ -477,8 +477,12 @@ func TestFrozenRefusesTypeUnderneathTheFlagLayer(t *testing.T) {
 	if err == nil {
 		t.Fatal("a frozen a-la-carte install landed with no precheck at all")
 	}
-	if code := exitCodeFor(err); code != ExitFrozen {
-		t.Errorf("exited %d, want ExitFrozen (%d): %v", code, ExitFrozen, err)
+	// ExitError, like the flag layer: contradictory flags are a usage mistake,
+	// and one mistake must not have two answers depending on which door it came
+	// through. Exit 3 means the pin was not honoured, which is a different thing
+	// for CI to branch on.
+	if code := exitCodeFor(err); code != ExitError {
+		t.Errorf("exited %d, want ExitError (%d): %v", code, ExitError, err)
 	}
 	if _, statErr := os.Stat(filepath.Join(scope.RootDir, ".github", "agents")); statErr == nil {
 		t.Error("the refusal still installed content")
