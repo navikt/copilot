@@ -196,6 +196,12 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		return err
 	}
 
+	// --frozen refuses every repo state it cannot be frozen against before a
+	// single byte is fetched or written.
+	if err := frozenPrecheck(scope); err != nil {
+		return err
+	}
+
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
@@ -204,6 +210,10 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		return err
 	}
 	defer src.Cleanup()
+
+	if err := frozenPinMatches(scope, src); err != nil {
+		return err
+	}
 
 	// A source that ships an agentpakke manifest supersedes the collection
 	// model: its single installable name is the agentpakke identity, and that
@@ -263,6 +273,14 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	}
 
 	if len(matchedKinds) == 1 {
+		// A single artifact is an a-la-carte install: it writes no declaration
+		// (a documented limitation) and installs one name regardless of what
+		// the declaration lists, so there is nothing for --frozen to hold.
+		if installFrozen {
+			return frozenf("%q is a single %s, not the agentpakke %s declares.\n"+
+				"--frozen installs what the declaration names; drop the flag to take one item",
+				name, matchedKinds[0].Name, agentpakke.DeclarationPath)
+		}
 		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
 	}
 
@@ -362,6 +380,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		telemetry.RecordInstallItems(scope.Name, telemetryMode(), int64(result.Installed))
 	}
 
+	// Before the JSON output, so the machine-readable path cannot report a
+	// partial install as a success either.
+	if err := frozenComplete(result, scope); err != nil {
+		return err
+	}
+
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
 			"command":     "install",
@@ -411,7 +435,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
-	recordDeclaration(scope, src)
+	// --frozen never moves the pin, not even to rewrite it as the value it
+	// already holds: a CI job must not produce a diff in a file it was only
+	// meant to obey.
+	if !installFrozen {
+		recordDeclaration(scope, src)
+	}
 
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
 		green("✓"), result.Installed, collection, stateVersion, shortSHA(src.SHA))
