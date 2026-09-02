@@ -240,6 +240,16 @@ func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 			yellow("⚠"), agentpakke.DeclarationPath, err)
 		return
 	}
+	// A declaration written before #597 pins seven characters, which is not a
+	// revision git can fetch — installing that repo's own pin fails. Writing it
+	// out in full is the repair, and this is where it happens, but it is not a
+	// bump: reporting it as one printed the same seven characters either side
+	// of an arrow (#605). Say what actually changed instead.
+	if sameSHA(previous, src.SHA) {
+		fmt.Printf("%s Wrote the full revision id in %s (%s). Same revision — an abbreviated one cannot be fetched. Commit it.\n",
+			green("✓"), bold(agentpakke.DeclarationPath), shortSHA(src.SHA))
+		return
+	}
 	fmt.Printf("%s Bumped %s: %s → %s. Commit it to share the update.\n",
 		green("✓"), bold(agentpakke.DeclarationPath), shortSHA(previous), shortSHA(src.SHA))
 }
