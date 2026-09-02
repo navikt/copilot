@@ -50,8 +50,9 @@ hosted one. Off until you run init, and invisible everywhere until then.
 
   init      Set it all up: environment, weights, memory limit, and a running server
   start     Start the server and wait until it answers a real completion
+  restart   Stop the server and start one on the model local_model names now
   stop      Stop the server
-  status    Model, health, resident memory, the wired-memory limit and what it has done
+  status    Model, health, resident memory, the wired-memory limit, the log and what it has done
   ask       Put one question straight to the local model: ask -p "..." (or pipe stdin)
   on        Dispatch to it again after off, without downloading anything
   off       Stop dispatching to it; the weights stay on disk
@@ -86,6 +87,8 @@ func cmdAlpha(args []string) error {
 		return cmdLocalStart()
 	case "stop":
 		return cmdLocalStop()
+	case "restart":
+		return cmdLocalRestart()
 	case "status":
 		return cmdLocalStatus()
 	case "on":
@@ -100,7 +103,7 @@ func cmdAlpha(args []string) error {
 		alphaUsage()
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "stop", "status", "ask", "on", "off", "purge"}); hint != "" {
+		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "ask", "on", "off", "purge"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Run %s for usage", sub, bold("nav-pilot alpha help"))
@@ -510,6 +513,21 @@ func currentWiredLabel(w local.WiredLimit) string {
 
 // ─── stop ────────────────────────────────────────────────────────────────────
 
+// cmdLocalRestart stops a running server and starts one on the model the
+// config names now. Changing local_model does not move a server that is
+// already up, and there was no single command for it: stop, then start, with
+// nothing to say the second half failed.
+func cmdLocalRestart() error {
+	if _, running, err := local.LoadState(); err == nil && running {
+		if err := cmdLocalStop(); err != nil {
+			return err
+		}
+	} else {
+		fmt.Printf("%s No server was running.\n", dim("\u2192"))
+	}
+	return cmdLocalStart()
+}
+
 func cmdLocalStop() error {
 	st, ok, err := local.LoadState()
 	if err != nil {
@@ -557,6 +575,13 @@ func cmdLocalStatus() error {
 		defer printLocalStats(stats)
 	}
 	fmt.Printf("  Model        %s\n", bold(st.Model))
+	// A server keeps serving what it loaded. Changing local_model under a
+	// running one leaves the config and the process disagreeing, and every
+	// answer comes from the old model with nothing on screen to say so.
+	if want, ok := local.Chosen(local.Active()); ok && want.Model != st.Model {
+		fmt.Printf("               %s local_model is %s now. Run %s to serve it.\n",
+			yellow("⚠"), bold(want.Model), bold("nav-pilot alpha local restart"))
+	}
 	fmt.Printf("  Server       %s, %s\n", healthColour(health), dim(healthMeaning(health)))
 	fmt.Printf("  Process      pid %d, up %s, listening on %s\n",
 		st.PID, timeNow().Sub(st.Started).Round(time.Second), local.ServerURL())
@@ -564,6 +589,12 @@ func cmdLocalStatus() error {
 		fmt.Printf("  Resident     %.1f GB\n", float64(rss)/1024)
 	} else {
 		fmt.Printf("  Resident     %s\n", dim("unreadable"))
+	}
+	// Everything the server printed is here, and it is where a hang or a
+	// refusal to load explains itself. Naming it in status saves the developer
+	// finding out that nav-pilot keeps one at all.
+	if lp := local.LogPath(); lp != "" {
+		fmt.Printf("  Log          %s\n", dim(lp))
 	}
 
 	// The wired limit is per model and measured, so it is only meaningful for a
