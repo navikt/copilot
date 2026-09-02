@@ -2,7 +2,7 @@
 # agent:        nav-pilot
 # date:         2026-09-02
 # revision:     c98f7794
-# model:        default
+# model:        CLI default
 # instructions: 17 installed, 3 always-on
 # repeat:       5
 # fixture:      4263008951
