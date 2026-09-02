@@ -177,6 +177,15 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 > SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. `cplt` må
 > være installert for å starte `opencode` og `pi`, i tillegg til selve klient-binæren.
 
+> **Sikkerhetsdetalj (Copilot/cplt):** Før `cplt` startes henter nav-pilot ut
+> GitHub-/Copilot-token i den usandkassede foreldreprosessen — fra `GH_TOKEN`,
+> `GITHUB_TOKEN` eller `COPILOT_GITHUB_TOKEN`, ellers via `gh auth token` — og
+> injiserer det som `GH_TOKEN` i sandkassemiljøet. Da har Copilot allerede et
+> token og trenger ikke å nå Keychain inne i sandkassen, noe som forkorter
+> vinduet med bred Keychain-tilgang. Strategien styres av `copilot_auth_mode`
+> (`auto`, `env_only`, `gh_only`); restriktive moduser feiler lukket. Se
+> [SECURITY.md](../SECURITY.md) for detaljer og begrensninger.
+
 ### opencode: Nav-kontekst automatisk
 
 Med `--client opencode` (eller `client = "opencode"` i konfig) gjør nav-pilot dette ved hver

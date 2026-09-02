@@ -198,3 +198,67 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 - Skip input validation on external boundaries
 - Bypass `azp` validation on any backend API request, even for "internal" services
 - Give my-copilot, or any app other than copilot-api, access to GitHub App credentials
+
+---
+
+## cplt Token Pre-Extraction (nav-pilot)
+
+When nav-pilot launches Copilot via `cplt`, it attempts to pre-extract the GitHub
+auth token before sandboxing and injects it as `GH_TOKEN` into the sandboxed
+process environment. This allows cplt's sandbox profile to omit broad macOS
+Keychain access.
+
+### Auth priority (`copilot_auth_mode`)
+
+| Config value | `GH_TOKEN` / `GITHUB_TOKEN` / `COPILOT_GITHUB_TOKEN` | `gh auth token` | Fallback behavior |
+|--------------|-------------------------------|-----------------|-------------------|
+| `auto` | yes | yes | permissive (`cplt` may continue on pre-extraction failure) |
+| `env_only` | yes | no | fail closed |
+| `gh_only` | no | yes | fail closed |
+
+Default mode is `auto` (tries all sources in order). Set `copilot_auth_mode` in
+`~/.nav-pilot/config.toml` to restrict to a specific source.
+
+There is no separate `copilot_keychain_fallback` setting and no direct Keychain
+reader path. `gh_only` uses `gh auth token` as the non-env extraction mechanism.
+
+When multiple env vars are set, precedence is:
+`GH_TOKEN` → `GITHUB_TOKEN` → `COPILOT_GITHUB_TOKEN`.
+
+For restrictive modes (`env_only`, `gh_only`), nav-pilot fails
+closed: if pre-extraction fails, it aborts launch instead of starting `cplt`
+without `GH_TOKEN`.
+
+When env auth is disabled by mode (`gh_only`), nav-pilot
+removes `GH_TOKEN`, `GITHUB_TOKEN`, and `COPILOT_GITHUB_TOKEN` from the
+`gh auth token` subprocess environment to prevent accidental env-token
+inheritance.
+
+### What this protects against
+
+Pre-extraction reduces the **Keychain exposure window**: the sandbox does not need
+ongoing read access to `~/Library/Keychains` when a token is already available via
+env or `gh auth token`.
+
+### What this does NOT protect against
+
+This is **hardening, not a security boundary**. An agent running as the same UID
+can still invoke `gh auth token` directly and receive the token. The real gain is
+removing broad Keychain access from the sandbox profile, not making the token
+invisible to the agent.
+
+### Future work
+
+A one-shot Unix-socket token broker (deliver the token over a private socket
+instead of an inherited env var) is planned for a later change, alongside the
+matching `navikt/cplt` `gh`-wrapper integration and the sandbox-profile change
+that drops broad `~/Library/Keychains` access. Until then, `GH_TOKEN` injection
+as described above is the mechanism.
+
+### OS compatibility
+
+| Platform | Env token | gh-cli extraction | Keychain |
+|----------|-----------|-------------------|---------|
+| macOS | ✅ | ✅ | ✅ |
+| Linux | ✅ | ✅ | ❌ (not supported) |
+| Windows | ✅ | ✅ | ❌ (not supported) |
