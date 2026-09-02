@@ -122,7 +122,7 @@ func TestExportSkills(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportSkills(sourceDir, outputDir, false)
+	n, err := exportSkills(sourceDir, "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestExportPrompts(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportPrompts(sourceDir, outputDir, false)
+	n, err := exportPrompts(sourceDir, "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestExportAgents(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportAgents(sourceDir, outputDir, false)
+	n, err := exportAgents(sourceDir, "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestExportInstructions(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportInstructions(sourceDir, outputDir, false)
+	n, err := exportInstructions(sourceDir, "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +284,7 @@ These apply everywhere.
 `)
 
 	outputDir := t.TempDir()
-	n, err := exportInstructions(dir, outputDir, false)
+	n, err := exportInstructions(dir, "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,10 +305,10 @@ func TestExportDryRun(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	for _, fn := range []func(string, string, bool) (int, error){
+	for _, fn := range []func(string, string, string, bool) (int, error){
 		exportSkills, exportPrompts, exportAgents, exportInstructions,
 	} {
-		if _, err := fn(sourceDir, outputDir, true); err != nil {
+		if _, err := fn(sourceDir, "", outputDir, true); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -325,14 +325,14 @@ func TestExportEmptySource(t *testing.T) {
 
 	for _, fn := range []struct {
 		name string
-		fn   func(string, string, bool) (int, error)
+		fn   func(string, string, string, bool) (int, error)
 	}{
 		{"skills", exportSkills},
 		{"prompts", exportPrompts},
 		{"agents", exportAgents},
 		{"instructions", exportInstructions},
 	} {
-		n, err := fn.fn(sourceDir, outputDir, false)
+		n, err := fn.fn(sourceDir, "", outputDir, false)
 		if err != nil {
 			t.Errorf("%s: unexpected error: %v", fn.name, err)
 		}
@@ -547,7 +547,7 @@ func TestExportSkills_RootLevel(t *testing.T) {
 	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), "# My Skill\n")
 	mustWrite(t, filepath.Join(skillDir, "reference.md"), "## Reference\n")
 
-	n, err := exportSkills(sourceDir, outputDir, false)
+	n, err := exportSkills(sourceDir, "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -747,5 +747,49 @@ func TestWorkerAgentIsOnlyMaterializedForTheOptedIn(t *testing.T) {
 	t.Cleanup(func() { local.SetEnabled(false) })
 	if got := names(); len(got) != 2 {
 		t.Errorf("agents materialized with local dispatch on = %v, want both", got)
+	}
+}
+
+// export opencode writes <repo>/.opencode/, which only that repo reads, so the
+// scope's hand-added artifacts belong in it — instructions included.
+func TestExportScopeExtras(t *testing.T) {
+	sourceDir := setupTestSource(t)
+	scopeDir := setupTestScope(t)
+	mustWrite(t, filepath.Join(scopeDir, "copilot-instructions.md"), "Team rules for this repo.\n")
+	outputDir := t.TempDir()
+
+	if _, err := exportSkills(sourceDir, scopeDir, outputDir, false); err != nil {
+		t.Fatalf("exportSkills: %v", err)
+	}
+	if _, err := exportPrompts(sourceDir, scopeDir, outputDir, false); err != nil {
+		t.Fatalf("exportPrompts: %v", err)
+	}
+	if _, err := exportAgents(sourceDir, scopeDir, outputDir, false); err != nil {
+		t.Fatalf("exportAgents: %v", err)
+	}
+	if _, err := exportInstructions(sourceDir, scopeDir, outputDir, false); err != nil {
+		t.Fatalf("exportInstructions: %v", err)
+	}
+
+	for _, p := range []string{
+		filepath.Join("skills", "watson-setup", "SKILL.md"),
+		filepath.Join("commands", "watson-report.md"),
+		filepath.Join("agents", "watson.md"),
+		filepath.Join("instructions", "watson.md"),
+	} {
+		if _, err := os.Stat(filepath.Join(outputDir, p)); err != nil {
+			t.Errorf("hand-added %s never reached the export: %v", p, err)
+		}
+	}
+
+	data, err := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("reading AGENTS.md: %v", err)
+	}
+	if !strings.Contains(string(data), "Team rules for this repo") {
+		t.Error("the repo's own copilot-instructions.md is missing from AGENTS.md")
+	}
+	if !strings.Contains(string(data), "## Global Instructions") {
+		t.Error("the source's global instructions were dropped")
 	}
 }

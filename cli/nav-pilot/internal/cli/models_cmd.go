@@ -50,6 +50,7 @@ func cmdModels(jsonOutput bool) error {
 	}
 
 	fmt.Println()
+	fmt.Println(dim("  Local entries are chosen with `nav-pilot config set local_model <id>`; `model` is the session model."))
 	fmt.Println(dim("  Availability depends on your GitHub Copilot plan and organization policy."))
 	fmt.Println(dim("  Org admins manage model access at: github.com/<org>/settings/copilot/policies"))
 	fmt.Println()

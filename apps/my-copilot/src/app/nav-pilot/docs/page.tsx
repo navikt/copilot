@@ -51,7 +51,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Kom i gang",
     children: [
       { id: "installasjon", label: "Installasjon (5 min)" },
-      { id: "personlig-installasjon", label: "Personlig installasjon (valgfritt)" },
+      { id: "hvor-installere", label: "Hvor skal artefaktene installeres?" },
       { id: "vanlige-oppgaver", label: "Vanlige oppgaver" },
     ],
   },
@@ -741,13 +741,47 @@ nav-pilot`}
           </div>
         </div>
 
-        <div id="personlig-installasjon">
+        <div id="hvor-installere">
           <LinkableHeading size="small" level="3">
-            Personlig installasjon (valgfritt)
+            Hvor skal artefaktene installeres?
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Du kan også installere agenter, skills og instruksjoner til hjemmemappen. De blir da tilgjengelige i{" "}
-            <em>alle</em> repoer uten å endre hvert enkelt.
+            Tre former er i bruk i Nav, og de løser ulike problemer.{" "}
+            <code className="font-mono text-xs">install</code> spør hvis du ikke svarer på forhånd med{" "}
+            <code className="font-mono text-xs">--repo</code> eller <code className="font-mono text-xs">--user</code>.
+          </BodyLong>
+          <ul className="mt-3 space-y-2 list-disc pl-5" style={{ color: "#475569" }}>
+            <li>
+              <strong>Repo</strong> (<code className="font-mono text-xs">--repo</code>, skriver til{" "}
+              <code className="font-mono text-xs">.github/</code>): hele teamet får det samme, prompts virker, og
+              Copilot på github.com ser filene fordi de er sjekket inn. Til gjengjeld ligger de i repoet og i hver
+              diff.
+            </li>
+            <li>
+              <strong>Personlig</strong> (<code className="font-mono text-xs">--user</code>, skriver til{" "}
+              <code className="font-mono text-xs">~/.copilot/</code>): følger deg på tvers av alle repoer, og
+              ingenting sjekkes inn. Den tar ikke med prompts, og når verken github.com eller resten av teamet.
+            </li>
+            <li>
+              <strong>Hub-repo</strong>: en repo-installasjon i et repo som ikke er en applikasjon, pluss teamets
+              egne skills lagt inn for hånd i det samme <code className="font-mono text-xs">.github/</code>. Konteksten
+              følger arbeidskatalogen, så den gjelder mens du står i hub-repoet.
+            </li>
+          </ul>
+          <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
+            Formene utelukker ikke hverandre, og{" "}
+            <code className="font-mono text-xs">nav-pilot sync</code> uten scope-flagg synker alle scope som har en
+            tilstandsfil. Avveiningene i sin helhet står i{" "}
+            <a
+              href="https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#hvor-skal-artefaktene-installeres"
+              className="text-blue-600 hover:underline"
+            >
+              README.nav-pilot.md
+            </a>
+            .
+          </BodyLong>
+          <BodyLong className="mt-4" style={{ color: "#475569" }}>
+            Personlig installasjon:
           </BodyLong>
           <div className="mt-4">
             <CodeBlock compact>{`nav-pilot install --user`}</CodeBlock>
@@ -2051,10 +2085,10 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                       </VStack>
                     </Table.DataCell>
                     <Table.DataCell>25 GB</Table.DataCell>
-                    <Table.DataCell>3–6 av 8</Table.DataCell>
+                    <Table.DataCell>2–4 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha
-                      med mindre du har en grunn til noe annet.
+                      Rask og forutsigbar. Median 10–12 sekunder per oppgave, og 3, 2, 4 og 4 av 8 over fire
+                      kjøringer. Ingen av de andre modellene løser målbart flere.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
@@ -2062,10 +2096,13 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
                     </Table.DataCell>
                     <Table.DataCell>16 GB</Table.DataCell>
-                    <Table.DataCell>1–5 av 8</Table.DataCell>
+                    <Table.DataCell>3–4 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom
-                      seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.
+                      Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3
+                      og 4 av 8 mot standardens 3, 2, 4 og 4 — spennene overlapper, forskjellen er ikke målbar
+                      (p = 0,71). Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi
+                      skrev tidligere at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne
+                      kompilere.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
@@ -2083,7 +2120,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
-              Én kjøring er ikke en måling — derfor spenn og ikke median. Alle kjøringene ligger i{" "}
+              Én kjøring er ikke en måling — derfor står alle kjøringene der, ikke bare et snitt. De ligger i{" "}
               <a
                 href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md"
                 style={{ textDecoration: "underline" }}
@@ -2099,22 +2136,22 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           </LinkableHeading>
           <BodyLong size="small" textColor="subtle">
             <code className="font-mono text-xs">nav-pilot models</code> viser hva som er tilgjengelig; de lokale står
-            merket <code className="font-mono text-xs">(local)</code>. Listen oppdateres når du kjører{" "}
+            merket <code className="font-mono text-xs">(local)</code>.{" "}
+            <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
+            <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
+            seg. Listen oppdateres når du kjører{" "}
             <code className="font-mono text-xs">init</code> eller <code className="font-mono text-xs">start</code>, ikke
             ved hver kommando — et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models
-nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
-            Qwen 3.6 er standard, og det er ikke tilfeldig. De to Qwen 3.8-modellene ligger der fordi folk spør etter
-            dem, ikke fordi de er bedre her. På våre egne oppgaver er 3.8 tregere og mye mer ujevn: to kjøringer av de
-            samme åtte oppgavene, samme profil og samme maskin, ga median 88 og 906 sekunder. 3.6 ligger på 12–21
-            sekunder uten timeouts over åtte kjøringer. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8
-            4-bit, 30 GB for 8-bit.
+            Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Tallene står i tabellen
+            over. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for 8-bit.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}

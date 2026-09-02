@@ -67,9 +67,72 @@ func ValidateOpenCodeStatePath(p string) error {
 	return fmt.Errorf("path outside allowed opencode directories: %s", p)
 }
 
+// navPilotOwns reports whether a tracked file is still byte-for-byte what
+// nav-pilot wrote, and is therefore nav-pilot's to remove. A conflicted entry
+// never is: its recorded hash is the user's own copy, so a hash comparison
+// would call it untouched.
+//
+// Note that the write path disagrees about a conflicted entry: stateHashes in
+// [SyncOpenCodeArtifacts] leaves it out, so the sync after a conflict is
+// reported treats the path as untracked and overwrites it. This function treats
+// it as the user's for good. The write path is the older half and the wrong
+// one, but it is a separate bug with its own issue, not something to change
+// under a fix for what the scope materializes.
+func navPilotOwns(outputDir string, f domain.InstalledFile) bool {
+	if f.Status == domain.FileStatusConflict {
+		return false
+	}
+	rel := filepath.Join(outputDir, f.Path)
+	current, err := source.RawArtifactHash(rel, strings.HasSuffix(f.Path, "/"))
+	if os.IsNotExist(err) {
+		return true // already gone; removing it is a no-op
+	}
+	if err != nil {
+		return false // unreadable is not permission to delete
+	}
+	return current == f.Hash
+}
+
+// withScopeExtras appends the artifacts of a kind that the installed scope has
+// and the source checkout does not. Names already present in entries are left
+// alone, so the source stays authoritative and the order of the source entries
+// is unchanged.
+func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.ArtifactKind) []source.Resolved {
+	if scopeDir == "" {
+		return entries
+	}
+	seen := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		seen[e.Name] = true
+	}
+	for _, e := range source.NewSourceResolver(scopeDir).List(kind) {
+		if !seen[e.Name] {
+			entries = append(entries, e)
+		}
+	}
+	return entries
+}
+
 // SyncOpenCodeArtifacts materializes Nav context into outputDir with conflict detection
 // and state tracking. It is the state-aware counterpart to MaterializeOpenCode.
-func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
+//
+// scopeDir is the installed scope the session runs against (a repo's .github/),
+// or "" when there is none. Skills, prompts and agents that live in the scope
+// but not in the source checkout are materialized too: a team that adds a skill
+// by hand under .github/skills/ gets it in Copilot because Copilot reads the
+// scope directly, and used to lose it in opencode because only the source was
+// read here. The source still wins on a name collision, so a scope with nothing
+// hand-added produces exactly what it did before.
+//
+// Instructions are deliberately not merged from the scope. outputDir is the
+// user's global opencode config, and AGENTS.md is always-on context: a repo's
+// instructions would be in every prompt in every other repo until the next sync.
+// A skill or an agent from another repo is visible there too, by name and
+// description in the tool listing and the agent picker, but its body is only
+// read when it is invoked. That is a smaller price than always-on prose, which
+// is why the two are treated differently. [ExportOpenCode] writes project-local
+// files instead, and merges instructions for that reason.
+func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
 	existingState, _ := ReadOpenCodeState(outputDir)
 	stateHashes := map[string]string{}
 	if existingState != nil {
@@ -98,7 +161,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 	var files []domain.InstalledFile
 	resolver := source.NewSourceResolver(sourceDir)
 
-	for _, skill := range resolver.List(source.KindSkill) {
+	for _, skill := range withScopeExtras(resolver.List(source.KindSkill), scopeDir, source.KindSkill) {
 		relPath := "skills/" + skill.Name + "/"
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
 		if isConflict(relPath, dstDir, true) {
@@ -121,7 +184,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 		skills++
 	}
 
-	for _, entry := range resolver.List(source.KindPrompt) {
+	for _, entry := range withScopeExtras(resolver.List(source.KindPrompt), scopeDir, source.KindPrompt) {
 		if entry.IsDir {
 			continue
 		}
@@ -148,7 +211,7 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 		commands++
 	}
 
-	for _, entry := range agentEntries(sourceDir) {
+	for _, entry := range withScopeExtras(agentEntries(sourceDir), scopeDir, source.KindAgent) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 		if isConflict(relPath, dstPath, false) {
@@ -221,16 +284,34 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 		newFilesMap[f.Path] = true
 	}
 
-	// Delete old files that are not in the new file set
+	// Delete old files that are not in the new file set, but only the ones
+	// nav-pilot still owns: an entry marked conflict, or one whose bytes have
+	// changed since nav-pilot wrote them, belongs to the user now. The set
+	// shrinks for two reasons, and only one of them is a removal upstream. The
+	// other is a scope that is no longer there, which happens on every switch to
+	// another repo, so deleting on hash-blind absence would throw away a locally
+	// edited file for no better reason than the working directory.
+	//
+	// A file that survives stays in the state, with the hash and status it had.
+	// Dropping it would leave an untracked orphan that the next sync from the
+	// scope it came from overwrites without a word, since isConflict only knows
+	// paths the state names. Kept in state, that same sync sees the hash differ
+	// and reports a conflict instead. The state therefore grows only by files
+	// the user has edited, and `nav-pilot status` can show them.
 	if existingState != nil {
 		for _, f := range existingState.Files {
-			if !newFilesMap[f.Path] {
-				dst := filepath.Join(outputDir, f.Path)
-				if strings.HasSuffix(f.Path, "/") {
-					os.RemoveAll(dst)
-				} else {
-					os.Remove(dst)
-				}
+			if newFilesMap[f.Path] {
+				continue
+			}
+			if !navPilotOwns(outputDir, f) {
+				files = append(files, f)
+				continue
+			}
+			dst := filepath.Join(outputDir, f.Path)
+			if strings.HasSuffix(f.Path, "/") {
+				os.RemoveAll(dst)
+			} else {
+				os.Remove(dst)
 			}
 		}
 	}
@@ -244,6 +325,9 @@ func SyncOpenCodeArtifacts(sourceDir, outputDir, sourceVersion, sourceSHA, sourc
 		InstalledAt: time.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       files,
 	}
+	// Entries carried over untouched above keep their own unknown keys; the
+	// ones this sync rebuilt do not, and neither does the top level (#588).
+	newState.PreserveUnknownFrom(existingState)
 	if wErr := WriteOpenCodeState(outputDir, newState); wErr != nil {
 		fmt.Fprintf(os.Stderr, "%s could not write opencode state: %v\n", domain.Yellow("⚠"), wErr)
 	}

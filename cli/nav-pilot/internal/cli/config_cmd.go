@@ -170,6 +170,15 @@ var configKeyDefs = []configKeyDef{
 		group:       "Local models (alpha)",
 	},
 	{
+		name:        "local_model",
+		kind:        keyKindString,
+		description: "Which local model the server loads and serves (alpha). Empty means the manifest default. Separate from model, which is the session model.",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+		group:       "Local models (alpha)",
+	},
+	{
 		name:        "rtk_prompted_client",
 		kind:        keyKindString,
 		description: "Comma-separated list of clients where the RTK setup was prompted.",
@@ -304,6 +313,12 @@ version = 1
 # nav-pilot stops them. Minimum 2.
 # Default: 8
 # local_loop_guard = 8
+
+# Which local model the server loads and serves. Unset means whatever the
+# local-model manifest calls its default. This is not the session model: the
+# model key picks that, and the two are set independently.
+# Default: unset
+# local_model = "mlx-community/Qwen3.8-27B-4bit"
 
 # Internal flag to track which client the user was last prompted to set up rtk for.
 # Default: unset
@@ -505,6 +520,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.LocalAutostart)
 	case "local_loop_guard":
 		return strconv.Itoa(localLoopGuard(r))
+	case "local_model":
+		return r.LocalModel
 	case "rtk_prompted_client":
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":
@@ -649,7 +666,11 @@ func validateKeyValue(kd *configKeyDef, value string) error {
 		}
 	}
 	// Key-specific validation beyond the generic kind/allowlist checks.
-	if kd.name == "model" {
+	// Shape only, never membership: the manifest Lookup answers from is the
+	// embedded single-model copy until local is enabled and installed, so a
+	// membership check would reject the very id the docs tell people to set.
+	// `alpha local init` and `start` fetch the real manifest and are the gate.
+	if kd.name == "model" || kd.name == "local_model" {
 		if err := validateModelValue(value); err != nil {
 			return err
 		}
@@ -825,6 +846,15 @@ func printKeyExplain(kd *configKeyDef, resolved ResolvedConfig) {
 		}
 		fmt.Printf("    Common:   %s\n", strings.Join(ids, ", "))
 		fmt.Printf("    Allowed:  any well-formed id ([A-Za-z0-9._/-], e.g. provider/model for opencode)\n")
+	} else if kd.name == "local_model" {
+		var ids []string
+		for _, m := range local.Active().Models {
+			ids = append(ids, m.Model)
+		}
+		if len(ids) > 0 {
+			fmt.Printf("    Manifest: %s\n", strings.Join(ids, ", "))
+		}
+		fmt.Printf("    Allowed:  any id the local-model manifest names; empty means its default\n")
 	} else {
 		fmt.Printf("    Allowed:  any non-empty string\n")
 	}

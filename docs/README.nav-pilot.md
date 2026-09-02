@@ -28,9 +28,107 @@ nav-pilot
 nav-pilot install kotlin-backend
 ```
 
-`install` spør hvor den skal installere, i repoet (`.github/`) eller i hjemmekatalogen
-(`~/.copilot/`). Svar på forhånd med `--repo`, `--user` eller `--target <mappe>` for å hoppe
-over spørsmålet.
+## Hvor skal artefaktene installeres?
+
+Tre former er i bruk i Nav, og de løser ulike problemer. `install` spør hvor den skal
+installere, i repoet (`.github/`) eller i hjemmekatalogen (`~/.copilot/`). Svar på forhånd
+med `--repo`, `--user` eller `--target <mappe>` for å hoppe over spørsmålet.
+
+| Form | Hvor | Kort sagt |
+|---|---|---|
+| Repo (`--repo`) | `<repo>/.github/` | Hele teamet får det samme, og Copilot på github.com ser det |
+| Personlig (`--user`) | `~/.copilot/` | Følger deg på tvers av alle repoer, ingenting sjekkes inn |
+| Hub-repo | ett repo med `.github/` pluss egne artefakter | Ett sted å vedlikeholde teamets egne skills |
+
+De utelukker ikke hverandre. `nav-pilot sync` uten scope-flagg synker alle scope som har en
+tilstandsfil, og de spores hver for seg.
+
+### Repo-installasjon
+
+Skriver til `<repo>/.github/`: `agents/`, `skills/`, `instructions/`, `prompts/` og
+tilstandsfila `.github/.nav-pilot-state.json`.
+
+Dette får du bare her:
+
+- **Prompts.** Brukerscopet støtter `agent`, `skill` og `instruction`, ikke `prompt`
+  (`ScopeUser()` i `cli/nav-pilot/internal/domain/domain.go`). Installerer du en samling med
+  `--user`, hoppes promptene over og rapporteres som ikke støttet. Ber du om én enkelt prompt
+  med `--type prompt --user`, er det en feilmelding.
+- **Copilot på github.com.** Filene er sjekket inn, så det som kjører på GitHub-siden leser
+  dem. Det forutsetter at du committer og pusher, og nav-pilot gjør ingen av delene.
+- **Automatisk oppdatering uten at noen kjører CLI-et.** Den gjenbrukbare workflowen
+  `copilot-customization-sync.yml` kjører `nav-pilot sync` i Actions og åpner PR med
+  oppdateringene. Se [README.sync.md](README.sync.md).
+- **Alle på teamet, også de som ikke har nav-pilot.** Filene ligger der uansett.
+
+Hva det koster: innholdet blir liggende i repoet og dukker opp i differ og
+kodegjennomgang. `kotlin-backend` er 93 filer og rundt 490 KB målt på artefaktene i denne
+kilden. Filer teamet vil eie selv kan merkes som overrides i `.github/copilot-sync.json`,
+og blir da hoppet over ved sync.
+
+### Personlig installasjon (`--user`)
+
+```bash
+nav-pilot install --user --all
+eval "$(nav-pilot env)"
+```
+
+Skriver til `~/.copilot/`. Ingenting sjekkes inn noe sted.
+
+Dette får du bare her:
+
+- **Alle repoer på maskinen på én gang**, også repoer der du ikke vil eller kan endre
+  `.github/`.
+- **Ett sted å synce.** Repo-scopet er alltid det repoet du står i. Med repo-installasjon i
+  40 repoer må noen innom alle 40, eller sette opp sync-workflowen i alle 40. Med `--user`
+  er det én installasjon å holde fersk.
+- **`nav-pilot ignore <type> <name> --user`** for å slippe varsler om komponenter du ikke
+  vil ha. Kommandoen avviser repo-scope.
+
+Dette når den ikke:
+
+- **Prompts.** Se over.
+- **Instruksjoner utenfor nav-pilot.** De havner i `~/.copilot/.github/instructions/`, og
+  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på `~/.copilot`. Starter du
+  klienten med `nav-pilot`, settes den for deg (`copilotEnv` i
+  `cli/nav-pilot/internal/provider/copilot_launch.go`). Starter du `copilot` eller `cplt`
+  direkte, må du sette den selv: `eval "$(nav-pilot env)"`. Agenter og skills plukkes opp
+  uansett. En staged Tier 2-pakke setter den bevisst ikke.
+- **GitHub-siden.** Filene ligger på din maskin, ikke i repoet.
+- **Resten av teamet.** En personlig installasjon er personlig.
+- **opencode.** Nav-konteksten til opencode materialiseres fra kilden pluss `.github/` i
+  repoet du står i, ikke fra `~/.copilot/` (`repoScopeDir()` i
+  `cli/nav-pilot/internal/provider/opencode_launch.go`).
+
+### Hub-repo
+
+Mekanisk er et hub-repo en vanlig repo-installasjon i et repo som ikke er en applikasjon,
+pluss teamets egne agenter, skills og prompts lagt inn for hånd i det samme `.github/`. Du
+kjører nav-pilot fra hub-repoet og jobber derfra.
+
+Det virker fordi begge klientene leser scopet fra arbeidskatalogen:
+
+- Copilot leser `.github/` i repoet direkte, uansett hvem som la fila der.
+- opencode materialiserer både kildeartefaktene og det som bare finnes i scopet. Det siste
+  kom med [#579](https://github.com/navikt/copilot/pull/579). Før den fikk opencode bare
+  det nav-pilot selv hadde installert: et hub-repo med 25 installerte og 3 håndlagde skills
+  så 25, uten varsel og uten feilmelding. Kjører teamet en eldre nav-pilot, mangler de tre
+  fortsatt.
+
+Skarpe kanter:
+
+- **Konteksten følger arbeidskatalogen.** nav-pilot sender ingen prosjektkatalog med til
+  cplt, så klienten arver katalogen du står i. Står du i hub-repoet, har du hub-repoets
+  artefakter og hub-repoets filer. Går du til applikasjonsrepoet for å endre kode der, har
+  du ikke lenger hub-repoets egne skills i scopet.
+- **Kilden vinner ved navnekollisjon.** En håndlagd skill med samme navn som en installert
+  taper i opencode. Se «Hva scopet ditt bidrar med» under opencode-avsnittet.
+- **Instruksjoner fra `.github/` slås ikke sammen med opencodes globale `AGENTS.md`.**
+  `nav-pilot export opencode` er veien når teamet trenger dem der.
+- **Sync i hub-repoet oppdaterer hub-repoet.** De andre repoene har fortsatt sitt eget.
+
+`AGENTS.md` og `.github/copilot-instructions.md` synces aldri, uansett form. De er alltid
+repo-spesifikke, og er stedet for det som bare gjelder ett repo.
 
 ## Sandboxing og isolasjon er påkrevd
 
@@ -101,6 +199,31 @@ nav-pilot config set client opencode  # sett permanent
 `nav-pilot status` og `nav-pilot list --installed` viser opencode-artefaktene og om de er
 oppdaterte.
 
+##### Hva scopet ditt bidrar med
+
+Skills, prompts og agenter du har lagt inn for hånd i `.github/` i repoet du står i,
+materialiseres sammen med Nav-artefaktene. Det er slik et hub-repo får med sine egne
+skills i opencode, ikke bare de nav-pilot har installert.
+
+To ting følger ikke med, og det er med vilje:
+
+- **Instruksjoner fra `.github/`** slås ikke sammen med `AGENTS.md`. Utmappa er den
+  globale opencode-konfigurasjonen din, og `AGENTS.md` er alltid i kontekst, så
+  instruksjonene fra ett repo ville ligget i hver eneste prompt i alle andre repoer.
+  Trenger teamet dem i opencode, er `nav-pilot export opencode` veien: den skriver
+  `<repo>/.opencode/`, som bare det repoet leser, og tar instruksjonene med.
+- **Lokale endringer i en installert artefakt.** Redigerer du en installert skill i
+  `.github/`, honorerer Copilot endringen mens opencode får kildeversjonen. Kilden
+  vinner ved navnekollisjon. Vil du at opencode skal se den, kopier den til et eget
+  navn: både katalognavnet og `name:` i frontmatter må endres, og opencode får da både
+  originalen fra kilden og din kopi.
+
+Artefakter fra et annet repo blir liggende i den globale konfigurasjonen til neste sync,
+og er synlige ved navn og beskrivelse der. De ryddes bort ved neste oppstart, med mindre
+du har endret dem selv: nav-pilot sletter bare det den selv har skrevet og som fortsatt
+er uendret. En fil du har redigert blir stående, og forblir sporet, slik at neste sync i
+repoet den kom fra melder konflikt framfor å overskrive den.
+
 #### `export opencode` vs. automatisk materialisering
 
 Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
@@ -142,10 +265,12 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 ### Bytte modell
 
 `nav-pilot models` viser hva som er tilgjengelig. De lokale står merket `(local)`.
+`local_model` velger hvilken av dem serveren laster; `model` er modellen økten selv kjører på,
+og de settes hver for seg.
 
 ```bash
 nav-pilot models
-nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start
 ```
@@ -154,13 +279,20 @@ Listen oppdateres når du kjører `init` eller `start` — ikke ved hver kommand
 et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nettopp hørt
 om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
 
-**Qwen 3.6 er standard, og det er ikke tilfeldig.** De to Qwen 3.8-modellene ligger der
-fordi folk spør etter dem, ikke fordi de er bedre her. 3.8 er ikke svakere, den er mindre
-forutsigbar: to kjøringer av de samme åtte oppgavene, samme profil og samme maskin to timer
-fra hverandre, løste **1 av 8** og deretter **5 av 8**. Den andre er det beste enkeltresultatet
-vi har målt. 3.6 ligger på 3–6 av 8 over åtte kjøringer og er omtrent sju ganger raskere.
-Vi oppgir spenn og ikke median, fordi for en modell som spenner fra 1 til 5 av 8 beskriver
-medianen ingen kjøring som faktisk har skjedd. `nav-pilot config explain model` sier det samme kortere, og
+**Qwen 3.6 er standard fordi den er rask, og fordi ingen av de andre løser målbart flere oppgaver.**
+Over fire kjøringer av de samme åtte oppgavene løser den 3, 2, 4 og 4. Qwen 3.8 4-bit løser 4, 4,
+3 og 4. Spennene overlapper helt, og forskjellen er ikke målbar (p = 0,71). Til gjengjeld bruker
+3.8 omtrent sju ganger så lang tid — median 58–104 sekunder mot 10–12 — og traff
+sju-minutterstaket ti ganger der standarden traff det én gang.
+
+**Vi skrev tidligere at 3.8 løser mer.** Det holdt ikke. De tallene ble målt før vi oppdaget at
+sandkassen aldri ga modellene tilgang til byggverktøyene: ingen av dem kunne kompilere eller
+kjøre tester, og målet var heller ikke pinnet, så de to modellene jobbet på kodebaser fire dager
+fra hverandre. Da det ble rettet, forsvant forspranget. Hele historikken står i
+[MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md).
+
+Valget er altså hastighet mot ingenting målbart — som er en grunn til å beholde standarden. `nav-pilot config explain model`
+sier det samme kortere, og
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md) har tallene.
 
 Bytter du modell, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for
@@ -211,13 +343,6 @@ parallelt.
 
 Dette er alfa. Si fra om noe henger, om en endring kompilerer men er feil, eller om
 ventetiden ikke er verdt det: `nav-pilot feedback`.
-
-## Personlig installasjon (valgfritt)
-
-```bash
-nav-pilot install --user --all
-eval "$(nav-pilot env)"
-```
 
 ## Agentpakker fra andre team
 

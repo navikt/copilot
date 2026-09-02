@@ -71,6 +71,17 @@ func openCodeNavContextDir() string {
 	return filepath.Join(home, ".config", "opencode")
 }
 
+// repoScopeDir returns the installed repo scope of the working directory
+// (<git root>/.github), or "" when the session is not inside a git repo. What a
+// team adds there by hand is part of the context the session should get.
+func repoScopeDir() string {
+	root := source.FindGitRoot(".")
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, ".github")
+}
+
 // EnsureOpenCodeNavContext resolves the Nav artifact source and materializes
 // AGENTS.md, skills, agents, and commands into opencode's user config directory.
 // Uses SyncOpenCodeArtifacts for conflict detection and state tracking.
@@ -97,7 +108,7 @@ func EnsureOpenCodeNavContext() (string, error) {
 		recordFreshness("opencode", artifacts.OpenCodeScopeName, assessment)
 	}
 
-	skills, commands, agents, instrCount, conflicts, err := artifacts.SyncOpenCodeArtifacts(src.Dir, outputDir, src.Version, src.SHA, src.Repo)
+	skills, commands, agents, instrCount, conflicts, err := artifacts.SyncOpenCodeArtifacts(src.Dir, repoScopeDir(), outputDir, src.Version, src.SHA, src.Repo)
 	if err != nil {
 		return "", err
 	}

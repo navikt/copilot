@@ -559,7 +559,7 @@ func run(args []string) error {
 	case "install":
 		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
 			install := func(err error) error {
-				return finishInstall(err, sourceRepo, dryRun)
+				return finishInstall(err, sourceRepo, dryRun, installType == "")
 			}
 			if userScope && (len(positional) == 0 || installAll) {
 				return install(cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput))
