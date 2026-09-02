@@ -568,7 +568,14 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 		return nil
 	}
 
-	if src.SHA == state.SourceSHA {
+	// [sameSHA], not ==: a state file written before #597 holds seven characters and
+	// this one holds forty. Comparing those byte for byte reported a newer
+	// revision that does not exist, in a sentence that printed the same seven
+	// characters on both sides, and --apply then re-fetched and re-materialized
+	// the revision already pinned into a second directory (#605). The recorded
+	// SHA is only ever a directory name here — nothing fetches it — so leaving
+	// it short is harmless, and the next real update writes it out in full.
+	if sameSHA(src.SHA, state.SourceSHA) {
 		if jsonOutput {
 			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
 		}

@@ -103,6 +103,38 @@ func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing
 // shortSHA returns the first 7 characters of a SHA, or the full string if shorter.
 func shortSHA(sha string) string { return domain.ShortSHA(sha) }
 
+// sameSHA reports whether two commit ids name the same revision when one of
+// them is abbreviated.
+//
+// #597 lengthened every recorded revision from seven characters to forty,
+// because git will not fetch an abbreviated object id. But the state files
+// already on disk still hold the short form — they have since #306 — and
+// comparing those byte for byte made every pre-upgrade pin look one revision
+// behind, with a message that printed the same seven characters on both sides
+// and a re-fetch of the revision already installed (#605). A declaration can
+// hold a short one too, though only by hand: it arrived in the same commit as
+// the full-length SHA.
+//
+// The shorter side is treated as a prefix of the longer, which is what git
+// itself does with an abbreviated id. That can in principle hide a real
+// difference: two commits in one repository sharing the recorded prefix. It is
+// accepted, because `rev-parse --short` emitted a length git guaranteed
+// unambiguous in that repository when it was written, so hiding one needs a
+// *later* commit to land on the same prefix — and the cost of that is one
+// missed update notice, against a false one that is certain for every install
+// that exists today.
+//
+// An empty id is nobody's prefix: "" would otherwise match everything.
+func sameSHA(a, b string) bool {
+	if a == "" || b == "" {
+		return a == b
+	}
+	if len(a) > len(b) {
+		a, b = b, a
+	}
+	return strings.HasPrefix(b, a)
+}
+
 // buildFeedbackURL constructs a GitHub issue URL with pre-filled template and diagnostics.
 func buildFeedbackURL(featureRequest bool, diagnostics string) string {
 	var template, labels string
