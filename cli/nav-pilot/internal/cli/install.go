@@ -456,6 +456,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// newer nav-pilot put there; the fresh struct has none of them (#588).
 	if prior, err := readScopedState(scope); err == nil {
 		state.PreserveUnknownFrom(prior)
+		removeOrphans(scope, prior, result.Files)
 	}
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
@@ -1149,4 +1150,48 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 		fmt.Printf("%s Removed %d items.\n", green("✓"), removed)
 	}
 	return nil
+}
+
+// removeOrphans deletes files the previous install put on disk that this one
+// did not write.
+//
+// State is rebuilt from what the install produced, so a file the source has
+// stopped shipping simply falls out of it. Nothing then deletes it, and nothing
+// can: sync walks the state, so a path it no longer names is invisible to every
+// later run. The file stays installed for the life of the machine.
+//
+// Reported after the local worker agent was renamed from lokal-arbeider to
+// local-worker. Both were listed in Copilot CLI's agent picker for three days,
+// and the stale one showed "inherit (default behavior)" — a worker agent that
+// would have run on the cloud model, which is the one thing it exists not to do.
+//
+// A file is removed only when it is byte-for-byte what nav-pilot wrote.
+// Anything the developer edited is theirs and stays, which is the same rule the
+// opencode scope has applied since it was written.
+func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledFile) {
+	if prior == nil {
+		return
+	}
+	written := make(map[string]bool, len(installed))
+	for _, f := range installed {
+		written[f.Path] = true
+	}
+	for _, f := range prior.Files {
+		if written[f.Path] || !navPilotOwns(scope.RootDir, f) {
+			continue
+		}
+		full := filepath.Join(scope.RootDir, f.Path)
+		var err error
+		if strings.HasSuffix(f.Path, "/") {
+			err = os.RemoveAll(full)
+		} else {
+			err = os.Remove(full)
+		}
+		if err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "%s Could not remove %s, which is no longer part of the collection: %v\n",
+				yellow("⚠"), f.Path, err)
+			continue
+		}
+		fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer in the collection)"))
+	}
 }

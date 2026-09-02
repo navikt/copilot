@@ -217,6 +217,8 @@ var (
 	// behind it become unreachable, and it happens on four separate install
 	// paths — a shared write is one place to get it right instead of four
 	// places to forget it.
+	navPilotOwns = artifacts.NavPilotOwns
+
 	writeScopedState = func(scope *InstallScope, state *StateFile) error {
 		releasePin(scope, state)
 		return artifacts.WriteScopedState(scope, state)

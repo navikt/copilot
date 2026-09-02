@@ -67,7 +67,7 @@ func ValidateOpenCodeStatePath(p string) error {
 	return fmt.Errorf("path outside allowed opencode directories: %s", p)
 }
 
-// navPilotOwns reports whether a tracked file is still byte-for-byte what
+// NavPilotOwns reports whether a tracked file is still byte-for-byte what
 // nav-pilot wrote, and is therefore nav-pilot's to remove. A conflicted entry
 // never is: its recorded hash is the user's own copy, so a hash comparison
 // would call it untouched.
@@ -78,7 +78,7 @@ func ValidateOpenCodeStatePath(p string) error {
 // it as the user's for good. The write path is the older half and the wrong
 // one, but it is a separate bug with its own issue, not something to change
 // under a fix for what the scope materializes.
-func navPilotOwns(outputDir string, f domain.InstalledFile) bool {
+func NavPilotOwns(outputDir string, f domain.InstalledFile) bool {
 	if f.Status == domain.FileStatusConflict {
 		return false
 	}
@@ -303,7 +303,7 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 			if newFilesMap[f.Path] {
 				continue
 			}
-			if !navPilotOwns(outputDir, f) {
+			if !NavPilotOwns(outputDir, f) {
 				files = append(files, f)
 				continue
 			}
