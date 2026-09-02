@@ -349,7 +349,7 @@ Erklæringen ligger over config-nøkkelen fordi den er repoets gjennomgåtte val
 
 **`--frozen` er CI-varianten.** `nav-pilot install <navn> --frozen` installerer nøyaktig det repoet erklærer, eller lar være. Den spør aldri om noe, og den flytter aldri pinnen — ikke engang for å skrive den tilbake som den verdien den allerede har, for en CI-jobb skal ikke lage diff i en fil den bare var ment å adlyde.
 
-Den nekter, før noe hentes eller skrives:
+Den nekter, alltid før noe skrives, og for de fire første punktene også før noe hentes. Tier-sjekkene krever manifestet, som ligger i kilden, så de kommer nødvendigvis etter at kilden er resolvet — men fortsatt før første filoperasjon i scopet:
 
 - **Ingen erklæring i repoet.** Da er det ingenting å fryse mot. Meldinga ber deg kjøre `nav-pilot install <navn>` én gang, se over fila og committe den.
 - **En erklæring uten `sha`.** En upinnet installasjon henter det default-grenen tilfeldigvis var den morgenen, og to CI-kjøringer et døgn fra hverandre installerer da ulikt innhold. Det er nettopp forskjellen pinnen finnes for.

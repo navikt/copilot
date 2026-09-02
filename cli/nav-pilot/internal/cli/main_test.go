@@ -515,7 +515,7 @@ func TestInstallAgent_NotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(result.Missing) != 1 {
-		t.Errorf("skipped = %d, want 1", len(result.Missing))
+		t.Errorf("missing = %d, want 1", len(result.Missing))
 	}
 }
 
@@ -676,7 +676,7 @@ func TestInstallInstruction_NotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(result.Missing) != 1 {
-		t.Errorf("skipped = %d, want 1", len(result.Missing))
+		t.Errorf("missing = %d, want 1", len(result.Missing))
 	}
 }
 
@@ -732,7 +732,7 @@ func TestInstallPrompt_NotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(result.Missing) != 1 {
-		t.Errorf("skipped = %d, want 1", len(result.Missing))
+		t.Errorf("missing = %d, want 1", len(result.Missing))
 	}
 }
 
