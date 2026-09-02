@@ -2085,10 +2085,10 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                       </VStack>
                     </Table.DataCell>
                     <Table.DataCell>25 GB</Table.DataCell>
-                    <Table.DataCell>3–4 av 8</Table.DataCell>
+                    <Table.DataCell>2–4 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Rask og forutsigbar. Median 9 sekunder per oppgave, og 3, 3, 3, 4 og 4 av 8 over fem kjøringer.
-                      Løser mindre enn 3.8, men svarer med én gang og gjør sjelden noe uventet.
+                      Rask og forutsigbar. Median 10–12 sekunder per oppgave, og 3, 2, 4 og 4 av 8 over fire
+                      kjøringer. Ingen av de andre modellene løser målbart flere.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
@@ -2096,12 +2096,13 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
                     </Table.DataCell>
                     <Table.DataCell>16 GB</Table.DataCell>
-                    <Table.DataCell>5–7 av 8</Table.DataCell>
+                    <Table.DataCell>3–4 av 8</Table.DataCell>
                     <Table.DataCell>
-                      Løser mer enn standard og bruker mye lengre tid på det. Fire rene kjøringer ga 5, 5, 6 og 7 av
-                      8, mot standardens 3, 3, 3, 4 og 4 — settene overlapper ikke. Omtrent sju ganger tregere, og
-                      treffer sju-minutterstaket på rundt én av fem oppgaver. En femte kjøring er holdt utenfor fordi
-                      den ikke endret en eneste fil; det var testoppsettet, ikke modellen.
+                      Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3
+                      og 4 av 8 mot standardens 3, 2, 4 og 4 — spennene overlapper, forskjellen er ikke målbar
+                      (p = 0,71). Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi
+                      skrev tidligere at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne
+                      kompilere.
                     </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
