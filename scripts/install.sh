@@ -104,14 +104,37 @@ if [[ -z "$VERSION" ]]; then
   echo "→ Fetching latest nav-pilot release..."
   # Filter by nav-pilot/ tag prefix to avoid picking up unrelated releases (e.g. skills)
   set +o pipefail
-  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100" \
+  # Authenticate when a token is available. Anonymous api.github.com allows 60
+  # requests per hour per IP, and a CI runner shares that IP with everyone else
+  # on the same host — so this returned 403 and the installer reported "could
+  # not determine latest version", which reads like a broken release rather
+  # than a rate limit. It blocked every pull request in this repository.
+  #
+  # Both spellings are accepted: the workflow sets GITHUB_TOKEN, the script's
+  # own error message tells people to set GH_TOKEN, and gh sets GH_TOKEN. All
+  # three were in play and none of them reached this call.
+  API_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+  # The header goes in on stdin, not in the argument list. Anything passed as an
+  # argument shows up in `ps` for every user on the machine, and this script is
+  # run on shared runners.
+  auth_config() {
+    [[ -n "$API_TOKEN" ]] && printf 'header = "Authorization: Bearer %s"\n' "$API_TOKEN"
+    return 0
+  }
+  VERSION=$(auth_config | curl -fsSL -K - "https://api.github.com/repos/${REPO}/releases?per_page=100" \
     | grep '"tag_name"' \
     | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' \
     | grep '^nav-pilot/' \
     | head -1)
   set -o pipefail
   if [[ -z "$VERSION" ]]; then
-    echo "Error: Could not determine latest version. Use --version to specify."
+    echo "Error: Could not determine latest version."
+    if [[ -z "$API_TOKEN" ]]; then
+      echo "  No GH_TOKEN or GITHUB_TOKEN was set, so the request was anonymous."
+      echo "  Anonymous api.github.com is limited to 60 requests per hour per IP,"
+      echo "  and a shared network or CI runner reaches that quickly."
+    fi
+    echo "  Pass --version to skip the lookup entirely."
     exit 1
   fi
 fi
