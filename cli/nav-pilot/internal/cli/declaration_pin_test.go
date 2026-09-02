@@ -317,7 +317,9 @@ func TestSyncReportsDeclarationDisagreement(t *testing.T) {
 
 	syncWithSource(t, srcDir, defaultSourceRepo, "new5678")
 	out := captureStdoutFor(t, func() {
-		_ = cmdSync(scope, "", "", true, false)
+		if err := cmdSync(scope, "", "", true, false); err != nil {
+			t.Logf("sync: %v", err)
+		}
 	})
 	if !strings.Contains(out, agentpakke.DeclarationPath) {
 		t.Errorf("sync never mentioned that the repo declares another agentpakke:\n%s", out)
@@ -335,10 +337,19 @@ func TestSyncSilentWhenDeclarationAgrees(t *testing.T) {
 
 	syncWithSource(t, srcDir, defaultSourceRepo, "new5678")
 	out := captureStdoutFor(t, func() {
-		_ = cmdSync(scope, "", "", true, false)
+		if err := cmdSync(scope, "", "", true, false); err != nil {
+			t.Logf("sync: %v", err)
+		}
 	})
 	if strings.Contains(out, "declares") {
 		t.Errorf("sync warned about a declaration that agrees:\n%s", out)
+	}
+	// An absence proves nothing on its own: a sync that fell over before it
+	// reached the declaration would produce no output at all and pass this
+	// test. The bump line is the proof it got there — it comes from the same
+	// code whose silence is being asserted above.
+	if !strings.Contains(out, agentpakke.DeclarationPath) {
+		t.Errorf("sync never touched the declaration, so the silence above proves nothing:\n%s", out)
 	}
 }
 
@@ -409,5 +420,43 @@ func TestMalformedDeclarationRefusesSync(t *testing.T) {
 	}
 	if called {
 		t.Errorf("sync fell through to source %q instead of refusing", "the default")
+	}
+}
+
+// The same rule on the way back out. `sync --apply` bumps the declaration's
+// pin, and bumping one against a path source writes a sha the loader then
+// refuses — after which every install and sync in that repo fails closed,
+// which is exactly the developer running nav-pilot from a checkout (#610).
+func TestPathSourceSyncApplyWritesNoPin(t *testing.T) {
+	cfg := isolatedConfig(t)
+	mustWrite(t, cfg, "version = 1\n")
+	scope := ScopeRepo(repoTarget(t))
+	srcDir := legacySourceTree(t)
+	src := &Source{Dir: srcDir, SHA: "unknown", Version: "dev", Repo: srcDir}
+	captureStdoutFor(t, func() {
+		if err := cmdInstallFromSource("fullstack", src, scope, false, false, false); err != nil {
+			t.Fatalf("install from a path source: %v", err)
+		}
+	})
+	if d := readDeclaration(t, scope); d.SHA != "" || d.Source != srcDir {
+		t.Fatalf("the install recorded %+v, want the path source and no pin", d)
+	}
+	// Move the source so the sync has something to apply.
+	mustWrite(t, filepath.Join(srcDir, "agents", "test-a.agent.md"),
+		"---\nname: test-a\ndescription: A\n---\nBody A, revised\n")
+
+	syncWithSource(t, srcDir, srcDir, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	captureStdoutFor(t, func() {
+		if err := cmdSync(scope, "", "", true, false); err != nil {
+			t.Fatalf("sync --apply: %v", err)
+		}
+	})
+
+	d, err := agentpakke.LoadDeclaration(scope.RootDir)
+	if err != nil {
+		t.Fatalf("the declaration no longer loads after sync --apply from a local checkout: %v", err)
+	}
+	if d.SHA != "" {
+		t.Errorf("sync --apply pinned %q against the path source %s; a local checkout has no revision to fetch", d.SHA, d.Source)
 	}
 }
