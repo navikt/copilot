@@ -43,7 +43,10 @@ func TestAlphaDispatch(t *testing.T) {
 		{name: "help prints usage", args: []string{"help"}},
 		{name: "local with no subcommand prints usage", args: []string{"local"}},
 		{name: "an unknown group", args: []string{"quantum"}, wantErr: "unknown alpha group"},
-		{name: "an unknown subcommand", args: []string{"local", "restart"}, wantErr: "unknown command"},
+		// Deliberately a word nobody will implement. "restart" used to stand
+		// here, and the day it became a real subcommand this test stopped and
+		// started the server on whatever machine ran it.
+		{name: "an unknown subcommand", args: []string{"local", "frobnicate"}, wantErr: "unknown command"},
 		{name: "a near miss is suggested", args: []string{"local", "statuss"}, wantErr: "Did you mean"},
 	}
 	for _, tt := range tests {
