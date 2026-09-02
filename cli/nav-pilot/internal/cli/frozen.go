@@ -46,22 +46,6 @@ func isFrozenRefusal(err error) bool {
 	return errors.As(err, &fe)
 }
 
-// isFullSHA reports whether s is a fetchable pin. git refuses an abbreviated
-// object id in a fetch request, so a short sha is a pin nobody can install
-// back (#607) — and under --frozen it must say that rather than surface git's
-// own message about a ref that does not exist.
-func isFullSHA(s string) bool {
-	if len(s) != 40 {
-		return false
-	}
-	for _, c := range s {
-		if !strings.ContainsRune("0123456789abcdefABCDEF", c) {
-			return false
-		}
-	}
-	return true
-}
-
 // frozenPrecheck refuses, before anything is resolved or written, every repo
 // state a frozen install cannot be frozen against.
 func frozenPrecheck(scope *InstallScope) error {
@@ -93,11 +77,9 @@ func frozenPrecheck(scope *InstallScope) error {
 			"Run %s and commit the pin it writes",
 			agentpakke.DeclarationPath, bold(d.Source), bold("nav-pilot install <name>"))
 	}
-	if !isFullSHA(sha) {
-		return frozenf("%s pins %q, which is not a full 40-character commit SHA.\n"+
-			"git refuses an abbreviated object id in a fetch, so that pin cannot be installed back. Write the whole SHA",
-			agentpakke.DeclarationPath, sha)
-	}
+	// A pin that is not a full SHA never gets this far: LoadDeclaration refuses
+	// it for every command, not only a frozen install (#607), and the refusal
+	// arrives above as a frozenError.
 	return nil
 }
 

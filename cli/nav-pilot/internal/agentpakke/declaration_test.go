@@ -31,7 +31,7 @@ func TestLoadDeclaration(t *testing.T) {
 	writeDecl(t, root, `{
   "contractVersion": "1",
   "source": "navikt/grillmester",
-  "sha": "deadbee",
+  "sha": "deadbee000000000000000000000000000000000",
   "minNavPilotVersion": "2026.01.01-000000",
   "items": {"grillmester": "agent"}
 }`)
@@ -39,7 +39,7 @@ func TestLoadDeclaration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDeclaration: %v", err)
 	}
-	if d.Source != "navikt/grillmester" || d.SHA != "deadbee" || d.Items["grillmester"] != "agent" {
+	if d.Source != "navikt/grillmester" || d.SHA != "deadbee000000000000000000000000000000000" || d.Items["grillmester"] != "agent" {
 		t.Fatalf("LoadDeclaration = %+v", d)
 	}
 }
@@ -79,7 +79,7 @@ func TestWriteDeclarationIsDeterministicAndTimestampFree(t *testing.T) {
 	d := &Declaration{
 		ContractVersion: "1",
 		Source:          "navikt/grillmester",
-		SHA:             "deadbee",
+		SHA:             "deadbee000000000000000000000000000000000",
 		Items:           map[string]string{"zulu": "skill", "alpha": "agent", "mike": "agent"},
 	}
 	if err := WriteDeclaration(root, d); err != nil {

@@ -164,6 +164,16 @@ func (d *Declaration) validate() error {
 		return fmt.Errorf("%s pins sha %q against the path source %s; a local checkout has no revision to fetch, so drop the sha and let the working tree decide",
 			DeclarationPath, d.SHA, source)
 	}
+	// A pin is only useful if git can fetch it, and git refuses an abbreviated
+	// object id in a fetch request. Without this check a short SHA — the one a
+	// hand-editor reaches for, straight out of `git log --oneline` — failed
+	// much later as "could not clone owner/repo@9f1c0a7 — check that the ref
+	// exists and you have network access", which blames the wrong thing: the
+	// ref exists, it is just too short to ask for (#607).
+	if sha := strings.TrimSpace(d.SHA); sha != "" && !isFullSHA(sha) {
+		return fmt.Errorf("%s pins sha %q, which is not a full 40-character commit SHA; git refuses an abbreviated object id in a fetch request, so that revision can never be installed — write the whole SHA (git rev-parse HEAD)",
+			DeclarationPath, sha)
+	}
 	names := make([]string, 0, len(d.Items))
 	for name := range d.Items {
 		names = append(names, name)
@@ -176,6 +186,20 @@ func (d *Declaration) validate() error {
 		}
 	}
 	return nil
+}
+
+// isFullSHA reports whether s is a fetchable pin: forty hex characters, the
+// only form git will accept in a fetch request.
+func isFullSHA(s string) bool {
+	if len(s) != 40 {
+		return false
+	}
+	for _, c := range s {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", c) {
+			return false
+		}
+	}
+	return true
 }
 
 func isDeclaredItemType(t string) bool {

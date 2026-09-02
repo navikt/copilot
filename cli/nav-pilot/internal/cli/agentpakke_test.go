@@ -1057,7 +1057,7 @@ func stubResolveSource(t *testing.T, src *Source) {
 // pakkeSource builds a resolved, manifest-bearing source over a fixture tree.
 func pakkeSource(t *testing.T, repo string) *Source {
 	t.Helper()
-	src := &Source{Dir: pakkeSourceTree(t, tier1ManifestJSON), SHA: "def5678", Version: "dev", Repo: repo}
+	src := &Source{Dir: pakkeSourceTree(t, tier1ManifestJSON), SHA: "def5678" + strings.Repeat("0", 33), Version: "dev", Repo: repo}
 	if err := attachPakke(src); err != nil {
 		t.Fatalf("attachPakke: %v", err)
 	}

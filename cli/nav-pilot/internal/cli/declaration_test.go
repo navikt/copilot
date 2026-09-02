@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +50,7 @@ func captureResolveSource(t *testing.T, src *Source) *struct{ ref, repo string }
 func TestDeclarationDrivesInstallSourceAndRevision(t *testing.T) {
 	isolatedConfig(t)
 	scope := ScopeRepo(repoTarget(t))
-	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee"}`)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee000000000000000000000000000000000"}`)
 
 	src := pakkeSource(t, "navikt/grillmester")
 	got := captureResolveSource(t, src)
@@ -58,9 +60,41 @@ func TestDeclarationDrivesInstallSourceAndRevision(t *testing.T) {
 			t.Fatalf("cmdInstallAuto: %v", err)
 		}
 	})
-	if got.repo != "navikt/grillmester" || got.ref != "deadbee" {
+	if got.repo != "navikt/grillmester" || got.ref != "deadbee000000000000000000000000000000000" {
 		t.Errorf("install resolved (ref=%q, source=%q), want (ref=%q, source=%q)",
-			got.ref, got.repo, "deadbee", "navikt/grillmester")
+			got.ref, got.repo, "deadbee000000000000000000000000000000000", "navikt/grillmester")
+	}
+}
+
+// An abbreviated pin is one git cannot fetch, and the declaration is expressly
+// hand-editable — `git log --oneline` is where a developer gets a SHA. Before
+// #607 nothing checked the length, so the install went all the way to the
+// clone and failed with "check that the ref exists and you have network
+// access": true of a ref that does not exist, and wrong about this one, which
+// exists and is merely too short to ask for.
+func TestInstallRefusesAnAbbreviatedDeclaredPin(t *testing.T) {
+	isolatedConfig(t)
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"9f1c0a7"}`)
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		t.Error("the install tried to fetch a pin git cannot fetch")
+		// What the clone actually returns for a short ref, and the wrong
+		// diagnosis this test exists to keep out of the user's terminal.
+		return nil, fmt.Errorf("could not clone %s@%s — check that the ref exists and you have network access", sourceRepo, ref)
+	}
+
+	var err error
+	captureStdoutFor(t, func() {
+		err = cmdInstallAuto("grillmester", "", scope, "", "", true, false, false)
+	})
+	if err == nil {
+		t.Fatal("the install accepted a seven-character pin")
+	}
+	if !strings.Contains(err.Error(), "40-character") {
+		t.Errorf("the refusal does not say the pin is too short:\n%v", err)
 	}
 }
 
@@ -70,7 +104,7 @@ func TestDeclarationDrivesInstallSourceAndRevision(t *testing.T) {
 func TestFlagSourceOverridesDeclaration(t *testing.T) {
 	isolatedConfig(t)
 	scope := ScopeRepo(repoTarget(t))
-	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee"}`)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee000000000000000000000000000000000"}`)
 
 	src := pakkeSource(t, "navikt/annen")
 	got := captureResolveSource(t, src)
@@ -87,7 +121,7 @@ func TestFlagSourceOverridesDeclaration(t *testing.T) {
 func TestFlagRefOverridesPinnedSHA(t *testing.T) {
 	isolatedConfig(t)
 	scope := ScopeRepo(repoTarget(t))
-	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee"}`)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee000000000000000000000000000000000"}`)
 
 	got := captureResolveSource(t, pakkeSource(t, "navikt/grillmester"))
 	captureStdoutFor(t, func() {
@@ -105,7 +139,7 @@ func TestDeclarationOutranksConfigSource(t *testing.T) {
 	path := isolatedConfig(t)
 	mustWrite(t, path, "version = 1\nsource = \""+defaultSourceRepo+"\"\n")
 	scope := ScopeRepo(repoTarget(t))
-	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee"}`)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee000000000000000000000000000000000"}`)
 
 	got := captureResolveSource(t, pakkeSource(t, "navikt/grillmester"))
 	captureStdoutFor(t, func() {
@@ -124,7 +158,7 @@ func TestUserScopeIgnoresDeclaration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeDeclaration(t, userScope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee"}`)
+	writeDeclaration(t, userScope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee000000000000000000000000000000000"}`)
 	if d, err := scopeDeclaration(userScope); err != nil || d != nil {
 		t.Errorf("scopeDeclaration(user) = (%+v, %v), want (nil, nil)", d, err)
 	}
@@ -140,7 +174,7 @@ func TestGuardScopeSourceUsesDeclaration(t *testing.T) {
 	mustWrite(t, path, "version = 1\n") // no configured source at all
 	scope := ScopeRepo(repoTarget(t))
 	writeGuardState(t, scope, defaultSourceRepo)
-	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee"}`)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee000000000000000000000000000000000"}`)
 
 	err := guardScopeSource(scope, "")
 	if err == nil {
@@ -151,7 +185,7 @@ func TestGuardScopeSourceUsesDeclaration(t *testing.T) {
 	}
 
 	// The same declaration agreeing with the scope is not a conflict.
-	writeDeclaration(t, scope, `{"contractVersion":"1","source":"`+defaultSourceRepo+`","sha":"deadbee"}`)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"`+defaultSourceRepo+`","sha":"deadbee000000000000000000000000000000000"}`)
 	if err := guardScopeSource(scope, ""); err != nil {
 		t.Errorf("a declaration naming the scope's own source was guarded: %v", err)
 	}
@@ -164,7 +198,7 @@ func TestSyncAdoptsDeclaredSource(t *testing.T) {
 	mustWrite(t, path, "version = 1\n")
 	scope := ScopeRepo(repoTarget(t))
 	writeGuardState(t, scope, "")
-	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee"}`)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"deadbee000000000000000000000000000000000"}`)
 
 	adopted, err := adoptSyncSource(scope, "")
 	if err != nil {
@@ -227,7 +261,7 @@ func TestInstallPreservesDeclaredItems(t *testing.T) {
 	isolatedConfig(t)
 	scope := ScopeRepo(repoTarget(t))
 	writeDeclaration(t, scope,
-		`{"contractVersion":"1","source":"navikt/grillmester","sha":"old1234","items":{"grillmester":"agent"}}`)
+		`{"contractVersion":"1","source":"navikt/grillmester","sha":"01d1234000000000000000000000000000000000","items":{"grillmester":"agent"}}`)
 
 	src := pakkeSource(t, "navikt/grillmester")
 	captureStdoutFor(t, func() {
@@ -252,7 +286,7 @@ func TestDeclaredItemsNarrowTheInstall(t *testing.T) {
 	isolatedConfig(t)
 	scope := ScopeRepo(repoTarget(t))
 	writeDeclaration(t, scope,
-		`{"contractVersion":"1","source":"navikt/grillmester","sha":"old1234","items":{"grillmester":"agent"}}`)
+		`{"contractVersion":"1","source":"navikt/grillmester","sha":"01d1234000000000000000000000000000000000","items":{"grillmester":"agent"}}`)
 
 	captureStdoutFor(t, func() {
 		if err := cmdInstallFromSource("grillmester", pakkeSource(t, "navikt/grillmester"), scope, false, false, false); err != nil {
@@ -274,7 +308,7 @@ func TestUnknownDeclaredItemRefusesInstall(t *testing.T) {
 	isolatedConfig(t)
 	scope := ScopeRepo(repoTarget(t))
 	writeDeclaration(t, scope,
-		`{"contractVersion":"1","source":"navikt/grillmester","sha":"old1234","items":{"grilmester":"agent"}}`)
+		`{"contractVersion":"1","source":"navikt/grillmester","sha":"01d1234000000000000000000000000000000000","items":{"grilmester":"agent"}}`)
 
 	var err error
 	captureStdoutFor(t, func() {
@@ -334,14 +368,14 @@ func installedRepoScope(t *testing.T, declaredSource string) (*InstallScope, str
 	t.Helper()
 	scope := ScopeRepo(repoTarget(t))
 	srcDir := legacySourceTree(t)
-	src := &Source{Dir: srcDir, SHA: "old1234", Version: "dev", Repo: defaultSourceRepo}
+	src := &Source{Dir: srcDir, SHA: "01d1234000000000000000000000000000000000", Version: "dev", Repo: defaultSourceRepo}
 	captureStdoutFor(t, func() {
 		if err := cmdInstallFromSource("fullstack", src, scope, false, false, false); err != nil {
 			t.Fatalf("cmdInstallFromSource: %v", err)
 		}
 	})
 	writeDeclaration(t, scope,
-		`{"contractVersion":"1","source":"`+declaredSource+`","sha":"old1234"}`)
+		`{"contractVersion":"1","source":"`+declaredSource+`","sha":"01d1234000000000000000000000000000000000"}`)
 	// Move the source so the sync has a real update to apply.
 	mustWrite(t, filepath.Join(srcDir, "agents", "test-a.agent.md"),
 		"---\nname: test-a\ndescription: A\n---\nBody A, revised\n")
@@ -355,14 +389,76 @@ func TestSyncApplyBumpsPinnedSHA(t *testing.T) {
 	mustWrite(t, path, "version = 1\n")
 	scope, srcDir := installedRepoScope(t, defaultSourceRepo)
 
-	syncWithSource(t, srcDir, defaultSourceRepo, "new5678")
+	syncWithSource(t, srcDir, defaultSourceRepo, "8e45678000000000000000000000000000000000")
 	captureStdoutFor(t, func() {
 		if err := cmdSync(scope, "", "", true, false); err != nil {
 			t.Fatalf("cmdSync --apply: %v", err)
 		}
 	})
-	if got := readDeclaration(t, scope).SHA; got != "new5678" {
+	if got := readDeclaration(t, scope).SHA; got != "8e45678000000000000000000000000000000000" {
 		t.Errorf("pinned SHA after sync --apply = %q, want new5678", got)
+	}
+}
+
+// #606: the agentpakke moved forward, but no installed file's content changed
+// — a change to a file this repo never installed, a docs change, a new
+// artefact the scope does not use. The pin is still a revision behind, and the
+// scheduled workflow only ever runs `--apply` when the check step exits 1, so
+// a check that calls this "up to date" freezes the pin in exactly the workflow
+// that exists to keep it fresh.
+func TestSyncCheckReportsAPinBumpWithNoFileChange(t *testing.T) {
+	path := isolatedConfig(t)
+	mustWrite(t, path, "version = 1\n")
+	scope, srcDir := installedRepoScope(t, defaultSourceRepo)
+	// Undo the source change installedRepoScope makes: every installed file is
+	// byte-identical to the source, and only the revision has moved.
+	mustWrite(t, filepath.Join(srcDir, "agents", "test-a.agent.md"),
+		"---\nname: test-a\ndescription: A\n---\nBody A\n")
+
+	const moved = "8e45678000000000000000000000000000000000"
+	syncWithSource(t, srcDir, defaultSourceRepo, moved)
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, false) })
+	if err != errUpdatesAvailable {
+		t.Fatalf("check-only sync = %v, want errUpdatesAvailable (exit 1, which is what runs --apply)", err)
+	}
+	if !strings.Contains(out, agentpakke.DeclarationPath) {
+		t.Errorf("sync did not say the pin is behind:\n%s", out)
+	}
+	if got := readDeclaration(t, scope).SHA; got != "01d1234000000000000000000000000000000000" {
+		t.Errorf("a check-only sync moved the pin to %q", got)
+	}
+
+	// And the JSON the workflow reads carries the bump, so the pull request it
+	// opens can name the only file it changes.
+	syncWithSource(t, srcDir, defaultSourceRepo, moved)
+	jsonOut := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, true) })
+	if err != errUpdatesAvailable {
+		t.Fatalf("check-only --json sync = %v, want errUpdatesAvailable", err)
+	}
+	var result syncResult
+	if jsonErr := json.Unmarshal([]byte(jsonOut), &result); jsonErr != nil {
+		t.Fatalf("sync --json is not JSON (%v):\n%s", jsonErr, jsonOut)
+	}
+	if result.UpToDate {
+		t.Error("sync --json reported up_to_date over a pin a revision behind")
+	}
+	if result.PinBump == nil {
+		t.Fatalf("sync --json omitted the pin bump:\n%s", jsonOut)
+	}
+	if result.PinBump.Path != agentpakke.DeclarationPath || result.PinBump.To != moved {
+		t.Errorf("pin_bump = %+v, want %s moving to %s", result.PinBump, agentpakke.DeclarationPath, moved)
+	}
+
+	// --apply then moves it, and that is still the only thing that writes.
+	syncWithSource(t, srcDir, defaultSourceRepo, moved)
+	captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("cmdSync --apply: %v", err)
+	}
+	if got := readDeclaration(t, scope).SHA; got != moved {
+		t.Errorf("pinned SHA after --apply = %q, want %q", got, moved)
 	}
 }
 
@@ -372,11 +468,11 @@ func TestSyncCheckDoesNotBumpPinnedSHA(t *testing.T) {
 	mustWrite(t, path, "version = 1\n")
 	scope, srcDir := installedRepoScope(t, defaultSourceRepo)
 
-	syncWithSource(t, srcDir, defaultSourceRepo, "new5678")
+	syncWithSource(t, srcDir, defaultSourceRepo, "8e45678000000000000000000000000000000000")
 	captureStdoutFor(t, func() {
 		_ = cmdSync(scope, "", "", false, false)
 	})
-	if got := readDeclaration(t, scope).SHA; got != "old1234" {
+	if got := readDeclaration(t, scope).SHA; got != "01d1234000000000000000000000000000000000" {
 		t.Errorf("a check-only sync moved the pin to %q", got)
 	}
 }
@@ -388,12 +484,12 @@ func TestSyncDoesNotRepointDeclaration(t *testing.T) {
 	mustWrite(t, path, "version = 1\n")
 	scope, srcDir := installedRepoScope(t, "navikt/grillmester")
 
-	syncWithSource(t, srcDir, defaultSourceRepo, "new5678")
+	syncWithSource(t, srcDir, defaultSourceRepo, "8e45678000000000000000000000000000000000")
 	captureStdoutFor(t, func() {
 		_ = cmdSync(scope, "", "", true, false)
 	})
 	d := readDeclaration(t, scope)
-	if d.Source != "navikt/grillmester" || d.SHA != "old1234" {
+	if d.Source != "navikt/grillmester" || d.SHA != "01d1234000000000000000000000000000000000" {
 		t.Errorf("sync from another source touched the declaration: %+v", d)
 	}
 }
