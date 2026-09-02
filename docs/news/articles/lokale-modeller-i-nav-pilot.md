@@ -19,6 +19,8 @@ For å få Nav sitt KI-token-budsjett til å strekke lenger, og for at de ivrigs
 
 Vi kaller den bakkemodellen. Hovedagenten blir i skya og bestemmer, bakkemodellen utfører. I logger og konfigurasjon heter den `local-worker`.
 
+Den arbeidsdelingen krever opencode som klient. Bare der blir bakkemodellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Vi har bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI, og det ligger som en feature request hos dem.
+
 ```
 nav-pilot alpha local init
 ```

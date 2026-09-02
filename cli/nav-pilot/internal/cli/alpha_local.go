@@ -206,6 +206,25 @@ func cmdLocalInit() error {
 	}
 	fmt.Println()
 
+	// Said before the confirmation, and before 26 GB is spent, because on the
+	// default client this is the whole shape of what the developer is buying.
+	// It used to print after the download and after local inference was already
+	// enabled, which told people what they had only once they had it.
+	//
+	// The client is reported, not set. Writing it looks like automation and is a
+	// trap: config validation requires an opencode model in provider/model form,
+	// so setting the client on a config whose model is a bare cloud id makes
+	// every launch fail validation until someone edits the file by hand. The
+	// launch converts bare ids on its own, so nothing needs writing here.
+	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.Client != nil && *cfg.Client == "copilot" {
+		fmt.Printf("  %s\n", bold("Your client is the Copilot CLI, which has no sub-agent dispatch:"))
+		fmt.Printf("    %s\n", dim("a local session runs entirely on the local model, or not at all."))
+		fmt.Printf("    %s\n", dim("The Copilot CLI takes one model provider per process, so a cloud"))
+		fmt.Printf("    %s\n", dim("main agent cannot hand scoped tasks to a local worker there."))
+		fmt.Printf("  %s\n", dim("For a cloud agent with a local worker, switch clients first:"))
+		fmt.Printf("    %s\n\n", dim("nav-pilot config set client opencode"))
+	}
+
 	// Said before the confirmation, not after it, and before anything is
 	// downloaded. Collecting more than usual during an alpha is defensible only
 	// if the developer is told what "more" means while they can still decline.
@@ -274,17 +293,6 @@ func cmdLocalInit() error {
 			return err
 		}
 		fmt.Printf("%s Wired-memory limit raised.\n", green("✓"))
-	}
-
-	// The client is reported, not set. Writing it looks like automation and is a
-	// trap: config validation requires an opencode model in provider/model form,
-	// so setting the client on a config whose model is a bare cloud id makes
-	// every launch fail validation until someone edits the file by hand. The
-	// launch converts bare ids on its own, so nothing needs writing here.
-	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.Client != nil && *cfg.Client == "copilot" {
-		fmt.Printf("%s Your client is the Copilot CLI, so a local session runs entirely on the local model.\n",
-			dim("ℹ"))
-		fmt.Printf("  %s\n", dim("For a cloud agent with a local worker, switch with: nav-pilot config set client opencode"))
 	}
 
 	fmt.Printf("%s Starting the server (measured starts have been under a minute)…\n", dim("→"))

@@ -2192,11 +2192,19 @@ nav-pilot alpha local start`}
             hvilken du kjører.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
-            Under <strong>opencode</strong> blir bakkemodellen en underagent som heter{" "}
-            <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
+            Utsending til en lokal underagent krever <strong>opencode</strong>. Der blir bakkemodellen en underagent som
+            heter <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
             oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at bakkemodellen ikke
-            klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
-            modelleverandør om gangen.
+            klarer.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Under <strong>Copilot CLI</strong> finnes ingen slik underagent, og kan ikke finnes i dag. Copilot CLI er
+            standardklienten, så dette gjelder deg med mindre du har byttet. Valget der er hele økten på den lokale
+            modellen eller ingenting lokalt, fordi klienten setter modelleverandøren som en miljøvariabel for hele
+            prosessen, så én leverandør betjener hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha
+            utsending, bytt med <code className="font-mono text-xs">nav-pilot config set client opencode</code>. Vi har
+            bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI, og det ligger som en feature request
+            hos dem.
           </BodyLong>
         </VStack>
 
