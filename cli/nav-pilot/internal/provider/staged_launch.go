@@ -333,6 +333,13 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	if err != nil {
 		return err
 	}
+	// Pre-extract the Copilot token and inject it as GH_TOKEN, exactly as the
+	// legacy copilot launch does (LaunchCopilotResolved). Both cplt launch paths
+	// must honor copilot_auth_mode: a restrictive mode fails closed here too.
+	spec.env, err = injectPreExtractedToken(spec.env, r.CopilotAuthMode)
+	if err != nil {
+		return err
+	}
 	PrintCpltSandboxHint()
 	PrintModelAvailabilityHint(r.Model)
 	return launchViaCplt(spec)

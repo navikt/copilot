@@ -52,7 +52,8 @@ type Config struct {
 	// means the manifest's default. It is separate from Model because Model is
 	// the session model: a developer running a cloud main agent with a local
 	// worker has to be able to name both.
-	LocalModel *string `toml:"local_model"`
+	LocalModel      *string `toml:"local_model"`
+	CopilotAuthMode *string `toml:"copilot_auth_mode"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -83,6 +84,7 @@ type ResolvedConfig struct {
 	LocalAutostart    bool     // start the local server on demand at launch
 	LocalLoopGuard    int      // identical consecutive tool calls that end a local turn; 0 = built-in default
 	LocalModel        string   // local model id to serve; empty = the manifest default
+	CopilotAuthMode   string   // auto | env_only | gh_only
 	ExtraArgs         []string // pass-through arguments for the client
 }
 
@@ -109,11 +111,12 @@ type CLIOverrides struct {
 }
 
 var (
-	ValidModes           = []string{"default", "plan", "autopilot"}
-	ValidReasoningEffort = []string{"none", "low", "medium", "high", "xhigh", "max"}
-	ValidContextTiers    = []string{"default", "long_context"}
-	ValidLogLevels       = []string{"none", "error", "warning", "info", "debug", "all", "default"}
-	ValidOtelLogLevels   = []string{"none", "error", "warning", "warn", "info", "debug", "verbose", "all"}
+	ValidModes            = []string{"default", "plan", "autopilot"}
+	ValidReasoningEffort  = []string{"none", "low", "medium", "high", "xhigh", "max"}
+	ValidContextTiers     = []string{"default", "long_context"}
+	ValidLogLevels        = []string{"none", "error", "warning", "info", "debug", "all", "default"}
+	ValidOtelLogLevels    = []string{"none", "error", "warning", "warn", "info", "debug", "verbose", "all"}
+	ValidCopilotAuthModes = []string{"auto", "env_only", "gh_only"}
 )
 
 // ModelChoice pairs a model id (the --model value) with a human-readable label.

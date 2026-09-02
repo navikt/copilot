@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -175,5 +176,45 @@ func TestUserCopilotDir(t *testing.T) {
 
 	if got := userCopilotDir(); got != expected {
 		t.Errorf("expected %q for instructions-only, got %q", expected, got)
+	}
+}
+
+func TestLaunchCopilotResolved_RestrictiveModeFailure_DoesNotLaunchCplt(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "cplt-launched")
+	fakeCplt := filepath.Join(dir, "cplt")
+	if err := os.WriteFile(fakeCplt, []byte("#!/bin/sh\necho launched > \"$NAV_PILOT_LAUNCH_MARKER\"\n"), 0o755); err != nil {
+		t.Fatalf("write fake cplt: %v", err)
+	}
+
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("NAV_PILOT_LAUNCH_MARKER", marker)
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("COPILOT_GITHUB_TOKEN", "")
+	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
+
+	orig := ghCLITokenCmd
+	ghCLITokenCmd = fakeCmd(t, "", 1)
+	defer func() { ghCLITokenCmd = orig }()
+
+	tests := []string{"env_only", "gh_only"}
+	for _, mode := range tests {
+		t.Run(mode, func(t *testing.T) {
+			_ = os.Remove(marker)
+
+			err := LaunchCopilotResolved(domain.ResolvedConfig{
+				Client:          "copilot",
+				AskUser:         true,
+				CopilotAuthMode: mode,
+				OtelLogLevel:    "none",
+			})
+			if err == nil {
+				t.Fatalf("expected launch to fail for restrictive mode %q", mode)
+			}
+			if _, statErr := os.Stat(marker); !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatalf("expected cplt not to launch for restrictive mode %q", mode)
+			}
+		})
 	}
 }

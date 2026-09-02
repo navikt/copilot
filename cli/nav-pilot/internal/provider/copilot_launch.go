@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -132,6 +133,14 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 // LaunchCopilotResolved launches the Copilot CLI with the resolved launch config.
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
+//
+// When launched via cplt, it attempts to pre-extract the Copilot auth token
+// (following CopilotAuthMode priority: env → gh-cli, with macOS Keychain
+// handled internally by gh) and injects it as GH_TOKEN so the sandbox does not
+// need broad Keychain access. Restrictive modes fail closed if pre-extraction
+// fails; permissive modes may still continue and let cplt resolve auth itself.
+// When stdin is a TTY, an informational line on stderr notes which auth path
+// was taken; it is not emitted in non-interactive runs.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	// Local inference. The one branch on this path, and it used to be a
 	// refusal, on the belief that the Copilot CLI only ever resolves models
@@ -180,6 +189,17 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin))
 	displayName := CLIDisplayName(cliName)
 	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(PrimaryAgent("copilot")))
+
+	// When running inside cplt, attempt to pre-extract the token and inject it
+	// as GH_TOKEN so the sandbox profile can omit Keychain access.
+	if cliName == "cplt" {
+		var err error
+		env, err = injectPreExtractedToken(env, resolved.CopilotAuthMode)
+		if err != nil {
+			return err
+		}
+	}
+
 	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -313,6 +333,201 @@ func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, tty bool)
 		return args
 	}
 	return withCpltConfirmation(args, tty)
+}
+
+// injectPreExtractedToken injects GH_TOKEN into env for cplt launches.
+// "auto" and "env_only" honor an existing non-empty child
+// GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN, normalizing a token found only
+// under GITHUB_TOKEN/COPILOT_GITHUB_TOKEN to GH_TOKEN so the sandbox always sees
+// the expected name; restrictive modes strip inherited auth env before
+// extraction so they do not silently fall back to it. When stdin is a TTY it
+// writes an informational auth-path line to stderr; non-interactive runs stay
+// quiet. On failure it returns an error for restrictive modes; only "auto" may
+// continue without a pre-extracted token.
+//
+// An empty authMode is treated as "auto": every real launch resolves the mode
+// through resolve() (default "auto"), but a directly constructed ResolvedConfig
+// must not hard-fail the launch.
+func injectPreExtractedToken(env []string, authMode string) ([]string, error) {
+	if authMode == "" {
+		authMode = "auto"
+	}
+	env = stripBlankChildEnvTokens(env)
+
+	if shouldHonorChildEnvToken(authMode) {
+		if token, ok := firstChildEnvToken(env); ok {
+			if _, hasGH := childEnvValue(env, "GH_TOKEN"); hasGH {
+				if IsTerminal(os.Stdin) {
+					fmt.Fprintf(os.Stderr, "%s Auth path: %s → using existing GH_TOKEN from child env\n",
+						domain.Dim("ℹ"), TokenSourceEnv)
+				}
+				return env, nil
+			}
+			// The token is only present under GITHUB_TOKEN/COPILOT_GITHUB_TOKEN.
+			// Normalize it to GH_TOKEN so the sandboxed cplt always sees the
+			// expected name and does not depend on the other vars being forwarded.
+			if IsTerminal(os.Stdin) {
+				fmt.Fprintf(os.Stderr, "%s Auth path: %s → normalized existing GITHUB_TOKEN/COPILOT_GITHUB_TOKEN to GH_TOKEN\n",
+					domain.Dim("ℹ"), TokenSourceEnv)
+			}
+			env = stripChildEnvTokens(env)
+			env = append(env, "GH_TOKEN="+token)
+			return env, nil
+		}
+	} else {
+		env = stripChildEnvTokens(env)
+	}
+
+	et, err := ExtractCopilotToken(authMode)
+	if err != nil {
+		if shouldAllowCpltFallback(authMode) {
+			if IsTerminal(os.Stdin) {
+				fmt.Fprintf(os.Stderr, "%s Auth pre-extraction failed (%s); cplt will use its own auth handling: %v\n",
+					domain.Yellow("⚠"), authMode, err)
+			}
+			return env, nil
+		}
+		if IsTerminal(os.Stdin) {
+			fmt.Fprintf(os.Stderr, "%s Auth pre-extraction failed (%s); launch aborted: %v\n",
+				domain.Yellow("⚠"), authMode, err)
+		}
+		return env, err
+	}
+	if IsTerminal(os.Stdin) {
+		fmt.Fprintf(os.Stderr, "%s Auth path: %s → injected as GH_TOKEN (Keychain access not needed in sandbox)\n",
+			domain.Dim("ℹ"), et.Source)
+	}
+	env = stripChildEnvTokens(env)
+	token := et.Token
+	env = append(env, "GH_TOKEN="+token)
+	// Note: Go strings are immutable; once appended to env, the token cannot be reliably zeroized.
+	// It will be GC'd with the process — this is a best-effort reduction only.
+	return env, nil
+}
+
+func shouldAllowCpltFallback(authMode string) bool {
+	return authMode == "auto"
+}
+
+func shouldHonorChildEnvToken(authMode string) bool {
+	return authMode == "auto" || authMode == "env_only"
+}
+
+// firstChildEnvToken returns the first inherited auth token following the
+// documented precedence GH_TOKEN → GITHUB_TOKEN → COPILOT_GITHUB_TOKEN,
+// regardless of the order the entries appear in env.
+func firstChildEnvToken(env []string) (string, bool) {
+	for _, key := range []string{"GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"} {
+		if v, ok := childEnvValue(env, key); ok {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// childEnvValue returns the non-blank value of the named auth variable if the
+// env slice carries it.
+func childEnvValue(env []string, key string) (string, bool) {
+	for _, e := range env {
+		if token, ok := envTokenValue(e, key); ok {
+			return token, true
+		}
+	}
+	return "", false
+}
+
+func stripChildEnvTokens(env []string) []string {
+	if len(env) == 0 {
+		return env
+	}
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		if hasEnvKey(e, "GH_TOKEN") {
+			continue
+		}
+		if hasEnvKey(e, "GITHUB_TOKEN") {
+			continue
+		}
+		if hasEnvKey(e, "COPILOT_GITHUB_TOKEN") {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+func stripBlankChildEnvTokens(env []string) []string {
+	if len(env) == 0 {
+		return env
+	}
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		if token, ok := envTokenValue(e, "GH_TOKEN"); ok {
+			out = append(out, "GH_TOKEN="+token)
+			continue
+		}
+		if hasEnvKey(e, "GH_TOKEN") {
+			continue
+		}
+		if token, ok := envTokenValue(e, "GITHUB_TOKEN"); ok {
+			out = append(out, "GITHUB_TOKEN="+token)
+			continue
+		}
+		if hasEnvKey(e, "GITHUB_TOKEN") {
+			continue
+		}
+		if token, ok := envTokenValue(e, "COPILOT_GITHUB_TOKEN"); ok {
+			out = append(out, "COPILOT_GITHUB_TOKEN="+token)
+			continue
+		}
+		if hasEnvKey(e, "COPILOT_GITHUB_TOKEN") {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+// envNamesCaseInsensitive mirrors the OS rule for environment variable names:
+// Windows treats them case-insensitively, every other platform exactly. Kept as
+// a var so tests can exercise both matchers.
+var envNamesCaseInsensitive = runtime.GOOS == "windows"
+
+// envEntryValueFor reports whether an "NAME=value" entry names the given
+// variable and returns its raw value. The name is matched case-insensitively on
+// Windows and exactly everywhere else. This keeps the token-stripping helpers
+// from leaking a lower/mixed-case GH_TOKEN past a restrictive auth mode on
+// Windows.
+func envEntryValueFor(entry, key string) (value string, ok bool) {
+	name, val, found := strings.Cut(entry, "=")
+	if !found {
+		return "", false
+	}
+	if envNamesCaseInsensitive {
+		if !strings.EqualFold(name, key) {
+			return "", false
+		}
+	} else if name != key {
+		return "", false
+	}
+	return val, true
+}
+
+func hasEnvKey(entry, key string) bool {
+	_, ok := envEntryValueFor(entry, key)
+	return ok
+}
+
+func envTokenValue(entry, key string) (string, bool) {
+	value, ok := envEntryValueFor(entry, key)
+	if !ok {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", false
+	}
+	return value, true
 }
 
 // cpltSandboxHintShown tracks whether the cplt sandbox hint has been shown this session.
