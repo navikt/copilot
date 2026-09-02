@@ -1,0 +1,28 @@
+● Find StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "StatusPanel*" 2>/dev/null
+  └ 2 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva den gjør
+
+Viser status (grønn/rød tekst basert på verdi), en klikkbar "Vis detaljer"-toggle, og en slett-knapp med søppelbøtte-ikon.
+
+## Problemer
+
+1. **Manglende typer** – `status`/`onSlett` har ingen TypeScript-typer (props er implisitt `any`).
+2. **`apen`-state brukes ikke** – toggler seg selv, men ingen detaljer vises/skjules basert på verdien. Død kode.
+3. **Alvorlig tilgjengelighetsbrudd**:
+   - `<div onClick>` er ikke fokuserbart/tastaturstyrbart, mangler `role="button"`, `tabIndex`, `onKeyDown` og `aria-expanded`.
+   - `style={{ outline: "none" }}` fjerner fokusindikator — svært dårlig for tastatur-/skjermleserbrukere.
+   - `tabIndex={5}` på et `<span>` er meningsløst og ødelegger naturlig tab-rekkefølge (positive tabIndex-verdier bør unngås helt).
+   - Slett-knappen mangler `aria-label`/tekst — kun ikon, ingen tilgjengelig navn.
+4. **Fargekoding alene** formidler status (rødt/grønt) uten tekst/ikon-alternativ — problem for fargeblinde.
+5. **Ingen bekreftelse før sletting** — `onSlett` kalles direkte ved klikk, risiko for utilsiktet sletting.
+6. **Inline styles** brukes i stedet for CSS-klasser/design-tokens (inkonsekvent med resten trolig via Tailwind, som allerede brukes i `className`).
+
+Anbefaling: fjern ubrukt state (eller implementer faktisk visning av detaljer), bytt `div` til en ekte `<button>`, fjern `tabIndex={5}` og `outline: none`, legg til `aria-label` på slett-knappen, og vurder bekreftelsesdialog før sletting.
+

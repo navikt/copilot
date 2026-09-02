@@ -1,0 +1,51 @@
+● Inspect repository contents (shell)
+  │ rtk pwd && rtk ls -la && rtk find . -maxdepth 2 -type f | head -80
+  └ 4 lines…
+
+/ Search (glob)
+  │ "**/*" in .nais
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*" in .github
+  └ 1 file found
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Read SKILL.md
+  │ .github/skills/nais-manifest/SKILL.md
+  └ 195 lines read
+
+Hovedårsaken er ressurskonfigurasjonen i `.nais/app.yaml`:
+
+```yaml
+requests:
+  memory: 256Mi
+limits:
+  memory: 64Mi
+```
+
+Poden får altså en **minnegrense på 64 MiB**, selv om den reserverer 256 MiB. Når applikasjonen overstiger 64 MiB, blir containeren drept av Kubernetes med `OOMKilled` (ofte exit code 137), og deployment-controlleren starter den på nytt — derfor får dere en restart-loop.
+
+Det finnes også en mulig sekundær årsak: liveness-sjekken begynner etter bare ett sekund og har ett sekund timeout:
+
+```yaml
+liveness:
+  path: /internal/health
+  initialDelay: 1
+  timeout: 1
+```
+
+Hvis applikasjonen bruker mer enn ett sekund på å starte, eller `/internal/health` ikke finnes eller ikke svarer raskt nok, blir poden også drept. Readiness-feil alene fører ikke til restart.
+
+Sjekk dette med:
+
+```bash
+kubectl describe pod <pod> -n team-dagpenger
+kubectl get pod <pod> -n team-dagpenger -o jsonpath='{.status.containerStatuses[*].lastState.terminated.reason}'
+```
+
+`OOMKilled` bekrefter minneproblemet; `Liveness probe failed` i Events peker på helsesjekken. Minnegrensen bør minst økes til over request-verdien, for eksempel `512Mi`, og liveness bør få en realistisk `initialDelay` — typisk 5–10 sekunder eller en separat startup probe.
+

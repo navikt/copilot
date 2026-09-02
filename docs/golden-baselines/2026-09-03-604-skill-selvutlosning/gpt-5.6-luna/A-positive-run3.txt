@@ -1,0 +1,63 @@
+● skill(aksel-component)
+
+● List directory .github/skills/aksel-component
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+● Read SKILL.md
+  │ .github/skills/aksel-component/SKILL.md
+  └ 64 lines read
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Inspect project structure and package configuration (shell)
+  │ rtk ls -la && printf '\n--- package files ---\n' && rtk find . -maxdepth 2 -type f -print
+  └ 5 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/box.md · url: "https://aksel.nav…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/box.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/button.md · url: "https://aksel.nav.no…
+  └ Contents of https://aksel.nav.no/komponenter/core/button.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/typography.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/typography.md:
+
+● Edit
+  │ Create src/app/komponenter/Varselkort.tsx
+  └ Create src/app/komponenter/Varselkort.test.tsx
+
+● Edit
+  └ Edit src/app/komponenter/Varselkort.tsx
+
+● Read Varselkort.tsx
+  │ src/app/komponenter/Varselkort.tsx
+  └ 29 lines read
+
+● Read Varselkort.test.tsx
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 38 lines read
+
+● Check for available project tooling and test configuration (shell)
+  │ rtk find . -maxdepth 3 -type f -print
+  └ 1 line…
+
+Opprettet React-komponenten `Varselkort` med Aksel Design System.
+
+- Bruker `InfoCard`, `BodyLong` og `ExclamationmarkTriangleIcon`
+- Semantisk `<section>` med tilgjengelig navn
+- Støtter `warning`, `danger`, `info` og `success`
+- Støtter `medium` og `small`
+- La til `Varselkort.test.tsx` med tester for standard- og danger-varsel
+

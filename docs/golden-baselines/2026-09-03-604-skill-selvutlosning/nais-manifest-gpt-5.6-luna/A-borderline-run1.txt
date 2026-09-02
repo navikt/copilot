@@ -1,0 +1,37 @@
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "dp-soknad|liveness|readiness|startupProbe|health|probe|memory|resources"
+  └ 2 files found
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Read SKILL.md
+  │ .github/skills/nais-manifest/SKILL.md
+  └ 195 lines read
+
+Podden blir sannsynligvis drept av **OOMKilled** fordi minnegrensen er satt lavere enn minneforespørselen:
+
+```yaml
+requests:
+  memory: 256Mi
+limits:
+  memory: 64Mi
+```
+
+Applikasjonen får dermed maksimalt bruke 64 MiB. En JVM-/Node-/Go-applikasjon bruker ofte mer enn dette allerede under oppstart, og Kubernetes terminerer containeren når grensen overskrides. Deployment-controlleren starter den på nytt, slik at den havner i en restart-loop.
+
+Det finnes også en mulig sekundær årsak: liveness-proben starter etter bare ett sekund og har ett sekund timeout:
+
+```yaml
+liveness:
+  initialDelay: 1
+  timeout: 1
+```
+
+Hvis applikasjonen ikke rekker å svare på `/internal/health` innen dette, blir den også drept. Øk minnegrensen, for eksempel til minst `512Mi`, og gi liveness-proben en realistisk initial delay eller bruk en `startupProbe`. Sjekk den konkrete årsaken med `kubectl describe pod`; `Last State: Terminated` med `Reason: OOMKilled` bekrefter minneproblemet.
+

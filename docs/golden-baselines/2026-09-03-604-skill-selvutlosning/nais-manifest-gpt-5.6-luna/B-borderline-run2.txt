@@ -1,0 +1,58 @@
+Jeg undersøker deploy-konfigurasjon, startup/health probes og applikasjonens oppstartslogikk for å finne hva som dreper poden kort tid etter start.
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "liveness|readiness|startup|probe|health|nais|termination|OOM|memory|exit|crash"
+  └ 25 lines found
+
+● Inspect repository status and recent commits (shell)
+  │ rtk git status --short --branch && rtk git log -5 --oneline
+  └ 2 lines…
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Read SKILL.md
+  │ .github/skills/nais-manifest/SKILL.md
+  └ L1:180 (180 lines read)
+
+Den mest sannsynlige årsaken er en feil i ressursgrensene i `.nais/app.yaml`:
+
+```yaml
+requests:
+  memory: 256Mi
+limits:
+  memory: 64Mi
+```
+
+Pod-en reserverer altså 256 MiB, men blir drept av Kubernetes så snart prosessen bruker mer enn 64 MiB. Dette vises normalt som:
+
+```text
+Reason: OOMKilled
+Exit Code: 137
+```
+
+I tillegg er liveness-sjekken svært aggressiv:
+
+```yaml
+liveness:
+  path: /internal/health
+  initialDelay: 1
+  timeout: 1
+```
+
+Hvis `/internal/health` ikke svarer innen ett sekund under oppstart, vil Kubernetes restarte containeren. Readiness-feil alene dreper ikke poden, men liveness-feil gjør det.
+
+Sjekk dette med:
+
+```bash
+kubectl describe pod -n team-dagpenger <pod-navn>
+kubectl logs -n team-dagpenger <pod-navn> --previous
+```
+
+Se spesielt etter `OOMKilled` eller `Liveness probe failed`. Memory-limit bør minst være høyere enn request, for eksempel `512Mi`, og liveness bør normalt ha noen sekunders initial delay.
+

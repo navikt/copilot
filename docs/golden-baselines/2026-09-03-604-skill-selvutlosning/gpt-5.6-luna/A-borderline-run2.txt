@@ -1,0 +1,42 @@
+● skill(aksel-component)
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel|Close|XMark|XIcon|Lukk" in **/*.{ts,tsx}
+  └ 1 line found
+
+✗ Read package.json
+  └ Path does not exist
+
+/ Search (glob)
+  │ "src/**/*.{test,spec}.{ts,tsx}"
+  └ No matches found
+
+/ Search (grep)
+  │ "@navikt/ds-react|Close|XMarkIcon|Button" in **/*.{ts,tsx,json}
+  └ No matches found
+
+● List project files (shell)
+  │ rtk find . -maxdepth 3 -type f -print
+  └ 1 line…
+
+● Inspect project structure (shell)
+  │ rtk pwd && rtk ls -la && rtk find src -type f -maxdepth 5 -print 2>/dev/null
+  └ 5 lines…
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 35 lines read
+
+La til en lukkeknapp i `src/app/komponenter/StatusPanel.tsx` med Aksel-ikonet `XMarkIcon` og tilgjengelig navn `Lukk`. Knappen lukker detaljvisningen og støtter valgfri `onLukk`-callback.
+

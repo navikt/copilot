@@ -1,0 +1,40 @@
+✗ Locate StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501 -path "*src/app/komponenter/StatusPanel.tsx" 2>/dev/null; find .
+  │ -iname "StatusPanel*" 2>/dev/null
+  └ Permission denied and could not request permission from user
+
+● Show current directory contents (shell)
+  │ pwd; ls -la
+  └ 7 lines…
+
+/ Search (glob)
+  │ "**/StatusPanel*"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva komponenten gjør
+
+`StatusPanel` er en React-komponent som:
+1. Viser en klikkbar "Vis detaljer"-tekst som toggler en `apen`-state (men den brukes ikke til noe – ingen detaljinnhold vises basert på `apen`).
+2. Viser en `status`-tekst farget rødt hvis `"feil"`, ellers grønn.
+3. Viser en søppelbøtte-knapp (`TrashIcon`) som kaller `onSlett` ved klikk.
+
+## Problemer jeg ser
+
+**Tilgjengelighet (a11y) – de mest alvorlige:**
+- `onClick` på en `<div>` er ikke tastaturtilgjengelig eller semantisk riktig — bør være `<button>`, eller ha `role="button"`, `tabIndex={0}` og `onKeyDown`-håndtering (Enter/Space).
+- `style={{ outline: "none" }}` fjerner fokusindikator — dårlig for tastaturbrukere, spesielt siden elementet uansett ikke er fokuserbart korrekt.
+- `tabIndex={5}` på `<span>` er feil bruk: positive tabIndex-verdier bryter naturlig tab-rekkefølge og et statisk `<span>` med tekst skal normalt ikke være i tab-rekkefølgen i det hele tatt (fjern `tabIndex` eller sett til `-1`/0 kun om nødvendig).
+- Fargekoding (rød/grønn) alene for status er ikke tilgjengelig for fargeblinde/skjermlesere — bør suppleres med tekst/ikon (f.eks. "Feil" vs "OK" er allerede tekst, men bør også ha `aria-label` eller ikon for raskere skanning).
+- `TrashIcon`-knappen mangler `aria-label` (f.eks. "Slett") — skjermlesere vil bare si "knapp" uten kontekst.
+
+**Kode/typesikkerhet:**
+- Ingen TypeScript-typer på props (`status`, `onSlett`) — bør ha et interface, f.eks. `{ status: "feil" | "ok"; onSlett: () => void }`.
+- `apen`-state settes men brukes aldri til å faktisk vise/skjule noe — død kode eller manglende funksjonalitet (sannsynlig bug: detaljene mangler).
+- "Vis detaljer" gir ingen visuell tilbakemelding om åpen/lukket tilstand (f.eks. pil som roterer, `aria-expanded`).
+
+**Anbefaling:** Bytt div til `<button>` for detalj-toggle, legg til `aria-expanded={apen}` og faktisk detaljinnhold, fjern `tabIndex={5}`, legg til `aria-label` på slett-knappen, og typ props riktig.
+

@@ -1,0 +1,53 @@
+● skill(aksel-component)
+
+Jeg undersøker eksisterende `StatusPanel` og ikon-/knappemønstre i prosjektet før jeg gjør en minimal endring.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "Close|XMark|Lukk|Button" in *.tsx (src)
+  └ No matches found
+
+✗ Read package.json
+  └ Path does not exist
+
+/ Search (grep)
+  │ "XMarkIcon|Cross|CloseIcon|Lukk" in *
+  └ No matches found
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● List project files (shell)
+  │ rtk find . -maxdepth 2 -type f | head -80
+  └ 1 line…
+
+● Inspect project structure (shell)
+  │ rtk pwd && rtk ls -la && rtk find src -maxdepth 3 -type f | head -80
+  └ 5 lines…
+
+● Fetching web content https://aksel.nav.no/komponenter/core/button.md · url: "https://aksel.nav.no…
+  └ Contents of https://aksel.nav.no/komponenter/core/button.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/ikoner.md · url: "https://aksel.nav.no/komp…
+  └ Contents of https://aksel.nav.no/komponenter/ikoner.md:
+
+● Verify Aksel close icon name (shell)
+  │ rtk curl -s https://aksel.nav.no/komponenter/ikoner.md | grep -o 'XMark[^",]*' | head -20
+  └ 10 lines…
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 22 lines read
+
+La til en lukkeknapp i `src/app/komponenter/StatusPanel.tsx` med Aksel-ikonet `XMarkIcon`, tilgjengelig navn `Lukk` og funksjonalitet som lukker panelet.
+

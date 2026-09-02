@@ -1,0 +1,62 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/tsconfig*.json"
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel"
+  └ 1 line found
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+● Viser linjenummer for StatusPanel (shell)
+  │ rtk nl -ba src/app/komponenter/StatusPanel.tsx
+  └ 20 lines…
+
+`StatusPanel` viser en liten statusrad:
+
+- Tar imot `status` og `onSlett` som props.
+- Holder lokal state `apen`, som starter som `false`.
+- Når «Vis detaljer» klikkes, toggles `apen`.
+- Viser statusen som tekst.
+- Farger statusen rød hvis den er `"feil"`, ellers grønn.
+- Viser en søppelkurv-knapp som kaller `onSlett`.
+
+**Problemer jeg ser:**
+
+1. **Detaljvisningen fungerer ikke**  
+   `apen` oppdateres på linje 8, men brukes aldri i JSX. Klikket gir derfor ingen synlig effekt. Det mangler enten innhold som rendres betinget, eller så er state-en unødvendig.
+
+2. **Ikke tilgjengelig som interaktiv kontroll**  
+   En vanlig `<div>` brukes som klikkbar kontroll. Den kan ikke aktiveres med tastatur og mangler semantikk som knapp. Bruk heller `<button>` eller en Aksel-komponent.
+
+3. **Fokusmarkering fjernes**  
+   `outline: "none"` på linje 8 skjuler fokusindikatoren. Det gjør tastaturnavigasjon vanskeligere, særlig dersom elementet senere får tastaturstøtte.
+
+4. **Manglende tilgjengelighetsinformasjon for detaljkontrollen**  
+   Det finnes ingen `aria-expanded`, `aria-controls` eller tekst som endres mellom «Vis detaljer» og «Skjul detaljer». Skjermlesere får dermed ikke vite hva kontrollen gjør eller om panelet er åpent.
+
+5. **Søppelkurv-knappen mangler tilgjengelig navn**  
+   Knappen inneholder bare et ikon. Den bør ha for eksempel `aria-label="Slett status"` eller synlig tekst, slik at handlingen kan forstås uten å se ikonet.
+
+6. **Uheldig bruk av `tabIndex={5}`**  
+   Statusfeltet er ikke interaktivt, men gjøres fokuserbart. En fast positiv tabindex skaper dessuten en unaturlig tab-rekkefølge. Fjern den, eller bruk `tabIndex={0}` bare dersom det finnes en god grunn til at statusen skal kunne fokuseres.
+
+7. **Farge alene kommuniserer status**  
+   Rødt og grønt kan ha svak kontrast og er utilstrekkelig for personer med fargesynsvansker. Statusen bør også uttrykkes med tekst, ikon eller en egnet Aksel-komponent. Koden behandler dessuten alle statuser bortsett fra `"feil"` som suksess/ grønn.
+
+8. **Props mangler typer**  
+   `status` og `onSlett` er implisitt `any`. Med streng TypeScript-konfigurasjon kan dette gi kompileringsfeil, og komponenten tillater ugyldige statusverdier. Definer en prop-type, for eksempel med en union for tillatte statuser og en funksjonstype for `onSlett`.
+
+9. **Inline-farger og rå HTML gir svakere designsystem-integrasjon**  
+   `style={{ color: "red" }}` og `style={{ color: "green" }}` bør normalt erstattes med Aksel-komponenter eller tokens, slik at farger, kontrast og tema håndteres konsistent.
+

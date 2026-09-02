@@ -1,0 +1,31 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-75
+  c0026ac1/scratchpad/run-sonnet5/ws && rtk grep -rl "@navikt/ds-react" src | head -5 && cat
+  package.json | grep -i aksel
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && rtk grep -rl "@navikt/ds-react" src | head -5 && cat
+  │ package.json | grep -i aksel
+  └ 2 lines…
+
+● cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-75
+  c0026ac1/scratchpad/run-sonnet5/ws && find . -name package.json -maxdepth 3 && find . -iname "*.ts
+  | xargs grep -l "ds-react" 2>/dev/null
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find . -name package.json -maxdepth 3 && find . -iname
+  │ "*.tsx" | xargs grep -l "ds-react" 2>/dev/null
+  └ 1 line…
+
+● cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-75
+  c0026ac1/scratchpad/run-sonnet5/ws && find . -maxdepth 4 | head -50
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find . -maxdepth 4 | head -50
+  └ 10 lines…
+
+● Edit StatusPanel.tsx +6 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til en lukkeknapp som vises når detaljer er åpne, med `XMarkIcon` fra `@navikt/aksel-icons`, `aria-label="Lukk detaljer"` for tilgjengelig navn, og `aria-hidden` på ikonet (dekorativt). Knappen setter `apen` til `false` ved klikk.
+

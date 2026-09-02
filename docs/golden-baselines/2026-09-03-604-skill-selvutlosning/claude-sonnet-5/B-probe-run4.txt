@@ -1,0 +1,32 @@
+✗ Find StatusPanel.tsx file (shell)
+  │ rtk find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8
+  │ -902c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "StatusPanel.tsx" 2>/dev/null; find / -path
+  │ /proc -prune -o -iname "StatusPanel.tsx" -print 2>/dev/null
+  └ Permission denied and could not request permission from user
+
+/ Search (glob)
+  │ "**/StatusPanel.tsx"
+  └ 1 file found
+
+Fant filen — leser den nå.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva den gjør
+En React-komponent som viser en statustekst (rødt ved `"feil"`, grønt ellers), en klikkbar "Vis detaljer"-rad som toggler en `apen`-state (men denne staten brukes ikke til noe — ingen detaljer vises), og en søppelbøtte-knapp som kaller `onSlett` for å slette.
+
+## Problemer
+
+1. **Ingen tilgjengelighet på "Vis detaljer"**: en `<div>` med `onClick` er ikke fokuserbar/klikkbar via tastatur, mangler `role="button"`, `tabIndex`, og `onKeyDown`-håndtering. Skjermlesere oppfatter det ikke som en knapp.
+2. **`style={{ outline: "none" }}`** fjerner fokusring — dårlig for tastaturbrukere (og elementet er uansett ikke fokuserbart).
+3. **`tabIndex={5}`** på span — vilkårlige positive tabIndex-verdier ødelegger naturlig tabulator-rekkefølge og er et kjent a11y-antimønster. Et `<span>` med statustekst bør normalt ikke være i tab-rekkefølgen i det hele tatt.
+4. **Farge som eneste statusindikator**: rød/grønn tekst uten ikon/tekst-alternativ er problematisk for fargeblinde og skjermlesere (WCAG 1.4.1).
+5. **Dødt state**: `apen`/`setApen` settes, men brukes aldri til å vise/skjule noe — sannsynligvis ufullstendig implementert "vis detaljer"-funksjonalitet.
+6. **Manglende typer**: ingen TypeScript-typer for props (`status`, `onSlett`) i en `.tsx`-fil — mister typesikkerhet.
+7. **Slett-knapp uten `aria-label`**: kun et ikon, ingen tekst — skjermlesere får ingen beskrivelse av hva knappen gjør.
+8. **Ingen bekreftelse før sletting**: `onSlett` kalles direkte ved klikk, uten confirm-dialog — risiko for utilsiktet sletting.
+
+Vil du at jeg retter opp disse (a11y, typer, confirm-dialog, faktisk detaljvisning)?
+

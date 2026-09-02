@@ -1,0 +1,88 @@
+● skill(aksel-component)
+
+Jeg undersøker prosjektets komponentstruktur og eksisterende Aksel-mønstre før jeg legger til `Varselkort`, slik at komponenten følger repoets eksport- og testkonvensjoner.
+
+/ Search (glob)
+  │ "**/*.{tsx,ts,jsx,js,json}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (grep)
+  │ "@navikt/ds-react|InfoCard|LocalAlert|GlobalAlert|Varsel" in **/*.{tsx,ts,jsx,js}
+  └ No matches found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● List project files (shell)
+  │ rtk find . -maxdepth 3 -type f -print
+  └ 1 line…
+
+● Find project configuration (shell)
+  │ rtk find . -maxdepth 3 -type f \( -name 'package.json' -o -name 'tsconfig.json' -o -name
+  │ 'vite.config.*' -o -name 'README*' \) -print
+  └ 1 line…
+
+● Inspect project layout (shell)
+  │ rtk ls -la && rtk find src -maxdepth 5 -type f -print
+  └ 4 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/typography.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/typography.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/button.md · url: "https://aksel.nav.no…
+  └ Contents of https://aksel.nav.no/komponenter/core/button.md:
+
+● Check working tree (shell)
+  │ rtk git status --short --untracked-files=all
+  └ 2 lines…
+
+● List all project files (shell)
+  │ rtk find . -type f -not -path './.git/*' -print
+  └ 3 lines…
+
+Jeg bruker Aksels `LocalAlert` som grunnlag: den er laget for lokale varsler, har eksplisitt alvorlighetsgrad og tilgjengelig overskrift. `Varselkort` får et mobilvennlig, typesikkert API med valgfri beskrivelse, størrelse og lukkehandling.
+
+● Edit
+  │ Create src/app/komponenter/Varselkort.tsx
+  └ Create src/app/komponenter/Varselkort.test.tsx
+
+● Edit
+  └ Edit src/app/komponenter/Varselkort.test.tsx
+
+● Edit
+  └ Edit src/app/komponenter/Varselkort.test.tsx
+
+● Read Varselkort.tsx
+  │ src/app/komponenter/Varselkort.tsx
+  └ 34 lines read
+
+● Read Varselkort.test.tsx
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 34 lines read
+
+● Check available test and build configuration (shell)
+  │ rtk find . -maxdepth 3 -type f -print
+  └ 1 line…
+
+Laget den nye React-komponenten `Varselkort` med Aksel `LocalAlert`.
+
+- Støtter `title`, valgfri `description`, `status`, `size` og `onClose`
+- Bruker `warning` som standardstatus
+- Har tilgjengelig overskrift og lukkehandling
+- Eksporterer typene `VarselkortProps` og `VarselkortStatus`
+- La til `Varselkort.test.tsx` med tester for innhold, standardstatus og lukking
+

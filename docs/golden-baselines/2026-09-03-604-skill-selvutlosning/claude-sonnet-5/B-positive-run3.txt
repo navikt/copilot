@@ -1,0 +1,63 @@
+● skill(aksel-component)
+
+● List available skills directory (shell)
+  │ ls /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws/.github/skills/ 2>/dev/null
+  └ 2 lines…
+
+● Explore skill directory contents (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws/.github/skills/aksel-component -maxdepth 3
+  └ 3 lines…
+
+No MCP for Aksel here, so I'll verify APIs via the fallback docs (aksel.nav.no/llm.md) before scaffolding.
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · max_length: 6000, url:…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Inspect project structure and package.json (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && rtk find . -maxdepth 3 -not -path '*/node_modules/*'
+  │ -not -path '*/.git/*' | head -50 && echo --- && cat package.json 2>/dev/null | head -40
+  └ 9 lines…
+
+● Explore src directory deeper (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && rtk find src -maxdepth 5 && echo --- ls root --- &&
+  │ rtk ls -la
+  └ 5 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Check for config files at root (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && rtk find . -maxdepth 2 -type f -not -path '*/.git/*'
+  └ 1 line…
+
+● Create Varselkort.tsx +38
+  └ src/app/komponenter/Varselkort.tsx
+
+Now the test file (no test framework configured, so I'll use standard `@testing-library/react` + `vitest`-style syntax as the most common convention for Aksel/React projects):
+
+● Create Varselkort.test.tsx +45
+  └ src/app/komponenter/Varselkort.test.tsx
+
+● Check for build/test config anywhere (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && rtk find . -iname "package.json" -o -iname
+  │ "tsconfig*.json" -o -iname "vitest*"
+  └ 1 line…
+
+Ingen package.json/tsconfig/testoppsett finnes i repoet, så testene kan ikke kjøres her – de er skrevet klare til å plukkes opp av et Vitest + Testing Library-oppsett når prosjektet får det.
+
+**Opprettet:**
+- `src/app/komponenter/Varselkort.tsx` — bygger på `LocalAlert` (v8, verifisert mot aksel.nav.no siden Alert er avviklet). Props: `tittel`, `beskrivelse?`, `status` (`announcement|success|warning|error`, default `warning`), `storrelse` (`medium|small`), `lukkbar` + `onLukk` for lukkeknapp.
+- `src/app/komponenter/Varselkort.test.tsx` — dekker tittel/beskrivelse-rendering, valgfri beskrivelse, lukkeknapp-visning og `onLukk`-kall.
+
+Antok "varselkort" = et varsel-/notifikasjonskort (warning-type default), siden ikke-interaktiv modus ikke tillot avklaringsspørsmål.
+

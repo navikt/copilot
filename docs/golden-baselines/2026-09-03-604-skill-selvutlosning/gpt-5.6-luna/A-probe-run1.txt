@@ -1,0 +1,57 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/{package.json,tsconfig.json,.eslintrc*,eslint.config.*,vite.config.*,next.config.*}"
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel"
+  └ 1 line found
+
+`StatusPanel` viser en enkel statusrad:
+
+- Tar imot `status` og `onSlett` som props.
+- Holder lokal state `apen` for om detaljer er åpne.
+- Viser teksten «Vis detaljer».
+- Viser statusen med rød farge når `status === "feil"`, ellers grønn.
+- Viser en knapp med søppelbøtteikon som kaller `onSlett`.
+
+Problemer jeg ser:
+
+1. **Detaljfunksjonen er uferdig**
+   `apen` endres når brukeren klikker, men brukes aldri til å vise eller skjule noe. Klikket har derfor ingen synlig effekt utover en ubrukt state-endring.
+
+2. **Ikke tilgjengelig detaljkontroll**
+   En vanlig `<div>` brukes som klikkbart element. Den kan ikke aktiveres med tastatur og mangler semantikk som knapp eller ekspanderbar kontroll. Den bør normalt være en `<button>` med for eksempel `aria-expanded`.
+
+3. **`outline: none` fjerner fokusmarkering**
+   Dette gjør tastaturnavigasjon vanskeligere å følge visuelt. Hvis fokusstilen skal endres, bør den erstattes med en tydelig fokusstil, ikke fjernes.
+
+4. **Uheldig `tabIndex={5}`**
+   En fast, positiv tab-indeks overstyrer den naturlige tab-rekkefølgen og kan gi en forvirrende navigasjon. Her virker `tabIndex` unødvendig.
+
+5. **Status tolkes for snevert**
+   Alle statuser som ikke er `"feil"` blir grønne. En ukjent eller manglende status kan dermed se ut som en vellykket status. Det bør brukes en eksplisitt union av tillatte statuser og en egen håndtering av ukjente verdier.
+
+6. **Farge alene formidler betydningen**
+   Rødt og grønt kan ha utilstrekkelig kontrast, og farge alene fungerer dårlig for brukere med nedsatt fargesyn. Statusen bør også ha ikon, tekst eller annen semantisk markering, gjerne med Aksel-tokens i stedet for hardkodede fargenavn.
+
+7. **Slett-knappen mangler tydelig tilgjengelig navn**
+   Knappen inneholder bare et ikon. Hvis `TrashIcon` ikke selv gir et tilgjengelig navn, vil skjermlesere kunne lese knappen som uten navn. Den bør ha for eksempel `aria-label="Slett status"` eller synlig tekst.
+
+8. **Props mangler TypeScript-typer**
+   `status` og `onSlett` er implisitt typet. Med `noImplicitAny` vil dette gi TypeScript-feil, og uten dette mister komponenten nyttig typesikkerhet. Et eksempel kan være:
+   ```tsx
+   type Status = "ok" | "feil" | "venter";
+
+   type StatusPanelProps = {
+     status: Status;
+     onSlett: () => void;
+   };
+   ```
+
+9. **Manglende kobling mellom kontroll og innhold**
+   Dersom detaljer skal implementeres, bør kontrollen ha en stabil `id`, og detaljinnholdet bør kobles til kontrollen med `aria-controls`. Slik komponenten står nå finnes det heller ikke noe detaljinnhold å vise.
+

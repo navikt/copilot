@@ -1,0 +1,43 @@
+/ Search (glob)
+  │ "**/src/app/komponenter/StatusPanel.tsx"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/tsconfig*.json"
+  └ No matches found
+
+/ Search (grep)
+  │ "<StatusPanel|onSlett=|status=" in *.{tsx,ts} (src)
+  └ No matches found
+
+/ Search (grep)
+  │ "TrashIcon|tabIndex=\{5\}|setApen" in *.{tsx,ts} (src)
+  └ 5 lines found
+
+`StatusPanel.tsx` rendrer et lite statuspanel:
+
+- Viser teksten **«Vis detaljer»**.
+- Har en lokal state, `apen`, som skal styre om detaljene er åpne.
+- Viser `status`. Statusen får rød tekst hvis verdien er nøyaktig `"feil"`, ellers grønn tekst.
+- Viser en søppelkurvknapp som kaller `onSlett` når den trykkes.
+
+Problemer jeg ser:
+
+- **«Vis detaljer» gjør i praksis ingenting.** `apen` oppdateres, men brukes aldri til å vise eller skjule innhold. Brukeren får derfor ingen synlig effekt av klikket.
+- **Dårlig tilgjengelighet på detalj-triggeren.** En `div` med `onClick` er ikke et tastaturtilgjengelig interaktivt element. Den bør være en knapp, eller ha korrekt tastaturhåndtering og ARIA-attributter.
+- **`outline: "none"` kan skjule fokusindikatorer.** Dette gjør tastaturnavigasjon vanskeligere, særlig hvis elementet senere blir fokuserbart.
+- **Feil bruk av `tabIndex={5}`.** Statusfeltet er ikke interaktivt, men blir likevel et tab-stopp. En eksplisitt tab-indeks på 5 kan også gi uforutsigbar tab-rekkefølge. Det bør normalt fjernes.
+- **Sletteknappen mangler tilgjengelig navn.** Ikonet alene gir ikke nødvendigvis skjermlesere informasjon om hva knappen gjør. Den bør ha for eksempel `aria-label="Slett status"`.
+- **Manglende typer på props.** `status` og `onSlett` er implisitt `any`. Med vanlig streng TypeScript-konfigurasjon kan dette gi kompileringsfeil, og uansett mangler komponenten en tydelig kontrakt.
+- **Statuslogikken er for bred.** Alt som ikke er `"feil"` blir grønt, også ukjente verdier, tom status eller eventuelle `"laster"`-/`"advarsel"`-tilstander.
+- **Knappen mangler `type`.** Hvis komponenten brukes inne i et `<form>`, kan knappen utilsiktet sende inn skjemaet. `type="button"` bør angis dersom sletting ikke skal submitte skjemaet.
+- **Rå fargenavn og inline styling** (`"red"`/`"green"`) gir svakere konsistens enn prosjektets designsystem/tokens og mangler nyanser for kontrast og ulike statustyper.
+

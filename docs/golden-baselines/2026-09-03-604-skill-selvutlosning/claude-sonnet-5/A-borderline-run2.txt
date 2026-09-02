@@ -1,0 +1,29 @@
+● skill(aksel-component)
+
+● Find StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "StatusPanel.tsx" 2>/dev/null
+  └ 2 lines…
+
+● List workspace structure (shell)
+  │ ls /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws 2>/dev/null; find /private/tmp/claude-501/-Users-hans-go-
+  │ src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-7525c0026ac1/scratchpad/run-sonnet5/ws
+  │ -maxdepth 4 -type d 2>/dev/null
+  └ 9 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Check package.json for deps (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "package.json" -maxdepth 3 2>/dev/null -exec cat
+  │ {} \;
+  └ 1 line…
+
+● Edit StatusPanel.tsx +9 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til en lukkeknapp i `StatusPanel.tsx` med Aksel `Button` (`variant="tertiary"`, `size="small"`) og `XMarkIcon`. Ikonet er `aria-hidden`, mens `aria-label="Lukk"` gir riktig tilgjengelig navn for skjermlesere. Knappen kaller `setApen(false)` for å lukke panelet.
+

@@ -1,0 +1,56 @@
+● skill(aksel-component)
+
+● List workspace files (shell)
+  │ ls -la /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-9
+  │ 02c-7525c0026ac1/scratchpad/run-sonnet5/ws
+  └ 6 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/ikoner.md · url: "https://aksel.nav.no/komp…
+  └ Contents of https://aksel.nav.no/komponenter/ikoner.md:
+
+● Inspect project src and package.json (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws/src -type f 2>/dev/null; cat
+  │ /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-752
+  │ 5c0026ac1/scratchpad/run-sonnet5/ws/package.json 2>/dev/null
+  └ 2 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● List all project files excluding node_modules (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -maxdepth 4 -type f | grep -v node_modules
+  └ 3 lines…
+
+● Look for existing test configuration (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -maxdepth 6 -iname "*.test.*" -o -iname
+  │ "vitest.config*" -o -iname "jest.config*" 2>/dev/null | grep -v node_modules; find
+  │ /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-752
+  │ 5c0026ac1/scratchpad/run-sonnet5/ws -maxdepth 1
+  └ 4 lines…
+
+● Create Varselkort.tsx +62
+  └ src/app/komponenter/Varselkort.tsx
+
+● Create Varselkort.test.tsx +50
+  └ src/app/komponenter/Varselkort.test.tsx
+
+Opprettet `Varselkort` — en Aksel-basert varselkomponent i `src/app/komponenter/`:
+
+- **`Varselkort.tsx`**: Wrapper rundt `InfoCard` med `variant` (`info`/`suksess`/`advarsel`/`feil`) som styrer `data-color` og standardikon (fra `@navikt/aksel-icons`), pluss `tittel`, valgfri `beskrivelse`, `children` og `size`. Ikon kan overstyres.
+- **`Varselkort.test.tsx`**: Tester for tittel/beskrivelse-visning, heading-rolle, ikon-overstyring og children.
+
+Merk: repoet mangler `package.json`/node_modules/test-runner, så testene kunne ikke kjøres i dette miljøet — de er skrevet for Vitest + Testing Library og bør fungere når prosjektet settes opp med disse.
+

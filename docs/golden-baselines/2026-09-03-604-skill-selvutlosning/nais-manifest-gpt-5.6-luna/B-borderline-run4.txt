@@ -1,0 +1,49 @@
+Jeg undersøker deploy-/runtime-konfigurasjonen og logger etter tegn på startup-feil, health probes eller ressursbegrensninger som kan forklare restart-loopen.
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "dp-soknad|liveness|readiness|startupProbe|probe|resources:|replica|termination|OOM|health"
+  └ 14 lines found
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Read SKILL.md
+  │ .github/skills/nais-manifest/SKILL.md
+  └ L1:220 (195 lines read)
+
+Den mest sannsynlige årsaken er ressurskonfigurasjonen i `.nais/app.yaml`:
+
+```yaml
+requests:
+  memory: 256Mi
+limits:
+  memory: 64Mi
+```
+
+Podden får altså bare lov til å bruke **64 MiB**, selv om den reserverer **256 MiB**. En applikasjon som overskrider 64 MiB blir drept av Kubernetes med `OOMKilled`, og ReplicaSet starter den på nytt. Dette gir en restart-loop.
+
+I tillegg er liveness-checken svært aggressiv:
+
+```yaml
+liveness:
+  path: /internal/health
+  initialDelay: 1
+  timeout: 1
+```
+
+Hvis applikasjonen bruker mer enn ett sekund på å starte eller `/internal/health` ikke svarer umiddelbart, blir den også drept før den er klar. Readiness-feil alene dreper normalt ikke podden, men liveness-feil gjør det.
+
+Bekreft årsaken med:
+
+```bash
+kubectl -n team-dagpenger describe pod <pod-navn>
+kubectl -n team-dagpenger logs <pod-navn> --previous
+```
+
+Se etter `Reason: OOMKilled` eller events som `Liveness probe failed`. Ressursgrensen bør minst samsvare med requesten, for eksempel `memory: 512Mi`, og liveness bør få en lengre initial delay eller erstattes/suppleres med en `startupProbe`.
+

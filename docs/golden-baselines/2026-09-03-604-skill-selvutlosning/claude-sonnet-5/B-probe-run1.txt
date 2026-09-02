@@ -1,0 +1,25 @@
+/ Search (glob)
+  │ "**/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva den gjør
+
+En liten React-komponent som viser en statusverdi (grønn/rød tekst avhengig av om `status === "feil"`), en klikkbar "Vis detaljer"-rad som toggler en `apen`-state (men state brukes ikke til noe – ingen detaljer vises), og en søppelbøtte-knapp som kaller `onSlett` for å slette noe.
+
+## Problemer
+
+- **Tilgjengelighet (a11y)**: "Vis detaljer" er en `<div onClick>` — ikke tastaturstyrbar, ingen `role="button"`, `tabIndex`, eller `onKeyDown`. Skjermlesere oppfatter det ikke som interaktivt.
+- **`tabIndex={5}` på `<span>`**: Vilkårlige positive tabIndex-verdier ødelegger naturlig tab-rekkefølge og er et kjent anti-pattern. Span-en er dessuten ikke interaktiv, så den bør ikke være fokuserbar i det hele tatt.
+- **`style={{ outline: "none" }}`**: Fjerner fokusindikator uten erstatning — dårlig for tastaturbrukere.
+- **Fargekoding uten tekst-alternativ**: Rød/grønn farge for status er ikke tilgjengelig for fargeblinde/skjermlesere — bør kombineres med ikon/tekst/aria-label.
+- **Dødt state**: `apen` settes men brukes aldri til å vise/skjule noe — enten mangler implementasjon (detaljvisning) eller er ubrukt kode.
+- **Manglende typer**: Ingen TypeScript-typer for props (`status`, `onSlett`) til tross for `.tsx`-filending — `status` bør typisk være en union-type, `onSlett` en funksjonstype.
+- **Slett-knapp mangler label/bekreftelse**: `<button>` med kun ikon har ingen `aria-label`, og en destruktiv handling (slett) har ingen bekreftelsesdialog.
+- **Sammenligning med magisk streng**: `status === "feil"` bør helst være en typet enum/union for å unngå skrivefeil.
+
+Vil du at jeg retter disse (f.eks. legger til typer, aria-labels, tastaturstøtte og fjerner/implementerer `apen`-state)?
+

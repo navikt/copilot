@@ -1,0 +1,52 @@
+● skill(aksel-component)
+
+● List skills directory (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws/.github/skills -maxdepth 2
+  └ 4 lines…
+
+● Inspect workspace structure (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && ls -la && find . -maxdepth 3 -iname "*.tsx" | head -20
+  │ && cat package.json 2>/dev/null | head -30
+  └ 6 lines…
+
+● List src contents (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find src -type f
+  └ 2 lines…
+
+Empty repo aside from one example component. La meg se på eksisterende komponent for konvensjon, og hente Aksel API-referanse siden MCP ikke er tilgjengelig.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Check for project config files (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find . -maxdepth 2 -iname "*.json" -o -iname
+  │ "*.config.*" 2>/dev/null
+  └ 1 line…
+
+● Create Varselkort.tsx +39
+  └ src/app/komponenter/Varselkort.tsx
+
+● Create Varselkort.test.tsx +40
+  └ src/app/komponenter/Varselkort.test.tsx
+
+Opprettet `Varselkort` i `src/app/komponenter/`, basert på Aksels `LocalAlert` (varsel/kort-mønster med status, tittel, beskrivelse og valgfri lukkeknapp).
+
+- **Varselkort.tsx**: props `status` (announcement/success/warning/error), `tittel`, `beskrivelse`, `size`, `onLukk`.
+- **Varselkort.test.tsx**: tester rendering av tittel/beskrivelse og lukkeknapp-oppførsel.
+
+Merk: Repoet mangler `package.json`/testoppsett, så jeg kunne ikke kjøre testene — verifisert API kun mot Aksels dokumentasjon (MCP var ikke tilgjengelig i dette miljøet).
+

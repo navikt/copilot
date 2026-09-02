@@ -1,0 +1,37 @@
+✗ Find StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501 -path "*src/app/komponenter/StatusPanel.tsx" 2>/dev/null; find /
+  │ -maxdepth 6 -iname "StatusPanel.tsx" 2>/dev/null
+  └ Permission denied and could not request permission from user
+
+/ Search (glob)
+  │ "**/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva komponenten gjør
+
+`StatusPanel` er en enkel React-komponent som:
+1. Viser en klikkbar "Vis detaljer"-tekst som toggler en `apen`-state (men state brukes ikke til noe synlig — ingen detaljer vises faktisk).
+2. Viser en status-tekst farget rødt ved `"feil"`, ellers grønt.
+3. Viser en søppelbøtte-knapp (`TrashIcon`) som kaller `onSlett` for å slette noe.
+
+## Problemer jeg ser
+
+**Tilgjengelighet (a11y) — mest alvorlig:**
+- `<div onClick={...}>` er ikke tastaturstyrbart eller semantisk en knapp — bør være `<button>`, eller ha `role="button"`, `tabIndex={0}` og `onKeyDown` for Enter/Space.
+- `style={{ outline: "none" }}` fjerner fokusindikator — dårlig for tastatur-/synshemmede brukere.
+- `tabIndex={5}` på et `<span>` er unødvendig og feil bruk — positive tabIndex-verdier bryter naturlig tab-rekkefølge og bør unngås. Span-en er ikke interaktiv, så den skal ikke ha tabIndex i det hele tatt.
+- Fargekoding (rød/grønn) alene for status er problematisk for fargeblinde — bør suppleres med tekst/ikon (f.eks. "Feil"/"OK" er allerede tekst her, så det er delvis OK, men bør sjekkes i kontekst).
+- `TrashIcon`-knappen mangler `aria-label` (f.eks. "Slett") — skjermlesere vil bare si "knapp" uten kontekst.
+
+**Funksjonalitet/kode:**
+- `apen`-state settes men brukes aldri til å vise/skjule noe — død kode eller manglende implementasjon (detaljer vises ikke).
+- Ingen TypeScript-typer på props (`status`, `onSlett`) — filen er `.tsx` men mangler type-sikkerhet (f.eks. `interface StatusPanelProps`).
+- `status === "feil"` er en magic string — bør være en enum/union-type for å unngå skrivefeil.
+- Ingen bekreftelse før sletting (`onSlett` trigges direkte ved klikk) — risiko for utilsiktet sletting.
+
+**Anbefaling:** Bytt div til `<button type="button">`, fjern `outline: none` og `tabIndex={5}`, legg til `aria-label` på slett-knappen, typ props, og enten fjern eller faktisk implementer detalj-visningen.
+
