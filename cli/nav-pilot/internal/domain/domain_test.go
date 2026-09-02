@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -432,5 +433,69 @@ func TestAgentFrontmatterModelsAreKnown(t *testing.T) {
 		if got := OpenCodeModelForLabel(string(m[1])); got == "" {
 			t.Errorf("%s declares model %q, which maps to no Copilot model", filepath.Base(f), m[1])
 		}
+	}
+}
+
+// legacyFile stands in for a nav-pilot built before per-file `source` (#571)
+// but with the unknown-key preservation of #588 in place. It is how we check
+// the claim that matters: such a binary rewrites a state file it does not fully
+// understand without losing the stamp a newer one put there.
+type legacyFile struct {
+	Path    string `json:"path"`
+	Hash    string `json:"hash"`
+	Status  string `json:"status,omitempty"`
+	Unknown map[string]json.RawMessage
+}
+
+func (f *legacyFile) UnmarshalJSON(b []byte) error {
+	type fields legacyFile
+	var known fields
+	if err := json.Unmarshal(b, &known); err != nil {
+		return err
+	}
+	unknown, err := unknownJSONKeys(b, knownJSONKeys(legacyFile{}))
+	if err != nil {
+		return err
+	}
+	*f = legacyFile(known)
+	f.Unknown = unknown
+	return nil
+}
+
+func (f legacyFile) MarshalJSON() ([]byte, error) {
+	type fields legacyFile
+	b, err := json.Marshal(fields(f))
+	if err != nil {
+		return nil, err
+	}
+	return appendUnknownKeys(b, f.Unknown), nil
+}
+
+// TestOlderDecoderKeepsPerFileSource is the #588 scenario from the other side:
+// the older binary is the one that rewrites the shared state file.
+func TestOlderDecoderKeepsPerFileSource(t *testing.T) {
+	const stamped = `{"path":".github/agents/foo.md","hash":"sha256:aaa","source":"navikt/annen-pakke"}`
+
+	var f legacyFile
+	if err := json.Unmarshal([]byte(stamped), &f); err != nil {
+		t.Fatal(err)
+	}
+	f.Status = FileStatusIgnored // the mutation an `ignore` run makes
+
+	out, err := json.Marshal(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The stamp must still be there, and still readable as a Source.
+	var back InstalledFile
+	if err := json.Unmarshal(out, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.Source != "navikt/annen-pakke" {
+		t.Errorf("older decoder dropped the source stamp: %s", out)
+	}
+	if back.Status != FileStatusIgnored || back.Hash != "sha256:aaa" {
+		t.Errorf("older decoder lost known fields: %s", out)
 	}
 }
