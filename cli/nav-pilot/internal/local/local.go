@@ -109,8 +109,10 @@ var allowedPublishers = []string{"mlx-community", "lmstudio-community"}
 // So it is an allow-list, and an entry naming anything else is refused rather
 // than defaulted. Adding a backend means shipping the code that knows how to
 // launch it, which is a nav-pilot release, not a manifest edit. An empty value
-// is accepted as mlx-lm: entries predate the field being meaningful, and
-// refusing them would turn a forward-compatible schema into a breaking one.
+// passes the check without being rewritten to anything: entries predate the
+// field being meaningful, and refusing them would turn a forward-compatible
+// schema into a breaking one. Whatever starts to read this field has to decide
+// for itself what a blank one means.
 var allowedBackends = []string{"mlx-lm"}
 
 // allowedParamKey is the other half of that boundary. A model's Params become
