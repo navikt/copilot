@@ -386,6 +386,11 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       result.Files,
 	}
+	// A re-install over a checked-in state file must not throw away the keys a
+	// newer nav-pilot put there; the fresh struct has none of them (#588).
+	if prior, err := readScopedState(scope); err == nil {
+		state.PreserveUnknownFrom(prior)
+	}
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
@@ -765,6 +770,12 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	// Append items the user explicitly deselected in the picker as ignored.
 	if len(extraStateFiles) > 0 {
 		state.Files = append(state.Files, extraStateFiles...)
+	}
+
+	// Same as cmdInstallFromSource: a rebuild over an existing state keeps the
+	// keys this binary does not understand (#588).
+	if prior, err := readScopedState(scope); err == nil {
+		state.PreserveUnknownFrom(prior)
 	}
 
 	if err := writeScopedState(scope, state); err != nil {
