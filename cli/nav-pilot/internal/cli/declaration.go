@@ -233,6 +233,14 @@ func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 	if !sameSourceRepo(d.Source, sourceLabelFor(src)) {
 		return
 	}
+	// The same rule [recordDeclaration] applies on the way in: a path source is
+	// a working tree, not a revision, so there is no pin to move forward.
+	// Writing one anyway produces a declaration the loader refuses, and every
+	// install and sync in that repo then fails closed until a human edits the
+	// file (#610). Nothing changed, so nothing is said.
+	if filepath.IsAbs(d.Source) {
+		return
+	}
 	previous := d.SHA
 	d.SHA = src.SHA
 	if err := agentpakke.WriteDeclaration(scope.RootDir, d); err != nil {
