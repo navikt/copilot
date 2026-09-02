@@ -1,0 +1,51 @@
+● skill(aksel-component)
+
+● Explore repo structure and aksel skill files (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -maxdepth 4 -iname "*aksel*" 2>/dev/null; echo "---";
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -maxdepth 3 -type d 2>/dev/null
+  └ 10 lines…
+
+● List src files and package.json (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws/src -type f | head -50; echo "---package.json---"; cat
+  │ /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-752
+  │ 5c0026ac1/scratchpad/run-sonnet5/ws/package.json 2>/dev/null
+  └ 3 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · max_length: 6000, star…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Check repo root config files (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && ls -la; find . -iname "*.config.*" -o -iname
+  │ "tsconfig*.json" 2>/dev/null | grep -v node_modules
+  └ 6 lines…
+
+● Create Varselkort.tsx +37
+  └ src/app/komponenter/Varselkort.tsx
+
+● Create Varselkort.test.tsx +50
+  └ src/app/komponenter/Varselkort.test.tsx
+
+Opprettet `Varselkort`-komponenten i `src/app/komponenter/`:
+
+- **`Varselkort.tsx`** — wrapper rundt Aksels `LocalAlert` (v8-korrekt, ikke den avviklede `Alert`). Props: `status` (`announcement|success|warning|error`), `tittel`, valgfri `beskrivelse`, `size`, og valgfri lukkeknapp (`lukkbar` + `onLukk`). Riktig heading-nivå (`h2` via `LocalAlert.Title`), tilgjengelig ikon/alternativtekst følger med komponenten.
+- **`Varselkort.test.tsx`** — RTL/vitest-tester for innhold, fravær av lukkeknapp som standard, og at `onLukk` kalles ved klikk.
+
+Merk: repoet mangler `package.json`/test-oppsett, så jeg kunne ikke kjøre testene — de er skrevet klare til bruk når prosjektet har vitest + @testing-library/react installert.
+

@@ -1,0 +1,110 @@
+● skill(aksel-component)
+
+Jeg undersøker prosjektets eksisterende komponentstruktur og avhengigheter før jeg oppretter `Varselkort`, slik at komponenten følger lokale mønstre og eksporteres riktig.
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "@navikt/ds-react|export function|components" in **/*.{ts,tsx,js,jsx,json}
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read SKILL.md
+  │ .github/skills/aksel-component/SKILL.md
+  └ 64 lines read
+
+● List project files and configuration (shell)
+  │ rtk find . -maxdepth 3 -type f | sort
+  └ 1 line…
+
+● Inspect complete workspace tree (shell)
+  │ rtk find . -maxdepth 5 -print | sort
+  └ 10 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+Jeg bruker et responsivt kort med Aksel-primitiver og en tydelig status-tag, med valgfri handling og tilgjengelig semantikk. Nå henter jeg API-detaljene for de konkrete Aksel-komponentene før jeg skriver filene.
+
+● Fetching web content https://aksel.nav.no/komponenter/core/button.md · url: "https://aksel.nav.no…
+  └ Contents of https://aksel.nav.no/komponenter/core/button.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/ikoner.md · url: "https://aksel.nav.no/komp…
+  └ Contents of https://aksel.nav.no/komponenter/ikoner.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/typography.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/typography.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/box.md · url: "https://aksel.nav…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/box.md:
+
+● Fetching web content https://aksel.nav.no/grunnleggende/styling/design-tokens.md · url: "https://…
+  └ Contents of https://aksel.nav.no/grunnleggende/styling/design-tokens.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/tag.md · url: "https://aksel.nav.no/ko…
+  └ Contents of https://aksel.nav.no/komponenter/core/tag.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/hstack.md · url: "https://aksel.…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/hstack.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/vstack.md · url: "https://aksel.…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/vstack.md:
+
+● Edit
+  │ Create src/app/komponenter/Varselkort.tsx
+  └ Create src/app/komponenter/Varselkort.test.tsx
+
+● Read Varselkort.tsx
+  │ src/app/komponenter/Varselkort.tsx
+  └ 63 lines read
+
+● Read Varselkort.test.tsx
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 41 lines read
+
+● Inspect project setup and review new component diff (shell)
+  │ rtk find . -maxdepth 3 -type f | sort && printf '\n--- git diff ---\n' && rtk git --no-pager
+  │ diff -- src/app/komponenter/Varselkort.tsx src/app/komponenter/Varselkort.test.tsx
+  └ 2 lines…
+
+● Edit
+  │ Edit src/app/komponenter/Varselkort.tsx
+  └ Edit src/app/komponenter/Varselkort.test.tsx
+
+`Varselkort` og tilhørende tester er opprettet. Prosjektet inneholder ingen `package.json` eller test-/TypeScript-konfigurasjon, så jeg gjør en siste statisk gjennomgang av filene og eksporteringsflaten uten å installere nye verktøy.
+
+● Read Varselkort.tsx
+  │ src/app/komponenter/Varselkort.tsx
+  └ 68 lines read
+
+● Read Varselkort.test.tsx
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 41 lines read
+
+/ Search (grep)
+  │ "className=|style=|p-[0-9]|m-[0-9]|gap-[0-9]" (src/app/komponenter/Varselkort.tsx)
+  └ No matches found
+
+● Confirm created component files (shell)
+  │ rtk git status --short 2>/dev/null || true; rtk find src/app/komponenter -maxdepth 1 -type f
+  │ -print | sort
+  └ 4 lines…
+
+Opprettet Aksel-komponenten `Varselkort` i `src/app/komponenter/Varselkort.tsx`.
+
+Den støtter:
+
+- Responsiv padding med Aksel `space-`-tokens
+- Tittel med semantisk `Heading`
+- Status via `Tag` og `data-color`
+- Valgfri beskrivelse og handling
+- Responsivt kortoppsett med `Box`, `VStack` og `HStack`
+- TypeScript-props og eksportert `VarselkortStatus`
+
+Testfilen `Varselkort.test.tsx` dekker visning av innhold og klikk på handlingsknappen. Prosjektet mangler konfigurasjon for bygging og testing, så testene kunne ikke kjøres her.
+

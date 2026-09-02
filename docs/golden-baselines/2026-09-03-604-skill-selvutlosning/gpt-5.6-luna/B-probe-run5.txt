@@ -1,0 +1,49 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/{package.json,tsconfig.json,*.test.*,*.spec.*}"
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel" in **/*.{ts,tsx}
+  └ 1 line found
+
+`StatusPanel` viser en enkel statusrad:
+
+- Tar imot `status` og `onSlett` som props.
+- Holder lokal state `apen` for om detaljer er åpne.
+- Når «Vis detaljer» klikkes, toggles `apen`.
+- Viser statusen som tekst.
+- Farger statusen rød hvis den er `"feil"`, ellers grønn.
+- Viser en søppelkurv-knapp som kaller `onSlett`.
+
+**Problemer jeg ser:**
+
+1. **`apen` brukes ikke til noe synlig**  
+   Stateverdien endres, men ingen detaljer rendres eller skjules basert på `apen`. Klikk på «Vis detaljer» gir derfor ingen observerbar effekt.
+
+2. **Dårlig tilgjengelighet på «Vis detaljer»**  
+   En vanlig `<div>` brukes som interaktivt element. Den kan ikke aktiveres med tastatur og mangler semantikk som knapp. Den bør være en `<button>` eller ha tilsvarende tastatur- og ARIA-støtte.
+
+3. **`outline: "none"` kan fjerne fokusindikatoren**  
+   Dette gjør tastaturfokus vanskeligere å se, og forsterker tilgjengelighetsproblemet. Fokusindikator bør beholdes eller erstattes med en tydelig stil.
+
+4. **Søppelkurv-knappen mangler tilgjengelig navn**  
+   Knappen inneholder bare et ikon. Skjermlesere får sannsynligvis ikke vite at dette betyr «Slett». Den bør ha for eksempel `aria-label="Slett"` eller synlig tekst.
+
+5. **Status kommuniseres kun med farge**  
+   Rød/grønn alene er ikke tilstrekkelig for brukere med nedsatt fargesyn. Statusen vises riktignok også som tekst, men fargelogikken gjør alle andre statuser enn `"feil"` grønne, også ukjente eller ugyldige verdier.
+
+6. **Manglende TypeScript-typer**  
+   Props er implisitt `any`. Det bør defineres en type, for eksempel en union for tillatte statuser og en funksjonstype for `onSlett`. Dette gir bedre feilsjekking og dokumentasjon.
+
+7. **Uklart statusformat**  
+   Komponenten kjenner bare spesialverdien `"feil"` og behandler alt annet som suksess. Det er tryggere å modellere eksplisitte statuser som `"ok" | "feil" | "laster"` og håndtere dem hver for seg.
+
+8. **Mulig manglende visuell struktur**  
+   Status og sletting ligger i samme container uten tydelig gruppering, beskrivelse eller layout mellom elementene. Det kan gi svak brukeropplevelse, særlig når komponenten utvides med faktiske detaljer.
+
+Den mest direkte feilen er at detaljvisningen ikke er implementert: komponenten toggler state, men bruker ikke stateverdien i JSX-en.
+

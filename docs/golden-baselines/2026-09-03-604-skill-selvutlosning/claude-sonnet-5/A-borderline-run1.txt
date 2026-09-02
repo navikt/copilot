@@ -1,0 +1,18 @@
+● Find StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -path '*komponenter/StatusPanel.tsx' 2>/dev/null; echo
+  │ "---"; pwd; ls
+  └ 5 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Edit StatusPanel.tsx +1 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Edit StatusPanel.tsx +3
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til lukkeknapp med `XMarkIcon` fra `@navikt/aksel-icons` og `aria-label="Lukk"` for korrekt tilgjengelig navn. Knappen setter `apen` til `false` ved klikk.
+

@@ -1,0 +1,33 @@
+✗ Find StatusPanel.tsx file (shell)
+  │ find /private/tmp -path '*/src/app/komponenter/StatusPanel.tsx' 2>/dev/null; find / -maxdepth 6
+  │ -iname 'StatusPanel.tsx' 2>/dev/null
+  └ Permission denied and could not request permission from user
+
+/ Search (glob)
+  │ "**/StatusPanel.tsx"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/src/app/komponenter/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Check aksel deps (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && cat package.json 2>/dev/null | grep -i aksel
+  └ 1 line…
+
+● Find package.json and aksel deps (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find . -maxdepth 2 -iname 'package.json' && cat
+  │ package.json | grep -i aksel
+  └ 2 lines…
+
+● Edit StatusPanel.tsx +4 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til en lukkeknapp i `StatusPanel.tsx` med `XMarkIcon` fra `@navikt/aksel-icons`, satt til å lukke detaljvisningen (`setApen(false)`). Knappen har `aria-label="Lukk"` for korrekt tilgjengelig navn, og ikonet er markert `aria-hidden` siden teksten kommer fra aria-label.
+

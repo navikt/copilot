@@ -1,0 +1,88 @@
+● skill(aksel-component)
+
+● List directory .github/skills/aksel-component
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+● Read SKILL.md
+  │ .github/skills/aksel-component/SKILL.md
+  └ 64 lines read
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*.{json,ts,tsx,js,jsx}"
+  └ 1 file found
+
+● Inspect project structure (shell)
+  │ rtk ls -la && printf '\n--- dirs ---\n' && rtk find . -maxdepth 3 -type d | sort
+  └ 8 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/box.md · url: "https://aksel.nav…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/box.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/typography.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/typography.md:
+
+Jeg lager en gjenbrukbar `Varselkort` som bygger på Aksels `LocalAlert`, med typede statuser, valgfri beskrivelse og lukkehandling, samt en tilhørende test.
+
+● Edit
+  │ Create src/app/komponenter/Varselkort.tsx
+  └ Create src/app/komponenter/Varselkort.test.tsx
+
+● Review new component and test (shell)
+  │ rtk git diff -- src/app/komponenter/Varselkort.tsx src/app/komponenter/Varselkort.test.tsx &&
+  │ printf '\n--- files ---\n' && rtk find src -type f -maxdepth 4 -print
+  └ 1 line…
+
+● Inspect project files and new implementation (shell)
+  │ rtk find src -maxdepth 4 -type f -print && printf '\n--- component ---\n' && rtk sed -n '1,200p'
+  │ src/app/komponenter/Varselkort.tsx && printf '\n--- test ---\n' && rtk sed -n '1,240p'
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 72 lines…
+
+● Edit
+  └ Edit src/app/komponenter/Varselkort.test.tsx
+
+● Read Varselkort.tsx
+  │ src/app/komponenter/Varselkort.tsx
+  └ 28 lines read
+
+● Read Varselkort.test.tsx
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 35 lines read
+
+● Check available JavaScript validation tools (shell)
+  │ rtk command -v node || true; rtk command -v npm || true; rtk command -v tsc || true; rtk command
+  │ -v vitest || true
+  └ 3 lines…
+
+● Edit
+  └ Edit src/app/komponenter/Varselkort.tsx
+
+Opprettet en ny Aksel-basert React-komponent `Varselkort` i `src/app/komponenter/Varselkort.tsx`.
+
+Komponenten bruker `LocalAlert` og støtter:
+
+- `title`
+- valgfri `description` som `ReactNode`
+- statusene `announcement`, `success`, `warning` og `error`
+- valgfri `onClose`-handling
+- `warning` som standardstatus
+
+La også til `Varselkort.test.tsx` med tester for innhold, tom beskrivelse og lukkehandling.
+

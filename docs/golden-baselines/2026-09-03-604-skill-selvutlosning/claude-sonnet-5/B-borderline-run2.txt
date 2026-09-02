@@ -1,0 +1,34 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-75
+  c0026ac1/scratchpad/run-sonnet5/ws && grep -r "aksel-icons\|ds-react" src --include=*.tsx -l | hea
+  -20 && cat package.json 2>/dev/null | grep -i aksel
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && grep -r "aksel-icons\|ds-react" src --include=*.tsx -l
+  │ | head -20 && cat package.json 2>/dev/null | grep -i aksel
+  └ 2 lines…
+
+● cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-75
+  c0026ac1/scratchpad/run-sonnet5/ws && find . -path ./node_modules -prune -o -name "package.json"
+  -print | xargs grep -l aksel 2>/dev/null; find node_modules/@navikt/aksel-icons -maxdepth 1
+  2>/dev/null | head; ls node_modules/@navikt 2>/dev/null
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find . -path ./node_modules -prune -o -name
+  │ "package.json" -print | xargs grep -l aksel 2>/dev/null; find node_modules/@navikt/aksel-icons
+  │ -maxdepth 1 2>/dev/null | head; ls node_modules/@navikt 2>/dev/null
+  └ 1 line…
+
+● Edit StatusPanel.tsx +1 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Edit StatusPanel.tsx +5
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 24 lines read
+
+Lagt til en lukkeknapp med `XMarkIcon` fra `@navikt/aksel-icons`, vist når panelet er åpent. Knappen har `aria-label="Lukk detaljer"` som tilgjengelig navn, ikonet er `aria-hidden`, og `onClick` lukker panelet (`setApen(false)`).
+

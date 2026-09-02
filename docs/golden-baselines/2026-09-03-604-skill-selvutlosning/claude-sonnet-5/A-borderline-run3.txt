@@ -1,0 +1,32 @@
+✗ Find StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501 -path "*/src/app/komponenter/StatusPanel.tsx" 2>/dev/null; echo
+  │ "---"; find / -maxdepth 6 -iname "StatusPanel.tsx" 2>/dev/null | head -5
+  └ Permission denied and could not request permission from user
+
+● Check cwd and find file (shell)
+  │ pwd; ls -la; find . -iname "StatusPanel.tsx" 2>/dev/null
+  └ 8 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Check package.json (shell)
+  │ cat /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c
+  │ -7525c0026ac1/scratchpad/run-sonnet5/ws/package.json 2>/dev/null || find
+  │ /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-752
+  │ 5c0026ac1/scratchpad/run-sonnet5/ws -name "package.json"
+  └ 1 line…
+
+● Edit StatusPanel.tsx +2 -2
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Edit StatusPanel.tsx +3
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 22 lines read
+
+Lagt til en lukkeknapp med `XMarkIcon` fra `@navikt/aksel-icons`, `aria-label="Lukk"` for korrekt tilgjengelig navn, og `aria-hidden` på selve ikonet. Knappen kaller en ny `onLukk`-prop som du kan koble til lukkelogikk fra forelderkomponenten.
+

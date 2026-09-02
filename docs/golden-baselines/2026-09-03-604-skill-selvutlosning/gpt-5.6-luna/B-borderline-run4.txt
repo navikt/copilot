@@ -1,0 +1,37 @@
+Jeg undersøker `StatusPanel` og eksisterende Aksel-mønstre for lukkeknapper før jeg gjør en minimal endring.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (grep)
+  │ "Close|Lukk|XMark|XIcon|IconButton|aria-label" in **/*.{tsx,ts}
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "StatusPanel|status|onSlett"
+  └ 4 lines found
+
+Jeg legger inn `XMarkIcon` fra `@navikt/aksel-icons` og et eksplisitt norsk tilgjengelig navn (`Lukk`) på knappen, med lukking koblet til panelets eksisterende state.
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 22 lines read
+
+● List project files for available validation (shell)
+  │ rtk find . -maxdepth 2 -type f -print
+  └ 1 line…
+
+La til en lukkeknapp i `src/app/komponenter/StatusPanel.tsx` med Aksel-ikonet `XMarkIcon`, tilgjengelig navn `Lukk`, og handling som lukker panelet.
+

@@ -1,0 +1,25 @@
+● Find StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "StatusPanel.tsx" 2>/dev/null
+  └ 2 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+**Hva den gjør:** Viser en statusetikett (grønn/rød tekst basert på `status`), en "Vis detaljer"-toggle (state `apen` styres, men brukes aldri til noe — ingen detaljer vises), og en slett-knapp med søppelbøtte-ikon som kaller `onSlett`.
+
+**Problemer:**
+
+1. **Ubrukt state**: `apen`/`setApen` settes men brukes aldri i JSX — "Vis detaljer" gjør reelt sett ingenting synlig.
+2. **Manglende TypeScript-typer**: Props (`status`, `onSlett`) er utypede i en `.tsx`-fil — ingen kompileringssikkerhet.
+3. **Tilgjengelighet (a11y) — flere brudd**:
+   - `<div onClick=...>` er ikke fokuserbart/tastaturstyrbart og mangler `role="button"`, `tabIndex`, samt `onKeyDown`-håndtering.
+   - `style={{ outline: "none" }}` fjerner fokusring — skader tastaturnavigasjon/synlighet.
+   - `tabIndex={5}` på `<span>` er unødvendig og et positivt tabIndex-tall bryter naturlig tab-rekkefølge (anti-pattern; bør være `0` eller fjernes helt siden span ikke er interaktiv).
+   - Slett-knappen mangler `aria-label` (kun ikon, ingen tekst for skjermlesere).
+4. **Farge som eneste statusindikator**: Rød/grønn tekst uten ikon/tekst-alternativ er problematisk for fargeblinde brukere (WCAG).
+5. **Ingen bekreftelse på sletting**: `onSlett` kalles direkte uten noen "er du sikker?"-dialog — risiko for utilsiktet sletting.
+6. **`status`-verdier er magic strings** (`"feil"`) uten enum/union-type — sårbart for skrivefeil og vanskelig å utvide (f.eks. "advarsel", "ok").
+7. **Manglende `key`/props-validering**: Ingen default for `onSlett` — kan kaste feil hvis ikke sendt inn.
+

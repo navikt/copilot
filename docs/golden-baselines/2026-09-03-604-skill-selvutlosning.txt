@@ -1,0 +1,94 @@
+# SELVUTLØSNING FOR EN KONVERTERT PROMPT-SKILL — MÅLING, IKKE ET MÅLTALL
+# Spørsmålet fra #604: hindrer en «bruk kun når brukeren eksplisitt ber om det»-
+# description at en prompt konvertert til skill fyrer av seg selv?
+#
+# dato:        2026-09-03
+# revisjon:    fd6e7f76
+# klient:      GitHub Copilot CLI 1.0.83-3
+# modeller:    claude-sonnet-5, gpt-5.6-luna
+# subjekt:     prompts/aksel-component.prompt.md, kroppen uendret som SKILL.md
+# harness:     scripts/skill-selvutlosning-probe.sh (egen probe, ikke nav-pilot-golden.sh)
+# repeats:     5 per arm per prompt (positivkontroll: 3)
+# kall:        52 live modellkall
+# rådata:      2026-09-03-604-skill-selvutlosning-results.psv
+# transkript:  2026-09-03-604-skill-selvutlosning/<modell>/<arm>-<prompt>-run<N>.txt
+
+DESIGN
+
+  Arm A (uguardet)  description slik man skriver den uten å tenke på selvutløsning:
+                    «Scaffold en responsiv React-komponent med Aksel Design System …»
+  Arm B (guardet)   samme description + «Bruk KUN når brukeren eksplisitt ber om å
+                    scaffolde eller opprette en ny komponent. Ikke bruk for å forklare,
+                    gjennomgå, feilsøke eller endre eksisterende komponentkode.»
+                    (ordrett i 2026-09-03-604-skill-selvutlosning/SKILL-arm-B.md)
+
+  Alt annet er likt: samme skill-kropp, samme fixture (én React-komponent,
+  src/app/komponenter/StatusPanel.tsx), samme modell, samme klientflagg.
+
+  Tre prompter per arm:
+    probe       «forklar hva StatusPanel.tsx gjør og hvilke problemer du ser i den»
+    borderline  «legg til en lukkeknapp med Aksel-ikon og riktig tilgjengelig navn i
+                 src/app/komponenter/StatusPanel.tsx»
+    positive    «lag en ny React-komponent Varselkort med Aksel» — skillen SKAL fyre
+
+  Deteksjon: Copilot CLI skriver linja «● skill(aksel-component)» i transkriptet når
+  den laster skillen. Ingen regex på modellens prosa, ingen skjønn.
+
+  Isolasjon: HOME peker på en kopi av ~/.copilot med config, settings og globale
+  instruksjoner, men UTEN skills/ og agents/. Brukerens 32 installerte skills — med
+  aksel-builder blant dem — ville ellers konkurrert om samme oppgave i begge armer.
+
+RESULTAT (antall kjøringer der skillen fyrte)
+
+  modell             arm  probe   borderline  positive
+  claude-sonnet-5    A    0/5     2/5         3/3
+  claude-sonnet-5    B    0/5     0/5         3/3
+  gpt-5.6-luna       A    0/5     5/5         3/3
+  gpt-5.6-luna       B    0/5     0/5         3/3
+
+  Slått sammen, borderline:  A 7/10  vs  B 0/10
+  Fishers eksakte test, tosidig: p = 0.0031 (samlet), p = 0.0079 (luna alene),
+  p = 0.44 (sonnet alene — 2/5 mot 0/5 er ikke signifikant for seg selv).
+
+  Ingen døde transkripter. 52/52 kjøringer evaluerbare.
+
+HVA RESULTATET BETYR
+
+  1. Selvutløsning er reell. Uguardet fyrte skillen av seg selv i 7 av 10
+     borderline-kjøringer, på en prompt som ber om en endring i en EKSISTERENDE
+     komponent og aldri nevner scaffolding. gpt-5.6-luna gjorde det hver eneste gang.
+  2. Guarden virker på det vi klarte å måle: 0 av 10 i arm B, samme prompt, samme
+     modeller. Den bevisste påkallingen overlever — positivkontrollen fyrer 3/3 i
+     BEGGE armer, så guarden slår ikke av skillen, den flytter terskelen.
+  3. «Forklar denne komponenten» er ikke en farlig prompt for denne skillen. Den
+     fyrte 0/10 selv uguardet. Hadde vi bare målt den, ville arm B vært et vakuum-
+     grønt resultat av akkurat den typen #583 handler om.
+
+HVA SOM VILLE FALSIFISERT DET
+
+  Resultatet er falsifiserbart i tre retninger, og alle tre ble faktisk kjørt:
+   - Arm A fyrer aldri  → guarden er umålt, og en grønn arm B beviser ingenting.
+     Det er nøyaktig det som skjedde for probe-prompten. Borderline reddet målingen.
+   - Arm B fyrer like ofte som A → ordlyden virker ikke, konverteringen må ha et
+     annet mottiltak enn en description.
+   - Positivkontrollen fyrer ikke i arm B → guarden er for streng: den ville drept
+     den bevisste påkallingen sammen med selvutløsningen.
+  Ingen av de to siste inntraff.
+
+HVA MÅLINGEN IKKE STØTTER
+
+  - n=5 per celle. #583 målte suitens styrke til 0.01 for å skille 0.95 fra 0.75 ved
+    denne n-en. Her er effekten stor nok til å komme gjennom likevel (7/10 mot 0/10),
+    men SIGNALET ER «GUARDEN HJELPER MYE», IKKE «GUARDEN ER 100 % SIKKER». 0/10 er
+    forenlig med en sann rate på opptil ~26 % (95 % Clopper-Pearson). Guarden er et
+    mottiltak, ikke en garanti — akkurat som #604 skriver.
+  - Én skill, én fixture, to modeller, én klientversjon. Terskelen for selvutløsning
+    er modellavhengig: sonnet-5 fyrte 2/5 der luna fyrte 5/5 på nøyaktig samme input.
+    En tredje modell kan ligge over eller under begge.
+  - Én borderline-prompt. Det finnes prompter nærmere scaffolding («jeg trenger en ny
+    statusvisning her») som ikke er testet, og der guarden godt kan tape.
+  - Arbeidsflaten er isolert. En ekte utvikler har 32 skills installert; naboskills
+    (aksel-builder) kan både stjele oppgaven og dra aksel-component med seg.
+  - Selve kroppen er uendret prompt-tekst. Den sier «Ask the user first», så en
+    skill som fyrer feil er i praksis fire spørsmål, ikke et stillas rett i repoet.
+    Skaden av en feilutløsning er derfor mindre for akkurat denne enn navnet antyder.

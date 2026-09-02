@@ -1,0 +1,13 @@
+/ Search (glob)
+  │ "**/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Edit StatusPanel.tsx +6 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til en lukkeknapp som vises når panelet er åpent, med `XMarkIcon` fra `@navikt/aksel-icons` og `aria-label="Lukk"` for korrekt tilgjengelig navn (ikonet er `aria-hidden` siden knappen selv har navnet).
+

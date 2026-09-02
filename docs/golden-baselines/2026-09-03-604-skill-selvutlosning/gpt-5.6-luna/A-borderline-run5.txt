@@ -1,0 +1,59 @@
+● skill(aksel-component)
+
+Jeg undersøker `StatusPanel` og eksisterende Aksel-mønstre før jeg gjør den avgrensede endringen.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (grep)
+  │ "Close|XMark|Lukk|IconButton" in **/*.{tsx,ts}
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel"
+  └ 1 line found
+
+● Inspect project files (shell)
+  │ rtk ls -la && rtk find . -maxdepth 3 -type f | head -80
+  └ 3 lines…
+
+● List source files (shell)
+  │ rtk find src -type f -maxdepth 6 -print
+  └ 2 lines…
+
+● List root files (shell)
+  │ rtk find . -maxdepth 2 -type f -print
+  └ 1 line…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/button.md · url: "https://aksel.nav.no…
+  └ Contents of https://aksel.nav.no/komponenter/core/button.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/ikoner.md · url: "https://aksel.nav.no/komp…
+  └ Contents of https://aksel.nav.no/komponenter/ikoner.md:
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 22 lines read
+
+● Review StatusPanel change (shell)
+  │ rtk git diff -- src/app/komponenter/StatusPanel.tsx
+  └ 131 lines…
+
+La til en lukkeknapp i `src/app/komponenter/StatusPanel.tsx` med:
+
+- Aksel-ikonet `XMarkIcon`
+- Tilgjengelig navn: `aria-label="Lukk"`
+- `aria-hidden="true"` på det dekorative ikonet
+- Klikkbehandling som lukker panelet (`setApen(false)`)
+

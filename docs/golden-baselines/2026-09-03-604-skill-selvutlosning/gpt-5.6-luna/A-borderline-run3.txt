@@ -1,0 +1,33 @@
+● skill(aksel-component)
+
+Jeg undersøker `StatusPanel` og eksisterende Aksel-mønstre før jeg gjør den minimale endringen.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "Close|XMark|Lukk|IconButton|aria-label" in *.tsx (src)
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.{json,ts,tsx,md}"
+  └ 2 files found
+
+/ Search (grep)
+  │ "StatusPanel|onSlett|status" in *.{ts,tsx,js,jsx}
+  └ 4 lines found
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 22 lines read
+
+La til en lukkeknapp i `src/app/komponenter/StatusPanel.tsx` med Aksel-ikonet `XMarkIcon`, tilgjengelig navn `Lukk` og håndtering som lukker panelet.
+

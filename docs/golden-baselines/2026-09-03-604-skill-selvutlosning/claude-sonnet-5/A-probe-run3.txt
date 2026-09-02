@@ -1,0 +1,36 @@
+/ Search (glob)
+  │ "src/app/komponenter/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva komponenten gjør
+
+`StatusPanel` er en enkel React-komponent som:
+1. Tar imot `status` (streng) og `onSlett` (callback) som props
+2. Viser en klikkbar "Vis detaljer"-rad som toggler en lokal `apen`-state (men state brukes ikke til noe — ingen detaljer vises faktisk)
+3. Viser statusteksten med rødt hvis `"feil"`, ellers grønt
+4. Har en slett-knapp med søppelbøtte-ikon som kaller `onSlett`
+
+## Problemer
+
+**Tilgjengelighet (a11y)**
+- `<div onClick={...}>` er ikke fokuserbar/tastaturstyrbar — bør være `<button>`, eller ha `role="button"`, `tabIndex={0}` og `onKeyDown` for Enter/Space.
+- `style={{ outline: "none" }}` fjerner fokusindikator — dårlig for tastaturbrukere.
+- `tabIndex={5}` på et `<span>` er meningsløst og bryter naturlig tab-rekkefølge (positive tabIndex-verdier bør unngås helt).
+- Statusfarge (rødt/grønt) er eneste indikator — ingen tekst/ikon for fargeblinde/skjermlesere (WCAG 1.4.1).
+- Slett-knappen mangler `aria-label` — skjermleser leser bare ikonet, ikke hensikten.
+
+**Death dead state**
+- `apen` settes, men brukes aldri til å vise/skjule noe innhold — død kode / uferdig funksjonalitet.
+
+**Typesikkerhet**
+- Ingen TypeScript-typer for props (`status`, `onSlett`) selv om filen er `.tsx` — bør ha et interface, f.eks. `{ status: "ok" | "feil" | string; onSlett: () => void }`.
+
+**Annet**
+- Ingen bekreftelse før sletting (kan være ønsket UX-forbedring, men risikabelt for destruktive handlinger).
+
+Vil du at jeg retter opp disse problemene i filen?
+

@@ -1,0 +1,24 @@
+/ Search (glob)
+  │ "**/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva den gjør
+En liten React-komponent som viser en statustekst (rødt hvis "feil", grønt ellers), en klikkbar "Vis detaljer"-toggle (state `apen`, men brukes ikke til noe — ingen detaljer vises), og en søppelbøtte-knapp som kaller `onSlett` for å slette noe.
+
+## Problemer jeg ser
+
+1. **`apen`-state brukes ikke** — `setApen` settes, men ingen UI reagerer på `apen` (dødt state, sannsynligvis uferdig funksjonalitet for detaljevisning).
+2. **Utilgjengelig klikkbart element** — `<div onClick=...>` er ikke fokuserbart/tastaturstyrbart (ingen `tabIndex`, `role="button"`, ingen `onKeyDown` for Enter/Space). Bør være en `<button>`.
+3. **`style={{ outline: "none" }}`** — fjerner fokus-indikator, dårlig for tilgjengelighet (WCAG). Bør ikke fjernes uten alternativ fokusstil.
+4. **`tabIndex={5}` på `<span>`** — et rent tekst-element som ikke er interaktivt, skal ikke være i tab-rekkefølgen. Vilkårlige positive tabIndex-verdier (5) ødelegger naturlig tab-rekkefølge og er et kjent anti-pattern.
+5. **Fargekoding uten tekst/ikon-alternativ** — status vises kun via farge (rød/grønn), noe som er problematisk for fargeblinde brukere (WCAG 1.4.1).
+6. **Ingen `aria-label`/tekst på slett-knappen** — kun et ikon uten tilgjengelig navn for skjermlesere.
+7. **Manglende TypeScript-typer** — `status` og `onSlett` har ingen typer (props er implisitt `any`), noe som svekker typesikkerhet.
+8. **Ingen `key`/bekreftelse ved sletting** — slett-knappen kaller `onSlett` direkte uten bekreftelsesdialog, kan føre til utilsiktet sletting.
+
+Vil du at jeg fikser disse (spesielt tilgjengelighetsproblemene 2–6)?
+

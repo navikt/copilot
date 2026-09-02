@@ -1,0 +1,71 @@
+/ Search (glob)
+  │ "src/app/komponenter/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "src/app/**/*.tsx"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel" (src)
+  └ 1 line found
+
+/ Search (grep)
+  │ "status ===|onSlett|Vis detaljer" (src)
+  └ 4 lines found
+
+/ Search (glob)
+  │ "**/tsconfig*.json"
+  └ No matches found
+
+/ Search (glob)
+  │ "package.json"
+  └ No matches found
+
+/ Search (glob)
+  │ "src/app/komponenter/*"
+  └ 1 file found
+
+`StatusPanel` er en liten React-komponent som:
+
+- Tar imot `status` og callbacken `onSlett` som props.
+- Holder lokal state `apen` for om detaljvisningen skal være åpen.
+- Viser teksten **«Vis detaljer»**.
+- Viser statusen med grønn tekst, bortsett fra når status er `"feil"`, som vises rødt.
+- Viser en søppelkurv-ikonknapp som kaller `onSlett` ved klikk.
+
+Problemer jeg ser:
+
+1. **`apen` brukes aldri til å vise detaljer**  
+   State oppdateres på linje 5 og 8, men ingen JSX avhenger av `apen`. Klikk på «Vis detaljer» har derfor ingen synlig effekt.
+
+2. **«Vis detaljer» er en ikke-interaktiv `<div>`**  
+   En `<div>` med `onClick` er ikke tilgjengelig for tastaturbrukere og mangler semantikk. Det bør være en `<button>` med for eksempel `aria-expanded` og eventuelt `aria-controls`.
+
+3. **Fokusstyringen er feil**  
+   `tabIndex={5}` på status-`span` gir et positivt tabindex og kan forstyrre normal tab-rekkefølge. Statusen er dessuten neppe ment å være interaktiv eller fokuserbar. Bruk normalt ikke positiv `tabIndex`.
+
+4. **`outline: "none"` kan skjule fokusindikatoren**  
+   Dette gjør tastaturfokus vanskeligere å se. Selv om `<div>`-en ikke er fokuserbar nå, er dette et dårlig tilgjengelighetsmønster.
+
+5. **Sletteknappen mangler tilgjengelig navn**  
+   Knappen inneholder bare et ikon. Skjermlesere kan derfor ha problemer med å forstå hva knappen gjør. Den bør ha for eksempel `aria-label="Slett status"` eller synlig tekst.
+
+6. **Status kommuniseres bare med farge**  
+   Rødt og grønt er ikke tilstrekkelig for brukere med nedsatt fargesyn. Statusen vises riktignok også som tekst, men det er bare den eksakte verdien `"feil"` som behandles særskilt; alle andre verdier blir grønne, også ukjente eller ugyldige statuser.
+
+7. **Manglende TypeScript-typer**  
+   Props-objektet er ikke typet. I et prosjekt med streng TypeScript-konfigurasjon vil `status` og `onSlett` kunne gi implicit-`any`-feil. Det bør defineres hvilke statuser som er gyldige og hvilken funksjonssignatur `onSlett` har.
+
+8. **Knappen mangler eksplisitt `type`**  
+   Dersom komponenten brukes inne i et `<form>`, kan knappen som standard bli en submit-knapp. `type="button"` bør brukes hvis sletting ikke skal sende inn skjemaet.
+
+9. **State-oppdateringen kan skrives sikrere**  
+   `setApen(!apen)` fungerer normalt her, men `setApen((forrige) => !forrige)` er robust mot flere state-oppdateringer som skjer tett etter hverandre.
+
+I tillegg ser komponenten ut til å være ufullstendig eller ubrukt: selve detaljinnholdet finnes ikke, og det ble ikke funnet noen referanser til `StatusPanel` under `src`.
+

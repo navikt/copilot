@@ -1,0 +1,60 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel"
+  └ 1 line found
+
+● List directory .
+  └ 2 files found
+
+/ Search (glob)
+  │ "**/*.{json,md,css,tsx,ts}"
+  └ 2 files found
+
+`StatusPanel` er en liten statusvisning som:
+
+- Tar imot `status` og `onSlett` som props.
+- Holder lokal state `apen` for om panelet er åpent.
+- Viser teksten «Vis detaljer».
+- Ved klikk toggles `apen`.
+- Viser statusen med rød tekst når `status === "feil"`, ellers grønn tekst.
+- Viser en søppelkurv-knapp som kaller `onSlett`.
+
+**Problemer jeg ser:**
+
+1. **`apen` brukes aldri i renderingen**  
+   State-en endres, men påvirker ikke UI-et. Det finnes ingen detaljer som skjules eller vises, så klikk på «Vis detaljer» har ingen synlig effekt.
+
+2. **Ikke-interaktiv `div` brukes som knapp**  
+   `<div onClick=...>` kan ikke aktiveres med tastaturet og mangler semantikk for skjermlesere. Bruk en `<button>` med for eksempel `aria-expanded={apen}` og eventuelt `aria-controls`.
+
+3. **`tabIndex={5}` på statusen er uheldig**  
+   Statusen er ikke interaktiv, men gjøres likevel fokuserbar. En eksplisitt tab-rekkefølge kan også føre til uforutsigbar tastaturnavigasjon. Den bør normalt ikke ha `tabIndex`.
+
+4. **Søppelkurv-knappen mangler tilgjengelig navn**  
+   Knappen inneholder bare et ikon. Skjermlesere vil derfor kunne lese opp en knapp uten å forklare hva den gjør. Legg til `aria-label="Slett"` eller synlig tekst.
+
+5. **Manglende TypeScript-typer**  
+   Propsene er ikke deklarert, slik at `status` og `onSlett` sannsynligvis blir implisitt `any`. Det svekker typesikkerheten og kan gi kompileringsfeil dersom `noImplicitAny` er aktivert.
+
+6. **Alle statuser bortsett fra `"feil"` blir grønne**  
+   Ukjente eller andre statuser som `"laster"`, `"advarsel"` eller `undefined` behandles som suksess. Det er tryggere å modellere tillatte statuser eksplisitt og håndtere hver variant.
+
+7. **Farge alene formidler status**  
+   Rød/grønn tekst kan være vanskelig å skille for personer med fargesynsvansker, og inline-fargene følger ikke nødvendigvis designsystemets kontrast- og temastøtte. Statusen bør også formidles med tekst, ikon eller semantisk komponent.
+
+8. **Toggle-uttrykket kan skrives sikrere**  
+   `setApen(!apen)` fungerer vanligvis her, men `setApen((forrige) => !forrige)` er den robuste formen dersom flere state-oppdateringer skulle bli køet.
+
+I praksis er den viktigste funksjonelle feilen at detaljvisningen ikke eksisterer i renderingen, mens de mest alvorlige kvalitetsproblemene gjelder tastaturtilgjengelighet, tilgjengelig navn på sletteknappen og manglende prop-typer.
+
