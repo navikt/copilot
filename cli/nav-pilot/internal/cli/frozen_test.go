@@ -484,3 +484,50 @@ func TestFrozenRefusesTypeUnderneathTheFlagLayer(t *testing.T) {
 		t.Error("the refusal still installed content")
 	}
 }
+
+// TestFrozenRefusesMixedPakke is the fourth way an install lands half done, and
+// the one the first three fixes missed: a pakke with a layout *and* payloads is
+// not payloadOnly, so it took the Tier 1 route, installed the layout, staged no
+// payload, and reported green. The launch then dies in mixedPakkeRefusal, long
+// after CI has gone green on the install.
+func TestFrozenRefusesMixedPakke(t *testing.T) {
+	isolatedConfig(t)
+	frozenMode(t)
+
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, agentpakke.ManifestDir, agentpakke.ManifestFile), `{
+  "contractVersion": "1",
+  "name": "grillmester",
+  "description": "Grillmester, layout and payloads",
+  "layout": {"agents": "plugin/agents", "skills": "plugin/skills"},
+  "clients": {"copilot": {"payloads": {"full": {"path": "dist/copilot/full", "primaryAgents": ["grillmester"]}}}}
+}`)
+	mustWrite(t, filepath.Join(dir, "plugin", "agents", "grillmester.agent.md"), "# Grillmester\n")
+	writeTier2Payload(t, filepath.Join(dir, "dist", "copilot", "full"), "copilot-full")
+
+	src := &Source{Dir: dir, SHA: ghostPin, Version: "dev", Repo: "navikt/grillmester"}
+	if err := attachPakke(src); err != nil {
+		t.Fatal(err)
+	}
+	if payloadOnly(src) {
+		t.Fatal("fixture is payload-only; it must be mixed for this test to mean anything")
+	}
+	stubResolveSource(t, src)
+
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"`+ghostPin+`"}`)
+
+	var err error
+	captureStdoutFor(t, func() {
+		err = cmdInstallAuto("grillmester", "", scope, "", "", false, false, false)
+	})
+	if err == nil {
+		t.Fatal("a frozen install of a mixed pakke was accepted: the layout landed and no payload was staged")
+	}
+	if code := exitCodeFor(err); code != ExitFrozen {
+		t.Errorf("exited %d, want ExitFrozen (%d): %v", code, ExitFrozen, err)
+	}
+	if !strings.Contains(err.Error(), "layout") {
+		t.Errorf("the refusal does not say the pakke is mixed:\n%v", err)
+	}
+}

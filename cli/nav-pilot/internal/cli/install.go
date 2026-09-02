@@ -343,12 +343,16 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		return err
 	}
 
+	// Before the tier split, not inside it: a mixed pakke — layout plus
+	// payloads — takes the Tier 1 route below, so a check on the payload-only
+	// branch would let it install its layout half and report green.
+	if err := frozenTier2(src); err != nil {
+		return err
+	}
+
 	// A payload-only agentpakke has no Tier 1 content to materialize into this
 	// scope; installing it means pinning a revision of its payloads.
 	if payloadOnly(src) {
-		if err := frozenTier2(src); err != nil {
-			return err
-		}
 		return installPakkePin(scope, src, dryRun, jsonOutput)
 	}
 

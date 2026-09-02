@@ -121,27 +121,43 @@ func frozenPinMatches(scope *InstallScope, src *Source) error {
 	return nil
 }
 
-// frozenTier2 refuses a frozen install of a payload-bearing agentpakke.
+// frozenTier2 refuses a frozen install of any payload-bearing agentpakke.
 //
-// --frozen holds a repo-scope file, and a Tier 2 install is a per-user pin:
-// guardPakkeScope refuses every other scope, so the two can never meet. Rather
-// than make them, this says so — a Tier 2 install is already what --frozen
-// exists to produce. It resolves one immutable revision, digest-verifies every
-// declared payload tree against its manifest, and materializes it under that
-// SHA. There is no unpinned route in and no half-landed tree to report green.
+// --frozen holds a repo-scope declaration, and a payload install is a per-user
+// pin that guardPakkeScope keeps out of every other scope. So the flag has
+// nothing repository-scoped to hold a payload to.
+//
+// Both shapes are refused, not only the payload-only one. A mixed pakke — a
+// layout *and* payloads — takes the Tier 1 route, because payloadOnly requires
+// Layout == nil. Under --frozen that route installed the layout, staged no
+// payload, and returned green: a fourth way for an install to land half done,
+// in the flag whose job is to refuse exactly that. The launch then dies in
+// mixedPakkeRefusal, well after CI has gone green.
+//
+// The refusal does not claim a payload install is "already frozen". It is not,
+// in the sense this flag means: user scope reads no declaration, so an install
+// there resolves the default branch and two runs a day apart can pin two
+// revisions. Digest verification proves the tree's integrity, not which
+// revision was fetched. Pinning a payload per repo is real work and its own
+// decision (#572), and until it is taken, saying so is better than a flag that
+// half-works.
 //
 // Refusing here rather than in frozenPrecheck costs one resolve: the tier is a
 // property of the source's manifest, which the precheck runs before fetching.
 // The alternative is a precheck that guesses, and a guess is what this flag is
 // for refusing.
 func frozenTier2(src *Source) error {
-	if !installFrozen || !payloadOnly(src) {
+	if !installFrozen || src == nil || src.Pakke == nil || !src.Pakke.HasTier(agentpakke.TierPayload) {
 		return nil
 	}
-	return frozenf("agentpakke %q ships pre-built payloads (Tier 2), and %s does not cover those.\n"+
-		"Nothing was installed. A Tier 2 install pins one revision per user and digest-verifies every payload tree against its manifest, so it is already frozen by construction — %s has no repository-scoped install to hold it to.\n\n"+
+	shape := "ships pre-built payloads (Tier 2)"
+	if src.Pakke.Layout != nil {
+		shape = "ships both a layout and pre-built payloads"
+	}
+	return frozenf("agentpakke %q %s, and %s does not cover those.\n"+
+		"Nothing was installed. A payload tree is pinned per user, not per repository, so there is no repository-scoped install for %s to hold it to — and installing the layout half alone would be the very thing this flag refuses.\n\n"+
 		"  Install it once, without %s:  %s",
-		src.Pakke.Name, bold("--frozen"), bold("--frozen"), bold("--frozen"),
+		src.Pakke.Name, shape, bold("--frozen"), bold("--frozen"), bold("--frozen"),
 		bold("nav-pilot install --user "+src.Pakke.Name))
 }
 
