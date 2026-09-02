@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 const feedbackRepo = "navikt/copilot"
@@ -99,12 +101,7 @@ func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing
 }
 
 // shortSHA returns the first 7 characters of a SHA, or the full string if shorter.
-func shortSHA(sha string) string {
-	if len(sha) > 7 {
-		return sha[:7]
-	}
-	return sha
-}
+func shortSHA(sha string) string { return domain.ShortSHA(sha) }
 
 // buildFeedbackURL constructs a GitHub issue URL with pre-filled template and diagnostics.
 func buildFeedbackURL(featureRequest bool, diagnostics string) string {

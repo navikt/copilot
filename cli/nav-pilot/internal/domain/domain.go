@@ -463,8 +463,8 @@ type (
 )
 
 var (
-	stateFileKnownKeys     = knownJSONKeys(StateFile{})
-	installedFileKnownKeys = knownJSONKeys(InstalledFile{})
+	stateFileKnownKeys     = KnownJSONKeys(StateFile{})
+	installedFileKnownKeys = KnownJSONKeys(InstalledFile{})
 )
 
 func (s *StateFile) UnmarshalJSON(b []byte) error {
@@ -472,7 +472,7 @@ func (s *StateFile) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &known); err != nil {
 		return err
 	}
-	unknown, err := unknownJSONKeys(b, stateFileKnownKeys)
+	unknown, err := UnknownJSONKeys(b, stateFileKnownKeys)
 	if err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func (s StateFile) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return appendUnknownKeys(b, s.Unknown), nil
+	return AppendUnknownKeys(b, s.Unknown), nil
 }
 
 func (f *InstalledFile) UnmarshalJSON(b []byte) error {
@@ -494,7 +494,7 @@ func (f *InstalledFile) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &known); err != nil {
 		return err
 	}
-	unknown, err := unknownJSONKeys(b, installedFileKnownKeys)
+	unknown, err := UnknownJSONKeys(b, installedFileKnownKeys)
 	if err != nil {
 		return err
 	}
@@ -508,11 +508,14 @@ func (f InstalledFile) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return appendUnknownKeys(b, f.Unknown), nil
+	return AppendUnknownKeys(b, f.Unknown), nil
 }
 
-// knownJSONKeys is the set of JSON names a struct type declares.
-func knownJSONKeys(v any) map[string]bool {
+// KnownJSONKeys is the set of JSON names a struct type declares. It is
+// exported so every file nav-pilot rewrites in place — the state file and the
+// consumer declaration alike — preserves unknown keys by the same mechanism
+// (#588, #593) rather than by a second copy of it.
+func KnownJSONKeys(v any) map[string]bool {
 	t := reflect.TypeOf(v)
 	keys := make(map[string]bool, t.NumField())
 	for i := range t.NumField() {
@@ -532,8 +535,8 @@ func knownJSONKeys(v any) map[string]bool {
 	return keys
 }
 
-// unknownJSONKeys returns the members of a JSON object that known does not name.
-func unknownJSONKeys(b []byte, known map[string]bool) (map[string]json.RawMessage, error) {
+// UnknownJSONKeys returns the members of a JSON object that known does not name.
+func UnknownJSONKeys(b []byte, known map[string]bool) (map[string]json.RawMessage, error) {
 	var all map[string]json.RawMessage
 	if err := json.Unmarshal(b, &all); err != nil {
 		return nil, err
@@ -549,10 +552,10 @@ func unknownJSONKeys(b []byte, known map[string]bool) (map[string]json.RawMessag
 	return all, nil
 }
 
-// appendUnknownKeys puts the preserved keys back at the end of the object, in a
+// AppendUnknownKeys puts the preserved keys back at the end of the object, in a
 // fixed order: the same state must always serialise to the same bytes, or every
 // checked-in state file picks up a spurious diff on the next sync.
-func appendUnknownKeys(b []byte, unknown map[string]json.RawMessage) []byte {
+func AppendUnknownKeys(b []byte, unknown map[string]json.RawMessage) []byte {
 	if len(unknown) == 0 {
 		return b
 	}
@@ -626,3 +629,62 @@ func Green(msg string) string  { return Color("32", msg) }
 func Yellow(msg string) string { return Color("33", msg) }
 func Dim(msg string) string    { return Color("2", msg) }
 func Bold(msg string) string   { return Color("1", msg) }
+
+// CheckSymlink detects symlinks in the path chain between path and boundary.
+// Walks up from the file's parent directory, checking each component with Lstat.
+// Stops at boundary (the trusted root) to avoid false positives from system
+// symlinks like /var → /private/var on macOS.
+//
+// Preconditions: boundary must be a non-empty absolute path. path must be
+// lexically under boundary (verified internally).
+func CheckSymlink(path, boundary string) error {
+	if boundary == "" || !filepath.IsAbs(boundary) {
+		return fmt.Errorf("checkSymlink: boundary must be a non-empty absolute path, got %q", boundary)
+	}
+
+	cleanPath := filepath.Clean(path)
+	cleanBoundary := filepath.Clean(boundary)
+
+	// Verify path is lexically under (or equal to) boundary.
+	rel, err := filepath.Rel(cleanBoundary, cleanPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("path %q is not under boundary %q", path, boundary)
+	}
+
+	// Check the file itself if it exists
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to overwrite symlink: %s", path)
+	}
+
+	// If path IS boundary, no intermediate directories to check.
+	if cleanPath == cleanBoundary {
+		return nil
+	}
+
+	// Walk from parent directory up to (but not including) boundary.
+	dir := filepath.Clean(filepath.Dir(path))
+	for dir != cleanBoundary {
+		info, err := os.Lstat(dir)
+		if err != nil {
+			// Directory doesn't exist yet; MkdirAll will create it.
+			dir = filepath.Dir(dir)
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			target, _ := os.Readlink(dir)
+			return fmt.Errorf("refusing to write through symlinked directory: %s -> %s", dir, target)
+		}
+		dir = filepath.Dir(dir)
+	}
+	return nil
+}
+
+// ShortSHA is a commit SHA cut to display length. The full forty characters are
+// what a pin records, because git refuses an abbreviated object id in a fetch
+// request — but nothing readable wants to print all of them.
+func ShortSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
+}

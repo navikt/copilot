@@ -93,7 +93,21 @@ func (m *Manifest) checkSemantics(runningVersion string) error {
 // checkContractVersion rejects a contract major this binary does not implement,
 // naming what it does support and how to proceed (A3/A4).
 func (m *Manifest) checkContractVersion() error {
-	major, _, _ := strings.Cut(m.ContractVersion, ".")
+	return checkContractVersion(m.ContractVersion)
+}
+
+// checkContractVersion is the version gate itself, shared with the consumer
+// side: a [Declaration] rides the same contract as the [Manifest] it pins, so
+// it must be rejected by the same rule rather than by a second copy of it.
+func checkContractVersion(version string) error {
+	return checkContractVersionFor(version, "ask the agentpakke to publish a manifest on a supported contract version")
+}
+
+// checkContractVersionFor is the gate with the caller's own remedy, because a
+// consumer holding an unreadable lock file cannot ask anyone to republish a
+// manifest — the file it has to change is its own.
+func checkContractVersionFor(version, remedy string) error {
+	major, _, _ := strings.Cut(version, ".")
 	for _, supported := range SupportedContractMajors {
 		if major == supported {
 			return nil
@@ -101,8 +115,8 @@ func (m *Manifest) checkContractVersion() error {
 	}
 	return fmt.Errorf(
 		"contractVersion %q is not supported by this nav-pilot; supported contract versions: %s. "+
-			"Upgrade nav-pilot (nav-pilot update) or ask the agentpakke to publish a manifest on a supported contract version",
-		m.ContractVersion, strings.Join(SupportedContractMajors, ", "))
+			"Upgrade nav-pilot (nav-pilot update) or %s",
+		version, strings.Join(SupportedContractMajors, ", "), remedy)
 }
 
 // checkMinVersion enforces minNavPilotVersion against the running binary.

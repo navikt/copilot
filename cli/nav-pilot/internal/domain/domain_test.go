@@ -453,7 +453,7 @@ func (f *legacyFile) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &known); err != nil {
 		return err
 	}
-	unknown, err := unknownJSONKeys(b, knownJSONKeys(legacyFile{}))
+	unknown, err := UnknownJSONKeys(b, KnownJSONKeys(legacyFile{}))
 	if err != nil {
 		return err
 	}
@@ -468,7 +468,7 @@ func (f legacyFile) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return appendUnknownKeys(b, f.Unknown), nil
+	return AppendUnknownKeys(b, f.Unknown), nil
 }
 
 // TestOlderDecoderKeepsPerFileSource is the #588 scenario from the other side:
@@ -500,7 +500,7 @@ func TestOlderDecoderKeepsPerFileSource(t *testing.T) {
 	}
 }
 
-// TestKnownJSONKeysUntaggedField guards the fallback in knownJSONKeys: a field
+// TestKnownJSONKeysUntaggedField guards the fallback in KnownJSONKeys: a field
 // with no json name is still matched by encoding/json under its Go name, so
 // treating it as unknown would duplicate it on every write. A `json:"-"` field
 // is skipped, because encoding/json never writes it at all.
@@ -512,10 +512,10 @@ func TestKnownJSONKeysUntaggedField(t *testing.T) {
 		Skipped  string `json:"-"`
 	}
 
-	keys := knownJSONKeys(sample{})
+	keys := KnownJSONKeys(sample{})
 	for _, want := range []string{"tagged", "Untagged", "OmitOnly"} {
 		if !keys[want] {
-			t.Errorf("knownJSONKeys did not report %q as known; encoding/json matches it", want)
+			t.Errorf("KnownJSONKeys did not report %q as known; encoding/json matches it", want)
 		}
 	}
 	if keys["Skipped"] || keys["-"] {

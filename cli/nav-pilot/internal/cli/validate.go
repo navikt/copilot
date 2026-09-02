@@ -55,7 +55,7 @@ func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("%s %s\n", bold("Validating:"), fmt.Sprintf("%s@%s", label, src.SHA))
+	fmt.Printf("%s %s\n", bold("Validating:"), fmt.Sprintf("%s@%s", label, shortSHA(src.SHA)))
 	fmt.Println()
 	for _, n := range notes {
 		fmt.Printf("  %s %s\n", dim("ℹ"), n)

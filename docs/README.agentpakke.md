@@ -266,7 +266,7 @@ Er navnet på pakka også navnet på en agent i den (vanlig), vinner pakka. Agen
   Future runs use it without --source; clear it with nav-pilot config set source "".
 ```
 
-Presedensen er `--source` > `source` i config > `navikt/copilot`.
+Presedensen er `--source` > [erklæringen i repoet](#erklæringen-i-konsumentrepoet) > `source` i config > `navikt/copilot`.
 
 **Valget er per scope.** Repo-scope (`.github/` i et repo) og bruker-scope (`~/.copilot`, `--user`) huskes hver for seg, og hvert scope registrerer kilden sin i sin egen state. Ulike repoer kan derfor følge ulike agentpakker.
 
@@ -278,7 +278,7 @@ nav-pilot will not silently mix content from two agentpakker into one install.
 
   Keep this scope on its current source:  nav-pilot install --source navikt/grillmester <name>
   Switch this scope to the new source:    nav-pilot install --source navikt/copilot <name>
-  Or clear the persisted source:          nav-pilot config set source ""
+  Or clear the conflicting value:         nav-pilot config set source ""
 ```
 
 Et eksplisitt `--source` er overstyringen. Da har brukeren sagt hvilken kilde som skal inn i hvilket scope. Vakten gjelder også de interaktive flytene, så det å velge scope i en meny er ingen vei rundt den.
@@ -290,6 +290,66 @@ Et eksplisitt `--source` er overstyringen. Da har brukeren sagt hvilken kilde so
 ```
 
 Stiformede kilder sammenlignes symlink-oppløst, så en symlink og checkouten bak den regnes som samme kilde.
+
+## Erklæringen i konsumentrepoet
+
+Manifestet sier hva en agentpakke *er*. Erklæringen sier hva et repo *bruker*. Den ligger på `.nav-pilot/agentpakke.lock.json` i konsumentrepoet, er ment å committes, og er halvparten som manglet: uten den må den som klonet et Nav-repo vite at hun skal skrive `--source owner/repo`, og revisjonen laget faktisk kjører på finnes ingen steder en reviewer kan se den.
+
+```json
+{
+  "contractVersion": "1",
+  "source": "navikt/grillmester",
+  "sha": "9f1c0a7e5d3b2148ac6e0f9b7d4c2a1e83f65b90",
+  "minNavPilotVersion": "2026.08.17-062831",
+  "items": {
+    "grillmester": "agent",
+    "grilling": "skill"
+  }
+}
+```
+
+| Felt | Påkrevd | Betydning |
+| --- | --- | --- |
+| `contractVersion` | ja | Samme kontraktversjon som manifestet. En major nav-pilot ikke kjenner avvises. |
+| `source` | ja | Agentpakka repoet bruker: `<eier>/<navn>` eller en absolutt sti. Samme verdirom som `--source`. |
+| `sha` | nei | Revisjonen som er pinnet, som full commit-SHA på førti tegn. Skrives av `install`, flyttes av `sync --apply`. En stiformet kilde kan ikke pinnes. |
+| `minNavPilotVersion` | nei | Kopiert fra pakkas manifest på den pinnede revisjonen. Opplysende her; det er manifestet som håndhever. |
+| `items` | nei | Navn → artefakttype. Uten feltet installeres alt pakka har. |
+
+**Pinnen er full lengde, fordi den skal kunne hentes tilbake.** nav-pilot materialiserer en revisjon med `git init`, `git fetch --depth 1 origin <ref>` og `checkout FETCH_HEAD`. Den veien løser gren, tagg og commit-SHA gjennom samme kall, og den er grunnen til at `sha` skrives med alle førti tegnene: git nekter en forkortet objekt-id i en fetch-forespørsel, så en avkortet pinne ville vært en pinne ingen kunne installere tilbake. Terminalen viser SHA-en forkortet, men det er bare visningen — fila bærer hele.
+
+**En stiformet kilde kan ikke pinnes.** En absolutt sti er et arbeidstre, ikke en revisjon noen kan hente: det finnes ingenting for en pinne å navngi. `install` skriver da `source` uten `sha`, og sier det i klartekst. En erklæring som likevel pinner en `sha` mot en sti avvises med samme begrunnelse, framfor å bære rundt på en pinne som aldri kan løses opp.
+
+**Erklæringen er både håndskrevet og maskinskrevet.** `source` og `items` skriver folk, `sha` skriver nav-pilot. Formen er valgt for at det skal gå bra: flat map på navn, deterministisk sortering (JSON-nøkler sorteres), og **ingen tidsstempler**. To grener som legger til hver sin agent, merger uten konflikt. To grener som bumper pinnen, kolliderer på den ene linja `sha` er — som seg hør og bør: da er det et valg noen må ta, ikke noe et merge-verktøy skal gjette. Det er også grunnen til at den ikke er `.github/.nav-pilot-state.json`: den fila er ren maskin-state, den bærer `installed_at`, og den er skjør på tvers av versjoner (#588).
+
+**Ukjente felter overlever en omskriving.** Et felt en nyere nav-pilot har skrevet, beholdes når en eldre bumper `sha` — samme mekanisme som state-fila fikk i #593, av samme grunn: en binær skal ikke slette det den ikke forstår. De bevarte nøklene legges sist, i fast rekkefølge, så en bump fortsatt gir én linje diff.
+
+**Symlenket `.nav-pilot/` nektes.** Både når fila leses og når den skrives. En symlenket katalog er innhold pull requesten aldri viste, og en erklæring som ikke er den fila reviewerne så på, er ingen erklæring.
+
+**Presedens.** For et repo-scope, høyest først:
+
+1. `--source` / `--ref` på kommandolinja
+2. kilden scopet selv er installert fra (bare `sync` — valget er per scope)
+3. `.nav-pilot/agentpakke.lock.json`
+4. `source` i `~/.nav-pilot/config.toml`
+5. `navikt/copilot`
+
+Erklæringen ligger over config-nøkkelen fordi den er repoets gjennomgåtte valg mens config er én utviklers maskinstandard, og under kommandolinja fordi et eksplisitt `--source` er utvikleren som sier «nei, denne, nå». Et eksplisitt `--source` tar med seg den pinnede revisjonen i fallet: å installere en annen pakke på denne pakkas SHA gir ingen mening. Et eksplisitt `--ref` alene beholder den erklærte kilden og overstyrer bare revisjonen.
+
+**Kryss-kilde-vakten leser den samme stigen.** Erklærer repoet én agentpakke mens scopets state er registrert mot en annen, nekter `install` med de samme valgene som over — bare at meldinga da sier «this repo declares», og at siste linje ber deg redigere `source` i `.nav-pilot/agentpakke.lock.json` framfor å tømme config-nøkkelen. Det er verdien som faktisk er i veien, som skal fjernes. Ellers ville en erklæring stille kunne blande innhold fra to pakker inn i én installasjon, som er nøyaktig det vakten finnes for.
+
+**Bruker-scope har ingen erklæring.** `~/.copilot` er ikke et repo, og hele poenget med fila er å være synlig i en pull request.
+
+**Livsløpet.**
+
+- **Leses** av `install` — med et navn, uten argumenter, gjennom den interaktive TUI-en, og med `--type` for én enkelt artefakt — og av `add`, `export` og `list` på samme trinn. Merk at `install <navn> --type <type>` altså *leser* pinnen, men ikke *skriver* erklæringa; se begrensningene under. Scopet avgjøres derfor før kilden slås opp: gjorde nav-pilot det motsatt, ville den installert det config-nøkkelen tilfeldigvis pekte på og deretter skrevet *det* inn i erklæringa. At `export` og `list` leser den samme, er like nødvendig: en export ellers skriver standardpakkas innhold inn i et repo som er pinnet et annet sted, og en `list` ellers viser en annen pakkes elementer enn den nekting av et ukjent `items`-navn ber deg lete i.
+- **Skrives** av en samlings-install i repo-scope, med kilden og SHA-en installasjonen faktisk brukte. Et håndskrevet `items` beholdes uendret. En tørrkjøring skriver ingenting, og bruker-scope får aldri en erklæring.
+- `nav-pilot sync --apply` flytter `sha`. Da kommer oppdateringa som én linje diff i en pull request framfor som usynlig lokal state. En sync uten `--apply` skriver aldri: den skal ikke skitne til en fil noen må committe. Sync bumper en revisjon, men peker aldri repoet på en annen agentpakke — det er en `install`.
+- `nav-pilot sync` sier fra når kilden scopet er registrert mot, er en annen enn den repoet erklærer. Scopet vinner (valget er per scope), og pinnen står urørt — men da ville de to ellers drevet fra hverandre i stillhet, så det skrives én linje om det, med begge veiene ut.
+
+**`items` velger enkeltelementer.** Et team som vil ha fire av tolv agenter fra en plattformpakke skal slippe å forke den. Navnene sjekkes mot det pakka faktisk har: en skrivefeil nekter hele installasjonen framfor å installere tre av fire i stillhet. nav-pilot *skriver* aldri lista selv — ville den ført opp alle tolv agentene, ble hver eneste tilvekst oppstrøms en merge-konflikt hos hver eneste konsument.
+
+Utvelgelse er et Tier 1-begrep. Tier 1 er en layout av filer som kan adresseres hver for seg, og det er det som gjør «disse fire» uttrykkbart. En Tier 2-pakke leverer digest-bundne payload-trær der installasjonsenheten er revisjonen, ikke fila: agentene i en payload stages sammen og verifiseres mot digesten som én ting. Derfor **nektes** `items` mot en Tier 2-pakke framfor å bli ignorert — meldingen ber om at blokka fjernes, eller at pakka publiserer en payload-kontekst som bærer akkurat det teamet trenger.
 
 ## Slik starter brukerne klienten fra en Tier 2-pakke
 
@@ -324,6 +384,12 @@ Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 - **`policies`, `profiles` og `provenance` er deklarasjoner uten virkning ennå.** Stiene sti-sjekkes, men nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet (M3), og sjekker ikke `provenance`-digesten mot innholdet.
 - **`compatibility` håndheves bare på den stagede stien.** Legacy-stien, altså Tier 1-innhold materialisert inn i brukerens egen klient, leser ikke feltet.
 - **`nav-pilot export opencode` støtter bare kanoniske stier.** Export leser `agents/`, `skills/`, `instructions/` og `prompts/` direkte. En agentpakke som legger innholdet et annet sted avvises av export med en forklaring, framfor å skrive et tomt `.opencode/`-tre.
+- **Erklæringa har ingen `--frozen`.** `install` honorerer den pinnede revisjonen allerede, så det som gjenstår for CI og onboarding er å nekte å prompte og å nekte å bevege pinnen. Det er en egen flate (exit-koder, samspill med `--force`) og kommer for seg.
+- **Erklæringa har ingen egen JSON Schema-fil, og `nav-pilot validate` sjekker den ikke.** Den valideres i binæren, på samme kontraktversjonsgate som manifestet. Validate ser i dag på pakkerepoet, ikke på konsumentrepoet.
+- **`install <navn> --type <type>` skriver ingen erklæring.** En à-la-carte-install fører verken elementet inn i `items` eller kilden inn i fila; lista er håndskrevet, og det er samlings-installen som skriver erklæringa. `items` styrer den heller ikke: `install <navn>` installerer det navnet, uansett hva erklæringa lister. Skal enkeltelement-installen holde den oppdatert, er det en egen endring.
+- **`install --json` skriver ingen erklæring.** Den maskinlesbare stien svarer så snart innholdet er på disk, før state-fila skrives — og dermed før erklæringa. En CI-jobb som installerer med `--json` får altså innholdet, men ingen pinne. Kjør uten `--json` når det er pinnen du er ute etter.
+- **En delvis install pinner som om den var komplett.** Filer som ble hoppet over på grunn av konflikt, og elementer pakka har men som ikke støttes i målscopet, gir en advarsel — ikke en nekting — og etterpå skrives `sha` som om alt gikk inn. Pinnen sier hvilken revisjon som ble forsøkt, ikke hva som faktisk ligger der. Det er `items`-lista som nekter (et ukjent navn stopper hele installasjonen); et navn som finnes, men ikke kan installeres her, gjør det ikke.
+- **Duplikate JSON-nøkler slås sammen.** Står `items` to ganger i fila, blir resultatet unionen av de to, ikke den siste og ikke en feilmelding — det er hva Go-dekoderen gjør med et map. Fila leses også uten størrelsesgrense. Begge deler er greie for en fil et menneske skriver og en reviewer leser, og begge er ting en streng parser burde tatt.
 - **Ferskhetssjekken i rot-TUI-en beskriver bare standardkilden.** Scope som ikke kommer fra `navikt/copilot` hoppes over der, fordi release-feeden til nav-pilot bare sier noe om standardkilden.
 
 ## Eksempler

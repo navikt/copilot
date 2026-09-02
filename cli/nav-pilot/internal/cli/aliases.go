@@ -253,12 +253,29 @@ var (
 // source whose manifest declares a non-canonical layout rather than exporting
 // an empty tree from paths that source does not use.
 var cmdExport = func(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
+	// Export materializes content into the repo, so it reads the repo's
+	// declaration on the same rung an install does — otherwise it writes the
+	// default agentpakke's content into a repo pinned to another one.
+	declRepo, declRef, declErr := declaredPin(scope, sourceRepo, ref)
+	if declErr != nil {
+		return declErr
+	}
+	if ref == "" {
+		ref = declRef
+	}
+	if sourceRepo == "" {
+		sourceRepo = declRepo
+	}
 	effective, err := sourceRepoFor(sourceRepo)
 	if err != nil {
 		return err
 	}
-	return artifacts.CmdExport(format, scope, ref, effective, Version, dryRun, force, jsonOutput)
+	return exportFn(format, scope, ref, effective, Version, dryRun, force, jsonOutput)
 }
+
+// exportFn is the artifacts-package export, named so a test can watch which
+// source and revision the funnel actually hands it.
+var exportFn = artifacts.CmdExport
 
 var writeOpenCodeState = artifacts.WriteOpenCodeState
 

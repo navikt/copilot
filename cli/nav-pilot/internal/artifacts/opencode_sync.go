@@ -351,7 +351,7 @@ func PrintOpenCodeStatusBlock(outputDir string, state *domain.StateFile) {
 	fmt.Printf("  Collection:  %s\n", domain.Bold(state.Collection))
 	fmt.Printf("  Version:     %s\n", state.Version)
 	fmt.Printf("  Scope:       %s\n", state.Scope)
-	fmt.Printf("  Source:      %s\n", state.SourceSHA)
+	fmt.Printf("  Source:      %s\n", domain.ShortSHA(state.SourceSHA))
 	fmt.Printf("  Location:    %s\n", domain.Dim(outputDir))
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()

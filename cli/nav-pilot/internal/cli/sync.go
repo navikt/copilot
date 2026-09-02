@@ -80,11 +80,33 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			}
 		}
 	}
+	// A scope with no recorded source falls back to the repo's declaration
+	// before the config key — the same rung the install side reads it on. The
+	// declaration's pinned SHA is deliberately *not* used as the ref: sync's
+	// job is to find out what moved, and resolving the revision the repo is
+	// already pinned to would make `sync` always report "up to date".
+	if sourceRepo == "" {
+		// The erroring form, not declaredSourceRepo: a scope with no recorded
+		// source is exactly where a broken declaration does damage. Swallowing
+		// the error would sync from the default agentpakke instead, and
+		// adoptSyncSource would then write that into the scope's state — so a
+		// repo that committed a pin ends up recorded against a pakke nobody
+		// chose. The guards may swallow, because a guard only advises; the
+		// command that resolves content may not.
+		declared, _, declErr := declaredPin(scope, "", ref)
+		if declErr != nil {
+			return declErr
+		}
+		sourceRepo = declared
+	}
 	src, err := resolveSourceForSync(ref, sourceRepo)
 	if err != nil {
 		return err
 	}
 	defer src.Cleanup()
+	if !jsonOutput {
+		noteDeclarationDisagreement(scope, src)
+	}
 
 	// One resolver for the whole sync, built from the agentpakke manifest that
 	// governs this source (the legacy adapter when it ships none).
@@ -128,7 +150,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 				return errUpdatesAvailable
 			}
 			fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
-				yellow("⚠"), len(conflictPaths), src.SHA)
+				yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
 			for _, p := range conflictPaths {
 				fmt.Printf("  %s %s\n", dim("⊘"), p)
 			}
@@ -276,7 +298,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 
 	if result.UpToDate {
 		fmt.Printf("%s All %d files up to date (source: %s)\n",
-			green("✓"), checked, src.SHA)
+			green("✓"), checked, shortSHA(src.SHA))
+		// A sync that changed no file can still have landed on a new revision
+		// upstream. --apply is what makes that a bump: a check-only run must
+		// never dirty a file the developer would have to commit.
+		if apply {
+			bumpDeclarationSHA(scope, src)
+		}
 		// Bump state version so staleness check won't re-trigger for this release
 		if src.Version != "" {
 			if state, err := readScopedState(scope); err == nil && state != nil {
@@ -296,7 +324,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// Report updates
 	if len(updates) > 0 {
 		fmt.Printf("%s %d of %d files have updates available (source: %s)\n\n",
-			yellow("⚠"), len(updates), checked, src.SHA)
+			yellow("⚠"), len(updates), checked, shortSHA(src.SHA))
 		for _, u := range updates {
 			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
 		}
@@ -306,7 +334,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// Report deletions
 	if len(deletedPaths) > 0 {
 		fmt.Printf("%s %d file(s) deleted in source and will be removed (source: %s)\n\n",
-			yellow("⚠"), len(deletedPaths), src.SHA)
+			yellow("⚠"), len(deletedPaths), shortSHA(src.SHA))
 		for _, p := range deletedPaths {
 			fmt.Printf("  %s %s\n", red("-"), p)
 		}
@@ -315,7 +343,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 
 	if len(conflictPaths) > 0 && !apply {
 		fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
-			yellow("⚠"), len(conflictPaths), src.SHA)
+			yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
 		for _, p := range conflictPaths {
 			fmt.Printf("  %s %s\n", dim("⊘"), p)
 		}
@@ -385,6 +413,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// Only bump source SHA and version if ALL updates/deletions were applied successfully
 	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {
+			bumpDeclarationSHA(scope, src)
 			state.SourceSHA = src.SHA
 			// Use the binary's release version directly.
 			// "dev" means local/unreleased build — checkStaleness() skips it.
@@ -490,7 +519,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 				"sync updates the pinned source; switching sources is an install.\n\n"+
 				"  Update the pinned agentpakke:  %s\n"+
 				"  Switch this scope over:        %s",
-			scope.Name, bold(state.SourceRepo), state.SourceSHA, bold(src.Repo),
+			scope.Name, bold(state.SourceRepo), shortSHA(state.SourceSHA), bold(src.Repo),
 			bold("nav-pilot sync --apply"),
 			bold("nav-pilot install --user --source "+src.Repo+" "+pakkeInstallTarget(src)))
 	}
@@ -506,7 +535,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 			"%s is pinned at %s, a revision that ships pre-built payloads only, and %s no longer does.\n"+
 				"nav-pilot does not update a pin across that change, and launches keep reading the pinned revision.\n\n"+
 				"  Reinstall it:  %s",
-			bold(state.Collection), state.SourceSHA, bold(state.SourceRepo),
+			bold(state.Collection), shortSHA(state.SourceSHA), bold(state.SourceRepo),
 			bold("nav-pilot install --user "+state.Collection))
 	}
 
@@ -524,9 +553,9 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 				return errUpdatesAvailable
 			}
 			fmt.Printf("%s %s is pinned at %s, but that revision is no longer under %s.\n\n",
-				yellow("⚠"), bold(state.Collection), state.SourceSHA, bold(pakkerRoot()))
+				yellow("⚠"), bold(state.Collection), shortSHA(state.SourceSHA), bold(pakkerRoot()))
 			fmt.Printf("Run %s to materialize it again (from %s, what the source resolves to now).\n",
-				bold("nav-pilot sync --apply"), src.SHA)
+				bold("nav-pilot sync --apply"), shortSHA(src.SHA))
 			return errUpdatesAvailable
 		}
 		if _, err := pinRevision(scope, src, jsonOutput); err != nil {
@@ -535,7 +564,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 		if jsonOutput {
 			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
 		}
-		fmt.Printf("%s Restored %s at revision %s.\n", green("✓"), bold(src.Pakke.Name), src.SHA)
+		fmt.Printf("%s Restored %s at revision %s.\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
 	}
 
@@ -543,7 +572,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 		if jsonOutput {
 			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
 		}
-		fmt.Printf("%s %s is up to date (pinned at %s).\n", green("✓"), bold(src.Pakke.Name), src.SHA)
+		fmt.Printf("%s %s is up to date (pinned at %s).\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
 	}
 
@@ -555,7 +584,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 			return errUpdatesAvailable
 		}
 		fmt.Printf("%s A newer revision of %s is available (pinned %s, source %s).\n\n",
-			yellow("⚠"), bold(src.Pakke.Name), state.SourceSHA, src.SHA)
+			yellow("⚠"), bold(src.Pakke.Name), shortSHA(state.SourceSHA), shortSHA(src.SHA))
 		fmt.Printf("Run %s to update.\n", bold("nav-pilot sync --apply"))
 		return errUpdatesAvailable
 	}
@@ -566,7 +595,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, apply, jso
 	if jsonOutput {
 		return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
 	}
-	fmt.Printf("%s Updated %s to revision %s.\n", green("✓"), bold(src.Pakke.Name), src.SHA)
+	fmt.Printf("%s Updated %s to revision %s.\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 	return nil
 }
 
