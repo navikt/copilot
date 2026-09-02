@@ -623,9 +623,23 @@ func modelCacheDir(model string) string {
 // Face cache.
 //
 // "Fully" is the point. An interrupted download leaves the snapshot in place
-// with .incomplete blobs beside it, so a directory-exists check answers yes for
-// a model that cannot load, and the developer gets the failure from mlx-lm
-// several minutes later instead of from here.
+// with the missing pieces as .incomplete blobs, so a directory-exists check
+// answers yes for a model that cannot load, and the developer gets the failure
+// from mlx-lm several minutes later instead of from here.
+//
+// The completeness test is whether the snapshot's own files resolve. Each one
+// is a symlink into blobs/, and a piece that never finished downloading has no
+// blob for its symlink to point at, so a stat that follows the link is the
+// question "is this file here" asked directly.
+//
+// Scanning for .incomplete blobs instead is what this used to do, and it was
+// wrong in the direction that hurts: the cache keeps a partial as
+// <blob>.<id>.incomplete, and a later successful download writes the finished
+// blob without removing the abandoned partial. A model downloaded across two
+// attempts therefore ends up complete on disk with stale .incomplete files
+// beside it. Reported from a machine where init downloaded 25 GB, printed
+// "Weights downloaded", and then refused to start on weights it had just
+// fetched, with seven stale partials and every snapshot symlink resolving.
 func WeightsPresent(model string) (bool, error) {
 	dir := modelCacheDir(model)
 	snapshots, err := os.ReadDir(filepath.Join(dir, "snapshots"))
@@ -635,24 +649,26 @@ func WeightsPresent(model string) (bool, error) {
 		}
 		return false, fmt.Errorf("reading the model cache at %s: %w", dir, err)
 	}
-	blobs, err := os.ReadDir(filepath.Join(dir, "blobs"))
-	if err != nil && !os.IsNotExist(err) {
-		return false, fmt.Errorf("reading the model cache at %s: %w", dir, err)
-	}
-	for _, b := range blobs {
-		if strings.HasSuffix(b.Name(), ".incomplete") {
-			return false, nil
-		}
-	}
 	for _, snap := range snapshots {
-		files, err := os.ReadDir(filepath.Join(dir, "snapshots", snap.Name()))
+		snapDir := filepath.Join(dir, "snapshots", snap.Name())
+		files, err := os.ReadDir(snapDir)
 		if err != nil {
 			continue
 		}
 		var weights, config bool
 		for _, f := range files {
-			weights = weights || strings.HasSuffix(f.Name(), ".safetensors")
-			config = config || f.Name() == "config.json"
+			name := f.Name()
+			isWeights := strings.HasSuffix(name, ".safetensors")
+			if !isWeights && name != "config.json" {
+				continue
+			}
+			// os.Stat follows the symlink; os.ReadDir did not. A dangling
+			// link is a piece the download never finished.
+			if _, err := os.Stat(filepath.Join(snapDir, name)); err != nil {
+				return false, nil
+			}
+			weights = weights || isWeights
+			config = config || name == "config.json"
 		}
 		if weights && config {
 			return true, nil
