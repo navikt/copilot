@@ -199,7 +199,7 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
@@ -299,6 +299,21 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	pakke := pakkeFor(src, collection)
 	resolver := resolverFor(src.Dir, pakke)
 
+	// The repo's committed declaration may narrow the install to named items.
+	// It is read before anything is written, so a list naming something the
+	// agentpakke does not ship refuses the whole install rather than half of it.
+	decl, err := scopeDeclaration(scope)
+	if err != nil {
+		return err
+	}
+	var declaredItems map[string]string
+	if decl != nil {
+		declaredItems = decl.Items
+	}
+	if err := guardDeclaredItems(src, declaredItems); err != nil {
+		return err
+	}
+
 	// A payload-only agentpakke has no Tier 1 content to materialize into this
 	// scope; installing it means pinning a revision of its payloads.
 	if payloadOnly(src) {
@@ -312,13 +327,15 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	}
 
 	var manifest *Manifest
-	var err error
 	if src.Pakke != nil {
 		manifest, err = pakkeContents(resolver, src)
 	} else {
 		manifest, err = loadManifest(src.Dir, collection)
 	}
 	if err != nil {
+		return err
+	}
+	if manifest, err = applyDeclaredItems(manifest, declaredItems); err != nil {
 		return err
 	}
 
@@ -394,6 +411,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
+	recordDeclaration(scope, src)
 
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
 		green("✓"), result.Installed, collection, stateVersion, src.SHA)

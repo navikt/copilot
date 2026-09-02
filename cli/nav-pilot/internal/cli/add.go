@@ -38,7 +38,7 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}

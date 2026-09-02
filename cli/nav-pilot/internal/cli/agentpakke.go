@@ -275,9 +275,19 @@ func crossSourceCheck(scope *InstallScope, flagSource string) (string, *StateFil
 	if flagSource != "" {
 		return "", nil, nil
 	}
-	configured, err := configuredSourceRepo()
-	if err != nil || configured == "" {
-		return "", nil, err
+	// The repo's committed declaration outranks the machine-wide config key
+	// (see declaration.go for the full ladder), so the guard has to judge the
+	// scope against the same source an install would actually reach for.
+	// Reading configuredSourceRepo() here instead would let a repo whose
+	// declaration names one agentpakke install over a scope recorded against
+	// another without a word — the exact mixing B3 exists to refuse.
+	configured := declaredSourceRepo(scope)
+	if configured == "" {
+		var err error
+		configured, err = configuredSourceRepo()
+		if err != nil || configured == "" {
+			return "", nil, err
+		}
 	}
 	state, err := readScopedState(scope)
 	if err != nil {

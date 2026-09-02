@@ -80,6 +80,14 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			}
 		}
 	}
+	// A scope with no recorded source falls back to the repo's declaration
+	// before the config key — the same rung the install side reads it on. The
+	// declaration's pinned SHA is deliberately *not* used as the ref: sync's
+	// job is to find out what moved, and resolving the revision the repo is
+	// already pinned to would make `sync` always report "up to date".
+	if sourceRepo == "" {
+		sourceRepo = declaredSourceRepo(scope)
+	}
 	src, err := resolveSourceForSync(ref, sourceRepo)
 	if err != nil {
 		return err
@@ -277,6 +285,12 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	if result.UpToDate {
 		fmt.Printf("%s All %d files up to date (source: %s)\n",
 			green("✓"), checked, src.SHA)
+		// A sync that changed no file can still have landed on a new revision
+		// upstream. --apply is what makes that a bump: a check-only run must
+		// never dirty a file the developer would have to commit.
+		if apply {
+			bumpDeclarationSHA(scope, src)
+		}
 		// Bump state version so staleness check won't re-trigger for this release
 		if src.Version != "" {
 			if state, err := readScopedState(scope); err == nil && state != nil {
@@ -385,6 +399,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// Only bump source SHA and version if ALL updates/deletions were applied successfully
 	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {
+			bumpDeclarationSHA(scope, src)
 			state.SourceSHA = src.SHA
 			// Use the binary's release version directly.
 			// "dev" means local/unreleased build — checkStaleness() skips it.
