@@ -80,18 +80,27 @@ func declaredSourceRepo(scope *InstallScope) string {
 // repo's declaration, so the pinned revision goes with it: installing another
 // agentpakke at this agentpakke's SHA is meaningless. An explicit --ref alone
 // keeps the declared source and overrides only the revision.
-func declaredPin(scope *InstallScope, flagSource, flagRef string) (repo, ref string) {
+// A declaration that will not load is an error the command must report, not a
+// reason to fall back to the default source. Swallowing it here would install
+// another agentpakke's content into a repo that committed a pin — silently,
+// which is the opposite of what a reviewed file is for. declaredSourceRepo
+// above still swallows, because a guard only advises; this is the running
+// command's own view.
+func declaredPin(scope *InstallScope, flagSource, flagRef string) (repo, ref string, err error) {
 	if flagSource != "" {
-		return "", ""
+		return "", "", nil
 	}
 	d, err := scopeDeclaration(scope)
-	if err != nil || d == nil {
-		return "", ""
+	if err != nil {
+		return "", "", err
+	}
+	if d == nil {
+		return "", "", nil
 	}
 	if flagRef != "" {
-		return d.Source, ""
+		return d.Source, "", nil
 	}
-	return d.Source, d.SHA
+	return d.Source, d.SHA, nil
 }
 
 // applyDeclaredItems narrows a content manifest to the items a declaration
@@ -275,7 +284,10 @@ func sortedKeys(m map[string]string) []string {
 // reach the declaration from, so the two can never disagree about which
 // agentpakke a repo uses.
 func resolveDeclaredSource(scope *InstallScope, ref, sourceRepo string) (*Source, error) {
-	declRepo, declRef := declaredPin(scope, sourceRepo, ref)
+	declRepo, declRef, err := declaredPin(scope, sourceRepo, ref)
+	if err != nil {
+		return nil, err
+	}
 	if ref == "" {
 		ref = declRef
 	}

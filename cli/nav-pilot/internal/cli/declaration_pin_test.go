@@ -18,7 +18,7 @@ func git(t *testing.T, dir string, args ...string) string {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
-		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid")
 	out, err := cmd.CombinedOutput()
@@ -339,5 +339,38 @@ func TestSyncSilentWhenDeclarationAgrees(t *testing.T) {
 	})
 	if strings.Contains(out, "declares") {
 		t.Errorf("sync warned about a declaration that agrees:\n%s", out)
+	}
+}
+
+// TestMalformedDeclarationRefusesInstall: the declaration is fail-closed on
+// load, and the commands that read it must stay that way. Swallowing the parse
+// error and falling back to the default source would install another
+// agentpakke's content into a repo that committed a pin — silently, which is
+// the opposite of what a reviewed file is for.
+func TestMalformedDeclarationRefusesInstall(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	os.MkdirAll(filepath.Join(dir, ".nav-pilot"), 0o755)
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"),
+		[]byte(`{"contractVersion": "1", "source": `), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	scope := ScopeRepo(dir)
+	called := false
+	origResolve := resolveSource
+	t.Cleanup(func() { resolveSource = origResolve })
+	resolveSource = func(ref, sourceRepo string) (*Source, error) {
+		called = true
+		return nil, nil
+	}
+
+	_, err := resolveDeclaredSource(scope, "", "")
+	if err == nil {
+		t.Fatal("a malformed declaration resolved without error")
+	}
+	if called {
+		t.Error("a malformed declaration fell through to the default source instead of refusing")
 	}
 }

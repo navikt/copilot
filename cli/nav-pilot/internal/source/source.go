@@ -276,7 +276,9 @@ func fetchRevision(dir, repoURL, ref string, stderr *bytes.Buffer) error {
 	steps := [][]string{
 		{"init", "--quiet", "-b", "main"},
 		{"remote", "add", "origin", repoURL},
-		{"fetch", "--depth", "1", "--quiet", "origin", ref},
+		// `--` before the ref: a branch or tag whose name begins with a dash
+		// would otherwise be parsed as an option.
+		{"fetch", "--depth", "1", "--quiet", "origin", "--", ref},
 		{"-c", "advice.detachedHead=false", "checkout", "--quiet", "FETCH_HEAD"},
 	}
 	for _, args := range steps {

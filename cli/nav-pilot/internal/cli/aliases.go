@@ -256,7 +256,10 @@ var cmdExport = func(format string, scope *InstallScope, ref, sourceRepo string,
 	// Export materializes content into the repo, so it reads the repo's
 	// declaration on the same rung an install does — otherwise it writes the
 	// default agentpakke's content into a repo pinned to another one.
-	declRepo, declRef := declaredPin(scope, sourceRepo, ref)
+	declRepo, declRef, declErr := declaredPin(scope, sourceRepo, ref)
+	if declErr != nil {
+		return declErr
+	}
 	if ref == "" {
 		ref = declRef
 	}

@@ -101,7 +101,7 @@ Flags:
   -f, --force             Overwrite files that differ from source
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from
-  -s, --source <repo>     Source repository or absolute path (default: .nav-pilot/agentpakke.lock.json in this repo, else the config's source key, else navikt/copilot)
+  -s, --source <repo>     Source repository or absolute path (repo scope default: .nav-pilot/agentpakke.lock.json in this repo, else the config's source key, else navikt/copilot; --user never reads a declaration)
   -u, --user              Install to ~/.copilot — works across all repos (agents, skills & instructions only)
   --repo                  Install to this repository's .github/ (opposite of --user; skips the scope question)
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
