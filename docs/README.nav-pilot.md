@@ -279,7 +279,7 @@ Listen oppdateres når du kjører `init` eller `start` — ikke ved hver kommand
 et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nettopp hørt
 om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
 
-**Qwen 3.6 er standard fordi den er rask, og fordi ingen av de andre løser flere oppgaver.**
+**Qwen 3.6 er standard fordi den er rask, og fordi ingen av de andre løser målbart flere oppgaver.**
 Over fire kjøringer av de samme åtte oppgavene løser den 3, 2, 4 og 4. Qwen 3.8 4-bit løser 4, 4,
 3 og 4. Spennene overlapper helt, og forskjellen er ikke målbar (p = 0,71). Til gjengjeld bruker
 3.8 omtrent sju ganger så lang tid — median 58–104 sekunder mot 10–12 — og traff
