@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // This file is the consumer half of the agentpakke contract. [Manifest] is what
@@ -74,6 +76,39 @@ type Declaration struct {
 	// of a platform pakke would make every upstream addition a merge conflict
 	// in every consumer. A team taking four of them writes those four by hand.
 	Items map[string]string `json:"items,omitempty"`
+
+	// Unknown carries every key this binary does not understand, so a bump
+	// written by an older nav-pilot does not silently delete what a newer one
+	// put there (#588). It rides the same mechanism as the state file's.
+	Unknown map[string]json.RawMessage `json:"-"`
+}
+
+// declarationFields is [Declaration] without its custom marshalling, so the
+// methods below can encode the known half without recursing.
+type declarationFields Declaration
+
+var declarationKnownKeys = domain.KnownJSONKeys(Declaration{})
+
+func (d *Declaration) UnmarshalJSON(b []byte) error {
+	var known declarationFields
+	if err := json.Unmarshal(b, &known); err != nil {
+		return err
+	}
+	unknown, err := domain.UnknownJSONKeys(b, declarationKnownKeys)
+	if err != nil {
+		return err
+	}
+	*d = Declaration(known)
+	d.Unknown = unknown
+	return nil
+}
+
+func (d Declaration) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(declarationFields(d))
+	if err != nil {
+		return nil, err
+	}
+	return domain.AppendUnknownKeys(b, d.Unknown), nil
 }
 
 // DeclarationFilePath returns the declaration path inside a repo root.
@@ -91,6 +126,11 @@ func DeclarationFilePath(root string) string {
 // only that a source is present.
 func LoadDeclaration(root string) (*Declaration, error) {
 	path := DeclarationFilePath(root)
+	// A symlinked .nav-pilot/ is a file the pull request never showed. The same
+	// guard the state file gets, on both ends of this one.
+	if err := domain.CheckSymlink(path, root); err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -109,11 +149,20 @@ func LoadDeclaration(root string) (*Declaration, error) {
 }
 
 func (d *Declaration) validate() error {
-	if err := checkContractVersion(d.ContractVersion); err != nil {
+	if err := checkContractVersionFor(d.ContractVersion,
+		"set a supported contractVersion in "+DeclarationPath); err != nil {
 		return fmt.Errorf("%s: %w", DeclarationPath, err)
 	}
-	if strings.TrimSpace(d.Source) == "" {
+	source := strings.TrimSpace(d.Source)
+	if source == "" {
 		return fmt.Errorf("%s must name a source", DeclarationPath)
+	}
+	// A path source is a working tree, not a revision anyone can fetch: there
+	// is nothing for a pin to name, and writing one anyway is how "unknown"
+	// ends up committed as a sha. Say so instead.
+	if filepath.IsAbs(source) && strings.TrimSpace(d.SHA) != "" {
+		return fmt.Errorf("%s pins sha %q against the path source %s; a local checkout has no revision to fetch, so drop the sha and let the working tree decide",
+			DeclarationPath, d.SHA, source)
 	}
 	names := make([]string, 0, len(d.Items))
 	for name := range d.Items {
@@ -144,6 +193,9 @@ func isDeclaredItemType(t string) bool {
 // changes only the SHA produces exactly a one-line diff.
 func WriteDeclaration(root string, d *Declaration) error {
 	path := DeclarationFilePath(root)
+	if err := domain.CheckSymlink(path, root); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("creating %s: %w", filepath.Dir(DeclarationPath), err)
 	}

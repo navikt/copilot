@@ -639,7 +639,7 @@ func run(args []string) error {
 				}
 				return cmdListInstalledAuto(targetDir, jsonOutput)
 			}
-			return cmdList(ref, sourceRepo, listItems, jsonOutput)
+			return cmdList(scope, ref, sourceRepo, listItems, jsonOutput)
 		})
 	case "doctor":
 		return runWithCommandTelemetry("doctor", telemetryMode(), "none", func() error {

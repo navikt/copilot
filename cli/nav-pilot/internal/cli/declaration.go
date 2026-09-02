@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -182,13 +183,24 @@ func recordDeclaration(scope *InstallScope, src *Source) {
 		d = existing
 	}
 	d.Source = sourceLabelFor(src)
+	// A path source is a working tree, not a revision: it has nothing
+	// fetchable to pin, and the "unknown" that used to be written here is a
+	// pin that can never resolve. Leave the field out instead.
 	d.SHA = src.SHA
+	if filepath.IsAbs(d.Source) {
+		d.SHA = ""
+	}
 	d.MinNavPilotVersion = ""
 	if src.Pakke != nil {
 		d.MinNavPilotVersion = src.Pakke.MinNavPilotVersion
 	}
 	if err := agentpakke.WriteDeclaration(scope.RootDir, d); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write %s: %v\n", yellow("⚠"), agentpakke.DeclarationPath, err)
+		return
+	}
+	if d.SHA == "" {
+		fmt.Printf("%s Recorded %s in %s — commit it so the whole team installs from the same agentpakke. A local checkout has no revision to pin.\n",
+			green("✓"), bold(d.Source), bold(agentpakke.DeclarationPath))
 		return
 	}
 	fmt.Printf("%s Pinned %s@%s in %s — commit it so the whole team installs this revision.\n",
@@ -221,6 +233,23 @@ func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 	}
 	fmt.Printf("%s Bumped %s: %s → %s. Commit it to share the update.\n",
 		green("✓"), bold(agentpakke.DeclarationPath), shortSHA(previous), shortSHA(src.SHA))
+}
+
+// noteDeclarationDisagreement reports a scope whose recorded source is not the
+// one its repository declares. The scope wins (B4) and [bumpDeclarationSHA]
+// correctly refuses to move a pin belonging to another agentpakke — but silence
+// lets the two drift apart forever, and install already refuses this state. Say
+// it, once, on the sync that would otherwise hide it.
+func noteDeclarationDisagreement(scope *InstallScope, src *Source) {
+	declared := declaredSourceRepo(scope)
+	if declared == "" || src == nil || src.Repo == "" || sameSourceRepo(declared, src.Repo) {
+		return
+	}
+	fmt.Printf(
+		"%s This scope syncs from %s, but %s declares %s. The scope wins, and the pin is left alone.\n"+
+			"  Point them at one agentpakke: edit %s, or run %s.\n",
+		yellow("⚠"), bold(src.Repo), bold(agentpakke.DeclarationPath), bold(declared),
+		bold(agentpakke.DeclarationPath), bold("nav-pilot install --source "+declared))
 }
 
 func nameSet(names []string) map[string]bool {

@@ -204,23 +204,31 @@ func pakkeInstallTarget(src *Source) string {
 // explicit --source is the user saying "yes, this source, into this scope", and
 // a scope with no install yet is free to pick any source.
 func guardScopeSource(scope *InstallScope, flagSource string) error {
-	configured, state, err := crossSourceCheck(scope, flagSource)
+	configured, state, origin, err := crossSourceCheck(scope, flagSource)
 	if err != nil || state == nil || state.SourceRepo == "" {
 		return err
 	}
 	if sameSourceRepo(configured, state.SourceRepo) {
 		return nil
 	}
+	// Which of the two holds the conflicting value decides both how to name it
+	// and how to clear it: telling someone with an empty config to run
+	// `config set source ""` is advice that does nothing.
+	held, clear := "your configured source", bold(`nav-pilot config set source ""`)
+	if origin == agentpakke.DeclarationPath {
+		held = "this repo declares"
+		clear = "edit the " + bold("source") + " in " + bold(agentpakke.DeclarationPath)
+	}
 	return fmt.Errorf(
-		"the %s scope was installed from %s, but your configured source is %s.\n"+
+		"the %s scope was installed from %s, but %s %s.\n"+
 			"nav-pilot will not silently mix content from two agentpakker into one install.\n\n"+
 			"  Keep this scope on its current source:  %s\n"+
 			"  Switch this scope to the new source:    %s\n"+
-			"  Or clear the persisted source:          %s",
-		scope.Name, bold(state.SourceRepo), bold(configured),
+			"  Or clear the conflicting value:         %s",
+		scope.Name, bold(state.SourceRepo), held, bold(configured),
 		bold("nav-pilot install --source "+state.SourceRepo+" <name>"),
 		bold("nav-pilot install --source "+configured+" <name>"),
-		bold(`nav-pilot config set source ""`))
+		clear)
 }
 
 // adoptSyncSource is the sync-side half of B3. Sync already prefers the source
@@ -237,7 +245,7 @@ func guardScopeSource(scope *InstallScope, flagSource string) error {
 // nothing to adopt (explicit --source, no configured source, no install, or a
 // scope that already records one).
 func adoptSyncSource(scope *InstallScope, flagSource string) (string, error) {
-	configured, state, err := crossSourceCheck(scope, flagSource)
+	configured, state, _, err := crossSourceCheck(scope, flagSource)
 	if err != nil || state == nil || state.SourceRepo != "" {
 		return "", err
 	}
@@ -271,9 +279,11 @@ func recordAdoptedSource(scope *InstallScope, sourceRepo string) {
 // crossSourceCheck returns the configured source and the scope's state for the
 // B3 guards, or a nil state when there is nothing to guard: an explicit
 // --source, no persisted source, or no install in this scope.
-func crossSourceCheck(scope *InstallScope, flagSource string) (string, *StateFile, error) {
+// The third return says *where* the conflicting value lives, so a refusal can
+// tell the user which file to edit.
+func crossSourceCheck(scope *InstallScope, flagSource string) (string, *StateFile, string, error) {
 	if flagSource != "" {
-		return "", nil, nil
+		return "", nil, "", nil
 	}
 	// The repo's committed declaration outranks the machine-wide config key
 	// (see declaration.go for the full ladder), so the guard has to judge the
@@ -281,20 +291,21 @@ func crossSourceCheck(scope *InstallScope, flagSource string) (string, *StateFil
 	// Reading configuredSourceRepo() here instead would let a repo whose
 	// declaration names one agentpakke install over a scope recorded against
 	// another without a word — the exact mixing B3 exists to refuse.
-	configured := declaredSourceRepo(scope)
+	configured, origin := declaredSourceRepo(scope), agentpakke.DeclarationPath
 	if configured == "" {
 		var err error
+		origin = "config"
 		configured, err = configuredSourceRepo()
 		if err != nil || configured == "" {
-			return "", nil, err
+			return "", nil, "", err
 		}
 	}
 	state, err := readScopedState(scope)
 	if err != nil {
 		// A broken state file is the command's error to report, not the guard's.
-		return "", nil, nil //nolint:nilerr // deliberate: guard stays silent
+		return "", nil, "", nil //nolint:nilerr // deliberate: guard stays silent
 	}
-	return configured, state, nil
+	return configured, state, origin, nil
 }
 
 // sameSourceRepo compares two source values. Repo ids are case-insensitive on

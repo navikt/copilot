@@ -348,7 +348,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		} else {
 			fmt.Println(bold(fmt.Sprintf("Installing: %s", collection)))
 		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		printManifestContents(manifest)
 		fmt.Println()
@@ -414,7 +414,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	recordDeclaration(scope, src)
 
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
-		green("✓"), result.Installed, collection, stateVersion, src.SHA)
+		green("✓"), result.Installed, collection, stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	if scope.IsUser() {
 		fmt.Println(dim("Agents and skills are now available across all your repos."))
@@ -447,7 +447,7 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 		} else {
 			fmt.Println(bold(fmt.Sprintf("Installing %s: %s", itemType, name)))
 		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		fmt.Println()
 	}
@@ -494,11 +494,15 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 	return nil
 }
 
-func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
+// cmdList lists what a source ships. It takes the scope so it reads the same
+// declaration an install would: listing the default pakke's items in a repo
+// pinned elsewhere is how the unknown-item refusal ends up sending a user to
+// output that cannot contain the name they mistyped.
+func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
@@ -639,32 +643,33 @@ func collectAvailableItems(resolver *SourceResolver) map[string][]string {
 // cmdInstallInteractive handles `nav-pilot install` with no arguments in an interactive terminal.
 // Reuses the same scope picker and collection/item pickers as the root `nav-pilot` command.
 func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
-	fmt.Println(dim("Resolving source..."))
+	// The scope is settled before the source is resolved, because the repo's
+	// committed declaration is *part of* how the source is chosen: resolving
+	// first would install whatever the config key happened to name and then
+	// overwrite the declaration with it — for the one command, `nav-pilot
+	// install` with no arguments, the declaration exists to serve.
+	scope, err := ScopeUser()
+	if err != nil {
+		return err
+	}
+	if targetDir != "" {
+		// In a git repo: ask where to install
+		scope, err = promptInstallScopeFn(targetDir)
+		if err != nil {
+			return err
+		}
+		if scope == nil {
+			fmt.Println(dim("Cancelled."))
+			return errInstallCancelled
+		}
+	}
 
-	src, err := resolveSource(ref, sourceRepo)
+	fmt.Println(dim("Resolving source..."))
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
 	defer src.Cleanup()
-
-	if targetDir == "" {
-		// Not in a git repo — only user-home scope is possible
-		scope, scopeErr := ScopeUser()
-		if scopeErr != nil {
-			return scopeErr
-		}
-		return interactiveUserInstallFromSource(scope, src, sourceRepo)
-	}
-
-	// In a git repo: ask where to install
-	scope, err := promptInstallScopeFn(targetDir)
-	if err != nil {
-		return err
-	}
-	if scope == nil {
-		fmt.Println(dim("Cancelled."))
-		return errInstallCancelled
-	}
 
 	if scope.IsUser() {
 		return interactiveUserInstallFromSource(scope, src, sourceRepo)
@@ -684,7 +689,7 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
@@ -737,7 +742,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		} else {
 			fmt.Println(bold(fmt.Sprintf("Installing: all agents, skills & instructions (%d items)", total)))
 		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		fmt.Println()
 	}
@@ -989,7 +994,7 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 	fmt.Printf("  Collection:  %s\n", bold(state.Collection))
 	fmt.Printf("  Version:     %s\n", state.Version)
 	fmt.Printf("  Scope:       %s\n", scope.Name)
-	fmt.Printf("  Source:      %s\n", state.SourceSHA)
+	fmt.Printf("  Source:      %s\n", shortSHA(state.SourceSHA))
 	fmt.Printf("  Installed:   %s\n", state.InstalledAt)
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()

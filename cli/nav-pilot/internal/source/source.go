@@ -87,6 +87,16 @@ func ValidateSourceValue(v string) error {
 // CloneRemoteFn is overridable in tests.
 var CloneRemoteFn = cloneRemote
 
+// RemoteURLFn maps a source repo to the git URL it is fetched from. It is a
+// variable so tests can point the real clone path at a repository on disk and
+// exercise git for real; nothing else overrides it.
+var RemoteURLFn = func(sourceRepo string) string {
+	if sourceRepo == "" {
+		sourceRepo = DefaultRepo
+	}
+	return "https://github.com/" + sourceRepo + ".git"
+}
+
 func (s *Source) Cleanup() {
 	if s.TempDir != "" {
 		os.RemoveAll(s.TempDir)
@@ -189,10 +199,7 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		return nil, fmt.Errorf("creating temp dir: %w", err)
 	}
 
-	repoURL := "https://github.com/" + DefaultRepo + ".git"
-	if sourceRepo != "" {
-		repoURL = "https://github.com/" + sourceRepo + ".git"
-	}
+	repoURL := RemoteURLFn(sourceRepo)
 
 	label := DefaultRepo
 	if sourceRepo != "" {
@@ -220,18 +227,8 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		}
 	}()
 
-	args := []string{"-c", "advice.detachedHead=false", "clone", "--depth", "1", "--quiet"}
-	if ref != "" {
-		args = append(args, "--branch", ref)
-	}
-	args = append(args, repoURL, tmpDir)
-
-	cmd := exec.Command("git", args...)
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	// Suppress stderr during clone so it doesn't overwrite the spinner unless there's an error
-	err = cmd.Run()
+	err = fetchRevision(tmpDir, repoURL, ref, &stderr)
 
 	close(done)
 	fmt.Fprintf(os.Stderr, "\r\033[K")
@@ -261,8 +258,46 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	return &Source{Dir: tmpDir, TempDir: tmpDir, SHA: sha, Repo: repo}, nil
 }
 
+// fetchRevision materializes one revision of repoURL into dir.
+//
+// It is a fetch rather than a `git clone --branch <ref>`, because --branch
+// takes a branch or tag name and never a commit SHA — which made the pinned
+// revision in a repo's declaration impossible to install back. Fetching the ref
+// directly and checking out FETCH_HEAD resolves all three of branch, tag and
+// full commit SHA through one path, and keeps the shallow-clone cheapness.
+//
+// An abbreviated SHA is not fetchable: git wants a full object id in a fetch
+// request. That is why [getGitSHA] records all forty characters.
+func fetchRevision(dir, repoURL, ref string, stderr *bytes.Buffer) error {
+	// An empty ref means the remote's default branch, which is what HEAD names.
+	if ref == "" {
+		ref = "HEAD"
+	}
+	steps := [][]string{
+		{"init", "--quiet", "-b", "main"},
+		{"remote", "add", "origin", repoURL},
+		{"fetch", "--depth", "1", "--quiet", "origin", ref},
+		{"-c", "advice.detachedHead=false", "checkout", "--quiet", "FETCH_HEAD"},
+	}
+	for _, args := range steps {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+		// Suppressed during the fetch so it does not overwrite the spinner;
+		// the caller prints it when something actually failed.
+		cmd.Stderr = stderr
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// getGitSHA reports the full commit id of a checkout. Full, not abbreviated:
+// this value is written to a repo's declaration as a pin, and git can only
+// fetch a commit named at full length.
 func getGitSHA(dir string) string {
-	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	cmd := exec.Command("git", "rev-parse", "HEAD")
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

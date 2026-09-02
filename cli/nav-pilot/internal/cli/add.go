@@ -60,7 +60,7 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 		} else {
 			fmt.Println(bold(fmt.Sprintf("Adding %s: %s", itemType, name)))
 		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		fmt.Println()
 	}

@@ -210,7 +210,7 @@ func TestListShowsPayloadClientsItCannotLaunch(t *testing.T) {
 	stubResolveSource(t, src)
 
 	var err error
-	out := captureStdoutFor(t, func() { err = cmdList("", "", false, false) })
+	out := captureStdoutFor(t, func() { err = cmdList(nil, "", "", false, false) })
 	if err != nil {
 		t.Fatalf("cmdList over a Tier 2 agentpakke = %v", err)
 	}

@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // FileHash hashes a file by its raw bytes (truncated to 16 hex chars).
@@ -140,52 +142,11 @@ func CopyFile(src, dst, boundary string) error {
 }
 
 // CheckSymlink detects symlinks in the path chain between path and boundary.
-// Walks up from the file's parent directory, checking each component with Lstat.
-// Stops at boundary (the trusted root) to avoid false positives from system
-// symlinks like /var → /private/var on macOS.
-//
-// Preconditions: boundary must be a non-empty absolute path. path must be
-// lexically under boundary (verified internally).
+// The implementation lives in internal/domain so packages below this one — the
+// agentpakke declaration writer among them — can reach the same guard without
+// importing this package.
 func CheckSymlink(path, boundary string) error {
-	if boundary == "" || !filepath.IsAbs(boundary) {
-		return fmt.Errorf("checkSymlink: boundary must be a non-empty absolute path, got %q", boundary)
-	}
-
-	cleanPath := filepath.Clean(path)
-	cleanBoundary := filepath.Clean(boundary)
-
-	// Verify path is lexically under (or equal to) boundary.
-	rel, err := filepath.Rel(cleanBoundary, cleanPath)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("path %q is not under boundary %q", path, boundary)
-	}
-
-	// Check the file itself if it exists
-	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("refusing to overwrite symlink: %s", path)
-	}
-
-	// If path IS boundary, no intermediate directories to check.
-	if cleanPath == cleanBoundary {
-		return nil
-	}
-
-	// Walk from parent directory up to (but not including) boundary.
-	dir := filepath.Clean(filepath.Dir(path))
-	for dir != cleanBoundary {
-		info, err := os.Lstat(dir)
-		if err != nil {
-			// Directory doesn't exist yet; MkdirAll will create it.
-			dir = filepath.Dir(dir)
-			continue
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			target, _ := os.Readlink(dir)
-			return fmt.Errorf("refusing to write through symlinked directory: %s -> %s", dir, target)
-		}
-		dir = filepath.Dir(dir)
-	}
-	return nil
+	return domain.CheckSymlink(path, boundary)
 }
 
 // CopyDir copies a directory recursively, creating it fresh (removes stale files).
