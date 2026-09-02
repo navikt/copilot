@@ -40,12 +40,12 @@ import (
 const envDownloadGB = 1
 
 func alphaUsage() {
-	fmt.Fprint(os.Stderr, `nav-pilot alpha — features that are not supported yet
+	fmt.Fprint(os.Stderr, `nav-pilot alpha: features that are not supported yet
 
 Usage:
   nav-pilot alpha local <command>
 
-Local inference — run a model on this machine instead of sending prompts to a
+Local inference. Run a model on this machine instead of sending prompts to a
 hosted one. Off until you run init, and invisible everywhere until then.
 
   init      Set it all up: environment, weights, memory limit, and a running server
@@ -141,7 +141,7 @@ func localModel(m *local.Manifest) (local.Model, error) {
 	}
 	if entry, ok := local.Chosen(m); ok {
 		if configured != "" && entry.Model != configured {
-			fmt.Fprintf(os.Stderr, "%s local_model is %s, which this manifest does not offer — using the default %s instead.\n",
+			fmt.Fprintf(os.Stderr, "%s local_model is %s, which this manifest does not offer. Using the default %s instead.\n",
 				yellow("⚠"), bold(configured), bold(entry.Model))
 		}
 		return entry, nil
@@ -175,7 +175,7 @@ func cmdLocalInit() error {
 		return err
 	}
 
-	fmt.Printf("%s  %s\n\n", bold("nav-pilot alpha local init"), dim("(alpha — unsupported)"))
+	fmt.Printf("%s  %s\n\n", bold("nav-pilot alpha local init"), dim("(alpha, unsupported)"))
 	fmt.Printf("  Model    %s\n", bold(model.Name))
 	fmt.Printf("           %s\n", dim(model.Model))
 	if model.Role != "" {
@@ -193,7 +193,7 @@ func cmdLocalInit() error {
 	}
 	switch {
 	case present && local.Installed():
-		fmt.Printf("\n  %s Environment and weights are already here — nothing to download.\n", green("✓"))
+		fmt.Printf("\n  %s Environment and weights are already here. Nothing to download.\n", green("✓"))
 		download = 0
 	case present:
 		fmt.Printf("\n  %s Weights are already here. Download: about %d GB (the Python environment).\n",
@@ -307,7 +307,7 @@ func cmdLocalInit() error {
 func confirmDownload(gb int, ask func() (bool, error)) error {
 	proceed, err := ask()
 	if err != nil || !proceed {
-		return fmt.Errorf("cancelled — the %d GB was not downloaded and local inference was not enabled", gb)
+		return fmt.Errorf("cancelled. The %d GB was not downloaded and local inference was not enabled", gb)
 	}
 	return nil
 }
@@ -357,7 +357,7 @@ func cmdLocalStart() error {
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 	if !local.Installed() {
-		return fmt.Errorf("the local-inference environment is not provisioned — run %s first", bold("nav-pilot alpha local init"))
+		return fmt.Errorf("the local-inference environment is not provisioned. Run %s first", bold("nav-pilot alpha local init"))
 	}
 	m, err := activeManifest()
 	if err != nil {
@@ -491,7 +491,7 @@ func startSummary(model local.Model, serverURL string, pid int, wired local.Wire
 	fmt.Fprintf(&b, "\n%s %s is ready after %s.\n", green("✓"), bold(model.Name), took.Round(time.Second))
 	fmt.Fprintf(&b, "  Serving  %s (pid %d)\n", serverURL, pid)
 	fmt.Fprintf(&b, "  Guard    %s\n", dim(wrapIndent(fmt.Sprintf(
-		"started by the launch below, not by this command: it ends a turn after %d identical tool calls in a row, and a client pointed straight at the address above goes unguarded",
+		"started by the launch below, not by this command. It ends a turn after %d identical tool calls in a row, and a client pointed straight at the address above goes unguarded",
 		local.LoopGuardRepeat()), "           ", 78)))
 	fmt.Fprintf(&b, "  Wired    %d GB required, %d GB set\n\n", wired.RequiredGB, wired.CurrentGB)
 	fmt.Fprintf(&b, "  Launch:  %s\n", bold("nav-pilot --client opencode --model "+model.Model))
@@ -534,7 +534,7 @@ func cmdLocalStop() error {
 
 func cmdLocalStatus() error {
 	ctx := context.Background()
-	fmt.Printf("%s  %s\n\n", bold("nav-pilot alpha local status"), dim("(alpha — unsupported)"))
+	fmt.Printf("%s  %s\n\n", bold("nav-pilot alpha local status"), dim("(alpha, unsupported)"))
 
 	cfg, _ := readConfig()
 	enabled := cfg != nil && cfg.LocalEnabled != nil && *cfg.LocalEnabled
@@ -557,7 +557,7 @@ func cmdLocalStatus() error {
 		defer printLocalStats(stats)
 	}
 	fmt.Printf("  Model        %s\n", bold(st.Model))
-	fmt.Printf("  Server       %s %s\n", healthColour(health), dim("— "+healthMeaning(health)))
+	fmt.Printf("  Server       %s, %s\n", healthColour(health), dim(healthMeaning(health)))
 	fmt.Printf("  Process      pid %d, up %s, listening on %s\n",
 		st.PID, timeNow().Sub(st.Started).Round(time.Second), local.ServerURL())
 	if rss := local.ResidentMemoryMB(ctx, st.PID); rss > 0 {
@@ -582,7 +582,7 @@ func cmdLocalStatus() error {
 	if s := srv.Status(); s.ZeroTokenReplies > 0 {
 		// Counted because it climbs before the signal death, so it is worth
 		// acting on before the crash rather than after.
-		fmt.Printf("  Degraded     %d empty completions so far — restart before it dies mid-request\n", s.ZeroTokenReplies)
+		fmt.Printf("  Degraded     %d empty completions so far. Restart before it dies mid-request.\n", s.ZeroTokenReplies)
 	}
 	fmt.Println()
 	return nil
@@ -592,14 +592,14 @@ func installedLabel() string {
 	if local.Installed() {
 		return green("provisioned")
 	}
-	return dim("not provisioned — run 'nav-pilot alpha local init'")
+	return dim("not provisioned. Run 'nav-pilot alpha local init'")
 }
 
 func enabledLabel(on bool) string {
 	if on {
 		return green("enabled")
 	}
-	return dim("off — local models are hidden and never launched")
+	return dim("off. Local models are hidden and never launched")
 }
 
 func healthColour(h local.Health) string {
@@ -628,7 +628,7 @@ func healthMeaning(h local.Health) string {
 		// state where the developer has nothing else to go on, and a crash
 		// report that quotes only "the process is gone" is a report nobody can
 		// act on.
-		return "the process is gone; start it again — what it printed is in " + local.LogPath()
+		return "the process is gone; start it again. What it printed is in " + local.LogPath()
 	case local.HealthHung:
 		return "alive and accepting connections but not answering; it will not recover, restart it"
 	}
@@ -645,7 +645,7 @@ func healthMeaning(h local.Health) string {
 // so this was only ever a naming problem, and the fix is the name.
 func cmdLocalOn() error {
 	if !local.Installed() {
-		return fmt.Errorf("local inference is not provisioned on this machine — run %s first",
+		return fmt.Errorf("local inference is not provisioned on this machine. Run %s first",
 			bold("nav-pilot alpha local init"))
 	}
 	if _, err := writeConfigKey("local_enabled", "true"); err != nil {
@@ -676,7 +676,7 @@ func cmdLocalOff() error {
 			if _, err := writeConfigKey("model", "auto"); err != nil {
 				return err
 			}
-			fmt.Printf("%s model was %s, which only exists locally — set back to %s.\n",
+			fmt.Printf("%s model was %s, which only exists locally. Set back to %s.\n",
 				green("✓"), *cfg.Model, bold("auto"))
 		}
 	}
@@ -704,7 +704,7 @@ func cmdLocalOff() error {
 	}
 
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
-		fmt.Printf("%s The server is still running (pid %d) — %s to free the memory.\n",
+		fmt.Printf("%s The server is still running (pid %d). Run %s to free the memory.\n",
 			yellow("⚠"), st.PID, bold("nav-pilot alpha local stop"))
 	}
 	fmt.Printf("%s Weights are left on disk. %s brings it back without downloading them again.\n\n",
@@ -743,7 +743,7 @@ func applyLocalConfig() {
 		// Silence there sends a local model id down the hosted path, where it
 		// fails with an error about something else entirely.
 		if r.LocalEnabled {
-			fmt.Fprintf(os.Stderr, "%s Local dispatch is on but the environment is not provisioned to the versions this nav-pilot pins — local models are hidden and launches go hosted. Run %s.\n",
+			fmt.Fprintf(os.Stderr, "%s Local dispatch is on but the environment is not provisioned to the versions this nav-pilot pins. Local models are hidden and launches go hosted. Run %s.\n",
 				yellow("⚠"), bold("nav-pilot alpha local init"))
 		}
 		return
@@ -795,7 +795,7 @@ func cmdLocalPurge(args []string) error {
 	}
 	items := local.Removables(model)
 	if len(items) == 0 {
-		fmt.Printf("%s Nothing to remove: local inference is not provisioned on this machine.\n", dim("ℹ"))
+		fmt.Printf("%s Nothing to remove. Local inference is not provisioned on this machine.\n", dim("ℹ"))
 		return nil
 	}
 
@@ -855,8 +855,8 @@ func printLocalStats(s local.Stats) {
 	}
 	fmt.Println()
 	if s.TokensOut > 0 || s.TokensIn > 0 {
-		fmt.Printf("  Tokens       %s in, %s out %s\n",
-			thousands(s.TokensIn), thousands(s.TokensOut), dim("— none of them billed"))
+		fmt.Printf("  Tokens       %s in, %s out, %s\n",
+			thousands(s.TokensIn), thousands(s.TokensOut), dim("none of them billed"))
 	}
 	if s.Seconds > 0 {
 		fmt.Printf("  Time         %s\n", dim(compactDuration(s.Seconds)))

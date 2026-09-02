@@ -490,7 +490,7 @@ func verifyUVDownload(path, asset string) error {
 	want, ok := uvSHA256[asset]
 	if !ok {
 		return fmt.Errorf(
-			"no pinned sha256 for uv asset %s at version %s, so the download cannot be verified — refusing to unpack and run it",
+			"no pinned sha256 for uv asset %s at version %s, so the download cannot be verified. Refusing to unpack and run it",
 			asset, uvVersion)
 	}
 	f, err := os.Open(path)
@@ -504,7 +504,7 @@ func verifyUVDownload(path, asset string) error {
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); got != want {
 		return fmt.Errorf(
-			"the uv %s download for %s does not match its pinned checksum — refusing to unpack and run it.\n\n  want %s\n  got  %s",
+			"the uv %s download for %s does not match its pinned checksum. Refusing to unpack and run it.\n\n  want %s\n  got  %s",
 			uvVersion, asset, want, got)
 	}
 	return nil
@@ -564,7 +564,7 @@ func ensureVenv(ctx context.Context) error {
 		return nil
 	case found != "":
 		return fmt.Errorf(
-			"the local-inference virtual environment at %s runs Python %s, but mlx only publishes macOS arm64 wheels for cp310 to cp312 and its source build fails, so it must be Python %s.\n\n  Remove it and run the command again: %s",
+			"the local-inference virtual environment at %s runs Python %s, but it must be Python %s. mlx only publishes macOS arm64 wheels for cp310 to cp312, and its source build fails.\n\n  Remove it and run the command again:\n\n    %s",
 			venvPath(), found, pythonVersion, domain.Bold("rm -rf "+venvPath()))
 	}
 	out, err := runCommand(ctx, uvPath(), []string{"venv", "--python", pythonVersion, venvPath()}, nil)
@@ -1048,7 +1048,7 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 	if portInUse(port) {
 		return fmt.Errorf(
 			"127.0.0.1:%d is in use, and nav-pilot did not start what is listening there%s.\n\n"+
-				"  Refusing to start: a server already on this port answers the readiness probe, so nav-pilot would report a model it did not launch and cannot vouch for.\n\n"+
+				"  Refusing to start. A server already on this port answers the readiness probe, so nav-pilot would report a model it did not launch and cannot vouch for.\n\n"+
 				"  Stop it, then start again:\n\n    %s",
 			port, describeForeignServer(ctx, fmt.Sprintf("http://127.0.0.1:%d", port)),
 			domain.Bold(fmt.Sprintf("lsof -ti tcp:%d | xargs kill", port)))
@@ -1298,7 +1298,7 @@ func describeForeignServer(ctx context.Context, baseURL string) string {
 	if n := servedModelCount(ctx, baseURL); n > 0 {
 		return ""
 	}
-	return " — it does not answer /v1/models, so it is not an mlx-lm server at all"
+	return ", and it does not answer /v1/models, so it is not an mlx-lm server at all"
 }
 
 func describeExit(info exitInfo) string {
@@ -1402,7 +1402,7 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 
 	if w.RequiredGB+minFreeGB > w.MachineRAMGB {
 		return w, fmt.Errorf(
-			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else — below the %d GB the rest of the system needs.\n\n  Pick a smaller model: a cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled",
+			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else, below the %d GB the rest of the system needs.\n\n  Pick a smaller model. A cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled",
 			m.Model, w.RequiredGB, w.MachineRAMGB-w.RequiredGB, w.MachineRAMGB, minFreeGB)
 	}
 	return w, nil
