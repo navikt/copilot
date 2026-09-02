@@ -1774,8 +1774,10 @@ run_pass_code_review() {
   # the `record_soft` doc and the printed summary all say a soft check never moves
   # the exit code in either direction, and cr4 keeps that literally rather than
   # carving out an exception. The two unevaluable paths say "not evaluated:" in
-  # their detail so the distinction stays readable, and cr1-cr3 still carry CLI
-  # health on their own prompt, which is where a flaky CLI shows up first.
+  # their detail so the distinction stays readable, and cr1 and cr2 still carry CLI
+  # health on their own prompt, which is where a flaky CLI shows up first. Not
+  # cr3 any more: it is soft as of this commit, for the reason recorded above
+  # RE_CR_WHY.
   if selected cr4; then
     DESC_CR4="Next.js review routes on to the accessibility/Aksel specialist"
     TCR4="$(tx cr-tsx)"
