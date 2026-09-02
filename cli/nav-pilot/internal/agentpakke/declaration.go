@@ -171,8 +171,8 @@ func (d *Declaration) validate() error {
 	// exists and you have network access", which blames the wrong thing: the
 	// ref exists, it is just too short to ask for (#607).
 	if sha := strings.TrimSpace(d.SHA); sha != "" && !isFullSHA(sha) {
-		return fmt.Errorf("%s pins sha %q, which is not a full 40-character commit SHA; git refuses an abbreviated object id in a fetch request, so that revision can never be installed — write the whole SHA (git rev-parse HEAD)",
-			DeclarationPath, sha)
+		return fmt.Errorf("%s pins sha %q, which is not a full 40-character commit SHA; git refuses an abbreviated object id in a fetch request, so that revision can never be installed — write the whole SHA from the source repo, e.g. `git ls-remote https://github.com/%s`",
+			DeclarationPath, sha, strings.TrimSpace(d.Source))
 	}
 	names := make([]string, 0, len(d.Items))
 	for name := range d.Items {
@@ -216,6 +216,14 @@ func isDeclaredItemType(t string) bool {
 // struct field order is fixed, and nothing dated goes in — so a rewrite that
 // changes only the SHA produces exactly a one-line diff.
 func WriteDeclaration(root string, d *Declaration) error {
+	// Validate on the way out as well as in. The loader is fail-closed, so a
+	// file nav-pilot writes but cannot read back locks the repo out of every
+	// command with no way to repair it (#614). getGitSHA returns the literal
+	// "unknown" when rev-parse fails on a temp clone, which is exactly such a
+	// value: seven non-hex characters.
+	if err := d.validate(); err != nil {
+		return err
+	}
 	path := DeclarationFilePath(root)
 	if err := domain.CheckSymlink(path, root); err != nil {
 		return err

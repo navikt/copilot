@@ -493,3 +493,26 @@ func TestSyncDoesNotRepointDeclaration(t *testing.T) {
 		t.Errorf("sync from another source touched the declaration: %+v", d)
 	}
 }
+
+// TestSyncSaysSoWhenTheDeclarationCannotBeRead: removing the #605 repair made a
+// bad pin unreadable rather than rewritten, and both pin paths returned on that
+// error without a word. Silence is the wrong failure here — the scheduled
+// workflow keeps opening file-update PRs in the team's repo every week while
+// the lock file rots, and nothing in the run log says why.
+func TestSyncSaysSoWhenTheDeclarationCannotBeRead(t *testing.T) {
+	isolatedConfig(t)
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/copilot","sha":"9f1c0a7"}`)
+
+	src := &Source{Dir: t.TempDir(), SHA: strings.Repeat("a", 40), Repo: defaultSourceRepo}
+
+	err := captureStderrFor(t, func() { bumpDeclarationSHA(scope, src) })
+	if !strings.Contains(err, agentpakke.DeclarationPath) {
+		t.Errorf("bumpDeclarationSHA skipped an unreadable declaration without a word:\n%s", err)
+	}
+
+	err = captureStderrFor(t, func() { _ = pendingPinBump(scope, src) })
+	if !strings.Contains(err, agentpakke.DeclarationPath) {
+		t.Errorf("pendingPinBump skipped an unreadable declaration without a word:\n%s", err)
+	}
+}

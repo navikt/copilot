@@ -1433,6 +1433,41 @@ func captureStdoutFor(t *testing.T, fn func()) string {
 	return out
 }
 
+// captureStderrFor is captureStdoutFor for the other stream: warnings that must
+// not be silent are written there, so a test that asserts one has to read it.
+func captureStderrFor(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+
+	done := make(chan string, 1)
+	go func() {
+		var sb strings.Builder
+		buf := make([]byte, 4096)
+		for {
+			n, err := r.Read(buf)
+			if n > 0 {
+				sb.Write(buf[:n])
+			}
+			if err != nil {
+				break
+			}
+		}
+		done <- sb.String()
+	}()
+
+	fn()
+	w.Close()
+	os.Stderr = orig
+	out := <-done
+	r.Close()
+	return out
+}
+
 // TestFinishInstall_SingleArtifactDoesNotPersistSource: pulling one artifact
 // out of another agentpakke with `install <name> --type <t> --source X` does
 // not make X the scope's agentpakke. Persisting it would refuse every later

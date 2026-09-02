@@ -229,7 +229,17 @@ func recordDeclaration(scope *InstallScope, src *Source) {
 // agentpakke, which is an install too.
 func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 	d, err := scopeDeclaration(scope)
-	if err != nil || d == nil || src.SHA == "" || d.SHA == src.SHA {
+	if err != nil {
+		// Say so. A declaration nav-pilot cannot read is one it stops
+		// maintaining, and silence there is worse than the lockout it
+		// replaced: the scheduled workflow keeps opening file-update PRs in
+		// the team's repo while the pin rots, with nothing in the log saying
+		// why.
+		fmt.Fprintf(os.Stderr, "%s Could not read %s, so the pinned revision was left alone: %v\n",
+			yellow("⚠"), agentpakke.DeclarationPath, err)
+		return
+	}
+	if d == nil || src.SHA == "" || d.SHA == src.SHA {
 		return
 	}
 	if !sameSourceRepo(d.Source, sourceLabelFor(src)) {
@@ -269,7 +279,12 @@ func pendingPinBump(scope *InstallScope, src *Source) *syncPinBump {
 		return nil
 	}
 	d, err := scopeDeclaration(scope)
-	if err != nil || d == nil || d.SHA == "" || d.SHA == src.SHA {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not read %s, so this run cannot tell whether the pin is current: %v\n",
+			yellow("⚠"), agentpakke.DeclarationPath, err)
+		return nil
+	}
+	if d == nil || d.SHA == "" || d.SHA == src.SHA {
 		return nil
 	}
 	if !sameSourceRepo(d.Source, sourceLabelFor(src)) {
