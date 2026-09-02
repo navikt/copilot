@@ -516,10 +516,18 @@ func knownJSONKeys(v any) map[string]bool {
 	t := reflect.TypeOf(v)
 	keys := make(map[string]bool, t.NumField())
 	for i := range t.NumField() {
-		name, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
-		if name != "" && name != "-" {
-			keys[name] = true
+		f := t.Field(i)
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "-" {
+			continue
 		}
+		// An empty tag name is not "no key": encoding/json still matches the
+		// field by its Go name, so leaving it out here would file a known
+		// field under the unknown keys and duplicate it on the way out.
+		if name == "" {
+			name = f.Name
+		}
+		keys[name] = true
 	}
 	return keys
 }
@@ -559,6 +567,33 @@ func appendUnknownKeys(b []byte, unknown map[string]json.RawMessage) []byte {
 		out = append(out, unknown[k]...)
 	}
 	return append(out, '}')
+}
+
+// PreserveUnknownFrom carries the unknown keys of the state being replaced over
+// to s: the top-level ones, and the per-file ones for every path still tracked.
+//
+// The read-modify-write paths (sync, add, ignore) get this for free from the
+// struct copy. Every path that builds a fresh StateFile over an existing one —
+// install, pinRevision, the opencode sync — has to ask for it, or it drops
+// exactly the keys #588 is about.
+func (s *StateFile) PreserveUnknownFrom(prior *StateFile) {
+	if s == nil || prior == nil {
+		return
+	}
+	if s.Unknown == nil {
+		s.Unknown = prior.Unknown
+	}
+	perFile := make(map[string]map[string]json.RawMessage, len(prior.Files))
+	for _, f := range prior.Files {
+		if len(f.Unknown) > 0 {
+			perFile[f.Path] = f.Unknown
+		}
+	}
+	for i, f := range s.Files {
+		if f.Unknown == nil {
+			s.Files[i].Unknown = perFile[f.Path]
+		}
+	}
 }
 
 // FileStatusIgnored marks a file as intentionally excluded by the user.

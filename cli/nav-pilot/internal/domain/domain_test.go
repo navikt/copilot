@@ -444,7 +444,7 @@ type legacyFile struct {
 	Path    string `json:"path"`
 	Hash    string `json:"hash"`
 	Status  string `json:"status,omitempty"`
-	Unknown map[string]json.RawMessage
+	Unknown map[string]json.RawMessage `json:"-"`
 }
 
 func (f *legacyFile) UnmarshalJSON(b []byte) error {

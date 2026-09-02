@@ -479,6 +479,7 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
+	state.PreserveUnknownFrom(existing) // #588: the pin replaces the state, not the keys it carried
 	if err := writeScopedState(scope, state); err != nil {
 		return "", fmt.Errorf("writing state: %w", err)
 	}

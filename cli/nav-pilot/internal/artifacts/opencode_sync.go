@@ -325,6 +325,9 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		InstalledAt: time.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       files,
 	}
+	// Entries carried over untouched above keep their own unknown keys; the
+	// ones this sync rebuilt do not, and neither does the top level (#588).
+	newState.PreserveUnknownFrom(existingState)
 	if wErr := WriteOpenCodeState(outputDir, newState); wErr != nil {
 		fmt.Fprintf(os.Stderr, "%s could not write opencode state: %v\n", domain.Yellow("⚠"), wErr)
 	}
