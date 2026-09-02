@@ -203,5 +203,26 @@ func WriteDeclaration(root string, d *Declaration) error {
 	if err != nil {
 		return fmt.Errorf("encoding %s: %w", DeclarationPath, err)
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	// Temp file plus rename, the same way the state file beside it is written.
+	// A truncating write that dies halfway — Ctrl-C, a full disk — leaves a
+	// half-written declaration, and LoadDeclaration is deliberately fail-closed:
+	// install, add, export, list and sync would all then refuse the repo until
+	// someone hand-repaired the file.
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".agentpakke-lock-*")
+	if err != nil {
+		return fmt.Errorf("writing %s: %w", DeclarationPath, err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(append(data, '\n')); err != nil {
+		tmp.Close()
+		return fmt.Errorf("writing %s: %w", DeclarationPath, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("writing %s: %w", DeclarationPath, err)
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", DeclarationPath, err)
+	}
+	return os.Rename(tmpPath, path)
 }

@@ -149,3 +149,57 @@ func TestContractVersionAdviceFitsTheDeclaration(t *testing.T) {
 		t.Errorf("the refusal does not say how to proceed: %v", err)
 	}
 }
+
+// TestWriteDeclarationIsAtomic: LoadDeclaration is fail-closed, so a half
+// written file would refuse the repo to install, add, export, list and sync
+// until someone repaired it by hand. A truncating write leaves exactly that on
+// a Ctrl-C or a full disk, which is why the state file beside it renames into
+// place too.
+func TestWriteDeclarationIsAtomic(t *testing.T) {
+	root := t.TempDir()
+	if err := WriteDeclaration(root, &Declaration{
+		ContractVersion: "1",
+		Source:          "navikt/grillmester",
+		SHA:             "0123456789012345678901234567890123456789",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Nothing may be left behind but the file itself: a rename that fell back
+	// to a copy would leave the temp file next to it.
+	entries, err := os.ReadDir(filepath.Join(root, ".nav-pilot"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if len(names) != 1 || names[0] != "agentpakke.lock.json" {
+		t.Errorf("directory holds %v, want only agentpakke.lock.json", names)
+	}
+
+	// And the write must replace, not truncate-then-fill: a reader that opens
+	// the path at any point sees either the old bytes or the new ones.
+	before, err := os.ReadFile(DeclarationFilePath(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteDeclaration(root, &Declaration{
+		ContractVersion: "1",
+		Source:          "navikt/grillmester",
+		SHA:             "9876543210987654321098765432109876543210",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(DeclarationFilePath(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) == string(after) {
+		t.Fatal("second write changed nothing; the test proves nothing")
+	}
+	if _, err := LoadDeclaration(root); err != nil {
+		t.Errorf("rewritten declaration does not load: %v", err)
+	}
+}

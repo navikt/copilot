@@ -678,3 +678,13 @@ func CheckSymlink(path, boundary string) error {
 	}
 	return nil
 }
+
+// ShortSHA is a commit SHA cut to display length. The full forty characters are
+// what a pin records, because git refuses an abbreviated object id in a fetch
+// request — but nothing readable wants to print all of them.
+func ShortSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
+}

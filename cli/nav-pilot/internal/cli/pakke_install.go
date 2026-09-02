@@ -537,7 +537,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 				"dry_run":    true,
 			})
 		}
-		fmt.Printf("%s Would install %s, pinned at %s.\n", dim("→"), bold(pakke.Name), src.SHA)
+		fmt.Printf("%s Would install %s, pinned at %s.\n", dim("→"), bold(pakke.Name), shortSHA(src.SHA))
 		return nil
 	}
 
@@ -556,7 +556,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 			"dry_run":    false,
 		})
 	}
-	fmt.Printf("%s Installed %s, pinned at %s.\n", green("✓"), bold(pakke.Name), src.SHA)
+	fmt.Printf("%s Installed %s, pinned at %s.\n", green("✓"), bold(pakke.Name), shortSHA(src.SHA))
 	fmt.Println()
 	fmt.Println(dim("It ships pre-built payloads rather than files, so nothing was written to ~/.copilot."))
 	fmt.Printf("%s %s %s\n", dim("Launches read the pinned revision;"), bold("nav-pilot sync"), dim("updates it."))
