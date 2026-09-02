@@ -97,6 +97,22 @@ var SupportedSchemaMajors = []string{"1"}
 // reports/alpha-status.md rather than implied by this list.
 var allowedPublishers = []string{"mlx-community", "lmstudio-community"}
 
+// allowedBackends lists the inference servers a manifest entry may ask for.
+//
+// The field has shipped on every entry since the schema was written, always
+// "mlx-lm", and until now nothing read it and nothing checked it. That is a
+// wider hole than the publisher list it sits beside: a publisher decides which
+// weights are downloaded, a backend decides **which binary nav-pilot starts**,
+// and the manifest is fetched over the network from a repository outside this
+// one.
+//
+// So it is an allow-list, and an entry naming anything else is refused rather
+// than defaulted. Adding a backend means shipping the code that knows how to
+// launch it, which is a nav-pilot release, not a manifest edit. An empty value
+// is accepted as mlx-lm: entries predate the field being meaningful, and
+// refusing them would turn a forward-compatible schema into a breaking one.
+var allowedBackends = []string{"mlx-lm"}
+
 // allowedParamKey is the other half of that boundary. A model's Params become
 // the server process's environment verbatim ([Server.Start]), and an
 // environment variable decides things the publisher allow-list cannot see:
@@ -258,6 +274,12 @@ func (m *Manifest) checkModels() error {
 				"local-model manifest entry %q names model %q, which is not published by an allowed publisher (%s); "+
 					"the manifest names weights this machine downloads and runs, so allowing another publisher is a nav-pilot code change, not a manifest change",
 				where, model.Model, strings.Join(allowedPublishers, ", "))
+		}
+		if model.Backend != "" && !slices.Contains(allowedBackends, model.Backend) {
+			return fmt.Errorf(
+				"local-model manifest entry %q asks for backend %q, which nav-pilot does not know how to start (allowed: %s); "+
+					"the backend decides which binary runs on this machine, so adding one is a nav-pilot code change, not a manifest change",
+				where, model.Backend, strings.Join(allowedBackends, ", "))
 		}
 		// Same boundary as the publisher above: the allow-list decides which
 		// weights run, the environment decides where they come from and what
