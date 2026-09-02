@@ -1,0 +1,22 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        nav-pilot
+# date:         2026-09-01
+# revision:     215a8807
+# client:       copilot
+# model:        kimi-k3
+# repeats:      5
+# instructions: 17 installed, 3 always-on
+# fixture:      4263008951
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max
+t1|5|194|158|222|11|10|11|33|26|38
+t2|5|2759|2355|3309|54|42|65|332|303|380
+t4a|5|2644|2017|7306|83|47|178|318|249|958
+t5|5|556|312|670|12|11|20|68|49|84
+t6|5|1771|849|2139|41|26|71|233|99|286
+t4b|2|2439|1232|3646|48|26|70|264|138|391
+t4c|2|1995|1540|2451|50|29|72|232|180|284
