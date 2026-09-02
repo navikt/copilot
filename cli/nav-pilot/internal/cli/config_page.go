@@ -4,28 +4,29 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/charmbracelet/huh"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
 
 // ─── Key listing (shared with config show) ───────────────────────────────────
 
-// configPageKeys lists the user-facing keys, in display order. Internal
-// bookkeeping keys (version, rtk_prompted_*) are deliberately left out.
-var configPageKeys = []string{
-	"client",
-	"source",
-	"model",
-	"mode",
-	"reasoning_effort",
-	"context_tier",
-	"allow_all_tools",
-	"ask_user",
-	"auto_launch",
-	"auto_update",
-	"log_level",
-	"otel_log_level",
+// configPageKeys lists the settings-page keys in display order: every key
+// definition not marked internal. Adding a key to configKeyDefs is enough —
+// a user-facing key cannot silently miss the page.
+var configPageKeys = userFacingPageKeys()
+
+func userFacingPageKeys() []string {
+	var keys []string
+	for _, kd := range configKeyDefs {
+		if !kd.internal {
+			keys = append(keys, kd.name)
+		}
+	}
+	return keys
 }
 
 // configKeyValue returns the effective value of a key as displayed, spelling
@@ -34,7 +35,28 @@ func configKeyValue(r ResolvedConfig, key string) string {
 	if key == "source" {
 		return effectiveSourceLabel(r)
 	}
+	if key == "model" {
+		return modelValueLabel(r)
+	}
 	return resolvedFieldStr(r, key)
+}
+
+// modelValueLabel renders the model as its curated label plus id when the
+// configured client knows the id, so the page shows "Claude Sonnet 5
+// (claude-sonnet-5)" instead of a bare id the user had to memorize.
+func modelValueLabel(r ResolvedConfig) string {
+	id := resolvedFieldStr(r, "model")
+	if id == "" {
+		return ""
+	}
+	if p, err := providerFor(r.Client); err == nil {
+		for _, m := range p.KnownModels() {
+			if m.ID == id {
+				return m.Label + " (" + id + ")"
+			}
+		}
+	}
+	return id
 }
 
 // configKeySource labels where a key's effective value comes from: "file" when
@@ -50,34 +72,34 @@ func configKeySource(cfg *Config, key string) string {
 	return "unset"
 }
 
-// configKeyInFile reports whether the config file sets the key. An empty source
-// counts as unset — it is the documented way to fall back to the default.
+// configKeyInFile reports whether the config file sets the key. It matches the
+// Config struct's toml tags, so a new key needs no case here and cannot drift
+// out of sync with the page. An empty source counts as unset — it is the
+// documented way to fall back to the default.
 func configKeyInFile(cfg *Config, key string) bool {
-	switch key {
-	case "client":
-		return cfg.Client != nil
-	case "source":
-		return cfg.Source != nil && strings.TrimSpace(*cfg.Source) != ""
-	case "model":
-		return cfg.Model != nil
-	case "mode":
-		return cfg.Mode != nil
-	case "reasoning_effort":
-		return cfg.ReasoningEffort != nil
-	case "context_tier":
-		return cfg.ContextTier != nil
-	case "allow_all_tools":
-		return cfg.AllowAllTools != nil
-	case "ask_user":
-		return cfg.AskUser != nil
-	case "auto_launch":
-		return cfg.AutoLaunch != nil
-	case "auto_update":
-		return cfg.AutoUpdate != nil
-	case "log_level":
-		return cfg.LogLevel != nil
-	case "otel_log_level":
-		return cfg.OtelLogLevel != nil
+	if cfg == nil {
+		return false
+	}
+	v := reflect.ValueOf(cfg).Elem()
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		tag, _, _ := strings.Cut(t.Field(i).Tag.Get("toml"), ",")
+		if tag != key {
+			continue
+		}
+		f := v.Field(i)
+		if f.Kind() == reflect.Pointer {
+			if f.IsNil() {
+				return false
+			}
+			if key == "source" {
+				if s, ok := f.Interface().(*string); ok {
+					return strings.TrimSpace(*s) != ""
+				}
+			}
+			return true
+		}
+		return !f.IsZero()
 	}
 	return false
 }
@@ -88,15 +110,6 @@ type configPageEntry struct {
 	Value       string // "" = unset
 	Source      string // file / default / unset
 	Description string
-}
-
-// label renders the entry as the select option text.
-func (e configPageEntry) label() string {
-	val := e.Value
-	if val == "" {
-		val = "(unset)"
-	}
-	return fmt.Sprintf("%s = %s  (%s)", e.Key, val, e.Source)
 }
 
 // buildConfigPageEntries lists the user-facing keys with their current value,
@@ -127,34 +140,25 @@ const (
 	configPageDone    = "\x00done"
 )
 
-// cpltPostureLabel renders the security-posture row the way the key rows read:
-// the current value first, and what it should be when it is not that already.
-func cpltPostureLabel(preset string) string {
-	switch {
-	case preset == "":
-		return "cplt security posture   unknown  (could not read it from cplt)"
-	case cpltRecommendStrict(preset):
-		return fmt.Sprintf("cplt security posture   %s  (recommended: %s)", preset, cpltRecommendedPreset)
-	default:
-		return fmt.Sprintf("cplt security posture   %s", preset)
-	}
-}
-
 // errConfigPageUnavailable reports that the settings page never started, e.g.
 // because there is no usable terminal. Callers fall back to their non-
 // interactive behaviour; every other error is a real failure worth surfacing.
 var errConfigPageUnavailable = errors.New("settings page unavailable")
 
-// cmdConfigPage runs the interactive settings page: pick a key, edit it, repeat.
-// It is what `nav-pilot config` with no subcommand does on a terminal.
+// cmdConfigPage runs the interactive settings page: navigate the list, edit a
+// key, repeat. It is what `nav-pilot config` with no subcommand does on a
+// terminal. The list itself is a Bubble Tea page (config_tui.go); editing a
+// key drops back to the huh prompts in editConfigKey, then the page reopens.
 func cmdConfigPage() error {
-	// The header waits for the first successful render: a page that cannot open
-	// a TTY must leave no trace before its caller falls back.
-	rendered := false
+	if !isInteractive() {
+		return fmt.Errorf("%w: no usable terminal", errConfigPageUnavailable)
+	}
 
 	// Reading the preset costs a cplt spawn, so it is read once per page and
 	// refreshed only when the user actually changes it — not on every redraw.
 	preset := cpltSandboxPreset()
+
+	fmt.Printf("%s %s\n\n", dim("Config file:"), configPath())
 
 	for {
 		cfg, err := readConfig()
@@ -164,47 +168,13 @@ func cmdConfigPage() error {
 		resolved := resolve(cfg, CLIOverrides{})
 		entries := buildConfigPageEntries(cfg, resolved)
 
-		descriptions := map[string]string{
-			configPageSandbox: "Runs the cplt sandbox wizard (requires cplt on your PATH).",
-			configPagePosture: "Sets cplt sandbox.preset = strict, which turns on gh_guard, git_guard and forced proxy in one key (requires cplt on your PATH).",
-			configPageDone:    "Leave the settings page.",
-		}
-		opts := make([]huh.Option[string], 0, len(entries)+3)
-		for _, e := range entries {
-			opts = append(opts, huh.NewOption(e.label(), e.Key))
-			descriptions[e.Key] = e.Description
-		}
-		opts = append(opts,
-			huh.NewOption("Configure cplt sandbox settings…", configPageSandbox),
-			huh.NewOption(cpltPostureLabel(preset), configPagePosture),
-			huh.NewOption("Done", configPageDone),
-		)
-
-		choice := entries[0].Key
-		err = huh.NewSelect[string]().
-			Title("nav-pilot settings").
-			Options(opts...).
-			DescriptionFunc(func() string { return descriptions[choice] }, &choice).
-			Value(&choice).
-			WithTheme(navTheme()).
-			Run()
+		choice, err := runConfigPageTUI(entries, preset)
 		if err != nil {
-			// Esc / Ctrl-C is a normal way to leave the page.
-			if errors.Is(err, huh.ErrUserAborted) {
-				return nil
-			}
-			if !rendered {
-				return fmt.Errorf("%w: %v", errConfigPageUnavailable, err)
-			}
-			return err
-		}
-		if !rendered {
-			rendered = true
-			fmt.Printf("%s %s\n\n", dim("Config file:"), configPath())
+			return fmt.Errorf("%w: %v", errConfigPageUnavailable, err)
 		}
 
 		switch choice {
-		case configPageDone:
+		case "", configPageDone:
 			return nil
 		case configPageSandbox:
 			// "cplt not on PATH" is a notice, not a reason to leave the page.
@@ -234,12 +204,25 @@ func editConfigKey(key string, r ResolvedConfig) error {
 	}
 	current := configKeyValue(r, key)
 
+	if key == "model" {
+		return editModelKey(r, resolvedFieldStr(r, "model"))
+	}
+
+	if key == "local_model" {
+		return editLocalModelKey(r.LocalModel)
+	}
+
 	value := current
 
 	var opts []huh.Option[string]
 	switch {
 	case kd.kind == keyKindBool:
 		opts = []huh.Option[string]{huh.NewOption("true", "true"), huh.NewOption("false", "false")}
+	case key == "client":
+		// Display names, not bare ids, so the picker reads like the setup wizard.
+		for _, p := range allProviders() {
+			opts = append(opts, huh.NewOption(p.DisplayName(), p.ID()))
+		}
 	case len(kd.allowed) > 0:
 		for _, a := range kd.allowed {
 			opts = append(opts, huh.NewOption(a, a))
@@ -264,7 +247,52 @@ func editConfigKey(key string, r ResolvedConfig) error {
 		return err
 	}
 
-	value = strings.TrimSpace(value)
+	return persistConfigValue(key, strings.TrimSpace(value))
+}
+
+// editModelKey prompts for the model using the configured client's curated
+// model list: the user picks a label instead of memorizing a model id.
+func editModelKey(r ResolvedConfig, current string) error {
+	kd := findKeyDef("model")
+	p, _ := providerFor(r.Client)
+	value, err := promptModel(p, "model", kd.description, current)
+	if err != nil {
+		if errors.Is(err, huh.ErrUserAborted) {
+			return nil
+		}
+		return err
+	}
+	return persistConfigValue("model", value)
+}
+
+// editLocalModelKey prompts for the served local model from the manifest's own
+// entries rather than free text: the ids are long enough that typing one from
+// memory is how you end up on the default without noticing. "(default)" clears
+// the key.
+func editLocalModelKey(current string) error {
+	kd := findKeyDef("local_model")
+	opts := []huh.Option[string]{huh.NewOption("(manifest default)", "")}
+	for _, m := range local.Active().Models {
+		label := m.Model
+		if m.Name != "" {
+			label = m.Name + " (" + m.Model + ")"
+		}
+		opts = append(opts, huh.NewOption(label, m.Model))
+	}
+	value := current
+	field := huh.NewSelect[string]().Title("local_model").Description(kd.description).Options(opts...).Value(&value)
+	if err := field.WithTheme(navTheme()).Run(); err != nil {
+		if errors.Is(err, huh.ErrUserAborted) {
+			return nil
+		}
+		return err
+	}
+	return persistConfigValue("local_model", strings.TrimSpace(value))
+}
+
+// persistConfigValue writes value for key, clearing the key when value is
+// blank so it falls back to its built-in default.
+func persistConfigValue(key, value string) error {
 	if value == "" {
 		if err := clearConfigKey(key); err != nil {
 			return err
@@ -278,6 +306,27 @@ func editConfigKey(key string, r ResolvedConfig) error {
 	}
 	fmt.Printf("%s %s = %s\n", green("✓"), key, tomlVal)
 	return nil
+}
+
+// wordWrap wraps s at width on word boundaries.
+func wordWrap(s string, width int) string {
+	var lines []string
+	for _, paragraph := range strings.Split(s, "\n") {
+		line := ""
+		for _, word := range strings.Fields(paragraph) {
+			switch {
+			case line == "":
+				line = word
+			case len(line)+1+len(word) <= width:
+				line += " " + word
+			default:
+				lines = append(lines, line)
+				line = word
+			}
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // clearConfigKey drops a key from the config file so it falls back to its

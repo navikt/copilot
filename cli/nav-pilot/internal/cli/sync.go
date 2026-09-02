@@ -17,6 +17,7 @@ type syncResult struct {
 	Errors    []string     `json:"errors,omitempty"`
 	Overrides []string     `json:"overrides,omitempty"`
 	Ignored   []string     `json:"ignored,omitempty"`
+	Foreign   []string     `json:"foreign,omitempty"`
 	Conflicts []string     `json:"conflicts,omitempty"`
 }
 
@@ -174,11 +175,23 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	var deletedPaths []string
 	var syncErrors []string
 	var ignoredPaths []string
+	var foreignPaths []string
 	for _, sf := range files {
 		// Check if local file exists; if missing, treat as intentional deletion
 		localFull := filepath.Join(scope.RootDir, sf.localPath)
 		if _, statErr := os.Stat(localFull); os.IsNotExist(statErr) {
 			ignoredPaths = append(ignoredPaths, sf.localPath)
+			continue
+		}
+
+		// A file from another agentpakke is not this source's to judge. It is
+		// absent here because it was never here, and reading that as "deleted
+		// upstream" is what removed files that `add --source` had just
+		// installed (#571). Such a file is updated by adding it again from its
+		// own source, which never has to be reachable from this run — being
+		// offline must not delete anything.
+		if sf.source != "" && !sameSourceRepo(sf.source, sourceLabelFor(src)) {
+			foreignPaths = append(foreignPaths, sf.localPath)
 			continue
 		}
 
@@ -217,6 +230,18 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		}
 	}
 
+	if !jsonOutput && len(foreignPaths) > 0 {
+		for _, p := range foreignPaths {
+			fmt.Printf("  %s %s (from another agentpakke — not synced from here)\n", dim("⊘"), p)
+		}
+		fmt.Println()
+	}
+
+	// Counts in the summary describe what this source was asked about. A file
+	// from another agentpakke was skipped above without being compared, so
+	// counting it as "up to date" claims a check that never happened.
+	checked := len(files) - len(foreignPaths)
+
 	result := syncResult{
 		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && (apply || len(conflictPaths) == 0),
 		Source:    src.SHA,
@@ -225,6 +250,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		Errors:    syncErrors,
 		Overrides: overriddenPaths,
 		Ignored:   ignoredPaths,
+		Foreign:   foreignPaths,
 		Conflicts: conflictPaths,
 	}
 	tMode := telemetryMode()
@@ -250,7 +276,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 
 	if result.UpToDate {
 		fmt.Printf("%s All %d files up to date (source: %s)\n",
-			green("✓"), len(files), src.SHA)
+			green("✓"), checked, src.SHA)
 		// Bump state version so staleness check won't re-trigger for this release
 		if src.Version != "" {
 			if state, err := readScopedState(scope); err == nil && state != nil {
@@ -270,7 +296,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// Report updates
 	if len(updates) > 0 {
 		fmt.Printf("%s %d of %d files have updates available (source: %s)\n\n",
-			yellow("⚠"), len(updates), len(files), src.SHA)
+			yellow("⚠"), len(updates), checked, src.SHA)
 		for _, u := range updates {
 			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
 		}
@@ -632,6 +658,7 @@ type syncFile struct {
 	localPath  string // relative path in target repo (e.g. ".github/agents/nais.agent.md")
 	sourcePath string // relative path in source repo (same unless remapped)
 	isDir      bool
+	source     string // agentpakke this file came from; empty means the scope's own
 }
 
 // resolveSyncFiles determines which files to sync.
@@ -658,6 +685,7 @@ func resolveSyncFiles(scope *InstallScope, resolver *SourceResolver, includeConf
 				localPath:  f.Path,
 				sourcePath: sp,
 				isDir:      strings.HasSuffix(f.Path, "/"),
+				source:     f.Source,
 			})
 		}
 		return files, state.Collection, nil

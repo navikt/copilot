@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -154,14 +155,22 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 // actually succeeded (and validated, which resolveSource does). A cancelled
 // prompt installed nothing, so it persists nothing — and it is still a clean
 // exit, not an error the user has to read.
-func finishInstall(err error, flagSource string, dryRun bool) error {
+//
+// Only a scope-defining install persists. `install <name> --type <t> --source X`
+// pulls one artifact out of another agentpakke; it does not make X the scope's
+// agentpakke, and writing it to the config would refuse every later plain add
+// (B3) and let sync adopt X for a pre-tracking scope. The file is stamped with
+// its origin instead, which is what keeps it current.
+func finishInstall(err error, flagSource string, dryRun, scopeDefining bool) error {
 	if errors.Is(err, errInstallCancelled) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	persistInstalledSource(flagSource, dryRun)
+	if scopeDefining {
+		persistInstalledSource(flagSource, dryRun)
+	}
 	return nil
 }
 
@@ -254,7 +263,7 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	}
 
 	if len(matchedKinds) == 1 {
-		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, dryRun, force, jsonOutput)
+		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
 	}
 
 	// Not found — suggest closest match
@@ -399,7 +408,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 
 // cmdAddFromSource installs a single artifact from an already-resolved source.
 // It preserves the à-la-carte state semantics from cmdAdd.
-func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
+func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, explicitSource string, dryRun, force bool, jsonOutput bool) error {
 	if !scope.SupportsType(itemType) {
 		return fmt.Errorf("type %q is not supported in user scope. Only agents, skills, and instructions can be installed to ~/.copilot", itemType)
 	}
@@ -452,52 +461,13 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, d
 		return nil
 	}
 
-	// Append to state file if one exists, otherwise create a minimal one
-	state, err := readScopedState(scope)
+	foreign, err := recordAddedFiles(scope, src, result, explicitSource)
 	if err != nil {
-		return fmt.Errorf("reading existing state: %w", err)
-	}
-	if state == nil {
-		state = &StateFile{
-			Collection:  "(à la carte)",
-			Scope:       scope.Name,
-			Version:     src.Version,
-			SourceRepo:  src.Repo,
-			SourceSHA:   src.SHA,
-			InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
-		}
-	}
-	state.SourceSHA = src.SHA
-	if state.SourceRepo == "" {
-		state.SourceRepo = src.Repo
-	}
-	if state.Version == "" {
-		state.Version = src.Version
-	}
-
-	// Merge new files into state, avoiding duplicates
-	existing := make(map[string]bool)
-	for _, f := range state.Files {
-		existing[f.Path] = true
-	}
-	for _, f := range result.Files {
-		if !existing[f.Path] {
-			state.Files = append(state.Files, f)
-		} else {
-			for i, sf := range state.Files {
-				if sf.Path == f.Path {
-					state.Files[i].Hash = f.Hash
-					state.Files[i].Status = ""
-					break
-				}
-			}
-		}
-	}
-	if err := writeScopedState(scope, state); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
+		return err
 	}
 
 	fmt.Printf("\n%s Installed %s %q.\n", green("✓"), itemType, name)
+	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot install %s --type %s --source %s --force", name, itemType, foreign))
 	return nil
 }
 
@@ -953,6 +923,26 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 	return nil
 }
 
+// foreignFileCounts counts a scope's files per agentpakke they came from,
+// leaving out the scope's own (which record no source). A file that sync
+// deliberately skips should say so somewhere the user looks before wondering
+// why it never updates.
+func foreignFileCounts(state *StateFile) ([]string, map[string]int) {
+	counts := map[string]int{}
+	var sources []string
+	for _, f := range state.Files {
+		if f.Source == "" {
+			continue
+		}
+		if counts[f.Source] == 0 {
+			sources = append(sources, f.Source)
+		}
+		counts[f.Source]++
+	}
+	sort.Strings(sources)
+	return sources, counts
+}
+
 func printStatusBlock(scope *InstallScope, state *StateFile) {
 	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
 
@@ -977,6 +967,12 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 
 	for _, p := range modifiedPaths {
 		fmt.Printf("  %s %s (modified locally)\n", yellow("~"), p)
+	}
+
+	foreignSources, foreignCounts := foreignFileCounts(state)
+	for _, fs := range foreignSources {
+		fmt.Printf("  %s %d file(s) from %s (`sync` leaves these alone — re-add to update)\n",
+			dim("↗"), foreignCounts[fs], fs)
 	}
 
 	statusLine := fmt.Sprintf("\n  %s %d ok, %s %d modified, %s %d missing",

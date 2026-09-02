@@ -676,3 +676,38 @@ func telemetryOn(t *testing.T) {
 	t.Setenv("DO_NOT_TRACK", "")
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 }
+
+func TestRepoScopeDir(t *testing.T) {
+	outside := t.TempDir()
+	t.Chdir(outside)
+	if got := repoScopeDir(); got != "" {
+		t.Errorf("outside a git repo: got %q, want \"\"", got)
+	}
+
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(repo, "cli", "nav-pilot")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+	// Named without .github/ existing: an install may not have run yet, and the
+	// resolver treats a missing directory as no artifacts.
+	got := repoScopeDir()
+	if filepath.Base(got) != ".github" {
+		t.Fatalf("scope dir is not a .github/: %q", got)
+	}
+	// t.Chdir lands on the resolved path on macOS, where /var is a symlink.
+	resolve := func(p string) string {
+		if r, err := filepath.EvalSymlinks(p); err == nil {
+			return r
+		}
+		return p
+	}
+	got, want := resolve(filepath.Dir(got)), resolve(repo)
+	if got != want {
+		t.Errorf("from a subdirectory: git root %q, want %q", got, want)
+	}
+}

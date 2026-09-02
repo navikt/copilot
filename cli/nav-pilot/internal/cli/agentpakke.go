@@ -336,6 +336,16 @@ func noteRecordedSourceWins(stateRepo string) {
 		bold("nav-pilot install --source "+configured+" <name>"))
 }
 
+// scopeSourceRepo is the source a scope's files belong to unless a file says
+// otherwise. A state that predates source tracking records nothing and came
+// from the default source — the same reading as [tracksDefaultSource].
+func scopeSourceRepo(state *StateFile) string {
+	if state == nil || state.SourceRepo == "" {
+		return defaultSourceRepo
+	}
+	return state.SourceRepo
+}
+
 // tracksDefaultSource reports whether a scope's install came from the default
 // source, which is the only source nav-pilot's own release feed describes.
 //

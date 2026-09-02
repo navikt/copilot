@@ -51,7 +51,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Kom i gang",
     children: [
       { id: "installasjon", label: "Installasjon (5 min)" },
-      { id: "personlig-installasjon", label: "Personlig installasjon (valgfritt)" },
+      { id: "hvor-installere", label: "Hvor skal artefaktene installeres?" },
       { id: "vanlige-oppgaver", label: "Vanlige oppgaver" },
     ],
   },
@@ -741,13 +741,47 @@ nav-pilot`}
           </div>
         </div>
 
-        <div id="personlig-installasjon">
+        <div id="hvor-installere">
           <LinkableHeading size="small" level="3">
-            Personlig installasjon (valgfritt)
+            Hvor skal artefaktene installeres?
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Du kan også installere agenter, skills og instruksjoner til hjemmemappen. De blir da tilgjengelige i{" "}
-            <em>alle</em> repoer uten å endre hvert enkelt.
+            Tre former er i bruk i Nav, og de løser ulike problemer.{" "}
+            <code className="font-mono text-xs">install</code> spør hvis du ikke svarer på forhånd med{" "}
+            <code className="font-mono text-xs">--repo</code> eller <code className="font-mono text-xs">--user</code>.
+          </BodyLong>
+          <ul className="mt-3 space-y-2 list-disc pl-5" style={{ color: "#475569" }}>
+            <li>
+              <strong>Repo</strong> (<code className="font-mono text-xs">--repo</code>, skriver til{" "}
+              <code className="font-mono text-xs">.github/</code>): hele teamet får det samme, prompts virker, og
+              Copilot på github.com ser filene fordi de er sjekket inn. Til gjengjeld ligger de i repoet og i hver
+              diff.
+            </li>
+            <li>
+              <strong>Personlig</strong> (<code className="font-mono text-xs">--user</code>, skriver til{" "}
+              <code className="font-mono text-xs">~/.copilot/</code>): følger deg på tvers av alle repoer, og
+              ingenting sjekkes inn. Den tar ikke med prompts, og når verken github.com eller resten av teamet.
+            </li>
+            <li>
+              <strong>Hub-repo</strong>: en repo-installasjon i et repo som ikke er en applikasjon, pluss teamets
+              egne skills lagt inn for hånd i det samme <code className="font-mono text-xs">.github/</code>. Konteksten
+              følger arbeidskatalogen, så den gjelder mens du står i hub-repoet.
+            </li>
+          </ul>
+          <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
+            Formene utelukker ikke hverandre, og{" "}
+            <code className="font-mono text-xs">nav-pilot sync</code> uten scope-flagg synker alle scope som har en
+            tilstandsfil. Avveiningene i sin helhet står i{" "}
+            <a
+              href="https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#hvor-skal-artefaktene-installeres"
+              className="text-blue-600 hover:underline"
+            >
+              README.nav-pilot.md
+            </a>
+            .
+          </BodyLong>
+          <BodyLong className="mt-4" style={{ color: "#475569" }}>
+            Personlig installasjon:
           </BodyLong>
           <div className="mt-4">
             <CodeBlock compact>{`nav-pilot install --user`}</CodeBlock>
@@ -2009,8 +2043,8 @@ function LocalModelSection() {
             Kom i gang
           </LinkableHeading>
           <BodyShort size="small" textColor="subtle">
-            Første <code className="font-mono text-xs">start</code> laster modellen inn i minnet. Ti målte oppstarter på seks
-            maskiner lå alle under 50 sekunder, seks av dem under ti.
+            Første <code className="font-mono text-xs">start</code> laster modellen inn i minnet. Ti målte oppstarter på
+            seks maskiner lå alle under 50 sekunder, seks av dem under ti.
           </BodyShort>
           <CodeBlock compact>
             {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
@@ -2027,8 +2061,8 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               Modeller i alfa
             </LinkableHeading>
             <BodyLong size="small" textColor="subtle">
-              Tre modeller er tilgjengelige. Én er standard, de to andre kan velges. Tallene er fra vårt eget sett
-              på åtte oppgaver, og oppgis som spenn fordi det er spennet som skiller dem.
+              Tre modeller er tilgjengelige. Én er standard, de to andre kan velges. Tallene er fra vårt eget sett på
+              åtte oppgaver, og oppgis som spenn fordi det er spennet som skiller dem.
             </BodyLong>
             <div className="overflow-x-auto">
               <Table size="small" className="w-full">
@@ -2045,20 +2079,30 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     <Table.DataCell>
                       <VStack gap="space-2">
                         <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
-                        <div className="text-xs" style={{ color: "#0f6d6a" }}>standard</div>
+                        <div className="text-xs" style={{ color: "#0f6d6a" }}>
+                          standard
+                        </div>
                       </VStack>
                     </Table.DataCell>
                     <Table.DataCell>25 GB</Table.DataCell>
-                    <Table.DataCell>3–6 av 8</Table.DataCell>
-                    <Table.DataCell>Rask og forutsigbar. Rundt 10 sekunder per oppgave, og ingen loop i noen kjøring. Den du vil ha med mindre du har en grunn til noe annet.</Table.DataCell>
+                    <Table.DataCell>3–4 av 8</Table.DataCell>
+                    <Table.DataCell>
+                      Rask og forutsigbar. Median 9 sekunder per oppgave, og 3, 3, 3, 4 og 4 av 8 over fem kjøringer.
+                      Løser mindre enn 3.8, men svarer med én gang og gjør sjelden noe uventet.
+                    </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
                     <Table.DataCell>
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
                     </Table.DataCell>
                     <Table.DataCell>16 GB</Table.DataCell>
-                    <Table.DataCell>1–5 av 8</Table.DataCell>
-                    <Table.DataCell>Dyktig og ujevn. Både det beste og det dårligste enkeltresultatet vi har målt, med to timer mellom seg på samme maskin. Omtrent sju ganger tregere. Verdt å prøve på arbeid du leser gjennom etterpå.</Table.DataCell>
+                    <Table.DataCell>5–7 av 8</Table.DataCell>
+                    <Table.DataCell>
+                      Løser mer enn standard og bruker mye lengre tid på det. Fire rene kjøringer ga 5, 5, 6 og 7 av
+                      8, mot standardens 3, 3, 3, 4 og 4 — settene overlapper ikke. Omtrent sju ganger tregere, og
+                      treffer sju-minutterstaket på rundt én av fem oppgaver. En femte kjøring er holdt utenfor fordi
+                      den ikke endret en eneste fil; det var testoppsettet, ikke modellen.
+                    </Table.DataCell>
                   </Table.Row>
                   <Table.Row>
                     <Table.DataCell>
@@ -2066,14 +2110,20 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     </Table.DataCell>
                     <Table.DataCell>30 GB</Table.DataCell>
                     <Table.DataCell>ikke målt</Table.DataCell>
-                    <Table.DataCell>Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.</Table.DataCell>
+                    <Table.DataCell>
+                      Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi
+                      selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.
+                    </Table.DataCell>
                   </Table.Row>
                 </Table.Body>
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
-              Én kjøring er ikke en måling — derfor spenn og ikke median. Alle kjøringene ligger i{" "}
-              <a href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md" style={{ textDecoration: "underline" }}>
+              Én kjøring er ikke en måling — derfor står alle kjøringene der, ikke bare et snitt. De ligger i{" "}
+              <a
+                href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md"
+                style={{ textDecoration: "underline" }}
+              >
                 MODELS.md
               </a>
               .
@@ -2085,22 +2135,22 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           </LinkableHeading>
           <BodyLong size="small" textColor="subtle">
             <code className="font-mono text-xs">nav-pilot models</code> viser hva som er tilgjengelig; de lokale står
-            merket <code className="font-mono text-xs">(local)</code>. Listen oppdateres når du kjører{" "}
+            merket <code className="font-mono text-xs">(local)</code>.{" "}
+            <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
+            <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
+            seg. Listen oppdateres når du kjører{" "}
             <code className="font-mono text-xs">init</code> eller <code className="font-mono text-xs">start</code>, ikke
             ved hver kommando — et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models
-nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
-            Qwen 3.6 er standard, og det er ikke tilfeldig. De to Qwen 3.8-modellene ligger der fordi folk spør etter
-            dem, ikke fordi de er bedre her. På våre egne oppgaver er 3.8 tregere og mye mer ujevn: to kjøringer av de
-            samme åtte oppgavene, samme profil og samme maskin, ga median 88 og 906 sekunder. 3.6 ligger på 12–21
-            sekunder uten timeouts over åtte kjøringer. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8
-            4-bit, 30 GB for 8-bit.
+            Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Tallene står i tabellen
+            over. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for 8-bit.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
@@ -2112,7 +2162,9 @@ nav-pilot alpha local start`}
             Med den på venter launchen på at serveren er klar. To samtidige launcher starter ikke to servere.
           </BodyLong>
           <Box padding="space-16" borderRadius="8" style={{ background: "#f8fafc" }}>
-            <Label size="small" spacing>Vi måler dette tettere enn resten av nav-pilot mens det er alfa</Label>
+            <Label size="small" spacing>
+              Vi måler dette tettere enn resten av nav-pilot mens det er alfa
+            </Label>
             <BodyLong size="small" textColor="subtle">
               Vi samler inn hvor mange oppgaver hver økt sender til bakkemodellen (også når svaret er null, som er
               tallet vi lærer mest av), hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den
@@ -2123,7 +2175,9 @@ nav-pilot alpha local start`}
             </BodyLong>
           </Box>
           <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
-            <Label size="small" spacing>Én kommando, men den ber om passordet ditt</Label>
+            <Label size="small" spacing>
+              Én kommando, men den ber om passordet ditt
+            </Label>
             <BodyLong size="small" textColor="subtle">
               macOS lar ikke GPU-en låse nok minne til en modell på denne størrelsen som standard, så{" "}
               <code className="font-mono text-xs">init</code> hever grensen for deg med{" "}
@@ -2157,7 +2211,9 @@ nav-pilot alpha local start`}
           </BodyShort>
           <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
             <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
-              <Label size="small" spacing>Fungerer</Label>
+              <Label size="small" spacing>
+                Fungerer
+              </Label>
               <BodyLong size="small" textColor="subtle">
                 Slå opp noe i koden. Legge til en kommentar. Døpe om et symbol i mange filer. Tre et felt gjennom en
                 mapper og kallstedene. I våre kjøringer lyktes den omtrent to av tre ganger på de største endringene, og
@@ -2165,7 +2221,9 @@ nav-pilot alpha local start`}
               </BodyLong>
             </Box>
             <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
-              <Label size="small" spacing>Fungerer ikke</Label>
+              <Label size="small" spacing>
+                Fungerer ikke
+              </Label>
               <BodyLong size="small" textColor="subtle">
                 Skrive en ny fil fra bunnen: i våre forsøk gjorde den da ingenting i det hele tatt. Oppgaver der noe må
                 vurderes underveis, eller der en feil endring er dyr.
@@ -2173,7 +2231,9 @@ nav-pilot alpha local start`}
             </Box>
           </HGrid>
           <Box padding="space-16" borderRadius="8" style={{ background: "#fffbeb" }}>
-            <Label size="small" spacing>Sjekk resultatet</Label>
+            <Label size="small" spacing>
+              Sjekk resultatet
+            </Label>
             <BodyLong size="small" textColor="subtle">
               Bakkemodellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og kjør
               testene etterpå. På store endringer bør du regne med å forkaste et forsøk og prøve på nytt. Det koster deg

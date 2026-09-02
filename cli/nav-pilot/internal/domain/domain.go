@@ -44,6 +44,11 @@ type Config struct {
 	// number depends on the model and the task, not because anyone should
 	// have to set it.
 	LocalLoopGuard *int `toml:"local_loop_guard"`
+	// LocalModel is which model `alpha local start` loads and serves. Empty
+	// means the manifest's default. It is separate from Model because Model is
+	// the session model: a developer running a cloud main agent with a local
+	// worker has to be able to name both.
+	LocalModel *string `toml:"local_model"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -73,6 +78,7 @@ type ResolvedConfig struct {
 	LocalEnabled      bool     // local inference opt-in (alpha)
 	LocalAutostart    bool     // start the local server on demand at launch
 	LocalLoopGuard    int      // identical consecutive tool calls that end a local turn; 0 = built-in default
+	LocalModel        string   // local model id to serve; empty = the manifest default
 	ExtraArgs         []string // pass-through arguments for the client
 }
 
@@ -424,6 +430,11 @@ type InstalledFile struct {
 	Path   string `json:"path"`
 	Hash   string `json:"hash"`
 	Status string `json:"status,omitempty"` // "" = active, FileStatusIgnored = intentionally excluded, FileStatusConflict = exists with local modifications
+	// Source names the agentpakke this file came from, when that is not the
+	// scope's own SourceRepo. Empty means "this scope's source", which is what
+	// every state file written before per-file origins says about all of its
+	// files — so they keep syncing exactly as they did.
+	Source string `json:"source,omitempty"`
 }
 
 // FileStatusIgnored marks a file as intentionally excluded by the user.
