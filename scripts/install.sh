@@ -113,12 +113,15 @@ if [[ -z "$VERSION" ]]; then
   # Both spellings are accepted: the workflow sets GITHUB_TOKEN, the script's
   # own error message tells people to set GH_TOKEN, and gh sets GH_TOKEN. All
   # three were in play and none of them reached this call.
-  GH_AUTH=()
   API_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-  if [[ -n "$API_TOKEN" ]]; then
-    GH_AUTH=(-H "Authorization: Bearer ${API_TOKEN}")
-  fi
-  VERSION=$(curl -fsSL "${GH_AUTH[@]}" "https://api.github.com/repos/${REPO}/releases?per_page=100" \
+  # The header goes in on stdin, not in the argument list. Anything passed as an
+  # argument shows up in `ps` for every user on the machine, and this script is
+  # run on shared runners.
+  auth_config() {
+    [[ -n "$API_TOKEN" ]] && printf 'header = "Authorization: Bearer %s"\n' "$API_TOKEN"
+    return 0
+  }
+  VERSION=$(auth_config | curl -fsSL -K - "https://api.github.com/repos/${REPO}/releases?per_page=100" \
     | grep '"tag_name"' \
     | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' \
     | grep '^nav-pilot/' \
