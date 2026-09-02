@@ -1373,6 +1373,17 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 	}
 	w.Sufficient = w.CurrentGB >= w.RequiredGB
 
+	// The manifest's own floor, checked rather than merely printed. Profiles
+	// are measured on one machine and shipped to a fleet with 36, 48 and 64 GB
+	// in it, and min_ram_gb is how an entry says which of those it was measured
+	// for. Until now nothing read it, so a 48 GB model on a 36 GB machine got
+	// as far as loading weights before macOS decided how it ended.
+	if m.MinRAMGB > 0 && m.MinRAMGB > w.MachineRAMGB {
+		return w, fmt.Errorf(
+			"%s needs a machine with at least %d GB of memory, and this one has %d GB.\n\n  Run `nav-pilot models` and pick an entry this machine can hold",
+			m.Model, m.MinRAMGB, w.MachineRAMGB)
+	}
+
 	if w.RequiredGB+minFreeGB > w.MachineRAMGB {
 		return w, fmt.Errorf(
 			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else — below the %d GB the rest of the system needs.\n\n  Pick a smaller model: a cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled",
@@ -1548,4 +1559,18 @@ func RaiseWiredLimit(ctx context.Context, w WiredLimit) error {
 			err, strings.TrimSpace(out), domain.Bold(w.Command))
 	}
 	return nil
+}
+
+// MachineRAMGB is this machine's physical memory in gigabytes. Callers that
+// only need to label a list use it; anything that is about to start a model
+// should call [CheckWiredLimit], which weighs the same number against the
+// model's own floor and against what the rest of the system needs.
+func MachineRAMGB() (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	ram, err := sysctlInt(ctx, "hw.memsize")
+	if err != nil {
+		return 0, err
+	}
+	return int(ram / gib), nil
 }

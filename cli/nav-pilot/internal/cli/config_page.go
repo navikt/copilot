@@ -272,10 +272,18 @@ func editModelKey(r ResolvedConfig, current string) error {
 func editLocalModelKey(current string) error {
 	kd := findKeyDef("local_model")
 	opts := []huh.Option[string]{huh.NewOption("(manifest default)", "")}
+	// Marked, not hidden. A model this machine cannot hold is still worth
+	// seeing: it is what the developer with 64 GB two desks over is running,
+	// and hiding it makes the list look like the model does not exist. A
+	// machine that will not tell us its memory marks nothing.
+	ramGB, ramErr := local.MachineRAMGB()
 	for _, m := range local.Active().Models {
 		label := m.Model
 		if m.Name != "" {
 			label = m.Name + " (" + m.Model + ")"
+		}
+		if ramErr == nil && m.MinRAMGB > 0 && m.MinRAMGB > ramGB {
+			label += fmt.Sprintf("  — needs %d GB, this machine has %d", m.MinRAMGB, ramGB)
 		}
 		opts = append(opts, huh.NewOption(label, m.Model))
 	}

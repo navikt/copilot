@@ -1333,3 +1333,53 @@ func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
 		t.Error("no params should mean no flags, so a manifest can still say nothing")
 	}
 }
+
+// A model's declared floor decides which machines may run it. The wired limit
+// alone does not: a 27 GB cap fits a 36 GB machine arithmetically, while the
+// entry was measured on 48 and says so.
+func TestCheckWiredLimitRefusesBelowDeclaredMinimum(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		minRAMGB    int
+		machineGB   int
+		wantRefusal bool
+	}{
+		{name: "below the floor", minRAMGB: 48, machineGB: 36, wantRefusal: true},
+		{name: "exactly at the floor", minRAMGB: 48, machineGB: 48},
+		{name: "above the floor", minRAMGB: 48, machineGB: 64},
+		{name: "no floor declared", minRAMGB: 0, machineGB: 36},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stubRun(t, func(name string, args []string) (string, error) {
+				if name != sysctlPath {
+					return "", errors.New("unexpected command " + name)
+				}
+				switch args[len(args)-1] {
+				case "hw.memsize":
+					return memsizeBytes(tc.machineGB), nil
+				case "iogpu.wired_limit_mb":
+					return "24576\n", nil
+				}
+				return "", errors.New("unexpected sysctl")
+			})
+
+			_, err := CheckWiredLimit(Model{Model: okModel, WeightsGB: 16, WiredLimitGB: 24, MinRAMGB: tc.minRAMGB})
+			if tc.wantRefusal {
+				if err == nil {
+					t.Fatal("CheckWiredLimit() accepted a model the manifest says needs a bigger machine")
+				}
+				// The refusal has to name both numbers, or the developer
+				// cannot tell whether it is their machine or the entry.
+				for _, want := range []string{"48 GB", "36 GB"} {
+					if !strings.Contains(err.Error(), want) {
+						t.Errorf("CheckWiredLimit() error = %q, want it to mention %q", err, want)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("CheckWiredLimit() errored: %v", err)
+			}
+		})
+	}
+}
