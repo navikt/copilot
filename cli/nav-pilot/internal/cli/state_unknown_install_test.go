@@ -117,3 +117,38 @@ func TestPinRevisionKeepsUnknownKeys(t *testing.T) {
 	}
 	assertStateKeeps(t, scope, `"schema_version": 2`)
 }
+
+// TestPinRevisionDropsUnknownKeysOnSourceSwitch is the other half of #588's
+// rule: keys survive a rewrite, but not a change of what the state describes.
+// A key an older nav-pilot wrote about repo A's install says nothing about
+// repo B, and carrying it over would let a newer binary trust a claim nobody
+// made.
+func TestPinRevisionDropsUnknownKeysOnSourceSwitch(t *testing.T) {
+	scope := pinEnv(t)
+	seedState(t, scope, `{
+  "collection": "grillmester",
+  "version": "dev",
+  "scope": "user",
+  "source_repo": "navikt/grillmester",
+  "source_sha": "old1234",
+  "installed_at": "2026-01-01T00:00:00Z",
+  "schema_version": 2
+}
+`)
+
+	src := &Source{Dir: tier2SourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/annen-pakke"}
+	if err := attachPakke(src); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pinRevision(scope, src, true); err != nil {
+		t.Fatalf("pinRevision: %v", err)
+	}
+
+	out, err := os.ReadFile(scope.StatePath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "schema_version") {
+		t.Errorf("a key written about navikt/grillmester survived the switch to navikt/annen-pakke\n%s", out)
+	}
+}

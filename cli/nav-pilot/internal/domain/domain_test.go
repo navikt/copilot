@@ -441,9 +441,9 @@ func TestAgentFrontmatterModelsAreKnown(t *testing.T) {
 // the claim that matters: such a binary rewrites a state file it does not fully
 // understand without losing the stamp a newer one put there.
 type legacyFile struct {
-	Path    string `json:"path"`
-	Hash    string `json:"hash"`
-	Status  string `json:"status,omitempty"`
+	Path    string                     `json:"path"`
+	Hash    string                     `json:"hash"`
+	Status  string                     `json:"status,omitempty"`
 	Unknown map[string]json.RawMessage `json:"-"`
 }
 
@@ -497,5 +497,28 @@ func TestOlderDecoderKeepsPerFileSource(t *testing.T) {
 	}
 	if back.Status != FileStatusIgnored || back.Hash != "sha256:aaa" {
 		t.Errorf("older decoder lost known fields: %s", out)
+	}
+}
+
+// TestKnownJSONKeysUntaggedField guards the fallback in knownJSONKeys: a field
+// with no json name is still matched by encoding/json under its Go name, so
+// treating it as unknown would duplicate it on every write. A `json:"-"` field
+// is skipped, because encoding/json never writes it at all.
+func TestKnownJSONKeysUntaggedField(t *testing.T) {
+	type sample struct {
+		Tagged   string `json:"tagged"`
+		Untagged string
+		OmitOnly string `json:",omitempty"`
+		Skipped  string `json:"-"`
+	}
+
+	keys := knownJSONKeys(sample{})
+	for _, want := range []string{"tagged", "Untagged", "OmitOnly"} {
+		if !keys[want] {
+			t.Errorf("knownJSONKeys did not report %q as known; encoding/json matches it", want)
+		}
+	}
+	if keys["Skipped"] || keys["-"] {
+		t.Errorf(`a json:"-" field must not be known under any name: %v`, keys)
 	}
 }

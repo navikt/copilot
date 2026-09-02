@@ -581,7 +581,7 @@ func (s *StateFile) PreserveUnknownFrom(prior *StateFile) {
 		return
 	}
 	if s.Unknown == nil {
-		s.Unknown = prior.Unknown
+		s.Unknown = maps.Clone(prior.Unknown)
 	}
 	perFile := make(map[string]map[string]json.RawMessage, len(prior.Files))
 	for _, f := range prior.Files {
@@ -591,7 +591,9 @@ func (s *StateFile) PreserveUnknownFrom(prior *StateFile) {
 	}
 	for i, f := range s.Files {
 		if f.Unknown == nil {
-			s.Files[i].Unknown = perFile[f.Path]
+			// Clone: two entries in s can share a path, and prior is not ours
+			// to alias into a struct the caller keeps.
+			s.Files[i].Unknown = maps.Clone(perFile[f.Path])
 		}
 	}
 }
