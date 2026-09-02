@@ -2163,7 +2163,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# agent:        $AGENT"
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-    echo "# model:        ${MODEL:-default}"
+    echo "# model:        ${MODEL:-CLI default}"
     echo "# instructions: $INSTR_DESC"
     echo "# repeat:       $REPEAT"
     echo "# fixture:      $FIXTURE_SUM"
