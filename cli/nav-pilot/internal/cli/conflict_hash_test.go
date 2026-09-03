@@ -287,3 +287,34 @@ func TestStateFilesAreWrittenSorted(t *testing.T) {
 		t.Errorf("state file order follows install history, not the paths: %+v", state.Files)
 	}
 }
+
+// TestDeselectedItemIsNotDeleted: the picker's deselected items are appended to
+// state after result.Files is built, so feeding removeOrphans the narrower set
+// makes a deselection look like an artifact the source stopped shipping — and
+// deletes a file the user explicitly chose to keep.
+func TestDeselectedItemIsNotDeleted(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := driftSource(t)
+	target := repoTarget(t)
+	scope := ScopeRepo(target)
+
+	// Everything installed first, the way a picker run over an existing scope starts.
+	if err := cmdInstallFromSource("wide", localSource(srcDir), scope, false, false, false); err != nil {
+		t.Fatalf("wide install: %v", err)
+	}
+
+	// Now the user unticks test-b: the manifest carries only test-a, and test-b
+	// arrives as a deselected extra that must stay on disk.
+	narrow, err := loadManifest(srcDir, "narrow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	deselected := InstalledFile{Path: agentB, Status: fileStatusIgnored}
+	if err := installAllFromSource(scope, localSource(srcDir), narrow, false, false, false, deselected); err != nil {
+		t.Fatalf("install with a deselected item: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(target, agentB)); err != nil {
+		t.Errorf("deselecting %s in the picker deleted it from disk: %v", agentB, err)
+	}
+}

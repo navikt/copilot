@@ -77,7 +77,7 @@ func WriteStateAt(path, boundary string, state *domain.StateFile) error {
 	// content and not from the order the installs happened to run in. Sorting
 	// on every write is what makes two machines that installed the same thing
 	// produce the same file.
-	slices.SortFunc(state.Files, func(a, b domain.InstalledFile) int {
+	slices.SortStableFunc(state.Files, func(a, b domain.InstalledFile) int {
 		return strings.Compare(a.Path, b.Path)
 	})
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

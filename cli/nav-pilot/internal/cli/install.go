@@ -949,7 +949,11 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	// install did not name. The two install paths must agree about all three.
 	if prior, err := readScopedState(scope); err == nil && prior != nil {
 		state.PreserveUnknownFrom(prior)
-		state.Files = mergeStateFiles(removeOrphans(scope, prior, result.Files), state.Files)
+		// state.Files, not result.Files: the picker's deselected items were
+		// appended above, and they are still on disk on purpose. Passing the
+		// narrower set makes removeOrphans read a deselection as an artifact
+		// the source stopped shipping, and delete a file the user chose to keep.
+		state.Files = mergeStateFiles(removeOrphans(scope, prior, state.Files), state.Files)
 	}
 
 	if err := writeScopedState(scope, state); err != nil {
