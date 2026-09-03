@@ -647,10 +647,59 @@ func TestRegister_LoopbackOnlyPolicy(t *testing.T) {
 		}
 	}
 
-	// One bad URI poisons the whole registration; a loopback URI alongside it
-	// must not launder it in.
-	if w := registerStatus(mux, "http://127.0.0.1:33418", "https://attacker.example/cb"); w.Code != http.StatusBadRequest {
-		t.Errorf("mixed registration: expected 400, got %d: %s", w.Code, w.Body.String())
+	// A registration with no loopback URI at all is still refused outright.
+	if w := registerStatus(mux, "https://vscode.dev/redirect", "https://attacker.example/cb"); w.Code != http.StatusBadRequest {
+		t.Errorf("all-https registration: expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestRegister_MixedRedirectURIs_FiltersRatherThanRejects: VS Code registers
+// its hosted https redirect together with its loopback one, so refusing the
+// pair would lock out the only client the README lists as fully working. The
+// non-loopback URI is dropped instead — and dropped for real: it is absent from
+// the signed client_id, absent from the response, and cannot authorise. That
+// last assertion is the security property; the first half alone would pass on a
+// server that simply stopped filtering.
+func TestRegister_MixedRedirectURIs_FiltersRatherThanRejects(t *testing.T) {
+	mux, server := newChainTestServer(t)
+
+	const httpsURI = "https://vscode.dev/redirect"
+	w := registerStatus(mux, httpsURI, testRedirectURI)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("mixed registration: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ClientRegistration
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decoding registration response: %v", err)
+	}
+	// RFC 7591 section 3.2.1: the response states what was registered.
+	if len(resp.RedirectURIs) != 1 || resp.RedirectURIs[0] != testRedirectURI {
+		t.Fatalf("response should echo only the loopback URI, got %v", resp.RedirectURIs)
+	}
+
+	// The signed payload is what handleAuthorize matches against, so it is the
+	// one that has to be clean.
+	info, err := verifyClientID(server.clientIDKey, resp.ClientID)
+	if err != nil {
+		t.Fatalf("issued client_id does not verify: %v", err)
+	}
+	if len(info.RedirectURIs) != 1 || info.RedirectURIs[0] != testRedirectURI {
+		t.Fatalf("signed client_id should carry only the loopback URI, got %v", info.RedirectURIs)
+	}
+
+	// The dropped URI does not authorise...
+	authz := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(resp.ClientID)+
+		"&redirect_uri="+url.QueryEscape(httpsURI)+"&state=abc", nil))
+	if authz.Code == http.StatusFound {
+		t.Fatalf("filtered-out https redirect_uri authorised: %s", authz.Header().Get("Location"))
+	}
+
+	// ...while the one the client actually redeems at still does.
+	ok := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(resp.ClientID)+
+		"&redirect_uri="+url.QueryEscape(testRedirectURI)+"&state=abc", nil))
+	if ok.Code != http.StatusFound {
+		t.Fatalf("kept loopback redirect_uri should authorise, got %d: %s", ok.Code, ok.Body.String())
 	}
 }
 

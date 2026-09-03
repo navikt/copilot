@@ -588,17 +588,43 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Filter, rather than refuse the registration. VS Code registers its hosted
+	// https redirect alongside its loopback one, and 400-ing that pair would
+	// make sign-in impossible for the one client the README lists as fully
+	// working. Dropping the non-loopback URIs costs the client nothing: the
+	// https one could never be redeemed anyway, since handleAuthorize enforces
+	// the same policy. Only a registration with no loopback URI left is refused.
+	//
+	// The surviving list is what gets signed into the client_id below and what
+	// is echoed back, so a dropped URI cannot return at /oauth/authorize.
+	kept := make([]string, 0, len(req.RedirectURIs))
+	var dropped []string
 	for _, uri := range req.RedirectURIs {
-		if !isValidRedirectURI(uri) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error":             "invalid_redirect_uri",
-				"error_description": "redirect_uri must be a loopback address (http://127.0.0.1, http://[::1] or http://localhost): " + uri,
-			})
-			return
+		if isValidRedirectURI(uri) {
+			kept = append(kept, uri)
+		} else {
+			dropped = append(dropped, uri)
 		}
 	}
+	if len(dropped) > 0 {
+		slog.Warn("dropped non-loopback redirect_uris from registration",
+			"client_name", logSafe(req.ClientName),
+			"dropped_redirect_uris", logSafeAll(dropped),
+			"kept_redirect_uris", logSafeAll(kept),
+		)
+	}
+	if len(kept) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_redirect_uri",
+			"error_description": "at least one redirect_uri must be a loopback address (http://127.0.0.1, http://[::1] or http://localhost)",
+		})
+		return
+	}
+	// Everything below registers the surviving URIs only — RFC 7591 section 3.2.1
+	// wants the response to state what was registered, not what was asked for.
+	req.RedirectURIs = kept
 
 	if len(req.GrantTypes) == 0 {
 		req.GrantTypes = []string{"authorization_code"}

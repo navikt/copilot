@@ -563,6 +563,16 @@ func logSafe(v string) string {
 	return cleaned
 }
 
+// logSafeAll is logSafe over a slice, for the list-valued fields that also
+// arrive straight from a request body.
+func logSafeAll(vs []string) []string {
+	out := make([]string, len(vs))
+	for i, v := range vs {
+		out[i] = logSafe(v)
+	}
+	return out
+}
+
 func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (resp *JSONRPCResponse) {
 	var params CallToolParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
