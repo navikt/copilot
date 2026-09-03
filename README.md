@@ -143,14 +143,14 @@ Registry-servere dukker automatisk opp i MCP-panelet i VS Code og JetBrains, ute
 curl -s https://mcp-registry.nav.no/v0.1/servers | jq
 
 # Legg til en server
-gh copilot mcp add --url https://mcp-onboarding.nav.no/mcp
+gh copilot mcp add --url https://mcp-onboarding.intern.nav.no/mcp
 ```
 
 ### MCP Onboarding
 
 MCP-server for å utforske Nav Copilot-tilpasninger, vurdere agent-readiness og generere AGENTS.md rett fra Copilot Chat.
 
-**URL:** [mcp-onboarding.nav.no](https://mcp-onboarding.nav.no)
+**URL:** [mcp-onboarding.intern.nav.no](https://mcp-onboarding.intern.nav.no)
 
 #### Installer
 
