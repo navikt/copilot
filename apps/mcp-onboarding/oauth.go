@@ -86,7 +86,6 @@ func (s *OAuthServer) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Re
 		TokenEndpointAuthMethodsSupported: []string{"none"},
 	}
 
-	s.setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(metadata)
 }
@@ -97,7 +96,6 @@ func (s *OAuthServer) handleProtectedResourceMetadata(w http.ResponseWriter, _ *
 		AuthorizationServers: []string{s.BaseURL},
 	}
 
-	s.setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(metadata)
 }
@@ -529,20 +527,17 @@ func (s *OAuthServer) writeTokenError(w http.ResponseWriter, code, description s
 	})
 }
 
-func (s *OAuthServer) setCORSHeaders(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept")
-}
-
+// handleRegisterOptions answers the CORS preflight without granting any origin,
+// for the same reason /oauth/token does: metadata discovery and Dynamic Client
+// Registration happen in the editor's own process, never in a web page, in
+// every client this server supports. A wildcard grant here let any page in the
+// victim's browser register a client and read the metadata it needs to drive a
+// flow (GHSA-7hwf-488h-59x8).
 func (s *OAuthServer) handleRegisterOptions(w http.ResponseWriter, _ *http.Request) {
-	s.setCORSHeaders(w)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
-	s.setCORSHeaders(w)
-
 	// Registrations are not stored, so there is nothing to exhaust and no
 	// registration cap. The body is still bounded, and so is the number of
 	// redirect_uris below — but neither bounds the length of a single

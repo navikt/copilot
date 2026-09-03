@@ -149,8 +149,12 @@ Always run `mise run generate` after adding or modifying agent, instruction, pro
 
 Automatic deployment via GitHub Actions on merge to main and pull requests.
 
-- **Production**: `https://mcp-onboarding.nav.no`
+- **Production**: `https://mcp-onboarding.intern.nav.no`
 - **Development**: `https://mcp-onboarding.intern.dev.nav.no`
+
+Both ingresses are `intern` only — the server is reachable from the Nav network, not
+from the public internet. There is no public ingress; a `nav.no` hostname without
+`intern` does not resolve to this server.
 
 Deployed to Nais using the reusable `mise-build-deploy-nais` workflow.
 
@@ -166,6 +170,9 @@ Exposed via `GET /metrics` in Prometheus format.
 | `oauth_flows_total`             | Counter   | `stage`, `result`               | OAuth flow outcomes (authorize, callback, token)                                         |
 | `authenticated_users_total`     | Counter   | —                               | Total successful authentications                                                         |
 | `token_store_size`              | Gauge     | `type`                          | Current size of token stores (`active_tokens`, `refresh_tokens`) |
+
+`path` is bounded to the registered routes; any other path is recorded as `other`, so an
+unknown path cannot grow the number of series.
 
 A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`](../../dashboards/copilot-ecosystem.json).
 
@@ -234,7 +241,7 @@ When you start the CLI, it opens a browser for GitHub authentication — this is
     "mcpServers": {
       "mcp-onboarding": {
         "type": "http",
-        "url": "https://mcp-onboarding.nav.no/mcp"
+        "url": "https://mcp-onboarding.intern.nav.no/mcp"
       }
     }
   }
@@ -258,9 +265,16 @@ Not tested with this server — likely same third-party OAuth issues as JetBrain
 - Uses OAuth 2.1 with PKCE (Proof Key for Code Exchange)
 - Dynamic Client Registration for seamless MCP client onboarding
 - Redirect URIs must be loopback: `http://127.0.0.1`, `http://[::1]` or `http://localhost` (RFC 8252 section 7.3). Non-loopback redirect URIs are dropped from a registration rather than failing it (a client that sends a hosted `https` redirect alongside its loopback one keeps the one it actually redeems at); a registration with no loopback URI left is refused, and `/oauth/authorize` enforces the same policy again. `/register` is unauthenticated by design (RFC 7591, which is how MCP clients onboard), so being registered proves only that this server minted the `client_id` — an attacker gets one for a single POST. Requiring loopback takes the destination out of their reach instead: the authorization code lands on the developer's own machine. Every supported client (see Client Compatibility above) redeems the code from a native process, so nothing legitimate needs a hosted redirect
+- `/oauth/authorize` rejects an unverifiable `client_id` and any `redirect_uri` the client
+  did not register
 - Client registrations are not stored: the issued `client_id` is the registration, HMAC-SHA256 signed with a key derived from `GITHUB_CLIENT_SECRET`, so it survives a restart without any registration ever touching disk. Rotating `GITHUB_CLIENT_SECRET` invalidates every outstanding `client_id`; clients get `invalid_client` and re-register. Registrations expire 30 days after issue, enforced when the `client_id` is verified.
 - Validates GitHub organization membership before issuing tokens
-- Tokens expire after 1 hour (refresh tokens: 30 days)
+- Access tokens expire after 1 hour. Refresh tokens are rotated on every use and expire
+  after 30 days
+- The authorization code is bound to the client it was issued to, and `/oauth/token`
+  requires that `client_id`
+- No endpoint sends `Access-Control-Allow-Origin` — discovery, registration and token
+  exchange are done by the editor's own process, not by a web page
 - Tokens are stored in memory only, and are lost on restart by design (they are live GitHub credentials and must not be persisted)
 
 ## License

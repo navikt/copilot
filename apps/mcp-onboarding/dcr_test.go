@@ -363,3 +363,64 @@ func TestIsRegisteredRedirectURI_LoopbackPortIgnored(t *testing.T) {
 		})
 	}
 }
+
+// --- CORS on discovery and registration (GHSA-7hwf-488h-59x8) ---
+
+// TestDiscoveryAndRegister_NoWildcardCORS covers the endpoints that still sent
+// Access-Control-Allow-Origin: * after /oauth/token stopped. Metadata discovery
+// and DCR are done by a native process in every supported client, so no origin
+// needs to be granted.
+func TestDiscoveryAndRegister_NoWildcardCORS(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+
+	body, _ := json.Marshal(map[string]any{
+		"client_name":   "test client",
+		"redirect_uris": []string{"http://127.0.0.1:33418/callback"},
+	})
+
+	cases := []struct {
+		method, path string
+		body         []byte
+	}{
+		{"GET", "/.well-known/oauth-authorization-server", nil},
+		{"GET", "/.well-known/oauth-protected-resource", nil},
+		{"GET", "/.well-known/oauth-protected-resource/mcp", nil},
+		{"POST", "/register", body},
+		{"OPTIONS", "/register", nil},
+	}
+
+	for _, tc := range cases {
+		var r *http.Request
+		if tc.body != nil {
+			r = httptest.NewRequest(tc.method, tc.path, bytes.NewReader(tc.body))
+		} else {
+			r = httptest.NewRequest(tc.method, tc.path, nil)
+		}
+		r.Header.Set("Origin", "https://evil.example")
+		w := do(mux, r)
+		if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
+			t.Errorf("%s %s: expected no Access-Control-Allow-Origin, got %q", tc.method, tc.path, got)
+		}
+	}
+}
+
+// TestDiscoveryAndRegister_StillWork is the control: dropping CORS must not
+// break the endpoints themselves.
+func TestDiscoveryAndRegister_StillWork(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+
+	w := do(mux, httptest.NewRequest("GET", "/.well-known/oauth-authorization-server", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("metadata: expected 200, got %d", w.Code)
+	}
+	var meta AuthorizationServerMetadata
+	if err := json.NewDecoder(w.Body).Decode(&meta); err != nil {
+		t.Fatalf("metadata: decode: %v", err)
+	}
+	if meta.RegistrationEndpoint == "" {
+		t.Fatalf("metadata: expected a registration_endpoint, got %+v", meta)
+	}
+	if id := registerClient(t, mux, "http://127.0.0.1:33418/callback"); id == "" {
+		t.Fatal("register: expected a client_id")
+	}
+}
