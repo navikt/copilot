@@ -42,7 +42,7 @@ var ErrNoDeclaration = errors.New("no agentpakke declaration")
 // DeclaredItemTypes are the artifact types an entry in [Declaration.Items] may
 // name. It mirrors the CLI's artifact kinds; the list lives here because the
 // declaration is parsed before any resolver exists.
-var DeclaredItemTypes = []string{"agent", "skill", "instruction", "prompt"}
+var DeclaredItemTypes = []string{"agent", "skill", "instruction", "prompt", "hook"}
 
 // Declaration is a repo's committed statement of which agentpakke it uses and
 // at which revision.
