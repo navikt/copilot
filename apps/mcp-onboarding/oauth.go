@@ -105,8 +105,23 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reg, _ := s.Store.GetClientRegistration(clientID)
-	if reg != nil && redirectURI != "" && !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) {
+	reg, err := s.Store.GetClientRegistration(clientID)
+	if err != nil {
+		// Unknown client_id — normally the in-memory store lost it on restart.
+		// Tell the client to re-register rather than trusting an unregistered
+		// client's redirect_uri (GHSA-7hwf-488h-59x8).
+		slog.Warn("unknown client_id", "client_id", clientID)
+		recordOAuthFlow("authorize", "invalid_client")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client",
+			"error_description": "Unknown client_id, please register again",
+		})
+		return
+	}
+
+	if !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) { // also rejects ""
 		slog.Warn("redirect_uri not registered",
 			"client_id", clientID,
 			"redirect_uri", redirectURI,
@@ -230,13 +245,16 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, callbackURL, http.StatusFound)
 }
 
+// handleTokenOptions answers the CORS preflight without granting any origin.
+// /oauth/token deliberately sends no Access-Control-Allow-Origin: all supported
+// clients (VS Code and other IDE extensions) redeem the code from a native
+// process, not from a web page, and a wildcard grant here let any page read a
+// token response in the victim's browser (GHSA-7hwf-488h-59x8).
 func (s *OAuthServer) handleTokenOptions(w http.ResponseWriter, _ *http.Request) {
-	s.setCORSHeaders(w)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *OAuthServer) handleToken(w http.ResponseWriter, r *http.Request) {
-	s.setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
@@ -288,12 +306,12 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if clientID != "" && authCode.ClientID != "" && authCode.ClientID != clientID {
-		slog.Warn("client_id mismatch in token exchange",
+	if clientID == "" || clientID != authCode.ClientID {
+		slog.Warn("client_id missing or mismatched in token exchange",
 			"expected", authCode.ClientID,
 			"got", clientID,
 		)
-		s.writeTokenError(w, "invalid_client", "client_id mismatch")
+		s.writeTokenError(w, "invalid_client", "client_id missing or does not match the authorization code")
 		return
 	}
 
