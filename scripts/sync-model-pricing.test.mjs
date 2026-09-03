@@ -16,6 +16,7 @@ import {
   parseFootnotes,
   parsePromotionEndDate,
   findUnresolvedPromotions,
+  setDocPricingDate,
 } from "./sync-model-pricing.mjs";
 
 // The fixtures carry two provider tables, not all six, and the parser warns
@@ -128,4 +129,23 @@ test("date parsing handles the shapes the page uses", () => {
   assert.equal(parsePromotionEndDate("... through December 31, 2026."), "2026-12-31");
   assert.equal(parsePromotionEndDate("... through Smarch 3, 2026."), undefined);
   assert.equal(parsePromotionEndDate("no end date at all"), undefined);
+});
+
+test("the doc's pricing date is rewritten, and the editorial dates are not", () => {
+  const doc = [
+    "GitHubs listepriser slik de sto **30. august 2026**, og speiler",
+    "`apps/my-copilot/src/lib/model-pricing.ts`.",
+    "Per 31. august 2026 gjelder det:",
+    "- **GPT-5.6 Sol:** 50 % av standardpris t.o.m. 3. september 2026.",
+    "## Målinger (august 2026)",
+  ].join("\n");
+
+  const out = setDocPricingDate(doc, "2026-09-03");
+
+  assert.match(out, /slik de sto \*\*3\. september 2026\*\*/);
+  assert.equal(out.split("\n").slice(1).join("\n"), doc.split("\n").slice(1).join("\n"));
+});
+
+test("a doc without the sentence is an error, not a silent no-op", () => {
+  assert.throws(() => setDocPricingDate("ingen priser her", "2026-09-03"));
 });
