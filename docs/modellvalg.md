@@ -83,7 +83,7 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 ## Tilgjengelige modeller og bruksområder
 
 Hele modellflåten, ikke bare de som er pinnet i agenter. Prisene under er
-GitHubs listepriser slik de sto **30. august 2026**, og speiler
+GitHubs listepriser slik de sto **3. september 2026**, og speiler
 `apps/my-copilot/src/lib/model-pricing.ts`. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 

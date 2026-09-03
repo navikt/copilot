@@ -20,6 +20,30 @@ const TARGET_FILE = new URL(
   "../apps/my-copilot/src/lib/model-pricing.ts",
   import.meta.url,
 );
+const DOC_FILE = new URL("../docs/modellvalg.md", import.meta.url);
+
+// The one sentence in docs/modellvalg.md that timestamps the price table.
+// Anchored on its wording so the editorial dates elsewhere in the file stay put.
+const DOC_DATE_RE = /(GitHubs listepriser slik de sto \*\*)([^*]+)(\*\*)/;
+
+const NB_MONTHS = [
+  "januar", "februar", "mars", "april", "mai", "juni",
+  "juli", "august", "september", "oktober", "november", "desember",
+];
+
+/** 2026-09-03 -> "3. september 2026". */
+function toNorwegianDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d}. ${NB_MONTHS[m - 1]} ${y}`;
+}
+
+/** Rewrite the pricing date in that sentence. Throws if the sentence moved. */
+function setDocPricingDate(text, iso) {
+  if (!DOC_DATE_RE.test(text)) {
+    throw new Error(`the pricing-date sentence is gone from ${DOC_FILE.pathname}`);
+  }
+  return text.replace(DOC_DATE_RE, `$1${toNorwegianDate(iso)}$3`);
+}
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -400,7 +424,27 @@ async function main() {
 
   const newContent = generateTypeScript(models);
 
+  const docPath = fileURLToPath(DOC_FILE);
+  const doc = readFileSync(docPath, "utf-8");
+
   if (checkOnly) {
+    // The doc restates PRICING_LAST_UPDATED in Norwegian prose; nothing else
+    // keeps the two in step, so a drift here is the same kind of staleness.
+    const pricingDate = current.match(/PRICING_LAST_UPDATED = "([^"]+)"/)?.[1];
+    if (!pricingDate) {
+      console.error("\nERROR: no PRICING_LAST_UPDATED in the generated file.");
+      process.exit(1);
+    }
+    if (setDocPricingDate(doc, pricingDate) !== doc) {
+      console.error(`\nERROR: ${docPath} is out of date!`);
+      console.error(
+        `  says "${doc.match(DOC_DATE_RE)[2]}", PRICING_LAST_UPDATED is ${pricingDate} ` +
+          `("${toNorwegianDate(pricingDate)}")`,
+      );
+      console.error("Run: node scripts/sync-model-pricing.mjs");
+      process.exit(2);
+    }
+
     // Compare ignoring the date line (last-updated changes daily)
     const normalize = (s) =>
       s
@@ -420,10 +464,21 @@ async function main() {
   } else {
     writeFileSync(targetPath, newContent, "utf-8");
     console.log(`\n✓ Updated ${targetPath}`);
+    const today = new Date().toISOString().split("T")[0];
+    writeFileSync(docPath, setDocPricingDate(doc, today), "utf-8");
+    console.log(`✓ Updated ${docPath}`);
   }
 }
 
-export { parsePricingTables, parseFootnotes, parsePromotionEndDate, findFootnoteId, findUnresolvedPromotions };
+export {
+  parsePricingTables,
+  parseFootnotes,
+  parsePromotionEndDate,
+  findFootnoteId,
+  findUnresolvedPromotions,
+  setDocPricingDate,
+  toNorwegianDate,
+};
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => {
