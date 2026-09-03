@@ -67,10 +67,7 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
   if (workflow === "cli") {
     blocks.push({
       title: "# 1. Installer Copilot CLI",
-      commands: [
-        "curl -fsSL https://gh.io/copilot-install | bash",
-        'export PATH="$HOME/.local/bin:$PATH"   # skriptet installerer hit',
-      ],
+      commands: ["curl -fsSL https://gh.io/copilot-install | bash"],
     });
   } else if (workflow === "opencode") {
     blocks.push({ title: "# 1. Installer OpenCode", commands: ["curl -fsSL https://opencode.ai/install | bash"] });
@@ -87,6 +84,11 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
       commands: ["curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"],
     });
   }
+
+  blocks.push({
+    title: "# 2b. Gjør de nyinstallerte verktøyene tilgjengelige i dette skallet",
+    commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptene legger binærene hit'],
+  });
 
   blocks.push({
     title: "# 3. Sett opp for ditt prosjekt",

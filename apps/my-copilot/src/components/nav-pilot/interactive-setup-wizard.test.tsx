@@ -19,6 +19,7 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
       expect(result.code).not.toContain("npm install");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
       expect(result.code).not.toContain("which -a");
       expect(result.code).not.toContain("opencode");
     });
@@ -30,6 +31,7 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot --client opencode");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
       expect(result.code).not.toContain("@github/copilot");
       expect(result.code).not.toContain("npm install");
     });
@@ -46,6 +48,7 @@ describe("generateSetupScript", () => {
         "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
       expect(result.code).not.toContain("which -a");
     });
 
@@ -58,6 +61,7 @@ describe("generateSetupScript", () => {
       );
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
     });
   });
 
@@ -74,6 +78,7 @@ describe("generateSetupScript", () => {
         "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
     });
 
     it("generates WSL instructions for OpenCode", () => {
@@ -82,6 +87,7 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
       expect(result.code).toContain("which -a opencode cplt nav-pilot");
       expect(result.code).not.toContain("npm install");
     });
