@@ -237,7 +237,7 @@ func TestHandleAuthorize_MissingClientID(t *testing.T) {
 	}
 }
 
-func TestHandleAuthorize_UnregisteredClientID_Allowed(t *testing.T) {
+func TestHandleAuthorize_UnregisteredClientID_Rejected(t *testing.T) {
 	server := newTestOAuthServer()
 
 	req := httptest.NewRequest("GET", "/oauth/authorize?client_id=unknown&redirect_uri=http://127.0.0.1:33418&state=abc", nil)
@@ -245,8 +245,18 @@ func TestHandleAuthorize_UnregisteredClientID_Allowed(t *testing.T) {
 
 	server.handleAuthorize(w, req)
 
-	if w.Code != http.StatusFound {
-		t.Fatalf("expected 302 redirect, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	// invalid_client is what makes an MCP client re-run Dynamic Client
+	// Registration after the in-memory store has been emptied by a restart.
+	if resp["error"] != "invalid_client" {
+		t.Fatalf("expected error 'invalid_client', got %q", resp["error"])
 	}
 }
 

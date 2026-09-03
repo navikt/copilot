@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -92,12 +93,12 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
 
 	slog.Debug("authorize request received",
-		"client_id", clientID,
-		"redirect_uri", redirectURI,
+		"client_id", logSafe(clientID),
+		"redirect_uri", logSafe(redirectURI),
 		"has_state", clientState != "",
 		"has_pkce", codeChallenge != "",
-		"code_challenge_method", codeChallengeMethod,
-		"user_agent", r.UserAgent(),
+		"code_challenge_method", logSafe(codeChallengeMethod),
+		"user_agent", logSafe(r.UserAgent()),
 	)
 
 	if clientID == "" {
@@ -105,11 +106,21 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reg, _ := s.Store.GetClientRegistration(clientID)
-	if reg != nil && redirectURI != "" && !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) {
+	reg, err := s.Store.GetClientRegistration(clientID)
+	if err != nil {
+		// Unknown client_id — normally the in-memory store lost it on restart.
+		// Tell the client to re-register rather than trusting an unregistered
+		// client's redirect_uri (GHSA-7hwf-488h-59x8).
+		slog.Warn("unknown client_id", "client_id", logSafe(clientID))
+		recordOAuthFlow("authorize", "invalid_client")
+		writeUnknownClient(w, r)
+		return
+	}
+
+	if !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) { // also rejects ""
 		slog.Warn("redirect_uri not registered",
-			"client_id", clientID,
-			"redirect_uri", redirectURI,
+			"client_id", logSafe(clientID),
+			"redirect_uri", logSafe(redirectURI),
 		)
 		http.Error(w, "redirect_uri does not match registered URIs", http.StatusBadRequest)
 		return
@@ -133,8 +144,8 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	s.Store.SaveAuthSession(internalState, session)
 
 	slog.Info("starting oauth flow",
-		"client_id", clientID,
-		"redirect_uri", redirectURI,
+		"client_id", logSafe(clientID),
+		"redirect_uri", logSafe(redirectURI),
 		"has_pkce", codeChallenge != "",
 	)
 	recordOAuthFlow("authorize", "started")
@@ -148,6 +159,52 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	)
 
 	http.Redirect(w, r, githubURL, http.StatusFound)
+}
+
+// unknownClientPage is what a person sees when their browser lands on the
+// invalid_client error from /oauth/authorize.
+//
+// Client registrations live in memory and the app runs a single replica, so
+// every deploy drops every client_id. The editor extension then re-authorises
+// with the one it cached, gets rejected here, and sits blocked on its loopback
+// callback without ever reading the response body. The browser tab is the only
+// place a human is told what happened, so it has to say how to recover.
+const unknownClientPage = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Unknown client - sign in again</title></head>
+<body>
+<h1>This server no longer knows your editor's registration</h1>
+<p>Client registrations are kept in memory, so a deploy or a restart of this server clears
+them all. Your editor is still sending a <code>client_id</code> from before that, and the
+server cannot accept it (<code>invalid_client</code>).</p>
+<h2>How to recover</h2>
+<p>Remove the cached MCP registration and tokens for this server in your editor, then sign in
+again. The editor registers itself anew and the sign-in goes through.</p>
+<ul>
+<li>VS Code: open the Accounts menu, sign out of this MCP server, and reconnect it.</li>
+<li>Other clients: delete the stored OAuth registration for this server and reconnect.</li>
+</ul>
+<p>Nothing is wrong with your account, and you do not need to report this.</p>
+</body>
+</html>
+`
+
+// writeUnknownClient answers an unregistered client_id. Machine clients that
+// parse the body keep the RFC 6749 JSON error; a browser gets a page it can act
+// on, because it is the browser that the person is looking at.
+func writeUnknownClient(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(unknownClientPage))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":             "invalid_client",
+		"error_description": "Unknown client_id. Clear the cached MCP registration and tokens for this server, then sign in again to re-register.",
+	})
 }
 
 func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
@@ -230,14 +287,23 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, callbackURL, http.StatusFound)
 }
 
+// handleTokenOptions answers the CORS preflight without granting any origin.
+//
+// /oauth/token deliberately sends no Access-Control-Allow-Origin. Every
+// supported client (VS Code and the other IDE extensions) redeems the code from
+// a native process rather than a web page, so none of them needs the header. A
+// wildcard grant let any page read a token response in the victim's browser
+// (GHSA-7hwf-488h-59x8).
 func (s *OAuthServer) handleTokenOptions(w http.ResponseWriter, _ *http.Request) {
-	s.setCORSHeaders(w)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *OAuthServer) handleToken(w http.ResponseWriter, r *http.Request) {
-	s.setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
+	// RFC 6749 §5.1: a token response carries credentials and must not be
+	// stored by any intermediary or by the browser's back/forward cache.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
 	if err := r.ParseForm(); err != nil {
@@ -288,12 +354,12 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if clientID != "" && authCode.ClientID != "" && authCode.ClientID != clientID {
-		slog.Warn("client_id mismatch in token exchange",
+	if clientID == "" || clientID != authCode.ClientID {
+		slog.Warn("client_id missing or mismatched in token exchange",
 			"expected", authCode.ClientID,
 			"got", clientID,
 		)
-		s.writeTokenError(w, "invalid_client", "client_id mismatch")
+		s.writeTokenError(w, "invalid_client", "client_id missing or does not match the authorization code")
 		return
 	}
 
