@@ -396,7 +396,7 @@ func TestSyncApplyBumpsPinnedSHA(t *testing.T) {
 		}
 	})
 	if got := readDeclaration(t, scope).SHA; got != "8e45678000000000000000000000000000000000" {
-		t.Errorf("pinned SHA after sync --apply = %q, want new5678", got)
+		t.Errorf("pinned SHA after sync --apply = %q, want the moved SHA", got)
 	}
 }
 
