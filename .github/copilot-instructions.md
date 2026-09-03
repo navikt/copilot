@@ -469,3 +469,14 @@ mise all
 ```
 
 This runs all checks across all applications to ensure nothing is broken.
+
+## Running the nav-pilot binary
+
+`nav-pilot` writes to `~/.copilot/`, `~/.nav-pilot/` and the repository you are
+standing in. Never run it — or a test that calls `run()` — against a real home
+directory. Set `HOME` to a temporary directory (`nav-pilot` does **not** read
+`COPILOT_HOME`), along with `NAV_PILOT_CONFIG` and `XDG_CONFIG_HOME`, and check
+`~/.copilot` and `~/.nav-pilot` afterwards for changes you did not intend. In Go
+tests, use `isolatedConfig(t)`.
+
+Isolation that is set up wrong looks exactly like isolation until someone checks.

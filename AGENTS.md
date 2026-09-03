@@ -41,21 +41,28 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - Do not commit secrets.
 - Do not push unless explicitly asked.
 
-## Å kjøre nav-pilot-binæren under testing
+## Running the nav-pilot binary in tests or verification
 
-`nav-pilot` skriver til brukerens eget miljø: `~/.copilot/`, `~/.nav-pilot/` og
-det repoet du står i. En verifisering som kjører den ekte binæren uten isolasjon
-endrer utviklerens faktiske oppsett — og det har skjedd: en installasjon under
-testing pekte et brukerscope mot en midlertidig worktree og etterlot 23 av 52
-filer i konflikt, som `sync` deretter hoppet over i det stille.
+`nav-pilot` writes to the developer's own environment: `~/.copilot/`,
+`~/.nav-pilot/` and the repository you are standing in. A verification that runs
+the real binary without isolation changes a real setup, and it has: an install
+run during testing pointed a user scope at a temporary worktree and left 23 of 52
+files in conflict, which `sync` then silently skipped. Nothing had been edited by
+hand.
 
-Derfor, hver gang du kjører binæren for å sjekke oppførsel:
+Whenever you run the binary — directly, or through a test that calls `run()`:
 
-- Sett `HOME` og `COPILOT_HOME` til en midlertidig katalog. Ikke stol på at
-  kommandoen «bare leser» — `install`, `sync`, `config` og oppstartsveiene
-  skriver alle sammen.
-- Ta en kopi av `~/.copilot` og `~/.nav-pilot` før kjøringen, sammenlign etterpå,
-  og rapporter enhver forskjell. Isolasjon som er satt opp feil ser ut som
-  isolasjon helt til noen ser etter.
-- Rapporter det høyt hvis du likevel rørte noe. En stille endring i et
-  brukeroppsett er verre enn en feilet test.
+- Set `HOME` to a temporary directory. That is the one that matters, because
+  everything resolves through `os.UserHomeDir`. `nav-pilot` does **not** read
+  `COPILOT_HOME`. Also set `NAV_PILOT_CONFIG` (relocates
+  `~/.nav-pilot/config.toml`, see `internal/cli/config.go`) and
+  `XDG_CONFIG_HOME` (honoured on the opencode export path, see
+  `internal/provider/opencode_launch.go`). In Go tests, `isolatedConfig(t)` does
+  this for you — use it.
+- Do not assume a command only reads. `install`, `sync`, `config` and the launch
+  paths all write.
+- Hash `~/.copilot` and `~/.nav-pilot` before and after, and report any
+  difference. Isolation that is set up wrong looks exactly like isolation until
+  someone checks.
+- Say so loudly if you did touch something. A silent change to a developer's
+  setup is worse than a failed test.
