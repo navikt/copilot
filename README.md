@@ -84,6 +84,17 @@ Kernel-level sandbox for AI-agenter. Sandboxer AI-kodingsagenter med OS-primitiv
 brew install navikt/tap/cplt
 ```
 
+**Windows (WSL2):** kjør alt inne i Ubuntu, ikke i PowerShell, og bruk installasjonsskriptene i stedet for brew:
+
+```bash
+curl -fsSL https://gh.io/copilot-install | bash                                   # Copilot CLI
+curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash   # cplt
+export PATH="$HOME/.local/bin:$PATH"   # skriptene installerer hit
+which -a copilot cplt   # ingen treff skal starte med /mnt/c
+```
+
+WSL2 arver Windows-PATH. Mangler et verktøy i Ubuntu, plukker terminalen Windows-varianten i stedet, og den kjører via interop som en Windows-prosess — den installerer til Windows-siden og ser ikke Linux-filsystemet slik du forventer. Vanligste fella: `apt install nodejs` gir `node` i Ubuntu, men ikke `npm`, så `npm install -g` havner i Windows-prefixet og henter win32-pakken. Symptomet er `no platform package found` fra `copilot --version`. Jobb også fra Linux-filsystemet (`~/git/...`), ikke `/mnt/c/...` — 9p-I/O er tregt.
+
 ### My Copilot
 
 Selvbetjeningsportalen. Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen. Har også offentlige sider for [cplt](https://min-copilot.ansatt.nav.no/cplt), [nav-pilot](https://min-copilot.ansatt.nav.no/nav-pilot) og [kom i gang](https://min-copilot.ansatt.nav.no/kom-i-gang).

@@ -16,8 +16,10 @@ describe("generateSetupScript", () => {
     it("generates correct CLI script", () => {
       const result = generateSetupScript(os, "cli", "kotlin-backend");
       expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt");
-      expect(result.code).toContain("npm install -g @github/copilot");
+      expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
+      expect(result.code).not.toContain("npm install");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).not.toContain("which -a");
       expect(result.code).not.toContain("opencode");
     });
 
@@ -38,11 +40,13 @@ describe("generateSetupScript", () => {
 
     it("generates correct CLI script with curl", () => {
       const result = generateSetupScript(os, "cli", "kotlin-backend");
-      expect(result.code).toContain("npm install -g @github/copilot");
+      expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
+      expect(result.code).not.toContain("npm install");
       expect(result.code).toContain(
         "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).not.toContain("which -a");
     });
 
     it("generates correct OpenCode script with curl", () => {
@@ -63,7 +67,9 @@ describe("generateSetupScript", () => {
     it("generates WSL instructions for CLI", () => {
       const result = generateSetupScript(os, "cli", "kotlin-backend");
       expect(result.code).toContain("WSL2-terminalen");
-      expect(result.code).toContain("npm install -g @github/copilot");
+      expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
+      expect(result.code).not.toContain("npm install");
+      expect(result.code).toContain("which -a copilot cplt nav-pilot");
       expect(result.code).toContain(
         "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
@@ -76,6 +82,7 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install kotlin-backend");
+      expect(result.code).toContain("which -a opencode cplt nav-pilot");
       expect(result.code).not.toContain("npm install");
     });
   });
