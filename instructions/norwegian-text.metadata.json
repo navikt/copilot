@@ -1,10 +1,10 @@
 {
   "displayName": "Norsk tekstkvalitet",
-  "description": "Klarspråk, AI-markører, anglismer, fagtermer og sammensatte ord i norsk markdown.",
+  "description": "Minimumsregler for norsk markdown: Nav, bindestrek i sammensatte ord, engelsk fagspråk, konsekvent bokmål og overskrifter. Full språkvask ligger i klarsprak-skillen.",
   "domain": "general",
-  "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "markdown"],
+  "tags": ["norwegian", "bokmål", "markdown", "spelling", "compound-words", "terminology"],
   "examples": [
-    "Fjern AI-markører fra denne teksten",
-    "Sjekk klarspråk i denne README-en"
+    "Rett opp NAV til Nav i denne fila",
+    "Sjekk at teksten er konsekvent bokmål"
   ]
 }
