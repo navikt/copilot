@@ -215,6 +215,22 @@ func cmdDoctor() error {
 				fmt.Printf("    • No .cplt.toml found in current directory\n")
 			}
 		}
+
+		// Enforcement, probed rather than inferred. Everything above this line
+		// reads configuration; `cplt check` runs the probes inside the sandbox
+		// the agent would actually get. A repo can be perfectly configured and
+		// still not be enforcing.
+		switch report := cpltEnforcement(); {
+		case report == nil:
+			fmt.Printf("    %s Could not verify sandbox enforcement\n", dim("-"))
+			fmt.Printf("        %s Run %s — an older cplt has no such subcommand.\n", dim("Solution:"), bold("cplt check"))
+		case report.Enforcing:
+			fmt.Printf("    %s Sandbox is enforcing (%d protections verified)\n", green("✓"), report.Verified)
+		default:
+			hasErrors = true
+			fmt.Printf("    %s Sandbox is NOT enforcing\n", red("[✗]"))
+			fmt.Printf("        %s Run %s — it names each failing probe and its fix.\n", red("Solution:"), bold("cplt check"))
+		}
 	} else {
 		fmt.Printf("    • Skipped (cplt not installed)\n")
 	}
