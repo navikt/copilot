@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-03
+
+### cplt-oppdateringer etter oppstrømsgjennomgang
+
+- **`doctor` verifiserer nå håndheving, ikke bare oppsett**: Sjekken leste `cplt --version` og `cplt config show`, som svarer på om cplt er konfigurert, aldri på om sandboxen faktisk håndhever. `cplt check --json` ([navikt/cplt#145](https://github.com/navikt/cplt/pull/145)) kjører prober inne i den ekte resolverte sandboxen og eksiterer ikke-null når den ikke kan bekrefte håndheving. En eldre cplt uten subkommandoen, eller en cplt som ikke finnes, gir «vet ikke» — aldri en grønn hake og aldri en falsk feil.
+
 ## 2026-09-01
 
 ### opencode så aldri det teamet la inn for hånd
