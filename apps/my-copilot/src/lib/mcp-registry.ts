@@ -16,6 +16,7 @@ interface ServerResponse {
     packages?: {
       registryType: string;
       identifier: string;
+      version?: string;
       runtimeHint?: string;
       transport: { type: string };
       packageArguments?: { type: string; name?: string; value?: string; description?: string }[];
@@ -32,6 +33,7 @@ interface ServerResponse {
       tools?: string[];
       tags?: string[];
       examples?: UsageExample[];
+      setupInstructions?: { title: string; description: string; commands: string[] }[];
     };
   };
 }
@@ -103,6 +105,7 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
         return {
           id: `mcp-${s.server.name}`,
           name: formatServerName(s.server.name),
+          serverId: s.server.name,
           description: s.server.description,
           type: "mcp" as const,
           domain: deriveDomain(tags),
@@ -116,6 +119,7 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
           repository: s.server.repository,
           tools: navMeta?.tools,
           tags,
+          setupInstructions: navMeta?.setupInstructions,
           packages: s.server.packages,
           ...(examples && examples.length > 0 && { examples }),
         };

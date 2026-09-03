@@ -78,6 +78,18 @@ func makeServersListHandler(config *Config) http.HandlerFunc {
 	}
 }
 
+func navRegistryMeta(server StaticServerData) *NavRegistryMeta {
+	if len(server.Tools) == 0 && len(server.Tags) == 0 && len(server.Examples) == 0 && len(server.SetupInstructions) == 0 {
+		return nil
+	}
+	return &NavRegistryMeta{
+		Tools:             server.Tools,
+		Tags:              server.Tags,
+		Examples:          server.Examples,
+		SetupInstructions: server.SetupInstructions,
+	}
+}
+
 func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) {
 	if r.Method == http.MethodOptions {
 		optionsHandler(w, r)
@@ -125,10 +137,6 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 		if status == "" {
 			status = StatusActive
 		}
-		var navMeta *NavRegistryMeta
-		if len(s.Tools) > 0 || len(s.Tags) > 0 || len(s.Examples) > 0 {
-			navMeta = &NavRegistryMeta{Tools: s.Tools, Tags: s.Tags, Examples: s.Examples}
-		}
 		servers = append(servers, ServerResponse{
 			Server: ServerJSON{
 				Schema:      CurrentSchemaURL,
@@ -147,7 +155,7 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 					UpdatedAt:   updatedAt,
 					IsLatest:    true,
 				},
-				NavRegistry: navMeta,
+				NavRegistry: navRegistryMeta(s),
 			},
 		})
 	}
@@ -245,10 +253,6 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 			if status == "" {
 				status = StatusActive
 			}
-			var navMeta *NavRegistryMeta
-			if len(s.Tools) > 0 || len(s.Tags) > 0 {
-				navMeta = &NavRegistryMeta{Tools: s.Tools, Tags: s.Tags}
-			}
 			response := ServerResponse{
 				Server: ServerJSON{
 					Schema:      CurrentSchemaURL,
@@ -267,7 +271,7 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 						UpdatedAt:   updatedAt,
 						IsLatest:    true,
 					},
-					NavRegistry: navMeta,
+					NavRegistry: navRegistryMeta(s),
 				},
 			}
 			slog.Debug("Returning server", "name", serverName, "version", version)

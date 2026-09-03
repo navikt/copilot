@@ -56,17 +56,26 @@ export interface Skill extends BaseCustomization {
   references?: SkillReference[];
 }
 
+export interface SetupInstruction {
+  title: string;
+  description: string;
+  commands: string[];
+}
+
 export interface McpServerCustomization extends BaseCustomization {
   type: "mcp";
+  serverId: string;
   version: string;
   remotes: { type: string; url: string }[];
   websiteUrl?: string;
   repository?: { url: string; source: string; subfolder?: string };
   tools?: string[];
   tags?: string[];
+  setupInstructions?: SetupInstruction[];
   packages?: {
     registryType: string;
     identifier: string;
+    version?: string;
     runtimeHint?: string;
     transport: { type: string };
     packageArguments?: { type: string; name?: string; value?: string; description?: string }[];

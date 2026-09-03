@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -72,6 +73,137 @@ func TestServersListHandler(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
+
+	t.Run("Playwright recipe returned by list and version", func(t *testing.T) {
+		expectedTools := []string{
+			"browser_click",
+			"browser_close",
+			"browser_console_messages",
+			"browser_drag",
+			"browser_drop",
+			"browser_evaluate",
+			"browser_file_upload",
+			"browser_fill_form",
+			"browser_find",
+			"browser_handle_dialog",
+			"browser_hover",
+			"browser_navigate",
+			"browser_navigate_back",
+			"browser_network_request",
+			"browser_network_requests",
+			"browser_press_key",
+			"browser_resize",
+			"browser_run_code_unsafe",
+			"browser_select_option",
+			"browser_snapshot",
+			"browser_take_screenshot",
+			"browser_type",
+			"browser_wait_for",
+			"browser_tabs",
+		}
+		expectedArguments := []Argument{
+			{Type: "named", Name: "--isolated"},
+			{Type: "named", Name: "--browser", Value: "chromium"},
+			{
+				Type:  "named",
+				Name:  "--blocked-origins",
+				Value: "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no",
+			},
+			{Type: "named", Name: "--block-service-workers"},
+		}
+		expectedCommands := [][]string{
+			{"pnpm dlx @playwright/mcp@0.0.80 install-browser chromium"},
+			{
+				"cplt config set sandbox.allow_cache_exec ms-playwright",
+				"cplt config set sandbox.allow_cache_exec pnpm/dlx",
+			},
+		}
+
+		assertRecipe := func(t *testing.T, response ServerResponse) {
+			t.Helper()
+			if response.Server.Name != "com.microsoft/playwright-mcp" {
+				t.Fatalf("expected full registry ID, got %q", response.Server.Name)
+			}
+			if response.Server.Version != "0.0.80" {
+				t.Errorf("expected server version 0.0.80, got %q", response.Server.Version)
+			}
+			if len(response.Server.Packages) != 1 {
+				t.Fatalf("expected one package, got %d", len(response.Server.Packages))
+			}
+			pkg := response.Server.Packages[0]
+			if pkg.Identifier != "@playwright/mcp" || pkg.Version != "0.0.80" {
+				t.Errorf("expected @playwright/mcp@0.0.80, got %s@%s", pkg.Identifier, pkg.Version)
+			}
+			if len(pkg.PackageArguments) != len(expectedArguments) {
+				t.Fatalf("expected %d package arguments, got %d", len(expectedArguments), len(pkg.PackageArguments))
+			}
+			for i, expected := range expectedArguments {
+				actual := pkg.PackageArguments[i]
+				if actual.Type != expected.Type || actual.Name != expected.Name || actual.Value != expected.Value {
+					t.Errorf("package argument %d: expected %#v, got %#v", i, expected, actual)
+				}
+			}
+			if response.Meta.NavRegistry == nil {
+				t.Fatal("expected Nav registry metadata")
+			}
+			if !reflect.DeepEqual(response.Meta.NavRegistry.Tools, expectedTools) {
+				t.Errorf("unexpected Playwright tools: %#v", response.Meta.NavRegistry.Tools)
+			}
+			instructions := response.Meta.NavRegistry.SetupInstructions
+			if len(instructions) != len(expectedCommands) {
+				t.Fatalf("expected %d setup instructions, got %d", len(expectedCommands), len(instructions))
+			}
+			for i, commands := range expectedCommands {
+				if !reflect.DeepEqual(instructions[i].Commands, commands) {
+					t.Errorf("setup instruction %d: expected commands %#v, got %#v", i, commands, instructions[i].Commands)
+				}
+				if strings.TrimSpace(instructions[i].Title) == "" || strings.TrimSpace(instructions[i].Description) == "" {
+					t.Errorf("setup instruction %d must have title and description", i)
+				}
+			}
+			networkExplanation := instructions[1].Description
+			for _, required := range []string{"smale cache-exec-unntak", "ikke en sikkerhetsgrense", "redirects", "proxy-forced", "eksplisitt domenepolicy"} {
+				if !strings.Contains(networkExplanation, required) {
+					t.Errorf("network explanation must contain %q", required)
+				}
+			}
+		}
+
+		listRequest := httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil)
+		listRecorder := httptest.NewRecorder()
+		serversListHandler(listRecorder, listRequest, testConfig())
+		var listResponse ServerListResponse
+		if err := json.Unmarshal(listRecorder.Body.Bytes(), &listResponse); err != nil {
+			t.Fatalf("failed to parse list response: %v", err)
+		}
+		var playwrightResponse *ServerResponse
+		for i := range listResponse.Servers {
+			if listResponse.Servers[i].Server.Name == "com.microsoft/playwright-mcp" {
+				playwrightResponse = &listResponse.Servers[i]
+				break
+			}
+		}
+		if playwrightResponse == nil {
+			t.Fatal("Playwright server missing from list response")
+		}
+		assertRecipe(t, *playwrightResponse)
+
+		versionRequest := httptest.NewRequest(
+			http.MethodGet,
+			"/v0.1/servers/"+url.PathEscape("com.microsoft/playwright-mcp")+"/versions/0.0.80",
+			nil,
+		)
+		versionRecorder := httptest.NewRecorder()
+		serverVersionHandler(versionRecorder, versionRequest, testConfig())
+		if versionRecorder.Code != http.StatusOK {
+			t.Fatalf("expected version response 200, got %d: %s", versionRecorder.Code, versionRecorder.Body.String())
+		}
+		var versionResponse ServerResponse
+		if err := json.Unmarshal(versionRecorder.Body.Bytes(), &versionResponse); err != nil {
+			t.Fatalf("failed to parse version response: %v", err)
+		}
+		assertRecipe(t, versionResponse)
+	})
 
 	if ct := resp.Header.Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %s", ct)
@@ -725,7 +857,7 @@ func TestServerVersionHandler_PackageArguments(t *testing.T) {
 	}
 }
 
-func TestServersListHandler_PlaywrightSecurityArgs(t *testing.T) {
+func TestServersListHandler_PlaywrightArguments(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil)
 	w := httptest.NewRecorder()
 
@@ -764,12 +896,15 @@ func TestServersListHandler_PlaywrightSecurityArgs(t *testing.T) {
 
 	requiredFlags := map[string]string{
 		"--isolated":              "",
-		"--caps":                  "core",
+		"--browser":               "chromium",
+		"--blocked-origins":       "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no",
 		"--block-service-workers": "",
-		"--save-trace":            "",
 	}
 
 	for _, arg := range pkg.PackageArguments {
+		if arg.Name == "--caps" || arg.Name == "--save-trace" {
+			t.Errorf("unsupported Playwright argument present: %s", arg.Name)
+		}
 		if expected, ok := requiredFlags[arg.Name]; ok {
 			if expected != "" && arg.Value != expected {
 				t.Errorf("flag %s: expected value '%s', got '%s'", arg.Name, expected, arg.Value)
@@ -779,19 +914,6 @@ func TestServersListHandler_PlaywrightSecurityArgs(t *testing.T) {
 	}
 
 	for flag := range requiredFlags {
-		t.Errorf("missing required security flag: %s", flag)
-	}
-
-	hasBlockedOrigins := false
-	for _, arg := range pkg.PackageArguments {
-		if arg.Name == "--blocked-origins" {
-			hasBlockedOrigins = true
-			if arg.Value == "" {
-				t.Error("--blocked-origins must have a value")
-			}
-		}
-	}
-	if !hasBlockedOrigins {
-		t.Error("missing required security flag: --blocked-origins")
+		t.Errorf("missing required Playwright argument: %s", flag)
 	}
 }

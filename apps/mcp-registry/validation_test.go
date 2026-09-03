@@ -849,6 +849,71 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 		},
 	}
 
+	t.Run("setup instructions", func(t *testing.T) {
+		validServer := func(instruction SetupInstruction) *StaticRegistryData {
+			return &StaticRegistryData{Servers: []StaticServerData{{
+				Name:              "io.github.test/server",
+				Description:       "Test Description",
+				Version:           "1.0.0",
+				SetupInstructions: []SetupInstruction{instruction},
+			}}}
+		}
+
+		tests := []struct {
+			name        string
+			instruction SetupInstruction
+			errorMsg    string
+		}{
+			{
+				name: "valid",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{"tool install dependency"},
+				},
+			},
+			{
+				name:        "missing title",
+				instruction: SetupInstruction{Description: "Run before first use.", Commands: []string{"tool install dependency"}},
+				errorMsg:    "'title' is required",
+			},
+			{
+				name:        "missing description",
+				instruction: SetupInstruction{Title: "Install dependency", Commands: []string{"tool install dependency"}},
+				errorMsg:    "'description' is required",
+			},
+			{
+				name:        "missing commands",
+				instruction: SetupInstruction{Title: "Install dependency", Description: "Run before first use."},
+				errorMsg:    "'commands' must contain at least one command",
+			},
+			{
+				name: "empty command",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{" "},
+				},
+				errorMsg: "command cannot be empty",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				err := validateRegistry(validServer(tt.instruction))
+				if tt.errorMsg == "" {
+					if err != nil {
+						t.Fatalf("expected valid setup instruction, got %v", err)
+					}
+					return
+				}
+				if err == nil || !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Fatalf("expected error containing %q, got %v", tt.errorMsg, err)
+				}
+			})
+		}
+	})
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateRegistry(tt.data)
