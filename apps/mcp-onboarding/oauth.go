@@ -625,9 +625,12 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	slog.Info("client registered",
 		"client_id", logSafe(clientID),
 		"client_name", logSafe(req.ClientName),
-		"redirect_uris", req.RedirectURIs,
-		"grant_types", req.GrantTypes,
-		"token_endpoint_auth_method", req.TokenEndpointAuthMethod,
+		// Sanitised for consistency and for whoever loosens the validation
+		// above. Not reachable today: every one of these is validated before
+		// this line, so a control character cannot survive to be logged.
+		"redirect_uris", logSafeAll(req.RedirectURIs),
+		"grant_types", logSafeAll(req.GrantTypes),
+		"token_endpoint_auth_method", logSafe(req.TokenEndpointAuthMethod),
 	)
 	recordOAuthFlow("client_registration", "success")
 
