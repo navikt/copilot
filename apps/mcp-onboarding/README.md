@@ -273,8 +273,10 @@ Not tested with this server — likely same third-party OAuth issues as JetBrain
   after 30 days
 - The authorization code is bound to the client it was issued to, and `/oauth/token`
   requires that `client_id`
-- No endpoint sends `Access-Control-Allow-Origin` — discovery, registration and token
-  exchange are done by the editor's own process, not by a web page
+- The OAuth endpoints send no `Access-Control-Allow-Origin` — discovery, registration
+  and token exchange are done by the editor's own process, not by a web page. `GET /mcp`
+  still sends it for the SSE stream; that stream requires an `Authorization: Bearer`
+  header, which a browser `EventSource` cannot set, so no page can use it either way
 - Tokens are stored in memory only, and are lost on restart by design (they are live GitHub credentials and must not be persisted)
 
 ## License
