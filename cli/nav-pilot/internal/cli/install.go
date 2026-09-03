@@ -37,6 +37,7 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 		{"Skills", manifest.Skills, KindSkill},
 		{"Instructions", manifest.Instructions, KindInstruction},
 		{"Prompts", manifest.Prompts, KindPrompt},
+		{"Hooks", manifest.Hooks, KindHook},
 	} {
 		if len(group.names) == 0 {
 			continue
@@ -81,7 +82,7 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	// carries the name and description `nav-pilot list` prints. Only a manifest
 	// that declares a layout and then ships nothing at it is an error, and the
 	// message says exactly that.
-	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions) + len(manifest.Prompts)
+	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions) + len(manifest.Prompts) + len(manifest.Hooks)
 	if total == 0 && pakke.Layout != nil {
 		return nil, fmt.Errorf("agentpakke %q declares a layout but ships no agents, skills, instructions, or prompts.\n"+
 			"Check the layout paths in %s", pakke.Name, agentpakke.ManifestPath)
@@ -223,6 +224,17 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 	}
 	result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: hash})
 
+	// A hook is the one kind whose file on disk does nothing on its own: the
+	// CLI runs it only once an entry points at it. Activation sits here rather
+	// than in installItems because cmdAdd and cmdAddFromSource install one
+	// artifact through this same function, and a gate that activates only on
+	// the collection path is the half-built install #569 is about.
+	if kind == KindHook {
+		if err := activateHook(scope, art, result); err != nil {
+			return fmt.Errorf("activating hook %s: %w", name, err)
+		}
+	}
+
 	fmt.Printf("  %s %s\n", green("✓"), name)
 	result.Installed++
 
@@ -286,7 +298,7 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 				bold("--frozen"), agentpakke.DeclarationPath, bold("--type "+itemType))
 		}
 		if _, ok := kindByName[itemType]; !ok {
-			return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt", itemType)
+			return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt, hook", itemType)
 		}
 		return cmdAdd(itemType, name, scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	}
@@ -673,7 +685,7 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 		collections = append(collections, collectionInfo{
 			Name:        m.Name,
 			Description: m.Description,
-			Items:       len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts),
+			Items:       len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts) + len(m.Hooks),
 			agents:      m.Agents,
 		})
 	}
@@ -1224,6 +1236,7 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 	fmt.Println()
 
 	removed := removeStateFiles(scope, state, dryRun, false)
+	removed += deactivateRepoHooks(scope, dryRun)
 
 	// A pinned Tier 2 install keeps everything it materialized outside the
 	// scope, so the file loop above removed nothing and the revisions are the

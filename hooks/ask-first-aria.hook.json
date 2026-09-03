@@ -1,0 +1,4 @@
+{
+  "matcher": "edit|create|str_replace|str_replace_editor|apply_patch|view",
+  "timeoutSec": 5
+}

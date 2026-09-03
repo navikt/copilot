@@ -19,7 +19,7 @@ type ignoreResult struct {
 func cmdIgnore(itemType, name string, scope *InstallScope, jsonOutput bool) error {
 	kind, ok := kindByName[itemType]
 	if !ok || kind == KindPrompt {
-		return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction", itemType)
+		return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, hook", itemType)
 	}
 
 	if !scope.IsUser() {

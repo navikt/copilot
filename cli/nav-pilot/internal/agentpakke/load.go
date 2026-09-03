@@ -205,6 +205,7 @@ func (m *Manifest) checkPaths() error {
 			ref{"layout.skills", m.Layout.Skills},
 			ref{"layout.instructions", m.Layout.Instructions},
 			ref{"layout.prompts", m.Layout.Prompts},
+			ref{"layout.hooks", m.Layout.Hooks},
 		)
 	}
 	if m.Policies != nil {
@@ -274,6 +275,7 @@ func (m *Manifest) validateContent(sourceRoot string) []error {
 			{"layout.skills", m.Layout.Skills},
 			{"layout.instructions", m.Layout.Instructions},
 			{"layout.prompts", m.Layout.Prompts},
+			{"layout.hooks", m.Layout.Hooks},
 		} {
 			if d.value == "" {
 				continue

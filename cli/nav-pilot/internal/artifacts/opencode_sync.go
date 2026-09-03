@@ -161,6 +161,20 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 	var files []domain.InstalledFile
 	resolver := source.NewSourceResolver(sourceDir)
 
+	// OpenCode has no tool-deny mechanism, so a preToolUse gate has nothing to
+	// attach to there. Said out loud rather than skipped in silence: a user who
+	// installed an enforcement hook and then exported to opencode would
+	// otherwise believe the gate came along. ValidateOpenCodeStatePath keeps
+	// refusing hooks/ regardless, so nothing can slip in through state either.
+	if skipped := resolver.List(source.KindHook); len(skipped) > 0 {
+		names := make([]string, len(skipped))
+		for i, h := range skipped {
+			names[i] = h.Name
+		}
+		fmt.Printf("  %s %d hook(s) not exported: %s. OpenCode has no tool-deny mechanism, so the gate cannot run there.\n",
+			domain.Yellow("⚠"), len(names), strings.Join(names, ", "))
+	}
+
 	for _, skill := range withScopeExtras(resolver.List(source.KindSkill), scopeDir, source.KindSkill) {
 		relPath := "skills/" + skill.Name + "/"
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)

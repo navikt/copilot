@@ -39,5 +39,8 @@
   "prompts": [
     "nais-manifest",
     "golang-service"
+  ],
+  "hooks": [
+    "klarsprak-gate"
   ]
 }

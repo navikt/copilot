@@ -93,6 +93,19 @@ func cmdDoctor() error {
 	}
 	fmt.Println()
 
+	// 2b. Hooks
+	//
+	// nav-pilot reports GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS rather than
+	// setting it. Setting it would mean writing an undocumented, changelog-only
+	// variable into the user's shell to loosen a posture the CLI made
+	// secure-by-default on purpose — and an interactive user in a trusted
+	// checkout does not need it at all. Prompt mode (-p) in an untrusted folder
+	// does, and that is the one case worth naming out loud, because there the
+	// gate silently does not load and everything else looks fine.
+	fmt.Printf("[i] Hooks\n")
+	reportHooks(repoDir, userScope)
+	fmt.Println()
+
 	// 3. Client Agents
 	fmt.Printf("[i] Client Agents\n")
 

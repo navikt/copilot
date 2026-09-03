@@ -163,6 +163,7 @@ const COLLECTIONS = [
       instructions:
         "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, testing, testing-kotlin, github-actions, docker, database, security-owasp",
       prompts: "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest",
+      hooks: "klarsprak-gate",
     },
   },
   {
@@ -178,6 +179,7 @@ const COLLECTIONS = [
       instructions:
         "code-review, deliberate-ai-use, output-style, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nais-manifest",
+      hooks: "ask-first-aria, klarsprak-gate",
     },
   },
   {
@@ -193,6 +195,7 @@ const COLLECTIONS = [
       instructions:
         "code-review, deliberate-ai-use, output-style, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nextjs-api-route, nais-manifest",
+      hooks: "ask-first-aria, klarsprak-gate",
     },
   },
   {
@@ -209,6 +212,7 @@ const COLLECTIONS = [
         "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database, security-owasp",
       prompts:
         "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest, aksel-component, nextjs-api-route, golang-service",
+      hooks: "ask-first-aria, klarsprak-gate",
     },
   },
   {
@@ -224,6 +228,7 @@ const COLLECTIONS = [
       instructions:
         "code-review, deliberate-ai-use, output-style, golang, testing, github-actions, docker, security-owasp",
       prompts: "golang-service, nais-manifest",
+      hooks: "klarsprak-gate",
     },
   },
 ];
@@ -884,8 +889,17 @@ function CollectionsSection() {
             Collections
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Collections er ferdigpakkede sett med agenter, skills, instruksjoner og prompts organisert etter
+            Collections er ferdigpakkede sett med agenter, skills, instruksjoner, prompts og hooks organisert etter
             team-arketype. Velg din stack og få en komplett, testet pakke.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Merk at hooks er kjørbar kode: et Python-skript Copilot CLI kjører ved hvert verktøykall som treffer
+            matcheren, ikke tekst modellen leser. <code className="font-mono text-xs">nav-pilot install</code> legger
+            dem inn sammen med resten, så les dem før du stoler på dem. Skriptene ligger i{" "}
+            <code className="font-mono text-xs">.github/hooks/</code> (repo) eller{" "}
+            <code className="font-mono text-xs">~/.copilot/hooks/</code> (bruker), og{" "}
+            <code className="font-mono text-xs">nav-pilot uninstall</code> fjerner bare oppføringene nav-pilot selv har
+            skrevet — dine egne hooks blir stående.
           </BodyLong>
         </div>
 
@@ -1018,6 +1032,22 @@ function CollectionsSection() {
                           style={{ background: "#fff7ed", color: "#ea580c" }}
                         >
                           {p}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label size="small" style={{ color: "#334155" }}>
+                      Hooks (kjørbar kode)
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {c.details.hooks.split(", ").map((h) => (
+                        <code
+                          key={h}
+                          className="text-xs font-mono rounded px-1.5 py-0.5"
+                          style={{ background: "#fef2f2", color: "#dc2626" }}
+                        >
+                          {h}
                         </code>
                       ))}
                     </div>

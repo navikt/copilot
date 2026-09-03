@@ -81,8 +81,18 @@ run = "bash scripts/lint-skills.sh"
 
 
 [tasks."hooks:test"]
-description = "Selvtest for .github/hooks/ (preToolUse-porten for egendefinerte ARIA-roller)"
-run = "python3 .github/hooks/ask-first-aria.py --selftest"
+description = "Selvtest for hooks/ (preToolUse-portene), og sjekk at .github/hooks/ er identisk med kilden"
+run = """
+set -e
+python3 hooks/ask-first-aria.py --selftest
+python3 hooks/klarsprak-gate.py --selftest
+# hooks/ er kilden nav-pilot installerer fra; .github/hooks/ er dette repoets
+# egen installasjon av den, som Copilot CLI faktisk leser. To kopier råtner hvis
+# ingen sjekker dem, og en port som har drevet fra kilden er ingen port.
+for f in hooks/*.py; do
+  diff -q "$f" ".github/hooks/$(basename "$f")"
+done
+"""
 
 [tasks."collections:lint"]
 description = "Verify docs page COLLECTIONS data matches manifest.json files"
