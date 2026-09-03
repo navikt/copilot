@@ -504,7 +504,9 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Registrations are not stored, so there is nothing to exhaust and no
 	// registration cap. The body is still bounded, and so is the number of
-	// redirect_uris below, because both end up inside the issued client_id.
+	// redirect_uris below — but neither bounds the length of a single
+	// redirect_uri, so the minted client_id is checked against maxClientIDLen
+	// before it is handed out.
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 
 	var req struct {
@@ -595,6 +597,20 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		IssuedAt:     issuedAt,
 		Nonce:        generateSecureToken(8),
 	})
+
+	// The caps above bound the request, not the length of one redirect_uri, so
+	// a single long URI can still produce a client_id that verifyClientID would
+	// refuse to decode. Reject the registration rather than issue one that can
+	// never authorise.
+	if len(clientID) > maxClientIDLen {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client_metadata",
+			"error_description": "redirect_uris are too long to fit in a client_id",
+		})
+		return
+	}
 
 	reg := &ClientRegistration{
 		ClientID:                clientID,

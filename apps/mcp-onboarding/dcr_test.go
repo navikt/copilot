@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 )
 
 func newTestOAuthServer() *OAuthServer {
@@ -265,7 +266,7 @@ func TestHandleAuthorize_UnregisteredClientID_Rejected(t *testing.T) {
 func TestHandleAuthorize_RedirectURIMismatch(t *testing.T) {
 	server := newTestOAuthServer()
 
-	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418"}})
+	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418"}, IssuedAt: time.Now().Unix()})
 
 	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+"&redirect_uri=http://evil.com/callback&state=abc", nil)
 	w := httptest.NewRecorder()
@@ -280,7 +281,7 @@ func TestHandleAuthorize_RedirectURIMismatch(t *testing.T) {
 func TestHandleAuthorize_LoopbackDifferentPort(t *testing.T) {
 	server := newTestOAuthServer()
 
-	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418/"}})
+	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418/"}, IssuedAt: time.Now().Unix()})
 
 	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+"&redirect_uri=http://127.0.0.1:50049/&state=abc", nil)
 	w := httptest.NewRecorder()
