@@ -1690,10 +1690,15 @@ func TestDetectNewItems_AllUpToDate(t *testing.T) {
 func TestRun_InstallUserNoArgs(t *testing.T) {
 	forceNonInteractive = true
 	t.Cleanup(func() { forceNonInteractive = false })
+	// --user installs into $HOME/.copilot. The comment below assumed source
+	// resolution would fail in a test environment; run from a checkout it
+	// resolves to the local repo, the install succeeds, and the suite rewrites
+	// the developer's own ~/.copilot — collection, source_repo and all.
+	t.Setenv("HOME", t.TempDir())
 
 	// nav-pilot install --user (no collection) should call cmdInstallAll,
-	// which calls resolveSource. In test environment this will fail on source
-	// resolution. We just verify it doesn't require a collection name.
+	// which calls resolveSource. We only verify it doesn't require a
+	// collection name.
 	err := run([]string{"install", "--user"})
 	if err != nil && strings.Contains(err.Error(), "collection name") {
 		t.Errorf("install --user should not require collection name, got: %v", err)
@@ -1701,6 +1706,10 @@ func TestRun_InstallUserNoArgs(t *testing.T) {
 }
 
 func TestRun_InstallUserWithCollection(t *testing.T) {
+	// Same reason as TestRun_InstallUserNoArgs: without this the assertion
+	// below is made by installing into the developer's real home directory.
+	t.Setenv("HOME", t.TempDir())
+
 	// nav-pilot install --user fullstack — should still work as before
 	// (backwards compatible, dispatches to cmdInstall not cmdInstallAll)
 	err := run([]string{"install", "--user", "fullstack"})
