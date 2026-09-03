@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -52,12 +53,13 @@ func TestHandleRegister_Success(t *testing.T) {
 		t.Fatalf("expected token_endpoint_auth_method 'none', got %q", resp.TokenEndpointAuthMethod)
 	}
 
-	reg, err := server.Store.GetClientRegistration(resp.ClientID)
+	// The registration is not stored anywhere; it travels inside the client_id.
+	info, err := verifyClientID(server.clientIDKey, resp.ClientID)
 	if err != nil {
-		t.Fatalf("client not stored: %v", err)
+		t.Fatalf("issued client_id does not verify: %v", err)
 	}
-	if reg.ClientName != "VS Code" {
-		t.Fatalf("stored client_name mismatch: %q", reg.ClientName)
+	if len(info.RedirectURIs) != 1 || info.RedirectURIs[0] != "http://127.0.0.1:33418" {
+		t.Fatalf("client_id carries the wrong redirect_uris: %v", info.RedirectURIs)
 	}
 }
 
@@ -263,12 +265,9 @@ func TestHandleAuthorize_UnregisteredClientID_Rejected(t *testing.T) {
 func TestHandleAuthorize_RedirectURIMismatch(t *testing.T) {
 	server := newTestOAuthServer()
 
-	server.Store.SaveClientRegistration(&ClientRegistration{
-		ClientID:     "test-client",
-		RedirectURIs: []string{"http://127.0.0.1:33418"},
-	})
+	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418"}})
 
-	req := httptest.NewRequest("GET", "/oauth/authorize?client_id=test-client&redirect_uri=http://evil.com/callback&state=abc", nil)
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+"&redirect_uri=http://evil.com/callback&state=abc", nil)
 	w := httptest.NewRecorder()
 
 	server.handleAuthorize(w, req)
@@ -281,12 +280,9 @@ func TestHandleAuthorize_RedirectURIMismatch(t *testing.T) {
 func TestHandleAuthorize_LoopbackDifferentPort(t *testing.T) {
 	server := newTestOAuthServer()
 
-	server.Store.SaveClientRegistration(&ClientRegistration{
-		ClientID:     "cli-client",
-		RedirectURIs: []string{"http://127.0.0.1:33418/"},
-	})
+	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418/"}})
 
-	req := httptest.NewRequest("GET", "/oauth/authorize?client_id=cli-client&redirect_uri=http://127.0.0.1:50049/&state=abc", nil)
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+"&redirect_uri=http://127.0.0.1:50049/&state=abc", nil)
 	w := httptest.NewRecorder()
 
 	server.handleAuthorize(w, req)

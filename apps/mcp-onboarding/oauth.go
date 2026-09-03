@@ -17,6 +17,21 @@ type OAuthServer struct {
 	GitHubClient        *GitHubClient
 	Store               *TokenStore
 	AllowedOrganization string
+	clientIDKey         []byte
+}
+
+// ClientRegistration is the RFC 7591 response to a Dynamic Client Registration
+// request. Nothing here is stored: ClientID carries the registration itself
+// (see clientid.go). No client_secret is issued, so client_secret and
+// client_secret_expires_at are both absent, per RFC 7591 section 3.2.1.
+type ClientRegistration struct {
+	ClientID                string   `json:"client_id"`
+	ClientIDIssuedAt        int64    `json:"client_id_issued_at,omitempty"`
+	ClientName              string   `json:"client_name,omitempty"`
+	RedirectURIs            []string `json:"redirect_uris"`
+	GrantTypes              []string `json:"grant_types,omitempty"`
+	ResponseTypes           []string `json:"response_types,omitempty"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
 }
 
 type AuthorizationServerMetadata struct {
@@ -41,6 +56,7 @@ func NewOAuthServer(baseURL string, githubClient *GitHubClient, store *TokenStor
 		GitHubClient:        githubClient,
 		Store:               store,
 		AllowedOrganization: allowedOrganization,
+		clientIDKey:         deriveClientIDKey(githubClient.ClientSecret),
 	}
 }
 
@@ -106,11 +122,12 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reg, err := s.Store.GetClientRegistration(clientID)
+	reg, err := verifyClientID(s.clientIDKey, clientID)
 	if err != nil {
-		// Unknown client_id — normally the in-memory store lost it on restart.
-		// Tell the client to re-register rather than trusting an unregistered
-		// client's redirect_uri (GHSA-7hwf-488h-59x8).
+		// The client_id is not one this server signed: forged, tampered with,
+		// or issued under a signing key that has since rotated. Either way its
+		// redirect_uri cannot be trusted (GHSA-7hwf-488h-59x8); tell the client
+		// to re-register.
 		slog.Warn("unknown client_id", "client_id", logSafe(clientID))
 		recordOAuthFlow("authorize", "invalid_client")
 		writeUnknownClient(w, r)
@@ -164,19 +181,19 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 // unknownClientPage is what a person sees when their browser lands on the
 // invalid_client error from /oauth/authorize.
 //
-// Client registrations live in memory and the app runs a single replica, so
-// every deploy drops every client_id. The editor extension then re-authorises
-// with the one it cached, gets rejected here, and sits blocked on its loopback
-// callback without ever reading the response body. The browser tab is the only
-// place a human is told what happened, so it has to say how to recover.
+// A signed client_id survives restarts, so this is now the rare case: a forged
+// or corrupted client_id, or one issued before the signing key rotated. The
+// editor extension sits blocked on its loopback callback without ever reading
+// the response body, so the browser tab is the only place a human is told what
+// happened and it has to say how to recover.
 const unknownClientPage = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><title>Unknown client - sign in again</title></head>
 <body>
-<h1>This server no longer knows your editor's registration</h1>
-<p>Client registrations are kept in memory, so a deploy or a restart of this server clears
-them all. Your editor is still sending a <code>client_id</code> from before that, and the
-server cannot accept it (<code>invalid_client</code>).</p>
+<h1>This server does not recognise your editor's registration</h1>
+<p>Your editor is sending a <code>client_id</code> that this server did not issue, or issued
+before its signing key was rotated, so the server cannot accept it
+(<code>invalid_client</code>).</p>
 <h2>How to recover</h2>
 <p>Remove the cached MCP registration and tokens for this server in your editor, then sign in
 again. The editor registers itself anew and the sign-in goes through.</p>
@@ -485,16 +502,10 @@ func (s *OAuthServer) handleRegisterOptions(w http.ResponseWriter, _ *http.Reque
 func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	s.setCORSHeaders(w)
 
-	if s.Store.CountClientRegistrations() > 1000 {
-		slog.Warn("too many client registrations")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusTooManyRequests)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error":             "too_many_requests",
-			"error_description": "Too many client registrations",
-		})
-		return
-	}
+	// Registrations are not stored, so there is nothing to exhaust and no
+	// registration cap. The body is still bounded, and so is the number of
+	// redirect_uris below, because both end up inside the issued client_id.
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 
 	var req struct {
 		ClientName              string   `json:"client_name"`
@@ -520,6 +531,16 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error":             "invalid_client_metadata",
 			"error_description": "redirect_uris is required and must not be empty",
+		})
+		return
+	}
+
+	if len(req.RedirectURIs) > 10 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client_metadata",
+			"error_description": "At most 10 redirect_uris are supported",
 		})
 		return
 	}
@@ -568,22 +589,26 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientID := generateSecureToken(16)
+	issuedAt := time.Now().Unix()
+	clientID := mintClientID(s.clientIDKey, clientIDInfo{
+		RedirectURIs: req.RedirectURIs,
+		IssuedAt:     issuedAt,
+		Nonce:        generateSecureToken(8),
+	})
 
 	reg := &ClientRegistration{
 		ClientID:                clientID,
+		ClientIDIssuedAt:        issuedAt,
 		ClientName:              req.ClientName,
 		RedirectURIs:            req.RedirectURIs,
 		GrantTypes:              req.GrantTypes,
 		ResponseTypes:           req.ResponseTypes,
 		TokenEndpointAuthMethod: req.TokenEndpointAuthMethod,
-		CreatedAt:               time.Now(),
 	}
-	s.Store.SaveClientRegistration(reg)
 
 	slog.Info("client registered",
-		"client_id", clientID,
-		"client_name", req.ClientName,
+		"client_id", logSafe(clientID),
+		"client_name", logSafe(req.ClientName),
 		"redirect_uris", req.RedirectURIs,
 		"grant_types", req.GrantTypes,
 		"token_endpoint_auth_method", req.TokenEndpointAuthMethod,

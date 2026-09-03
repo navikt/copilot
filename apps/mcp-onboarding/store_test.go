@@ -8,11 +8,10 @@ import (
 // newTestStore creates a store without starting the cleanup goroutine
 func newTestStore() *TokenStore {
 	return &TokenStore{
-		authSessions:        make(map[string]*AuthSession),
-		authCodes:           make(map[string]*AuthCode),
-		tokens:              make(map[string]*TokenData),
-		refreshTokens:       make(map[string]*RefreshTokenData),
-		clientRegistrations: make(map[string]*ClientRegistration),
+		authSessions:  make(map[string]*AuthSession),
+		authCodes:     make(map[string]*AuthCode),
+		tokens:        make(map[string]*TokenData),
+		refreshTokens: make(map[string]*RefreshTokenData),
 	}
 }
 
@@ -149,50 +148,5 @@ func TestTokenStore_RefreshToken(t *testing.T) {
 	_, err = store.GetRefreshToken("refresh123")
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound after delete, got %v", err)
-	}
-}
-
-func TestTokenStore_ClientRegistration(t *testing.T) {
-	store := newTestStore()
-
-	reg := &ClientRegistration{
-		ClientID:     "client-123",
-		ClientName:   "Test App",
-		RedirectURIs: []string{"http://localhost:33418"},
-		CreatedAt:    time.Now(),
-	}
-
-	store.SaveClientRegistration(reg)
-
-	got, err := store.GetClientRegistration("client-123")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if got.ClientName != "Test App" {
-		t.Errorf("expected ClientName 'Test App', got %q", got.ClientName)
-	}
-}
-
-func TestTokenStore_ClientRegistration_NotFound(t *testing.T) {
-	store := newTestStore()
-
-	_, err := store.GetClientRegistration("nonexistent")
-	if err != ErrNotFound {
-		t.Errorf("expected ErrNotFound, got %v", err)
-	}
-}
-
-func TestTokenStore_CountClientRegistrations(t *testing.T) {
-	store := newTestStore()
-
-	if count := store.CountClientRegistrations(); count != 0 {
-		t.Errorf("expected 0 registrations, got %d", count)
-	}
-
-	store.SaveClientRegistration(&ClientRegistration{ClientID: "c1", CreatedAt: time.Now()})
-	store.SaveClientRegistration(&ClientRegistration{ClientID: "c2", CreatedAt: time.Now()})
-
-	if count := store.CountClientRegistrations(); count != 2 {
-		t.Errorf("expected 2 registrations, got %d", count)
 	}
 }
