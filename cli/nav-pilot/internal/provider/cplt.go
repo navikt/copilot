@@ -20,11 +20,6 @@ type cpltLaunch struct {
 	// agent is the cplt --agent value selecting which agent to sandbox
 	// (e.g. "copilot", "opencode", "pi").
 	agent string
-	// noAudit emits cplt's --no-audit ahead of "--agent", as the reference
-	// launcher does (grillmester.py line 663). Set by staged Tier 2 launches
-	// only; false for every legacy launch, which keeps their argument vectors
-	// byte-identical (golden_launch_test.go, cplt_test.go).
-	noAudit bool
 	// cpltArgs are cplt-level flags placed between "--agent <agent>" and the
 	// "--" separator (e.g. --allow-read, --pass-env). Empty for every legacy
 	// launch, which keeps their argument vectors byte-identical
@@ -41,15 +36,16 @@ type cpltLaunch struct {
 }
 
 // cpltArgv is the argument vector launchViaCplt passes to cplt:
-// `[--no-audit] --agent <agent> [cpltArgs...] -- [agentArgs...]`. Pure, so the
-// vector is testable without launching anything. With noAudit false and no
-// cpltArgs it is byte-identical to what every legacy launch produced before
-// Tier 2 staging existed.
+// `--agent <agent> [cpltArgs...] -- [agentArgs...]`. Pure, so the vector is
+// testable without launching anything. With no cpltArgs it is byte-identical to
+// what every legacy launch produced before Tier 2 staging existed.
+//
+// Nothing here suppresses cplt's post-session change audit: --no-audit is not
+// emitted on any path, staged or legacy. See staged_launch.go for why the
+// staged vectors stopped carrying it, and runtime_gate.go for the cplt floor
+// that made that safe.
 func cpltArgv(spec cpltLaunch) []string {
 	var args []string
-	if spec.noAudit {
-		args = append(args, "--no-audit")
-	}
 	args = append(args, "--agent", spec.agent)
 	args = append(args, spec.cpltArgs...)
 	args = append(args, "--")
@@ -71,7 +67,7 @@ func cpltArgv(spec cpltLaunch) []string {
 // filesystem and network policy — is untouched. The reference launcher splices
 // --yes and --quiet together (grillmester.py line 879), and nav-pilot's own
 // version probe copies that pair, but --quiet is wrong here: it suppresses the
-// post-session change audit (`cplt --help` under --no-audit: "The report is
+// post-session change audit (cplt's own --no-audit help text: "The report is
 // also suppressed under --quiet") along with the configuration summary, and a
 // launch nobody is watching is the one whose audit is worth the most.
 //

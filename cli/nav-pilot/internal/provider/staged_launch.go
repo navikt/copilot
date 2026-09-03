@@ -27,15 +27,16 @@ import (
 // at 3573b93cc8b7568516117263562d073cae9ee7fc, scripts/grillmester.py
 // build_launch_command (lines 647-689).
 //
-// --no-audit (line 663) is adopted, in the reference's position: first in the
-// cplt vector, before --agent. It was first read as launcher policy; team eSyfo
-// corrected that (#437, comment 5437575432): at the cplt baseline grillmester
-// v0.3.0 is tested against, cplt's parent-side audit can execute
-// repository-controlled Git helpers *outside* the sandbox, so a staged launch
-// without it is less isolated than the launcher it is meant to be equivalent
-// to. Dropping it again requires evidence that a reviewed cplt baseline fixes
-// that behaviour, plus a cplt minimum-version gate that enforces the baseline —
-// not the flag looking redundant.
+// --no-audit (line 663) is NOT adopted, and no longer emitted. It was on these
+// vectors for one reason (#437, comment 5437575432): at the cplt baseline
+// grillmester v0.3.0 was tested against, cplt's parent-side audit could execute
+// repository-controlled Git helpers *outside* the sandbox. navikt/cplt#211
+// removed that, and the staged gate now requires a release containing it —
+// minStagedCpltStamp in runtime_gate.go carries the evidence. The condition
+// eSyfo set for dropping the flag was exactly this pair: a reviewed cplt
+// baseline that fixes the behaviour, plus a runtime gate that enforces the
+// baseline. Suppressing the post-session change audit on every staged launch is
+// a cost, not a saving, once the escape it bought is gone.
 //
 // --project-dir (lines 666-667) stays omitted: nav-pilot treats the working
 // directory as the project scope. No launch path sets cmd.Dir, so cplt and the
@@ -192,8 +193,7 @@ func stagedPrimaryAgent(client, context, pakkeName string) (string, error) {
 }
 
 // buildStagedOpenCodeSpec builds the cplt invocation for a staged opencode
-// launch. Reference: grillmester.py line 663 — --no-audit — and lines 668-677
-// — --allow-read <payload>,
+// launch. Reference: grillmester.py lines 668-677 — --allow-read <payload>,
 // OPENCODE_CONFIG_DIR pointing at the same payload, and --pass-env for it, with
 // the client receiving --agent <agent>.
 func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
@@ -235,7 +235,6 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 
 	return cpltLaunch{
 		agent:         "opencode",
-		noAudit:       true,
 		cpltArgs:      []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"},
 		agentArgs:     agentArgs,
 		env:           env,
@@ -245,9 +244,8 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 }
 
 // buildStagedCopilotSpec builds the cplt invocation for a staged copilot
-// launch. Reference: grillmester.py line 663 and lines 668-669 and 679-685 —
-// --no-audit and --allow-read <plugin> on the cplt side, and
-// --plugin-dir <plugin> before
+// launch. Reference: grillmester.py lines 668-669 and 679-685 —
+// --allow-read <plugin> on the cplt side, and --plugin-dir <plugin> before
 // --agent <pakke>:<agent> on the client side.
 func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
 	if err := rejectReservedClientArgs("copilot", s.PakkeName, r.ExtraArgs); err != nil {
@@ -284,7 +282,6 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 
 	return cpltLaunch{
 		agent:         "copilot",
-		noAudit:       true,
 		cpltArgs:      []string{"--allow-read", s.Dir},
 		agentArgs:     agentArgs,
 		env:           copilotEnv(r.OtelLogLevel, pakkeAcceptsUserContext("copilot")),

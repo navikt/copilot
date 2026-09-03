@@ -218,16 +218,15 @@ func TestGoldenCpltArgvNonInteractive(t *testing.T) {
 		t.Errorf("without a terminal\n got: %q\nwant: %q", got, want)
 	}
 
-	// --yes is a cplt flag, so it belongs ahead of the whole cplt vector — in
-	// front of --no-audit, never after the "--" where the client would read it.
+	// --yes is a cplt flag, so it belongs ahead of the whole cplt vector, never
+	// after the "--" where the client would read it.
 	staged := cpltLaunch{
 		agent:     "opencode",
-		noAudit:   true,
 		cpltArgs:  []string{"--allow-read", "/staged/x"},
 		agentArgs: []string{"--agent", "grillmester"},
 	}
 	wantStaged := []string{
-		"--yes", "--no-audit",
+		"--yes",
 		"--agent", "opencode",
 		"--allow-read", "/staged/x",
 		"--", "--agent", "grillmester",
@@ -250,7 +249,7 @@ func TestNonInteractiveLaunchAddsOnlyYes(t *testing.T) {
 	for _, spec := range []cpltLaunch{
 		{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})},
 		{agent: "pi"},
-		{agent: "copilot", noAudit: true, cpltArgs: []string{"--allow-read", "/staged/x"}},
+		{agent: "copilot", cpltArgs: []string{"--allow-read", "/staged/x"}},
 	} {
 		before := cpltArgv(spec)
 		after := withCpltConfirmation(before, false)

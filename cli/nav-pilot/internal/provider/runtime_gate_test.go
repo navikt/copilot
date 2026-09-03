@@ -20,8 +20,9 @@ func stubProbes(t *testing.T, cplt string, cpltErr error, client string, clientE
 	t.Cleanup(func() { probeCpltVersion, probeClientVersion = origCplt, origClient })
 }
 
-// okCplt is a cplt release comfortably past minStagedCpltStamp.
-const okCplt = "cplt 2026.08.24-153138-0d1d66d\n"
+// okCplt is a cplt release comfortably past minStagedCpltStamp — a real
+// published tag, so a reader can check it against navikt/cplt's releases.
+const okCplt = "cplt 2026.09.02-225851-d840db9\n"
 
 func TestParseVersionRange(t *testing.T) {
 	tests := []struct {
@@ -183,6 +184,14 @@ func TestCheckStagedRuntimeCpltFloor(t *testing.T) {
 		{name: "past the floor", out: okCplt},
 		{name: "below the floor", out: "cplt 2026.08.16-235959-deadbee\n",
 			wantErr: "2026.08.16-235959"},
+		// The floor covers the reason --no-audit is gone from the staged
+		// vectors, so both of these must now be fatal: the previous floor
+		// predates navikt/cplt#211 entirely, and the release that first carried
+		// #211 predates #217, which changed the parent-side git surface again.
+		{name: "the previous floor, before the git hardening", out: "cplt 2026.08.17-062831-1008a92\n",
+			wantErr: "2026.08.17-062831"},
+		{name: "the release carrying #211 but not #217", out: "cplt 2026.08.27-180244-9b92404\n",
+			wantErr: "2026.08.27-180244"},
 		{name: "unparseable version", out: "cplt unknown\n", wantErr: "could not read a cplt version"},
 		{name: "probe failed", err: errors.New("boom"), wantErr: "could not read the cplt version"},
 	}

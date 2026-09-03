@@ -32,23 +32,48 @@ import (
 // version check that goes green on "could not tell" is exactly the failure
 // mode #452 fixed in nav-pilot's own cplt skew check.
 
-// minStagedCpltStamp is the reviewed cplt baseline a staged launch requires,
-// adopted from the reference launcher's SUPPORTED_CPLT_RELEASE
+// minStagedCpltStamp is the reviewed cplt baseline a staged launch requires.
+//
+// It started at the reference launcher's SUPPORTED_CPLT_RELEASE
 // ("2026.08.17-062831-1008a92", scripts/grillmester.py line 27 at
-// 3573b93cc8b7568516117263562d073cae9ee7fc) with the release suffix dropped —
+// 3573b93cc8b7568516117263562d073cae9ee7fc), with the release suffix dropped —
 // only the date-time stamp is comparable across builds.
 //
 // Moving it follows the same joint-decision rule as the reference pin itself
 // (README.agentpakke.md, "Referansepinning"): it names a baseline both projects
 // have reviewed, so nav-pilot does not raise it alone.
 //
-// This constant is also the exit ramp for --no-audit. That flag is on the
-// staged vectors because cplt's parent-side audit can execute
-// repository-controlled Git helpers outside the sandbox at the baseline
-// grillmester v0.3.0 is tested against (agentpakke-beslutninger.md §2.5). When
-// a reviewed cplt baseline fixes that, the joint change is one reviewable diff:
-// raise this stamp, drop the flag, attach the evidence.
-const minStagedCpltStamp = "2026.08.17-062831"
+// Raised to the release whose tag commit is the merge of navikt/cplt#217
+// (62a87df, merged 2026-08-28T08:04:48Z; tag 2026.08.28-080711-62a87df). That
+// release is the first containing both halves of the reason --no-audit was on
+// the staged vectors, and raising the floor is what let the flag go:
+//
+//   - navikt/cplt#211 (merge 7fb0d06, merged 2026-08-27T18:00:04Z, first
+//     released as 2026.08.27-180244-9b92404) routes all twelve parent-side git
+//     call sites through one hardened invoker, src/git.rs. It clears inherited
+//     GIT_*, sets GIT_CONFIG_NOSYSTEM and GIT_ATTR_NOSYSTEM, pins eleven -c
+//     overrides (core.fsmonitor=false among them), inserts --no-textconv
+//     --no-ext-diff after the subcommand rather than after "--", and refuses —
+//     fail-closed — any working-tree-reading subcommand when the repository's
+//     own config defines filter.*.clean or filter.*.process. That is precisely
+//     the escape --no-audit was working around: a repo-local core.fsmonitor,
+//     written by the sandboxed agent into a .git/config it can reach, executed
+//     unsandboxed by the parent-side audit's `git status`.
+//   - navikt/cplt#217 (merge 62a87df) extends the git-persistence denies to
+//     every allow.write root, and stops the audit reporting a clean session for
+//     roots it did not audit.
+//
+// The floor names #217 rather than #211 on purpose. #217 adds a new parent-side
+// git invocation (`rev-parse --git-common-dir`, once per grant, with cwd inside
+// a repo the agent can influence); pinning to #211's release would name a
+// baseline whose parent-side git surface the very next release changed.
+//
+// Two consequences of #211 are worth knowing before dropping --no-audit: in a
+// repository whose own config defines filter.*.clean or filter.*.process the
+// audit degrades to AuditReport::Incomplete — a loud "could not verify", never a
+// forged clean — and `cplt trust accept` fails there with a message naming
+// drift rather than the filter refusal. doctor tells users to run `cplt trust`.
+const minStagedCpltStamp = "2026.08.28-080711"
 
 // Probe budgets, adopted from the reference: 8 seconds for `cplt --version`
 // (_trusted_cplt_version_output, grillmester.py line 741) and 30 for the

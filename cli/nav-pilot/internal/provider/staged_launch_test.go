@@ -77,7 +77,6 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 // at 3573b93cc8b7568516117263562d073cae9ee7fc, scripts/grillmester.py
 // build_launch_command:
 //
-//	line 663       --no-audit, first in the cplt vector, before --agent
 //	line 664-665   cplt --agent <client>
 //	line 668-669   --allow-read <payload>   (payload = plugin for copilot,
 //	               opencode_target for opencode; both clients read exactly the
@@ -205,11 +204,17 @@ func TestStagedLaunchSpecs(t *testing.T) {
 			if !slices.Equal(spec.cpltArgs, tt.wantCpltArgs) {
 				t.Errorf("cpltArgs\n got: %q\nwant: %q", spec.cpltArgs, tt.wantCpltArgs)
 			}
-			// Reference line 663: every staged launch leads with --no-audit,
-			// before --agent, because cplt's parent-side audit can execute
-			// repository-controlled Git helpers outside the sandbox.
-			if argv := cpltArgv(spec); len(argv) == 0 || argv[0] != "--no-audit" {
-				t.Errorf("cplt vector must lead with --no-audit\n got: %q", argv)
+			// The reference emits --no-audit (line 663); nav-pilot does not.
+			// The flag was only ever there because cplt's parent-side audit
+			// could execute repository-controlled Git helpers outside the
+			// sandbox, which navikt/cplt#211 fixed and minStagedCpltStamp now
+			// requires. The vector must lead straight with --agent.
+			argv := cpltArgv(spec)
+			if slices.Contains(argv, "--no-audit") {
+				t.Errorf("staged vector must not suppress cplt's audit\n got: %q", argv)
+			}
+			if len(argv) == 0 || argv[0] != "--agent" {
+				t.Errorf("cplt vector must lead with --agent\n got: %q", argv)
 			}
 			if !slices.Equal(spec.agentArgs, tt.wantAgentArgs) {
 				t.Errorf("agentArgs\n got: %q\nwant: %q", spec.agentArgs, tt.wantAgentArgs)
