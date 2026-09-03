@@ -41,6 +41,11 @@ description = "Run Jest tests"
 run = "pnpm build"
 description = "Build Next.js production bundle"
 
+[tasks.smoke]
+run = "bash hack/smoke.sh"
+depends = ["build"]
+description = "Start the built server and load every route, failing on render errors"
+
 [tasks.dev]
 run = "fnox exec -- pnpm dev"
 description = "Start Next.js development server (secrets from Keychain)"
