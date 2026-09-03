@@ -15,6 +15,7 @@ describe("kampanjemerket på prissiden", () => {
       "Kampanjepris t.o.m. 3. september 2026",
       "Kampanjepris t.o.m. 31. desember 2026",
       "Kampanjepris t.o.m. 31. desember 2026",
+      "Kampanjepris t.o.m. 31. desember 2026",
     ]);
 
     expect(badges[0].closest("td")).toHaveAccessibleName(

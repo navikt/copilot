@@ -10,6 +10,7 @@ describe("promotionEndsOn", () => {
       "GPT-5.6 Sol (Long context, 272K)",
       "Gemini 3.6 Flash (Default)",
       "Gemini 3.7 Flash (Default)",
+      "Gemini 3.8 Flash (Default)",
     ]);
   });
 
