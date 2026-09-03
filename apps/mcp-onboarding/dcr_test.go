@@ -161,7 +161,7 @@ func TestHandleRegister_Defaults(t *testing.T) {
 	server := newTestOAuthServer()
 
 	body := map[string]interface{}{
-		"redirect_uris": []string{"https://vscode.dev/redirect"},
+		"redirect_uris": []string{"http://127.0.0.1:33418/callback"},
 	}
 	b, _ := json.Marshal(body)
 
@@ -186,25 +186,6 @@ func TestHandleRegister_Defaults(t *testing.T) {
 	}
 	if resp.TokenEndpointAuthMethod != "none" {
 		t.Fatalf("expected default token_endpoint_auth_method 'none', got %q", resp.TokenEndpointAuthMethod)
-	}
-}
-
-func TestHandleRegister_HTTPSRedirectURI(t *testing.T) {
-	server := newTestOAuthServer()
-
-	body := map[string]interface{}{
-		"redirect_uris": []string{"https://vscode.dev/redirect", "http://127.0.0.1:33418"},
-	}
-	b, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("POST", "/register", bytes.NewReader(b))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	server.handleRegister(w, req)
-
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -301,8 +282,11 @@ func TestIsValidRedirectURI(t *testing.T) {
 		{"http://127.0.0.1:33418", true},
 		{"http://127.0.0.1:12345/callback", true},
 		{"http://localhost:3000/callback", true},
-		{"https://vscode.dev/redirect", true},
-		{"https://example.com/callback", true},
+		{"http://[::1]:33418/callback", true},
+		// Loopback only, per RFC 8252 section 7.3: open registration makes any
+		// https destination an attacker's for one POST (#633).
+		{"https://vscode.dev/redirect", false},
+		{"https://example.com/callback", false},
 		{"http://evil.example.com/callback", false},
 		{"http://0.0.0.0:8080", false},
 		{"ftp://127.0.0.1:8080", false},

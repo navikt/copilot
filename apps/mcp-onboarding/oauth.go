@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -134,6 +135,21 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A client_id is a signed blob with a 30-day TTL, not a stored row, so ones
+	// minted before the loopback policy stay verifiable until they expire.
+	// Enforce the policy here as well, or such an id would still carry an https
+	// redirect_uri through. invalid_client is the recoverable answer: the editor
+	// re-registers instead of waiting on a callback that will never arrive.
+	if !isValidRedirectURI(redirectURI) {
+		slog.Warn("redirect_uri is not a loopback address",
+			"client_id", logSafe(clientID),
+			"redirect_uri", logSafe(redirectURI),
+		)
+		recordOAuthFlow("authorize", "invalid_client")
+		writeUnknownClient(w, r)
+		return
+	}
+
 	if !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) { // also rejects ""
 		slog.Warn("redirect_uri not registered",
 			"client_id", logSafe(clientID),
@@ -182,7 +198,8 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 // invalid_client error from /oauth/authorize.
 //
 // A signed client_id survives restarts, so this is now the rare case: a forged
-// or corrupted client_id, or one issued before the signing key rotated. The
+// or corrupted client_id, one issued before the signing key rotated, or one
+// carrying a redirect_uri the loopback policy no longer allows (#633). The
 // editor extension sits blocked on its loopback callback without ever reading
 // the response body, so the browser tab is the only place a human is told what
 // happened and it has to say how to recover.
@@ -191,9 +208,9 @@ const unknownClientPage = `<!DOCTYPE html>
 <head><meta charset="utf-8"><title>Unknown client - sign in again</title></head>
 <body>
 <h1>This server does not recognise your editor's registration</h1>
-<p>Your editor is sending a <code>client_id</code> that this server did not issue, or issued
-before its signing key was rotated, so the server cannot accept it
-(<code>invalid_client</code>).</p>
+<p>Your editor is sending a <code>client_id</code> that this server did not issue, issued
+before its signing key was rotated, or issued under a redirect rule this server no longer
+allows, so the server cannot accept it (<code>invalid_client</code>).</p>
 <h2>How to recover</h2>
 <p>Remove the cached MCP registration and tokens for this server in your editor, then sign in
 again. The editor registers itself anew and the sign-in goes through.</p>
@@ -571,17 +588,53 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Filter, rather than refuse the registration. VS Code registers its hosted
+	// https redirect alongside its loopback one, and 400-ing that pair would
+	// make sign-in impossible for the one client the README lists as fully
+	// working. Dropping the non-loopback URIs costs the client nothing: the
+	// https one could never be redeemed anyway, since handleAuthorize enforces
+	// the same policy. Only a registration with no loopback URI left is refused.
+	//
+	// The surviving list is what gets signed into the client_id below and what
+	// is echoed back, so a dropped URI cannot return at /oauth/authorize.
+	kept := make([]string, 0, len(req.RedirectURIs))
+	var dropped []string
 	for _, uri := range req.RedirectURIs {
-		if !isValidRedirectURI(uri) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error":             "invalid_redirect_uri",
-				"error_description": "redirect_uri must use http://127.0.0.1 or https scheme: " + uri,
-			})
-			return
+		if isValidRedirectURI(uri) {
+			kept = append(kept, uri)
+		} else {
+			dropped = append(dropped, uri)
 		}
 	}
+	if len(dropped) > 0 && len(kept) > 0 {
+		// Info, not Warn: a client that registers a hosted redirect beside its
+		// loopback one is doing the expected thing, and the filter is working
+		// as designed. Warning on it would make every VS Code registration
+		// look like an incident and teach whoever reads the logs to ignore
+		// this line.
+		slog.Info("dropped non-loopback redirect_uris from registration",
+			"client_name", logSafe(req.ClientName),
+			"dropped_redirect_uris", logSafeAll(dropped),
+			"kept_redirect_uris", logSafeAll(kept),
+		)
+	}
+	if len(kept) == 0 {
+		// Warn here: nothing survived, so this client cannot authorise at all.
+		slog.Warn("registration rejected, no loopback redirect_uri",
+			"client_name", logSafe(req.ClientName),
+			"dropped_redirect_uris", logSafeAll(dropped),
+		)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_redirect_uri",
+			"error_description": "at least one redirect_uri must be a loopback address (http://127.0.0.1, http://[::1] or http://localhost)",
+		})
+		return
+	}
+	// Everything below registers the surviving URIs only — RFC 7591 section 3.2.1
+	// wants the response to state what was registered, not what was asked for.
+	req.RedirectURIs = kept
 
 	if len(req.GrantTypes) == 0 {
 		req.GrantTypes = []string{"authorization_code"}
@@ -663,21 +716,26 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(reg)
 }
 
+// isValidRedirectURI is the registration policy: loopback only, per RFC 8252
+// section 7.3.
+//
+// /register is unauthenticated Dynamic Client Registration, because that is how
+// MCP clients onboard (RFC 7591). So "registered" proves only that this server
+// minted the id — an attacker buys one for a single POST. Accepting any https
+// redirect_uri therefore left the GHSA-7hwf-488h-59x8 phishing flow open with
+// one extra request (#633). Requiring the loopback interface removes the
+// attacker's destination instead: an authorization code sent to 127.0.0.1
+// arrives on the victim's own machine.
+//
+// Every client this server supports (see README, Client Compatibility) redeems
+// the code from a native process on the developer's machine, so no allowlist of
+// hosted redirects is needed; add one here if a hosted client ever appears.
 func isValidRedirectURI(uri string) bool {
 	parsed, err := url.Parse(uri)
 	if err != nil {
 		return false
 	}
-	if parsed.Scheme == "http" && parsed.Hostname() == "127.0.0.1" {
-		return true
-	}
-	if parsed.Scheme == "http" && parsed.Hostname() == "localhost" {
-		return true
-	}
-	if parsed.Scheme == "https" {
-		return true
-	}
-	return false
+	return parsed.Scheme == "http" && isLoopback(parsed.Hostname())
 }
 
 func isRegisteredRedirectURI(registered []string, uri string) bool {
@@ -714,8 +772,19 @@ func matchesLoopbackIgnoringPort(registered, requested string) bool {
 	return regHost == reqHost && reg.Path == req.Path
 }
 
+// isLoopback covers the two forms RFC 8252 section 7.3 names — 127.0.0.1 and
+// ::1, via net.IP.IsLoopback, which also takes the rest of 127.0.0.0/8 — plus
+// the literal "localhost". RFC 8252 recommends against "localhost" because it
+// resolves through DNS on the client's machine, but this server has accepted it
+// since the first release and clients registered with it; the name resolving to
+// something other than loopback is a compromise of the developer's own host, at
+// which point the redirect_uri is not what is protecting them.
 func isLoopback(host string) bool {
-	return host == "127.0.0.1" || host == "localhost"
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func generateSecureToken(length int) string {

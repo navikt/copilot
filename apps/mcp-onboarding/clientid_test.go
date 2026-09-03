@@ -262,9 +262,8 @@ func TestDeriveClientIDKey_Deterministic(t *testing.T) {
 }
 
 // TestSignedClientID_Expired is the TTL the deleted cleanup loop used to
-// enforce. /register is unauthenticated and accepts any https redirect_uri, so
-// a client_id that never expires is an unrevocable registration bound to an
-// attacker's callback.
+// enforce. /register is unauthenticated, so a client_id that never expires is
+// an unrevocable registration that no one had to prove anything to obtain.
 func TestSignedClientID_Expired(t *testing.T) {
 	mux, server := newChainTestServer(t)
 

@@ -49,9 +49,11 @@ var errInvalidClientID = errors.New("invalid client_id")
 const maxClientIDLen = 4096
 
 // clientIDTTL is how long a registration stays valid. /register is
-// unauthenticated and accepts any https redirect_uri, so without this an
-// attacker-minted client_id would be valid forever, revocable only by rotating
-// GITHUB_CLIENT_SECRET — which strands every legitimate client too.
+// unauthenticated, so anyone can mint a client_id; without this one would be
+// valid forever, revocable only by rotating GITHUB_CLIENT_SECRET — which
+// strands every legitimate client too. The TTL is also what bounds the reach of
+// a policy change: ids minted under the old any-https rule (#633) expire on
+// their own, and /oauth/authorize refuses them meanwhile.
 const clientIDTTL = 30 * 24 * time.Hour
 
 // deriveClientIDKey derives the signing key from the GitHub OAuth client
