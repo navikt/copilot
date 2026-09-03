@@ -1,0 +1,28 @@
+✗ Locate StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501 -path "*/src/app/komponenter/StatusPanel.tsx" 2>/dev/null; echo
+  │ "---cwd---"; pwd; find . -iname "StatusPanel.tsx" 2>/dev/null
+  └ Permission denied and could not request permission from user
+
+● List working directory and find file (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && pwd && ls -la && find . -iname "StatusPanel.tsx"
+  └ 8 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Edit StatusPanel.tsx +1 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Edit StatusPanel.tsx +3
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til en lukkeknapp med `XMarkIcon` fra `@navikt/aksel-icons`. Den lukker detaljvisningen (`setApen(false)`) og har `aria-label="Lukk"` som tilgjengelig navn, med ikonet markert `aria-hidden` siden knappen allerede har label.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 22 lines read
+
+Ferdig — filen bygger på eksisterende mønster (samme import-mønster som `TrashIcon`), så ingen andre endringer nødvendig.
+

@@ -279,17 +279,19 @@ Listen oppdateres når du kjører `init` eller `start` — ikke ved hver kommand
 et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nettopp hørt
 om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
 
-**Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest.** Over fem
-kjøringer av de samme åtte oppgavene løser den 3, 3, 3, 4 og 4. Qwen 3.8 4-bit løser 5, 5, 6 og 7
-over fire rene kjøringer — de to settene overlapper ikke i det hele tatt. Til gjengjeld bruker 3.8
-omtrent sju ganger så lang tid, median 65 sekunder mot 9, og treffer sju-minutterstaket på rundt
-én av fem oppgaver der standarden nesten aldri gjør det.
+**Qwen 3.6 er standard fordi den er rask, og fordi ingen av de andre løser målbart flere oppgaver.**
+Over fire kjøringer av de samme åtte oppgavene løser den 3, 2, 4 og 4. Qwen 3.8 4-bit løser 4, 4,
+3 og 4. Spennene overlapper helt, og forskjellen er ikke målbar (p = 0,71). Til gjengjeld bruker
+3.8 omtrent sju ganger så lang tid — median 58–104 sekunder mot 10–12 — og traff
+sju-minutterstaket ti ganger der standarden traff det én gang.
 
-En femte 3.8-kjøring er holdt utenfor: den løste 1 av 8 uten å endre en eneste fil på noen
-oppgave, som er en feil i testoppsettet vårt og ikke i modellen. Kriteriet står skrevet ned i
+**Vi skrev tidligere at 3.8 løser mer.** Det holdt ikke. De tallene ble målt før vi oppdaget at
+sandkassen aldri ga modellene tilgang til byggverktøyene: ingen av dem kunne kompilere eller
+kjøre tester, og målet var heller ikke pinnet, så de to modellene jobbet på kodebaser fire dager
+fra hverandre. Da det ble rettet, forsvant forspranget. Hele historikken står i
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md).
 
-Valget er altså dybde mot hastighet, ikke bedre mot dårligere. `nav-pilot config explain model`
+Valget er altså hastighet mot ingenting målbart — som er en grunn til å beholde standarden. `nav-pilot config explain model`
 sier det samme kortere, og
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md) har tallene.
 
@@ -307,13 +309,28 @@ Av som standard, med vilje: å starte en 21 GB prosess uten å bli bedt om det e
 Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
 uendret.
 
+### Utsending til en lokal underagent krever opencode
+
 **Under opencode** blir modellen en underagent (`local-worker`) som hovedagenten i skyen
 kan sende avgrensede oppgaver til. Hovedagenten bestemmer fortsatt alt. Den sender videre
 det som er mekanisk og spesifisert, og gjør resten selv.
 
-**Under Copilot CLI** kjører hele økten lokalt, fordi klienten bare håndterer én
-modelleverandør om gangen. Det passer til arbeid som allerede er spesifisert, ikke til
-oppgaver der modellen må finne ut hva som skal gjøres.
+**Under Copilot CLI finnes ingen slik underagent, og kan ikke finnes i dag.** Copilot CLI
+er standardklienten i nav-pilot, så dette gjelder deg med mindre du har byttet. Der er
+valget hele økten på den lokale modellen eller ingenting lokalt. Grunnen er at klienten
+setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener
+hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Hele økten lokalt passer til
+arbeid som allerede er spesifisert, ikke til oppgaver der modellen må finne ut hva som skal
+gjøres.
+
+Vil du ha utsending, bytt klient:
+
+```bash
+nav-pilot config set client opencode
+```
+
+Vi har bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI. Det ligger som
+en feature request hos dem.
 
 ### Hva den er god og dårlig til
 

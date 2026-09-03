@@ -490,7 +490,7 @@ func verifyUVDownload(path, asset string) error {
 	want, ok := uvSHA256[asset]
 	if !ok {
 		return fmt.Errorf(
-			"no pinned sha256 for uv asset %s at version %s, so the download cannot be verified — refusing to unpack and run it",
+			"no pinned sha256 for uv asset %s at version %s, so the download cannot be verified. Refusing to unpack and run it",
 			asset, uvVersion)
 	}
 	f, err := os.Open(path)
@@ -504,7 +504,7 @@ func verifyUVDownload(path, asset string) error {
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); got != want {
 		return fmt.Errorf(
-			"the uv %s download for %s does not match its pinned checksum — refusing to unpack and run it.\n\n  want %s\n  got  %s",
+			"the uv %s download for %s does not match its pinned checksum. Refusing to unpack and run it.\n\n  want %s\n  got  %s",
 			uvVersion, asset, want, got)
 	}
 	return nil
@@ -564,7 +564,7 @@ func ensureVenv(ctx context.Context) error {
 		return nil
 	case found != "":
 		return fmt.Errorf(
-			"the local-inference virtual environment at %s runs Python %s, but mlx only publishes macOS arm64 wheels for cp310 to cp312 and its source build fails, so it must be Python %s.\n\n  Remove it and run the command again: %s",
+			"the local-inference virtual environment at %s runs Python %s, but it must be Python %s. mlx only publishes macOS arm64 wheels for cp310 to cp312, and its source build fails.\n\n  Remove it and run the command again:\n\n    %s",
 			venvPath(), found, pythonVersion, domain.Bold("rm -rf "+venvPath()))
 	}
 	out, err := runCommand(ctx, uvPath(), []string{"venv", "--python", pythonVersion, venvPath()}, nil)
@@ -623,9 +623,23 @@ func modelCacheDir(model string) string {
 // Face cache.
 //
 // "Fully" is the point. An interrupted download leaves the snapshot in place
-// with .incomplete blobs beside it, so a directory-exists check answers yes for
-// a model that cannot load, and the developer gets the failure from mlx-lm
-// several minutes later instead of from here.
+// with the missing pieces as .incomplete blobs, so a directory-exists check
+// answers yes for a model that cannot load, and the developer gets the failure
+// from mlx-lm several minutes later instead of from here.
+//
+// The completeness test is whether the snapshot's own files resolve. Each one
+// is a symlink into blobs/, and a piece that never finished downloading has no
+// blob for its symlink to point at, so a stat that follows the link is the
+// question "is this file here" asked directly.
+//
+// Scanning for .incomplete blobs instead is what this used to do, and it was
+// wrong in the direction that hurts: the cache keeps a partial as
+// <blob>.<id>.incomplete, and a later successful download writes the finished
+// blob without removing the abandoned partial. A model downloaded across two
+// attempts therefore ends up complete on disk with stale .incomplete files
+// beside it. Reported from a machine where init downloaded 25 GB, printed
+// "Weights downloaded", and then refused to start on weights it had just
+// fetched, with seven stale partials and every snapshot symlink resolving.
 func WeightsPresent(model string) (bool, error) {
 	dir := modelCacheDir(model)
 	snapshots, err := os.ReadDir(filepath.Join(dir, "snapshots"))
@@ -635,24 +649,26 @@ func WeightsPresent(model string) (bool, error) {
 		}
 		return false, fmt.Errorf("reading the model cache at %s: %w", dir, err)
 	}
-	blobs, err := os.ReadDir(filepath.Join(dir, "blobs"))
-	if err != nil && !os.IsNotExist(err) {
-		return false, fmt.Errorf("reading the model cache at %s: %w", dir, err)
-	}
-	for _, b := range blobs {
-		if strings.HasSuffix(b.Name(), ".incomplete") {
-			return false, nil
-		}
-	}
 	for _, snap := range snapshots {
-		files, err := os.ReadDir(filepath.Join(dir, "snapshots", snap.Name()))
+		snapDir := filepath.Join(dir, "snapshots", snap.Name())
+		files, err := os.ReadDir(snapDir)
 		if err != nil {
 			continue
 		}
 		var weights, config bool
 		for _, f := range files {
-			weights = weights || strings.HasSuffix(f.Name(), ".safetensors")
-			config = config || f.Name() == "config.json"
+			name := f.Name()
+			isWeights := strings.HasSuffix(name, ".safetensors")
+			if !isWeights && name != "config.json" {
+				continue
+			}
+			// os.Stat follows the symlink; os.ReadDir did not. A dangling
+			// link is a piece the download never finished.
+			if _, err := os.Stat(filepath.Join(snapDir, name)); err != nil {
+				return false, nil
+			}
+			weights = weights || isWeights
+			config = config || name == "config.json"
 		}
 		if weights && config {
 			return true, nil
@@ -1032,7 +1048,7 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 	if portInUse(port) {
 		return fmt.Errorf(
 			"127.0.0.1:%d is in use, and nav-pilot did not start what is listening there%s.\n\n"+
-				"  Refusing to start: a server already on this port answers the readiness probe, so nav-pilot would report a model it did not launch and cannot vouch for.\n\n"+
+				"  Refusing to start. A server already on this port answers the readiness probe, so nav-pilot would report a model it did not launch and cannot vouch for.\n\n"+
 				"  Stop it, then start again:\n\n    %s",
 			port, describeForeignServer(ctx, fmt.Sprintf("http://127.0.0.1:%d", port)),
 			domain.Bold(fmt.Sprintf("lsof -ti tcp:%d | xargs kill", port)))
@@ -1282,7 +1298,7 @@ func describeForeignServer(ctx context.Context, baseURL string) string {
 	if n := servedModelCount(ctx, baseURL); n > 0 {
 		return ""
 	}
-	return " — it does not answer /v1/models, so it is not an mlx-lm server at all"
+	return ", and it does not answer /v1/models, so it is not an mlx-lm server at all"
 }
 
 func describeExit(info exitInfo) string {
@@ -1373,9 +1389,20 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 	}
 	w.Sufficient = w.CurrentGB >= w.RequiredGB
 
+	// The manifest's own floor, checked rather than merely printed. Profiles
+	// are measured on one machine and shipped to a fleet with 36, 48 and 64 GB
+	// in it, and min_ram_gb is how an entry says which of those it was measured
+	// for. Until now nothing read it, so a 48 GB model on a 36 GB machine got
+	// as far as loading weights before macOS decided how it ended.
+	if m.MinRAMGB > 0 && m.MinRAMGB > w.MachineRAMGB {
+		return w, fmt.Errorf(
+			"%s needs a machine with at least %d GB of memory, and this one has %d GB.\n\n  Run `nav-pilot models` and pick an entry this machine can hold",
+			m.Model, m.MinRAMGB, w.MachineRAMGB)
+	}
+
 	if w.RequiredGB+minFreeGB > w.MachineRAMGB {
 		return w, fmt.Errorf(
-			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else — below the %d GB the rest of the system needs.\n\n  Pick a smaller model: a cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled",
+			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else, below the %d GB the rest of the system needs.\n\n  Pick a smaller model. A cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled",
 			m.Model, w.RequiredGB, w.MachineRAMGB-w.RequiredGB, w.MachineRAMGB, minFreeGB)
 	}
 	return w, nil
@@ -1548,4 +1575,18 @@ func RaiseWiredLimit(ctx context.Context, w WiredLimit) error {
 			err, strings.TrimSpace(out), domain.Bold(w.Command))
 	}
 	return nil
+}
+
+// MachineRAMGB is this machine's physical memory in gigabytes. Callers that
+// only need to label a list use it; anything that is about to start a model
+// should call [CheckWiredLimit], which weighs the same number against the
+// model's own floor and against what the rest of the system needs.
+func MachineRAMGB() (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	ram, err := sysctlInt(ctx, "hw.memsize")
+	if err != nil {
+		return 0, err
+	}
+	return int(ram / gib), nil
 }

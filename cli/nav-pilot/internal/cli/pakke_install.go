@@ -479,6 +479,14 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
+	// #588: the pin replaces the state, not the keys it carried — but only
+	// when the state still describes the same source. Switching a scope from
+	// repo A to repo B makes A's keys describe nothing: they were written
+	// about A's install, and a newer binary reading them off B's state would
+	// trust a claim nobody made about B.
+	if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) {
+		state.PreserveUnknownFrom(existing)
+	}
 	if err := writeScopedState(scope, state); err != nil {
 		return "", fmt.Errorf("writing state: %w", err)
 	}
@@ -529,7 +537,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 				"dry_run":    true,
 			})
 		}
-		fmt.Printf("%s Would install %s, pinned at %s.\n", dim("→"), bold(pakke.Name), src.SHA)
+		fmt.Printf("%s Would install %s, pinned at %s.\n", dim("→"), bold(pakke.Name), shortSHA(src.SHA))
 		return nil
 	}
 
@@ -548,7 +556,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 			"dry_run":    false,
 		})
 	}
-	fmt.Printf("%s Installed %s, pinned at %s.\n", green("✓"), bold(pakke.Name), src.SHA)
+	fmt.Printf("%s Installed %s, pinned at %s.\n", green("✓"), bold(pakke.Name), shortSHA(src.SHA))
 	fmt.Println()
 	fmt.Println(dim("It ships pre-built payloads rather than files, so nothing was written to ~/.copilot."))
 	fmt.Printf("%s %s %s\n", dim("Launches read the pinned revision;"), bold("nav-pilot sync"), dim("updates it."))

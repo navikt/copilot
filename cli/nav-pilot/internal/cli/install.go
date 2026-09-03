@@ -12,8 +12,11 @@ import (
 )
 
 type installResult struct {
-	Installed   int
-	Skipped     int
+	Installed int
+	// Missing names every artifact the manifest listed and the source does not
+	// ship. installArtifact warns and moves on, so the count is the third way
+	// an install lands incomplete — beside a conflict and an unsupported kind.
+	Missing     []string
 	Conflicts   int
 	Unsupported []string
 	Files       []InstalledFile
@@ -23,6 +26,7 @@ type installResult struct {
 // content through the resolver the active agentpakke manifest produced.
 func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manifest, dryRun, force bool) (*installResult, error) {
 	result := &installResult{}
+	stateHashes := scopeStateHashes(scope)
 
 	for _, group := range []struct {
 		label string
@@ -43,7 +47,7 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 		}
 		fmt.Println(bold(fmt.Sprintf("%s (%d):", group.label, len(group.names))))
 		for _, name := range group.names {
-			if err := installArtifact(resolver, scope, group.kind, name, dryRun, force, result); err != nil {
+			if err := installArtifact(resolver, scope, stateHashes, group.kind, name, dryRun, force, result); err != nil {
 				return result, err
 			}
 		}
@@ -85,9 +89,70 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	return manifest, nil
 }
 
+// scopeStateHashes maps every tracked path to the hash nav-pilot recorded when
+// it last wrote that file. It is what makes "conflict" mean "the user changed
+// it" rather than "upstream moved": a file whose hash still matches the record
+// is nav-pilot's own and may be overwritten.
+//
+// Conflicted entries are deliberately left out, exactly as
+// [artifacts.SyncOpenCodeArtifacts] does: their recorded hash is the user's own
+// copy, so comparing against it would call an edited file untouched. Left out,
+// the path is treated as untracked and the byte comparison keeps the conflict.
+// An entry with no hash (a file recorded by name only) is left out for the same
+// reason.
+//
+// So is an ignored one, and for the same reason again: `ignore` keeps the
+// recorded hash, so an untouched-but-ignored file would hash equal, be
+// overwritten as an ordinary update, and come back with an empty status —
+// silently un-ignored and back under sync's management.
+func scopeStateHashes(scope *InstallScope) map[string]string {
+	hashes := map[string]string{}
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return hashes
+	}
+	for _, f := range state.Files {
+		if f.Status != fileStatusConflict && f.Status != fileStatusIgnored && f.Hash != "" {
+			hashes[f.Path] = f.Hash
+		}
+	}
+	return hashes
+}
+
+// mergeStateFiles overlays the files an install just wrote onto the prior
+// entries that survived [removeOrphans], keyed by path. Replacing the list
+// instead would drop every path the narrower install did not name, and sync
+// only ever walks state.Files — so a dropped artifact becomes invisible and no
+// command can update or remove it.
+//
+// The index is built as it goes, so a prior list that already held the same
+// path twice collapses to one entry instead of leaving the stale copy behind
+// for conflictStatePaths and resolveSyncFiles to disagree over.
+//
+// A fresh entry with no Source inherits the prior one's: a scope install over a
+// path that `add --source` tagged must not drop the foreign-source marker
+// (#571).
+func mergeStateFiles(prior, files []InstalledFile) []InstalledFile {
+	merged := make([]InstalledFile, 0, len(prior)+len(files))
+	index := make(map[string]int, cap(merged))
+	for _, f := range append(append([]InstalledFile(nil), prior...), files...) {
+		i, ok := index[f.Path]
+		if !ok {
+			index[f.Path] = len(merged)
+			merged = append(merged, f)
+			continue
+		}
+		if f.Source == "" {
+			f.Source = merged[i].Source
+		}
+		merged[i] = f
+	}
+	return merged
+}
+
 // installArtifact handles the install for any artifact type.
 // Resolution, copy, hash logic are driven by the ArtifactKind.
-func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *ArtifactKind, name string, dryRun, force bool, result *installResult) error {
+func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes map[string]string, kind *ArtifactKind, name string, dryRun, force bool, result *installResult) error {
 	if err := validateName(name); err != nil {
 		return fmt.Errorf("invalid %s name: %w", kind.Name, err)
 	}
@@ -95,7 +160,7 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 	art, found := resolver.Get(kind, name)
 	if !found {
 		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
-		result.Skipped++
+		result.Missing = append(result.Missing, name)
 		return nil
 	}
 
@@ -105,12 +170,29 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 		relPath = scope.RelPath(kind.Dir, art.Name) + "/"
 	}
 
-	if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
-		return err
-	} else if c != nil && !force {
-		// File exists and differs but we're not forcing — skip the overwrite
-		// but track as conflict so it's not lost from state or reported as "new".
-		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
+	// A tracked file that still hashes to what nav-pilot recorded is nav-pilot's
+	// own and untouched, so a differing source is an update, not a conflict.
+	// Only an untracked path falls back to the byte comparison, where a
+	// hand-placed or foreign file genuinely is one.
+	conflicted := false
+	if storedHash, tracked := stateHashes[relPath]; tracked {
+		// An absent or unreadable file is not the user's edit either, so it is
+		// not a conflict — it is simply reinstalled.
+		current, hashErr := rawArtifactHash(dst, art.IsDir)
+		conflicted = hashErr == nil && current != storedHash
+	} else {
+		c, err := checkConflict(dst, art.AbsPath, art.IsDir)
+		if err != nil {
+			return err
+		}
+		conflicted = c != nil
+	}
+
+	if conflicted && !force {
+		// The file exists and the user changed it — skip the overwrite but
+		// track as conflict so it's not lost from state or reported as "new".
+		fmt.Printf("  %s %s (locally modified — kept; %s takes the upstream version)\n",
+			yellow("⚠"), name, bold("nav-pilot sync --apply"))
 		existingHash, hashErr := rawArtifactHash(dst, art.IsDir)
 		if hashErr == nil {
 			result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: existingHash, Status: fileStatusConflict})
@@ -147,6 +229,15 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 	return nil
 }
 
+// printConflictHint says what a conflict is and how it ends. "Skipped" on its
+// own reads as permanent, and --force reads as "throw my edits away": neither
+// says that a sync --apply takes the upstream version of exactly these files.
+func printConflictHint(n int) {
+	fmt.Printf("%s %d file(s) kept as you edited them.\n", yellow("⚠"), n)
+	fmt.Printf("  %s to take the upstream version, or %s to overwrite on the next install.\n",
+		bold("nav-pilot sync --apply"), bold("--force"))
+}
+
 // ─── Commands ───────────────────────────────────────────────────────────────
 
 // finishInstall closes out an install command.
@@ -180,6 +271,20 @@ func finishInstall(err error, flagSource string, dryRun, scopeDefining bool) err
 func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
 	// If explicit --type given, go straight to single-artifact install
 	if itemType != "" {
+		// run() already refuses --frozen --type as a usage error, so this is
+		// unreachable from the CLI. It is here so that refusal is a
+		// convenience rather than the only thing standing between --frozen and
+		// an install with no precheck, no pin match and no completeness check.
+		//
+		// A plain error, not frozenf: contradictory flags are a usage mistake
+		// and exit 1 from either door. Exit 3 means the pin was not honoured,
+		// which is a different thing for CI to branch on, and one mistake must
+		// not have two answers depending on which door it came through — the
+		// same reason --user answers 1 in both places.
+		if installFrozen {
+			return fmt.Errorf("%s installs the agentpakke %s names, and %s takes one item regardless of what it says",
+				bold("--frozen"), agentpakke.DeclarationPath, bold("--type "+itemType))
+		}
 		if _, ok := kindByName[itemType]; !ok {
 			return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt", itemType)
 		}
@@ -196,14 +301,24 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		return err
 	}
 
+	// --frozen refuses every repo state it cannot be frozen against before a
+	// single byte is fetched or written.
+	if err := frozenPrecheck(scope); err != nil {
+		return err
+	}
+
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
 	defer src.Cleanup()
+
+	if err := frozenPinMatches(scope, src); err != nil {
+		return err
+	}
 
 	// A source that ships an agentpakke manifest supersedes the collection
 	// model: its single installable name is the agentpakke identity, and that
@@ -263,6 +378,14 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	}
 
 	if len(matchedKinds) == 1 {
+		// A single artifact is an a-la-carte install: it writes no declaration
+		// (a documented limitation) and installs one name regardless of what
+		// the declaration lists, so there is nothing for --frozen to hold.
+		if installFrozen {
+			return frozenf("%q is a single %s, not the agentpakke %s declares.\n"+
+				"--frozen installs what the declaration names; drop the flag to take one item",
+				name, matchedKinds[0].Name, agentpakke.DeclarationPath)
+		}
 		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
 	}
 
@@ -299,6 +422,28 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	pakke := pakkeFor(src, collection)
 	resolver := resolverFor(src.Dir, pakke)
 
+	// The repo's committed declaration may narrow the install to named items.
+	// It is read before anything is written, so a list naming something the
+	// agentpakke does not ship refuses the whole install rather than half of it.
+	decl, err := scopeDeclaration(scope)
+	if err != nil {
+		return err
+	}
+	var declaredItems map[string]string
+	if decl != nil {
+		declaredItems = decl.Items
+	}
+	if err := guardDeclaredItems(src, declaredItems); err != nil {
+		return err
+	}
+
+	// Before the tier split, not inside it: a mixed pakke — layout plus
+	// payloads — takes the Tier 1 route below, so a check on the payload-only
+	// branch would let it install its layout half and report green.
+	if err := frozenTier2(src); err != nil {
+		return err
+	}
+
 	// A payload-only agentpakke has no Tier 1 content to materialize into this
 	// scope; installing it means pinning a revision of its payloads.
 	if payloadOnly(src) {
@@ -312,13 +457,15 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	}
 
 	var manifest *Manifest
-	var err error
 	if src.Pakke != nil {
 		manifest, err = pakkeContents(resolver, src)
 	} else {
 		manifest, err = loadManifest(src.Dir, collection)
 	}
 	if err != nil {
+		return err
+	}
+	if manifest, err = applyDeclaredItems(manifest, declaredItems); err != nil {
 		return err
 	}
 
@@ -331,7 +478,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		} else {
 			fmt.Println(bold(fmt.Sprintf("Installing: %s", collection)))
 		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		printManifestContents(manifest)
 		fmt.Println()
@@ -345,6 +492,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		telemetry.RecordInstallItems(scope.Name, telemetryMode(), int64(result.Installed))
 	}
 
+	// Before the JSON output, so the machine-readable path cannot report a
+	// partial install as a success either.
+	if err := frozenComplete(result, scope); err != nil {
+		return err
+	}
+
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
 			"command":     "install",
@@ -353,6 +506,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 			"source_sha":  src.SHA,
 			"version":     src.Version,
 			"installed":   result.Installed,
+			"skipped":     len(result.Missing),
 			"conflicts":   result.Conflicts,
 			"unsupported": result.Unsupported,
 			"dry_run":     dryRun,
@@ -360,8 +514,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	}
 
 	if result.Conflicts > 0 {
-		fmt.Printf("%s %d file(s) skipped due to conflicts. Use %s to overwrite.\n",
-			yellow("⚠"), result.Conflicts, bold("--force"))
+		printConflictHint(result.Conflicts)
 	}
 
 	if len(result.Unsupported) > 0 {
@@ -386,12 +539,31 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       result.Files,
 	}
+	// A re-install over a checked-in state file must not throw away the keys a
+	// newer nav-pilot put there; the fresh struct has none of them (#588). Nor
+	// the paths it does not name: a narrower install must not make the rest of
+	// the scope invisible to sync.
+	//
+	// The two must be decided together. removeOrphans deletes the prior paths
+	// this install did not write and nav-pilot still owns; merging every prior
+	// entry back would then commit a state that lists a file the tool has just
+	// deleted. So only what removeOrphans kept is merged.
+	if prior, err := readScopedState(scope); err == nil && prior != nil {
+		state.PreserveUnknownFrom(prior)
+		state.Files = mergeStateFiles(removeOrphans(scope, prior, result.Files), state.Files)
+	}
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
+	// --frozen never moves the pin, not even to rewrite it as the value it
+	// already holds: a CI job must not produce a diff in a file it was only
+	// meant to obey.
+	if !installFrozen {
+		recordDeclaration(scope, src)
+	}
 
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
-		green("✓"), result.Installed, collection, stateVersion, src.SHA)
+		green("✓"), result.Installed, collection, stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	if scope.IsUser() {
 		fmt.Println(dim("Agents and skills are now available across all your repos."))
@@ -424,14 +596,14 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 		} else {
 			fmt.Println(bold(fmt.Sprintf("Installing %s: %s", itemType, name)))
 		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		fmt.Println()
 	}
 
 	kind := kindByName[itemType]
 	resolver := resolverFor(src.Dir, pakkeFor(src, name))
-	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
+	installErr := installArtifact(resolver, scope, scopeStateHashes(scope), kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr
 	}
@@ -453,8 +625,8 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 	}
 
 	if result.Conflicts > 0 {
-		fmt.Printf("\n%s File already exists and differs. Use %s to overwrite.\n",
-			yellow("⚠"), bold("--force"))
+		fmt.Println()
+		printConflictHint(result.Conflicts)
 	}
 
 	if dryRun || result.Installed == 0 {
@@ -471,11 +643,15 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 	return nil
 }
 
-func cmdList(ref, sourceRepo string, showItems bool, jsonOutput bool) error {
+// cmdList lists what a source ships. It takes the scope so it reads the same
+// declaration an install would: listing the default pakke's items in a repo
+// pinned elsewhere is how the unknown-item refusal ends up sending a user to
+// output that cannot contain the name they mistyped.
+func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOutput bool) error {
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
@@ -616,32 +792,33 @@ func collectAvailableItems(resolver *SourceResolver) map[string][]string {
 // cmdInstallInteractive handles `nav-pilot install` with no arguments in an interactive terminal.
 // Reuses the same scope picker and collection/item pickers as the root `nav-pilot` command.
 func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
-	fmt.Println(dim("Resolving source..."))
+	// The scope is settled before the source is resolved, because the repo's
+	// committed declaration is *part of* how the source is chosen: resolving
+	// first would install whatever the config key happened to name and then
+	// overwrite the declaration with it — for the one command, `nav-pilot
+	// install` with no arguments, the declaration exists to serve.
+	scope, err := ScopeUser()
+	if err != nil {
+		return err
+	}
+	if targetDir != "" {
+		// In a git repo: ask where to install
+		scope, err = promptInstallScopeFn(targetDir)
+		if err != nil {
+			return err
+		}
+		if scope == nil {
+			fmt.Println(dim("Cancelled."))
+			return errInstallCancelled
+		}
+	}
 
-	src, err := resolveSource(ref, sourceRepo)
+	fmt.Println(dim("Resolving source..."))
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
 	defer src.Cleanup()
-
-	if targetDir == "" {
-		// Not in a git repo — only user-home scope is possible
-		scope, scopeErr := ScopeUser()
-		if scopeErr != nil {
-			return scopeErr
-		}
-		return interactiveUserInstallFromSource(scope, src, sourceRepo)
-	}
-
-	// In a git repo: ask where to install
-	scope, err := promptInstallScopeFn(targetDir)
-	if err != nil {
-		return err
-	}
-	if scope == nil {
-		fmt.Println(dim("Cancelled."))
-		return errInstallCancelled
-	}
 
 	if scope.IsUser() {
 		return interactiveUserInstallFromSource(scope, src, sourceRepo)
@@ -661,7 +838,7 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
-	src, err := resolveSource(ref, sourceRepo)
+	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
 	}
@@ -714,7 +891,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		} else {
 			fmt.Println(bold(fmt.Sprintf("Installing: all agents, skills & instructions (%d items)", total)))
 		}
-		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, src.SHA)))
+		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		fmt.Println()
 	}
@@ -728,8 +905,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	}
 
 	if !jsonOutput && result.Conflicts > 0 {
-		fmt.Printf("%s %d file(s) skipped due to conflicts. Use %s to overwrite.\n",
-			yellow("⚠"), result.Conflicts, bold("--force"))
+		printConflictHint(result.Conflicts)
 	}
 
 	if jsonOutput {
@@ -767,12 +943,25 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		state.Files = append(state.Files, extraStateFiles...)
 	}
 
+	// Same as cmdInstallFromSource: a rebuild over an existing state keeps the
+	// keys this binary does not understand (#588), retires the artifacts the
+	// source has stopped shipping (#615), and keeps the state of the paths this
+	// install did not name. The two install paths must agree about all three.
+	if prior, err := readScopedState(scope); err == nil && prior != nil {
+		state.PreserveUnknownFrom(prior)
+		// state.Files, not result.Files: the picker's deselected items were
+		// appended above, and they are still on disk on purpose. Passing the
+		// narrower set makes removeOrphans read a deselection as an artifact
+		// the source stopped shipping, and delete a file the user chose to keep.
+		state.Files = mergeStateFiles(removeOrphans(scope, prior, state.Files), state.Files)
+	}
+
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
 
 	fmt.Printf("%s Installed %d items to %s (v%s, %s).\n",
-		green("✓"), result.Installed, scope.Label(), stateVersion, src.SHA)
+		green("✓"), result.Installed, scope.Label(), stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	fmt.Println(dim("Agents and skills are now available across all your repos."))
 	fmt.Println(dim("Use @nav-pilot in Copilot Chat or copilot --agent nav-pilot"))
@@ -960,7 +1149,7 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 	fmt.Printf("  Collection:  %s\n", bold(state.Collection))
 	fmt.Printf("  Version:     %s\n", state.Version)
 	fmt.Printf("  Scope:       %s\n", scope.Name)
-	fmt.Printf("  Source:      %s\n", state.SourceSHA)
+	fmt.Printf("  Source:      %s\n", shortSHA(state.SourceSHA))
 	fmt.Printf("  Installed:   %s\n", state.InstalledAt)
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()
@@ -1061,4 +1250,57 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 		fmt.Printf("%s Removed %d items.\n", green("✓"), removed)
 	}
 	return nil
+}
+
+// removeOrphans deletes files the previous install put on disk that this one
+// did not write.
+//
+// State is rebuilt from what the install produced, so a file the source has
+// stopped shipping simply falls out of it. Nothing then deletes it, and nothing
+// can: sync walks the state, so a path it no longer names is invisible to every
+// later run. The file stays installed for the life of the machine.
+//
+// Reported after the local worker agent was renamed from lokal-arbeider to
+// local-worker. Both were listed in Copilot CLI's agent picker for three days,
+// and the stale one showed "inherit (default behavior)" — a worker agent that
+// would have run on the cloud model, which is the one thing it exists not to do.
+//
+// A file is removed only when it is byte-for-byte what nav-pilot wrote.
+// Anything the developer edited is theirs and stays, which is the same rule the
+// opencode scope has applied since it was written.
+//
+// It returns the prior entries it did not delete. Those are the ones whose state
+// must survive the install — deleting a file and keeping its state entry would
+// have status report it missing and the next sync report a deletion nav-pilot
+// performed itself.
+func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledFile) []InstalledFile {
+	if prior == nil {
+		return nil
+	}
+	written := make(map[string]bool, len(installed))
+	for _, f := range installed {
+		written[f.Path] = true
+	}
+	kept := make([]InstalledFile, 0, len(prior.Files))
+	for _, f := range prior.Files {
+		if written[f.Path] || !navPilotOwns(scope.RootDir, f) {
+			kept = append(kept, f)
+			continue
+		}
+		full := filepath.Join(scope.RootDir, f.Path)
+		var err error
+		if strings.HasSuffix(f.Path, "/") {
+			err = os.RemoveAll(full)
+		} else {
+			err = os.Remove(full)
+		}
+		if err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "%s Could not remove %s, which is no longer part of the collection: %v\n",
+				yellow("⚠"), f.Path, err)
+			kept = append(kept, f)
+			continue
+		}
+		fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer in the collection)"))
+	}
+	return kept
 }

@@ -1,0 +1,27 @@
+● Find StatusPanel.tsx file (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "StatusPanel.tsx" 2>/dev/null
+  └ 2 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva den gjør
+
+En enkel React-komponent som viser en statusverdi (rødt hvis `"feil"`, grønt ellers), en klikkbar "Vis detaljer"-tekst som toggler en `apen`-state (men state brukes aldri til noe — ingen detaljer vises), og en slettbar-knapp med søppelbøtte-ikon som kaller `onSlett`.
+
+## Problemer jeg ser
+
+1. **Ubrukt state**: `apen`/`setApen` settes, men brukes aldri til å vise/skjule innhold — død kode eller manglende funksjonalitet.
+2. **Manglende tilgjengelighet (a11y)**: `onClick` på en `<div>` er ikke tastaturtilgjengelig — bør være `<button>` eller ha `role="button"`, `tabIndex`, og `onKeyDown` for Enter/Space.
+3. **`style={{ outline: "none" }}`**: fjerner fokusring uten alternativ — dårlig for tastaturbrukere (WCAG-brudd).
+4. **`tabIndex={5}` på `<span>`**: vilkårlig positiv tabIndex ødelegger naturlig tab-rekkefølge og gjør spannet fokuserbart uten grunn (det er bare tekst, ikke interaktivt).
+5. **Ingen `aria-label`** på slett-knappen — kun et ikon, skjermlesere får ingen kontekst ("Slett"-tekst mangler).
+9. **Fargekoding alene** (rød/grønn) for status er problematisk for fargeblinde — bør suppleres med tekst/ikon.
+6. **Ingen typer**: `props` er ikke typet (`status`, `onSlett` mangler TypeScript-typer), selv om filen er `.tsx`.
+7. **Manglende `key`-vurdering** om komponenten brukes i lister (ikke synlig her, men verdt å sjekke ved bruk).
+8. **`onSlett` kalles uten bekreftelse** — kan være ønsket UX-forbedring (bekreftelsesdialog før sletting).
+
+**Anbefaling**: Bytt til `<button>` for "Vis detaljer", fjern `outline: none` og `tabIndex={5}`, legg til `aria-label="Slett"` på slett-knappen, typ props, og faktisk implementer detaljvisningen basert på `apen`.
+

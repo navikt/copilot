@@ -52,10 +52,12 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
 
   const blocks: SetupCommandBlock[] = [];
 
-  if (os === "windows") {
+  const isWindows = os === "windows";
+
+  if (isWindows) {
     blocks.push({
       title:
-        "# Nav-pilot (agent og context) fungerer best i WSL (Linux).\n# Åpne WSL2-terminalen din og kjør følgende:",
+        "# Nav-pilot (agent og context) fungerer best i WSL (Linux).\n# Åpne WSL2-terminalen din og kjør følgende.\n# Alt skal installeres inne i Linux — verktøy du har på Windows installerer og kjører på Windows-siden.",
       commands: [],
     });
   }
@@ -63,7 +65,10 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
   const isMac = os === "mac";
 
   if (workflow === "cli") {
-    blocks.push({ title: "# 1. Installer Copilot CLI (NPM)", commands: ["npm install -g @github/copilot"] });
+    blocks.push({
+      title: "# 1. Installer Copilot CLI",
+      commands: ["curl -fsSL https://gh.io/copilot-install | bash"],
+    });
   } else if (workflow === "opencode") {
     blocks.push({ title: "# 1. Installer OpenCode", commands: ["curl -fsSL https://opencode.ai/install | bash"] });
   }
@@ -81,9 +86,22 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
   }
 
   blocks.push({
+    title: "# 2b. Gjør de nyinstallerte verktøyene tilgjengelige i dette skallet",
+    commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptene legger binærene hit'],
+  });
+
+  blocks.push({
     title: "# 3. Sett opp for ditt prosjekt",
     commands: [`nav-pilot install ${stack} --repo`, ...WORKFLOW_COMMANDS[workflow]],
   });
+
+  if (isWindows) {
+    const agentBinary = workflow === "opencode" ? "opencode" : "copilot";
+    blocks.push({
+      title: "# 4. Sjekk at ingen verktøy kommer fra Windows-siden",
+      commands: [`which -a ${agentBinary} cplt nav-pilot   # ingen treff skal starte med /mnt/c`],
+    });
+  }
 
   const codeString = blocks.map((b) => [b.title, ...b.commands].filter(Boolean).join("\n")).join("\n\n");
 
@@ -333,8 +351,8 @@ export function StepResult({
             <CodeBlock compact>{currentResult.code}</CodeBlock>
           </Box>
           <BodyShort textColor="subtle" size="small">
-            Oppskriften installerer i dette repoet. Vil du heller ha agenter og skills på tvers av alle repoer, bytt
-            ut <code>install</code>-linja med <code>nav-pilot install --user --all</code>. Den tar ikke med prompts.{" "}
+            Oppskriften installerer i dette repoet. Vil du heller ha agenter og skills på tvers av alle repoer, bytt ut{" "}
+            <code>install</code>-linja med <code>nav-pilot install --user --all</code>. Den tar ikke med prompts.{" "}
             <Link href="/nav-pilot/docs#hvor-installere" className="text-blue-600">
               Hvor skal artefaktene installeres?
             </Link>

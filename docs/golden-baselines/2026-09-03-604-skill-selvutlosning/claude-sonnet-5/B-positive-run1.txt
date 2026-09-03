@@ -1,0 +1,52 @@
+● skill(aksel-component)
+
+● List available skills directory (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws/.github/skills -maxdepth 2
+  └ 4 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+"Varselkort" betyr et varsel-/advarselkort - jeg bruker `LocalAlert` (v8-erstatning for legacy `Alert`) som byggeblokk. Henter API for LocalAlert, Box og VStack for å verifisere korrekte props.
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/box.md · url: "https://aksel.nav…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/box.md:
+
+● Find package.json and list workspace root (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && rtk find . -iname "package.json" -not -path
+  │ "*/node_modules/*" 2>/dev/null; echo "---"; ls -la
+  └ 7 lines…
+
+● Explore src directory (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find src -maxdepth 5
+  └ 5 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Create VarselKort.tsx +34
+  └ src/app/komponenter/VarselKort.tsx
+
+● Create VarselKort.test.tsx +36
+  └ src/app/komponenter/VarselKort.test.tsx
+
+● List all files in workspace (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && rtk find . -not -path "./.git*" | sort
+  └ 7 lines…
+
+Ingen `package.json`/testoppsett finnes i repoet, så testen kan ikke kjøres her — den er skrevet i samme stil som et typisk Jest/Testing-Library-oppsett for når prosjektet får det.
+
+Opprettet:
+- `src/app/komponenter/VarselKort.tsx` — bygger på Aksel v8 `LocalAlert` (varsel/advarsel-kort), med props `tittel`, `beskrivelse`, `status` (warning/error/success/announcement), `storrelse` (medium/small) og valgfri `onLukk` som viser en lukkeknapp.
+- `src/app/komponenter/VarselKort.test.tsx` — dekker tittel/beskrivelse-rendering, fravær av lukkeknapp uten `onLukk`, og at `onLukk` kalles ved klikk.
+
+Brukte `LocalAlert` i stedet for avviklet `Alert`, verifisert via aksel.nav.no/llm.md siden MCP ikke var tilgjengelig.
+

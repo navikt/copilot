@@ -1,0 +1,83 @@
+● skill(aksel-component)
+
+Jeg undersøker prosjektets komponentstruktur og eksisterende Aksel-mønstre før jeg scaffold-er `Varselkort`, slik at eksport, styling og tester følger repoets konvensjoner.
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "@navikt/ds-react|test\(|describe\(" in **/*.{ts,tsx,js,jsx,json}
+  └ No matches found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+✗ Read SKILL.md
+  │ /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt/copolot/0b25bffb-b239-42b8-902c-752
+  │ 5c0026ac1/scratchpad/run-luna/ws/.github/skills/aksel-component/SKILL.md
+  └ Permission denied and could not request permission from user
+
+● Read SKILL.md
+  │ .github/skills/aksel-component/SKILL.md
+  └ 64 lines read
+
+● Inspect project files (shell)
+  │ rtk ls -la && rtk find . -maxdepth 3 -type f -print
+  └ 3 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/ikoner.md · url: "https://aksel.nav.no/komp…
+  └ Contents of https://aksel.nav.no/komponenter/ikoner.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/typography.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/typography.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/box.md · url: "https://aksel.nav…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/box.md:
+
+● List all project files (shell)
+  │ rtk find . -type f -print
+  └ 3 lines…
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/grunnleggende/styling/design-tokens.md · url: "https://…
+  └ Contents of https://aksel.nav.no/grunnleggende/styling/design-tokens.md:
+
+Jeg bruker Aksels `InfoCard` som semantisk varselkort: `warning`-farge, dekorativt varseltrekantikon, korrekt heading og valgfri liten/medium størrelse. Komponenten får en enkel, typesikker API med støtte for `section` når den trenger egen tilgjengelig etikett.
+
+● Edit
+  │ Create src/app/komponenter/Varselkort.tsx
+  └ Create src/app/komponenter/Varselkort.test.tsx
+
+● Read Varselkort.test.tsx
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 37 lines read
+
+● Read Varselkort.tsx
+  │ src/app/komponenter/Varselkort.tsx
+  └ 40 lines read
+
+● Verify created files and worktree (shell)
+  │ rtk find . -maxdepth 4 -type f -print && rtk git status --short
+  └ 6 lines…
+
+Opprettet React-komponenten `Varselkort` med Aksel:
+
+- Bruker `InfoCard` med `data-color="warning"`
+- Viser `ExclamationmarkTriangleIcon` som dekorativt ikon
+- Støtter `title`, valgfri `description`, `size` og `as`
+- Støtter tilgjengelig navn via `aria-label` eller `aria-labelledby`
+- Lagt til `Varselkort.test.tsx` med tester for innhold og seksjonssemantikk
+

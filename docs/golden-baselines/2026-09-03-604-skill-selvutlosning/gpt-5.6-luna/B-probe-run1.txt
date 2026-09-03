@@ -1,0 +1,32 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/{tsconfig.json,package.json,eslint.config.*,vite.config.*,next.config.*}"
+  └ No matches found
+
+/ Search (grep)
+  │ "<StatusPanel|StatusPanel\(" in *.{ts,tsx}
+  └ 1 line found
+
+`StatusPanel` viser en liten statusrad:
+
+- Tar imot `status` og `onSlett` som props.
+- Viser teksten **«Vis detaljer»**.
+- Ved klikk toggles lokal state `apen`.
+- Viser statusen med rød tekst når `status === "feil"`, ellers grønn tekst.
+- Viser en søppelkurv-knapp som kaller `onSlett`.
+
+Problemer jeg ser:
+
+1. **Detaljvisningen er ikke implementert.** `apen` endres, men brukes aldri til å vise eller skjule innhold. Klikk på «Vis detaljer» har derfor ingen synlig effekt.
+2. **Dårlig tilgjengelighet på «Vis detaljer».** En klikkbar `<div>` kan ikke aktiveres med tastatur og mangler semantikk som knapp. Bruk en `<button>` med passende `aria-expanded` dersom den skal åpne detaljer.
+3. **`outline: none` fjerner fokusindikatoren.** Det gjør tastaturfokus vanskeligere å se, og er spesielt uheldig dersom elementet senere blir tastaturfokuserbart.
+4. **Feil bruk av `tabIndex={5}` på statusen.** Statusen trenger normalt ikke å være fokuserbar. En positiv tab-indeks gir uforutsigbar og dårlig tab-rekkefølge.
+5. **Søppelkurv-knappen mangler tilgjengelig navn.** Ikonet alene gir ikke nødvendigvis skjermlesere informasjon om handlingen. Den bør ha for eksempel `aria-label="Slett status"`, eller synlig tekst.
+6. **Props mangler TypeScript-typer.** `status` og `onSlett` blir implisitt `any` dersom prosjektet bruker streng TypeScript-konfigurasjon. Det svekker typesikkerheten og kan gi kompileringsfeil.
+7. **Statuslogikken er for åpen og lite presis.** Alle verdier som ikke er nøyaktig `"feil"` blir behandlet som grønn/suksess. Uventede eller manglende statusverdier kan derfor vises feil.
+8. **Fargene er lite robuste.** Direkte `"red"` og `"green"` gir svak kontroll på kontrast, tema og designsystem. I et Aksel-prosjekt bør komponentens status- eller fargetokens brukes.
+9. **Teksten er ikke nødvendigvis konsistent med statusen.** Statusverdien rendres rått, og kan være teknisk eller engelsk tekst i stedet for en brukervendt, lokalisert etikett.
+

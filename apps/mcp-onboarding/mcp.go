@@ -527,6 +527,22 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 //
 // Bounded as well as sanitised, because an unbounded field lets a caller push
 // real entries out of a fixed-size buffer.
+// logSafeAll is logSafe over a slice, for the registration fields a caller
+// supplies wholesale. Bounded in length as well as count, because an unbounded
+// slice pushes real entries out of a fixed-size buffer just as an unbounded
+// string does.
+func logSafeAll(vs []string) []string {
+	const maxLogged = 10
+	if len(vs) > maxLogged {
+		vs = vs[:maxLogged]
+	}
+	out := make([]string, len(vs))
+	for i, v := range vs {
+		out[i] = logSafe(v)
+	}
+	return out
+}
+
 func logSafe(v string) string {
 	const maxLogged = 128
 	// The newline and carriage return are replaced explicitly, before the general

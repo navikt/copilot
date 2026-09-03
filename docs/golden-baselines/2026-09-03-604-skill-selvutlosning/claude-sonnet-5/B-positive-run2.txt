@@ -1,0 +1,48 @@
+● skill(aksel-component)
+
+● List workspace root contents (shell)
+  │ rtk find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8
+  │ -902c-7525c0026ac1/scratchpad/run-sonnet5/ws -maxdepth 2
+  └ 1 line…
+
+● List directory .
+  └ 2 files found
+
+● List directory src
+  └ 1 file found
+
+● Explore src directory structure (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws/src -maxdepth 5
+  └ 5 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Check for package.json and tsconfig (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find . -maxdepth 2 -name "package.json" -o -maxdepth 2
+  │ -name "tsconfig*.json" 2>/dev/null; cat package.json 2>/dev/null
+  └ 1 line…
+
+● Create Varselkort.tsx +67
+  └ src/app/komponenter/Varselkort.tsx
+
+● Create Varselkort.test.tsx +33
+  └ src/app/komponenter/Varselkort.test.tsx
+
+● Check available tooling (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && which node npx 2>/dev/null; npx --version 2>/dev/null;
+  │ find . -name "*.json" | head
+  └ 4 lines…
+
+Ingen `package.json`/build-oppsett finnes i workspacen, så jeg kan ikke installere `@navikt/ds-react` eller kjøre testene her — koden er skrevet mot dokumentert v8-API (`Box`/`VStack`/`HStack`, `space-`-tokens, `data-color`, `borderRadius`-skala).
+
+Opprettet:
+- `src/app/komponenter/Varselkort.tsx` — kort med tittel, valgfri beskrivelse, 4 varianter (info/warning/error/success) med riktig ikon+farge via `data-color`, `role="alert"`, valgfri lukk-knapp.
+- `src/app/komponenter/Varselkort.test.tsx` — tester for innhold, a11y-rolle og lukk-knapp.
+
+Kjør `npm install && npm test` i prosjektet ditt for å verifisere når avhengighetene er på plass.
+

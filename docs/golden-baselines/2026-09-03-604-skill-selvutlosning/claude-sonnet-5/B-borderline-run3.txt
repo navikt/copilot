@@ -1,0 +1,40 @@
+● Locate StatusPanel.tsx (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -path "*src/app/komponenter/StatusPanel.tsx"
+  └ 2 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Check XMarkIcon existence (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && ls node_modules/@navikt/aksel-icons/dist/*.d.ts
+  │ 2>/dev/null | grep -i xmark | head
+  └ 1 line…
+
+✗ Check aksel-icons package location (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && find . -path ./node_modules -prune -o -name
+  │ "package.json" -print | head; cat package.json 2>/dev/null | grep aksel; find / -type d -iname
+  │ "aksel-icons" 2>/dev/null | head
+  └ Permission denied and could not request permission from user
+
+● Check aksel dependency (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && cat package.json 2>/dev/null | grep -i aksel; ls
+  │ node_modules/@navikt 2>/dev/null
+  └ 1 line…
+
+● List workspace root (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && ls -la; ls node_modules 2>/dev/null | head
+  └ 6 lines…
+
+No package.json in this minimal workspace — can't build/lint. I'll rely on known Aksel icon exports. `XMarkIcon` is the standard Aksel close icon. I'll add a close button with `aria-label="Lukk"`.
+
+● Edit StatusPanel.tsx +4 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til en lukkeknapp i `StatusPanel.tsx` med `XMarkIcon` fra `@navikt/aksel-icons`. Knappen har `aria-label="Lukk"` for korrekt tilgjengelig navn, ikonet er `aria-hidden` (dekorativt), og `onClick` lukker detaljvisningen (`setApen(false)`). Ingen `package.json`/build-verktøy finnes i dette minimale workspacet, så endringen kunne ikke kjøres gjennom lint/build.
+

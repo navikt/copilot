@@ -67,7 +67,7 @@ func ValidateOpenCodeStatePath(p string) error {
 	return fmt.Errorf("path outside allowed opencode directories: %s", p)
 }
 
-// navPilotOwns reports whether a tracked file is still byte-for-byte what
+// NavPilotOwns reports whether a tracked file is still byte-for-byte what
 // nav-pilot wrote, and is therefore nav-pilot's to remove. A conflicted entry
 // never is: its recorded hash is the user's own copy, so a hash comparison
 // would call it untouched.
@@ -78,7 +78,7 @@ func ValidateOpenCodeStatePath(p string) error {
 // it as the user's for good. The write path is the older half and the wrong
 // one, but it is a separate bug with its own issue, not something to change
 // under a fix for what the scope materializes.
-func navPilotOwns(outputDir string, f domain.InstalledFile) bool {
+func NavPilotOwns(outputDir string, f domain.InstalledFile) bool {
 	if f.Status == domain.FileStatusConflict {
 		return false
 	}
@@ -303,7 +303,7 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 			if newFilesMap[f.Path] {
 				continue
 			}
-			if !navPilotOwns(outputDir, f) {
+			if !NavPilotOwns(outputDir, f) {
 				files = append(files, f)
 				continue
 			}
@@ -325,6 +325,9 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		InstalledAt: time.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Files:       files,
 	}
+	// Entries carried over untouched above keep their own unknown keys; the
+	// ones this sync rebuilt do not, and neither does the top level (#588).
+	newState.PreserveUnknownFrom(existingState)
 	if wErr := WriteOpenCodeState(outputDir, newState); wErr != nil {
 		fmt.Fprintf(os.Stderr, "%s could not write opencode state: %v\n", domain.Yellow("⚠"), wErr)
 	}
@@ -348,7 +351,7 @@ func PrintOpenCodeStatusBlock(outputDir string, state *domain.StateFile) {
 	fmt.Printf("  Collection:  %s\n", domain.Bold(state.Collection))
 	fmt.Printf("  Version:     %s\n", state.Version)
 	fmt.Printf("  Scope:       %s\n", state.Scope)
-	fmt.Printf("  Source:      %s\n", state.SourceSHA)
+	fmt.Printf("  Source:      %s\n", domain.ShortSHA(state.SourceSHA))
 	fmt.Printf("  Location:    %s\n", domain.Dim(outputDir))
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()

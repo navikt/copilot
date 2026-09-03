@@ -216,7 +216,7 @@ func TestInstallAgent_UserScope(t *testing.T) {
 	}
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), scope, KindAgent, "test", false, false, result)
+	err := installArtifact(NewSourceResolver(source), scope, nil, KindAgent, "test", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact agent user scope: %v", err)
 	}
@@ -699,7 +699,10 @@ func TestRun_InstallScopePrompt(t *testing.T) {
 		{"non-interactive cannot ask", []string{"install", "grillmester"}, false, false},
 		{"--json must stay scriptable", []string{"install", "grillmester", "--json"}, true, false},
 		{"--dry-run installs nothing", []string{"install", "grillmester", "--dry-run"}, true, false},
-		{"bare install is not prompted before dispatch", []string{"install"}, true, false},
+		// A bare install asks inside the command rather than in the dispatcher:
+		// the scope decides which repository's declaration names the source, so
+		// it has to be settled before the source is resolved.
+		{"bare install asks inside the command", []string{"install"}, true, true},
 		{"explicit install asks", []string{"install", "grillmester"}, true, true},
 		{"add asks too", []string{"add", "agent", "grillmester"}, true, true},
 	}

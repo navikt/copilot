@@ -16,11 +16,6 @@ func TestUpdateTokenStoreGauges(t *testing.T) {
 		refreshTokens: map[string]*RefreshTokenData{
 			"ref1": {UserLogin: "user1"},
 		},
-		clientRegistrations: map[string]*ClientRegistration{
-			"client1": {ClientID: "client1"},
-			"client2": {ClientID: "client2"},
-			"client3": {ClientID: "client3"},
-		},
 	}
 
 	tokenStoreSize.Reset()
@@ -34,11 +29,6 @@ func TestUpdateTokenStoreGauges(t *testing.T) {
 	refreshTokens := testutil.ToFloat64(tokenStoreSize.WithLabelValues("refresh_tokens"))
 	if refreshTokens != 1 {
 		t.Errorf("expected refresh_tokens=1, got %v", refreshTokens)
-	}
-
-	clientRegs := testutil.ToFloat64(tokenStoreSize.WithLabelValues("client_registrations"))
-	if clientRegs != 3 {
-		t.Errorf("expected client_registrations=3, got %v", clientRegs)
 	}
 }
 

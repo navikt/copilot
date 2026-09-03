@@ -1,0 +1,53 @@
+● Locate StatusPanel component (shell)
+  │ rtk pwd && rtk find . -path '*src/app/komponenter/StatusPanel.tsx' -print
+  └ 3 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel" in **/*.{ts,tsx}
+  └ 1 line found
+
+✗ Read package.json
+  └ Path does not exist
+
+✗ Read tsconfig.json
+  └ Path does not exist
+
+/ Search (glob)
+  │ "src/app/**/*.{ts,tsx}"
+  └ 1 file found
+
+● Show component with line numbers (shell)
+  │ rtk nl -ba src/app/komponenter/StatusPanel.tsx
+  └ 20 lines…
+
+`StatusPanel` er en liten React-komponent som:
+
+- Tar imot `status` og `onSlett` som props.
+- Holder en lokal boolsk tilstand, `apen`, som starter som `false`.
+- Viser teksten «Vis detaljer». Ved klikk forsøker den å veksle `apen`.
+- Viser statusen med rød tekst når `status === "feil"`, ellers grønn tekst.
+- Viser en søppelbøtte-knapp som kaller `onSlett` ved klikk.
+
+**Problemer jeg ser:**
+
+- `apen` brukes aldri til å vise eller skjule noe. Klikk på «Vis detaljer» endrer derfor ingen synlig UI.
+- `<div>` brukes som klikkbart element. Det gir dårlig tastatur- og skjermleserstøtte. Bruk heller en `<button>` med passende tekst og eventuelt `aria-expanded`.
+- `style={{ outline: "none" }}` fjerner fokusmarkeringen uten å legge til en tilgjengelig erstatning. Det gjør tastaturfokus vanskelig å se.
+- `tabIndex={5}` på `<span>` er uheldig:
+  - Statusen er normalt ikke interaktiv og bør ikke være fokuserbar.
+  - En positiv `tabIndex` gir en unaturlig tab-rekkefølge. Hvis statusen må fokuseres, bør `tabIndex={0}` brukes.
+- Søppelbøtteknappen har ikke tilgjengelig navn. `TrashIcon` alene gir ikke nødvendigvis skjermlesere nok informasjon. Knappen bør ha for eksempel `aria-label="Slett status"` eller synlig tekst.
+- Props mangler TypeScript-typer. I et vanlig TypeScript-oppsett kan `status` og `onSlett` derfor gi implicit-`any`-feil. Det bør defineres hvilke statuser som er gyldige, og hvilken funksjonstype `onSlett` har.
+- `setApen(!apen)` kan erstattes med `setApen((forrige) => !forrige)`, som er tryggere når flere state-oppdateringer skjer tett.
+- Farge alene brukes til å kommunisere status. Det kan gi dårlig forståelse for brukere med nedsatt fargesyn; statusen bør også formidles med tekst, ikon eller semantikk.
+- Statusområdet mangler eventuell semantikk for dynamiske endringer, for eksempel `aria-live`, dersom statusen oppdateres mens siden står åpen.
+- Teksten «Vis detaljer» har ingen kobling til et detaljpanel, og komponenten inneholder foreløpig ingen detaljer å vise.
+

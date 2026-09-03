@@ -19,6 +19,8 @@ For å få Nav sitt KI-token-budsjett til å strekke lenger, og for at de ivrigs
 
 Vi kaller den bakkemodellen. Hovedagenten blir i skya og bestemmer, bakkemodellen utfører. I logger og konfigurasjon heter den `local-worker`.
 
+Den arbeidsdelingen krever opencode som klient. Bare der blir bakkemodellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Vi har bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI, og det ligger som en feature request hos dem.
+
 ```
 nav-pilot alpha local init
 ```
@@ -52,23 +54,23 @@ Først prøvde vi åtte modeller og bygg på det samme oppgavesettet: elleve opp
 - **Qwen3.8-27B i 4-, 6- og 8-bit.** Ikke standard, men 4-bit og 8-bit kan nå velges. Se under.
 - **Granite 4.1 8B.** For liten. Løste 1 av 8.
 
-### Oppdatering 1. september: Qwen 3.8 kan velges
+### Oppdatering 2. september: forspranget var vårt, ikke modellens
 
-Vi skrev først at Qwen3.8 ikke ble valgt fordi den gikk i loop. Etter å ha kjørt testene på nytt
-holder ikke den beskrivelsen, og den nye er mer interessant.
+Her sto det til 2. september at Qwen3.8-27B 4-bit løste **5, 5, 6 og 7 av 8** mot
+standardmodellens **3, 3, 3, 4 og 4**, og at 3.8 dermed løser mer. Det tallet holder ikke, og
+grunnen er verdt å skrive ned.
 
-Fire rene kjøringer av det samme oppgavesettet på samme maskin: Qwen3.8-27B 4-bit løste **5, 5, 6
-og 7 av 8**, mot standardmodellens **3, 3, 3, 4 og 4** over fem. De to settene overlapper ikke i
-det hele tatt.
+Sandkassen vi kjører oppgavene i hadde aldri gitt modellene tilgang til byggverktøyene. Ingen av
+dem kunne kompilere eller kjøre en test. Vi målte altså ikke hvem som løser oppgaver, vi målte
+hvem som skriver best Kotlin i blinde. Da tilgangen kom på plass, og oppgavesettet i tillegg ble
+pinnet til én commit i stedet for å følge master, forsvant forspranget: **3,75 mot 3,25 løste
+oppgaver, p = 0,71.** Det er ingen målbar forskjell.
 
-**Qwen3.8 er altså ikke en svakere modell — den løser mer.** Til gjengjeld bruker den omtrent sju
-ganger så lang tid, median 65 sekunder mot 9, og treffer sju-minutterstaket på rundt én av fem
-oppgaver der standarden nesten aldri gjør det. En femte kjøring er holdt utenfor: den løste 1 av 8
-uten å endre en eneste fil på noen oppgave, som er en feil i testoppsettet vårt og ikke i
-modellen.
+Qwen3.8 4-bit kan fortsatt velges, og den er fortsatt omtrent sju ganger tregere, median 65
+sekunder mot 9. Men vi har ikke lenger noe belegg for at den løser mer, og de gamle tallene over
+skal ikke brukes til å velge modell. Nye kjøringer på det reparerte oppsettet pågår.
 
-Valget står altså mellom dybde og hastighet. Leser du gjennom det modellen lager og kan vente, er
-3.8 verdt å prøve. Vil du ha svar på ti sekunder, behold standarden:
+Vil du prøve den likevel:
 
 ```bash
 nav-pilot models
@@ -79,9 +81,12 @@ nav-pilot alpha local init
 Det vi selv lærte av dette er verdt mer enn modellvalget: **én kjøring er ikke en måling.** Alle
 konklusjonene som snudde, snudde fordi det fantes en kjøring til — ikke fordi vi tenkte oss om en
 gang til. Tabellen over var bygget på enkeltkjøringer. Denne konklusjonen snudde tre ganger: fra
-«3.8 går i loop», til «3.8 er uforutsigbar», til «3.8 løser mer enn standarden». Den siste snuen
-kom av at én kjøring viste seg å være en feil i testoppsettet og ikke i modellen. Vi krever nå
-minst fem kjøringer før et tall får styre en anbefaling.
+«3.8 går i loop», til «3.8 er uforutsigbar», til «3.8 løser mer enn standarden» — og så tilbake
+til «ingen målbar forskjell». Den siste snuen var den viktigste: vi oppdaget at sandkassen aldri
+hadde gitt modellene tilgang til byggverktøyene, så ingen av dem kunne kompilere eller kjøre
+tester. Da det ble rettet, forsvant forspranget. Vi hadde altså ikke målt modellene, vi hadde
+målt hvem som skriver best Kotlin i blinde. Vi krever nå minst fem kjøringer før et tall får
+styre en anbefaling, og at harnesset selv blir gjennomgått før tallene brukes.
 
 Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
 

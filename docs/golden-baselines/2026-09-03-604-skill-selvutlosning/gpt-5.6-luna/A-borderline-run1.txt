@@ -1,0 +1,37 @@
+● skill(aksel-component)
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "IconButton|XMark|Close|Lukk" in *.tsx (src)
+  └ No matches found
+
+✗ Read package.json
+  └ Path does not exist
+
+/ Search (glob)
+  │ "**/{package.json,*.test.tsx,*.spec.tsx}"
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel" in *.{ts,tsx}
+  └ 1 line found
+
+● List directory .
+  └ 2 files found
+
+/ Search (glob)
+  │ "**/*" in src
+  └ 1 file found
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+La til en lukkeknapp i `StatusPanel.tsx` med Aksel-ikonet `XMarkIcon`, `aria-label="Lukk"` og knappetype `button`. Klikk lukker panelets åpne tilstand.
+

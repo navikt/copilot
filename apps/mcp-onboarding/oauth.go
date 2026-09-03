@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -16,6 +18,21 @@ type OAuthServer struct {
 	GitHubClient        *GitHubClient
 	Store               *TokenStore
 	AllowedOrganization string
+	clientIDKey         []byte
+}
+
+// ClientRegistration is the RFC 7591 response to a Dynamic Client Registration
+// request. Nothing here is stored: ClientID carries the registration itself
+// (see clientid.go). No client_secret is issued, so client_secret and
+// client_secret_expires_at are both absent, per RFC 7591 section 3.2.1.
+type ClientRegistration struct {
+	ClientID                string   `json:"client_id"`
+	ClientIDIssuedAt        int64    `json:"client_id_issued_at,omitempty"`
+	ClientName              string   `json:"client_name,omitempty"`
+	RedirectURIs            []string `json:"redirect_uris"`
+	GrantTypes              []string `json:"grant_types,omitempty"`
+	ResponseTypes           []string `json:"response_types,omitempty"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
 }
 
 type AuthorizationServerMetadata struct {
@@ -40,6 +57,7 @@ func NewOAuthServer(baseURL string, githubClient *GitHubClient, store *TokenStor
 		GitHubClient:        githubClient,
 		Store:               store,
 		AllowedOrganization: allowedOrganization,
+		clientIDKey:         deriveClientIDKey(githubClient.ClientSecret),
 	}
 }
 
@@ -92,12 +110,12 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
 
 	slog.Debug("authorize request received",
-		"client_id", clientID,
-		"redirect_uri", redirectURI,
+		"client_id", logSafe(clientID),
+		"redirect_uri", logSafe(redirectURI),
 		"has_state", clientState != "",
 		"has_pkce", codeChallenge != "",
-		"code_challenge_method", codeChallengeMethod,
-		"user_agent", r.UserAgent(),
+		"code_challenge_method", logSafe(codeChallengeMethod),
+		"user_agent", logSafe(r.UserAgent()),
 	)
 
 	if clientID == "" {
@@ -105,11 +123,37 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reg, _ := s.Store.GetClientRegistration(clientID)
-	if reg != nil && redirectURI != "" && !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) {
+	reg, err := verifyClientID(s.clientIDKey, clientID)
+	if err != nil {
+		// The client_id is not one this server signed: forged, tampered with,
+		// or issued under a signing key that has since rotated. Either way its
+		// redirect_uri cannot be trusted (GHSA-7hwf-488h-59x8); tell the client
+		// to re-register.
+		slog.Warn("unknown client_id", "client_id", logSafe(clientID))
+		recordOAuthFlow("authorize", "invalid_client")
+		writeUnknownClient(w, r)
+		return
+	}
+
+	// A client_id is a signed blob with a 30-day TTL, not a stored row, so ones
+	// minted before the loopback policy stay verifiable until they expire.
+	// Enforce the policy here as well, or such an id would still carry an https
+	// redirect_uri through. invalid_client is the recoverable answer: the editor
+	// re-registers instead of waiting on a callback that will never arrive.
+	if !isValidRedirectURI(redirectURI) {
+		slog.Warn("redirect_uri is not a loopback address",
+			"client_id", logSafe(clientID),
+			"redirect_uri", logSafe(redirectURI),
+		)
+		recordOAuthFlow("authorize", "invalid_client")
+		writeUnknownClient(w, r)
+		return
+	}
+
+	if !isRegisteredRedirectURI(reg.RedirectURIs, redirectURI) { // also rejects ""
 		slog.Warn("redirect_uri not registered",
-			"client_id", clientID,
-			"redirect_uri", redirectURI,
+			"client_id", logSafe(clientID),
+			"redirect_uri", logSafe(redirectURI),
 		)
 		http.Error(w, "redirect_uri does not match registered URIs", http.StatusBadRequest)
 		return
@@ -133,8 +177,8 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	s.Store.SaveAuthSession(internalState, session)
 
 	slog.Info("starting oauth flow",
-		"client_id", clientID,
-		"redirect_uri", redirectURI,
+		"client_id", logSafe(clientID),
+		"redirect_uri", logSafe(redirectURI),
 		"has_pkce", codeChallenge != "",
 	)
 	recordOAuthFlow("authorize", "started")
@@ -148,6 +192,53 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	)
 
 	http.Redirect(w, r, githubURL, http.StatusFound)
+}
+
+// unknownClientPage is what a person sees when their browser lands on the
+// invalid_client error from /oauth/authorize.
+//
+// A signed client_id survives restarts, so this is now the rare case: a forged
+// or corrupted client_id, one issued before the signing key rotated, or one
+// carrying a redirect_uri the loopback policy no longer allows (#633). The
+// editor extension sits blocked on its loopback callback without ever reading
+// the response body, so the browser tab is the only place a human is told what
+// happened and it has to say how to recover.
+const unknownClientPage = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Unknown client - sign in again</title></head>
+<body>
+<h1>This server does not recognise your editor's registration</h1>
+<p>Your editor is sending a <code>client_id</code> that this server did not issue, issued
+before its signing key was rotated, or issued under a redirect rule this server no longer
+allows, so the server cannot accept it (<code>invalid_client</code>).</p>
+<h2>How to recover</h2>
+<p>Remove the cached MCP registration and tokens for this server in your editor, then sign in
+again. The editor registers itself anew and the sign-in goes through.</p>
+<ul>
+<li>VS Code: open the Accounts menu, sign out of this MCP server, and reconnect it.</li>
+<li>Other clients: delete the stored OAuth registration for this server and reconnect.</li>
+</ul>
+<p>Nothing is wrong with your account, and you do not need to report this.</p>
+</body>
+</html>
+`
+
+// writeUnknownClient answers an unregistered client_id. Machine clients that
+// parse the body keep the RFC 6749 JSON error; a browser gets a page it can act
+// on, because it is the browser that the person is looking at.
+func writeUnknownClient(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(unknownClientPage))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":             "invalid_client",
+		"error_description": "Unknown client_id. Clear the cached MCP registration and tokens for this server, then sign in again to re-register.",
+	})
 }
 
 func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
@@ -230,14 +321,23 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, callbackURL, http.StatusFound)
 }
 
+// handleTokenOptions answers the CORS preflight without granting any origin.
+//
+// /oauth/token deliberately sends no Access-Control-Allow-Origin. Every
+// supported client (VS Code and the other IDE extensions) redeems the code from
+// a native process rather than a web page, so none of them needs the header. A
+// wildcard grant let any page read a token response in the victim's browser
+// (GHSA-7hwf-488h-59x8).
 func (s *OAuthServer) handleTokenOptions(w http.ResponseWriter, _ *http.Request) {
-	s.setCORSHeaders(w)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *OAuthServer) handleToken(w http.ResponseWriter, r *http.Request) {
-	s.setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
+	// RFC 6749 §5.1: a token response carries credentials and must not be
+	// stored by any intermediary or by the browser's back/forward cache.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
 	if err := r.ParseForm(); err != nil {
@@ -288,12 +388,12 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if clientID != "" && authCode.ClientID != "" && authCode.ClientID != clientID {
-		slog.Warn("client_id mismatch in token exchange",
+	if clientID == "" || clientID != authCode.ClientID {
+		slog.Warn("client_id missing or mismatched in token exchange",
 			"expected", authCode.ClientID,
 			"got", clientID,
 		)
-		s.writeTokenError(w, "invalid_client", "client_id mismatch")
+		s.writeTokenError(w, "invalid_client", "client_id missing or does not match the authorization code")
 		return
 	}
 
@@ -328,6 +428,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	})
 
 	s.Store.SaveRefreshToken(refreshToken, &RefreshTokenData{
+		ClientID:           authCode.ClientID,
 		GitHubRefreshToken: authCode.GitHubRefreshToken,
 		UserLogin:          authCode.UserLogin,
 		UserID:             authCode.UserID,
@@ -350,10 +451,32 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 // Body size is already limited by handleToken via http.MaxBytesReader.
 func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request) {
 	refreshToken := r.FormValue("refresh_token") //nolint:gosec // body limited in handleToken
+	clientID := r.FormValue("client_id")         //nolint:gosec // body limited in handleToken
 
 	rtData, err := s.Store.GetRefreshToken(refreshToken)
 	if err != nil {
 		s.writeTokenError(w, "invalid_grant", "Invalid refresh token")
+		return
+	}
+
+	// RFC 6749 §6 requires the authorization server to ensure a refresh token
+	// was issued to the client redeeming it. This is a public client
+	// (token_endpoint_auth_method "none"), so client_id is that check, the same
+	// one the authorization_code grant already makes. Without it a stolen
+	// refresh token mints access tokens for anyone holding it, for the full
+	// 30-day lifetime (GHSA-7hwf-488h-59x8).
+	//
+	// An empty rtData.ClientID means a token issued before the binding existed.
+	// It is rejected rather than grandfathered: the store is in-memory, so a
+	// restart drops every refresh token anyway, and trusting an unbound token
+	// is the hole itself.
+	if clientID == "" || clientID != rtData.ClientID {
+		slog.Warn("client_id missing or mismatched in refresh grant",
+			"user", rtData.UserLogin,
+			"bound", rtData.ClientID != "",
+		)
+		recordOAuthFlow("token_refresh", "invalid_client")
+		s.writeTokenError(w, "invalid_client", "client_id missing or does not match the refresh token")
 		return
 	}
 
@@ -379,6 +502,7 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 
 	s.Store.DeleteRefreshToken(refreshToken)
 	s.Store.SaveRefreshToken(newRefreshToken, &RefreshTokenData{
+		ClientID:           rtData.ClientID,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		UserLogin:          rtData.UserLogin,
 		UserID:             rtData.UserID,
@@ -419,16 +543,12 @@ func (s *OAuthServer) handleRegisterOptions(w http.ResponseWriter, _ *http.Reque
 func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	s.setCORSHeaders(w)
 
-	if s.Store.CountClientRegistrations() > 1000 {
-		slog.Warn("too many client registrations")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusTooManyRequests)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error":             "too_many_requests",
-			"error_description": "Too many client registrations",
-		})
-		return
-	}
+	// Registrations are not stored, so there is nothing to exhaust and no
+	// registration cap. The body is still bounded, and so is the number of
+	// redirect_uris below — but neither bounds the length of a single
+	// redirect_uri, so the minted client_id is checked against maxClientIDLen
+	// before it is handed out.
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 
 	var req struct {
 		ClientName              string   `json:"client_name"`
@@ -458,17 +578,63 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(req.RedirectURIs) > 10 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client_metadata",
+			"error_description": "At most 10 redirect_uris are supported",
+		})
+		return
+	}
+
+	// Filter, rather than refuse the registration. VS Code registers its hosted
+	// https redirect alongside its loopback one, and 400-ing that pair would
+	// make sign-in impossible for the one client the README lists as fully
+	// working. Dropping the non-loopback URIs costs the client nothing: the
+	// https one could never be redeemed anyway, since handleAuthorize enforces
+	// the same policy. Only a registration with no loopback URI left is refused.
+	//
+	// The surviving list is what gets signed into the client_id below and what
+	// is echoed back, so a dropped URI cannot return at /oauth/authorize.
+	kept := make([]string, 0, len(req.RedirectURIs))
+	var dropped []string
 	for _, uri := range req.RedirectURIs {
-		if !isValidRedirectURI(uri) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error":             "invalid_redirect_uri",
-				"error_description": "redirect_uri must use http://127.0.0.1 or https scheme: " + uri,
-			})
-			return
+		if isValidRedirectURI(uri) {
+			kept = append(kept, uri)
+		} else {
+			dropped = append(dropped, uri)
 		}
 	}
+	if len(dropped) > 0 && len(kept) > 0 {
+		// Info, not Warn: a client that registers a hosted redirect beside its
+		// loopback one is doing the expected thing, and the filter is working
+		// as designed. Warning on it would make every VS Code registration
+		// look like an incident and teach whoever reads the logs to ignore
+		// this line.
+		slog.Info("dropped non-loopback redirect_uris from registration",
+			"client_name", logSafe(req.ClientName),
+			"dropped_redirect_uris", logSafeAll(dropped),
+			"kept_redirect_uris", logSafeAll(kept),
+		)
+	}
+	if len(kept) == 0 {
+		// Warn here: nothing survived, so this client cannot authorise at all.
+		slog.Warn("registration rejected, no loopback redirect_uri",
+			"client_name", logSafe(req.ClientName),
+			"dropped_redirect_uris", logSafeAll(dropped),
+		)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_redirect_uri",
+			"error_description": "at least one redirect_uri must be a loopback address (http://127.0.0.1, http://[::1] or http://localhost)",
+		})
+		return
+	}
+	// Everything below registers the surviving URIs only — RFC 7591 section 3.2.1
+	// wants the response to state what was registered, not what was asked for.
+	req.RedirectURIs = kept
 
 	if len(req.GrantTypes) == 0 {
 		req.GrantTypes = []string{"authorization_code"}
@@ -502,25 +668,46 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientID := generateSecureToken(16)
+	issuedAt := time.Now().Unix()
+	clientID := mintClientID(s.clientIDKey, clientIDInfo{
+		RedirectURIs: req.RedirectURIs,
+		IssuedAt:     issuedAt,
+		Nonce:        generateSecureToken(8),
+	})
+
+	// The caps above bound the request, not the length of one redirect_uri, so
+	// a single long URI can still produce a client_id that verifyClientID would
+	// refuse to decode. Reject the registration rather than issue one that can
+	// never authorise.
+	if len(clientID) > maxClientIDLen {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_client_metadata",
+			"error_description": "redirect_uris are too long to fit in a client_id",
+		})
+		return
+	}
 
 	reg := &ClientRegistration{
 		ClientID:                clientID,
+		ClientIDIssuedAt:        issuedAt,
 		ClientName:              req.ClientName,
 		RedirectURIs:            req.RedirectURIs,
 		GrantTypes:              req.GrantTypes,
 		ResponseTypes:           req.ResponseTypes,
 		TokenEndpointAuthMethod: req.TokenEndpointAuthMethod,
-		CreatedAt:               time.Now(),
 	}
-	s.Store.SaveClientRegistration(reg)
 
 	slog.Info("client registered",
-		"client_id", clientID,
-		"client_name", req.ClientName,
-		"redirect_uris", req.RedirectURIs,
-		"grant_types", req.GrantTypes,
-		"token_endpoint_auth_method", req.TokenEndpointAuthMethod,
+		"client_id", logSafe(clientID),
+		"client_name", logSafe(req.ClientName),
+		// Sanitised for consistency and for whoever loosens the validation
+		// above. Not reachable today: every one of these is validated before
+		// this line, so a control character cannot survive to be logged.
+		"redirect_uris", logSafeAll(req.RedirectURIs),
+		"grant_types", logSafeAll(req.GrantTypes),
+		"token_endpoint_auth_method", logSafe(req.TokenEndpointAuthMethod),
 	)
 	recordOAuthFlow("client_registration", "success")
 
@@ -529,21 +716,26 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(reg)
 }
 
+// isValidRedirectURI is the registration policy: loopback only, per RFC 8252
+// section 7.3.
+//
+// /register is unauthenticated Dynamic Client Registration, because that is how
+// MCP clients onboard (RFC 7591). So "registered" proves only that this server
+// minted the id — an attacker buys one for a single POST. Accepting any https
+// redirect_uri therefore left the GHSA-7hwf-488h-59x8 phishing flow open with
+// one extra request (#633). Requiring the loopback interface removes the
+// attacker's destination instead: an authorization code sent to 127.0.0.1
+// arrives on the victim's own machine.
+//
+// Every client this server supports (see README, Client Compatibility) redeems
+// the code from a native process on the developer's machine, so no allowlist of
+// hosted redirects is needed; add one here if a hosted client ever appears.
 func isValidRedirectURI(uri string) bool {
 	parsed, err := url.Parse(uri)
 	if err != nil {
 		return false
 	}
-	if parsed.Scheme == "http" && parsed.Hostname() == "127.0.0.1" {
-		return true
-	}
-	if parsed.Scheme == "http" && parsed.Hostname() == "localhost" {
-		return true
-	}
-	if parsed.Scheme == "https" {
-		return true
-	}
-	return false
+	return parsed.Scheme == "http" && isLoopback(parsed.Hostname())
 }
 
 func isRegisteredRedirectURI(registered []string, uri string) bool {
@@ -580,8 +772,19 @@ func matchesLoopbackIgnoringPort(registered, requested string) bool {
 	return regHost == reqHost && reg.Path == req.Path
 }
 
+// isLoopback covers the two forms RFC 8252 section 7.3 names — 127.0.0.1 and
+// ::1, via net.IP.IsLoopback, which also takes the rest of 127.0.0.0/8 — plus
+// the literal "localhost". RFC 8252 recommends against "localhost" because it
+// resolves through DNS on the client's machine, but this server has accepted it
+// since the first release and clients registered with it; the name resolving to
+// something other than loopback is a compromise of the developer's own host, at
+// which point the redirect_uri is not what is protecting them.
 func isLoopback(host string) bool {
-	return host == "127.0.0.1" || host == "localhost"
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func generateSecureToken(length int) string {

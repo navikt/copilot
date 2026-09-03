@@ -1,0 +1,62 @@
+/ Search (glob)
+  │ "src/app/komponenter/StatusPanel.tsx"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/{tsconfig.json,package.json,eslint.config.*,*.test.*,*.spec.*}"
+  └ No matches found
+
+/ Search (grep)
+  │ "<StatusPanel|<StatusPanel|onSlett" (src)
+  └ 2 lines found
+
+`StatusPanel` er en liten React-komponent som:
+
+- Mottar `status` og `onSlett` som props.
+- Viser teksten **«Vis detaljer»**.
+- Har lokal state `apen` som skal representere om detaljene er åpne.
+- Viser statusen med rød tekst når `status === "feil"`, ellers grønn tekst.
+- Viser en søppelbøtteknapp som kaller `onSlett` ved klikk.
+
+Jeg ser flere problemer:
+
+1. **Detaljevisningen er ikke implementert**  
+   `apen` oppdateres, men brukes aldri til å vise eller skjule noe. Klikk på «Vis detaljer» gir derfor ingen synlig effekt.
+
+2. **Ikke-interaktiv `<div>` brukes som knapp**  
+   `<div onClick={...}>` kan ikke aktiveres med tastatur og mangler semantikk for skjermlesere. Dette bør være en `<button>` med for eksempel `aria-expanded` og eventuelt `aria-controls`.
+
+3. **`outline: "none"` svekker tastaturnavigasjon**  
+   Fokusmarkeringen fjernes uten at en synlig alternativ fokusstil er definert.
+
+4. **Positiv `tabIndex` på statusen**  
+   `tabIndex={5}` gjør en ikke-interaktiv `<span>` fokuserbar og tvinger den inn i en unaturlig tab-rekkefølge. Statusen bør normalt ikke være fokuserbar.
+
+5. **Slett-knappen mangler tilgjengelig navn**  
+   Den inneholder bare et ikon. Den bør ha eksempelvis `aria-label="Slett status"` eller synlig tekst. Et ikon alene gir ikke nødvendigvis mening for skjermlesere.
+
+6. **Manglende TypeScript-typer**  
+   Propsene og eventuelle callback-typer er implisitt `any`. Det svekker typesikkerheten og kan gi kompileringsfeil dersom prosjektet bruker `noImplicitAny`.
+
+7. **`button` mangler `type`**  
+   Dersom komponenten brukes inne i et `<form>`, kan knappen uventet sende inn skjemaet. Den bør ha `type="button"` dersom sletting ikke skal være submit-handlingen.
+
+8. **Statuslogikken er for snever og gir misvisende fallback**  
+   Alt som ikke er nøyaktig `"feil"` vises grønt, også ukjente eller ugyldige statuser. Det er bedre å bruke en eksplisitt union av tillatte statuser og håndtere ukjente verdier separat.
+
+9. **Farge er eneste visuelle signal**  
+   Rød/grønn alene er utilstrekkelig for tilgjengelighet, spesielt for brukere med fargesynsvansker. Statusen bør også ha tekst, ikon eller annen tydelig semantikk, og fargene bør komme fra design-systemets tokens.
+
+10. **State-oppdateringen kan skrives sikrere**  
+    `setApen(!apen)` bør normalt være `setApen((forrige) => !forrige)`, særlig hvis flere oppdateringer kan bli slått sammen av React.
+
+Det mest grunnleggende er at komponenten ser ut til å være uferdig: den har state for en detaljseksjon, men selve detaljinnholdet og tilgjengelig interaksjon mangler.
+

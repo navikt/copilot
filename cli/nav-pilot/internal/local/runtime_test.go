@@ -357,34 +357,57 @@ func TestEnsureEnvRefusesAWrongInterpreter(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWeightsPresent(t *testing.T) {
+	// The real cache stores every file once under blobs/ and gives the
+	// snapshot a symlink to it, so the seeds here do the same: a file that
+	// downloaded is a link with a blob behind it, and one that did not is a
+	// link pointing at nothing.
 	tests := []struct {
 		name  string
 		files map[string]string // path under the hub dir -> contents
+		links map[string]string // snapshot path -> blob name (may be absent)
 		want  bool
 	}{
 		{name: "nothing in the cache", want: false},
 		{
-			name: "a complete snapshot",
-			files: map[string]string{
-				"snapshots/abc123/config.json":       "{}",
-				"snapshots/abc123/model.safetensors": "weights",
+			name:  "a complete snapshot",
+			files: map[string]string{"blobs/aaa": "{}", "blobs/bbb": "weights"},
+			links: map[string]string{
+				"snapshots/abc123/config.json":       "aaa",
+				"snapshots/abc123/model.safetensors": "bbb",
 			},
 			want: true,
 		},
 		{
 			// The case a directory-exists check gets wrong: the snapshot is
-			// there, the blobs are not, and mlx-lm discovers it minutes later.
-			name: "an interrupted download",
-			files: map[string]string{
-				"snapshots/abc123/config.json":       "{}",
-				"snapshots/abc123/model.safetensors": "weights",
-				"blobs/deadbeef.incomplete":          "partial",
+			// there, a shard is not, and mlx-lm discovers it minutes later.
+			name:  "an interrupted download",
+			files: map[string]string{"blobs/aaa": "{}", "blobs/bbb.1234.incomplete": "partial"},
+			links: map[string]string{
+				"snapshots/abc123/config.json":       "aaa",
+				"snapshots/abc123/model.safetensors": "bbb",
 			},
 			want: false,
 		},
 		{
+			// A download that finished on the second attempt. The cache keeps
+			// the abandoned partial from the first, and the model is complete
+			// anyway. Refusing here sent a developer back to `init` for
+			// weights that were already on the machine.
+			name: "a stale partial beside a complete snapshot",
+			files: map[string]string{
+				"blobs/aaa": "{}", "blobs/bbb": "weights",
+				"blobs/bbb.1234.incomplete": "abandoned",
+			},
+			links: map[string]string{
+				"snapshots/abc123/config.json":       "aaa",
+				"snapshots/abc123/model.safetensors": "bbb",
+			},
+			want: true,
+		},
+		{
 			name:  "metadata without weights",
-			files: map[string]string{"snapshots/abc123/config.json": "{}"},
+			files: map[string]string{"blobs/aaa": "{}"},
+			links: map[string]string{"snapshots/abc123/config.json": "aaa"},
 			want:  false,
 		},
 		{
@@ -403,6 +426,15 @@ func TestWeightsPresent(t *testing.T) {
 					t.Fatalf("seeding the cache: %v", err)
 				}
 				if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+					t.Fatalf("seeding the cache: %v", err)
+				}
+			}
+			for rel, blob := range tc.links {
+				path := filepath.Join(dir, rel)
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatalf("seeding the cache: %v", err)
+				}
+				if err := os.Symlink(filepath.Join("..", "..", "blobs", blob), path); err != nil {
 					t.Fatalf("seeding the cache: %v", err)
 				}
 			}
@@ -1331,5 +1363,55 @@ func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
 
 	if len(serverFlags(map[string]string{})) != 0 {
 		t.Error("no params should mean no flags, so a manifest can still say nothing")
+	}
+}
+
+// A model's declared floor decides which machines may run it. The wired limit
+// alone does not: a 27 GB cap fits a 36 GB machine arithmetically, while the
+// entry was measured on 48 and says so.
+func TestCheckWiredLimitRefusesBelowDeclaredMinimum(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		minRAMGB    int
+		machineGB   int
+		wantRefusal bool
+	}{
+		{name: "below the floor", minRAMGB: 48, machineGB: 36, wantRefusal: true},
+		{name: "exactly at the floor", minRAMGB: 48, machineGB: 48},
+		{name: "above the floor", minRAMGB: 48, machineGB: 64},
+		{name: "no floor declared", minRAMGB: 0, machineGB: 36},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stubRun(t, func(name string, args []string) (string, error) {
+				if name != sysctlPath {
+					return "", errors.New("unexpected command " + name)
+				}
+				switch args[len(args)-1] {
+				case "hw.memsize":
+					return memsizeBytes(tc.machineGB), nil
+				case "iogpu.wired_limit_mb":
+					return "24576\n", nil
+				}
+				return "", errors.New("unexpected sysctl")
+			})
+
+			_, err := CheckWiredLimit(Model{Model: okModel, WeightsGB: 16, WiredLimitGB: 24, MinRAMGB: tc.minRAMGB})
+			if tc.wantRefusal {
+				if err == nil {
+					t.Fatal("CheckWiredLimit() accepted a model the manifest says needs a bigger machine")
+				}
+				// The refusal has to name both numbers, or the developer
+				// cannot tell whether it is their machine or the entry.
+				for _, want := range []string{"48 GB", "36 GB"} {
+					if !strings.Contains(err.Error(), want) {
+						t.Errorf("CheckWiredLimit() error = %q, want it to mention %q", err, want)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("CheckWiredLimit() errored: %v", err)
+			}
+		})
 	}
 }

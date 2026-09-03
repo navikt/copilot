@@ -1,0 +1,76 @@
+Jeg leser komponenten og de nærmeste typene/importene for å forklare både flyt og konkrete risikopunkter.
+
+/ Search (glob)
+  │ "src/app/komponenter/StatusPanel.tsx"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel" (src)
+  └ 1 file found
+
+● List nearby source files (shell)
+  │ rtk find src -maxdepth 3 -type f | head -80
+  └ 2 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (grep)
+  │ "status|Status|api|fetch|use[A-Z]" in *.tsx (src/app)
+  └ 5 lines found
+
+● Find project metadata (shell)
+  │ rtk find . -maxdepth 2 -type f \( -name 'package.json' -o -name 'tsconfig*.json' -o -name
+  │ 'README*' \) -print
+  └ 1 line…
+
+/ Search (grep)
+  │ "onSlett|<StatusPanel|StatusPanel\("
+  └ 2 lines found
+
+/ Search (grep)
+  │ "eslint|typescript|react" in package.json
+  └ No matches found
+
+● Inspect repository layout (shell)
+  │ rtk pwd && rtk find . -maxdepth 3 -type f | head -100
+  └ 2 lines…
+
+`StatusPanel` viser en enkel statusrad:
+
+- Tar imot `status` og callbacken `onSlett` som props.
+- Har lokal state `apen`, som starter som `false`.
+- Når teksten **«Vis detaljer»** klikkes, toggles `apen`.
+- Viser statusen som tekst.
+- Farger statusen rød hvis den er nøyaktig `"feil"`, ellers grønn.
+- Viser en søppelbøtteknapp som kaller `onSlett`.
+
+Jeg ser særlig disse problemene:
+
+1. **`apen` brukes ikke til noe synlig**  
+   State oppdateres, men ingen detaljer rendres, og teksten endres ikke. Klikket har derfor ingen observerbar effekt.
+
+2. **«Vis detaljer» er ikke tilgjengelig**  
+   En vanlig `<div>` brukes som interaktiv kontroll (`onClick`). Den kan ikke aktiveres med tastatur og mangler semantikk som knapp. Bruk en `<button>` med for eksempel `aria-expanded={apen}`.
+
+3. **TypeScript-props mangler typer**  
+   `status` og `onSlett` er implicit `any` dersom prosjektet bruker streng TypeScript-konfigurasjon. Det bør defineres et props-interface, for eksempel med en union for tillatte statuser og `onSlett: () => void`.
+
+4. **Statusfargingen er for grov og potensielt misvisende**  
+   Alt som ikke er `"feil"` blir grønt, også ukjente verdier, `"laster"` eller tom status. Det bør være eksplisitte statuser med passende visning og farger. Rå fargenavn som `"red"` og `"green"` gir også svakere tilgjengelighet enn designsystemets tokens.
+
+5. **Søppelbøtteknappen mangler tilgjengelig navn**  
+   `TrashIcon` alene gir normalt ikke knappen et tekstlig navn for skjermlesere. Legg til `aria-label`, for eksempel `aria-label="Slett status"`.
+
+6. **Knappen mangler eksplisitt `type`**  
+   Hvis komponenten plasseres inne i et `<form>`, blir knappen en submit-knapp som standard. Bruk `type="button"` dersom sletting ikke skal sende inn skjemaet.
+
+7. **`tabIndex={5}` er en dårlig og unødvendig tab-rekkefølge**  
+   Den kan føre til at elementet får en unaturlig fokusrekkefølge. Siden statusen ikke er interaktiv, bør `tabIndex` fjernes. Hvis statusen skal annonseres dynamisk, er `role="status"` eller `aria-live` mer passende.
+
+8. **Slettehandlingen har ingen beskyttelse eller kontekst**  
+   Komponenten antar at `onSlett` håndterer alt. For destruktive handlinger bør det enten finnes bekreftelse, tydelig feilhåndtering eller en måte å vise at slettingen pågår.
+
+I tillegg er `style={{ outline: "none" }}` lite heldig: det kan skjule fokusindikatorer dersom elementet senere blir fokuserbart, og bør ikke brukes uten en synlig, alternativ fokusstil.
+

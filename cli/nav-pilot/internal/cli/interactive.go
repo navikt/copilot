@@ -23,8 +23,10 @@ import (
 // "Cancelled."
 var errInstallCancelled = errors.New("install cancelled")
 
-// isInteractive returns true when stdin is a terminal (not piped).
-func isInteractive() bool {
+// isInteractive returns true when stdin is a terminal (not piped). It is a
+// variable so a test can assert what a flag does *in* a terminal — refusing to
+// prompt is only meaningful where there would have been a prompt.
+var isInteractive = func() bool {
 	if forceNonInteractive {
 		return false
 	}
@@ -358,15 +360,9 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
 	fmt.Println()
-	fmt.Println(dim("Resolving source..."))
-
-	src, err := resolveSource("", "")
-	if err != nil {
-		return err
-	}
-	defer src.Cleanup()
-
-	// Scope-first: ask where to install
+	// Scope first, then source: the repo's declaration is one rung of the
+	// source ladder, and it is only readable once we know which scope (and so
+	// which repository root) the install is for.
 	scope, err := promptInstallScope(targetDir)
 	if err != nil {
 		return err
@@ -375,6 +371,13 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 		fmt.Println(dim("Cancelled."))
 		return nil
 	}
+
+	fmt.Println(dim("Resolving source..."))
+	src, err := resolveDeclaredSource(scope, "", "")
+	if err != nil {
+		return err
+	}
+	defer src.Cleanup()
 
 	if scope.IsUser() {
 		return interactiveUserInstall(src, resolved)

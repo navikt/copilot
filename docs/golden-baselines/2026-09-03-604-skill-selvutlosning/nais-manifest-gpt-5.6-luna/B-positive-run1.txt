@@ -1,0 +1,34 @@
+● skill(nais-manifest)
+
+● Inspect workspace files (shell)
+  │ rtk pwd && rtk find . -maxdepth 3 -type f -print
+  └ 3 lines…
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 28 lines read
+
+● Edit
+  └ Edit .nais/app.yaml
+
+● Read app.yaml
+  │ .nais/app.yaml
+  └ 39 lines read
+
+Opprettet `.nais/app.yaml` for **dp-vedtak** i `team-dagpenger` med:
+
+- Image-placeholder `{{image}}` og port `8080`
+- Prometheus-metrikker på `/metrics`
+- OpenTelemetry auto-instrumentering
+- Health checks på `/isalive` og `/isready`
+- Ressurser: `50m` CPU / `256Mi` minne requests, `512Mi` minne limit
+- Autoskalering fra 2 til 4 replikaer ved 80 % CPU
+
+Database, Kafka, ingress, Azure AD, TokenX og eksplisitt `accessPolicy` er ikke inkludert siden behovene ikke er oppgitt.
+
+**Forstå konfigurasjonen:** `requests` brukes i Kubernetes-planleggingen, mens `limits` setter øvre grenser. Poden har ingen CPU-limit, så CPU kan brukes fleksibelt; minne over `512Mi` kan føre til at containeren termineres (`OOMKilled`). Nais-nettverk er som standard deny-all, så manglende `accessPolicy.outbound.rules` blokkerer kall til nedstrøms tjenester. To minimumsreplikaer gir tilgjengelighet under utrulling, og autoskalering øker antallet når CPU-belastningen overstiger terskelen.
+
+Auth-valget avhenger av tillitsmodellen: Azure AD passer for maskin-til-maskin, TokenX for delegering av brukerens kontekst til andre tjenester, og ID-porten for innlogging av innbyggere. Gjennomgå disse grensene nøye før produksjonssetting.
+
+Implementer også `GET /isalive`, `GET /isready` og `GET /metrics`, sørg for at appen lytter på port `8080`, og opprett en separat `.nais/app-prod.yaml` med produksjonsspesifikke verdier.
+

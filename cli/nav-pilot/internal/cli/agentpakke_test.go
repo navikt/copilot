@@ -358,7 +358,7 @@ func TestTier2PakkeInstallsIntoUserScopeOnly(t *testing.T) {
 		src := newTier2Source(t)
 		stubResolveSource(t, src)
 
-		if err := cmdList("", "", false, true); err != nil {
+		if err := cmdList(nil, "", "", false, true); err != nil {
 			t.Fatalf("cmdList over a Tier 2 agentpakke = %v, want the zero-item listing", err)
 		}
 		m, err := pakkeContents(resolverFor(src.Dir, src.Pakke), src)

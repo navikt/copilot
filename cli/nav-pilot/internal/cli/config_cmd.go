@@ -543,6 +543,9 @@ func cmdConfigSet(key, value string) error {
 		return nil
 	}
 	fmt.Printf("%s %s = %s\n", green("✓"), key, tomlVal)
+	if key == "local_model" {
+		warnServerServesSomethingElse(value)
+	}
 	return nil
 }
 
@@ -874,4 +877,28 @@ func printKeyExplain(kd *configKeyDef, resolved ResolvedConfig) {
 		fmt.Printf("    Current:  %s\n", val)
 	}
 	fmt.Printf("    To set:   nav-pilot config set %s <value>\n", kd.name)
+}
+
+// warnServerServesSomethingElse says so when the server that is up is not
+// serving the model just chosen.
+//
+// A running server keeps the weights it loaded. Without this the config and the
+// process disagree in silence: every answer still comes from the old model, and
+// the only way to notice is to read the status output closely enough to compare
+// two model ids.
+func warnServerServesSomethingElse(chosen string) {
+	st, running, err := local.LoadState()
+	if err != nil || !running {
+		return
+	}
+	// The process read the config before this write, so the selection it holds
+	// is the previous one. Ask about the value that was just written instead,
+	// which is also what resolves an empty value to the manifest default.
+	local.SetSelectedModel(chosen)
+	want, ok := local.Chosen(local.Active())
+	if !ok || want.Model == st.Model {
+		return
+	}
+	fmt.Printf("\n%s The server that is running still serves %s.\n", yellow("⚠"), bold(st.Model))
+	fmt.Printf("  Load the one you just chose:\n\n    %s\n\n", bold("nav-pilot alpha local restart"))
 }

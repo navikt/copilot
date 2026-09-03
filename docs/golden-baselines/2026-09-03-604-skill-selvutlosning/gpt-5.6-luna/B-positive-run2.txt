@@ -1,0 +1,78 @@
+● skill(aksel-component)
+
+Jeg undersøker prosjektets eksisterende komponentmønstre og Aksel-oppsett før jeg lager `Varselkort` med test og eksport.
+
+/ Search (glob)
+  │ "**/*"
+  └ 2 files found
+
+/ Search (grep)
+  │ "@navikt/ds-react|export.*Component|\.test\.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read SKILL.md
+  │ .github/skills/aksel-component/SKILL.md
+  └ 64 lines read
+
+● List project files (shell)
+  │ rtk find . -maxdepth 4 -type f -print
+  └ 3 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/localalert.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/localalert.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/infocard.md · url: "https://aksel.nav.…
+  └ Contents of https://aksel.nav.no/komponenter/core/infocard.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/core/typography.md · url: "https://aksel.na…
+  └ Contents of https://aksel.nav.no/komponenter/core/typography.md:
+
+● Fetching web content https://aksel.nav.no/komponenter/primitives/box.md · url: "https://aksel.nav…
+  └ Contents of https://aksel.nav.no/komponenter/primitives/box.md:
+
+Jeg bruker Aksels `LocalAlert`, som er laget for lokale varsler og støtter status, størrelse, semantisk tittel og valgfri lukkeknapp. Komponenten får et tydelig, typesikkert API med mobilvennlig standardoppførsel.
+
+● Edit
+  │ Create src/app/komponenter/Varselkort.tsx
+  └ Create src/app/komponenter/Varselkort.test.tsx
+
+● Read Varselkort.tsx
+  │ src/app/komponenter/Varselkort.tsx
+  └ 36 lines read
+
+● Read Varselkort.test.tsx
+  │ src/app/komponenter/Varselkort.test.tsx
+  └ 43 lines read
+
+● Check project metadata and changes (shell)
+  │ rtk find . -maxdepth 2 -type f -print && printf '\n--- status ---\n' && rtk git status --short
+  └ 3 lines…
+
+● Edit
+  └ Edit src/app/komponenter/Varselkort.test.tsx
+
+Implementasjonen er på plass. Jeg gjør en siste, målrettet sjekk av filene og prosjektets tilgjengelige testoppsett før jeg avslutter.
+
+/ Search (grep)
+  │ "Varselkort|LocalAlert|data-status|tailwind|className" (src)
+  └ 27 lines found
+
+● Check available project configuration (shell)
+  │ rtk find . -maxdepth 3 -type f -print
+  └ 1 line…
+
+Opprettet `Varselkort` med Aksel `LocalAlert`.
+
+- Støtter `title`, valgfri `description`, `status`, `size`, `headingLevel` og `onClose`
+- Bruker tilgjengelig heading-semantikk og `role="alert"`
+- Har mobilvennlige Aksel-standarder uten Tailwind-spacing
+- Lagt til tester i `Varselkort.test.tsx`
+- Eksporteres som named export fra `Varselkort.tsx`
+

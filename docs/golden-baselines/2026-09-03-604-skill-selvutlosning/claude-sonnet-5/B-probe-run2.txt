@@ -1,0 +1,33 @@
+✗ Locate StatusPanel.tsx file (shell)
+  │ find / -maxdepth 8 -path '*/src/app/komponenter/StatusPanel.tsx' 2>/dev/null
+  └ Permission denied and could not request permission from user
+
+/ Search (glob)
+  │ "**/StatusPanel.tsx"
+  └ 1 file found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Hva komponenten gjør
+
+`StatusPanel` er en enkel React-komponent som:
+- Tar imot `status` og `onSlett` som props
+- Viser en klikkbar "Vis detaljer"-tekst som toggler lokal state `apen` (men `apen` brukes aldri til noe — ingen detaljer vises faktisk)
+- Viser en `status`-tekst farget rødt hvis "feil", grønt ellers
+- Har en søppelbøtte-knapp som kaller `onSlett`
+
+## Problemer jeg ser
+
+1. **Manglende typing**: Ingen TypeScript-typer for props (`status`, `onSlett`) i en `.tsx`-fil — mister typesikkerhet.
+2. **Ubrukt state**: `apen`/`setApen` settes, men styrer ingenting synlig — død kode eller manglende implementasjon av detaljvisning.
+3. **Ikke-tilgjengelig klikkbart element**: `<div onClick=...>` er ikke fokuserbar/tastaturstyrbar, mangler `role="button"`, `tabIndex`, og `onKeyDown`-håndtering. `style={{outline:"none"}}` fjerner fokusindikator — dårlig for tastaturbrukere (WCAG-brudd).
+4. **Feil bruk av `tabIndex={5}`** på et `<span>` som ikke er interaktivt — positive tabIndex-verdier bryter naturlig tab-rekkefølge og er et kjent a11y-antimønster.
+5. **Fargekoding uten tekst-/ikonalternativ**: Status formidles kun via farge (rødt/grønt) — problematisk for fargeblinde (WCAG 1.4.1).
+6. **Knapp uten `aria-label`**: `<TrashIcon />`-knappen har ingen tilgjengelig tekst for skjermlesere — bør ha f.eks. `aria-label="Slett"`.
+7. **Ingen bekreftelse før sletting**: `onSlett` kalles direkte ved klikk — risiko for utilsiktet sletting.
+8. **Bruker ikke Aksel-komponenter konsekvent**: Importerer ikon fra `@navikt/aksel-icons`, men bruker rå `div`/`span`/`button` i stedet for Aksel-komponenter (f.eks. `Button`, `BodyShort`, `ExpansionCard`) som gir innebygd styling og tilgjengelighet.
+
+**Anbefaling**: Legg til proper typing, bruk Aksel-komponenter for konsistent styling/a11y, implementer faktisk detaljvisning knyttet til `apen`, legg til `aria-label` på slett-knappen, fjern `tabIndex={5}` og `outline:none`, og vurder ikon/tekst i tillegg til farge for statusindikasjon.
+

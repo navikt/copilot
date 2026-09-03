@@ -1,11 +1,15 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -423,6 +427,10 @@ type StateFile struct {
 	SourceSHA   string          `json:"source_sha"`
 	InstalledAt string          `json:"installed_at"`
 	Files       []InstalledFile `json:"files"`
+	// Unknown carries every top-level key this binary does not understand, so a
+	// read-modify-write does not silently drop what a newer nav-pilot wrote.
+	// See [InstalledFile.Unknown].
+	Unknown map[string]json.RawMessage `json:"-"`
 }
 
 // InstalledFile records a single installed file with its content hash.
@@ -435,6 +443,162 @@ type InstalledFile struct {
 	// every state file written before per-file origins says about all of its
 	// files — so they keep syncing exactly as they did.
 	Source string `json:"source,omitempty"`
+	// Unknown carries every key of this entry that the running binary does not
+	// understand, and writes it back out unchanged.
+	//
+	// The repo-scope state file is committed and shared across a team, so a
+	// colleague on an older nav-pilot rewrites it on every sync, ignore or add.
+	// Without this, the decoder drops what it does not know: that is how
+	// per-file `source` (#571) went missing and the next sync deleted the file
+	// as "gone upstream" (#588). Keeping unknown keys fixes that for every
+	// field added after this binary was built, not just for `source`.
+	Unknown map[string]json.RawMessage `json:"-"`
+}
+
+// The alias types below borrow the struct tags without the JSON methods, so the
+// custom marshalling can lean on encoding/json for the known fields.
+type (
+	stateFileFields     StateFile
+	installedFileFields InstalledFile
+)
+
+var (
+	stateFileKnownKeys     = KnownJSONKeys(StateFile{})
+	installedFileKnownKeys = KnownJSONKeys(InstalledFile{})
+)
+
+func (s *StateFile) UnmarshalJSON(b []byte) error {
+	var known stateFileFields
+	if err := json.Unmarshal(b, &known); err != nil {
+		return err
+	}
+	unknown, err := UnknownJSONKeys(b, stateFileKnownKeys)
+	if err != nil {
+		return err
+	}
+	*s = StateFile(known)
+	s.Unknown = unknown
+	return nil
+}
+
+func (s StateFile) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(stateFileFields(s))
+	if err != nil {
+		return nil, err
+	}
+	return AppendUnknownKeys(b, s.Unknown), nil
+}
+
+func (f *InstalledFile) UnmarshalJSON(b []byte) error {
+	var known installedFileFields
+	if err := json.Unmarshal(b, &known); err != nil {
+		return err
+	}
+	unknown, err := UnknownJSONKeys(b, installedFileKnownKeys)
+	if err != nil {
+		return err
+	}
+	*f = InstalledFile(known)
+	f.Unknown = unknown
+	return nil
+}
+
+func (f InstalledFile) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(installedFileFields(f))
+	if err != nil {
+		return nil, err
+	}
+	return AppendUnknownKeys(b, f.Unknown), nil
+}
+
+// KnownJSONKeys is the set of JSON names a struct type declares. It is
+// exported so every file nav-pilot rewrites in place — the state file and the
+// consumer declaration alike — preserves unknown keys by the same mechanism
+// (#588, #593) rather than by a second copy of it.
+func KnownJSONKeys(v any) map[string]bool {
+	t := reflect.TypeOf(v)
+	keys := make(map[string]bool, t.NumField())
+	for i := range t.NumField() {
+		f := t.Field(i)
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "-" {
+			continue
+		}
+		// An empty tag name is not "no key": encoding/json still matches the
+		// field by its Go name, so leaving it out here would file a known
+		// field under the unknown keys and duplicate it on the way out.
+		if name == "" {
+			name = f.Name
+		}
+		keys[name] = true
+	}
+	return keys
+}
+
+// UnknownJSONKeys returns the members of a JSON object that known does not name.
+func UnknownJSONKeys(b []byte, known map[string]bool) (map[string]json.RawMessage, error) {
+	var all map[string]json.RawMessage
+	if err := json.Unmarshal(b, &all); err != nil {
+		return nil, err
+	}
+	for k := range all {
+		if known[k] {
+			delete(all, k)
+		}
+	}
+	if len(all) == 0 {
+		return nil, nil
+	}
+	return all, nil
+}
+
+// AppendUnknownKeys puts the preserved keys back at the end of the object, in a
+// fixed order: the same state must always serialise to the same bytes, or every
+// checked-in state file picks up a spurious diff on the next sync.
+func AppendUnknownKeys(b []byte, unknown map[string]json.RawMessage) []byte {
+	if len(unknown) == 0 {
+		return b
+	}
+	out := b[:len(b)-1] // drop the closing brace
+	for _, k := range slices.Sorted(maps.Keys(unknown)) {
+		if len(out) > 1 {
+			out = append(out, ',')
+		}
+		key, _ := json.Marshal(k)
+		out = append(out, key...)
+		out = append(out, ':')
+		out = append(out, unknown[k]...)
+	}
+	return append(out, '}')
+}
+
+// PreserveUnknownFrom carries the unknown keys of the state being replaced over
+// to s: the top-level ones, and the per-file ones for every path still tracked.
+//
+// The read-modify-write paths (sync, add, ignore) get this for free from the
+// struct copy. Every path that builds a fresh StateFile over an existing one —
+// install, pinRevision, the opencode sync — has to ask for it, or it drops
+// exactly the keys #588 is about.
+func (s *StateFile) PreserveUnknownFrom(prior *StateFile) {
+	if s == nil || prior == nil {
+		return
+	}
+	if s.Unknown == nil {
+		s.Unknown = maps.Clone(prior.Unknown)
+	}
+	perFile := make(map[string]map[string]json.RawMessage, len(prior.Files))
+	for _, f := range prior.Files {
+		if len(f.Unknown) > 0 {
+			perFile[f.Path] = f.Unknown
+		}
+	}
+	for i, f := range s.Files {
+		if f.Unknown == nil {
+			// Clone: two entries in s can share a path, and prior is not ours
+			// to alias into a struct the caller keeps.
+			s.Files[i].Unknown = maps.Clone(perFile[f.Path])
+		}
+	}
 }
 
 // FileStatusIgnored marks a file as intentionally excluded by the user.
@@ -465,3 +629,62 @@ func Green(msg string) string  { return Color("32", msg) }
 func Yellow(msg string) string { return Color("33", msg) }
 func Dim(msg string) string    { return Color("2", msg) }
 func Bold(msg string) string   { return Color("1", msg) }
+
+// CheckSymlink detects symlinks in the path chain between path and boundary.
+// Walks up from the file's parent directory, checking each component with Lstat.
+// Stops at boundary (the trusted root) to avoid false positives from system
+// symlinks like /var → /private/var on macOS.
+//
+// Preconditions: boundary must be a non-empty absolute path. path must be
+// lexically under boundary (verified internally).
+func CheckSymlink(path, boundary string) error {
+	if boundary == "" || !filepath.IsAbs(boundary) {
+		return fmt.Errorf("checkSymlink: boundary must be a non-empty absolute path, got %q", boundary)
+	}
+
+	cleanPath := filepath.Clean(path)
+	cleanBoundary := filepath.Clean(boundary)
+
+	// Verify path is lexically under (or equal to) boundary.
+	rel, err := filepath.Rel(cleanBoundary, cleanPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("path %q is not under boundary %q", path, boundary)
+	}
+
+	// Check the file itself if it exists
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to overwrite symlink: %s", path)
+	}
+
+	// If path IS boundary, no intermediate directories to check.
+	if cleanPath == cleanBoundary {
+		return nil
+	}
+
+	// Walk from parent directory up to (but not including) boundary.
+	dir := filepath.Clean(filepath.Dir(path))
+	for dir != cleanBoundary {
+		info, err := os.Lstat(dir)
+		if err != nil {
+			// Directory doesn't exist yet; MkdirAll will create it.
+			dir = filepath.Dir(dir)
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			target, _ := os.Readlink(dir)
+			return fmt.Errorf("refusing to write through symlinked directory: %s -> %s", dir, target)
+		}
+		dir = filepath.Dir(dir)
+	}
+	return nil
+}
+
+// ShortSHA is a commit SHA cut to display length. The full forty characters are
+// what a pin records, because git refuses an abbreviated object id in a fetch
+// request — but nothing readable wants to print all of them.
+func ShortSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
+}

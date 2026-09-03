@@ -1,0 +1,27 @@
+● skill(aksel-component)
+
+● Find StatusPanel.tsx (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "StatusPanel.tsx" 2>/dev/null
+  └ 2 lines…
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Check aksel deps in package.json (shell)
+  │ cd /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902c-
+  │ 7525c0026ac1/scratchpad/run-sonnet5/ws && cat package.json 2>/dev/null | grep -A2 -B2 aksel
+  └ 1 line…
+
+● Find package.json (shell)
+  │ find /private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/0b25bffb-b239-42b8-902
+  │ c-7525c0026ac1/scratchpad/run-sonnet5/ws -iname "package.json" -not -path "*/node_modules/*"
+  │ 2>/dev/null
+  └ 1 line…
+
+● Edit StatusPanel.tsx +16 -2
+  └ src/app/komponenter/StatusPanel.tsx
+
+Lagt til lukkeknapp med `XMarkIcon` fra `@navikt/aksel-icons`, `aria-label="Lukk statuspanel"` for korrekt tilgjengelig navn, og `aria-hidden` på selve ikonet. Knappen setter lokal `lukket`-state (skjuler panelet) og kaller valgfri `onLukk`-callback.
+
