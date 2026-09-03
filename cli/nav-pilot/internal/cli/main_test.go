@@ -487,7 +487,7 @@ func TestInstallAgent(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "test", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindAgent, "test", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,7 +510,7 @@ func TestInstallAgent_NotFound(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "nonexistent", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindAgent, "nonexistent", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -531,7 +531,7 @@ func TestInstallSkill(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindSkill, "my-skill", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindSkill, "my-skill", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,7 +558,7 @@ func TestInstallConflictBlocked(t *testing.T) {
 	os.WriteFile(filepath.Join(dstAgents, "test.agent.md"), []byte("local modified content"), 0o644)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "test", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindAgent, "test", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -582,7 +582,7 @@ func TestInstallConflictForced(t *testing.T) {
 	os.WriteFile(filepath.Join(dstAgents, "test.agent.md"), []byte("local modified content"), 0o644)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "test", false, true, result) // force=true
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindAgent, "test", false, true, result) // force=true
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -631,7 +631,7 @@ func TestInstallAgent_PathTraversal(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindAgent, "../../../etc/passwd", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindAgent, "../../../etc/passwd", false, false, result)
 	if err == nil {
 		t.Fatal("expected error for path traversal attempt")
 	}
@@ -651,7 +651,7 @@ func TestInstallInstruction(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindInstruction, "my-instr", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindInstruction, "my-instr", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -671,7 +671,7 @@ func TestInstallInstruction_NotFound(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindInstruction, "nonexistent", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindInstruction, "nonexistent", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -689,7 +689,7 @@ func TestInstallPrompt_FlatFile(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindPrompt, "my-prompt", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindPrompt, "my-prompt", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -707,7 +707,7 @@ func TestInstallPrompt_Directory(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindPrompt, "my-prompt", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindPrompt, "my-prompt", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -727,7 +727,7 @@ func TestInstallPrompt_NotFound(t *testing.T) {
 	dstDir := t.TempDir()
 	result := &installResult{}
 
-	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), KindPrompt, "nonexistent", false, false, result)
+	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindPrompt, "nonexistent", false, false, result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1691,9 +1691,15 @@ func TestRun_InstallUserNoArgs(t *testing.T) {
 	forceNonInteractive = true
 	t.Cleanup(func() { forceNonInteractive = false })
 
-	// nav-pilot install --user (no collection) should call cmdInstallAll,
-	// which calls resolveSource. In test environment this will fail on source
-	// resolution. We just verify it doesn't require a collection name.
+	// isolatedConfig, or this really does install --user: the comment below is
+	// wrong about the source failing to resolve — run from the checkout it
+	// resolves to the checkout, and the install lands in the developer's own
+	// ~/.copilot. `mise run nav-pilot:check` overwrote a real user scope twice
+	// before anyone noticed what the arg-parsing test was actually doing.
+	isolatedConfig(t)
+
+	// nav-pilot install --user (no collection) should call cmdInstallAll.
+	// We just verify it doesn't require a collection name.
 	err := run([]string{"install", "--user"})
 	if err != nil && strings.Contains(err.Error(), "collection name") {
 		t.Errorf("install --user should not require collection name, got: %v", err)
@@ -1701,6 +1707,7 @@ func TestRun_InstallUserNoArgs(t *testing.T) {
 }
 
 func TestRun_InstallUserWithCollection(t *testing.T) {
+	isolatedConfig(t) // as above: without it this installs into the real home
 	// nav-pilot install --user fullstack — should still work as before
 	// (backwards compatible, dispatches to cmdInstall not cmdInstallAll)
 	err := run([]string{"install", "--user", "fullstack"})

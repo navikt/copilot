@@ -342,12 +342,12 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	}
 
 	if len(conflictPaths) > 0 && !apply {
-		fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
+		fmt.Printf("%s %d file(s) hold your own edits and are left alone by a plain sync (source: %s)\n\n",
 			yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
 		for _, p := range conflictPaths {
 			fmt.Printf("  %s %s\n", dim("⊘"), p)
 		}
-		fmt.Println()
+		fmt.Printf("%s to take the upstream version of these too.\n\n", bold("nav-pilot sync --apply"))
 	}
 
 	if !apply {

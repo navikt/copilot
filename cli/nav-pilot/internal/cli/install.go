@@ -26,6 +26,7 @@ type installResult struct {
 // content through the resolver the active agentpakke manifest produced.
 func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manifest, dryRun, force bool) (*installResult, error) {
 	result := &installResult{}
+	stateHashes := scopeStateHashes(scope)
 
 	for _, group := range []struct {
 		label string
@@ -46,7 +47,7 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 		}
 		fmt.Println(bold(fmt.Sprintf("%s (%d):", group.label, len(group.names))))
 		for _, name := range group.names {
-			if err := installArtifact(resolver, scope, group.kind, name, dryRun, force, result); err != nil {
+			if err := installArtifact(resolver, scope, stateHashes, group.kind, name, dryRun, force, result); err != nil {
 				return result, err
 			}
 		}
@@ -88,9 +89,70 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	return manifest, nil
 }
 
+// scopeStateHashes maps every tracked path to the hash nav-pilot recorded when
+// it last wrote that file. It is what makes "conflict" mean "the user changed
+// it" rather than "upstream moved": a file whose hash still matches the record
+// is nav-pilot's own and may be overwritten.
+//
+// Conflicted entries are deliberately left out, exactly as
+// [artifacts.SyncOpenCodeArtifacts] does: their recorded hash is the user's own
+// copy, so comparing against it would call an edited file untouched. Left out,
+// the path is treated as untracked and the byte comparison keeps the conflict.
+// An entry with no hash (a file recorded by name only) is left out for the same
+// reason.
+//
+// So is an ignored one, and for the same reason again: `ignore` keeps the
+// recorded hash, so an untouched-but-ignored file would hash equal, be
+// overwritten as an ordinary update, and come back with an empty status —
+// silently un-ignored and back under sync's management.
+func scopeStateHashes(scope *InstallScope) map[string]string {
+	hashes := map[string]string{}
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return hashes
+	}
+	for _, f := range state.Files {
+		if f.Status != fileStatusConflict && f.Status != fileStatusIgnored && f.Hash != "" {
+			hashes[f.Path] = f.Hash
+		}
+	}
+	return hashes
+}
+
+// mergeStateFiles overlays the files an install just wrote onto the prior
+// entries that survived [removeOrphans], keyed by path. Replacing the list
+// instead would drop every path the narrower install did not name, and sync
+// only ever walks state.Files — so a dropped artifact becomes invisible and no
+// command can update or remove it.
+//
+// The index is built as it goes, so a prior list that already held the same
+// path twice collapses to one entry instead of leaving the stale copy behind
+// for conflictStatePaths and resolveSyncFiles to disagree over.
+//
+// A fresh entry with no Source inherits the prior one's: a scope install over a
+// path that `add --source` tagged must not drop the foreign-source marker
+// (#571).
+func mergeStateFiles(prior, files []InstalledFile) []InstalledFile {
+	merged := make([]InstalledFile, 0, len(prior)+len(files))
+	index := make(map[string]int, cap(merged))
+	for _, f := range append(append([]InstalledFile(nil), prior...), files...) {
+		i, ok := index[f.Path]
+		if !ok {
+			index[f.Path] = len(merged)
+			merged = append(merged, f)
+			continue
+		}
+		if f.Source == "" {
+			f.Source = merged[i].Source
+		}
+		merged[i] = f
+	}
+	return merged
+}
+
 // installArtifact handles the install for any artifact type.
 // Resolution, copy, hash logic are driven by the ArtifactKind.
-func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *ArtifactKind, name string, dryRun, force bool, result *installResult) error {
+func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes map[string]string, kind *ArtifactKind, name string, dryRun, force bool, result *installResult) error {
 	if err := validateName(name); err != nil {
 		return fmt.Errorf("invalid %s name: %w", kind.Name, err)
 	}
@@ -108,12 +170,29 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 		relPath = scope.RelPath(kind.Dir, art.Name) + "/"
 	}
 
-	if c, err := checkConflict(dst, art.AbsPath, art.IsDir); err != nil {
-		return err
-	} else if c != nil && !force {
-		// File exists and differs but we're not forcing — skip the overwrite
-		// but track as conflict so it's not lost from state or reported as "new".
-		fmt.Printf("  %s %s (exists, differs — use --force to overwrite)\n", yellow("⚠"), name)
+	// A tracked file that still hashes to what nav-pilot recorded is nav-pilot's
+	// own and untouched, so a differing source is an update, not a conflict.
+	// Only an untracked path falls back to the byte comparison, where a
+	// hand-placed or foreign file genuinely is one.
+	conflicted := false
+	if storedHash, tracked := stateHashes[relPath]; tracked {
+		// An absent or unreadable file is not the user's edit either, so it is
+		// not a conflict — it is simply reinstalled.
+		current, hashErr := rawArtifactHash(dst, art.IsDir)
+		conflicted = hashErr == nil && current != storedHash
+	} else {
+		c, err := checkConflict(dst, art.AbsPath, art.IsDir)
+		if err != nil {
+			return err
+		}
+		conflicted = c != nil
+	}
+
+	if conflicted && !force {
+		// The file exists and the user changed it — skip the overwrite but
+		// track as conflict so it's not lost from state or reported as "new".
+		fmt.Printf("  %s %s (locally modified — kept; %s takes the upstream version)\n",
+			yellow("⚠"), name, bold("nav-pilot sync --apply"))
 		existingHash, hashErr := rawArtifactHash(dst, art.IsDir)
 		if hashErr == nil {
 			result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: existingHash, Status: fileStatusConflict})
@@ -148,6 +227,15 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, kind *Artifa
 	result.Installed++
 
 	return nil
+}
+
+// printConflictHint says what a conflict is and how it ends. "Skipped" on its
+// own reads as permanent, and --force reads as "throw my edits away": neither
+// says that a sync --apply takes the upstream version of exactly these files.
+func printConflictHint(n int) {
+	fmt.Printf("%s %d file(s) kept as you edited them.\n", yellow("⚠"), n)
+	fmt.Printf("  %s to take the upstream version, or %s to overwrite on the next install.\n",
+		bold("nav-pilot sync --apply"), bold("--force"))
 }
 
 // ─── Commands ───────────────────────────────────────────────────────────────
@@ -426,8 +514,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	}
 
 	if result.Conflicts > 0 {
-		fmt.Printf("%s %d file(s) skipped due to conflicts. Use %s to overwrite.\n",
-			yellow("⚠"), result.Conflicts, bold("--force"))
+		printConflictHint(result.Conflicts)
 	}
 
 	if len(result.Unsupported) > 0 {
@@ -453,10 +540,17 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		Files:       result.Files,
 	}
 	// A re-install over a checked-in state file must not throw away the keys a
-	// newer nav-pilot put there; the fresh struct has none of them (#588).
-	if prior, err := readScopedState(scope); err == nil {
+	// newer nav-pilot put there; the fresh struct has none of them (#588). Nor
+	// the paths it does not name: a narrower install must not make the rest of
+	// the scope invisible to sync.
+	//
+	// The two must be decided together. removeOrphans deletes the prior paths
+	// this install did not write and nav-pilot still owns; merging every prior
+	// entry back would then commit a state that lists a file the tool has just
+	// deleted. So only what removeOrphans kept is merged.
+	if prior, err := readScopedState(scope); err == nil && prior != nil {
 		state.PreserveUnknownFrom(prior)
-		removeOrphans(scope, prior, result.Files)
+		state.Files = mergeStateFiles(removeOrphans(scope, prior, result.Files), state.Files)
 	}
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
@@ -509,7 +603,7 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 
 	kind := kindByName[itemType]
 	resolver := resolverFor(src.Dir, pakkeFor(src, name))
-	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
+	installErr := installArtifact(resolver, scope, scopeStateHashes(scope), kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr
 	}
@@ -531,8 +625,8 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 	}
 
 	if result.Conflicts > 0 {
-		fmt.Printf("\n%s File already exists and differs. Use %s to overwrite.\n",
-			yellow("⚠"), bold("--force"))
+		fmt.Println()
+		printConflictHint(result.Conflicts)
 	}
 
 	if dryRun || result.Installed == 0 {
@@ -811,8 +905,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	}
 
 	if !jsonOutput && result.Conflicts > 0 {
-		fmt.Printf("%s %d file(s) skipped due to conflicts. Use %s to overwrite.\n",
-			yellow("⚠"), result.Conflicts, bold("--force"))
+		printConflictHint(result.Conflicts)
 	}
 
 	if jsonOutput {
@@ -851,9 +944,16 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	}
 
 	// Same as cmdInstallFromSource: a rebuild over an existing state keeps the
-	// keys this binary does not understand (#588).
-	if prior, err := readScopedState(scope); err == nil {
+	// keys this binary does not understand (#588), retires the artifacts the
+	// source has stopped shipping (#615), and keeps the state of the paths this
+	// install did not name. The two install paths must agree about all three.
+	if prior, err := readScopedState(scope); err == nil && prior != nil {
 		state.PreserveUnknownFrom(prior)
+		// state.Files, not result.Files: the picker's deselected items were
+		// appended above, and they are still on disk on purpose. Passing the
+		// narrower set makes removeOrphans read a deselection as an artifact
+		// the source stopped shipping, and delete a file the user chose to keep.
+		state.Files = mergeStateFiles(removeOrphans(scope, prior, state.Files), state.Files)
 	}
 
 	if err := writeScopedState(scope, state); err != nil {
@@ -1168,16 +1268,23 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 // A file is removed only when it is byte-for-byte what nav-pilot wrote.
 // Anything the developer edited is theirs and stays, which is the same rule the
 // opencode scope has applied since it was written.
-func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledFile) {
+//
+// It returns the prior entries it did not delete. Those are the ones whose state
+// must survive the install — deleting a file and keeping its state entry would
+// have status report it missing and the next sync report a deletion nav-pilot
+// performed itself.
+func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledFile) []InstalledFile {
 	if prior == nil {
-		return
+		return nil
 	}
 	written := make(map[string]bool, len(installed))
 	for _, f := range installed {
 		written[f.Path] = true
 	}
+	kept := make([]InstalledFile, 0, len(prior.Files))
 	for _, f := range prior.Files {
 		if written[f.Path] || !navPilotOwns(scope.RootDir, f) {
+			kept = append(kept, f)
 			continue
 		}
 		full := filepath.Join(scope.RootDir, f.Path)
@@ -1190,8 +1297,10 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 		if err != nil && !os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, "%s Could not remove %s, which is no longer part of the collection: %v\n",
 				yellow("⚠"), f.Path, err)
+			kept = append(kept, f)
 			continue
 		}
 		fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer in the collection)"))
 	}
+	return kept
 }
