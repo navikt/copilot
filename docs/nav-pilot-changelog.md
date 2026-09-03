@@ -2,6 +2,14 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-03
+
+### cplt-oppdateringer etter oppstrømsgjennomgang
+
+- **cplt-gulvet hevet til `2026.08.28-080711`, og `--no-audit` fjernet**: Flagget lå på begge stagede cplt-vektorene fordi cplts parent-side audit kunne kjøre repo-kontrollerte Git-hjelpere utenfor sandboxen — en repo-lokal `core.fsmonitor` i en `.git/config` agenten selv kan skrive. [navikt/cplt#211](https://github.com/navikt/cplt/pull/211) ruter alle tolv parent-side git-kallstedene gjennom én herdet invoker, og [#217](https://github.com/navikt/cplt/pull/217) utvider git-persistence-deniene til hver skrivbar rot. Gulvet peker på #217s release, ikke #211s, fordi #217 legger til enda et parent-side git-kall. Versjonsproben beholder `--no-audit`: et `--version`-spørsmål har ingen sesjon å auditere.
+- **`deny.paths = [".github/hooks"]` i repoets `.cplt.toml`**: preToolUse-porten som holder Ask First for ARIA-roller var redigerbar av agenten den begrenser. `[deny]` håndheves uten `cplt trust` og kan bare stramme inn. macOS Seatbelt håndhever det; på Linux kreves Bubblewrap, og med Landlock alene advarer cplt i stedet for å håndheve.
+- **`doctor` verifiserer nå håndheving, ikke bare oppsett**: Sjekken leste `cplt --version` og `cplt config show`, som svarer på om cplt er konfigurert, aldri på om sandboxen faktisk håndhever. `cplt check --json` ([navikt/cplt#145](https://github.com/navikt/cplt/pull/145)) kjører prober inne i den ekte resolverte sandboxen og eksiterer ikke-null når den ikke kan bekrefte håndheving. En eldre cplt uten subkommandoen, eller en cplt som ikke finnes, gir «vet ikke» — aldri en grønn hake og aldri en falsk feil.
+
 ## 2026-09-01
 
 ### opencode så aldri det teamet la inn for hånd
