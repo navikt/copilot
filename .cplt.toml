@@ -9,6 +9,13 @@
 #   apps/copilot-metrics (heuristic scan) — Docker, Go
 #   apps/mcp-onboarding (heuristic scan) — Docker, Go
 
+[deny]
+# preToolUse-porten som holder Ask First for ARIA-roller (#517, commit 2dcf51eb).
+# Agenten skal ikke kunne redigere sin egen sperre. [deny] håndheves automatisk,
+# uten `cplt trust` — men bare der plattformen kan uttrykke det: macOS Seatbelt
+# alltid, Linux kun med Bubblewrap. Med Landlock alene advarer cplt i stedet.
+paths = [".github/hooks"]
+
 [propose]
 # ⚠️  grants access to Docker socket — effectively root on the host
 # Suggested by: apps/copilot-adoption, apps/copilot-metrics, apps/mcp-onboarding, apps/mcp-registry, apps/my-copilot
