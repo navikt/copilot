@@ -53,5 +53,8 @@
     "spring-boot-endpoint",
     "kafka-topic",
     "nais-manifest"
+  ],
+  "hooks": [
+    "klarsprak-gate"
   ]
 }

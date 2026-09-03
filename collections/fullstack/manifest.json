@@ -69,5 +69,9 @@
     "aksel-component",
     "nextjs-api-route",
     "golang-service"
+  ],
+  "hooks": [
+    "ask-first-aria",
+    "klarsprak-gate"
   ]
 }

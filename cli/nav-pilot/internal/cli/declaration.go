@@ -126,6 +126,7 @@ func applyDeclaredItems(manifest *Manifest, items map[string]string) (*Manifest,
 		KindSkill.Name:       nameSet(manifest.Skills),
 		KindInstruction.Name: nameSet(manifest.Instructions),
 		KindPrompt.Name:      nameSet(manifest.Prompts),
+		KindHook.Name:        nameSet(manifest.Hooks),
 	}
 
 	var unknown []string
@@ -149,6 +150,7 @@ func applyDeclaredItems(manifest *Manifest, items map[string]string) (*Manifest,
 	narrowed.Skills = selected[KindSkill.Name]
 	narrowed.Instructions = selected[KindInstruction.Name]
 	narrowed.Prompts = selected[KindPrompt.Name]
+	narrowed.Hooks = selected[KindHook.Name]
 	return &narrowed, nil
 }
 

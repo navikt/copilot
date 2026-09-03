@@ -665,6 +665,10 @@ if [[ "$AGENT" == "accessibility" && -d "$REPO_ROOT/.github/hooks" ]]; then
   # is the exact silent regression this file exists to prevent, so uu3 asserts
   # the hook actually ran rather than assuming it. The log lives in $WORKDIR and
   # never in $WS: ws_fingerprint would otherwise count it as a write.
+  # Siden #569 ligger det to porter i .github/hooks/, og begge skriver til denne
+  # loggen. Kanarifuglen under holder: begge lastes fra samme copilot-hooks.json,
+  # så en tom logg betyr fortsatt "konfigurasjonen ble aldri lest". Den beviser
+  # bare ikke lenger *hvilken* av portene som traff — les payloadene for det.
   HOOK_LOG="$WORKDIR/hook-payloads.log"
   HOOK_ENV=(GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true "NAV_PILOT_HOOK_DEBUG=$HOOK_LOG")
 fi

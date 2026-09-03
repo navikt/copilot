@@ -1,0 +1,4 @@
+{
+  "matcher": "bash|shell|execute",
+  "timeoutSec": 5
+}

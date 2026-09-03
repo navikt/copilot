@@ -765,7 +765,10 @@ func detectNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) 
 	}
 
 	var newItems []string
-	for _, kind := range []*ArtifactKind{KindAgent, KindSkill, KindInstruction} {
+	// KindHook is in this list and KindPrompt is not: a hook that shipped after
+	// the last install is enforcement the user has not got yet, which is the
+	// thing #569 exists to surface.
+	for _, kind := range []*ArtifactKind{KindAgent, KindSkill, KindInstruction, KindHook} {
 		for _, art := range resolver.List(kind) {
 			relPath := kind.RelPathForName(scope, art.Name)
 			if !installed[relPath] {

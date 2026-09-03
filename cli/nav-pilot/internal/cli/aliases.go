@@ -100,6 +100,7 @@ var (
 	KindSkill       = source.KindSkill
 	KindInstruction = source.KindInstruction
 	KindPrompt      = source.KindPrompt
+	KindHook        = source.KindHook
 	AllKinds        = source.AllKinds
 	kindByName      = source.KindByName
 )
