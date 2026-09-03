@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 )
 
 // newChainTestServer wires the real route table (RegisterRoutes) against a
@@ -259,10 +262,197 @@ func TestTokenEndpoint_NoStore(t *testing.T) {
 	}
 }
 
-// TestAuthorize_UnknownClientIDIsNotLoggedRaw: client_id is attacker
-// controlled and reaches a log line, so a newline in it would forge an entry.
-func TestAuthorize_UnknownClientIDIsNotLoggedRaw(t *testing.T) {
-	if got := logSafe("evil\nINFO forged entry"); strings.Contains(got, "\n") {
-		t.Fatalf("logSafe left a newline in %q", got)
+// captureHandler keeps every slog.Record so a test can assert on the attribute
+// values the handler passed, rather than on a formatted line: the JSON handler
+// used in production escapes a newline on the way out, which would hide an
+// unsanitised value.
+type captureHandler struct{ records *[]slog.Record }
+
+func (h captureHandler) Enabled(context.Context, slog.Level) bool { return true }
+func (h captureHandler) WithAttrs([]slog.Attr) slog.Handler       { return h }
+func (h captureHandler) WithGroup(string) slog.Handler            { return h }
+func (h captureHandler) Handle(_ context.Context, r slog.Record) error {
+	*h.records = append(*h.records, r)
+	return nil
+}
+
+// captureLogs installs a capturing default logger at debug level for the test.
+func captureLogs(t *testing.T) *[]slog.Record {
+	t.Helper()
+	records := &[]slog.Record{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(captureHandler{records: records}))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	return records
+}
+
+// TestAuthorize_AttackerControlledFieldsAreNotLoggedRaw drives the real
+// handler with control characters in every field it logs. client_id,
+// redirect_uri and User-Agent are all attacker-chosen and all reach a log line
+// in /oauth/authorize, so none of them may arrive there raw: a newline forges a
+// second entry and an unbounded field pushes real entries out of a buffer.
+func TestAuthorize_AttackerControlledFieldsAreNotLoggedRaw(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	records := captureLogs(t)
+
+	evil := "evil\nlevel=ERROR msg=\"forged\"\x1b[2K"
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(evil)+
+		"&redirect_uri="+url.QueryEscape("http://127.0.0.1:1/"+evil)+"&state=abc", nil)
+	req.Header.Set("User-Agent", evil)
+	do(mux, req)
+
+	if len(*records) == 0 {
+		t.Fatal("the handler logged nothing, so this test would pass vacuously")
+	}
+	sawClientID := false
+	for _, rec := range *records {
+		rec.Attrs(func(a slog.Attr) bool {
+			v, ok := a.Value.Any().(string)
+			if !ok {
+				return true
+			}
+			if a.Key == "client_id" {
+				sawClientID = true
+			}
+			for _, r := range v {
+				if unicode.IsControl(r) {
+					t.Errorf("log record %q attribute %q kept a control character %q: %q",
+						rec.Message, a.Key, r, v)
+					break
+				}
+			}
+			if len([]rune(v)) > 129 {
+				t.Errorf("log record %q attribute %q is unbounded (%d runes)", rec.Message, a.Key, len([]rune(v)))
+			}
+			return true
+		})
+	}
+	if !sawClientID {
+		t.Fatal("no log record carried a client_id, so this test would pass vacuously")
+	}
+}
+
+// TestAuthorize_UnknownClientID_BrowserGetsRecoverablePage: the extension sits
+// blocked on its loopback callback and never reads this response, so whatever a
+// browser is shown here is the only thing the person gets. It must tell them
+// how to recover; machine clients keep the JSON.
+func TestAuthorize_UnknownClientID_BrowserGetsRecoverablePage(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id=gone-on-deploy&redirect_uri=http://127.0.0.1:33418/callback&state=abc", nil)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	w := do(mux, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Fatalf("a browser must get HTML, got Content-Type %q and body %q", ct, w.Body.String())
+	}
+	body := strings.ToLower(w.Body.String())
+	for _, want := range []string{"<html", "sign in", "registration"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page does not mention %q, so it does not tell the person how to recover: %s", want, w.Body.String())
+		}
+	}
+
+	// A client that parses the body still gets the machine-readable error.
+	jsonReq := httptest.NewRequest("GET", "/oauth/authorize?client_id=gone-on-deploy&redirect_uri=http://127.0.0.1:33418/callback&state=abc", nil)
+	jsonReq.Header.Set("Accept", "application/json")
+	jw := do(mux, jsonReq)
+	var errResp map[string]string
+	if err := json.NewDecoder(jw.Body).Decode(&errResp); err != nil {
+		t.Fatalf("a JSON client must still get JSON, got %q (%v)", jw.Body.String(), err)
+	}
+	if errResp["error"] != "invalid_client" {
+		t.Fatalf("expected error=invalid_client, got %v", errResp)
+	}
+	if !strings.Contains(strings.ToLower(errResp["error_description"]), "register") {
+		t.Errorf("error_description should name the recovery, got %q", errResp["error_description"])
+	}
+}
+
+// TestIsRegisteredRedirectURI pins the matcher directly. Without this, a
+// version that returns true for any non-empty URI against any non-empty
+// registration list is only caught indirectly.
+func TestIsRegisteredRedirectURI(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		registered []string
+		uri        string
+		want       bool
+	}{
+		{"exact loopback match", []string{"http://127.0.0.1:33418/callback"}, "http://127.0.0.1:33418/callback", true},
+		{"loopback port is ignored (RFC 8252 7.3)", []string{"http://127.0.0.1:33418/callback"}, "http://127.0.0.1:51234/callback", true},
+		{"exact https match", []string{"https://vscode.dev/redirect"}, "https://vscode.dev/redirect", true},
+		{"attacker host", []string{"http://127.0.0.1:33418/callback"}, "https://attacker.example/cb", false},
+		{"loopback path must still match", []string{"http://127.0.0.1:33418/callback"}, "http://127.0.0.1:33418/steal", false},
+		{"https host must match exactly", []string{"https://vscode.dev/redirect"}, "https://vscode.dev.attacker.example/redirect", false},
+		{"empty uri is not registered", []string{"http://127.0.0.1:33418/callback"}, "", false},
+		{"no registrations at all", nil, "http://127.0.0.1:33418/callback", false},
+	} {
+		if got := isRegisteredRedirectURI(tc.registered, tc.uri); got != tc.want {
+			t.Errorf("%s: isRegisteredRedirectURI(%v, %q) = %v, want %v", tc.name, tc.registered, tc.uri, got, tc.want)
+		}
+	}
+}
+
+// TestTokenEndpoint_CrossClientRedemption_Rejected: a code minted for client A
+// must not be redeemable by client B. Only the omitted-client_id case was
+// pinned; a mismatched but present client_id is the other half.
+func TestTokenEndpoint_CrossClientRedemption_Rejected(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	redirectURI := "http://127.0.0.1:33418/callback"
+	clientA := registerClient(t, mux, redirectURI)
+	clientB := registerClient(t, mux, redirectURI)
+	if clientA == clientB {
+		t.Fatal("precondition: the two registrations got the same client_id")
+	}
+
+	// Mint a code for A, stopping just before the token request.
+	authorize := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientA)+
+		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=client-state", nil))
+	if authorize.Code != http.StatusFound {
+		t.Fatalf("precondition: authorize returned %d: %s", authorize.Code, authorize.Body.String())
+	}
+	ghURL, err := url.Parse(authorize.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("authorize: bad Location: %v", err)
+	}
+	callback := do(mux, httptest.NewRequest("GET", "/oauth/callback?code=gh-code&state="+
+		url.QueryEscape(ghURL.Query().Get("state")), nil))
+	if callback.Code != http.StatusFound {
+		t.Fatalf("precondition: callback returned %d: %s", callback.Code, callback.Body.String())
+	}
+	cbURL, err := url.Parse(callback.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("callback: bad Location: %v", err)
+	}
+	code := cbURL.Query().Get("code")
+	if code == "" {
+		t.Fatal("precondition: no authorization code was minted")
+	}
+
+	// Redeem it as B.
+	form := url.Values{
+		"grant_type":   {"authorization_code"},
+		"code":         {code},
+		"client_id":    {clientB},
+		"redirect_uri": {redirectURI},
+	}
+	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := do(mux, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("client B redeemed client A's code: got %d: %s", w.Code, w.Body.String())
+	}
+	var errResp map[string]string
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp["error"] != "invalid_client" {
+		t.Fatalf("expected error=invalid_client, got %v", errResp)
+	}
+	if errResp["access_token"] != "" {
+		t.Fatalf("a token was issued to the wrong client: %v", errResp)
 	}
 }
