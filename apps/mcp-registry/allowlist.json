@@ -316,7 +316,7 @@
           "url": "https://nav-etterlevelse-mcp.{{domain_internal}}/mcp"
         }
       ],
-      "tools": ["lock_document", "get_my_teams", "list_nom_avdelinger", "search_slack_channel", "list_etterlevelse_dokumentasjoner", "get_etterlevelse_dokumentasjon", "get_etterlevelse_status_oversikt", "create_etterlevelse_dokumentasjon", "write_etterlevelse_dokumentasjon", "list_krav", "get_krav", "get_krav_for_gjennomgang", "get_etterlevelse", "write_etterlevelse", "delete_etterlevelse", "get_pvk_dokument", "create_pvk_dokument", "delete_pvk_dokument", "write_pvk_egenskaper", "write_pvk_involvering", "write_pvk_melding_til_pvo", "write_pvk_risikoeier", "write_behandlingens_art_og_omfang", "get_behandlingens_livsloep", "write_behandlingens_livsloep", "delete_behandlingens_livsloep", "list_risikoscenarioer", "write_risikoscenario", "delete_risikoscenario", "link_krav_to_risikoscenario", "unlink_krav_from_risikoscenario", "list_tiltak", "write_tiltak", "delete_tiltak", "get_behandling", "search_behandlinger", "get_processor"],
+      "tools": ["list_etterlevelse_dokumentasjoner", "get_etterlevelse_dokumentasjon", "create_etterlevelse_dokumentasjon", "get_etterlevelse_status_oversikt", "list_krav", "get_krav_for_gjennomgang", "get_pvk_dokument", "create_pvk_dokument", "list_risikoscenarioer", "list_tiltak", "search_behandlinger", "get_my_teams"],
       "tags": ["compliance", "privacy", "etterlevelse", "pvk", "dpia", "nav-internal"],
       "examples": [
         {
