@@ -395,10 +395,12 @@ func TestIsRegisteredRedirectURI(t *testing.T) {
 	}{
 		{"exact loopback match", []string{"http://127.0.0.1:33418/callback"}, "http://127.0.0.1:33418/callback", true},
 		{"loopback port is ignored (RFC 8252 7.3)", []string{"http://127.0.0.1:33418/callback"}, "http://127.0.0.1:51234/callback", true},
-		{"exact https match", []string{"https://vscode.dev/redirect"}, "https://vscode.dev/redirect", true},
+		// The matcher compares against the registration; the loopback policy is
+		// enforced separately, by isValidRedirectURI at /register and /authorize.
+		{"exact match, any scheme", []string{"https://vscode.dev/redirect"}, "https://vscode.dev/redirect", true},
 		{"attacker host", []string{"http://127.0.0.1:33418/callback"}, "https://attacker.example/cb", false},
 		{"loopback path must still match", []string{"http://127.0.0.1:33418/callback"}, "http://127.0.0.1:33418/steal", false},
-		{"https host must match exactly", []string{"https://vscode.dev/redirect"}, "https://vscode.dev.attacker.example/redirect", false},
+		{"host must match exactly", []string{"https://vscode.dev/redirect"}, "https://vscode.dev.attacker.example/redirect", false},
 		{"empty uri is not registered", []string{"http://127.0.0.1:33418/callback"}, "", false},
 		{"no registrations at all", nil, "http://127.0.0.1:33418/callback", false},
 	} {
@@ -588,5 +590,122 @@ func TestRefreshGrant_UnboundToken_Rejected(t *testing.T) {
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("unbound refresh token with client_id=%q: expected 400, got %d: %s", cid, w.Code, w.Body.String())
 		}
+	}
+}
+
+// registerStatus runs Dynamic Client Registration and returns the recorder,
+// for the cases where the registration is expected to fail.
+func registerStatus(mux *http.ServeMux, redirectURIs ...string) *httptest.ResponseRecorder {
+	b, _ := json.Marshal(map[string]any{"redirect_uris": redirectURIs})
+	return do(mux, httptest.NewRequest("POST", "/register", bytes.NewReader(b)))
+}
+
+// TestRegister_LoopbackOnlyPolicy is the fix for #633. /register is
+// unauthenticated (RFC 7591, which is how MCP clients expect to onboard), so
+// "registered" proves only that the server minted the id — an attacker buys one
+// for a single POST and then runs the GHSA-7hwf-488h-59x8 phishing flow with a
+// redirect_uri it controls. Restricting public clients to the loopback
+// interface (RFC 8252 section 7.3) takes the destination out of the attacker's
+// reach instead: a code delivered to 127.0.0.1 lands on the victim's own
+// machine.
+//
+// The accepted cases sit beside the rejected ones deliberately: a policy that
+// refuses everything would pass the rejection half on its own.
+func TestRegister_LoopbackOnlyPolicy(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+
+	for _, uri := range []string{
+		"http://127.0.0.1:33418",
+		"http://127.0.0.1:51234/callback",
+		"http://127.0.0.1/callback",
+		"http://[::1]:33418/callback",
+		"http://localhost:3000/callback",
+	} {
+		if w := registerStatus(mux, uri); w.Code != http.StatusCreated {
+			t.Errorf("accepted-case %q: expected 201, got %d: %s", uri, w.Code, w.Body.String())
+		}
+	}
+
+	for _, uri := range []string{
+		"https://attacker.example/cb",
+		"https://vscode.dev/redirect",
+		"http://evil.example.com/callback",
+		"http://127.0.0.1.attacker.example/cb",
+		"http://0.0.0.0:8080",
+		"ftp://127.0.0.1:8080",
+		"not-a-url",
+	} {
+		w := registerStatus(mux, uri)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("rejected-case %q: expected 400, got %d: %s", uri, w.Code, w.Body.String())
+			continue
+		}
+		var resp map[string]string
+		_ = json.NewDecoder(w.Body).Decode(&resp)
+		if resp["error"] != "invalid_redirect_uri" {
+			t.Errorf("rejected-case %q: expected error invalid_redirect_uri, got %q", uri, resp["error"])
+		}
+	}
+
+	// One bad URI poisons the whole registration; a loopback URI alongside it
+	// must not launder it in.
+	if w := registerStatus(mux, "http://127.0.0.1:33418", "https://attacker.example/cb"); w.Code != http.StatusBadRequest {
+		t.Errorf("mixed registration: expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestAuthorize_PreExistingHTTPSClientID_Rejected is the defence in depth.
+// Registrations are not stored — a client_id is a signed blob with a 30-day TTL
+// — so ones minted before this policy stay verifiable until they expire. The
+// policy therefore has to hold at /oauth/authorize too, and it has to fail on
+// the recoverable path: invalid_client tells the editor to re-register, where a
+// bare error would leave it waiting on a loopback callback that never arrives.
+func TestAuthorize_PreExistingHTTPSClientID_Rejected(t *testing.T) {
+	mux, server := newChainTestServer(t)
+
+	legacy := mintClientID(server.clientIDKey, clientIDInfo{
+		RedirectURIs: []string{"https://attacker.example/cb"},
+		IssuedAt:     time.Now().Unix(),
+		Nonce:        generateSecureToken(8),
+	})
+	w := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(legacy)+
+		"&redirect_uri="+url.QueryEscape("https://attacker.example/cb")+"&state=abc", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for a signed client_id with an https redirect_uri, got %d: %s", w.Code, w.Body.String())
+	}
+	assertInvalidClient(t, w)
+
+	// Control: the identical construction with a loopback redirect_uri still
+	// authorises, so the rejection is the policy and not the minting path.
+	fresh := mintClientID(server.clientIDKey, clientIDInfo{
+		RedirectURIs: []string{testRedirectURI},
+		IssuedAt:     time.Now().Unix(),
+		Nonce:        generateSecureToken(8),
+	})
+	if w := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(fresh)+
+		"&redirect_uri="+url.QueryEscape(testRedirectURI)+"&state=abc", nil)); w.Code != http.StatusFound {
+		t.Fatalf("control: a loopback client_id should authorise, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestOAuthChain_IPv6LoopbackClient_IssuesToken: the whole chain still works
+// end to end for a loopback client, on the IPv6 form the policy newly names.
+func TestOAuthChain_IPv6LoopbackClient_IssuesToken(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	redirectURI := "http://[::1]:33418/callback"
+	clientID := registerClient(t, mux, redirectURI)
+
+	authorize, callback, token := runChain(t, mux, clientID, redirectURI)
+	if authorize.Code != http.StatusFound {
+		t.Fatalf("authorize: expected 302, got %d: %s", authorize.Code, authorize.Body.String())
+	}
+	if callback.Code != http.StatusFound {
+		t.Fatalf("callback: expected 302, got %d: %s", callback.Code, callback.Body.String())
+	}
+	if got := callback.Header().Get("Location"); !strings.HasPrefix(got, redirectURI+"?code=") {
+		t.Fatalf("callback: expected redirect to %s with code, got %q", redirectURI, got)
+	}
+	if token.Code != http.StatusOK {
+		t.Fatalf("token: expected 200, got %d: %s", token.Code, token.Body.String())
 	}
 }
