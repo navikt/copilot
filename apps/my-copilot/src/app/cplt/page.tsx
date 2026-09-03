@@ -284,7 +284,11 @@ function HeroSection({ stars }: { stars: number | null }) {
               <CopyButton copyText={INSTALL_SCRIPT} size="xsmall" style={{ color: "white" }} />
             </div>
             <p style={{ color: "#a7f3d0", fontSize: "0.8125rem", margin: 0 }}>
-              macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF)
+              macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF) · Windows via WSL2
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.75rem", margin: 0, textAlign: "center" }}>
+              På WSL2: bruk skriptet, og kjør det inne i Ubuntu. Verktøy installert på Windows kjører som
+              Windows-prosesser via interop, utenfor sandkassen.
             </p>
           </div>
         </VStack>
