@@ -239,3 +239,30 @@ func TestTokenEndpoint_NoWildcardCORS(t *testing.T) {
 		t.Fatalf("OPTIONS /oauth/token: expected no Access-Control-Allow-Origin, got %q", got)
 	}
 }
+
+// TestTokenEndpoint_NoStore: RFC 6749 §5.1. A token response carries
+// credentials, so no intermediary and no browser cache may keep a copy.
+func TestTokenEndpoint_NoStore(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	redirectURI := "http://127.0.0.1:33418/callback"
+	clientID := registerClient(t, mux, redirectURI)
+
+	_, _, token := runChain(t, mux, clientID, redirectURI)
+	if token.Code != http.StatusOK {
+		t.Fatalf("precondition: token request failed: %d %s", token.Code, token.Body.String())
+	}
+	if got := token.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("Cache-Control = %q, want no-store: a token response must not be cached", got)
+	}
+	if got := token.Header().Get("Pragma"); got != "no-cache" {
+		t.Errorf("Pragma = %q, want no-cache", got)
+	}
+}
+
+// TestAuthorize_UnknownClientIDIsNotLoggedRaw: client_id is attacker
+// controlled and reaches a log line, so a newline in it would forge an entry.
+func TestAuthorize_UnknownClientIDIsNotLoggedRaw(t *testing.T) {
+	if got := logSafe("evil\nINFO forged entry"); strings.Contains(got, "\n") {
+		t.Fatalf("logSafe left a newline in %q", got)
+	}
+}

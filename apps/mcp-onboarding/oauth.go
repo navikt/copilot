@@ -110,7 +110,7 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		// Unknown client_id — normally the in-memory store lost it on restart.
 		// Tell the client to re-register rather than trusting an unregistered
 		// client's redirect_uri (GHSA-7hwf-488h-59x8).
-		slog.Warn("unknown client_id", "client_id", clientID)
+		slog.Warn("unknown client_id", "client_id", logSafe(clientID))
 		recordOAuthFlow("authorize", "invalid_client")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -246,16 +246,22 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleTokenOptions answers the CORS preflight without granting any origin.
-// /oauth/token deliberately sends no Access-Control-Allow-Origin: all supported
-// clients (VS Code and other IDE extensions) redeem the code from a native
-// process, not from a web page, and a wildcard grant here let any page read a
-// token response in the victim's browser (GHSA-7hwf-488h-59x8).
+//
+// /oauth/token deliberately sends no Access-Control-Allow-Origin. Every
+// supported client (VS Code and the other IDE extensions) redeems the code from
+// a native process rather than a web page, so none of them needs the header. A
+// wildcard grant let any page read a token response in the victim's browser
+// (GHSA-7hwf-488h-59x8).
 func (s *OAuthServer) handleTokenOptions(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *OAuthServer) handleToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	// RFC 6749 §5.1: a token response carries credentials and must not be
+	// stored by any intermediary or by the browser's back/forward cache.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
 	if err := r.ParseForm(); err != nil {
