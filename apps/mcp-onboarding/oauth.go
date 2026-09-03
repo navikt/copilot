@@ -606,14 +606,24 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 			dropped = append(dropped, uri)
 		}
 	}
-	if len(dropped) > 0 {
-		slog.Warn("dropped non-loopback redirect_uris from registration",
+	if len(dropped) > 0 && len(kept) > 0 {
+		// Info, not Warn: a client that registers a hosted redirect beside its
+		// loopback one is doing the expected thing, and the filter is working
+		// as designed. Warning on it would make every VS Code registration
+		// look like an incident and teach whoever reads the logs to ignore
+		// this line.
+		slog.Info("dropped non-loopback redirect_uris from registration",
 			"client_name", logSafe(req.ClientName),
 			"dropped_redirect_uris", logSafeAll(dropped),
 			"kept_redirect_uris", logSafeAll(kept),
 		)
 	}
 	if len(kept) == 0 {
+		// Warn here: nothing survived, so this client cannot authorise at all.
+		slog.Warn("registration rejected, no loopback redirect_uri",
+			"client_name", logSafe(req.ClientName),
+			"dropped_redirect_uris", logSafeAll(dropped),
+		)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{
