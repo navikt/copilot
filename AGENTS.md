@@ -40,3 +40,29 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
 - Do not commit secrets.
 - Do not push unless explicitly asked.
+
+## Running the nav-pilot binary in tests or verification
+
+`nav-pilot` writes to the developer's own environment: `~/.copilot/`,
+`~/.nav-pilot/` and the repository you are standing in. A verification that runs
+the real binary without isolation changes a real setup, and it has: an install
+run during testing pointed a user scope at a temporary worktree and left 23 of 52
+files in conflict, which `sync` then silently skipped. Nothing had been edited by
+hand.
+
+Whenever you run the binary — directly, or through a test that calls `run()`:
+
+- Set `HOME` to a temporary directory. That is the one that matters, because
+  everything resolves through `os.UserHomeDir`. `nav-pilot` does **not** read
+  `COPILOT_HOME`. Also set `NAV_PILOT_CONFIG` (relocates
+  `~/.nav-pilot/config.toml`, see `internal/cli/config.go`) and
+  `XDG_CONFIG_HOME` (honoured on the opencode export path, see
+  `internal/provider/opencode_launch.go`). In Go tests, `isolatedConfig(t)` does
+  this for you — use it.
+- Do not assume a command only reads. `install`, `sync`, `config` and the launch
+  paths all write.
+- Hash `~/.copilot` and `~/.nav-pilot` before and after, and report any
+  difference. Isolation that is set up wrong looks exactly like isolation until
+  someone checks.
+- Say so loudly if you did touch something. A silent change to a developer's
+  setup is worse than a failed test.
