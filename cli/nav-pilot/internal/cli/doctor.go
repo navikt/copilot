@@ -223,7 +223,7 @@ func cmdDoctor() error {
 		switch report := cpltEnforcement(); {
 		case report == nil:
 			fmt.Printf("    %s Could not verify sandbox enforcement\n", dim("-"))
-			fmt.Printf("        %s Run %s — an older cplt has no such subcommand.\n", dim("Solution:"), bold("cplt check"))
+			fmt.Printf("        %s Run %s by hand — this run could not read a verdict, which an older cplt (no such subcommand), a timeout or an interrupted probe all produce.\n", dim("Solution:"), bold("cplt check"))
 		case report.Enforcing:
 			fmt.Printf("    %s Sandbox is enforcing (%d protections verified)\n", green("✓"), report.Verified)
 		default:

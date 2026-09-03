@@ -39,7 +39,7 @@ Kilde: [navikt/cplt#64](https://github.com/navikt/cplt/pull/64)
 
 Til nå har proxyen vært rådgivende på kernel-nivå: sandboxen tillater utgående `*:443`, og trafikken går gjennom proxyen fordi cplt injiserer `HTTPS_PROXY`. En rå socket — eller `env -u HTTPS_PROXY` — kunne dermed nå nettet utenom domenefiltreringen.
 
-Det gjelder også på macOS, og på et punkt til: standardprofilen nekter `(remote tcp)` og tillater så `(remote ip "*:443")`, og en `ip`-regel dekker UDP like mye som TCP. QUIC over UDP/443 går derfor ut uten å innom cplt-proxyen i standardmodus. Proxyloggen er altså ikke en fullstendig utgangslogg så lenge `proxy.forced` er av.
+Det gjelder også på macOS, og på et punkt til: standardprofilen nekter `(remote tcp)` og tillater så `(remote ip "*:443")`, og en `ip`-regel dekker UDP like mye som TCP. QUIC over UDP/443 er derfor kjernetillatt i standardmodus, uten å gå innom cplt-proxyen. Proxyloggen er altså ikke en fullstendig utgangslogg så lenge `proxy.forced` er av.
 
 `proxy.forced` lukker den bypassen: proxyen blir obligatorisk, og kernel-egress begrenses til proxy-porten alene (ingen direkte `*:443`). Feiler proxyen ved oppstart, starter ikke agenten — fail-closed.
 
