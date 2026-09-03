@@ -104,7 +104,7 @@ Templates: [service](./references/template-service.md) · [library](./references
 
 After structural review or generation, if the text has language issues (AI markers, passive voice, anglicisms), suggest:
 
-> For language polish, use `@forfatter` or the `norwegian-text` instruction (auto-applies to `*.md` files).
+> For language polish, use `@forfatter` or the `klarsprak` skill.
 
 Do not duplicate `@forfatter`'s work. This skill handles **structure**; `@forfatter` handles **language**.
 
@@ -174,8 +174,8 @@ Only include sections you will maintain. An empty "## Roadmap" is worse than no 
 
 | Resource | Use for |
 |----------|---------|
-| `@forfatter` | Language quality — klarspråk, AI markers, anglicisms |
-| `norwegian-text.instructions.md` | Auto-applied Norwegian text rules for `*.md` |
+| `@forfatter` | Deeper editorial pass on an existing text |
+| `klarsprak` skill | Norwegian language wash: klarspråk, AI markers, anglicisms, fagtermer |
 | `nav-architecture-review` skill | ADR generation (link from README, don't inline) |
 | `mcp-onboarding` | Agent readiness assessment and AGENTS.md generation |
 

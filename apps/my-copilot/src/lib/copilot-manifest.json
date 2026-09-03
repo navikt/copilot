@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-31T21:35:46.513Z",
+  "generatedAt": "2026-09-03T18:48:48.329Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -657,17 +657,17 @@
     {
       "id": "norwegian-text",
       "name": "Norsk tekstkvalitet",
-      "description": "Klarspråk, AI-markører, anglismer, fagtermer og sammensatte ord i norsk markdown.",
+      "description": "Minimumsregler for norsk markdown: Nav, bindestrek i sammensatte ord, engelsk fagspråk, konsekvent bokmål og overskrifter. Full språkvask ligger i klarsprak-skillen.",
       "type": "instruction",
       "domain": "general",
       "filePath": ".github/instructions/norwegian-text.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
-      "contentHash": "b392ea7a4a952a5d54cc841922ee2a200931c00eb2e37a54e5a5eeb0a1d12892",
+      "contentHash": "8dc36629d466e9b9157ca5ecb869fcc93608add7f05f59d207b3cdba9b0a530b",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fnorwegian-text.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fnorwegian-text.instructions.md",
       "applyTo": "**/*.md",
-      "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "markdown"],
-      "examples": ["Fjern AI-markører fra denne teksten", "Sjekk klarspråk i denne README-en"],
+      "tags": ["norwegian", "bokmål", "markdown", "spelling", "compound-words", "terminology"],
+      "examples": ["Rett opp NAV til Nav i denne fila", "Sjekk at teksten er konsekvent bokmål"],
       "collections": ["frontend", "fullstack", "nextjs-frontend"]
     },
     {
@@ -678,7 +678,7 @@
       "domain": "general",
       "filePath": ".github/instructions/output-style.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md",
-      "contentHash": "6c2e1b5043096474e99cb311e865744ec9c0d9383c08a0a4c3221ddc10ef0649",
+      "contentHash": "6e5f644425c345a3a195da43e0fd2cb9aaa1ad214665017eb3ac032012d4f3fc",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Foutput-style.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Foutput-style.instructions.md",
       "applyTo": "**",
@@ -1157,6 +1157,38 @@
       "collections": ["fullstack", "kotlin-backend"]
     },
     {
+      "id": "klarsprak",
+      "name": "klarsprak",
+      "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, fjerning av AI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Bruk denne skillen hver gang du skriver, redigerer eller språkvasker norsk tekst — README-er, ADR-er, UI-tekst, blogginnlegg, dokumentasjon, e-poster, commit-meldinger og PR-beskrivelser — også når brukeren ikke sier «klarspråk» eksplisitt, men bare ber om hjelp med norsk tekst.",
+      "type": "skill",
+      "domain": "general",
+      "filePath": "skills/klarsprak/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md",
+      "contentHash": "b6994c2929c80949fb4fa4f4006ce912fdf86ace05849b59faacdb2bf0f855c1",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "text-quality", "spraakvask"],
+      "examples": [
+        {
+          "scenario": "Språkvask av en README",
+          "prompt": "Språkvask denne README-en etter klarspråk"
+        },
+        {
+          "scenario": "Fjerne AI-markører",
+          "prompt": "Fjern AI-markørene fra denne teksten"
+        },
+        {
+          "scenario": "Kvalitetssikre en ADR",
+          "prompt": "Sjekk språket i denne ADR-en"
+        },
+        {
+          "scenario": "Commit-melding på norsk",
+          "prompt": "Skriv om denne commit-meldingen til klarspråk"
+        }
+      ],
+      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+    },
+    {
       "id": "kotlin-app-config",
       "name": "kotlin-app-config",
       "description": "Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger",
@@ -1581,7 +1613,7 @@
       "domain": "general",
       "filePath": "skills/readme-review/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/readme-review/SKILL.md",
-      "contentHash": "36fe844fd272d4035d7629b95a267ae8e8a24d4bb49f88c557d4cc45e2512167",
+      "contentHash": "6c4314c7b44a6a0e660a97c2ea53eed790726dcbd01b1d671e98605d136854dd",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["readme", "documentation", "review", "scaffold"],
