@@ -281,7 +281,7 @@ func TestHandleAuthorize_RedirectURIMismatch(t *testing.T) {
 func TestHandleAuthorize_LoopbackDifferentPort(t *testing.T) {
 	server := newTestOAuthServer()
 
-	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418/"}, IssuedAt: time.Now().Unix()})
+	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418/"}, IssuedAt: time.Now().Unix(), Nonce: generateSecureToken(8)})
 
 	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+"&redirect_uri=http://127.0.0.1:50049/&state=abc", nil)
 	w := httptest.NewRecorder()

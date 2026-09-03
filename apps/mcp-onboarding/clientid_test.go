@@ -408,3 +408,33 @@ func TestVerifyClientID_ChecksTagFirst(t *testing.T) {
 		}
 	}
 }
+
+// TestSignedClientID_EmptyNonce: the nonce is what keeps two registrations of
+// the same redirect_uris distinct, so an id minted without one has an identity
+// that is not its own. Enforced at verification rather than trusted from the
+// mint side.
+func TestSignedClientID_EmptyNonce(t *testing.T) {
+	mux, server := newChainTestServer(t)
+	uri := "http://127.0.0.1:33418/callback"
+
+	// Control: the same mint with a nonce authorises on this server.
+	withNonce := mintClientID(server.clientIDKey, clientIDInfo{
+		RedirectURIs: []string{uri}, IssuedAt: time.Now().Unix(), Nonce: generateSecureToken(8),
+	})
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(withNonce)+"&redirect_uri="+url.QueryEscape(uri)+"&state=abc", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusFound {
+		t.Fatalf("control: a nonced client_id should authorise, got %d: %s", w.Code, w.Body.String())
+	}
+
+	without := mintClientID(server.clientIDKey, clientIDInfo{
+		RedirectURIs: []string{uri}, IssuedAt: time.Now().Unix(),
+	})
+	req = httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(without)+"&redirect_uri="+url.QueryEscape(uri)+"&state=abc", nil)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("a client_id with an empty nonce was accepted: got %d", w.Code)
+	}
+}

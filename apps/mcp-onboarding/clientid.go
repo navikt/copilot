@@ -129,6 +129,13 @@ func verifyClientID(key []byte, clientID string) (*clientIDInfo, error) {
 	if len(info.RedirectURIs) == 0 {
 		return nil, errInvalidClientID
 	}
+	// The nonce is what keeps two registrations of the same redirect_uris
+	// distinct, so an id without one has an identity that is not its own.
+	// Enforced here rather than trusted from the mint side, because this is the
+	// boundary that decides whether a client_id is usable.
+	if info.Nonce == "" {
+		return nil, errInvalidClientID
+	}
 	// An absent, zero or future IssuedAt is as unusable as an expired one: it
 	// would mean a registration with no bounded lifetime.
 	if age := time.Since(time.Unix(info.IssuedAt, 0)); info.IssuedAt <= 0 || age < 0 || age > clientIDTTL {
