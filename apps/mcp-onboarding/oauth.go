@@ -411,6 +411,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	})
 
 	s.Store.SaveRefreshToken(refreshToken, &RefreshTokenData{
+		ClientID:           authCode.ClientID,
 		GitHubRefreshToken: authCode.GitHubRefreshToken,
 		UserLogin:          authCode.UserLogin,
 		UserID:             authCode.UserID,
@@ -433,10 +434,32 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 // Body size is already limited by handleToken via http.MaxBytesReader.
 func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request) {
 	refreshToken := r.FormValue("refresh_token") //nolint:gosec // body limited in handleToken
+	clientID := r.FormValue("client_id")         //nolint:gosec // body limited in handleToken
 
 	rtData, err := s.Store.GetRefreshToken(refreshToken)
 	if err != nil {
 		s.writeTokenError(w, "invalid_grant", "Invalid refresh token")
+		return
+	}
+
+	// RFC 6749 §6 requires the authorization server to ensure a refresh token
+	// was issued to the client redeeming it. This is a public client
+	// (token_endpoint_auth_method "none"), so client_id is that check, the same
+	// one the authorization_code grant already makes. Without it a stolen
+	// refresh token mints access tokens for anyone holding it, for the full
+	// 30-day lifetime (GHSA-7hwf-488h-59x8).
+	//
+	// An empty rtData.ClientID means a token issued before the binding existed.
+	// It is rejected rather than grandfathered: the store is in-memory, so a
+	// restart drops every refresh token anyway, and trusting an unbound token
+	// is the hole itself.
+	if clientID == "" || clientID != rtData.ClientID {
+		slog.Warn("client_id missing or mismatched in refresh grant",
+			"user", rtData.UserLogin,
+			"bound", rtData.ClientID != "",
+		)
+		recordOAuthFlow("token_refresh", "invalid_client")
+		s.writeTokenError(w, "invalid_client", "client_id missing or does not match the refresh token")
 		return
 	}
 
@@ -462,6 +485,7 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 
 	s.Store.DeleteRefreshToken(refreshToken)
 	s.Store.SaveRefreshToken(newRefreshToken, &RefreshTokenData{
+		ClientID:           rtData.ClientID,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		UserLogin:          rtData.UserLogin,
 		UserID:             rtData.UserID,

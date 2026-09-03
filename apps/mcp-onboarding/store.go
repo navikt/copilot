@@ -43,6 +43,10 @@ type TokenData struct {
 }
 
 type RefreshTokenData struct {
+	// ClientID is the client the token was issued to. The refresh grant
+	// requires the caller to present it, so a stolen refresh token is not
+	// usable on its own (GHSA-7hwf-488h-59x8).
+	ClientID           string
 	GitHubRefreshToken string
 	UserLogin          string
 	UserID             int64

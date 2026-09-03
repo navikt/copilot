@@ -467,3 +467,126 @@ func TestTokenEndpoint_CrossClientRedemption_Rejected(t *testing.T) {
 		t.Fatalf("a token was issued to the wrong client: %v", errResp)
 	}
 }
+
+// --- refresh_token grant is client-authenticated (GHSA-7hwf-488h-59x8) ---
+
+// issueRefreshToken runs the full chain and returns the refresh_token the
+// authorization_code grant handed out.
+func issueRefreshToken(t *testing.T, mux *http.ServeMux, clientID, redirectURI string) string {
+	t.Helper()
+	_, _, token := runChain(t, mux, clientID, redirectURI)
+	if token == nil || token.Code != http.StatusOK {
+		t.Fatalf("chain did not reach a token: %v", token)
+	}
+	var resp map[string]any
+	if err := json.NewDecoder(token.Body).Decode(&resp); err != nil {
+		t.Fatalf("token: decode: %v", err)
+	}
+	rt, _ := resp["refresh_token"].(string)
+	if rt == "" {
+		t.Fatalf("token: expected a refresh_token, got %v", resp)
+	}
+	return rt
+}
+
+// refresh posts a refresh_token grant. An empty clientID omits the parameter.
+func refresh(mux *http.ServeMux, refreshToken, clientID string) *httptest.ResponseRecorder {
+	form := url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+	}
+	if clientID != "" {
+		form.Set("client_id", clientID)
+	}
+	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return do(mux, req)
+}
+
+// TestRefreshGrant_SameClient_Succeeds is the control for the three rejection
+// tests below: the refresh grant still works for the client it was issued to.
+func TestRefreshGrant_SameClient_Succeeds(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	redirectURI := "http://127.0.0.1:33418/callback"
+	clientID := registerClient(t, mux, redirectURI)
+
+	w := refresh(mux, issueRefreshToken(t, mux, clientID, redirectURI), clientID)
+	if w.Code != http.StatusOK {
+		t.Fatalf("refresh: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("refresh: decode: %v", err)
+	}
+	if resp["access_token"] == nil || resp["access_token"] == "" {
+		t.Fatalf("refresh: expected an access_token, got %v", resp)
+	}
+	if resp["refresh_token"] == nil || resp["refresh_token"] == "" {
+		t.Fatalf("refresh: expected a rotated refresh_token, got %v", resp)
+	}
+}
+
+// TestRefreshGrant_OtherClient_Rejected is the substantive one: a refresh token
+// stolen from client A must not be redeemable by client B. Without the binding
+// the refresh grant asks for no client at all, so anyone holding the token can
+// mint access tokens for 30 days (GHSA-7hwf-488h-59x8).
+func TestRefreshGrant_OtherClient_Rejected(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	victimRedirect := "http://127.0.0.1:33418/callback"
+	victimClient := registerClient(t, mux, victimRedirect)
+	attackerClient := registerClient(t, mux, "http://127.0.0.1:44444/callback")
+
+	rt := issueRefreshToken(t, mux, victimClient, victimRedirect)
+
+	w := refresh(mux, rt, attackerClient)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("refresh as other client: expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var errResp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&errResp); err != nil {
+		t.Fatalf("refresh: decode: %v", err)
+	}
+	if errResp["error"] != "invalid_client" {
+		t.Fatalf("refresh: expected invalid_client, got %v", errResp)
+	}
+
+	// A rejected attempt must not burn the victim's token.
+	if w := refresh(mux, rt, victimClient); w.Code != http.StatusOK {
+		t.Fatalf("victim refresh after rejected attempt: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRefreshGrant_MissingClientID_Rejected(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	redirectURI := "http://127.0.0.1:33418/callback"
+	clientID := registerClient(t, mux, redirectURI)
+
+	w := refresh(mux, issueRefreshToken(t, mux, clientID, redirectURI), "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("refresh without client_id: expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestRefreshGrant_UnboundToken_Rejected pins the transition decision: a
+// refresh token carrying no client_id is rejected rather than grandfathered.
+// Nothing is grandfathered in practice — the store is in-memory, so a restart
+// drops every refresh token along with every client registration — and an
+// unbound token accepted on trust is exactly the hole being closed.
+func TestRefreshGrant_UnboundToken_Rejected(t *testing.T) {
+	mux, oauth := newChainTestServer(t)
+	clientID := registerClient(t, mux, "http://127.0.0.1:33418/callback")
+
+	oauth.Store.SaveRefreshToken("legacy-unbound", &RefreshTokenData{
+		GitHubRefreshToken: "ghr_victim",
+		UserLogin:          "victim",
+		UserID:             42,
+		CreatedAt:          time.Now(),
+	})
+
+	for _, cid := range []string{"", clientID} {
+		w := refresh(mux, "legacy-unbound", cid)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("unbound refresh token with client_id=%q: expected 400, got %d: %s", cid, w.Code, w.Body.String())
+		}
+	}
+}
