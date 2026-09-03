@@ -40,32 +40,33 @@ func TestCpltRecommendStrict(t *testing.T) {
 	}
 }
 
-// realCpltCheckBattery is the head of a real `cplt check --json` battery report,
-// captured from cplt 2026.09.02-164136-a480712 in this repository. Trimmed to
-// two items; the fields doctor reads are verbatim.
+// realCpltCheckBattery is a real `cplt check --json` battery report, captured
+// from cplt 2026.09.02-164136-a480712 run in this repository on macOS. Trimmed
+// to two of the seven items — one allowed, one blocked — and the home directory
+// rewritten from the capturing developer's to /Users/dev. Everything else,
+// including the fields doctor reads, is as cplt emitted it.
 const realCpltCheckBattery = `{
   "agent": "Copilot",
   "platform": "macos (Seatbelt)",
-  "enforcing": false,
-  "verified": 2,
+  "enforcing": true,
+  "verified": 4,
   "battery": true,
   "items": [
     {
       "name": "read project dir",
       "category": "filesystem",
-      "target": "/repo",
+      "target": "/Users/dev/go/src/github.com/navikt/copilot",
       "decision": "allowed",
       "expected": "allowed",
       "reason": "covered by the project-dir rule (read+write+execute)."
     },
     {
-      "name": "read $HOME (root)",
+      "name": "read ~/.ssh/id_ed25519",
       "category": "filesystem",
-      "target": "/home/u",
-      "decision": "allowed",
+      "target": "/Users/dev/.ssh/id_ed25519",
+      "decision": "blocked",
       "expected": "blocked",
-      "reason": "not covered by any allow rule, so it is denied by default.",
-      "fix": "grant access with --allow-read <PATH> (read) or --allow-write <PATH> (read+write), or add it under [allow] read/write in config."
+      "reason": "protected credential path, never exposed to the agent (deny-by-default). This is intentional."
     }
   ]
 }`
@@ -81,10 +82,11 @@ func TestParseCpltCheckReport(t *testing.T) {
 		wantEnforce  bool
 		wantVerified int
 	}{
-		{name: "a real battery report", in: realCpltCheckBattery, wantVerified: 2},
-		{name: "an enforcing battery",
-			in:          `{"agent":"Copilot","platform":"macos (Seatbelt)","enforcing":true,"verified":7,"battery":true,"items":[]}`,
-			wantEnforce: true, wantVerified: 7},
+		{name: "a real battery report", in: realCpltCheckBattery, wantEnforce: true, wantVerified: 4},
+		// A graded battery that came back negative is a verdict, not unknown:
+		// it must decode, so doctor renders "NOT enforcing" rather than skip it.
+		{name: "a battery that is not enforcing",
+			in: `{"agent":"Copilot","platform":"linux (Landlock)","enforcing":false,"verified":0,"battery":true,"items":[]}`},
 		// An older cplt has no `check` subcommand: clap writes usage to stderr
 		// and stdout is empty. That is unknown, not "not enforcing".
 		{name: "no check subcommand", in: "", wantNil: true},
