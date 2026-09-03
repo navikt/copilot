@@ -1,4 +1,5 @@
-import { Heading, BodyShort, BodyLong, Box, HGrid, Label, Table, VStack, Tag } from "@navikt/ds-react";
+import { Heading, BodyShort, BodyLong, Box, HGrid, Label, VStack, Tag } from "@navikt/ds-react";
+import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { AltInstall } from "@/components/alt-install";
 import { FileExplorer } from "@/components/file-explorer";
@@ -746,32 +747,30 @@ nav-pilot`}
             Hvor skal artefaktene installeres?
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Tre former er i bruk i Nav, og de løser ulike problemer.{" "}
-            <code className="font-mono text-xs">install</code> spør hvis du ikke svarer på forhånd med{" "}
-            <code className="font-mono text-xs">--repo</code> eller <code className="font-mono text-xs">--user</code>.
+            Tre former er i bruk i Nav, og de løser ulike problemer. <code className="font-mono text-xs">install</code>{" "}
+            spør hvis du ikke svarer på forhånd med <code className="font-mono text-xs">--repo</code> eller{" "}
+            <code className="font-mono text-xs">--user</code>.
           </BodyLong>
           <ul className="mt-3 space-y-2 list-disc pl-5" style={{ color: "#475569" }}>
             <li>
               <strong>Repo</strong> (<code className="font-mono text-xs">--repo</code>, skriver til{" "}
               <code className="font-mono text-xs">.github/</code>): hele teamet får det samme, prompts virker, og
-              Copilot på github.com ser filene fordi de er sjekket inn. Til gjengjeld ligger de i repoet og i hver
-              diff.
+              Copilot på github.com ser filene fordi de er sjekket inn. Til gjengjeld ligger de i repoet og i hver diff.
             </li>
             <li>
               <strong>Personlig</strong> (<code className="font-mono text-xs">--user</code>, skriver til{" "}
-              <code className="font-mono text-xs">~/.copilot/</code>): følger deg på tvers av alle repoer, og
-              ingenting sjekkes inn. Den tar ikke med prompts, og når verken github.com eller resten av teamet.
+              <code className="font-mono text-xs">~/.copilot/</code>): følger deg på tvers av alle repoer, og ingenting
+              sjekkes inn. Den tar ikke med prompts, og når verken github.com eller resten av teamet.
             </li>
             <li>
-              <strong>Hub-repo</strong>: en repo-installasjon i et repo som ikke er en applikasjon, pluss teamets
-              egne skills lagt inn for hånd i det samme <code className="font-mono text-xs">.github/</code>. Konteksten
+              <strong>Hub-repo</strong>: en repo-installasjon i et repo som ikke er en applikasjon, pluss teamets egne
+              skills lagt inn for hånd i det samme <code className="font-mono text-xs">.github/</code>. Konteksten
               følger arbeidskatalogen, så den gjelder mens du står i hub-repoet.
             </li>
           </ul>
           <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
-            Formene utelukker ikke hverandre, og{" "}
-            <code className="font-mono text-xs">nav-pilot sync</code> uten scope-flagg synker alle scope som har en
-            tilstandsfil. Avveiningene i sin helhet står i{" "}
+            Formene utelukker ikke hverandre, og <code className="font-mono text-xs">nav-pilot sync</code> uten
+            scope-flagg synker alle scope som har en tilstandsfil. Avveiningene i sin helhet står i{" "}
             <a
               href="https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#hvor-skal-artefaktene-installeres"
               className="text-blue-600 hover:underline"
@@ -2066,57 +2065,56 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             </BodyLong>
             <div className="overflow-x-auto">
               <Table size="small" className="w-full">
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell scope="col">Modell</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Vekter</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Løser</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Kort sagt</Table.HeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  <Table.Row>
-                    <Table.DataCell>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell scope="col">Modell</TableHeaderCell>
+                    <TableHeaderCell scope="col">Vekter</TableHeaderCell>
+                    <TableHeaderCell scope="col">Løser</TableHeaderCell>
+                    <TableHeaderCell scope="col">Kort sagt</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableDataCell>
                       <VStack gap="space-2">
                         <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
                         <div className="text-xs" style={{ color: "#0f6d6a" }}>
                           standard
                         </div>
                       </VStack>
-                    </Table.DataCell>
-                    <Table.DataCell>25 GB</Table.DataCell>
-                    <Table.DataCell>2–4 av 8</Table.DataCell>
-                    <Table.DataCell>
-                      Rask og forutsigbar. Median 10–12 sekunder per oppgave, og 3, 2, 4 og 4 av 8 over fire
-                      kjøringer. Ingen av de andre modellene løser målbart flere.
-                    </Table.DataCell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.DataCell>
+                    </TableDataCell>
+                    <TableDataCell>25 GB</TableDataCell>
+                    <TableDataCell>2–4 av 8</TableDataCell>
+                    <TableDataCell>
+                      Rask og forutsigbar. Median 10–12 sekunder per oppgave, og 3, 2, 4 og 4 av 8 over fire kjøringer.
+                      Ingen av de andre modellene løser målbart flere.
+                    </TableDataCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableDataCell>
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
-                    </Table.DataCell>
-                    <Table.DataCell>16 GB</Table.DataCell>
-                    <Table.DataCell>3–4 av 8</Table.DataCell>
-                    <Table.DataCell>
-                      Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3
-                      og 4 av 8 mot standardens 3, 2, 4 og 4 — spennene overlapper, forskjellen er ikke målbar
-                      (p = 0,71). Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi
-                      skrev tidligere at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne
-                      kompilere.
-                    </Table.DataCell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.DataCell>
+                    </TableDataCell>
+                    <TableDataCell>16 GB</TableDataCell>
+                    <TableDataCell>3–4 av 8</TableDataCell>
+                    <TableDataCell>
+                      Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3 og
+                      4 av 8 mot standardens 3, 2, 4 og 4 — spennene overlapper, forskjellen er ikke målbar (p = 0,71).
+                      Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi skrev tidligere
+                      at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne kompilere.
+                    </TableDataCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableDataCell>
                       <code className="font-mono text-xs">Qwen3.8-27B-8bit</code>
-                    </Table.DataCell>
-                    <Table.DataCell>30 GB</Table.DataCell>
-                    <Table.DataCell>ikke målt</Table.DataCell>
-                    <Table.DataCell>
+                    </TableDataCell>
+                    <TableDataCell>30 GB</TableDataCell>
+                    <TableDataCell>ikke målt</TableDataCell>
+                    <TableDataCell>
                       Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi
                       selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.
-                    </Table.DataCell>
-                  </Table.Row>
-                </Table.Body>
+                    </TableDataCell>
+                  </TableRow>
+                </TableBody>
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
@@ -2139,9 +2137,9 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             merket <code className="font-mono text-xs">(local)</code>.{" "}
             <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
             <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
-            seg. Listen oppdateres når du kjører{" "}
-            <code className="font-mono text-xs">init</code> eller <code className="font-mono text-xs">start</code>, ikke
-            ved hver kommando — et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør.
+            seg. Listen oppdateres når du kjører <code className="font-mono text-xs">init</code> eller{" "}
+            <code className="font-mono text-xs">start</code>, ikke ved hver kommando — et nettverkskall der ville lagt
+            seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models

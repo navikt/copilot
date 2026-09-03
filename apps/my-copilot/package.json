@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build --experimental-build-mode compile",
     "start": "node .next/standalone/server.js",
-    "check": "eslint . --fix && tsc --noEmit && prettier --write . --list-different && NODE_OPTIONS='--experimental-require-module' knip && vitest run",
+    "check": "eslint . --fix && tsc --noEmit && prettier --check . && NODE_OPTIONS='--experimental-require-module' knip && vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write . --list-different",
