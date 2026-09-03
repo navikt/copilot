@@ -153,14 +153,20 @@ func (d *Declaration) validate() error {
 		"set a supported contractVersion in "+DeclarationPath); err != nil {
 		return fmt.Errorf("%s: %w", DeclarationPath, err)
 	}
-	source := strings.TrimSpace(d.Source)
+	// Normalize in place, not just for the checks below: downstream consumers
+	// use d.Source and d.SHA verbatim (declaredPin hands d.SHA straight to git),
+	// so a value that passes validation with surrounding whitespace would fail
+	// to resolve later.
+	d.Source = strings.TrimSpace(d.Source)
+	d.SHA = strings.TrimSpace(d.SHA)
+	source := d.Source
 	if source == "" {
 		return fmt.Errorf("%s must name a source", DeclarationPath)
 	}
 	// A path source is a working tree, not a revision anyone can fetch: there
 	// is nothing for a pin to name, and writing one anyway is how "unknown"
 	// ends up committed as a sha. Say so instead.
-	if filepath.IsAbs(source) && strings.TrimSpace(d.SHA) != "" {
+	if filepath.IsAbs(source) && d.SHA != "" {
 		return fmt.Errorf("%s pins sha %q against the path source %s; a local checkout has no revision to fetch, so drop the sha and let the working tree decide",
 			DeclarationPath, d.SHA, source)
 	}
