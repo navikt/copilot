@@ -165,7 +165,7 @@ Exposed via `GET /metrics` in Prometheus format.
 | `mcp_tool_calls_total`          | Counter   | `tool`, `status`                | MCP tool invocations                                                                     |
 | `oauth_flows_total`             | Counter   | `stage`, `result`               | OAuth flow outcomes (authorize, callback, token)                                         |
 | `authenticated_users_total`     | Counter   | —                               | Total successful authentications                                                         |
-| `token_store_size`              | Gauge     | `type`                          | Current size of token stores (`active_tokens`, `refresh_tokens`, `client_registrations`) |
+| `token_store_size`              | Gauge     | `type`                          | Current size of token stores (`active_tokens`, `refresh_tokens`) |
 
 A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`](../../dashboards/copilot-ecosystem.json).
 
@@ -258,10 +258,10 @@ Not tested with this server — likely same third-party OAuth issues as JetBrain
 - Uses OAuth 2.1 with PKCE (Proof Key for Code Exchange)
 - Dynamic Client Registration for seamless MCP client onboarding
 - Redirect URIs restricted to `http://127.0.0.1`, `http://localhost`, or `https://`
-- Client registrations rate limited (max 1000) and expire after 30 days
+- Client registrations are not stored: the issued `client_id` is the registration, HMAC-SHA256 signed with a key derived from `GITHUB_CLIENT_SECRET`, so it survives a restart without any registration ever touching disk. Rotating `GITHUB_CLIENT_SECRET` invalidates every outstanding `client_id`; clients get `invalid_client` and re-register. Registrations expire 30 days after issue, enforced when the `client_id` is verified.
 - Validates GitHub organization membership before issuing tokens
 - Tokens expire after 1 hour (refresh tokens: 30 days)
-- All tokens and client registrations stored in memory (lost on restart)
+- Tokens are stored in memory only, and are lost on restart by design (they are live GitHub credentials and must not be persisted)
 
 ## License
 

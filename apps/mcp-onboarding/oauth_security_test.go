@@ -19,6 +19,15 @@ import (
 // token chain through the mux rather than calling handlers directly.
 func newChainTestServer(t *testing.T) (*http.ServeMux, *OAuthServer) {
 	t.Helper()
+	return newChainTestServerWithSecret(t, "test-secret")
+}
+
+// newChainTestServerWithSecret is newChainTestServer with control over the
+// GitHub client secret, which is what the client_id signing key is derived
+// from. Two servers built with the same secret behave like the same app
+// restarted; two built with different secrets like a key rotation.
+func newChainTestServerWithSecret(t *testing.T, githubClientSecret string) (*http.ServeMux, *OAuthServer) {
+	t.Helper()
 
 	github := newGitHubMock(t, map[string]http.HandlerFunc{
 		"POST /login/oauth/access_token": func(w http.ResponseWriter, _ *http.Request) {
@@ -38,7 +47,9 @@ func newChainTestServer(t *testing.T) (*http.ServeMux, *OAuthServer) {
 		},
 	})
 
-	oauth := NewOAuthServer("http://localhost:8080", newTestGitHubClient(github), NewTokenStore(), "navikt")
+	githubClient := newTestGitHubClient(github)
+	githubClient.ClientSecret = githubClientSecret
+	oauth := NewOAuthServer("http://localhost:8080", githubClient, NewTokenStore(), "navikt")
 	mux := http.NewServeMux()
 	oauth.RegisterRoutes(mux)
 	return mux, oauth

@@ -63,5 +63,4 @@ func updateTokenStoreGauges(store *TokenStore) {
 	defer store.mu.RUnlock()
 	tokenStoreSize.WithLabelValues("active_tokens").Set(float64(len(store.tokens)))
 	tokenStoreSize.WithLabelValues("refresh_tokens").Set(float64(len(store.refreshTokens)))
-	tokenStoreSize.WithLabelValues("client_registrations").Set(float64(len(store.clientRegistrations)))
 }
