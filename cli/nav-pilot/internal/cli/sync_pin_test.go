@@ -112,27 +112,6 @@ func TestSyncPinToleratesAnAbbreviatedRecordedSHA(t *testing.T) {
 	}
 }
 
-// The same length mismatch reaches the committed declaration, where it is worse
-// than cosmetic: the abbreviated pin there is one git cannot fetch, so it must
-// be written out in full — but the line reporting it used to claim the same
-// seven characters had changed into themselves.
-func TestSyncApplyDoesNotReportAnAbbreviatedPinAsAChange(t *testing.T) {
-	path := isolatedConfig(t)
-	mustWrite(t, path, "version = 1\n")
-	scope, srcDir := installedRepoScope(t, defaultSourceRepo) // declares sha "old1234"
-	full := "old1234" + strings.Repeat("f", 33)
-
-	syncWithSource(t, srcDir, defaultSourceRepo, full)
-	out := captureStdoutFor(t, func() { _ = cmdSync(scope, "", "", true, false) })
-
-	if strings.Contains(out, "old1234 → old1234") {
-		t.Errorf("sync reported a revision as changed into itself:\n%s", out)
-	}
-	if got := readDeclaration(t, scope).SHA; got != full {
-		t.Errorf("declaration SHA = %q, want the full %q — an abbreviated pin is not fetchable", got, full)
-	}
-}
-
 func TestSameSHA(t *testing.T) {
 	cases := []struct {
 		a, b string

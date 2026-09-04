@@ -203,3 +203,28 @@ func TestWriteDeclarationIsAtomic(t *testing.T) {
 		t.Errorf("rewritten declaration does not load: %v", err)
 	}
 }
+
+// TestDeclarationRefusesAShortPin is #607: the file is documented as
+// hand-editable, and the SHA a developer has to hand is the seven characters
+// `git log --oneline` prints. git cannot fetch that, so the pin failed at the
+// clone with "check that the ref exists and you have network access" — a
+// diagnosis of the wrong problem. The refusal belongs where the file is read.
+func TestDeclarationRefusesAShortPin(t *testing.T) {
+	for _, sha := range []string{"9f1c0a7", "not-hex-not-hex-not-hex-not-hex-not-hexx", strings.Repeat("a", 41)} {
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, ManifestDir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		body := `{"contractVersion":"1","source":"navikt/grillmester","sha":"` + sha + `"}`
+		if err := os.WriteFile(DeclarationFilePath(root), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadDeclaration(root)
+		if err == nil {
+			t.Fatalf("sha %q loaded; a pin git cannot fetch must be refused here", sha)
+		}
+		if !strings.Contains(err.Error(), "40-character") {
+			t.Errorf("sha %q: the refusal does not say what is wrong:\n%v", sha, err)
+		}
+	}
+}

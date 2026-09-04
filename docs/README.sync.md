@@ -47,6 +47,8 @@ The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) uses 
 3. Applies them with `nav-pilot sync --apply` if it finds any
 4. Creates or updates a PR on the `copilot-customization-sync` branch
 
+Step 2 counts the pinned revision in `.nav-pilot/agentpakke.lock.json` as an update in its own right (`pin_bump` in the JSON). An agentpakke can move forward without any installed file changing — a change to a file this repo never installed, a docs change upstream — and the pin would otherwise stay behind for good, because step 3 only runs when step 2 found something. The PR lists it like any other change.
+
 It needs `contents: write` and `pull-requests: write` and nothing else, no tokens and no secrets, because it reads the public source files over `raw.githubusercontent.com`.
 
 ## How detection works

@@ -1057,7 +1057,7 @@ func stubResolveSource(t *testing.T, src *Source) {
 // pakkeSource builds a resolved, manifest-bearing source over a fixture tree.
 func pakkeSource(t *testing.T, repo string) *Source {
 	t.Helper()
-	src := &Source{Dir: pakkeSourceTree(t, tier1ManifestJSON), SHA: "def5678", Version: "dev", Repo: repo}
+	src := &Source{Dir: pakkeSourceTree(t, tier1ManifestJSON), SHA: "def5678" + strings.Repeat("0", 33), Version: "dev", Repo: repo}
 	if err := attachPakke(src); err != nil {
 		t.Fatalf("attachPakke: %v", err)
 	}
@@ -1428,6 +1428,41 @@ func captureStdoutFor(t *testing.T, fn func()) string {
 	fn()
 	w.Close()
 	os.Stdout = orig
+	out := <-done
+	r.Close()
+	return out
+}
+
+// captureStderrFor is captureStdoutFor for the other stream: warnings that must
+// not be silent are written there, so a test that asserts one has to read it.
+func captureStderrFor(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+
+	done := make(chan string, 1)
+	go func() {
+		var sb strings.Builder
+		buf := make([]byte, 4096)
+		for {
+			n, err := r.Read(buf)
+			if n > 0 {
+				sb.Write(buf[:n])
+			}
+			if err != nil {
+				break
+			}
+		}
+		done <- sb.String()
+	}()
+
+	fn()
+	w.Close()
+	os.Stderr = orig
 	out := <-done
 	r.Close()
 	return out

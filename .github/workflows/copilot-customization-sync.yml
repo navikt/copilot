@@ -109,16 +109,31 @@ jobs:
 
             echo "has_updates=true" >> "$GITHUB_OUTPUT"
 
-            # Build PR body from JSON result
+            # Everything the apply step will change, one line each. The pinned
+            # revision is on this list because it is a change in its own right:
+            # the agentpakke can move forward without any installed file
+            # changing, and the lock file is then the only thing in the PR
+            # (#606). Listing only .updates[].path never mentioned it.
+            # sync-pr-body-filter-start
+            CHANGE_FILTER='
+              (.updates // [])[].path,
+              ((.deletions // [])[] | . + " (deleted upstream)"),
+              (if .pin_bump then "\(.pin_bump.path) (pinned revision \(.pin_bump.from[0:7]) → \(.pin_bump.to[0:7]))" else empty end)
+            '
+            # sync-pr-body-filter-end
+
+            CHANGES="$RUNNER_TEMP/sync-changes.txt"
+            jq -r "$CHANGE_FILTER" "$SYNC_RESULT" > "$CHANGES"
+
             {
               echo "body_lines<<BODY_EOF"
-              jq -r '.updates[].path' "$SYNC_RESULT" | while read -r f; do
+              while read -r f; do
                 echo "- \`$f\`"
-              done
+              done < "$CHANGES"
               echo "BODY_EOF"
             } >> "$GITHUB_OUTPUT"
 
-            UPDATE_COUNT=$(jq '.updates | length' "$SYNC_RESULT")
+            UPDATE_COUNT=$(wc -l < "$CHANGES" | tr -d ' ')
             echo "update_count=$UPDATE_COUNT" >> "$GITHUB_OUTPUT"
           else
             echo "::error::nav-pilot sync failed with unexpected exit code $EXIT_CODE"
@@ -151,7 +166,7 @@ jobs:
           body: |
             This PR syncs Copilot customization files from [${{ inputs.source_repo }}](https://github.com/${{ inputs.source_repo }}).
 
-            **Changed files:**
+            **Changed:**
             ${{ steps.check.outputs.body_lines }}
 
             ---
