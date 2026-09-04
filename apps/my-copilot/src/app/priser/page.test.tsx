@@ -11,15 +11,13 @@ describe("kampanjemerket på prissiden", () => {
 
     const badges = screen.getAllByText(/^Kampanjepris t\.o\.m\. /);
     expect(badges.map((b) => b.textContent)).toEqual([
-      "Kampanjepris t.o.m. 3. september 2026",
-      "Kampanjepris t.o.m. 3. september 2026",
       "Kampanjepris t.o.m. 31. desember 2026",
       "Kampanjepris t.o.m. 31. desember 2026",
       "Kampanjepris t.o.m. 31. desember 2026",
     ]);
 
     expect(badges[0].closest("td")).toHaveAccessibleName(
-      "GPT-5.6 Sol (Default, ≤ 272K) Kampanjepris t.o.m. 3. september 2026"
+      "Gemini 3.6 Flash (Default) Kampanjepris t.o.m. 31. desember 2026"
     );
   });
 
@@ -51,8 +49,8 @@ describe("cache write-kolonnen", () => {
 
     // Kolonnen var gated på `provider === "Anthropic"`, så disse tallene falt ut
     // av sida selv om de lå i generert data. Sol-fotnoten oppga dem på hover.
-    expect(within(radFor("GPT-5.6 Sol (Default, ≤ 272K)")).getByText("$2.50")).toBeInTheDocument();
-    expect(within(radFor("GPT-5.6 Sol (Long context, 272K)")).getByText("$5.00")).toBeInTheDocument();
+    expect(within(radFor("GPT-5.6 Sol (Default, ≤ 272K)")).getByText("$5.00")).toBeInTheDocument();
+    expect(within(radFor("GPT-5.6 Sol (Long context, 272K)")).getByText("$10.00")).toBeInTheDocument();
   });
 
   it("gir rader uten cache write en tankestrek, ikke en tom celle", () => {
