@@ -219,12 +219,57 @@
         "url": "https://github.com/microsoft/playwright-mcp",
         "source": "github"
       },
-      "tools": ["browser_navigate", "browser_click", "browser_type", "browser_snapshot", "browser_take_screenshot", "browser_wait"],
+      "tools": [
+        "browser_click",
+        "browser_close",
+        "browser_console_messages",
+        "browser_drag",
+        "browser_drop",
+        "browser_evaluate",
+        "browser_file_upload",
+        "browser_fill_form",
+        "browser_find",
+        "browser_handle_dialog",
+        "browser_hover",
+        "browser_navigate",
+        "browser_navigate_back",
+        "browser_network_request",
+        "browser_network_requests",
+        "browser_press_key",
+        "browser_resize",
+        "browser_run_code_unsafe",
+        "browser_select_option",
+        "browser_snapshot",
+        "browser_take_screenshot",
+        "browser_type",
+        "browser_wait_for",
+        "browser_tabs"
+      ],
       "tags": ["testing", "browser-automation", "frontend"],
       "examples": [
         {
           "scenario": "Test brukerflyt",
           "prompt": "Naviger til søknadssiden og test at skjemavalidering fungerer"
+        }
+      ],
+      "setupInstructions": [
+        {
+          "title": "Installer Chrome for Testing før første bruk",
+          "description": "Kjør kommandoen utenfor cplt. Den kjører den pinnede tredjepartspakken @playwright/mcp@0.0.80 utenfor cplt for å installere den Playwright-administrerte Chromium-nettleseren som oppskriften bruker.",
+          "commands": ["pnpm dlx @playwright/mcp@0.0.80 install-browser chromium"]
+        },
+        {
+          "title": "Tillat nødvendig cache-kjøring i cplt",
+          "description": "allow_cache_exec pnpm/dlx autoriserer kjørbar kode hvor som helst under hele brukerens pnpm/dlx-cachetre, ikke bare denne Playwright-pakken eller dens deklarerte avhengigheter. allow_cache_exec ms-playwright autoriserer kjørbare nettleserartefakter under det valgte cachetreet. Aktiver dem bare når du aksepterer disse grensene for cache-kjøring.",
+          "commands": [
+            "cplt config set sandbox.allow_cache_exec ms-playwright",
+            "cplt config set sandbox.allow_cache_exec pnpm/dlx"
+          ]
+        },
+        {
+          "title": "Oppdater cplt før første browserkjøring",
+          "description": "En oppdatert cplt gir runtime-støtten fra navikt/cplt#263. Under det eksplisitte ms-playwright-unntaket setter cplt PLAYWRIGHT_MCP_SANDBOX=false i tråd med navikt/cplt#268, fordi Chromiums nestede sandkasse ikke kan kjøre inni cplt. Når den nestede sandkassen er slått av, er cplt den håndhevende sandkassegrensen; en kompromittert renderer får derfor Playwright-profilen til cplt i stedet for Chromiums smalere child-profil.",
+          "commands": ["cplt update"]
         }
       ],
       "packages": [
@@ -244,21 +289,15 @@
             },
             {
               "type": "named",
-              "name": "--caps",
-              "value": "core",
-              "description": "Restrict to core capabilities only (no file upload or install)"
-            },
-            {
-              "type": "named",
               "name": "--browser",
               "value": "chromium",
-              "description": "Use Chromium"
+              "description": "Use Playwright-managed Chrome for Testing (--browser chromium)"
             },
             {
               "type": "named",
               "name": "--blocked-origins",
               "value": "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no",
-              "description": "Block access to all Nav NAIS ingress domains"
+              "description": "Defense-in-depth convenience filter for Nav domains, not a security boundary. Redirects are not covered; a security guarantee requires verified external network enforcement."
             },
             {
               "type": "named",
