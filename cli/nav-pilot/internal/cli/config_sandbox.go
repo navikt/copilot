@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -148,4 +149,72 @@ func cmdConfigStrictPreset() error {
 	}
 	fmt.Printf("%s cplt sandbox.preset = %s\n", domain.Green("✓"), cpltRecommendedPreset)
 	return nil
+}
+
+// Sandbox enforcement, verified rather than inferred from configuration.
+//
+// doctor used to check cplt's *setup* only: a version, a preset, and a grep of
+// `cplt config show`. That answers "is it configured", never "is it enforcing",
+// and the failure mode is on record — an earlier grep here tested a config key
+// cplt has never had, so the check reported a problem that could not exist and
+// pointed users at a `cplt config set` cplt rejects (#406).
+//
+// `cplt check` (navikt/cplt#145) runs probes inside the real resolved sandbox —
+// the same policy an agent would get — and reports, per probe, whether cplt
+// allows or blocks it, why, and the exact fix. `--json` makes it machine-
+// readable and the battery exits non-zero when it cannot confirm enforcement.
+
+// cpltCheckReport is the part of a `cplt check --json` battery report doctor
+// reads. cplt's Report carries per-probe items with reasons and fixes too;
+// doctor prints the verdict and leaves the detail to `cplt check` itself.
+type cpltCheckReport struct {
+	// Enforcing is true only when every graded expectation held AND at least
+	// one protection was actually verified — cplt's own definition.
+	Enforcing bool `json:"enforcing"`
+	// Verified counts the expected-blocked probes that really were blocked.
+	Verified int `json:"verified"`
+	// Battery marks the full enforcement battery. A targeted query
+	// (`cplt check path …`) is not graded and must never be read as a verdict.
+	Battery bool `json:"battery"`
+}
+
+// parseCpltCheckReport decodes a battery report, or returns nil for "unknown".
+//
+// Unknown covers every way this can fail to be an answer: a cplt old enough to
+// have no `check` subcommand (clap writes a usage error to stderr and leaves
+// stdout empty), no cplt at all, a killed process, or a report that is not the
+// graded battery. Unknown is never rendered as enforcing and never as failing —
+// a security check that goes green, or red, on missing data is the same bug in
+// two directions.
+func parseCpltCheckReport(out []byte) *cpltCheckReport {
+	var r cpltCheckReport
+	if err := json.Unmarshal(out, &r); err != nil || !r.Battery {
+		return nil
+	}
+	return &r
+}
+
+// cpltCheckTimeout bounds the enforcement battery. It is longer than
+// cpltCommandTimeout because `cplt check` builds the resolved sandbox and spawns
+// probes inside it rather than reading a config file — measured at well under a
+// second warm, but a cold run after a cplt upgrade does more work.
+const cpltCheckTimeout = 15 * time.Second
+
+// cpltEnforcement runs `cplt check --json` in the current directory and returns
+// the battery verdict, or nil when it could not be established.
+//
+// The non-zero exit cplt uses for "not enforcing" is the answer, not a failure:
+// the report is on stdout either way, so the error is deliberately ignored and
+// the decision left to the decode.
+//
+// A var so tests can exercise doctor without spawning a sandbox.
+var cpltEnforcement = func() *cpltCheckReport {
+	cliPath, err := findCplt()
+	if err != nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCheckTimeout)
+	defer cancel()
+	out, _ := exec.CommandContext(ctx, cliPath, "check", "--json").Output()
+	return parseCpltCheckReport(out)
 }

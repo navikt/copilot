@@ -368,9 +368,9 @@
       "type": "instruction",
       "name": "norwegian-text",
       "displayName": "Norsk tekstkvalitet",
-      "description": "Klarspråk, AI-markører, anglismer, fagtermer og sammensatte ord i norsk markdown.",
+      "description": "Minimumsregler for norsk markdown: Nav, bindestrek i sammensatte ord, engelsk fagspråk, konsekvent bokmål og overskrifter. Full språkvask ligger i klarsprak-skillen.",
       "filePath": "instructions/norwegian-text.instructions.md",
-      "contentHash": "b392ea7a4a952a5d54cc841922ee2a200931c00eb2e37a54e5a5eeb0a1d12892",
+      "contentHash": "8dc36629d466e9b9157ca5ecb869fcc93608add7f05f59d207b3cdba9b0a530b",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md"
     },
@@ -380,7 +380,7 @@
       "displayName": "Output Style",
       "description": "Felles skriveregler for output: lengde, tetthet, AI-markører og presedens over bevisst AI-bruk.",
       "filePath": "instructions/output-style.instructions.md",
-      "contentHash": "6c2e1b5043096474e99cb311e865744ec9c0d9383c08a0a4c3221ddc10ef0649",
+      "contentHash": "6e5f644425c345a3a195da43e0fd2cb9aaa1ad214665017eb3ac032012d4f3fc",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md"
     },
@@ -713,6 +713,16 @@
     },
     {
       "type": "skill",
+      "name": "klarsprak",
+      "displayName": "klarsprak",
+      "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, AI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
+      "filePath": "skills/klarsprak/SKILL.md",
+      "contentHash": "b6994c2929c80949fb4fa4f4006ce912fdf86ace05849b59faacdb2bf0f855c1",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md"
+    },
+    {
+      "type": "skill",
       "name": "kotlin-app-config",
       "displayName": "kotlin-app-config",
       "description": "Sealed class-konfigurasjon for Kotlin-applikasjoner med miljøspesifikke innstillinger",
@@ -949,7 +959,7 @@
       "displayName": "readme-review",
       "description": "Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob",
       "filePath": "skills/readme-review/SKILL.md",
-      "contentHash": "36fe844fd272d4035d7629b95a267ae8e8a24d4bb49f88c557d4cc45e2512167",
+      "contentHash": "6c4314c7b44a6a0e660a97c2ea53eed790726dcbd01b1d671e98605d136854dd",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/readme-review/SKILL.md",
       "references": [

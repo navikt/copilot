@@ -93,6 +93,19 @@ func cmdDoctor() error {
 	}
 	fmt.Println()
 
+	// 2b. Hooks
+	//
+	// nav-pilot reports GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS rather than
+	// setting it. Setting it would mean writing an undocumented, changelog-only
+	// variable into the user's shell to loosen a posture the CLI made
+	// secure-by-default on purpose — and an interactive user in a trusted
+	// checkout does not need it at all. Prompt mode (-p) in an untrusted folder
+	// does, and that is the one case worth naming out loud, because there the
+	// gate silently does not load and everything else looks fine.
+	fmt.Printf("[i] Hooks\n")
+	reportHooks(repoDir, userScope)
+	fmt.Println()
+
 	// 3. Client Agents
 	fmt.Printf("[i] Client Agents\n")
 
@@ -214,6 +227,22 @@ func cmdDoctor() error {
 			} else {
 				fmt.Printf("    • No .cplt.toml found in current directory\n")
 			}
+		}
+
+		// Enforcement, probed rather than inferred. Everything above this line
+		// reads configuration; `cplt check` runs the probes inside the sandbox
+		// the agent would actually get. A repo can be perfectly configured and
+		// still not be enforcing.
+		switch report := cpltEnforcement(); {
+		case report == nil:
+			fmt.Printf("    %s Could not verify sandbox enforcement\n", dim("-"))
+			fmt.Printf("        %s Run %s by hand — this run could not read a verdict, which an older cplt (no such subcommand), a timeout or an interrupted probe all produce.\n", dim("Solution:"), bold("cplt check"))
+		case report.Enforcing:
+			fmt.Printf("    %s Sandbox is enforcing (%d protections verified)\n", green("✓"), report.Verified)
+		default:
+			hasErrors = true
+			fmt.Printf("    %s Sandbox is NOT enforcing\n", red("[✗]"))
+			fmt.Printf("        %s Run %s — it names each failing probe and its fix.\n", red("Solution:"), bold("cplt check"))
 		}
 	} else {
 		fmt.Printf("    • Skipped (cplt not installed)\n")

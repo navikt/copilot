@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
@@ -71,6 +73,13 @@ func WriteStateAt(path, boundary string, state *domain.StateFile) error {
 	if err := source.CheckSymlink(path, boundary); err != nil {
 		return err
 	}
+	// A repo-scope state file is committed, so its order must come from the
+	// content and not from the order the installs happened to run in. Sorting
+	// on every write is what makes two machines that installed the same thing
+	// produce the same file.
+	slices.SortStableFunc(state.Files, func(a, b domain.InstalledFile) int {
+		return strings.Compare(a.Path, b.Path)
+	})
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

@@ -39,6 +39,7 @@
     "nav-deep-interview",
     "nav-architecture-review",
     "nav-troubleshoot",
+    "klarsprak",
     "terse-mode"
   ],
   "instructions": [
@@ -68,5 +69,9 @@
     "aksel-component",
     "nextjs-api-route",
     "golang-service"
+  ],
+  "hooks": [
+    "ask-first-aria",
+    "klarsprak-gate"
   ]
 }

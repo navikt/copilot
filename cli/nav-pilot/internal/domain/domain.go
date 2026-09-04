@@ -240,7 +240,7 @@ func ScopeRepo(targetDir string) *InstallScope {
 		RootDir:        targetDir,
 		StateFile:      ".github/.nav-pilot-state.json",
 		PathPrefix:     ".github/",
-		SupportedTypes: []string{"agent", "skill", "instruction", "prompt"},
+		SupportedTypes: []string{"agent", "skill", "instruction", "prompt", "hook"},
 	}
 }
 
@@ -256,7 +256,7 @@ func ScopeUser() (*InstallScope, error) {
 		RootDir:        rootDir,
 		StateFile:      ".nav-pilot-state.json",
 		PathPrefix:     "",
-		SupportedTypes: []string{"agent", "skill", "instruction"},
+		SupportedTypes: []string{"agent", "skill", "instruction", "hook"},
 	}, nil
 }
 
@@ -331,11 +331,15 @@ func (s *InstallScope) ValidateStatePath(p string) error {
 		return nil
 	}
 
-	// User scope: agents/, skills/, and .github/instructions/ allowed
-	if !strings.HasPrefix(p, "agents/") && !strings.HasPrefix(p, "skills/") && !strings.HasPrefix(p, ".github/instructions/") {
-		return fmt.Errorf("path outside agents/, skills/, or .github/instructions/ not allowed in user scope: %s", p)
+	// User scope: agents/, skills/, hooks/, and .github/instructions/ allowed.
+	// hooks/ is ~/.copilot/hooks/, a directory of one config file per hook —
+	// not .github/hooks/, which is the repo-scope shape.
+	for _, prefix := range []string{"agents/", "skills/", "hooks/", ".github/instructions/"} {
+		if strings.HasPrefix(p, prefix) {
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("path outside agents/, skills/, hooks/, or .github/instructions/ not allowed in user scope: %s", p)
 }
 
 // PathWithinRoot reports whether abs is still inside root once every symlink on
@@ -377,7 +381,7 @@ func resolveSymlinks(p string) string {
 // CleanupDirs removes empty artifact directories after uninstall.
 func (s *InstallScope) CleanupDirs() {
 	if s.Name == "repo" {
-		for _, sub := range []string{"agents", "skills", "instructions", "prompts"} {
+		for _, sub := range []string{"agents", "skills", "instructions", "prompts", "hooks"} {
 			dir := filepath.Join(s.RootDir, ".github", sub)
 			entries, err := os.ReadDir(dir)
 			if err == nil && len(entries) == 0 {
@@ -387,7 +391,7 @@ func (s *InstallScope) CleanupDirs() {
 		return
 	}
 	// User scope
-	for _, sub := range []string{"agents", "skills"} {
+	for _, sub := range []string{"agents", "skills", "hooks"} {
 		dir := filepath.Join(s.RootDir, sub)
 		entries, err := os.ReadDir(dir)
 		if err == nil && len(entries) == 0 {

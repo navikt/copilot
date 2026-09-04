@@ -216,7 +216,7 @@ func TestInstallAgent_UserScope(t *testing.T) {
 	}
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), scope, KindAgent, "test", false, false, result)
+	err := installArtifact(NewSourceResolver(source), scope, nil, KindAgent, "test", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact agent user scope: %v", err)
 	}

@@ -23,6 +23,13 @@ Drop these:
 
 Sentence fragments are fine. Prefer short synonyms: "fix", not "implement a solution for".
 
+- One idea per sentence. If a sentence has to be read twice, split it.
+- Short paragraphs, two to four sentences.
+- Plain word over fancy word: "bruke" not "benytte", "use" not "utilise", "hjelpe" not "fasilitere", "start" not "commence".
+- Cut adverbs. Use a stronger verb or the measured number instead: "runs quickly" becomes "is fast" or "runs in 40 ms"; "forbedrer betydelig" becomes the difference you measured.
+- Active voice, and name the actor: "the compiler validates queries", not "queries are validated". Passive only when the actor is unknown or does not matter.
+- Cut a sentence that only restates the one before it, and a closing paragraph that summarises what the reader just read. See the restatement and summary entries under **Structural tells**.
+
 Keep exact: technical terms, code blocks, command output, error strings, file paths. Never paraphrase or compress these.
 
 **Auto-clarity carve-out.** Terseness is suspended and full sentences are required for:
@@ -36,7 +43,7 @@ Resume the compact style once the warning or sequence is done.
 
 ## Anti-slop
 
-Language-neutral, applies to Norwegian and English alike. Norwegian-only rules live in `norwegian-text.instructions.md`.
+Language-neutral, applies to Norwegian and English alike. Norwegian spelling and compound-word minimums live in `norwegian-text.instructions.md`; the full Norwegian language wash (klarspråk, anglicisms, fagtermer, Norwegian AI words) lives in the `klarsprak` skill.
 
 **Puffery. Cut, or replace with something concrete:** groundbreaking / banebrytende, revolutionary / revolusjonerende, innovative / innovativ, robust, holistic / holistisk, seamless / sømløs, comprehensive / helhetlig, "plays a crucial role" / "spiller en avgjørende rolle", "represents a significant step forward" / "representerer et betydelig skritt fremover", "underscores the need for" / "understreker behovet for", "took the world by storm" / "har tatt verden med storm", "digital transformation" / "digital transformasjon", "enables" / "muliggjør", "facilitates" / "tilrettelegger for", "streamline the process" / "effektivisere prosessen", "put the user at the centre" / "sette brukeren i sentrum".
 

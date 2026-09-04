@@ -101,7 +101,8 @@
         "agents": { "$ref": "#/$defs/relativePath" },
         "skills": { "$ref": "#/$defs/relativePath" },
         "instructions": { "$ref": "#/$defs/relativePath" },
-        "prompts": { "$ref": "#/$defs/relativePath" }
+        "prompts": { "$ref": "#/$defs/relativePath" },
+        "hooks": { "$ref": "#/$defs/relativePath" }
       }
     },
     "provenance": {

@@ -52,15 +52,18 @@ agents = sorted(m.get('agents', []))
 skills = sorted(m.get('skills', []))
 instructions = sorted(m.get('instructions', []))
 prompts = sorted(m.get('prompts', []))
+hooks = sorted(m.get('hooks', []))
 
 print(f'AGENTS_COUNT={len(agents)}')
 print(f'SKILLS_COUNT={len(skills)}')
 print(f'INSTRUCTIONS_COUNT={len(instructions)}')
 print(f'PROMPTS_COUNT={len(prompts)}')
+print(f'HOOKS_COUNT={len(hooks)}')
 print(f'AGENTS_LIST={chr(44).join(agents)}')
 print(f'SKILLS_LIST={chr(44).join(skills)}')
 print(f'INSTRUCTIONS_LIST={chr(44).join(instructions)}')
 print(f'PROMPTS_LIST={chr(44).join(prompts)}')
+print(f'HOOKS_LIST={chr(44).join(hooks)}')
 ")
 
   eval "$manifest_data"
@@ -118,6 +121,7 @@ agents_detail = extract_detail('agents')
 skills_detail = extract_detail('skills')
 instructions_detail = extract_detail('instructions')
 prompts_detail = extract_detail('prompts')
+hooks_detail = extract_detail('hooks')
 
 print(f'DOCS_AGENTS_COUNT={agents_match.group(1) if agents_match else -1}')
 print(f'DOCS_SKILLS_COUNT={skills_match.group(1) if skills_match else -1}')
@@ -125,6 +129,7 @@ print(f'DOCS_AGENTS_LIST={chr(44).join(agents_detail)}')
 print(f'DOCS_SKILLS_LIST={chr(44).join(skills_detail)}')
 print(f'DOCS_INSTRUCTIONS_LIST={chr(44).join(instructions_detail)}')
 print(f'DOCS_PROMPTS_LIST={chr(44).join(prompts_detail)}')
+print(f'DOCS_HOOKS_LIST={chr(44).join(hooks_detail)}')
 ")
 
   eval "$docs_data"
@@ -157,6 +162,13 @@ print(f'DOCS_PROMPTS_LIST={chr(44).join(prompts_detail)}')
     fail "$collection: prompts list mismatch"
     [[ "$QUIET" == false ]] && dim "    manifest: $PROMPTS_LIST"
     [[ "$QUIET" == false ]] && dim "    docs:     $DOCS_PROMPTS_LIST"
+  fi
+  # Hooks are executable code, so a docs page that has drifted from the manifest
+  # is not a cosmetic error here: it misstates what installing the collection runs.
+  if [[ "$DOCS_HOOKS_LIST" != "$HOOKS_LIST" ]]; then
+    fail "$collection: hooks list mismatch"
+    [[ "$QUIET" == false ]] && dim "    manifest: $HOOKS_LIST"
+    [[ "$QUIET" == false ]] && dim "    docs:     $DOCS_HOOKS_LIST"
   fi
 
   [[ "$QUIET" == false ]] && [[ "$errors" -eq 0 ]] && green "  ✓ $collection ok"

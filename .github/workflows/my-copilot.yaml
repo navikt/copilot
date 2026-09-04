@@ -41,6 +41,7 @@ jobs:
       docker-context: '../..'
       mise-setup-tasks: '["install"]'
       mise-tasks: '["lint", "check"]'
+      mise-task-build: 'smoke'
       deploys-to-nais: true
       deploy-pr-to-dev: true
       nais-team: copilot

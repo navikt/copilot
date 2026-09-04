@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -16,11 +17,6 @@ func TestUpdateTokenStoreGauges(t *testing.T) {
 		refreshTokens: map[string]*RefreshTokenData{
 			"ref1": {UserLogin: "user1"},
 		},
-		clientRegistrations: map[string]*ClientRegistration{
-			"client1": {ClientID: "client1"},
-			"client2": {ClientID: "client2"},
-			"client3": {ClientID: "client3"},
-		},
 	}
 
 	tokenStoreSize.Reset()
@@ -34,11 +30,6 @@ func TestUpdateTokenStoreGauges(t *testing.T) {
 	refreshTokens := testutil.ToFloat64(tokenStoreSize.WithLabelValues("refresh_tokens"))
 	if refreshTokens != 1 {
 		t.Errorf("expected refresh_tokens=1, got %v", refreshTokens)
-	}
-
-	clientRegs := testutil.ToFloat64(tokenStoreSize.WithLabelValues("client_registrations"))
-	if clientRegs != 3 {
-		t.Errorf("expected client_registrations=3, got %v", clientRegs)
 	}
 }
 
@@ -80,5 +71,42 @@ func TestRecordOAuthFlow(t *testing.T) {
 	callbackDenied := testutil.ToFloat64(oauthFlowsTotal.WithLabelValues("callback", "org_denied"))
 	if callbackDenied != 1 {
 		t.Errorf("expected 1 callback/org_denied, got %v", callbackDenied)
+	}
+}
+
+// TestRecordHTTPMetrics_PathLabelIsBounded covers the unbounded label: the
+// request path went straight into http_requests_total{path=...}, so anyone
+// hitting the catch-all "/" route with made-up paths could grow the series
+// count without limit. Known routes must survive (the shared dashboard groups
+// by path); everything else collapses to one bucket.
+func TestRecordHTTPMetrics_PathLabelIsBounded(t *testing.T) {
+	httpRequestsTotal.Reset()
+
+	known := []string{
+		"/",
+		"/mcp",
+		"/register",
+		"/oauth/authorize",
+		"/oauth/callback",
+		"/oauth/token",
+		"/.well-known/oauth-authorization-server",
+		"/.well-known/oauth-protected-resource",
+		"/.well-known/oauth-protected-resource/mcp",
+	}
+	for _, p := range known {
+		recordHTTPMetrics("GET", p, 200, time.Millisecond)
+		if got := testutil.ToFloat64(httpRequestsTotal.WithLabelValues("GET", p, "200")); got != 1 {
+			t.Errorf("known route %q: expected it to keep its own label, got %v", p, got)
+		}
+	}
+
+	for _, p := range []string{"/wp-admin", "/../etc/passwd", "/random/" + strings.Repeat("x", 64), "/MCP"} {
+		recordHTTPMetrics("GET", p, 404, time.Millisecond)
+		if got := testutil.ToFloat64(httpRequestsTotal.WithLabelValues("GET", p, "404")); got != 0 {
+			t.Errorf("unknown path %q: expected no series of its own, got %v", p, got)
+		}
+	}
+	if got := testutil.ToFloat64(httpRequestsTotal.WithLabelValues("GET", "other", "404")); got != 4 {
+		t.Errorf("expected 4 unknown paths bucketed as \"other\", got %v", got)
 	}
 }

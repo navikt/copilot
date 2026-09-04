@@ -21,6 +21,7 @@
     "nav-architecture-review",
     "nav-troubleshoot",
     "security-owasp",
+    "klarsprak",
     "terse-mode"
   ],
   "instructions": [
@@ -38,5 +39,9 @@
   "prompts": [
     "aksel-component",
     "nais-manifest"
+  ],
+  "hooks": [
+    "ask-first-aria",
+    "klarsprak-gate"
   ]
 }

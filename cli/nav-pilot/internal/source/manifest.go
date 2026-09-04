@@ -18,6 +18,7 @@ type Manifest struct {
 	Skills       []string `json:"skills"`
 	Instructions []string `json:"instructions"`
 	Prompts      []string `json:"prompts"`
+	Hooks        []string `json:"hooks,omitempty"`
 }
 
 // CollectionAll is the collection name used in state files for "install everything".
@@ -37,6 +38,7 @@ func ValidateManifest(m *Manifest) error {
 		{"skill", m.Skills},
 		{"instruction", m.Instructions},
 		{"prompt", m.Prompts},
+		{"hook", m.Hooks},
 	} {
 		for _, name := range list.names {
 			if err := ValidateName(name); err != nil {
@@ -111,6 +113,12 @@ func CollectAllItemsWith(resolver *SourceResolver) (*Manifest, error) {
 	}
 	for _, i := range resolver.List(KindInstruction) {
 		m.Instructions = append(m.Instructions, i.Name)
+	}
+	// Hooks come along with "install everything" for the same reason the other
+	// kinds do: an enforcement gate that only ships to people who name it
+	// explicitly is the gap #569 was filed for.
+	for _, h := range resolver.List(KindHook) {
+		m.Hooks = append(m.Hooks, h.Name)
 	}
 	return m, nil
 }

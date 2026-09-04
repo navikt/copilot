@@ -9,7 +9,8 @@ import (
 var ErrNotFound = errors.New("not found")
 
 // TODO: If we need to scale beyond a single replica, replace in-memory maps with Redis
-// to share sessions, tokens, and client registrations across pods.
+// to share sessions and tokens across pods. Client registrations are not here:
+// the client_id carries its own signed registration (see clientid.go).
 
 type AuthSession struct {
 	ClientID            string
@@ -42,38 +43,30 @@ type TokenData struct {
 }
 
 type RefreshTokenData struct {
+	// ClientID is the client the token was issued to. The refresh grant
+	// requires the caller to present it, so a stolen refresh token is not
+	// usable on its own (GHSA-7hwf-488h-59x8).
+	ClientID           string
 	GitHubRefreshToken string
 	UserLogin          string
 	UserID             int64
 	CreatedAt          time.Time
 }
 
-type ClientRegistration struct {
-	ClientID                string    `json:"client_id"`
-	ClientName              string    `json:"client_name,omitempty"`
-	RedirectURIs            []string  `json:"redirect_uris"`
-	GrantTypes              []string  `json:"grant_types,omitempty"`
-	ResponseTypes           []string  `json:"response_types,omitempty"`
-	TokenEndpointAuthMethod string    `json:"token_endpoint_auth_method,omitempty"`
-	CreatedAt               time.Time `json:"-"`
-}
-
 type TokenStore struct {
-	authSessions        map[string]*AuthSession
-	authCodes           map[string]*AuthCode
-	tokens              map[string]*TokenData
-	refreshTokens       map[string]*RefreshTokenData
-	clientRegistrations map[string]*ClientRegistration
-	mu                  sync.RWMutex
+	authSessions  map[string]*AuthSession
+	authCodes     map[string]*AuthCode
+	tokens        map[string]*TokenData
+	refreshTokens map[string]*RefreshTokenData
+	mu            sync.RWMutex
 }
 
 func NewTokenStore() *TokenStore {
 	store := &TokenStore{
-		authSessions:        make(map[string]*AuthSession),
-		authCodes:           make(map[string]*AuthCode),
-		tokens:              make(map[string]*TokenData),
-		refreshTokens:       make(map[string]*RefreshTokenData),
-		clientRegistrations: make(map[string]*ClientRegistration),
+		authSessions:  make(map[string]*AuthSession),
+		authCodes:     make(map[string]*AuthCode),
+		tokens:        make(map[string]*TokenData),
+		refreshTokens: make(map[string]*RefreshTokenData),
 	}
 
 	go store.cleanupExpired()
@@ -172,28 +165,6 @@ func (s *TokenStore) DeleteRefreshToken(token string) {
 	delete(s.refreshTokens, token)
 }
 
-func (s *TokenStore) SaveClientRegistration(reg *ClientRegistration) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.clientRegistrations[reg.ClientID] = reg
-}
-
-func (s *TokenStore) GetClientRegistration(clientID string) (*ClientRegistration, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	reg, ok := s.clientRegistrations[clientID]
-	if !ok {
-		return nil, ErrNotFound
-	}
-	return reg, nil
-}
-
-func (s *TokenStore) CountClientRegistrations() int {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return len(s.clientRegistrations)
-}
-
 func (s *TokenStore) cleanupExpired() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
@@ -224,12 +195,6 @@ func (s *TokenStore) cleanupExpired() {
 		for token, data := range s.refreshTokens {
 			if now.Sub(data.CreatedAt) > 30*24*time.Hour {
 				delete(s.refreshTokens, token)
-			}
-		}
-
-		for id, reg := range s.clientRegistrations {
-			if now.Sub(reg.CreatedAt) > 30*24*time.Hour {
-				delete(s.clientRegistrations, id)
 			}
 		}
 

@@ -185,7 +185,7 @@ export default function ToolsAndModes() {
             <BodyShort className="text-gray-500 text-xs">
               Installer: <code className="bg-gray-100 px-1 rounded">brew install copilot-cli</code>{" "}
               <code className="bg-gray-100 px-1 rounded">winget install GitHub.Copilot</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">npm install -g @github/copilot</code>
+              <code className="bg-gray-100 px-1 rounded">curl -fsSL https://gh.io/copilot-install | bash</code>
             </BodyShort>
           </div>
         </Box>

@@ -342,12 +342,12 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	}
 
 	if len(conflictPaths) > 0 && !apply {
-		fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
+		fmt.Printf("%s %d file(s) hold your own edits and are left alone by a plain sync (source: %s)\n\n",
 			yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
 		for _, p := range conflictPaths {
 			fmt.Printf("  %s %s\n", dim("⊘"), p)
 		}
-		fmt.Println()
+		fmt.Printf("%s to take the upstream version of these too.\n\n", bold("nav-pilot sync --apply"))
 	}
 
 	if !apply {
@@ -765,7 +765,10 @@ func detectNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) 
 	}
 
 	var newItems []string
-	for _, kind := range []*ArtifactKind{KindAgent, KindSkill, KindInstruction} {
+	// KindHook is in this list and KindPrompt is not: a hook that shipped after
+	// the last install is enforcement the user has not got yet, which is the
+	// thing #569 exists to surface.
+	for _, kind := range []*ArtifactKind{KindAgent, KindSkill, KindInstruction, KindHook} {
 		for _, art := range resolver.List(kind) {
 			relPath := kind.RelPathForName(scope, art.Name)
 			if !installed[relPath] {

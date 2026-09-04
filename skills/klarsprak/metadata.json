@@ -1,0 +1,23 @@
+{
+  "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, AI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
+  "domain": "general",
+  "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "text-quality", "spraakvask"],
+  "examples": [
+    {
+      "scenario": "Språkvask av en README",
+      "prompt": "Språkvask denne README-en etter klarspråk"
+    },
+    {
+      "scenario": "Fjerne AI-markører",
+      "prompt": "Fjern AI-markørene fra denne teksten"
+    },
+    {
+      "scenario": "Kvalitetssikre en ADR",
+      "prompt": "Sjekk språket i denne ADR-en"
+    },
+    {
+      "scenario": "Commit-melding på norsk",
+      "prompt": "Skriv om denne commit-meldingen til klarspråk"
+    }
+  ]
+}

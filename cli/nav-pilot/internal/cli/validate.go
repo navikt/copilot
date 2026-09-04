@@ -147,6 +147,7 @@ func validateLegacySource(src *Source) []error {
 			{KindSkill, m.Skills},
 			{KindInstruction, m.Instructions},
 			{KindPrompt, m.Prompts},
+			{KindHook, m.Hooks},
 		} {
 			for _, item := range entry.names {
 				if _, ok := resolver.Get(entry.kind, item); !ok {

@@ -89,6 +89,7 @@ func SynthesizeLegacy(collection string) *Manifest {
 			Skills:       "skills",
 			Instructions: "instructions",
 			Prompts:      "prompts",
+			Hooks:        "hooks",
 		},
 	}
 }

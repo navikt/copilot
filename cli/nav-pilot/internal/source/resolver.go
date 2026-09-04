@@ -14,8 +14,8 @@ import (
 
 // ArtifactKind describes the filesystem shape of one artifact type.
 type ArtifactKind struct {
-	Name     string // singular: "agent", "skill", "instruction", "prompt"
-	Dir      string // plural directory: "agents", "skills", "instructions", "prompts"
+	Name     string // singular: "agent", "skill", "instruction", "prompt", "hook"
+	Dir      string // plural directory: "agents", "skills", "instructions", "prompts", "hooks"
 	Suffix   string // file extension: ".agent.md", ".instructions.md", ".prompt.md"
 	IsDir    bool   // always a directory (skills)
 	CanBeDir bool   // may be file or directory (prompts)
@@ -28,8 +28,16 @@ var (
 	KindInstruction = &ArtifactKind{Name: "instruction", Dir: "instructions", Suffix: ".instructions.md"}
 	KindPrompt      = &ArtifactKind{Name: "prompt", Dir: "prompts", Suffix: ".prompt.md", CanBeDir: true}
 
+	// KindHook is the one artifact kind that is executable code rather than
+	// text the model reads: a preToolUse script the CLI runs on every matching
+	// tool call. Installing a package therefore installs code that runs, which
+	// is a different trust decision from the other four (#569). The script is
+	// the artifact; the entry that activates it is written by internal/source's
+	// hook merge, and hooks/<name>.hook.json carries its matcher.
+	KindHook = &ArtifactKind{Name: "hook", Dir: "hooks", Suffix: ".py"}
+
 	// AllKinds lists all artifact kinds for iteration.
-	AllKinds = []*ArtifactKind{KindAgent, KindSkill, KindInstruction, KindPrompt}
+	AllKinds = []*ArtifactKind{KindAgent, KindSkill, KindInstruction, KindPrompt, KindHook}
 
 	// KindByName maps singular names to their ArtifactKind.
 	KindByName = map[string]*ArtifactKind{
@@ -37,6 +45,7 @@ var (
 		"skill":       KindSkill,
 		"instruction": KindInstruction,
 		"prompt":      KindPrompt,
+		"hook":        KindHook,
 	}
 )
 
@@ -103,6 +112,7 @@ func NewSourceResolverForLayout(sourceDir string, layout *agentpakke.Layout) *So
 		KindSkill.Dir:       layout.Skills,
 		KindInstruction.Dir: layout.Instructions,
 		KindPrompt.Dir:      layout.Prompts,
+		KindHook.Dir:        layout.Hooks,
 	}
 	for canonical, dir := range declared {
 		dir = strings.TrimSpace(dir)

@@ -309,13 +309,28 @@ Av som standard, med vilje: å starte en 21 GB prosess uten å bli bedt om det e
 Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
 uendret.
 
+### Utsending til en lokal underagent krever opencode
+
 **Under opencode** blir modellen en underagent (`local-worker`) som hovedagenten i skyen
 kan sende avgrensede oppgaver til. Hovedagenten bestemmer fortsatt alt. Den sender videre
 det som er mekanisk og spesifisert, og gjør resten selv.
 
-**Under Copilot CLI** kjører hele økten lokalt, fordi klienten bare håndterer én
-modelleverandør om gangen. Det passer til arbeid som allerede er spesifisert, ikke til
-oppgaver der modellen må finne ut hva som skal gjøres.
+**Under Copilot CLI finnes ingen slik underagent, og kan ikke finnes i dag.** Copilot CLI
+er standardklienten i nav-pilot, så dette gjelder deg med mindre du har byttet. Der er
+valget hele økten på den lokale modellen eller ingenting lokalt. Grunnen er at klienten
+setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener
+hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Hele økten lokalt passer til
+arbeid som allerede er spesifisert, ikke til oppgaver der modellen må finne ut hva som skal
+gjøres.
+
+Vil du ha utsending, bytt klient:
+
+```bash
+nav-pilot config set client opencode
+```
+
+Vi har bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI. Det ligger som
+en feature request hos dem.
 
 ### Hva den er god og dårlig til
 

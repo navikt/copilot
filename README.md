@@ -12,7 +12,7 @@ En samling Copilot-tilpasninger for Nav-økosystemet:
 - **🤖 [10 Agenter](docs/README.agents.md)** — Spesialiserte AI-assistenter for Nav-domener
 - **📋 [17 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
 - **⚡ [7 Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
-- **🎯 [31 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
+- **🎯 [32 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
 - **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret
 <!-- END GENERATED COUNTS -->
 
@@ -84,6 +84,17 @@ Kernel-level sandbox for AI-agenter. Sandboxer AI-kodingsagenter med OS-primitiv
 brew install navikt/tap/cplt
 ```
 
+**Windows (WSL2):** kjør alt inne i Ubuntu, ikke i PowerShell, og bruk installasjonsskriptene i stedet for brew:
+
+```bash
+curl -fsSL https://gh.io/copilot-install | bash                                   # Copilot CLI
+curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash   # cplt
+export PATH="$HOME/.local/bin:$PATH"   # skriptene installerer hit
+which -a copilot cplt   # ingen treff skal starte med /mnt/c
+```
+
+WSL2 arver Windows-PATH. Mangler et verktøy i Ubuntu, plukker terminalen Windows-varianten i stedet, og den kjører via interop som en Windows-prosess — den installerer til Windows-siden og ser ikke Linux-filsystemet slik du forventer. Vanligste fella: `apt install nodejs` gir `node` i Ubuntu, men ikke `npm`, så `npm install -g` havner i Windows-prefixet og henter win32-pakken. Symptomet er `no platform package found` fra `copilot --version`. Jobb også fra Linux-filsystemet (`~/git/...`), ikke `/mnt/c/...` — 9p-I/O er tregt.
+
 ### My Copilot
 
 Selvbetjeningsportalen. Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen. Har også offentlige sider for [cplt](https://min-copilot.ansatt.nav.no/cplt), [nav-pilot](https://min-copilot.ansatt.nav.no/nav-pilot) og [kom i gang](https://min-copilot.ansatt.nav.no/kom-i-gang).
@@ -132,14 +143,14 @@ Registry-servere dukker automatisk opp i MCP-panelet i VS Code og JetBrains, ute
 curl -s https://mcp-registry.nav.no/v0.1/servers | jq
 
 # Legg til en server
-gh copilot mcp add --url https://mcp-onboarding.nav.no/mcp
+gh copilot mcp add --url https://mcp-onboarding.intern.nav.no/mcp
 ```
 
 ### MCP Onboarding
 
 MCP-server for å utforske Nav Copilot-tilpasninger, vurdere agent-readiness og generere AGENTS.md rett fra Copilot Chat.
 
-**URL:** [mcp-onboarding.nav.no](https://mcp-onboarding.nav.no)
+**URL:** [mcp-onboarding.intern.nav.no](https://mcp-onboarding.intern.nav.no)
 
 #### Installer
 

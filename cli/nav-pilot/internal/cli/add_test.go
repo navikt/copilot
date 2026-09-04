@@ -65,7 +65,7 @@ func TestCmdAdd_Agent(t *testing.T) {
 	os.MkdirAll(filepath.Join(source, "collections"), 0o755)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindAgent, "test-agent", false, false, result)
+	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindAgent, "test-agent", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact agent: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestCmdAdd_Skill(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindSkill, "test-skill", false, false, result)
+	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindSkill, "test-skill", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact skill: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestCmdAdd_Skill_RootLevel(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindSkill, "test-skill", false, false, result)
+	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindSkill, "test-skill", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact skill: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestCmdAdd_Skill_RootLevel_RecordsCorrectStatePath(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindSkill, "test-skill", false, false, result)
+	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindSkill, "test-skill", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact skill: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestCmdAdd_Agent_RootLevel(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindAgent, "nais", false, false, result)
+	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindAgent, "nais", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact agent: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestCmdAdd_Prompt_RootLevel(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindPrompt, "review", false, false, result)
+	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindPrompt, "review", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact prompt: %v", err)
 	}
@@ -244,7 +244,7 @@ func TestCmdAdd_Prompt_RootDirLevel(t *testing.T) {
 	os.MkdirAll(filepath.Join(target, ".git"), 0o755)
 
 	result := &installResult{}
-	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), KindPrompt, "complex", false, false, result)
+	err := installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindPrompt, "complex", false, false, result)
 	if err != nil {
 		t.Fatalf("installArtifact prompt: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestCmdAdd_AppendsToState(t *testing.T) {
 	os.WriteFile(filepath.Join(agentDir, "new-agent.agent.md"), []byte("# New Agent"), 0o644)
 
 	result := &installResult{}
-	installArtifact(NewSourceResolver(source), ScopeRepo(target), KindAgent, "new-agent", false, false, result)
+	installArtifact(NewSourceResolver(source), ScopeRepo(target), nil, KindAgent, "new-agent", false, false, result)
 
 	// Simulate what cmdAdd does: merge state
 	state, _ := readState(target)

@@ -32,6 +32,7 @@
     "nav-deep-interview",
     "nav-architecture-review",
     "nav-troubleshoot",
+    "klarsprak",
     "terse-mode"
   ],
   "instructions": [
@@ -52,5 +53,8 @@
     "spring-boot-endpoint",
     "kafka-topic",
     "nais-manifest"
+  ],
+  "hooks": [
+    "klarsprak-gate"
   ]
 }

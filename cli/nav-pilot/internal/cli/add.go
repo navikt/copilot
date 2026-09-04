@@ -68,7 +68,7 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	// Dispatch to the appropriate installer
 	kind := kindByName[itemType]
 	resolver := resolverFor(src.Dir, pakkeFor(src, name))
-	installErr := installArtifact(resolver, scope, kind, name, dryRun, force, result)
+	installErr := installArtifact(resolver, scope, scopeStateHashes(scope), kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr
 	}
@@ -87,8 +87,8 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	}
 
 	if result.Conflicts > 0 {
-		fmt.Printf("\n%s File already exists and differs. Use %s to overwrite.\n",
-			yellow("⚠"), bold("--force"))
+		fmt.Println()
+		printConflictHint(result.Conflicts)
 	}
 
 	if dryRun || result.Installed == 0 {

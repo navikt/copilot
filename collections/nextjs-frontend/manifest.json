@@ -21,6 +21,7 @@
     "nav-architecture-review",
     "nav-troubleshoot",
     "security-owasp",
+    "klarsprak",
     "terse-mode"
   ],
   "instructions": [
@@ -41,5 +42,9 @@
     "aksel-component",
     "nextjs-api-route",
     "nais-manifest"
+  ],
+  "hooks": [
+    "ask-first-aria",
+    "klarsprak-gate"
   ]
 }

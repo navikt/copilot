@@ -1,4 +1,5 @@
-import { Heading, BodyShort, BodyLong, Box, HGrid, Label, Table, VStack, Tag } from "@navikt/ds-react";
+import { Heading, BodyShort, BodyLong, Box, HGrid, Label, VStack, Tag } from "@navikt/ds-react";
+import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { AltInstall } from "@/components/alt-install";
 import { FileExplorer } from "@/components/file-explorer";
@@ -153,76 +154,81 @@ const COLLECTIONS = [
     name: "kotlin-backend",
     description: "Kotlin/Ktor og Spring Boot på Nais",
     agents: 4,
-    skills: 24,
+    skills: 25,
     bestFor: "Backend-API-er og hendelseskonsumenter",
     details: {
       agents: "code-review, research, security-champion, nav-pilot",
       skills:
-        "api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, klarsprak, terse-mode, threat-model, tokenx-auth, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
         "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, testing, testing-kotlin, github-actions, docker, database, security-owasp",
       prompts: "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest",
+      hooks: "klarsprak-gate",
     },
   },
   {
     name: "frontend",
     description: "Rammeverk-uavhengig frontend (Astro, Remix, Vite …)",
     agents: 5,
-    skills: 12,
+    skills: 13,
     bestFor: "Frontends som ikke bruker Next.js",
     details: {
       agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-builder, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
+        "aksel-builder, conventional-commit, playwright-testing, readme-review, klarsprak, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
         "code-review, deliberate-ai-use, output-style, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nais-manifest",
+      hooks: "ask-first-aria, klarsprak-gate",
     },
   },
   {
     name: "nextjs-frontend",
     description: "Next.js med Aksel Design System",
     agents: 5,
-    skills: 12,
+    skills: 13,
     bestFor: "Innbygger- og saksbehandler-frontends",
     details: {
       agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
       skills:
-        "aksel-builder, conventional-commit, playwright-testing, readme-review, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
+        "aksel-builder, conventional-commit, playwright-testing, readme-review, klarsprak, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
       instructions:
         "code-review, deliberate-ai-use, output-style, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
       prompts: "aksel-component, nextjs-api-route, nais-manifest",
+      hooks: "ask-first-aria, klarsprak-gate",
     },
   },
   {
     name: "fullstack",
     description: "Komplett stack (backend + frontend)",
     agents: 7,
-    skills: 28,
+    skills: 29,
     bestFor: "Team som eier hele stacken",
     details: {
       agents: "accessibility, aksel, code-review, forfatter, research, security-champion, nav-pilot",
       skills:
-        "aksel-builder, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, terse-mode, threat-model, tokenx-auth, web-design-reviewer, nav-dekoratoren, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "aksel-builder, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, klarsprak, terse-mode, threat-model, tokenx-auth, web-design-reviewer, nav-dekoratoren, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
         "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database, security-owasp",
       prompts:
         "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest, aksel-component, nextjs-api-route, golang-service",
+      hooks: "ask-first-aria, klarsprak-gate",
     },
   },
   {
     name: "platform",
     description: "Nais, observability, sikkerhet og Go",
     agents: 4,
-    skills: 15,
+    skills: 16,
     bestFor: "Plattform- og DevOps-team",
     details: {
       agents: "code-review, research, security-champion, nav-pilot",
       skills:
-        "conventional-commit, nais, observability-setup, observability-debugging, readme-review, rust-development, security-review, security-owasp, terse-mode, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
+        "conventional-commit, nais, observability-setup, observability-debugging, readme-review, rust-development, security-review, security-owasp, klarsprak, terse-mode, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
       instructions:
         "code-review, deliberate-ai-use, output-style, golang, testing, github-actions, docker, security-owasp",
       prompts: "golang-service, nais-manifest",
+      hooks: "klarsprak-gate",
     },
   },
 ];
@@ -746,32 +752,30 @@ nav-pilot`}
             Hvor skal artefaktene installeres?
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Tre former er i bruk i Nav, og de løser ulike problemer.{" "}
-            <code className="font-mono text-xs">install</code> spør hvis du ikke svarer på forhånd med{" "}
-            <code className="font-mono text-xs">--repo</code> eller <code className="font-mono text-xs">--user</code>.
+            Tre former er i bruk i Nav, og de løser ulike problemer. <code className="font-mono text-xs">install</code>{" "}
+            spør hvis du ikke svarer på forhånd med <code className="font-mono text-xs">--repo</code> eller{" "}
+            <code className="font-mono text-xs">--user</code>.
           </BodyLong>
           <ul className="mt-3 space-y-2 list-disc pl-5" style={{ color: "#475569" }}>
             <li>
               <strong>Repo</strong> (<code className="font-mono text-xs">--repo</code>, skriver til{" "}
               <code className="font-mono text-xs">.github/</code>): hele teamet får det samme, prompts virker, og
-              Copilot på github.com ser filene fordi de er sjekket inn. Til gjengjeld ligger de i repoet og i hver
-              diff.
+              Copilot på github.com ser filene fordi de er sjekket inn. Til gjengjeld ligger de i repoet og i hver diff.
             </li>
             <li>
               <strong>Personlig</strong> (<code className="font-mono text-xs">--user</code>, skriver til{" "}
-              <code className="font-mono text-xs">~/.copilot/</code>): følger deg på tvers av alle repoer, og
-              ingenting sjekkes inn. Den tar ikke med prompts, og når verken github.com eller resten av teamet.
+              <code className="font-mono text-xs">~/.copilot/</code>): følger deg på tvers av alle repoer, og ingenting
+              sjekkes inn. Den tar ikke med prompts, og når verken github.com eller resten av teamet.
             </li>
             <li>
-              <strong>Hub-repo</strong>: en repo-installasjon i et repo som ikke er en applikasjon, pluss teamets
-              egne skills lagt inn for hånd i det samme <code className="font-mono text-xs">.github/</code>. Konteksten
+              <strong>Hub-repo</strong>: en repo-installasjon i et repo som ikke er en applikasjon, pluss teamets egne
+              skills lagt inn for hånd i det samme <code className="font-mono text-xs">.github/</code>. Konteksten
               følger arbeidskatalogen, så den gjelder mens du står i hub-repoet.
             </li>
           </ul>
           <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
-            Formene utelukker ikke hverandre, og{" "}
-            <code className="font-mono text-xs">nav-pilot sync</code> uten scope-flagg synker alle scope som har en
-            tilstandsfil. Avveiningene i sin helhet står i{" "}
+            Formene utelukker ikke hverandre, og <code className="font-mono text-xs">nav-pilot sync</code> uten
+            scope-flagg synker alle scope som har en tilstandsfil. Avveiningene i sin helhet står i{" "}
             <a
               href="https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#hvor-skal-artefaktene-installeres"
               className="text-blue-600 hover:underline"
@@ -885,8 +889,17 @@ function CollectionsSection() {
             Collections
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Collections er ferdigpakkede sett med agenter, skills, instruksjoner og prompts organisert etter
+            Collections er ferdigpakkede sett med agenter, skills, instruksjoner, prompts og hooks organisert etter
             team-arketype. Velg din stack og få en komplett, testet pakke.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Merk at hooks er kjørbar kode: et Python-skript Copilot CLI kjører ved hvert verktøykall som treffer
+            matcheren, ikke tekst modellen leser. <code className="font-mono text-xs">nav-pilot install</code> legger
+            dem inn sammen med resten, så les dem før du stoler på dem. Skriptene ligger i{" "}
+            <code className="font-mono text-xs">.github/hooks/</code> (repo) eller{" "}
+            <code className="font-mono text-xs">~/.copilot/hooks/</code> (bruker), og{" "}
+            <code className="font-mono text-xs">nav-pilot uninstall</code> fjerner bare oppføringene nav-pilot selv har
+            skrevet — dine egne hooks blir stående.
           </BodyLong>
         </div>
 
@@ -1019,6 +1032,22 @@ function CollectionsSection() {
                           style={{ background: "#fff7ed", color: "#ea580c" }}
                         >
                           {p}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label size="small" style={{ color: "#334155" }}>
+                      Hooks (kjørbar kode)
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {c.details.hooks.split(", ").map((h) => (
+                        <code
+                          key={h}
+                          className="text-xs font-mono rounded px-1.5 py-0.5"
+                          style={{ background: "#fef2f2", color: "#dc2626" }}
+                        >
+                          {h}
                         </code>
                       ))}
                     </div>
@@ -2066,57 +2095,56 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             </BodyLong>
             <div className="overflow-x-auto">
               <Table size="small" className="w-full">
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell scope="col">Modell</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Vekter</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Løser</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Kort sagt</Table.HeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  <Table.Row>
-                    <Table.DataCell>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell scope="col">Modell</TableHeaderCell>
+                    <TableHeaderCell scope="col">Vekter</TableHeaderCell>
+                    <TableHeaderCell scope="col">Løser</TableHeaderCell>
+                    <TableHeaderCell scope="col">Kort sagt</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableDataCell>
                       <VStack gap="space-2">
                         <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
                         <div className="text-xs" style={{ color: "#0f6d6a" }}>
                           standard
                         </div>
                       </VStack>
-                    </Table.DataCell>
-                    <Table.DataCell>25 GB</Table.DataCell>
-                    <Table.DataCell>2–4 av 8</Table.DataCell>
-                    <Table.DataCell>
-                      Rask og forutsigbar. Median 10–12 sekunder per oppgave, og 3, 2, 4 og 4 av 8 over fire
-                      kjøringer. Ingen av de andre modellene løser målbart flere.
-                    </Table.DataCell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.DataCell>
+                    </TableDataCell>
+                    <TableDataCell>25 GB</TableDataCell>
+                    <TableDataCell>2–4 av 8</TableDataCell>
+                    <TableDataCell>
+                      Rask og forutsigbar. Median 10–12 sekunder per oppgave, og 3, 2, 4 og 4 av 8 over fire kjøringer.
+                      Ingen av de andre modellene løser målbart flere.
+                    </TableDataCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableDataCell>
                       <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
-                    </Table.DataCell>
-                    <Table.DataCell>16 GB</Table.DataCell>
-                    <Table.DataCell>3–4 av 8</Table.DataCell>
-                    <Table.DataCell>
-                      Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3
-                      og 4 av 8 mot standardens 3, 2, 4 og 4 — spennene overlapper, forskjellen er ikke målbar
-                      (p = 0,71). Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi
-                      skrev tidligere at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne
-                      kompilere.
-                    </Table.DataCell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.DataCell>
+                    </TableDataCell>
+                    <TableDataCell>16 GB</TableDataCell>
+                    <TableDataCell>3–4 av 8</TableDataCell>
+                    <TableDataCell>
+                      Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3 og
+                      4 av 8 mot standardens 3, 2, 4 og 4 — spennene overlapper, forskjellen er ikke målbar (p = 0,71).
+                      Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi skrev tidligere
+                      at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne kompilere.
+                    </TableDataCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableDataCell>
                       <code className="font-mono text-xs">Qwen3.8-27B-8bit</code>
-                    </Table.DataCell>
-                    <Table.DataCell>30 GB</Table.DataCell>
-                    <Table.DataCell>ikke målt</Table.DataCell>
-                    <Table.DataCell>
+                    </TableDataCell>
+                    <TableDataCell>30 GB</TableDataCell>
+                    <TableDataCell>ikke målt</TableDataCell>
+                    <TableDataCell>
                       Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi
                       selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.
-                    </Table.DataCell>
-                  </Table.Row>
-                </Table.Body>
+                    </TableDataCell>
+                  </TableRow>
+                </TableBody>
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
@@ -2139,9 +2167,9 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             merket <code className="font-mono text-xs">(local)</code>.{" "}
             <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
             <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
-            seg. Listen oppdateres når du kjører{" "}
-            <code className="font-mono text-xs">init</code> eller <code className="font-mono text-xs">start</code>, ikke
-            ved hver kommando — et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør.
+            seg. Listen oppdateres når du kjører <code className="font-mono text-xs">init</code> eller{" "}
+            <code className="font-mono text-xs">start</code>, ikke ved hver kommando — et nettverkskall der ville lagt
+            seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models
@@ -2192,11 +2220,19 @@ nav-pilot alpha local start`}
             hvilken du kjører.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
-            Under <strong>opencode</strong> blir bakkemodellen en underagent som heter{" "}
-            <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
+            Utsending til en lokal underagent krever <strong>opencode</strong>. Der blir bakkemodellen en underagent som
+            heter <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
             oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at bakkemodellen ikke
-            klarer. Under <strong>Copilot CLI</strong> kjører hele økten lokalt, fordi klienten bare håndterer én
-            modelleverandør om gangen.
+            klarer.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Under <strong>Copilot CLI</strong> finnes ingen slik underagent, og kan ikke finnes i dag. Copilot CLI er
+            standardklienten, så dette gjelder deg med mindre du har byttet. Valget der er hele økten på den lokale
+            modellen eller ingenting lokalt, fordi klienten setter modelleverandøren som en miljøvariabel for hele
+            prosessen, så én leverandør betjener hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha
+            utsending, bytt med <code className="font-mono text-xs">nav-pilot config set client opencode</code>. Vi har
+            bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI, og det ligger som en feature request
+            hos dem.
           </BodyLong>
         </VStack>
 

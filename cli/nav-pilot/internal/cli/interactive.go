@@ -699,7 +699,7 @@ func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string)
 		if err != nil {
 			continue
 		}
-		total := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts)
+		total := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts) + len(m.Hooks)
 		label := fmt.Sprintf("%-20s %s (%d items)", name, m.Description, total)
 		options = append(options, huh.NewOption(label, name))
 	}
@@ -826,6 +826,7 @@ func printManifestContents(m *Manifest) {
 	printCategory("skills", m.Skills)
 	printCategory("instructions", m.Instructions)
 	printCategory("prompts", m.Prompts)
+	printCategory("hooks", m.Hooks)
 }
 
 // installedAgents extracts agent names from the state file's installed files.
