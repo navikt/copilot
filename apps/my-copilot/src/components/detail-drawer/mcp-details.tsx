@@ -133,7 +133,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                 {pkg.packageArguments && pkg.packageArguments.length > 0 && (
                   <VStack gap="space-4">
                     <BodyShort size="small" weight="semibold">
-                      Sikkerhetsargumenter:
+                      Argumenter:
                     </BodyShort>
                     {pkg.packageArguments.map((arg) => (
                       <BodyShort key={arg.name ?? arg.value} size="small" className="text-gray-600">
