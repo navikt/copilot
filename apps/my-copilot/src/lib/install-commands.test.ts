@@ -438,6 +438,29 @@ describe("getMcpServerConfig", () => {
     expect(config["com.microsoft/playwright-mcp"].args).toEqual(["dlx", "@playwright/mcp@0.0.80"]);
   });
 
+  it("renders a valueless named argument as a bare flag", () => {
+    const withFlags: McpServerCustomization = {
+      ...pinnedNpmMcp,
+      packages: [
+        {
+          ...pinnedNpmMcp.packages![0],
+          packageArguments: [
+            { type: "named", name: "--isolated" },
+            { type: "named", name: "--browser", value: "chromium" },
+          ],
+        },
+      ],
+    };
+    const config = JSON.parse(getMcpServerConfig(withFlags));
+    expect(config["com.microsoft/playwright-mcp"].args).toEqual([
+      "dlx",
+      "@playwright/mcp@0.0.80",
+      "--isolated",
+      "--browser",
+      "chromium",
+    ]);
+  });
+
   it("returns empty for mcp with no remotes or packages", () => {
     expect(getMcpServerConfig(emptyMcp)).toBe("");
   });

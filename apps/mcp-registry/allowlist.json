@@ -265,6 +265,11 @@
             "cplt config set sandbox.allow_cache_exec ms-playwright",
             "cplt config set sandbox.allow_cache_exec pnpm/dlx"
           ]
+        },
+        {
+          "title": "Oppdater cplt før første browserkjøring",
+          "description": "På macOS må cplt være ny nok til å kunne starte Chrome for Testing, se navikt/cplt#263. Med en for gammel cplt kobler MCP-en til og lister verktøy som normalt, mens browser_navigate feiler. cplt slår selv av Chromiums nestede sandkasse, som ikke kan kjøre inni cplt. Da er cplt den håndhevende grensen alene, og en kompromittert renderer får hele Playwright-profilen til cplt i stedet for den smalere child-profilen til Chromium.",
+          "commands": ["cplt update"]
         }
       ],
       "packages": [

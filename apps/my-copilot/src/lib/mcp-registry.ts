@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from "next/cache";
-import type { Domain, McpServerCustomization } from "./customization-types";
+import type { Domain, McpServerCustomization, SetupInstruction } from "./customization-types";
 import type { UsageExample } from "./manifest-types";
 
 const MCP_REGISTRY_URL = process.env.MCP_REGISTRY_URL || "https://mcp-registry.nav.no";
@@ -33,7 +33,7 @@ interface ServerResponse {
       tools?: string[];
       tags?: string[];
       examples?: UsageExample[];
-      setupInstructions?: { title: string; description: string; commands: string[] }[];
+      setupInstructions?: SetupInstruction[];
     };
   };
 }

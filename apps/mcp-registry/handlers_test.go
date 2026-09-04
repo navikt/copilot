@@ -117,6 +117,7 @@ func TestServersListHandler(t *testing.T) {
 				"cplt config set sandbox.allow_cache_exec ms-playwright",
 				"cplt config set sandbox.allow_cache_exec pnpm/dlx",
 			},
+			{"cplt update"},
 		}
 
 		assertRecipe := func(t *testing.T, response ServerResponse) {
