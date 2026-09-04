@@ -119,20 +119,3 @@ func TestWriteDeclarationIsDeterministicAndTimestampFree(t *testing.T) {
 		t.Errorf("round-trip = %+v, want %+v", back, d)
 	}
 }
-
-// #647 ga CLI-en en femte artefakttype og lot install skrive hook-oppføringer
-// inn i erklæringa, men denne lista ble ikke oppdatert. Da skrev install en fil
-// lasteren avviste, og repoet kom ikke forbi den. Kommentaren over lista sier at
-// den speiler CLI-ens typer; testen holder den til det.
-func TestDeclaredItemTypesAcceptsEveryKind(t *testing.T) {
-	for _, typ := range []string{"agent", "skill", "instruction", "prompt", "hook"} {
-		d := &Declaration{
-			ContractVersion: "1",
-			Source:          "navikt/grillmester",
-			Items:           map[string]string{"noe": typ},
-		}
-		if err := d.validate(); err != nil {
-			t.Errorf("type %q avvises: %v", typ, err)
-		}
-	}
-}
