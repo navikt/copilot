@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 // syncResult holds the outcome of a sync check for machine-readable output.
@@ -19,6 +21,19 @@ type syncResult struct {
 	Ignored   []string     `json:"ignored,omitempty"`
 	Foreign   []string     `json:"foreign,omitempty"`
 	Conflicts []string     `json:"conflicts,omitempty"`
+	PinBump   *syncPinBump `json:"pin_bump,omitempty"`
+}
+
+// syncPinBump is the committed pin moving, reported as its own unit of work.
+//
+// It is not a file update: no installed file's content has to differ for the
+// agentpakke to have moved forward. Before #606 that made it invisible to
+// anything reading sync's exit code — the check run exited 0, --apply never
+// ran, and the pin the whole file exists to keep current stayed where it was.
+type syncPinBump struct {
+	Path string `json:"path"`
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 type syncUpdate struct {
@@ -107,6 +122,11 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	if !jsonOutput {
 		noteDeclarationDisagreement(scope, src)
 	}
+
+	// What the committed pin would become. Computed before the file diff
+	// because it is a change in its own right: a revision the repo tracks can
+	// move without any installed file changing (#606).
+	pinBump := pendingPinBump(scope, src)
 
 	// One resolver for the whole sync, built from the agentpakke manifest that
 	// governs this source (the legacy adapter when it ships none).
@@ -265,7 +285,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	checked := len(files) - len(foreignPaths)
 
 	result := syncResult{
-		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && (apply || len(conflictPaths) == 0),
+		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && (apply || len(conflictPaths) == 0),
 		Source:    src.SHA,
 		Updates:   updates,
 		Deletions: deletedPaths,
@@ -274,6 +294,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		Ignored:   ignoredPaths,
 		Foreign:   foreignPaths,
 		Conflicts: conflictPaths,
+		PinBump:   pinBump,
 	}
 	tMode := telemetryMode()
 	if !apply {
@@ -299,9 +320,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	if result.UpToDate {
 		fmt.Printf("%s All %d files up to date (source: %s)\n",
 			green("✓"), checked, shortSHA(src.SHA))
-		// A sync that changed no file can still have landed on a new revision
-		// upstream. --apply is what makes that a bump: a check-only run must
-		// never dirty a file the developer would have to commit.
+		// Nothing here is a bump the check step could have seen — pendingPinBump
+		// said so — but a declaration that names a source and pins nothing still
+		// gets its pin filled in, and only --apply may write it.
 		if apply {
 			bumpDeclarationSHA(scope, src)
 		}
@@ -339,6 +360,15 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			fmt.Printf("  %s %s\n", red("-"), p)
 		}
 		fmt.Println()
+	}
+
+	// A revision bump with no file change: the only thing to report, and
+	// without it a check-only run would print nothing but "Run nav-pilot sync
+	// --apply" over a repo whose files are all up to date.
+	if pinBump != nil && len(updates) == 0 && len(deletedPaths) == 0 {
+		fmt.Printf("%s %d files up to date, but %s pins %s and the source is at %s (source: %s)\n\n",
+			yellow("⚠"), checked, bold(agentpakke.DeclarationPath),
+			shortSHA(pinBump.From), shortSHA(pinBump.To), shortSHA(src.SHA))
 	}
 
 	if len(conflictPaths) > 0 && !apply {
@@ -410,10 +440,15 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		scope.CleanupDirs()
 	}
 
-	// Only bump source SHA and version if ALL updates/deletions were applied successfully
+	// Only bump source SHA and version if ALL updates/deletions were applied
+	// successfully. The declaration is bumped outside the state block: a repo
+	// can carry a committed pin without a state file, and that pin is exactly
+	// the one --apply exists to move.
+	if applyErrors == 0 {
+		bumpDeclarationSHA(scope, src)
+	}
 	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {
-			bumpDeclarationSHA(scope, src)
 			state.SourceSHA = src.SHA
 			// Use the binary's release version directly.
 			// "dev" means local/unreleased build — checkStaleness() skips it.

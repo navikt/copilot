@@ -42,7 +42,7 @@ var ErrNoDeclaration = errors.New("no agentpakke declaration")
 // DeclaredItemTypes are the artifact types an entry in [Declaration.Items] may
 // name. It mirrors the CLI's artifact kinds; the list lives here because the
 // declaration is parsed before any resolver exists.
-var DeclaredItemTypes = []string{"agent", "skill", "instruction", "prompt"}
+var DeclaredItemTypes = []string{"agent", "skill", "instruction", "prompt", "hook"}
 
 // Declaration is a repo's committed statement of which agentpakke it uses and
 // at which revision.
@@ -153,16 +153,32 @@ func (d *Declaration) validate() error {
 		"set a supported contractVersion in "+DeclarationPath); err != nil {
 		return fmt.Errorf("%s: %w", DeclarationPath, err)
 	}
-	source := strings.TrimSpace(d.Source)
+	// Normalize in place, not just for the checks below: downstream consumers
+	// use d.Source and d.SHA verbatim (declaredPin hands d.SHA straight to git),
+	// so a value that passes validation with surrounding whitespace would fail
+	// to resolve later.
+	d.Source = strings.TrimSpace(d.Source)
+	d.SHA = strings.TrimSpace(d.SHA)
+	source := d.Source
 	if source == "" {
 		return fmt.Errorf("%s must name a source", DeclarationPath)
 	}
 	// A path source is a working tree, not a revision anyone can fetch: there
 	// is nothing for a pin to name, and writing one anyway is how "unknown"
 	// ends up committed as a sha. Say so instead.
-	if filepath.IsAbs(source) && strings.TrimSpace(d.SHA) != "" {
+	if filepath.IsAbs(source) && d.SHA != "" {
 		return fmt.Errorf("%s pins sha %q against the path source %s; a local checkout has no revision to fetch, so drop the sha and let the working tree decide",
 			DeclarationPath, d.SHA, source)
+	}
+	// A pin is only useful if git can fetch it, and git refuses an abbreviated
+	// object id in a fetch request. Without this check a short SHA — the one a
+	// hand-editor reaches for, straight out of `git log --oneline` — failed
+	// much later as "could not clone owner/repo@9f1c0a7 — check that the ref
+	// exists and you have network access", which blames the wrong thing: the
+	// ref exists, it is just too short to ask for (#607).
+	if sha := strings.TrimSpace(d.SHA); sha != "" && !isFullSHA(sha) {
+		return fmt.Errorf("%s pins sha %q, which is not a full 40-character commit SHA; git refuses an abbreviated object id in a fetch request, so that revision can never be installed — write the whole SHA from the source repo, e.g. `git ls-remote https://github.com/%s`",
+			DeclarationPath, sha, strings.TrimSpace(d.Source))
 	}
 	names := make([]string, 0, len(d.Items))
 	for name := range d.Items {
@@ -176,6 +192,20 @@ func (d *Declaration) validate() error {
 		}
 	}
 	return nil
+}
+
+// isFullSHA reports whether s is a fetchable pin: forty hex characters, the
+// only form git will accept in a fetch request.
+func isFullSHA(s string) bool {
+	if len(s) != 40 {
+		return false
+	}
+	for _, c := range s {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", c) {
+			return false
+		}
+	}
+	return true
 }
 
 func isDeclaredItemType(t string) bool {
@@ -192,6 +222,14 @@ func isDeclaredItemType(t string) bool {
 // struct field order is fixed, and nothing dated goes in — so a rewrite that
 // changes only the SHA produces exactly a one-line diff.
 func WriteDeclaration(root string, d *Declaration) error {
+	// Validate on the way out as well as in. The loader is fail-closed, so a
+	// file nav-pilot writes but cannot read back locks the repo out of every
+	// command with no way to repair it (#614). getGitSHA returns the literal
+	// "unknown" when rev-parse fails on a temp clone, which is exactly such a
+	// value: seven non-hex characters.
+	if err := d.validate(); err != nil {
+		return err
+	}
 	path := DeclarationFilePath(root)
 	if err := domain.CheckSymlink(path, root); err != nil {
 		return err

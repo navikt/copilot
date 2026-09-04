@@ -31,7 +31,7 @@ func TestLoadDeclaration(t *testing.T) {
 	writeDecl(t, root, `{
   "contractVersion": "1",
   "source": "navikt/grillmester",
-  "sha": "deadbee",
+  "sha": "deadbee000000000000000000000000000000000",
   "minNavPilotVersion": "2026.01.01-000000",
   "items": {"grillmester": "agent"}
 }`)
@@ -39,7 +39,7 @@ func TestLoadDeclaration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDeclaration: %v", err)
 	}
-	if d.Source != "navikt/grillmester" || d.SHA != "deadbee" || d.Items["grillmester"] != "agent" {
+	if d.Source != "navikt/grillmester" || d.SHA != "deadbee000000000000000000000000000000000" || d.Items["grillmester"] != "agent" {
 		t.Fatalf("LoadDeclaration = %+v", d)
 	}
 }
@@ -79,7 +79,7 @@ func TestWriteDeclarationIsDeterministicAndTimestampFree(t *testing.T) {
 	d := &Declaration{
 		ContractVersion: "1",
 		Source:          "navikt/grillmester",
-		SHA:             "deadbee",
+		SHA:             "deadbee000000000000000000000000000000000",
 		Items:           map[string]string{"zulu": "skill", "alpha": "agent", "mike": "agent"},
 	}
 	if err := WriteDeclaration(root, d); err != nil {
@@ -117,5 +117,26 @@ func TestWriteDeclarationIsDeterministicAndTimestampFree(t *testing.T) {
 	}
 	if back.Source != d.Source || back.SHA != d.SHA || len(back.Items) != 3 {
 		t.Errorf("round-trip = %+v, want %+v", back, d)
+	}
+}
+
+// En erklæring med omkringliggende mellomrom passerte valideringen, men
+// verdien ble lagret utrimmet. declaredPin gir d.SHA rett til git, så pinnen
+// lot seg ikke slå opp etterpå. Valideringen normaliserer nå på plass.
+func TestValidateNormalizesSourceAndSHA(t *testing.T) {
+	d := &Declaration{
+		ContractVersion: "1",
+		Source:          "  navikt/grillmester  ",
+		SHA:             "  5cc546c127ac224fbf89b5299ad31675011307f6  ",
+		Items:           map[string]string{},
+	}
+	if err := d.validate(); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if d.Source != "navikt/grillmester" {
+		t.Errorf("Source = %q, vil ha den trimmet", d.Source)
+	}
+	if d.SHA != "5cc546c127ac224fbf89b5299ad31675011307f6" {
+		t.Errorf("SHA = %q, vil ha den trimmet", d.SHA)
 	}
 }

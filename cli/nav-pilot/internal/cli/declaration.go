@@ -229,7 +229,17 @@ func recordDeclaration(scope *InstallScope, src *Source) {
 // agentpakke, which is an install too.
 func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 	d, err := scopeDeclaration(scope)
-	if err != nil || d == nil || src.SHA == "" || d.SHA == src.SHA {
+	if err != nil {
+		// Say so. A declaration nav-pilot cannot read is one it stops
+		// maintaining, and silence there is worse than the lockout it
+		// replaced: the scheduled workflow keeps opening file-update PRs in
+		// the team's repo while the pin rots, with nothing in the log saying
+		// why.
+		fmt.Fprintf(os.Stderr, "%s Could not read %s, so the pinned revision was left alone: %v\n",
+			yellow("⚠"), agentpakke.DeclarationPath, err)
+		return
+	}
+	if d == nil || src.SHA == "" || d.SHA == src.SHA {
 		return
 	}
 	if !sameSourceRepo(d.Source, sourceLabelFor(src)) {
@@ -250,24 +260,37 @@ func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 			yellow("⚠"), agentpakke.DeclarationPath, err)
 		return
 	}
-	// An abbreviated pin is not a revision git can fetch, so installing that
-	// repo's own pin fails. No released binary ever wrote one — the declaration
-	// and the full-length SHA arrived in the same commit (#597) — but the file
-	// is documented as hand-editable and `status` prints seven characters, so a
-	// human copying one in is the reachable case. Writing it out in full is the
-	// repair, and this is where it happens. It is not a bump, and reporting it
-	// as one printed the same seven characters either side of an arrow (#605).
-	//
-	// The match is a prefix, not proof of sameness: the declared value could be
-	// any prefix a human typed. It does not matter here — the resolved revision
-	// is already on disk in full by this point, either way.
-	if sameSHA(previous, src.SHA) {
-		fmt.Printf("%s Wrote the full revision id in %s (%s). An abbreviated pin cannot be fetched. Commit it.\n",
-			green("✓"), bold(agentpakke.DeclarationPath), shortSHA(src.SHA))
-		return
-	}
 	fmt.Printf("%s Bumped %s: %s → %s. Commit it to share the update.\n",
 		green("✓"), bold(agentpakke.DeclarationPath), shortSHA(previous), shortSHA(src.SHA))
+}
+
+// pendingPinBump reports a committed pin that has fallen behind the revision
+// the source resolved to — a change with no file behind it, which is the whole
+// of #606: sync's exit code decides whether --apply ever runs, so a bump the
+// check cannot see is a bump that never happens. A check-only run must not
+// write it itself; it says so and exits 1, and --apply does the writing.
+//
+// Narrower than what [bumpDeclarationSHA] will write: a declaration naming a
+// source but pinning nothing gets a pin filled in on --apply, and must not by
+// itself make a scheduled sync open a pull request against a repo that chose
+// to declare no revision.
+func pendingPinBump(scope *InstallScope, src *Source) *syncPinBump {
+	if src == nil || src.SHA == "" {
+		return nil
+	}
+	d, err := scopeDeclaration(scope)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not read %s, so this run cannot tell whether the pin is current: %v\n",
+			yellow("⚠"), agentpakke.DeclarationPath, err)
+		return nil
+	}
+	if d == nil || d.SHA == "" || d.SHA == src.SHA {
+		return nil
+	}
+	if !sameSourceRepo(d.Source, sourceLabelFor(src)) {
+		return nil
+	}
+	return &syncPinBump{Path: agentpakke.DeclarationPath, From: d.SHA, To: src.SHA}
 }
 
 // noteDeclarationDisagreement reports a scope whose recorded source is not the

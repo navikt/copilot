@@ -99,7 +99,8 @@ jobs:
             nav-pilot:
               - 'cli/nav-pilot/**'
               - 'scripts/install.sh'
-              - 'scripts/install.bats'
+              - 'scripts/*.bats'
+              - '.github/workflows/copilot-customization-sync.yml'
               - 'skills/**'
               - 'agents/**'
               - 'collections/**'
@@ -323,7 +324,7 @@ jobs:
         with:
           experimental: true
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats
+        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats
 
   # ── docs and skills content checks ─────────────────────────────────────────
   # Mirrors docs.yaml's "Docs in sync" and "Skills quality" jobs.

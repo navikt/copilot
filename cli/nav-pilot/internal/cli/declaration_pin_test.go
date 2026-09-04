@@ -315,7 +315,7 @@ func TestSyncReportsDeclarationDisagreement(t *testing.T) {
 	mustWrite(t, path, "version = 1\n")
 	scope, srcDir := installedRepoScope(t, "navikt/grillmester")
 
-	syncWithSource(t, srcDir, defaultSourceRepo, "new5678")
+	syncWithSource(t, srcDir, defaultSourceRepo, "8e45678000000000000000000000000000000000")
 	out := captureStdoutFor(t, func() {
 		if err := cmdSync(scope, "", "", true, false); err != nil {
 			t.Logf("sync: %v", err)
@@ -335,7 +335,7 @@ func TestSyncSilentWhenDeclarationAgrees(t *testing.T) {
 	mustWrite(t, path, "version = 1\n")
 	scope, srcDir := installedRepoScope(t, defaultSourceRepo)
 
-	syncWithSource(t, srcDir, defaultSourceRepo, "new5678")
+	syncWithSource(t, srcDir, defaultSourceRepo, "8e45678000000000000000000000000000000000")
 	out := captureStdoutFor(t, func() {
 		if err := cmdSync(scope, "", "", true, false); err != nil {
 			t.Logf("sync: %v", err)

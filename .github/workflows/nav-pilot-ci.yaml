@@ -6,7 +6,8 @@ on:
     paths:
       - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
-      - 'scripts/install.bats'
+      - 'scripts/*.bats'
+      - '.github/workflows/copilot-customization-sync.yml'
       - 'skills/**'
       - 'agents/**'
       - 'collections/**'
@@ -18,7 +19,8 @@ on:
     paths:
       - 'cli/nav-pilot/**'
       - 'scripts/install.sh'
-      - 'scripts/install.bats'
+      - 'scripts/*.bats'
+      - '.github/workflows/copilot-customization-sync.yml'
       - 'skills/**'
       - 'agents/**'
       - 'collections/**'
@@ -95,7 +97,7 @@ jobs:
           experimental: true
 
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats
+        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats
 
   e2e-install:
     name: E2E test install.sh
