@@ -106,36 +106,6 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </VStack>
       )}
 
-      {item.setupInstructions && item.setupInstructions.length > 0 && (
-        <VStack gap="space-8">
-          <Heading size="xsmall" level="4">
-            Oppsett
-          </Heading>
-          {item.setupInstructions.map((instruction, index) => (
-            <Box key={`${instruction.title}-${index}`} background="neutral-soft" borderRadius="8" padding="space-12">
-              <VStack gap="space-8">
-                <VStack gap="space-4">
-                  <BodyShort size="small" weight="semibold">
-                    {instruction.title}
-                  </BodyShort>
-                  <BodyShort size="small">{instruction.description}</BodyShort>
-                </VStack>
-                {instruction.commands.map((command, index) => (
-                  <Box key={`${command}-${index}`} background="default" borderRadius="4" padding="space-8">
-                    <VStack gap="space-4">
-                      <BodyShort size="small">
-                        <code className="text-xs break-all">{command}</code>
-                      </BodyShort>
-                      <CopyButton size="xsmall" copyText={command} />
-                    </VStack>
-                  </Box>
-                ))}
-              </VStack>
-            </Box>
-          ))}
-        </VStack>
-      )}
-
       {item.packages && item.packages.length > 0 && (
         <VStack gap="space-8">
           <Heading size="xsmall" level="4">

@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from "next/cache";
-import type { Domain, McpServerCustomization, SetupInstruction } from "./customization-types";
+import type { Domain, McpServerCustomization } from "./customization-types";
 import type { UsageExample } from "./manifest-types";
 
 const MCP_REGISTRY_URL = process.env.MCP_REGISTRY_URL || "https://mcp-registry.nav.no";
@@ -33,7 +33,6 @@ interface ServerResponse {
       tools?: string[];
       tags?: string[];
       examples?: UsageExample[];
-      setupInstructions?: SetupInstruction[];
     };
   };
 }
@@ -105,7 +104,6 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
         return {
           id: `mcp-${s.server.name}`,
           name: formatServerName(s.server.name),
-          serverId: s.server.name,
           description: s.server.description,
           type: "mcp" as const,
           domain: deriveDomain(tags),
@@ -119,7 +117,6 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
           repository: s.server.repository,
           tools: navMeta?.tools,
           tags,
-          setupInstructions: navMeta?.setupInstructions,
           packages: s.server.packages,
           ...(examples && examples.length > 0 && { examples }),
         };

@@ -219,57 +219,12 @@
         "url": "https://github.com/microsoft/playwright-mcp",
         "source": "github"
       },
-      "tools": [
-        "browser_click",
-        "browser_close",
-        "browser_console_messages",
-        "browser_drag",
-        "browser_drop",
-        "browser_evaluate",
-        "browser_file_upload",
-        "browser_fill_form",
-        "browser_find",
-        "browser_handle_dialog",
-        "browser_hover",
-        "browser_navigate",
-        "browser_navigate_back",
-        "browser_network_request",
-        "browser_network_requests",
-        "browser_press_key",
-        "browser_resize",
-        "browser_run_code_unsafe",
-        "browser_select_option",
-        "browser_snapshot",
-        "browser_take_screenshot",
-        "browser_type",
-        "browser_wait_for",
-        "browser_tabs"
-      ],
+      "tools": ["browser_navigate", "browser_click", "browser_type", "browser_snapshot", "browser_take_screenshot", "browser_wait"],
       "tags": ["testing", "browser-automation", "frontend"],
       "examples": [
         {
           "scenario": "Test brukerflyt",
           "prompt": "Naviger til søknadssiden og test at skjemavalidering fungerer"
-        }
-      ],
-      "setupInstructions": [
-        {
-          "title": "Installer Chrome for Testing før første bruk",
-          "description": "Kjør kommandoen utenfor cplt før du bruker Playwright MCP. Den installerer Playwright-administrert Chrome for Testing.",
-          "commands": ["pnpm dlx @playwright/mcp@0.0.80 install-browser chromium"]
-        },
-        {
-          "title": "Tillat nødvendig cache-kjøring i cplt",
-          "description": "Disse innstillingene er smale cache-exec-unntak for Playwright-nettleseren og pnpm dlx. --blocked-origins er bare et defense-in-depth-/bekvemmelighetsfilter, ikke en sikkerhetsgrense, og dekker ikke redirects. En sikkerhetsgaranti krever en håndhevet og verifisert ekstern nettverksgrense, for eksempel cplt proxy-forced kombinert med en eksplisitt domenepolicy.",
-          "commands": [
-            "cplt config set sandbox.allow_cache_exec ms-playwright",
-            "cplt config set sandbox.allow_cache_exec pnpm/dlx"
-          ]
-        },
-        {
-          "title": "Oppdater cplt før første browserkjøring",
-          "description": "På macOS må cplt være ny nok til å kunne starte Chrome for Testing, se navikt/cplt#263. Med en for gammel cplt kobler MCP-en til og lister verktøy som normalt, mens browser_navigate feiler. cplt slår selv av Chromiums nestede sandkasse, som ikke kan kjøre inni cplt. Da er cplt den håndhevende grensen alene, og en kompromittert renderer får hele Playwright-profilen til cplt i stedet for den smalere child-profilen til Chromium.",
-          "commands": ["cplt update"]
         }
       ],
       "packages": [
@@ -289,15 +244,21 @@
             },
             {
               "type": "named",
+              "name": "--caps",
+              "value": "core",
+              "description": "Restrict to core capabilities only (no file upload or install)"
+            },
+            {
+              "type": "named",
               "name": "--browser",
               "value": "chromium",
-              "description": "Use Playwright-managed Chrome for Testing (--browser chromium)"
+              "description": "Use Chromium"
             },
             {
               "type": "named",
               "name": "--blocked-origins",
               "value": "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no",
-              "description": "Defense-in-depth convenience filter for Nav domains; not a security boundary and does not cover redirects"
+              "description": "Block access to all Nav NAIS ingress domains"
             },
             {
               "type": "named",
