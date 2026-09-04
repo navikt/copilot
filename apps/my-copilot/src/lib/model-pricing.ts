@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-09-03
+ * Last updated: 2026-09-04
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -122,24 +122,20 @@ export const MODEL_PRICING: ModelPrice[] = [
     provider: "OpenAI",
     category: "Powerful",
     status: "GA",
-    input: 2,
-    cachedInput: 0.2,
-    cacheWrite: 2.5,
-    output: 10,
-    promotionEndsOn: "2026-09-03",
-    note: "GPT-5.6 Sol is available at promotional pricing, 50% off standard rates, through September 3, 2026. The default tier is $2.00 per 1M input tokens, $0.20 per 1M cached input tokens, $2.50 per 1M cache write tokens, and $10.00 per 1M output tokens. The long context tier is $4.00 per 1M input tokens, $0.40 per 1M cached input tokens, $5.00 per 1M cache write tokens, and $15.00 per 1M output tokens.",
+    input: 4,
+    cachedInput: 0.4,
+    cacheWrite: 5,
+    output: 20,
   },
   {
     model: "GPT-5.6 Sol (Long context, 272K)",
     provider: "OpenAI",
     category: "Powerful",
     status: "GA",
-    input: 4,
-    cachedInput: 0.4,
-    cacheWrite: 5,
-    output: 15,
-    promotionEndsOn: "2026-09-03",
-    note: "GPT-5.6 Sol is available at promotional pricing, 50% off standard rates, through September 3, 2026. The default tier is $2.00 per 1M input tokens, $0.20 per 1M cached input tokens, $2.50 per 1M cache write tokens, and $10.00 per 1M output tokens. The long context tier is $4.00 per 1M input tokens, $0.40 per 1M cached input tokens, $5.00 per 1M cache write tokens, and $15.00 per 1M output tokens.",
+    input: 8,
+    cachedInput: 0.8,
+    cacheWrite: 10,
+    output: 30,
   },
   {
     model: "GPT-5.6 Terra (Default, ≤ 272K)",
@@ -404,4 +400,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-09-03";
+export const PRICING_LAST_UPDATED = "2026-09-04";
