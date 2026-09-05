@@ -248,3 +248,38 @@ func TestApplyCopilotAuthMode(t *testing.T) {
 		t.Fatal("expected an unknown auth mode to be rejected")
 	}
 }
+
+// TestApplyCopilotAuthMode_WindowsCaseInsensitivity pins that the matcher
+// follows the OS rule for environment variable names. On Windows a lower-case
+// gh_token is the same variable, so gh_only has to strip it and env_only has to
+// accept it; everywhere else it is a different variable and must be left alone.
+func TestApplyCopilotAuthMode_WindowsCaseInsensitivity(t *testing.T) {
+	mixed := []string{"PATH=/bin", "gh_token=abc"}
+
+	orig := envNamesCaseInsensitive
+	t.Cleanup(func() { envNamesCaseInsensitive = orig })
+
+	envNamesCaseInsensitive = true
+	if _, err := applyCopilotAuthMode(mixed, "env_only"); err != nil {
+		t.Fatalf("windows env_only should accept gh_token: %v", err)
+	}
+	stripped, err := applyCopilotAuthMode(mixed, "gh_only")
+	if err != nil {
+		t.Fatalf("windows gh_only: %v", err)
+	}
+	if len(stripped) != 1 {
+		t.Fatalf("windows gh_only must strip gh_token, got %v", stripped)
+	}
+
+	envNamesCaseInsensitive = false
+	if _, err := applyCopilotAuthMode(mixed, "env_only"); err == nil {
+		t.Fatal("unix env_only must not accept gh_token as GH_TOKEN")
+	}
+	kept, err := applyCopilotAuthMode(mixed, "gh_only")
+	if err != nil {
+		t.Fatalf("unix gh_only: %v", err)
+	}
+	if len(kept) != 2 {
+		t.Fatalf("unix gh_only must leave gh_token alone, got %v", kept)
+	}
+}

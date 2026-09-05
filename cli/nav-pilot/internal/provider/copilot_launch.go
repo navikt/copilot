@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -378,15 +379,35 @@ func applyCopilotAuthMode(env []string, authMode string) ([]string, error) {
 	}
 }
 
+// envNamesCaseInsensitive mirrors the OS rule for environment variable names:
+// Windows treats them case-insensitively, every other platform exactly. Kept as
+// a var so tests can exercise both matchers. Without it a lower-case gh_token
+// would slip past gh_only's stripping on Windows, and fail env_only that the OS
+// would have satisfied.
+var envNamesCaseInsensitive = runtime.GOOS == "windows"
+
+// isGHTokenEntry reports whether an "NAME=value" entry names one of
+// ghTokenVars, and returns its raw value.
+func isGHTokenEntry(entry string) (value string, ok bool) {
+	name, value, found := strings.Cut(entry, "=")
+	if !found {
+		return "", false
+	}
+	if envNamesCaseInsensitive {
+		return value, slices.ContainsFunc(ghTokenVars, func(k string) bool {
+			return strings.EqualFold(name, k)
+		})
+	}
+	return value, slices.Contains(ghTokenVars, name)
+}
+
 // hasEnvToken reports whether env carries a non-blank GitHub token variable.
 // Blank values do not count: cplt trims before deciding a token is present, so
 // an empty GH_TOKEN would send it to `gh auth token` anyway.
 func hasEnvToken(env []string) bool {
 	for _, e := range env {
-		for _, key := range ghTokenVars {
-			if name, value, ok := strings.Cut(e, "="); ok && name == key && strings.TrimSpace(value) != "" {
-				return true
-			}
+		if value, ok := isGHTokenEntry(e); ok && strings.TrimSpace(value) != "" {
+			return true
 		}
 	}
 	return false
@@ -397,8 +418,7 @@ func hasEnvToken(env []string) bool {
 func stripEnvTokens(env []string) []string {
 	out := make([]string, 0, len(env))
 	for _, e := range env {
-		name, _, ok := strings.Cut(e, "=")
-		if ok && slices.Contains(ghTokenVars, name) {
+		if _, ok := isGHTokenEntry(e); ok {
 			continue
 		}
 		out = append(out, e)
