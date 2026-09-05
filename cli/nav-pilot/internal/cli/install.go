@@ -216,6 +216,12 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 	}
 
 	if err := copyArtifact(art.AbsPath, dst, scope.RootDir, art.IsDir); err != nil {
+		if kind == KindHook {
+			// The hook script lands in the same denied directory its config
+			// entry does, and it lands there first, so this is the copy that
+			// actually fails inside a cplt sandbox.
+			err = explainHookWrite(err, filepath.Dir(dst))
+		}
 		return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
 	}
 	hash, err := rawArtifactHash(dst, art.IsDir)

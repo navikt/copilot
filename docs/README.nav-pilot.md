@@ -100,6 +100,17 @@ Dette når den ikke:
   repoet du står i, ikke fra `~/.copilot/` (`repoScopeDir()` i
   `cli/nav-pilot/internal/provider/opencode_launch.go`).
 
+### Hooks kan ikke installeres inne i cplt
+
+`nav-pilot install` skriver hooks til `~/.copilot/hooks/` (personlig) eller
+`.github/hooks/` (repo). cplt nekter skriving til begge stedene, og det er med vilje: en
+hook er kode som kjører senere på maskinen din, utenfor sandboxen, så cplt lar ikke en
+prosess inne i sandboxen legge igjen en. Kjører du `nav-pilot install` fra en agentsesjon
+i cplt, stopper installasjonen med en feil som forteller deg akkurat det.
+
+Kjør installasjonen fra et vanlig skall i stedet. Alle andre artefakttyper — agenter,
+skills, prompts, instruksjoner — installeres helt fint inne i cplt.
+
 ### Hub-repo
 
 Mekanisk er et hub-repo en vanlig repo-installasjon i et repo som ikke er en applikasjon,

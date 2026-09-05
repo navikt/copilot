@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
@@ -47,10 +50,10 @@ func activateHook(scope *InstallScope, art Resolved, result *installResult) erro
 
 	hooksDir := scope.DstPath(KindHook.Dir)
 	if !scope.IsUser() {
-		return source.MergeRepoHooks(hooksDir, []source.HookEntry{entry})
+		return explainHookWrite(source.MergeRepoHooks(hooksDir, []source.HookEntry{entry}), hooksDir)
 	}
 
-	if err := source.WriteUserHook(hooksDir, entry); err != nil {
+	if err := explainHookWrite(source.WriteUserHook(hooksDir, entry), hooksDir); err != nil {
 		return err
 	}
 	configRel := scope.RelPath(KindHook.Dir, source.UserHookConfigName(art.Name))
@@ -134,4 +137,63 @@ func reportHooks(repoDir string, userScope *InstallScope) {
 	fmt.Printf("      %s In prompt mode (%s) an untrusted folder does not load repo hooks.\n", yellow("Note:"), bold("copilot -p"))
 	fmt.Printf("          Trust the folder, or set %s for that run.\n", bold("GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true"))
 	fmt.Printf("          The variable is in the CLI's changelog but not its public docs, so verify it still works before relying on it.\n")
+}
+
+// ─── hook writes inside a cplt sandbox ───────────────────────────────────────
+
+// cpltSandboxEnvVar is the marker cplt exports into every process it sandboxes.
+// It is cplt's own recursion guard — set once in `sandbox_exec.rs` on both the
+// macOS Seatbelt and the Linux Landlock path, so it is present whatever backend
+// is in use — and cplt documents it as the way a process tells it is inside:
+// its README says cplt "refuses to nest… via the `__CPLT_WRAPPED` environment
+// variable", its agent-facing brief tells the agent "you are running under cplt
+// if `$__CPLT_WRAPPED` is set", and its own Gradle init script keys on it.
+//
+// There is no better signal. cplt sets no positive "I am cplt" variable of its
+// own, and the alternatives are worse: the proxy variables it injects are also
+// set by any corporate proxy, and probing the filesystem for a denial is a
+// side effect, not a check.
+const cpltSandboxEnvVar = "__CPLT_WRAPPED"
+
+// insideCpltSandbox reports whether this process is running inside a cplt
+// sandbox.
+func insideCpltSandbox() bool {
+	_, ok := os.LookupEnv(cpltSandboxEnvVar)
+	return ok
+}
+
+// explainHookWrite turns the bare permission error a hook write gets inside a
+// cplt sandbox into one that names the tool doing the denying.
+//
+// cplt protects exactly the paths nav-pilot's hooks land in, and for a reason
+// that is not a bug: a hook file is code that runs later, unsandboxed, on the
+// host. `~/.copilot/hooks` and `~/.copilot/settings.json` are in cplt's
+// host-persistence deny list for the Copilot agent (cplt src/agent.rs, #331),
+// and `.github/hooks` is re-bound read-only in the project directory (cplt
+// src/sandbox_policy.rs `PROTECTED_IN_ROOT`, #347). Neither is going to change,
+// and nav-pilot should not try to route around a deliberate guard rail.
+//
+// What it can do is stop the failure reading as a broken install. Left alone
+// the user sees an EPERM naming a path and neither tool, on a command that
+// works perfectly well one shell out.
+//
+// The net is permission-denied and read-only-filesystem: macOS Seatbelt returns
+// EPERM for the deny, Linux returns EROFS for the read-only bind. A disk-full
+// or missing-directory error is a real error and is passed through untouched,
+// because claiming cplt denied something it did not is its own bug.
+func explainHookWrite(err error, path string) error {
+	if err == nil || !insideCpltSandbox() {
+		return err
+	}
+	if !errors.Is(err, fs.ErrPermission) && !errors.Is(err, syscall.EROFS) {
+		return err
+	}
+	return fmt.Errorf("%w\n\n"+
+		"    This looks like cplt: nav-pilot is running inside a cplt sandbox (%s is set),\n"+
+		"    and cplt denies writes to Copilot hook paths — %s here. A hook file is code\n"+
+		"    that runs later on the host, outside the sandbox, so cplt refuses to let a\n"+
+		"    sandboxed process plant one. That is deliberate, and nav-pilot will not work\n"+
+		"    around it.\n\n"+
+		"    Run the install from a shell outside cplt instead",
+		err, cpltSandboxEnvVar, path)
 }
