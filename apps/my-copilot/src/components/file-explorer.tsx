@@ -74,7 +74,7 @@ const FILE_TREE: FileEntry[] = [
     type: "config",
     description: "Installert tilstand (for sync og uninstall)",
     detail:
-      "Holder styr på hvilken collection som er installert, versjon, og hash av hver fil. Brukes av nav-pilot sync for å oppdage endringer og av nav-pilot uninstall for å rydde opp.",
+      "Holder styr på hvilken agentpakke som er installert, versjon, og hash av hver fil. Brukes av nav-pilot sync for å oppdage endringer og av nav-pilot uninstall for å rydde opp.",
     when: "Lest av nav-pilot CLI ved sync, status og uninstall",
   },
 ];

@@ -503,9 +503,12 @@ Overgangen går i tre faser:
    `.nav-pilot/agentpakke.json` gir `ErrNoManifest`, og kalleren setter inn
    `SynthesizeLegacy` — eksisterende installasjoner oppfører seg byte for byte
    som før.
-2. **Fase 2:** `navikt/copilot` leverer sitt eget `.nav-pilot/agentpakke.json` og
-   blir en ordinær agentpakke — standardpakka. Syntesen sluttes å bli brukt for
-   standardkilden.
+2. **Fase 2 (levert, #468):** `navikt/copilot` leverer sitt eget
+   `.nav-pilot/agentpakke.json` og er en ordinær agentpakke — standardpakka.
+   Syntesen brukes ikke lenger for standardkilden; de fem samlingene er
+   kollapset til pakka, og `adoptPakkeIdentity` migrerer samlings-state ved
+   sync. `TestCommittedManifestMatchesLegacyAdapter` holder manifestet og
+   adapteren i takt gjennom vinduet.
 3. **Fase 3:** `SynthesizeLegacy` og samlingsmekanismen fjernes, innenfor
    deprekeringsvinduet kontraktens kompatibilitetsregler (A4) krever.
 

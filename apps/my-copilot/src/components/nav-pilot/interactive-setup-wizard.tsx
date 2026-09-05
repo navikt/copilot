@@ -3,16 +3,8 @@
 
 import { useState, useEffect } from "react";
 import { Box, VStack, HStack, Heading, BodyShort, Button, Link, Stepper, Label, Detail } from "@navikt/ds-react";
-import {
-  MonitorIcon,
-  LaptopIcon,
-  TerminalIcon,
-  ChevronRightIcon,
-  ChevronLeftIcon,
-  CheckmarkIcon,
-} from "@navikt/aksel-icons";
+import { MonitorIcon, LaptopIcon, TerminalIcon, ChevronRightIcon, ChevronLeftIcon } from "@navikt/aksel-icons";
 import { CodeBlock } from "@/components/code-block";
-import { COLLECTIONS, type CollectionId } from "./command-builder";
 
 // ============================================================================
 // Types
@@ -36,7 +28,7 @@ const WORKFLOW_COMMANDS: Record<Workflow, string[]> = {
 // Business Logic (Pure Functions)
 // ============================================================================
 
-export function generateSetupScript(os: OS, workflow: Workflow, stack: CollectionId) {
+export function generateSetupScript(os: OS, workflow: Workflow) {
   if (workflow === "editor") {
     return {
       title: "Klar for koding i editoren!",
@@ -92,7 +84,7 @@ export function generateSetupScript(os: OS, workflow: Workflow, stack: Collectio
 
   blocks.push({
     title: "# 3. Sett opp for ditt prosjekt",
-    commands: [`nav-pilot install ${stack} --repo`, ...WORKFLOW_COMMANDS[workflow]],
+    commands: ["nav-pilot install nav-pilot --repo", ...WORKFLOW_COMMANDS[workflow]],
   });
 
   if (isWindows) {
@@ -276,61 +268,8 @@ export function StepWorkflow({
   );
 }
 
-export function StepStack({
-  stack,
-  setStack,
-  onPrev,
-  onNext,
-}: {
-  stack: CollectionId;
-  setStack: (val: CollectionId) => void;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <VStack gap="space-16">
-      <VStack gap="space-4" align="center" className="text-center mb-4">
-        <Heading size="medium" level="2">
-          Hva bygger du primært?
-        </Heading>
-        <BodyShort textColor="subtle">Dette lar oss legge inn riktig Nav-kontekst (Skills og Instruksjoner).</BodyShort>
-      </VStack>
-      <HStack justify="center" gap="space-12" wrap className="max-w-2xl mx-auto w-full">
-        {COLLECTIONS.map((c) => (
-          <ChoiceCard
-            key={c.id}
-            selected={stack === c.id}
-            onClick={() => {
-              setStack(c.id);
-              onNext();
-            }}
-            icon={<CheckmarkIcon aria-hidden />}
-            title={c.label}
-            description=""
-          />
-        ))}
-      </HStack>
-      <HStack justify="center" marginBlock="space-16">
-        <Button variant="tertiary" onClick={onPrev} icon={<ChevronLeftIcon aria-hidden />}>
-          Tilbake
-        </Button>
-      </HStack>
-    </VStack>
-  );
-}
-
-export function StepResult({
-  os,
-  workflow,
-  stack,
-  onPrev,
-}: {
-  os: OS;
-  workflow: Workflow;
-  stack: CollectionId;
-  onPrev: () => void;
-}) {
-  const currentResult = generateSetupScript(os, workflow, stack);
+export function StepResult({ os, workflow, onPrev }: { os: OS; workflow: Workflow; onPrev: () => void }) {
+  const currentResult = generateSetupScript(os, workflow);
 
   return (
     <VStack gap="space-16" className="max-w-3xl mx-auto w-full">
@@ -382,7 +321,6 @@ export function InteractiveSetupWizard() {
 
   const [os, setOs] = useState<OS>("mac");
   const [workflow, setWorkflow] = useState<Workflow>("cli");
-  const [stack, setStack] = useState<CollectionId>("kotlin-backend");
 
   useEffect(() => {
     const platform = (navigator.userAgent || navigator.platform)?.toLowerCase() || "";
@@ -396,7 +334,7 @@ export function InteractiveSetupWizard() {
     setHasDetected(true);
   }, []);
 
-  const nextStep = () => setActiveStep((prev) => Math.min(prev + 1, 5));
+  const nextStep = () => setActiveStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setActiveStep((prev) => Math.max(prev - 1, 1));
 
   if (!hasDetected) return null;
@@ -421,9 +359,6 @@ export function InteractiveSetupWizard() {
           <Stepper.Step href="#" completed={activeStep > 3}>
             Arbeidsflyt
           </Stepper.Step>
-          <Stepper.Step href="#" completed={activeStep > 4}>
-            Stack
-          </Stepper.Step>
           <Stepper.Step href="#">Ferdig</Stepper.Step>
         </Stepper>
 
@@ -433,8 +368,7 @@ export function InteractiveSetupWizard() {
           {activeStep === 3 && (
             <StepWorkflow workflow={workflow} setWorkflow={setWorkflow} onPrev={prevStep} onNext={nextStep} />
           )}
-          {activeStep === 4 && <StepStack stack={stack} setStack={setStack} onPrev={prevStep} onNext={nextStep} />}
-          {activeStep === 5 && <StepResult os={os} workflow={workflow} stack={stack} onPrev={prevStep} />}
+          {activeStep === 4 && <StepResult os={os} workflow={workflow} onPrev={prevStep} />}
         </Box>
       </VStack>
     </Box>

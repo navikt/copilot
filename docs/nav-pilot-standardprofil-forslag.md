@@ -46,7 +46,7 @@ Den viktigere halvdelen er den oppdraget ikke nevner: #490 la inn et fallback fr
 
 ### 3.4 Innhold når allerede brukerne én gang om dagen
 
-Ved start sjekker `nav-pilot` om den installerte samlingen er utdatert og tilbyr synk ([interactive.go:205-235](../cli/nav-pilot/internal/cli/interactive.go)). Sjekken har 24 timers TTL ([staleness.go:13](../cli/nav-pilot/internal/artifacts/staleness.go)). Agentfiler er innhold. En modellendring som ligger i en `model:`-linje når altså brukerne innen et døgn allerede i dag, uten noen ny mekanisme, mot ett ja-klikk.
+Ved start sjekker `nav-pilot` om den installerte pakka er utdatert og tilbyr synk ([interactive.go:205-235](../cli/nav-pilot/internal/cli/interactive.go)). Sjekken har 24 timers TTL ([staleness.go:13](../cli/nav-pilot/internal/artifacts/staleness.go)). Agentfiler er innhold. En modellendring som ligger i en `model:`-linje når altså brukerne innen et døgn allerede i dag, uten noen ny mekanisme, mot ett ja-klikk.
 
 Det er den enkeltopplysningen som svekker behovet mest, og den står her framfor i fotnotene.
 

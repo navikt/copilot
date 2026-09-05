@@ -285,6 +285,29 @@ Koden er fasit. Tabellen holder oversikt over hvor en plan, en PR-tekst eller en
 | M1-kontrakten ([#436](https://github.com/navikt/copilot/pull/436)), hvor `primaryAgents` hører hjemme | Rosteret på klientoppføringen, også for Tier 2 | eSyfos G4-svar viste at payload-rostere skiller seg per kontekst. Rosteret ligger på payloaden for Tier 2 ([§4](#4-launch-beslutningene)). M1-formen er forlatt, ikke deprekert, den hadde ingen konsumenter |
 | WP3-planen, omstokking av opencode-argumenter | `_opencode_client_arguments` kuttet, «legges inn hvis noen melder fra» | #458 implementerer den ([§4](#4-launch-beslutningene)). Planen er utdatert på dette punktet |
 
+## 9. Samlingene: kollapset til én pakke (#468)
+
+Avgjort i [#468](https://github.com/navikt/copilot/issues/468), på grunnlag av spike-dokumentet fra [#465](https://github.com/navikt/copilot/pull/465) (`docs/agentpakke-samlinger-spike.md` ved `2d09ac2`; slettet da beslutningen var implementert, git-historikken er arkivet). De tre spørsmålene #468 stilte, med svar:
+
+1. **«Nøyaktig ett installerbart navn per repo» består som kontraktinvariant.** Alternativ C (flere pakker per repo) er eksplisitt forkastet: brytende kontraktendring for å modellere variasjon Navs innhold ikke har. B (`subsets`-felt) er ikke valgt, men forblir mulig som *additivt* tillegg senere — bare brytende former var bundet til vinduet.
+2. **Manifestet og migrasjonen skippet i samme release.** `.nav-pilot/agentpakke.json` (utkast A: `SynthesizeLegacy("")` serialisert) og state-migrasjonen landet i samme PR, og releasen kuttes per merge til main.
+3. **A — én pakke, ingen subsets.** De fem samlingene bar ~én bit kurasjon (fire delmengdeforhold pluss `skills/rust-development`); delmengden en bruker faktisk har, uttrykkes allerede av state-lagets ignore-liste.
+
+Slik migrasjonen virker (`adoptPakkeIdentity`, `cli/nav-pilot/internal/cli/agentpakke.go`):
+
+- En scope med `state.Collection` lik et samlingsnavn (identifikator-formet) skrives om til pakkenavnet ved neste `sync` mot kilden sin, **høylytt**. Filene beholdes byte for byte; resten av poolen markeres `ignored`, så `scopeTracksEverything` blir sann uten at nytt innhold dyttes på brukeren.
+- `(all)` skrives bare om — den ignorerte ingenting og fortsetter å høre om poolvekst.
+- `(à la carte)` røres ikke; den har aldri hevdet en samlingsidentitet.
+- `nav-pilot install frontend` (og de fire andre navnene) svarer med foldingen og kommandoen som gjelder, ikke «not found». Navnene ligger i `legacyCollections` (`internal/agentpakke/legacy.go`) — kilden kjenner dem ikke lenger, så binæren må.
+
+Hva som fulgte med på kjøpet: [#466](https://github.com/navikt/copilot/issues/466) (ni pool-artefakter sto i ingen samling, deriblant opencode-primærpersonaen `nav-pilot-opus`; under én pakke finnes ikke «utenfor samlingene») og [#467](https://github.com/navikt/copilot/issues/467) (`version`-feltet i samlingsmanifestene som ingenting leste; feltet er fjernet fra `source.Manifest`).
+
+Hva som *ikke* skjedde her, med vilje:
+
+- **`SynthesizeLegacy` består.** Manifestløse tredjepartskilder og pinnede pre-manifest-refs går fortsatt gjennom adapteren. Den pensjoneres med samlingsmekanismen i migrasjonens fase 3, når deprekeringsvinduet — som startet da manifestet skippet — løper ut. Til da holder `TestCommittedManifestMatchesLegacyAdapter` (`internal/agentpakke/manifest_parity_test.go`) det committede manifestet og adapteren i takt: endres ett av dem uten det andre, feiler testen.
+- **Eldre binærer får spike-ens §2-oppførsel mot ny main:** `install frontend` blir «not found» med forslag, og en samlings-scope fryser som delmengde til brukeren oppgraderer. Filsync fortsetter å virke (filene finnes fortsatt i poolene). Akseptert: kilden hentes fra HEAD ved kjøring, så det finnes ingen sekvensering som skåner en binær brukeren ikke oppgraderer.
+- **Velger-forhåndsutvalg** (TUI-komfort for «anbefalte utvalg per teamtype», nå dokumentert i [README.collections.md](README.collections.md)) er fortsatt ugjort og ustilt.
+
 ## Se også
 
 - [Agentpakke-kontrakten](README.agentpakke.md), hva en agentpakke er og hva nav-pilot krever av den

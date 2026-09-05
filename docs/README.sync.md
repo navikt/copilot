@@ -83,9 +83,9 @@ Create `.github/copilot-sync.json` in your repo:
 
 > **Important:** Sync only touches files whose names also exist in the source repo. If your team creates a file with the same name as a source file, say your own `kotlin-app-config` skill, sync sees a hash mismatch and proposes overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
 
-Overrides are also how you opt out of framework-specific files. Teams on Astro, Remix, or anything else that isn't Next.js can override the Next.js files that the `nextjs-frontend` and `fullstack` collections install, such as `.github/instructions/nextjs-aksel.instructions.md`, `.github/instructions/performance.instructions.md` and `.github/prompts/nextjs-api-route.prompt.md`.
+Overrides are also how you opt out of framework-specific files. Teams on Astro, Remix, or anything else that isn't Next.js can override the Next.js files the agentpakke installs, such as `.github/instructions/nextjs-aksel.instructions.md`, `.github/instructions/performance.instructions.md` and `.github/prompts/nextjs-api-route.prompt.md`.
 
-> **Tip:** If you need no Next.js files at all, install the `frontend` collection instead. It only includes framework-agnostic tools (accessibility, testing, Aksel Design System, and so on).
+> **Tip:** If you need no Next.js files at all, deselect them in the interactive picker instead — see [recommended selections](README.collections.md).
 
 ## Suppressing new-item reminders (user scope)
 

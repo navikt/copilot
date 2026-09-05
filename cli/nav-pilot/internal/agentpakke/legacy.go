@@ -93,3 +93,31 @@ func SynthesizeLegacy(collection string) *Manifest {
 		},
 	}
 }
+
+// legacyCollections are the five curated collections navikt/copilot shipped
+// before it declared its own agentpakke — folded into the single "nav-pilot"
+// pakke by #468. The source no longer knows these names, so the binary has to:
+// they are what an existing install's state may still say, and what a user's
+// muscle memory still types.
+var legacyCollections = map[string]bool{
+	"frontend":        true,
+	"fullstack":       true,
+	"kotlin-backend":  true,
+	"nextjs-frontend": true,
+	"platform":        true,
+}
+
+// IsLegacyCollection reports whether name is one of the five retired
+// navikt/copilot collections, so install can answer `nav-pilot install
+// frontend` with the fold instead of a bare "not found".
+func IsLegacyCollection(name string) bool {
+	return legacyCollections[name]
+}
+
+// IsIdentifier reports whether name is a contract identifier — the shape every
+// real collection name had, and the synthetic "(all)"/"(à la carte)" labels do
+// not. It is the test [SynthesizeLegacy] applies before naming a manifest
+// after a collection.
+func IsIdentifier(name string) bool {
+	return identifierPattern.MatchString(name)
+}

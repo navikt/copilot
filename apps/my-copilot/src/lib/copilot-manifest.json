@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-03T18:48:48.329Z",
+  "generatedAt": "2026-09-05T10:11:29.148Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -154,8 +154,7 @@
           "prompt": "@code-review-agent Sjekk src/app/usage/page.tsx for Nav-konvensjoner",
           "scenario": "Konvensjonssjekk"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "forfatter",
@@ -200,8 +199,7 @@
           "prompt": "@forfatter Gå gjennom feilmeldingene i denne Spring-kontrolleren — bruk klart språk, si hva brukeren kan gjøre",
           "scenario": "Feilmeldinger i backend-API"
         }
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "kafka-agent",
@@ -356,8 +354,7 @@
           "prompt": "@nav-pilot Vi trenger en Kafka-konsument som lytter på vedtakshendelser",
           "scenario": "Planlegg hendelsedrevet tjeneste"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "research-agent",
@@ -495,8 +492,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Faccessibility.instructions.md",
       "applyTo": "src/**/*.{tsx,jsx}",
       "tags": ["accessibility", "wcag", "a11y", "universell-utforming"],
-      "examples": ["Legg til riktige ARIA-attributter på dette skjemaet"],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      "examples": ["Legg til riktige ARIA-attributter på dette skjemaet"]
     },
     {
       "id": "code-review",
@@ -514,8 +510,7 @@
       "examples": [
         "Flagg sikkerhetskritiske endringer i PR-er som hemmeligheter, PII i logger og auth-endringer",
         "Identifiser risiko i NAIS-konfig, GitHub Actions og testdekning"
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "database",
@@ -530,8 +525,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdatabase.instructions.md",
       "applyTo": "**/db/migration/**/*.sql",
       "tags": ["database", "flyway", "sql", "migration"],
-      "examples": ["Lag en Flyway-migrasjon som legger til en status-kolonne i vedtak-tabellen i dp-inntekt"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["Lag en Flyway-migrasjon som legger til en status-kolonne i vedtak-tabellen i dp-inntekt"]
     },
     {
       "id": "deliberate-ai-use",
@@ -549,8 +543,7 @@
       "examples": [
         "Vurder om denne oppgaven bør gjøres manuelt for læringsverdi",
         "Forklar valgene og tradeoffene i den genererte koden"
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "docker",
@@ -565,8 +558,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdocker.instructions.md",
       "applyTo": "**/Dockerfile",
       "tags": ["docker", "dockerfile", "container", "multi-stage"],
-      "examples": ["Lag en multi-stage Dockerfile for en Spring Boot-applikasjon"],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      "examples": ["Lag en multi-stage Dockerfile for en Spring Boot-applikasjon"]
     },
     {
       "id": "github-actions",
@@ -581,8 +573,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fgithub-actions.instructions.md",
       "applyTo": ".github/workflows/*.{yml,yaml}",
       "tags": ["github-actions", "ci-cd", "workflow", "deployment"],
-      "examples": ["Lag en GitHub Actions workflow som bygger og deployer til Nais"],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      "examples": ["Lag en GitHub Actions workflow som bygger og deployer til Nais"]
     },
     {
       "id": "golang",
@@ -600,8 +591,7 @@
       "examples": [
         "Lag en Go HTTP-tjeneste med pgx og sqlc for dp-inntekt",
         "Sett opp slog med strukturert logging og OpenTelemetry-integrasjon"
-      ],
-      "collections": ["fullstack", "platform"]
+      ]
     },
     {
       "id": "kotlin-ktor",
@@ -616,8 +606,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-ktor.instructions.md",
       "applyTo": "**/*.kt",
       "tags": ["kotlin", "ktor", "backend"],
-      "examples": ["Lag et nytt endepunkt i fp-sak med Azure AD-autentisering og feilhåndtering"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["Lag et nytt endepunkt i fp-sak med Azure AD-autentisering og feilhåndtering"]
     },
     {
       "id": "kotlin-spring",
@@ -632,8 +621,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fkotlin-spring.instructions.md",
       "applyTo": "**/*.kt",
       "tags": ["kotlin", "spring", "backend"],
-      "examples": ["Lag en REST-controller i kursportalen-backend med Spring Boot og validering"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["Lag en REST-controller i kursportalen-backend med Spring Boot og validering"]
     },
     {
       "id": "nextjs-aksel",
@@ -651,8 +639,7 @@
       "examples": [
         "Lag en responsiv søknadsoversikt med Aksel Box og VStack",
         "Hva er riktig bakgrunnsfarge-token for en lys grå boks i Aksel v8?"
-      ],
-      "collections": ["fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "norwegian-text",
@@ -667,8 +654,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fnorwegian-text.instructions.md",
       "applyTo": "**/*.md",
       "tags": ["norwegian", "bokmål", "markdown", "spelling", "compound-words", "terminology"],
-      "examples": ["Rett opp NAV til Nav i denne fila", "Sjekk at teksten er konsekvent bokmål"],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      "examples": ["Rett opp NAV til Nav i denne fila", "Sjekk at teksten er konsekvent bokmål"]
     },
     {
       "id": "output-style",
@@ -686,8 +672,7 @@
       "examples": [
         "Skriv kortere svar uten fyllord og AI-markører",
         "Når skal arkitekturvalg forklares og når skal svaret bare komme"
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "performance",
@@ -705,8 +690,7 @@
       "examples": [
         "Optimaliser lasting av bilder og fonter i Next.js-appen",
         "Analyser og reduser bundle-størrelsen for dp-soknad"
-      ],
-      "collections": ["fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "security-owasp",
@@ -724,8 +708,7 @@
       "examples": [
         "Forebygg SQL- og kommandoinjeksjon med parameteriserte spørringer og trygg inputvalidering",
         "Verifiser tilgangskontroll eksplisitt og unngå logging av hemmeligheter"
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "testing-kotlin",
@@ -738,8 +721,7 @@
       "contentHash": "183e7a28acecdbb569111f723631d52991b2d2cb097c484c7a92cd5fdd9b143c",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-kotlin.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-kotlin.instructions.md",
-      "applyTo": "**/*.test.{kt,kts}",
-      "collections": ["fullstack", "kotlin-backend"]
+      "applyTo": "**/*.test.{kt,kts}"
     },
     {
       "id": "testing-typescript",
@@ -752,8 +734,7 @@
       "contentHash": "6c6055340a9d075cf520e77ab64983b65c11593984db7a3d263bdc6f2fbec1b2",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-typescript.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting-typescript.instructions.md",
-      "applyTo": "**/*.test.{ts,tsx}",
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      "applyTo": "**/*.test.{ts,tsx}"
     },
     {
       "id": "testing",
@@ -768,8 +749,7 @@
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Ftesting.instructions.md",
       "applyTo": "**/*.test.{ts,tsx,kt,kts}",
       "tags": ["testing", "vitest", "kotest", "quality"],
-      "examples": ["Skriv en test for validateSøknad() med grensetilfeller"],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      "examples": ["Skriv en test for validateSøknad() med grensetilfeller"]
     },
     {
       "id": "aksel-component",
@@ -800,8 +780,7 @@
         "#aksel-component Lag en varslingsbanner med ikon og lukkeknapp",
         "#aksel-component Lag et responsivt kort med tittel, ingress og knapp",
         "#aksel-component Scaffold en skjemaseksjon med tekstfelt og lagre-knapp"
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "golang-service",
@@ -815,8 +794,7 @@
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "invocation": "#golang-service",
-      "model": ["GPT-5.6 Luna"],
-      "collections": ["fullstack", "platform"]
+      "model": ["GPT-5.6 Luna"]
     },
     {
       "id": "kafka-topic",
@@ -832,8 +810,7 @@
       "invocation": "#kafka-topic",
       "model": ["GPT-5.3-Codex"],
       "tags": ["nais", "kafka", "rapids-rivers", "infrastructure"],
-      "examples": ["#kafka-topic Legg til et topic for sykmeldingshendelser"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["#kafka-topic Legg til et topic for sykmeldingshendelser"]
     },
     {
       "id": "ktor-endpoint",
@@ -847,8 +824,7 @@
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fktor-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fktor-endpoint.prompt.md",
       "invocation": "#ktor-endpoint",
-      "model": ["GPT-5.6 Luna"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "model": ["GPT-5.6 Luna"]
     },
     {
       "id": "nais-manifest",
@@ -864,8 +840,7 @@
       "invocation": "#nais-manifest",
       "model": ["GPT-5.3-Codex"],
       "tags": ["nais", "kubernetes", "deployment", "infrastructure"],
-      "examples": ["#nais-manifest Generer et manifest for dp-soknad i prod-gcp"],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      "examples": ["#nais-manifest Generer et manifest for dp-soknad i prod-gcp"]
     },
     {
       "id": "nextjs-api-route",
@@ -881,8 +856,7 @@
       "invocation": "#nextjs-api-route",
       "model": ["GPT-5.6 Luna"],
       "tags": ["nextjs", "api-route", "app-router", "scaffold"],
-      "examples": ["#api-route Lag en API-route for å hente brukerdata fra BigQuery"],
-      "collections": ["fullstack", "nextjs-frontend"]
+      "examples": ["#api-route Lag en API-route for å hente brukerdata fra BigQuery"]
     },
     {
       "id": "spring-boot-endpoint",
@@ -898,8 +872,7 @@
       "invocation": "#spring-boot-endpoint",
       "model": ["GPT-5.6 Luna"],
       "tags": ["spring-boot", "kotlin", "rest", "endpoint", "scaffold"],
-      "examples": ["#spring-boot-endpoint Lag et CRUD-endepunkt for vedtak med PostgreSQL"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["#spring-boot-endpoint Lag et CRUD-endepunkt for vedtak med PostgreSQL"]
     },
     {
       "id": "aksel-builder",
@@ -975,8 +948,7 @@
           "path": "references/figma-to-code.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-builder/references/figma-to-code.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "aksel-spacing",
@@ -1031,8 +1003,7 @@
           "scenario": "OpenAPI-dokumentasjon",
           "prompt": "Lag OpenAPI-annotasjoner for endepunktene"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend"]
+      ]
     },
     {
       "id": "conventional-commit",
@@ -1063,8 +1034,7 @@
           "scenario": "Klassifisering",
           "prompt": "Hva slags type commit er denne endringen?"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "flyway-migration",
@@ -1078,8 +1048,7 @@
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["database", "flyway", "sql", "migration"],
-      "examples": ["Lag en Flyway-migrasjon som legger til en indeks på fødselsnummer"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["Lag en Flyway-migrasjon som legger til en indeks på fødselsnummer"]
     },
     {
       "id": "jackson-3-migration",
@@ -1139,8 +1108,7 @@
           "prompt": "Lag en plan for å migrere dp-arena fra Java til Kotlin",
           "scenario": "Fullstendig migrasjonsplanlegging"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend"]
+      ]
     },
     {
       "id": "kafka",
@@ -1153,8 +1121,7 @@
       "contentHash": "17ebbc88c85f02427a544ffce9d08afb839ec4e32335555bec1ee8d5f7bcd211",
       "installUrl": null,
       "insidersInstallUrl": null,
-      "tags": ["kafka", "events", "rapids-rivers", "streaming", "event-driven"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "tags": ["kafka", "events", "rapids-rivers", "streaming", "event-driven"]
     },
     {
       "id": "klarsprak",
@@ -1185,8 +1152,7 @@
           "scenario": "Commit-melding på norsk",
           "prompt": "Skriv om denne commit-meldingen til klarspråk"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "kotlin-app-config",
@@ -1200,8 +1166,7 @@
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["kotlin", "configuration", "sealed-class", "environment"],
-      "examples": ["Sett opp miljøkonfigurasjon med sealed classes i fp-sak for dev, prod og local"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["Sett opp miljøkonfigurasjon med sealed classes i fp-sak for dev, prod og local"]
     },
     {
       "id": "ktor-scaffold",
@@ -1224,8 +1189,7 @@
           "prompt": "Lag boilerplate for en Ktor API med Kotliquery og Flyway",
           "scenario": "API-tjeneste med database"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend"]
+      ]
     },
     {
       "id": "nais",
@@ -1238,8 +1202,7 @@
       "contentHash": "4c18e5e288ec0a3af2d48155e47bc63cec23989c0a326856172dfec57015a950",
       "installUrl": null,
       "insidersInstallUrl": null,
-      "tags": ["nais", "kubernetes", "deployment", "gcp", "infrastructure", "troubleshooting"],
-      "collections": ["fullstack", "kotlin-backend", "platform"]
+      "tags": ["nais", "kubernetes", "deployment", "gcp", "infrastructure", "troubleshooting"]
     },
     {
       "id": "nav-architecture-review",
@@ -1272,8 +1235,7 @@
           "path": "references/nav-principles.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-architecture-review/references/nav-principles.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "nav-auth",
@@ -1286,8 +1248,7 @@
       "contentHash": "9d074d682fbe511c17c121713703065c1895677657f57c3edff742424323bae7",
       "installUrl": null,
       "insidersInstallUrl": null,
-      "tags": ["auth", "azure-ad", "tokenx", "id-porten", "maskinporten", "jwt", "oasis"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "tags": ["auth", "azure-ad", "tokenx", "id-porten", "maskinporten", "jwt", "oasis"]
     },
     {
       "id": "nav-deep-interview",
@@ -1320,8 +1281,7 @@
           "path": "references/blind-spots.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-deep-interview/references/blind-spots.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "nav-dekoratoren",
@@ -1359,8 +1319,7 @@
           "path": "references/consent.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/consent.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "nav-plan",
@@ -1409,8 +1368,7 @@
           "path": "references/modernization-patterns.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-plan/references/modernization-patterns.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "nav-troubleshoot",
@@ -1443,8 +1401,7 @@
           "path": "references/diagnostic-trees.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-troubleshoot/references/diagnostic-trees.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "observability-debugging",
@@ -1481,8 +1438,7 @@
           "path": "references/query-library.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/references/query-library.md"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend", "platform"]
+      ]
     },
     {
       "id": "observability-setup",
@@ -1530,8 +1486,7 @@
           "path": "references/typescript.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/references/typescript.md"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend", "platform"]
+      ]
     },
     {
       "id": "playwright-testing",
@@ -1566,8 +1521,7 @@
           "scenario": "Responsiv layout",
           "prompt": "Test responsiv layout med Playwright"
         }
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "postgresql-review",
@@ -1602,8 +1556,7 @@
           "scenario": "JSONB-mønstre",
           "prompt": "Gå gjennom bruk av JSONB"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend"]
+      ]
     },
     {
       "id": "readme-review",
@@ -1649,8 +1602,7 @@
           "path": "references/template-naisjob.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/readme-review/references/template-naisjob.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "rust-development",
@@ -1681,8 +1633,7 @@
           "prompt": "Gjennomgå unsafe-koden min",
           "scenario": "Review av unsafe-kode"
         }
-      ],
-      "collections": ["platform"]
+      ]
     },
     {
       "id": "security-owasp",
@@ -1717,8 +1668,7 @@
           "prompt": "Sjekk Next.js API-rutene mine for sikkerhetsproblemer",
           "scenario": "OWASP — Node.js/Next.js-mønstre"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "security-review",
@@ -1741,8 +1691,7 @@
           "prompt": "Er det trygt å merge denne PR-en i sosialhjelp-innsyn-api?",
           "scenario": "Sikkerhetssjekk av PR"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend", "platform"]
+      ]
     },
     {
       "id": "spring-boot-scaffold",
@@ -1773,8 +1722,7 @@
           "scenario": "Prosjektstruktur",
           "prompt": "Generer prosjektstruktur for ny backend-tjeneste"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend"]
+      ]
     },
     {
       "id": "terse-mode",
@@ -1805,8 +1753,7 @@
           "scenario": "Kort forklaring",
           "prompt": "Forklar connection pooling med $terse-mode"
         }
-      ],
-      "collections": ["frontend", "fullstack", "kotlin-backend", "nextjs-frontend", "platform"]
+      ]
     },
     {
       "id": "threat-model",
@@ -1835,8 +1782,7 @@
           "path": "references/nav-mitigations.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/threat-model/references/nav-mitigations.md"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend", "platform"]
+      ]
     },
     {
       "id": "tokenx-auth",
@@ -1850,8 +1796,7 @@
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],
-      "examples": ["Sett opp TokenX-utveksling mellom dp-soknad og dp-inntekt"],
-      "collections": ["fullstack", "kotlin-backend"]
+      "examples": ["Sett opp TokenX-utveksling mellom dp-soknad og dp-inntekt"]
     },
     {
       "id": "web-design-reviewer",
@@ -1884,8 +1829,7 @@
           "path": "references/visual-checklist.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/web-design-reviewer/references/visual-checklist.md"
         }
-      ],
-      "collections": ["frontend", "fullstack", "nextjs-frontend"]
+      ]
     },
     {
       "id": "workstation-security",
@@ -1916,8 +1860,7 @@
           "prompt": "Er maskinen klar for Nais-utvikling?",
           "scenario": "Klarsjekk for Nav-plattformen"
         }
-      ],
-      "collections": ["fullstack", "kotlin-backend", "platform"]
+      ]
     }
   ]
 }

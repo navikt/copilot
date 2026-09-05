@@ -22,15 +22,18 @@
 // The legacy adapter is transitional, and the collection model it represents is
 // on its way out:
 //
-//   - Phase 1 (now): the manifest is optional. A source without
+//   - Phase 1 (delivered): the manifest is optional. A source without
 //     [ManifestPath] yields [ErrNoManifest] and the caller substitutes
 //     [SynthesizeLegacy], so existing installs behave byte-for-byte as before.
-//   - Phase 2: navikt/copilot ships its own .nav-pilot/agentpakke.json and
-//     becomes an ordinary agentpakke — the default one. Synthesis stops being
-//     exercised for the default source.
+//   - Phase 2 (delivered, #468): navikt/copilot ships its own
+//     .nav-pilot/agentpakke.json and is an ordinary agentpakke — the default
+//     one. Synthesis is no longer exercised for the default source; its five
+//     collections are folded into the one pakke, and collection-era state is
+//     adopted loudly on sync. The committed manifest is held equal to
+//     SynthesizeLegacy("") by test for as long as both exist.
 //   - Phase 3: [SynthesizeLegacy] and the collection mechanism are removed,
 //     under the deprecation window the contract's compatibility rules (A4)
-//     require.
+//     require. The window opened when phase 2 shipped.
 //
 // Nothing here should grow a second, parallel installation model to serve that
 // transition: the adapter exists so there is exactly one.

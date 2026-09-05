@@ -90,7 +90,7 @@ Legg dette i `.github/copilot-sync.json`. Filer i `overrides` vil aldri dukke op
 
 ### Astro, Remix eller annen frontend uten Next.js?
 
-Hvis du har installert `nextjs-frontend`- eller `fullstack`-samlingen men ikke bruker Next.js, kan du hoppe over Next.js-filene:
+Bruker du ikke Next.js, kan du hoppe over Next.js-filene:
 
 ```json
 {
@@ -102,7 +102,7 @@ Hvis du har installert `nextjs-frontend`- eller `fullstack`-samlingen men ikke b
 }
 ```
 
-Alternativt kan du installere `frontend`-samlingen som kun inneholder rammeverk-agnostiske verktøy.
+Alternativt kan du velge bort Next.js-filene i den interaktive velgeren ved installasjon.
 
 ## Synkroniser mot et annet repo
 

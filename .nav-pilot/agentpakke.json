@@ -8,27 +8,22 @@
   },
   "clients": {
     "copilot": {
-      "primaryAgents": [
-        "nav-pilot"
-      ]
+      "primaryAgents": ["nav-pilot"],
+      "defaultModel": "inherit"
     },
     "opencode": {
-      "primaryAgents": [
-        "nav-pilot",
-        "nav-pilot-opus"
-      ],
+      "primaryAgents": ["nav-pilot", "nav-pilot-opus"],
       "defaultModel": "github-copilot/auto"
     },
     "pi": {
-      "primaryAgents": [
-        "nav-pilot"
-      ]
+      "primaryAgents": ["nav-pilot"]
     }
   },
   "layout": {
     "agents": "agents",
     "skills": "skills",
     "instructions": "instructions",
-    "prompts": "prompts"
+    "prompts": "prompts",
+    "hooks": "hooks"
   }
 }

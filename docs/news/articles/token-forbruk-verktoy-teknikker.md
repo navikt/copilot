@@ -27,7 +27,7 @@ nav-pilot --sync    # synkroniserer, deretter starter Copilot med @nav-pilot
 Eventuelt steg for steg:
 
 ```bash
-nav-pilot install kotlin-backend   # installer collection for teamet ditt
+nav-pilot install nav-pilot        # installer Nav-agentpakka
 nav-pilot sync                     # sjekk for oppdateringer
 nav-pilot                          # interaktiv meny — install, sync, eller start Copilot
 ```

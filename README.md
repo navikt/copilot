@@ -39,15 +39,15 @@ Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/
 # Installer nav-pilot CLI
 brew install navikt/tap/nav-pilot
 
-# Installer Kotlin-backend-samlingen i repoet ditt
+# Installer Nav-agentpakka i repoet ditt
 cd /path/to/your/repo
-nav-pilot install kotlin-backend
+nav-pilot install nav-pilot
 
 # Bruk i Copilot
 @nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader
 ```
 
-**[Les mer →](docs/README.nav-pilot.md)** · **[Samlinger →](docs/README.collections.md)**
+**[Les mer →](docs/README.nav-pilot.md)** · **[Anbefalte utvalg →](docs/README.collections.md)**
 
 ## Kom i gang
 
@@ -65,7 +65,7 @@ Vil du lese deg opp først, har hver type sin egen doc i tabellen under.
 | 🎯 **Skills**        | Produksjonsmønstre med innebygde maler og referanser. VS Code, Copilot CLI og GitHub.com, JetBrains i preview. `security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js | **[Skills →](docs/README.skills.md)**              |
 | 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no). VS Code, JetBrains, Visual Studio, GitHub.com og Copilot CLI | **[MCP-servere →](docs/README.mcp.md)**            |
 | 🔄 **Sync**          | Hold tilpasninger oppdatert automatisk, som Dependabot                                                                      | **[Sync →](docs/README.sync.md)**                  |
-| 📦 **Samlinger**     | Installer en hel pakke med agenter, skills og instruksjoner på én gang                                                      | **[Samlinger →](docs/README.collections.md)**      |
+| 📦 **Anbefalte utvalg** | Alt installeres som én agentpakke (`nav-pilot install nav-pilot`); her er hva ulike team bør beholde                     | **[Anbefalte utvalg →](docs/README.collections.md)** |
 | 🧳 **Agentpakke**    | Teamets eget innholdsrepo med manifest, installeres med `nav-pilot install --source`                                        | **[Agentpakke →](docs/README.agentpakke.md)**      |
 | 🧭 **nav-pilot**     | CLI-verktøy og AI-agent som installerer og bruker Nav-tilpasninger i Copilot Chat                                           | **[nav-pilot →](docs/README.nav-pilot.md)**        |
 | 🧪 **Testing**       | Strukturelle og E2E-tester for nav-pilot                                                                                    | **[Testing →](docs/README.testing.md)**            |
