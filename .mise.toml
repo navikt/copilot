@@ -130,7 +130,7 @@ echo "  vet..."     && go vet ./... && \
 echo "  staticcheck..." && go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./... && \
 cd ../.. && \
 echo "  shellcheck..." && shellcheck scripts/install.sh && \
-echo "  bats..." && bats scripts/install.bats scripts/sync-pr-body.bats && \
+echo "  bats..." && bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats && \
 echo "  ✅ nav-pilot checks passed"
 """
 
