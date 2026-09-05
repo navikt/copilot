@@ -176,12 +176,17 @@ Derfor skal du sette presetet via nav-pilot, ikke for hånd:
 nav-pilot config     # velg raden «cplt security posture»
 ```
 
-Den skriver Nav-vertene til `~/.nav-pilot/cplt-allowed-domains.txt`, peker
+Den skriver vertslista til `~/.nav-pilot/cplt-allowed-domains.txt`, peker
 `proxy.allowed_domains` dit, og setter så presetet — i den rekkefølgen, slik at låsen aldri
 rekker å tre i kraft uten vertene. Har du allerede en egen `proxy.allowed_domains`, lar
 nav-pilot den være i fred og sier fra at du må ta med vertene selv. cplt-config er personlig,
 så nav-pilot setter den aldri stilltiende, og nøkler du har satt selv gjelder fortsatt foran
 presetet.
+
+Fila er en fullstendig liste, ikke bare Nav-vertene. `proxy.allowed_domains` blokkerer alt
+utenfor seg selv uansett hva `proxy.default_allowlist` står på, og cplt sin innebygde liste
+er per agent — bare copilot-lista har GitHub og Copilot i seg, opencode har `opencode.ai` og
+`models.dev`. Derfor står de innebygde vertene i fila også, slik at den er riktig alene.
 
 `nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår
 `brew upgrade navikt/tap/cplt`. nav-pilot laster aldri ned eller oppgraderer cplt for deg.

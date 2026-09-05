@@ -288,3 +288,33 @@ func TestNavAllowedDomainsAreBareAndSpecific(t *testing.T) {
 		}
 	}
 }
+
+// The file nav-pilot writes has to be a complete allowlist, never a delta.
+//
+// cplt blocks everything outside a non-empty `proxy.allowed_domains`
+// regardless of `proxy.default_allowlist`, and only unions in its built-in
+// per-agent list while that second key is on. Between nav-pilot's two config
+// writes, after a failed preset write, or once a user lowers the preset by
+// hand, this file IS the allowlist — and a delta would leave github.com and
+// every package registry unreachable.
+//
+// It also has to be complete because the built-in list is per agent, and
+// nav-pilot launches three. Only the copilot list carries GitHub and Copilot
+// infrastructure: opencode's is opencode.ai and models.dev, pi's is the package
+// registries alone.
+func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
+	// Model access and auth, without which no agent reaches a model at all.
+	// cplt COPILOT_INFRA_DOMAINS — absent from the opencode and pi lists.
+	// opencode's own infrastructure. cplt OPENCODE_DOMAINS — absent from the
+	// copilot list.
+	// Package registries, so a sandboxed build still resolves.
+	for _, host := range []string{
+		"githubcopilot.com", "github.com", "api.github.com",
+		"opencode.ai", "models.dev",
+		"registry.npmjs.org", "repo.maven.apache.org", "pypi.org",
+	} {
+		if !containsStr(navAllowedDomains, host) {
+			t.Errorf("%q missing — the file is a delta, and on its own it locks the agent out", host)
+		}
+	}
+}

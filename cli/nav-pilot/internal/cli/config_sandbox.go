@@ -281,23 +281,79 @@ var cpltEnforcement = func() *cpltCheckReport {
 // `proxy.allowed_domains` into the built-in list rather than replacing it, so
 // this file only has to carry the delta.
 
-// navAllowedDomains are the hosts nav-pilot and the artifacts it installs
-// actually reach, minus everything cplt's built-in Copilot allowlist already
-// covers (github.com, api.github.com, githubcopilot.com, the package
-// registries — see COPILOT_INFRA_DOMAINS and PACKAGE_REGISTRY_DOMAINS in
-// cplt src/agent.rs).
+// navAllowedDomains is the COMPLETE set of hosts nav-pilot writes to the file
+// cplt reads. Complete, not a delta — that distinction is the whole design.
 //
-// Every entry is here because something nav-pilot ships fetches it, with the
-// call site named. The list is deliberately short: an allowlist padded with
-// hosts nobody verified is a lockdown that only looks like one. Hosts that
-// appear in the artifacts as citation links, human-facing UI links, or sample
-// config for the developer's own application are NOT here — nothing fetches
-// them, and adding them would widen the hole for nothing.
+// `proxy.allowed_domains` is fail-closed on its own account, independently of
+// `proxy.default_allowlist`: cplt blocks any host outside a non-empty allowlist
+// (cplt src/proxy.rs, the `BlockedAllowlist` arm), and the built-in per-agent
+// list is only unioned in while `default_allowlist` is on (cplt
+// src/proxy_domains.rs, `DomainList::current` — "no sticky half, the file is
+// the sole source"). So a delta file is a trap with three doors into it: the
+// window between nav-pilot's two config writes, a failed preset write, and a
+// user who later lowers the preset by hand or with `--preset`. Behind any of
+// them the file IS the allowlist, and a delta file would leave github.com and
+// every package registry unreachable, with nothing on screen naming nav-pilot.
+//
+// Writing the built-ins back out costs nothing — cplt unions and dedupes — and
+// makes the file correct standing alone. Which it also has to be for a second
+// reason: the built-in list is per agent (cplt src/agent.rs,
+// `Agent::default_allowed_domains`). nav-pilot launches copilot, opencode and
+// pi through cplt, and only the copilot list carries GitHub and Copilot
+// infrastructure. opencode gets `opencode.ai` and `models.dev`; pi gets the
+// package registries and nothing else. An opencode session on nav-pilot's
+// default `github-copilot/auto` model could not reach a model host at all.
+//
+// Every Nav entry below is something nav-pilot or an artifact it installs
+// actually fetches, with the call site named. Hosts that appear in the
+// artifacts as citation links, human-facing UI links, or sample config for the
+// developer's own application are NOT here — nothing fetches them, and each one
+// would widen the lockdown for nothing.
 //
 // cplt matches each entry exact-or-subdomain and does not read glob syntax, so
 // these are bare hostnames with no leading `*.` — and they are specific hosts
 // rather than `nav.cloud.nais.io`, which would open every Nais tenant at once.
-var navAllowedDomains = []string{
+var navAllowedDomains = append(append([]string{}, cpltBuiltinDomains...), navOwnDomains...)
+
+// cpltBuiltinDomains mirrors cplt's own built-in allowlists for the three
+// agents nav-pilot launches: COPILOT_INFRA_DOMAINS, OPENCODE_DOMAINS and
+// PACKAGE_REGISTRY_DOMAINS in cplt src/agent.rs.
+//
+// Copied rather than referenced because there is nothing to reference — cplt
+// exposes the list to `cplt --observe-domains` and to its own proxy, not to a
+// config command. A copy can go stale, so the cost of it being wrong is worth
+// stating: a host cplt adds later and nav-pilot does not is one an agent cannot
+// reach under strict, which is a visible failure with a one-line fix here. The
+// reverse — a host cplt drops — leaves an entry that was already reachable.
+// Neither silently weakens anything, because everything here is already in
+// cplt's own default-on list.
+var cpltBuiltinDomains = []string{
+	// Copilot: auth, model access and telemetry.
+	"githubcopilot.com",
+	"api.github.com",
+	"github.com",
+	"copilot-proxy.githubusercontent.com",
+	"actions.githubusercontent.com",
+	"default.exp2.cds.s9ch.io",
+
+	// opencode's own infrastructure.
+	"opencode.ai",
+	"models.dev",
+
+	// Package registries, shared by every agent.
+	"registry.npmjs.org",
+	"registry.yarnpkg.com",
+	"repo.maven.apache.org",
+	"plugins.gradle.org",
+	"crates.io",
+	"static.crates.io",
+	"pypi.org",
+	"files.pythonhosted.org",
+}
+
+// navOwnDomains are the hosts nav-pilot adds on top: nothing in cplt's
+// built-in lists reaches any of them.
+var navOwnDomains = []string{
 	// nav-pilot's own OTel metrics export, on every command.
 	// internal/telemetry/telemetry.go, defaultTelemetryEndpoint — also injected
 	// into copilot and opencode sessions as OTEL_EXPORTER_OTLP_ENDPOINT.
@@ -315,8 +371,12 @@ var navAllowedDomains = []string{
 	"aksel.nav.no",
 
 	// The observability skill hands the agent literal curl commands against
-	// these four APIs — Prometheus, Loki, and Tempo in each of the two
-	// environments Nav runs. skills/observability-debugging/SKILL.md.
+	// Prometheus, Loki and Tempo. Mimir and Loki are single global endpoints;
+	// Tempo is per cluster, and every concrete example in the skill uses one of
+	// these two. The skill's `dev-fss`/`prod-fss` clusters appear only as a
+	// Loki label value, never as a Tempo hostname, so they are left out until
+	// something shows Tempo is reachable there.
+	// skills/observability-debugging/SKILL.md.
 	// grafana.nav.cloud.nais.io is deliberately absent: the skill presents it
 	// as a browser link for the human, never as something the agent fetches.
 	"mimir.nav.cloud.nais.io",
@@ -327,14 +387,35 @@ var navAllowedDomains = []string{
 	// The Entra ID OIDC discovery document for the nav.no tenant, curl'd
 	// directly by skills/nav-auth/SKILL.md.
 	"login.microsoftonline.com",
+
+	// Nav's Maven mirror. skills/spring-boot-scaffold/SKILL.md writes it into
+	// the generated build.gradle.kts repositories block, so an agent that
+	// scaffolds a service and then builds it resolves against this host.
+	// repo.maven.apache.org being built in does not help.
+	"github-package-registry-mirror.gc.nav.no",
+
+	// scripts/install.sh — the documented install path for both nav-pilot and
+	// cplt — is `curl https://raw.githubusercontent.com/...  | bash`, and the
+	// release assets it then fetches redirect to the object hosts. None of
+	// these is covered by cplt's `github.com`: the matcher is
+	// exact-or-subdomain and githubusercontent.com is a different apex, of
+	// which cplt lists only the copilot-proxy and actions subdomains.
+	"raw.githubusercontent.com",
+	"objects.githubusercontent.com",
+	"release-assets.githubusercontent.com",
 }
 
 // navAllowedDomainsPath is where nav-pilot keeps the file cplt reads.
 //
 // `proxy.allowed_domains` takes a *path*, not a list, and cplt re-reads that
-// file every few seconds — so this is a live document, and putting it beside
-// the nav-pilot config rather than inside cplt's own is what lets nav-pilot
-// update it on a later run without touching anything the user owns.
+// file every few seconds. It lives beside the nav-pilot config rather than
+// inside cplt's own so nav-pilot can rewrite it without touching a file the
+// user owns.
+//
+// It is written on exactly one path today — the posture action — so a user who
+// adopts strict keeps whatever list shipped that day. Refreshing it when it is
+// already the configured allowlist is the obvious next step and is not in this
+// change.
 func navAllowedDomainsPath() string {
 	return filepath.Join(filepath.Dir(configPath()), "cplt-allowed-domains.txt")
 }
@@ -349,8 +430,11 @@ func writeNavAllowedDomains() (string, error) {
 	}
 	var b strings.Builder
 	b.WriteString("# Written by nav-pilot. Edits are overwritten on the next run.\n")
-	b.WriteString("# Hosts nav-pilot and the agents and skills it installs need, on top of\n")
-	b.WriteString("# cplt's built-in allowlist. Read by cplt via proxy.allowed_domains.\n")
+	b.WriteString("# The complete set of hosts nav-pilot and the agents and skills it installs\n")
+	b.WriteString("# need. Read by cplt via proxy.allowed_domains.\n")
+	b.WriteString("#\n")
+	b.WriteString("# Deleting this file does not fail loudly: cplt keeps serving its built-in\n")
+	b.WriteString("# list and the Nav hosts below simply stop being reachable.\n")
 	for _, d := range navAllowedDomains {
 		b.WriteString(d + "\n")
 	}
