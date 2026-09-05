@@ -200,23 +200,23 @@ macOS har ingen slik grense. Der håndheves det samme med Seatbelt.
 ### Logging av blokkeringer
 
 `proxy.log_level` styrer hva cplt sin proxy skriver til stderr. Standardverdien er `none`,
-men cplt hever den selv til `blocked` så snart en vertsliste er aktiv — enten fordi
-`proxy.default_allowlist` er på, eller fordi `proxy.allowed_domains` peker på en fil
+men cplt hever den selv til `blocked` så snart en vertsliste er aktiv, enten fordi
+`proxy.default_allowlist` er på eller fordi `proxy.allowed_domains` peker på en fil
 (`src/main.rs`, `proxy_log_level`). Posturen nav-pilot anbefaler gjør begge deler, så på
 strict er `blocked` allerede i kraft uten at du setter noe. Nav-pilot anbefaler derfor ikke
 nøkkelen: den er allerede dekket der den betyr noe.
 
 Kjører du `standard` uten egen `proxy.allowed_domains`, er det ingen vertsliste å heve for,
-og proxyen tier også om de blokkeringene som ikke kommer fra vertslista — verter som slår
-opp til private eller link-local IP-er, altså DNS-rebinding- og metadatavernet. Vil du se
-dem, setter du nivået selv:
+og proxyen tier også om de blokkeringene som ikke kommer fra vertslista. Det er verter som
+slår opp til private eller link-local IP-er, altså DNS-rebinding- og metadatavernet. Vil du
+se dem, setter du nivået selv:
 
 ```bash
 cplt config set proxy.log_level blocked
 ```
 
 `audit.enabled` ser ut som svaret på det samme, men er det ikke i dagens cplt. `[audit]`-
-seksjonen leses og vises av `cplt config show`, men ingenting bruker den — cplt sier det
+seksjonen leses og vises av `cplt config show`, men ingenting bruker den. cplt sier det
 selv i registeret sitt (`src/config/registry.rs`, `BOOL_KEYS_EXEMPT`: «the `[audit]` section
 is parsed and displayed but has no consumer yet»). Å slå den på gir ingen logg. Vil du ha
 en fil å lese etterpå, er det `proxy.log_file` som faktisk skriver en.
