@@ -389,7 +389,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	if clientID == "" || clientID != authCode.ClientID {
 		slog.Warn("client_id missing or mismatched in token exchange",
 			"expected", authCode.ClientID,
-			"got", clientID,
+			"got", logSafe(clientID),
 		)
 		s.writeTokenError(w, "invalid_client", "client_id missing or does not match the authorization code")
 		return
