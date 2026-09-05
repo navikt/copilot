@@ -459,12 +459,17 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 	}
 
 	state := &StateFile{
-		Collection:  src.Pakke.Name,
-		Version:     src.Version,
-		Scope:       scope.Name,
-		SourceRepo:  src.Repo,
-		SourceSHA:   src.SHA,
-		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
+		Collection: src.Pakke.Name,
+		Version:    src.Version,
+		Scope:      scope.Name,
+		SourceRepo: src.Repo,
+		SourceSHA:  src.SHA,
+		// The per-client record is written by the pin itself — install, sync
+		// --apply and auto-pin all pass through here — never first by a
+		// resolving launch, which is exactly how the tier cache missed the
+		// installed-but-never-launched path (#544).
+		PinnedClients: payloadClients(src.Pakke),
+		InstalledAt:   timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
 	// #588: the pin replaces the state, not the keys it carried — but only
 	// when the state still describes the same source. Switching a scope from
@@ -504,6 +509,21 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 
 	prunePakkeRevisions(src.Repo, src.SHA, previousPin)
 	return revDir, nil
+}
+
+// payloadClients lists the clients a manifest declares pre-built payloads for,
+// sorted. It is what a pin records per client (#544): stageRevision materializes
+// exactly these clients, so the list is a faithful record of what was staged —
+// not a claim about what the source declares today.
+func payloadClients(pakke *agentpakke.Manifest) []string {
+	var ids []string
+	for _, client := range pakke.ClientIDs() {
+		if pakke.Tier(client) == agentpakke.TierPayload {
+			ids = append(ids, client)
+		}
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 // checkPakkeInstallable is everything that must hold before a Tier 2 install
