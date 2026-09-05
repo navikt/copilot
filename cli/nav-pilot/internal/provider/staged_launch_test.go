@@ -348,9 +348,9 @@ func TestStagedCopilotRequiresCplt(t *testing.T) {
 }
 
 // TestStagedCopilotHonorsRestrictiveAuthMode pins that the staged Tier 2
-// copilot launch runs the same token pre-extraction as the legacy path: a
-// restrictive copilot_auth_mode fails closed instead of silently launching
-// cplt without a pre-extracted GH_TOKEN.
+// copilot launch applies copilot_auth_mode the same way the legacy path does:
+// env_only fails closed instead of launching cplt and letting it fall back to
+// `gh auth token`.
 func TestStagedCopilotHonorsRestrictiveAuthMode(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())
 	t.Cleanup(func() { SetActivePakke(nil) })
@@ -368,23 +368,14 @@ func TestStagedCopilotHonorsRestrictiveAuthMode(t *testing.T) {
 	t.Setenv("COPILOT_GITHUB_TOKEN", "")
 	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
 
-	orig := ghCLITokenCmd
-	ghCLITokenCmd = fakeCmd(t, "", 1)
-	defer func() { ghCLITokenCmd = orig }()
-
-	for _, mode := range []string{"env_only", "gh_only"} {
-		t.Run(mode, func(t *testing.T) {
-			_ = os.Remove(marker)
-			err := LaunchCopilotStaged(
-				domain.ResolvedConfig{Client: "copilot", AskUser: true, CopilotAuthMode: mode},
-				StagedLaunch{Dir: dir, PakkeName: "grillmester", Context: "full"})
-			if err == nil {
-				t.Fatalf("staged launch should fail closed for %q", mode)
-			}
-			if _, statErr := os.Stat(marker); statErr == nil {
-				t.Fatalf("cplt must not launch for restrictive mode %q", mode)
-			}
-		})
+	err := LaunchCopilotStaged(
+		domain.ResolvedConfig{Client: "copilot", AskUser: true, CopilotAuthMode: "env_only"},
+		StagedLaunch{Dir: dir, PakkeName: "grillmester", Context: "full"})
+	if err == nil {
+		t.Fatal("staged launch should fail closed for env_only without a token")
+	}
+	if _, statErr := os.Stat(marker); statErr == nil {
+		t.Fatal("cplt must not launch for env_only without a token")
 	}
 }
 

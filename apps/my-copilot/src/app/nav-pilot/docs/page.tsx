@@ -1813,13 +1813,16 @@ function KlienterOgKonfigurasjonSection() {
             <Box background="info-soft" borderRadius="8" padding="space-12">
               <BodyShort size="small" style={{ color: "#475569" }}>
                 For <code className="font-mono text-xs">copilot</code> via{" "}
-                <code className="font-mono text-xs">cplt</code>: nav-pilot henter ut token før sandkassen starter (fra{" "}
-                <code className="font-mono text-xs">GH_TOKEN</code>,{" "}
+                <code className="font-mono text-xs">cplt</code>: det er <code className="font-mono text-xs">cplt</code>{" "}
+                som skaffer GitHub-tokenet, fra <code className="font-mono text-xs">GH_TOKEN</code>,{" "}
                 <code className="font-mono text-xs">GITHUB_TOKEN</code>,{" "}
                 <code className="font-mono text-xs">COPILOT_GITHUB_TOKEN</code> eller{" "}
-                <code className="font-mono text-xs">gh auth token</code>) og injiserer det som{" "}
-                <code className="font-mono text-xs">GH_TOKEN</code> i sandkassen, så Copilot slipper å nå Keychain der.
-                Styres av <code className="font-mono text-xs">copilot_auth_mode</code>.
+                <code className="font-mono text-xs">gh auth token</code>. Med{" "}
+                <code className="font-mono text-xs">copilot_auth_mode</code> velger du hvilken kilde{" "}
+                <code className="font-mono text-xs">cplt</code> får bruke:{" "}
+                <code className="font-mono text-xs">env_only</code> avbryter oppstart uten token i miljøet,{" "}
+                <code className="font-mono text-xs">gh_only</code> fjerner token-variablene så{" "}
+                <code className="font-mono text-xs">gh auth token</code> må brukes.
               </BodyShort>
             </Box>
             <div>

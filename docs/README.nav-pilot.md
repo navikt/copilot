@@ -177,14 +177,15 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 > SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. `cplt` må
 > være installert for å starte `opencode` og `pi`, i tillegg til selve klient-binæren.
 
-> **Sikkerhetsdetalj (Copilot/cplt):** Før `cplt` startes henter nav-pilot ut
-> GitHub-/Copilot-token i den usandkassede foreldreprosessen — fra `GH_TOKEN`,
-> `GITHUB_TOKEN` eller `COPILOT_GITHUB_TOKEN`, ellers via `gh auth token` — og
-> injiserer det som `GH_TOKEN` i sandkassemiljøet. Da har Copilot allerede et
-> token og trenger ikke å nå Keychain inne i sandkassen, noe som forkorter
-> vinduet med bred Keychain-tilgang. Strategien styres av `copilot_auth_mode`
-> (`auto`, `env_only`, `gh_only`); restriktive moduser feiler lukket. Se
-> [SECURITY.md](../SECURITY.md) for detaljer og begrensninger.
+> **Auth-detalj (Copilot/cplt):** Det er `cplt` som skaffer GitHub-tokenet: den
+> bruker `GH_TOKEN`, `GITHUB_TOKEN` eller `COPILOT_GITHUB_TOKEN` hvis en av dem
+> er satt, ellers kjører den `gh auth token` utenfor sandkassen. nav-pilot henter
+> ikke ut token selv, men `copilot_auth_mode` styrer hvilken kilde `cplt` får
+> bruke: `auto` (standard) overlater valget til `cplt`, `env_only` krever at
+> tokenet allerede ligger i miljøet og avbryter oppstart hvis det ikke gjør det,
+> og `gh_only` fjerner token-variablene fra barnemiljøet slik at `cplt` må gå via
+> `gh auth token`. Dette er en konfigurasjonskontroll, ikke en sikkerhetsgrense —
+> se [SECURITY.md](../SECURITY.md).
 
 ### opencode: Nav-kontekst automatisk
 
