@@ -40,7 +40,7 @@ jobs:
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v6.0.0
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Open a PR when prices moved
         env:
@@ -161,7 +161,7 @@ jobs:
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v6.0.0
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Open a PR when the catalog moved
         env:

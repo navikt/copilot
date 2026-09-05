@@ -89,6 +89,39 @@ test("a malformed feed (no provider / no models) throws", () => {
   assert.throws(() => parseCatalog("garbage"), /not an object/);
 });
 
+// An array is a `typeof "object"`, so every shape guard has to reject it by
+// hand. A list of models would otherwise be keyed by position and produce a
+// picker of "0", "1", "2" — past the floor as soon as the list is long enough.
+test("an array-shaped feed throws at every level rather than yielding numeric ids", () => {
+  assert.throws(() => parseCatalog([]), /not an object/);
+  assert.throws(() => parseCatalog({ "github-copilot": [] }), /no github-copilot provider/);
+  assert.throws(
+    () => parseCatalog({ "github-copilot": { models: [] } }),
+    /no models object/,
+  );
+  const listed = Array.from({ length: MIN_CATALOG_MODELS + 1 }, (_, i) => ({
+    id: `m-${i}`,
+    name: `M ${i}`,
+  }));
+  assert.throws(
+    () => parseCatalog({ "github-copilot": { models: listed } }),
+    /no models object/,
+    "a long enough list would otherwise clear the floor with positional ids",
+  );
+});
+
+// A model entry that is not an object must fall back to its id, not throw and
+// not stringify something odd into the label.
+test("a non-object model entry falls back to the id as its label", () => {
+  const entries = parseCatalog({
+    "github-copilot": { models: { "odd-one": ["GPT-5.5"], "nully": null } },
+  });
+  assert.deepEqual(entries, [
+    { id: "odd-one", label: "odd-one" },
+    { id: "nully", label: "nully" },
+  ]);
+});
+
 // --- Reconciliation ---
 
 test("priceNameToId slugifies display names to catalog ids", () => {

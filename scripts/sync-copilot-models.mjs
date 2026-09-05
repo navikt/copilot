@@ -56,24 +56,36 @@ const PINNED = [
 // so the pinned entries can never make an empty feed look populated.
 const MIN_CATALOG_MODELS = 5;
 
+/**
+ * A keyed object, not an array and not null.
+ *
+ * `typeof [] === "object"`, so the plain typeof test accepts a feed whose
+ * models are a list. `Object.entries` on a list yields "0", "1", ... as keys,
+ * which is a picker full of numeric model ids. The floor catches the empty
+ * case and nothing else, so the shape is checked here instead.
+ */
+function isPlainObject(v) {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
 /** Extract {id,label} for the github-copilot provider. Throws on a bad feed. */
 function parseCatalog(catalog) {
-  if (!catalog || typeof catalog !== "object") {
+  if (!isPlainObject(catalog)) {
     throw new Error("catalog is not an object");
   }
   const provider = catalog[PROVIDER_ID];
-  if (!provider || typeof provider !== "object") {
+  if (!isPlainObject(provider)) {
     throw new Error(`no ${PROVIDER_ID} provider in the catalog`);
   }
   const models = provider.models;
-  if (!models || typeof models !== "object") {
+  if (!isPlainObject(models)) {
     throw new Error(`${PROVIDER_ID} provider has no models object`);
   }
   const entries = [];
   for (const [id, model] of Object.entries(models)) {
     if (typeof id !== "string" || id === "") continue;
     const label =
-      model && typeof model.name === "string" && model.name.trim()
+      isPlainObject(model) && typeof model.name === "string" && model.name.trim()
         ? model.name.trim()
         : id;
     entries.push({ id, label });
