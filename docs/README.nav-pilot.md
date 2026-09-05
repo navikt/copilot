@@ -197,6 +197,37 @@ av ved oppstart, og da ville en versjonssjekk sagt «går fint» rett før cplt 
 
 macOS har ingen slik grense. Der håndheves det samme med Seatbelt.
 
+### Logging av blokkeringer
+
+`proxy.log_level` styrer hva cplt sin proxy skriver til stderr. Standardverdien er `none`,
+men cplt hever den selv til `blocked` så snart en vertsliste er aktiv, enten fordi agenten
+har en innebygd liste (copilot, opencode) eller fordi `proxy.allowed_domains` er satt
+(`proxy_log_level` i cplt-repoet, `src/main.rs`). Sikkerhetsnivået nav-pilot anbefaler skriver alltid
+vertslistefila `proxy.allowed_domains` peker på, så på `strict` er `blocked` allerede i kraft
+uten at du setter noe. Merk at den innebygde lista er tom for `pi`, `goose` og `shell`, så
+der er det bare vertslistefila som slår til.
+Nav-pilot anbefaler derfor ikke nøkkelen: den er allerede dekket der den betyr noe.
+
+Kjører du `standard` uten egen `proxy.allowed_domains`, er det ingen vertsliste å heve for,
+og proxyen tier da om alle andre blokkeringer og feil også: treff i cplt sin egen
+blokkliste, stengte porter, verter som slår opp til private eller link-local IP-er
+(DNS-rebinding- og metadatavernet), og oppslag som feiler. Vil du se dem, setter du nivået
+selv:
+
+```bash
+cplt config set proxy.log_level blocked
+```
+
+`audit.enabled` ser ut som svaret på det samme, men er det ikke i dagens cplt.
+`[audit]`-seksjonen leses og vises av `cplt config show`, men ingenting bruker den. cplt
+sier det selv i registeret sitt (cplt-repoet, `src/config/registry.rs`, `BOOL_KEYS_EXEMPT`: «the `[audit]` section
+is parsed and displayed but has no consumer yet»). Å slå den på gir ingen logg. Vil du ha
+en fil å lese etterpå, er det `proxy.log_file` som faktisk skriver en. Den dekker
+proxy-verdiktene, ikke avgjørelsene til gh- og git-vakta.
+
+Ikke forveksle den med `sandbox.audit`, som er noe annet og allerede på: den viser
+rapporten over filendringer på skjermen (stderr) etter at agenten har avsluttet.
+
 ### Lokal modell og strict
 
 `nav-pilot local` sender prompten via en loop-guard på `127.0.0.1`. cplt blokkerer localhost
