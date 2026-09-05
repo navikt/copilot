@@ -70,7 +70,7 @@ whether or not the request will succeed. The failure only appears here:
 gh api repos/OWNER/REPO/pulls/N/merge-async/UUID
 ```
 
-That returns `enqueued`, or `failed` with the actual reason — a rejected merge
+That returns `enqueued`, or `failed` with the actual reason: a rejected merge
 param, checks still owing results, and so on. Treating the `pending` response as
 success means retrying a request that has already failed, silently.
 
