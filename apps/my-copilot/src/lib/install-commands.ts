@@ -147,13 +147,9 @@ function buildPackageArgs(pkg: NonNullable<Extract<AnyCustomization, { type: "mc
   return { runtime, args };
 }
 
-function getServerName(item: AnyCustomization): string {
-  return item.name.split("/").pop() ?? item.name;
-}
-
 export function getMcpServerConfig(item: AnyCustomization): string {
   if (item.type !== "mcp") return "";
-  const serverName = getServerName(item);
+  const serverName = item.serverId;
 
   if (item.packages && item.packages.length > 0) {
     const result = buildPackageArgs(item.packages[0]);
@@ -178,7 +174,7 @@ export function getMcpServerConfig(item: AnyCustomization): string {
 
 export function getVsCodeAddMcpCommand(item: AnyCustomization): string {
   if (item.type !== "mcp") return "";
-  const serverName = getServerName(item);
+  const serverName = item.serverId;
 
   if (item.packages && item.packages.length > 0) {
     const result = buildPackageArgs(item.packages[0]);
@@ -205,7 +201,7 @@ export function getMcpAddFields(
   item: AnyCustomization
 ): { name: string; type: string; url?: string; command?: string; env?: string } | null {
   if (item.type !== "mcp") return null;
-  const name = getServerName(item);
+  const name = item.serverId;
 
   if (item.remotes.length > 0) {
     return { name, type: "HTTP", url: item.remotes[0].url };

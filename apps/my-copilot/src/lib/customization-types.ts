@@ -58,6 +58,7 @@ export interface Skill extends BaseCustomization {
 
 export interface McpServerCustomization extends BaseCustomization {
   type: "mcp";
+  serverId: string;
   version: string;
   remotes: { type: string; url: string }[];
   websiteUrl?: string;

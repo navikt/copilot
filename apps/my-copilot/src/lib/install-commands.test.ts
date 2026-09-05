@@ -92,7 +92,8 @@ const skillWithRefs: Skill = {
 const remoteMcp: McpServerCustomization = {
   ...base,
   type: "mcp",
-  name: "io.github.navikt/github-mcp",
+  name: "github-mcp",
+  serverId: "io.github.navikt/github-mcp",
   version: "1.0.0",
   remotes: [{ type: "streamable-http", url: "https://mcp.nav.no/mcp" }],
 };
@@ -100,7 +101,8 @@ const remoteMcp: McpServerCustomization = {
 const npmMcp: McpServerCustomization = {
   ...base,
   type: "mcp",
-  name: "io.github.navikt/figma-mcp",
+  name: "figma-mcp",
+  serverId: "io.github.navikt/figma-mcp",
   version: "1.0.0",
   remotes: [],
   packages: [
@@ -120,7 +122,8 @@ const npmMcp: McpServerCustomization = {
 const pypiMcp: McpServerCustomization = {
   ...base,
   type: "mcp",
-  name: "io.github.navikt/python-mcp",
+  name: "python-mcp",
+  serverId: "io.github.navikt/python-mcp",
   version: "1.0.0",
   remotes: [],
   packages: [
@@ -135,7 +138,8 @@ const pypiMcp: McpServerCustomization = {
 const emptyMcp: McpServerCustomization = {
   ...base,
   type: "mcp",
-  name: "io.github.navikt/empty-mcp",
+  name: "empty-mcp",
+  serverId: "io.github.navikt/empty-mcp",
   version: "1.0.0",
   remotes: [],
 };
@@ -143,7 +147,8 @@ const emptyMcp: McpServerCustomization = {
 const playwrightMcp: McpServerCustomization = {
   ...base,
   type: "mcp",
-  name: "com.microsoft/playwright-mcp",
+  name: "playwright-mcp",
+  serverId: "com.microsoft/playwright-mcp",
   version: "0.0.80",
   remotes: [],
   packages: [
@@ -418,27 +423,40 @@ describe("getMcpServerConfig", () => {
 
   it("generates http config for remote mcp", () => {
     const config = JSON.parse(getMcpServerConfig(remoteMcp));
-    expect(config["github-mcp"]).toEqual({ type: "http", url: "https://mcp.nav.no/mcp" });
+    expect(config).toEqual({
+      "io.github.navikt/github-mcp": { type: "http", url: "https://mcp.nav.no/mcp" },
+    });
   });
 
   it("generates stdio config for npm package", () => {
     const config = JSON.parse(getMcpServerConfig(npmMcp));
-    expect(config["figma-mcp"].command).toBe("pnpm");
-    expect(config["figma-mcp"].args).toEqual(["dlx", "@anthropic/figma-mcp", "--port", "3333"]);
-    expect(config["figma-mcp"].env.FIGMA_TOKEN).toBe("");
-    expect(config["figma-mcp"].env.DEBUG).toBe("Enable debug logging");
+    const entry = config["io.github.navikt/figma-mcp"];
+    expect(entry.command).toBe("pnpm");
+    expect(entry.args).toEqual(["dlx", "@anthropic/figma-mcp", "--port", "3333"]);
+    expect(entry.env.FIGMA_TOKEN).toBe("");
+    expect(entry.env.DEBUG).toBe("Enable debug logging");
   });
 
   it("generates stdio config for pypi package", () => {
     const config = JSON.parse(getMcpServerConfig(pypiMcp));
-    expect(config["python-mcp"].command).toBe("uvx");
-    expect(config["python-mcp"].args).toEqual(["mcp-server-python"]);
+    expect(config["io.github.navikt/python-mcp"].command).toBe("uvx");
+    expect(config["io.github.navikt/python-mcp"].args).toEqual(["mcp-server-python"]);
   });
 
-  it("generates the pinned Playwright command under the short config key", () => {
+  it("generates only the full key, so re-copying cannot remove an existing external short key", () => {
+    const existingExternalConfig = { "playwright-mcp": { command: "existing-command" } };
+    const generatedConfig = JSON.parse(getMcpServerConfig(playwrightMcp));
+    const recopiedExternalConfig = { ...existingExternalConfig, ...generatedConfig };
+
+    expect(Object.keys(generatedConfig)).toEqual(["com.microsoft/playwright-mcp"]);
+    expect(generatedConfig).not.toHaveProperty("playwright-mcp");
+    expect(Object.keys(recopiedExternalConfig)).toEqual(["playwright-mcp", "com.microsoft/playwright-mcp"]);
+  });
+
+  it("generates the pinned Playwright command under the full registry ID", () => {
     const config = JSON.parse(getMcpServerConfig(playwrightMcp));
     expect(config).toEqual({
-      "playwright-mcp": {
+      "com.microsoft/playwright-mcp": {
         command: "pnpm",
         args: [
           "dlx",
@@ -468,7 +486,7 @@ describe("getMcpServerConfig", () => {
         ],
       })
     );
-    expect(config["playwright-mcp"].args).toEqual(["dlx", "@playwright/mcp@0.0.80", "--isolated"]);
+    expect(config["com.microsoft/playwright-mcp"].args).toEqual(["dlx", "@playwright/mcp@0.0.80", "--isolated"]);
   });
 
   it("returns empty for mcp with no remotes or packages", () => {
@@ -485,7 +503,7 @@ describe("getVsCodeAddMcpCommand", () => {
     const cmd = getVsCodeAddMcpCommand(remoteMcp);
     expect(cmd).toContain("code --add-mcp");
     const json = JSON.parse(cmd.replace("code --add-mcp '", "").replace(/'$/, ""));
-    expect(json.name).toBe("github-mcp");
+    expect(json.name).toBe("io.github.navikt/github-mcp");
     expect(json.type).toBe("http");
     expect(json.url).toBe("https://mcp.nav.no/mcp");
   });
@@ -493,9 +511,10 @@ describe("getVsCodeAddMcpCommand", () => {
   it("generates code --add-mcp for npm package", () => {
     const cmd = getVsCodeAddMcpCommand(npmMcp);
     const json = JSON.parse(cmd.replace("code --add-mcp '", "").replace(/'$/, ""));
-    expect(json.name).toBe("figma-mcp");
+    expect(json.name).toBe("io.github.navikt/figma-mcp");
     expect(json.command).toBe("pnpm");
     expect(json.args).toContain("dlx");
+    expect(json.args).toContain("@anthropic/figma-mcp");
     expect(json.env.FIGMA_TOKEN).toBe("${input:FIGMA_TOKEN}");
     expect(json.env.DEBUG).toBe("Enable debug logging");
   });
@@ -512,12 +531,16 @@ describe("getMcpAddFields", () => {
 
   it("returns HTTP fields for remote", () => {
     const fields = getMcpAddFields(remoteMcp);
-    expect(fields).toEqual({ name: "github-mcp", type: "HTTP", url: "https://mcp.nav.no/mcp" });
+    expect(fields).toEqual({
+      name: "io.github.navikt/github-mcp",
+      type: "HTTP",
+      url: "https://mcp.nav.no/mcp",
+    });
   });
 
   it("returns STDIO fields for npm package", () => {
     const fields = getMcpAddFields(npmMcp)!;
-    expect(fields.name).toBe("figma-mcp");
+    expect(fields.name).toBe("io.github.navikt/figma-mcp");
     expect(fields.type).toBe("STDIO");
     expect(fields.command).toContain("pnpm dlx");
     expect(fields.command).toContain("@anthropic/figma-mcp");

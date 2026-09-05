@@ -104,6 +104,7 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
         return {
           id: `mcp-${s.server.name}`,
           name: formatServerName(s.server.name),
+          serverId: s.server.name,
           description: s.server.description,
           type: "mcp" as const,
           domain: deriveDomain(tags),
