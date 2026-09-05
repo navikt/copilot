@@ -41,6 +41,39 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - Do not commit secrets.
 - Do not push unless explicitly asked.
 
+## Merging a stacked pull request
+
+This repository uses a merge queue, and pull requests are sometimes registered
+as a GitHub *stack* (`GET /repos/{owner}/{repo}/pulls/{n}` shows a `stack`
+object). A stacked PR refuses every ordinary merge route, each with a different
+error, so it is easy to spend a long time concluding the wrong thing:
+
+- `gh pr merge --auto` reports `Auto-merge is not supported for stacked pull requests`.
+- GraphQL `enqueuePullRequest` refuses and points at the async REST API.
+- `PUT /pulls/{n}/merge` refuses stacked PRs outright.
+- `PATCH /pulls/{n}` cannot change the base while the PR is in a stack.
+
+The route that works is the asynchronous one:
+
+```sh
+gh api -X PUT repos/OWNER/REPO/pulls/N/merge-async
+```
+
+**Do not pass `merge_method`.** The merge queue sets it, and supplying one makes
+the request fail with `Custom merge params are not supported when merging via a
+merge queue`.
+
+**Poll the result.** The endpoint returns `{"status":"pending"}` with a `uuid`
+whether or not the request will succeed. The failure only appears here:
+
+```sh
+gh api repos/OWNER/REPO/pulls/N/merge-async/UUID
+```
+
+That returns `enqueued`, or `failed` with the actual reason: a rejected merge
+param, checks still owing results, and so on. Treating the `pending` response as
+success means retrying a request that has already failed, silently.
+
 ## Running the nav-pilot binary in tests or verification
 
 `nav-pilot` writes to the developer's own environment: `~/.copilot/`,
