@@ -245,9 +245,9 @@ version = 1
 # source = "navikt/copilot"
 
 # Model id. Common Copilot models: auto, claude-opus-5, claude-sonnet-5,
-# claude-sonnet-4.6, claude-haiku-4.5, claude-opus-4.8, gpt-5.6-sol,
-# gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.4, gpt-5.3-codex, gpt-5.4-mini,
-# gpt-5-mini, gemini-3.6-flash, gemini-3.1-pro-preview, gemini-3.5-flash,
+# claude-sonnet-4.6, claude-haiku-4.5, claude-opus-4.8, claude-opus-4.7,
+# gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.4, gpt-5.3-codex,
+# gpt-5.4-mini, gpt-5-mini, gemini-3.6-flash, gemini-3.5-flash,
 # kimi-k2.7-code, kimi-k3.
 # For opencode (launched via cplt → GitHub Copilot provider): a bare Copilot id
 # is mapped to github-copilot/<id>, or set a full provider/model id directly.
