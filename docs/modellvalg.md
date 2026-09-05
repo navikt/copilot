@@ -82,9 +82,10 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 
 ## Tilgjengelige modeller og bruksområder
 
-Hele modellflåten, ikke bare de som er pinnet i agenter. Prisene under er
-GitHubs listepriser slik de sto **5. september 2026**, og speiler
-`apps/my-copilot/src/lib/model-pricing.ts`. De endrer seg uten varsel, så
+Et kuratert utvalg av modellflåten: modellene vi faktisk vurderer, ikke alle
+GitHub priser. Prisene under er GitHubs listepriser slik de sto
+**5. september 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
+som dekker hele flåten. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 
 | Modell | Kategori | Input | Output | Best for |
@@ -98,7 +99,7 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort |
 | GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
 | GPT-5.6 Sol | Powerful | $4.00 | $20.00 | Tung reasoning over store kodebaser (krever Pro+). Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00 |
-| Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub — bruk GPT-5.3-Codex eller Kimi K3 til research over lang kontekst |
+| Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-5.3-Codex eller Kimi K3 til research over lang kontekst |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
 | Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026 |
 | Kimi K2.7 Code | Versatile | $0.95 | $4.00 | Rimeligste alternativ for kode-agent-løkker (open-weight) |
@@ -179,7 +180,7 @@ gevinsten overlevde kampanjeslutt.
 
 **Over 272K snur det.** Sol har et eget prisnivå for lang kontekst, $8.00 /
 $30.00. Opus-modellene har ikke det og koster $5.00 / $25.00 uansett
-kontekstlengde. Sol er altså dyrere enn Opus på begge akser over 272K — ikke
+kontekstlengde. Sol er altså dyrere enn Opus på begge akser over 272K, ikke
 lenger som anslag, men som publisert listepris. Begge disse to agentene er
 pitchet mot tung resonnering over store kodebaser, altså nettopp arbeidslasten
 som oftest krysser 272K. Prisgevinsten gjelder korte kontekster, ikke lange.
