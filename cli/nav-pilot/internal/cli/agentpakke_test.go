@@ -58,16 +58,41 @@ func repoTarget(t *testing.T) string {
 }
 
 // isolatedConfig points NAV_PILOT_CONFIG at a temp file so tests never read or
-// write the developer's own config, and HOME at a temp directory so the user
-// scope they read — install state, and the pinned revisions the launch path
-// looks up — is this test's and not the developer's. A test that wants a
-// specific home sets HOME again after calling this.
+// write the developer's own config, and HOME and XDG_CONFIG_HOME at temp
+// directories so the user scope they read (install state, and the pinned
+// revisions the launch path looks up) is this test's and not the developer's.
+//
+// A test that wants a specific home sets HOME again after calling this. It gets
+// its own XDG_CONFIG_HOME either way, pointing somewhere else; a test whose
+// fixture needs the two to agree has to set that one again too.
 func isolatedConfig(t *testing.T) string {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir())
+	// XDG_CONFIG_HOME is honoured on the opencode export path
+	// (provider/opencode_launch.go), so leaving it pointing at the developer's
+	// own config is isolation that only looks complete. AGENTS.md asks for all
+	// three; this helper is where all three belong, so that no caller has to
+	// remember the list.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	path := filepath.Join(t.TempDir(), "config.toml")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 	return path
+}
+
+// isolatedRun is isolatedConfig plus a working directory outside any checkout.
+//
+// Setting HOME is not enough for a test that calls run(): the auto scope
+// resolves the *repo* scope from the working directory, and `go test` runs with
+// that set to the package directory inside this repository. A developer who has
+// run `nav-pilot install` in their own checkout therefore has a repo-scope state
+// file in scope, and commands that would otherwise return early instead go and
+// do the real thing: `sync` fetches navikt/copilot over the network, and
+// `uninstall` enumerates the items actually installed there. Chdir'ing into an empty
+// directory takes that state out of scope along with the home directory.
+func isolatedRun(t *testing.T) {
+	t.Helper()
+	isolatedConfig(t)
+	t.Chdir(t.TempDir())
 }
 
 // ─── C3: the legacy path must not change ─────────────────────────────────────

@@ -88,6 +88,7 @@ func TestRun_RefMissingValue(t *testing.T) {
 // ─── Command alias tests ────────────────────────────────────────────────────
 
 func TestRun_AliasInstall(t *testing.T) {
+	isolatedRun(t)
 	forceNonInteractive = true
 	t.Cleanup(func() { forceNonInteractive = false })
 
@@ -102,24 +103,36 @@ func TestRun_AliasInstall(t *testing.T) {
 }
 
 func TestRun_AliasList(t *testing.T) {
-	// "ls" should behave identically to "list"
-	err := run([]string{"ls", "--json"})
-	if err != nil {
-		t.Fatalf("list alias failed: %v", err)
+	// "ls" should behave identically to "list". What is asserted is that the
+	// alias resolves, not that listing succeeds from an empty directory.
+	// --source names a synthetic tree, the way every other source-reading test
+	// in this package does. Without it the listing has no source in the working
+	// directory and goes to GitHub for one, which is a network call this
+	// assertion has no use for.
+	source := legacySourceTree(t)
+	isolatedRun(t)
+	if err := run([]string{"ls", "--json", "--source", source}); err != nil && strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("alias 'ls' was not resolved: %v", err)
 	}
 }
 
 func TestRun_AliasSync(t *testing.T) {
-	// "s" should behave identically to "sync"
-	err := run([]string{"s", "--json"})
-	if err != nil && err != errUpdatesAvailable && err != errSyncFailed {
-		t.Fatalf("sync alias failed unexpectedly: %v", err)
+	// "s" should behave identically to "sync".
+	//
+	// Without isolatedRun this ran the real sync against the developer's own
+	// home and checkout: with a repo-scope state in scope it fetches
+	// navikt/copilot over the network, so the outcome depended on installed
+	// state and on connectivity rather than on whether the alias resolved.
+	isolatedRun(t)
+	if err := run([]string{"s", "--json"}); err != nil && strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("alias 's' was not resolved: %v", err)
 	}
 }
 
 func TestRun_AliasUpgrade(t *testing.T) {
 	// "up" should behave identically to "upgrade" — non-nil error is acceptable
 	// (upgrade fetches from the network), but must not be "unknown command"
+	isolatedRun(t)
 	err := run([]string{"up"})
 	if err != nil && strings.Contains(err.Error(), "unknown command") {
 		t.Errorf("alias 'up' was not resolved: %v", err)
@@ -127,10 +140,11 @@ func TestRun_AliasUpgrade(t *testing.T) {
 }
 
 func TestRun_AliasUninstall(t *testing.T) {
-	// "rm" should behave identically to "uninstall"
-	err := run([]string{"rm", "--dry-run"})
-	if err != nil {
-		t.Fatalf("uninstall alias failed: %v", err)
+	// "rm" should behave identically to "uninstall". Unisolated, the dry run
+	// enumerated whatever was actually installed in the developer's checkout.
+	isolatedRun(t)
+	if err := run([]string{"rm", "--dry-run"}); err != nil && strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("alias 'rm' was not resolved: %v", err)
 	}
 }
 
