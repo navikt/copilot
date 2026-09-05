@@ -11,16 +11,6 @@ export const VALID_DOMAINS: readonly Domain[] = [
   "design",
 ] as const;
 
-export type CollectionId = "frontend" | "fullstack" | "kotlin-backend" | "nextjs-frontend" | "platform";
-
-export const VALID_COLLECTIONS: readonly CollectionId[] = [
-  "frontend",
-  "fullstack",
-  "kotlin-backend",
-  "nextjs-frontend",
-  "platform",
-] as const;
-
 export interface UsageExample {
   prompt: string;
   scenario: string;

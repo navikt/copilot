@@ -58,7 +58,7 @@ const QUICKSTART_COMMAND = "brew install navikt/tap/nav-pilot && nav-pilot";
 const COLLECTIONS = [
   {
     id: "kotlin-backend",
-    title: "kotlin-backend",
+    title: "Kotlin-backend",
     description: "Kotlin/Ktor, Spring Boot, Kafka og Flyway",
     agents: 4,
     skills: 24,
@@ -90,7 +90,7 @@ const COLLECTIONS = [
   },
   {
     id: "nextjs-frontend",
-    title: "nextjs-frontend",
+    title: "Next.js-frontend",
     description: "Next.js, React, Aksel og Playwright",
     agents: 5,
     skills: 11,
@@ -107,7 +107,7 @@ const COLLECTIONS = [
   },
   {
     id: "fullstack",
-    title: "fullstack",
+    title: "Fullstack",
     description: "Backend + frontend — komplett for din tjeneste",
     agents: 7,
     skills: 27,
@@ -140,7 +140,7 @@ const COLLECTIONS = [
   },
   {
     id: "platform",
-    title: "platform",
+    title: "Plattform",
     description: "Plattform, observerbarhet, DevOps og sikkerhet",
     agents: 4,
     skills: 15,
@@ -531,10 +531,11 @@ function CollectionsSection() {
         <VStack gap={{ xs: "space-16", md: "space-24" }}>
           <div className="text-center">
             <Heading size="medium" level="2" className="mb-3" style={{ color: "white" }}>
-              Ferdigpakkede samlinger for din stack
+              Én agentpakke — innhold for hele stacken
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
-              Velg arketype — få agenter, ferdigheter og instruksjoner tilpasset din stack.
+              Alt installeres med én kommando; instruksjoner og skills aktiveres av stacken din. Her er et utvalg per
+              arketype.
             </p>
           </div>
 

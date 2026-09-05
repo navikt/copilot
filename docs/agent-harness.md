@@ -67,7 +67,6 @@ Deterministiske sjekker som gir feedback *etter* handling. De signaliserer pass 
 | `mise check` (per app) | Formatering, lint, typesjekk, tester | Post-code / CI | Automatisert i CI, manuell in-session |
 | CI-workflows (5 app-spesifikke) | Build-feil, testfeil, formatavvik som PR-blokkering | Post-commit (PR) | Automatisert |
 | `mise:skills:lint` | Token-budsjett og strukturvalidering av skills | Pre-publish | Manuell |
-| `mise:collections:lint` | Konsistens mellom manifest og filer | Pre-publish | Manuell |
 | `docs:check` | Generert dokumentasjon matcher kilde | Pre-commit | Manuell |
 | Trivy / zizmor | CVE-skanning og GitHub Actions-sikkerhet | Pre-commit | Manuell |
 | Nais-helsesjekker | `.isalive`, `.isready`, `/metrics` | Post-deploy | Automatisert (plattformen) |

@@ -51,7 +51,7 @@ tilstandsfila `.github/.nav-pilot-state.json`.
 Dette får du bare her:
 
 - **Prompts.** Brukerscopet støtter `agent`, `skill` og `instruction`, ikke `prompt`
-  (`ScopeUser()` i `cli/nav-pilot/internal/domain/domain.go`). Installerer du en samling med
+  (`ScopeUser()` i `cli/nav-pilot/internal/domain/domain.go`). Installerer du pakka med
   `--user`, hoppes promptene over og rapporteres som ikke støttet. Ber du om én enkelt prompt
   med `--type prompt --user`, er det en feilmelding.
 - **Copilot på github.com.** Filene er sjekket inn, så det som kjører på GitHub-siden leser

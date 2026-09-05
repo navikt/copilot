@@ -407,6 +407,15 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
 	}
 
+	// The five retired collections get the fold, not a "not found": the name
+	// still lives in docs, muscle memory, and committed state files (#468).
+	if pakkeName == agentpakke.DefaultName && agentpakke.IsLegacyCollection(name) {
+		return fmt.Errorf("the %q collection was folded into the agentpakke %q (navikt/copilot#468).\n"+
+			"It installs everything the old collections curated; deselect in the interactive picker if you want less.\n\n"+
+			"  Install it:  %s",
+			name, pakkeName, bold("nav-pilot install "+pakkeName))
+	}
+
 	// Not found — suggest closest match
 	var candidates []string
 	candidates = append(candidates, collections...)

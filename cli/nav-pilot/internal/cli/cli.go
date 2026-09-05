@@ -130,7 +130,7 @@ Get started:
   nav-pilot install kotlin-backend       # Install a collection to .github/
   nav-pilot install --user --all         # Install everything to ~/.copilot (all repos)
   nav-pilot install security-champion    # Install a single agent
-  nav-pilot install frontend --repo      # Install to this repo without being asked
+  nav-pilot install nav-pilot --repo     # Install to this repo without being asked
   nav-pilot sync                         # Check for updates
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
   nav-pilot install --source navikt/x    # Install another team's agentpakke (and remember it)

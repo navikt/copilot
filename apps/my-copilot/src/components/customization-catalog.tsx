@@ -3,9 +3,8 @@
 import { useState, useMemo, useEffect, useRef, useId } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, Button, Search, HGrid, HStack, VStack, BodyShort, Chips, UNSAFE_Combobox } from "@navikt/ds-react";
-import type { CustomizationType, Domain, CollectionId } from "@/lib/customization-types";
-import { TYPE_LABELS, COLLECTION_CONFIGS } from "@/lib/customization-types";
-import { VALID_COLLECTIONS } from "@/lib/manifest-types";
+import type { CustomizationType, Domain } from "@/lib/customization-types";
+import { TYPE_LABELS } from "@/lib/customization-types";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { CustomizationCard } from "./customization-card";
 import { DetailDrawer } from "./detail-drawer";
@@ -17,11 +16,6 @@ type SortOption = "alpha" | "most-used";
 function parseTypes(value: string | null): CustomizationType[] {
   if (!value) return [];
   return value.split(",").filter((v): v is CustomizationType => TYPES.includes(v as CustomizationType));
-}
-
-function parseCollections(value: string | null): CollectionId[] {
-  if (!value) return [];
-  return value.split(",").filter((v): v is CollectionId => (VALID_COLLECTIONS as readonly string[]).includes(v));
 }
 
 function isValidDomain(value: string | null, domains: Domain[]): value is Domain {
@@ -50,9 +44,6 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(
     isValidDomain(initialDomain, allDomains) ? initialDomain : null
   );
-  const [selectedCollections, setSelectedCollections] = useState<CollectionId[]>(
-    parseCollections(searchParams.get("collection"))
-  );
   const [selectedItem, setSelectedItem] = useState<EnrichedCustomization | null>(() => {
     if (initialItem) {
       return items.find((i) => i.id === initialItem) ?? null;
@@ -70,12 +61,11 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
     const params = new URLSearchParams();
     if (selectedTypes.length > 0) params.set("type", selectedTypes.join(","));
     if (selectedDomain) params.set("domain", selectedDomain);
-    if (selectedCollections.length > 0) params.set("collection", selectedCollections.join(","));
     if (search) params.set("q", search);
     if (selectedItem) params.set("item", selectedItem.id);
     const qs = params.toString();
     router.replace(qs ? `?${qs}` : "/verktoy", { scroll: false });
-  }, [selectedTypes, selectedDomain, selectedCollections, search, selectedItem, router]);
+  }, [selectedTypes, selectedDomain, search, selectedItem, router]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -93,8 +83,6 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
       if (item.deprecated) return false;
       if (selectedTypes.length > 0 && !selectedTypes.includes(item.type)) return false;
       if (selectedDomain && item.domain !== selectedDomain) return false;
-      if (selectedCollections.length > 0 && !item.collections?.some((c) => selectedCollections.includes(c)))
-        return false;
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -110,23 +98,17 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
       return result.sort((a, b) => b.usageCount - a.usageCount || a.name.localeCompare(b.name, "nb"));
     }
     return result.sort((a, b) => a.name.localeCompare(b.name, "nb"));
-  }, [items, search, selectedTypes, selectedDomain, selectedCollections, sortBy]);
+  }, [items, search, selectedTypes, selectedDomain, sortBy]);
 
   const typeId = useId();
-  const collectionId = useId();
 
   const typeOptions = useMemo(() => TYPES.map((type) => ({ label: TYPE_LABELS[type], value: type })), []);
-  const collectionOptions = useMemo(
-    () => VALID_COLLECTIONS.map((c) => ({ label: COLLECTION_CONFIGS[c].label, value: c })),
-    []
-  );
 
-  const hasActiveFilters = selectedTypes.length > 0 || !!selectedDomain || selectedCollections.length > 0 || !!search;
+  const hasActiveFilters = selectedTypes.length > 0 || !!selectedDomain || !!search;
 
   function resetFilters() {
     setSelectedTypes([]);
     setSelectedDomain(null);
-    setSelectedCollections([]);
     setSearch("");
   }
 
@@ -156,20 +138,6 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
               setSelectedTypes((prev) => (isSelected ? [...prev, type] : prev.filter((t) => t !== type)));
             }}
             placeholder={selectedTypes.length > 0 ? `${selectedTypes.length} valgt` : "Alle typer"}
-          />
-        </div>
-        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden [&_.aksel-combobox__selected-options]:hidden">
-          <UNSAFE_Combobox
-            id={collectionId}
-            label="Samling"
-            isMultiSelect
-            options={collectionOptions}
-            selectedOptions={collectionOptions.filter((o) => selectedCollections.includes(o.value as CollectionId))}
-            onToggleSelected={(value, isSelected) => {
-              const col = value as CollectionId;
-              setSelectedCollections((prev) => (isSelected ? [...prev, col] : prev.filter((c) => c !== col)));
-            }}
-            placeholder={selectedCollections.length > 0 ? `${selectedCollections.length} valgt` : "Alle samlinger"}
           />
         </div>
         {hasActiveFilters && (

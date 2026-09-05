@@ -31,14 +31,6 @@ fi
 
 
 
-echo "📦 collections:"
-if mise run collections:lint -- -q; then
-  echo ""
-else
-  failed+=("collections")
-  echo ""
-fi
-
 echo "🪝 hooks:"
 if mise run hooks:test; then
   echo ""

@@ -13,7 +13,6 @@ import (
 type Manifest struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
-	Version      string   `json:"version"`
 	Agents       []string `json:"agents"`
 	Skills       []string `json:"skills"`
 	Instructions []string `json:"instructions"`

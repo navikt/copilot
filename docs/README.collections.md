@@ -1,57 +1,52 @@
-# 📦 Copilot Collections
+# 📦 Recommended selections
 
-Collections are curated bundles of agents, skills, instructions, and prompts organized by team archetype.
-
-📖 **Full documentation:** [min-copilot.ansatt.nav.no/nav-pilot/docs](https://min-copilot.ansatt.nav.no/nav-pilot/docs)
-
-## Available collections
-
-| Collection | Description | Best for |
-| --- | --- | --- |
-| **kotlin-backend** | Kotlin/Ktor and Spring Boot on Nais | Backend API and event consumers |
-| **frontend** | Framework-agnostic frontend (Aksel, UU, testing) | Astro, Remix, Vite and other non-Next.js frontends |
-| **nextjs-frontend** | Next.js with Aksel Design System | Innbygger- og saksbehandler-frontends |
-| **fullstack** | Complete stack (backend + frontend) | Teams that own the full stack |
-| **platform** | Nais, observability, security | Platform and DevOps teams |
-
-Each collection is one `manifest.json` that references items by name. The CLI resolves those names to actual files from the repository. Read a collection's manifest to see exactly what it pulls in.
-
-## Creating a new collection
-
-1. Create a directory in `collections/<name>/`
-2. Add a `manifest.json` listing the items:
-
-```json
-{
-  "name": "my-collection",
-  "description": "Description of the collection",
-  "agents": ["nav-pilot", "my-agent"],
-  "skills": ["nav-plan", "nav-deep-interview"],
-  "instructions": ["my-instruction"],
-  "prompts": ["my-prompt"]
-}
-```
-
-3. Test with `nav-pilot install --dry-run <name>`
-4. Submit a PR
-
-## Modifying a collection
-
-Same job. Edit its `manifest.json`, make sure every agent, skill, instruction and prompt you name exists in the repository, then:
+Nav's default content is one agentpakke: `nav-pilot`, declared in
+[`.nav-pilot/agentpakke.json`](../.nav-pilot/agentpakke.json). Installing it gives you every
+agent, skill, instruction, and prompt in this repository:
 
 ```bash
-nav-pilot install --dry-run <collection>
-nav-pilot install --force <collection>
+nav-pilot install nav-pilot
 ```
+
+That is deliberately everything. Instructions are glob-scoped (`*.kt` files never activate the
+Next.js rules), skills load on demand, and only the `nav-pilot` personas are primary agents —
+so "everything" costs a directory of markdown, not always-on context.
+
+The five curated collections (`frontend`, `nextjs-frontend`, `kotlin-backend`, `fullstack`,
+`platform`) were folded into this single pakke
+([#468](https://github.com/navikt/copilot/issues/468)). Existing installs migrate on their next
+`nav-pilot sync`: the scope keeps exactly the files it had, and the rest of the pool is
+recorded as ignored.
+
+## Installing less
+
+Deselect in the interactive picker (`nav-pilot install`, or reinstall any time). For
+user-scope installs you can also suppress single items afterwards:
+
+```bash
+nav-pilot ignore instruction nextjs-aksel --user
+```
+
+Deselections are recorded in the scope's state and survive sync and reinstall.
+
+## What to keep, by team type
+
+Guidance, not mechanism — start from everything and deselect what your stack never touches:
+
+| Team type | Worth keeping | Safe to deselect |
+| --- | --- | --- |
+| **Kotlin backend** | `kotlin-*`, `spring-boot-*`, `ktor-*`, `flyway-migration`, `kafka`, `postgresql-review`, `tokenx-auth` | `nextjs-aksel`, `aksel-*`, `performance`, `testing-typescript`, frontend prompts |
+| **Frontend (non-Next.js)** | `aksel-*`, `accessibility`, `playwright-testing`, `nav-dekoratoren`, `testing-typescript`, `norwegian-text` | `nextjs-aksel`, `nextjs-api-route`, all `kotlin-*`/`ktor-*`/`spring-*`, `kafka`, `flyway-migration` |
+| **Next.js frontend** | The frontend set plus `nextjs-aksel`, `performance`, `nextjs-api-route` | All `kotlin-*`/`ktor-*`/`spring-*`, `kafka`, `flyway-migration` |
+| **Fullstack** | Backend and frontend sets combined | Little — this was the union already |
+| **Platform / DevOps** | `nais`, `observability-*`, `security-*`, `golang`, `rust-development`, `threat-model`, `workstation-security` | Framework-specific frontend and Kotlin content |
+
+The shared core — `code-review`, `deliberate-ai-use`, the `nav-plan`/`nav-troubleshoot`
+planning skills, `security-owasp`, `conventional-commit`, `klarsprak`, `terse-mode` — was in
+every collection and belongs in every selection.
 
 ## Exporting for other tools
 
-If you use [OpenCode](https://github.com/anomalyco/opencode) or [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) instead of GitHub Copilot, you can export all Nav customizations to `.opencode/` format:
-
-```bash
-nav-pilot export opencode              # generates .opencode/ in current directory
-nav-pilot export opencode --user       # exports to ~/.config/opencode/ (global)
-nav-pilot export opencode --dry-run    # preview what would be exported
-```
-
-See [nav-pilot docs](README.nav-pilot.md#eksport-til-andre-verktøy) for transformation details.
+If you use [OpenCode](https://github.com/anomalyco/opencode) instead of GitHub Copilot,
+`nav-pilot` materializes the same content there; see
+[README.nav-pilot.md](README.nav-pilot.md#eksport-til-andre-verktøy).

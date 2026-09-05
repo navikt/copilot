@@ -405,3 +405,77 @@ func persistInstalledSource(flagSource string, dryRun bool) {
 	fmt.Printf("  %s runs use it without %s; clear it with %s.\n",
 		dim("Future"), bold("--source"), bold(`nav-pilot config set source ""`))
 }
+
+// adoptPakkeIdentity rewrites a collection-era scope onto the agentpakke
+// identity its source now declares (#468, the #465 §4 migration). It answers
+// the day a manifest-less source ships a manifest: state that says
+// `"collection": "frontend"` would otherwise freeze — sync keeps updating the
+// recorded files, but [scopeTracksEverything] goes false, so new content is
+// never mentioned again and no command moves the scope forward.
+//
+// The install itself does not change. The recorded files keep their hashes and
+// statuses; every artifact the pakke ships that the collection never installed
+// is recorded as ignored, so the subset the user chose survives as the ignore
+// list the picker and `nav-pilot add` already understand. An "(all)" install
+// ignored nothing and keeps ignoring nothing. An à-la-carte install never
+// claimed a collection identity and is left alone, as is a scope recorded
+// against a different source than the one being synced.
+//
+// The rewrite happens before the file diff and is loud: adoption is a
+// migration the user should read about the one time it runs, not deduce from
+// a renamed state file.
+func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, resolver *SourceResolver, jsonOutput bool) {
+	if src == nil || src.Pakke == nil || state == nil {
+		return
+	}
+	old := state.Collection
+	if old == src.Pakke.Name || (old != CollectionAll && !agentpakke.IsIdentifier(old)) {
+		return
+	}
+	if state.SourceRepo == "" || !sameSourceRepo(state.SourceRepo, sourceLabelFor(src)) {
+		return
+	}
+
+	var ignored []string
+	if old != CollectionAll {
+		installed := make(map[string]bool, len(state.Files))
+		for _, f := range state.Files {
+			installed[f.Path] = true
+		}
+		for _, kind := range AllKinds {
+			if !scope.SupportsType(kind.Name) {
+				continue
+			}
+			for _, art := range resolver.List(kind) {
+				relPath := kind.RelPathForName(scope, art.Name)
+				if !installed[relPath] {
+					ignored = append(ignored, relPath)
+				}
+			}
+		}
+	}
+
+	out := os.Stdout
+	if jsonOutput {
+		out = os.Stderr
+	}
+	fmt.Fprintf(out, "%s The %q collection was folded into the agentpakke %s (navikt/copilot#468).\n",
+		yellow("⚠"), old, bold(src.Pakke.Name))
+	if old == CollectionAll {
+		fmt.Fprintf(out, "  This %s scope now tracks the pakke. Your install is unchanged and still means everything.\n\n", scope.Name)
+	} else {
+		fmt.Fprintf(out, "  This %s scope now tracks the pakke. Your installed files are unchanged;\n"+
+			"  %d artifact(s) the collection never included are recorded as ignored.\n"+
+			"  Bring one in with %s, or reinstall through the interactive picker.\n\n",
+			scope.Name, len(ignored), bold("nav-pilot add <name>"))
+	}
+
+	state.Collection = src.Pakke.Name
+	for _, relPath := range ignored {
+		state.Files = append(state.Files, InstalledFile{Path: relPath, Status: fileStatusIgnored})
+	}
+	if err := writeScopedState(scope, state); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not record the adoption in the %s scope's state: %v\n",
+			yellow("⚠"), scope.Name, err)
+	}
+}

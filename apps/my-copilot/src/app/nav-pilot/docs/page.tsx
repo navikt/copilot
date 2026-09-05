@@ -68,10 +68,9 @@ const DOC_SECTIONS: TocItem[] = [
   },
   {
     id: "collections",
-    label: "Collections",
+    label: "Agentpakke",
     children: [
-      { id: "tilgjengelige-collections", label: "Tilgjengelige collections" },
-      { id: "innhold-i-hver-collection", label: "Innhold i hver collection" },
+      { id: "anbefalte-utvalg", label: "Anbefalte utvalg" },
       { id: "planning-skills", label: "Planning skills" },
     ],
   },
@@ -149,87 +148,31 @@ const DOC_SECTIONS: TocItem[] = [
    Data
    ═══════════════════════════════════════════════════════════════ */
 
-const COLLECTIONS = [
+const RECOMMENDED_SELECTIONS = [
   {
-    name: "kotlin-backend",
-    description: "Kotlin/Ktor og Spring Boot på Nais",
-    agents: 4,
-    skills: 25,
-    bestFor: "Backend-API-er og hendelseskonsumenter",
-    details: {
-      agents: "code-review, research, security-champion, nav-pilot",
-      skills:
-        "api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, klarsprak, terse-mode, threat-model, tokenx-auth, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions:
-        "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, testing, testing-kotlin, github-actions, docker, database, security-owasp",
-      prompts: "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest",
-      hooks: "klarsprak-gate",
-    },
+    team: "Kotlin-backend",
+    keep: "kotlin-*, spring-boot-*, ktor-*, flyway-migration, kafka, postgresql-review, tokenx-auth",
+    drop: "nextjs-aksel, aksel-*, performance, testing-typescript og frontend-prompts",
   },
   {
-    name: "frontend",
-    description: "Rammeverk-uavhengig frontend (Astro, Remix, Vite …)",
-    agents: 5,
-    skills: 13,
-    bestFor: "Frontends som ikke bruker Next.js",
-    details: {
-      agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
-      skills:
-        "aksel-builder, conventional-commit, playwright-testing, readme-review, klarsprak, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
-      instructions:
-        "code-review, deliberate-ai-use, output-style, norwegian-text, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
-      prompts: "aksel-component, nais-manifest",
-      hooks: "ask-first-aria, klarsprak-gate",
-    },
+    team: "Frontend (ikke Next.js)",
+    keep: "aksel-*, accessibility, playwright-testing, nav-dekoratoren, testing-typescript, norwegian-text",
+    drop: "nextjs-aksel, nextjs-api-route og alt kotlin-/ktor-/spring-innhold",
   },
   {
-    name: "nextjs-frontend",
-    description: "Next.js med Aksel Design System",
-    agents: 5,
-    skills: 13,
-    bestFor: "Innbygger- og saksbehandler-frontends",
-    details: {
-      agents: "accessibility, aksel, code-review, forfatter, nav-pilot",
-      skills:
-        "aksel-builder, conventional-commit, playwright-testing, readme-review, klarsprak, terse-mode, web-design-reviewer, nav-dekoratoren, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot, security-owasp",
-      instructions:
-        "code-review, deliberate-ai-use, output-style, nextjs-aksel, norwegian-text, performance, testing, testing-typescript, accessibility, github-actions, docker, security-owasp",
-      prompts: "aksel-component, nextjs-api-route, nais-manifest",
-      hooks: "ask-first-aria, klarsprak-gate",
-    },
+    team: "Next.js-frontend",
+    keep: "frontend-settet pluss nextjs-aksel, performance og nextjs-api-route",
+    drop: "alt kotlin-/ktor-/spring-innhold, kafka, flyway-migration",
   },
   {
-    name: "fullstack",
-    description: "Komplett stack (backend + frontend)",
-    agents: 7,
-    skills: 29,
-    bestFor: "Team som eier hele stacken",
-    details: {
-      agents: "accessibility, aksel, code-review, forfatter, research, security-champion, nav-pilot",
-      skills:
-        "aksel-builder, api-design, conventional-commit, flyway-migration, java-to-kotlin, kafka, kotlin-app-config, ktor-scaffold, nais, nav-auth, observability-setup, observability-debugging, playwright-testing, postgresql-review, readme-review, security-review, security-owasp, spring-boot-scaffold, klarsprak, terse-mode, threat-model, tokenx-auth, web-design-reviewer, nav-dekoratoren, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions:
-        "code-review, deliberate-ai-use, output-style, kotlin-ktor, kotlin-spring, golang, nextjs-aksel, norwegian-text, performance, testing, testing-kotlin, testing-typescript, accessibility, github-actions, docker, database, security-owasp",
-      prompts:
-        "ktor-endpoint, spring-boot-endpoint, kafka-topic, nais-manifest, aksel-component, nextjs-api-route, golang-service",
-      hooks: "ask-first-aria, klarsprak-gate",
-    },
+    team: "Fullstack",
+    keep: "backend- og frontend-settene samlet",
+    drop: "lite — dette var allerede unionen",
   },
   {
-    name: "platform",
-    description: "Nais, observability, sikkerhet og Go",
-    agents: 4,
-    skills: 16,
-    bestFor: "Plattform- og DevOps-team",
-    details: {
-      agents: "code-review, research, security-champion, nav-pilot",
-      skills:
-        "conventional-commit, nais, observability-setup, observability-debugging, readme-review, rust-development, security-review, security-owasp, klarsprak, terse-mode, threat-model, workstation-security, nav-plan, nav-deep-interview, nav-architecture-review, nav-troubleshoot",
-      instructions:
-        "code-review, deliberate-ai-use, output-style, golang, testing, github-actions, docker, security-owasp",
-      prompts: "golang-service, nais-manifest",
-      hooks: "klarsprak-gate",
-    },
+    team: "Plattform / DevOps",
+    keep: "nais, observability-*, security-*, golang, rust-development, threat-model, workstation-security",
+    drop: "rammeverksspesifikt frontend- og Kotlin-innhold",
   },
 ];
 
@@ -285,16 +228,16 @@ const CLI_COMMANDS = [
   { command: "nav-pilot", description: "Interaktivt: installer, oppgrader eller start Copilot-sandkassen (cplt)" },
   { command: "nav-pilot --client opencode", description: "Start OpenCode-sesjonen med Nav-kontekst levert automatisk" },
   {
-    command: "nav-pilot install <collection>",
-    description: "Installer en collection — spør om repoet (.github/) eller hjemmekatalogen (~/.copilot/)",
+    command: "nav-pilot install nav-pilot",
+    description: "Installer agentpakka — spør om repoet (.github/) eller hjemmekatalogen (~/.copilot/)",
   },
   {
     command: "nav-pilot install --user",
     description: "Installer agenter, skills og instruksjoner til ~/.copilot (alle repoer)",
   },
-  { command: "nav-pilot install --dry-run <collection>", description: "Forhåndsvis hva som installeres" },
-  { command: "nav-pilot install --force <collection>", description: "Overskriv lokalt endrede filer" },
-  { command: "nav-pilot list", description: "Vis tilgjengelige collections og enkeltkomponenter" },
+  { command: "nav-pilot install --dry-run nav-pilot", description: "Forhåndsvis hva som installeres" },
+  { command: "nav-pilot install --force nav-pilot", description: "Overskriv lokalt endrede filer" },
+  { command: "nav-pilot list", description: "Vis agentpakka og enkeltkomponenter" },
   { command: "nav-pilot list --installed", description: "Vis installerte filer og integritet" },
   { command: "nav-pilot doctor", description: "Kjør helsesjekk av systemet og miljøet" },
   { command: "nav-pilot install <name>", description: "Installer enkeltkomponent (agent, skill, etc.)" },
@@ -411,9 +354,9 @@ function IntroductionSection() {
             sørger CLI-et også for at token-bruken din optimaliseres automatisk.
           </BodyLong>
           <BodyLong style={{ color: "#475569" }}>
-            nav-pilot inneholder <strong>én planleggingsagent, fire planning skills og fem collections</strong>.
-            Collectionene koder Navs institusjonelle kunnskap som kjørbare arbeidsflyter. CLI-et installerer
-            markdown-filer — selve AI-funksjonaliteten kjøres av GitHub Copilot.
+            nav-pilot inneholder <strong>én planleggingsagent, fire planning skills og én agentpakke</strong> med alle
+            Navs agenter, skills, instruksjoner og prompts. CLI-et installerer markdown-filer — selve
+            AI-funksjonaliteten kjøres av GitHub Copilot.
           </BodyLong>
 
           {/* Component overview cards */}
@@ -467,29 +410,29 @@ function IntroductionSection() {
           </div>
         </div>
 
-        {/* At a Glance — collection links */}
+        {/* At a Glance — recommended-selection links */}
         <div>
           <Heading size="small" level="3" className="mb-4" style={{ color: "#334155" }}>
-            Velg din stack
+            Tilpass for din stack
           </Heading>
-          <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-4">
-            {COLLECTIONS.map((c, i) => {
-              const colors = ["#6366f1", "#06b6d4", "#8b5cf6", "#10b981"];
+          <HGrid columns={{ xs: 1, sm: 2, md: 5 }} gap="space-4">
+            {RECOMMENDED_SELECTIONS.map((c, i) => {
+              const colors = ["#6366f1", "#06b6d4", "#8b5cf6", "#10b981", "#f59e0b"];
               const color = colors[i % colors.length];
               return (
                 <a
-                  key={c.name}
-                  href="#tilgjengelige-collections"
+                  key={c.team}
+                  href="#anbefalte-utvalg"
                   className="no-underline block rounded-lg border overflow-hidden transition-all hover:shadow-md"
                   style={{ borderColor: "#e2e8f0" }}
                 >
                   <div style={{ height: "3px", background: color }} />
                   <div style={{ padding: "1rem" }}>
                     <Label size="small" style={{ color }}>
-                      {c.name}
+                      {c.team}
                     </Label>
                     <BodyShort size="small" className="mt-1" style={{ color: "#64748b" }}>
-                      {c.description}
+                      Anbefalt utvalg →
                     </BodyShort>
                   </div>
                 </a>
@@ -687,7 +630,7 @@ function QuickStartSection() {
                 2
               </span>
               <Label size="small" style={{ color: "#334155" }}>
-                Installer en collection i repoet ditt
+                Installer agentpakka i repoet ditt
               </Label>
             </div>
             <CodeBlock compact>
@@ -886,11 +829,20 @@ function CollectionsSection() {
       <VStack gap="space-16">
         <div>
           <LinkableHeading size="medium" level="2">
-            Collections
+            Agentpakke
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Collections er ferdigpakkede sett med agenter, skills, instruksjoner, prompts og hooks organisert etter
-            team-arketype. Velg din stack og få en komplett, testet pakke.
+            Alt Nav-innhold installeres som én agentpakke: <code className="font-mono text-xs">nav-pilot</code>.{" "}
+            <code className="font-mono text-xs">nav-pilot install nav-pilot</code> gir deg alle agenter, skills,
+            instruksjoner, prompts og hooks. Det er bevisst alt: instruksjoner er glob-scopet og aktiveres bare mot
+            matchende filer, skills lastes ved behov, og bare nav-pilot-personaene er primæragenter. Vil du ha mindre,
+            velger du bort i den interaktive velgeren — fravalgene huskes og overlever sync.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            De fem tidligere collections (frontend, nextjs-frontend, kotlin-backend, fullstack, platform) er kollapset
+            inn i denne ene pakka. Eksisterende installasjoner migreres automatisk ved neste{" "}
+            <code className="font-mono text-xs">nav-pilot sync</code>: filene dine beholdes uendret, og resten av
+            innholdet markeres som ignorert.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Merk at hooks er kjørbar kode: et Python-skript Copilot CLI kjører ved hvert verktøykall som treffer
@@ -903,17 +855,21 @@ function CollectionsSection() {
           </BodyLong>
         </div>
 
-        {/* Overview table */}
-        <div id="tilgjengelige-collections">
+        {/* Recommended selections table */}
+        <div id="anbefalte-utvalg">
           <LinkableHeading size="small" level="3">
-            Tilgjengelige collections
+            Anbefalte utvalg
           </LinkableHeading>
-
+          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
+            Veiledning, ikke mekanikk — start med alt og velg bort det stacken din aldri rører. Felleskjernen
+            (code-review, deliberate-ai-use, planning skills, security-owasp, conventional-commit, klarsprak,
+            terse-mode) hører hjemme i alle utvalg.
+          </BodyShort>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mt-4">
             <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
-                  {["Collection", "Beskrivelse", "Agenter", "Skills", "Best for"].map((h) => (
+                  {["Teamtype", "Verdt å beholde", "Trygt å velge bort"].map((h) => (
                     <th key={h} className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
                       {h}
                     </th>
@@ -921,27 +877,16 @@ function CollectionsSection() {
                 </tr>
               </thead>
               <tbody>
-                {COLLECTIONS.map((c) => (
-                  <tr key={c.name} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td className="py-3 pr-4">
-                      <code
-                        className="text-sm font-mono rounded px-1.5 py-0.5 font-semibold"
-                        style={{ background: "#f1f5f9", color: "#3b82f6" }}
-                      >
-                        {c.name}
-                      </code>
+                {RECOMMENDED_SELECTIONS.map((c) => (
+                  <tr key={c.team} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <td className="py-3 pr-4 font-semibold" style={{ color: "#334155" }}>
+                      {c.team}
                     </td>
                     <td className="py-3 pr-4" style={{ color: "#475569" }}>
-                      {c.description}
-                    </td>
-                    <td className="py-3 pr-4 text-center" style={{ color: "#475569" }}>
-                      {c.agents}
-                    </td>
-                    <td className="py-3 pr-4 text-center" style={{ color: "#475569" }}>
-                      {c.skills}
+                      {c.keep}
                     </td>
                     <td className="py-3" style={{ color: "#475569" }}>
-                      {c.bestFor}
+                      {c.drop}
                     </td>
                   </tr>
                 ))}
@@ -950,121 +895,13 @@ function CollectionsSection() {
           </div>
         </div>
 
-        {/* Collection contents detail */}
-        <div>
-          <LinkableHeading size="small" level="3">
-            Innhold i hver collection
-          </LinkableHeading>
-          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Hver collection inneholder også planning skills, instruksjoner og prompts:
-          </BodyShort>
-          <VStack gap="space-12">
-            {COLLECTIONS.map((c) => (
-              <details key={c.name} className="group">
-                <summary
-                  className="cursor-pointer list-none flex items-center gap-2 py-2 px-3 rounded-lg transition-colors"
-                  style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
-                >
-                  <span style={{ fontSize: "0.75rem", color: "#64748b", transition: "transform 0.2s" }}>▶</span>
-                  <code className="text-sm font-mono font-semibold" style={{ color: "#3b82f6" }}>
-                    {c.name}
-                  </code>
-                  <span style={{ color: "#64748b", fontSize: "0.8125rem" }}>— {c.description}</span>
-                </summary>
-                <div className="mt-2 ml-6 space-y-3">
-                  <div>
-                    <Label size="small" style={{ color: "#334155" }}>
-                      Agenter ({c.agents})
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {c.details.agents.split(", ").map((a) => (
-                        <code
-                          key={a}
-                          className="text-xs font-mono rounded px-1.5 py-0.5"
-                          style={{ background: "#eff6ff", color: "#3b82f6" }}
-                        >
-                          {a}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label size="small" style={{ color: "#334155" }}>
-                      Skills ({c.skills})
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {c.details.skills.split(", ").map((s) => (
-                        <code
-                          key={s}
-                          className="text-xs font-mono rounded px-1.5 py-0.5"
-                          style={{ background: "#f5f3ff", color: "#7c3aed" }}
-                        >
-                          {s}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label size="small" style={{ color: "#334155" }}>
-                      Instruksjoner
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {c.details.instructions.split(", ").map((i) => (
-                        <code
-                          key={i}
-                          className="text-xs font-mono rounded px-1.5 py-0.5"
-                          style={{ background: "#f0fdf4", color: "#16a34a" }}
-                        >
-                          {i}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label size="small" style={{ color: "#334155" }}>
-                      Prompts
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {c.details.prompts.split(", ").map((p) => (
-                        <code
-                          key={p}
-                          className="text-xs font-mono rounded px-1.5 py-0.5"
-                          style={{ background: "#fff7ed", color: "#ea580c" }}
-                        >
-                          {p}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label size="small" style={{ color: "#334155" }}>
-                      Hooks (kjørbar kode)
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {c.details.hooks.split(", ").map((h) => (
-                        <code
-                          key={h}
-                          className="text-xs font-mono rounded px-1.5 py-0.5"
-                          style={{ background: "#fef2f2", color: "#dc2626" }}
-                        >
-                          {h}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </details>
-            ))}
-          </VStack>
-        </div>
-
         {/* Planning skills table */}
         <div id="planning-skills">
           <LinkableHeading size="small" level="3">
             Planning skills
           </LinkableHeading>
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Alle collections inkluderer fire planning skills som utgjør <strong>nav-pilot-pipelinen</strong>:
+            Agentpakka inkluderer fire planning skills som utgjør <strong>nav-pilot-pipelinen</strong>:
           </BodyShort>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
@@ -1459,8 +1296,7 @@ jobs:
           <BodyShort size="small" className="mt-3" style={{ color: "#475569" }}>
             Filer i <code className="font-mono text-xs">overrides</code> hoppes helt over under sync — ingen
             hash-sammenligning, ingen PR-diff. Du kan trygt slette filene etterpå, og de blir ikke lagt til igjen.
-            Alternativt kan du installere <code className="font-mono text-xs">frontend</code>
-            -collectionet som allerede utelater Next.js-spesifikke filer.
+            Alternativt kan du velge bort Next.js-filene i den interaktive velgeren ved installasjon.
           </BodyShort>
           <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
             Sletter du en fil manuelt uten override, markeres den som «ignorert» og gjenopprettes ikke av sync. Legg den
@@ -1506,7 +1342,7 @@ jobs:
               },
               {
                 q: "Kan jeg fjerne filer som ikke passer mitt rammeverk?",
-                a: "Ja. Opprett .github/copilot-sync.json med overrides, eller installer frontend-collectionet som allerede utelater Next.js-spesifikke filer.",
+                a: "Ja. Opprett .github/copilot-sync.json med overrides, eller velg bort Next.js-filene i den interaktive velgeren ved installasjon.",
               },
               {
                 q: "Hva skjer hvis vi har en egen fil med samme navn som kilden?",
@@ -2459,16 +2295,16 @@ function CliReferenceSection() {
           <VStack gap="space-12">
             <div>
               <Label size="small" className="mb-2" style={{ color: "#64748b" }}>
-                Installer collection med forhåndsvisning
+                Installer agentpakka med forhåndsvisning
               </Label>
               <div className="space-y-3">
                 {[
-                  { label: "Se hva som installeres", cmd: "nav-pilot install --dry-run kotlin-backend" },
-                  { label: "Installer", cmd: "nav-pilot install kotlin-backend" },
-                  { label: "Installer i annet repo", cmd: "nav-pilot install --target /path/to/repo kotlin-backend" },
+                  { label: "Se hva som installeres", cmd: "nav-pilot install --dry-run nav-pilot" },
+                  { label: "Installer", cmd: "nav-pilot install nav-pilot" },
+                  { label: "Installer i annet repo", cmd: "nav-pilot install --target /path/to/repo nav-pilot" },
                   {
                     label: "Overskriv lokalt endrede filer",
-                    cmd: "nav-pilot install --force kotlin-backend",
+                    cmd: "nav-pilot install --force nav-pilot",
                   },
                 ].map((item) => (
                   <div key={item.cmd}>
@@ -2509,7 +2345,7 @@ function CliReferenceSection() {
                 {[
                   { label: "JSON-output for alle kommandoer", cmd: "nav-pilot list --installed --json | jq ." },
                   { label: "Sjekk oppdateringer i CI (exit 1 = oppdateringer finnes)", cmd: "nav-pilot sync --json" },
-                  { label: "Installer i CI med JSON-resultat", cmd: "nav-pilot install --json kotlin-backend" },
+                  { label: "Installer i CI med JSON-resultat", cmd: "nav-pilot install --json nav-pilot" },
                 ].map((item) => (
                   <div key={item.cmd}>
                     <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>

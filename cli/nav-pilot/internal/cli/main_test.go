@@ -174,7 +174,6 @@ func TestLoadManifest(t *testing.T) {
 	manifest := Manifest{
 		Name:         "test-collection",
 		Description:  "Test collection",
-		Version:      "2025.01",
 		Agents:       []string{"agent-a", "agent-b"},
 		Skills:       []string{"skill-a"},
 		Instructions: []string{"instr-a"},
@@ -194,9 +193,6 @@ func TestLoadManifest(t *testing.T) {
 	}
 	if len(got.Agents) != 2 {
 		t.Errorf("agents count = %d, want 2", len(got.Agents))
-	}
-	if got.Version != "2025.01" {
-		t.Errorf("version = %q, want %q", got.Version, "2025.01")
 	}
 }
 

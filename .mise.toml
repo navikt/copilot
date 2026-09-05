@@ -94,10 +94,6 @@ for f in hooks/*.py; do
 done
 """
 
-[tasks."collections:lint"]
-description = "Verify docs page COLLECTIONS data matches manifest.json files"
-run = "bash scripts/lint-collections.sh"
-
 # ─── Pricing ──────────────────────────────────────────────────────────────────
 
 [tasks."pricing:check"]

@@ -6,7 +6,6 @@ import {
   StepAccess,
   StepOS,
   StepWorkflow,
-  StepStack,
   StepResult,
 } from "./interactive-setup-wizard";
 
@@ -19,7 +18,7 @@ const meta: Meta<typeof InteractiveSetupWizard> = {
     docs: {
       description: {
         component:
-          "Hovedkomponenten for 'Kom i gang'-veiviseren. Samler inn informasjon om brukerens operativsystem, foretrukne arbeidsflyt og tech-stack, for å generere et ferdig terminalscript.",
+          "Hovedkomponenten for 'Kom i gang'-veiviseren. Samler inn informasjon om brukerens operativsystem og foretrukne arbeidsflyt, for å generere et ferdig terminalscript.",
       },
     },
   },
@@ -109,23 +108,12 @@ export const WorkflowStep: StoryObj<typeof StepWorkflow> = {
 };
 
 /**
- * Steg 4: Valg av tech-stack for å konfigurere Nav-kontekst.
- */
-export const StackStep: StoryObj<typeof StepStack> = {
-  render: () => (
-    <div className="max-w-4xl p-8 border rounded-xl bg-white">
-      <StepStack stack="kotlin-backend" setStack={() => {}} onPrev={() => {}} onNext={() => {}} />
-    </div>
-  ),
-};
-
-/**
- * Steg 5 (Siste): Viser det resulterende oppsettsscriptet basert på valgene.
+ * Steg 4 (Siste): Viser det resulterende oppsettsscriptet basert på valgene.
  */
 export const ResultStep: StoryObj<typeof StepResult> = {
   render: () => (
     <div className="max-w-4xl p-8 border rounded-xl bg-white">
-      <StepResult os="linux" workflow="opencode" stack="nextjs-frontend" onPrev={() => {}} />
+      <StepResult os="linux" workflow="opencode" onPrev={() => {}} />
     </div>
   ),
 };

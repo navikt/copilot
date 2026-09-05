@@ -140,6 +140,11 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 
 	resolver := resolverForState(src, syncState)
 
+	// A collection-era scope meets its source's manifest here first: rewrite
+	// it onto the pakke identity before the diff, so this sync already runs —
+	// and reports new items — as the pakke install it now is.
+	adoptPakkeIdentity(scope, src, syncState, resolver, jsonOutput)
+
 	// Determine which files to check
 	files, _, err := resolveSyncFiles(scope, resolver, apply)
 	if err != nil {

@@ -84,7 +84,7 @@ Regelen har to halvdeler, og de gjelder samtidig:
 - **Ukjente konstruksjoner ignoreres.** Ukjente klientnøkler, ukjente kontekstnøkler i `payloads`, og ekstra felt på ethvert nivå gjør ikke manifestet ugyldig. En eldre binær tilbyr bare ikke det den ikke kjenner navnet på. Dermed kan økosystemet vokse uten å ugyldiggjøre manifester som allerede er ute.
 - **Feilformede *kjente* konstruksjoner feiler lukket.** En `primaryAgents` som er tom eller mangler der den kreves (Tier 1-oppføring eller Tier 2-payload), en `layout` som mangler for en Tier 1-klient, en `contractVersion` med en major nav-pilot ikke implementerer, en `minNavPilotVersion` nav-pilot ikke kan sammenligne, en `compatibility` som ikke er et gyldig versjonsområde: alt stopper. Et repo som *har* et manifest må ha et gyldig et. Install avbrytes før første filoperasjon, og ingenting skrives delvis.
 
-Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles som en legacy-samlingskilde (`collections/<navn>/manifest.json`) akkurat som før.
+Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles som en legacy-samlingskilde (`collections/<navn>/manifest.json`) akkurat som før. Merk at navikt/copilot selv ikke lenger er en slik kilde: siden [#468](https://github.com/navikt/copilot/issues/468) skipper repoet sitt eget manifest, og de fem samlingene er kollapset til den ene pakka `nav-pilot`.
 
 ## Stiregler
 
@@ -202,7 +202,7 @@ Kommandoen kjører hele konformanssjekken mot en kilde: manifestet mot schemaet,
 
 > Ikke å forveksle med `nav-pilot config validate`, som sjekker brukerens egen `~/.nav-pilot/config.toml`.
 
-`--source` tar enten `owner/repo` (klones) eller en **absolutt** sti til en checkout. Relative stier og `.` avvises. Uten `--source` faller kommandoen tilbake på kildepresedensen (`--source` > `source`-nøkkelen i config > `navikt/copilot`), og lokal auto-deteksjon slår kun til for et repo som har en `collections/`-katalog, altså ikke for en vanlig agentpakke. I CI skal du derfor peke eksplisitt på checkouten:
+`--source` tar enten `owner/repo` (klones) eller en **absolutt** sti til en checkout. Relative stier og `.` avvises. Uten `--source` faller kommandoen tilbake på kildepresedensen (`--source` > `source`-nøkkelen i config > `navikt/copilot`), og lokal auto-deteksjon slår kun til for en navikt/copilot-checkout (et repo hvis eget manifest heter `nav-pilot`, eller en eldre checkout med `collections/`-katalog), altså ikke for en vanlig agentpakke. I CI skal du derfor peke eksplisitt på checkouten:
 
 ```yaml
 - uses: actions/checkout@v7
@@ -519,6 +519,6 @@ Legg merke til at rosterne skiller seg per kontekst. `full` starter `grillmester
 - [JSON Schema: `cli/nav-pilot/schemas/agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json), kontrakten selv
 - [Beslutninger](agentpakke-beslutninger.md), hvorfor nav-pilot oppfører seg som den gjør: bevisste avvik, åpne spørsmål og aksepterte begrensninger
 - [nav-pilot](README.nav-pilot.md), CLI-et som konsumerer agentpakker
-- [Samlinger](README.collections.md), legacy-modellen en agentpakke erstatter
+- [Anbefalte utvalg](README.collections.md), hva ulike teamtyper bør beholde av standardpakka
 - [Sync](README.sync.md), hvordan installert innhold holdes oppdatert
 - [cli/nav-pilot/DESIGN.md](../cli/nav-pilot/DESIGN.md), internt design, sømmer og migrasjonsplan

@@ -143,8 +143,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	if wd, err := os.Getwd(); err == nil {
 		gitRoot := FindGitRoot(wd)
 		if gitRoot != "" {
-			candidate := filepath.Join(gitRoot, "collections")
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			if isNavCopilotCheckout(gitRoot) {
 				sha := getGitSHA(gitRoot)
 				fmt.Fprintf(os.Stderr, "%s Using local source (%s)\n", domain.Dim("→"), domain.Dim(gitRoot))
 				return &Source{Dir: gitRoot, SHA: sha, Version: cliVersion, Repo: gitRoot}, nil
@@ -160,6 +159,21 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	src.Version = cliVersion
 	src.Repo = DefaultRepo
 	return src, nil
+}
+
+// isNavCopilotCheckout reports whether gitRoot looks like a navikt/copilot
+// working copy — the one repo dev mode auto-detects as a source. Historically
+// that was "has a collections/ directory"; since the five collections folded
+// into the repo's own agentpakke manifest (#468), it is "declares the
+// nav-pilot pakke". Other agentpakke repos are deliberately not auto-detected
+// (their consumers pass --source), so the manifest's name is checked, not just
+// its presence. The collections/ check stays for pre-collapse checkouts.
+func isNavCopilotCheckout(gitRoot string) bool {
+	if m, err := agentpakke.Load(gitRoot); err == nil && m.Name == agentpakke.DefaultName {
+		return true
+	}
+	info, err := os.Stat(filepath.Join(gitRoot, "collections"))
+	return err == nil && info.IsDir()
 }
 
 // ResolveSourceForSync resolves source for sync checks.
