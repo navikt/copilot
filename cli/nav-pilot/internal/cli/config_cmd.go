@@ -196,6 +196,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "",
 		internal:    true,
 	},
+	{
+		name:        "copilot_auth_mode",
+		kind:        keyKindString,
+		description: "Which auth source reaches cplt for Copilot. nav-pilot never extracts a token itself. auto constrains nothing; env_only requires GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN to hold a value and aborts the launch if none does; gh_only removes those variables so no env token reaches the sandbox.",
+		allowed:     validCopilotAuthModes,
+		defaultVal:  "auto",
+		flag:        "",
+	},
 }
 
 func findKeyDef(name string) *configKeyDef {
@@ -327,6 +335,20 @@ version = 1
 # Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).
 # Default: unset
 # rtk_prompted_at = ""
+
+# ── cplt auth ──────────────────────────────────────────────────────────────────
+# nav-pilot never extracts a Copilot token itself. With cplt's gh guard on
+# (sandbox.preset = strict), cplt uses an inherited
+# GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN if one is set and otherwise runs
+# "gh auth token" outside the sandbox; with it off, Copilot authenticates on its
+# own. copilot_auth_mode decides which sources reach cplt.
+#
+# copilot_auth_mode:
+#   auto         : no constraint (default)
+#   env_only     : a token must already be in the environment, abort the launch if not
+#   gh_only      : strip the token variables so no env token reaches the sandbox
+# Allowed: auto, env_only, gh_only — Default: auto
+# copilot_auth_mode = "auto"
 `
 
 // ─── Subcommand dispatch ──────────────────────────────────────────────────────
@@ -426,18 +448,19 @@ func cmdConfigShow(jsonOutput bool) error {
 
 	if jsonOutput {
 		return outputJSON(map[string]interface{}{
-			"client":           resolved.Client,
-			"source":           effectiveSourceLabel(resolved),
-			"model":            resolved.Model,
-			"mode":             resolved.Mode,
-			"reasoning_effort": resolved.ReasoningEffort,
-			"context_tier":     resolved.ContextTier,
-			"allow_all_tools":  resolved.AllowAllTools,
-			"ask_user":         resolved.AskUser,
-			"auto_launch":      resolved.AutoLaunch,
-			"auto_update":      resolved.AutoUpdate,
-			"log_level":        resolved.LogLevel,
-			"otel_log_level":   resolved.OtelLogLevel,
+			"client":            resolved.Client,
+			"source":            effectiveSourceLabel(resolved),
+			"model":             resolved.Model,
+			"mode":              resolved.Mode,
+			"reasoning_effort":  resolved.ReasoningEffort,
+			"context_tier":      resolved.ContextTier,
+			"allow_all_tools":   resolved.AllowAllTools,
+			"ask_user":          resolved.AskUser,
+			"auto_launch":       resolved.AutoLaunch,
+			"auto_update":       resolved.AutoUpdate,
+			"log_level":         resolved.LogLevel,
+			"otel_log_level":    resolved.OtelLogLevel,
+			"copilot_auth_mode": resolved.CopilotAuthMode,
 		})
 	}
 
@@ -526,6 +549,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":
 		return r.RtkPromptedAt
+	case "copilot_auth_mode":
+		return r.CopilotAuthMode
 	}
 	return ""
 }

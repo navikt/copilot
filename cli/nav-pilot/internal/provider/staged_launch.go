@@ -333,6 +333,12 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	if err != nil {
 		return err
 	}
+	// Both cplt launch paths must honor copilot_auth_mode, so the staged Tier 2
+	// launch applies it exactly as the legacy path (LaunchCopilotResolved) does.
+	spec.env, err = applyCopilotAuthMode(spec.env, r.CopilotAuthMode)
+	if err != nil {
+		return err
+	}
 	PrintCpltSandboxHint()
 	PrintModelAvailabilityHint(r.Model)
 	return launchViaCplt(spec)

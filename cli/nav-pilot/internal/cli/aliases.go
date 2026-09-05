@@ -42,11 +42,12 @@ var (
 	validateOptionalModel = domain.ValidateOptionalModel
 	containsStr           = domain.ContainsStr
 
-	validModes           = domain.ValidModes
-	validReasoningEffort = domain.ValidReasoningEffort
-	validContextTiers    = domain.ValidContextTiers
-	validLogLevels       = domain.ValidLogLevels
-	validOtelLogLevels   = domain.ValidOtelLogLevels
+	validModes            = domain.ValidModes
+	validReasoningEffort  = domain.ValidReasoningEffort
+	validContextTiers     = domain.ValidContextTiers
+	validLogLevels        = domain.ValidLogLevels
+	validOtelLogLevels    = domain.ValidOtelLogLevels
+	validCopilotAuthModes = domain.ValidCopilotAuthModes
 
 	ScopeRepo = domain.ScopeRepo
 	ScopeUser = domain.ScopeUser

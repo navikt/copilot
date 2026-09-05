@@ -198,3 +198,70 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 - Skip input validation on external boundaries
 - Bypass `azp` validation on any backend API request, even for "internal" services
 - Give my-copilot, or any app other than copilot-api, access to GitHub App credentials
+
+---
+
+## Copilot auth mode (nav-pilot)
+
+When nav-pilot launches Copilot inside `cplt`, `cplt` is the component that can
+resolve the GitHub token, and only when its gh guard is on. `gh_guard.enabled`
+is off in cplt's default `standard` preset and on in `strict`, which is the
+preset `nav-pilot doctor` recommends and offers to set.
+
+With the gh guard on, `cplt` skips extraction when the child already carries a
+non-blank `GH_TOKEN`, `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN`, and otherwise
+runs `gh auth token --hostname github.com` in the unsandboxed parent with those
+variables stripped from the subprocess, so `gh` answers from its own credential
+store. It then serves the token through a one-time-read 0600 file in the scratch
+dir rather than the environment (`gh_guard.block_auth_token` is on by default,
+`gh_guard.inject_token` off).
+
+With the gh guard off, `cplt` does none of this and Copilot authenticates on its
+own, which on macOS means its login in the Keychain.
+
+nav-pilot does not extract or inject a token in either case. `copilot_auth_mode`
+constrains which sources reach `cplt`, and lets a launch be refused outright
+rather than silently falling back to another one.
+
+### `copilot_auth_mode`
+
+| Value | Behaviour |
+|-------|-----------|
+| `auto` (default) | No constraint. The choice is left to `cplt`. |
+| `env_only` | The launch aborts unless `GH_TOKEN`, `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN` already holds a non-blank value. |
+| `gh_only` | Those three variables are removed from the child environment, so no env token reaches the sandbox. |
+
+`env_only` and `gh_only` are set in `~/.nav-pilot/config.toml`; `auto` is the
+default and changes nothing.
+
+`env_only` holds unconditionally, because nav-pilot enforces it before launching.
+What `gh_only` leads to depends on the gh guard: with it on, `cplt` has nothing
+to inherit and goes to `gh auth token`; with it off, Copilot falls back to its
+own login. Either way the guarantee `gh_only` actually makes is the negative one,
+that no environment token is handed to the sandbox.
+
+### What this is and is not
+
+This is a configuration control, not a security boundary. It decides where a
+credential comes from. It does not change what the sandboxed agent can reach.
+An agent running as the same UID can invoke `gh auth token` itself and get the
+same token.
+
+It does not reduce the Keychain access the sandbox profile grants either. On
+`cplt` today `sandbox.keychain_substitute` is off by default and the Copilot
+agent declares no substitute variables, so the Keychain grant is intact whatever
+this setting says. Narrowing that grant is `cplt`-side work, tracked in the
+nav-pilot follow-up issue.
+
+`gh_only` is the one mode that changes exposure, and only a little. Removing the
+token variables from the child environment keeps a token out of every process in
+the sandbox, and under the strict preset it leaves `cplt`'s out-of-environment
+channel, a one-time-read 0600 file in the scratch dir, as the way the token
+arrives. `cplt` documents the limits of that channel itself. It is not
+confidentiality against an adversarial same-UID agent.
+
+### Platform notes
+
+The env and `gh auth token` sources work on every platform `cplt` supports.
+There is no direct Keychain reader on any platform: `gh` reaches the macOS
+Keychain internally, and nav-pilot never does.

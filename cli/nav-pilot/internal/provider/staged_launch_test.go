@@ -347,6 +347,38 @@ func TestStagedCopilotRequiresCplt(t *testing.T) {
 	}
 }
 
+// TestStagedCopilotHonorsRestrictiveAuthMode pins that the staged Tier 2
+// copilot launch applies copilot_auth_mode the same way the legacy path does:
+// env_only fails closed instead of launching cplt and letting it fall back to
+// `gh auth token`.
+func TestStagedCopilotHonorsRestrictiveAuthMode(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+	stubProbes(t, okCplt, nil, "", nil)
+
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "cplt-launched")
+	if err := os.WriteFile(filepath.Join(dir, "cplt"),
+		[]byte("#!/bin/sh\necho launched > \""+marker+"\"\n"), 0o755); err != nil {
+		t.Fatalf("writing fake cplt: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("COPILOT_GITHUB_TOKEN", "")
+	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
+
+	err := LaunchCopilotStaged(
+		domain.ResolvedConfig{Client: "copilot", AskUser: true, CopilotAuthMode: "env_only"},
+		StagedLaunch{Dir: dir, PakkeName: "grillmester", Context: "full"})
+	if err == nil {
+		t.Fatal("staged launch should fail closed for env_only without a token")
+	}
+	if _, statErr := os.Stat(marker); statErr == nil {
+		t.Fatal("cplt must not launch for env_only without a token")
+	}
+}
+
 // TestStagedSpecRequiresDeclaredPrimary covers call-site drift: a pakke that
 // does not declare the client fails loudly instead of passing --agent "".
 func TestStagedSpecRequiresDeclaredPrimary(t *testing.T) {

@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -132,6 +134,11 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 // LaunchCopilotResolved launches the Copilot CLI with the resolved launch config.
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
+//
+// When launched via cplt, CopilotAuthMode constrains where cplt may get the
+// Copilot token from: env_only aborts the launch unless one is already in the
+// environment, gh_only removes the token variables so cplt must use
+// `gh auth token`. See applyCopilotAuthMode.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	// Local inference. The one branch on this path, and it used to be a
 	// refusal, on the belief that the Copilot CLI only ever resolves models
@@ -180,6 +187,17 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin))
 	displayName := CLIDisplayName(cliName)
 	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(PrimaryAgent("copilot")))
+
+	// cplt resolves the Copilot token itself; copilot_auth_mode only constrains
+	// which source it may use, and can refuse the launch outright.
+	if cliName == "cplt" {
+		var err error
+		env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode)
+		if err != nil {
+			return err
+		}
+	}
+
 	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -313,6 +331,100 @@ func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, tty bool)
 		return args
 	}
 	return withCpltConfirmation(args, tty)
+}
+
+// ghTokenVars are the environment variables cplt recognises as carrying a
+// GitHub token, in the precedence order it applies.
+var ghTokenVars = []string{"GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"}
+
+// applyCopilotAuthMode enforces copilot_auth_mode on the environment handed to
+// cplt.
+//
+// nav-pilot does not extract or inject a token. With cplt's gh guard on
+// (sandbox.preset = strict, which `nav-pilot doctor` recommends), cplt uses an
+// inherited GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN when one is present and
+// otherwise runs `gh auth token --hostname github.com` in the unsandboxed
+// parent, handing the result to the agent over a one-time 0600 file rather than
+// the environment. With the gh guard off, cplt does none of that and Copilot
+// authenticates on its own. Either way this function only decides which sources
+// reach cplt, and refuses to launch when the mode asks for one that is absent.
+//
+//   - auto:     no constraint (default).
+//   - env_only: a token must already be in the environment; the launch aborts
+//     if not. Enforced here, so it holds whatever cplt is configured to do.
+//   - gh_only:  the token variables are removed from the child environment, so
+//     no env token reaches the sandbox. What cplt does then is its own call.
+//
+// An empty authMode is treated as "auto": every real launch resolves the mode
+// through resolve() (default "auto"), but a directly constructed ResolvedConfig
+// must not hard-fail the launch.
+func applyCopilotAuthMode(env []string, authMode string) ([]string, error) {
+	switch authMode {
+	case "", "auto":
+		return env, nil
+
+	case "env_only":
+		if !hasEnvToken(env) {
+			return env, fmt.Errorf(
+				"copilot_auth_mode=env_only: none of %s is set; launch aborted",
+				strings.Join(ghTokenVars, "/"))
+		}
+		return env, nil
+
+	case "gh_only":
+		return stripEnvTokens(env), nil
+
+	default:
+		return env, fmt.Errorf("unknown copilot_auth_mode %q (allowed: %s)",
+			authMode, strings.Join(domain.ValidCopilotAuthModes, ", "))
+	}
+}
+
+// envNamesCaseInsensitive mirrors the OS rule for environment variable names:
+// Windows treats them case-insensitively, every other platform exactly. Kept as
+// a var so tests can exercise both matchers. Without it a lower-case gh_token
+// would slip past gh_only's stripping on Windows, and fail env_only that the OS
+// would have satisfied.
+var envNamesCaseInsensitive = runtime.GOOS == "windows"
+
+// isGHTokenEntry reports whether an "NAME=value" entry names one of
+// ghTokenVars, and returns its raw value.
+func isGHTokenEntry(entry string) (value string, ok bool) {
+	name, value, found := strings.Cut(entry, "=")
+	if !found {
+		return "", false
+	}
+	if envNamesCaseInsensitive {
+		return value, slices.ContainsFunc(ghTokenVars, func(k string) bool {
+			return strings.EqualFold(name, k)
+		})
+	}
+	return value, slices.Contains(ghTokenVars, name)
+}
+
+// hasEnvToken reports whether env carries a non-blank GitHub token variable.
+// Blank values do not count: cplt trims before deciding a token is present, so
+// an empty GH_TOKEN would send it to `gh auth token` anyway.
+func hasEnvToken(env []string) bool {
+	for _, e := range env {
+		if value, ok := isGHTokenEntry(e); ok && strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// stripEnvTokens removes every GitHub token variable from env, blank ones
+// included, so nothing is left for cplt to inherit.
+func stripEnvTokens(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		if _, ok := isGHTokenEntry(e); ok {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // cpltSandboxHintShown tracks whether the cplt sandbox hint has been shown this session.

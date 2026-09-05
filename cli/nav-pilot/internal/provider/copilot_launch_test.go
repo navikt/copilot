@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -175,5 +176,110 @@ func TestUserCopilotDir(t *testing.T) {
 
 	if got := userCopilotDir(); got != expected {
 		t.Errorf("expected %q for instructions-only, got %q", expected, got)
+	}
+}
+
+// TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt pins the
+// fail-closed half of copilot_auth_mode: env_only refuses to launch rather than
+// letting cplt fall back to `gh auth token`.
+func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "cplt-launched")
+	fakeCplt := filepath.Join(dir, "cplt")
+	if err := os.WriteFile(fakeCplt, []byte("#!/bin/sh\necho launched > \"$NAV_PILOT_LAUNCH_MARKER\"\n"), 0o755); err != nil {
+		t.Fatalf("write fake cplt: %v", err)
+	}
+
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("NAV_PILOT_LAUNCH_MARKER", marker)
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("COPILOT_GITHUB_TOKEN", "")
+	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
+
+	err := LaunchCopilotResolved(domain.ResolvedConfig{
+		Client:          "copilot",
+		AskUser:         true,
+		CopilotAuthMode: "env_only",
+		OtelLogLevel:    "none",
+	})
+	if err == nil {
+		t.Fatal("expected launch to fail for env_only without a token")
+	}
+	if _, statErr := os.Stat(marker); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatal("expected cplt not to launch for env_only without a token")
+	}
+}
+
+func TestApplyCopilotAuthMode(t *testing.T) {
+	withToken := []string{"PATH=/bin", "GITHUB_TOKEN=abc"}
+
+	// auto leaves the environment alone; cplt decides.
+	got, err := applyCopilotAuthMode(withToken, "auto")
+	if err != nil || len(got) != len(withToken) {
+		t.Fatalf("auto: got %v, %v", got, err)
+	}
+
+	// An unresolved mode behaves as auto so a hand-built ResolvedConfig cannot
+	// hard-fail a launch.
+	if _, err := applyCopilotAuthMode(withToken, ""); err != nil {
+		t.Fatalf("empty mode: %v", err)
+	}
+
+	// env_only accepts any of the three names, blank values excluded.
+	if _, err := applyCopilotAuthMode(withToken, "env_only"); err != nil {
+		t.Fatalf("env_only with GITHUB_TOKEN: %v", err)
+	}
+	if _, err := applyCopilotAuthMode([]string{"PATH=/bin", "GH_TOKEN=  "}, "env_only"); err == nil {
+		t.Fatal("env_only: blank GH_TOKEN must not count as a token")
+	}
+
+	// gh_only removes every token variable so cplt has nothing to inherit.
+	stripped, err := applyCopilotAuthMode(
+		[]string{"PATH=/bin", "GH_TOKEN=a", "GITHUB_TOKEN=b", "COPILOT_GITHUB_TOKEN=c"}, "gh_only")
+	if err != nil {
+		t.Fatalf("gh_only: %v", err)
+	}
+	if len(stripped) != 1 || stripped[0] != "PATH=/bin" {
+		t.Fatalf("gh_only: expected only PATH to survive, got %v", stripped)
+	}
+
+	if _, err := applyCopilotAuthMode(withToken, "nonsense"); err == nil {
+		t.Fatal("expected an unknown auth mode to be rejected")
+	}
+}
+
+// TestApplyCopilotAuthMode_WindowsCaseInsensitivity pins that the matcher
+// follows the OS rule for environment variable names. On Windows a lower-case
+// gh_token is the same variable, so gh_only has to strip it and env_only has to
+// accept it; everywhere else it is a different variable and must be left alone.
+func TestApplyCopilotAuthMode_WindowsCaseInsensitivity(t *testing.T) {
+	mixed := []string{"PATH=/bin", "gh_token=abc"}
+
+	orig := envNamesCaseInsensitive
+	t.Cleanup(func() { envNamesCaseInsensitive = orig })
+
+	envNamesCaseInsensitive = true
+	if _, err := applyCopilotAuthMode(mixed, "env_only"); err != nil {
+		t.Fatalf("windows env_only should accept gh_token: %v", err)
+	}
+	stripped, err := applyCopilotAuthMode(mixed, "gh_only")
+	if err != nil {
+		t.Fatalf("windows gh_only: %v", err)
+	}
+	if len(stripped) != 1 {
+		t.Fatalf("windows gh_only must strip gh_token, got %v", stripped)
+	}
+
+	envNamesCaseInsensitive = false
+	if _, err := applyCopilotAuthMode(mixed, "env_only"); err == nil {
+		t.Fatal("unix env_only must not accept gh_token as GH_TOKEN")
+	}
+	kept, err := applyCopilotAuthMode(mixed, "gh_only")
+	if err != nil {
+		t.Fatalf("unix gh_only: %v", err)
+	}
+	if len(kept) != 2 {
+		t.Fatalf("unix gh_only must leave gh_token alone, got %v", kept)
 	}
 }

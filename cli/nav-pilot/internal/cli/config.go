@@ -167,6 +167,10 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf("otel_log_level %q is not valid (allowed: %s)",
 			*cfg.OtelLogLevel, strings.Join(validOtelLogLevels, ", ")))
 	}
+	if cfg.CopilotAuthMode != nil && !containsStr(validCopilotAuthModes, *cfg.CopilotAuthMode) {
+		problems = append(problems, fmt.Sprintf("copilot_auth_mode %q is not valid (allowed: %s)",
+			*cfg.CopilotAuthMode, strings.Join(validCopilotAuthModes, ", ")))
+	}
 	return problems
 }
 
@@ -265,11 +269,12 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	r := ResolvedConfig{
-		Client:       "copilot",
-		Mode:         "default",
-		AskUser:      true,
-		AutoLaunch:   true,
-		OtelLogLevel: "none",
+		Client:          "copilot",
+		Mode:            "default",
+		AskUser:         true,
+		AutoLaunch:      true,
+		OtelLogLevel:    "none",
+		CopilotAuthMode: "auto",
 	}
 
 	// Apply file values.
@@ -327,6 +332,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.LocalModel != nil {
 			r.LocalModel = strings.TrimSpace(*file.LocalModel)
+		}
+		if file.CopilotAuthMode != nil {
+			r.CopilotAuthMode = *file.CopilotAuthMode
 		}
 	}
 
