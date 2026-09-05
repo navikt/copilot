@@ -221,6 +221,9 @@ selv i registeret sitt (`src/config/registry.rs`, `BOOL_KEYS_EXEMPT`: «the `[au
 is parsed and displayed but has no consumer yet»). Å slå den på gir ingen logg. Vil du ha
 en fil å lese etterpå, er det `proxy.log_file` som faktisk skriver en.
 
+Ikke forveksle den med `sandbox.audit`, som er noe annet og allerede på: den skriver
+rapporten over filendringer cplt viser etter at agenten har avsluttet.
+
 ### Lokal modell og strict
 
 `nav-pilot local` sender prompten via en loop-guard på `127.0.0.1`. cplt blokkerer localhost
