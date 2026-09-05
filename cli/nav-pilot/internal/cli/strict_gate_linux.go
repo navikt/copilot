@@ -53,9 +53,12 @@ const minLandlockABIForForcedProxy = 4
 // kernel, and the gate has to be exercised from both sides.
 var strictPresetSupported = func() (bool, string) {
 	if abi := landlockABIVersion(); abi < minLandlockABIForForcedProxy {
-		return false, "this kernel cannot enforce cplt's forced-proxy egress " +
-			"(Landlock ABI v" + strconv.Itoa(abi) + ", needs v4 — kernel 6.7+ with Landlock enabled). " +
-			"cplt refuses to launch under strict here, so nav-pilot does not recommend it"
+		// The reason states the fact only. Each caller adds its own
+		// consequence, because "so it is not recommended" is wrong to print to
+		// someone who already has strict set.
+		return false, "this kernel cannot enforce cplt's forced-proxy egress, " +
+			"so cplt refuses to launch under strict (Landlock ABI v" + strconv.Itoa(abi) +
+			", needs v4: kernel 6.7+ with Landlock enabled)"
 	}
 	return true, ""
 }

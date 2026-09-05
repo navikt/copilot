@@ -146,11 +146,21 @@ func cmdDoctor() error {
 		switch {
 		case preset == "":
 			// cplt could not tell us; nothing to recommend.
-		case !supported && preset != cpltRecommendedPreset:
+		case !supported && preset == cpltRecommendedPreset:
+			// The worst case, and the one a green check would hide: strict is
+			// already set on a machine where cplt refuses to launch under it.
+			// Nothing here is going to start until the preset comes back down.
+			hasErrors = true
+			fmt.Printf("      %s Sandbox preset is %q, which cplt cannot honour here\n", red("[✗]"), preset)
+			fmt.Printf("          %s.\n", unsupportedReason)
+			fmt.Printf("          %s Run %s, or upgrade the kernel.\n",
+				red("Solution:"), bold("cplt config set sandbox.preset standard"))
+		case !supported:
 			// Silence here would read as approval of the current preset. Say
 			// that the recommendation is being withheld, and why.
 			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
-			fmt.Printf("          %s %s.\n", dim("Note:"), unsupportedReason)
+			fmt.Printf("          %s %s, so nav-pilot does not recommend it here.\n",
+				dim("Note:"), unsupportedReason)
 		case cpltRecommendStrict(preset):
 			// Not `cplt config set sandbox.preset strict` on its own. That
 			// command alone turns on proxy.default_allowlist, and from the

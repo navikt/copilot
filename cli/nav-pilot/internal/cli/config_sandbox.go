@@ -291,9 +291,10 @@ var cpltEnforcement = func() *cpltCheckReport {
 // cut nav-pilot's telemetry export and every Nav-internal host the agents and
 // skills nav-pilot installs are built around.
 //
-// The recommendation therefore comes with the hosts. cplt merges
-// `proxy.allowed_domains` into the built-in list rather than replacing it, so
-// this file only has to carry the delta.
+// The recommendation therefore comes with the hosts, written to a file
+// `proxy.allowed_domains` points at. What goes in that file is the complete
+// list rather than the Nav delta, for reasons set out at navAllowedDomains
+// below.
 
 // navAllowedDomains is the COMPLETE set of hosts nav-pilot writes to the file
 // cplt reads. Complete, not a delta — that distinction is the whole design.

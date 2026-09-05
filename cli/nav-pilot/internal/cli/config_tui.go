@@ -130,10 +130,15 @@ func cpltPostureValue(preset string) string {
 	case cpltRecommendStrict(preset):
 		return preset + " (recommended: " + cpltRecommendedPreset + ")"
 	default:
-		// Where strict cannot work, the row still shows the current preset but
-		// says the option is closed, rather than looking like a choice the user
-		// declined to make.
-		if ok, _ := strictPresetSupported(); !ok && preset != cpltRecommendedPreset {
+		// Where strict cannot work, say so whatever the current preset is. On a
+		// preset below strict that means the option is closed rather than
+		// declined; on strict itself it means the machine is already in the
+		// state where cplt refuses to launch, which is the one the user most
+		// needs told.
+		if ok, _ := strictPresetSupported(); !ok {
+			if preset == cpltRecommendedPreset {
+				return preset + " (cplt will not launch: unsupported kernel)"
+			}
 			return preset + " (strict unavailable on this kernel)"
 		}
 		return preset

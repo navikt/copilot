@@ -373,6 +373,21 @@ func TestStrictActionRefusesOnAnUnsupportedKernel(t *testing.T) {
 	}
 }
 
+// The worst case: strict is already set on a kernel where cplt refuses to
+// launch under it. Nothing on that machine starts, and a bare "strict" in the
+// settings row — or a green check in doctor — says everything is fine. The
+// unsupported state has to surface whatever the current preset is.
+func TestPostureRowFlagsStrictAlreadySetOnAnUnsupportedKernel(t *testing.T) {
+	stubStrictSupport(t, false, "this kernel cannot enforce forced-proxy egress")
+	got := cpltPostureValue(cpltRecommendedPreset)
+	if got == cpltRecommendedPreset {
+		t.Fatalf("row shows a bare %q on a kernel where cplt will not launch", got)
+	}
+	if !strings.Contains(got, "will not launch") {
+		t.Errorf("row does not say the machine is stuck: %q", got)
+	}
+}
+
 // The settings page says the option is closed rather than showing a bare
 // preset name, which would read as a choice the user declined to make.
 func TestPostureRowNamesTheUnsupportedKernel(t *testing.T) {
