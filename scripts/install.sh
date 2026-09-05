@@ -77,8 +77,8 @@ if [[ "$OS" == "darwin" && "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_
   echo ""
   echo "Get started:"
   echo "  nav-pilot list                    # See what the agentpakke ships"
-  echo "  nav-pilot install kotlin-backend  # Install a collection"
-  echo "  nav-pilot install --dry-run fullstack  # Preview first"
+  echo "  nav-pilot install nav-pilot       # Install the agentpakke"
+  echo "  nav-pilot install --dry-run nav-pilot  # Preview first"
   echo ""
   echo "Upgrade later with: brew upgrade nav-pilot"
   exit 0
@@ -320,5 +320,5 @@ fi
 echo ""
 echo "Get started:"
 echo "  nav-pilot list                    # See what the agentpakke ships"
-echo "  nav-pilot install kotlin-backend  # Install a collection"
-echo "  nav-pilot install --dry-run fullstack  # Preview first"
+echo "  nav-pilot install nav-pilot       # Install the agentpakke"
+echo "  nav-pilot install --dry-run nav-pilot  # Preview first"

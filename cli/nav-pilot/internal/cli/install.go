@@ -425,9 +425,9 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		}
 	}
 	if s := suggest(name, candidates); s != "" {
-		return fmt.Errorf("%q not found. Did you mean %q?\n\nRun 'nav-pilot list' to see available collections and items", name, s)
+		return fmt.Errorf("%q not found. Did you mean %q?\n\nRun 'nav-pilot list' to see what is available", name, s)
 	}
-	return fmt.Errorf("%q not found. Run 'nav-pilot list' to see available collections and items", name)
+	return fmt.Errorf("%q not found. Run 'nav-pilot list' to see what is available", name)
 }
 
 // articleFor returns "a" or "an" for an artifact kind name.

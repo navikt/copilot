@@ -84,15 +84,15 @@ Usage:
   nav-pilot [options] [-- [client-flags]]
 
 Commands:
-  install (i) <name>      Install a collection or individual agent/skill/instruction/prompt
+  install (i) <name>      Install the agentpakke or an individual agent/skill/instruction/prompt
   install --user --all    Install all agents, skills & instructions to ~/.copilot (user-wide)
   init                    Scaffold repo-local Copilot config files (AGENTS.md, instructions)
   sync (s)                Check for updates and optionally apply them
-  list (ls)               List available collections and items
+  list (ls)               List the agentpakke and its items
   list --installed        Show what's currently installed
   doctor                  Run system health checks and diagnostics
   upgrade (up)            Update nav-pilot CLI to the latest version
-  uninstall (rm)          Remove installed collection files
+  uninstall (rm)          Remove installed files
   export <format>         Export Nav customizations to another tool's format
   config [subcommand]     Manage user-specific nav-pilot configuration; no subcommand opens the interactive settings page
   validate                Check that a source repo conforms to the agentpakke contract
@@ -126,8 +126,8 @@ Exit Codes:
 
 Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch Copilot
-  nav-pilot list                         # See available collections and items
-  nav-pilot install kotlin-backend       # Install a collection to .github/
+  nav-pilot list                         # See the agentpakke and its items
+  nav-pilot install nav-pilot            # Install everything to .github/
   nav-pilot install --user --all         # Install everything to ~/.copilot (all repos)
   nav-pilot install security-champion    # Install a single agent
   nav-pilot install nav-pilot --repo     # Install to this repo without being asked
@@ -611,7 +611,7 @@ func run(args []string) error {
 				if isInteractive() && !jsonOutput {
 					return install(cmdInstallInteractive(targetDir, ref, sourceRepo))
 				}
-				return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see available collections and items")
+				return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see what is available")
 			}
 			if len(positional) > 1 {
 				return fmt.Errorf("install takes one name. Did you mean: nav-pilot install %s --type %s", positional[1], positional[0])

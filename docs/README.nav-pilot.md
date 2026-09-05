@@ -25,7 +25,7 @@ bash install.sh
 ```bash
 # I et repo
 nav-pilot
-nav-pilot install kotlin-backend
+nav-pilot install nav-pilot
 ```
 
 ## Hvor skal artefaktene installeres?
@@ -62,8 +62,8 @@ Dette får du bare her:
 - **Alle på teamet, også de som ikke har nav-pilot.** Filene ligger der uansett.
 
 Hva det koster: innholdet blir liggende i repoet og dukker opp i differ og
-kodegjennomgang. `kotlin-backend` er 93 filer og rundt 490 KB målt på artefaktene i denne
-kilden. Filer teamet vil eie selv kan merkes som overrides i `.github/copilot-sync.json`,
+kodegjennomgang. Hele agentpakka er 141 filer og rundt 844 KB målt på artefaktene i denne
+kilden, mindre om du velger bort i velgeren. Filer teamet vil eie selv kan merkes som overrides i `.github/copilot-sync.json`,
 og blir da hoppet over ved sync.
 
 ### Personlig installasjon (`--user`)
