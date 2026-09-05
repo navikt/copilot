@@ -11,7 +11,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | Agent | Modell | Begrunnelse |
 |-------|--------|-------------|
 | `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
-| `@nav-pilot-opus` | GPT-5.6 Sol | Tung resonnering for høy-risiko beslutninger. Billigere enn Opus 4.6 på begge akser under 272K kontekst; over 272K også billigere til kampanjepris, men dyrere til antatt standardpris etter 3. sep 2026. Agenten er ikke målt mot Opus 4.6 |
+| `@nav-pilot-opus` | GPT-5.6 Sol | Tung resonnering for høy-risiko beslutninger. Billigere enn Opus-modellene ($5.00 / $25.00) på begge akser under 272K kontekst, dyrere på begge akser over 272K. Agenten er ikke målt mot noen Opus-modell |
 | `@security-champion` | GPT-5.6 Sol | Sikkerhetskritiske vurderinger. Agenten er ikke målt mot Opus 4.6 eller mot noen annen modell. Byttet hviler på pris |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
@@ -83,38 +83,37 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 ## Tilgjengelige modeller og bruksområder
 
 Hele modellflåten, ikke bare de som er pinnet i agenter. Prisene under er
-GitHubs listepriser slik de sto **4. september 2026**, og speiler
+GitHubs listepriser slik de sto **5. september 2026**, og speiler
 `apps/my-copilot/src/lib/model-pricing.ts`. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 
 | Modell | Kategori | Input | Output | Best for |
 |--------|----------|-------|--------|----------|
 | Claude Opus 5 | Powerful | $5.00 | $25.00 | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026 |
-| Claude Opus 4.6 / 4.8 | Powerful | $5.00 | $25.00 | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur |
+| Claude Opus 4.7 / 4.8 | Powerful | $5.00 | $25.00 | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur. Opus 4.5 og 4.6 falt ut av GitHubs prisliste 5. sep 2026 |
 | Claude Sonnet 4.6 | Versatile | $3.00 | $15.00 | Daglig koding, norsk tekst, planlegging |
 | Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen |
 | Claude Haiku 4.5 | Versatile | $1.00 | $5.00 | Sjekklister, maler, scaffold-prompts |
 | GPT-5.3-Codex | Powerful | $1.75 | $14.00 | Kodeforståelse, terminal, infrastruktur |
 | GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort |
 | GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
-| GPT-5.6 Sol | Powerful | $2.00 | $10.00 | Tung reasoning over store kodebaser (krever Pro+). ⚠️ Kampanjepris t.o.m. 3. sep 2026, antatt standardpris $4.00 / $20.00. Se noten under tabellen |
-| Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026 og borte fra GitHubs prisliste. Bruk Gemini 3.1 Pro for research og lange kontekstvinduer |
+| GPT-5.6 Sol | Powerful | $4.00 | $20.00 | Tung reasoning over store kodebaser (krever Pro+). Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00 |
+| Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub — bruk GPT-5.3-Codex eller Kimi K3 til research over lang kontekst |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
 | Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026 |
 | Kimi K2.7 Code | Versatile | $0.95 | $4.00 | Rimeligste alternativ for kode-agent-løkker (open-weight) |
+| Kimi K3 | Powerful | $3.00 | $15.00 | Rimeligste Powerful-modell på lista (open-weight). Ikke pinnet, ikke målt hos oss |
 
 **Kampanjepriser.** GitHub merker enkelte rader med kampanjepris i fotnoter, og
 fotnotene følger ikke med når vi synkroniserer pristabellen
 ([#503](https://github.com/navikt/copilot/issues/503)). Per 31. august 2026
 gjelder det:
 
-- **GPT-5.6 Sol:** 50 % av standardpris t.o.m. 3. september 2026. Fotnoten
-  oppgir ikke standardprisen. Doblet kampanjepris gir $4.00 input og $20.00
-  output ($8.00 / $30.00 for lang kontekst over 272K), og det er utregning fra
-  «50 % off», ikke en pris vi har sett publisert. Sol lå på $5.00 / $30.00 i
-  pristabellen vår fram til synkroniseringen 30. august, så listeprisen ser ut
-  til å ha blitt satt ned og deretter fått en kampanje på toppen. Verifiser
-  mot kilden 4. september.
+- **GPT-5.6 Sol: avklart, kampanjen er over.** Kampanjen løp ut 3. september
+  2026, og synkroniseringen 4. september hentet listeprisen: $4.00 / $20.00 for
+  standardvinduet og $8.00 / $30.00 over 272K. Det er nøyaktig de tallene vi
+  regnet oss fram til fra «50 % off», så anslaget traff. Sol har ingen fotnote
+  lenger, og tallene i tabellen over er nå publisert listepris, ikke utregning.
 - **Gemini 3.6 Flash og Gemini 3.7 Flash:** $0.75 input og $3.75 output t.o.m.
   31. desember 2026. Standardprisen står ikke i fotnoten. Gemini 3.7 Flash er
   ikke pinnet noe sted hos oss og står derfor ikke i tabellen over.
@@ -136,7 +135,9 @@ Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
 
 `@security-champion` og `@nav-pilot-opus` går fra Claude Opus 4.6 til GPT-5.6
 Sol. **Byttet hviler på pris. Disse to agentene er ikke målt mot noen modell,
-heller ikke mot den de flytter fra.**
+heller ikke mot den de flytter fra.** Opus 4.6 falt ut av GitHubs prisliste
+5. september 2026; Opus 4.7, 4.8 og 5 ligger på samme $5.00 / $25.00, så
+regnestykket under er uendret med en av dem i stedet.
 
 Golden-prompt-harnessen kjørte nav-pilot-personaen mot Claude Sonnet 4.6,
 GPT-5.6 Sol, GPT-5.6 Luna og GPT-5.6 Terra. Opus 4.6, modellen disse to
@@ -147,14 +148,15 @@ fra Claude Sonnet 4.6 (Fisher p = 1,00). Det betyr umulig å skille, ikke
 likeverdig. Tall, metode og forbehold står i
 [benchmarken og beslutningene fra august 2026](nav-pilot-benchmark-og-beslutninger-2026-08.md).
 
-### Prisen er en kampanjepris
+### Prisen var en kampanjepris, og kampanjen er over
 
-GitHub oppgir i en fotnote på prissiden (anker
-`#user-content-fn-gpt-56-sol-promo`) at GPT-5.6 Sol ligger på **50 prosent
-avslag til og med 3. september 2026**. Kampanjeprisen for standardvinduet er
-$2.00 input og $10.00 output, som er tallene i tabellen over. Full pris er
-dermed $4.00 og $20.00. **Det tallet er regnet ut fra fotnoten, ikke en pris
-GitHub har oppgitt direkte, og ikke en pris dette repoet har hatt liggende.**
+GitHub oppga i en fotnote på prissiden (anker
+`#user-content-fn-gpt-56-sol-promo`) at GPT-5.6 Sol lå på **50 prosent avslag
+til og med 3. september 2026**. Kampanjeprisen for standardvinduet var $2.00
+input og $10.00 output, og vi regnet oss fram til $4.00 / $20.00 som full pris.
+**Kampanjen er nå over.** Synkroniseringen 4. september hentet listeprisen
+$4.00 / $20.00 for standardvinduet og $8.00 / $30.00 over 272K, altså nøyaktig
+det utregningen ga. Tallene under er ikke lenger anslag.
 
 Sammenlikningen under er blandet pris per million tokens ved **10 input-tokens
 per output-token. Forholdet er et anslag, ikke noe vi har målt**, og varierer
@@ -162,45 +164,47 @@ med oppgaven.
 
 | Modell | Input | Output | Blandet $/1M ved 10:1 (anslag) |
 |--------|-------|--------|-------------------------------|
-| GPT-5.6 Sol, kampanje t.o.m. 3. sep 2026 | $2.00 | $10.00 | 2,73 |
+| GPT-5.6 Sol, kampanje (utløpt 3. sep 2026) | $2.00 | $10.00 | 2,73 |
 | Claude Sonnet 4.6 | $3.00 | $15.00 | 4,09 |
-| GPT-5.6 Sol, full pris | $4.00 | $20.00 | 5,45 |
-| Claude Opus 4.6 | $5.00 | $25.00 | 6,82 |
+| Kimi K3 | $3.00 | $15.00 | 4,09 |
+| GPT-5.6 Sol, listepris i dag | $4.00 | $20.00 | 5,45 |
+| Claude Opus 4.7 / 4.8 / 5 | $5.00 | $25.00 | 6,82 |
 
 ### Hva byttet faktisk sparer
 
-Den riktige sammenlikningen er mot Claude Opus 4.6, som er modellen disse to
-agentene kjører på i dag. **Under 272K kontekst** er Sol billigere enn Opus 4.6
-på begge akser både med og uten kampanje: $2.00 mot $5.00 og $10.00 mot $25.00
-nå, og $4.00 mot $5.00 og $20.00 mot $25.00 etter 3. september. Det er omtrent
-20 prosent billigere på begge akser når kampanjen er over, og den delen av
-gevinsten overlever kampanjeslutt.
+Den riktige sammenlikningen er mot Opus-sjiktet, som er der disse to agentene
+kom fra. **Under 272K kontekst** er Sol billigere på begge akser: $4.00 mot
+$5.00 og $20.00 mot $25.00. Det er 20 prosent billigere på begge akser, og den
+gevinsten overlevde kampanjeslutt.
 
-**Over 272K snur det.** Sol har et eget prisnivå for lang kontekst, Opus 4.6 har
-ikke det og koster $5.00 / $25.00 uansett kontekstlengde. Til kampanjepris
-ligger Sol fortsatt under ($4.00 mot $5.00 og $15.00 mot $25.00), men til antatt
-standardpris, $8.00 / $30.00 (se noten om kampanjepriser over), er Sol dyrere
-enn Opus 4.6 på begge akser. Begge disse to agentene er pitchet mot tung
-resonnering over store kodebaser, altså nettopp arbeidslasten som oftest krysser
-272K. Prisgevinsten gjelder korte kontekster, ikke lange.
+**Over 272K snur det.** Sol har et eget prisnivå for lang kontekst, $8.00 /
+$30.00. Opus-modellene har ikke det og koster $5.00 / $25.00 uansett
+kontekstlengde. Sol er altså dyrere enn Opus på begge akser over 272K — ikke
+lenger som anslag, men som publisert listepris. Begge disse to agentene er
+pitchet mot tung resonnering over store kodebaser, altså nettopp arbeidslasten
+som oftest krysser 272K. Prisgevinsten gjelder korte kontekster, ikke lange.
 
 Mot Claude Sonnet 4.6 er bildet et annet, og det skal ikke brukes som
-begrunnelse. Til kampanjepris ligger Sol 33 prosent under Sonnet 4.6 blandet,
-men til full pris ligger Sol 33 prosent **over**. Sonnet 4.6 er heller ikke
-modellen disse agentene erstatter.
+begrunnelse: Sol ligger 33 prosent **over** Sonnet 4.6 blandet. Sonnet 4.6 er
+heller ikke modellen disse agentene erstatter.
 
 ### Kostnadsregelen peker ikke på Sol
 
 Regelen «når sikkerhet ikke skiller dem, avgjør kostnad» velger ikke Sol. Til
-antatt standardpris ligger Sol på 5,45 blandet, mens GPT-5.3-Codex ligger på
-2,86 og Gemini 3.1 Pro på 2,91. Begge er Powerful-modeller, og begge er
-billigere enn Sol. Fulgt bokstavelig peker regelen på en av dem, ikke på Sol.
+listepris ligger Sol på 5,45 blandet, mens GPT-5.3-Codex ligger på 2,86 og Kimi
+K3 på 4,09. Begge er Powerful-modeller, og begge er billigere enn Sol. Fulgt
+bokstavelig peker regelen på en av dem, ikke på Sol.
 
-Sol er valgt fordi den er nærmeste erstatter for Opus 4.6 i resonneringssjiktet.
+Sammenlikningen med Gemini 3.1 Pro (2,91) sto her fram til 5. september 2026.
+Den modellen er borte fra GitHubs prisliste, og Google har ingen Powerful-modell
+igjen der. Konklusjonen står likevel: det finnes fortsatt billigere
+Powerful-modeller enn Sol.
+
+Sol er valgt fordi den er nærmeste erstatter for Opus i resonneringssjiktet.
 **Det er en vurdering, ikke en måling.** Vi har ingen tall som viser at Sol
-resonnerer bedre enn GPT-5.3-Codex eller Gemini 3.1 Pro på oppgavene disse to
-agentene gjør, og ingen som viser at den holder Opus 4.6-nivået. Argumentet er
-ubelagt, og skal leses som det.
+resonnerer bedre enn GPT-5.3-Codex eller Kimi K3 på oppgavene disse to agentene
+gjør, og ingen som viser at den holder Opus-nivået. Argumentet er ubelagt, og
+skal leses som det.
 
 Merk at Sol krever Copilot Pro+ eller høyere plan.
 
@@ -228,7 +232,7 @@ Regnestykket ser bort fra cachet input, der Codex ligger på $0.175 mot Terras $
 
 ## Sjekkliste for nye modeller
 
-> **Notat (24. juli 2026, oppdatert 31. august 2026):** Claude Opus 5 (`claude-opus-5`) er lansert av Anthropic og var kandidat til å erstatte Opus 4.6-pinningene på `@nav-pilot-opus` og `@security-champion`. Listeprisen er identisk med Opus 4.8 ($5.00/$25.00), og Anthropic oppgir vesentlig sterkere resonnering (mer enn dobling av Opus 4.8 på Frontier-Bench v0.1). Begge agentene står nå på GPT-5.6 Sol, som er billigere enn Opus 4.6 på begge akser under 272K kontekst også etter at kampanjeprisen løper ut 3. september 2026; over 272K er Sol til antatt standardpris dyrere enn Opus 4.6 på begge akser. Opus 5 er fortsatt aktuell hvis en måling viser at den tyngre resonneringen er verdt prisforskjellen, men den er ikke testet mot vår egen golden-prompt. Utrullingen i Copilot er gradvis (GA for Pro+/Max/Business/Enterprise 24. juli), så modellen kan mangle i model picker en periode.
+> **Notat (24. juli 2026, oppdatert 31. august 2026):** Claude Opus 5 (`claude-opus-5`) er lansert av Anthropic og var kandidat til å erstatte Opus 4.6-pinningene på `@nav-pilot-opus` og `@security-champion`. Listeprisen er identisk med Opus 4.8 ($5.00/$25.00), og Anthropic oppgir vesentlig sterkere resonnering (mer enn dobling av Opus 4.8 på Frontier-Bench v0.1). Begge agentene står nå på GPT-5.6 Sol, som er billigere enn Opus-modellene på begge akser under 272K kontekst også etter at kampanjeprisen løp ut 3. september 2026; over 272K er Sol dyrere enn Opus på begge akser til gjeldende listepris. Opus 5 er fortsatt aktuell hvis en måling viser at den tyngre resonneringen er verdt prisforskjellen, men den er ikke testet mot vår egen golden-prompt. Utrullingen i Copilot er gradvis (GA for Pro+/Max/Business/Enterprise 24. juli), så modellen kan mangle i model picker en periode.
 
 Når nye modeller slås på (som nå med Claude Opus 5, GPT-5.6-familien, Kimi K2.7 og Gemini 3.6 Flash):
 
@@ -247,7 +251,7 @@ Slik ser navnekonvensjonene i `model:`-feltet ut i dag:
 |--------|--------|------|
 | `GPT-5.3-Codex` | Bindestrek mellom versjon og variant | Fungerer |
 | `Claude Sonnet 4.6` | Mellomrom | Fungerer |
-| `Claude Opus 4.6` | Mellomrom | Fungerer |
+| `Claude Opus 4.6` | Mellomrom | Fungerer, men modellen falt ut av GitHubs prisliste 5. sep 2026. Bruk 4.7, 4.8 eller 5 |
 | `GPT-5.6 Sol` | Mellomrom | Verifisert gjennom golden-prompt-kjøringene (august 2026) |
 | `Claude Opus 5` | Mellomrom | Verifisert (GitHub changelog / Anthropic, 24. juli 2026). API-ID `claude-opus-5` |
 | `Gemini 3.5 Flash` | Mellomrom | Fungerer |
