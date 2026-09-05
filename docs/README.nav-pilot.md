@@ -202,7 +202,7 @@ macOS har ingen slik grense. Der håndheves det samme med Seatbelt.
 `proxy.log_level` styrer hva cplt sin proxy skriver til stderr. Standardverdien er `none`,
 men cplt hever den selv til `blocked` så snart en vertsliste er aktiv, enten fordi agenten
 har en innebygd liste (copilot, opencode) eller fordi `proxy.allowed_domains` er satt
-(`src/main.rs`, `proxy_log_level`). Sikkerhetsnivået nav-pilot anbefaler skriver alltid
+(`proxy_log_level` i cplt-repoet, `src/main.rs`). Sikkerhetsnivået nav-pilot anbefaler skriver alltid
 fila, så på strict er `blocked` allerede i kraft uten at du setter noe. Merk at den
 innebygde lista er tom for `pi`, `goose` og `shell`, så der er det bare fila som slår til.
 Nav-pilot anbefaler derfor ikke nøkkelen: den er allerede dekket der den betyr noe.
@@ -219,7 +219,7 @@ cplt config set proxy.log_level blocked
 
 `audit.enabled` ser ut som svaret på det samme, men er det ikke i dagens cplt.
 `[audit]`-seksjonen leses og vises av `cplt config show`, men ingenting bruker den. cplt
-sier det selv i registeret sitt (`src/config/registry.rs`, `BOOL_KEYS_EXEMPT`: «the `[audit]` section
+sier det selv i registeret sitt (cplt-repoet, `src/config/registry.rs`, `BOOL_KEYS_EXEMPT`: «the `[audit]` section
 is parsed and displayed but has no consumer yet»). Å slå den på gir ingen logg. Vil du ha
 en fil å lese etterpå, er det `proxy.log_file` som faktisk skriver en. Den dekker
 proxy-verdiktene, ikke avgjørelsene til gh- og git-vakta.
