@@ -119,16 +119,14 @@ func ensureOpenCodeRuntimeGitignore() error {
 		return fmt.Errorf("creating %s: %w", path, err)
 	}
 	if _, err := f.WriteString(openCodeRuntimeGitignore); err != nil {
-		err = errors.Join(err, f.Close())
-		os.Remove(path)
-		return fmt.Errorf("writing %s: %w", path, err)
+		return fmt.Errorf("writing %s: %w", path, errors.Join(err, f.Close(), os.Remove(path)))
 	}
 	// Close is where buffered data can still fail to land, and a file that
 	// exists with the wrong content is worse than an absent one: it would
-	// silence the crash without doing the file's job. Remove it and report.
+	// silence the crash without doing the file's job. Remove it and report,
+	// with a failed removal joined in so a caller can see the state is dirty.
 	if err := f.Close(); err != nil {
-		os.Remove(path)
-		return fmt.Errorf("writing %s: %w", path, err)
+		return fmt.Errorf("writing %s: %w", path, errors.Join(err, os.Remove(path)))
 	}
 	return nil
 }

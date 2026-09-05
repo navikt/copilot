@@ -93,7 +93,7 @@ var probeCpltVersion = func() (string, error) {
 // and version-range check, nothing more.
 //
 // opencode is probed directly: LaunchOpenCodeStaged already requires the binary
-// on PATH. copilot is not — only cplt is — so it is probed sandboxed, the way
+// on PATH. copilot is not (only cplt is), so it is probed sandboxed, the way
 // the reference does in _sandboxed_client_version (grillmester.py lines
 // 883-905). Two parts of that vector are not decoration:
 //
