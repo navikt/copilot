@@ -35,6 +35,12 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 
 ## Conventions
 
+- PR bodies may be in Norwegian, but issue-closing references must use GitHub's
+  English keywords: `Closes #NNN` / `Fixes #NNN`. `Lukker #NNN` does not link or
+  auto-close anything, and three months of shipped-but-open issues in this repo
+  trace back to exactly that. Verify with the PR's `closingIssuesReferences`
+  when it matters.
+
 - Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
