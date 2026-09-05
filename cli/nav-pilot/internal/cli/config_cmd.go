@@ -344,9 +344,9 @@ version = 1
 # own. copilot_auth_mode decides which sources reach cplt.
 #
 # copilot_auth_mode:
-#   auto         — no constraint (default)
-#   env_only     — a token must already be in the environment; abort the launch if not
-#   gh_only      — strip the token variables so no env token reaches the sandbox
+#   auto         : no constraint (default)
+#   env_only     : a token must already be in the environment, abort the launch if not
+#   gh_only      : strip the token variables so no env token reaches the sandbox
 # Allowed: auto, env_only, gh_only — Default: auto
 # copilot_auth_mode = "auto"
 `
