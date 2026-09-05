@@ -140,6 +140,34 @@ const emptyMcp: McpServerCustomization = {
   remotes: [],
 };
 
+const playwrightMcp: McpServerCustomization = {
+  ...base,
+  type: "mcp",
+  name: "com.microsoft/playwright-mcp",
+  version: "0.0.80",
+  remotes: [],
+  packages: [
+    {
+      registryType: "npm",
+      identifier: "@playwright/mcp",
+      version: "0.0.80",
+      transport: { type: "stdio" },
+      packageArguments: [
+        { type: "named", name: "--isolated" },
+        { type: "named", name: "--caps", value: "core" },
+        { type: "named", name: "--browser", value: "chromium" },
+        {
+          type: "named",
+          name: "--blocked-origins",
+          value:
+            "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no",
+        },
+        { type: "named", name: "--block-service-workers" },
+      ],
+    },
+  ],
+};
+
 describe("transportLabel", () => {
   it("maps known transport types", () => {
     expect(transportLabel("streamable-http")).toBe("Streamable HTTP");
@@ -396,10 +424,7 @@ describe("getMcpServerConfig", () => {
   it("generates stdio config for npm package", () => {
     const config = JSON.parse(getMcpServerConfig(npmMcp));
     expect(config["figma-mcp"].command).toBe("pnpm");
-    expect(config["figma-mcp"].args).toContain("dlx");
-    expect(config["figma-mcp"].args).toContain("@anthropic/figma-mcp");
-    expect(config["figma-mcp"].args).toContain("--port");
-    expect(config["figma-mcp"].args).toContain("3333");
+    expect(config["figma-mcp"].args).toEqual(["dlx", "@anthropic/figma-mcp", "--port", "3333"]);
     expect(config["figma-mcp"].env.FIGMA_TOKEN).toBe("");
     expect(config["figma-mcp"].env.DEBUG).toBe("Enable debug logging");
   });
@@ -408,6 +433,42 @@ describe("getMcpServerConfig", () => {
     const config = JSON.parse(getMcpServerConfig(pypiMcp));
     expect(config["python-mcp"].command).toBe("uvx");
     expect(config["python-mcp"].args).toEqual(["mcp-server-python"]);
+  });
+
+  it("generates the pinned Playwright command under the short config key", () => {
+    const config = JSON.parse(getMcpServerConfig(playwrightMcp));
+    expect(config).toEqual({
+      "playwright-mcp": {
+        command: "pnpm",
+        args: [
+          "dlx",
+          "@playwright/mcp@0.0.80",
+          "--isolated",
+          "--caps",
+          "core",
+          "--browser",
+          "chromium",
+          "--blocked-origins",
+          "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no",
+          "--block-service-workers",
+        ],
+      },
+    });
+  });
+
+  it("renders a valueless named argument as a bare flag", () => {
+    const config = JSON.parse(
+      getMcpServerConfig({
+        ...playwrightMcp,
+        packages: [
+          {
+            ...playwrightMcp.packages![0],
+            packageArguments: [{ type: "named", name: "--isolated" }],
+          },
+        ],
+      })
+    );
+    expect(config["playwright-mcp"].args).toEqual(["dlx", "@playwright/mcp@0.0.80", "--isolated"]);
   });
 
   it("returns empty for mcp with no remotes or packages", () => {

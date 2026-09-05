@@ -725,7 +725,7 @@ func TestServerVersionHandler_PackageArguments(t *testing.T) {
 	}
 }
 
-func TestServersListHandler_PlaywrightSecurityArgs(t *testing.T) {
+func TestServersListHandler_PlaywrightArguments(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil)
 	w := httptest.NewRecorder()
 
@@ -762,36 +762,39 @@ func TestServersListHandler_PlaywrightSecurityArgs(t *testing.T) {
 
 	pkg := playwright.Server.Packages[0]
 
-	requiredFlags := map[string]string{
-		"--isolated":              "",
-		"--caps":                  "core",
-		"--block-service-workers": "",
-		"--save-trace":            "",
+	if playwright.Server.Version != "0.0.80" {
+		t.Errorf("expected server version 0.0.80, got %q", playwright.Server.Version)
+	}
+	if pkg.Version != "0.0.80" {
+		t.Errorf("expected package version 0.0.80, got %q", pkg.Version)
 	}
 
-	for _, arg := range pkg.PackageArguments {
-		if expected, ok := requiredFlags[arg.Name]; ok {
-			if expected != "" && arg.Value != expected {
-				t.Errorf("flag %s: expected value '%s', got '%s'", arg.Name, expected, arg.Value)
-			}
-			delete(requiredFlags, arg.Name)
+	expectedArguments := []struct {
+		name  string
+		value string
+	}{
+		{"--isolated", ""},
+		{"--caps", "core"},
+		{"--browser", "chromium"},
+		{"--blocked-origins", "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no"},
+		{"--block-service-workers", ""},
+	}
+
+	if len(pkg.PackageArguments) != len(expectedArguments) {
+		t.Fatalf("expected %d Playwright arguments, got %d", len(expectedArguments), len(pkg.PackageArguments))
+	}
+	for i, expected := range expectedArguments {
+		arg := pkg.PackageArguments[i]
+		if arg.Type != "named" || arg.Name != expected.name || arg.Value != expected.value {
+			t.Errorf(
+				"packageArguments[%d]: expected named argument %q=%q, got %q %q=%q",
+				i,
+				expected.name,
+				expected.value,
+				arg.Type,
+				arg.Name,
+				arg.Value,
+			)
 		}
-	}
-
-	for flag := range requiredFlags {
-		t.Errorf("missing required security flag: %s", flag)
-	}
-
-	hasBlockedOrigins := false
-	for _, arg := range pkg.PackageArguments {
-		if arg.Name == "--blocked-origins" {
-			hasBlockedOrigins = true
-			if arg.Value == "" {
-				t.Error("--blocked-origins must have a value")
-			}
-		}
-	}
-	if !hasBlockedOrigins {
-		t.Error("missing required security flag: --blocked-origins")
 	}
 }

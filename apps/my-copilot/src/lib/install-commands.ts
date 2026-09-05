@@ -135,7 +135,9 @@ function buildPackageArgs(pkg: NonNullable<Extract<AnyCustomization, { type: "mc
 } | null {
   const runtime = pkg.registryType === "npm" ? "pnpm" : pkg.registryType === "pypi" ? "uvx" : null;
   if (!runtime) return null;
-  const args: string[] = pkg.registryType === "npm" ? ["dlx", pkg.identifier] : [pkg.identifier];
+  const packageIdentifier =
+    pkg.registryType === "npm" && pkg.version ? `${pkg.identifier}@${pkg.version}` : pkg.identifier;
+  const args: string[] = pkg.registryType === "npm" ? ["dlx", packageIdentifier] : [packageIdentifier];
   if (pkg.packageArguments) {
     for (const arg of pkg.packageArguments) {
       if (arg.name) args.push(arg.name);

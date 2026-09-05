@@ -16,6 +16,7 @@ interface ServerResponse {
     packages?: {
       registryType: string;
       identifier: string;
+      version?: string;
       runtimeHint?: string;
       transport: { type: string };
       packageArguments?: { type: string; name?: string; value?: string; description?: string }[];

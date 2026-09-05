@@ -211,7 +211,7 @@
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.microsoft/playwright-mcp",
       "description": "Browser automation for UI testing and debugging with network controls.",
-      "version": "0.0.68",
+      "version": "0.0.80",
       "status": "active",
       "publishedAt": "2026-03-10T00:00:00Z",
       "websiteUrl": "https://www.npmjs.com/package/@playwright/mcp",
@@ -231,6 +231,7 @@
         {
           "registryType": "npm",
           "identifier": "@playwright/mcp",
+          "version": "0.0.80",
           "runtimeHint": "node",
           "transport": {
             "type": "stdio"
@@ -249,19 +250,20 @@
             },
             {
               "type": "named",
+              "name": "--browser",
+              "value": "chromium",
+              "description": "Use Chromium"
+            },
+            {
+              "type": "named",
               "name": "--blocked-origins",
-              "value": "*.intern.nav.no,*.intern.dev.nav.no,*.ansatt.nav.no,*.ansatt.dev.nav.no,*.ekstern.dev.nav.no,*.nav.no,*.nais.io,*.adeo.no",
+              "value": "*.intern.nav.no;*.intern.dev.nav.no;*.ansatt.nav.no;*.ansatt.dev.nav.no;*.ekstern.dev.nav.no;*.nav.no;*.nais.io;*.adeo.no",
               "description": "Block access to all Nav NAIS ingress domains"
             },
             {
               "type": "named",
               "name": "--block-service-workers",
               "description": "Prevent service worker interception of network requests"
-            },
-            {
-              "type": "named",
-              "name": "--save-trace",
-              "description": "Enable trace recording for auditability"
             }
           ]
         }
