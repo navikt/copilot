@@ -199,7 +199,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "copilot_auth_mode",
 		kind:        keyKindString,
-		description: "Which auth source cplt may use for Copilot. cplt resolves the token itself; this constrains it. auto leaves the choice to cplt; env_only requires GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN to be set and aborts the launch if none is; gh_only removes those variables so cplt must use `gh auth token`.",
+		description: "Which auth source reaches cplt for Copilot. nav-pilot never extracts a token itself. auto constrains nothing; env_only requires GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN to hold a value and aborts the launch if none does; gh_only removes those variables so no env token reaches the sandbox.",
 		allowed:     validCopilotAuthModes,
 		defaultVal:  "auto",
 		flag:        "",
@@ -337,14 +337,16 @@ version = 1
 # rtk_prompted_at = ""
 
 # ── cplt auth ──────────────────────────────────────────────────────────────────
-# cplt resolves the Copilot token itself: it uses an inherited
-# GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN if one is set, and otherwise runs
-# "gh auth token" outside the sandbox. copilot_auth_mode constrains that choice.
+# nav-pilot never extracts a Copilot token itself. With cplt's gh guard on
+# (sandbox.preset = strict), cplt uses an inherited
+# GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN if one is set and otherwise runs
+# "gh auth token" outside the sandbox; with it off, Copilot authenticates on its
+# own. copilot_auth_mode decides which sources reach cplt.
 #
-# copilot_auth_mode: which source cplt may use.
-#   auto         — leave the choice to cplt (default)
+# copilot_auth_mode:
+#   auto         — no constraint (default)
 #   env_only     — a token must already be in the environment; abort the launch if not
-#   gh_only      — strip the token variables so cplt must use "gh auth token"
+#   gh_only      — strip the token variables so no env token reaches the sandbox
 # Allowed: auto, env_only, gh_only — Default: auto
 # copilot_auth_mode = "auto"
 `

@@ -1813,16 +1813,16 @@ function KlienterOgKonfigurasjonSection() {
             <Box background="info-soft" borderRadius="8" padding="space-12">
               <BodyShort size="small" style={{ color: "#475569" }}>
                 For <code className="font-mono text-xs">copilot</code> via{" "}
-                <code className="font-mono text-xs">cplt</code>: det er <code className="font-mono text-xs">cplt</code>{" "}
-                som skaffer GitHub-tokenet, fra <code className="font-mono text-xs">GH_TOKEN</code>,{" "}
+                <code className="font-mono text-xs">cplt</code>: nav-pilot henter ikke ut GitHub-tokenet selv. Med
+                gh-guarden i <code className="font-mono text-xs">cplt</code> på skaffer{" "}
+                <code className="font-mono text-xs">cplt</code> det, fra{" "}
+                <code className="font-mono text-xs">GH_TOKEN</code>,{" "}
                 <code className="font-mono text-xs">GITHUB_TOKEN</code>,{" "}
                 <code className="font-mono text-xs">COPILOT_GITHUB_TOKEN</code> eller{" "}
                 <code className="font-mono text-xs">gh auth token</code>. Med{" "}
-                <code className="font-mono text-xs">copilot_auth_mode</code> velger du hvilken kilde{" "}
-                <code className="font-mono text-xs">cplt</code> får bruke:{" "}
+                <code className="font-mono text-xs">copilot_auth_mode</code> styrer du hvilke kilder som slipper fram:{" "}
                 <code className="font-mono text-xs">env_only</code> avbryter oppstart uten token i miljøet,{" "}
-                <code className="font-mono text-xs">gh_only</code> fjerner token-variablene så{" "}
-                <code className="font-mono text-xs">gh auth token</code> må brukes.
+                <code className="font-mono text-xs">gh_only</code> fjerner token-variablene fra barnemiljøet.
               </BodyShort>
             </Box>
             <div>

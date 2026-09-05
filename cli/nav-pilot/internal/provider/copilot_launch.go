@@ -340,19 +340,20 @@ var ghTokenVars = []string{"GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"}
 // applyCopilotAuthMode enforces copilot_auth_mode on the environment handed to
 // cplt.
 //
-// cplt resolves the token itself: it uses an inherited GH_TOKEN/GITHUB_TOKEN/
-// COPILOT_GITHUB_TOKEN when one is present, and otherwise runs
-// `gh auth token --hostname github.com` in the unsandboxed parent and hands the
-// result to the agent over a one-time 0600 file rather than the environment.
-// nav-pilot therefore does not extract or inject a token; it only decides which
-// of those sources cplt is allowed to use, and refuses to launch when the mode
-// asks for a source that cannot be there.
+// nav-pilot does not extract or inject a token. With cplt's gh guard on
+// (sandbox.preset = strict, which `nav-pilot doctor` recommends), cplt uses an
+// inherited GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN when one is present and
+// otherwise runs `gh auth token --hostname github.com` in the unsandboxed
+// parent, handing the result to the agent over a one-time 0600 file rather than
+// the environment. With the gh guard off, cplt does none of that and Copilot
+// authenticates on its own. Either way this function only decides which sources
+// reach cplt, and refuses to launch when the mode asks for one that is absent.
 //
 //   - auto:     no constraint (default).
 //   - env_only: a token must already be in the environment; the launch aborts
-//     if not, rather than letting cplt fall back to `gh auth token`.
+//     if not. Enforced here, so it holds whatever cplt is configured to do.
 //   - gh_only:  the token variables are removed from the child environment, so
-//     cplt has no env token to inherit and must go to `gh auth token`.
+//     no env token reaches the sandbox. What cplt does then is its own call.
 //
 // An empty authMode is treated as "auto": every real launch resolves the mode
 // through resolve() (default "auto"), but a directly constructed ResolvedConfig
@@ -365,7 +366,7 @@ func applyCopilotAuthMode(env []string, authMode string) ([]string, error) {
 	case "env_only":
 		if !hasEnvToken(env) {
 			return env, fmt.Errorf(
-				"copilot_auth_mode=env_only: none of %s is set, so cplt would fall back to `gh auth token`; launch aborted",
+				"copilot_auth_mode=env_only: none of %s is set; launch aborted",
 				strings.Join(ghTokenVars, "/"))
 		}
 		return env, nil

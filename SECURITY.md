@@ -203,27 +203,42 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 
 ## Copilot auth mode (nav-pilot)
 
-When nav-pilot launches Copilot inside `cplt`, `cplt` is the component that
-resolves the GitHub token. It uses an inherited `GH_TOKEN`, `GITHUB_TOKEN` or
-`COPILOT_GITHUB_TOKEN` when one is set, and otherwise runs
-`gh auth token --hostname github.com` in the unsandboxed parent, with those
-variables stripped from the subprocess so `gh` answers from its own credential
-store.
+When nav-pilot launches Copilot inside `cplt`, `cplt` is the component that can
+resolve the GitHub token, and only when its gh guard is on. `gh_guard.enabled`
+is off in cplt's default `standard` preset and on in `strict`, which is the
+preset `nav-pilot doctor` recommends and offers to set.
 
-nav-pilot does not extract or inject a token. `copilot_auth_mode` constrains
-which of those sources `cplt` is allowed to use, and lets a launch be refused
-outright rather than silently falling back to another source.
+With the gh guard on, `cplt` skips extraction when the child already carries a
+non-blank `GH_TOKEN`, `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN`, and otherwise
+runs `gh auth token --hostname github.com` in the unsandboxed parent with those
+variables stripped from the subprocess, so `gh` answers from its own credential
+store. It then serves the token through a one-time-read 0600 file in the scratch
+dir rather than the environment (`gh_guard.block_auth_token` is on by default,
+`gh_guard.inject_token` off).
+
+With the gh guard off, `cplt` does none of this and Copilot authenticates on its
+own, which on macOS means its login in the Keychain.
+
+nav-pilot does not extract or inject a token in either case. `copilot_auth_mode`
+constrains which sources reach `cplt`, and lets a launch be refused outright
+rather than silently falling back to another one.
 
 ### `copilot_auth_mode`
 
-| Value | Env token | `gh auth token` | Behaviour |
-|-------|-----------|-----------------|-----------|
-| `auto` (default) | allowed | allowed | The choice is left to `cplt`. |
-| `env_only` | required | refused | The launch aborts unless a token is already in the environment. |
-| `gh_only` | removed | required | The token variables are removed from the child environment, so `cplt` has nothing to inherit. |
+| Value | Behaviour |
+|-------|-----------|
+| `auto` (default) | No constraint. The choice is left to `cplt`. |
+| `env_only` | The launch aborts unless `GH_TOKEN`, `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN` already holds a non-blank value. |
+| `gh_only` | Those three variables are removed from the child environment, so no env token reaches the sandbox. |
 
 `env_only` and `gh_only` are set in `~/.nav-pilot/config.toml`; `auto` is the
 default and changes nothing.
+
+`env_only` holds unconditionally, because nav-pilot enforces it before launching.
+What `gh_only` leads to depends on the gh guard: with it on, `cplt` has nothing
+to inherit and goes to `gh auth token`; with it off, Copilot falls back to its
+own login. Either way the guarantee `gh_only` actually makes is the negative one,
+that no environment token is handed to the sandbox.
 
 ### What this is and is not
 
@@ -239,11 +254,11 @@ this setting says. Narrowing that grant is `cplt`-side work, tracked in the
 nav-pilot follow-up issue.
 
 `gh_only` is the one mode that changes exposure, and only a little. Removing the
-token variables from the child environment lets `cplt` use its out-of-environment
-token channel, a one-time-read 0600 file in the scratch dir, rather than handing
-the token to every process in the sandbox through the environment. `cplt`
-documents the limits of that channel itself. It is not confidentiality against
-an adversarial same-UID agent.
+token variables from the child environment keeps a token out of every process in
+the sandbox, and under the strict preset it leaves `cplt`'s out-of-environment
+channel, a one-time-read 0600 file in the scratch dir, as the way the token
+arrives. `cplt` documents the limits of that channel itself. It is not
+confidentiality against an adversarial same-UID agent.
 
 ### Platform notes
 
