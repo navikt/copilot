@@ -455,10 +455,39 @@ func TestLocalRematerializeNeverPublishesAHalfDeletedRevision(t *testing.T) {
 			// describes whatever directory was at revDir at that instant, even
 			// if it is renamed a moment later. Two stats would race the rename
 			// and report a partial tree that was never published.
+			//
+			// Resolving once is necessary but not sufficient, and that gap is
+			// what flaked this test on macOS (#668). The open can land on the
+			// outgoing tree microseconds before the republish renames it to
+			// aside; os.RemoveAll(aside) then empties it under this descriptor,
+			// and on APFS readdir reports the shrinking directory rather than
+			// the tree as it stood when it was opened. (Measured: a dirfd held
+			// across a concurrent RemoveAll returns a partial listing in
+			// roughly one run in two hundred on APFS. An open *file* descriptor
+			// is unaffected, which is why the live handle below reads through
+			// cleanly on both platforms.)
+			//
+			// That short listing is the retired revision going away on
+			// schedule, not a half-deleted one being published, and the two are
+			// told apart by identity rather than by timing: revDir is only ever
+			// created by renaming a fully staged tree onto it and only ever
+			// leaves by being renamed aside, so a listing counts against the
+			// invariant only when the directory it was taken on is still the
+			// one at revDir. Under the removal this fix replaced the old tree
+			// was emptied in place, at the path, so the descriptor and the path
+			// stayed the same directory and the check below still catches it.
 			if d, err := os.Open(revDir); err == nil {
-				names, _ := d.Readdirnames(-1)
+				names, readErr := d.Readdirnames(-1)
+				opened, openedErr := d.Stat()
 				d.Close()
-				if len(names) != wantEntries {
+				current, currentErr := os.Stat(revDir)
+				stillPublished := openedErr == nil && currentErr == nil && os.SameFile(opened, current)
+				// A readdir error on the tree that is still at revDir counts as
+				// a partial listing rather than as no observation. Some
+				// platforms return a short listing together with a non-nil
+				// error under a concurrent rename or remove, and swallowing
+				// that would let the test miss exactly what it is looking for.
+				if stillPublished && (readErr != nil || len(names) != wantEntries) {
 					partial.Store(true)
 				}
 			}
