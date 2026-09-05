@@ -766,3 +766,28 @@ func TestEnsureOpenCodeRuntimeGitignoreLeavesExistingFile(t *testing.T) {
 		t.Errorf("existing file was rewritten to %q, want it untouched", got)
 	}
 }
+
+// A stat that fails for any reason other than "not there" must stop the
+// pre-seed: the directory cannot be inspected reliably, and creating into it
+// anyway could mask the real problem.
+func TestEnsureOpenCodeRuntimeGitignoreStopsOnStatError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("permission bits do not stop root")
+	}
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+
+	dir := filepath.Join(xdg, "opencode")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// No search permission: Lstat inside fails with EACCES, not ENOENT.
+	if err := os.Chmod(dir, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(dir, 0o700) })
+
+	if err := ensureOpenCodeRuntimeGitignore(); err == nil {
+		t.Fatal("expected an error when the config dir cannot be inspected")
+	}
+}

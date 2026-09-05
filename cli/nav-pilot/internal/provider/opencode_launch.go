@@ -3,7 +3,9 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -73,50 +75,62 @@ func openCodeNavContextDir() string {
 
 // openCodeRuntimeGitignore is the exact content OpenCode writes to
 // <config dir>/.gitignore when the file is absent
-// (packages/opencode/src/config/config.ts, ensureGitignore — verified at
+// (packages/opencode/src/config/config.ts, ensureGitignore, verified at
 // v1.18.20 and at current HEAD: a `join("\n")`, no trailing newline). OpenCode
 // only ever checks that the file exists; the reference launcher's
 // ensure_opencode_runtime_support seeds the same lines with a trailing
 // newline.
 const openCodeRuntimeGitignore = "node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore"
 
-// ensureOpenCodeRuntimeGitignore pre-seeds ~/.config/opencode/.gitignore
-// before OpenCode is launched under cplt (#565).
+// ensureOpenCodeRuntimeGitignore pre-seeds the .gitignore in the opencode
+// config dir (openCodeConfigDir, which honours XDG_CONFIG_HOME) before
+// OpenCode is launched under cplt (#565).
 //
 // cplt mounts the config dir read-only with only auth.json writable. OpenCode
 // does a write-if-absent of this file while loading config, before the TUI is
 // up. Its own tolerance for a denied write does not help under cplt: the
 // sandbox answers EPERM, which Effect's platform layer tags Unknown, which
-// slips past ensureGitignore's catchIf(PermissionDenied) into orDie — so on a
-// machine where the file does not yet exist, every launch dies with
+// slips past ensureGitignore's catchIf(PermissionDenied) into orDie. On a
+// machine where the file does not yet exist, every launch therefore dies with
 // "Unexpected server error". Seeding the file first makes the write-if-absent
 // a no-op.
 //
-// Idempotent: an existing file — whatever its content — is never touched, and
-// a missing config directory is created. O_EXCL so a race can only lose to
+// Idempotent: an existing file is never touched (whatever its content), and a
+// missing config directory is created. O_EXCL so a race can only lose to
 // another creator, never truncate one.
 func ensureOpenCodeRuntimeGitignore() error {
 	dir := openCodeConfigDir()
 	path := filepath.Join(dir, ".gitignore")
 	if _, err := os.Lstat(path); err == nil {
 		return nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		// Any other stat failure means the directory cannot be inspected
+		// reliably, and creating into it anyway could mask the real problem.
+		return fmt.Errorf("inspecting %s: %w", path, err)
 	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("creating opencode config directory %s: %w", dir, err)
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		if os.IsExist(err) {
+		if errors.Is(err, fs.ErrExist) {
 			return nil
 		}
 		return fmt.Errorf("creating %s: %w", path, err)
 	}
 	if _, err := f.WriteString(openCodeRuntimeGitignore); err != nil {
-		f.Close()
+		err = errors.Join(err, f.Close())
 		os.Remove(path)
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
-	return f.Close()
+	// Close is where buffered data can still fail to land, and a file that
+	// exists with the wrong content is worse than an absent one: it would
+	// silence the crash without doing the file's job. Remove it and report.
+	if err := f.Close(); err != nil {
+		os.Remove(path)
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+	return nil
 }
 
 // repoScopeDir returns the installed repo scope of the working directory
@@ -688,8 +702,9 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if _, err := exec.LookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found in PATH — install it first: https://opencode.ai")
 	}
-	// A fresh machine has no ~/.config/opencode/.gitignore, and under cplt the
-	// launch dies before the TUI if OpenCode has to create it itself (#565).
+	// A fresh machine has no .gitignore in the opencode config dir, and under
+	// cplt the launch dies before the TUI if OpenCode has to create it itself
+	// (#565).
 	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
 		return fmt.Errorf("preparing opencode's config directory for the sandbox: %w", err)
 	}

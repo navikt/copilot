@@ -83,12 +83,12 @@ var probeCpltVersion = func() (string, error) {
 // launch is about to start.
 //
 // What it proves, and what it does not: a `--version` answer proves the binary
-// exists and executes. It does not prove a session can start — opencode
+// exists and executes. It does not prove a session can start, because opencode
 // answers `--version` before it loads config, so a launch that dies during
 // config load under the sandbox still probes green. #565 shipped exactly that
 // way: both payloads passed this probe while every TUI launch on a fresh
-// machine died. A real readiness smoke — a session under cplt to a stable
-// ready marker — needs a machine with cplt and the client installed, which CI
+// machine died. A real readiness smoke (a session under cplt to a stable
+// ready marker) needs a machine with cplt and the client installed, which CI
 // does not have; the gap is #662. Until then, read this gate as a presence
 // and version-range check, nothing more.
 //

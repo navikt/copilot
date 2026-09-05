@@ -298,8 +298,9 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	if _, err := exec.LookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found in PATH — install it first: https://opencode.ai")
 	}
-	// A fresh machine has no ~/.config/opencode/.gitignore, and under cplt the
-	// launch dies before the TUI if OpenCode has to create it itself (#565).
+	// A fresh machine has no .gitignore in the opencode config dir, and under
+	// cplt the launch dies before the TUI if OpenCode has to create it itself
+	// (#565).
 	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
 		return fmt.Errorf("preparing opencode's config directory for the sandbox: %w", err)
 	}
