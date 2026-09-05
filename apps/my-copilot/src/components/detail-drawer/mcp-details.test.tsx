@@ -50,7 +50,7 @@ describe("McpDetails", () => {
       expect(screen.getByRole("heading", { name: "Oppsett" })).toBeInTheDocument();
       expect(screen.getAllByText("Gjenta oppsett")).toHaveLength(2);
       expect(screen.getAllByText(command)).toHaveLength(3);
-      expect(screen.getByText("Sikkerhetsargumenter:")).toBeInTheDocument();
+      expect(screen.getByText("Argumenter:")).toBeInTheDocument();
       expect(consoleError.mock.calls.flat().join(" ")).not.toContain("same key");
     } finally {
       consoleError.mockRestore();
