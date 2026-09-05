@@ -692,3 +692,185 @@ func TestRefusedHandoverPrintsNoModelNotice(t *testing.T) {
 		t.Errorf("a refused launch announced a model: %q", stderr.String())
 	}
 }
+
+// ─── #544: per-client pin state ──────────────────────────────────────────────
+
+// offlinePinnedEnv installs a real Tier 2 pin, deletes its revision directory,
+// and takes the network away — the shape all three #544 paths share.
+func offlinePinnedEnv(t *testing.T) *InstallScope {
+	t.Helper()
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, "sha-one"))
+	if err := os.RemoveAll(pakkeRevisionDir("navikt/grillmester", "sha-one")); err != nil {
+		t.Fatal(err)
+	}
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+	return scope
+}
+
+// TestOfflineMissingRevisionRefusesPerPinnedClient is #544: the U8 refusal was
+// gated on the 6-hour tier cache answering ok, which is narrower than the
+// defect. The pin state records, per client, what the pinned revision staged,
+// so each of the three paths the issue names must refuse — loudly, with the
+// way out — instead of silently downgrading to the legacy launch with the
+// user's own ~/.copilot mixed in.
+func TestOfflineMissingRevisionRefusesPerPinnedClient(t *testing.T) {
+	cases := []struct {
+		name   string
+		client string
+		cache  map[string]tierCacheEntry
+	}{
+		{
+			// Path 1: pin hand-deleted more than tierCacheTTL after the last
+			// resolving launch, so the cache entry exists but is stale.
+			name:   "hand-deleted pin with a stale cache entry",
+			client: "copilot",
+			cache: map[string]tierCacheEntry{
+				tierCacheKey("navikt/grillmester", "copilot"): {Tier: agentpakke.TierPayload, LearnedAt: time.Now().Add(-7 * time.Hour)},
+			},
+		},
+		{
+			// Path 2: installed with `nav-pilot install`, which never writes
+			// the tier cache, and never launch-resolved.
+			name:   "installed source that never launch-resolved",
+			client: "copilot",
+			cache:  nil,
+		},
+		{
+			// Path 3: client A resolved the source (fresh cache entry), client
+			// B never did. They share the pin, not the cache entry.
+			name:   "second client on the same source",
+			client: "opencode",
+			cache: map[string]tierCacheEntry{
+				tierCacheKey("navikt/grillmester", "copilot"): {Tier: agentpakke.TierPayload, LearnedAt: time.Now()},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			offlinePinnedEnv(t)
+			if tc.cache != nil {
+				writeTierCache(t, tc.cache)
+			}
+
+			handled, err := tryPakkeLaunch(ResolvedConfig{Client: tc.client, Source: "navikt/grillmester"})
+			if !handled || err == nil {
+				t.Fatalf("tryPakkeLaunch = (%v, %v), want (true, error) — the launch must refuse, not degrade to legacy", handled, err)
+			}
+			for _, want := range []string{
+				"declares pre-built payloads for " + tc.client,
+				"navikt/grillmester",
+				"no route to host",
+				"nav-pilot sync --apply",
+				`nav-pilot config set source ""`,
+			} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal does not mention %q, got: %v", want, err)
+				}
+			}
+			assertDefaultPakkeActive(t)
+		})
+	}
+}
+
+// TestOfflineMissingRevisionLegacyForUnstagedClient is the other half of the
+// per-client record: a client the pinned manifest declared no payload for was
+// never staged, so legacy is the correct answer for it — refusing on the pin
+// alone would block launches that should go through (#544's avveining).
+func TestOfflineMissingRevisionLegacyForUnstagedClient(t *testing.T) {
+	offlinePinnedEnv(t)
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "krita", Source: "navikt/grillmester"})
+	if handled || err != nil {
+		t.Fatalf("tryPakkeLaunch(client the pin staged nothing for) = (%v, %v), want (false, nil) — the legacy path", handled, err)
+	}
+	assertDefaultPakkeActive(t)
+}
+
+// TestOldShapePinRefusesOffline: a state written before per-client records
+// carries the pin but not the client list, so nav-pilot cannot tell whether
+// this client had a payload staged. Trusting silence there would discard the
+// pin — the same defect class #544 fixes — so it refuses instead, and the pin
+// upgrades in place on the first launch or sync that can read the manifest.
+func TestOldShapePinRefusesOffline(t *testing.T) {
+	scope := pinEnv(t)
+	if err := writeScopedState(scope, &StateFile{
+		Collection: "grillmester",
+		Scope:      "user",
+		SourceRepo: "navikt/grillmester",
+		SourceSHA:  "sha-one",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err == nil {
+		t.Fatalf("tryPakkeLaunch(old-shape pin, offline) = (%v, %v), want (true, error)", handled, err)
+	}
+	for _, want := range []string{
+		"navikt/grillmester",
+		"no route to host",
+		"nav-pilot sync --apply",
+		`nav-pilot config set source ""`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not mention %q, got: %v", want, err)
+		}
+	}
+	assertDefaultPakkeActive(t)
+}
+
+// TestInstallRecordsPinnedClients: the per-client record is written by the
+// install itself, not first by a launch — path 2 of #544 exists because the
+// tier cache was only ever written on a resolving launch.
+func TestInstallRecordsPinnedClients(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, "sha-one"))
+
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"copilot", "opencode", "pi"}
+	if strings.Join(state.PinnedClients, ",") != strings.Join(want, ",") {
+		t.Errorf("state.PinnedClients = %v, want %v", state.PinnedClients, want)
+	}
+}
+
+// TestPinnedLaunchBackfillsPerClientState: an old-shape pin whose revision is
+// still on disk upgrades in place on the first launch that reads it, so the
+// offline refusal above gets its per-client answer without anyone running a
+// command.
+func TestPinnedLaunchBackfillsPerClientState(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, "sha-one"))
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.PinnedClients = nil // the shape every pre-#544 pin has
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatal(err)
+	}
+
+	failingResolveSource(t)
+	assertHandedOver(t, launchPinned(t, ""))
+
+	state, err = readScopedState(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"copilot", "opencode", "pi"}
+	if strings.Join(state.PinnedClients, ",") != strings.Join(want, ",") {
+		t.Errorf("state.PinnedClients after a pinned launch = %v, want %v", state.PinnedClients, want)
+	}
+}

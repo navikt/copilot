@@ -434,6 +434,16 @@ type StateFile struct {
 	SourceSHA   string          `json:"source_sha"`
 	InstalledAt string          `json:"installed_at"`
 	Files       []InstalledFile `json:"files"`
+	// PinnedClients records, for a Tier 2 pin, which clients the pinned
+	// revision staged payloads for: the manifest's payload-bearing client ids
+	// at the moment the pin was written. It is the durable, per-client answer
+	// to "was anything staged for this client here?", which is what lets an
+	// offline launch with the revision directory gone refuse instead of
+	// silently downgrading to the legacy path (#544). Nil on every Tier 1
+	// state and on pins written before it existed; never written empty, since
+	// a pin is only ever made of a manifest with at least one payload client —
+	// so nil means "predates this field", not "no payload clients".
+	PinnedClients []string `json:"pinned_clients,omitempty"`
 	// Unknown carries every top-level key this binary does not understand, so a
 	// read-modify-write does not silently drop what a newer nav-pilot wrote.
 	// See [InstalledFile.Unknown].

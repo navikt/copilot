@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -166,6 +167,15 @@ func pinnedRevision(sourceRepo string) (*Source, error) {
 	if src.Pakke == nil {
 		return nil, nil // a revision directory without a manifest is not a pin
 	}
+	// A pin written before per-client records existed upgrades in place on the
+	// first launch that reads it: the pinned manifest is in hand here, and it
+	// is exactly what pinRevision would have recorded (#544). Best effort — a
+	// write that fails leaves the old shape, which the offline refusal treats
+	// as "payload possible", never as "no payload".
+	if state.PinnedClients == nil {
+		state.PinnedClients = payloadClients(src.Pakke)
+		_ = writeScopedState(scope, state)
+	}
 	return src, nil
 }
 
@@ -222,7 +232,37 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 		if errors.Is(err, errUnusableManifest) {
 			return nil, true, err
 		}
+		// The pin state answers first (#544). It is durable — written by
+		// install, sync --apply and auto-pin, with no TTL — where the tier
+		// cache is a heuristic only a resolving launch ever writes, so gating
+		// the refusal on the cache alone left three ordinary offline paths
+		// downgrading silently: a pin hand-deleted after the cache expired, an
+		// installed source that never launch-resolved, and a second client on
+		// a source only the first client had resolved. Per client, because the
+		// pin is per source while payloads are per client: a pakke can declare
+		// a payload for one client and nothing for another, and for the other
+		// the legacy path is the right answer, not a refusal.
+		if clients, pinned := pinnedPayloadClients(resolved.Source); pinned {
+			if clients == nil {
+				// A pin from before per-client records. Whether this client
+				// had a payload staged is unknowable offline, and trusting
+				// silence would discard the pin — the defect class this exists
+				// to remove — so it refuses, and the pin upgrades in place on
+				// the first launch or sync that can read the manifest.
+				return nil, true, unresolvablePinRefusal(resolved, err)
+			}
+			if slices.Contains(clients, resolved.Client) {
+				return nil, true, unresolvablePayloadRefusal(resolved, err)
+			}
+			// The pin staged nothing for this client: legacy is correct for
+			// it, exactly as it is when the revision is on disk and the pinned
+			// manifest declares no payload for it. Fall through to the warning.
+		}
 		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier == agentpakke.TierPayload {
+			// Secondary signal, for a payload source that resolved but never
+			// pinned (a mixed pakke, or an auto-pin refused over a foreign
+			// install): the pin state has nothing on it, but a launch this
+			// recent still knows legacy would be a downgrade.
 			return nil, true, unresolvablePayloadRefusal(resolved, err)
 		}
 		fmt.Fprintf(os.Stderr, "%s Could not resolve source %s: %v — launching without agentpakke context.\n",
@@ -359,6 +399,51 @@ func unresolvablePayloadRefusal(resolved ResolvedConfig, cause error) error {
 	return fmt.Errorf(
 		"source %s declares pre-built payloads for %s, and nav-pilot could not resolve it: %w.\n"+
 			"Nothing was launched — running it as before instead would materialize your own ~/.copilot into a launch the agentpakke reserves for a verified payload tree.\n\n"+
+			"  Rebuild the pinned revision, once the source resolves:  %s\n"+
+			"  Or go back to the built-in agentpakke:                  %s",
+		bold(resolved.Source), resolved.Client, cause,
+		bold("nav-pilot sync --apply"),
+		bold(`nav-pilot config set source ""`))
+}
+
+// pinnedPayloadClients is the per-client half of the pin state: the clients
+// the pinned revision staged payloads for, and whether this user's scope pins
+// the source at all. A nil slice under pinned=true is a pin written before
+// per-client records existed (#544) — callers must treat it as "payload
+// possible", never as "no payload".
+//
+// It mirrors pinnedRevision's reads (user scope, matching repo) but keys on
+// [pinnedState] rather than on the revision directory: it exists precisely for
+// the launches where that directory is gone, and a Tier 1 install — which also
+// records a source and a SHA — must not trip it, because its content is in the
+// user's own ~/.copilot and the legacy path is its correct launch.
+func pinnedPayloadClients(sourceRepo string) ([]string, bool) {
+	if !pinnable(sourceRepo) {
+		return nil, false
+	}
+	scope, err := ScopeUser()
+	if err != nil {
+		return nil, false //nolint:nilerr // no user scope means no pin, not a launch failure
+	}
+	state, err := readScopedState(scope)
+	if err != nil {
+		return nil, false //nolint:nilerr // an unreadable state file is the install commands' error to report
+	}
+	if !pinnedState(state) || !sameSourceRepo(state.SourceRepo, sourceRepo) {
+		return nil, false
+	}
+	return state.PinnedClients, true
+}
+
+// unresolvablePinRefusal is [unresolvablePayloadRefusal] for a pin that
+// predates per-client records: the state says a revision was pinned for this
+// source and the revision is gone, but not which clients it staged payloads
+// for, so the message claims exactly what is known and no more. The way out is
+// the same pair of commands, for the same reasons.
+func unresolvablePinRefusal(resolved ResolvedConfig, cause error) error {
+	return fmt.Errorf(
+		"your user scope pins a revision of source %s, the pinned revision is missing from disk, and nav-pilot could not resolve the source to learn whether it staged payloads for %s: %w.\n"+
+			"Nothing was launched — running it as before instead could materialize your own ~/.copilot into a launch the agentpakke reserves for a verified payload tree.\n\n"+
 			"  Rebuild the pinned revision, once the source resolves:  %s\n"+
 			"  Or go back to the built-in agentpakke:                  %s",
 		bold(resolved.Source), resolved.Client, cause,
