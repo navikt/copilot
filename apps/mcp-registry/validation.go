@@ -109,6 +109,31 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 		}
 	}
 
+	for j := range server.SetupInstructions {
+		if err := validateSetupInstruction(&server.SetupInstructions[j], index, j); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateSetupInstruction(instruction *SetupInstruction, serverIndex, instructionIndex int) error {
+	prefix := fmt.Sprintf("server[%d].setupInstructions[%d]", serverIndex, instructionIndex)
+	if strings.TrimSpace(instruction.Title) == "" {
+		return fmt.Errorf("%s: 'title' is required and cannot be empty", prefix)
+	}
+	if strings.TrimSpace(instruction.Description) == "" {
+		return fmt.Errorf("%s: 'description' is required and cannot be empty", prefix)
+	}
+	if len(instruction.Commands) == 0 {
+		return fmt.Errorf("%s: 'commands' must contain at least one command", prefix)
+	}
+	for commandIndex, command := range instruction.Commands {
+		if strings.TrimSpace(command) == "" {
+			return fmt.Errorf("%s.commands[%d]: command cannot be empty", prefix, commandIndex)
+		}
+	}
 	return nil
 }
 

@@ -10,7 +10,14 @@ describe("getMcpServers", () => {
     vi.unstubAllGlobals();
   });
 
-  it("preserves full registry IDs globally while retaining short display names", async () => {
+  it("preserves full registry IDs while mapping package versions and setup instructions", async () => {
+    const setupInstructions = [
+      {
+        title: "Installer Chromium før første bruk",
+        description: "Kjør kommandoen utenfor cplt.",
+        commands: ["pnpm dlx @playwright/mcp@0.0.80 install-browser chromium"],
+      },
+    ];
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -37,7 +44,10 @@ describe("getMcpServers", () => {
                   publishedAt: "2026-03-10T00:00:00Z",
                   isLatest: true,
                 },
-                "io.github.navikt/registry": { tags: ["testing"] },
+                "io.github.navikt/registry": {
+                  tags: ["testing"],
+                  setupInstructions,
+                },
               },
             },
             {
@@ -70,6 +80,7 @@ describe("getMcpServers", () => {
       serverId: "com.microsoft/playwright-mcp",
       version: "0.0.80",
       packages: [{ identifier: "@playwright/mcp", version: "0.0.80" }],
+      setupInstructions,
     });
     expect(servers[1]).toMatchObject({
       name: "github-mcp",

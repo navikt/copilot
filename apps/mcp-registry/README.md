@@ -135,7 +135,9 @@ Names follow reverse-DNS with exactly one `/`:
 
 **Required fields**: `name`, `description`, `version`
 
-**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`
+**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`, `setupInstructions`
+
+`setupInstructions` is an array of `{ "title", "description", "commands" }` steps, shown with copyable commands in Min Copilot.
 
 ### Remote Servers (HTTP)
 
