@@ -170,6 +170,17 @@ func (g *Guard) URL() string {
 	return fmt.Sprintf("http://127.0.0.1:%d", g.ln.Addr().(*net.TCPAddr).Port)
 }
 
+// Port is the ephemeral port this guard listens on, or 0 when it is not
+// listening. The launch paths need the number rather than the URL: cplt's
+// sandbox blocks localhost by default, so the port has to be named to it with
+// `--allow-localhost`.
+func (g *Guard) Port() int {
+	if g == nil || g.ln == nil {
+		return 0
+	}
+	return g.ln.Addr().(*net.TCPAddr).Port
+}
+
 // StartGuard puts the guard in front of a local server and returns once it is
 // listening. Close it when the session ends: the guard's goroutines outlive the
 // call that started them, and only [Guard.Close] waits for them.

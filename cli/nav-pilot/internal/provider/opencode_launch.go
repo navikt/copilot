@@ -770,9 +770,17 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		suffix = fmt.Sprintf(" with Nav context (%s)", navSummary)
 	}
 
+	// Same reason as the copilot local path: opencode's provider block points at
+	// the guard on 127.0.0.1, which cplt blocks unless the port is named.
+	var cpltFlags []string
+	if guard != nil {
+		cpltFlags = withCpltAllowLocalhost(nil, guard.Port())
+	}
+
 	return launchViaCplt(cpltLaunch{
 		agent:         "opencode",
 		agentArgs:     openCodeAgentArgs(resolved),
+		cpltArgs:      cpltFlags,
 		env:           launchEnv,
 		displayName:   "opencode",
 		messageSuffix: suffix,

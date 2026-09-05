@@ -142,9 +142,15 @@ func cmdDoctor() error {
 		// Security posture. A recommendation, not a failure — and an unknown
 		// preset is skipped rather than guessed at.
 		preset := cpltSandboxPreset()
+		supported, unsupportedReason := strictPresetSupported()
 		switch {
 		case preset == "":
 			// cplt could not tell us; nothing to recommend.
+		case !supported && preset != cpltRecommendedPreset:
+			// Silence here would read as approval of the current preset. Say
+			// that the recommendation is being withheld, and why.
+			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
+			fmt.Printf("          %s %s.\n", dim("Note:"), unsupportedReason)
 		case cpltRecommendStrict(preset):
 			// Not `cplt config set sandbox.preset strict` on its own. That
 			// command alone turns on proxy.default_allowlist, and from the

@@ -130,6 +130,12 @@ func cpltPostureValue(preset string) string {
 	case cpltRecommendStrict(preset):
 		return preset + " (recommended: " + cpltRecommendedPreset + ")"
 	default:
+		// Where strict cannot work, the row still shows the current preset but
+		// says the option is closed, rather than looking like a choice the user
+		// declined to make.
+		if ok, _ := strictPresetSupported(); !ok && preset != cpltRecommendedPreset {
+			return preset + " (strict unavailable on this kernel)"
+		}
 		return preset
 	}
 }

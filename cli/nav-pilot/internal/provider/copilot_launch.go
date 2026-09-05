@@ -185,6 +185,12 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 			domain.Dim("ℹ"), local.LoopGuardRepeat())
 	}
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin))
+	if cliName == "cplt" && guard != nil {
+		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
+		// which cplt blocks by default. Name the port so it survives — and so
+		// it survives the strict preset, which supersedes allow_localhost_any.
+		args = withCpltAllowLocalhost(args, guard.Port())
+	}
 	displayName := CLIDisplayName(cliName)
 	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(PrimaryAgent("copilot")))
 

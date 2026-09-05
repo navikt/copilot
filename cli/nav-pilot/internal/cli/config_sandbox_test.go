@@ -318,3 +318,70 @@ func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
 		}
 	}
 }
+
+// ─── the platform gate ───────────────────────────────────────────────────────
+
+// stubStrictSupport replaces the platform gate for one test.
+func stubStrictSupport(t *testing.T, ok bool, reason string) {
+	t.Helper()
+	prev := strictPresetSupported
+	strictPresetSupported = func() (bool, string) { return ok, reason }
+	t.Cleanup(func() { strictPresetSupported = prev })
+}
+
+// On a kernel that cannot enforce forced-proxy egress, cplt refuses to launch
+// under strict. Recommending it there would stop every session on the machine —
+// worse than the problem the recommendation solves — so the nudge is withheld.
+func TestStrictNotRecommendedWhereCpltWouldRefuseToLaunch(t *testing.T) {
+	stubStrictSupport(t, false, "this kernel cannot enforce forced-proxy egress")
+	for _, preset := range []string{"standard", "permissive", "full-trust"} {
+		if cpltRecommendStrict(preset) {
+			t.Errorf("recommended strict from %q on a kernel where cplt refuses to launch", preset)
+		}
+	}
+}
+
+// The gate must not swallow the recommendation everywhere else.
+func TestStrictStillRecommendedWhereItWorks(t *testing.T) {
+	stubStrictSupport(t, true, "")
+	for _, preset := range []string{"standard", "permissive", "full-trust"} {
+		if !cpltRecommendStrict(preset) {
+			t.Errorf("did not recommend strict from %q on a supported kernel", preset)
+		}
+	}
+	if cpltRecommendStrict(cpltRecommendedPreset) {
+		t.Error("recommended strict to someone already on strict")
+	}
+}
+
+// The settings row stays selectable, so the action refuses on its own account
+// rather than trusting that the row was hidden.
+func TestStrictActionRefusesOnAnUnsupportedKernel(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, nil)
+	stubStrictSupport(t, false, "Landlock ABI v2, needs v4")
+
+	err := cmdConfigStrictPreset()
+	if err == nil {
+		t.Fatal("the action set strict on a kernel where cplt refuses to launch")
+	}
+	if !strings.Contains(err.Error(), "Landlock ABI v2") {
+		t.Errorf("refusal does not say why: %v", err)
+	}
+	if len(configSets(t, log)) != 0 {
+		t.Errorf("cplt config was written anyway: %v", configSets(t, log))
+	}
+}
+
+// The settings page says the option is closed rather than showing a bare
+// preset name, which would read as a choice the user declined to make.
+func TestPostureRowNamesTheUnsupportedKernel(t *testing.T) {
+	stubStrictSupport(t, false, "whatever")
+	if got := cpltPostureValue("standard"); !strings.Contains(got, "unavailable") {
+		t.Errorf("posture row hides the gate: %q", got)
+	}
+	stubStrictSupport(t, true, "")
+	if got := cpltPostureValue("standard"); !strings.Contains(got, cpltRecommendedPreset) {
+		t.Errorf("posture row dropped the recommendation where it works: %q", got)
+	}
+}

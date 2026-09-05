@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -82,6 +83,33 @@ func withCpltConfirmation(args []string, tty bool) []string {
 		return args
 	}
 	return append([]string{"--yes"}, args...)
+}
+
+// withCpltAllowLocalhost names the local loop guard's port to cplt.
+//
+// cplt blocks localhost outbound by default — SSRF to whatever else the
+// developer is running — so a local session, whose whole prompt path is a
+// 127.0.0.1 hop to the guard, only worked because the user had turned on
+// `sandbox.allow_localhost_any`. That is a machine-wide relaxation, and cplt's
+// strict preset supersedes it outright (forced egress cannot coexist with an
+// unrestricted localhost), which would have left `nav-pilot local` and strict
+// mutually exclusive.
+//
+// One named port is both narrower than the toggle and compatible with strict:
+// cplt emits the carve-out for explicit `--allow-localhost` ports outside its
+// `if !proxy_forced` block on macOS (src/sandbox_profile.rs) and adds a
+// port-scoped Landlock rule without disabling net-connect restriction on Linux
+// (src/sandbox_landlock.rs). Only `allow_localhost_any` turns that restriction
+// off, and this is not that.
+//
+// Passed on every local launch, not only under strict: the flag is what makes
+// the hop legal in the first place, so a user who never touched the toggle gets
+// a working local session too.
+func withCpltAllowLocalhost(args []string, port int) []string {
+	if port <= 0 {
+		return args
+	}
+	return append([]string{"--allow-localhost", strconv.Itoa(port)}, args...)
 }
 
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring

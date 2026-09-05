@@ -137,9 +137,18 @@ var cpltSandboxPreset = func() string {
 }
 
 // cpltRecommendStrict reports whether nav-pilot should nudge the user towards
-// the strict preset. An unknown preset is left alone.
+// the strict preset. An unknown preset is left alone, and so is a machine where
+// strict would not work — see strictPresetSupported.
+//
+// The platform gate lives here rather than at the call sites because both the
+// doctor report and the settings page route through this one predicate. A gate
+// added to only one of them is a recommendation nav-pilot still makes.
 func cpltRecommendStrict(preset string) bool {
-	return preset != "" && preset != cpltRecommendedPreset
+	if preset == "" || preset == cpltRecommendedPreset {
+		return false
+	}
+	ok, _ := strictPresetSupported()
+	return ok
 }
 
 // cmdConfigStrictPreset asks for confirmation, seeds the allowlist, and sets
@@ -156,6 +165,11 @@ func cmdConfigStrictPreset() error {
 	cliPath, err := findCplt()
 	if err != nil {
 		return err
+	}
+	// The row is selectable even where the recommendation is withheld, so the
+	// refusal is repeated here rather than assumed from the row being hidden.
+	if ok, reason := strictPresetSupported(); !ok {
+		return fmt.Errorf("nav-pilot will not set sandbox.preset = strict here: %s", reason)
 	}
 
 	var ok bool
