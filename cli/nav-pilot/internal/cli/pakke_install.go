@@ -405,8 +405,13 @@ func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet bool)
 //
 // The order is load-bearing. State is written only after the rename has
 // published a complete revision, so a crash mid-install leaves the previous pin
-// intact; pruning runs only after the state names the new pin, so nothing is
-// removed while it is still the recorded one.
+// intact; every removal — the outgoing install's files, its revision trees,
+// the prune — runs only after the state names the new pin (#504 U7). A state
+// write that fails therefore loses nothing: the outgoing install is still on
+// disk and still recorded. The window that remains is a kill between the write
+// and the removals, which leaves the outgoing files behind unrecorded —
+// leftovers, not loss, where the old delete-first order made the same
+// interruption delete a working install and keep a state that still named it.
 //
 // [installPakkePin] and the launch path's auto-pin both go through here — there
 // is exactly one place payload bytes are written.
@@ -430,26 +435,8 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 	}
 
 	previousPin := ""
+	outgoingRevisions := ""
 	if existing != nil {
-		// The state this pin replaces is a zero-item entry, so any files it
-		// tracks are about to lose their only record. That is true whatever
-		// source they came from: the same repo dropping its layout and going
-		// payload-only orphans them exactly as a switch to another repo does,
-		// and a shape change like that must be picked up without a migration.
-		// An explicit install (or `sync --apply`) is the consent gesture for
-		// removing them; the launch path refuses instead, see [autoPin].
-		if len(existing.Files) > 0 {
-			// jsonOutput is not cosmetic here: `install --json` and `sync
-			// --apply --json` write one JSON document to stdout, and these
-			// lines land in front of it.
-			if !jsonOutput {
-				fmt.Printf("\n%s Removing the files installed from %s:\n", dim("ℹ"), bold(sourceLabelForRepo(existing.SourceRepo)))
-			}
-			removeStateFiles(scope, existing, false, jsonOutput)
-			if !jsonOutput {
-				fmt.Println()
-			}
-		}
 		if sameSourceRepo(existing.SourceRepo, src.Repo) {
 			previousPin = existing.SourceSHA
 		} else if outgoing := pakkeSourceDir(existing.SourceRepo); existing.SourceRepo != "" && outgoing != pakkeSourceDir(src.Repo) {
@@ -467,7 +454,7 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 			// (a/b-c and a-b/c) two different repos share one directory, and
 			// removing the outgoing one there would delete the revision this
 			// call just materialized.
-			_ = os.RemoveAll(outgoing)
+			outgoingRevisions = outgoing
 		}
 	}
 
@@ -489,6 +476,30 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 	}
 	if err := writeScopedState(scope, state); err != nil {
 		return "", fmt.Errorf("writing state: %w", err)
+	}
+
+	// The state this pin replaced was the only record of the files below, so
+	// they are removed only now that the pin is safely on disk (#504 U7).
+	// That is true whatever source they came from: the same repo dropping its
+	// layout and going payload-only orphans them exactly as a switch to
+	// another repo does, and a shape change like that must be picked up
+	// without a migration. An explicit install (or `sync --apply`) is the
+	// consent gesture for removing them; the launch path refuses instead, see
+	// [autoPin].
+	if existing != nil && len(existing.Files) > 0 {
+		// jsonOutput is not cosmetic here: `install --json` and `sync
+		// --apply --json` write one JSON document to stdout, and these
+		// lines land in front of it.
+		if !jsonOutput {
+			fmt.Printf("\n%s Removing the files installed from %s:\n", dim("ℹ"), bold(sourceLabelForRepo(existing.SourceRepo)))
+		}
+		removeStateFiles(scope, existing, false, jsonOutput)
+		if !jsonOutput {
+			fmt.Println()
+		}
+	}
+	if outgoingRevisions != "" {
+		_ = os.RemoveAll(outgoingRevisions)
 	}
 
 	prunePakkeRevisions(src.Repo, src.SHA, previousPin)

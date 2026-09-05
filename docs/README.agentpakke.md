@@ -82,7 +82,7 @@ Add a layout with agents and skills paths, or declare payloads to make them Tier
 Regelen har to halvdeler, og de gjelder samtidig:
 
 - **Ukjente konstruksjoner ignoreres.** Ukjente klientnøkler, ukjente kontekstnøkler i `payloads`, og ekstra felt på ethvert nivå gjør ikke manifestet ugyldig. En eldre binær tilbyr bare ikke det den ikke kjenner navnet på. Dermed kan økosystemet vokse uten å ugyldiggjøre manifester som allerede er ute.
-- **Feilformede *kjente* konstruksjoner feiler lukket.** En `primaryAgents` som er tom eller mangler der den kreves (Tier 1-oppføring eller Tier 2-payload), en `layout` som mangler for en Tier 1-klient, en `contractVersion` med en major nav-pilot ikke implementerer, en `minNavPilotVersion` nav-pilot ikke kan sammenligne: alt stopper. Et repo som *har* et manifest må ha et gyldig et. Install avbrytes før første filoperasjon, og ingenting skrives delvis.
+- **Feilformede *kjente* konstruksjoner feiler lukket.** En `primaryAgents` som er tom eller mangler der den kreves (Tier 1-oppføring eller Tier 2-payload), en `layout` som mangler for en Tier 1-klient, en `contractVersion` med en major nav-pilot ikke implementerer, en `minNavPilotVersion` nav-pilot ikke kan sammenligne, en `compatibility` som ikke er et gyldig versjonsområde: alt stopper. Et repo som *har* et manifest må ha et gyldig et. Install avbrytes før første filoperasjon, og ingenting skrives delvis.
 
 Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles som en legacy-samlingskilde (`collections/<navn>/manifest.json`) akkurat som før.
 

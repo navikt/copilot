@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 // stubProbes replaces both staged version probes for the duration of a test, so
@@ -22,91 +24,6 @@ func stubProbes(t *testing.T, cplt string, cpltErr error, client string, clientE
 
 // okCplt is a cplt release comfortably past minStagedCpltStamp.
 const okCplt = "cplt 2026.08.24-153138-0d1d66d\n"
-
-func TestParseVersionRange(t *testing.T) {
-	tests := []struct {
-		name  string
-		in    string
-		want  []comparator
-		isErr bool
-	}{
-		{name: "contract example", in: ">=1.18.20,<2", want: []comparator{
-			{op: ">=", v: semver3{1, 18, 20}},
-			{op: "<", v: semver3{2, 0, 0}},
-		}},
-		{name: "spaces are tolerated", in: " >= 1.0.79 , < 2 ", want: []comparator{
-			{op: ">=", v: semver3{1, 0, 79}},
-			{op: "<", v: semver3{2, 0, 0}},
-		}},
-		{name: "exact", in: "=1.2.3", want: []comparator{{op: "=", v: semver3{1, 2, 3}}}},
-		{name: "two-part operand zero-fills", in: "<=1.18", want: []comparator{{op: "<=", v: semver3{1, 18, 0}}}},
-		{name: "greater than", in: ">1.0.0", want: []comparator{{op: ">", v: semver3{1, 0, 0}}}},
-
-		{name: "empty", in: "", isErr: true},
-		{name: "no operator", in: "1.2.3", isErr: true},
-		{name: "operator without operand", in: ">=", isErr: true},
-		{name: "trailing comma", in: ">=1.0.0,", isErr: true},
-		{name: "leading comma", in: ",<2", isErr: true},
-		{name: "non-numeric part", in: ">=1.x.3", isErr: true},
-		{name: "four parts", in: ">=1.2.3.4", isErr: true},
-		{name: "prerelease operand", in: ">=1.2.3-beta", isErr: true},
-		{name: "leading zero", in: ">=01.2.3", isErr: true},
-		{name: "caret is not an operator", in: "^1.2.3", isErr: true},
-		{name: "double equals", in: "==1.2.3", isErr: true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseVersionRange(tc.in)
-			if tc.isErr {
-				if err == nil {
-					t.Fatalf("parseVersionRange(%q) = %v, want error", tc.in, got)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("parseVersionRange(%q) errored: %v", tc.in, err)
-			}
-			if len(got) != len(tc.want) {
-				t.Fatalf("parseVersionRange(%q) = %v, want %v", tc.in, got, tc.want)
-			}
-			for i := range got {
-				if got[i] != tc.want[i] {
-					t.Errorf("parseVersionRange(%q)[%d] = %v, want %v", tc.in, i, got[i], tc.want[i])
-				}
-			}
-		})
-	}
-}
-
-func TestVersionRangeContains(t *testing.T) {
-	tests := []struct {
-		rng     string
-		version semver3
-		want    bool
-	}{
-		{">=1.18.20,<2", semver3{1, 18, 20}, true},  // lower bound is inclusive
-		{">=1.18.20,<2", semver3{1, 18, 19}, false}, // one patch below
-		{">=1.18.20,<2", semver3{1, 19, 0}, true},
-		{">=1.18.20,<2", semver3{2, 0, 0}, false}, // upper bound is exclusive
-		{">=1.18.20,<2", semver3{1, 99, 99}, true},
-		{">=1.18.20,<2", semver3{0, 99, 99}, false},
-		{">1.0.0", semver3{1, 0, 0}, false},
-		{">1.0.0", semver3{1, 0, 1}, true},
-		{"<=1.0.0", semver3{1, 0, 0}, true},
-		{"=1.2.3", semver3{1, 2, 3}, true},
-		{"=1.2.3", semver3{1, 2, 4}, false},
-		{"=1.2", semver3{1, 2, 0}, true},
-	}
-	for _, tc := range tests {
-		rng, err := parseVersionRange(tc.rng)
-		if err != nil {
-			t.Fatalf("parseVersionRange(%q): %v", tc.rng, err)
-		}
-		if got := rng.contains(tc.version); got != tc.want {
-			t.Errorf("%q contains %v = %v, want %v", tc.rng, tc.version, got, tc.want)
-		}
-	}
-}
 
 func TestParseClientVersion(t *testing.T) {
 	tests := []struct {
@@ -323,11 +240,11 @@ func TestParseClientVersionAcceptsTheRealCopilotOutput(t *testing.T) {
 	if want := (semver3{1, 0, 81}); got != want {
 		t.Fatalf("parseClientVersion = %v, want %v (the build suffix is dropped, not compared)", got, want)
 	}
-	rng, err := parseVersionRange(">=1.0.79,<2")
+	rng, err := agentpakke.ParseVersionRange(">=1.0.79,<2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !rng.contains(got) {
+	if !rng.Contains(got) {
 		t.Errorf("%v is outside the contract's documented copilot range >=1.0.79,<2", got)
 	}
 }
@@ -545,4 +462,17 @@ func TestRealCpltFloor(t *testing.T) {
 		t.Fatalf("could not read a stamp from the real cplt output %q", out)
 	}
 	t.Logf("real cplt probe: %q", strings.TrimSpace(out))
+}
+
+// An out-of-range client version must name a way forward (#504 U6), the way
+// the cplt floor right above it names its upgrade command.
+func TestOutOfRangeClientVersionNamesACommand(t *testing.T) {
+	stubProbes(t, okCplt, nil, "1.18.19\n", nil)
+	err := checkStagedRuntime("opencode", ">=1.18.20,<2")
+	if err == nil {
+		t.Fatal("checkStagedRuntime accepted an out-of-range version")
+	}
+	if !strings.Contains(err.Error(), "nav-pilot doctor") {
+		t.Errorf("out-of-range refusal %q names no command to run", err)
+	}
 }

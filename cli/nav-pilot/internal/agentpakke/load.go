@@ -59,6 +59,22 @@ func Validate(data []byte) error {
 // parse is Parse with the running version injected, so version gating is
 // testable without mutating package state.
 func parse(data []byte, runningVersion string) (*Manifest, error) {
+	// The contract-version gate runs before the schema, or it never runs at
+	// all: the v1 schema pins contractVersion to ^1(\.\d+)?$, so a manifest on
+	// a future contract major would surface as a schema error telling the
+	// author to fix the manifest, when the party that has to act is the user,
+	// by upgrading nav-pilot. Only a numeric major is gated here; anything
+	// else is a malformed manifest and stays the schema's to reject.
+	var gate struct {
+		ContractVersion string `json:"contractVersion"`
+	}
+	if err := json.Unmarshal(data, &gate); err == nil {
+		if major, _, _ := strings.Cut(gate.ContractVersion, "."); isAllDigits(major) {
+			if err := checkContractVersion(gate.ContractVersion); err != nil {
+				return nil, err
+			}
+		}
+	}
 	if err := validateSchema(data); err != nil {
 		return nil, err
 	}
@@ -76,7 +92,8 @@ func parse(data []byte, runningVersion string) (*Manifest, error) {
 
 // checkSemantics runs the fail-closed rules that JSON Schema cannot express:
 // contract-version support, minimum binary version, Tier 1's dependence on
-// layout, and path containment for every repo-relative path in the manifest.
+// layout, the compatibility-range grammar, and path containment for every
+// repo-relative path in the manifest.
 func (m *Manifest) checkSemantics(runningVersion string) error {
 	if err := m.checkContractVersion(); err != nil {
 		return err
@@ -87,7 +104,32 @@ func (m *Manifest) checkSemantics(runningVersion string) error {
 	if err := m.checkTiers(); err != nil {
 		return err
 	}
+	if err := m.checkCompatibility(); err != nil {
+		return err
+	}
 	return m.checkPaths()
+}
+
+// checkCompatibility parses every declared clients.<id>.compatibility with the
+// grammar the launch gate enforces (#504 U2) — the same [ParseVersionRange],
+// so validation and launch can never disagree. Without this the schema types
+// the field as a bare string, `nav-pilot validate` passes ">=1.18.20 <2" or
+// "^1.18", and every Tier 2 launch then dies on the runtime gate. Checked for
+// every client entry, known or not, the way checkPaths is: the grammar belongs
+// to the contract version, not to the client id.
+func (m *Manifest) checkCompatibility() error {
+	for _, client := range m.ClientIDs() {
+		c := m.Clients[client].Compatibility
+		if c == "" {
+			continue
+		}
+		if _, err := ParseVersionRange(c); err != nil {
+			return fmt.Errorf(
+				"clients.%s.compatibility %q is not a valid version range (comma-separated comparators over semver, e.g. \">=1.18.20,<2\"): %w",
+				client, c, err)
+		}
+	}
+	return nil
 }
 
 // checkContractVersion rejects a contract major this binary does not implement,
@@ -117,6 +159,20 @@ func checkContractVersionFor(version, remedy string) error {
 		"contractVersion %q is not supported by this nav-pilot; supported contract versions: %s. "+
 			"Upgrade nav-pilot (nav-pilot update) or %s",
 		version, strings.Join(SupportedContractMajors, ", "), remedy)
+}
+
+// isAllDigits reports whether s is a non-empty run of ASCII digits — the shape
+// of a contract major the version gate can meaningfully compare.
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // checkMinVersion enforces minNavPilotVersion against the running binary.

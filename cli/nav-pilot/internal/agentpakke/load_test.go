@@ -182,7 +182,11 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			patch: func(doc map[string]any) {
 				doc["contractVersion"] = "2"
 			},
-			wantErrs: []string{"contractVersion", "supported"},
+			// The remedy must point at the party that has to act: a future
+			// contract major means this binary is too old, not that the
+			// manifest is broken. The schema hint says neither, so this is
+			// what proves the version gate ran before the schema (#504 U1).
+			wantErrs: []string{"contractVersion", "supported", "Upgrade nav-pilot", "nav-pilot update"},
 		},
 		{
 			name: "contractVersion of the wrong type",
@@ -670,4 +674,42 @@ func joinErrs(errs []error) string {
 		msgs = append(msgs, err.Error())
 	}
 	return strings.Join(msgs, "\n")
+}
+
+// The compatibility grammar must be enforced at validation, not first at
+// launch (#504 U2): every value here used to pass `nav-pilot validate` and
+// then kill every Tier 2 launch on the runtime gate.
+func TestParseRejectsInvalidCompatibilityRange(t *testing.T) {
+	invalid := []string{
+		">=1.18.20 <2",   // space instead of comma
+		"^1.18",          // npm-style caret, not in the grammar
+		"1.18.20+",       // no operator
+		">=1.18.20-rc.1", // prerelease operand
+	}
+	for _, rng := range invalid {
+		data := patchManifest(t, grillmesterManifest, func(doc map[string]any) {
+			doc["clients"].(map[string]any)["opencode"].(map[string]any)["compatibility"] = rng
+		})
+		_, err := parse(data, devVersion)
+		if err == nil {
+			t.Errorf("parse accepted compatibility %q, want a validation error", rng)
+			continue
+		}
+		if !strings.Contains(err.Error(), "clients.opencode.compatibility") {
+			t.Errorf("parse(compatibility %q) error should name the field, got: %v", rng, err)
+		}
+	}
+
+	// An unknown client's entry rides the same contract grammar.
+	data := patchManifest(t, grillmesterManifest, func(doc map[string]any) {
+		doc["clients"].(map[string]any)["futurecli"] = map[string]any{
+			"primaryAgents": []any{"x"},
+			"compatibility": "^9",
+			"payloads":      map[string]any{"full": map[string]any{"path": "p", "primaryAgents": []any{"x"}}},
+		}
+	})
+	_, err := parse(data, devVersion)
+	if err == nil || !strings.Contains(err.Error(), "clients.futurecli.compatibility") {
+		t.Errorf("parse should reject the unknown client's invalid compatibility by name, got: %v", err)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -1425,5 +1426,75 @@ func TestRecasedRepoIdKeepsOneRevisionDirectory(t *testing.T) {
 	assertRevisionVerifies(t, pakkeRevisionDir(upper.Repo, "sha-two"))
 	if _, err := os.Stat(pakkeRevisionDir(lower.Repo, "sha-one")); err != nil {
 		t.Errorf("the re-cased install dropped the revision it replaced (%v); a session running it survives one update", err)
+	}
+}
+
+// The most likely Tier 2 launch failure — a pinned tree that drifted on disk —
+// must name the command that rebuilds it (#504 U6).
+func TestPayloadDriftRefusalNamesSyncApply(t *testing.T) {
+	scope := pinEnv(t)
+	src := tier2PinSource(t, "sha-one")
+	installPin(t, scope, src)
+
+	target := filepath.Join(pakkeRevisionDir(src.Repo, src.SHA), unlaunchableClient, "full", "agents", "grillmester.agent.md")
+	if err := os.WriteFile(target, []byte("---\nname: grillmester\n---\nflipped\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	failingResolveSource(t)
+	assertRefusedBeforeHandover(t, launchPinned(t, ""), "nav-pilot sync --apply")
+}
+
+// A client this binary cannot stage-launch must point at the binary upgrade,
+// not dead-end (#504 U6).
+func TestUnlaunchableClientRefusalNamesUpdate(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, "sha-one"))
+
+	err := launchPinned(t, "")
+	if err == nil || !strings.Contains(err.Error(), handoverErr) {
+		t.Fatalf("launch = %v, want the handover refusal", err)
+	}
+	if !strings.Contains(err.Error(), "nav-pilot update") {
+		t.Errorf("handover refusal %q names no command to run", err)
+	}
+}
+
+// TestFailedStateWriteLosesNothing pins the ordering of #504 U7. The old order
+// deleted the outgoing Tier 1 install's files before writing the replacement
+// state, so a state write that failed had already destroyed the install while
+// the state on disk still named every deleted file. Every removal now runs
+// after the new state is written: a failed write must abort the install with
+// the outgoing files still on disk and still recorded.
+func TestFailedStateWriteLosesNothing(t *testing.T) {
+	scope := pinEnv(t)
+	installed := tier1InstallFrom(t, scope, "navikt/grillmester")
+
+	before, err := readScopedState(scope)
+	if err != nil || before == nil || len(before.Files) == 0 {
+		t.Fatalf("setup: readScopedState = (%+v, %v), want a Tier 1 state tracking files", before, err)
+	}
+
+	origWrite := writeScopedState
+	writeScopedState = func(scope *InstallScope, state *StateFile) error {
+		return errors.New("injected: disk full")
+	}
+	t.Cleanup(func() { writeScopedState = origWrite })
+
+	err = installPakkePin(scope, tier2PinSource(t, "sha-one"), false, false)
+	if err == nil || !strings.Contains(err.Error(), "writing state") {
+		t.Fatalf("installPakkePin = %v, want the state-write failure", err)
+	}
+
+	if _, statErr := os.Stat(installed); statErr != nil {
+		t.Errorf("%s is gone after a failed state write (stat: %v); the install was deleted before its replacement was recorded", installed, statErr)
+	}
+	writeScopedState = origWrite
+	after, err := readScopedState(scope)
+	if err != nil || after == nil {
+		t.Fatalf("readScopedState after the failed install = (%+v, %v)", after, err)
+	}
+	if len(after.Files) != len(before.Files) {
+		t.Errorf("state tracks %d files after the failed install, want the outgoing install's %d intact", len(after.Files), len(before.Files))
 	}
 }
