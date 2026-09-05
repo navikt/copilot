@@ -2,6 +2,13 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-05
+
+### cplt-logging: hva som er verdt å anbefale, og hva som ikke er det
+
+- **`proxy.log_level` dokumentert i stedet for anbefalt**: cplt hever selv nivået til `blocked` så snart en vertsliste er aktiv (`src/main.rs`, `proxy_log_level`), og posturen nav-pilot anbefaler gjør nettopp det. En egen anbefaling ville vært en config-skriving som ikke endrer noe. README beskriver nå hvor auto-hevingen gjelder og hva du selv må sette på `standard` uten vertsliste, der proxyen ellers tier om DNS-rebinding- og metadatablokkeringer (#422).
+- **`audit.enabled` anbefales ikke**: Nøkkelen finnes i cplt sitt register, men `[audit]`-seksjonen er kun lest og vist — ingenting bruker den (`src/config/registry.rs`, `BOOL_KEYS_EXEMPT`). Å anbefale den ville sendt utviklere til en bryter som ikke gir noen logg. `proxy.log_file` er den som faktisk skriver en (#422).
+
 ## 2026-09-03
 
 ### cplt-oppdateringer etter oppstrømsgjennomgang
