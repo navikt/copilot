@@ -41,6 +41,9 @@ func TestLaunchOpenCode_RequiresCplt(t *testing.T) {
 	// Avoid writing Nav context into the real ~/.config/opencode.
 	NavContextDirOverride = t.TempDir()
 	t.Cleanup(func() { NavContextDirOverride = "" })
+	// The pre-seed of <config dir>/.gitignore must not land in the real
+	// ~/.config/opencode (#565).
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	err := LaunchOpenCode(domain.ResolvedConfig{Client: "opencode", Mode: "default"})
 	if err == nil {
