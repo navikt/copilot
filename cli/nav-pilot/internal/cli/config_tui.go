@@ -95,7 +95,7 @@ func buildPageRows(entries []configPageEntry, preset string) []pageRow {
 			key:         configPagePosture,
 			entry:       configPageEntry{Key: "cplt security posture"},
 			value:       cpltPostureValue(preset),
-			description: "Sets cplt sandbox.preset = strict, which turns on gh_guard, git_guard and forced proxy in one key (requires cplt on your PATH).",
+			description: "Seeds cplt proxy.allowed_domains with the Nav hosts, then sets sandbox.preset = strict (requires cplt on your PATH). " + cpltStrictConsequence,
 		},
 		pageRow{
 			kind:        rowAction,

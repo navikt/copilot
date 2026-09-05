@@ -337,8 +337,9 @@ version = 1
 # rtk_prompted_at = ""
 
 # ── cplt auth ──────────────────────────────────────────────────────────────────
-# nav-pilot never extracts a Copilot token itself. With cplt's gh guard on
-# (sandbox.preset = strict), cplt uses an inherited
+# nav-pilot never extracts a Copilot token itself. With cplt's gh guard on — the
+# default since cplt#335, not only under sandbox.preset = strict — cplt uses an
+# inherited
 # GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN if one is set and otherwise runs
 # "gh auth token" outside the sandbox; with it off, Copilot authenticates on its
 # own. copilot_auth_mode decides which sources reach cplt.

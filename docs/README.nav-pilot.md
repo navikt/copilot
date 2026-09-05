@@ -158,16 +158,30 @@ med andre som trenger den.
 ### Sikkerhetsnivå og versjon i cplt
 
 `nav-pilot doctor` sjekker sikkerhetsnivået til cplt og anbefaler `sandbox.preset = strict`.
-Det presetet slår på `gh_guard`, `git_guard` og tvungen proxy i én nøkkel, og nøkler du har
-satt selv gjelder fortsatt foran presetet. cplt-config er personlig, så nav-pilot setter den
-aldri stilltiende. Du velger selv, enten med
+
+Det presetet er en nettverkslås. `gh_guard` og `git_guard` er allerede på i `standard`
+(cplt#335), så det strict legger til er nettverket: tvungen proxy, `git_guard` som blokkerer
+i stedet for å advare, og `proxy.default_allowlist`. Den siste er den viktige — den gjør at
+bare cplt sin innebygde vertsliste pluss det `proxy.allowed_domains` peker på er nåbart.
+Alt annet blokkeres.
+
+cplt sin innebygde liste dekker GitHub Copilot og de offentlige pakkeregistrene. Den dekker
+ingenting av Navs. Setter du presetet uten å gjøre noe mer, slutter nav-pilot sin telemetri å
+komme fram, og skills som `aksel-builder`, `observability-debugging` og `nav-auth` mister
+vertene de er bygget rundt — uten at noe på skjermen forteller deg hvorfor.
+
+Derfor skal du sette presetet via nav-pilot, ikke for hånd:
 
 ```bash
-cplt config set sandbox.preset strict
+nav-pilot config     # velg raden «cplt security posture»
 ```
 
-eller ved å velge raden `cplt security posture` på innstillingssiden (`nav-pilot config`),
-som spør før den setter nøkkelen.
+Den skriver Nav-vertene til `~/.nav-pilot/cplt-allowed-domains.txt`, peker
+`proxy.allowed_domains` dit, og setter så presetet — i den rekkefølgen, slik at låsen aldri
+rekker å tre i kraft uten vertene. Har du allerede en egen `proxy.allowed_domains`, lar
+nav-pilot den være i fred og sier fra at du må ta med vertene selv. cplt-config er personlig,
+så nav-pilot setter den aldri stilltiende, og nøkler du har satt selv gjelder fortsatt foran
+presetet.
 
 `nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår
 `brew upgrade navikt/tap/cplt`. nav-pilot laster aldri ned eller oppgraderer cplt for deg.

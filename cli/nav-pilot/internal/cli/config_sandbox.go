@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -77,10 +79,27 @@ func cmdConfigSandbox() error {
 
 // ─── security posture (sandbox.preset) ───────────────────────────────────────
 
-// cpltRecommendedPreset is the sandbox preset nav-pilot recommends: it turns on
-// gh_guard, git_guard and proxy.forced in one key. Individually set keys still
-// override it, so it is safe to recommend to users who have tuned cplt already.
+// cpltRecommendedPreset is the sandbox preset nav-pilot recommends.
+//
+// What it buys over `standard` is narrower than it used to be. cplt#335 turned
+// gh_guard and git_guard on in `standard` too, so naming those as the reason is
+// now stale advice. What strict still adds is the network: forced-proxy egress,
+// the git guard escalated from warn to block, and `proxy.default_allowlist` —
+// which restricts egress to cplt's built-in host list plus whatever
+// `proxy.allowed_domains` names, and blocks everything else
+// (cplt src/config/types.rs, `Preset::Strict.baseline()`).
+//
+// That last one is why the recommendation is never made on its own: see
+// navAllowedDomains below. Individually set keys still override the preset, so
+// it stays safe to recommend to users who have tuned cplt already.
 const cpltRecommendedPreset = "strict"
+
+// cpltStrictConsequence is the one-paragraph version of what strict does, used
+// wherever nav-pilot recommends it. It leads with the consequence rather than
+// the feature list, because the feature list is what went stale.
+const cpltStrictConsequence = "Locks egress down: only cplt's built-in host list plus proxy.allowed_domains " +
+	"stay reachable, and the git guard blocks rather than warns. nav-pilot seeds the allowlist " +
+	"with the Nav hosts it and your agents need, or they go dark. Keys you set yourself still win."
 
 // cpltPresets are the values cplt accepts for sandbox.preset. Anything else is
 // treated as unknown rather than guessed at.
@@ -123,8 +142,16 @@ func cpltRecommendStrict(preset string) bool {
 	return preset != "" && preset != cpltRecommendedPreset
 }
 
-// cmdConfigStrictPreset asks for confirmation and sets sandbox.preset = strict.
-// cplt config is personal: nav-pilot never sets it silently.
+// cmdConfigStrictPreset asks for confirmation, seeds the allowlist, and sets
+// sandbox.preset = strict. cplt config is personal: nav-pilot never sets it
+// silently.
+//
+// The allowlist is seeded *before* the preset, not after. Strict is a network
+// lockdown that takes effect on the next launch, so a machine that gets the
+// preset without the hosts is one where nav-pilot's telemetry and every
+// Nav-internal endpoint have gone dark — and the user has no reason to connect
+// the two. Doing the harmless write first means the only way to end up in that
+// state is for the preset to be set by hand.
 func cmdConfigStrictPreset() error {
 	cliPath, err := findCplt()
 	if err != nil {
@@ -134,7 +161,7 @@ func cmdConfigStrictPreset() error {
 	var ok bool
 	if err := huh.NewConfirm().
 		Title("Set cplt sandbox.preset = strict?").
-		Description("Turns on gh_guard, git_guard and forced proxy in one key. Keys you set yourself still win.").
+		Description(cpltStrictConsequence).
 		Value(&ok).
 		WithTheme(navTheme()).
 		Run(); err != nil {
@@ -142,6 +169,26 @@ func cmdConfigStrictPreset() error {
 	}
 	if !ok {
 		return nil
+	}
+
+	return applyStrictPreset(cliPath)
+}
+
+// applyStrictPreset is everything cmdConfigStrictPreset does once the user has
+// said yes. Split out so the seed-then-set order — the part that matters — is
+// testable against a real cplt on PATH, without a terminal.
+func applyStrictPreset(cliPath string) error {
+	path, adopted, err := seedCpltAllowlist(cliPath)
+	if err != nil {
+		return err
+	}
+	if adopted {
+		fmt.Printf("%s cplt proxy.allowed_domains = %s (%d Nav hosts)\n",
+			domain.Green("✓"), path, len(navAllowedDomains))
+	} else {
+		fmt.Printf("%s You already have proxy.allowed_domains set, so nav-pilot left it alone.\n",
+			domain.Yellow("⚠"))
+		fmt.Printf("  Add the hosts in %s to your own file, or strict will block them.\n", path)
 	}
 
 	if err := cpltConfigSet(cliPath, "sandbox.preset", cpltRecommendedPreset); err != nil {
@@ -217,4 +264,134 @@ var cpltEnforcement = func() *cpltCheckReport {
 	defer cancel()
 	out, _ := exec.CommandContext(ctx, cliPath, "check", "--json").Output()
 	return parseCpltCheckReport(out)
+}
+
+// ─── the allowlist strict implies ────────────────────────────────────────────
+
+// The strict preset is a full network lockdown, not just a set of guards.
+// Beyond forced-proxy egress it turns on `proxy.default_allowlist`, which makes
+// cplt's built-in per-agent host list the *only* reachable set of hosts
+// (cplt src/config/types.rs, `Preset::Strict.baseline()`). That list covers
+// GitHub Copilot's own infrastructure and the public package registries. It
+// covers nothing of Nav's — so recommending strict on its own would silently
+// cut nav-pilot's telemetry export and every Nav-internal host the agents and
+// skills nav-pilot installs are built around.
+//
+// The recommendation therefore comes with the hosts. cplt merges
+// `proxy.allowed_domains` into the built-in list rather than replacing it, so
+// this file only has to carry the delta.
+
+// navAllowedDomains are the hosts nav-pilot and the artifacts it installs
+// actually reach, minus everything cplt's built-in Copilot allowlist already
+// covers (github.com, api.github.com, githubcopilot.com, the package
+// registries — see COPILOT_INFRA_DOMAINS and PACKAGE_REGISTRY_DOMAINS in
+// cplt src/agent.rs).
+//
+// Every entry is here because something nav-pilot ships fetches it, with the
+// call site named. The list is deliberately short: an allowlist padded with
+// hosts nobody verified is a lockdown that only looks like one. Hosts that
+// appear in the artifacts as citation links, human-facing UI links, or sample
+// config for the developer's own application are NOT here — nothing fetches
+// them, and adding them would widen the hole for nothing.
+//
+// cplt matches each entry exact-or-subdomain and does not read glob syntax, so
+// these are bare hostnames with no leading `*.` — and they are specific hosts
+// rather than `nav.cloud.nais.io`, which would open every Nais tenant at once.
+var navAllowedDomains = []string{
+	// nav-pilot's own OTel metrics export, on every command.
+	// internal/telemetry/telemetry.go, defaultTelemetryEndpoint — also injected
+	// into copilot and opencode sessions as OTEL_EXPORTER_OTLP_ENDPOINT.
+	"collector-internet.nav.cloud.nais.io",
+
+	// The Aksel design-system MCP server the aksel agent is built around.
+	// agents/aksel.agent.md declares it as a streamable-http MCP endpoint, and
+	// skills/aksel-builder/SKILL.md says in as many words that the URL has to
+	// be allowlisted for the agent to work.
+	"aksel-mcp.nav.no",
+
+	// The documented fallback when that MCP is unavailable: the agent fetches
+	// the llm.md index and follows the .md links off it.
+	// skills/aksel-builder/SKILL.md, skills/aksel-spacing/SKILL.md.
+	"aksel.nav.no",
+
+	// The observability skill hands the agent literal curl commands against
+	// these four APIs — Prometheus, Loki, and Tempo in each of the two
+	// environments Nav runs. skills/observability-debugging/SKILL.md.
+	// grafana.nav.cloud.nais.io is deliberately absent: the skill presents it
+	// as a browser link for the human, never as something the agent fetches.
+	"mimir.nav.cloud.nais.io",
+	"loki.nav.cloud.nais.io",
+	"tempo.dev-gcp.nav.cloud.nais.io",
+	"tempo.prod-gcp.nav.cloud.nais.io",
+
+	// The Entra ID OIDC discovery document for the nav.no tenant, curl'd
+	// directly by skills/nav-auth/SKILL.md.
+	"login.microsoftonline.com",
+}
+
+// navAllowedDomainsPath is where nav-pilot keeps the file cplt reads.
+//
+// `proxy.allowed_domains` takes a *path*, not a list, and cplt re-reads that
+// file every few seconds — so this is a live document, and putting it beside
+// the nav-pilot config rather than inside cplt's own is what lets nav-pilot
+// update it on a later run without touching anything the user owns.
+func navAllowedDomainsPath() string {
+	return filepath.Join(filepath.Dir(configPath()), "cplt-allowed-domains.txt")
+}
+
+// writeNavAllowedDomains renders navAllowedDomains to disk and returns the path.
+// The file is nav-pilot's to rewrite; the comment header says so, because a
+// stray hostname in it is a hole in the user's allowlist.
+func writeNavAllowedDomains() (string, error) {
+	path := navAllowedDomainsPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("creating %s: %w", filepath.Dir(path), err)
+	}
+	var b strings.Builder
+	b.WriteString("# Written by nav-pilot. Edits are overwritten on the next run.\n")
+	b.WriteString("# Hosts nav-pilot and the agents and skills it installs need, on top of\n")
+	b.WriteString("# cplt's built-in allowlist. Read by cplt via proxy.allowed_domains.\n")
+	for _, d := range navAllowedDomains {
+		b.WriteString(d + "\n")
+	}
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		return "", fmt.Errorf("writing %s: %w", path, err)
+	}
+	return path, nil
+}
+
+// cpltConfigGet reads one cplt config key. Empty on any failure — callers treat
+// that as "not set", which is the safe reading: it makes them seed rather than
+// assume a user allowlist exists.
+func cpltConfigGet(cliPath, key string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, cliPath, "config", "get", key).Output()
+	if err != nil {
+		return ""
+	}
+	first, _, _ := strings.Cut(string(out), "\n")
+	return strings.TrimSpace(first)
+}
+
+// seedCpltAllowlist writes the domains file and points cplt at it, so that
+// turning on strict does not take nav-pilot's own network with it.
+//
+// It will not take over an allowlist the user already has. `allowed_domains`
+// holds exactly one path, so repointing it at nav-pilot's file would silently
+// revoke every host in theirs — under a preset whose whole point is that
+// unlisted hosts are unreachable. In that case the file is still written and
+// the path returned, and the caller tells the user to include it.
+func seedCpltAllowlist(cliPath string) (path string, adopted bool, err error) {
+	path, err = writeNavAllowedDomains()
+	if err != nil {
+		return "", false, err
+	}
+	if existing := cpltConfigGet(cliPath, "proxy.allowed_domains"); existing != "" && existing != path {
+		return path, false, nil
+	}
+	if err := cpltConfigSet(cliPath, "proxy.allowed_domains", path); err != nil {
+		return path, false, err
+	}
+	return path, true, nil
 }

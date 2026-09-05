@@ -340,9 +340,11 @@ var ghTokenVars = []string{"GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"}
 // applyCopilotAuthMode enforces copilot_auth_mode on the environment handed to
 // cplt.
 //
-// nav-pilot does not extract or inject a token. With cplt's gh guard on
-// (sandbox.preset = strict, which `nav-pilot doctor` recommends), cplt uses an
-// inherited GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN when one is present and
+// nav-pilot does not extract or inject a token. With cplt's gh guard on — which
+// since cplt#335 is every preset except permissive and full-trust, `standard`
+// included, so it is the case by default rather than only under the `strict`
+// nav-pilot recommends — cplt uses an inherited
+// GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN when one is present and
 // otherwise runs `gh auth token --hostname github.com` in the unsandboxed
 // parent, handing the result to the agent over a one-time 0600 file rather than
 // the environment. With the gh guard off, cplt does none of that and Copilot
