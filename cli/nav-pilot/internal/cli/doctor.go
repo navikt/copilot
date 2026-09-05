@@ -142,13 +142,42 @@ func cmdDoctor() error {
 		// Security posture. A recommendation, not a failure — and an unknown
 		// preset is skipped rather than guessed at.
 		preset := cpltSandboxPreset()
+		supported, unsupportedReason := strictPresetSupported()
 		switch {
 		case preset == "":
 			// cplt could not tell us; nothing to recommend.
+		case !supported && preset == cpltRecommendedPreset:
+			// The worst case, and the one a green check would hide: strict is
+			// already set on a machine where cplt refuses to launch under it.
+			// Nothing here is going to start until the preset comes back down.
+			hasErrors = true
+			fmt.Printf("      %s Sandbox preset is %q, which cplt cannot honour here\n", red("[✗]"), preset)
+			fmt.Printf("          %s.\n", unsupportedReason)
+			fmt.Printf("          %s Run %s, or upgrade the kernel.\n",
+				red("Solution:"), bold("cplt config set sandbox.preset standard"))
+		case !supported:
+			// Silence here would read as approval of the current preset. Say
+			// that the recommendation is being withheld, and why.
+			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
+			fmt.Printf("          %s %s, so nav-pilot does not recommend it here.\n",
+				dim("Note:"), unsupportedReason)
 		case cpltRecommendStrict(preset):
-			fmt.Printf("      %s Sandbox preset is %q (recommended: %q — turns on gh_guard, git_guard and forced proxy)\n",
+			// Not `cplt config set sandbox.preset strict` on its own. That
+			// command alone turns on proxy.default_allowlist, and from the
+			// next launch nav-pilot's telemetry and every Nav-internal host
+			// its agents and skills reach are unreachable, with nothing on
+			// screen connecting the two. The nav-pilot path seeds
+			// proxy.allowed_domains first and then sets the preset.
+			fmt.Printf("      %s Sandbox preset is %q (recommended: %q)\n",
 				yellow("⚠"), preset, cpltRecommendedPreset)
-			fmt.Printf("          %s Run %s\n", yellow("Solution:"), bold("cplt config set sandbox.preset strict"))
+			fmt.Printf("          %s locks egress down — only cplt's built-in host list plus\n", dim("What that does:"))
+			fmt.Printf("          %s stay reachable, and the git guard blocks rather than warns.\n", dim("proxy.allowed_domains"))
+			fmt.Printf("          Both guards are already on in %s since cplt#335; the network is what strict adds.\n", bold("standard"))
+			fmt.Printf("          %s Run %s and pick %s. It seeds the allowlist with the\n",
+				yellow("Solution:"), bold("nav-pilot config"), bold("cplt security posture"))
+			fmt.Printf("          %d hosts nav-pilot and your agents need (%d of them Nav's), then sets the preset.\n",
+				len(navAllowedDomains), len(navOwnDomains))
+			fmt.Printf("          Setting the preset by hand skips that, and your Nav hosts go dark.\n")
 		default:
 			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
 		}

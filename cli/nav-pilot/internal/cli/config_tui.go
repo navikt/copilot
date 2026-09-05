@@ -95,7 +95,7 @@ func buildPageRows(entries []configPageEntry, preset string) []pageRow {
 			key:         configPagePosture,
 			entry:       configPageEntry{Key: "cplt security posture"},
 			value:       cpltPostureValue(preset),
-			description: "Sets cplt sandbox.preset = strict, which turns on gh_guard, git_guard and forced proxy in one key (requires cplt on your PATH).",
+			description: "Seeds cplt proxy.allowed_domains with the Nav hosts, then sets sandbox.preset = strict (requires cplt on your PATH). " + cpltStrictConsequence,
 		},
 		pageRow{
 			kind:        rowAction,
@@ -130,6 +130,17 @@ func cpltPostureValue(preset string) string {
 	case cpltRecommendStrict(preset):
 		return preset + " (recommended: " + cpltRecommendedPreset + ")"
 	default:
+		// Where strict cannot work, say so whatever the current preset is. On a
+		// preset below strict that means the option is closed rather than
+		// declined; on strict itself it means the machine is already in the
+		// state where cplt refuses to launch, which is the one the user most
+		// needs told.
+		if ok, _ := strictPresetSupported(); !ok {
+			if preset == cpltRecommendedPreset {
+				return preset + " (cplt will not launch: unsupported kernel)"
+			}
+			return preset + " (strict unavailable on this kernel)"
+		}
 		return preset
 	}
 }

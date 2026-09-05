@@ -1,6 +1,12 @@
 package cli
 
-import "testing"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestCpltPresetFromConfigGet(t *testing.T) {
 	tests := []struct {
@@ -118,5 +124,319 @@ func TestParseCpltCheckReport(t *testing.T) {
 				t.Errorf("Verified = %d, want %d", got.Verified, tc.wantVerified)
 			}
 		})
+	}
+}
+
+// ─── the allowlist strict implies ────────────────────────────────────────────
+
+// fakeCplt puts a stand-in `cplt` on PATH that records every `config set` into
+// a file and answers `config get` from an optional preset map. It is a real
+// binary at a real path, so findCplt, cpltConfigGet and cpltConfigSet all run
+// their actual exec paths — the point being to check the wiring, not a helper's
+// return value.
+//
+// Returns the path of the recording log.
+func fakeCplt(t *testing.T, get map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	log := filepath.Join(dir, "config-set.log")
+
+	var cases strings.Builder
+	for k, v := range get {
+		fmt.Fprintf(&cases, "    %s) printf '%%s\\n' %q ;;\n", k, v)
+	}
+
+	script := fmt.Sprintf(`#!/bin/sh
+case "$1 $2" in
+  "config set") printf '%%s %%s\n' "$3" "$4" >> %q ;;
+  "config get")
+    case "$3" in
+%s      *) exit 1 ;;
+    esac ;;
+  *) exit 1 ;;
+esac
+`, log, cases.String())
+
+	bin := filepath.Join(dir, "cplt")
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return log
+}
+
+func configSets(t *testing.T, log string) map[string]string {
+	t.Helper()
+	data, err := os.ReadFile(log)
+	if err != nil {
+		return map[string]string{}
+	}
+	out := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if k, v, ok := strings.Cut(line, " "); ok {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// The one that matters. Turning on strict must leave cplt configured with a
+// real allowlist file that really contains the telemetry collector — not merely
+// leave a helper returning a list of hosts.
+//
+// So this asserts the whole chain: cplt was told a path, that path exists, and
+// the collector is a line in it.
+func TestStrictPresetSeedsAllowlistIntoCpltConfig(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, nil)
+
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := applyStrictPreset(cliPath); err != nil {
+		t.Fatalf("applyStrictPreset: %v", err)
+	}
+
+	sets := configSets(t, log)
+	if sets["sandbox.preset"] != cpltRecommendedPreset {
+		t.Errorf("sandbox.preset = %q, want %q", sets["sandbox.preset"], cpltRecommendedPreset)
+	}
+
+	listPath := sets["proxy.allowed_domains"]
+	if listPath == "" {
+		t.Fatal("strict was set without pointing proxy.allowed_domains anywhere — the lockdown has no Nav hosts")
+	}
+	data, err := os.ReadFile(listPath)
+	if err != nil {
+		t.Fatalf("cplt was pointed at %s, which does not exist: %v", listPath, err)
+	}
+	var got []string
+	for _, line := range strings.Split(string(data), "\n") {
+		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") {
+			got = append(got, line)
+		}
+	}
+	if !containsStr(got, "collector-internet.nav.cloud.nais.io") {
+		t.Errorf("the telemetry collector is not in the file cplt reads: %v", got)
+	}
+	for _, want := range navAllowedDomains {
+		if !containsStr(got, want) {
+			t.Errorf("%q missing from the file cplt reads", want)
+		}
+	}
+}
+
+// The lockdown must be armed after the hosts are in place, never before.
+func TestStrictPresetSeedsBeforeSettingThePreset(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, nil)
+
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := applyStrictPreset(cliPath); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("want two config writes, got %d: %v", len(lines), lines)
+	}
+	if !strings.HasPrefix(lines[0], "proxy.allowed_domains ") {
+		t.Errorf("the preset was set before the allowlist: %v", lines)
+	}
+}
+
+// An allowlist the user already owns is not nav-pilot's to repoint. The key
+// holds exactly one path, so taking it over would revoke every host in theirs —
+// under the one preset where an unlisted host is unreachable.
+func TestStrictPresetLeavesAUserAllowlistAlone(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, map[string]string{"proxy.allowed_domains": "/home/me/my-domains.txt"})
+
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := applyStrictPreset(cliPath); err != nil {
+		t.Fatal(err)
+	}
+	if got := configSets(t, log)["proxy.allowed_domains"]; got != "" {
+		t.Errorf("nav-pilot repointed the user's allowlist to %q", got)
+	}
+	// The file is still written, so the user has something to copy from.
+	if _, err := os.Stat(navAllowedDomainsPath()); err != nil {
+		t.Errorf("no host list written for the user to merge: %v", err)
+	}
+}
+
+// The list is a security boundary: a host in it is a hole in the lockdown.
+// Every entry has to be a bare hostname cplt's exact-or-subdomain matcher can
+// read, and the apex Nais domain would open every tenant at once.
+func TestNavAllowedDomainsAreBareAndSpecific(t *testing.T) {
+	for _, d := range navAllowedDomains {
+		if strings.ContainsAny(d, "*/: ") || strings.HasPrefix(d, ".") {
+			t.Errorf("%q is not a bare hostname; cplt does not read glob or URL syntax", d)
+		}
+		if d == "nav.no" || d == "nav.cloud.nais.io" || d == "nais.io" {
+			t.Errorf("%q is an apex domain — cplt matches subdomains, so this opens far more than intended", d)
+		}
+	}
+}
+
+// The file nav-pilot writes has to be a complete allowlist, never a delta.
+//
+// cplt blocks everything outside a non-empty `proxy.allowed_domains`
+// regardless of `proxy.default_allowlist`, and only unions in its built-in
+// per-agent list while that second key is on. Between nav-pilot's two config
+// writes, after a failed preset write, or once a user lowers the preset by
+// hand, this file IS the allowlist — and a delta would leave github.com and
+// every package registry unreachable.
+//
+// It also has to be complete because the built-in list is per agent, and
+// nav-pilot launches three. Only the copilot list carries GitHub and Copilot
+// infrastructure: opencode's is opencode.ai and models.dev, pi's is the package
+// registries alone.
+func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
+	// Model access and auth, without which no agent reaches a model at all.
+	// cplt COPILOT_INFRA_DOMAINS — absent from the opencode and pi lists.
+	// opencode's own infrastructure. cplt OPENCODE_DOMAINS — absent from the
+	// copilot list.
+	// Package registries, so a sandboxed build still resolves.
+	for _, host := range []string{
+		"githubcopilot.com", "github.com", "api.github.com",
+		"opencode.ai", "models.dev",
+		"registry.npmjs.org", "repo.maven.apache.org", "pypi.org",
+	} {
+		if !containsStr(navAllowedDomains, host) {
+			t.Errorf("%q missing — the file is a delta, and on its own it locks the agent out", host)
+		}
+	}
+}
+
+// ─── the platform gate ───────────────────────────────────────────────────────
+
+// stubStrictSupport replaces the platform gate for one test.
+func stubStrictSupport(t *testing.T, ok bool, reason string) {
+	t.Helper()
+	prev := strictPresetSupported
+	strictPresetSupported = func() (bool, string) { return ok, reason }
+	t.Cleanup(func() { strictPresetSupported = prev })
+}
+
+// On a kernel that cannot enforce forced-proxy egress, cplt refuses to launch
+// under strict. Recommending it there would stop every session on the machine —
+// worse than the problem the recommendation solves — so the nudge is withheld.
+func TestStrictNotRecommendedWhereCpltWouldRefuseToLaunch(t *testing.T) {
+	stubStrictSupport(t, false, "this kernel cannot enforce forced-proxy egress")
+	for _, preset := range []string{"standard", "permissive", "full-trust"} {
+		if cpltRecommendStrict(preset) {
+			t.Errorf("recommended strict from %q on a kernel where cplt refuses to launch", preset)
+		}
+	}
+}
+
+// The gate must not swallow the recommendation everywhere else.
+func TestStrictStillRecommendedWhereItWorks(t *testing.T) {
+	stubStrictSupport(t, true, "")
+	for _, preset := range []string{"standard", "permissive", "full-trust"} {
+		if !cpltRecommendStrict(preset) {
+			t.Errorf("did not recommend strict from %q on a supported kernel", preset)
+		}
+	}
+	if cpltRecommendStrict(cpltRecommendedPreset) {
+		t.Error("recommended strict to someone already on strict")
+	}
+}
+
+// The settings row stays selectable, so the action refuses on its own account
+// rather than trusting that the row was hidden.
+func TestStrictActionRefusesOnAnUnsupportedKernel(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, nil)
+	stubStrictSupport(t, false, "Landlock ABI v2, needs v4")
+
+	err := cmdConfigStrictPreset()
+	if err == nil {
+		t.Fatal("the action set strict on a kernel where cplt refuses to launch")
+	}
+	if !strings.Contains(err.Error(), "Landlock ABI v2") {
+		t.Errorf("refusal does not say why: %v", err)
+	}
+	if len(configSets(t, log)) != 0 {
+		t.Errorf("cplt config was written anyway: %v", configSets(t, log))
+	}
+}
+
+// The worst case: strict is already set on a kernel where cplt refuses to
+// launch under it. Nothing on that machine starts, and a bare "strict" in the
+// settings row — or a green check in doctor — says everything is fine. The
+// unsupported state has to surface whatever the current preset is.
+func TestPostureRowFlagsStrictAlreadySetOnAnUnsupportedKernel(t *testing.T) {
+	stubStrictSupport(t, false, "this kernel cannot enforce forced-proxy egress")
+	got := cpltPostureValue(cpltRecommendedPreset)
+	if got == cpltRecommendedPreset {
+		t.Fatalf("row shows a bare %q on a kernel where cplt will not launch", got)
+	}
+	if !strings.Contains(got, "will not launch") {
+		t.Errorf("row does not say the machine is stuck: %q", got)
+	}
+}
+
+// The settings page says the option is closed rather than showing a bare
+// preset name, which would read as a choice the user declined to make.
+func TestPostureRowNamesTheUnsupportedKernel(t *testing.T) {
+	stubStrictSupport(t, false, "whatever")
+	if got := cpltPostureValue("standard"); !strings.Contains(got, "unavailable") {
+		t.Errorf("posture row hides the gate: %q", got)
+	}
+	stubStrictSupport(t, true, "")
+	if got := cpltPostureValue("standard"); !strings.Contains(got, cpltRecommendedPreset) {
+		t.Errorf("posture row dropped the recommendation where it works: %q", got)
+	}
+}
+
+// cplt re-reads this file every few seconds while a session runs, so an
+// in-place write is a window in which a reader sees a truncated host list —
+// under strict, hosts that briefly stop resolving. The write must be
+// temp-file-and-rename, and it must leave no temp file behind.
+func TestAllowlistIsWrittenAtomically(t *testing.T) {
+	isolatedConfig(t)
+	path, err := writeNavAllowedDomains()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Rewriting must be safe and must not accumulate temp files.
+	if _, err := writeNavAllowedDomains(); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+		if strings.HasPrefix(e.Name(), ".cplt-allowed-domains-") {
+			t.Errorf("a temp file was left behind: %s", e.Name())
+		}
+	}
+	if !containsStr(names, filepath.Base(path)) {
+		t.Errorf("the allowlist is not there after two writes: %v", names)
+	}
+
+	// The file itself is not world-readable. It is not secret, but it is
+	// personal config state and there is no reason for it to be looser.
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := fi.Mode().Perm(); perm&0o077 != 0 {
+		t.Errorf("allowlist is %o, want no group or other bits", perm)
 	}
 }
