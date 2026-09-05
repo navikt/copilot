@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
@@ -285,7 +286,7 @@ func ParseCpltVersion(out string) string {
 // established, since an unenforceable declaration is not an enforced one.
 func checkClientCompatibility(client, compatibility string) error {
 	pakke := source.ActivePakke().Name
-	rng, err := parseVersionRange(compatibility)
+	rng, err := agentpakke.ParseVersionRange(compatibility)
 	if err != nil {
 		return fmt.Errorf("agentpakke %q declares an unusable compatibility range %q for %s: %w", pakke, compatibility, client, err)
 	}
@@ -297,122 +298,22 @@ func checkClientCompatibility(client, compatibility string) error {
 	if err != nil {
 		return fmt.Errorf("could not read the %s version, which agentpakke %q requires to be %s: %w", client, pakke, compatibility, err)
 	}
-	if !rng.contains(found) {
-		return fmt.Errorf("%s %s is outside %s, the range agentpakke %q declares it supports", client, found, compatibility, pakke)
+	if !rng.Contains(found) {
+		// Which way to move the version depends on which bound failed, and
+		// how depends on how the client was installed — doctor knows both
+		// halves, so it is the command named here (#504 U6), the way the cplt
+		// floor above names brew.
+		return fmt.Errorf("%s %s is outside %s, the range agentpakke %q declares it supports.\n\n  Diagnose the install:  %s",
+			client, found, compatibility, pakke, domain.Bold("nav-pilot doctor"))
 	}
 	return nil
 }
 
-// semver3 is a major.minor.patch triple. The contract's compatibility grammar
-// has no ordering over prereleases and the reference refuses them outright, so
-// three integers is the whole model.
-type semver3 [3]int
-
-func (v semver3) String() string { return fmt.Sprintf("%d.%d.%d", v[0], v[1], v[2]) }
-
-func (v semver3) compare(o semver3) int {
-	for i := range v {
-		switch {
-		case v[i] < o[i]:
-			return -1
-		case v[i] > o[i]:
-			return 1
-		}
-	}
-	return 0
-}
-
-// comparator is one clause of a compatibility range, e.g. ">=1.18.20".
-type comparator struct {
-	op string
-	v  semver3
-}
-
-// versionRange is the conjunction of every comparator in a compatibility
-// string: all must hold.
-type versionRange []comparator
-
-// comparatorOps are the operators the contract documents, longest first so
-// ">=" is not read as ">" followed by a bad operand.
-var comparatorOps = []string{">=", "<=", ">", "<", "="}
-
-// parseVersionRange parses the range grammar README.agentpakke.md documents:
-// comma-separated comparators over semver, e.g. ">=1.18.20,<2". Operands may be
-// partial ("2" means 2.0.0) — that is what makes an upper major bound writable.
-func parseVersionRange(s string) (versionRange, error) {
-	var rng versionRange
-	for _, part := range strings.Split(s, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			return nil, fmt.Errorf("empty comparator in %q", s)
-		}
-		op := ""
-		for _, candidate := range comparatorOps {
-			if strings.HasPrefix(part, candidate) {
-				op = candidate
-				break
-			}
-		}
-		if op == "" {
-			return nil, fmt.Errorf("comparator %q has no operator (expected one of >= > <= < =)", part)
-		}
-		v, err := parseVersionOperand(strings.TrimSpace(part[len(op):]))
-		if err != nil {
-			return nil, fmt.Errorf("comparator %q: %w", part, err)
-		}
-		rng = append(rng, comparator{op: op, v: v})
-	}
-	return rng, nil
-}
-
-var versionPartPattern = regexp.MustCompile(`^(0|[1-9]\d*)$`)
-
-// parseVersionOperand parses one to three dot-separated numeric parts, filling
-// the missing ones with zero.
-func parseVersionOperand(s string) (semver3, error) {
-	var v semver3
-	if s == "" {
-		return v, errors.New("missing version")
-	}
-	parts := strings.Split(s, ".")
-	if len(parts) > 3 {
-		return v, fmt.Errorf("version %q has more than three parts", s)
-	}
-	for i, part := range parts {
-		if !versionPartPattern.MatchString(part) {
-			return semver3{}, fmt.Errorf("version %q has a non-numeric part %q", s, part)
-		}
-		n, err := strconv.Atoi(part)
-		if err != nil {
-			return semver3{}, fmt.Errorf("version %q: %w", s, err)
-		}
-		v[i] = n
-	}
-	return v, nil
-}
-
-func (r versionRange) contains(v semver3) bool {
-	for _, c := range r {
-		cmp := v.compare(c.v)
-		ok := false
-		switch c.op {
-		case ">=":
-			ok = cmp >= 0
-		case ">":
-			ok = cmp > 0
-		case "<=":
-			ok = cmp <= 0
-		case "<":
-			ok = cmp < 0
-		case "=":
-			ok = cmp == 0
-		}
-		if !ok {
-			return false
-		}
-	}
-	return true
-}
+// semver3 and the compatibility-range grammar live in internal/agentpakke,
+// the package that owns the contract, so `nav-pilot validate` rejects with
+// exactly the grammar this gate enforces (#504 U2). Aliased here because this
+// gate and the client version parsing below are their main consumers.
+type semver3 = agentpakke.Semver3
 
 // Client version-line patterns, transcribed from the reference's
 // OPENCODE_VERSION_PATTERN and COPILOT_VERSION_PATTERN (grillmester.py lines

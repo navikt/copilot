@@ -79,8 +79,12 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// in it. Fail-closed — a Tier 2 launch never degrades to the legacy path.
 	dir := filepath.Join(rev.Dir, resolved.Client, context)
 	if err := agentpakke.VerifyPayloadExact(dir, filepath.Join(dir, agentpakke.PayloadManifestFile)); err != nil {
-		return true, fmt.Errorf("the pinned %q payload of agentpakke %q for %s does not match its manifest: %w",
-			context, pakke.Name, resolved.Client, err)
+		// The tree sits on disk for weeks, so drift — a restore, an antivirus
+		// quarantine, a half-synced home directory — is the expected failure
+		// here, not an exotic one. It names the way out like every other
+		// refusal in this file does (#504 U6).
+		return true, fmt.Errorf("the pinned %q payload of agentpakke %q for %s does not match its manifest: %w\n\n  Rebuild it:  %s",
+			context, pakke.Name, resolved.Client, err, bold("nav-pilot sync --apply"))
 	}
 
 	// The only SetActivePakke call site: past the tier gate the manifest is
@@ -92,8 +96,8 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 
 	launch, ok := stagedLaunchers[resolved.Client]
 	if !ok {
-		return true, fmt.Errorf("agentpakke %q declares payloads for %s, but this nav-pilot cannot launch staged payloads for that client",
-			pakke.Name, resolved.Client)
+		return true, fmt.Errorf("agentpakke %q declares payloads for %s, but this nav-pilot cannot launch staged payloads for that client\n\n  Upgrade it:  %s",
+			pakke.Name, resolved.Client, bold("nav-pilot update"))
 	}
 	// After the handover gate: the notice announces a session that is about to
 	// start, and this is the last point that can still refuse to start one.
