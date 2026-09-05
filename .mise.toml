@@ -108,6 +108,18 @@ run = "node --test scripts/sync-model-pricing.test.mjs"
 description = "Fetch latest model pricing from GitHub docs and update data file"
 run = "node scripts/sync-model-pricing.mjs"
 
+[tasks."models:check"]
+description = "Check if the Copilot model picker is in sync with the models.dev catalog"
+run = "node scripts/sync-copilot-models.mjs --check"
+
+[tasks."models:test"]
+description = "Test the model-catalog generator (fixture feed + malformed-feed guards)"
+run = "node --test scripts/sync-copilot-models.test.mjs"
+
+[tasks."models:sync"]
+description = "Fetch the models.dev github-copilot catalog and regenerate the picker"
+run = "node scripts/sync-copilot-models.mjs"
+
 # ─── nav-pilot installer ─────────────────────────────────────────────────────
 
 [tasks."nav-pilot:build"]
