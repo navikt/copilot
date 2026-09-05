@@ -477,12 +477,17 @@ func TestLocalRematerializeNeverPublishesAHalfDeletedRevision(t *testing.T) {
 			// was emptied in place, at the path, so the descriptor and the path
 			// stayed the same directory and the check below still catches it.
 			if d, err := os.Open(revDir); err == nil {
-				names, _ := d.Readdirnames(-1)
+				names, readErr := d.Readdirnames(-1)
 				opened, openedErr := d.Stat()
 				d.Close()
 				current, currentErr := os.Stat(revDir)
 				stillPublished := openedErr == nil && currentErr == nil && os.SameFile(opened, current)
-				if stillPublished && len(names) != wantEntries {
+				// A readdir error on the tree that is still at revDir counts as
+				// a partial listing rather than as no observation. Some
+				// platforms return a short listing together with a non-nil
+				// error under a concurrent rename or remove, and swallowing
+				// that would let the test miss exactly what it is looking for.
+				if stillPublished && (readErr != nil || len(names) != wantEntries) {
 					partial.Store(true)
 				}
 			}
