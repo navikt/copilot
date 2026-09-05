@@ -711,3 +711,58 @@ func TestRepoScopeDir(t *testing.T) {
 		t.Errorf("from a subdirectory: git root %q, want %q", got, want)
 	}
 }
+
+// A fresh machine: no config dir at all. The pre-seed must create the
+// directory and the file with the exact bytes OpenCode 1.18.20 would have
+// written, so OpenCode's own write-if-absent under cplt becomes a no-op (#565).
+func TestEnsureOpenCodeRuntimeGitignoreCreatesFile(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+
+	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
+		t.Fatalf("ensureOpenCodeRuntimeGitignore: %v", err)
+	}
+
+	path := filepath.Join(xdg, "opencode", ".gitignore")
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading pre-seeded file: %v", err)
+	}
+	want := "node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore"
+	if string(got) != want {
+		t.Errorf("pre-seeded content = %q, want %q", got, want)
+	}
+
+	// Idempotent: a second call must not fail and must not change the file.
+	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
+		t.Fatalf("second ensureOpenCodeRuntimeGitignore: %v", err)
+	}
+}
+
+// An existing file is the user's (or OpenCode's own): never overwrite it,
+// whatever it contains.
+func TestEnsureOpenCodeRuntimeGitignoreLeavesExistingFile(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+
+	dir := filepath.Join(xdg, "opencode")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, ".gitignore")
+	if err := os.WriteFile(path, []byte("mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
+		t.Fatalf("ensureOpenCodeRuntimeGitignore: %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "mine\n" {
+		t.Errorf("existing file was rewritten to %q, want it untouched", got)
+	}
+}

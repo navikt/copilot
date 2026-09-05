@@ -463,6 +463,9 @@ func TestStagedOpenCodeLeavesSharedConfigAlone(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(binDir, "opencode"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatalf("writing fake opencode: %v", err)
 	}
+	// The pre-seed of <config dir>/.gitignore must not land in the real
+	// ~/.config/opencode (#565).
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("PATH", binDir)
 	if err := LaunchOpenCodeStaged(domain.ResolvedConfig{Client: "opencode"}, staged); err == nil {
 		t.Fatal("LaunchOpenCodeStaged should fail without cplt on PATH")
