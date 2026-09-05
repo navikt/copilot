@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-09-04
+ * Last updated: 2026-09-05
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -157,6 +157,26 @@ export const MODEL_PRICING: ModelPrice[] = [
     cacheWrite: 5,
     output: 18,
   },
+  {
+    model: "GPT-6 Astra (Default, ≤ 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 10,
+    cachedInput: 1,
+    cacheWrite: 12.5,
+    output: 50,
+  },
+  {
+    model: "GPT-6 Astra (Long context, 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 20,
+    cachedInput: 2,
+    cacheWrite: 25,
+    output: 75,
+  },
   // Anthropic
   {
     model: "Claude Haiku 4.5",
@@ -179,16 +199,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 15,
   },
   {
-    model: "Claude Sonnet 4.5",
-    provider: "Anthropic",
-    category: "Versatile",
-    status: "GA",
-    input: 3,
-    cachedInput: 0.3,
-    cacheWrite: 3.75,
-    output: 15,
-  },
-  {
     model: "Claude Sonnet 4.6",
     provider: "Anthropic",
     category: "Versatile",
@@ -197,26 +207,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.3,
     cacheWrite: 3.75,
     output: 15,
-  },
-  {
-    model: "Claude Opus 4.5",
-    provider: "Anthropic",
-    category: "Powerful",
-    status: "GA",
-    input: 5,
-    cachedInput: 0.5,
-    cacheWrite: 6.25,
-    output: 25,
-  },
-  {
-    model: "Claude Opus 4.6",
-    provider: "Anthropic",
-    category: "Powerful",
-    status: "GA",
-    input: 5,
-    cachedInput: 0.5,
-    cacheWrite: 6.25,
-    output: 25,
   },
   {
     model: "Claude Opus 4.7",
@@ -290,24 +280,6 @@ export const MODEL_PRICING: ModelPrice[] = [
   },
   // Google
   {
-    model: "Gemini 3.1 Pro (Default, ≤ 200K)",
-    provider: "Google",
-    category: "Powerful",
-    status: "Public preview",
-    input: 2,
-    cachedInput: 0.2,
-    output: 12,
-  },
-  {
-    model: "Gemini 3.1 Pro (Long context, 200K)",
-    provider: "Google",
-    category: "Powerful",
-    status: "Public preview",
-    input: 4,
-    cachedInput: 0.4,
-    output: 18,
-  },
-  {
     model: "Gemini 3.5 Flash (Default)",
     provider: "Google",
     category: "Lightweight",
@@ -348,16 +320,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 3.75,
     promotionEndsOn: "2026-12-31",
     note: "Gemini 3.6 Flash, Gemini 3.7 Flash, and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
-  },
-  // GitHub
-  {
-    model: "Raptor mini",
-    provider: "GitHub",
-    category: "Versatile",
-    status: "GA",
-    input: 0.25,
-    cachedInput: 0.025,
-    output: 2,
   },
   // Microsoft
   {
@@ -400,4 +362,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-09-04";
+export const PRICING_LAST_UPDATED = "2026-09-05";
