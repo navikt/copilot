@@ -83,7 +83,11 @@ These checks are specific to Nav developer machines connected to the NAIS platfo
    ```bash
    gh auth status 2>/dev/null
    ```
-   Not logged in or expired → **MEDIUM**. Fix: `gh auth login`.
+   Not logged in or expired → **MEDIUM**. Fix: run `gh auth login` **outside** the cplt
+   sandbox. Inside a sandbox the gh guard blocks `gh auth login` as credential
+   modification, and it is on by default (the `standard` preset, cplt#335), so the
+   command will fail there no matter how many times it is retried. `gh auth status`
+   itself is allowed; only the token-revealing form (`--show-token`/`-t`) is blocked.
 
 4. **Security scanning tools** — should be installed:
    ```bash

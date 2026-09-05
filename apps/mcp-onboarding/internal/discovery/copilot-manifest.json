@@ -1091,7 +1091,7 @@
       "displayName": "workstation-security",
       "description": "Sikkerhetssjekk for macOS-utviklermaskiner — brannmur, SSH, Git, hemmeligheter, nettverk og Nav-plattformverktøy",
       "filePath": "skills/workstation-security/SKILL.md",
-      "contentHash": "56f5848884ca5a29b5ed70f650266f8e9374a237c5a115e6fcccba155d3b447e",
+      "contentHash": "b302aa86a0e3010344a0f43a31ba49d6324e1d2d50f695ad20b74cef8f7cb324",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/workstation-security/SKILL.md"
     }

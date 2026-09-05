@@ -235,7 +235,8 @@ if command -v gh &>/dev/null; then
       echo "  Error from gh: $(echo "$ERR_MSG" | tr '\n' ' ')"
       echo "  To enable provenance verification:"
       echo "    - In GitHub Actions: pass env: GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
-      echo "    - Locally: run 'gh auth login' or set GH_TOKEN environment variable."
+      echo "    - Locally: set GH_TOKEN, or run 'gh auth login' outside a cplt sandbox"
+      echo "      ('gh auth login' is blocked by cplt's gh guard, on by default since cplt#335)."
       echo ""
     else
       echo "Error: Provenance verification failed!"

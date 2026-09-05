@@ -85,8 +85,28 @@ HOMEDIR="$OUT/home"; mkdir -p "$HOMEDIR/.copilot"
 for f in config.json settings.json permissions-config.json copilot-instructions.md; do
   [[ -f "$HOME/.copilot/$f" ]] && cp "$HOME/.copilot/$f" "$HOMEDIR/.copilot/"
 done
-TOKEN="${COPILOT_GITHUB_TOKEN:-$(gh auth token 2>/dev/null)}"
-[[ -n "$TOKEN" ]] || { echo "ingen GitHub-token (gh auth login)" >&2; exit 2; }
+# gh-guarden i cplt er på som standard (standard-presetet, cplt#335) og blokkerer
+# både `gh auth token` (block_auth_token, default true) og `gh auth login`. Guarden
+# skriver forklaringen på stderr, så den må vises i stedet for å kastes: uten den
+# ser en blokkering ut som «ikke innlogget», og rådet blir feil.
+TOKEN="${COPILOT_GITHUB_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
+if [[ -z "$TOKEN" ]]; then
+  # $OUT finnes allerede (mkdir over), så feilteksten trenger ingen mktemp som
+  # kan feile og etterlate et tomt filnavn i redirecten.
+  GH_ERR="$OUT/gh-auth-token.err"
+  TOKEN="$(gh auth token 2>"$GH_ERR")" || true
+  if [[ -z "$TOKEN" ]]; then
+    echo "ingen GitHub-token." >&2
+    if [[ -s "$GH_ERR" ]]; then
+      echo "gh svarte:" >&2
+      sed 's/^/  /' "$GH_ERR" >&2
+    fi
+    echo "Sett COPILOT_GITHUB_TOKEN, GH_TOKEN eller GITHUB_TOKEN." >&2
+    echo "Inne i en cplt-sandkasse er både 'gh auth token' og 'gh auth login' blokkert av gh-guarden; logg inn utenfor sandkassen, eller sett gh_guard.inject_token = true slik at cplt injiserer GH_TOKEN." >&2
+    exit 2
+  fi
+  rm -f "$GH_ERR"
+fi
 
 WS="$OUT/ws"
 FIXTURE=""   # fila en feilutløsning kan komme til å skrive i
