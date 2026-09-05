@@ -90,6 +90,8 @@ spec:
       rules:
         - application: my-copilot
           namespace: copilot
+        - application: copilot-cli
+          namespace: copilot
     outbound:
       external:
         - host: api.github.com

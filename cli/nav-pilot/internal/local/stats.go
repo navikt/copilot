@@ -112,15 +112,6 @@ func ReadStats() (Stats, error) {
 	return s, sc.Err()
 }
 
-// ResetStats drops the file, for `purge` and for a developer who wants the
-// count to start again.
-func ResetStats() error {
-	if err := os.Remove(statsPath()); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("removing local stats: %w", err)
-	}
-	return nil
-}
-
 // openAppend is the one write mode this file may ever be opened in. O_APPEND is
 // what makes a concurrent write from a second session safe: the kernel places
 // each short line at the current end of file, where a seek-then-write would let

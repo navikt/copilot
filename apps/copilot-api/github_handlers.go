@@ -18,6 +18,16 @@ func isValidGitHubUsername(s string) bool {
 	return validGitHubUsername.MatchString(s)
 }
 
+// navIdentOf returns user.NAVident for audit logging, or "" if user is nil
+// (e.g. when the caller authenticated via a trusted-intermediary mechanism
+// like X-On-Behalf-Of rather than a NAV employee's own token).
+func navIdentOf(user *User) string {
+	if user == nil {
+		return ""
+	}
+	return user.NAVident
+}
+
 // GitHubAPI abstracts GitHub API operations for testability
 type GitHubAPI interface {
 	getCopilotBilling(ctx context.Context) (*CopilotBilling, error)
@@ -61,24 +71,11 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ownership check: only allow users to view their own seat data.
-	user, ok := getUserFromContext(r.Context())
-	if !ok || user == nil {
-		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
-		return
-	}
-	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
-	if err != nil {
-		slog.Error("Failed to verify caller identity via SAML", "error", err)
-		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
-		return
-	}
-	if resolvedUsername == "" {
-		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
-		return
-	}
-	if !strings.EqualFold(resolvedUsername, username) {
-		respondError(w, "forbidden", "You can only view your own seat data", http.StatusForbidden)
+	// Ownership check: only allow users to view their own seat data. Uses
+	// the shared IdentityResolver-based check (see identity_middleware.go)
+	// so this handler works identically whether the caller authenticated
+	// via SAML or a trusted intermediary's X-On-Behalf-Of header.
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
@@ -100,12 +97,9 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 
 // handleAssignSeat handles POST /api/v1/copilot/seats
 func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request) {
-	// Get authenticated user from context
-	user, ok := getUserFromContext(r.Context())
-	if !ok || user == nil {
-		respondError(w, "unauthorized", "User not authenticated", http.StatusUnauthorized)
-		return
-	}
+	// user is only used for audit logging (NAVident) below — the ownership
+	// check itself is mechanism-agnostic (see requireOwnership).
+	user, _ := getUserFromContext(r.Context())
 
 	var req struct {
 		Username string `json:"username"`
@@ -124,22 +118,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	// Defense-in-depth: verify the requested username resolves to the authenticated caller.
 	// The BFF already performs this check, but enforcing it here ensures the backend
 	// cannot be used to manage seats for other users even if the BFF were bypassed.
-	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
-	if err != nil {
-		slog.Error("Failed to verify caller identity via SAML", "error", err)
-		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
-		return
-	}
-	if resolvedUsername == "" {
-		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
-		return
-	}
-	if !strings.EqualFold(resolvedUsername, req.Username) {
-		slog.Warn("Seat assignment denied: username mismatch",
-			"requested_username", req.Username,
-			"actor_navident", user.NAVident,
-		)
-		respondError(w, "forbidden", "You can only manage your own Copilot seat", http.StatusForbidden)
+	if !requireOwnership(w, r, req.Username) {
 		return
 	}
 
@@ -147,7 +126,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		slog.Error("Failed to assign seat",
 			"username", req.Username,
-			"actor_navident", user.NAVident,
+			"actor_navident", navIdentOf(user),
 			"error", err,
 		)
 		respondError(w, "github_error", "Failed to assign Copilot seat", http.StatusInternalServerError)
@@ -157,7 +136,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	// Audit log: use NAVident only — email is PII and must not be logged at INFO+
 	slog.Info("Copilot seat assigned",
 		"username", req.Username,
-		"actor_navident", user.NAVident,
+		"actor_navident", navIdentOf(user),
 		"seats_created", result.SeatsCreated,
 	)
 
@@ -170,12 +149,9 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 
 // handleUnassignSeat handles DELETE /api/v1/copilot/seats/{username}
 func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Request) {
-	// Get authenticated user from context
-	user, ok := getUserFromContext(r.Context())
-	if !ok || user == nil {
-		respondError(w, "unauthorized", "User not authenticated", http.StatusUnauthorized)
-		return
-	}
+	// user is only used for audit logging (NAVident) below — the ownership
+	// check itself is mechanism-agnostic (see requireOwnership).
+	user, _ := getUserFromContext(r.Context())
 
 	username := r.PathValue("username")
 	if !isValidGitHubUsername(username) {
@@ -186,22 +162,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 	// Defense-in-depth: verify the requested username resolves to the authenticated caller.
 	// The BFF already performs this check, but enforcing it here ensures the backend
 	// cannot be used to manage seats for other users even if the BFF were bypassed.
-	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
-	if err != nil {
-		slog.Error("Failed to verify caller identity via SAML", "error", err)
-		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
-		return
-	}
-	if resolvedUsername == "" {
-		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
-		return
-	}
-	if !strings.EqualFold(resolvedUsername, username) {
-		slog.Warn("Seat unassignment denied: username mismatch",
-			"requested_username", username,
-			"actor_navident", user.NAVident,
-		)
-		respondError(w, "forbidden", "You can only manage your own Copilot seat", http.StatusForbidden)
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
@@ -209,7 +170,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		slog.Error("Failed to unassign seat",
 			"username", username,
-			"actor_navident", user.NAVident,
+			"actor_navident", navIdentOf(user),
 			"error", err,
 		)
 		respondError(w, "github_error", "Failed to unassign Copilot seat", http.StatusInternalServerError)
@@ -219,7 +180,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 	// Audit log: use NAVident only — email is PII and must not be logged at INFO+
 	slog.Info("Copilot seat unassigned",
 		"username", username,
-		"actor_navident", user.NAVident,
+		"actor_navident", navIdentOf(user),
 		"seats_cancelled", result.SeatsCancelled,
 	)
 
