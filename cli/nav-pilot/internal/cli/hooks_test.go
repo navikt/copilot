@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
@@ -223,5 +224,68 @@ func TestOpenCodeRefusesHooks(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, "hooks")); !os.IsNotExist(err) {
 		t.Errorf("a hooks directory reached the opencode scope: %v", err)
+	}
+}
+
+// End to end: a real install into a hooks directory the process cannot write,
+// with cplt's marker set. The error the user sees must name cplt, name the
+// path, and say what to do — not just "permission denied".
+//
+// The write is denied by mode bits rather than by cplt, because a test cannot
+// build a sandbox. What is being asserted is the annotation, and the errno it
+// keys on is the same one Seatbelt returns for the real deny.
+func TestInstallHookInsideCpltSandboxNamesCplt(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the mode bits this test denies with")
+	}
+	src := hookSource(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(cpltSandboxEnvVar, "1")
+
+	hooksDir := filepath.Join(home, ".copilot", "hooks")
+	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(hooksDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(hooksDir, 0o755) })
+
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = installArtifact(NewSourceResolver(src), scope, nil, KindHook, "klarsprak-gate", false, false, &installResult{})
+	if err == nil {
+		t.Fatal("install into an unwritable hooks dir succeeded; the test denied nothing")
+	}
+	msg := err.Error()
+	for _, want := range []string{"cplt", cpltSandboxEnvVar, hooksDir, "outside cplt"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error does not mention %q:\n%s", want, msg)
+		}
+	}
+}
+
+// The annotation is keyed on cplt actually being there. Outside a sandbox the
+// same permission error must stay the plain one — naming cplt when cplt is not
+// involved sends the user somewhere useless.
+func TestHookWriteFailureOutsideCpltIsNotBlamedOnIt(t *testing.T) {
+	if _, set := os.LookupEnv(cpltSandboxEnvVar); set {
+		t.Skip("this test suite is itself running inside cplt")
+	}
+	err := explainHookWrite(&os.PathError{Op: "mkdir", Path: "/x", Err: syscall.EACCES}, "/x")
+	if strings.Contains(err.Error(), "cplt") {
+		t.Errorf("blamed cplt outside a cplt sandbox: %v", err)
+	}
+}
+
+// A failure that is not a denial is not cplt's doing, even inside a sandbox.
+func TestHookWriteNonPermissionErrorPassesThrough(t *testing.T) {
+	t.Setenv(cpltSandboxEnvVar, "1")
+	err := explainHookWrite(&os.PathError{Op: "write", Path: "/x", Err: syscall.ENOSPC}, "/x")
+	if strings.Contains(err.Error(), "cplt") {
+		t.Errorf("blamed cplt for a full disk: %v", err)
 	}
 }
