@@ -47,6 +47,14 @@ else
   echo ""
 fi
 
+echo "🧭 models:"
+if mise run models:test && mise run models:check; then
+  echo ""
+else
+  failed+=("models")
+  echo ""
+fi
+
 echo "🧭 nav-pilot:"
 if mise run nav-pilot:check; then
   echo ""

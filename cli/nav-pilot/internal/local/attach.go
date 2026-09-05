@@ -76,6 +76,35 @@ func (st State) ServerPort() int {
 
 func statePath() string { return filepath.Join(dataDir(), "server.json") }
 
+// writeFileAtomic replaces path in one step: write a sibling temp file, then
+// rename over the target.
+//
+// os.WriteFile truncates first, so a second nav-pilot reading the same file
+// while this one writes it sees zero or half the bytes and reports "not
+// readable as a recorded server" for a file that is perfectly fine a
+// millisecond later. Every JSON file this package keeps is read by other
+// processes on the same machine, so they all go through here. rename(2) is
+// atomic within a filesystem, and the temp file is a sibling to stay on one.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp) // no-op once the rename succeeds
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp, perm); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
 // SaveState records a running server. The process start time is read here
 // rather than passed in, so no caller can record a pid without the identity
 // that makes it safe to signal later.
@@ -90,7 +119,7 @@ func SaveState(s State) error {
 	if err := os.MkdirAll(dataDir(), 0o755); err != nil {
 		return fmt.Errorf("recording the local server: %w", err)
 	}
-	if err := os.WriteFile(statePath(), data, 0o644); err != nil {
+	if err := writeFileAtomic(statePath(), data, 0o644); err != nil {
 		return fmt.Errorf("recording the local server: %w", err)
 	}
 	return nil

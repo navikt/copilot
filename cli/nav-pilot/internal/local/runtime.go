@@ -394,7 +394,7 @@ func writeStamp() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(stampPath(), data, 0o644)
+	return writeFileAtomic(stampPath(), data, 0o644)
 }
 
 // EnsureEnv brings the local-inference environment up to the pins, doing only

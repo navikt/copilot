@@ -439,7 +439,7 @@ func writeCache(data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("caching the local-model manifest: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := writeFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf("caching the local-model manifest: %w", err)
 	}
 	return nil
