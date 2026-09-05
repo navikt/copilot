@@ -161,14 +161,14 @@ med andre som trenger den.
 
 Det presetet er en nettverkslås. `gh_guard` og `git_guard` er allerede på i `standard`
 (cplt#335), så det strict legger til er nettverket: tvungen proxy, `git_guard` som blokkerer
-i stedet for å advare, og `proxy.default_allowlist`. Den siste er den viktige — den gjør at
+i stedet for å advare, og `proxy.default_allowlist`. Den siste er den viktige: den gjør at
 bare cplt sin innebygde vertsliste pluss det `proxy.allowed_domains` peker på er nåbart.
 Alt annet blokkeres.
 
 cplt sin innebygde liste dekker GitHub Copilot og de offentlige pakkeregistrene. Den dekker
 ingenting av Navs. Setter du presetet uten å gjøre noe mer, slutter nav-pilot sin telemetri å
 komme fram, og skills som `aksel-builder`, `observability-debugging` og `nav-auth` mister
-vertene de er bygget rundt — uten at noe på skjermen forteller deg hvorfor.
+vertene de er bygget rundt, uten at noe på skjermen forteller deg hvorfor.
 
 Derfor skal du sette presetet via nav-pilot, ikke for hånd:
 
@@ -177,7 +177,7 @@ nav-pilot config     # velg raden «cplt security posture»
 ```
 
 Den skriver vertslista til `~/.nav-pilot/cplt-allowed-domains.txt`, peker
-`proxy.allowed_domains` dit, og setter så presetet — i den rekkefølgen, slik at låsen aldri
+`proxy.allowed_domains` dit, og setter så presetet, i den rekkefølgen, slik at låsen aldri
 rekker å tre i kraft uten vertene. Har du allerede en egen `proxy.allowed_domains`, lar
 nav-pilot den være i fred og sier fra at du må ta med vertene selv. cplt-config er personlig,
 så nav-pilot setter den aldri stilltiende, og nøkler du har satt selv gjelder fortsatt foran
@@ -185,7 +185,7 @@ presetet.
 
 ### Når strict ikke anbefales
 
-På Linux krever `proxy.forced` at kjernen kan håndheve nettverksrestriksjon i Landlock — ABI
+På Linux krever `proxy.forced` at kjernen kan håndheve nettverksrestriksjon i Landlock: ABI
 v4, altså kjerne 6.7 eller nyere med Landlock påslått. Under det degraderer ikke cplt, den
 nekter å starte i det hele tatt. En anbefaling som stopper hver eneste økt på maskinen er
 verre enn problemet den løser, så `nav-pilot doctor` og innstillingssiden anbefaler ikke
@@ -195,19 +195,19 @@ nav-pilot spør kjernen direkte, med samme systemkall som cplt bruker, i stedet 
 `uname`. En kjerneversjon er bare en indikasjon: Landlock kan være kompilert bort eller slått
 av ved oppstart, og da ville en versjonssjekk sagt «går fint» rett før cplt nekter å starte.
 
-macOS har ingen slik grense — der håndheves det samme med Seatbelt.
+macOS har ingen slik grense. Der håndheves det samme med Seatbelt.
 
 ### Lokal modell og strict
 
 `nav-pilot local` sender prompten via en loop-guard på `127.0.0.1`. cplt blokkerer localhost
 som standard, så nav-pilot sender porten med som `--allow-localhost <port>` ved hver lokale
-oppstart. Det er én navngitt port, ikke `allow_localhost_any` — den maskinvide bryteren er
+oppstart. Det er én navngitt port, ikke `allow_localhost_any`. Den maskinvide bryteren er
 den `proxy.forced` overstyrer, så hadde vi brukt den, ville strict og lokal modell utelukket
 hverandre. Én port overlever tvungen proxy på både macOS og Linux.
 
 Fila er en fullstendig liste, ikke bare Nav-vertene. `proxy.allowed_domains` blokkerer alt
 utenfor seg selv uansett hva `proxy.default_allowlist` står på, og cplt sin innebygde liste
-er per agent — bare copilot-lista har GitHub og Copilot i seg, opencode har `opencode.ai` og
+er per agent. Bare copilot-lista har GitHub og Copilot i seg; opencode har `opencode.ai` og
 `models.dev`. Derfor står de innebygde vertene i fila også, slik at den er riktig alene.
 
 `nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår

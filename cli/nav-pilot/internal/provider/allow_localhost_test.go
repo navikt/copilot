@@ -16,10 +16,13 @@ func TestLocalLaunchNamesTheGuardPortToCplt(t *testing.T) {
 	if !strings.Contains(joined, "--allow-localhost 51234") {
 		t.Fatalf("the guard port never reaches cplt: %v", args)
 	}
-	// It is a cplt-level flag, so it must precede the agent selection the way
-	// --yes does, never land in the agent's own argument list.
+	// It is a cplt flag, not one of the agent's, so it has to sit before the
+	// `--` separator. TestGuardPortReachesTheLaunchVector pins the position in
+	// the vector cpltArgv builds; here the input has no separator, so what
+	// matters is only that it went to the front rather than being appended
+	// where the agent's own arguments go.
 	if args[0] != "--allow-localhost" {
-		t.Errorf("flag is not in cplt's own argument position: %v", args)
+		t.Errorf("flag was appended rather than passed to cplt: %v", args)
 	}
 }
 

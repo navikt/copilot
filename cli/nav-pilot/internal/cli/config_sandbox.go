@@ -197,8 +197,8 @@ func applyStrictPreset(cliPath string) error {
 		return err
 	}
 	if adopted {
-		fmt.Printf("%s cplt proxy.allowed_domains = %s (%d Nav hosts)\n",
-			domain.Green("✓"), path, len(navAllowedDomains))
+		fmt.Printf("%s cplt proxy.allowed_domains = %s (%d hosts, %d of them Nav's)\n",
+			domain.Green("✓"), path, len(navAllowedDomains), len(navOwnDomains))
 	} else {
 		fmt.Printf("%s You already have proxy.allowed_domains set, so nav-pilot left it alone.\n",
 			domain.Yellow("⚠"))
@@ -437,10 +437,22 @@ func navAllowedDomainsPath() string {
 // writeNavAllowedDomains renders navAllowedDomains to disk and returns the path.
 // The file is nav-pilot's to rewrite; the comment header says so, because a
 // stray hostname in it is a hole in the user's allowlist.
+//
+// Written by temp-file-and-rename rather than in place. cplt re-reads this file
+// every few seconds while a session runs, and a reader that catches an in-place
+// write half-done sees a truncated host list — which under strict is not a
+// cosmetic glitch but a set of hosts that briefly stop resolving. rename(2) is
+// atomic within a directory, so a reader sees either the old file or the new
+// one. The temp file is created in the same directory for that reason: a
+// rename across filesystems is not atomic and may not be a rename at all.
+//
+// Same directory permissions as the rest of nav-pilot's config (config_setup.go):
+// 0700, because ~/.nav-pilot is personal state.
 func writeNavAllowedDomains() (string, error) {
 	path := navAllowedDomainsPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("creating %s: %w", filepath.Dir(path), err)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("creating %s: %w", dir, err)
 	}
 	var b strings.Builder
 	b.WriteString("# Written by nav-pilot. Edits are overwritten on the next run.\n")
@@ -452,7 +464,21 @@ func writeNavAllowedDomains() (string, error) {
 	for _, d := range navAllowedDomains {
 		b.WriteString(d + "\n")
 	}
-	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+	tmp, err := os.CreateTemp(dir, ".cplt-allowed-domains-*")
+	if err != nil {
+		return "", fmt.Errorf("writing %s: %w", path, err)
+	}
+	defer os.Remove(tmp.Name()) // no-op once the rename succeeds
+	if _, err := tmp.WriteString(b.String()); err != nil {
+		tmp.Close()
+		return "", fmt.Errorf("writing %s: %w", path, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return "", fmt.Errorf("writing %s: %w", path, err)
+	}
+	// CreateTemp makes the file 0600. cplt reads it as the same user, so that
+	// is all it needs.
+	if err := os.Rename(tmp.Name(), path); err != nil {
 		return "", fmt.Errorf("writing %s: %w", path, err)
 	}
 	return path, nil

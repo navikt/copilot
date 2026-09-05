@@ -165,7 +165,8 @@ func cmdDoctor() error {
 			fmt.Printf("          Both guards are already on in %s since cplt#335; the network is what strict adds.\n", bold("standard"))
 			fmt.Printf("          %s Run %s and pick %s. It seeds the allowlist with the\n",
 				yellow("Solution:"), bold("nav-pilot config"), bold("cplt security posture"))
-			fmt.Printf("          %d Nav hosts nav-pilot and your agents need, then sets the preset.\n", len(navAllowedDomains))
+			fmt.Printf("          %d hosts nav-pilot and your agents need (%d of them Nav's), then sets the preset.\n",
+				len(navAllowedDomains), len(navOwnDomains))
 			fmt.Printf("          Setting the preset by hand skips that, and your Nav hosts go dark.\n")
 		default:
 			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)

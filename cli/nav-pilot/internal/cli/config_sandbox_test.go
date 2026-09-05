@@ -385,3 +385,43 @@ func TestPostureRowNamesTheUnsupportedKernel(t *testing.T) {
 		t.Errorf("posture row dropped the recommendation where it works: %q", got)
 	}
 }
+
+// cplt re-reads this file every few seconds while a session runs, so an
+// in-place write is a window in which a reader sees a truncated host list —
+// under strict, hosts that briefly stop resolving. The write must be
+// temp-file-and-rename, and it must leave no temp file behind.
+func TestAllowlistIsWrittenAtomically(t *testing.T) {
+	isolatedConfig(t)
+	path, err := writeNavAllowedDomains()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Rewriting must be safe and must not accumulate temp files.
+	if _, err := writeNavAllowedDomains(); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+		if strings.HasPrefix(e.Name(), ".cplt-allowed-domains-") {
+			t.Errorf("a temp file was left behind: %s", e.Name())
+		}
+	}
+	if !containsStr(names, filepath.Base(path)) {
+		t.Errorf("the allowlist is not there after two writes: %v", names)
+	}
+
+	// The file itself is not world-readable. It is not secret, but it is
+	// personal config state and there is no reason for it to be looser.
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := fi.Mode().Perm(); perm&0o077 != 0 {
+		t.Errorf("allowlist is %o, want no group or other bits", perm)
+	}
+}
