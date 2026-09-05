@@ -203,8 +203,9 @@ macOS har ingen slik grense. Der håndheves det samme med Seatbelt.
 men cplt hever den selv til `blocked` så snart en vertsliste er aktiv, enten fordi agenten
 har en innebygd liste (copilot, opencode) eller fordi `proxy.allowed_domains` er satt
 (`proxy_log_level` i cplt-repoet, `src/main.rs`). Sikkerhetsnivået nav-pilot anbefaler skriver alltid
-fila, så på strict er `blocked` allerede i kraft uten at du setter noe. Merk at den
-innebygde lista er tom for `pi`, `goose` og `shell`, så der er det bare fila som slår til.
+vertslistefila `proxy.allowed_domains` peker på, så på strict er `blocked` allerede i kraft
+uten at du setter noe. Merk at den innebygde lista er tom for `pi`, `goose` og `shell`, så
+der er det bare vertslistefila som slår til.
 Nav-pilot anbefaler derfor ikke nøkkelen: den er allerede dekket der den betyr noe.
 
 Kjører du `standard` uten egen `proxy.allowed_domains`, er det ingen vertsliste å heve for,
