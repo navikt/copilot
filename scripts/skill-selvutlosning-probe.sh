@@ -91,7 +91,9 @@ done
 # ser en blokkering ut som «ikke innlogget», og rådet blir feil.
 TOKEN="${COPILOT_GITHUB_TOKEN:-${GH_TOKEN:-}}"
 if [[ -z "$TOKEN" ]]; then
-  GH_ERR="$(mktemp)"
+  # $OUT finnes allerede (mkdir over), så feilteksten trenger ingen mktemp som
+  # kan feile og etterlate et tomt filnavn i redirecten.
+  GH_ERR="$OUT/gh-auth-token.err"
   TOKEN="$(gh auth token 2>"$GH_ERR")" || true
   if [[ -z "$TOKEN" ]]; then
     echo "ingen GitHub-token." >&2
@@ -101,7 +103,6 @@ if [[ -z "$TOKEN" ]]; then
     fi
     echo "Sett COPILOT_GITHUB_TOKEN eller GH_TOKEN." >&2
     echo "Inne i en cplt-sandkasse er både 'gh auth token' og 'gh auth login' blokkert av gh-guarden; logg inn utenfor sandkassen, eller sett gh_guard.inject_token = true slik at cplt injiserer GH_TOKEN." >&2
-    rm -f "$GH_ERR"
     exit 2
   fi
   rm -f "$GH_ERR"
