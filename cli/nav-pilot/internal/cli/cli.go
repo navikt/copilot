@@ -370,10 +370,13 @@ func run(args []string) error {
 		if cfgErr != nil {
 			return cfgErr
 		}
-		launchErr := runWithCommandTelemetry("launch", "non_interactive", "none", func() error {
-			return launchClient(resolved)
-		})
-		return launchErr
+		// Through the same decision function as every other launch path
+		// (#472): calling launchClient directly here skipped decideLaunch,
+		// so auto_launch = false was ignored and the unsandboxed-launch
+		// warning never fired. offerLaunchCopilot records its own launch
+		// telemetry, with the mode telemetryMode() resolves.
+		offerLaunchCopilot(resolved)
+		return nil
 	}
 
 	command := args[0]
