@@ -1,44 +1,7 @@
 import type { Metadata } from "next";
-import { Box, VStack, Heading, BodyShort, BodyLong, Tag, HStack } from "@navikt/ds-react";
 import { notFound } from "next/navigation";
-import { getArticle, getArticleSlugs, CATEGORY_CONFIG } from "@/lib/news";
-import NextLink from "next/link";
-import Markdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { ArrowLeftIcon } from "@navikt/aksel-icons";
-import { formatDate } from "@/lib/format";
-
-const markdownComponents: Components = {
-  // No article has used an image before this one, so react-markdown's bare <img>
-  // was never styled: it would render at its intrinsic width and overflow a phone.
-  // A figure in an article is data, so the alt text has to carry what the picture
-  // says rather than name it, and the table beside it stays as the readable form
-  // of the same numbers.
-  img: ({ src, alt }) =>
-    typeof src === "string" ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%", height: "auto", margin: "1.5rem 0" }} />
-    ) : null,
-  h2: ({ children }) => (
-    <Heading size="medium" level="2" spacing>
-      {children}
-    </Heading>
-  ),
-  h3: ({ children }) => (
-    <Heading size="small" level="3" spacing>
-      {children}
-    </Heading>
-  ),
-  p: ({ children }) => <BodyLong spacing>{children}</BodyLong>,
-  ul: ({ children }) => <ul>{children}</ul>,
-  ol: ({ children }) => <ol>{children}</ol>,
-  li: ({ children }) => <li>{children}</li>,
-  pre: ({ children }) => <pre>{children}</pre>,
-  code: ({ children, className }) => {
-    const isBlock = className?.startsWith("language-");
-    return isBlock ? <code className={className}>{children}</code> : <code>{children}</code>;
-  },
-};
+import { getArticle, getArticleSlugs } from "@/lib/news";
+import { ArticleView } from "@/components/article-view";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -50,12 +13,10 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = getArticle(slug, "en");
 
-  if (!article || article.lang !== "en") {
-    return {
-      title: "Article not found",
-    };
+  if (!article) {
+    return { title: "Article not found" };
   }
 
   return {
@@ -65,6 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: article.title,
       description: article.excerpt,
       type: "article",
+      locale: "en_GB",
       publishedTime: article.date,
       authors: article.author ? [article.author] : undefined,
       tags: article.tags,
@@ -77,57 +39,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ArticlePage({ params }: Props) {
+export default async function EnglishArticlePage({ params }: Props) {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = getArticle(slug, "en");
 
-  if (!article || article.lang !== "en") notFound();
-
-  const categoryConfig = CATEGORY_CONFIG[article.category] ?? { label: article.category, variant: "info" as const };
+  if (!article) notFound();
 
   return (
-    <main>
-      <div className="max-w-3xl mx-auto">
-        <Box
-          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32" }}
-        >
-          <VStack gap="space-16">
-            <NextLink
-              href="/"
-              className="inline-flex items-center gap-1.5 text-sm text-text-subtle no-underline hover:underline"
-            >
-              <ArrowLeftIcon aria-hidden fontSize="1rem" />
-              Oh-My-Nav
-            </NextLink>
-
-            <VStack gap="space-8">
-              <HStack gap="space-4" align="center">
-                <Tag size="small" variant={categoryConfig.variant}>
-                  {categoryConfig.label}
-                </Tag>
-                <BodyShort size="small" className="text-text-subtle">
-                  {formatDate(article.date, "en-GB")}
-                </BodyShort>
-              </HStack>
-              <Heading size="xlarge" level="1">
-                {article.title}
-              </Heading>
-            </VStack>
-
-            <article className="prose max-w-none">
-              <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {article.content}
-              </Markdown>
-            </article>
-
-            <NextLink href="/" className="inline-flex items-center gap-1.5 text-sm no-underline hover:underline py-2">
-              <ArrowLeftIcon aria-hidden fontSize="1rem" />
-              All news (Norwegian)
-            </NextLink>
-          </VStack>
-        </Box>
-      </div>
-    </main>
+    <ArticleView
+      article={article}
+      lang="en"
+      labels={{
+        backToIndex: "Articles",
+        backToIndexHref: "/en/news",
+        backToAll: "All articles in Norwegian",
+        backToAllHref: "/",
+        backToAllLang: "nb",
+      }}
+    />
   );
 }

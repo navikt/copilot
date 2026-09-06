@@ -14,8 +14,14 @@ export interface ShellLabels {
   signIn: string;
   privacy: string;
   privacyHref: string;
+  // Set when the target page is in another language than the shell, so the
+  // link carries hreflang and WCAG 3.1.2 is satisfied for the text inside it.
+  privacyHrefLang?: string;
   accessibility: string;
   accessibilityHref: string;
+  accessibilityHrefLang?: string;
+  // The footer message is Norwegian whatever the shell language is.
+  footerLang?: string;
 }
 
 const inter = Inter({ subsets: ["latin"] });
@@ -86,13 +92,19 @@ export async function SiteShell({
             className="max-w-7xl mx-auto"
           >
             <footer>
-              <FooterMessage />
+              {labels.footerLang ? (
+                <span lang={labels.footerLang}>
+                  <FooterMessage />
+                </span>
+              ) : (
+                <FooterMessage />
+              )}
               <HStack gap="space-16" asChild>
                 <BodyShort size="small" as="div">
-                  <Link href={labels.privacyHref} data-color="neutral">
+                  <Link href={labels.privacyHref} hrefLang={labels.privacyHrefLang} data-color="neutral">
                     {labels.privacy}
                   </Link>
-                  <Link href={labels.accessibilityHref} data-color="neutral">
+                  <Link href={labels.accessibilityHref} hrefLang={labels.accessibilityHrefLang} data-color="neutral">
                     {labels.accessibility}
                   </Link>
                   <Link href="https://github.com/navikt/copilot" data-color="neutral">

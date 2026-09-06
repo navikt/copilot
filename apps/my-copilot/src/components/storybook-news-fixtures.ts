@@ -2,6 +2,7 @@ import type { NewsItem } from "@/lib/news-types";
 
 export const storyNewsItems: NewsItem[] = [
   {
+    lang: "nb",
     slug: "copilot-chat-enterprise-rollout",
     title: "Copilot Chat rulles ut bredere i juni",
     date: "2026-06-24",
@@ -14,6 +15,7 @@ export const storyNewsItems: NewsItem[] = [
     author: "github",
   },
   {
+    lang: "nb",
     slug: "nav-pilot-workflows",
     title: "nav-pilot får tydeligere arbeidsflyt for oppstart",
     date: "2026-06-22",
@@ -26,6 +28,7 @@ export const storyNewsItems: NewsItem[] = [
     author: "starefossen",
   },
   {
+    lang: "nb",
     slug: "praksis-reusable-components",
     title: "Gjenbrukbare komponenter gjør stories og pages enklere å holde konsistent",
     date: "2026-06-20",
@@ -38,6 +41,7 @@ export const storyNewsItems: NewsItem[] = [
     author: "starefossen",
   },
   {
+    lang: "nb",
     slug: "nav-security-update",
     title: "Oppdatert sikkerhetsveiledning for token-håndtering",
     date: "2026-06-18",
@@ -49,6 +53,7 @@ export const storyNewsItems: NewsItem[] = [
     url: "https://example.com/nav-security-update",
   },
   {
+    lang: "nb",
     slug: "copilot-summary-preview",
     title: "Månedssammendraget blir publisert når juni er over",
     date: "2026-06-28",
@@ -60,6 +65,7 @@ export const storyNewsItems: NewsItem[] = [
     content: "Story fixture",
   },
   {
+    lang: "nb",
     slug: "nav-pilot-feedback",
     title: "Tilbakemeldinger fra teamene peker på mer konsistente startfliser",
     date: "2026-06-26",

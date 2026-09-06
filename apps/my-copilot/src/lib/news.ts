@@ -146,7 +146,10 @@ export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
   );
 }
 
-export function getArticle(slug: string): (NewsItem & { content: string }) | null {
+// The language is checked here rather than at each call site: a route that
+// forgets the check would serve an article under the wrong lang attribute, and
+// a draft would be reachable by guessing its URL.
+export function getArticle(slug: string, lang: NewsLang = "nb"): (NewsItem & { content: string }) | null {
   const filePath = path.join(articlesDir, `${slug}.md`);
   if (!fs.existsSync(filePath)) return null;
 
@@ -154,6 +157,8 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
   const { data, content } = matter(raw);
 
   if (content.trim().length === 0) return null;
+  if (data.draft === true) return null;
+  if (parseLang(data.lang) !== lang) return null;
 
   return {
     slug,
@@ -173,18 +178,7 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
 }
 
 export function getArticleSlugs(lang: NewsLang = "nb"): string[] {
-  if (!fs.existsSync(articlesDir)) return [];
-
-  const files = fs.readdirSync(articlesDir).filter((f) => f.endsWith(".md"));
-  return files
-    .map((f) => {
-      const slug = f.replace(/\.md$/, "");
-      const filePath = path.join(articlesDir, f);
-      const raw = fs.readFileSync(filePath, "utf-8");
-      const { data, content } = matter(raw);
-      if (data.draft === true) return null;
-      if (parseLang(data.lang) !== lang) return null;
-      return content.trim().length > 0 ? slug : null;
-    })
-    .filter((s): s is string => s !== null);
+  return getNewsItems({ lang })
+    .filter((item) => item.type === "article")
+    .map((item) => item.slug);
 }

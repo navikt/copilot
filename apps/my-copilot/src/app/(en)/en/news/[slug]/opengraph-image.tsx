@@ -9,5 +9,5 @@ interface Props {
 
 export default async function Image({ params }: Props) {
   const { slug } = await params;
-  return articleImage(slug, "nb");
+  return articleImage(slug, "en");
 }

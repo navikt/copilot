@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, HGrid, Label } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
@@ -214,16 +215,16 @@ export default function ToolsAndModes() {
             MCP-registry
           </a>{" "}
           er allerede konfigurert for alle brukere. Se tilgjengelige MCP-servere på{" "}
-          <a href="/verktoy?type=mcp" className="text-blue-600 hover:underline">
+          <NextLink href="/verktoy?type=mcp" className="text-blue-600 hover:underline">
             verktøy-siden
-          </a>
+          </NextLink>
           .
         </BodyShort>
         <BodyShort className="text-gray-600 text-xs mt-3">
           Nav har også en{" "}
-          <a href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding" className="text-blue-600 hover:underline">
+          <NextLink href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding" className="text-blue-600 hover:underline">
             MCP onboarding-server
-          </a>{" "}
+          </NextLink>{" "}
           som hjelper deg å sjekke hvor «agent-klar» repoet ditt er, og generere tilpasningsfiler.
         </BodyShort>
       </Box>

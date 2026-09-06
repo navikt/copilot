@@ -18,6 +18,7 @@ describe("CATEGORY_CONFIG", () => {
 
     function createItem(overrides: Partial<NewsItem>): NewsItem {
       return {
+        lang: "nb",
         slug: "test-item",
         title: "Test item",
         date: "2026-06-12",
@@ -69,6 +70,7 @@ describe("CATEGORY_CONFIG", () => {
 
     const items: NewsItem[] = [
       {
+        lang: "nb",
         slug: "old-link",
         title: "Old external",
         date: "2026-05-01",
@@ -80,6 +82,7 @@ describe("CATEGORY_CONFIG", () => {
         url: "https://example.com/old",
       },
       {
+        lang: "nb",
         slug: "old-article",
         title: "Old article",
         date: "2026-01-01",
@@ -90,6 +93,7 @@ describe("CATEGORY_CONFIG", () => {
         type: "article",
       },
       {
+        lang: "nb",
         slug: "fresh-link",
         title: "Fresh external",
         date: "2026-06-11",
@@ -104,6 +108,7 @@ describe("CATEGORY_CONFIG", () => {
 
     it("puts a festet sak above newer items", () => {
       const featured: NewsItem = {
+        lang: "nb",
         slug: "festet",
         title: "Festet",
         date: "2026-05-01",
@@ -121,6 +126,7 @@ describe("CATEGORY_CONFIG", () => {
 
     it("orders festede saker among themselves by date", () => {
       const base: NewsItem = {
+        lang: "nb",
         slug: "",
         title: "",
         date: "",
@@ -139,6 +145,7 @@ describe("CATEGORY_CONFIG", () => {
 
     it("leaves date order alone when nothing is festet", () => {
       const base: NewsItem = {
+        lang: "nb",
         slug: "",
         title: "",
         date: "",
