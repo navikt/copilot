@@ -2,10 +2,10 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 
-export type { NewsCategory, NewsItem } from "./news-types";
+export type { NewsCategory, NewsItem, NewsLang } from "./news-types";
 export { CATEGORY_CONFIG } from "./news-types";
 
-import type { NewsCategory, NewsItem } from "./news-types";
+import type { NewsCategory, NewsItem, NewsLang } from "./news-types";
 
 const VALID_CATEGORIES: Set<string> = new Set<string>(["copilot", "nav", "nav-pilot", "praksis", "oppsummering"]);
 const OSLO_TIME_ZONE = "Europe/Oslo";
@@ -21,6 +21,7 @@ const osloDateFormatter = new Intl.DateTimeFormat("en-CA", {
 export interface GetNewsItemsOptions {
   frontPage?: boolean;
   now?: Date;
+  lang?: NewsLang;
 }
 
 function isValidCategory(value: unknown): value is NewsCategory {
@@ -33,6 +34,12 @@ function parseCategory(value: unknown, slug: string): NewsCategory {
     console.warn(`Unknown news category "${value}" in ${slug}.md, falling back to "copilot"`);
   }
   return "copilot";
+}
+
+// Articles default to Norwegian: the site was Norwegian long before the first
+// English one, and none of the existing files carry a lang field.
+function parseLang(value: unknown): NewsLang {
+  return value === "en" ? "en" : "nb";
 }
 
 function toDateOnly(value: unknown): string {
@@ -86,7 +93,8 @@ export function isExternalExcerptFresh(item: NewsItem, now: Date = new Date()): 
 }
 
 export function selectNewsItems(items: NewsItem[], options: GetNewsItemsOptions = {}): NewsItem[] {
-  const visibleItems = options.frontPage ? items.filter((item) => isExternalExcerptFresh(item, options.now)) : items;
+  const inLang = items.filter((item) => item.lang === (options.lang ?? "nb"));
+  const visibleItems = options.frontPage ? inLang.filter((item) => isExternalExcerptFresh(item, options.now)) : inLang;
   // A festet sak outranks the date so an item can be lifted back to the top
   // without back-dating it. Only the flag is consulted; among festede saker,
   // and among the rest, the ordinary date order still applies.
@@ -114,6 +122,7 @@ function parseNewsFile(fileName: string): NewsItem {
 
   return {
     slug,
+    lang: parseLang(data.lang),
     title: data.title,
     date: toDateOnly(data.date),
     draft: data.draft === true,
@@ -148,6 +157,7 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
 
   return {
     slug,
+    lang: parseLang(data.lang),
     title: data.title,
     date: toDateOnly(data.date),
     draft: data.draft === true,
@@ -162,7 +172,7 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
   };
 }
 
-export function getArticleSlugs(): string[] {
+export function getArticleSlugs(lang: NewsLang = "nb"): string[] {
   if (!fs.existsSync(articlesDir)) return [];
 
   const files = fs.readdirSync(articlesDir).filter((f) => f.endsWith(".md"));
@@ -173,6 +183,7 @@ export function getArticleSlugs(): string[] {
       const raw = fs.readFileSync(filePath, "utf-8");
       const { data, content } = matter(raw);
       if (data.draft === true) return null;
+      if (parseLang(data.lang) !== lang) return null;
       return content.trim().length > 0 ? slug : null;
     })
     .filter((s): s is string => s !== null);

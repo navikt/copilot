@@ -1,7 +1,10 @@
 export type NewsCategory = "copilot" | "nav" | "nav-pilot" | "praksis" | "oppsummering";
 
+export type NewsLang = "nb" | "en";
+
 export interface NewsItem {
   slug: string;
+  lang: NewsLang;
   title: string;
   date: string;
   draft: boolean;

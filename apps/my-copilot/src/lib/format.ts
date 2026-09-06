@@ -40,8 +40,8 @@ export function formatMinutes(minutes: number | null): string {
   return remainingHours > 0 ? `${days}d ${remainingHours}t` : `${days}d`;
 }
 
-export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("nb-NO", {
+export function formatDate(dateStr: string, locale: "nb-NO" | "en-GB" = "nb-NO"): string {
+  return new Date(dateStr).toLocaleDateString(locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
