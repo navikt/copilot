@@ -222,7 +222,10 @@ export default function ToolsAndModes() {
         </BodyShort>
         <BodyShort className="text-gray-600 text-xs mt-3">
           Nav har også en{" "}
-          <NextLink href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding" className="text-blue-600 hover:underline">
+          <NextLink
+            href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding"
+            className="text-blue-600 hover:underline"
+          >
             MCP onboarding-server
           </NextLink>{" "}
           som hjelper deg å sjekke hvor «agent-klar» repoet ditt er, og generere tilpasningsfiler.

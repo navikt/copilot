@@ -72,7 +72,10 @@ export default function PrepareForSuccess() {
         </HGrid>
         <BodyShort className="text-gray-600 text-xs mt-3">
           Bruk{" "}
-          <NextLink href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding" className="text-blue-600 hover:underline">
+          <NextLink
+            href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding"
+            className="text-blue-600 hover:underline"
+          >
             MCP onboarding-serveren
           </NextLink>{" "}
           for å sjekke repoets agent-beredskap og generere begge filene automatisk.

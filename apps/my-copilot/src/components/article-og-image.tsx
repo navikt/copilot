@@ -35,7 +35,9 @@ export async function articleImage(slug: string, lang: NewsLang) {
           justifyContent: "center",
         }}
       >
-        <div style={{ fontSize: "48px", color: "white" }}>{lang === "en" ? "Article not found" : "Artikkel ikke funnet"}</div>
+        <div style={{ fontSize: "48px", color: "white" }}>
+          {lang === "en" ? "Article not found" : "Artikkel ikke funnet"}
+        </div>
       </div>,
       { ...size }
     );
